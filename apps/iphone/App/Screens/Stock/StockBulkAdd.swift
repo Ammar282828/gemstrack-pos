@@ -108,6 +108,10 @@ private struct StockBulkEditor: View {
     /// The SKUs once everything is in stock.
     @State private var done: [String]?
     @State private var tick = 0
+    #if os(macOS)
+    /// The rows picked in the weights table (⌫ removes them, right-click offers it).
+    @State private var picked = Set<UUID>()
+    #endif
 
     var body: some View {
         Group {
@@ -126,6 +130,13 @@ private struct StockBulkEditor: View {
                     Button("Done") { dismiss() }
                 }
             }
+            #if os(macOS)
+            if done == nil {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }.disabled(saving)
+                }
+            }
+            #endif
         }
         .failureAlert($failure, title: failureTitle)
         .savedFeedback(trigger: tick)
@@ -134,6 +145,14 @@ private struct StockBulkEditor: View {
     }
 
     private var form: some View {
+        #if os(macOS)
+        macForm
+        #else
+        phoneForm
+        #endif
+    }
+
+    private var phoneForm: some View {
         Form { Group {
             sharedSection
             if !shared.isGoldCoin {
@@ -410,6 +429,14 @@ private struct StockBulkEditor: View {
     // MARK: Done
 
     private func donePage(_ skus: [String]) -> some View {
+        #if os(macOS)
+        macDonePage(skus)
+        #else
+        phoneDonePage(skus)
+        #endif
+    }
+
+    private func phoneDonePage(_ skus: [String]) -> some View {
         List {
             Section {
                 VStack(spacing: 8) {
@@ -458,3 +485,114 @@ private struct StockBulkEditor: View {
         done = nil
     }
 }
+
+// MARK: The Mac's window
+
+#if os(macOS)
+extension StockBulkEditor {
+    /// The setup in a column on the left; the weights are an editable table beside it, with the paste box above.
+    var macForm: some View {
+        HStack(spacing: 0) {
+            Form { Group {
+                sharedSection
+                if !shared.isGoldCoin {
+                    costSection
+                    stonesSection
+                }
+                resetSection
+                }
+                .houseRows()
+            }
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+            .background(Theme.ground)
+            .frame(minWidth: 380, idealWidth: 420, maxWidth: 460)
+            Divider()
+            weightsTable
+                .frame(minWidth: 380, maxWidth: .infinity)
+        }
+        .disabled(saving)
+        .onChange(of: shared.ruleKey) { _, _ in shared.settle(keepWastage: true) }
+        .background {
+            Button("Add pieces") { Task { await save() } }
+                .keyboardShortcut("s", modifiers: .command).opacity(0).accessibilityHidden(true)
+        }
+        .actionBar(primary: ActionBar.Action("Add \(rows.count) piece\(rows.count == 1 ? "" : "s")", isBusy: saving, isDisabled: rows.isEmpty) {
+            Task { await save() }
+        }, summary: "\(rows.count) weight\(rows.count == 1 ? "" : "s") to add")
+    }
+
+    private var weightsTable: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Weights to add · \(rows.count)").font(.headline)
+            HStack(alignment: .top, spacing: 8) {
+                TextField("Weights", text: $pasted, prompt: Text("Paste or type weights, e.g. 4.2 5.1 6.75"), axis: .vertical)
+                    .lineLimit(1...3)
+                    .textFieldStyle(.roundedBorder)
+                Button("Add these weights") { addPasted() }
+                    .disabled(StockBulk.weights(in: pasted).isEmpty)
+                Button { rows.append(StockBulkRow()) } label: { Label("Add a row", systemImage: "plus") }
+                    .help("Add an empty row")
+            }
+            Table(rows, selection: $picked) {
+                TableColumn("#") { (row: StockBulkRow) in
+                    Text("\((rows.firstIndex(where: { $0.id == row.id }) ?? 0) + 1)").foregroundStyle(.secondary).monospacedDigit()
+                }
+                .width(34)
+                TableColumn("Weight (g)") { (row: StockBulkRow) in
+                    TextField("Weight", text: field(row.id, \.weight), prompt: Text("Weight (g)")).monospacedDigit()
+                }
+                .width(min: 90, ideal: 120)
+                TableColumn("Name suffix") { (row: StockBulkRow) in
+                    TextField("Name suffix", text: field(row.id, \.suffix), prompt: Text("Name suffix"))
+                }
+                TableColumn("") { (row: StockBulkRow) in
+                    Button { remove(row.id) } label: { Image(systemName: "minus.circle") }
+                        .buttonStyle(.borderless)
+                        .help("Remove this row")
+                }
+                .width(30)
+            }
+            .contextMenu(forSelectionType: UUID.self) { ids in
+                if !ids.isEmpty {
+                    Button("Remove \(ids.count == 1 ? "Row" : "\(ids.count) Rows")", role: .destructive) { removePicked(ids) }
+                }
+            }
+            .onDeleteCommand { removePicked(picked) }
+            Text("Paste a list from a message or a sheet: every number in it becomes a piece. Select rows and press Delete to remove them.")
+                .font(.footnote).foregroundStyle(.secondary)
+        }
+        .padding(16)
+        .background(Theme.ground)
+    }
+
+    private func removePicked(_ ids: Set<UUID>) {
+        rows.removeAll { ids.contains($0.id) }
+        picked.subtract(ids)
+    }
+
+    func macDonePage(_ skus: [String]) -> some View {
+        HStack(alignment: .top, spacing: 0) {
+            VStack(spacing: 10) {
+                Image(systemName: "checkmark.circle.fill").font(.system(size: 44)).foregroundStyle(Tone.settled.color)
+                Text("Bulk add complete").font(.title2.weight(.semibold))
+                Text("\(skus.count) piece\(skus.count == 1 ? " is" : "s are") in stock.").foregroundStyle(.secondary)
+                HStack {
+                    NavigationLink(value: Route(path: "/products")) { Label("Open Stock", systemImage: "shippingbox") }
+                    Button { startAgain() } label: { Label("Add more pieces", systemImage: "plus.square.on.square") }
+                }
+                .padding(.top, 6)
+                Text("The setup stays as it is; the weights start again.").font(.footnote).foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            Divider()
+            List(skus, id: \.self) { (sku: String) in
+                NavigationLink(value: Route(path: StockKit.piecePath(sku))) { Text(sku).monospacedDigit() }
+            }
+            .listStyle(.inset)
+            .frame(width: 280)
+        }
+        .background(Theme.ground)
+    }
+}
+#endif

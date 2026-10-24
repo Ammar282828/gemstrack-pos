@@ -59,6 +59,15 @@ struct WidgetPreviewScreen: View {
     }
 
     private var footer: some View {
+        #if os(macOS)
+        Text("Your widget shows the shop’s actual revenue and pinned message after it is linked. Add it from the desktop or Notification Centre: right-click, then Edit Widgets.")
+            .font(.footnote).foregroundStyle(.secondary)
+        #else
+        phoneFooter
+        #endif
+    }
+
+    private var phoneFooter: some View {
         Text(look == .tinted
              ? "Tinted is an approximation; the home screen applies your chosen tint. Your widget shows the shop’s actual revenue and pinned message after it is linked."
              : "Your home-screen widget shows the shop’s actual revenue and pinned message after it is linked.")

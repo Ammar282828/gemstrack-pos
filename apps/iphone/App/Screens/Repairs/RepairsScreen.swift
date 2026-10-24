@@ -26,8 +26,16 @@ struct RepairsScreen: View {
     @State private var pending: RepairsOpen?
     @State private var linkRead = false
     @State private var missing: String?
+    #if os(macOS)
+    /// The ticket picked in the table (shown in the inspector beside it).
+    @State private var picked = Set<String>()
+    @State private var inspecting = true
+    #endif
 
     var body: some View {
+        #if os(macOS)
+        macBody
+        #else
         ShelfState(loaded: book.repairs.loaded, error: book.repairs.error, offline: book.repairs.offline) {
             list
         }
@@ -49,6 +57,7 @@ struct RepairsScreen: View {
             readLink()
         }
         .onChange(of: book.repairs.loaded) { _, _ in readLink() }
+        #endif
     }
 
     // MARK: Deep links
@@ -301,3 +310,84 @@ struct RepairsRow: View {
         }
     }
 }
+
+// MARK: The Mac's desk
+
+#if os(macOS)
+extension RepairsScreen {
+    /// A ticket's address (/repairs?id=…) is the ticket itself, in the column or window that asked; the plain
+    /// /repairs is the desk: a table of every ticket, the ticket picked in an inspector beside it.
+    var macBody: some View {
+        Group {
+            if let id = linkedTicket {
+                RepairsSheet(id: id, seed: nil)
+            } else {
+                macDesk
+            }
+        }
+    }
+
+    private var linkedTicket: String? {
+        let items = URLComponents(string: path)?.queryItems ?? []
+        if items.contains(where: { $0.name == "new" && $0.value == "1" }) { return nil }
+        let id = items.first { $0.name == "id" }?.value ?? ""
+        return id.isEmpty ? nil : id
+    }
+
+    private var macDesk: some View {
+        ShelfState(loaded: book.repairs.loaded, error: book.repairs.error, offline: book.repairs.offline) {
+            RepairsMacDesk(desk: desk, query: query, selection: $picked, creating: $creating)
+        }
+        .navigationTitle("Repairs")
+        .navigationSubtitle(picked.count == 1 ? (picked.first ?? "") : "")
+        .searchable(text: $query, placement: .toolbar, prompt: "Name, phone, piece or REP no.")
+        .inspector(isPresented: $inspecting) {
+            Group {
+                if picked.count == 1, let id = picked.first {
+                    RepairsSheet(id: id, seed: nil).id(id)
+                } else {
+                    ContentUnavailableView(picked.count > 1 ? "\(picked.count) tickets selected" : "No ticket picked",
+                                           systemImage: "wrench.and.screwdriver",
+                                           description: Text(picked.count > 1 ? "Pick one to read it." : "Pick a repair in the table to read it here."))
+                }
+            }
+            .inspectorColumnWidth(min: 340, ideal: 420, max: 600)
+        }
+        .toolbar {
+            if session.isOwner {
+                ToolbarItem(placement: .primaryAction) {
+                    Button { creating = true } label: { Label("New repair", systemImage: "plus") }
+                        .help("Take a repair in")
+                }
+            }
+            ToolbarItem(placement: .primaryAction) {
+                Button { inspecting.toggle() } label: { Label("Ticket", systemImage: "sidebar.trailing") }
+                    .help(inspecting ? "Hide the ticket" : "Show the ticket")
+            }
+        }
+        .sheet(isPresented: $creating, onDismiss: macOpenPending) {
+            RepairsForm { id, seed in pending = RepairsOpen(id: id, seed: seed) }
+        }
+        .repairsDesk(desk)
+        .failureAlert(missingMessage, title: "Repair not found")
+        .onAppear {
+            book.repairs.need()
+            readLink()
+        }
+        .onChange(of: book.repairs.loaded) { _, _ in readLink() }
+        .onChange(of: sheet?.id) { _, id in
+            // A ?id= link read on the desk (it is the table's own path only without one): pick that ticket.
+            if let id { picked = [id]; sheet = nil }
+        }
+    }
+
+    /// A repair just written is the one picked, once the form has left.
+    private func macOpenPending() {
+        if let p = pending {
+            pending = nil
+            picked = [p.id]
+            inspecting = true
+        }
+    }
+}
+#endif

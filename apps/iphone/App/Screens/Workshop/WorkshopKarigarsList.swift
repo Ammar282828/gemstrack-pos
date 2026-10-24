@@ -11,6 +11,12 @@ struct WorkshopKarigarsList: View {
 
     @State private var query = ""
     @State private var show: Show = .everyone
+    #if os(macOS)
+    @State private var macPicked = Set<String>()
+    @State private var macSort = [KeyPathComparator(\MacKarigarRow.active, order: .reverse)]
+    @State private var opened: Route?
+    @Environment(\.openPlaceWindow) private var openPlace
+    #endif
 
     private enum Show: String, CaseIterable, Identifiable {
         case everyone, working, free
@@ -31,6 +37,9 @@ struct WorkshopKarigarsList: View {
         .navigationTitle("Karigars")
         .navigationBarTitleDisplayMode(.large)
         .modifier(HouseGround())
+        #if os(macOS)
+        .navigationDestination(item: $opened) { (r: Route) in PlaceScreen(path: r.path) }
+        #endif
         .searchable(text: $query, prompt: "Name or contact")
         .toolbar {
             if session.isOwner {
@@ -76,7 +85,11 @@ struct WorkshopKarigarsList: View {
         let loads = loadsById(jobs)
         // Who has a hisaab open, and under what name (karigars/page.tsx activeHisaabMap).
         let batches = session.isOwner ? WorkshopLogic.openBatches(book.karigarBatches.items) : [:]
+        #if os(macOS)
+        macTable(live, loads, batches)
+        #else
         list(live, loads, batches)
+        #endif
     }
 
     private func loadsById(_ jobs: [WorkshopJob]) -> [String: WorkshopLoad] {
@@ -258,3 +271,110 @@ struct WorkshopKarigarsList: View {
         }
     }
 }
+
+#if os(macOS)
+/// A karigar as a table row: what he holds, how late, and his open hisaab.
+private struct MacKarigarRow: Identifiable {
+    let karigar: Karigar
+    let load: WorkshopLoad?
+    let batch: KarigarBatch?
+    var id: String { karigar.id }
+    var name: String { karigar.name }
+    var contact: String { karigar.contact ?? "" }
+    var active: Int { load?.active ?? 0 }
+    var critical: Int { load?.critical ?? 0 }
+    var late: Int { load?.late ?? 0 }
+    var grams: Double { load?.totalWeightG ?? 0 }
+    var hisaab: String { batch?.label ?? "" }
+}
+
+// The Mac's karigars: a Table (name, contact, pieces out, over 14 days, late, metal out, open hisaab), sortable, with the
+// figures in a strip above; Working / Free in the toolbar. Double-click or Return opens a karigar's page, right-click opens it in
+// a window of its own, calls, or edits (owners), as the card's long press does on the iPhone.
+extension WorkshopKarigarsList {
+    func macTable(_ live: [Karigar], _ loads: [String: WorkshopLoad], _ batches: [String: KarigarBatch]) -> some View {
+        let rows = live
+            .filter { matches($0) }
+            .map { MacKarigarRow(karigar: $0, load: loads[$0.id], batch: batches[$0.id]) }
+            .filter { show == .everyone || (show == .working) == ($0.active > 0) }
+            .sorted(using: macSort)
+        return VStack(spacing: 0) {
+            macFigures(live, loads, batches)
+            Divider()
+            Table(rows, selection: $macPicked, sortOrder: $macSort) {
+                TableColumn("Name", value: \.name) { (r: MacKarigarRow) in Label(r.name, systemImage: "hammer").fontWeight(.medium) }
+                    .width(min: 160, ideal: 220)
+                TableColumn("Contact", value: \.contact) { (r: MacKarigarRow) in Text(r.contact).monospacedDigit().foregroundStyle(.secondary) }
+                    .width(min: 110, ideal: 150)
+                TableColumn("Pieces out", value: \.active) { (r: MacKarigarRow) in Text(r.active > 0 ? "\(r.active)" : "").monospacedDigit() }
+                    .width(min: 80, ideal: 90)
+                TableColumn("Over \(WorkshopLogic.criticalDays) days", value: \.critical) { (r: MacKarigarRow) in
+                    Text(r.critical > 0 ? "\(r.critical)" : "").monospacedDigit().foregroundStyle(Tone.late.color)
+                }
+                .width(min: 90, ideal: 110)
+                TableColumn("Late", value: \.late) { (r: MacKarigarRow) in
+                    Text(r.late > 0 ? "\(r.late)" : "").monospacedDigit().foregroundStyle(Tone.owed.color)
+                }
+                .width(min: 50, ideal: 70)
+                TableColumn("Metal out", value: \.grams) { (r: MacKarigarRow) in
+                    Text(r.grams > 0 ? WorkshopLogic.number(r.grams, digits: 1) + "g" : "").monospacedDigit()
+                }
+                .width(min: 80, ideal: 100)
+                // Empty for staff: the pay batches are the owner's books.
+                TableColumn("Open hisaab", value: \.hisaab) { (r: MacKarigarRow) in
+                    Text(r.hisaab).foregroundStyle(Theme.accent).lineLimit(1)
+                }
+                .width(min: 120, ideal: 180)
+            }
+            .contextMenu(forSelectionType: String.self) { ids in
+                if ids.count == 1, let id = ids.first, let k = live.first(where: { $0.id == id }) {
+                    Button("Open " + k.name) { opened = Route(path: WorkshopLogic.karigarPath(k.id)) }
+                    Button("Open in New Window") { openPlace?(Route(path: WorkshopLogic.karigarPath(k.id))) }
+                    if let contact = k.contact, !contact.isEmpty, let url = URL(string: "tel:" + Self.digits(contact)) {
+                        Link(destination: url) { Label("Call", systemImage: "phone") }
+                    }
+                    if session.isOwner {
+                        Divider()
+                        Button("Edit") { opened = Route(path: WorkshopLogic.karigarPath(k.id) + "/edit") }
+                    }
+                }
+            } primaryAction: { ids in
+                if ids.count == 1, let id = ids.first { opened = Route(path: WorkshopLogic.karigarPath(id)) }
+            }
+            .overlay {
+                if rows.isEmpty { emptyState.allowsHitTesting(false) }
+            }
+        }
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Picker("Show", selection: $show) {
+                    ForEach(Show.allCases) { Text($0.title).tag($0) }
+                }
+                .pickerStyle(.segmented)
+            }
+        }
+    }
+
+    private func macFigures(_ live: [Karigar], _ loads: [String: WorkshopLoad], _ batches: [String: KarigarBatch]) -> some View {
+        var pieces = 0
+        var critical = 0
+        var grams = 0.0
+        for k in live {
+            guard let l = loads[k.id] else { continue }
+            pieces += l.active
+            critical += l.critical
+            grams += l.totalWeightG
+        }
+        return HStack(alignment: .top, spacing: 10) {
+            FigureTile(label: "Pieces out", value: "\(pieces)", detail: grams > 0 ? WorkshopLogic.number(grams, digits: 0) + "g of metal" : nil)
+            FigureTile(label: "Over \(WorkshopLogic.criticalDays) days", value: "\(critical)", tint: critical > 0 ? Tone.late.color : Color.primary)
+            if session.isOwner {
+                FigureTile(label: "Open hisaabs", value: "\(batches.count)")
+            }
+        }
+        .frame(maxWidth: 640)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 16).padding(.vertical, 12)
+    }
+}
+#endif

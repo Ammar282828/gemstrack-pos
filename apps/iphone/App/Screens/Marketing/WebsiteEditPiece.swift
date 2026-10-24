@@ -96,6 +96,14 @@ struct WebsiteEditPieceScreen: View {
     // MARK: The page
 
     private func page(_ p: WebsiteEditPiece) -> some View {
+        #if os(macOS)
+        macPage(p)
+        #else
+        phonePage(p)
+        #endif
+    }
+
+    private func phonePage(_ p: WebsiteEditPiece) -> some View {
         List {
             Group {
                 photoSection(p)
@@ -497,3 +505,60 @@ struct WebsiteEditPieceScreen: View {
         }
     }
 }
+
+#if os(macOS)
+extension WebsiteEditPieceScreen {
+    /// The photograph and its tools on the left; what the website says, the weight and hiding it on the right.
+    func macPage(_ p: WebsiteEditPiece) -> some View {
+        MacTwoPane(sideWidth: 480) {
+            List {
+                Group { photoSection(p) }.houseRows()
+            }
+            .listStyle(.inset)
+        } main: {
+            List {
+                Group {
+                    if let said {
+                        Section { Label(said, systemImage: "checkmark.circle.fill").foregroundStyle(Tone.settled.color) }
+                    }
+                    wordsSection(p)
+                    weightSection(p)
+                    Section {
+                        Toggle(isOn: $hidden) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Hide from the website")
+                                Text("Off every page; its links go to the collection. Show it again any time.")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
+                        .tint(Theme.accent)
+                    }
+                }
+                .houseRows()
+            }
+            .listStyle(.inset)
+        }
+        .navigationSubtitle(p.collection)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Button("Save to \(siteName)", systemImage: "square.and.arrow.down") { confirm = .save }
+                        .keyboardShortcut("s", modifiers: .command)
+                        .disabled(!anyChange(p) || name.trimmingCharacters(in: .whitespaces).isEmpty || busy != nil)
+                    if p.changed {
+                        Divider()
+                        Button(role: .destructive) { confirm = .all } label: {
+                            Label("Undo every change to this piece", systemImage: "arrow.uturn.backward.circle")
+                        }
+                    }
+                } label: { Label("More", systemImage: "ellipsis.circle") }
+                .help("Save, or undo every change")
+            }
+        }
+        .actionBar(
+            primary: .init("Save to \(siteName)", systemImage: "square.and.arrow.down", isBusy: busy != nil,
+                           isDisabled: !anyChange(p) || name.trimmingCharacters(in: .whitespaces).isEmpty) { confirm = .save },
+            summary: anyChange(p) ? "It shows on \(siteName) within a minute." : "Nothing changed yet.")
+    }
+}
+#endif

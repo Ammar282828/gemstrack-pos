@@ -158,12 +158,20 @@ struct AnaPages: View {
         return nil
     }
 
+    #if os(macOS)
+    @State private var macCustom = false
+    #endif
+
     var body: some View {
+        #if os(macOS)
+        macBody
+        #else
         if let kind = empty {
             AnaEmptyPage(kind: kind, bar: bar)
         } else {
             page
         }
+        #endif
     }
 
     @ViewBuilder private var page: some View {
@@ -190,6 +198,14 @@ struct AnaEmptyPage: View {
     let bar: AnaPeriodBar
 
     var body: some View {
+        #if os(macOS)
+        macBody
+        #else
+        phoneBody
+        #endif
+    }
+
+    private var phoneBody: some View {
         List { Group {
             Section {
                 bar
@@ -213,3 +229,75 @@ struct AnaEmptyPage: View {
         .listStyle(.insetGrouped)
     }
 }
+
+// MARK: - The Mac
+
+#if os(macOS)
+extension AnaPages {
+    /// A wide report. The tab and the period are the window's toolbar, not rows of chips: a menu of the five tabs, and
+    /// the period as a pop-up with the quick ranges and "Custom period…". The period reads under the title.
+    fileprivate var macBody: some View {
+        Group {
+            if let kind = empty {
+                AnaEmptyPage(kind: kind, bar: bar)
+            } else {
+                page
+            }
+        }
+        .navigationSubtitle(AnaPeriod.describe(period.range))
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Menu {
+                    ForEach(AnaSection.macTabs, id: \.path) { tab in
+                        NavigationLink(value: Route(path: tab.path)) {
+                            Label(tab.name, systemImage: tab.section == section ? "checkmark" : "chart.bar")
+                        }
+                    }
+                } label: {
+                    Label(section == .overview ? "Overview" : section.title, systemImage: "chart.bar.xaxis")
+                }
+                .help("Switch between Overview, Sales, Products, Customers and Categories")
+            }
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Picker("Period", selection: $rangeKey) {
+                        ForEach(AnaPeriod.quick) { (q: AnaPeriod.Quick) in Text(q.label).tag(q.key) }
+                    }
+                    .pickerStyle(.inline)
+                    Divider()
+                    Button("Custom period…") { macCustom = true }
+                } label: {
+                    Label(period.key == "custom" ? "Custom" : (AnaPeriod.quick.first { $0.key == period.key }?.label ?? "Period"),
+                          systemImage: "calendar")
+                }
+                .help("The period every Analytics tab reads")
+            }
+        }
+        .sheet(isPresented: $macCustom) {
+            AnaCustomPeriod(start: period.range?.from ?? AnaDate.adding(days: -29, to: Date()),
+                            end: period.range?.to ?? Date()) { (a: Date, b: Date) in
+                customFrom = AnaDate.dayKey(a)
+                customTo = AnaDate.dayKey(b)
+                rangeKey = "custom"
+            }
+        }
+    }
+}
+
+extension AnaEmptyPage {
+    /// Nothing to report: one calm message in the middle of the window (the period is in the toolbar).
+    fileprivate var macBody: some View {
+        Group {
+            switch kind {
+            case .nothingInRange:
+                NotAvailableState("Nothing in this range", why: "There are no invoices or orders in the selected period. Pick another period from the toolbar.",
+                                  symbol: "chart.bar")
+            case .noData:
+                NotAvailableState("No data yet", why: "There is no data available to generate analytics yet.",
+                                  symbol: "chart.bar")
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+#endif

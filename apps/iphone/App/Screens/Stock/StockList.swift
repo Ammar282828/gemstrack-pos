@@ -89,7 +89,18 @@ struct StockList: View {
                 NavigationLink(value: Route(path: StockKit.addPath)) {
                     Label("Add piece", systemImage: "plus")
                 }
+                #if os(macOS)
+                .help("Add a piece to the stock")
+                #endif
             }
+            #if os(macOS)
+            ToolbarItem(placement: .primaryAction) {
+                NavigationLink(value: Route(path: StockKit.bulkAddPath)) {
+                    Label("Add in bulk", systemImage: "square.stack.3d.up")
+                }
+                .help("Add many pieces at once from a list of weights")
+            }
+            #endif
         }
     }
 
@@ -250,6 +261,9 @@ extension View {
     /// (owners) edit it (the native form) or delete it (`onDelete`, which asks for the delete code).
     fileprivate func stockContextMenu(_ p: Product, go: Binding<Route?>, mayEdit: Bool, onDelete: @escaping (Product) -> Void) -> some View {
         contextMenu {
+            #if os(macOS)
+            StockMacMenuItems(sku: p.sku)
+            #endif
             // Selling is the owners' (createInvoice): staff are not offered a sale they cannot save.
             if mayEdit {
                 Button {

@@ -60,7 +60,12 @@ enum ScreenRegistry {
         // The forms beside their summary (TransactionWorkspace): editing an order, a sale or a piece, and Finalize.
         if bare.hasSuffix("/edit") && (bare.hasPrefix("/orders/") || bare.hasPrefix("/invoices/") || bare.hasPrefix("/products/")) { return nil }
         if bare.hasSuffix("/finalize") { return nil }
+        #if os(macOS)
+        // A Mac window lays Analytics out as a wide report of its own (AnalyticsMacKit): it takes the whole window.
+        if bare.hasPrefix("/analytics") { return nil }
+        #else
         if bare.hasPrefix("/analytics") { return 980 }
+        #endif
         // One order, invoice, customer, karigar, piece or repair: the page lays its own two columns out from its
         // width (summary beside the lines at 820 pt and up), so it takes the whole column it is in. That is the
         // detail side of a hub's split, or the full window from Home or Search.

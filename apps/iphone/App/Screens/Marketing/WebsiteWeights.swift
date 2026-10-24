@@ -127,6 +127,14 @@ struct WebsiteWeightsScreen: View {
     // MARK: The page
 
     private func page(_ all: [WebsiteWeightPiece]) -> some View {
+        #if os(macOS)
+        macPage(all)
+        #else
+        phonePage(all)
+        #endif
+    }
+
+    private func phonePage(_ all: [WebsiteWeightPiece]) -> some View {
         let c = counts
         let q = queue
         return List {
@@ -388,3 +396,87 @@ struct WebsiteWeightsScreen: View {
         savedTick += 1
     }
 }
+
+#if os(macOS)
+extension WebsiteWeightsScreen {
+    /// The photograph large on the left with the weight as the site will draw it; the weight, the progress and what is next on
+    /// the right. Return saves and moves on, as the phone's Save & next; ⌘[ and ⌘] step through the photos.
+    func macPage(_ all: [WebsiteWeightPiece]) -> some View {
+        let c = counts
+        let q = queue
+        return MacTwoPane(sideWidth: 520) {
+            List {
+                Group {
+                    if let p = current {
+                        photoSection(p, of: q.count)
+                    } else {
+                        Section {
+                            Label(onlyMissing ? "Every photo here has a weight. Switch off “Only photos without a weight” to review or correct any of them." : "Nothing matches. Clear the search or choose another collection.",
+                                  systemImage: "checkmark.circle")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .houseRows()
+            }
+            .listStyle(.inset)
+        } main: {
+            List {
+                Group {
+                    Section {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack(alignment: .firstTextBaseline) {
+                                Text("\(c.withWeight)").font(.system(.title2, design: .serif).weight(.semibold)).monospacedDigit().contentTransition(.numericText(value: Double(c.withWeight)))
+                                Text("of \(c.total) weighed").foregroundStyle(.secondary)
+                                Spacer()
+                                Text(c.total - c.withWeight > 0 ? "\(c.total - c.withWeight) to go" : "all weighed")
+                                    .font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
+                            }
+                            ProgressView(value: Double(c.withWeight), total: Double(max(1, c.total))).tint(Theme.accent)
+                        }
+                        .padding(.vertical, 4)
+                        savingRow
+                    } footer: {
+                        Text("\(site.siteName) shows it in the corner and prices from it.")
+                    }
+                    if let p = current {
+                        weightSection(p)
+                        if !upcoming.isEmpty { upcomingSection }
+                    }
+                    WebsiteSetOfTheDay(withNote: true)
+                }
+                .houseRows()
+            }
+            .listStyle(.inset)
+        }
+        .navigationSubtitle(collection.isEmpty ? "" : collection)
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
+                Picker("Collection", selection: $collection) {
+                    Text("All collections").tag("")
+                    Divider()
+                    ForEach(collections, id: \.self) { (name: String) in Text(name).tag(name) }
+                }
+                .pickerStyle(.menu)
+                .help("Weigh one collection")
+                Toggle(isOn: $onlyMissing) { Label("Only photos without a weight", systemImage: "scalemass") }
+                    .help("Only the photos that have no weight yet")
+                Button { index = max(index - 1, 0) } label: { Label("Previous", systemImage: "chevron.left") }
+                    .keyboardShortcut("[", modifiers: .command)
+                    .disabled(index == 0)
+                    .help("Previous photo")
+                Button { index = min(index + 1, max(0, q.count - 1)) } label: { Label("Next", systemImage: "chevron.right") }
+                    .keyboardShortcut("]", modifiers: .command)
+                    .disabled(index >= q.count - 1)
+                    .help("Next photo")
+                Button { Task { await load() } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
+                    .keyboardShortcut("r", modifiers: .command)
+                    .help("Read the catalogue again")
+            }
+        }
+        .savedFeedback(trigger: savedTick)
+        .onAppear { typing = true }
+        .actionBar(primary: .init("Save & next", systemImage: "checkmark", isDisabled: current == nil) { ask(advance: true) })
+    }
+}
+#endif

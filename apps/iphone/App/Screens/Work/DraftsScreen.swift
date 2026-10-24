@@ -36,6 +36,10 @@ struct DraftsScreen: View {
     @State private var continuing: String?
     /// The native form, once the draft is in it.
     @State private var opening: Route?
+    #if os(macOS)
+    @State private var macSelection = Set<String>()
+    @State private var macSort = [KeyPathComparator(\DraftsScreen.DraftRow.updatedAt, order: .reverse)]
+    #endif
 
     /// One row: a draft in Drafts, or this phone's own work that Drafts does not hold.
     struct DraftRow: Identifiable {
@@ -50,7 +54,13 @@ struct DraftsScreen: View {
     var body: some View {
         Group {
             if session.role == "owner" || session.role == "staff" {
-                ShelfState(loaded: ready, error: nil, offline: readsDrafts && shelf.offline) { page }
+                ShelfState(loaded: ready, error: nil, offline: readsDrafts && shelf.offline) {
+                    #if os(macOS)
+                    macPage
+                    #else
+                    page
+                    #endif
+                }
             } else {
                 WorkNotYours(title: "Drafts", detail: "Orders and sales not yet saved are kept for the shop's owners and staff.")
             }
@@ -377,3 +387,102 @@ struct DraftsScreen: View {
         }
     }
 }
+
+#if os(macOS)
+extension DraftsScreen.DraftRow {
+    /// Table columns: what a row is, who it is for, what it comes to and when it was last typed.
+    var kindWord: String { draft.isOrder ? "Order" : "Sale" }
+    var title: String { draft.title }
+    var total: Double { draft.total }
+    var updatedAt: String { draft.updatedAt }
+}
+
+// The Mac's Drafts: one Table of the orders and sales in hand (sortable), New order / New sale and Continue / Discard in the
+// toolbar, the same two in the right-click menu, Return or a double-click to continue, Delete to discard (it asks first).
+extension DraftsScreen {
+    @ViewBuilder
+    var macPage: some View {
+        let now = Date()
+        let split = lists(now: now)
+        let all = rows(split.live).filter { session.isOwner || $0.draft.isOrder }
+        let ordered = all.sorted(using: macSort)
+        let picked = macPicked(all)
+        VStack(spacing: 0) {
+            Table(ordered, selection: $macSelection, sortOrder: $macSort) {
+                TableColumn("Kind", value: \.kindWord) { (r: DraftRow) in
+                    Label(r.kindWord, systemImage: r.draft.isOrder ? "list.clipboard" : "receipt")
+                }
+                .width(min: 80, ideal: 90)
+                TableColumn("For", value: \.title) { (r: DraftRow) in Text(r.draft.title).fontWeight(.medium) }
+                    .width(min: 140, ideal: 200)
+                TableColumn("What is in it") { (r: DraftRow) in
+                    Text(r.draft.detail).foregroundStyle(.secondary).lineLimit(1)
+                }
+                .width(min: 180, ideal: 320)
+                TableColumn("Pieces") { (r: DraftRow) in Text("\(r.draft.items)").monospacedDigit() }
+                    .width(55)
+                TableColumn("Total", value: \.total) { (r: DraftRow) in
+                    Text(r.total > 0 ? Money.pkr(r.total) : "").monospacedDigit()
+                }
+                .width(min: 90, ideal: 110)
+                TableColumn("Last typed", value: \.updatedAt) { (r: DraftRow) in
+                    Text(lastTyped(r)).foregroundStyle(.secondary).lineLimit(1)
+                }
+                .width(min: 180, ideal: 260)
+            }
+            .contextMenu(forSelectionType: String.self) { ids in
+                if let row = all.first(where: { $0.id == ids.first }), ids.count == 1 {
+                    Button("Continue") { macContinue(row) }
+                    Divider()
+                    discardButton(row)
+                }
+            } primaryAction: { ids in
+                if let row = all.first(where: { $0.id == ids.first }), ids.count == 1 { macContinue(row) }
+            }
+            .onDeleteCommand { if let row = picked { discarding = row } }
+            .overlay {
+                if all.isEmpty {
+                    ContentUnavailableView("No unfinished work", systemImage: "doc.on.doc",
+                                           description: Text("A new order or sale is kept here as it is typed."))
+                }
+            }
+            Divider()
+            footer
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 16).padding(.vertical, 8)
+        }
+        .navigationSubtitle(all.isEmpty ? "" : "\(all.count) in hand")
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button { opening = Route(path: "/orders/add") } label: { Label("New order", systemImage: "plus") }
+                    .help("Start a new order")
+                if session.isOwner {
+                    Button { opening = Route(path: "/invoices/new") } label: { Label("New sale", systemImage: "receipt") }
+                        .help("Start a new sale")
+                }
+            }
+            ToolbarItemGroup(placement: .automatic) {
+                Button { if let picked { macContinue(picked) } } label: { Label("Continue", systemImage: "arrow.right.circle") }
+                    .disabled(picked == nil || continuing != nil)
+                    .help("Open the picked draft in its form")
+                Button(role: .destructive) { if let picked { discarding = picked } } label: { Label("Discard", systemImage: "trash") }
+                    .disabled(picked == nil)
+                    .help("Throw the picked draft away")
+            }
+        }
+        .task(id: split.expired.map(\.id)) { await removeExpired(split.expired) }
+    }
+
+    private func macPicked(_ all: [DraftRow]) -> DraftRow? {
+        guard macSelection.count == 1, let id = macSelection.first else { return nil }
+        return all.first { $0.id == id }
+    }
+
+    /// Continue: this phone's own work opens its form; a draft from elsewhere is read in first (asking before it replaces mine).
+    private func macContinue(_ row: DraftRow) {
+        if row.native { opening = Route(path: path(row)) } else { ask(row) }
+    }
+}
+#endif

@@ -42,6 +42,11 @@ struct MyWorkScreen: View {
     @State private var width: CGFloat = 0
     @Environment(\.layoutWidthClass) private var sizeClass
     @Environment(\.dynamicTypeSize) private var typeSize
+    #if os(macOS)
+    @State private var macPick: String?
+    @State private var macSort: [KeyPathComparator<KarigarPortalJob>] = []
+    @State private var macInspector = true
+    #endif
 
     /// An iPad's wide window: the orders stand as cards in a grid rather than one long column.
     private var wide: Bool { sizeClass.isPadLayout && width >= 820 && !typeSize.isAccessibilitySize }
@@ -69,7 +74,13 @@ struct MyWorkScreen: View {
                     Task { await load() }
                 }
             case .ready:
-                if let portal { content(portal) }
+                if let portal {
+                    #if os(macOS)
+                    macContent(portal)
+                    #else
+                    content(portal)
+                    #endif
+                }
             }
         }
         .modifier(HouseGround())
@@ -468,3 +479,194 @@ enum MyWorkText {
     /// "4:05 pm", Karachi's clock.
     static func clock(_ d: Date) -> String { formatter.string(from: d) }
 }
+
+#if os(macOS)
+// The Mac's My work: the pieces as a Table (a tick to say one is done, how old it is, its size and weight), the picked piece's
+// specs, instructions and picture in an inspector, "My account" as two tables (the gold, the payments). The pane is chosen in
+// the toolbar; right-click ticks a piece; ⌘Return ticks the picked one. The same /api/karigar/complete, the same rules.
+extension MyWorkScreen {
+    func macContent(_ p: KarigarPortal) -> some View {
+        let readOnly = p.preview
+        return VStack(spacing: 0) {
+            if readOnly, let name = p.karigar?.name {
+                Label("Viewing exactly what \(name) sees. Read-only: tick items off from the Workshop dashboard instead.", systemImage: "eye")
+                    .font(.callout).foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 16).padding(.vertical, 8)
+                Divider()
+            }
+            if tab == .work {
+                figures(p.summary)
+                    .padding(.horizontal, 16).padding(.top, 12)
+                    .frame(maxWidth: 560)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                macPieces(p, readOnly: readOnly)
+            } else {
+                macAccount(p.account)
+            }
+            if let updatedAt {
+                Divider()
+                Text("Updated \(MyWorkText.clock(updatedAt)) \u{00B7} refreshes automatically")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 16).padding(.vertical, 6)
+            }
+        }
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Picker("Show", selection: $tab) {
+                    ForEach(Pane.allCases) { (t: Pane) in Text(t.rawValue).tag(t) }
+                }
+                .pickerStyle(.segmented)
+            }
+            if tab == .work, !readOnly {
+                ToolbarItem(placement: .primaryAction) {
+                    let job = macPicked(p)
+                    Button { if let job { toggle(job) } } label: {
+                        Label(job?.isDone == true ? "Not done" : "Mark as done",
+                              systemImage: job?.isDone == true ? "arrow.uturn.backward.circle" : "checkmark.circle")
+                    }
+                    .keyboardShortcut(.return, modifiers: .command)
+                    .disabled(job == nil || busy != nil)
+                    .help("Say the picked piece is done (or not done)")
+                }
+            }
+        }
+        .inspector(isPresented: Binding(get: { tab == .work && macInspector && macPick != nil }, set: { macInspector = $0 })) {
+            if let job = macPicked(p) { macDetail(job) }
+        }
+        .onChange(of: macPick) { _, _ in macInspector = true }
+    }
+
+    private func macPicked(_ p: KarigarPortal) -> KarigarPortalJob? {
+        guard let id = macPick else { return nil }
+        return p.jobs.first { $0.id == id }
+    }
+
+    private func macPieces(_ p: KarigarPortal, readOnly: Bool) -> some View {
+        let s = KarigarPortalRules.sections(p.jobs)
+        let base = s.critical + s.late + s.onTrack + s.done
+        let rows = macSort.isEmpty ? base : base.sorted(using: macSort)
+        return Table(rows, selection: $macPick, sortOrder: $macSort) {
+            TableColumn("Done") { (j: KarigarPortalJob) in
+                if busy == j.id {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Button { toggle(j) } label: {
+                        Image(systemName: j.isDone ? "checkmark.circle.fill" : "circle")
+                            .foregroundStyle(j.isDone ? Tone.settled.color : Color.secondary)
+                    }
+                    .buttonStyle(.borderless)
+                    .disabled(readOnly)
+                    .help(j.isDone ? "Done. Click to reopen." : "Mark as done")
+                }
+            }
+            .width(46)
+            TableColumn("Order") { (j: KarigarPortalJob) in
+                Text(j.orderId ?? "Stock piece").monospacedDigit()
+            }
+            .width(min: 90, ideal: 120)
+            TableColumn("Piece", value: \.description) { (j: KarigarPortalJob) in
+                Text(j.description).strikethrough(j.isDone).lineLimit(1)
+            }
+            .width(min: 180, ideal: 300)
+            TableColumn("Size") { (j: KarigarPortalJob) in Text(j.size ?? "") }.width(min: 50, ideal: 60)
+            TableColumn("Weight") { (j: KarigarPortalJob) in
+                Text(j.weightG.map { KarigarPortalRules.grams($0) } ?? "").monospacedDigit()
+            }
+            .width(min: 70, ideal: 90)
+            TableColumn("Karat") { (j: KarigarPortalJob) in
+                Text([j.karat ?? "", j.plating ?? ""].filter { !$0.isEmpty }.joined(separator: " ")).foregroundStyle(.secondary)
+            }
+            .width(min: 60, ideal: 100)
+            TableColumn("Given", value: \.ageDays) { (j: KarigarPortalJob) in
+                HStack(spacing: 6) {
+                    Text("\(j.ageDays) day\(j.ageDays == 1 ? "" : "s")").monospacedDigit()
+                    // Rule 15: only a piece that needs someone says so.
+                    if !j.isDone && j.urgency != "ok" { Pill(j.urgency == "critical" ? "Urgent" : "Late", tone: j.urgency == "critical" ? .late : .owed) }
+                }
+            }
+            .width(min: 120, ideal: 150)
+        }
+        .contextMenu(forSelectionType: String.self) { ids in
+            if let id = ids.first, let j = p.jobs.first(where: { $0.id == id }) {
+                if !readOnly {
+                    Button(j.isDone ? "Mark as not done" : "Mark as done") { toggle(j) }
+                        .disabled(busy != nil)
+                }
+                Button("Copy description") { UIPasteboard.general.string = j.description }
+            }
+        }
+        .overlay {
+            if base.isEmpty {
+                ContentUnavailableView("No pending work", systemImage: "checkmark.circle",
+                                       description: Text("Nothing is waiting for you at the bench."))
+            }
+        }
+    }
+
+    /// The picked piece: its specs, instructions and sample picture.
+    private func macDetail(_ j: KarigarPortalJob) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(j.description).font(.headline).strikethrough(j.isDone)
+                Text(j.orderId ?? "Stock piece").font(.subheadline.monospaced()).foregroundStyle(.secondary)
+                specs(j)
+                if j.sampleGiven { Pill("Sample provided", tone: .quiet) }
+                if let picture = j.sampleImage, !picture.isEmpty { WorkSamplePhoto(uri: picture, key: j.id) }
+                if let notes = j.notes, !notes.isEmpty {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("INSTRUCTIONS").font(.caption2).foregroundStyle(.secondary)
+                        Text(notes).font(.subheadline).textSelection(.enabled)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(8)
+                    .background(Tone.owed.color.opacity(0.1), in: .rect(cornerRadius: Radius.thumb, style: .continuous))
+                }
+            }
+            .padding(16)
+        }
+        .inspectorColumnWidth(min: 260, ideal: 300, max: 380)
+    }
+
+    private func macAccount(_ a: KarigarPortalAccount) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            FigureRow(alignment: .top, spacing: 10) {
+                FigureTile(label: "Received", value: KarigarPortalRules.grams(a.goldGiven))
+                FigureTile(label: "Returned", value: KarigarPortalRules.grams(a.goldReceived))
+                FigureTile(label: "With you", value: KarigarPortalRules.grams(a.goldNet), tint: a.goldNet > 0 ? Tone.owed.color : .primary)
+                FigureTile(label: "Total paid to you", value: Money.pkr(a.totalPaid))
+            }
+            .frame(maxWidth: 760)
+            HStack(alignment: .top, spacing: 16) {
+                VStack(alignment: .leading, spacing: 6) {
+                    LedgerHeading(title: "Gold")
+                    Table(Self.keyed(a.ledger) { "\($0.date)|\($0.description)|\($0.goldOut)|\($0.goldIn)" }) {
+                        TableColumn("Date") { (r: Keyed<KarigarPortalGoldLine>) in Text(KarigarPortalRules.date(r.item.date, shortYear: true)) }
+                            .width(min: 80, ideal: 100)
+                        TableColumn("What") { (r: Keyed<KarigarPortalGoldLine>) in Text(r.item.description) }
+                        TableColumn("Gold") { (r: Keyed<KarigarPortalGoldLine>) in
+                            let l = r.item
+                            Text(l.goldOut != 0 ? "\u{2191} " + KarigarPortalRules.grams(l.goldOut) : "\u{2193} " + KarigarPortalRules.grams(l.goldIn))
+                                .monospacedDigit()
+                                .foregroundStyle(l.goldOut != 0 ? Tone.owed.color : Tone.settled.color)
+                        }
+                        .width(min: 90, ideal: 110)
+                    }
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    LedgerHeading(title: "Payments received")
+                    Table(Self.keyed(a.payments) { "\($0.date)|\($0.description)|\($0.amount)" }) {
+                        TableColumn("Date") { (r: Keyed<KarigarPortalPayment>) in Text(KarigarPortalRules.date(r.item.date, shortYear: true)) }
+                            .width(min: 80, ideal: 100)
+                        TableColumn("What") { (r: Keyed<KarigarPortalPayment>) in Text(r.item.description) }
+                        TableColumn("Amount") { (r: Keyed<KarigarPortalPayment>) in Text(Money.pkr(r.item.amount)).monospacedDigit() }
+                            .width(min: 90, ideal: 110)
+                    }
+                }
+            }
+        }
+        .padding(16)
+    }
+}
+#endif

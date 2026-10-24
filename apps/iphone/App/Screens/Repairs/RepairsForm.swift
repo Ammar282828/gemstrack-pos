@@ -54,6 +54,9 @@ struct RepairsForm: View {
     @State private var confirmingDiscard = false
 
     var body: some View {
+        #if os(macOS)
+        macBody
+        #else
         NavigationStack {
             Form { Group {
                 customerSection
@@ -101,6 +104,7 @@ struct RepairsForm: View {
             if let r = editing { fill(from: r) } else { seedTakenBy() }
             if baseline == nil { baseline = snapshot }
         }
+        #endif
     }
 
     /// Everything typed or chosen, as one string: it differs from the opening one once something is changed.
@@ -490,3 +494,134 @@ struct RepairsForm: View {
         return repair
     }
 }
+
+// MARK: The Mac's form
+
+#if os(macOS)
+extension RepairsForm {
+    /// A Mac form window: the pieces as a grid of boxes (one row each, a minus beside it), the date as a date field,
+    /// Cancel (Esc) and Save (Return, or ⌘S) in the toolbar.
+    var macBody: some View {
+        NavigationStack {
+            Form { Group {
+                customerSection
+                macPiecesSection
+                macWhenSection
+                if let r = editing {
+                    paidSection(r)
+                } else {
+                    advanceSection
+                }
+                shopSection
+                }
+                .houseRows()
+            }
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+            .background(Theme.ground)
+            .navigationTitle(editing.map { "Repair \($0.id)" } ?? "New repair")
+            .failureAlert($error)
+            .disabled(saving)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        if dirty { confirmingDiscard = true } else { dismiss() }
+                    }
+                    .keyboardShortcut(.cancelAction)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") { Task { await save() } }
+                        .disabled(!canSave)
+                        .keyboardShortcut(.defaultAction)
+                }
+            }
+            .background {
+                Button("Save") { Task { await save() } }
+                    .keyboardShortcut("s", modifiers: .command).opacity(0).accessibilityHidden(true)
+                    .disabled(!canSave)
+            }
+            .confirmDestructive(isPresented: $confirmingDiscard,
+                                title: editing == nil ? "Discard this repair?" : "Discard your changes?",
+                                message: "What you typed is not saved.", action: "Discard") { dismiss() }
+        }
+        .frame(minWidth: 680, idealWidth: 760, minHeight: 560, idealHeight: 720)
+        .interactiveDismissDisabled(saving || dirty)
+        .onAppear {
+            book.customers.need()
+            book.karigars.need()
+            book.repairs.need()
+            book.orders.need()
+            book.invoices.need()
+            if let r = editing { fill(from: r) } else { seedTakenBy() }
+            if baseline == nil { baseline = snapshot }
+        }
+    }
+
+    private var macPiecesSection: some View {
+        Section {
+            Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 8) {
+                GridRow {
+                    Text("Piece")
+                    Text("What to do")
+                    Text("Weight (g)")
+                    Text("Price")
+                    Color.clear.frame(width: 20, height: 1)
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                ForEach($pieces) { $piece in
+                    GridRow {
+                        TextField("Piece", text: $piece.item, prompt: Text("Gold ring"))
+                            .labelsHidden()
+                            .frame(minWidth: 140)
+                        TextField("What to do", text: $piece.work, prompt: Text("Resize to 14"))
+                            .labelsHidden()
+                            .frame(minWidth: 160)
+                        TextField("Weight", text: $piece.weight, prompt: Text("g"))
+                            .labelsHidden()
+                            .monospacedDigit()
+                            .frame(width: 80)
+                        TextField("Price", text: $piece.price.wholeRupees, prompt: Text("PKR"))
+                            .labelsHidden()
+                            .multilineTextAlignment(.trailing)
+                            .monospacedDigit()
+                            .frame(width: 100)
+                        Button { remove(piece.id) } label: { Image(systemName: "minus.circle") }
+                            .buttonStyle(.borderless)
+                            .disabled(pieces.count <= 1)
+                            .help("Remove this piece")
+                    }
+                }
+            }
+            Button { pieces.append(RepairsDraftPiece()) } label: { Label("Add another piece", systemImage: "plus.circle") }
+            if total > 0 {
+                MoneyRow("Total", total, emphasis: true)
+            }
+        } header: {
+            LedgerHeading(title: "Pieces")
+        } footer: {
+            if !hasPiece { Text("What was brought in: \"gold ring\", \"chain\".") }
+        }
+    }
+
+    private var macWhenSection: some View {
+        Section {
+            Toggle("Ready by a date", isOn: $hasDate)
+            if hasDate {
+                DatePicker("Date", selection: $promised, displayedComponents: .date)
+                    .datePickerStyle(.field)
+                    .environment(\.timeZone, ERPDate.karachi)
+                LabeledContent("Quick pick") {
+                    HStack(spacing: 8) {
+                        ForEach([(3, "3 days"), (7, "1 week"), (14, "2 weeks")], id: \.0) { item in
+                            Button(item.1) { promised = RepairsKit.days(adding: item.0) }.buttonStyle(.bordered)
+                        }
+                    }
+                }
+            }
+        } header: {
+            LedgerHeading(title: "When")
+        }
+    }
+}
+#endif

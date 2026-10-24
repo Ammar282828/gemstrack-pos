@@ -36,7 +36,11 @@ struct Dashboard: View {
 
     var body: some View {
         ShelfState(loaded: ready, error: book.orders.error ?? book.invoices.error, offline: book.orders.offline) {
+            #if os(macOS)
+            macPage(makeFigures())
+            #else
             page(makeFigures())
+            #endif
         }
         .safeAreaInset(edge: .top, spacing: 0) { UpdateBanner() }
         .navigationTitle("Today")
@@ -52,6 +56,25 @@ struct Dashboard: View {
         .task { await keepTime() }
         // The count itself is polled once for the whole app (RootView); coming here asks again at once.
         .task { await askOnline() }
+        #if os(macOS)
+        .sheet(isPresented: $rateSheet) { RateSheetHost().frame(minWidth: 540, minHeight: 520) }
+        .sheet(isPresented: $noteSheet) { TeamNoteEditor().frame(minWidth: 520, minHeight: 360) }
+        .navigationSubtitle(DashDate.longDay(now))
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button("Today's rate", systemImage: "chart.line.uptrend.xyaxis") { rateSheet = true }
+                    .help("Set or read today's gold rate")
+                    .keyboardShortcut("r", modifiers: [.command, .option])
+            }
+            if session.isOwner {
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Team note", systemImage: "pin") { noteSheet = true }
+                        .help("Write the note the team sees on Home")
+                        .keyboardShortcut("t", modifiers: [.command, .option])
+                }
+            }
+        }
+        #else
         .sheet(isPresented: $rateSheet) { RateSheetHost() }
         .sheet(isPresented: $noteSheet) { TeamNoteEditor() }
         .toolbar {
@@ -61,6 +84,7 @@ struct Dashboard: View {
                 }
             }
         }
+        #endif
     }
 
     // MARK: Shelves
@@ -428,3 +452,107 @@ final class OnlineInbox {
         if ratePause != pause { ratePause = pause }
     }
 }
+
+// MARK: - The Mac
+
+#if os(macOS)
+extension Dashboard {
+    /// The Mac's Home: the day's figures across the window in one Grid (today large, the four cards beside it), and
+    /// under them Needs you, Due to customers and Recent sales as panels side by side. Every row opens on a click and
+    /// has a right-click menu (Open, Open in New Window). The figures and rows are the iPhone's own.
+    fileprivate func macPage(_ f: DashFigures) -> some View {
+        let selling = session.shop.websiteSelling
+        let needs = f.needs(onlineWaiting: selling ? inbox.waiting : 0, ratePause: selling ? inbox.ratePause : nil)
+        return ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                macFigures(f)
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 330), spacing: 22, alignment: .top)],
+                          alignment: .leading, spacing: 22) {
+                    if !needs.isEmpty { macNeeds(needs) }
+                    macDue(f)
+                    macSales(f)
+                }
+            }
+            .padding(.horizontal, 28)
+            .padding(.vertical, 20)
+            .frame(maxWidth: 1600)
+            .frame(maxWidth: .infinity)
+        }
+        .motion(needs.count)
+    }
+
+    /// Today large and the four cards in one row when the window is wide; else today above a row of four.
+    private func macFigures(_ f: DashFigures) -> some View {
+        ViewThatFits(in: .horizontal) {
+            Grid(alignment: .top, horizontalSpacing: 12, verticalSpacing: 12) {
+                GridRow {
+                    hero(f).gridCellColumns(2).frame(maxWidth: .infinity, maxHeight: .infinity)
+                    macTiles(f)
+                }
+            }
+            .frame(minWidth: 1000)
+            VStack(alignment: .leading, spacing: 12) {
+                hero(f)
+                Grid(alignment: .top, horizontalSpacing: 12, verticalSpacing: 12) {
+                    GridRow { macTiles(f) }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func macTiles(_ f: DashFigures) -> some View {
+        owedTile(f).frame(maxWidth: .infinity, maxHeight: .infinity)
+        benchTile(f).frame(maxWidth: .infinity, maxHeight: .infinity)
+        monthTile(f).frame(maxWidth: .infinity, maxHeight: .infinity)
+        dueTile(f).frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private static var macShown: Int { 8 }
+
+    private func macNeeds(_ needs: [DashNeed]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            DashHeader(title: "Needs you", count: needs.count)
+            DashRows(items: allNeeds ? needs : Array(needs.prefix(Self.macShown)), inset: 42) { (n: DashNeed) in
+                DashNeedRow(need: n, onRates: { rateSheet = true }).macOpenMenu(n.opensRates ? nil : n.path)
+            }
+            .dashRowsCard()
+            if needs.count > Self.macShown { MacRevealButton(expanded: $allNeeds, count: needs.count - Self.macShown) }
+        }
+    }
+
+    private func macDue(_ f: DashFigures) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            DashHeader(title: "Due to customers", count: f.due.count, allPath: "/orders", allLabel: "All orders")
+            Group {
+                if f.due.isEmpty {
+                    DashEmpty(text: "No open orders or repairs.")
+                } else {
+                    DashRows(items: allDue ? f.due : Array(f.due.prefix(Self.macShown)), inset: DashDueRow.leaf + 12) { (d: DashDue) in
+                        DashDueRow(due: d).macOpenMenu(d.path)
+                    }
+                }
+            }
+            .dashRowsCard()
+            if f.due.count > Self.macShown { MacRevealButton(expanded: $allDue, count: f.due.count - Self.macShown) }
+        }
+    }
+
+    private func macSales(_ f: DashFigures) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            DashHeader(title: "Recent sales", allPath: "/invoices", allLabel: "All invoices")
+            Group {
+                if f.recentInvoices.isEmpty {
+                    DashEmpty(text: "No sales yet.")
+                } else {
+                    DashRows(items: allSales ? f.recentInvoices : Array(f.recentInvoices.prefix(Self.macShown)), inset: DashSaleRow.monogram + 12) { (i: Invoice) in
+                        DashSaleRow(invoice: i).macOpenMenu(DashPath.invoice(i.id))
+                    }
+                }
+            }
+            .dashRowsCard()
+            if f.recentInvoices.count > Self.macShown { MacRevealButton(expanded: $allSales, count: f.recentInvoices.count - Self.macShown) }
+        }
+    }
+}
+#endif

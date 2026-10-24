@@ -309,5 +309,6 @@ private struct HisaabPersonPicker: View {
             }
         }
         .presentationDetents([.medium, .large])
+        .macSheetSize(minWidth: 480, minHeight: 420)
     }
 }

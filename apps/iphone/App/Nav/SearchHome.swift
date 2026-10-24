@@ -19,6 +19,11 @@ struct SearchView: View {
     @State private var confirmingSignOut = false
     @State private var expanded: Set<String> = []
     @FocusState private var searchFocused: Bool
+    #if os(macOS)
+    /// The window's model, to open a result from the keyboard (MacShell hands it down); the result Return opens.
+    @FocusedValue(\.macShell) private var shell
+    @State private var picked: String?
+    #endif
 
     private var typed: String { text.trimmingCharacters(in: .whitespaces).lowercased() }
     /// Marketing has no Firestore and the server refuses it the books: nothing to read for them.
@@ -32,6 +37,10 @@ struct SearchView: View {
         .hubTitleDisplay()
         .searchable(text: $text, prompt: "Customers, invoices, orders, stock, places")
         .searchFocused($searchFocused)
+        #if os(macOS)
+        .onSubmit(of: .search) { macOpenPicked() }
+        .onChange(of: query) { _, _ in picked = macPaths(results).first }
+        #endif
         // ⌘F: the field takes the keyboard (the tab may have only just been made).
         .onChange(of: ShellCommands.shared.searchWanted) { _, wanted in focusIfWanted(wanted) }
         .confirmDestructive(isPresented: $confirmingSignOut, title: "Sign out?",
@@ -75,6 +84,14 @@ struct SearchView: View {
     // MARK: Nothing typed
 
     private var idle: some View {
+        #if os(macOS)
+        macIdle
+        #else
+        phoneIdle
+        #endif
+    }
+
+    private var phoneIdle: some View {
         List {
             ForEach(groups, id: \.group.key) { g in groupSection(g.group, g.entries) }
             accountSection
@@ -163,7 +180,11 @@ struct SearchView: View {
     private var accountSection: some View {
         Section {
             accountLink("Businesses", "building.2", "/app/businesses")
+            #if os(macOS)
+            if session.isOwner { accountLink("This Mac", "desktopcomputer", "/app/phone") }
+            #else
             if session.isOwner { accountLink("This phone", "iphone", "/app/phone") }
+            #endif
             if let s = map.settings { accountLink(s.label, NavIcon.symbol(for: s.icon), s.href) }
             if let email = session.me?.email, !email.isEmpty {
                 Text("Signed in as \(email)").font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
@@ -194,6 +215,14 @@ struct SearchView: View {
     }
 
     private var found: some View {
+        #if os(macOS)
+        macFound
+        #else
+        phoneFound
+        #endif
+    }
+
+    private var phoneFound: some View {
         let r = results
         let settled = query == typed
         return List {
@@ -217,9 +246,15 @@ struct SearchView: View {
         _ title: String, _ items: [Item], path: @escaping (Item) -> String,
         @ViewBuilder row: @escaping (Item) -> Row
     ) -> some View {
+        #if os(macOS)
+        MacSearchSection(title: title, items: items, isExpanded: expanded.contains(title), path: path,
+                         row: row, picked: $picked, open: { macOpen($0) },
+                         expand: { _ = expanded.insert(title) })
+        #else
         SearchSection(title: title, items: items, isExpanded: expanded.contains(title), path: path,
                       row: row,
                       expand: { Motion.run(reduce: reduce) { _ = expanded.insert(title) } })
+        #endif
     }
 
     private func placesSection(_ r: SearchResults) -> some View {
@@ -391,3 +426,180 @@ private struct SearchSection<Item: Identifiable, Row: View>: View {
         }
     }
 }
+
+// MARK: - The Mac
+
+#if os(macOS)
+/// One group of results, as the Mac lays them out: its heading, the paths its visible rows open (in the order the
+/// keyboard walks them) and the section itself.
+private struct MacSearchGroup {
+    let title: String
+    let paths: [String]
+    let view: AnyView
+}
+
+extension SearchView {
+    private static let macCap = 8
+
+    /// The groups that have results, in the order Search reads them.
+    private func macGroups(_ r: SearchResults) -> [MacSearchGroup] {
+        func shown<T>(_ title: String, _ items: [T], _ path: (T) -> String) -> [String] {
+            (expanded.contains(title) ? items : Array(items.prefix(Self.macCap))).map(path)
+        }
+        let all: [MacSearchGroup] = [
+            MacSearchGroup(title: "Places", paths: shown("Places", r.places) { $0.place.href }, view: AnyView(placesSection(r))),
+            MacSearchGroup(title: "Customers", paths: shown("Customers", r.customers) { "/customers/" + SearchPath.encode($0.id) }, view: AnyView(customersSection(r))),
+            MacSearchGroup(title: "Invoices", paths: shown("Invoices", r.invoices) { "/invoices/" + SearchPath.encode($0.id) }, view: AnyView(invoicesSection(r))),
+            MacSearchGroup(title: "Orders", paths: shown("Orders", r.orders) { "/orders/" + SearchPath.encode($0.id) }, view: AnyView(ordersSection(r))),
+            MacSearchGroup(title: "Stock", paths: shown("Stock", r.stock) { "/products/" + SearchPath.encode($0.sku) }, view: AnyView(stockSection(r))),
+            MacSearchGroup(title: "Repairs", paths: shown("Repairs", r.repairs) { "/repairs?id=" + SearchPath.encode($0.id) }, view: AnyView(repairsSection(r))),
+        ]
+        return all.filter { !$0.paths.isEmpty }
+    }
+
+    /// Two columns, each group given to the shorter one so far.
+    private func macColumns(_ r: SearchResults) -> [[MacSearchGroup]] {
+        var cols: [[MacSearchGroup]] = [[], []]
+        var load = [0, 0]
+        for g in macGroups(r) {
+            let i = load[0] <= load[1] ? 0 : 1
+            cols[i].append(g)
+            load[i] += g.paths.count + 2
+        }
+        return cols
+    }
+
+    /// Every visible result, column by column, top to bottom: what the arrow keys walk.
+    fileprivate func macPaths(_ r: SearchResults) -> [String] {
+        macColumns(r).flatMap { $0.flatMap { $0.paths } }
+    }
+
+    fileprivate func macOpen(_ path: String) {
+        picked = path
+        shell?.stack.append(Route(path: path))
+    }
+
+    fileprivate func macOpenPicked() {
+        let paths = macPaths(results)
+        if let picked, paths.contains(picked) { macOpen(picked) } else if let first = paths.first { macOpen(first) }
+    }
+
+    private func macMove(_ step: Int) {
+        let paths = macPaths(results)
+        guard !paths.isEmpty else { return }
+        let at = picked.flatMap { paths.firstIndex(of: $0) } ?? (step > 0 ? -1 : paths.count)
+        picked = paths[min(max(at + step, 0), paths.count - 1)]
+    }
+
+    /// Nothing typed: the map in two columns, the account last.
+    fileprivate var macIdle: some View {
+        let g = groups
+        let split = max(1, (g.count + 1) / 2)
+        return HStack(alignment: .top, spacing: 0) {
+            List {
+                ForEach(Array(g.prefix(split)), id: \.group.key) { groupSection($0.group, $0.entries) }
+            }
+            .listStyle(.inset)
+            Divider()
+            List {
+                ForEach(Array(g.dropFirst(split)), id: \.group.key) { groupSection($0.group, $0.entries) }
+                accountSection
+            }
+            .listStyle(.inset)
+        }
+        .modifier(HouseGround())
+    }
+
+    /// Something typed: results grouped in two columns, the first one lit; ↑ and ↓ move, Return opens, a click opens.
+    fileprivate var macFound: some View {
+        let r = results
+        let settled = query == typed
+        let cols = macColumns(r)
+        return ScrollViewReader { (scroll: ScrollViewProxy) in
+            ScrollView {
+                HStack(alignment: .top, spacing: 28) {
+                    ForEach(cols.indices, id: \.self) { (c: Int) in
+                        VStack(alignment: .leading, spacing: 18) {
+                            ForEach(cols[c], id: \.title) { (g: MacSearchGroup) in g.view }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .top)
+                    }
+                }
+                .padding(.horizontal, 28)
+                .padding(.vertical, 20)
+                .frame(maxWidth: 1400)
+                .frame(maxWidth: .infinity)
+            }
+            .onChange(of: picked) { _, now in
+                if let now { scroll.scrollTo(now) }
+            }
+        }
+        .focusable()
+        .onKeyPress(.downArrow) { macMove(1); return .handled }
+        .onKeyPress(.upArrow) { macMove(-1); return .handled }
+        .onKeyPress(.return) { macOpenPicked(); return .handled }
+        .background {
+            // The same keys while the search field has the keyboard.
+            Group {
+                Button("") { macMove(1) }.keyboardShortcut(.downArrow, modifiers: [])
+                Button("") { macMove(-1) }.keyboardShortcut(.upArrow, modifiers: [])
+            }
+            .opacity(0).allowsHitTesting(false).accessibilityHidden(true)
+        }
+        .background(Theme.ground.ignoresSafeArea())
+        .overlay {
+            if settled, r.isEmpty { ContentUnavailableView.search(text: text) }
+        }
+    }
+}
+
+/// A group of results in a Mac's column: up to eight rows, one lit by the keyboard, each a click away from opening
+/// and a right-click away from a window of its own.
+private struct MacSearchSection<Item: Identifiable, Row: View>: View {
+    let title: String
+    let items: [Item]
+    let isExpanded: Bool
+    let path: (Item) -> String
+    @ViewBuilder let row: (Item) -> Row
+    @Binding var picked: String?
+    let open: (String) -> Void
+    let expand: () -> Void
+
+    @Environment(\.openPlaceWindow) private var openPlace
+    private let cap = 8
+
+    var body: some View {
+        if !items.isEmpty {
+            VStack(alignment: .leading, spacing: 4) {
+                LedgerHeading(title: title, count: items.count).padding(.horizontal, 4)
+                VStack(spacing: 0) {
+                    ForEach(isExpanded ? items : Array(items.prefix(cap))) { (item: Item) in
+                        let p = path(item)
+                        Button { open(p) } label: {
+                            row(item)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 10).padding(.vertical, 7)
+                                .background(picked == p ? Theme.accent.opacity(0.16) : Color.clear, in: .rect(cornerRadius: 8, style: .continuous))
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .id(p)
+                        .contextMenu {
+                            Button("Open") { open(p) }
+                            if let openPlace { Button("Open in New Window") { openPlace(Route(path: p)) } }
+                        }
+                    }
+                    if !isExpanded, items.count > cap {
+                        Button("Show all \(items.count)", action: expand)
+                            .buttonStyle(.link)
+                            .padding(.horizontal, 10).padding(.vertical, 6)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+                .padding(4)
+                .ledgerCard(padding: 0)
+            }
+        }
+    }
+}
+#endif

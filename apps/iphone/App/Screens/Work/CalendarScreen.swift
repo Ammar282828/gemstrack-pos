@@ -23,6 +23,9 @@ struct CalendarScreen: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// A day cell's height grows with the reader's text.
     @ScaledMetric(relativeTo: .caption) private var cellHeight: CGFloat = 60
+    #if os(macOS)
+    @Environment(\.openPlaceWindow) private var openPlace
+    #endif
 
     private struct Reckoned {
         let days: [String: ShopCalendarDay]
@@ -42,7 +45,11 @@ struct CalendarScreen: View {
                     error: book.orders.error ?? book.invoices.error,
                     offline: book.orders.offline
                 ) {
+                    #if os(macOS)
+                    macPage
+                    #else
                     page
+                    #endif
                 }
             } else {
                 WorkNotYours(title: "Calendar", detail: "The shop's sales and orders are kept for its owners and staff.")
@@ -296,6 +303,12 @@ struct CalendarScreen: View {
             }
         }
         .zoomSource(id: path)
+        #if os(macOS)
+        .contextMenu {
+            Button("Open in New Window") { openPlace?(Route(path: path)) }
+            Button("Copy number") { UIPasteboard.general.string = e.docId }
+        }
+        #endif
     }
 
     /// The pieces promised for the day chosen (the promise layer on its own: it never touches the money above).
@@ -319,6 +332,12 @@ struct CalendarScreen: View {
                         }
                     }
                     .zoomSource(id: WorkPaths.order(o.id))
+                    #if os(macOS)
+                    .contextMenu {
+                        Button("Open in New Window") { openPlace?(Route(path: WorkPaths.order(o.id))) }
+                        Button("Copy number") { UIPasteboard.general.string = o.id }
+                    }
+                    #endif
                 }
             } header: {
                 LedgerHeading(title: "Promised for this day")
@@ -337,3 +356,151 @@ private struct LegendLabel: LabelStyle {
         }
     }
 }
+
+#if os(macOS)
+// The Mac's calendar: the month as a real grid that fills the window (days as tall cells with the money, the sales and orders
+// and what was promised), the month's figures above it, and the chosen day's events and promises in a column beside it.
+// ‹ › and Today are in the toolbar (⌘← ⌘→); the arrow keys move the chosen day, a click chooses one.
+extension CalendarScreen {
+    @ViewBuilder
+    var macPage: some View {
+        let books = reckoned([book.orders.revision, book.invoices.revision]) {
+            Reckoned(
+                days: shopCalendarDays(invoices: book.invoices.items, orders: book.orders.items),
+                due: shopCalendarDue(orders: book.orders.items)
+            )
+        }
+        let figures = shopCalendarMonth(books.days, year: year, month: month)
+        HStack(spacing: 0) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    macFigures(figures)
+                    macGrid(books)
+                    legend
+                }
+                .padding(20)
+            }
+            .frame(minWidth: 520)
+            Divider()
+            List {
+                daySection(books)
+                dueSection()
+            }
+            .listStyle(.inset)
+            .frame(minWidth: 300, idealWidth: 360, maxWidth: 420)
+        }
+        .navigationSubtitle(ShopCalendar.title(year: year, month: month))
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                HStack(spacing: 6) {
+                    Button { step(-1) } label: { Image(systemName: "chevron.left") }
+                        .keyboardShortcut(.leftArrow, modifiers: .command)
+                        .help("Previous month")
+                    Text(ShopCalendar.title(year: year, month: month))
+                        .font(.headline).frame(minWidth: 150)
+                        .contentTransition(.numericText())
+                    Button { step(1) } label: { Image(systemName: "chevron.right") }
+                        .keyboardShortcut(.rightArrow, modifiers: .command)
+                        .help("Next month")
+                }
+            }
+        }
+    }
+
+    private func macFigures(_ m: ShopCalendarMonth) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            FigureTile(label: ShopCalendar.title(year: year, month: month), value: Money.pkrLac(m.total), tint: Tone.settled.color)
+            FigureTile(label: "Sales", value: "\(m.sales)")
+            FigureTile(label: "Orders", value: "\(m.orders)")
+            FigureTile(label: "Average trading day", value: m.perTradingDay > 0 ? Money.pkrLac(m.perTradingDay) : "\u{2014}")
+        }
+    }
+
+    private func macGrid(_ books: Reckoned) -> some View {
+        let cells = ShopCalendar.cells(year: year, month: month)
+        let today = CalendarScreen.todayKey()
+        let columns = Array(repeating: GridItem(.flexible(), spacing: 6), count: 7)
+        return LazyVGrid(columns: columns, spacing: 6) {
+            ForEach(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], id: \.self) { (name: String) in
+                Text(name).font(.caption.weight(.medium)).foregroundStyle(.secondary)
+            }
+            ForEach(cells.enumerated().map { (e: EnumeratedSequence<[Int?]>.Element) in CalendarCell(id: e.element.map { "d\($0)" } ?? "b\(e.offset)", day: e.element) }) { (cell: CalendarCell) in
+                if let day = cell.day {
+                    macDayCell(day, books: books, today: today)
+                } else {
+                    Color.clear.frame(height: 92)
+                }
+            }
+        }
+        .motion(year * 100 + month)
+        .focusable()
+        .focusEffectDisabled()
+        .onKeyPress(.leftArrow) { macMove(days: -1); return .handled }
+        .onKeyPress(.rightArrow) { macMove(days: 1); return .handled }
+        .onKeyPress(.upArrow) { macMove(days: -7); return .handled }
+        .onKeyPress(.downArrow) { macMove(days: 7); return .handled }
+    }
+
+    private func macDayCell(_ day: Int, books: Reckoned, today: String) -> some View {
+        let key = ShopCalendar.dayKey(year: year, month: month, day: day)
+        let data = books.days[key]
+        let due = books.due[key] ?? 0
+        let isSelected = key == selected
+        let isToday = key == today
+        return Button { Motion.run(reduce: reduceMotion) { selected = key } } label: {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack {
+                    Text("\(day)")
+                        .font(.callout.weight(isToday ? .bold : .medium))
+                        .foregroundStyle(isToday ? Theme.accent : Color.primary)
+                    Spacer(minLength: 0)
+                    if due > 0 {
+                        HStack(spacing: 2) {
+                            Image(systemName: "calendar.badge.clock")
+                            Text("\(due)")
+                        }
+                        .font(.caption2)
+                        .foregroundStyle(Tone.owed.color)
+                    }
+                }
+                if let data, data.total > 0 {
+                    Text(ShopCalendar.dayMoney(data.total))
+                        .font(.caption.weight(.semibold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
+                }
+                Spacer(minLength: 0)
+                HStack(spacing: 6) {
+                    if let data, data.invoices > 0 { count(data.invoices, color: Tone.settled.color) }
+                    if let data, data.orders > 0 { count(data.orders, color: Tone.working.color) }
+                }
+            }
+            .padding(8)
+            .frame(maxWidth: .infinity, minHeight: 92, maxHeight: 92, alignment: .topLeading)
+            .background(isSelected ? Theme.accent.opacity(0.16) : Theme.card, in: .rect(cornerRadius: Radius.thumb, style: .continuous))
+            .overlay {
+                if isToday { RoundedRectangle(cornerRadius: Radius.thumb, style: .continuous).strokeBorder(Theme.accent, lineWidth: 1.5) }
+            }
+            .contentShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .pointerHover(.rect(cornerRadius: Radius.thumb, style: .continuous), highlight: true)
+        .accessibilityLabel(spoken(key, data, due))
+    }
+
+    /// The arrow keys: the chosen day moved, the month following it.
+    private func macMove(days: Int) {
+        let parts = selected.split(separator: "-").compactMap { Int($0) }
+        guard parts.count == 3 else { return }
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "UTC") ?? .current
+        guard let date = cal.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2])),
+              let moved = cal.date(byAdding: .day, value: days, to: date) else { return }
+        let c = cal.dateComponents([.year, .month, .day], from: moved)
+        guard let y = c.year, let m = c.month, let d = c.day else { return }
+        Motion.run(reduce: reduceMotion) {
+            year = y
+            month = m
+            selected = ShopCalendar.dayKey(year: y, month: m, day: d)
+        }
+    }
+}
+#endif

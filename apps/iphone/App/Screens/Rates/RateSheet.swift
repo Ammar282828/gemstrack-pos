@@ -252,6 +252,9 @@ struct RateSheet: View {
     private var offersGoldPk: Bool { session.isOwner && House.metal == "gold" }
 
     var body: some View {
+        #if os(macOS)
+        macBody
+        #else
         let s = book.settings.value
         NavigationStack {
             Form { Group {
@@ -319,6 +322,7 @@ struct RateSheet: View {
         }
         .presentationDetents([.medium, .large])
         .presentationSizing(.form)
+        #endif
     }
 
     /// The web's "Fill gold from gold.pk" (rate-chip.tsx): the ERP's server reads gold.pk, and the four
@@ -359,3 +363,78 @@ struct RateSheet: View {
         dismiss()
     }
 }
+
+// MARK: The Mac's sheet
+
+#if os(macOS)
+extension RateSheet {
+    /// A compact Mac form: the day's rates in one grouped form a little over a screen's corner, the first rate
+    /// focused, Return saves (as the default button, and from any field), Esc cancels.
+    var macBody: some View {
+        let s = book.settings.value
+        return NavigationStack {
+            Form { Group {
+                Section {
+                    LabeledContent(RateKeys.main.label, value: "PKR \(RateKeys.say(stored(RateKeys.main)))")
+                    LabeledContent("Set", value: RateKeys.setLine(s))
+                } footer: {
+                    Text("PKR per gram. New sales and the website sell at these rates.")
+                }
+                if offersGoldPk {
+                    Section {
+                        HStack {
+                            Button { Task { await fillFromGoldPk() } } label: {
+                                Label("Fill gold from gold.pk", systemImage: "globe")
+                            }
+                            .disabled(filling || saving)
+                            if filling { SkeletonLoading() }
+                        }
+                    } footer: {
+                        if let note { Text(note) }
+                    }
+                }
+                ForEach(RateKeys.groups) { g in
+                    Section {
+                        ForEach(g.fields) { f in
+                            LabeledContent(f.label) {
+                                TextField(f.label, text: Binding(get: { typed[f.key] ?? "" }, set: { typed[f.key] = $0 }),
+                                          prompt: Text(RateKeys.say(stored(f))))
+                                    .labelsHidden()
+                                    .focused($focused, equals: f.key)
+                                    .multilineTextAlignment(.trailing)
+                                    .monospacedDigit()
+                                    .frame(width: 140)
+                                    .fontWeight(f.key == RateKeys.main.key ? .semibold : .regular)
+                                    .onSubmit { Task { await save() } }
+                            }
+                        }
+                    } header: {
+                        LedgerHeading(title: g.title)
+                    } footer: {
+                        if let note = g.note { Text(note) }
+                    }
+                }
+                }
+                .houseRows()
+            }
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+            .background(Theme.ground)
+            .failureAlert($error, title: "Rate not saved")
+            .savedFeedback(trigger: savedCount)
+            .interactiveDismissDisabled(saving || !changed.isEmpty)
+            .navigationTitle("Today’s rate")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") { Task { await save() } }
+                        .keyboardShortcut(.defaultAction)
+                        .disabled(saving || filling || s == nil)
+                }
+            }
+            .onAppear { if focused == nil { focused = RateKeys.main.key } }
+        }
+        .frame(minWidth: 440, idealWidth: 460, maxWidth: 520, minHeight: 460, idealHeight: 620)
+    }
+}
+#endif

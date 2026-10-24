@@ -11,13 +11,13 @@ struct PostQueueSheet: View {
     var embedded = false
 
     @Environment(\.dismiss) private var dismiss
-    @State private var confirmingSend = false
-    @State private var confirmingRemove = false
+    @State var confirmingSend = false
+    @State var confirmingRemove = false
     @State private var picking = false
     @State private var when = Date().addingTimeInterval(3600)
-    @State private var busy: String?
-    @State private var said: String?
-    @State private var failure: String?
+    @State var busy: String?
+    @State var said: String?
+    @State var failure: String?
 
     private var store: PostsStore { PostsStore.shared }
     private var entry: PostQueueEntry? { store.queue.first { (e: PostQueueEntry) in e.id == id } }
@@ -50,6 +50,14 @@ struct PostQueueSheet: View {
     // MARK: The page
 
     private func page(_ e: PostQueueEntry) -> some View {
+        #if os(macOS)
+        macPage(e)
+        #else
+        phonePage(e)
+        #endif
+    }
+
+    private func phonePage(_ e: PostQueueEntry) -> some View {
         List { Group {
             Section { header(e) }
             if let said {
@@ -93,7 +101,7 @@ struct PostQueueSheet: View {
         }
     }
 
-    private func header(_ e: PostQueueEntry) -> some View {
+    func header(_ e: PostQueueEntry) -> some View {
         HStack(alignment: .top, spacing: 14) {
             StockImage(imageUrl: e.thumb, name: e.headline, key: e.id, decodeDataURI: true)
                 .frame(width: 84, height: 84)
@@ -111,7 +119,7 @@ struct PostQueueSheet: View {
         .padding(.vertical, 4)
     }
 
-    private func statusWords(_ e: PostQueueEntry) -> String {
+    func statusWords(_ e: PostQueueEntry) -> String {
         switch e.status {
         case "scheduled": return "Goes " + ShopDate.say(e.dueAt, withTime: true)
         case "held": return "Held: it waits for you"
@@ -134,7 +142,7 @@ struct PostQueueSheet: View {
         let units: [String]
     }
 
-    private func places(_ e: PostQueueEntry) -> [Place] {
+    func places(_ e: PostQueueEntry) -> [Place] {
         var out: [Place] = []
         let site = e.unitKeys.filter { $0.hasPrefix("site-") || $0 == "featured" }
         if e.toWebsite && !site.isEmpty {
@@ -162,7 +170,7 @@ struct PostQueueSheet: View {
         return out
     }
 
-    private func placeRow(_ p: Place) -> some View {
+    func placeRow(_ p: Place) -> some View {
         let e = entry
         let gone = p.units.filter { e?.doneKeys.contains($0) ?? false }.count
         let problem = p.units.compactMap { e?.unitErrors[$0] }.first
@@ -192,7 +200,7 @@ struct PostQueueSheet: View {
     }
 
     /// What the counter is told before anything goes: every place still to get it.
-    private func sendWords(_ e: PostQueueEntry) -> String {
+    func sendWords(_ e: PostQueueEntry) -> String {
         let left = places(e).filter { (p: Place) in !p.units.allSatisfy { e.doneKeys.contains($0) } }
         let list = left.map { (p: Place) in "\(p.title) (\(p.detail))" }.joined(separator: "\n")
         let already = e.done > 0 ? "\n\nWhat already went is not sent again." : ""
@@ -202,7 +210,7 @@ struct PostQueueSheet: View {
     // MARK: What can be done
 
     @ViewBuilder
-    private func actions(_ e: PostQueueEntry) -> some View {
+    func actions(_ e: PostQueueEntry) -> some View {
         let canTime = ["held", "scheduled", "failed"].contains(e.status)
         if canTime || e.status != "sending" {
             Section {
@@ -235,7 +243,7 @@ struct PostQueueSheet: View {
         if close && !embedded { dismiss() }
     }
 
-    private func send(_ e: PostQueueEntry) async {
+    func send(_ e: PostQueueEntry) async {
         let n = places(e).filter { (p: Place) in !p.units.allSatisfy { e.doneKeys.contains($0) } }.count
         let id = e.id
         hand("Send “\(e.headline.isEmpty ? "a piece" : e.headline)”", saying: "Sending to \(n) \(n == 1 ? "place" : "places")…", close: true) {
@@ -261,8 +269,72 @@ struct PostQueueSheet: View {
         }
     }
 
-    private func remove(_ e: PostQueueEntry) async {
+    func remove(_ e: PostQueueEntry) async {
         let id = e.id
         hand("Remove the piece from the queue", saying: "Removing…", close: true) { try await PostsStore.shared.remove(id); return "Removed from the queue" }
     }
 }
+
+#if os(macOS)
+extension PostQueueSheet {
+    /// The piece and where it goes on the left; the caption word for word and what can be done on the right.
+    func macPage(_ e: PostQueueEntry) -> some View {
+        MacTwoPane(sideWidth: 420) {
+            List {
+                Group {
+                    Section { header(e) }
+                    if let said {
+                        Section { Label(said, systemImage: "checkmark.circle.fill").foregroundStyle(Tone.settled.color) }
+                    }
+                    Section {
+                        ForEach(places(e)) { (p: Place) in placeRow(p) }
+                    } header: {
+                        LedgerHeading(title: "Where it goes")
+                    } footer: {
+                        Text(e.toWebsite && !e.websiteNames.isEmpty ? "On the website as " + e.websiteNames.joined(separator: ", ") + "." : "")
+                    }
+                }
+                .houseRows()
+            }
+            .listStyle(.inset)
+        } main: {
+            List {
+                Group {
+                    if !e.caption.isEmpty {
+                        LedgerSection("Caption") {
+                            Text(e.caption).textSelection(.enabled).font(.body)
+                        }
+                    }
+                    actions(e)
+                }
+                .houseRows()
+            }
+            .listStyle(.inset)
+        }
+        .websiteBusy(busy)
+        .failureAlert($failure)
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
+                if !e.caption.isEmpty {
+                    Button { MacClipboard.copy(e.caption) } label: { Label("Copy the caption", systemImage: "doc.on.doc") }
+                        .help("Copy the caption")
+                }
+            }
+        }
+        .actionBar(primary: .init(e.status == "failed" ? "Send what is left now" : "Send now", systemImage: "paperplane.fill",
+                                  isBusy: busy != nil, isDisabled: !["held", "scheduled", "failed"].contains(e.status)) { confirmingSend = true },
+                   summary: statusWords(e))
+        .confirmationDialog("Send this now?", isPresented: $confirmingSend, titleVisibility: .visible) {
+            Button("Send now") { Task { await send(e) } }
+        } message: {
+            Text(sendWords(e))
+        }
+        .confirmationDialog("Take it out of the queue?", isPresented: $confirmingRemove, titleVisibility: .visible) {
+            Button("Remove", role: .destructive) { Task { await remove(e) } }
+        } message: {
+            Text(e.done > 0 ? "What already went stays where it is; the rest will not go." : "Nothing of it has gone. Its photos are deleted with it.")
+        }
+        .frame(minWidth: 820, minHeight: 480)
+    }
+}
+#endif

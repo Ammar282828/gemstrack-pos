@@ -157,6 +157,15 @@ enum SettingsVCard {
 // MARK: The page
 
 private struct ContactImportPage: View {
+    /// How to get the file out of Contacts, on each device.
+    static var exportSteps: String {
+        #if os(macOS)
+        "In Contacts: select all cards, then File → Export → Export vCard…."
+        #else
+        "On iPhone: Contacts → select all → Share → Save to Files."
+        #endif
+    }
+
     @State private var picking = false
     @State private var reading = false
     @State private var fileName = ""
@@ -224,7 +233,7 @@ private struct ContactImportPage: View {
         } header: {
             LedgerHeading(title: "Choose the file")
         } footer: {
-            Text("On iPhone: Contacts → select all → Share → Save to Files. Only entries marked TJ, HOM, TC or Karigar in the name are taken. The mark is stripped, so “Altaf TJ” is saved as Altaf. Nothing is written until you press Import.")
+            Text("\(Self.exportSteps) Only entries marked TJ, HOM, TC or Karigar in the name are taken. The mark is stripped, so “Altaf TJ” is saved as Altaf. Nothing is written until you press Import.")
         }
     }
 
@@ -244,7 +253,7 @@ private struct ContactImportPage: View {
             return
         }
         guard text.contains("BEGIN:VCARD") else {
-            error = "That does not look like a contacts file. Export a .vcf from your phone."
+            error = "That does not look like a contacts file. Export a .vcf from your contacts."
             return
         }
         let body = SettingsVCard.withoutMedia(text)

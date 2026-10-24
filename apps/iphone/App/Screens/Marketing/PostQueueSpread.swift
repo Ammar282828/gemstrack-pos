@@ -72,6 +72,9 @@ struct PostQueueSpreadSheet: View {
         }
         .presentationDetents([.medium, .large])
         .interactiveDismissDisabled(busy != nil)
+        #if os(macOS)
+        .frame(minWidth: 520, minHeight: 480)
+        #endif
     }
 
     /// The window as the counter set it: the first today at that time, or tomorrow if it has passed; the last on the

@@ -35,6 +35,32 @@ struct WebsiteEditScreen: View {
         .navigationTitle("Edit a piece")
         .navigationBarTitleDisplayMode(.large)
         .searchable(text: $search, prompt: "Name, collection, ruby, Ring 12…")
+        #if os(macOS)
+        .navigationSubtitle(store.phase == .loaded ? "\(filtered.count) of \(store.pieces.count) pieces" : "")
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Picker("Show", selection: $filter) {
+                    Text("Everything").tag(Filter.all)
+                    Text("Changed here").tag(Filter.changed)
+                    Text("Hidden").tag(Filter.hidden)
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 320)
+            }
+            ToolbarItemGroup(placement: .primaryAction) {
+                Picker("Collection", selection: $collection) {
+                    Text("Every collection").tag("")
+                    Divider()
+                    ForEach(collections, id: \.self) { (c: String) in Text(c).tag(c) }
+                }
+                .pickerStyle(.menu)
+                .help("Show one collection")
+                Button { Task { await store.load(fresh: true) } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
+                    .keyboardShortcut("r", modifiers: .command)
+                    .help("Read the website again")
+            }
+        }
+        #endif
         .task { await store.load() }
         .onChange(of: search) { _, _ in shown = WebsiteEditScreen.pageSize }
         .onChange(of: filter) { _, _ in shown = WebsiteEditScreen.pageSize }
@@ -69,7 +95,11 @@ struct WebsiteEditScreen: View {
         let items = filtered
         let changedCount = store.pieces.filter { (p: WebsiteEditPiece) in p.changed }.count
         let hiddenCount = store.pieces.filter { (p: WebsiteEditPiece) in p.hidden }.count
-        return ScrollView {
+        return macGrid(items: items, changedCount: changedCount, hiddenCount: hiddenCount)
+    }
+
+    private func phoneGrid(items: [WebsiteEditPiece], changedCount: Int, hiddenCount: Int) -> some View {
+        ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
@@ -118,13 +148,21 @@ struct WebsiteEditScreen: View {
         .refreshable { await store.load(fresh: true) }
     }
 
+    private func macGrid(items: [WebsiteEditPiece], changedCount: Int, hiddenCount: Int) -> some View {
+        #if os(macOS)
+        macPieces(items)
+        #else
+        phoneGrid(items: items, changedCount: changedCount, hiddenCount: hiddenCount)
+        #endif
+    }
+
     /// "name, hidden · owner@… · Today 4:05 pm".
     static func recentWords(_ r: WebsiteEditRecent) -> String {
         let parts: [String] = [r.what.joined(separator: ", "), r.by, ShopDate.say(r.at, withTime: true)]
         return parts.filter { (s: String) in !s.isEmpty }.joined(separator: " · ")
     }
 
-    private var recentCard: some View {
+    var recentCard: some View {
         SectionCard("Recent changes") {
             ForEach(store.recent.prefix(15)) { (r: WebsiteEditRecent) in
                 NavigationLink(value: Route(path: WebsiteEditScreen.piecePath(r.key))) {
@@ -248,3 +286,44 @@ final class WebsiteEdits {
         Task { await self.load() }
     }
 }
+
+#if os(macOS)
+extension WebsiteEditScreen {
+    /// A wide grid of pieces with the recent changes in a column beside it; right-click on a piece.
+    func macPieces(_ items: [WebsiteEditPiece]) -> some View {
+        MacTwoPane(sideWidth: store.recent.isEmpty ? 0 : 320, sideOnRight: true) {
+            ScrollView {
+                if !store.recent.isEmpty { recentCard.padding(16) }
+            }
+        } main: {
+            ScrollView {
+                if items.isEmpty {
+                    ContentUnavailableView("Nothing matches", systemImage: "square.grid.2x2",
+                                           description: Text("Clear the search, or pick another collection."))
+                } else {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: 14, alignment: .top)], spacing: 14) {
+                        ForEach(Array(items.prefix(shown))) { (p: WebsiteEditPiece) in
+                            NavigationLink(value: Route(path: WebsiteEditScreen.piecePath(p.id))) {
+                                WebsiteEditTile(piece: p).ledgerCard(padding: 10)
+                            }
+                            .buttonStyle(.plain)
+                            .pointerHover()
+                            .contextMenu {
+                                MacOpenInWindow(path: WebsiteEditScreen.piecePath(p.id))
+                                Button("Copy the name", systemImage: "doc.on.doc") { MacClipboard.copy(p.words.name) }
+                            }
+                        }
+                    }
+                    .padding(20)
+                    if items.count > shown {
+                        Button("Show more (\(items.count - shown) left)") { shown += WebsiteEditScreen.pageSize }
+                            .buttonStyle(.bordered)
+                            .frame(maxWidth: .infinity)
+                            .padding(.bottom, 20)
+                    }
+                }
+            }
+        }
+    }
+}
+#endif

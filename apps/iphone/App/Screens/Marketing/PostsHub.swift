@@ -23,12 +23,26 @@ struct PostsHub: View {
     @State private var checksOpen = false
 
     struct Opened: Identifiable { let id: String }
+    #if os(macOS)
+    @Environment(\.openPlaceWindow) private var openPlace
+    /// A queued piece the Mac's right-click asked to remove (asks first).
+    @State private var removing: Opened?
+    @State private var refused: String?
+    #endif
 
     // Design and the old Post a piece composer are Posts' tab (Hub · Design · Investments), reached from the title menu, not rows here.
     private var hasInvestments: Bool { MarketingKit.has("/website/investments", role: session.role) }
     private var hasWebsite: Bool { MarketingKit.has("/website/photos", role: session.role) }
 
     var body: some View {
+        #if os(macOS)
+        macBody
+        #else
+        phoneBody
+        #endif
+    }
+
+    private var phoneBody: some View {
         List {
             Group {
                 makeSection
@@ -264,6 +278,9 @@ struct PostsHub: View {
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
+        #if os(macOS)
+        .contextMenu { macQueueMenu(e) }
+        #endif
     }
 
     private func queueNote(_ e: PostQueueEntry) -> String {
@@ -388,3 +405,151 @@ struct PostPieceTile: View {
         return piece.collection
     }
 }
+
+#if os(macOS)
+// MARK: - The Mac's Posts: what is going out beside the website's pieces
+
+extension PostsHub {
+    var macBody: some View {
+        MacTwoPane(sideWidth: 400) {
+            List {
+                Group {
+                    failingSection
+                    todaySection
+                    goldSection
+                    queueSection
+                }
+                .houseRows()
+            }
+            .listStyle(.inset)
+        } main: {
+            macPieces
+        }
+        .navigationTitle("Posts")
+        .navigationSubtitle(macSubtitle)
+        .navigationDestination(item: $go) { (r: Route) in PlaceScreen(path: r.path) }
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
+                if store.waiting.count > 0 {
+                    Menu {
+                        Button("Spread over the day", systemImage: "clock") { spreading = true }
+                        Button(store.waiting.count > 1 ? "Send all \(store.waiting.count) now" : "Send it now", systemImage: "paperplane") { confirmingAll = true }
+                    } label: {
+                        Label("Queue", systemImage: "tray.full")
+                    }
+                    .disabled(sendingAll)
+                    .help("Send what waits in the queue, or spread it over the day")
+                }
+                if hasWebsite {
+                    Button { go = Route(path: MarketingKit.websitePath) } label: { Label("The website", systemImage: "globe") }
+                        .help("Photos, weights, interest and live visitors")
+                }
+                if hasInvestments {
+                    Button { go = Route(path: "/website/investments") } label: { Label("Investments", systemImage: "chart.line.uptrend.xyaxis") }
+                        .help("Taheri's gold post")
+                }
+                Button { go = Route(path: MarketingKit.trayPath()) } label: { Label("Pick, caption and send", systemImage: "paperplane") }
+                    .keyboardShortcut("n", modifiers: [.command, .option])
+                    .help("Pick pieces, caption them and send or queue them")
+                Button { Task { await store.load(gold: hasInvestments) } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
+                    .keyboardShortcut("r", modifiers: .command)
+                    .help("Read the posts again")
+            }
+        }
+        .sheet(item: $opened) { (o: Opened) in PostQueueSheet(id: o.id).presentationSizing(.form) }
+        .sheet(isPresented: $spreading) {
+            PostQueueSpreadSheet { (n: Note) in Note.show(n, in: $note, reduce: reduceMotion) }
+                .presentationSizing(.form)
+        }
+        .confirmationDialog(sendAllTitle, isPresented: $confirmingAll, titleVisibility: .visible) {
+            Button(store.failingChecks.isEmpty ? "Send" : "Send anyway") { Task { await sendAll() } }
+            Button("Not yet", role: .cancel) {}
+        } message: {
+            Text(sendAllWords)
+        }
+        .confirmDestructive(isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }),
+                            title: "Remove it from the queue?", message: "It will not go out.",
+                            action: "Remove") {
+            if let id = removing?.id { Task { do { try await store.remove(id) } catch { refused = error.localizedDescription } } }
+            removing = nil
+        }
+        .failureAlert($refused, title: "Not now")
+        .noteToast($note)
+        .motion(store.queueShown.map(\.id))
+        .task { await store.load(gold: hasInvestments) }
+    }
+
+    private var macSubtitle: String {
+        let out = store.sentToday.count
+        let waiting = store.waiting.count
+        var parts: [String] = []
+        if out > 0 { parts.append("\(out) out today") }
+        if waiting > 0 { parts.append("\(waiting) in the queue") }
+        return parts.joined(separator: " · ")
+    }
+
+    /// The website's pieces as a wide grid of cards: all the new arrivals, or the latest, with right-click on each.
+    @ViewBuilder
+    private var macPieces: some View {
+        switch store.piecesPhase {
+        case .off:
+            ContentUnavailableView("No website pieces", systemImage: "globe",
+                                   description: Text("This shop's website has no pieces for the ERP to post from."))
+        case .idle, .loading:
+            MarketingReading(text: "Reading the website…").frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .failed(let message):
+            VStack(spacing: 10) {
+                Text(message).foregroundStyle(.secondary)
+                Button("Try again") { Task { await store.load(gold: hasInvestments) } }.buttonStyle(.bordered)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .loaded:
+            let fresh = store.pieces.filter { (p: PostPiece) in p.newArrival }
+            let shown = Array((fresh.isEmpty ? store.pieces : fresh).prefix(48))
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        LedgerHeading(title: fresh.isEmpty ? "From \(store.siteName)" : "New on \(store.siteName)")
+                        Spacer()
+                        Button("All \(store.pieces.count) pieces") { go = Route(path: MarketingKit.piecesPath) }
+                            .buttonStyle(.link)
+                    }
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 14, alignment: .top)], spacing: 14) {
+                        ForEach(shown) { (p: PostPiece) in
+                            Button { go = Route(path: MarketingKit.piecePath(p.id)) } label: {
+                                PostPieceTile(piece: p, posted: store.posted[p.id])
+                                    .ledgerCard(padding: 10)
+                            }
+                            .buttonStyle(.plain)
+                            .pointerHover()
+                            .contextMenu {
+                                Button("Open", systemImage: "arrow.up.forward.square") { go = Route(path: MarketingKit.piecePath(p.id)) }
+                                MacOpenInWindow(path: MarketingKit.piecePath(p.id))
+                                Divider()
+                                Button("Send or queue it", systemImage: "paperplane") { go = Route(path: MarketingKit.trayPath(p.id)) }
+                                if let url = URL(string: p.url), !p.url.isEmpty {
+                                    Button("Open on \(store.siteName)", systemImage: "safari") { NSWorkspace.shared.open(url) }
+                                }
+                            }
+                        }
+                    }
+                }
+                .padding(20)
+            }
+        }
+    }
+
+    @ViewBuilder
+    func macQueueMenu(_ e: PostQueueEntry) -> some View {
+        Button("Open", systemImage: "arrow.up.forward.square") { opened = Opened(id: e.id) }
+        MacOpenInWindow(path: "/marketing/queue?id=" + (e.id.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? ""))
+        if e.status != "sent" {
+            Divider()
+            Button("Hold", systemImage: "pause") {
+                Task { do { try await store.hold(e.id) } catch { refused = error.localizedDescription } }
+            }
+            Button("Remove", systemImage: "trash", role: .destructive) { removing = Opened(id: e.id) }
+        }
+    }
+}
+#endif

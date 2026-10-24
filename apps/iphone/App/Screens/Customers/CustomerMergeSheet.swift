@@ -26,6 +26,11 @@ struct CustomerMergeSheet: View {
     @State private var note: Note?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var counted = Memo<CustomerMergeBook>()
+    #if os(macOS)
+    /// The Mac's two panes: the pair picked in the list, and whether the manual merge is open instead.
+    @State private var macPick: String?
+    @State private var macManual = false
+    #endif
 
     private var ready: Bool {
         book.customers.loaded && book.invoices.loaded && book.orders.loaded && book.hisaab.loaded && book.givenItems.loaded && book.repairs.loaded
@@ -41,7 +46,11 @@ struct CustomerMergeSheet: View {
     var body: some View {
         NavigationStack {
             ShelfState(loaded: ready, error: failure, offline: book.customers.offline) {
+                #if os(macOS)
+                macReview
+                #else
                 list
+                #endif
             }
             .navigationTitle("Merge duplicates")
             .navigationBarTitleDisplayMode(.inline)
@@ -265,3 +274,118 @@ struct CustomerMergeSheet: View {
         }
     }
 }
+
+#if os(macOS)
+
+// MARK: - The Mac review
+
+/// Merging as a two-pane review: the pairs that look alike down the left (with why), the picked pair on the right with
+/// who is kept and who is deleted side by side and what moves. Swap, "Not a duplicate" and the merge itself are the
+/// page's own (and in the right-click menu); the manual merge is its own tab. The delete code is asked as ever.
+extension CustomerMergeSheet {
+    private var macReview: some View {
+        let byId = Dictionary(live.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        let visible = (found ?? []).filter { !dismissed.contains($0.id) && byId[$0.a] != nil && byId[$0.b] != nil }
+        return Group {
+            if macManual {
+                Form { manualSection(byId) }
+                    .formStyle(.grouped)
+                    .scrollContentBackground(.hidden)
+                    .frame(maxWidth: 640)
+                    .frame(maxWidth: .infinity)
+            } else if found == nil {
+                VStack(spacing: 10) {
+                    ProgressView()
+                    Text("Looking for duplicates\u{2026}").foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if visible.isEmpty {
+                ContentUnavailableView("No duplicates found", systemImage: "person.2.badge.checkmark",
+                                       description: Text("Two the list missed can be merged by hand: pick Manual above."))
+            } else {
+                HSplitView {
+                    macPairs(visible, byId)
+                        .frame(minWidth: 260, idealWidth: 320, maxWidth: 420)
+                    macDetail(visible, byId)
+                        .frame(minWidth: 460)
+                }
+            }
+        }
+        .frame(minWidth: 820, minHeight: 520)
+        .background(Theme.ground)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Picker("Merge", selection: $macManual) {
+                    Text("Found for you").tag(false)
+                    Text("Manual").tag(true)
+                }
+                .pickerStyle(.segmented)
+                .help("The pairs that look alike, or two you pick yourself")
+            }
+        }
+    }
+
+    private func macPairs(_ visible: [CustomerDuplicates.Found], _ byId: [String: Customer]) -> some View {
+        List(visible, selection: $macPick) { (pair: CustomerDuplicates.Found) in
+            let turned = swapped.contains(pair.id)
+            let keep = byId[turned ? pair.b : pair.a]
+            let gone = byId[turned ? pair.a : pair.b]
+            VStack(alignment: .leading, spacing: 2) {
+                Text(pair.reason).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                Text(keep.map { CustomerKit.shown($0) } ?? "").font(.body.weight(.medium))
+                Text(gone.map { CustomerKit.shown($0) } ?? "").font(.subheadline).foregroundStyle(.secondary)
+            }
+            .padding(.vertical, 2)
+            .contextMenu {
+                if let keep, let gone {
+                    Button { toggle(pair.id) } label: { Label("Swap keep and delete", systemImage: "arrow.up.arrow.down") }
+                    Button { _ = dismissed.insert(pair.id) } label: { Label("Not a duplicate", systemImage: "xmark") }
+                    Divider()
+                    Button(role: .destructive) { ask(keep: keep, duplicate: gone) } label: {
+                        Label("Merge and delete the duplicate", systemImage: "arrow.triangle.merge")
+                    }
+                }
+            }
+        }
+        .listStyle(.inset)
+    }
+
+    @ViewBuilder
+    private func macDetail(_ visible: [CustomerDuplicates.Found], _ byId: [String: Customer]) -> some View {
+        let pair = visible.first { $0.id == macPick } ?? visible[0]
+        let turned = swapped.contains(pair.id)
+        if let keep = byId[turned ? pair.b : pair.a], let duplicate = byId[turned ? pair.a : pair.b] {
+            VStack(alignment: .leading, spacing: 16) {
+                LedgerHeading(title: pair.reason)
+                HStack(alignment: .top, spacing: 14) {
+                    person("Keep", keep, tint: Theme.accent)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .ledgerCard()
+                    Image(systemName: "arrow.left").foregroundStyle(.secondary).padding(.top, 28)
+                    person("Delete", duplicate, tint: Tone.problem.color, moves: moves(for: duplicate.id))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .ledgerCard()
+                }
+                Text("Everything under the one deleted moves to the one kept, and what only the duplicate knew (a number, an address) is filled in. The duplicate's record is then deleted for good.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+            }
+            .padding(20)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .id(pair.id)
+            .actionBar(
+                primary: ActionBar.Action("Merge and delete the duplicate", systemImage: "arrow.triangle.merge", role: .destructive) {
+                    ask(keep: keep, duplicate: duplicate)
+                },
+                secondary: [
+                    ActionBar.Action("Swap keep and delete", systemImage: "arrow.up.arrow.down") { toggle(pair.id) },
+                    ActionBar.Action("Not a duplicate", systemImage: "xmark") { _ = dismissed.insert(pair.id) },
+                ],
+                summary: moves(for: duplicate.id).total == 0
+                    ? "Nothing to move"
+                    : "Moves \(moves(for: duplicate.id).sentence)")
+        }
+    }
+}
+#endif

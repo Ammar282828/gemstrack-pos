@@ -57,6 +57,11 @@ struct OrderCardRows: View {
 
     private var hasPhone: Bool { !CustomerKit.dialable(order.customerContact).isEmpty }
 
+    #if os(macOS)
+    /// Lets a card's right-click open the order in a window of its own (the Mac shell provides it).
+    @Environment(\.openPlaceWindow) private var openPlaceWindow
+    #endif
+
     var body: some View {
       if standalone {
         VStack(spacing: 12) {
@@ -131,6 +136,13 @@ struct OrderCardRows: View {
 
     @ViewBuilder
     private var menu: some View {
+        #if os(macOS)
+        Button("Open") { actions.open(.order(order.id)) }
+        Button("Open in New Window") { openPlaceWindow?(Route(path: "/orders/\(order.id)")) }
+            .disabled(openPlaceWindow == nil)
+        Button("Print slip") { actions.open(.slip(order.id)) }
+        Divider()
+        #endif
         if canAdvance {
             Button { actions.advance(order) } label: { Label("Record an advance", systemImage: "banknote") }
         }

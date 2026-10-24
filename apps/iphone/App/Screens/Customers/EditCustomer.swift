@@ -137,6 +137,9 @@ private struct EditCustomerForm: View {
     // MARK: Body
 
     var body: some View {
+        #if os(macOS)
+        macBody
+        #else
         Form { Group {
             nameSection
             phoneSection
@@ -163,6 +166,7 @@ private struct EditCustomerForm: View {
                 .keyboardShortcut("s", modifiers: .command)
             }
         }
+        #endif
     }
 
     private var nameSection: some View {
@@ -278,6 +282,50 @@ private struct EditCustomerForm: View {
         dismiss()
     }
 }
+
+#if os(macOS)
+/// The Mac's form: two grouped columns that use the window (who and where on the left, sizes, dates and notes on the
+/// right), ⌘S in the toolbar and Return in the footer. What is typed, what is sent and the Outbox are the form's above.
+extension EditCustomerForm {
+    private var macBody: some View {
+        HStack(alignment: .top, spacing: 0) {
+            Form {
+                nameSection
+                phoneSection
+                emailSection
+                addressSection
+            }
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+            Form {
+                sizesSection
+                datesSection
+                aboutSection
+                sourceSection
+            }
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+        }
+        .frame(maxWidth: 1100)
+        .frame(maxWidth: .infinity)
+        .background(Theme.ground)
+        .disabled(saving)
+        .failureAlert($error, title: "Could not save")
+        .actionBar(primary: ActionBar.Action("Save changes", isBusy: saving, isDisabled: !canSave) { Task { await save() } },
+                   summary: patch.isEmpty ? nil : "\(patch.count) change\(patch.count == 1 ? "" : "s") to save")
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                Button { Task { await save() } } label: {
+                    if saving { ProgressView() } else { Text("Save") }
+                }
+                .disabled(!canSave)
+                .keyboardShortcut("s", modifiers: .command)
+                .help("Save the changes (\u{2318}S)")
+            }
+        }
+    }
+}
+#endif
 
 /// An optional date, as the web's date input: nothing yet, or a day to change or take off. Karachi's day.
 private struct EditDayRow: View {
