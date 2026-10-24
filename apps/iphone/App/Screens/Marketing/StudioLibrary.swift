@@ -1,4 +1,7 @@
 import SwiftUI
+#if os(macOS)
+import AppKit
+#endif
 
 struct StudioLibrary: View {
     @Bindable var model: StudioModel
@@ -17,6 +20,14 @@ struct StudioLibrary: View {
     @State private var unlinking: MarketingValue?
     private var queryKey: String { [model.part, q, placement, source, filter, collection, sort].joined(separator: "|") }
     var body: some View {
+        #if os(macOS)
+        macBody
+        #else
+        phoneBody
+        #endif
+    }
+    @ViewBuilder
+    private var phoneBody: some View {
         List {
             Section {
                 Picker("Photos", selection: $model.part) { Text("Best for ads").tag("picks"); Text("Every photo").tag("library") }
@@ -63,7 +74,7 @@ struct StudioLibrary: View {
             Button("Unlink folder", role: .destructive) { if let folder = unlinking { Task { await model.run("Unlinking folder…") { _ = try await MarketingRequest.send("/api/ads/studio/drive?id=" + AdsQuery.escape(folder.s("id")), method: "DELETE") }; await load(fresh: true) } } }
         }
     }
-    private var assessment: some View {
+    var assessment: some View {
         LedgerSection("Assessment", collapsible: true) {
             MarketingDetails(fields: answer["counts"].object.mapValues(\.any))
             Button("Assess unassessed photos") { assess(["next": true]) }
@@ -72,7 +83,7 @@ struct StudioLibrary: View {
             MarketingDetails(fields: assessState.object.filter { $0.key != "background" }.mapValues(\.any))
         }
     }
-    private var drive: some View {
+    var drive: some View {
         LedgerSection("Google Drive", collapsible: true) {
             let details = answer["drive"]
             if !details.s("account").isEmpty {
@@ -91,7 +102,7 @@ struct StudioLibrary: View {
             Button("Check again") { Task { await load(fresh: true) } }
         }
     }
-    private func load(more: Bool = false, fresh: Bool = false) async {
+    func load(more: Bool = false, fresh: Bool = false) async {
         let params = ["view": model.part == "picks" ? "picks" : "all", "placement": placement, "source": source, "filter": filter, "collection": collection, "q": q, "sort": sort, "offset": more ? String(rows.count) : "0", "limit": "60", "fresh": fresh ? "1" : "0"]
         let path = "/api/ads/studio/library?" + params.sorted { $0.key < $1.key }.map { $0.key + "=" + AdsQuery.escape($0.value) }.joined(separator: "&")
         do {
@@ -102,6 +113,88 @@ struct StudioLibrary: View {
     }
     private func assess(_ body: [String: Any]) { Task { await model.run("Assessing photos…") { assessState = try await MarketingRequest.send("/api/ads/studio/assess", body) }; await load() } }
 }
+
+#if os(macOS)
+extension StudioLibrary {
+    /// The photos as a wide grid of cards (click to open, right-click for more); filters in the toolbar; the assessment and Drive beside.
+    @ViewBuilder
+    var macBody: some View {
+        MacTwoPane(sideWidth: 380, sideOnRight: true) {
+            List {
+                Group { assessment; drive }.houseRows()
+            }
+            .listStyle(.inset)
+        } main: {
+            ScrollView {
+                if rows.isEmpty {
+                    Group {
+                        if House.isDemo { Text("The demo has no photo library.").foregroundStyle(.secondary) }
+                        else if !loaded { SkeletonLoading("Loading the photos") }
+                        else { ContentUnavailableView("No photos match these filters", systemImage: "photo.on.rectangle") }
+                    }
+                    .frame(maxWidth: .infinity).padding(40)
+                } else {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: 14, alignment: .top)], spacing: 14) {
+                        ForEach(rows, id: \.text) { item in
+                            Button { opened = StudioAssetChoice(item: item) } label: {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    MarketingPhoto(path: item.s("thumb"))
+                                        .frame(maxWidth: .infinity).aspectRatio(1, contentMode: .fit)
+                                        .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
+                                    Text(item.s("name")).font(.subheadline.weight(.medium)).lineLimit(2).foregroundStyle(.primary)
+                                    Text(item.s("collection")).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                                    Text(item["adScore"] != .null ? "Ad score · \(Int(item.n("adScore")))" : "Not assessed")
+                                        .font(.caption).foregroundStyle(.secondary)
+                                }
+                                .ledgerCard(padding: 10)
+                            }
+                            .buttonStyle(.plain)
+                            .pointerHover()
+                            .contextMenu {
+                                Button("Open", systemImage: "arrow.up.forward.square") { opened = StudioAssetChoice(item: item) }
+                                Button("Copy the name", systemImage: "doc.on.doc") { MacClipboard.copy(item.s("name")) }
+                                if let url = URL(string: item.s("page")), url.scheme == "https" {
+                                    Button("View on the website", systemImage: "safari") { NSWorkspace.shared.open(url) }
+                                }
+                            }
+                        }
+                    }
+                    .padding(20)
+                    if rows.count < Int(answer.n("total")) {
+                        Button("Show more") { Task { await load(more: true) } }
+                            .buttonStyle(.bordered).frame(maxWidth: .infinity).padding(.bottom, 20)
+                    }
+                }
+            }
+        }
+        .searchable(text: $q, prompt: "Name, subject or collection")
+        .navigationSubtitle(answer.n("total") > 0 ? "\(Int(answer.n("total"))) photos" : "")
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
+                Picker("Photos", selection: $model.part) { Text("Best for ads").tag("picks"); Text("Every photo").tag("library") }
+                    .pickerStyle(.segmented).frame(width: 260)
+                Picker("Placement", selection: $placement) { Text("Feed · 4:5").tag("portrait"); Text("Feed · 1:1").tag("square"); Text("Stories · 9:16").tag("story") }
+                    .pickerStyle(.menu).help("The shape the ad scores are for")
+                Menu {
+                    Picker("Source", selection: $source) { Text("All sources").tag("all"); Text("Website").tag("site"); Text("Drive").tag("drive"); Text("Uploads").tag("upload") }
+                    Picker("Assessment", selection: $filter) { ForEach(["all", "unassessed", "assessed", "fixable", "risky"], id: \.self) { Text(ArtworkProperties.label($0)).tag($0) } }
+                    Picker("Collection", selection: $collection) { Text("All collections").tag(""); ForEach(answer["collections"].array, id: \.text) { Text($0.s("name") + " · " + String(Int($0.n("count")))).tag($0.s("name")) } }
+                    Picker("Sort", selection: $sort) { Text("Newest first").tag("newest"); Text("Best score first").tag("score") }
+                } label: { Label("Filters", systemImage: "line.3.horizontal.decrease.circle") }
+                .help("Source, assessment, collection and order")
+                Button { Task { await load(fresh: true) } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
+                    .keyboardShortcut("r", modifiers: .command)
+                    .help("Read the library again")
+            }
+        }
+        .task(id: queryKey) { if !House.isDemo { do { try await Task.sleep(for: .milliseconds(250)); await load() } catch {} } }
+        .sheet(item: $opened) { choice in StudioAssetSheet(item: choice.item, placement: placement, model: model) { await load() }.presentationSizing(.page) }
+        .confirmationDialog("Unlink “\(unlinking?.s("name") ?? "this folder")”? Its photos leave the library.", isPresented: Binding(get: { unlinking != nil }, set: { if !$0 { unlinking = nil } }), titleVisibility: .visible) {
+            Button("Unlink folder", role: .destructive) { if let folder = unlinking { Task { await model.run("Unlinking folder…") { _ = try await MarketingRequest.send("/api/ads/studio/drive?id=" + AdsQuery.escape(folder.s("id")), method: "DELETE") }; await load(fresh: true) } } }
+        }
+    }
+}
+#endif
 
 struct StudioAssetChoice: Identifiable { let id = UUID(); var item: MarketingValue }
 struct StudioAssetSheet: View {
@@ -136,6 +229,9 @@ struct StudioAssetSheet: View {
                 if let url = URL(string: item.s("page")), url.scheme == "https" { Section { Link("View on the website", destination: url) }.houseRows() }
             }.modifier(HouseGround()).navigationTitle("Photo").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+            #if os(macOS)
+            .frame(minWidth: 560, minHeight: 640)
+            #endif
             .safeAreaBar(edge: .bottom, spacing: 0) {
                 ActionBar(primary: .init("Make an ad with it", systemImage: "wand.and.stars", isBusy: model.busy != nil) {
                     Task { await model.choose(item); if model.error == nil { dismiss() } }

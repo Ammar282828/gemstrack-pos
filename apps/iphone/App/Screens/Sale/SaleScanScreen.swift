@@ -292,6 +292,7 @@ struct SaleScanScreen: View {
 /// Read a written bill on the Mac: the photo at the left (choose a file, drop one, or take it with the iPhone), what was
 /// read at the right with its lines as a table to tick off, then the foot of the bill; "Add to the sale" is the footer.
 extension SaleScanScreen {
+    @ViewBuilder
     var macBody: some View {
         Group {
             if session.isOwner {
@@ -309,6 +310,7 @@ extension SaleScanScreen {
         }
     }
 
+    @ViewBuilder
     private var macForm: some View {
         HSplitView {
             Form {

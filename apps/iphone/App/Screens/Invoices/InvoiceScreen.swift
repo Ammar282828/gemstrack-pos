@@ -911,6 +911,7 @@ enum InvoiceAct: String, Identifiable {
 /// are the toolbar's (Take payment, Edit, Discount, Refund, Send on WhatsApp, PDF, and the rest under More); ⌘P prints the
 /// bill (MacCommands). Every action is the iPhone's own function and sheet.
 extension InvoiceScreen {
+    @ViewBuilder
     var macBody: some View {
         let invoice = book.invoices.item(id)
         return Group {

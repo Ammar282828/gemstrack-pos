@@ -104,6 +104,7 @@ struct DesignSavedView: View {
         #endif
     }
 
+    @ViewBuilder
     private var phoneBody: some View {
         List {
             Section {
@@ -329,6 +330,7 @@ struct DesignDetailSheet: View {
 extension DesignSavedView {
     /// The shelf as a Mac app's library: folders in a sidebar, the designs as a grid of pictures. Double-click (or Return)
     /// opens one, right-click gives Open, Details and Delete, ⌫ deletes, the search is in the toolbar.
+    @ViewBuilder
     fileprivate var macBody: some View {
         HSplitView {
             macSidebar.frame(minWidth: 190, idealWidth: 220, maxWidth: 290)
@@ -393,6 +395,7 @@ extension DesignSavedView {
 
     // MARK: Folders
 
+    @ViewBuilder
     private var macSidebar: some View {
         List(selection: Binding<String?>(get: { view }, set: { view = $0 ?? Self.all; picked = nil })) {
             Section("Library") {

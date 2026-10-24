@@ -370,6 +370,7 @@ struct RateSheet: View {
 extension RateSheet {
     /// A compact Mac form: the day's rates in one grouped form a little over a screen's corner, the first rate
     /// focused, Return saves (as the default button, and from any field), Esc cancels.
+    @ViewBuilder
     var macBody: some View {
         let s = book.settings.value
         return NavigationStack {

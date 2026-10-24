@@ -245,6 +245,7 @@ struct ScanTag: View {
 /// presses Return, and the piece is found), the tags read this time listed under it, and what the last one turned out
 /// to be at the right. ⌘Return puts a found piece on a new sale; the next tag scanned simply replaces the card.
 extension ScanTag {
+    @ViewBuilder
     var macBody: some View {
         HSplitView {
             ScanTagMacScanner(

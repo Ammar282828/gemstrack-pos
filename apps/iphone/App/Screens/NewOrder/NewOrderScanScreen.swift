@@ -349,6 +349,7 @@ struct NewOrderScanScreen: View {
 // MARK: The Mac's reader: the paper on the left, what was read off it on the right
 
 extension NewOrderScanScreen {
+    @ViewBuilder
     fileprivate var macForm: some View {
         HStack(spacing: 0) {
             Form {

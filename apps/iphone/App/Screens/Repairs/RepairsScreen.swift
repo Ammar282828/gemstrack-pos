@@ -317,6 +317,7 @@ struct RepairsRow: View {
 extension RepairsScreen {
     /// A ticket's address (/repairs?id=…) is the ticket itself, in the column or window that asked; the plain
     /// /repairs is the desk: a table of every ticket, the ticket picked in an inspector beside it.
+    @ViewBuilder
     var macBody: some View {
         Group {
             if let id = linkedTicket {
@@ -334,6 +335,7 @@ extension RepairsScreen {
         return id.isEmpty ? nil : id
     }
 
+    @ViewBuilder
     private var macDesk: some View {
         ShelfState(loaded: book.repairs.loaded, error: book.repairs.error, offline: book.repairs.offline) {
             RepairsMacDesk(desk: desk, query: query, selection: $picked, creating: $creating)

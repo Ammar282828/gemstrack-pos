@@ -9,6 +9,10 @@ struct StudioScreen: View {
     var body: some View {
         Group {
             if session.role == "owner" || session.role == "marketing" {
+                #if os(macOS)
+                // The five tabs are a segmented control in the window's toolbar.
+                page
+                #else
                 VStack(spacing: 0) {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
@@ -19,9 +23,25 @@ struct StudioScreen: View {
                     }
                     page
                 }
+                #endif
             } else { AdsOwnersOnly() }
         }
         .modifier(HouseGround()).navigationTitle("Studio").navigationBarTitleDisplayMode(.inline)
+        #if os(macOS)
+        .toolbar {
+            if session.role == "owner" || session.role == "marketing" {
+                ToolbarItem(placement: .principal) {
+                    Picker("Studio", selection: $model.tab) {
+                        Text("Plan").tag("plan"); Text("Photos").tag("photos"); Text("Make").tag("make")
+                        Text("Board").tag("board"); Text("Saved").tag("saved")
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(minWidth: 380)
+                    .help("The studio's parts")
+                }
+            }
+        }
+        #endif
         .task { await model.load(path: path) }
         .onChange(of: model.tab) { _, tab in
             if tab == "photos", !["picks", "library"].contains(model.part) { model.part = "picks" }
@@ -47,7 +67,11 @@ struct StudioPlan: View {
     var body: some View {
         List {
             Section {
+                #if os(macOS)
+                Picker("Plan", selection: $model.part) { Text("What to run").tag("plays"); Text("Ad days and rules").tag("guide"); Text("Competitors").tag("rivals") }.pickerStyle(.segmented).labelsHidden()
+                #else
                 Picker("Plan", selection: $model.part) { Text("What to run").tag("plays"); Text("Ad days and rules").tag("guide"); Text("Competitors").tag("rivals") }.pickerStyle(.menu)
+                #endif
             }.houseRows()
             switch model.part {
             case "guide": guide
@@ -55,6 +79,9 @@ struct StudioPlan: View {
             default: plays
             }
         }.listStyle(.insetGrouped)
+        #if os(macOS)
+        .frame(maxWidth: .infinity)
+        #endif
         .task(id: model.part) { if model.part == "guide" { await loadGuide() } }
     }
     @ViewBuilder private var plays: some View {
@@ -119,23 +146,15 @@ struct StudioMaker: View {
     @State private var discarding = false
     private func field(_ key: String) -> Binding<String> { Binding(get: { model.fields[key] ?? "" }, set: { model.fields[key] = $0 }) }
     var body: some View {
-        Form {
-            if let said = model.said { Section { Text(said).font(.footnote); Button("Dismiss") { model.said = nil } }.houseRows() }
-            source
-            if model.photo != nil { design; words; ai; checks; destinations; saving }
-        }
-        .scrollDismissesKeyboard(.interactively)
-        .keyboardDone()
-        .safeAreaBar(edge: .bottom, spacing: 0) {
-            if model.photo != nil {
-                ActionBar(primary: .init("Continue to New ad", systemImage: "arrow.right", isBusy: model.busy != nil) { Task { await model.newAd() } })
-            }
-        }
+        makerForm
         .toolbar {
             if model.photo != nil {
                 ToolbarItem(placement: .primaryAction) {
                     Button(model.savedID == nil ? "Save design" : "Save changes") { Task { await model.save(asNew: false) } }
                         .disabled(model.busy != nil)
+                        #if os(macOS)
+                        .keyboardShortcut("s", modifiers: .command)
+                        #endif
                 }
             }
         }
@@ -145,10 +164,56 @@ struct StudioMaker: View {
         .sheet(isPresented: $editing) { ArtworkEditor(doc: $model.doc, photos: model.photos, fields: model.fields, ad: true) }
         .sheet(item: $share) { MarketingShareSheet(items: $0.items) }
     }
+    private var form: some View {
+        Form {
+            if let said = model.said { Section { Text(said).font(.footnote); Button("Dismiss") { model.said = nil } }.houseRows() }
+            source
+            if model.photo != nil { design; words; ai; checks; destinations; saving }
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .keyboardDone()
+    }
+
+    @ViewBuilder
+    private var makerForm: some View {
+        #if os(macOS)
+        // The form on the left, the picture as it will be on the right.
+        MacTwoPane(sideWidth: 480, sideOnRight: true) {
+            ScrollView {
+                if let image = NativeArtwork.image(model.image) {
+                    Image(uiImage: image).resizable().scaledToFit()
+                        .clipShape(.rect(cornerRadius: Radius.chip, style: .continuous))
+                        .padding(20)
+                } else {
+                    ContentUnavailableView("No picture yet", systemImage: "photo", description: Text("Choose a photo to start."))
+                        .padding(.top, 60)
+                }
+            }
+            .background(Theme.ground)
+        } main: {
+            form.formStyle(.grouped)
+        }
+        .actionBar(primary: .init("Continue to New ad", systemImage: "arrow.right", isBusy: model.busy != nil, isDisabled: model.photo == nil) { Task { await model.newAd() } })
+        #else
+        form
+            .safeAreaBar(edge: .bottom, spacing: 0) {
+                if model.photo != nil {
+                    ActionBar(primary: .init("Continue to New ad", systemImage: "arrow.right", isBusy: model.busy != nil) { Task { await model.newAd() } })
+                }
+            }
+        #endif
+    }
+
     private var source: some View {
         Section {
             Button("Choose from the library") { model.tab = "photos"; model.part = "picks" }
-            PhotosPicker(selection: $picker, matching: .images) { Label("A photo from this iPhone", systemImage: "photo.badge.plus") }
+            PhotosPicker(selection: $picker, matching: .images) {
+                #if os(macOS)
+                Label("A photo from Photos", systemImage: "photo.badge.plus")
+                #else
+                Label("A photo from this iPhone", systemImage: "photo.badge.plus")
+                #endif
+            }
             if model.asset != .null {
                 LabeledContent("Piece", value: model.asset.s("name"))
                 if model.asset["original"] != .null { Button("Use clean original from Drive") { Task { await model.choose(model.asset) } } }
@@ -159,7 +224,9 @@ struct StudioMaker: View {
     }
     private var design: some View {
         Section {
+            #if !os(macOS)
             if let image = NativeArtwork.image(model.image) { Image(uiImage: image).resizable().scaledToFit().frame(maxHeight: 420).frame(maxWidth: .infinity) }
+            #endif
             Picker("Shape", selection: $model.format) { ForEach(model.catalogue["formats"].array, id: \.text) { Text($0.s("label")).tag($0.s("id")) }; Text("Custom").tag("custom") }
                 .onChange(of: model.format) { _, _ in layout() }
             if model.format == "custom" {

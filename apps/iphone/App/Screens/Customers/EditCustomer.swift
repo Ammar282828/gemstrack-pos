@@ -180,6 +180,7 @@ private struct EditCustomerForm: View {
         }
     }
 
+    @ViewBuilder
     private var phoneSection: some View {
         Section {
             TextField("Phone number", text: $draft.phone, prompt: Text("Optional"))
@@ -287,6 +288,7 @@ private struct EditCustomerForm: View {
 /// The Mac's form: two grouped columns that use the window (who and where on the left, sizes, dates and notes on the
 /// right), ⌘S in the toolbar and Return in the footer. What is typed, what is sent and the Outbox are the form's above.
 extension EditCustomerForm {
+    @ViewBuilder
     private var macBody: some View {
         HStack(alignment: .top, spacing: 0) {
             Form {

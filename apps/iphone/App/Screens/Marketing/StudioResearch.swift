@@ -85,6 +85,14 @@ struct StudioSaved: View {
     private var folder: MarketingValue { data["folders"].array.first { $0.s("id") == view } ?? .null }
     private var items: [MarketingValue] { data["items"].array.filter { view == "all" || (view == "unfiled" ? $0.s("folder").isEmpty : $0.s("folder") == view) } }
     var body: some View {
+        #if os(macOS)
+        macBody
+        #else
+        phoneBody
+        #endif
+    }
+    @ViewBuilder
+    private var phoneBody: some View {
         List {
             Section {
                 Picker("Folder", selection: $view) {
@@ -124,7 +132,7 @@ struct StudioSaved: View {
             Button("Delete", role: .destructive) { if let item = deleting { if item.s("deleteKind") != "folder" { mutate("/api/ads/studio/saved?id=" + AdsQuery.escape(item.s("id")), method: "DELETE") } else { mutate("/api/ads/studio/saved/folders?id=" + AdsQuery.escape(item.s("folder")), method: "DELETE") }; deleting = nil; selected = nil } }
         }
     }
-    @ViewBuilder private var accountRows: some View {
+    @ViewBuilder var accountRows: some View {
         Section {
             if account.isEmpty { Text("No ads in the account.").foregroundStyle(.secondary) }
             ForEach(account, id: \.text) { ad in
@@ -143,7 +151,7 @@ struct StudioSaved: View {
             }
         }.houseRows()
     }
-    private func detail(_ item: MarketingValue) -> some View {
+    func detail(_ item: MarketingValue) -> some View {
         NavigationStack {
             List {
                 Section {
@@ -167,12 +175,94 @@ struct StudioSaved: View {
             }
         }
     }
-    private func load() async { do { data = try await MarketingRequest.get("/api/ads/studio/saved") } catch { model.error = error.localizedDescription } }
-    private func loadAccount() async {
+    func load() async { do { data = try await MarketingRequest.get("/api/ads/studio/saved") } catch { model.error = error.localizedDescription } }
+    func loadAccount() async {
         await model.run("Loading ad account…") {
             let r = try await MarketingRequest.get("/api/ads/campaigns?range=maximum")
             account = r["campaigns"].array.flatMap { $0["adsets"].array }.flatMap { $0["ads"].array }
         }
     }
-    private func mutate(_ path: String, _ body: [String: Any] = [:], method: String = "POST") { Task { await model.run("Saving…") { _ = try await MarketingRequest.send(path, body, method: method); await load() } } }
+    func mutate(_ path: String, _ body: [String: Any] = [:], method: String = "POST") { Task { await model.run("Saving…") { _ = try await MarketingRequest.send(path, body, method: method); await load() } } }
 }
+
+#if os(macOS)
+extension StudioSaved {
+    /// The folders down the left like a sidebar, the saved designs as a grid of cards, right-click on each.
+    @ViewBuilder
+    var macBody: some View {
+        MacTwoPane(sideWidth: 260) {
+            List(selection: $view) {
+                Section {
+                    Label("All", systemImage: "square.grid.2x2").tag("all")
+                    Label("Unfiled", systemImage: "tray").tag("unfiled")
+                    Label("In the ad account", systemImage: "megaphone").tag("account")
+                    ForEach(data["folders"].array, id: \.text) { f in
+                        Label(f.s("name"), systemImage: "folder").tag(f.s("id"))
+                    }
+                } header: { LedgerHeading(title: "Folders") }
+                Section {
+                    TextField("New folder name", text: $folderName)
+                    Button("Create folder") { mutate("/api/ads/studio/saved/folders", ["name": folderName]); folderName = "" }.disabled(folderName.isEmpty)
+                    if folder != .null {
+                        TextField("Rename folder", text: $rename)
+                        Button("Rename") { mutate("/api/ads/studio/saved/folders", ["id": folder.s("id"), "name": rename], method: "PATCH") }.disabled(rename.isEmpty)
+                        Button("Delete folder…", role: .destructive) { deleting = MarketingValue(["deleteKind": "folder", "folder": folder.s("id"), "name": folder.s("name")]) }
+                        Text("Designs inside a deleted folder stay unfiled.").font(.footnote).foregroundStyle(.secondary)
+                    }
+                } header: { LedgerHeading(title: "Manage") }
+            }
+            .listStyle(.sidebar)
+        } main: {
+            if view == "account" {
+                List { Group { accountRows }.houseRows() }.listStyle(.inset)
+            } else {
+                ScrollView {
+                    if items.isEmpty {
+                        ContentUnavailableView("No saved designs here", systemImage: "folder").padding(40)
+                    } else {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 180), spacing: 14, alignment: .top)], spacing: 14) {
+                            ForEach(items, id: \.text) { item in
+                                Button { selected = StudioAssetChoice(item: item) } label: {
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        StockImage(imageUrl: item.s("thumb"), name: item.s("name"), key: item.s("id"), decodeDataURI: true)
+                                            .aspectRatio(1, contentMode: .fit)
+                                            .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
+                                        Text(item.s("name")).font(.subheadline.weight(.medium)).foregroundStyle(.primary).lineLimit(2)
+                                        Text(item.s("format")).font(.caption).foregroundStyle(.secondary)
+                                    }
+                                    .ledgerCard(padding: 10)
+                                }
+                                .buttonStyle(.plain)
+                                .pointerHover()
+                                .contextMenu {
+                                    Button("Open", systemImage: "arrow.up.forward.square") { selected = StudioAssetChoice(item: item) }
+                                    Button("Open in Make", systemImage: "wand.and.stars") { Task { await model.restore(item) } }
+                                        .disabled(item["parts"].n("photo") == 0 || item["parts"].n("doc") == 0)
+                                    Menu("Move to folder", systemImage: "folder") {
+                                        Button("Unfiled") { mutate("/api/ads/studio/saved", ["id": item.s("id"), "folder": NSNull()], method: "PATCH") }
+                                        ForEach(data["folders"].array, id: \.text) { f in
+                                            Button(f.s("name")) { mutate("/api/ads/studio/saved", ["id": item.s("id"), "folder": f.s("id")], method: "PATCH") }
+                                        }
+                                    }
+                                    Button("Copy the name", systemImage: "doc.on.doc") { MacClipboard.copy(item.s("name")) }
+                                    Divider()
+                                    Button("Delete design…", systemImage: "trash", role: .destructive) { deleting = item }
+                                }
+                            }
+                        }
+                        .padding(20)
+                    }
+                }
+            }
+        }
+        .navigationSubtitle(view == "account" ? "In the ad account" : "\(items.count) saved")
+        .task { if !House.isDemo { await load() } }
+        .task(id: view) { if view == "account", !House.isDemo { await loadAccount() } }
+        .sheet(item: $selected) { choice in detail(choice.item).presentationSizing(.page).frame(minWidth: 560, minHeight: 640) }
+        .sheet(item: $share) { MarketingShareSheet(items: $0.items) }
+        .confirmationDialog("Delete “\(deleting?.s("name") ?? "")”?", isPresented: Binding(get: { deleting != nil && selected == nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible) {
+            Button("Delete", role: .destructive) { if let item = deleting { if item.s("deleteKind") != "folder" { mutate("/api/ads/studio/saved?id=" + AdsQuery.escape(item.s("id")), method: "DELETE") } else { mutate("/api/ads/studio/saved/folders?id=" + AdsQuery.escape(item.s("folder")), method: "DELETE") }; deleting = nil; selected = nil } }
+        }
+    }
+}
+#endif

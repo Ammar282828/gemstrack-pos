@@ -152,6 +152,7 @@ private struct StockBulkEditor: View {
         #endif
     }
 
+    @ViewBuilder
     private var phoneForm: some View {
         Form { Group {
             sharedSection
@@ -491,6 +492,7 @@ private struct StockBulkEditor: View {
 #if os(macOS)
 extension StockBulkEditor {
     /// The setup in a column on the left; the weights are an editable table beside it, with the paste box above.
+    @ViewBuilder
     var macForm: some View {
         HStack(spacing: 0) {
             Form { Group {

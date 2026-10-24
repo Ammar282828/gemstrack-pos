@@ -360,6 +360,7 @@ struct RepairsSheet: View {
 extension RepairsSheet {
     /// The ticket as a column or window of its own, not a sheet: no stack of its own (the desk's inspector or the
     /// hub's detail column holds it), its actions in the toolbar and a footer, the receipt through the Mac's print panel.
+    @ViewBuilder
     var macBody: some View {
         content
             .navigationTitle(id)

@@ -460,6 +460,7 @@ extension WebsiteWeightsScreen {
                 .pickerStyle(.menu)
                 .help("Weigh one collection")
                 Toggle(isOn: $onlyMissing) { Label("Only photos without a weight", systemImage: "scalemass") }
+                    .toggleStyle(.button)
                     .help("Only the photos that have no weight yet")
                 Button { index = max(index - 1, 0) } label: { Label("Previous", systemImage: "chevron.left") }
                     .keyboardShortcut("[", modifiers: .command)

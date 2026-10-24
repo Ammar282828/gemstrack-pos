@@ -67,6 +67,7 @@ struct WidgetPreviewScreen: View {
         #endif
     }
 
+    @ViewBuilder
     private var phoneFooter: some View {
         Text(look == .tinted
              ? "Tinted is an approximation; the home screen applies your chosen tint. Your widget shows the shop’s actual revenue and pinned message after it is linked."

@@ -1,4 +1,7 @@
 import SwiftUI
+#if os(macOS)
+import AppKit
+#endif
 import ERPCore
 
 /// The website's pieces as a photo grid (the hub's "From the website" grid): search, a collection chip
@@ -54,6 +57,7 @@ struct PostPiecesScreen: View {
                 .pickerStyle(.menu)
                 .help("Show one collection")
                 Toggle(isOn: $freshOnly) { Label("Hide recently posted", systemImage: "clock.badge.checkmark") }
+                    .toggleStyle(.button)
                     .help("Hide pieces posted in the last \(PostPiecesScreen.freshDays) days")
                 Button { Task { await store.load() } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
                     .keyboardShortcut("r", modifiers: .command)

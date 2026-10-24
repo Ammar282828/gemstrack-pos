@@ -45,6 +45,10 @@ struct ArtworkEditor: View {
     @State private var picks: [String] = []
     @State private var qrOpen = false
     @State private var qrText = ""
+    #if os(macOS)
+    /// The chosen layers waiting for the yes that removes them (⌘⌫ or the right-click menu).
+    @State private var removing = false
+    #endif
     private var sideBySide: Bool { sizeClass.isPadLayout && sheetWidth >= 820 && !typeSize.isAccessibilitySize }
     private var pageWidth: Double { doc["frame"].n("w", 1080) }
     private var allPhotos: [String: Data] { clipboard.photos.merging(photos) { _, current in current } }
@@ -149,7 +153,13 @@ struct ArtworkEditor: View {
                     ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
                     ToolbarItemGroup(placement: .primaryAction) {
                         Button { history(true) } label: { Label("Undo", systemImage: "arrow.uturn.backward") }.disabled(undo.isEmpty)
+                            #if os(macOS)
+                            .keyboardShortcut("z", modifiers: .command).help("Undo")
+                            #endif
                         Button { history(false) } label: { Label("Redo", systemImage: "arrow.uturn.forward") }.disabled(redo.isEmpty)
+                            #if os(macOS)
+                            .keyboardShortcut("z", modifiers: [.command, .shift]).help("Redo")
+                            #endif
                         Menu {
                             Button { Task { await export() } } label: { Label("Share", systemImage: "square.and.arrow.up") }.disabled(busy)
                         } label: { Label("More", systemImage: "ellipsis") }
@@ -164,6 +174,13 @@ struct ArtworkEditor: View {
                 .fileImporter(isPresented: $logoOpen, allowedContentTypes: [.svg, .png]) { takeLogo($0) }
                 .onAppear { if original == nil { original = doc } }
                 .onChange(of: selected) { _, new in picks = picks.filter { new.contains($0) } + new.subtracting(picks).sorted() }
+                #if os(macOS)
+                .background { macShortcuts }
+                .confirmDestructive(isPresented: $removing, title: "Remove \(selected.count == 1 ? "this layer" : "these \(selected.count) layers")?",
+                                    message: "Undo (⌘Z) brings \(selected.count == 1 ? "it" : "them") back.", action: "Remove") {
+                    var d = doc; d["layers"] = .array(layers.filter { !selected.contains($0.s("id")) || $0["locked"].bool }); change(d); selected = []
+                }
+                #endif
                 .interactiveDismissDisabled(original != nil && original != doc)
                 .sheet(item: $share) { MarketingShareSheet(items: $0.items) }.websiteBusy(busy ? "Preparing…" : nil)
                 .alert("QR code", isPresented: $qrOpen) {
@@ -176,6 +193,9 @@ struct ArtworkEditor: View {
                 } message: { Text("What the code opens: a link, a number or any words. Dark on light reads on every phone.") }
         }
         .presentationSizing(.page)
+        #if os(macOS)
+        .frame(minWidth: 1000, idealWidth: 1180, minHeight: 700, idealHeight: 820)
+        #endif
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { sheetWidth = $0 }
     }
     private var preview: some View {
@@ -191,6 +211,9 @@ struct ArtworkEditor: View {
                             .frame(width: max(22, b.n("w") * scale), height: max(22, b.n("h") * scale)).rotationEffect(.degrees(l.n("rotate")))
                             .offset(x: b.n("x") * scale, y: b.n("y") * scale)
                             .onTapGesture { select(id, multiple: false) }.onLongPressGesture { select(id, multiple: true) }
+                            #if os(macOS)
+                            .contextMenu { macLayerMenu(id, l) }
+                            #endif
                             .gesture(DragGesture(minimumDistance: 3).onChanged { v in
                                 guard !l["locked"].bool else { return }
                                 if dragStart == nil { select(id, multiple: false); dragStart = response["doc"] == .null ? doc : response["doc"]; prepareSnap() }
@@ -406,3 +429,50 @@ struct ArtworkEditor: View {
     private func take(_ item: PhotosPickerItem) async { defer { importing = nil }; do { guard let data = try await item.loadTransferable(type: Data.self), let jpeg = WebsitePhoto.jpegCopy(data), let image = UIImage(data: jpeg) else { throw ERPAPI.Failure(status: 0, message: "Choose a readable photo.") }; let n = MarketingValue(["id": UUID().uuidString, "kind": "image", "photoId": "", "src": "data:image/jpeg;base64," + jpeg.base64EncodedString(), "x": 240, "y": height * 0.35, "w": 600, "h": 600 * image.size.height / image.size.width, "radius": 0, "rotate": 0, "opacity": 1, "shadow": false, "name": "Uploaded image"]); var d = doc; d["layers"] = .array(layers + [n]); change(d); selected = [n.s("id")] } catch { problem = error.localizedDescription } }
     private func export() async { busy = true; defer { busy = false }; do { let r = try await engine.run(doc: doc, photos: allPhotos, fields: fields, options: ["px": 1080]); guard let data = Data(base64Encoded: r.s("image")) else { problem = "The design could not be drawn."; return }; let url = FileManager.default.temporaryDirectory.appendingPathComponent("design-\(UUID().uuidString).jpg"); try data.write(to: url); share = MarketingFileShare(items: [url]) } catch { problem = error.localizedDescription } }
 }
+
+#if os(macOS)
+extension ArtworkEditor {
+    /// Keys for the Mac: duplicate, remove (asks), a step up or down the stack, nudge by arrow.
+    @ViewBuilder
+    var macShortcuts: some View {
+        Group {
+            Button("Duplicate") { duplicate(layers.filter { selected.contains($0.s("id")) }) }.keyboardShortcut("d", modifiers: .command)
+            Button("Remove") { removing = true }.keyboardShortcut(.delete, modifiers: .command)
+            Button("Bring forward") { step(1) }.keyboardShortcut("]", modifiers: .command)
+            Button("Send backward") { step(-1) }.keyboardShortcut("[", modifiers: .command)
+            Button("Nudge left") { nudge(-1, 0) }.keyboardShortcut(.leftArrow, modifiers: .option)
+            Button("Nudge right") { nudge(1, 0) }.keyboardShortcut(.rightArrow, modifiers: .option)
+            Button("Nudge up") { nudge(0, -1) }.keyboardShortcut(.upArrow, modifiers: .option)
+            Button("Nudge down") { nudge(0, 1) }.keyboardShortcut(.downArrow, modifiers: .option)
+        }
+        .opacity(0).frame(width: 0, height: 0).accessibilityHidden(true).disabled(selected.isEmpty)
+    }
+
+    /// The chosen layers a few points over (⌥ and an arrow), one undo step for a run of them.
+    private func nudge(_ dx: Double, _ dy: Double) {
+        var d = doc
+        d["layers"] = .array(layers.map { l in
+            guard selected.contains(l.s("id")), !l["locked"].bool else { return l }
+            var n = l; n["x"] = .number(l.n("x") + dx * 4); n["y"] = .number(l.n("y") + dy * 4); n["flow"] = .null
+            return n
+        })
+        change(d, key: "nudge-" + selected.sorted().joined(separator: ","))
+    }
+
+    /// Right-click on a layer's box on the artwork.
+    @ViewBuilder
+    func macLayerMenu(_ id: String, _ l: MarketingValue) -> some View {
+        Button("Select") { select(id, multiple: false) }
+        Button("Select together") { select(id, multiple: true) }
+        Divider()
+        Button("Duplicate") { select(id, multiple: false); duplicate(layers.filter { $0.s("id") == id }) }
+        Button(l["locked"].bool ? "Unlock" : "Lock") { patch(id, ["locked": .bool(!l["locked"].bool)]) }
+        Button(l["hidden"].bool ? "Show" : "Hide") { patch(id, ["hidden": .bool(!l["hidden"].bool)]) }
+        Divider()
+        Button("Bring forward") { select(id, multiple: false); step(1) }
+        Button("Send backward") { select(id, multiple: false); step(-1) }
+        Divider()
+        Button("Remove…", role: .destructive) { select(id, multiple: false); removing = true }
+    }
+}
+#endif

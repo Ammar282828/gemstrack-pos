@@ -235,6 +235,7 @@ private struct AlertsForm: View {
 #if os(macOS)
 extension AlertsForm {
     /// Numbers as rows with a remove button and a right-click menu (a Form on the Mac has no swipe); Return adds the typed one.
+    @ViewBuilder
     fileprivate var macRecipients: some View {
         Section {
             ForEach(phones, id: \.self) { p in
@@ -267,6 +268,7 @@ extension AlertsForm {
     }
 
     /// The times as Mac time fields (type or step), in the shop's Karachi clock.
+    @ViewBuilder
     fileprivate var macSchedule: some View {
         Section {
             DatePicker("Daily checklist", selection: $times.checklist, displayedComponents: .hourAndMinute)

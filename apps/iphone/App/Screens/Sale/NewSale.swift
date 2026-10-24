@@ -416,6 +416,7 @@ struct SaleForm: View {
 /// right with the rest of the sale's sections under it, Save in the footer (Return, or ⌘S). The steps of the phone are
 /// sections here; every action is SaleForm's own.
 extension SaleForm {
+    @ViewBuilder
     var macPage: some View {
         let f = SaleFigures(draft: draft, settings: book.settings.value, customers: book.customers.items, marginSettings: House.margin)
         let split = SaleMacSplit(

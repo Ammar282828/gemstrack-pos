@@ -173,7 +173,7 @@ struct ArtworkRunsRows: View {
                         }.buttonStyle(.borderless)
                     }
                 }
-                Text(picked.isEmpty ? "None picked: styles go on all of it." : "\(picked.count) picked. Tap a word to add or remove it.").font(.footnote).foregroundStyle(.secondary)
+                Text(picked.isEmpty ? "None picked: styles go on all of it." : "\(picked.count) picked. \(DeviceWords.Tap) a word to add or remove it.").font(.footnote).foregroundStyle(.secondary)
                 styleRows
                 stretches
             }

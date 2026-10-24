@@ -101,7 +101,35 @@ struct MacDayHover: ViewModifier {
     }
 }
 
+/// ⌘ and the scroll wheel (or two fingers on the trackpad) zoom what the pointer is over, as in Preview and Figma; the
+/// factor is handed to the screen, which keeps its own zoom limits.
+struct MacScrollZoom: ViewModifier {
+    let zoom: (Double) -> Void
+    @State private var inside = false
+    @State private var monitor: Any?
+
+    func body(content: Content) -> some View {
+        content
+            .onHover { inside = $0 }
+            .onAppear {
+                guard monitor == nil else { return }
+                monitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { (event: NSEvent) -> NSEvent? in
+                    guard inside, event.modifierFlags.contains(.command) else { return event }
+                    let step = event.hasPreciseScrollingDeltas ? 0.01 : 0.06
+                    zoom(exp(Double(event.scrollingDeltaY) * step))
+                    return nil
+                }
+            }
+            .onDisappear {
+                if let monitor { NSEvent.removeMonitor(monitor) }
+                monitor = nil
+            }
+    }
+}
+
 extension View {
+    func macScrollZoom(_ zoom: @escaping (Double) -> Void) -> some View { modifier(MacScrollZoom(zoom: zoom)) }
+
     /// Hover read-out for a day chart: `.macDayHover(points) { AdsFormat.compact($0) }`.
     func macDayHover(_ points: [MacHoverPoint], say: @escaping (Double) -> String) -> some View {
         modifier(MacDayHover(points: points, say: say))

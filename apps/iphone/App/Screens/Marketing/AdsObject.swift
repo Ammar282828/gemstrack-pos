@@ -36,7 +36,9 @@ struct AdsObjectScreen: View {
             else { SkeletonLoading().frame(maxWidth: .infinity, maxHeight: .infinity) }
         }
         .modifier(HouseGround()).navigationTitle(name.isEmpty ? "Ad details" : name).navigationBarTitleDisplayMode(.inline)
+        #if !os(macOS)
         .readableColumn(780)
+        #endif
         .task { await load() }
         .sheet(isPresented: $audienceSheet) {
             if let audience {
@@ -207,6 +209,7 @@ struct AdsObjectScreen: View {
 #if os(macOS)
 extension AdsObjectScreen {
     /// A record window: the ad as Meta will show it on the left (an ad only), its fields and actions on the right.
+    @ViewBuilder
     var macRecord: some View {
         Group {
             if level == "ad" {

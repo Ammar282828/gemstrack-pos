@@ -1,4 +1,7 @@
 import SwiftUI
+#if os(macOS)
+import AppKit
+#endif
 import ERPCore
 
 /// Posts → Hub (src/app/posts/page.tsx): what went out today, where Taheri's gold post is, what waits in
@@ -42,6 +45,7 @@ struct PostsHub: View {
         #endif
     }
 
+    @ViewBuilder
     private var phoneBody: some View {
         List {
             Group {
@@ -410,6 +414,7 @@ struct PostPieceTile: View {
 // MARK: - The Mac's Posts: what is going out beside the website's pieces
 
 extension PostsHub {
+    @ViewBuilder
     var macBody: some View {
         MacTwoPane(sideWidth: 400) {
             List {

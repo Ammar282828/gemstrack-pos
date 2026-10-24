@@ -205,6 +205,7 @@ struct AnaEmptyPage: View {
         #endif
     }
 
+    @ViewBuilder
     private var phoneBody: some View {
         List { Group {
             Section {
@@ -236,6 +237,7 @@ struct AnaEmptyPage: View {
 extension AnaPages {
     /// A wide report. The tab and the period are the window's toolbar, not rows of chips: a menu of the five tabs, and
     /// the period as a pop-up with the quick ranges and "Custom period…". The period reads under the title.
+    @ViewBuilder
     fileprivate var macBody: some View {
         Group {
             if let kind = empty {
@@ -286,6 +288,7 @@ extension AnaPages {
 
 extension AnaEmptyPage {
     /// Nothing to report: one calm message in the middle of the window (the period is in the toolbar).
+    @ViewBuilder
     fileprivate var macBody: some View {
         Group {
             switch kind {

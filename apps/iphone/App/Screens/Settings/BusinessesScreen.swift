@@ -41,6 +41,7 @@ struct BusinessesScreen: View {
         #endif
     }
 
+    @ViewBuilder
     private var phoneBody: some View {
         let store = Businesses.shared
         return Form {
@@ -291,6 +292,7 @@ struct BusinessesScreen: View {
 extension BusinessesScreen {
     /// The businesses as a table: who is open, its address, who is signed in. Double-click opens one; right-click (or the
     /// toolbar) opens or removes it; Add business… is a Mac sheet with the look-up and the preview.
+    @ViewBuilder
     fileprivate var macBody: some View {
         let store = Businesses.shared
         let selected = picked.flatMap { id in store.list.first { $0.id == id } }
@@ -388,6 +390,7 @@ extension BusinessesScreen {
     }
 
     /// Add a business: the address, Look up (Return), then what was found with its name, logo and colours.
+    @ViewBuilder
     private var macAddSheet: some View {
         VStack(spacing: 0) {
             Text("Add a business").font(.headline)

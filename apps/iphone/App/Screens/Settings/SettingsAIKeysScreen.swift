@@ -237,6 +237,7 @@ private struct AIKeysPage: View {
 
     // MARK: iPhone
 
+    @ViewBuilder
     private var phoneBody: some View {
         Form { Group {
             if let pausedText {
@@ -429,6 +430,7 @@ private struct AICopyBlock: View {
 extension AIKeysPage {
     /// The keys as a table (name, what it may do, made, stops, last used, calls), Make a key… in the toolbar (⌘N is the
     /// app's, so ⌥⌘N here), Revoke on the right-click menu and the Delete key, and the setup for each AI in a sheet.
+    @ViewBuilder
     fileprivate var macBody: some View {
         VStack(spacing: 0) {
             if let pausedText {

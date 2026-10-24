@@ -91,6 +91,7 @@ struct SearchView: View {
         #endif
     }
 
+    @ViewBuilder
     private var phoneIdle: some View {
         List {
             ForEach(groups, id: \.group.key) { g in groupSection(g.group, g.entries) }
@@ -222,6 +223,7 @@ struct SearchView: View {
         #endif
     }
 
+    @ViewBuilder
     private var phoneFound: some View {
         let r = results
         let settled = query == typed
@@ -492,6 +494,7 @@ extension SearchView {
     }
 
     /// Nothing typed: the map in two columns, the account last.
+    @ViewBuilder
     fileprivate var macIdle: some View {
         let g = groups
         let split = max(1, (g.count + 1) / 2)
@@ -511,6 +514,7 @@ extension SearchView {
     }
 
     /// Something typed: results grouped in two columns, the first one lit; ↑ and ↓ move, Return opens, a click opens.
+    @ViewBuilder
     fileprivate var macFound: some View {
         let r = results
         let settled = query == typed

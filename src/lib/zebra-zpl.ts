@@ -57,7 +57,9 @@ export function formatLabelDate(pattern: string, at: Date): string {
       // '' is one quote; otherwise everything up to the next quote is text as typed.
       if (pattern[i + 1] === "'") { out += "'"; i += 2; continue; }
       let j = i + 1;
-      while (j < pattern.length && pattern[j] !== "'") out += pattern[j++];
+      while (j < pattern.length && (pattern[j] !== "'" || pattern[j + 1] === "'")) {
+        if (pattern[j] === "'") { out += "'"; j += 2; } else out += pattern[j++];
+      }
       i = j + 1;
       continue;
     }

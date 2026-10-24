@@ -227,7 +227,7 @@ Section {
             Toggle("Post story to Instagram", isOn: flag("toInstagram")).disabled(!model.instagram["connected"].bool)
             if model.instagram["connected"].bool { Text("@" + model.instagram.s("username")).font(.footnote).foregroundStyle(.secondary) }
             else { Button("Connect Instagram") { Task { do { let r = try await MarketingRequest.send("/api/instagram/connect"); if let url = URL(string: r.s("url")) { openURL(url) } } catch { model.error = error.localizedDescription } } } }
-            if model.manualStory { Text("Share the story from your phone to add music or stickers.").font(.footnote).foregroundStyle(.secondary) }
+            if model.manualStory { Text("Share the story from \(DeviceWords.yourDevice) to add music or stickers.").font(.footnote).foregroundStyle(.secondary) }
         }
         if let link = URL(string: model.config["posting"]["links"].s("waChannel")), link.scheme == "https" { Link("Open WhatsApp channel for manual sharing", destination: link) }
     }
@@ -366,6 +366,7 @@ struct NativeSitePhotoPicker: View {
 #if os(macOS)
 extension PostComposerScreen {
     /// The story and the post as they will look, beside the form (the phone folds each into a disclosure).
+    @ViewBuilder
     var macPreview: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {

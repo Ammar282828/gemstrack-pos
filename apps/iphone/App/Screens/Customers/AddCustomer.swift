@@ -271,6 +271,7 @@ struct AddCustomer: View {
 /// A new customer as a Mac form: grouped sections at a reading width, the labelled fields a Mac types into, Return to
 /// save from the footer and ⌘S from the toolbar. The rules (a name left blank, the number already on file) are the page's.
 extension AddCustomer {
+    @ViewBuilder
     private var macForm: some View {
         Form {
             Section {

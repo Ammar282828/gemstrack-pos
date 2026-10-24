@@ -40,6 +40,7 @@ struct PhoneSettings: View {
         #endif
     }
 
+    @ViewBuilder
     private var phoneBody: some View {
         Form { Group {
             Section {
@@ -275,6 +276,7 @@ struct PhoneSettings: View {
 #if os(macOS)
 extension PhoneSettings {
     /// "This Mac": the Mac's own notifications, appearance and Touch ID lock, as a grouped page of System Settings' kind.
+    @ViewBuilder
     fileprivate var macBody: some View {
         Form {
             Section {

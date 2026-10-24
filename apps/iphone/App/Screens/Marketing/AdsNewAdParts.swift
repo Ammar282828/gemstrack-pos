@@ -245,7 +245,7 @@ struct AdsLibrarySheet: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Every picture in this ad account's Ads Manager library: tap one to use it again.")
+                    Text("Every picture in this ad account's Ads Manager library: \(DeviceWords.tap) one to use it again.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                     if let problem {

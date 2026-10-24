@@ -72,6 +72,7 @@ struct DesignPublishSheet: View {
         #endif
     }
 
+    @ViewBuilder
     private var phoneContent: some View {
         let plan = self.plan
         let problems = p.problems(plan)
@@ -435,6 +436,7 @@ struct DesignShareRequest: Identifiable {
 extension DesignPublishSheet {
     /// Publish as a Mac sheet: where it goes, the captions and the ad's words on the left; the connections, the timing, what
     /// is wrong and the steps on the right; the footer holds Send (Return) with what it will do.
+    @ViewBuilder
     fileprivate var macContent: some View {
         let plan = self.plan
         let problems = p.problems(plan)

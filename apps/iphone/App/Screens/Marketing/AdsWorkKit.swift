@@ -259,7 +259,7 @@ struct AdsNotReady: View {
     }
 
     private func detail(_ s: AdsStatusAnswer) -> String {
-        guard let app = s.app, app.id != nil, app.secret else { return "A couple of one-time steps on Setup, then one tap to connect." }
+        guard let app = s.app, app.id != nil, app.secret else { return "A couple of one-time steps on Setup, then one \(DeviceWords.tap) to connect." }
         guard let conn = s.connection else { return "On Setup: log in to Facebook as the person who runs the ads and approve." }
         if !conn.connected { return conn.error ?? "Connect again on Setup." }
         return "Pick the ad account, Page and Instagram account on Setup."

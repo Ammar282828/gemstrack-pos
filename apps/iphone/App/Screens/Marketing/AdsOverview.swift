@@ -40,7 +40,9 @@ struct AdsOverviewScreen: View {
         .navigationTitle("Ads")
         .hubTitleDisplay()
         // An iPad's tables and rows sit in a centred column, not across the whole window.
+        #if !os(macOS)
         .readableColumn(1040)
+        #endif
         .toolbar {
             if mayRead {
                 ToolbarItem(placement: .primaryAction) { AdsRangeMenu(key: $rangeKey) }

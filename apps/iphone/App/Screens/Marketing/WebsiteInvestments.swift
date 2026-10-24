@@ -97,6 +97,7 @@ struct WebsiteInvestmentsScreen: View {
         }
     }
 
+    @ViewBuilder
     private var phonePage: some View {
         List {
             Group {
@@ -679,6 +680,7 @@ final class WebsiteGold {
 #if os(macOS)
 extension WebsiteInvestmentsScreen {
     /// The schedule on the left; the fortnight of posts on the right, each day opening its sheet (or right-click).
+    @ViewBuilder
     var macPage: some View {
         MacTwoPane(sideWidth: 400) {
             List {

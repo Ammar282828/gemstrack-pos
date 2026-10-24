@@ -501,6 +501,7 @@ struct RepairsForm: View {
 extension RepairsForm {
     /// A Mac form window: the pieces as a grid of boxes (one row each, a minus beside it), the date as a date field,
     /// Cancel (Esc) and Save (Return, or ⌘S) in the toolbar.
+    @ViewBuilder
     var macBody: some View {
         NavigationStack {
             Form { Group {
@@ -557,6 +558,7 @@ extension RepairsForm {
         }
     }
 
+    @ViewBuilder
     private var macPiecesSection: some View {
         Section {
             Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 8) {
@@ -604,6 +606,7 @@ extension RepairsForm {
         }
     }
 
+    @ViewBuilder
     private var macWhenSection: some View {
         Section {
             Toggle("Ready by a date", isOn: $hasDate)

@@ -121,6 +121,7 @@ struct SettingsRoot: View {
 extension SettingsRoot {
     /// System Settings' shape: one grouped page of sections, each row a page of its own (no second sidebar: the app's
     /// sidebar is the only one). The rates are a toolbar button, as the gold rate is the day's first job.
+    @ViewBuilder
     fileprivate var macList: some View {
         Form {
             Section { account }

@@ -106,6 +106,7 @@ private struct ShopifyInnerForm: View {
         #endif
     }
 
+    @ViewBuilder
     private var phoneBody: some View {
         Form {
             Group {
@@ -567,6 +568,7 @@ private struct ShopifyInnerForm: View {
 extension ShopifyInnerForm {
     /// Shopify on the Mac: the connection, permissions and order notices as grouped sections, and the orders to import as a
     /// multi-select table (Select all with ⌘A, the footer's Import button asks first).
+    @ViewBuilder
     fileprivate var macBody: some View {
         Form {
             statusSection

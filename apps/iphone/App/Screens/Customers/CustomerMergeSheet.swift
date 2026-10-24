@@ -283,6 +283,7 @@ struct CustomerMergeSheet: View {
 /// who is kept and who is deleted side by side and what moves. Swap, "Not a duplicate" and the merge itself are the
 /// page's own (and in the right-click menu); the manual merge is its own tab. The delete code is asked as ever.
 extension CustomerMergeSheet {
+    @ViewBuilder
     private var macReview: some View {
         let byId = Dictionary(live.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         let visible = (found ?? []).filter { !dismissed.contains($0.id) && byId[$0.a] != nil && byId[$0.b] != nil }

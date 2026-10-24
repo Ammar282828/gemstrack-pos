@@ -40,6 +40,7 @@ struct PostTrayScreen: View {
         #endif
     }
 
+    @ViewBuilder
     private var phoneBody: some View {
         List {
             Group {
@@ -120,7 +121,7 @@ struct PostTrayScreen: View {
 
     private var emptySection: some View {
         Section {
-            Text("Tap pieces: one, or a few to send together. Each gets its own caption.")
+            Text("\(DeviceWords.Tap) pieces: one, or a few to send together. Each gets its own caption.")
                 .foregroundStyle(.secondary)
             Button { picking = true } label: {
                 Label("Choose pieces", systemImage: "square.grid.2x2").frame(maxWidth: .infinity)
@@ -633,6 +634,7 @@ struct PostTrayCardSections: View {
 // MARK: - The Mac's tray: the photographs on the left, the words and where they go on the right
 
 extension PostTrayScreen {
+    @ViewBuilder
     var macBody: some View {
         Group {
             if model.cards.isEmpty {
@@ -739,6 +741,7 @@ extension PostTrayScreen {
 
 extension PostTrayCardSections {
     /// The photograph (or its design) and the album of photos, the left pane.
+    @ViewBuilder
     var macPhotos: some View {
         Group {
             photoSection
@@ -752,6 +755,7 @@ extension PostTrayCardSections {
     }
 
     /// The weight, the caption and what else can be done with the piece, the right pane.
+    @ViewBuilder
     var macWords: some View {
         Group {
             weightSection

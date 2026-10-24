@@ -130,6 +130,7 @@ struct WebsitePhotosScreen: View {
         #endif
     }
 
+    @ViewBuilder
     private var phonePage: some View {
         List {
             Group {
@@ -569,6 +570,7 @@ struct WebsitePhotosScreen: View {
 #if os(macOS)
 extension WebsitePhotosScreen {
     /// The collection and the ways to add on the left; the tray of photographs on the right. Files dropped anywhere are added.
+    @ViewBuilder
     var macPage: some View {
         MacTwoPane(sideWidth: 380) {
             List {

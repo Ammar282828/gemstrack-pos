@@ -47,6 +47,15 @@ enum MarketingKit {
     }
 }
 
+/// The words that name the device in the reader's hand: a phone's "tap" is a Mac's "click" (docs/features/mac-app.md).
+enum DeviceWords {
+    #if os(macOS)
+    static let tap = "click", Tap = "Click", thisDevice = "this Mac", yourDevice = "your Mac", symbol = "desktopcomputer"
+    #else
+    static let tap = "tap", Tap = "Tap", thisDevice = "this phone", yourDevice = "your phone", symbol = "iphone"
+    #endif
+}
+
 /// Times and ages in the shop's own words (Karachi, am/pm in lower case).
 enum MarketingTime {
     private static let clockFormat: DateFormatter = {

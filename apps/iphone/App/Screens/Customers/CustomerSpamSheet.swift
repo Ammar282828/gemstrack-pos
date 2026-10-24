@@ -388,6 +388,7 @@ struct CustomerSpamSheet: View {
 /// The flagged accounts as a table you select in: every row starts selected (as the web's ticks do), click or shift-click
 /// to keep someone out, ⌘A for all. The delete code is asked once, as ever; the run's progress and summary are the page's.
 extension CustomerSpamSheet {
+    @ViewBuilder
     private var macList: some View {
         Group {
             if let run {

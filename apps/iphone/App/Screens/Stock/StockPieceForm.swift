@@ -152,6 +152,7 @@ private struct StockPieceEditor: View {
         #endif
     }
 
+    @ViewBuilder
     private var phoneForm: some View {
         TransactionWorkspace {
         Form { Group {
@@ -798,6 +799,7 @@ extension StockPieceEditor {
     /// The form on the left in a grouped Form (the sections of the iPhone's, one window), the piece's summary in a
     /// column on the right (its photo, what it is made of, what it sells for today). Return saves (the footer's
     /// default button), ⌘S saves, Esc cancels.
+    @ViewBuilder
     var macForm: some View {
         HStack(spacing: 0) {
             Form { Group {

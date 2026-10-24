@@ -24,6 +24,7 @@ struct AnaSplit<Head: View, Left: View, Right: View>: View {
         #endif
     }
 
+    @ViewBuilder
     private var phoneBody: some View {
         Group {
             if wide {
@@ -59,6 +60,7 @@ struct AnaSplit<Head: View, Left: View, Right: View>: View {
 extension AnaSplit {
     /// The Mac's report: the head (the figure tiles, when the tab has them) across the top, then the tab's two columns
     /// side by side, each its own scrolling list. The period is not chips here but the toolbar's menu (AnaPages).
+    @ViewBuilder
     fileprivate var macBody: some View {
         VStack(spacing: 0) {
             head(true)

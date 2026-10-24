@@ -69,7 +69,9 @@ struct AdsCampaignsScreen: View {
         .navigationTitle("Campaigns")
         .hubTitleDisplay()
         // An iPad's rows and tables sit in a centred column.
+        #if !os(macOS)
         .readableColumn(1040)
+        #endif
         .searchable(text: $search, prompt: "Search campaigns, ad sets, ads")
         #if os(macOS)
         .toolbar { macToolbar }

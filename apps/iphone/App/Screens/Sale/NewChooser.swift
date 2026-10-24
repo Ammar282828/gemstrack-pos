@@ -132,6 +132,7 @@ struct NewChooser: View {
 /// other ways in (a tag, a written bill, a slip, Drafts) as buttons. ⌘N, ⇧⌘N and ⌥⌘N make them straight from the menu;
 /// this is the page behind the sidebar's New.
 extension NewChooser {
+    @ViewBuilder
     var macBody: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {

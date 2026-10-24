@@ -60,6 +60,7 @@ struct BusinessPicker: View {
         #endif
     }
 
+    @ViewBuilder
     private var phoneBody: some View {
         let store = Businesses.shared
         ScrollView {
@@ -161,6 +162,7 @@ private struct PickerPress: ButtonStyle {
 extension BusinessPicker {
     /// The Mac's first screen: a centred panel, the businesses as cards two across in a wide window, each with its own
     /// shortcut (⌘1, ⌘2…); Return opens the one that was open last, Esc is not needed (there is nothing to cancel).
+    @ViewBuilder
     fileprivate var macBody: some View {
         let store = Businesses.shared
         return ScrollView {

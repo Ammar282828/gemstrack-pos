@@ -44,6 +44,7 @@ struct DesignScreen: View {
         #endif
     }
 
+    @ViewBuilder
     private var phoneBody: some View {
         Group {
             if !access.post {
@@ -198,6 +199,7 @@ struct DesignScreen: View {
 extension DesignScreen {
     /// Design as a Mac app window: the sections (Make, Photos, Board, Saved) are a segmented control in the toolbar, not a row
     /// of chips in the page; the open design's own tools are the workspace's toolbar.
+    @ViewBuilder
     fileprivate var macBody: some View {
         Group {
             if !access.post {

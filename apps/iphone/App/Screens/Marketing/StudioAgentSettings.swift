@@ -86,6 +86,10 @@ struct StudioAgentSettings: View {
             }
         }
         .presentationSizing(.form)
+        #if os(macOS)
+        .formStyle(.grouped)
+        .frame(minWidth: 520, idealWidth: 580, minHeight: 460)
+        #endif
         .task { await load() }
         .onDisappear { fresh = nil; copied = false }
     }

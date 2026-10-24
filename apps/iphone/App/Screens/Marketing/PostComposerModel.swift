@@ -211,7 +211,7 @@ final class PostComposerModel {
     }
     func finish(queueOnly: Bool) async {
         guard problems.isEmpty else { error = problems.joined(separator: " "); return }
-        guard siteOn || !waKeys.isEmpty || igOn else { error = "Choose a destination, or share the story from your phone."; return }
+        guard siteOn || !waKeys.isEmpty || igOn else { error = "Choose a destination, or share the story from \(DeviceWords.yourDevice)."; return }
         guard !manualStory || draft.words["storyOut"].bool else { error = "Share or save the story first, or choose Post only."; return }
         error = nil
         let places = (siteOn ? 1 : 0) + waKeys.count + (igOn ? 1 : 0)

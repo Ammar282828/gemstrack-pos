@@ -67,6 +67,7 @@ private struct BankAccountsForm: View {
         #endif
     }
 
+    @ViewBuilder
     private var phoneBody: some View {
         Form { Group {
             Section {
@@ -168,6 +169,7 @@ private struct BankAccountSheet: View {
         #endif
     }
 
+    @ViewBuilder
     private var phoneBody: some View {
         NavigationStack {
             Form { Group {
@@ -231,6 +233,7 @@ private struct BankAccountSheet: View {
 extension BankAccountsForm {
     /// The accounts as a table (what a window is for), with Add in the toolbar, Edit and Remove on the right-click menu
     /// and the Delete key, and a double-click to edit. The add/edit sheet is a Mac sheet.
+    @ViewBuilder
     fileprivate var macBody: some View {
         MacBankAccountsTable(accounts: accounts, onAdd: { editing = BankAccountDraft.new() },
                              onEdit: { id in editing = accounts.first { $0.id == id } },
@@ -329,6 +332,7 @@ private struct MacBankAccountsTable: View {
 
 extension BankAccountSheet {
     /// A Mac sheet: the fields as a grouped form, Cancel (Esc) and Save (Return) in the footer.
+    @ViewBuilder
     fileprivate var macBody: some View {
         VStack(spacing: 0) {
             Text(isNew ? "New bank account" : "Bank account")

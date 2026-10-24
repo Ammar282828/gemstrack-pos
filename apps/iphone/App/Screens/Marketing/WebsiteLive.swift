@@ -113,6 +113,7 @@ struct WebsiteLiveScreen: View {
         }
     }
 
+    @ViewBuilder
     private var phoneList: some View {
         List {
             if let l = live {

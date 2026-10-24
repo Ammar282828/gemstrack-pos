@@ -1,4 +1,7 @@
 import SwiftUI
+#if os(macOS)
+import AppKit
+#endif
 import Charts
 import ERPCore
 
@@ -557,6 +560,17 @@ struct InsightsOverviewScreen: View {
         .navigationTitle("Insights")
         .navigationBarTitleDisplayMode(.large)
         .toolbar { if mayRead { ToolbarItem(placement: .primaryAction) { InsightRangeMenu(key: $rangeKey) } } }
+        #if os(macOS)
+        .toolbar {
+            if mayRead {
+                ToolbarItem(placement: .primaryAction) {
+                    Button { Task { await load(fresh: true) } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
+                        .keyboardShortcut("r", modifiers: .command)
+                        .help("Ask Meta again")
+                }
+            }
+        }
+        #endif
         .task(id: rangeKey) { if mayRead { await load() } }
     }
 
@@ -814,6 +828,10 @@ struct InsightsPostsScreen: View {
     @State private var problem: String?
     @State private var filter = "all"
     @State private var sort = "at"
+    #if os(macOS)
+    @State private var macOrder = [InsightPostOrder(field: .at, order: .reverse)]
+    @State private var macPicked = Set<String>()
+    #endif
 
     private var mayRead: Bool { session.role == "owner" || session.role == "marketing" }
     private static let filters: [(key: String, label: String)] = [("all", "All"), ("reel", "Reels"), ("post", "Photos"), ("carousel", "Carousels"), ("story", "Stories"), ("fb", "Facebook"), ("older", "Older, still earning")]
@@ -833,6 +851,7 @@ struct InsightsPostsScreen: View {
         }
         .navigationTitle("Posts")
         .navigationBarTitleDisplayMode(.large)
+        #if !os(macOS)
         .toolbar {
             if mayRead {
                 ToolbarItem(placement: .primaryAction) {
@@ -843,6 +862,26 @@ struct InsightsPostsScreen: View {
                 }
             }
         }
+        #endif
+        #if os(macOS)
+        .toolbar {
+            if mayRead {
+                ToolbarItem(placement: .principal) {
+                    Picker("Show", selection: $filter) {
+                        ForEach(Self.filters, id: \.key) { (f: (key: String, label: String)) in Text(f.label).tag(f.key) }
+                    }
+                    .pickerStyle(.menu)
+                    .help("Which posts to show")
+                }
+                ToolbarItemGroup(placement: .primaryAction) {
+                    InsightRangeMenu(key: $rangeKey)
+                    Button { Task { await load(fresh: true) } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
+                        .keyboardShortcut("r", modifiers: .command)
+                        .help("Ask Meta again")
+                }
+            }
+        }
+        #endif
         .task(id: rangeKey) { if mayRead { await load() } }
     }
 
@@ -872,14 +911,22 @@ struct InsightsPostsScreen: View {
         let all = d.posts + d.stories
         let rows = all.filter { (p: InsightPost) in filter == "all" ? true : (filter == "older" ? p.older : p.kind == filter) }
         let shown = sort == "at" ? rows.sorted { (a: InsightPost, b: InsightPost) in a.at > b.at } : rows.sorted { (a: InsightPost, b: InsightPost) in value(a) > value(b) }
-        return InsightPage(refresh: { await load(fresh: true) }) {
+        #if os(macOS)
+        return macPosts(d, rows)
+        #else
+        return phoneContent(d, shown)
+        #endif
+    }
+
+    private func phoneContent(_ d: InsightsPosts, _ shown: [InsightPost]) -> some View {
+        InsightPage(refresh: { await load(fresh: true) }) {
             postsList(d, shown)
         } wide: { _ in
             postsWide(d, shown)
         }
     }
 
-    private static let postsNote = "A post's numbers are its lifetime so far. A story's exist only while it's up, so the ERP reads every live story each hour and keeps the last count. Engagement rate is interactions over reach."
+    static let postsNote = "A post's numbers are its lifetime so far. A story's exist only while it's up, so the ERP reads every live story each hour and keeps the last count. Engagement rate is interactions over reach."
 
     /// An iPad's page: the filters, then the posts as cards, two across.
     @ViewBuilder
@@ -939,7 +986,7 @@ struct InsightsPostsScreen: View {
         .refreshable { await load(fresh: true) }
     }
 
-    private func row(_ p: InsightPost, live: Bool) -> some View {
+    func row(_ p: InsightPost, live: Bool) -> some View {
         let tall = p.kind == "story" || p.kind == "reel"
         var stats: [(String, String)] = [("Views", InsightWords.optional(p.views)), ("Reach", InsightWords.optional(p.reach)), ("Likes", InsightWords.optional(p.likes)),
                                          ("Comments", InsightWords.optional(p.comments)), ("Shares", InsightWords.optional(p.shares)), ("Rate", InsightWords.percent(p.rate))]
@@ -1004,6 +1051,17 @@ struct InsightsAudienceScreen: View {
         }
         .navigationTitle("Audience")
         .navigationBarTitleDisplayMode(.large)
+        #if os(macOS)
+        .toolbar {
+            if mayRead {
+                ToolbarItem(placement: .primaryAction) {
+                    Button { Task { await load(fresh: true) } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
+                        .keyboardShortcut("r", modifiers: .command)
+                        .help("Ask Meta again")
+                }
+            }
+        }
+        #endif
         .task { if mayRead { await load() } }
     }
 
@@ -1130,3 +1188,102 @@ struct InsightsAudienceScreen: View {
         }
     }
 }
+
+#if os(macOS)
+// MARK: - The Mac's Posts: every post as a row of a table, sorted by the column clicked
+
+struct InsightPostOrder: SortComparator, Hashable {
+    enum Field: Hashable { case at, kind, caption, views, reach, interactions, rate, shares, saves }
+    var field: Field
+    var order: SortOrder = .forward
+
+    private func number(_ p: InsightPost) -> Double {
+        switch field {
+        case .views: return p.views ?? -1
+        case .reach: return p.reach ?? -1
+        case .interactions: return p.interactions ?? -1
+        case .rate: return p.rate ?? -1
+        case .shares: return p.shares ?? -1
+        case .saves: return p.saves ?? -1
+        default: return 0
+        }
+    }
+
+    func compare(_ a: InsightPost, _ b: InsightPost) -> ComparisonResult {
+        var result: ComparisonResult
+        switch field {
+        case .at: result = a.at.compare(b.at)
+        case .kind: result = a.kind.compare(b.kind)
+        case .caption: result = a.caption.localizedCaseInsensitiveCompare(b.caption)
+        default:
+            let x = number(a), y = number(b)
+            result = x == y ? .orderedSame : (x < y ? .orderedAscending : .orderedDescending)
+        }
+        if order == .reverse {
+            if result == .orderedAscending { result = .orderedDescending } else if result == .orderedDescending { result = .orderedAscending }
+        }
+        return result
+    }
+}
+
+extension InsightsPostsScreen {
+    func macPosts(_ d: InsightsPosts, _ rows: [InsightPost]) -> some View {
+        let sorted = rows.sorted(using: macOrder)
+        return Table(sorted, selection: $macPicked, sortOrder: $macOrder) {
+            TableColumn("Post", sortUsing: InsightPostOrder(field: .caption)) { (p: InsightPost) in
+                HStack(spacing: 10) {
+                    StockImage(imageUrl: p.thumb, name: p.caption, key: p.id)
+                        .frame(width: 36, height: 36)
+                        .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(p.caption.isEmpty ? (InsightWords.kind[p.kind] ?? p.kind) : p.caption).lineLimit(1)
+                        if d.live.contains(p.id) { Text("Up now").font(.caption).foregroundStyle(Tone.settled.color) }
+                        else if p.older { Text("before this range").font(.caption).foregroundStyle(.secondary) }
+                    }
+                }
+            }
+            .width(min: 220, ideal: 320)
+            TableColumn("Kind", sortUsing: InsightPostOrder(field: .kind)) { (p: InsightPost) in Text(InsightWords.kind[p.kind] ?? p.kind) }
+                .width(min: 80, ideal: 110)
+            TableColumn("Date", sortUsing: InsightPostOrder(field: .at)) { (p: InsightPost) in Text(ShopDate.say(p.at)) }
+                .width(min: 90, ideal: 120)
+            TableColumn("Views", sortUsing: InsightPostOrder(field: .views)) { (p: InsightPost) in Text(InsightWords.optional(p.views)).monospacedDigit() }
+                .width(min: 60, ideal: 80)
+            TableColumn("Reach", sortUsing: InsightPostOrder(field: .reach)) { (p: InsightPost) in Text(InsightWords.optional(p.reach)).monospacedDigit() }
+                .width(min: 60, ideal: 80)
+            TableColumn("Interactions", sortUsing: InsightPostOrder(field: .interactions)) { (p: InsightPost) in Text(InsightWords.optional(p.interactions)).monospacedDigit() }
+                .width(min: 80, ideal: 100)
+            TableColumn("Rate", sortUsing: InsightPostOrder(field: .rate)) { (p: InsightPost) in Text(InsightWords.percent(p.rate)).monospacedDigit() }
+                .width(min: 60, ideal: 80)
+            TableColumn("Shares", sortUsing: InsightPostOrder(field: .shares)) { (p: InsightPost) in Text(InsightWords.optional(p.shares)).monospacedDigit() }
+                .width(min: 60, ideal: 70)
+            TableColumn("Saves", sortUsing: InsightPostOrder(field: .saves)) { (p: InsightPost) in Text(InsightWords.optional(p.saves)).monospacedDigit() }
+                .width(min: 60, ideal: 70)
+        }
+        .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
+            if let p = sorted.first(where: { (x: InsightPost) in ids.contains(x.id) }), ids.count == 1 {
+                if let link = p.link, let url = URL(string: link) {
+                    Button("Open on Instagram", systemImage: "safari") { NSWorkspace.shared.open(url) }
+                    Button("Copy the link", systemImage: "link") { MacClipboard.copy(link) }
+                }
+                if !p.caption.isEmpty { Button("Copy the caption", systemImage: "doc.on.doc") { MacClipboard.copy(p.caption) } }
+            }
+        } primaryAction: { (ids: Set<String>) in
+            if let p = sorted.first(where: { (x: InsightPost) in ids.contains(x.id) }), let link = p.link, let url = URL(string: link) {
+                NSWorkspace.shared.open(url)
+            }
+        }
+        .overlay {
+            if sorted.isEmpty { ContentUnavailableView("Nothing here", systemImage: "square.grid.2x2", description: Text("Nothing for \(InsightRange.label(rangeKey).lowercased()) with this filter.")) }
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            Text(Self.postsNote)
+                .font(.footnote).foregroundStyle(.secondary)
+                .padding(.horizontal, 16).padding(.vertical, 8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.bar)
+        }
+        .navigationSubtitle(d.lastPostAt.map { (last: String) in "Last Instagram post \(ShopDate.say(last))" } ?? "")
+    }
+}
+#endif

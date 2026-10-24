@@ -346,6 +346,7 @@ private struct CustomersMacRow: Identifiable {
 /// Everyone / Owing / Recent filter is in the toolbar), with Call, WhatsApp and Message on the right-click menu and
 /// a double-click that opens the customer in a window of their own.
 extension CustomersList {
+    @ViewBuilder
     private var macList: some View {
         let f = figures()
         let shown = visible(f.groups)

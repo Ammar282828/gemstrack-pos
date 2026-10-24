@@ -871,6 +871,7 @@ private extension View {
 /// the toolbar, and each day's invoices as wide rows with the columns a counter reads (who, what was sold, number and
 /// time, total, balance). Right-click a row for Take payment, Send on WhatsApp, PDF and Open in New Window.
 extension InvoicesList {
+    @ViewBuilder
     var macBody: some View {
         let all = book.invoices.items
         let scoped = scope(all)

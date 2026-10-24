@@ -117,7 +117,7 @@ struct StudioBoardEditor: View {
         for (key, data) in pictures where key != design.asset || used.contains("lib:" + key) { out["lib:" + key] = data }
         return out
     }
-    private var demoNote: String { "The demo saves and uploads nothing, and its AI is off: every tool works on this phone only." }
+    private var demoNote: String { "The demo saves and uploads nothing, and its AI is off: every tool works on \(DeviceWords.thisDevice) only." }
 
     var body: some View {
         NavigationStack {
@@ -171,6 +171,9 @@ struct StudioBoardEditor: View {
                 }
         }
         .presentationSizing(.page)
+        #if os(macOS)
+        .frame(minWidth: 1040, idealWidth: 1280, minHeight: 720, idealHeight: 860)
+        #endif
         .failureAlert(Binding(get: { panelShown && !regular ? nil : problem }, set: { problem = $0 }), title: "Could not finish")
         .interactiveDismissDisabled(dirty || saving || busy != nil)
         .websiteBusy(busy)
@@ -243,6 +246,7 @@ struct StudioBoardEditor: View {
         .opacity(0).frame(width: 0, height: 0).accessibilityHidden(true).disabled(selected == nil)
     }
 
+    @ViewBuilder
     private var phoneBar: some View {
         VStack(spacing: 8) {
             if let id = selected, layer(id) != nil {
@@ -342,14 +346,14 @@ struct StudioBoardEditor: View {
         } header: { LedgerHeading(title: "Text") }.houseRows()
         Section {
             Button("A picture from the library", systemImage: "photo.on.rectangle") { picking = .add }
-            Button("A picture from this phone", systemImage: "iphone") { deviceTarget = .add; pickerOpen = true }
+            Button("A picture from \(DeviceWords.thisDevice)", systemImage: DeviceWords.symbol) { deviceTarget = .add; pickerOpen = true }
             if !design.asset.isEmpty {
                 Menu {
                     Button("Rectangle") { act("image", "rounded", ["photoId": "photo"]) }
                     ForEach(catalogue["masks"].array, id: \.text) { m in Button(ArtworkProperties.label(m.string)) { act("image", m.string, ["photoId": "photo"]) } }
                 } label: { Label("The design’s photo, framed", systemImage: "square.on.circle") }
             }
-        } header: { LedgerHeading(title: "Pictures") } footer: { Text("Pictures from this phone are uploaded when you save.") }.houseRows()
+        } header: { LedgerHeading(title: "Pictures") } footer: { Text("Pictures from \(DeviceWords.thisDevice) are uploaded when you save.") }.houseRows()
         Section {
             ForEach(["rect", "circle", "line", "arrow"], id: \.self) { key in Button(ArtworkProperties.label(key), systemImage: ["rect": "rectangle", "circle": "circle", "line": "line.diagonal", "arrow": "arrow.up.right"][key] ?? "square") { act("shape", key) } }
             Menu { ForEach(catalogue["shapes"].array, id: \.text) { i in Button(i.s("label")) { act("shape", i.s("id")) } } } label: { Label("More shapes", systemImage: "star") }
@@ -385,7 +389,7 @@ struct StudioBoardEditor: View {
             layerPane(id, l)
         } else {
             Section {
-                Text("Tap anything on the design to change it, or choose it here. Drag to move, pull the corner to resize, turn with the knob above.")
+                Text("\(DeviceWords.Tap) anything on the design to change it, or choose it here. Drag to move, pull the corner to resize, turn with the knob above.")
                     .font(.footnote).foregroundStyle(.secondary)
             }.houseRows()
             layersList
@@ -509,7 +513,7 @@ struct StudioBoardEditor: View {
                 }
             }
             Button("Replace from the library", systemImage: "photo.on.rectangle") { picking = .inset(id) }
-            Button("Replace from this phone", systemImage: "iphone") { deviceTarget = .inset(id); pickerOpen = true }
+            Button("Replace from \(DeviceWords.thisDevice)", systemImage: DeviceWords.symbol) { deviceTarget = .inset(id); pickerOpen = true }
             if let was = insetOriginals[id], was.s("photoId") != l.s("photoId") || was.s("src") != l.s("src") {
                 Button("Back to the original picture", systemImage: "arrow.uturn.backward") { restoreInset(id) }
             }
@@ -615,7 +619,7 @@ struct StudioBoardEditor: View {
                 Text(design.asset.isEmpty ? "This design has no photo." : "The photo couldn’t be fetched.").foregroundStyle(.secondary)
             }
             Button("Replace from the library", systemImage: "photo.on.rectangle") { picking = .main }
-            Button("Replace from this phone", systemImage: "iphone") { deviceTarget = .main; pickerOpen = true }
+            Button("Replace from \(DeviceWords.thisDevice)", systemImage: DeviceWords.symbol) { deviceTarget = .main; pickerOpen = true }
             if design.asset != initial.asset && !initial.asset.isEmpty {
                 Button("Back to the original photo", systemImage: "arrow.uturn.backward") { edit { $0.asset = initial.asset; $0.marked = initial.marked } }
             }
@@ -704,6 +708,9 @@ struct StudioBoardEditor: View {
             }
         }
         .presentationSizing(.page)
+        #if os(macOS)
+        .frame(minWidth: 760, minHeight: 560)
+        #endif
     }
 
     @ViewBuilder private func versions(_ c: Candidate) -> some View {
@@ -1298,6 +1305,10 @@ struct StudioBoardQueueSheet: View {
                 }
             }
         }
+        #if os(macOS)
+        .formStyle(.grouped)
+        .frame(minWidth: 480, idealWidth: 540, minHeight: 440)
+        #endif
         .presentationSizing(.form)
         .task { await load() }
     }
@@ -1417,7 +1428,7 @@ struct StudioBoardPhotoPicker: View {
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } } }
             .onChange(of: device) { _, item in
                 guard let item else { return }
-                bring("Photo from this phone") {
+                bring("Photo from \(DeviceWords.thisDevice)") {
                     guard let data = try await item.loadTransferable(type: Data.self) else { throw ERPAPI.Failure(status: 0, message: "Choose a readable photo.") }
                     return data
                 }
@@ -1436,6 +1447,9 @@ struct StudioBoardPhotoPicker: View {
             }
         }
         .presentationSizing(.page)
+        #if os(macOS)
+        .frame(minWidth: 720, minHeight: 560)
+        #endif
         .task(id: q) {
             if House.isDemo { items = []; problem = "The demo has no photo library."; return }
             if !q.isEmpty { do { try await Task.sleep(for: .milliseconds(300)) } catch { return } }

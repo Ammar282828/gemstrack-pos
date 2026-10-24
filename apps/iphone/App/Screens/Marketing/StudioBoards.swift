@@ -26,6 +26,10 @@ struct StudioBoards: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var note: Note?
+    #if os(macOS)
+    /// A design or note the Delete key or the right-click menu asked to remove (asks first).
+    @State private var removing: BoardRemoval?
+    #endif
 
     private var compact: Bool { sizeClass == .compact }
     private var z: Double { min(1.5, max(0.08, zoom * pinch)) }
@@ -51,7 +55,21 @@ struct StudioBoards: View {
         }
         .accessibilityIdentifier("studio.board")
         // The strip of tools is the control layer: pinned at the foot, in reach of a thumb, not scrolling with the page.
+        #if os(macOS)
+        .toolbar { macToolbar }
+        .confirmDestructive(isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }),
+                            title: removing?.note == true ? "Remove this note?" : "Remove this design?",
+                            message: removing?.note == true ? nil : "It comes off the board.", action: "Remove") {
+            if let r = removing {
+                if selected == r.id { selected = "" }
+                Task { await board.change([["op": r.note ? "noteRemove" : "remove", "id": r.id]]) }
+            }
+            removing = nil
+        }
+        .navigationSubtitle(board.value.s("name"))
+        #else
         .safeAreaBar(edge: .bottom, spacing: 0) { controls }
+        #endif
         .noteToast($note)
         .onChange(of: board.said) { _, said in
             guard let said else { return }
@@ -212,6 +230,17 @@ struct StudioBoards: View {
                 .updating($pinch) { v, s, _ in s = v.magnification }
                 .onEnded { v in zoom = min(1.5, max(0.08, zoom * v.magnification)) }
         )
+        #if os(macOS)
+        // ⌘ and scroll zoom; Delete removes the chosen design or note, after asking.
+        .macScrollZoom { (factor: Double) in zoom = min(1.5, max(0.08, zoom * factor)) }
+        .focusable()
+        .focusEffectDisabled()
+        .onKeyPress(keys: [.delete, .deleteForward]) { _ in
+            guard !selected.isEmpty else { return .ignored }
+            removing = BoardRemoval(id: selected, note: selNote != nil)
+            return .handled
+        }
+        #endif
     }
 
     private func fit() {
@@ -252,6 +281,9 @@ struct StudioBoards: View {
         .onTapGesture(count: 2) { selected = id; sheet = .editor(id) }
         .onTapGesture { selected = id }
         .gesture(moveGesture(id: id, isNote: false, origin: f), including: isSelected ? .all : .subviews)
+        #if os(macOS)
+        .contextMenu { macFrameMenu(f) }
+        #endif
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Design: " + f.s("label", "Design"))
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
@@ -277,6 +309,13 @@ struct StudioBoards: View {
         .offset(offset(n, bounds: b))
         .onTapGesture { selected = id }
         .gesture(moveGesture(id: id, isNote: true, origin: n), including: isSelected ? .all : .subviews)
+        #if os(macOS)
+        .contextMenu {
+            Button("Show its details", systemImage: "sidebar.trailing") { selected = id; inspectorShown = true }
+            Divider()
+            Button("Remove the note…", systemImage: "trash", role: .destructive) { removing = BoardRemoval(id: id, note: true) }
+        }
+        #endif
         .accessibilityElement(children: .combine)
         .accessibilityLabel((agent ? "Note from the agent: " : "Note: ") + n.s("text"))
         .accessibilityAddTraits(.isButton)
@@ -314,6 +353,9 @@ struct StudioBoards: View {
             }
         }
         .modifier(HouseGround())
+        #if os(macOS)
+        .formStyle(.grouped)
+        #endif
         .navigationTitle(selFrame != nil ? "Design" : selNote != nil ? "Note" : "Board")
     }
 
@@ -326,8 +368,13 @@ struct StudioBoards: View {
                 Text(boardLine).font(.footnote).foregroundStyle(.secondary)
             } header: { LedgerHeading(title: "This board") }.houseRows()
             Section {
+                #if os(macOS)
+                Text("Click a design to edit it, cook variants of it, or make it in another shape. Double-click opens the designer; right-click for more. Drag a chosen design or note to move it; pinch, or hold ⌘ and scroll, to zoom. Delete removes the chosen one.")
+                    .font(.footnote).foregroundStyle(.secondary)
+                #else
                 Text("Tap a design to edit it, cook variants of it, or make it in another shape. Double-tap opens the designer. Drag a chosen design or note to move it; pinch to zoom.")
                     .font(.footnote).foregroundStyle(.secondary)
+                #endif
                 Button("Delete board", systemImage: "trash", role: .destructive) { asking = .delete }
             }.houseRows()
         }
@@ -388,7 +435,7 @@ struct StudioBoards: View {
     }
 }
 
-private enum BoardSheet: Identifiable {
+enum BoardSheet: Identifiable {
     case editor(String), queue(String), picker, agents, share(MarketingFileShare)
     var id: String {
         switch self {
@@ -401,7 +448,7 @@ private enum BoardSheet: Identifiable {
     }
 }
 
-private enum BoardQuestion { case create, rename, delete, weekly }
+enum BoardQuestion { case create, rename, delete, weekly }
 
 // MARK: The chosen design
 
@@ -537,3 +584,91 @@ private struct StudioBoardNameField: View {
             .task(id: value) { name = value }
     }
 }
+
+#if os(macOS)
+/// A design or note waiting for the yes that removes it.
+struct BoardRemoval: Equatable {
+    let id: String
+    let note: Bool
+}
+
+extension StudioBoards {
+    /// The board's tools in the window's toolbar: which board, what to add, the zoom, the rest in a menu.
+    @ToolbarContentBuilder
+    var macToolbar: some ToolbarContent {
+        ToolbarItem(placement: .navigation) {
+            Menu {
+                ForEach(board.boards.map { $0.s("id") }, id: \.self) { id in
+                    Button { Task { await board.choose(id) } } label: {
+                        let b = board.boards.first { $0.s("id") == id } ?? .null
+                        if id == board.current { Label(b.s("name"), systemImage: "checkmark") } else { Text(b.s("name")) }
+                    }
+                }
+                Divider()
+                Button("New board…", systemImage: "plus") { nameText = "New board"; asking = .create }
+            } label: {
+                Label(board.value.s("name", board.current.isEmpty ? "Choose a board" : "Board"), systemImage: "rectangle.3.group")
+            }
+            .help("Which board")
+        }
+        ToolbarItemGroup(placement: .primaryAction) {
+            Button { sheet = .picker } label: { Label("Add a photo", systemImage: "photo.badge.plus") }
+                .keyboardShortcut("a", modifiers: [.command, .shift])
+                .disabled(board.current.isEmpty)
+                .help("Add a photo as a new design")
+            Button { Task { if let id = await board.addNote() { selected = id } } } label: { Label("Add a note", systemImage: "note.text.badge.plus") }
+                .keyboardShortcut("n", modifiers: [.command, .option])
+                .disabled(board.current.isEmpty)
+                .help("Add a sticky note")
+            ControlGroup {
+                Button { zoom = max(0.08, zoom / 1.25) } label: { Label("Zoom out", systemImage: "minus.magnifyingglass") }
+                    .keyboardShortcut("-", modifiers: .command)
+                    .help("Zoom out")
+                Button { zoom = min(1.5, zoom * 1.25) } label: { Label("Zoom in", systemImage: "plus.magnifyingglass") }
+                    .keyboardShortcut("=", modifiers: .command)
+                    .help("Zoom in")
+                Button { fit() } label: { Label("Fit the board", systemImage: "arrow.up.left.and.arrow.down.right") }
+                    .keyboardShortcut("0", modifiers: .command)
+                    .disabled(board.current.isEmpty)
+                    .help("Fit the whole board in the window")
+            }
+            Menu {
+                Button("This week’s board", systemImage: "calendar") { asking = .weekly }
+                Button("Connect an agent", systemImage: "key") { sheet = .agents }
+                Button("Tidy up", systemImage: "square.grid.2x2") { Task { await board.tidy() } }.disabled(board.frames.count < 2)
+                Button("Rename board", systemImage: "pencil") { nameText = board.value.s("name"); asking = .rename }.disabled(board.current.isEmpty)
+                Button("Refresh", systemImage: "arrow.clockwise") { Task { await board.refresh(force: true) } }
+                    .keyboardShortcut("r", modifiers: .command)
+                Divider()
+                Button("Delete board…", systemImage: "trash", role: .destructive) { asking = .delete }.disabled(board.current.isEmpty)
+            } label: { Label("Board tools", systemImage: "ellipsis.circle") }
+            .help("Tidy up, rename, refresh or delete the board")
+            Button { inspectorShown.toggle() } label: { Label("Details", systemImage: "sidebar.trailing") }
+                .keyboardShortcut("i", modifiers: [.command, .option])
+                .help("Show or hide the chosen design's details")
+        }
+    }
+
+    /// Right-click on a design.
+    @ViewBuilder
+    func macFrameMenu(_ f: MarketingValue) -> some View {
+        let id = f.s("id")
+        Button("Edit design", systemImage: "slider.horizontal.3") { selected = id; sheet = .editor(id) }
+        Button("Show its details", systemImage: "sidebar.trailing") { selected = id; inspectorShown = true }
+        Divider()
+        Button("Download or share…", systemImage: "square.and.arrow.up") { share(f) }
+        Button("Duplicate", systemImage: "plus.square.on.square") { Task { await board.duplicate(f) } }
+        Menu("In another shape", systemImage: "rectangle.on.rectangle") {
+            ForEach(board.formats.map { $0.s("id") }.filter { $0 != f.s("format") }, id: \.self) { fid in
+                Button(board.formatInfo(fid).s("label", fid)) { Task { await board.duplicate(f, format: fid) } }
+            }
+        }
+        Divider()
+        Button("Queue a post…", systemImage: "paperplane") { sheet = .queue(id) }
+        Button("Use in a new Meta ad", systemImage: "megaphone") { Task { if let route = await board.newAd(f) { model.route = route } } }
+        Button("Save to Saved ads", systemImage: "folder") { Task { await board.saveToSaved(f) } }
+        Divider()
+        Button("Remove design…", systemImage: "trash", role: .destructive) { removing = BoardRemoval(id: id, note: false) }
+    }
+}
+#endif

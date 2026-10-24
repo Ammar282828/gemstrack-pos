@@ -17,6 +17,7 @@ struct WebsiteMenu: View {
         #endif
     }
 
+    @ViewBuilder
     private var phoneBody: some View {
         let tabs = MarketingKit.tabs(of: "website", role: session.role)
         List {
@@ -50,6 +51,7 @@ struct WebsiteMenu: View {
 #if os(macOS)
 extension WebsiteMenu {
     /// The website's tools as wide cards across the window, each also openable in a window of its own.
+    @ViewBuilder
     var macBody: some View {
         let tabs = MarketingKit.tabs(of: "website", role: session.role)
         return ScrollView {

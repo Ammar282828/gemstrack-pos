@@ -184,6 +184,7 @@ struct DesignStartView: View {
         #endif
     }
 
+    @ViewBuilder
     private var phoneBody: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
@@ -466,6 +467,7 @@ struct DesignRecordLine: View {
 extension DesignStartView {
     /// Start as a window: what to make (the kind, the sizes) and the smart input on the left; the photograph, a dropped
     /// picture and where you left off on the right. Continue is the footer's default button (Return).
+    @ViewBuilder
     fileprivate var macBody: some View {
         HStack(alignment: .top, spacing: 0) {
             ScrollView {

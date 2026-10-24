@@ -327,7 +327,7 @@ final class PostTrayModel {
         var refused = false
         for data in jpegs {
             if card.album.count >= Album.max { refused = true; break }
-            card.album.append(PostAlbumPhoto(id: "device-" + UUID().uuidString, kind: .device(data), thumb: nil, image: UIImage(data: data), label: "A photo from this phone"))
+            card.album.append(PostAlbumPhoto(id: "device-" + UUID().uuidString, kind: .device(data), thumb: nil, image: UIImage(data: data), label: "A photo from \(DeviceWords.thisDevice)"))
         }
         return refused ? "\(Album.max) photos at most" : nil
     }

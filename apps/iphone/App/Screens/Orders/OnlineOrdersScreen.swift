@@ -266,6 +266,7 @@ struct OnlineOrdersScreen: View {
 extension OnlineOrdersScreen {
     private var macRows: [OnlineOrderRow] { store.waiting + store.lately }
 
+    @ViewBuilder
     fileprivate var macList: some View {
         let waiting = store.waiting
         let lately = store.lately

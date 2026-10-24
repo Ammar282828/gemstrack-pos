@@ -82,7 +82,7 @@ export function importLsc(input: unknown, opts: LscOptions = {}): StoredLabelLay
   const objects = Array.isArray(cr.objects) ? cr.objects : [];
   const fabric = isObj(cr.fabricRep) && Array.isArray(cr.fabricRep.objects) ? cr.fabricRep.objects : [];
   const labelFill = str(cr.fill).trim().toLowerCase();
-  const decode = opts.decodeImage ?? decodePngDataUrl;
+  const decode = (url: string): DecodedImage | null => decodePngDataUrl(url) ?? opts.decodeImage?.(url) ?? null;
 
   const names = new Set<string>();
   for (const v of Array.isArray(cr.variables) ? cr.variables : []) if (isObj(v) && typeof v.name === 'string') names.add(v.name);
