@@ -11,3 +11,8 @@ enum House {
 
 /// Stand-in for Config/Business.swift's helper: the per-business settings key the stores use.
 func BizKey(_ base: String, _ id: String? = nil) -> String { base + "." + (id ?? House.id) }
+
+/// Stand-in for Data/WorkDraftSync.swift's pin: the business a write that outlives its screen belongs to.
+enum BusinessSwitchPin {
+    static func id(within window: TimeInterval = 2) -> String { House.id }
+}

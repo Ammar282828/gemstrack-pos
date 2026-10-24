@@ -423,10 +423,15 @@ enum NewOrderDraftStore {
         // A screen passes the business it was opened in, so leaving after a switch never writes into the next one.
         let biz = business ?? (now ? BusinessSwitchPin.id() : House.id)
         if now {
+            #if os(iOS)
             ProcessInfo.processInfo.performExpiringActivity(withReason: "erp.orderDraft") { expired in
                 guard !expired else { return }
                 queue.sync { write(draft, biz) }
             }
+            #else
+            // The Linux contract run (Packages/Contract) has no expiring activity: the write is simply made.
+            queue.sync { write(draft, biz) }
+            #endif
         } else {
             queue.async { write(draft, biz) }
         }
