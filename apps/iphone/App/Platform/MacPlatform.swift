@@ -50,6 +50,20 @@ extension Color {
     init(uiColor: NSColor) { self.init(nsColor: uiColor) }
 }
 
+/// UIKit's grouped and fill colours by AppKit's nearest.
+extension NSColor {
+    static var systemGroupedBackground: NSColor { .windowBackgroundColor }
+    static var secondarySystemGroupedBackground: NSColor { .controlBackgroundColor }
+    static var systemBackground: NSColor { .textBackgroundColor }
+    static var secondarySystemBackground: NSColor { .controlBackgroundColor }
+    static var systemFill: NSColor { .tertiaryLabelColor }
+    static var secondarySystemFill: NSColor { .quaternaryLabelColor }
+    static var tertiarySystemFill: NSColor { .quaternaryLabelColor }
+    static var label: NSColor { .labelColor }
+    static var secondaryLabel: NSColor { .secondaryLabelColor }
+    static var separator: NSColor { .separatorColor }
+}
+
 // MARK: - The application
 
 /// UIKit's `UIBackgroundTaskIdentifier`: a Mac app is not suspended mid-write, so there is nothing to ask for.
@@ -76,8 +90,8 @@ final class UIApplication {
 
     /// The phone's "resign first responder" (the keyboard's Done): the key window gives up its field.
     @discardableResult
-    func sendAction(_ action: Selector, to target: Any?, from sender: Any?, for event: Any?) -> Bool {
-        NSApp?.keyWindow?.makeFirstResponder(nil)
+    nonisolated func sendAction(_ action: Selector, to target: Any?, from sender: Any?, for event: Any?) -> Bool {
+        DispatchQueue.main.async { MainActor.assumeIsolated { _ = NSApp?.keyWindow?.makeFirstResponder(nil) } }
         return true
     }
 
@@ -198,14 +212,6 @@ struct TextInputAutocapitalization {
     static let characters = TextInputAutocapitalization()
 }
 
-struct MacHoverEffect {
-    static let automatic = MacHoverEffect()
-    static let highlight = MacHoverEffect()
-    static let lift = MacHoverEffect()
-}
-
-enum NavigationBarDrawerDisplayMode { case automatic, always }
-
 struct TabBarMinimizeBehavior {
     static let automatic = TabBarMinimizeBehavior()
     static let onScrollDown = TabBarMinimizeBehavior()
@@ -217,7 +223,6 @@ extension View {
     func navigationBarTitleDisplayMode(_ mode: NavigationBarItem.TitleDisplayMode) -> some View { self }
     func keyboardType(_ type: UIKeyboardType) -> some View { self }
     func textInputAutocapitalization(_ autocapitalization: TextInputAutocapitalization?) -> some View { self }
-    func hoverEffect(_ effect: MacHoverEffect = .automatic, isEnabled: Bool = true) -> some View { self }
     func tabBarMinimizeBehavior(_ behavior: TabBarMinimizeBehavior) -> some View { self }
     func statusBarHidden(_ hidden: Bool = true) -> some View { self }
 
@@ -237,11 +242,6 @@ extension ToolbarItemPlacement {
     /// The phone's bar ends: the window's leading (navigation) area and its trailing actions.
     static var topBarLeading: ToolbarItemPlacement { .navigation }
     static var topBarTrailing: ToolbarItemPlacement { .primaryAction }
-}
-
-extension SearchFieldPlacement {
-    static func navigationBarDrawer(displayMode: NavigationBarDrawerDisplayMode) -> SearchFieldPlacement { .toolbar }
-    static var navigationBarDrawer: SearchFieldPlacement { .toolbar }
 }
 
 extension ListStyle where Self == InsetListStyle {

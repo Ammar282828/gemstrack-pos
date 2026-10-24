@@ -107,7 +107,7 @@ struct HouseGround: ViewModifier {
         content
             .scrollContentBackground(.hidden)
             .environment(\.defaultMinListRowHeight, 56)
-            .listSectionSpacing(24)
+            .sectionSpacing24()
             .background(Theme.ground.ignoresSafeArea())
     }
 }

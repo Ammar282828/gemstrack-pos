@@ -324,7 +324,7 @@ struct PostsHub: View {
                             PostPieceTile(piece: p, posted: store.posted[p.id])
                         }
                         .buttonStyle(.plain)
-                        .hoverEffect()
+                        .pointerHover()
                     }
                 }
                 .padding(.horizontal, 16)

@@ -65,6 +65,7 @@ struct RootGate: View {
     }
 }
 
+#if os(iOS)
 /// The app: the shop's four most-used places as tabs, the ERP's whole map under Search, and New sale / New order / Scan always one tap away above the tab bar.
 /// A marketing account gets its own three (Posts, Website, Ads) and no bar: the ERP gives it nothing else.
 /// Liquid Glass comes with the system's TabView, toolbars and sheets (CONVENTIONS.md rule 4).
@@ -300,6 +301,8 @@ private struct CreateAccessory: ViewModifier {
         }
     }
 }
+
+#endif
 
 /// A tab's own stack, starting at an ERP place.
 struct PlaceStack: View {

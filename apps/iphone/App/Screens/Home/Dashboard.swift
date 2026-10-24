@@ -219,7 +219,7 @@ struct Dashboard: View {
     private func linked<C: View>(_ path: String?, @ViewBuilder _ label: () -> C) -> some View {
         let content = label()
         if let path {
-            NavigationLink(value: Route(path: path)) { content }.buttonStyle(.plain).hoverEffect()
+            NavigationLink(value: Route(path: path)) { content }.buttonStyle(.plain).pointerHover()
         } else {
             content
         }

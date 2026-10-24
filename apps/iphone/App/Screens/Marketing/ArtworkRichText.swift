@@ -168,7 +168,7 @@ struct ArtworkRunsRows: View {
                         let on = picked.contains(pair.offset)
                         Button { toggleWord(pair.offset) } label: {
                             Text(pair.element.text).padding(.horizontal, 8).padding(.vertical, 5)
-                                .background(on ? Theme.accent : Color(.secondarySystemFill), in: Capsule())
+                                .background(on ? Theme.accent : Color(uiColor: .secondarySystemFill), in: Capsule())
                                 .foregroundStyle(on ? Theme.onAccent : Color.primary)
                         }.buttonStyle(.borderless)
                     }

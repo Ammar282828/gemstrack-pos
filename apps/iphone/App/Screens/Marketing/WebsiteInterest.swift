@@ -232,7 +232,7 @@ struct WebsiteInterestScreen: View {
                 .padding(.leading, -16)
                 NavigationLink(value: Route(path: "/website/interest/live")) { liveLabel }
                     .buttonStyle(.bordered)
-                    .hoverEffect()
+                    .pointerHover()
             }
             if let r = report {
                 Text(spanLine(r)).font(.footnote).foregroundStyle(.secondary)

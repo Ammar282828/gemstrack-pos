@@ -43,7 +43,7 @@ struct NewOrderStockPicker: View {
                     }
                 }
             }
-            .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "SKU or name")
+            .searchable(text: $query, placement: .alwaysShownSearch, prompt: "SKU or name")
             .navigationTitle("Add from stock")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

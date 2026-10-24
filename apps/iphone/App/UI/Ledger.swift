@@ -517,8 +517,7 @@ extension View {
 extension View {
     /// A card that opens something, lit under an iPad's pointer: `.ledgerCard().cardHover()`. Only on a tappable card.
     func cardHover() -> some View {
-        self.contentShape(.hoverEffect, .rect(cornerRadius: Radius.card, style: .continuous))
-            .hoverEffect(.highlight)
+        self.pointerHover(.rect(cornerRadius: Radius.card, style: .continuous), highlight: true)
     }
 }
 

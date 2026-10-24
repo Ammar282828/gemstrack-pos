@@ -85,7 +85,7 @@ struct BusinessPicker: View {
             .padding(.horizontal, 20)
             .padding(.bottom, 32)
         }
-        .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
         .selectionFeedback(trigger: tick)
         .onAppear { entered = true }
         .task {
