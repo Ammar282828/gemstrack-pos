@@ -11,6 +11,12 @@ public struct LabelChip: Hashable, Identifiable {
     public var id: String { token }
 }
 
+public struct LabelTransform: Hashable, Identifiable {
+    public let token: String
+    public let help: String
+    public var id: String { token }
+}
+
 public enum LabelPlaceholders {
     /// `{sku}` for one tag; `{sku_1}`, `{sku_2}` … for a label of several.
     public static func tokens(key: String, tags: Int) -> [String] {
@@ -44,14 +50,14 @@ public enum LabelPlaceholders {
     ]
 
     /// What can follow a pipe, and what it does.
-    public static let transforms: [(token: String, help: String)] = [
-        ("|prefix:Rs ", "Put words before the value (nothing if it is empty)"),
-        ("|suffix:/-", "Put words after the value"),
-        ("|upper", "CAPITALS"),
-        ("|lower", "small letters"),
-        ("|fixed:2", "Always 2 decimal places"),
-        ("|group", "12500 becomes 12,500"),
-        ("|max:18", "Cut to 18 letters"),
+    public static let transforms: [LabelTransform] = [
+        LabelTransform(token: "|prefix:Rs ", help: "Put words before the value (nothing if it is empty)"),
+        LabelTransform(token: "|suffix:/-", help: "Put words after the value"),
+        LabelTransform(token: "|upper", help: "CAPITALS"),
+        LabelTransform(token: "|lower", help: "small letters"),
+        LabelTransform(token: "|fixed:2", help: "Always 2 decimal places"),
+        LabelTransform(token: "|group", help: "12500 becomes 12,500"),
+        LabelTransform(token: "|max:18", help: "Cut to 18 letters"),
     ]
 
     public static let help: [String] = [

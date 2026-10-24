@@ -114,7 +114,7 @@ struct LabelInspector: View {
                 .autocorrectionDisabled()
             placeholderMenu(tags: tags)
             Menu {
-                ForEach(LabelPlaceholders.transforms, id: \.token) { (t: (token: String, help: String)) in
+                ForEach(LabelPlaceholders.transforms) { (t: LabelTransform) in
                     Button { addTransform(t.token) } label: { Text("\(t.token)  \(t.help)") }
                 }
             } label: { Label("Change how a value reads", systemImage: "wand.and.stars") }
@@ -168,11 +168,10 @@ struct LabelInspector: View {
 
     private func append(_ token: String) {
         guard let f = model.primary else { return }
-        let next = LabelPlaceholders.appending(token, to: f.data ?? "")
         let ids = model.selection
         model.edit(key: "data-\(f.id)") { l in
             for i in l.fields.indices where ids.contains(l.fields[i].id) && [.text, .qr, .barcode].contains(l.fields[i].type) {
-                l.fields[i].data = i < l.fields.count && l.fields[i].id == f.id ? next : LabelPlaceholders.appending(token, to: l.fields[i].data ?? "")
+                l.fields[i].data = LabelPlaceholders.appending(token, to: l.fields[i].data ?? "")
             }
         }
     }
