@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import erp.app.data.Outbox
 import erp.app.config.House
 import erp.app.config.Prefs
 import erp.app.data.ErpApi
@@ -83,6 +84,10 @@ class DesignWorkspaceModel(
         private set
     var starting by mutableStateOf(false)
     var saving by mutableStateOf(false)
+
+    /** A save is on its way through the Outbox. */
+    var uploading by mutableStateOf(false)
+        private set
     var draftSaved by mutableStateOf<Long?>(null)
     var error by mutableStateOf<String?>(null)
     var sheet by mutableStateOf<DesignSheet?>(null)
@@ -601,36 +606,48 @@ class DesignWorkspaceModel(
 
     // MARK: Save to the shop
 
-    /** Save: the same parts the web posts (DesignRecords.save). Returns the record, or null with `error` set. */
+    /** What a save posts: the design drawn and packed, the upload not yet made. */
+    private class SaveParts(val meta: MarketingValue, val id: String?, val docs: Map<String, ByteArray>, val images: Map<String, ByteArray>, val files: Map<String, ByteArray>)
+
+    private suspend fun drawSave(w: DesignWork): SaveParts {
+        val tiny = engine.run(w.masterPage.doc, smallPhotos(), w.fields, mapOf("px" to 200, "quality" to 0.7))
+        val thumb = "data:image/jpeg;base64," + tiny.s("image")
+        val docs = LinkedHashMap<String, ByteArray>()
+        val images = LinkedHashMap<String, ByteArray>()
+        for (p in w.pages) {
+            docs[p.id] = p.doc.text.toByteArray(Charsets.UTF_8)
+            images[p.id] = render(p.id, minOf(2160.0, maxOf(p.w, 1080.0)).toInt())
+        }
+        // The photograph it is drawn on, at most 2048 px; the others only when a page uses them.
+        val files = LinkedHashMap<String, ByteArray>()
+        withContext(Dispatchers.Default) {
+            for ((id, data) in photos) {
+                if (id == "photo" || w.pages.any { DesignRecords.docUses(it.doc, id) }) {
+                    val bitmap = MarketingPhotos.decode(data, 2048) ?: continue
+                    MarketingPhotos.jpeg(bitmap, 2048, 90)?.let { files[id] = it }
+                }
+            }
+        }
+        return SaveParts(w.meta(thumb), w.id, docs, images, files)
+    }
+
+    private fun kept(record: DesignRecord, before: Int) {
+        work?.let { cur ->
+            work = cur.copy(id = record.id, folder = record.folder, dirty = serial != before)
+            changed()
+        }
+    }
+
+    /** Save and wait: the same parts the web posts (DesignRecords.save). Returns the record, or null with `error` set. Publish needs the record. */
     suspend fun saveToShop(): DesignRecord? {
         val w = work ?: return null
         if (w.fresh) return null
         saving = true
         val before = serial
         try {
-            val tiny = engine.run(w.masterPage.doc, smallPhotos(), w.fields, mapOf("px" to 200, "quality" to 0.7))
-            val thumb = "data:image/jpeg;base64," + tiny.s("image")
-            val docs = LinkedHashMap<String, ByteArray>()
-            val images = LinkedHashMap<String, ByteArray>()
-            for (p in w.pages) {
-                docs[p.id] = p.doc.text.toByteArray(Charsets.UTF_8)
-                images[p.id] = render(p.id, minOf(2160.0, maxOf(p.w, 1080.0)).toInt())
-            }
-            // The photograph it is drawn on, at most 2048 px; the others only when a page uses them.
-            val files = LinkedHashMap<String, ByteArray>()
-            withContext(Dispatchers.Default) {
-                for ((id, data) in photos) {
-                    if (id == "photo" || w.pages.any { DesignRecords.docUses(it.doc, id) }) {
-                        val bitmap = MarketingPhotos.decode(data, 2048) ?: continue
-                        MarketingPhotos.jpeg(bitmap, 2048, 90)?.let { files[id] = it }
-                    }
-                }
-            }
-            val record = DesignRecords.save(w.meta(thumb), w.id, docs, images, files)
-            work?.let { cur ->
-                work = cur.copy(id = record.id, folder = record.folder, dirty = serial != before)
-                changed()
-            }
+            val p = drawSave(w)
+            val record = DesignRecords.save(p.meta, p.id, p.docs, p.images, p.files)
+            kept(record, before)
             say("Saved", "On the Saved shelf.")
             return record
         } catch (e: CancellationException) {
@@ -640,6 +657,39 @@ class DesignWorkspaceModel(
             return null
         } finally {
             saving = false
+        }
+    }
+
+    /**
+     * The Save button: the design is drawn here, the upload goes through the Outbox and the editor is free at once. A second Save
+     * while one is on its way waits for it (a first save would otherwise make two records).
+     */
+    suspend fun saveInBackground() {
+        val w = work ?: return
+        if (w.fresh || uploading) return
+        saving = true
+        val before = serial
+        val parts = try {
+            drawSave(w)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            saving = false
+            error = "Couldn’t save it. " + (e.message ?: "")
+            return
+        }
+        saving = false
+        uploading = true
+        say("Saving…", "It goes on in the background.")
+        Outbox.post("Save “${w.displayName}”") {
+            uploading = true
+            try {
+                val record = DesignRecords.save(parts.meta, parts.id ?: work?.id, parts.docs, parts.images, parts.files)
+                kept(record, before)
+                "Saved to the Saved shelf"
+            } finally {
+                uploading = false
+            }
         }
     }
 

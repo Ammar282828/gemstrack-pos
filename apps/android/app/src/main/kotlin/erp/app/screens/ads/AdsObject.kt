@@ -1,6 +1,7 @@
 package erp.app.screens.ads
 
 import androidx.compose.foundation.layout.Box
+import erp.app.data.Outbox
 import erp.app.ui.zoomDestination
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -130,6 +131,32 @@ private fun AdsObjectBody(path: String) {
     }
 
     suspend fun act(action: String, fields: Map<String, Any?>) {
+        val status = fields["status"] as? String
+        if (action == "status" && status != null) {
+            // Run / pause: optimistic. The page shows it now; Meta's answer follows through the Outbox (put back if refused).
+            val before = response
+            fun show(s: String) {
+                val r = response ?: return
+                val o = r.obj(level) ?: return
+                response = r + (level to (o + ("status" to s)))
+            }
+            show(status)
+            Outbox.post((if (status == "ACTIVE") "Run " else "Pause ") + name) {
+                show(status)
+                try {
+                    backend.objectAct(id, level, action, fields)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    response = before
+                    throw e
+                }
+                AdsChanges.bump()
+                load()
+                if (status == "ACTIVE") "Running: $name" else "Paused: $name"
+            }
+            return
+        }
         if (busy) return
         busy = true
         failure = null

@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.core.logic.ShopNumber
 import androidx.compose.ui.graphics.ImageBitmap
 import erp.app.ui.AppClock
 import erp.app.ui.ShopDate
@@ -25,10 +26,8 @@ object WebsiteNumber {
 
     /** What the counter typed, as grams the site takes (more than 0, under 5,000), or null. */
     fun parse(text: String): Double? {
-        val t = text.trim().replace(",", ".")
-        if (t.isEmpty()) return null
-        val v = t.toDoubleOrNull() ?: return null
-        return if (v > 0 && v < 5000 && v.isFinite()) v else null
+        val v = ShopNumber.parse(text) ?: return null
+        return if (v > 0 && v < 5000) v else null
     }
 
     /** A key or a name, escaped whole for a query (a site key is a path: "Rings/DSC0912.webp"). */
@@ -285,10 +284,10 @@ object WebsiteEditLogic {
 
     /** caption.ts weightLabel: the weight as typed, "12.4g", or nothing for no weight. */
     fun weightLabel(weight: String): String {
-        var w = weight.trim().replace(",", ".")
+        var w = weight.trim()
         if (w.lowercase().endsWith("g")) w = w.dropLast(1).trim()
-        val v = w.toDoubleOrNull() ?: return ""
-        return if (v.isFinite() && v > 0) w + "g" else ""
+        val v = ShopNumber.parse(w) ?: return ""
+        return if (v > 0) WebsiteNumber.grams(v) + "g" else ""
     }
 
     /**

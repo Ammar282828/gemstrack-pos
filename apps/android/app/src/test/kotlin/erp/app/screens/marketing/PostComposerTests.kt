@@ -35,8 +35,10 @@ class PostComposerTests {
         assertEquals("12.5g", weight("12.5"))
         assertEquals("12.5g", weight(" 12.5g "))
         assertEquals("12.5g each", weight("12.5G", each = true))
-        // a space left inside is not a number
-        assertEquals("", weight("12 .5"))
+        // the one number reader: a comma decimal and Urdu digits are numbers, a space inside is ignored
+        assertEquals("12.5g", weight("12,5"))
+        assertEquals("12.5g", weight("۱۲.۵"))
+        assertEquals("12.5g", weight("12 .5"))
         assertEquals("", weight("0"))
         assertEquals("", weight("-3"))
         assertEquals("", weight("heavy"))

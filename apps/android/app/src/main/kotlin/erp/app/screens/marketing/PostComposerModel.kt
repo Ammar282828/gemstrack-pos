@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import erp.app.ErpApp
 import erp.app.config.House
+import erp.app.data.Outbox
 import erp.app.data.ErpApi
 import erp.app.ui.Note
 import erp.app.ui.NoteState
@@ -352,26 +353,28 @@ class PostComposerModel(
      * (`queuedID`), so a failure half way is resumed rather than made twice. The pictures are drawn here at their sizes
      * (the website's full size, WhatsApp's 1600, the story's 1080) and uploaded one by one; `ready` tells the server they are all in.
      */
-    fun finish(queueOnly: Boolean, note: NoteState) {
+    fun finish(queueOnly: Boolean) {
         if (problems.isNotEmpty()) { error = problems.joinToString(" "); return }
         if (!(siteOn || waKeys.isNotEmpty() || igOn)) { error = "Choose a destination, or share the story from your phone."; return }
         if (manualStory && !draft.words["storyOut"].bool) { error = "Share or save the story first, or choose Post only."; return }
         error = null
         val places = (if (siteOn) 1 else 0) + waKeys.size + (if (igOn) 1 else 0)
-        val label = if (queueOnly) "Queueing “${draft.title}”" else "Posting “${draft.title}”"
+        val label = if (queueOnly) "Queue “${draft.title}”" else "Post “${draft.title}”"
         submitting = true
         said = if (queueOnly) "Adding to the queue…" else "Sending to $places ${if (places == 1) "place" else "places"}…"
-        // The whole send runs in the app's own scope (the iPhone's Outbox): the screen is free at once and the result comes back as a
-        // toast. Sending again carries on from where it stopped (the queue entry and what it holds are kept on the draft).
-        ErpApp.scope.launch {
+        // The whole send runs in the Outbox: the screen is free at once, and a failure comes back there with Retry.
+        // Retrying carries on from where it stopped (the queue entry and what it holds are kept on the draft).
+        Outbox.post(label) {
+            submitting = true
             try {
-                note.show(Note(publish(queueOnly, places)))
+                publish(queueOnly, places)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                error = e.message ?: "Something went wrong."
+                submitting = false
                 saveNow()
-                note.show(Note("$label didn't go through", e.message ?: "Something went wrong.", failed = true))
+                // A refusal is not retried by itself (a post must not go twice); the banner's Retry carries on.
+                throw ErpApi.Failure(400, e.message ?: "Something went wrong.")
             } finally {
                 submitting = false
             }

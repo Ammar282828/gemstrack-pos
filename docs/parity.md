@@ -171,10 +171,10 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 
 | Feature | Web | iPhone | Android | Since | Where |
 |---|---|---|---|---|---|
-| Outbox: non-money saves leave at once and retry in the background, kept on disk | n/a | ✓ | ✓ | 2026-10-20 | `Data/Outbox.swift`, Android `data/Outbox.kt` + `ui/OutboxHost.kt`; Android's marketing and settings saves still await (owed there) |
+| Outbox: non-money saves leave at once and retry in the background, kept on disk | n/a | ✓ | ✓ | 2026-10-20 | `Data/Outbox.swift`, Android `data/Outbox.kt` + `ui/OutboxHost.kt`; Android: settings, labels, voice, ads Run/Pause, posting and queueing, website photos and weights, edit-a-piece, Design save and publish go through it (saveWebsiteConfig has no Android screen yet); money ops stay awaited |
 | Books paint from the phone's own copy before Firestore answers | n/a | ✓ | ✓ | 2026-10-20 | Android: Firestore persistent cache |
 | Launch clock: cold-start steps timed and sent (`app_launches`) | n/a | ✓ | ✓ | 2026-10-20 | `LaunchClock` (Android `device/LaunchClock.kt`, `platform: "android"`) |
-| One number reader (Urdu and Arabic digits, lakh commas, never a silent 0) | n/a | ✓ | ✓ | 2026-10-20 | `ShopNumber` (Android `core/logic/ShopNumber.kt`); marketing's boxes still read their own way on Android |
+| One number reader (Urdu and Arabic digits, lakh commas, never a silent 0) | n/a | ✓ | ✓ | 2026-10-20 | `ShopNumber` (Android `core/logic/ShopNumber.kt`); marketing's weight and artwork boxes read through it on Android too |
 | The lock covers every sheet and dialog | n/a | ✓ | ✓ | 2026-10-20 | Android: the cover is a window of its own, `device/AppLock.kt`; not run on a phone |
 | Page loads time out at 15 s; the server is warmed when the app comes forward | n/a | ✓ | ✓ | 2026-10-23 | `/api/app/me`, `Outbox.warm()` |
 | Crash and hang reports | n/a | ✓ | ✓ | 2026-10-20 | MetricKit / `last-crash.txt` |

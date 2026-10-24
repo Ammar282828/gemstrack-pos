@@ -257,7 +257,7 @@ fun PostComposerScreen(path: String) {
             text = {
                 Text(PostComposerRules.publishWords(model.draft, model.config.s("siteName", "Website"), model.instagram.s("username"), model.instagramConnected, model.health["checks"].array, which != "queue"))
             },
-            confirmButton = { TextButton(onClick = { confirmation = null; model.finish(queueOnly = which == "queue", note = note) }) { Text(if (which == "queue") "Add to queue" else "Publish") } },
+            confirmButton = { TextButton(onClick = { confirmation = null; model.finish(queueOnly = which == "queue") }) { Text(if (which == "queue") "Add to queue" else "Publish") } },
             dismissButton = { TextButton(onClick = { confirmation = null }) { Text("Cancel") } },
         )
     }
@@ -492,7 +492,7 @@ private fun PublishSection(
         val queued = d.queuedID
         if (model.frozen && queued != null) {
             ActionRow("Open queued piece", { onOpenQueued(queued) })
-            if (d.queueReady != true) ActionRow("Finish uploading", { model.finish(queueOnly = true, note = note) })
+            if (d.queueReady != true) ActionRow("Finish uploading", { model.finish(queueOnly = true) })
             else ActionRow("Send what remains", { onConfirm("send") })
             ActionRow("Next piece", { scope.launch { model.startOver() } })
         } else {

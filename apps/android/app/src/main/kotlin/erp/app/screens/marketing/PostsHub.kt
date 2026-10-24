@@ -145,17 +145,11 @@ fun PostsHub() {
                     val n = state.waiting.size
                     if (n > 0) {
                         note.show(erp.app.ui.Note("Sending $n ${if (n == 1) "piece" else "pieces"}…", "It says here when they have gone."))
-                        // In the app's own scope (the iPhone's Outbox): the hub is free at once; "sendNow" only sends what has not
-                        // gone, so sending again after a failure posts nothing twice.
-                        erp.app.ErpApp.scope.launch {
+                        // In the Outbox: the hub is free at once; "sendNow" only sends what has not gone, so a Retry posts nothing twice.
+                        erp.app.data.Outbox.post("Send $n queued ${if (n == 1) "piece" else "pieces"}") {
                             val (sent, of) = PostsStore.sendAll()
-                            val whole = sent == of
-                            note.show(
-                                erp.app.ui.Note(
-                                    if (whole) "All $of sent" else "$sent of $of sent",
-                                    if (whole) "" else "The ones that failed say why; sending again sends only what didn't go.", failed = !whole,
-                                ),
-                            )
+                            if (sent == of) "All $of sent"
+                            else throw erp.app.data.ErpApi.Failure(400, "$sent of $of sent. The ones that failed say why; Retry sends only what didn't go.")
                         }
                     }
                 }) { Text(if (state.failingChecks.isEmpty()) "Send" else "Send anyway") }

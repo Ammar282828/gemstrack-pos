@@ -56,6 +56,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import erp.app.ErpApp
+import erp.app.data.Outbox
 import erp.app.data.ErpApi
 import erp.app.nav.ScreenTitle
 import erp.app.screens.stock.StockImage
@@ -183,19 +184,11 @@ private fun QueuePage(e: PostQueueEntry, state: PostsState, onClose: () -> Unit,
     var choosing by remember { mutableStateOf(false) }
     var whenAt by remember { mutableStateOf(AppClock.now().plusSeconds(3600)) }
 
-    // Handed to the app's own scope (the iPhone's Outbox): the sheet is free at once and the words, or the failure, come back as a toast.
+    // Handed to the Outbox: the sheet is free at once, and the words (or the failure, with Retry) come back from there.
     fun hand(label: String, saying: String, close: Boolean = false, work: suspend () -> String) {
         said = saying
         failure = null
-        ErpApp.scope.launch {
-            try {
-                note.show(Note(work()))
-            } catch (c: CancellationException) {
-                throw c
-            } catch (ex: Exception) {
-                note.show(Note("$label didn't go through", ex.message ?: "Something went wrong.", failed = true))
-            }
-        }
+        Outbox.post(label, work)
         if (close && !embedded) onClose()
     }
 

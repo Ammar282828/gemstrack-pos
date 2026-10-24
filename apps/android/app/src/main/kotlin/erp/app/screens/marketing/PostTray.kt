@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.core.logic.ShopNumber
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -7,10 +8,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import erp.app.config.Prefs
+import erp.app.data.Outbox
 import erp.app.data.ErpApi
 import erp.app.ErpApp
 import erp.app.ui.Note
-import erp.app.ui.NoteState
 import erp.core.logic.Album
 import erp.core.logic.postOnlyWeight
 import erp.core.logic.validWeight
@@ -41,7 +42,7 @@ object PostTrayLogic {
     fun noun(n: Int): String = if (n == 1) "piece" else "pieces"
 
     /** The weight as the caption takes it: Number(typed), as the web's card passes it. */
-    fun typedGrams(typed: String): Double = typed.trim().toDoubleOrNull() ?: 0.0
+    fun typedGrams(typed: String): Double = ShopNumber.parse(typed) ?: 0.0
 
     /** "a", "a and b", "a, b and c" (queue-panel.tsx listOf). */
     fun listOf(xs: List<String>): String = if (xs.size > 1) xs.dropLast(1).joinToString(", ") + " and " + xs.last() else xs.firstOrNull() ?: ""
@@ -541,11 +542,11 @@ class PostTrayModel(val engine: DesignEngine, private val scope: CoroutineScope)
 
     /**
      * Every piece in the tray, one after another, each to the chosen places. The photos are read here, then the tray clears at
-     * once and the uploads run in the app's own scope (owner, 2026-10-23: instant); "Posted to …" or the place that failed comes
-     * back as a toast through [note]. Stops at the first that fails; one that some places took has gone, so it is not sent
-     * again, and the ones that did not go come back to the tray to be sent again.
+     * once and the send runs in the Outbox (owner, 2026-10-23: instant); "Posted to …" or the place that failed comes
+     * back from there, with Retry. Stops at the first that fails; one that some places took has gone, so it is not sent
+     * again, and a Retry sends only what is left.
      */
-    suspend fun send(note: NoteState): Outcome {
+    suspend fun send(): Outcome {
         val places = whatsappPlaces
         val toIg = toInstagram
         val names = placeNamesSent(places, toIg)
@@ -563,21 +564,8 @@ class PostTrayModel(val engine: DesignEngine, private val scope: CoroutineScope)
         cards.clear()
         active = null
         val finished = HashSet<String>()
-        ErpApp.scope.launch {
-            try {
-                note.show(Note(deliver(prepared, places, toIg, finished)))
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                val why = e.message ?: "Something went wrong."
-                // Back in the tray, to send again: what has gone is not in it.
-                val left = batch.filter { it.id !in finished }
-                left.forEach { it.failed = why }
-                cards.addAll(left.filter { c -> cards.none { it.id == c.id } })
-                if (active == null) active = cards.firstOrNull()?.id
-                note.show(Note("Not all of it went", why, failed = true))
-            }
-        }
+        // A 400 is never retried by itself (a post must not go twice); the banner's Retry sends only what is left.
+        Outbox.post("Post ${batch.size} ${PostTrayLogic.noun(batch.size)} to ${PostTrayLogic.listOf(names)}") { deliver(prepared, places, toIg, finished) }
         return Outcome(listOf(Note("Sending to ${names.size} ${if (names.size == 1) "place" else "places"}…", "You can carry on: it says here when it has gone.")))
     }
 
@@ -711,9 +699,9 @@ class PostTrayModel(val engine: DesignEngine, private val scope: CoroutineScope)
     /**
      * Into the queue, to send later or spread over the day: each piece exactly as its card makes it now, every photo of it (up to
      * Album.max), with an Instagram post when it is chosen. The photos are read here, then the tray clears at once and the queue
-     * is filled in the app's own scope; what did not get in comes back to the tray.
+     * is filled by the Outbox; a Retry carries on with what did not get in.
      */
-    suspend fun queue(note: NoteState): Outcome {
+    suspend fun queue(): Outcome {
         val places = whatsappPlaces
         val toIg = toInstagram
         busy = "queue"
@@ -732,27 +720,16 @@ class PostTrayModel(val engine: DesignEngine, private val scope: CoroutineScope)
         cards.clear()
         active = null
         val finished = HashSet<String>()
-        ErpApp.scope.launch {
-            try {
-                for (item in prepared) {
-                    enqueue(item.card, item.caption, item.blobs, thumbs[item.card.id], places, toIg)
-                    // Queued is as good as typed in for good: the website keeps the weight now, not when the post goes.
-                    keepWeight(item.card)
-                    finished.add(item.card.id)
-                }
-                PostsStore.refreshQueue()
-                note.show(Note("${batch.size} ${PostTrayLogic.noun(batch.size)} in the queue"))
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                val why = e.message ?: "Something went wrong."
-                val left = batch.filter { it.id !in finished }
-                left.forEach { it.failed = why }
-                cards.addAll(left.filter { c -> cards.none { it.id == c.id } })
-                if (active == null) active = cards.firstOrNull()?.id
-                PostsStore.refreshQueue()
-                note.show(Note("Could not queue it", why, failed = true))
+        Outbox.post("Queue ${batch.size} ${PostTrayLogic.noun(batch.size)}") {
+            for (item in prepared) {
+                if (item.card.id in finished) continue
+                enqueue(item.card, item.caption, item.blobs, thumbs[item.card.id], places, toIg)
+                // Queued is as good as typed in for good: the website keeps the weight now, not when the post goes.
+                keepWeight(item.card)
+                finished.add(item.card.id)
             }
+            PostsStore.refreshQueue()
+            "${batch.size} ${PostTrayLogic.noun(batch.size)} in the queue"
         }
         return Outcome(listOf(Note("Queueing ${batch.size} ${PostTrayLogic.noun(batch.size)}…", "They go to the queue in the background.")))
     }

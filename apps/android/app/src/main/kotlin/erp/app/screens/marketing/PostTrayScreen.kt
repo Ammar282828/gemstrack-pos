@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.core.logic.ShopNumber
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -153,7 +154,7 @@ fun PostTrayScreen(path: String) {
         val n = model.cards.size
         TrayBar(
             primary = if (n > 1) "Send all $n" else "Send it", primaryBusy = model.busy == "send", enabled = model.canSend,
-            onPrimary = { confirming = true }, secondaryBusy = model.busy == "queue", onSecondary = { scope.launch { say(model.queue(note).notes) } },
+            onPrimary = { confirming = true }, secondaryBusy = model.busy == "queue", onSecondary = { scope.launch { say(model.queue().notes) } },
             summary = PostTrayLogic.summary(n, model.placeNames) { it },
         )
     })
@@ -259,7 +260,7 @@ fun PostTrayScreen(path: String) {
             onDismissRequest = { confirming = false },
             title = { Text(PostTrayLogic.confirmTitle(model.cards.size, model.placeNames) { it }) },
             text = { Column(Modifier.verticalScroll(rememberScrollState())) { Text(PostTrayLogic.confirmWords(lines, places, model.cards.size, model.blockers)) } },
-            confirmButton = { TextButton(onClick = { confirming = false; scope.launch { say(model.send(note).notes) } }) { Text(if (model.blockers.isEmpty()) "Send" else "Send anyway") } },
+            confirmButton = { TextButton(onClick = { confirming = false; scope.launch { say(model.send().notes) } }) { Text(if (model.blockers.isEmpty()) "Send" else "Send anyway") } },
             dismissButton = { TextButton(onClick = { confirming = false }) { Text("Not yet") } },
         )
     }
@@ -497,7 +498,7 @@ private fun WeightSection(card: PostTrayCard, siteName: String, locked: Boolean)
         Row(Modifier.fillMaxWidth().ledgerRow(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("Weight", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
             OutlinedTextField(
-                card.weight, { v -> if (!locked) card.weight = v.filter { it.isDigit() || it == '.' } }, Modifier.width(120.dp), singleLine = true,
+                card.weight, { v -> if (!locked) card.weight = ShopNumber.ascii(v).replace(",", ".").filter { it in '0'..'9' || it == '.' } }, Modifier.width(120.dp), singleLine = true,
                 placeholder = { Text("0.00") }, textStyle = MaterialTheme.typography.bodyLarge.copy(textAlign = TextAlign.End, fontFeatureSettings = TabularDigits),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), enabled = !locked,
             )
