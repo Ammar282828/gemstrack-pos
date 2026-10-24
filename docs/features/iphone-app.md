@@ -179,8 +179,12 @@ are not obvious from its screens.
 **Xcode Cloud** builds the native app since 2026-10-09 (owner: "cant you switch to something free"): GitHub's Mac
 minutes count ten to one and spent the month's Actions allowance in one day, which also stops the web deploys.
 Apple's Developer Program includes 25 Xcode Cloud hours a month; a release of both houses takes about 20
-minutes of them, a UI check about 15. `iphone-native.yml` keeps ERPCore's Linux tests on every push; its Mac
-jobs run only by hand.
+minutes of them, a UI check about 15. `iphone-native.yml` keeps ERPCore's Linux tests, but since 2026-10-24 only
+for a push that touches what they compile (Packages, `contract/`, App/Screens/NewOrder and Sale, the Contract
+package's links); every other Swift change is compiled by Xcode Cloud's release. Its Mac jobs, and `ios.yml`'s (the
+retired Capacitor shell), run only by hand. That day the month's 2,000 Actions minutes ran out (about 1,400 Linux
+plus 340 Mac minutes at ten to one; the native app's test job alone about 5 billed minutes a push), and every
+deploy stopped until the allowance resets.
 - **How a build starts.** A new line in `apps/iphone/RELEASES.md` on a `claude/` branch: each house's "release"
   workflow archives and hands the build to TestFlight's internal "Shop" group. A new line in
   `apps/iphone/CHECKS.md`: the "UI check" workflow runs `ERPUITests` in the simulator. The result shows on the

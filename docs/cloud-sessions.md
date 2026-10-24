@@ -28,5 +28,10 @@ Claude Code runs these repos in the cloud too, with no Mac.
   secret `HOM_DEPLOY_KEY`): both houses at once, **with no review** (owner, 2026-09-27). A conflict or a failed check stops
   it before any push; nothing is force-pushed. taheri-site and mina-catalogue have their own `cloud-deploy.yml`. In a cloud
   session: commit, push the branch, watch the run; on a conflict, rebase on `origin/main` and push again. "Run workflow" is a dry run.
+- **Going live needs Actions minutes.** This repo is private, so every job counts against the account's free 2,000 a month
+  (each job rounded up to a minute, a Mac minute as ten). When they run out, every job fails before it starts ("recent account
+  payments have failed or your spending limit needs to be increased", on the check run's annotations) and nothing deploys until
+  the allowance resets (2026-10-24). Read it with `gh api repos/Ammar282828/taheri-pos/check-runs/<id>/annotations`. Xcode
+  Cloud's checks on a commit still report: they are Apple's hours, not GitHub's.
 - **Mac only:** SSH to Hostinger (the sites deploy through Actions), Google sign-in to a local ERP (typecheck, tests and the
   gate's `?dev=1` work here), the Mac's memory files (this file is the handoff), GoDaddy / Hostinger API tokens.

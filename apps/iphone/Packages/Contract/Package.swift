@@ -7,6 +7,8 @@
 // the screens do, and writes what each screen shows and what it sends. The ERP's tests then run those very
 // payloads through /api/app/write and the web's own money (src/app/api/app/write/contract.test.ts):
 // a figure the phone shows that the ERP would save differently fails there.
+// A link into a folder of App/ not yet listed goes into .github/workflows/iphone-native.yml's push paths too,
+// or a change there skips this check.
 import PackageDescription
 
 let package = Package(
