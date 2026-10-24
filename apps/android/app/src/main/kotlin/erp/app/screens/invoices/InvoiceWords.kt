@@ -99,7 +99,7 @@ object InvoiceWords {
 
     /** The method (older records predate payment types and have none), or Refund. */
     fun paymentTitle(p: Payment): String {
-        if (isRefund(p)) return "Refund"
+        if (isRefund(p)) return if (InvoiceCredit.isPayback(p)) "Credit paid back" else "Refund"
         val method = p.method?.rawValue ?: ""
         return method.ifEmpty { "Payment" }
     }
@@ -112,7 +112,8 @@ object InvoiceWords {
         p.reference?.takeIf { it.isNotEmpty() }?.let { parts.add(it) }
         var note = (p.notes ?: "").trim()
         if (note.isNotEmpty() && !note.startsWith("Payment received")) {
-            if (isRefund(p) && note.startsWith("Refund")) note = note.removePrefix("Refund").trim { it == ':' || it == ' ' || it == '\t' }
+            if (InvoiceCredit.isPayback(p)) note = p.method?.rawValue ?: ""
+            else if (isRefund(p) && note.startsWith("Refund")) note = note.removePrefix("Refund").trim { it == ':' || it == ' ' || it == '\t' }
             if (note.isNotEmpty()) parts.add(note)
         }
         return if (parts.isEmpty()) "—" else parts.joinToString(" · ")

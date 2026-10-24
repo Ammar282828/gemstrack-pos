@@ -329,6 +329,26 @@ describe('finalizing an order from the phone', () => {
     // Twice is refused: undoing an invoice is the delete code's.
     expect((await call(fin())).status).toBe(409);
   });
+
+  it('prices at the rates typed at Finalize instead of the booked ones, and keeps them on the invoice', async () => {
+    put('orders', 'ORD-000003', ORDER);
+    const r = await call(fin({ ratesApplied: { goldRatePerGram21k: 22_000 } }));
+    expect(r.status).toBe(200);
+    const inv = r.body.invoice as { subtotal: number; ratesApplied: Record<string, number> };
+    // 5.5 g at 22,000 = 121,000; wastage 10% = 12,100; making 2,000.
+    expect(inv.subtotal).toBe(135_100);
+    expect(inv.ratesApplied.goldRatePerGram21k).toBe(22_000);
+  });
+
+  it('refuses a rate that is not a figure, and takes a blank or 0 as no change', async () => {
+    put('orders', 'ORD-000003', ORDER);
+    expect((await call(fin({ ratesApplied: { goldRatePerGram21k: -1 } }))).status).toBe(400);
+    expect((await call(fin({ ratesApplied: { goldRatePerGram21k: 'abc' } }))).status).toBe(400);
+    expect(data.orders['ORD-000003'].invoiceId).toBeUndefined();
+    const r = await call(fin({ ratesApplied: { goldRatePerGram21k: 0, goldRatePerGram24k: '' } }));
+    expect(r.status).toBe(200);
+    expect((r.body.invoice as { subtotal: number }).subtotal).toBe(123_000);
+  });
 });
 
 describe('a new sale from the phone', () => {

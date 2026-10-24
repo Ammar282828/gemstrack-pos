@@ -179,6 +179,8 @@ fun PhoneSettings() {
             registrationError?.let { SmallPrint(it, Tone.problem, Modifier.fillMaxWidth().ledgerRow()) }
         }
         error?.let { SettingsSection { ErrorRow(it) } }
+        // Each business on the phone and whether it is linked here (alerts, widget).
+        erp.app.screens.businesses.BusinessPhoneLinks()
 
         SettingsSection("Appearance", "The theme for this phone. If not chosen, it follows the shop's appearance in the ERP.") {
             PickerRow(
@@ -210,7 +212,7 @@ fun PhoneSettings() {
             }
         }
 
-        SettingsSection(footer = "Add it from the home screen: touch and hold, then Widgets → ${erp.app.config.House.storeName}.") {
+        SettingsSection(footer = "Add it from the home screen: touch and hold, then Widgets → ${context.getString(erp.app.R.string.app_name)}.") {
             ValueRow("Home-screen widget") { ReadOnly(if (widgetLinked) "Linked" else "Not linked") }
             SettingsNavRow("Preview widgets", Icons.Filled.Widgets, "/app/widgets")
             ActionRow(

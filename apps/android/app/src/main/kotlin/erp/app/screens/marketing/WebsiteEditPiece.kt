@@ -44,6 +44,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import erp.app.config.House
+import erp.app.data.Outbox
 import erp.app.data.ErpApi
 import erp.app.device.openAddress
 import erp.app.nav.ScreenActions
@@ -173,20 +174,14 @@ fun WebsiteEditPieceScreen(id: String) {
         }
     }
 
-    fun post(fields: List<Pair<String, String>>, work: suspend (WebsiteEditSaved) -> Unit, doing: String, files: List<ErpApi.FormFile> = emptyList()) {
-        scope.launch {
-            busy = doing
-            said = null
-            try {
-                val d = WebsiteApi.form("/api/website/edits", fields, WebsiteEditSaved, files, timeoutMs = 130_000)
-                work(d)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                failure = e.message ?: "Something went wrong."
-            } finally {
-                busy = null
-            }
+    /** Handed to the Outbox: the editor is free at once, and the words (or the failure, with Retry) come back from there. */
+    fun post(label: String, fields: List<Pair<String, String>>, saying: String, said2: (WebsiteEditSaved) -> String, work: suspend (WebsiteEditSaved) -> Unit) {
+        said = saying
+        failure = null
+        Outbox.post(label) {
+            val d = WebsiteApi.form("/api/website/edits", fields, WebsiteEditSaved, emptyList(), timeoutMs = 130_000)
+            work(d)
+            said2(d)
         }
     }
 
@@ -227,29 +222,34 @@ fun WebsiteEditPieceScreen(id: String) {
                 val ph = photo
                 val drawn = WebsiteEditLogic.photoFields(p, form)
                 val photoChanged = ph?.changed(drawn) ?: false
+                val shown = form.name.trim()
+                val nowHidden = form.hidden
                 scope.launch {
-                    busy = "Saving on $siteName…"
+                    busy = "Drawing the photo…"
                     said = null
+                    failure = null
                     try {
                         val fields = arrayListOf("id" to p.id, "words" to WebsiteApi.text(WebsiteEditLogic.wordsNow(p, form)))
                         val files = ArrayList<ErpApi.FormFile>()
                         if (ph != null && photoChanged) {
-                            busy = "Drawing the photo…"
                             val jpeg = ph.jpeg(drawn)
-                            busy = "Saving on $siteName…"
                             files.add(ErpApi.FormFile("file", "photo.jpg", "image/jpeg", jpeg))
                             fields.add("stamped" to if (ph.stamped(drawn)) "1" else "0")
                             fields.add("design" to ph.keptDoc.text)
                             fields.add("shape" to ph.shape)
                             fields.add("ai" to MarketingValue.of(ph.ai).text)
                         }
-                        val d = WebsiteApi.form("/api/website/edits", fields, WebsiteEditSaved, files, timeoutMs = 130_000)
-                        if (photoChanged) ph?.saved(drawn)
-                        d.piece?.let { take(it); WebsiteEdits.replace(it) }
-                        val hiddenNow = d.piece?.hidden ?: form.hidden
-                        said = d.note ?: if (photoChanged) "Saved on $siteName. The new photo shows within a minute; the original is kept to put back any time."
-                        else if (hiddenNow) "Saved. The piece leaves $siteName within a minute." else "Saved on $siteName. It shows within a minute."
-                        load()
+                        val site = siteName
+                        said = "Saving on $site…"
+                        Outbox.post("Save ${if (shown.isEmpty()) "the piece" else "“$shown”"} on $site") {
+                            val d = WebsiteApi.form("/api/website/edits", fields, WebsiteEditSaved, files, timeoutMs = 130_000)
+                            if (photoChanged) ph?.saved(drawn)
+                            // The baseline moves on; what is being typed meanwhile stays.
+                            d.piece?.let { take(it); WebsiteEdits.replace(it) }
+                            said = d.note ?: if (photoChanged) "Saved on $site. The new photo shows within a minute; the original is kept to put back any time."
+                            else if ((d.piece?.hidden ?: nowHidden)) "Saved. The piece leaves $site within a minute." else "Saved on $site. It shows within a minute."
+                            "Saved on $site"
+                        }
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {
@@ -260,23 +260,25 @@ fun WebsiteEditPieceScreen(id: String) {
                 }
             }
             WebsiteEditLogic.Confirm.Photo -> WebsiteChoice("Put the original back", destructive = true) {
-                post(listOf("id" to p.id, "photo" to "revert"), { d ->
+                val site = siteName
+                post("Put the original photo back on $site", listOf("id" to p.id, "photo" to "revert"), "Putting it back…", { "Original photo back on $site" }) { d ->
                     d.piece?.let { take(it); WebsiteEdits.replace(it) }
                     // The editor starts again from what the site now has, as the web's does.
                     photo = null
                     photoWarning = null
-                    said = "The original photo is back on $siteName within a minute."
+                    said = "The original photo is back on $site within a minute."
                     load()
-                }, "Putting it back…")
+                }
             }
             WebsiteEditLogic.Confirm.All -> WebsiteChoice("Undo every change", destructive = true) {
-                post(listOf("id" to p.id, "action" to "revert"), { d ->
+                val site = siteName
+                post("Undo every change on $site", listOf("id" to p.id, "action" to "revert"), "Putting it back…", { "Everything put back on $site" }) { d ->
                     d.piece?.let { take(it); WebsiteEdits.replace(it) }
                     photo = null
                     photoWarning = null
-                    said = "Everything put back: $siteName shows the piece as it was built, within a minute."
+                    said = "Everything put back: $site shows the piece as it was built, within a minute."
                     load()
-                }, "Putting it back…")
+                }
             }
         }
         val drawn = WebsiteEditLogic.photoFields(p, form)

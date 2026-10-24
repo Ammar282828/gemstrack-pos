@@ -16,7 +16,8 @@ import erp.core.logic.isActiveOrder
 import erp.core.logic.isOwing
 import erp.core.logic.isUrgent
 import erp.core.logic.isWalkInName
-import erp.core.logic.orderAdvancePayments
+import erp.core.logic.describeExchangeEntry
+import erp.core.logic.orderAdvanceLines
 import erp.core.logic.orderTiming
 import erp.core.logic.percentLabel
 import erp.core.logic.stageOf
@@ -139,7 +140,17 @@ data class OrderPromise(
 )
 
 /** What the page's advances will land as on the invoice. */
-data class AdvanceLine(val id: Int, val date: String, val method: String, val note: String, val amount: Double)
+data class AdvanceLine(
+    val id: Int,
+    val date: String,
+    val method: String,
+    val note: String,
+    val amount: Double,
+    /** "Gold: Old ring · 22k · 5 g at 20,000/g · PKR 100,000" for each row handed over with it; "" for cash only. */
+    val gold: String = "",
+    /** What the line comes to in gold. */
+    val goldValue: Double = 0.0,
+)
 
 /** Karachi's days, weeks (from Monday) and months: what the shop means by "today" and "this week" (Invoices' InvoiceCalendar). */
 object OrdersCalendar {
@@ -309,14 +320,18 @@ object OrdersLogic {
     }
 
     /** Newest first inside every group, as the web sorts before it groups; the Due view soonest first. */
-    fun sections(orders: List<Order>, grouping: OrdersGrouping, owedOn: Map<String, Double>, now: Instant): List<HubSection> {
+    fun sections(
+        orders: List<Order>, grouping: OrdersGrouping, owedOn: Map<String, Double>, now: Instant,
+        // How an order is placed: the books' own, unless a change just made is laid over it (OrdersLocal).
+        stage: (Order) -> OrderStage = { stageOf(it, owed(it, owedOn)) },
+    ): List<HubSection> {
         if (grouping == OrdersGrouping.due) {
             return dueGroups(orders, now).map { (b, list) ->
                 HubSection("due-" + b.name, b.title, b.hint, late = b == OrdersDueBucket.late, folds = false, orders = list)
             }
         }
         val newest = orders.sortedByDescending { takenAt(it) }
-        if (!grouping.isCalendar) return stageSections(newest, owedOn)
+        if (!grouping.isCalendar) return stageSections(newest, stage)
         val keys = ArrayList<String>()
         val info = HashMap<String, OrdersCalendar.Bucket>()
         val members = HashMap<String, MutableList<Order>>()
@@ -337,9 +352,9 @@ object OrdersLogic {
         }
     }
 
-    private fun stageSections(orders: List<Order>, owedOn: Map<String, Double>): List<HubSection> {
+    private fun stageSections(orders: List<Order>, stage: (Order) -> OrderStage): List<HubSection> {
         val byStage = HashMap<OrderStage, MutableList<Order>>()
-        for (o in orders) byStage.getOrPut(stageOf(o, owed(o, owedOn))) { ArrayList() }.add(o)
+        for (o in orders) byStage.getOrPut(stage(o)) { ArrayList() }.add(o)
         return STAGE_ORDER.mapNotNull { st ->
             val rows = byStage[st]
             if (rows.isNullOrEmpty()) return@mapNotNull null
@@ -419,11 +434,12 @@ object OrdersLogic {
     fun balance(order: Order): Double = subtotal(order) - discount(order) - order.advancePayment - exchangeValue(order)
 
     /** The advances as they will land on the invoice: the one taken with the order, then each recorded after it, each with its day, how it was paid and its note. */
-    fun advanceLines(order: Order): List<AdvanceLine> = orderAdvancePayments(order, label = "").mapIndexed { i, a ->
+    fun advanceLines(order: Order): List<AdvanceLine> = orderAdvanceLines(order, label = "").mapIndexed { i, a ->
         val raw = a.notes ?: ""
         val clean = if (raw.startsWith(": ")) raw.drop(2) else raw
         val note = if (clean.isEmpty()) (if (a.date == order.createdAt) "With the order" else "") else clean
-        AdvanceLine(i, a.date, a.method?.rawValue ?: "", note, a.amount)
+        val gold = a.exchanges.joinToString("; ") { "${describeExchangeEntry(it)} \u00B7 ${Money.pkr(it.value)}" }
+        AdvanceLine(i, a.date, a.method?.rawValue ?: "", note, a.amount, if (gold.isEmpty()) "" else "Gold: $gold", a.exchanges.fold(0.0) { s, e -> s + e.value })
     }
 
     // MARK: Online orders (components/order/website-order-panel.tsx)

@@ -30,6 +30,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import erp.app.data.ErpApi
 import erp.app.ui.MinTouchTarget
+import erp.app.ui.rememberHaptics
 import erp.app.ui.Tone
 import erp.app.ui.color
 import erp.core.entry.NewOrderSizeSuggestion
@@ -59,22 +60,13 @@ internal fun SizeAskSheet(ask: NewOrderSizeAsk, onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
     val state = rememberModalBottomSheetState(skipPartiallyExpanded = true, confirmValueChange = { !saving })
 
+    // Not money: the sheet closes at once and the Outbox carries the sizes.
+    val haptics = rememberHaptics()
     fun save() {
-        saving = true
-        failure = null
         val picked = ask.rows.filter { chosen.contains(it.id) }
-        scope.launch {
-            try {
-                ErpApi.shared.write("setCustomerSizes", NewOrderSizes.request(ask.customerId, picked))
-                onDismiss()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                failure = e.message ?: e.toString()
-            } finally {
-                saving = false
-            }
-        }
+        ErpApi.shared.enqueue("setCustomerSizes", NewOrderSizes.request(ask.customerId, picked), "Customer sizes")
+        haptics.success()
+        onDismiss()
     }
 
     ModalBottomSheet(onDismissRequest = { if (!saving) onDismiss() }, sheetState = state) {

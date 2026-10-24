@@ -49,8 +49,8 @@ class AdsBudgetModel(val target: AdsBudgetTarget, val amount: String, val hasEnd
 
     val after: Double?
         get() {
-            val v = amount.replace(",", "").trim().toDoubleOrNull()
-            return if (v != null && v.isFinite() && v > 0) v else null
+            val v = erp.core.logic.ShopNumber.parse(amount)
+            return if (v != null && v > 0) v else null
         }
 
     /** The end as the sheet holds it: the chosen day's last minute in Karachi, or none. */

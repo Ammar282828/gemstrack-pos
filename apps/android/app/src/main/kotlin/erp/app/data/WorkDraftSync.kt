@@ -76,7 +76,18 @@ class WorkDraftSync private constructor(val kind: String) {
         lastSent = ""
         val gone = id ?: return
         forget()
-        enqueue { runCatching { ErpApi.shared.send("/api/app/drafts", body = mapOf("action" to "drop", "id" to gone)) } }
+        // The business it was made in: a switch before the line gets to it must not send it to the next business's ERP.
+        val api = ErpApi.shared
+        enqueue { runCatching { api.send("/api/app/drafts", body = mapOf("action" to "drop", "id" to gone)) } }
+    }
+
+    /**
+     * The business changed: nothing waiting is sent for the one left (its phone copy is kept under its own key), and the next
+     * business starts from nothing. What is already on its way finishes for the business it began in.
+     */
+    fun reset() {
+        waiting?.cancel()
+        lastSent = ""
     }
 
     /** Lets go of the Drafts copy without touching it: it was finished or thrown away on another device. */
@@ -110,10 +121,12 @@ class WorkDraftSync private constructor(val kind: String) {
             "total" to (if (snap.total.isFinite()) snap.total else 0.0), "customerName" to snap.customerName,
             "device" to Build.MODEL, "createdAt" to created,
         )
+        val api = ErpApi.shared
+        val business = House.id
         enqueue {
             try {
-                ErpApi.shared.send("/api/app/drafts", body = body)
-                if (id == draftId) Prefs.putBool(landedKey, true)
+                api.send("/api/app/drafts", body = body)
+                if (House.id == business && id == draftId) Prefs.putBool(landedKey, true)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -122,7 +135,7 @@ class WorkDraftSync private constructor(val kind: String) {
             }
             // Saved or started over while it was on its way: take it back out.
             if (generation != gen) {
-                runCatching { ErpApi.shared.send("/api/app/drafts", body = mapOf("action" to "drop", "id" to draftId)) }
+                runCatching { api.send("/api/app/drafts", body = mapOf("action" to "drop", "id" to draftId)) }
             }
         }
     }
