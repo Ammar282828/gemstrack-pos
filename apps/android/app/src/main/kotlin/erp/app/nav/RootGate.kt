@@ -125,6 +125,8 @@ fun AppShell(session: Session, content: @Composable BoxScope.() -> Unit) {
                 Box(Modifier.fillMaxSize()) {
                     content()
                     NoteHost(note)
+                    // What a save that left its screen could not do, with Retry (Outbox).
+                    erp.app.ui.OutboxHost(Modifier.align(androidx.compose.ui.Alignment.BottomCenter))
                 }
                 LockLayer()
             }

@@ -11,6 +11,7 @@ import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
 import erp.app.auth.Session
 import erp.app.config.House
+import erp.app.data.Outbox
 import erp.app.device.AppLock
 import erp.app.device.Foreground
 import erp.app.nav.AppShell
@@ -70,6 +71,7 @@ class PageActivity : FragmentActivity() {
     override fun onResume() {
         super.onResume()
         AppLock.resumed(this, signedIn)
+        if (signedIn && !House.isDemo) { Outbox.warm(); Outbox.resume() }
         lifecycleScope.launch { AppLock.unlockIfNeeded(this@PageActivity) }
     }
 

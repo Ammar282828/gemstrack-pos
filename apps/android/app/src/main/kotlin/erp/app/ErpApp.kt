@@ -24,6 +24,9 @@ class ErpApp : Application() {
     override fun onCreate() {
         super.onCreate()
         instance = this
+        // The launch report's clock starts with the process; its steps are stamped as they come (LaunchClock).
+        erp.app.device.LaunchClock.armTimeout()
+        erp.app.device.LaunchClock.mark("app:init")
         CrashCatcher.install(this)
         // core knows no BuildConfig: the New order / New sale rules learn the house here, once.
         erp.core.entry.EntryHouse.id = House.id

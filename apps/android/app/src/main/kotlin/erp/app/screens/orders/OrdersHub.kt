@@ -48,6 +48,7 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -78,6 +79,9 @@ import erp.app.ui.ChipRow
 import erp.app.ui.FailureAlert
 import erp.app.ui.FilterChip
 import erp.app.ui.LedgerHeading
+import erp.app.ui.LocalNoteState
+import erp.app.ui.Note
+import erp.app.ui.rememberLocalChanges
 import erp.app.ui.NotAvailableState
 import erp.app.ui.PaymentSheet
 import erp.app.ui.ShelfState
@@ -134,8 +138,8 @@ fun OrdersHub() {
     var payment by rememberSaveable { mutableStateOf("All") }
     /** The folded stages a person has opened. */
     var opened by rememberSaveable { mutableStateOf(setOf<String>()) }
-    /** Orders with a write in flight. */
-    var busy by remember { mutableStateOf(setOf<String>()) }
+    /** The status each order was just given, until the books say so: a save leaves at once (Outbox). */
+    val localStatus = rememberLocalChanges<String, String>()
     var advancing by remember { mutableStateOf<Order?>(null) }
     var cancelling by remember { mutableStateOf<Order?>(null) }
     var failure by remember { mutableStateOf<String?>(null) }
@@ -157,31 +161,24 @@ fun OrdersHub() {
     }
 
     // The hub's sums, once per change of the books or of what narrows them.
-    val view = remember(orders.revision, invoices.revision, query, statusFilter, month, takenBy, payment, grouping) {
+    val view = remember(orders.revision, invoices.revision, query, statusFilter, month, takenBy, payment, grouping, localStatus.entries) {
         val now = AppClock.now()
         val owedOn = OrdersLogic.owedOnInvoices(invoices.items)
         val scoped = OrdersLogic.scope(orders.items, query, month, takenBy, payment)
         val shown = if (statusFilter == "All") scoped else scoped.filter { it.status.rawValue == statusFilter }
-        HubView(now, owedOn, shown, OrdersLogic.sections(shown, grouping, owedOn, now))
+        HubView(now, owedOn, shown, OrdersLogic.sections(shown, grouping, owedOn, now) { o -> OrdersLocal.stage(stageOf(o, OrdersLogic.owed(o, owedOn)), OrdersLogic.hasInvoice(o), localStatus[o.id]) })
     }
+    // Drop what the books now agree with.
+    LaunchedEffect(orders.revision) { localStatus.reconcile { id, s -> orders.items.firstOrNull { it.id == id }?.let { OrdersLocal.statusAgrees(it, s) } ?: true } }
+    val note = LocalNoteState.current
 
     fun message(e: Throwable) = ordersSay(e)
 
     fun setStatus(order: Order, status: String) {
-        if (busy.contains(order.id)) return
-        busy = busy + order.id
-        scope.launch {
-            try {
-                ErpApi.shared.write("setOrderStatus", mapOf("orderId" to order.id, "status" to status))
-                if (status == "Completed") haptics.success()
-                if (status == "Cancelled") haptics.warning()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                failure = message(e)
-            }
-            busy = busy - order.id
-        }
+        localStatus[order.id] = status
+        if (status == "Cancelled") haptics.warning() else haptics.success()
+        note.show(Note(OrdersLocal.said(status), order.id))
+        ErpApi.shared.enqueue("setOrderStatus", mapOf("orderId" to order.id, "status" to status), "${order.id} status")
     }
 
     val actions = OrderCardActions(
@@ -277,9 +274,9 @@ fun OrdersHub() {
                                 Icon(if (open) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, if (open) "Hide" else "Show", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
-                        if (open) itemsIndexed(g.orders, key = { _, it -> "o-" + g.id + "-" + it.id }) { i, order -> Card(order, view, isOwner, person, busy, actions, grouping, i) }
+                        if (open) itemsIndexed(g.orders, key = { _, it -> "o-" + g.id + "-" + it.id }) { i, order -> Card(order, view, isOwner, person, localStatus[order.id], actions, grouping, i) }
                     } else {
-                        itemsIndexed(g.orders, key = { _, it -> "o-" + g.id + "-" + it.id }) { i, order -> Card(order, view, isOwner, person, busy, actions, grouping, i) }
+                        itemsIndexed(g.orders, key = { _, it -> "o-" + g.id + "-" + it.id }) { i, order -> Card(order, view, isOwner, person, localStatus[order.id], actions, grouping, i) }
                     }
                 }
                 if (sections.isEmpty()) {
@@ -341,7 +338,8 @@ private fun Card(
     view: HubView,
     isOwner: Boolean,
     person: String?,
-    busy: Set<String>,
+    /** The status just chosen, laid over the books' stage until they agree. */
+    localStatus: String?,
     actions: OrderCardActions,
     grouping: OrdersGrouping,
     index: Int = Int.MAX_VALUE,
@@ -350,12 +348,12 @@ private fun Card(
     OrderCard(
         modifier = Modifier.appearOnce(index),
         order = order,
-        stage = stageOf(order, owed),
+        stage = OrdersLocal.stage(stageOf(order, owed), OrdersLogic.hasInvoice(order), localStatus),
         owed = owed,
         now = view.now,
         isOwner = isOwner,
         mine = OrdersLogic.isMine(order, person),
-        busy = busy.contains(order.id),
+        busy = false,
         actions = actions,
         showsStage = grouping != OrdersGrouping.stage,
     )

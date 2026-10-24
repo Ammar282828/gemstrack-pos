@@ -4,12 +4,13 @@ import erp.app.ErpApp
 import erp.app.config.House
 import erp.core.Json
 import java.io.IOException
-import java.util.UUID
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellableContinuation
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.HttpUrl
@@ -28,11 +29,13 @@ import okhttp3.Response
 class ErpApi private constructor() {
     class Failure(val status: Int, override val message: String) : Exception(message)
 
-    private val requestIds = RequestIds()
-
-    /** The sign-in token goes to the house's own ERP and nowhere else, whatever path is passed in. */
-    suspend fun data(path: String, method: String = "GET", json: Map<String, Any?>? = null, timeoutMs: Long = 60_000): String =
-        open(path, method, json, timeoutMs, "application/json").use { r ->
+    /**
+     * The sign-in token goes to the house's own ERP and nowhere else, whatever path is passed in. `timeoutMs` is how
+     * long the ERP may take to answer: a page load that has not answered in 15 s is a dead line, not a slow server, so
+     * it says so and lets the screen retry; writes and sends keep a minute.
+     */
+    suspend fun data(path: String, method: String = "GET", json: Map<String, Any?>? = null, timeoutMs: Long? = null): String =
+        open(path, method, json, timeoutMs ?: if (method == "GET") GET_TIMEOUT_MS else SEND_TIMEOUT_MS, "application/json").use { r ->
             val text = r.body.string()
             if (r.code !in 200..299) throw Failure(r.code, said(text) ?: "The ERP answered ${r.code}.")
             text
@@ -125,12 +128,31 @@ class ErpApi private constructor() {
      * A change to the books (/api/app/write): the ERP runs its own shared write, then names what
      * the browser would do next (the WhatsApp alert, a Shopify sync). Those are sent here without
      * waiting, so a slow PDF never holds the sale up.
+     *
+     * `requestId` is the one name for one intent: the Outbox keeps it in the entry for every retry, and the ERP
+     * records the change once however often it is sent. Without one, the name is remembered here (`WriteIntents`),
+     * on disk, against what the change is, until the ERP has answered: a retry after a timeout, or after the app was
+     * killed, goes with the same name, and the ERP replays its first answer (money ops require a name).
+     *
+     * The request is not cut off when the screen that asked goes away (the iPhone lends a few seconds in the
+     * background): the person may have left the sheet, and the write is already on its way.
      */
-    suspend fun write(op: String, fields: Map<String, Any?>): Map<String, Any?> {
+    suspend fun write(op: String, fields: Map<String, Any?>, requestId: String? = null): Map<String, Any?> {
         val body = LinkedHashMap(fields)
         body["op"] = op
-        body["requestId"] = requestIds.idFor(body)
-        val out = send("/api/app/write", body = body)
+        val intents = WriteIntents.shared
+        val intent = if (requestId == null) intents.key(body) else null
+        body["requestId"] = requestId ?: intents.id(intent!!)
+        val out = withContext(NonCancellable) {
+            try {
+                send("/api/app/write", body = body)
+            } catch (e: Failure) {
+                // "Already sent and recorded": the earlier try went through. The intent is done.
+                if (e.status == 409 && intent != null) intents.clear(intent)
+                throw e
+            }
+        }
+        if (intent != null) intents.clear(intent)
         // Staff read the books every 25 seconds: fetch them now, so the balance just paid is never
         // left on screen to be paid again.
         ServerShelf.wake()
@@ -140,7 +162,14 @@ class ErpApi private constructor() {
         return out
     }
 
-    suspend fun send(path: String, method: String = "POST", body: Map<String, Any?> = emptyMap(), timeoutMs: Long = 60_000): Map<String, Any?> {
+    /**
+     * A change that does not move money, queued and returned at once; the Outbox sends it in the background with the
+     * same name for every try, and says "Not saved: <label>" app-wide if it cannot (Outbox.kt). Money ops are refused
+     * here: they stay awaited through `write`.
+     */
+    fun enqueue(op: String, fields: Map<String, Any?>, label: String) = Outbox.enqueue(op, fields, label)
+
+    suspend fun send(path: String, method: String = "POST", body: Map<String, Any?> = emptyMap(), timeoutMs: Long? = null): Map<String, Any?> {
         val text = data(path, method, body, timeoutMs)
         @Suppress("UNCHECKED_CAST")
         return (Json.parse(text) as? Map<String, Any?>) ?: emptyMap()
@@ -156,6 +185,9 @@ class ErpApi private constructor() {
         val shared: ErpApi by lazy { ErpApi() }
 
         private val JSON = "application/json".toMediaType()
+
+        const val GET_TIMEOUT_MS = 15_000L
+        const val SEND_TIMEOUT_MS = 60_000L
 
         /** No cache and no cookie outlives the app's own call (staff's copy of the books comes this way). */
         private val client: OkHttpClient by lazy {
@@ -195,34 +227,6 @@ class ErpApi private constructor() {
                 val b = m["body"] as? Map<String, Any?> ?: return@mapNotNull null
                 path to b
             }
-    }
-}
-
-/**
- * The same change asked for again within half a minute (a double tap, the sheet opened again over a balance not
- * yet refreshed, a retry after the line dropped) goes with the same name, and the ERP records it once
- * (/api/app/write refuses a name it has seen). A second, genuinely separate payment of the same amount is
- * entered after that.
- */
-class RequestIds(private val now: () -> Long = System::currentTimeMillis, private val newId: () -> String = { UUID.randomUUID().toString() }) {
-    private val recent = HashMap<String, Pair<String, Long>>()
-
-    @Synchronized
-    fun idFor(body: Map<String, Any?>): String {
-        val t = now()
-        recent.entries.removeAll { t - it.value.second >= WINDOW_MS }
-        // "When" is not part of what the change is: two taps a second apart are the same payment.
-        val what = LinkedHashMap(body)
-        for (k in WHEN) what.remove(k)
-        val key = JsonText.of(what, sorted = true) ?: newId()
-        val id = recent[key]?.first ?: newId()
-        recent[key] = id to t
-        return id
-    }
-
-    companion object {
-        const val WINDOW_MS = 30_000L
-        private val WHEN = listOf("date", "createdAt", "at", "now")
     }
 }
 

@@ -111,7 +111,8 @@ object OrderFinalizeMath {
             if (!r.manual && NewOrderFormat.num(r.weight) <= 0) return "Piece ${r.index + 1}: weight must be a positive number."
             if (r.manual && NewOrderFormat.num(r.price) <= 0) return "Piece ${r.index + 1}: a fixed price needs the price."
         }
-        if (NewOrderFormat.num(discount) < 0) return "Discount cannot be negative."
+        if (NewOrderFormat.below0(discount)) return "Discount cannot be negative."
+        if (NewOrderFormat.unreadable(discount)) return "The discount is not a number. Retype it, or clear it."
         return null
     }
 

@@ -154,6 +154,13 @@ object NewOrderMath {
      * What the web's schema refuses (`orderFormSchema`), in its words; null when the order can be saved.
      * `takenBy` is the house's list of counter names: the name must be on it (empty list: any name).
      */
+    private fun unreadableFigure(d: NewOrderDraft): Boolean {
+        val u = NewOrderFormat::unreadable
+        return u(d.discount) || u(d.advance) || d.rates.values.any(u)
+            || d.exchanges.any { u(it.weightG) || u(it.ratePerGram) || u(it.value) }
+            || d.pieces.any { u(it.weight) || u(it.stoneWeight) || u(it.wastage) || u(it.making) || u(it.stones) || u(it.manualPrice) }
+    }
+
     fun problem(d: NewOrderDraft, takenBy: List<String> = emptyList()): String? {
         if (d.pieces.isEmpty()) return "Add at least one piece to the order."
         for ((i, p) in d.pieces.withIndex()) {
@@ -164,6 +171,9 @@ object NewOrderMath {
             } else if (num(p.weight) <= 0) {
                 return "$who: Weight must be a positive number."
             }
+        }
+        if (unreadableFigure(d)) {
+            return "A figure is not a number (discount, advance, a rate, a weight or an exchange). Retype it, or clear it."
         }
         val goldKarats = d.pieces.filter { it.metal == "gold" }.map { it.karat }.toSet()
         for (k in listOf("18k", "21k", "22k", "24k")) {

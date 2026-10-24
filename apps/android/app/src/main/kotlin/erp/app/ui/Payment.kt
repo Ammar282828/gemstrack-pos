@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import erp.app.ui.theme.ErpColors
 import erp.app.ui.theme.TabularDigits
 import erp.core.logic.Money
+import erp.core.logic.ShopNumber
 import erp.core.logic.rupees
 import erp.core.logic.settleRemainderOffer
 import kotlinx.coroutines.CancellationException
@@ -77,11 +78,6 @@ data class PaymentEntry(
 /** The sheet's numbers and words, kept apart from the view so they read the same wherever they are used. */
 object PaymentText {
     // Swift's `.whitespaces`: spaces and tabs, not line breaks.
-    private fun isBlank(c: Char) = c == '\t' || Character.getType(c) == Character.SPACE_SEPARATOR.toInt()
-
-    // What Swift's `Double(String)` takes of a typed amount (it also reads hex and "nan", which a decimal pad cannot type).
-    private val plainNumber = Regex("""^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$""")
-
     // Swift's `.rounded()`: a half goes away from zero (Kotlin's `round` goes to even).
     internal fun rounded(x: Double): Double {
         if (x < 0) return -rounded(-x)
@@ -90,25 +86,13 @@ object PaymentText {
     }
 
     /**
-     * What was typed, in whole rupees (owner, 2026-10-17: "there should be no decimals"). Thousands commas
-     * are dropped; on a phone set to a region that types its decimal point as a comma ("1500,4") a comma
-     * followed by one or two digits is the decimal point, since a thousands comma always has three. Paise
-     * typed are rounded away, as the ERP rounds every sum to the rupee.
+     * What was typed, in whole rupees (owner, 2026-10-17: "there should be no decimals"), by the one number reader
+     * (Urdu and Arabic digits, lakh commas; a comma with one or two digits after it is a decimal point). Paise typed
+     * are rounded away, as the ERP rounds every sum to the rupee. Unreadable is null, never 0.
      */
     fun amount(text: String): Double? {
-        var t = text.trim(::isBlank)
-        if (!t.contains('.')) {
-            val comma = t.lastIndexOf(',')
-            if (comma >= 0) {
-                val after = t.length - comma - 1
-                if (after == 1 || after == 2) t = t.substring(0, comma) + "." + t.substring(comma + 1)
-            }
-        }
-        t = t.replace(",", "")
-        if (t.isEmpty() || !plainNumber.matches(t)) return null
-        val v = t.toDoubleOrNull() ?: return null
-        if (!v.isFinite() || v < 0) return null
-        return rounded(v)
+        val v = ShopNumber.parse(text) ?: return null
+        return if (v < 0) null else rounded(v)
     }
 
     /** A balance for the amount field: whole rupees, no grouping ("1500"). */
@@ -125,7 +109,7 @@ object PaymentText {
         if (text.all { it in '0'..'9' }) return text
         val v = amount(text)
         if (v != null && v < 1e15) return field(v)
-        return text.filter { it in '0'..'9' }
+        return ShopNumber.ascii(text).filter { it in '0'..'9' }
     }
 
     /** What the reference box is for, by how it was paid (the web's labels). */

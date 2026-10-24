@@ -309,14 +309,18 @@ object OrdersLogic {
     }
 
     /** Newest first inside every group, as the web sorts before it groups; the Due view soonest first. */
-    fun sections(orders: List<Order>, grouping: OrdersGrouping, owedOn: Map<String, Double>, now: Instant): List<HubSection> {
+    fun sections(
+        orders: List<Order>, grouping: OrdersGrouping, owedOn: Map<String, Double>, now: Instant,
+        // How an order is placed: the books' own, unless a change just made is laid over it (OrdersLocal).
+        stage: (Order) -> OrderStage = { stageOf(it, owed(it, owedOn)) },
+    ): List<HubSection> {
         if (grouping == OrdersGrouping.due) {
             return dueGroups(orders, now).map { (b, list) ->
                 HubSection("due-" + b.name, b.title, b.hint, late = b == OrdersDueBucket.late, folds = false, orders = list)
             }
         }
         val newest = orders.sortedByDescending { takenAt(it) }
-        if (!grouping.isCalendar) return stageSections(newest, owedOn)
+        if (!grouping.isCalendar) return stageSections(newest, stage)
         val keys = ArrayList<String>()
         val info = HashMap<String, OrdersCalendar.Bucket>()
         val members = HashMap<String, MutableList<Order>>()
@@ -337,9 +341,9 @@ object OrdersLogic {
         }
     }
 
-    private fun stageSections(orders: List<Order>, owedOn: Map<String, Double>): List<HubSection> {
+    private fun stageSections(orders: List<Order>, stage: (Order) -> OrderStage): List<HubSection> {
         val byStage = HashMap<OrderStage, MutableList<Order>>()
-        for (o in orders) byStage.getOrPut(stageOf(o, owed(o, owedOn))) { ArrayList() }.add(o)
+        for (o in orders) byStage.getOrPut(stage(o)) { ArrayList() }.add(o)
         return STAGE_ORDER.mapNotNull { st ->
             val rows = byStage[st]
             if (rows.isNullOrEmpty()) return@mapNotNull null

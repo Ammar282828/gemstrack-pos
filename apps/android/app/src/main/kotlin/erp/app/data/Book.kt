@@ -182,6 +182,7 @@ class Shelf<T : Any>(
             is Delivery.All -> {
                 byId = LinkedHashMap<String, T>().also { m -> d.items.forEach { m.putIfAbsent(idOf(it), it) } }
                 publish(d.offline)
+                stamp(d.offline)
             }
             is Delivery.Changes -> {
                 // Only the cache flag moved (Firestore's metadata change): no new books, so nothing re-reckoned.
@@ -218,6 +219,17 @@ class Shelf<T : Any>(
                 _loaded.value = true
             }
         }
+    }
+
+    private var firstMarked = false
+    private var liveMarked = false
+
+    /** The launch report's two stamps for this shelf: its first books (the phone's copy or a source), and the first from the source. */
+    private fun stamp(off: Boolean) {
+        val b = book ?: return
+        val detail = "${byId.size} " + when (b.source) { Book.Source.Demo -> "demo"; Book.Source.Server -> "server"; Book.Source.Firestore -> if (off) "cache" else "server" }
+        if (!firstMarked) { firstMarked = true; erp.app.device.LaunchClock.mark("shelf:$name", detail) }
+        if (!liveMarked && !off) { liveMarked = true; erp.app.device.LaunchClock.mark("shelf:$name:live", detail) }
     }
 
     private fun publish(off: Boolean) {

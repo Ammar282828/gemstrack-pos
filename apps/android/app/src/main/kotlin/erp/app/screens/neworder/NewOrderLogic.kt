@@ -122,7 +122,8 @@ object NewOrderLogic {
             }
             out[EntryStep.pieces] = if (complete) EntryStepState.done else EntryStepState.attention
         }
-        if (NewOrderFormat.num(d.discount) < 0 || NewOrderFormat.num(d.advance) < 0) {
+        // What would stop the save: a negative, or a figure that is not a number (NewOrderMath.problem).
+        if (NewOrderFormat.below0(d.discount) || NewOrderFormat.below0(d.advance) || NewOrderFormat.unreadable(d.discount) || NewOrderFormat.unreadable(d.advance)) {
             out[EntryStep.payment] = EntryStepState.attention
         } else if (NewOrderFormat.num(d.advance) > 0) {
             out[EntryStep.payment] = EntryStepState.done

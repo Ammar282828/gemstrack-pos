@@ -50,6 +50,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -92,6 +93,8 @@ import erp.app.ui.MoneySplit
 import erp.app.ui.Monogram
 import erp.app.ui.MonogramSize
 import erp.app.ui.NotAvailableState
+import erp.app.ui.Note
+import erp.app.ui.rememberLocalChanges
 import erp.app.ui.PaymentSheet
 import erp.app.ui.Pill
 import erp.app.ui.ShelfState
@@ -164,7 +167,7 @@ fun OrderScreen(id: String) {
 }
 
 @Composable
-private fun Detail(order: Order) {
+private fun Detail(shelfOrder: Order) {
     val book = LocalBook.current
     val session = LocalSession.current
     val navigator = LocalNavigator.current
@@ -175,10 +178,18 @@ private fun Detail(order: Order) {
     val isOwner = role == "owner"
     val person = session.shop.person
 
+    // What the person just did, until the books say so: a status or a tick leaves at once (Outbox).
+    val localStatus = rememberLocalChanges<String, String>()
+    val localDone = rememberLocalChanges<Int, Boolean>()
+    val order = OrdersLocal.shown(shelfOrder, localStatus["status"], localDone.entries.toMap())
+    LaunchedEffect(shelfOrder) {
+        localStatus.reconcile { _, s -> OrdersLocal.statusAgrees(shelfOrder, s) }
+        localDone.reconcile { i, d -> OrdersLocal.doneAgrees(shelfOrder, i, d) }
+    }
+    val note = LocalNoteState.current
+
     var advancing by remember { mutableStateOf(false) }
     var confirmCancel by remember { mutableStateOf(false) }
-    var updatingStatus by remember { mutableStateOf(false) }
-    var ticking by remember { mutableStateOf<Int?>(null) }
     var failure by remember { mutableStateOf<String?>(null) }
     var undo by remember { mutableStateOf<OrderUndoAsk?>(null) }
     var booking by remember { mutableStateOf(false) }
@@ -196,24 +207,14 @@ private fun Detail(order: Order) {
     val invoice: Invoice? = order.invoiceId?.takeIf { it.isNotEmpty() }?.let { rememberShelfItem(book.invoices, it) }
     // What the invoice still has owing, by the hub's own rule (isOwing), so the stage reads the same on both.
     val owed = invoice?.let { if (isOwing(it)) it.balanceDue else 0.0 } ?: 0.0
-    val stage = stageOf(order, owed)
+    val stage = OrdersLocal.stage(stageOf(shelfOrder, owed), OrdersLogic.hasInvoice(shelfOrder), localStatus["status"])
     val now = remember(order, invoice) { AppClock.now() }
 
     fun setStatus(status: String) {
-        if (updatingStatus) return
-        updatingStatus = true
-        scope.launch {
-            try {
-                ErpApi.shared.write("setOrderStatus", mapOf("orderId" to order.id, "status" to status))
-                if (status == "Completed") haptics.success()
-                if (status == "Cancelled") haptics.warning()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                failure = ordersSay(e)
-            }
-            updatingStatus = false
-        }
+        localStatus["status"] = status
+        if (status == "Cancelled") haptics.warning() else haptics.success()
+        note.show(Note(OrdersLocal.said(status), order.id))
+        ErpApi.shared.enqueue("setOrderStatus", mapOf("orderId" to order.id, "status" to status), "${order.id} status")
     }
 
     fun choose(status: String) {
@@ -223,18 +224,9 @@ private fun Detail(order: Order) {
 
     /** Owners tick a piece done; the last one finishes the order, and unticking a finished one sends it back to the karigars (the server works that out: lib/order-stage.ts). */
     fun tick(index: Int, done: Boolean) {
-        if (ticking != null) return
-        ticking = index
-        scope.launch {
-            try {
-                ErpApi.shared.write("setPieceDone", mapOf("orderId" to order.id, "index" to index, "done" to done))
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                failure = ordersSay(e)
-            }
-            ticking = null
-        }
+        localDone[index] = done
+        haptics.success()
+        ErpApi.shared.enqueue("setPieceDone", mapOf("orderId" to order.id, "index" to index, "done" to done), "${order.id} piece ${index + 1}")
     }
 
     /** The hub's step, less what the foot of this page should not offer: an invoice only while it is owed (a paid one is the money card's link), the transfer only to the accounts the server lets move it (lib/website/staff-gate.ts). */
@@ -266,7 +258,7 @@ private fun Detail(order: Order) {
             IconButton(onClick = { navigator.open(OrderPaths.edit(order.id)) }) { Icon(Icons.Filled.Edit, "Edit order") }
         }
         MoreMenu(
-            order, stage, step, isOwner, offersAdvance, updatingStatus,
+            order, stage, step, isOwner, offersAdvance, false,
             onStatus = ::choose,
             onAdvance = { advancing = true },
             onFinalize = { navigator.open(OrderPaths.finalize(order.id)) },
@@ -296,14 +288,14 @@ private fun Detail(order: Order) {
                 }
             }
             if (OrdersLogic.isOnline(order)) item("online") { OrderOnlineSection(order, leopards = { leopardsOpen = true }) }
-            item("pieces") { Pieces(order, ticking, isOwner, onGiveOut = { navigator.open(OrderPaths.giveOut(order.id)) }, onTick = ::tick) }
+            item("pieces") { Pieces(order, null, isOwner, onGiveOut = { navigator.open(OrderPaths.giveOut(order.id)) }, onTick = ::tick) }
             item("money") {
                 if (OrdersLogic.hasInvoice(order)) InvoiceCard(order, invoice, owed, isOwner)
                 else MoneyCard(order)
             }
             item("details") { Details(order, isOwner) }
         }
-        ActionBar(order, stage, step, offersAdvance, updatingStatus, onStep = ::run, onAdvance = { advancing = true })
+        ActionBar(order, stage, step, offersAdvance, false, onStep = ::run, onAdvance = { advancing = true })
     }
 
     if (advancing) {

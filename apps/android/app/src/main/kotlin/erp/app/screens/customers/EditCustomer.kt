@@ -48,6 +48,7 @@ import erp.app.ui.ShelfState
 import erp.app.ui.Tone
 import erp.app.ui.color
 import erp.app.ui.readableColumn
+import erp.app.ui.rememberHaptics
 import erp.core.models.Customer
 import java.time.Instant
 import kotlinx.coroutines.CancellationException
@@ -109,21 +110,13 @@ private fun EditCustomerForm(customer: Customer) {
     var error by remember { mutableStateOf<String?>(null) }
     val canSave = d.canSave(saving, customer)
 
+    // Not money: the screen closes at once and the Outbox carries the change (the book brings it in).
+    val haptics = rememberHaptics()
     suspend fun save() {
         if (!d.canSave(saving, customer)) return
-        saving = true
-        error = null
-        try {
-            ErpApi.shared.write("updateCustomer", mapOf("customerId" to customer.id, "patch" to d.patch(customer)))
-            saving = false
-            navigator.back()
-            return
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            error = e.message ?: e.toString()
-        }
-        saving = false
+        haptics.success()
+        ErpApi.shared.enqueue("updateCustomer", mapOf("customerId" to customer.id, "patch" to d.patch(customer)), "Customer ${customer.name}")
+        navigator.back()
     }
 
     ScreenActions { TextButton(onClick = { scope.launch { save() } }, enabled = canSave) { Text("Save") } }

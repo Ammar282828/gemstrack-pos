@@ -45,7 +45,7 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Invoice PDF and WhatsApp send | ✓ | ✓ | ✓ | 2026-10 | [Invoice PDF](decisions.md#invoice-pdf) |
 | Exchange as cash / exchange rows | ✓ | ✓ | ✓ | 2026-10 | [Exchange as cash](decisions.md#exchange-as-cash) |
 | Give back customer credit (overpaid refund) | wip | wip | owed | 2026-10-24 | [Invoice credit](decisions.md#invoice-credit); `src/lib/writes` |
-| A money write keeps its request id across timeouts and relaunches | ✓ | ✓ | owed | 2026-10-20 | Android de-duplicates 30 s only; `Data/Outbox.swift`, `src/app/api/app/write/idempotency.ts` |
+| A money write keeps its request id across timeouts and relaunches | ✓ | ✓ | ✓ | 2026-10-20 | `WriteIntents` (iPhone `Data/ERPAPI.swift`, Android `data/WriteIntents.kt`), `src/app/api/app/write/idempotency.ts` |
 
 ## Orders
 
@@ -171,9 +171,12 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 
 | Feature | Web | iPhone | Android | Since | Where |
 |---|---|---|---|---|---|
-| Outbox: non-money saves leave at once and retry in the background, kept on disk | n/a | ✓ | owed | 2026-10-20 | `Data/Outbox.swift` |
+| Outbox: non-money saves leave at once and retry in the background, kept on disk | n/a | ✓ | ✓ | 2026-10-20 | `Data/Outbox.swift`, Android `data/Outbox.kt` + `ui/OutboxHost.kt`; Android's marketing and settings saves still await (owed there) |
 | Books paint from the phone's own copy before Firestore answers | n/a | ✓ | ✓ | 2026-10-20 | Android: Firestore persistent cache |
-| Launch clock: cold-start steps timed and sent (`app_launches`) | n/a | ✓ | owed | 2026-10-20 | `LaunchClock` |
+| Launch clock: cold-start steps timed and sent (`app_launches`) | n/a | ✓ | ✓ | 2026-10-20 | `LaunchClock` (Android `device/LaunchClock.kt`, `platform: "android"`) |
+| One number reader (Urdu and Arabic digits, lakh commas, never a silent 0) | n/a | ✓ | ✓ | 2026-10-20 | `ShopNumber` (Android `core/logic/ShopNumber.kt`); marketing's boxes still read their own way on Android |
+| The lock covers every sheet and dialog | n/a | ✓ | ✓ | 2026-10-20 | Android: the cover is a window of its own, `device/AppLock.kt`; not run on a phone |
+| Page loads time out at 15 s; the server is warmed when the app comes forward | n/a | ✓ | ✓ | 2026-10-23 | `/api/app/me`, `Outbox.warm()` |
 | Crash and hang reports | n/a | ✓ | ✓ | 2026-10-20 | MetricKit / `last-crash.txt` |
 | Biometric lock; delete code by biometric | n/a | ✓ | ✓ | 2026-10 | Face ID / BiometricPrompt |
 | Widget key revoked on sign-out, kept on the device | n/a | ✓ | ✓ | 2026-10-20 | `/api/widget/key` |

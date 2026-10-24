@@ -52,6 +52,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import erp.app.auth.LocalSession
+import erp.app.ui.rememberLocalChanges
+import erp.app.ui.rememberHaptics
 import erp.app.data.ErpApi
 import erp.app.data.LocalBook
 import erp.app.data.rememberShelfStatus
@@ -171,29 +173,27 @@ fun WorkshopGivenScreen() {
     var adding by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<GivenItem?>(null) }
     var deletion by remember { mutableStateOf<WorkshopDeletion?>(null) }
-    var busy by remember { mutableStateOf(setOf<String>()) }
+    // What was just marked returned, until the shelf's copy says so: the Outbox carries the write.
+    val returnedNow = rememberLocalChanges<String, String>()
+    val haptics = rememberHaptics()
     var failure by remember { mutableStateOf<String?>(null) }
 
     val liveKarigars = remember(karigarItems) { workshopLive(karigarItems) }
     val liveCustomers = remember(customerItems) { customerItems.filter { it.deletedAt.isNullOrEmpty() } }
-    val all = given.items
+    val all = remember(given.items, returnedNow.entries) {
+        if (returnedNow.isEmpty) given.items
+        else given.items.map { g -> returnedNow[g.id]?.takeIf { g.status != GivenItemStatus.returned }?.let { day -> g.copy(status = GivenItemStatus.returned, returnedDate = day) } ?: g }
+    }
+    LaunchedEffect(given.items) { returnedNow.reconcile { id, _ -> given.items.firstOrNull { it.id == id }?.status?.let { it == GivenItemStatus.returned } ?: true } }
     val shown = remember(all, filter, query) { all.filter { GivenLogic.matches(it, filter, query) } }
 
     fun markReturned(item: GivenItem) {
-        if (item.id in busy) return
-        busy = busy + item.id
-        scope.launch {
-            try {
-                val w = WorkshopWrites.markReturned(item.id, ERPDate.iso(Instant.now()))
-                ErpApi.shared.write(w.op, w.fields)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                failure = workshopSay(e)
-            } finally {
-                busy = busy - item.id
-            }
-        }
+        if (returnedNow[item.id] != null) return
+        val day = ERPDate.iso(Instant.now())
+        returnedNow[item.id] = day
+        haptics.success()
+        val w = WorkshopWrites.markReturned(item.id, day)
+        ErpApi.shared.enqueue(w.op, w.fields, "Returned: ${item.description}")
     }
 
     /** The web's "Delete this entry?": the entry goes for good; nothing else is touched. */
@@ -247,7 +247,7 @@ fun WorkshopGivenScreen() {
                     }
                     workshopCardRows(shown, columns, "given", key = { it.id }) { item ->
                         GivenCard(
-                            item, owner, item.id in busy,
+                            item, owner, false,
                             onReturned = { markReturned(item) },
                             onOpen = { path -> navigator.open(path) },
                             onEdit = { editing = item },
@@ -406,22 +406,9 @@ fun WorkshopGivenSheet(
         val write = WorkshopWrites.given(
             WorkshopDay.iso(day, openedAt), what, type, name, pickedId, pickedName, karigars, customers, notes, givenBy, item,
         )
-        saving = true
-        error = null
-        scope.launch {
-            try {
-                ErpApi.shared.write(write.op, write.fields)
-                if (item != null) onSaved()
-                saving = false
-                onDismiss()
-                return@launch
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                error = workshopSay(e)
-            }
-            saving = false
-        }
+        ErpApi.shared.enqueue(write.op, write.fields, "Given item: $what")
+        if (item != null) onSaved()
+        onDismiss()
     }
 
     WorkshopFormSheet(if (item == null) "Record item given" else "Edit Given Item", onDismiss, "Save", canSave, ::save, locked = saving) {
