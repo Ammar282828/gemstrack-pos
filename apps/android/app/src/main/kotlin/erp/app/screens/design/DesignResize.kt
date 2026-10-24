@@ -112,8 +112,8 @@ class DesignResizeModel(val model: DesignWorkspaceModel) {
 
     /** The person's own W:H (resize-sheet.tsx addCustom). */
     fun addCustom() {
-        val w = customW.replace(',', '.').toDoubleOrNull()
-        val h = customH.replace(',', '.').toDoubleOrNull()
+        val w = erp.core.logic.ShopNumber.parse(customW)
+        val h = erp.core.logic.ShopNumber.parse(customH)
         if (w == null || h == null || w <= 0 || h <= 0 || w > 10_000 || h > 10_000) {
             problem = "Give a width and a height. For example 7 and 3, or 1200 and 628."
             return

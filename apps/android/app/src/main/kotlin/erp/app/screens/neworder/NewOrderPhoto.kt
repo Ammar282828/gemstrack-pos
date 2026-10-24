@@ -209,7 +209,7 @@ internal fun SampleField(holder: DraftHolder, pieceId: UUID) {
             id.isNullOrEmpty() || piece.sampleImageDataUri != null -> StoredSample.Loading
             House.isDemo -> StoredSample.Failed("Sample photo preview unavailable in demo.")
             else -> try {
-                val snapshot = FirebaseFirestore.getInstance().collection("order_photos").document(id).get().await()
+                val snapshot = (erp.app.config.Businesses.firestore ?: error("Not connected to the ERP.")).collection("order_photos").document(id).get().await()
                 val uri = snapshot.data?.get("dataUri") as? String
                 if (uri != null) StoredSample.Ready(uri) else StoredSample.Failed("The saved photo is unavailable. It stays on the order unless removed.")
             } catch (e: kotlinx.coroutines.CancellationException) {

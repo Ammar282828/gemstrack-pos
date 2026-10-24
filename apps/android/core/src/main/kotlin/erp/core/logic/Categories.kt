@@ -63,3 +63,52 @@ fun customerSourceLabel(key: String): String? = when (key) {
 
 /** store.ts PLATING_TYPES: the finishes offered on 925 silver. */
 val platingTypes: List<String> = listOf("White Rhodium", "21K Gold Plating", "18K Gold Plating", "Chandi White Plating", "Other")
+
+/**
+ * categories.ts NAME_RULES: a piece's category from its name, the more particular words first ("bangle & ring" is a
+ * set, not a ring). Same order, same patterns, case-insensitive. (Plain `\b` and IGNORE_CASE: nothing Android's regex refuses.)
+ */
+private val nameRules: List<Pair<Regex, String>> = listOf(
+    """\b(men'?s|gents?)\b.*\bring|\bring\b.*\b(men'?s|gents?)\b""" to "cat018",
+    """\bbutton""" to "cat020",
+    """(bracelet|bangle|kara).*\bring|\bring\b.*(bracelet|bangle|kara)""" to "cat006",
+    """\b(locket|takhti|thakti)s? set\b.*bangle""" to "cat011",
+    """\b(locket|takhti|thakti)s? set""" to "cat010",
+    """\bstring set""" to "cat012",
+    """\b(necklace|full set|set)\b.*(bracelet)""" to "cat014",
+    """\b(coin|biscuit|bar)\b|\bary\b|\b\d+(\.\d+)?\s?g\b.*24k""" to "cat017",
+    """\b(necklace|neckless|full set|set|haar|choker)\b""" to "cat013",
+    """\bloose bracelet""" to "cat019",
+    """\b(bangle|kara|kangan|churi)""" to "cat007",
+    """\bbracelet""" to "cat005",
+    """\bchain""" to "cat008",
+    """\b(locket|takhti|thakti|taweez|tawiz|pendant)""" to "cat004",
+    """\b(bali|balis|hoop)""" to "cat003",
+    """\b(tops?|earrings?|studs?|jhum(k|ki|ka|kay))\b""" to "cat002",
+    """\bbands?\b""" to "cat009",
+    """\brings?\b""" to "cat001",
+).map { (pattern, id) -> Regex(pattern, RegexOption.IGNORE_CASE) to id }
+
+/** categories.ts guessCategory: a piece's category from its name, for a line that carries none. */
+fun guessCategory(name: String?): String? {
+    val n = (name ?: "").trim()
+    if (n.isEmpty()) return null
+    return nameRules.firstOrNull { (re, _) -> re.containsMatchIn(n) }?.second
+}
+
+/**
+ * categories.ts lineCategory: a sold line's category for the reports: its own, else the custom order's
+ * (`itemCategory`), else read from its name. Empty strings count as none.
+ */
+fun lineCategory(categoryId: String?, itemCategory: String?, name: String?): String? {
+    if (!categoryId.isNullOrEmpty()) return categoryId
+    if (!itemCategory.isNullOrEmpty()) return itemCategory
+    return guessCategory(name)
+}
+
+/**
+ * category-breakdown.tsx: a category's share of revenue as written beside its bar: "32%", and one decimal under 10%:
+ * "0.7%". [share] is a fraction (0.32).
+ */
+fun categoryShareText(share: Double): String =
+    if (share >= 0.1) "${Math.round(share * 100)}%" else String.format(java.util.Locale.ROOT, "%.1f%%", share * 100)

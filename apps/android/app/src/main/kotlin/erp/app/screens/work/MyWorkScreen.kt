@@ -177,6 +177,7 @@ fun MyWorkScreen(path: String) {
     // The web's focus handler and its minute timer: a karigar has no live link to the books.
     LaunchedEffect(previewId) {
         load()
+        erp.app.device.LaunchClock.finish("work")
         while (true) {
             delay(60_000)
             load()

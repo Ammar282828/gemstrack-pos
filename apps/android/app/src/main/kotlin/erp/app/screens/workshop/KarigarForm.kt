@@ -27,6 +27,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import erp.app.auth.LocalSession
+import erp.app.ui.rememberHaptics
 import erp.app.data.Connection
 import erp.app.data.ErpApi
 import erp.app.data.LocalBook
@@ -98,24 +99,14 @@ private fun KarigarFormBody(karigar: Karigar?) {
     var error by remember { mutableStateOf<String?>(null) }
     val canSave = d.canSave(saving, karigar)
 
+    val haptics = rememberHaptics()
     fun save() {
         if (!d.canSave(saving, karigar)) return
         val write = WorkshopWrites.karigarWrite(karigar, d.patch(karigar))
-        saving = true
         error = null
-        scope.launch {
-            try {
-                ErpApi.shared.write(write.op, write.fields)
-                saving = false
-                navigator.back()
-                return@launch
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                error = workshopSay(e)
-            }
-            saving = false
-        }
+        ErpApi.shared.enqueue(write.op, write.fields, if (karigar != null) "Karigar ${karigar.name}" else "New karigar")
+        haptics.success()
+        navigator.back()
     }
 
     ScreenActions { TextButton(onClick = ::save, enabled = canSave) { Text("Save") } }

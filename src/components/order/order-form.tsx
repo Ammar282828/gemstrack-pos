@@ -147,6 +147,8 @@ const orderFormSchema = z.object({
     goldRate21k: z.coerce.number().min(0),
     goldRate22k: z.coerce.number().min(0),
     goldRate24k: z.coerce.number().min(0),
+    /** Silver's per-gram rate (all-in: it holds making and wastage); 0 falls back to the shop's. */
+    silverRate: z.coerce.number().min(0).default(0),
     hideRates: z.boolean().default(false),
     discountAmount: z.coerce.number().min(0).default(0),
     /** The 24k rate now, for the shop's margin (lib/margin.ts); 0 is none, and the order is taken at 10%. */
@@ -395,7 +397,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
     defaultValues: {
       items: seededItems,
       goldRate18k: 0, goldRate21k: 0, goldRate22k: 0, goldRate24k: 0,
-      palladiumRate18k: 0, palladiumRate12k: 0,
+      palladiumRate18k: 0, palladiumRate12k: 0, silverRate: 0,
       discountAmount: 0,
       costRate24k: 0,
       advancePayment: 0,
@@ -442,6 +444,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
         goldRate21k: rates.goldRatePerGram21k || 0,
         goldRate22k: rates.goldRatePerGram22k || 0,
         goldRate24k: rates.goldRatePerGram24k || 0,
+        silverRate: rates.silverRatePerGram || 0,
         hideRates: !!order.hideRates,
         discountAmount: Number(order.discountAmount) || 0,
         costRate24k: Number(order.costRate24k) || 0,
@@ -457,7 +460,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
         takenBy: order.takenBy,
         promisedDate: order.promisedDate || '',
       });
-    } else if (!isEditMode && settings.goldRatePerGram21k > 0 && !draftLoaded.current) {
+    } else if (!isEditMode && (settings.goldRatePerGram21k > 0 || settings.silverRatePerGram > 0) && !draftLoaded.current) {
       // A draft being continued keeps the rates it was quoted at.
       form.reset({
         ...form.getValues(),
@@ -467,9 +470,18 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
         goldRate21k: settings.goldRatePerGram21k,
         goldRate22k: settings.goldRatePerGram22k,
         goldRate24k: settings.goldRatePerGram24k,
+        silverRate: settings.silverRatePerGram || 0,
       });
     }
   }, [order, settings, form, isEditMode]);
+
+  // "Change rate" on the order page opens this form at its rates (?rates=1); on a phone they are the last card.
+  const wantRates = useRef(typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('rates') === '1');
+  useEffect(() => {
+    if (!wantRates.current || !order) return;
+    const t = setTimeout(() => { wantRates.current = false; document.getElementById('order-rates')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 400);
+    return () => clearTimeout(t);
+  }, [order]);
 
 
   const formValues = form.watch();
@@ -614,7 +626,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
         goldRatePerGram24k: formValues.goldRate24k || 0,
         palladiumRatePerGram: settings.palladiumRatePerGram,
         platinumRatePerGram: settings.platinumRatePerGram,
-        silverRatePerGram: settings.silverRatePerGram,
+        silverRatePerGram: formValues.silverRate || settings.silverRatePerGram,
     };
     // The money, worked out once for the form and the iPhone app alike (lib/order-estimate.ts).
     const { subtotal, discount, grandTotal, margin } = orderEstimate({
@@ -666,7 +678,8 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
         palladiumRatePerGram18k: data.palladiumRate18k || 0,
         palladiumRatePerGram12k: data.palladiumRate12k || 0,
         platinumRatePerGram: prior?.platinumRatePerGram ?? settings.platinumRatePerGram,
-        silverRatePerGram: prior?.silverRatePerGram ?? settings.silverRatePerGram,
+        // Typed on the order's rate box; blank, the order's own stamp, else the shop's.
+        silverRatePerGram: data.silverRate || prior?.silverRatePerGram || settings.silverRatePerGram,
     };
 
     const enrichedItems: OrderItem[] = pricedOrderItems(data.items as OrderFormItem[], ratesForOrder);
@@ -891,10 +904,10 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
       const fixed = weight <= 0 && written > 0;
       const rate = Number(it.ratePerGram) > 0 ? Number(it.ratePerGram) : 0;
 
-      // The slip's rate becomes the order's rate for that karat. Silver has one all-in
-      // rate held in settings rather than on the order, so it is noted instead.
+      // The slip's rate becomes the order's rate for that karat; silver's one all-in rate has its own box.
       const rateField = rate > 0 && karat ? RATE_FIELD[`${metal}:${karat}`] : undefined;
       if (rateField) form.setValue(rateField, rate);
+      else if (rate > 0 && metal === 'silver') form.setValue('silverRate', rate);
 
       // Which photo goes with this piece: the one the reader said shows it, else the
       // first one on the first piece, as the order's reference picture.
@@ -934,7 +947,6 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
           it.weightWasTola ? 'Weight converted from tola on the slip.' : null,
           it.rateWasPerTola ? 'Rate converted from per tola on the slip.' : null,
           it.makingWasPerGram ? 'Making was written per gram and multiplied by the weight.' : null,
-          rate > 0 && !rateField && metal === 'silver' ? `Slip rate ${rate.toLocaleString('en-PK')}/g — silver is priced at the shop's rate in settings.` : null,
           rate > 0 && !rateField && metal !== 'silver' ? `Slip rate ${rate.toLocaleString('en-PK')}/g could not be applied — no ${it.karat != null ? `${it.karat}k` : 'karat'} rate box.` : null,
           Number(it.karat) > 0 && !karat ? `Slip says ${it.karat}k, which the form does not offer.` : null,
           written > 0 && !fixed ? `Slip writes ${written.toLocaleString('en-PK')} for this piece.` : null,
@@ -1226,7 +1238,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
                       goldRatePerGram24k: formValues.goldRate24k || 0,
                       palladiumRatePerGram: settings.palladiumRatePerGram,
                       platinumRatePerGram: settings.platinumRatePerGram,
-                      silverRatePerGram: settings.silverRatePerGram,
+                      silverRatePerGram: formValues.silverRate || settings.silverRatePerGram,
                     }) : 0;
                     const spec = [
                       it?.metalType ? describeMetal(it.metalType, it.karat) : null,
@@ -1538,7 +1550,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
         
         {/* What it costs. Last on a phone; pinned beside the list on a desktop. */}
         <div className="lg:col-start-3 lg:row-start-2 lg:sticky lg:top-[4.5rem] lg:self-start lg:max-h-[calc(100dvh-5.5rem)] lg:overflow-y-auto">
-            <Card>
+            <Card id="order-rates">
                 <CardHeader className="pb-4">
                     <CardTitle className="flex items-center text-base"><List className="mr-2 h-5 w-5"/>Pricing</CardTitle>
                 </CardHeader>
@@ -1553,7 +1565,8 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
                       const goldKarats = new Set(items.filter(i => i.metalType === 'gold').map(i => i.karat).filter(Boolean));
                       const pdKarats = new Set(items.filter(i => i.metalType === 'palladium').map(i => i.karat).filter(Boolean));
                       const hasPalladium = items.some(i => i.metalType === 'palladium');
-                      if (goldKarats.size === 0 && !hasPalladium) return null;
+                      const hasSilver = items.some(i => i.metalType === 'silver');
+                      if (goldKarats.size === 0 && !hasPalladium && !hasSilver) return null;
                       const gold = ([['24k','goldRate24k'],['22k','goldRate22k'],['21k','goldRate21k'],['18k','goldRate18k']] as const).filter(([k]) => goldKarats.has(k));
                       const pd = ([['18k','palladiumRate18k'],['12k','palladiumRate12k']] as const).filter(([k]) => pdKarats.size === 0 || pdKarats.has(k));
                       return (
@@ -1572,8 +1585,14 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
                             ))}
                           </div>
                         )}
+                        {hasSilver && (
+                          <div className={cn('grid grid-cols-1 gap-x-4 gap-y-2 p-3 border rounded-md', (gold.length > 0 || hasPalladium) && 'mt-2')}>
+                            {/* Silver's rate is all-in: it holds the making and the wastage, so only the number changes. */}
+                            <FormField control={form.control} name="silverRate" render={({ field }) => (<FormItem><FormLabel className="text-xs">Silver (all-in)</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                          </div>
+                        )}
                         <FormDescription className="text-xs">
-                          Applies to every piece on this order.{hasPalladium && ' A palladium rate left at zero falls back to the shop\u2019s flat palladium rate.'}
+                          Applies to every piece on this order.{hasSilver && ' Silver\u2019s rate already holds its making and wastage.'}{hasPalladium && ' A palladium rate left at zero falls back to the shop\u2019s flat palladium rate.'}
                         </FormDescription>
 
                         {/* The rates still price the order; this only decides whether the

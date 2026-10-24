@@ -308,6 +308,12 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
 
 ### Order to invoice
 
+- **Finalize may take typed rates** (2026-10-24, owner: "I don't have the option to change the per gram rate of the metal"):
+  `finalizeOrder` takes an optional `ratesApplied` (positive figures win over the booked ones, each checked as money;
+  none, and it prices at the booked rates exactly). Gold moves daily and orders are delivered weeks later, so the dialog
+  shows a Rates block (booked rates, "Use today's rates") and sends only what changed. The order and invoice pages have
+  "Change rate", which opens Edit order / Edit invoice at the rates (`?rates=1`); a silver order has its own all-in
+  rate box (`ratesApplied.silverRatePerGram`, defaulting to the shop's). The iPhone and Mac owe it (`parity.md`).
 - **An advance can be gold** (2026-10-24, owner: "when adding an advance to an order, allow for adding exchanged gold also"):
   Record an advance (web dialog, iPhone sheet, `recordOrderAdvance`) takes cash, exchanged gold, or both (`exchange` /
   `exchanges`, the order's own rows; one of the two above 0). In the same write the rows join `order.exchanges`, the

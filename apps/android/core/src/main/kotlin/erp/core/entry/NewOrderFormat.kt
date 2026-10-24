@@ -2,6 +2,7 @@ package erp.core.entry
 
 import erp.core.ERPDate
 import erp.core.logic.Money
+import erp.core.logic.ShopNumber
 import erp.core.logic.customerSourceLabel
 import erp.core.logic.customerSources
 import erp.core.logic.gramsPerTola
@@ -22,16 +23,23 @@ import java.time.Instant
 object NewOrderFormat {
     fun trim(s: String): String = swiftTrimNewlines(s)
 
+    /** What was typed, as a number by the one reader; anything unreadable is 0 (`Number(x) || 0`). Never NaN or infinity. */
+    fun num(s: String): Double = ShopNumber.parse(s) ?: 0.0
+
+    /** Typed but not a number ("12abc"): the field is invalid, not 0 (a screen shows it and holds Save). */
+    fun unreadable(s: String): Boolean = ShopNumber.isUnreadable(s)
+
     /**
-     * What was typed, as a number: commas are thousands, anything unreadable is 0 (`Number(x) || 0`).
-     * Never NaN or infinity: a NaN in the JSON body would be refused.
+     * Typed as a figure below zero ("-5"): the reader takes no sign, so "-5" is unreadable and would count as 0; the
+     * refusals that say "cannot be negative" ask this too, so a minus is still told as one.
      */
-    fun num(s: String): Double {
-        val t = swiftTrim(s.replace(",", ""))
-        if (t.isEmpty()) return 0.0
-        val v = swiftDouble(t) ?: return 0.0
-        return if (v.isFinite()) v else 0.0
+    fun negative(s: String): Boolean {
+        val t = s.trim()
+        return t.startsWith("-") && ShopNumber.parse(t.drop(1).trim()) != null
     }
+
+    /** Below zero as typed, or as read. */
+    fun below0(s: String): Boolean = num(s) < 0 || negative(s)
 
     fun finite(x: Double): Double = if (x.isFinite()) x else 0.0
 

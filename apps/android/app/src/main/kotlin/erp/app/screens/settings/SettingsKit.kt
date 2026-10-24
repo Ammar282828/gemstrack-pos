@@ -43,6 +43,8 @@ import erp.app.ErpApp
 import erp.app.auth.LocalSession
 import erp.app.data.ErpApi
 import erp.app.data.LocalBook
+import erp.app.data.Outbox
+import erp.app.data.OutboxEngine
 import erp.app.nav.LocalNavigator
 import erp.app.nav.ScreenTitle
 import erp.app.ui.DividedColumn
@@ -89,18 +91,32 @@ class SettingsWriter(private val scope: CoroutineScope) {
         }
     }
 
-    fun isOn(key: String, stored: Boolean): Boolean = on[key] ?: stored
+    /**
+     * Not money: queued in the Outbox and gone from the screen at once (a failure is said app-wide with Retry).
+     * `seq` makes each save its own, as `save` does.
+     */
+    fun queue(patch: Map<String, Any?>, label: String) {
+        error = null
+        ErpApi.shared.enqueue("updateSettings", payload(patch, UUID.randomUUID().toString()), label)
+    }
+
+    private fun label(key: String) = "Setting $key"
+
+    /** A failed change is not shown any more: the stored value is true again. */
+    private fun failed(key: String) = Outbox.status(label(key)) == OutboxEngine.Status.Failed
+
+    fun isOn(key: String, stored: Boolean): Boolean = if (failed(key)) stored else on[key] ?: stored
 
     fun set(key: String, value: Boolean) {
         on[key] = value
-        scope.launch { if (!save(mapOf(key to value))) on.remove(key) }
+        queue(mapOf(key to value), label(key))
     }
 
-    fun pick(key: String, stored: String): String = chosen[key] ?: stored
+    fun pick(key: String, stored: String): String = if (failed(key)) stored else chosen[key] ?: stored
 
     fun choose(key: String, value: String) {
         chosen[key] = value
-        scope.launch { if (!save(mapOf(key to value))) chosen.remove(key) }
+        queue(mapOf(key to value), label(key))
     }
 
     /** The book has answered: what it holds is true again. */
@@ -210,6 +226,7 @@ object SettingsColors {
     val indigo = Color(0xFF5856D6)
     val pink = Color(0xFFFF2D55)
     val teal = Color(0xFF30B0C7)
+    val orange = Color(0xFFFF9500)
 }
 
 /** A row that opens another place, with its icon on a coloured square (the iPhone's `SettingsLinkRow`). */

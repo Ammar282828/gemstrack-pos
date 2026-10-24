@@ -70,6 +70,7 @@ data class PostsState(
         log == "whatsapp-community" -> audience.groups.firstOrNull { it.name == audience.communityName }?.label ?: "Announcements"
         log == "whatsapp-channel" -> "Channel"
         log == "instagram-story" -> "Instagram story"
+        log == "instagram-post" -> "Instagram post"
         log.startsWith("whatsapp-group:") -> {
             val key = log.removePrefix("whatsapp-group:")
             audience.groups.firstOrNull { it.key == key }?.label ?: key
@@ -85,6 +86,7 @@ data class PostsState(
         val places = ArrayList<String>()
         if (e.toWebsite) places.add("Website")
         if (e.toInstagram) places.add("Instagram story")
+        if ("ig-post" in e.unitKeys) places.add("Instagram post")
         for (key in e.whatsapp) places.add(placeLabel(key))
         return places.joinToString(", ")
     }
