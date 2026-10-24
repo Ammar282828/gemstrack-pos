@@ -87,12 +87,71 @@ struct ActionBar: View {
 
 extension View {
     /// The page's one primary action, pinned at the foot where it never scrolls away (rule 16).
+    @ViewBuilder
     func actionBar(primary: ActionBar.Action, secondary: [ActionBar.Action] = [], summary: String? = nil) -> some View {
+        #if os(macOS)
+        safeAreaInset(edge: .bottom, spacing: 0) {
+            MacActionFooter(primary: primary, secondary: secondary, summary: summary)
+        }
+        #else
         safeAreaBar(edge: .bottom, spacing: 0) {
             ActionBar(primary: primary, secondary: secondary, summary: summary)
         }
+        #endif
     }
 }
+
+#if os(macOS)
+/// The Mac's form of the one primary action: a dialog's footer, as System Settings and every Mac sheet have it. What
+/// it will do (the balance) on the left, the other actions, then the primary as the default button (Return) on the right.
+struct MacActionFooter: View {
+    let primary: ActionBar.Action
+    var secondary: [ActionBar.Action] = []
+    var summary: String?
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Divider()
+            HStack(spacing: 10) {
+                if let summary, !summary.isEmpty {
+                    Text(summary)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                        .contentTransition(.numericText())
+                        .lineLimit(2)
+                }
+                Spacer(minLength: 12)
+                ForEach(Array(secondary.enumerated()), id: \.offset) { _, item in
+                    Button(role: item.role, action: item.action) { label(item) }
+                        .controlSize(.large)
+                        .disabled(item.isDisabled || item.isBusy || primary.isBusy)
+                }
+                Button(role: primary.role, action: primary.action) { label(primary) }
+                    .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .disabled(primary.isDisabled || primary.isBusy)
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+        }
+        .background(.bar)
+    }
+
+    private func label(_ item: ActionBar.Action) -> some View {
+        HStack(spacing: 6) {
+            if item.isBusy {
+                ProgressView().controlSize(.small)
+            } else if let symbol = item.systemImage {
+                Image(systemName: symbol)
+            }
+            Text(item.title)
+        }
+        .frame(minWidth: 72)
+    }
+}
+#endif
 
 // MARK: Failed, empty, loading
 

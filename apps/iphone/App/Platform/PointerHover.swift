@@ -1,4 +1,7 @@
 import SwiftUI
+#if os(macOS)
+import AppKit
+#endif
 
 // What differs between an iPad's pointer and a Mac's, and the few list and search details only one has. Each is one
 // modifier that does the iPhone's exact old thing on iOS, so no screen forks for the Mac.
@@ -14,7 +17,7 @@ extension View {
             contentShape(.hoverEffect, shape).hoverEffect()
         }
         #else
-        contentShape(shape)
+        contentShape(shape).modifier(MacHoverHighlight(shape: AnyShape(shape)))
         #endif
     }
 
@@ -23,7 +26,7 @@ extension View {
         #if os(iOS)
         if highlight { hoverEffect(.highlight) } else { hoverEffect() }
         #else
-        self
+        modifier(MacHoverHighlight(shape: AnyShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))))
         #endif
     }
 
@@ -48,3 +51,22 @@ extension SearchFieldPlacement {
         #endif
     }
 }
+
+#if os(macOS)
+/// A card that opens something, under a Mac's pointer: a faint wash of the accent and the pointing hand, as Finder and
+/// Mail mark what a click will open.
+struct MacHoverHighlight: ViewModifier {
+    let shape: AnyShape
+    @State private var hovering = false
+
+    func body(content: Content) -> some View {
+        content
+            .overlay { shape.fill(Theme.accent.opacity(hovering ? 0.07 : 0)).allowsHitTesting(false) }
+            .onHover { inside in
+                hovering = inside
+                if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+            }
+            .animation(.easeOut(duration: 0.12), value: hovering)
+    }
+}
+#endif

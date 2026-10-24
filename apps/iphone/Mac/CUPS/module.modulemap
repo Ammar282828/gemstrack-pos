@@ -1,0 +1,7 @@
+// The Mac's printing system (CUPS), for sending a Zebra's ZPL raw to a printer macOS knows (USB or network) without a
+// driver drawing it: Mac/ZebraPrinter.swift. CUPS has no Swift module of its own in the SDK.
+module CCUPS [system] {
+    header "shim.h"
+    link "cups"
+    export *
+}

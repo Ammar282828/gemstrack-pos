@@ -88,6 +88,8 @@ targets:
         excludes:
           - Info.plist
           - ERPMac.entitlements
+          - CUPS
+          - "*.md"
     settings:
       base:
         PRODUCT_NAME: ERP
@@ -98,6 +100,8 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon-mac
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: Accent-$(ERP_HOUSE)
         COMBINE_HIDPI_IMAGES: YES
+        # `import CCUPS` (Mac/CUPS/module.modulemap): raw ZPL to a printer macOS knows.
+        SWIFT_INCLUDE_PATHS: $(SRCROOT)/Mac/CUPS
     dependencies:
       - package: Firebase
         product: FirebaseAuth

@@ -96,8 +96,16 @@ extension View {
 
 extension View {
     /// A sheet's Form on the house's ground, as the sale and order workspaces have it: `Form { … }.houseForm()`.
+    @ViewBuilder
     func houseForm() -> some View {
+        #if os(macOS)
+        // A Mac's grouped form (System Settings' look), at a width a form reads at, and a sheet at least that size.
+        self.formStyle(.grouped)
+            .scrollContentBackground(.hidden).background(Theme.ground)
+            .frame(minWidth: 520, idealWidth: 640, minHeight: 420, idealHeight: 620)
+        #else
         self.scrollContentBackground(.hidden).background(Theme.ground)
+        #endif
     }
 }
 
