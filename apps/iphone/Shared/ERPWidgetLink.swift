@@ -62,6 +62,9 @@ enum ERPWidgetLink {
             kSecAttrAccount as String: account,
         ]
         if let group = group { q[kSecAttrAccessGroup as String] = group }
+        #if os(macOS)
+        q[kSecUseDataProtectionKeychain as String] = true // access groups only work in the data-protection keychain
+        #endif
         return q
     }
 

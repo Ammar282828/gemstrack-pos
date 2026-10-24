@@ -28,7 +28,11 @@ enum FaceIDVault {
     }
 
     private static func base(_ key: String) -> [String: Any] {
-        [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: key]
+        var q: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: key]
+        #if os(macOS)
+        q[kSecUseDataProtectionKeychain as String] = true // access control by Touch ID needs the phone's keychain, not the Mac's file keychain
+        #endif
+        return q
     }
 
     static func save(_ value: String, for key: String) throws {

@@ -286,7 +286,7 @@ private struct BackupPage: View {
                 } else {
                     SecureField("Delete code", text: $restoreCode)
                         .keyboardType(.numberPad)
-                        .textContentType(.oneTimeCode)
+                        .fieldKind(.oneTimeCode)
                     Button(role: .destructive) { confirmingRestore = true } label: {
                         Label("Restore \(BackupPage.grouped(file.restorable(known).reduce(0) { $0 + $1.docs.count })) records", systemImage: "arrow.counterclockwise")
                     }

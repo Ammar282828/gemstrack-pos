@@ -39,7 +39,11 @@ struct PhoneSettings: View {
                 case .denied:
                     Label("Notifications are off for this app", systemImage: "bell.slash")
                     Button("Open Settings") {
+                        #if os(macOS)
+                        if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension") { openURL(url) }
+                        #else
                         if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+                        #endif
                     }
                 case .notDetermined:
                     Button("Turn on notifications") { Task { await Push.shared.register(); await refresh() } }

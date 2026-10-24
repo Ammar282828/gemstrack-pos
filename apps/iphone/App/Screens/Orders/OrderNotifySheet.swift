@@ -31,7 +31,7 @@ struct OrderNotifySheet: View {
                 Section {
                     TextField("WhatsApp number", text: $phone, prompt: Text("0300 1234567"))
                         .keyboardType(.phonePad)
-                        .textContentType(.telephoneNumber)
+                        .fieldKind(.telephoneNumber)
                 } header: {
                     LedgerHeading(title: "Customer's WhatsApp number")
                 } footer: {

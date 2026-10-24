@@ -1,6 +1,8 @@
 import SwiftUI
 #if canImport(UIKit)
 import UIKit
+#elseif canImport(AppKit)
+import AppKit
 #endif
 import Observation
 import ERPCore
@@ -263,12 +265,26 @@ enum ServerShelf {
         observing = true
         foreground = UIApplication.shared.applicationState != .background
         let c = NotificationCenter.default
+        #if os(macOS)
+        // A Mac behind another window still shows the books (the counter Mac, with Label LIVE in front), so only a
+        // hidden app (⌘H) rests the polls; coming forward or unhiding reads again at once.
+        c.addObserver(forName: NSApplication.didHideNotification, object: nil, queue: .main) { _ in
+            Task { @MainActor in foreground = false }
+        }
+        c.addObserver(forName: NSApplication.didUnhideNotification, object: nil, queue: .main) { _ in
+            Task { @MainActor in foreground = true; nudges += 1 }
+        }
+        c.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { _ in
+            Task { @MainActor in foreground = true; nudges += 1 }
+        }
+        #else
         c.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { _ in
             Task { @MainActor in foreground = false }
         }
         c.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { _ in
             Task { @MainActor in foreground = true; nudges += 1 }
         }
+        #endif
     }
 
     @MainActor

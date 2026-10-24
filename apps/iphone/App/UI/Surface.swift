@@ -262,11 +262,17 @@ extension View {
     func personName() -> some View {
         autocorrectionDisabled()
             .textInputAutocapitalization(.words)
-            .textContentType(.name)
+            #if os(iOS)
+            .fieldKind(.name)
+            #endif
     }
 
     /// A phone number box.
     func phoneNumber() -> some View {
-        keyboardType(.phonePad).textContentType(.telephoneNumber)
+        #if os(iOS)
+        keyboardType(.phonePad).fieldKind(.telephoneNumber)
+        #else
+        keyboardType(.phonePad)
+        #endif
     }
 }

@@ -62,7 +62,9 @@ struct BusinessesScreen: View {
                     Button("Close", systemImage: "xmark") { store.switcherOpen = false }
                 }
             }
+            #if os(iOS)
             if store.list.count > 1 { ToolbarItem(placement: .primaryAction) { EditButton() } }
+            #endif // on the Mac there is no Edit mode: a row is removed from its right-click menu
         }
         .noteToast($note)
         .selectionFeedback(trigger: chosenTick)
@@ -168,7 +170,9 @@ struct BusinessesScreen: View {
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .keyboardType(.URL)
-                .textContentType(.URL)
+                #if os(iOS)
+                .fieldKind(.URL) // the Mac's text fields have no address type
+                #endif
                 .submitLabel(.go)
                 .focused($typing)
                 .onSubmit(lookUp)

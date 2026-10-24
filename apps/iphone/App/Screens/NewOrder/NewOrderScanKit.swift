@@ -158,7 +158,7 @@ struct PaperPicker: View {
                     problem(error.localizedDescription)
                 }
             }
-        } else if UIImagePickerController.isSourceTypeAvailable(.camera) {
+        } else if MarketingCamera.available {
             camera = true
         } else {
             problem("This phone has no camera to scan with. Choose the photo from Photos.")
