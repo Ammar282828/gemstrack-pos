@@ -250,6 +250,79 @@ fun InvoiceDiscountSheet(invoice: Invoice, onDismiss: () -> Unit, onDone: (Invoi
     }
 }
 
+// MARK: Give back credit
+
+/**
+ * Give a customer their credit back (give-back-credit.tsx; the shared write lib/writes/invoice-credit-payback.ts, op
+ * `payBackCredit`; the iPhone's InvoiceActionCreditSheet). An invoice paid past its total leaves the named customer a
+ * credit on their hisaab; this hands the money over and brings it down. The amount starts at the whole credit ("finish
+ * that credit"); a part is allowed. It is a payment going out, NOT a refund of the sale: no delete code, nothing goes to
+ * Shopify, and the sale's revenue is untouched. It shows as money out in Today's cash. A money op: awaited here, never
+ * queued (the request's name is kept by `WriteIntents`, so a retry is the same change). An owner's.
+ */
+@Composable
+fun InvoiceCreditSheet(invoice: Invoice, onDismiss: () -> Unit, onDone: (InvoiceActionOutcome) -> Unit) {
+    val held = InvoiceCredit.held(invoice)
+    var amountText by rememberSaveable { mutableStateOf(PaymentText.field(held)) }
+    var method by rememberSaveable { mutableStateOf("Cash") }
+    var saving by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+    val haptics = rememberHaptics()
+
+    val amount = PaymentText.amount(amountText) ?: 0.0
+    val valid = InvoiceCredit.valid(amount, held)
+
+    fun save() {
+        if (!valid || saving) return
+        scope.launch {
+            saving = true
+            error = null
+            try {
+                ErpApi.shared.write("payBackCredit", InvoiceCredit.fields(invoice, amount, method))
+                haptics.success()
+                onDone(InvoiceActionOutcome(InvoiceCredit.note(amount, held, method), removed = false))
+                onDismiss()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                error = e.message ?: e.toString()
+                haptics.failure()
+            }
+            saving = false
+        }
+    }
+
+    InvoiceSheet(
+        "Give back credit", onDismiss, busy = saving,
+        action = { SaveAction("Give back", saving, enabled = valid, onClick = ::save) },
+    ) {
+        SheetHeading("${InvoiceActionWords.who(invoice)}'s credit")
+        MoneyRow("Credit held", held)
+        SheetHeading("Give back")
+        OutlinedTextField(
+            value = amountText,
+            onValueChange = { amountText = PaymentText.whole(it) },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("Amount (PKR)") },
+            textStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold, fontFeatureSettings = TabularDigits),
+            singleLine = true,
+            enabled = !saving,
+            isError = amount > held + 0.5,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        )
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+            val methods = listOf("Cash", "Bank Transfer")
+            methods.forEachIndexed { i, m ->
+                SegmentedButton(selected = method == m, onClick = { method = m }, shape = SegmentedButtonDefaults.itemShape(i, methods.size), enabled = !saving) { Text(m) }
+            }
+        }
+        InvoiceCredit.footer(amount, held)?.let { Footnote(it, if (amount > held + 0.5) Tone.problem else Tone.quiet) }
+        error?.let { ErrorLine(it) }
+        Spacer(Modifier.height(16.dp))
+    }
+}
+
 // MARK: Delete a payment
 
 /**

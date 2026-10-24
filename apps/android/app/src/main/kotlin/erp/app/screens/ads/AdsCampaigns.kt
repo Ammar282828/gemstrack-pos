@@ -1,5 +1,6 @@
 package erp.app.screens.ads
 
+import erp.app.data.Outbox
 import erp.app.ui.zoomSource
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -41,6 +42,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -110,7 +114,7 @@ fun AdsCampaignsScreen(path: String = "/ads/campaigns") {
     var sort by rememberSaveable { mutableStateOf(AdsSort.spend) }
     var allExpanded by rememberSaveable { mutableStateOf(false) }
     val expanded = remember { mutableStateListOf<String>() }
-    var busy by remember { mutableStateOf<String?>(null) }
+    val shownStatus = remember { mutableStateMapOf<String, String>() }
     var asking by remember { mutableStateOf<AdsTarget?>(null) }
     var failure by remember { mutableStateOf<String?>(null) }
     var budgeting by remember { mutableStateOf<AdsBudgetTarget?>(null) }
@@ -164,17 +168,22 @@ fun AdsCampaignsScreen(path: String = "/ads/campaigns") {
         }
     }
 
-    suspend fun setRunning(t: AdsTarget, running: Boolean) {
-        busy = t.id
-        try {
-            backend.setRunning(t.level, t.id, running)
+    // Optimistic: the switch moves now; Meta's answer follows through the Outbox (put back, with Retry, if refused).
+    fun setRunning(t: AdsTarget, running: Boolean) {
+        shownStatus[t.id] = if (running) "ACTIVE" else "PAUSED"
+        Outbox.post((if (running) "Run " else "Pause ") + t.name) {
+            shownStatus[t.id] = if (running) "ACTIVE" else "PAUSED"
+            try {
+                backend.setRunning(t.level, t.id, running)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                shownStatus.remove(t.id)
+                throw e
+            }
             load()
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            failure = adsWords(e)
-        } finally {
-            busy = null
+            shownStatus.remove(t.id)
+            if (running) "Running: ${t.name}" else "Paused: ${t.name}"
         }
     }
 
@@ -189,6 +198,7 @@ fun AdsCampaignsScreen(path: String = "/ads/campaigns") {
             onRefresh = { scope.launch { refreshing = true; load(); refreshing = false } },
             modifier = Modifier.fillMaxSize(),
         ) {
+            CompositionLocalProvider(LocalShownStatus provides shownStatus) {
             AdsCampaignsContent(
                 d = d, problem = problem, filter = filter, onFilter = { filter = it }, search = search, onSearch = { search = it },
                 gallery = gallery, onGallery = { gallery = it }, sort = sort, onSort = { sort = it },
@@ -196,11 +206,12 @@ fun AdsCampaignsScreen(path: String = "/ads/campaigns") {
                     allExpanded = false
                     if (on) { if (id !in expanded) expanded.add(id) } else expanded.remove(id)
                 },
-                busy = busy,
-                onSwitch = { t, running -> if (running) asking = t else scope.launch { setRunning(t, false) } },
+                busy = null,
+                onSwitch = { t, running -> if (running) asking = t else setRunning(t, false) },
                 onBudget = { budgeting = it },
                 onDetails = { level, id -> navigator.open(AdsCampaignsLogic.objectPath(level, id)) },
             )
+            }
         }
         problem != null -> AdsUnavailable("Campaigns aren't ready", problem ?: "") {
             // The demo has no ERP to ask again: no button that can only fail.
@@ -214,7 +225,7 @@ fun AdsCampaignsScreen(path: String = "/ads/campaigns") {
         AdsConfirm(
             title = "Run it?", message = "${t.name} will start spending its budget.", confirm = "Run",
             onDismiss = { asking = null },
-            onConfirm = { scope.launch { setRunning(t, true) } },
+            onConfirm = { setRunning(t, true) },
         )
     }
     budgeting?.let { t -> AdsBudgetSheet(t, onDismiss = { budgeting = null }, saved = { load() }) }
@@ -406,9 +417,13 @@ private fun AdCard(ad: AdItem, cur: String, busy: String?, onSwitch: (AdsTarget,
     }
 }
 
+/** What a switch was just moved to, until Meta answers (the iPhone's shownStatus). */
+private val LocalShownStatus = compositionLocalOf<Map<String, String>> { emptyMap() }
+
 /** Run or pause. Pausing is at once, as the web's switch; running asks first. */
 @Composable
-private fun RunSwitch(t: AdsTarget, status: String, busy: String?, onSwitch: (AdsTarget, Boolean) -> Unit) {
+private fun RunSwitch(t: AdsTarget, ownStatus: String, busy: String?, onSwitch: (AdsTarget, Boolean) -> Unit) {
+    val status = LocalShownStatus.current[t.id] ?: ownStatus
     if (busy == t.id) {
         Box(Modifier.size(width = 52.dp, height = MinTouchTarget), contentAlignment = Alignment.Center) { SkeletonLoading(compact = true, label = "Working") }
         return

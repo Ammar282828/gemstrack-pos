@@ -172,7 +172,6 @@ internal fun RatesSection(holder: DraftHolder, settings: Settings?) {
         boxes.forEach { box ->
             NumberRow(box.label, d.rates[box.key.name] ?: "", { t -> holder.edit { rates[box.key.name] = t } }, prompt = "0")
         }
-        if (silver && settings != null) ValueRow("Silver (all-in)", Money.pkr(settings.silverRatePerGram) + "/g")
         if (settings != null && NewOrderLogic.ratesDiffer(d, settings)) {
             ActionRow("Use today's rates", onClick = { holder.edit { rates = LinkedHashMap(NewOrderMath.todaysRates(settings)) } })
         }

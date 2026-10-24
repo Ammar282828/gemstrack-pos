@@ -160,9 +160,9 @@ fun AdsAdSetsScreen(path: String) {
         fitGoals()
     }
 
-    suspend fun load() {
+    suspend fun load(fresh: Boolean = false) {
         try {
-            val s = backend.status()
+            val s = backend.status(fresh)
             status = s
             problem = null
             if (!s.ready) return
@@ -238,7 +238,7 @@ fun AdsAdSetsScreen(path: String) {
             media = media, onPost = { post = it }, onLink = { link = it }, onLaunch = { launch = it },
             check = check, checking = checking, sending = sending, onReview = ::review,
         )
-        else -> AdsNotReady(status, problem) { scope.launch { load() } }
+        else -> AdsNotReady(status, problem) { scope.launch { load(fresh = true) } }
     }
 
     editing?.let { key ->

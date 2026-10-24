@@ -67,8 +67,8 @@ object NewOrderMath {
 
     /**
      * The rate card this order is priced at: the four gold rates and the two palladium grades as typed, and the flat
-     * palladium, platinum and silver rates from the shop (silver has one all-in rate that the order form has no box
-     * for: order-form.tsx `ratesForOrder`).
+     * palladium and platinum rates from the shop. Silver has one all-in rate (it holds the making and wastage); the
+     * order's own box wins and a blank one is the shop's (order-form.tsx `ratesForOrder`, `silverRate`).
      */
     fun formRates(d: NewOrderDraft, settings: Settings?): PricingRates {
         fun typed(k: RateKey): Double = num(d.rates[k.name] ?: "")
@@ -81,7 +81,7 @@ object NewOrderMath {
             palladiumRatePerGram18k = typed(RateKey.palladiumRatePerGram18k),
             palladiumRatePerGram12k = typed(RateKey.palladiumRatePerGram12k),
             platinumRatePerGram = settings?.platinumRatePerGram ?: 0.0,
-            silverRatePerGram = settings?.silverRatePerGram ?: 0.0,
+            silverRatePerGram = typed(RateKey.silverRatePerGram).takeIf { it > 0 } ?: (settings?.silverRatePerGram ?: 0.0),
         )
     }
 
@@ -154,6 +154,13 @@ object NewOrderMath {
      * What the web's schema refuses (`orderFormSchema`), in its words; null when the order can be saved.
      * `takenBy` is the house's list of counter names: the name must be on it (empty list: any name).
      */
+    private fun unreadableFigure(d: NewOrderDraft): Boolean {
+        val u = NewOrderFormat::unreadable
+        return u(d.discount) || u(d.advance) || d.rates.values.any(u)
+            || d.exchanges.any { u(it.weightG) || u(it.ratePerGram) || u(it.value) }
+            || d.pieces.any { u(it.weight) || u(it.stoneWeight) || u(it.wastage) || u(it.making) || u(it.stones) || u(it.manualPrice) }
+    }
+
     fun problem(d: NewOrderDraft, takenBy: List<String> = emptyList()): String? {
         if (d.pieces.isEmpty()) return "Add at least one piece to the order."
         for ((i, p) in d.pieces.withIndex()) {
@@ -164,6 +171,9 @@ object NewOrderMath {
             } else if (num(p.weight) <= 0) {
                 return "$who: Weight must be a positive number."
             }
+        }
+        if (unreadableFigure(d)) {
+            return "A figure is not a number (discount, advance, a rate, a weight or an exchange). Retype it, or clear it."
         }
         val goldKarats = d.pieces.filter { it.metal == "gold" }.map { it.karat }.toSet()
         for (k in listOf("18k", "21k", "22k", "24k")) {
