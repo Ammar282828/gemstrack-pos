@@ -36,6 +36,13 @@ struct ActivityLogScreen: View {
     @State private var failure: String?
     /// The filters are folded away until asked for, so the log is what the page opens on.
     @State private var filtersOpen = false
+    #if os(macOS)
+    @State private var macPane = ActivityPane.log
+    @State private var macSort = [KeyPathComparator(\ActivityLogEntry.timestamp, order: .reverse)]
+    @State private var macSelection = Set<String>()
+    @State private var macDatesOpen = false
+    @Environment(\.openPlaceWindow) private var openPlace
+    #endif
 
     private static let pageSize = 200
 
@@ -47,7 +54,11 @@ struct ActivityLogScreen: View {
                     error: House.isDemo ? nil : shelf.error,
                     offline: !House.isDemo && shelf.offline
                 ) {
+                    #if os(macOS)
+                    macPage
+                    #else
                     page
+                    #endif
                 }
             } else {
                 WorkNotYours(title: "Activity", detail: "The activity log is kept for the shop's owners.")
@@ -372,3 +383,195 @@ struct ActivitySignIn: Decodable, Identifiable {
         timestamp = c.string(.timestamp, default: "")
     }
 }
+
+#if os(macOS)
+/// The Mac's three panes of the activity log: the log, the sign-ins and the emergency lock, chosen in the toolbar.
+private enum ActivityPane: String, CaseIterable, Identifiable {
+    case log = "Log", signIns = "Sign-ins", lock = "Emergency lock"
+    var id: String { rawValue }
+}
+
+// The Mac's activity log: a Table of the log (sort by any column), the filters in the toolbar, Revert in the toolbar and
+// the right-click menu (the same askRevert, the same delete code), the sign-ins as a table and the lock in its own pane.
+extension ActivityLogScreen {
+    @ViewBuilder
+    var macPage: some View {
+        let list = visible()
+        Group {
+            switch macPane {
+            case .log: macLog(list)
+            case .signIns: macSignIns
+            case .lock:
+                Form { lockSection }
+                    .formStyle(.grouped)
+                    .frame(maxWidth: 620)
+                    .frame(maxWidth: .infinity)
+            }
+        }
+        .navigationSubtitle(macPane == .log ? "\(list.count) lines" : "")
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Picker("Show", selection: $macPane) {
+                    ForEach(ActivityPane.allCases) { Text($0.rawValue).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .help("The log, the last sign-ins, or the emergency lock")
+            }
+            if macPane == .log {
+                ToolbarItem(placement: .automatic) {
+                    Picker("Event type", selection: $type) {
+                        Text("All events").tag("All")
+                        ForEach(ActivityLogRules.eventTypes, id: \.self) { (t: String) in
+                            Text(ActivityLogRules.title(t)).tag(t)
+                        }
+                    }
+                    .help("Show one kind of event")
+                }
+                ToolbarItem(placement: .automatic) {
+                    Button { macDatesOpen = true } label: {
+                        Label(range.useFrom ? "Dates on" : "Dates", systemImage: "calendar")
+                    }
+                    .help("Narrow the log to a range of days")
+                    .popover(isPresented: $macDatesOpen) {
+                        Form {
+                            WorkRangeFields(range: $range)
+                            if range.useFrom && !range.useTo {
+                                Text("Without an end date the range runs to the end of today.")
+                                    .font(.footnote).foregroundStyle(.secondary)
+                            }
+                        }
+                        .formStyle(.grouped)
+                        .frame(width: 320)
+                        .padding(.vertical, 6)
+                    }
+                }
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        if let e = macRevertable(list) { askRevert(e) }
+                    } label: {
+                        Label("Revert", systemImage: "arrow.uturn.backward")
+                    }
+                    .disabled(macRevertable(list) == nil)
+                    .help("Undo the picked invoice, order or expense that was added")
+                }
+            }
+        }
+    }
+
+    /// The picked line, when exactly one is picked and it can be undone.
+    private func macRevertable(_ list: [ActivityLogEntry]) -> ActivityLogEntry? {
+        guard macSelection.count == 1, let id = macSelection.first,
+              let e = list.first(where: { $0.id == id }), ActivityLogRules.isRevertable(e.eventType) else { return nil }
+        return e
+    }
+
+    /// The record a line is about, where the app has a page for it (not for a record that was removed).
+    private func macPath(_ e: ActivityLogEntry) -> String? {
+        guard !e.entityId.isEmpty, !e.eventType.hasSuffix(".delete") else { return nil }
+        switch e.eventType.split(separator: ".").first.map(String.init) ?? "" {
+        case "invoice": return WorkPaths.invoice(e.entityId)
+        case "order": return WorkPaths.order(e.entityId)
+        default: return nil
+        }
+    }
+
+    private func macLog(_ list: [ActivityLogEntry]) -> some View {
+        let rows = Array(list.sorted(using: macSort).prefix(shown))
+        return VStack(spacing: 0) {
+            Table(rows, selection: $macSelection, sortOrder: $macSort) {
+                TableColumn("Event", value: \.description) { (e: ActivityLogEntry) in
+                    HStack(spacing: 8) {
+                        Image(systemName: symbol(e.eventType))
+                            .foregroundStyle(tone(ActivityLogRules.tone(e.eventType)).color)
+                            .frame(width: 20)
+                        Text(e.description).lineLimit(1)
+                    }
+                }
+                .width(min: 220, ideal: 340)
+                TableColumn("Details", value: \.details) { (e: ActivityLogEntry) in
+                    Text(e.details).foregroundStyle(.secondary).lineLimit(1)
+                }
+                .width(min: 160, ideal: 280)
+                TableColumn("Kind", value: \.eventType) { (e: ActivityLogEntry) in
+                    Text(ActivityLogRules.title(e.eventType)).foregroundStyle(.secondary)
+                }
+                .width(min: 90, ideal: 130)
+                TableColumn("When", value: \.timestamp) { (e: ActivityLogEntry) in
+                    Text(ShopDate.say(e.timestamp, withTime: true)).monospacedDigit()
+                }
+                .width(min: 130, ideal: 160)
+            }
+            .contextMenu(forSelectionType: String.self) { ids in
+                if ids.count == 1, let id = ids.first, let e = list.first(where: { $0.id == id }) {
+                    if let path = macPath(e) {
+                        Button("Open in New Window") { openPlace?(Route(path: path)) }
+                    }
+                    Button("Copy line") {
+                        UIPasteboard.general.string = [e.description, e.details].filter { !$0.isEmpty }.joined(separator: " · ")
+                    }
+                    if ActivityLogRules.isRevertable(e.eventType) {
+                        Divider()
+                        Button(role: .destructive) { askRevert(e) } label: { Label("Revert this action", systemImage: "arrow.uturn.backward") }
+                    }
+                }
+            } primaryAction: { ids in
+                if ids.count == 1, let id = ids.first, let e = list.first(where: { $0.id == id }), let path = macPath(e) {
+                    openPlace?(Route(path: path))
+                }
+            }
+            .overlay {
+                if list.isEmpty {
+                    ContentUnavailableView("No activity found", systemImage: "clock.arrow.circlepath",
+                                           description: Text("Nothing matches these filters."))
+                }
+            }
+            if list.count > shown {
+                Divider()
+                HStack {
+                    Text("Showing \(shown) of \(list.count)").font(.callout).foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Show \(min(ActivityLogScreen.pageSize, list.count - shown)) more") {
+                        Motion.run(reduce: reduceMotion) { shown += ActivityLogScreen.pageSize }
+                    }
+                }
+                .padding(.horizontal, 16).padding(.vertical, 8)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var macSignIns: some View {
+        if let signIns {
+            Table(signIns) {
+                TableColumn("Who") { (s: ActivitySignIn) in
+                    Text(s.displayName.isEmpty ? (s.email.isEmpty ? "\u{2014}" : s.email) : s.displayName)
+                }
+                TableColumn("Email") { (s: ActivitySignIn) in Text(s.email).foregroundStyle(.secondary) }
+                TableColumn("Device") { (s: ActivitySignIn) in
+                    Text([s.os, s.browser].filter { !$0.isEmpty }.joined(separator: " \u{00B7} ")).foregroundStyle(.secondary)
+                }
+                TableColumn("When") { (s: ActivitySignIn) in
+                    Text(s.timestamp.isEmpty ? "\u{2014}" : ShopDate.say(s.timestamp, withTime: true)).monospacedDigit()
+                }
+                .width(min: 130, ideal: 160)
+            }
+            .overlay {
+                if signIns.isEmpty {
+                    ContentUnavailableView("No sign-in activity recorded yet", systemImage: "person.badge.key")
+                }
+            }
+        } else if signInsFailed {
+            ContentUnavailableView {
+                Label("The sign-ins could not be read", systemImage: "exclamationmark.icloud")
+            } actions: {
+                Button("Try again") {
+                    signInsFailed = false
+                    Task { await loadSignIns() }
+                }
+            }
+        } else {
+            ProgressView("Loading\u{2026}").frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+}
+#endif
