@@ -83,11 +83,37 @@ private struct OverheadsBoard: View {
             ToolbarItem(placement: .primaryAction) {
                 Button { add() } label: { Label("Add a line", systemImage: "plus") }
                     .disabled(answer == nil)
+                    #if os(macOS)
+                    .keyboardShortcut("l", modifiers: [.command, .shift])
+                    .help("Add a line to the sheet (\u{21E7}\u{2318}L)")
+                    #endif
+            }
+            #if os(macOS)
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Save from \(monthName)") { Task { await save() } }
+                    .disabled(!dirty || saving)
+                    .keyboardShortcut("s", modifiers: .command)
+                    .help("Save the sheet from this month on (\u{2318}S)")
+            }
+            #endif
+        }
+        #if os(macOS)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if dirty {
+                MacActionFooter(
+                    primary: .init("Save from \(monthName)", isBusy: saving) { Task { await save() } },
+                    secondary: [.init("Discard", systemImage: "arrow.uturn.backward", isDisabled: saving) {
+                        lines = OverheadDraftLine.lines(liveItems)
+                        saveError = nil
+                    }],
+                    summary: "The sheet has changes that are not saved yet")
             }
         }
+        #else
         .safeAreaBar(edge: .bottom, spacing: 0) {
             if dirty { saveBar }
         }
+        #endif
         .noteToast($note)
         .failureAlert($saveError, title: "Not saved")
         .scrollDismissesKeyboard(.interactively)
@@ -131,7 +157,11 @@ private struct OverheadsBoard: View {
         if answer == nil, let loadError {
             ErrorState(loadError) { Task { await load() } }
         } else {
+            #if os(macOS)
+            macBoard(rows: rows, summary: summary, target: target, earned: earned, p: p)
+            #else
             sheetList(rows: rows, summary: summary, target: target, earned: earned, p: p)
+            #endif
         }
     }
 
@@ -321,3 +351,111 @@ private struct OverheadsBoard: View {
         saving = false
     }
 }
+
+#if os(macOS)
+
+// MARK: - The Mac board
+
+/// Overheads as a Mac page in two panes: this month's figures over the month-by-month record (a table) on the left, and the
+/// sheet that makes the target (a form of lines you type into, with the total) on the right. Saving is ⌘S or the footer;
+/// the record, the target and the save are the page's own.
+extension OverheadsBoard {
+    private func macBoard(rows: [OverheadMonthRow], summary: OverheadSummary, target: Double, earned: Double, p: OverheadProgress) -> some View {
+        HSplitView {
+            macRecord(rows, summary, target: target, earned: earned, p: p)
+                .frame(minWidth: 420)
+            macSheet(target)
+                .frame(minWidth: 340, idealWidth: 420, maxWidth: 560)
+        }
+        .background(Theme.ground)
+        .navigationSubtitle(monthName)
+    }
+
+    private func macRecord(_ rows: [OverheadMonthRow], _ s: OverheadSummary, target: Double, earned: Double, p: OverheadProgress) -> some View {
+        let met = p.shortfall == 0 && target > 0
+        return VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .top, spacing: 12) {
+                    FigureTile(label: "Needed this month", value: OwnerText.pkr(target), tint: Theme.accent)
+                    FigureTile(label: "Revenue so far", value: OwnerText.pkr(earned))
+                    FigureTile(label: met ? "Above the benchmark" : "Still to earn",
+                               value: OwnerText.pkr(met ? earned - target : p.shortfall),
+                               detail: daysLine(p, met: met))
+                }
+                ProgressView(value: p.percent, total: 100).tint(Theme.accent)
+                Text("What \(monthName) has to cover before anything is profit. Scored from \(Overheads.monthLabel(Overheads.benchmarkStart)).")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(14)
+            Table(rows) {
+                TableColumn("Month") { (r: OverheadMonthRow) in Text(r.inProgress ? "\(r.label) \u{00B7} so far" : r.label) }
+                    .width(min: 120, ideal: 170)
+                TableColumn("Needed") { (r: OverheadMonthRow) in Text(OwnerText.pkr(r.target)).monospacedDigit() }
+                    .width(min: 90, ideal: 110)
+                TableColumn("Revenue") { (r: OverheadMonthRow) in Text(OwnerText.pkr(r.earned)).monospacedDigit() }
+                    .width(min: 90, ideal: 110)
+                TableColumn("Over / short") { (r: OverheadMonthRow) in
+                    // A month that met its target is the expected end: no colour; one that fell short is amber.
+                    Text(OwnerText.signed(r.surplus))
+                        .monospacedDigit()
+                        .foregroundStyle(r.inProgress || r.surplus >= 0 ? Color.primary : Tone.owed.color)
+                }
+                .width(min: 100, ideal: 120)
+                TableColumn("") { (r: OverheadMonthRow) in
+                    if !r.inProgress { Image(systemName: r.met ? "checkmark.circle.fill" : "arrow.down.right.circle.fill").foregroundStyle(r.met ? Color.secondary : Tone.owed.color) }
+                }
+                .width(30)
+            }
+            VStack(spacing: 0) {
+                Divider()
+                Text(summaryLine(summary: s))
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+            }
+            .background(.bar)
+        }
+    }
+
+    private func summaryLine(summary s: OverheadSummary) -> String {
+        if s.monthsScored == 0 {
+            return "Nothing scored yet \u{2014} \(Overheads.monthLabel(Overheads.benchmarkStart)) is the first full month."
+        }
+        return "\(s.monthsMet) of \(s.monthsScored) finished month\(s.monthsScored == 1 ? "" : "s") cleared the benchmark"
+            + " \u{00B7} average \(OwnerText.pkr(s.averageRevenue)) \u{00B7} running \(OwnerText.signed(s.cumulativeSurplus))"
+    }
+
+    private func macSheet(_ target: Double) -> some View {
+        Form {
+            Section {
+                ForEach($lines) { $line in
+                    HStack(spacing: 10) {
+                        TextField("What is it for", text: $line.label)
+                        TextField("Amount", text: $line.amountText.wholeRupees)
+                            .multilineTextAlignment(.trailing)
+                            .monospacedDigit()
+                            .frame(width: 130)
+                        Button(role: .destructive) { remove(line.id) } label: { Image(systemName: "minus.circle") }
+                            .buttonStyle(.borderless)
+                            .help("Remove this line")
+                    }
+                }
+                Button { add() } label: { Label("Add a line", systemImage: "plus.circle") }
+                    .disabled(answer == nil)
+                LabeledContent("Total") {
+                    RowAmount(amount: target, tone: Theme.accent)
+                }
+            } header: {
+                Text("The sheet")
+            } footer: {
+                Text("A benchmark, not a ledger. Nothing here is recorded as an expense or counted against profit \u{2014} enter the real payments in Expenses as they go out. Changes apply from \(Overheads.monthLabel(thisMonth)) onward; months already scored keep the target they were scored against.")
+            }
+        }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+    }
+}
+#endif

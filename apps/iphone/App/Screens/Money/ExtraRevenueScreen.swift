@@ -18,6 +18,12 @@ struct ExtraRevenueScreen: View {
     @State private var deletion: OwnerDeletion?
     @State private var note: Note?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    #if os(macOS)
+    @Environment(\.openPlaceWindow) private var openPlace
+    @State private var macSort = [KeyPathComparator(\ExtraRevenueMacRow.day, order: .reverse)]
+    @State private var macPick = Set<String>()
+    @State private var macGo: Route?
+    #endif
 
     var body: some View {
         if session.isOwner {
@@ -37,6 +43,10 @@ struct ExtraRevenueScreen: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button { adding = true } label: { Label("Add extra revenue", systemImage: "plus") }
+                #if os(macOS)
+                    .keyboardShortcut("e", modifiers: [.command, .shift])
+                    .help("Add extra revenue (\u{21E7}\u{2318}E)")
+                #endif
             }
         }
         .sheet(isPresented: $adding) {
@@ -62,6 +72,9 @@ struct ExtraRevenueScreen: View {
     private var content: some View {
         let shown = lines()
         let months = MoneyMonths.group(shown, amount: { (r: AdditionalRevenue) -> Double in r.amount })
+        #if os(macOS)
+        macTable(shown)
+        #else
         List { Group {
             Section {
                 figures(shown)
@@ -89,6 +102,7 @@ struct ExtraRevenueScreen: View {
         }.houseRows()
         }
         .listStyle(.insetGrouped)
+        #endif
     }
 
     /// The dates, then the search over descriptions. The web's range ends at midnight of the last day
@@ -174,3 +188,95 @@ struct ExtraRevenueScreen: View {
         }
     }
 }
+
+#if os(macOS)
+
+// MARK: - The Mac table
+
+/// One revenue entry as a table row, to sort by.
+private struct ExtraRevenueMacRow: Identifiable {
+    let revenue: AdditionalRevenue
+    var id: String { revenue.id }
+    var day: String { MoneyMonths.day(revenue.date) }
+    var what: String { revenue.description }
+    var amount: Double { revenue.amount }
+    var onRepair: Bool { !(revenue.repairId ?? "").isEmpty }
+}
+
+/// Extra revenue as a Mac page: every entry as a sortable table, the date range as a bar over it, the total in a footer.
+/// ⏎ or a double-click edits a row, ⌫ and the right-click menu delete it (asking for the delete code); money taken on a
+/// repair opens that repair instead, here or in a window of its own.
+extension ExtraRevenueScreen {
+    private func macTable(_ shown: [MoneyLine<AdditionalRevenue>]) -> some View {
+        let rows = shown.map { ExtraRevenueMacRow(revenue: $0.item) }.sorted(using: macSort)
+        var total = 0.0
+        for r in rows { total += r.amount }
+        return VStack(spacing: 0) {
+            HStack(spacing: 12) {
+                MoneyRangeFields(filter: $dates)
+                Spacer(minLength: 0)
+                Text(dates.useFrom ? "Without an end date it runs to the end of today." : "Until a start date is chosen, every entry is shown.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            Divider()
+            Table(rows, selection: $macPick, sortOrder: $macSort) {
+                TableColumn("Date", value: \.day) { (r: ExtraRevenueMacRow) in Text(ShopDate.say(r.revenue.date)) }
+                    .width(min: 90, ideal: 110)
+                TableColumn("What", value: \.what)
+                    .width(min: 200, ideal: 360)
+                TableColumn("Source") { (r: ExtraRevenueMacRow) in
+                    Text(r.onRepair ? "A repair" : "").foregroundStyle(.secondary)
+                }
+                .width(min: 80, ideal: 100)
+                TableColumn("Amount", value: \.amount) { (r: ExtraRevenueMacRow) in Text(Money.pkr(r.amount)).monospacedDigit() }
+                    .width(min: 100, ideal: 120)
+            }
+            .contextMenu(forSelectionType: String.self) { ids in
+                if let id = ids.first, let r = rows.first(where: { $0.id == id })?.revenue {
+                    if let repairId = r.repairId, !repairId.isEmpty {
+                        Button("Open the repair") { macGo = Route(path: MoneyPaths.repair(repairId)) }
+                        Button("Open Repair in New Window") { openPlace?(Route(path: MoneyPaths.repair(repairId))) }
+                    } else {
+                        Button { editing = r } label: { Label("Edit", systemImage: "pencil") }
+                        Button(role: .destructive) { askDelete(r) } label: { Label("Delete", systemImage: "trash") }
+                    }
+                }
+            } primaryAction: { ids in
+                if let id = ids.first, let r = rows.first(where: { $0.id == id })?.revenue {
+                    if let repairId = r.repairId, !repairId.isEmpty { macGo = Route(path: MoneyPaths.repair(repairId)) } else { editing = r }
+                }
+            }
+            .onDeleteCommand {
+                if macPick.count == 1, let id = macPick.first, let r = rows.first(where: { $0.id == id })?.revenue,
+                   (r.repairId ?? "").isEmpty {
+                    askDelete(r)
+                }
+            }
+            .overlay {
+                if rows.isEmpty {
+                    ContentUnavailableView("No revenue entries found", systemImage: "chart.line.uptrend.xyaxis",
+                                           description: Text(search.isEmpty && !dates.useFrom ? "Add a revenue entry to begin." : "Try adjusting your search or filters."))
+                }
+            }
+            VStack(spacing: 0) {
+                Divider()
+                HStack(spacing: 16) {
+                    Text("\(rows.count) entr\(rows.count == 1 ? "y" : "ies")").foregroundStyle(.secondary)
+                    Spacer(minLength: 0)
+                    Text("Total revenue").foregroundStyle(.secondary)
+                    Text(Money.pkr(total)).font(.callout.weight(.semibold)).foregroundStyle(Theme.accent).monospacedDigit()
+                }
+                .font(.callout)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+            }
+            .background(.bar)
+        }
+        .background(Theme.ground)
+        .navigationDestination(item: $macGo) { (r: Route) in PlaceScreen(path: r.path) }
+    }
+}
+#endif

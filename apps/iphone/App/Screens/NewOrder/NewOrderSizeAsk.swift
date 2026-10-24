@@ -75,6 +75,9 @@ struct NewOrderSizeAskSheet: View {
         }
         .presentationDetents([.medium, .large])
         .presentationSizing(.form)
+        #if os(macOS)
+        .ordersMacSheet(width: 520, height: 400)
+        #endif
         .interactiveDismissDisabled(saving)
         .failureAlert($failure, title: "The sizes weren't saved")
         .savedFeedback(trigger: saved)

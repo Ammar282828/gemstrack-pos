@@ -170,7 +170,7 @@ struct OnlineConfirmSheet: View {
         } footer: {
             Text(bankURL == nil
                  ? "There is no WhatsApp number on the order: call them for the transfer."
-                 : "WhatsApp opens on this phone with the amount and \(row.id) written in. Add your account and press send there.")
+                 : "WhatsApp opens on this \(OrderDevice.word) with the amount and \(row.id) written in. Add your account and press send there.")
         }
         if !c.orderId.isEmpty {
             Section {
@@ -489,6 +489,9 @@ struct OnlineSlipSheet: View {
                 }
             }
         }
+        #if os(macOS)
+        .ordersMacSheet(width: 640, height: 560)
+        #endif
         .task { await load() }
     }
 

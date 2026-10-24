@@ -270,6 +270,9 @@ struct PaperPhotoStrip: View {
                 }
             }
             .presentationDetents([.large])
+            #if os(macOS)
+            .ordersMacSheet(width: 720, height: 640)
+            #endif
         }
     }
 }

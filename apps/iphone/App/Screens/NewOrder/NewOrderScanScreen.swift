@@ -35,7 +35,11 @@ struct NewOrderScanScreen: View {
     var body: some View {
         Group {
             if session.isOwner {
+                #if os(macOS)
+                macForm
+                #else
                 form
+                #endif
             } else {
                 NotAvailableState("Reading a slip is for the owners", why: "The ERP reads paper with the shop's AI account, which only an owner's sign-in may use. Type the order in, or ask an owner.", symbol: "lock")
             }
@@ -340,3 +344,58 @@ struct NewOrderScanScreen: View {
         dismiss()
     }
 }
+
+#if os(macOS)
+// MARK: The Mac's reader: the paper on the left, what was read off it on the right
+
+extension NewOrderScanScreen {
+    fileprivate var macForm: some View {
+        HStack(spacing: 0) {
+            Form {
+                Group {
+                    photosSection
+                    if busy {
+                        Section {
+                            HStack(spacing: 12) {
+                                SkeletonLoading()
+                                Text(photos.count > 1 ? "Reading \(photos.count) photos\u{2026}" : "Reading it\u{2026}")
+                                Spacer(minLength: 8)
+                                Button("Cancel", role: .cancel) { cancelRead() }
+                                    .buttonStyle(.borderless)
+                            }
+                        }
+                    }
+                }
+                .houseRows()
+            }
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+            .background(Theme.ground)
+            .frame(width: 380)
+            Divider()
+            Group {
+                if let reading {
+                    Form {
+                        Group { readingSections(reading) }
+                            .houseRows()
+                    }
+                    .formStyle(.grouped)
+                    .scrollContentBackground(.hidden)
+                    .opacity(busy || stale ? 0.4 : 1)
+                    .allowsHitTesting(!busy)
+                } else {
+                    ContentUnavailableView("Nothing read yet", systemImage: "doc.text.viewfinder",
+                                           description: Text("Choose the photos of the slip on the left, then read it. The form is filled in for you to check."))
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Theme.ground)
+        }
+        .motion(busy)
+        .motion(stale)
+        .failureAlert($problem, title: "Could not read that")
+        .actionBar(primary: primaryAction)
+        .sensoryFeedback(.success, trigger: filled)
+    }
+}
+#endif

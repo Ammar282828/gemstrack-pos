@@ -24,6 +24,16 @@ struct WebsiteLiveScreen: View {
         .overlay { stateOverlay }
         .navigationTitle("Live")
         .navigationBarTitleDisplayMode(.inline)
+        #if os(macOS)
+        .navigationSubtitle(live.map { (l: SiteLive) in "\(l.visitors) on the site now" } ?? "")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button { Task { await load() } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
+                    .keyboardShortcut("r", modifiers: .command)
+                    .help("Ask who is on the website now (it also updates itself every 15 seconds)")
+            }
+        }
+        #endif
         .refreshable { await load() }
         .task(id: scenePhase) { await poll() }
     }

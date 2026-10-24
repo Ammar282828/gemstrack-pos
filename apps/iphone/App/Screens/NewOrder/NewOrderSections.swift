@@ -385,6 +385,13 @@ struct NewOrderExchangeSection: View {
                 Label("Remove", systemImage: "trash")
             }
         }
+        #if os(macOS)
+        .contextMenu {
+            Button(role: .destructive) { remove(row.id) } label: {
+                Label("Remove this exchange", systemImage: "trash")
+            }
+        }
+        #endif
     }
 
     @ViewBuilder

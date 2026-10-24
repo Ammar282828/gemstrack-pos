@@ -29,7 +29,7 @@ struct AdsObjectScreen: View {
 
     var body: some View {
         Group {
-            if response != nil { form }
+            if response != nil { record }
             else if let failure {
                 ErrorState(failure) { self.failure = nil; Task { await load() } }
             }
@@ -70,7 +70,15 @@ struct AdsObjectScreen: View {
         }
     }
 
-    private var form: some View {
+    private var record: some View {
+        #if os(macOS)
+        macRecord
+        #else
+        form
+        #endif
+    }
+
+    var form: some View {
         Form {
             if busy { Section { SkeletonLoading("Saving…") }.houseRows() }
             LedgerSection("Status") {
@@ -80,7 +88,9 @@ struct AdsObjectScreen: View {
                     else { confirming = "activate" }
                 }.disabled(busy)
             }
+            #if !os(macOS)
             if level == "ad" { previewSection }
+            #endif
             LedgerSection("Name") {
                 TextField("Name", text: $name, axis: .vertical).lineLimit(1...4)
                 Button("Save name") { Task { await act("rename", ["name": name.trimmingCharacters(in: .whitespacesAndNewlines)]) } }
@@ -131,7 +141,7 @@ struct AdsObjectScreen: View {
         .scrollDismissesKeyboard(.interactively)
     }
 
-    private var previewSection: some View {
+    var previewSection: some View {
         LedgerSection("Preview") {
             if !previews.isEmpty {
                 Picker("Placement", selection: $format) {
@@ -193,6 +203,50 @@ struct AdsObjectScreen: View {
         } catch { failure = error.localizedDescription }
     }
 }
+
+#if os(macOS)
+extension AdsObjectScreen {
+    /// A record window: the ad as Meta will show it on the left (an ad only), its fields and actions on the right.
+    var macRecord: some View {
+        Group {
+            if level == "ad" {
+                MacTwoPane(sideWidth: 420) {
+                    Form { previewSection }.formStyle(.grouped).scrollContentBackground(.hidden)
+                } main: {
+                    form.formStyle(.grouped)
+                }
+            } else {
+                form.formStyle(.grouped).macReadingWidth(820)
+            }
+        }
+        .navigationSubtitle(level == "ad" ? "Ad" : level == "adset" ? "Ad set" : "Campaign")
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
+                let running = object["status"] as? String == "ACTIVE"
+                Button {
+                    if running { Task { await act("status", ["status": "PAUSED"]) } } else { confirming = "activate" }
+                } label: {
+                    Label(running ? "Pause" : "Run", systemImage: running ? "pause.circle" : "play.circle")
+                }
+                .disabled(busy)
+                .help(running ? "Pause it" : "Run it (asks first, it spends)")
+                Menu {
+                    Button("Duplicate (paused)", systemImage: "doc.on.doc") { confirming = "duplicate" }
+                    Button("Archive", systemImage: "archivebox") { confirming = "archive" }
+                    Divider()
+                    Button("Delete permanently", systemImage: "trash", role: .destructive) { confirming = "delete" }
+                        .keyboardShortcut(.delete, modifiers: .command)
+                } label: { Label("More", systemImage: "ellipsis.circle") }
+                .disabled(busy)
+                .help("Duplicate, archive or delete")
+                Button { Task { await load() } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
+                    .keyboardShortcut("r", modifiers: .command)
+                    .help("Ask Meta again")
+            }
+        }
+    }
+}
+#endif
 
 /// Full Meta feedback stays readable without raw JSON or a browser page.
 struct MarketingDetails: View {

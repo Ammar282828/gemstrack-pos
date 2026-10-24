@@ -121,6 +121,9 @@ struct WorkshopPieceDetailsSheet: View {
             .navigationTitle("Making details")
             .modifier(HouseGround())
             .navigationBarTitleDisplayMode(.inline)
+            #if os(macOS)
+            .formStyle(.grouped)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(role: .cancel) { dismiss() }
@@ -132,6 +135,9 @@ struct WorkshopPieceDetailsSheet: View {
             }
         }
         .presentationSizing(.page)
+        #if os(macOS)
+        .frame(minWidth: 520, idealWidth: 560, minHeight: 440, idealHeight: 520)
+        #endif
         .interactiveDismissDisabled(saving)
         // A picture kept in its own document (lib/order-photos.ts) is read for the editor, as the web's dialog reads it.
         .task { await loadStoredPhoto() }

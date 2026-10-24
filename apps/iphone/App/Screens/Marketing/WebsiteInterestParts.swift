@@ -129,7 +129,7 @@ struct SiteChartSection: View {
                         case .active(let at):
                             guard let frame = proxy.plotFrame else { return }
                             let x = at.x - geo[frame].origin.x
-                            if let hour: Double = proxy.value(atX: x) { hoverHour = min(23, max(0, Int(hour.rounded()))) }
+                            if let hour: Int = proxy.value(atX: x) { hoverHour = min(23, max(0, hour)) }
                         case .ended:
                             hoverHour = nil
                         }
@@ -322,6 +322,9 @@ struct SiteCustomRangeSheet: View {
             }
         }
         .presentationDetents([.medium, .large])
+        #if os(macOS)
+        .frame(minWidth: 420, minHeight: 260)
+        #endif
         .onAppear { seed() }
     }
 

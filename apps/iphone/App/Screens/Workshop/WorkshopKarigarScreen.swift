@@ -29,6 +29,16 @@ struct WorkshopKarigarScreen: View {
     @State private var width: CGFloat = 0
     @Environment(\.layoutWidthClass) private var sizeClass
     @Environment(\.dynamicTypeSize) private var typeSize
+    #if os(macOS)
+    @State private var macBench = Set<String>()
+    @State private var macGiven = Set<String>()
+    @State private var macJobs = Set<String>()
+    @State private var macSilver = Set<String>()
+    @State private var macBatches = Set<String>()
+    @State private var macHisaab = Set<String>()
+    @State private var macOpened: Route?
+    @Environment(\.openPlaceWindow) private var openPlace
+    #endif
 
     private var wide: Bool { sizeClass.isPadLayout && width >= 820 && !typeSize.isAccessibilitySize }
 
@@ -179,6 +189,9 @@ struct WorkshopKarigarScreen: View {
             if session.isOwner { erpSection(karigar) }
             if session.isOwner { removeSection(karigar) }
         }
+        #if os(macOS)
+        return macPage(karigar, position, pay, silver, load)
+        #else
         return Group {
             if wide {
                 // An iPad: who he is and where he stands on the left, his work or his payments beside it.
@@ -222,6 +235,7 @@ struct WorkshopKarigarScreen: View {
                 }
             }
         }
+        #endif
     }
 
     // MARK: Who he is
@@ -733,3 +747,333 @@ struct WorkshopKarigarScreen: View {
         }
     }
 }
+
+#if os(macOS)
+// The Mac's karigar: a record window. His summary (who, what he holds of ours, the khata, his details) is a column on the left;
+// the main area is his work (the bench, what was handed to him, his stock jobs) or, for owners, his payments (the hisaab, the
+// open pay batch, silver, settled batches, direct payments), each a Table. Add payment, Silver, Settle, Assign stock work and
+// Send list are in the toolbar; rows open their order or invoice on a double-click, in a window of their own on a right-click,
+// and silver entries and settled batches are deleted from the right-click menu (the delete code asks, as on the iPhone).
+extension WorkshopKarigarScreen {
+    func macPage(_ karigar: Karigar, _ position: WorkshopPosition, _ pay: KarigarPay.Figures?,
+                 _ silver: KarigarPay.Silver?, _ load: WorkshopLoad?) -> some View {
+        HStack(spacing: 0) {
+            Form {
+                Group {
+                    contactSection(karigar)
+                    nowSection(karigar, position, open: pay?.open, silver: silver)
+                    profileSection(karigar, pay: pay)
+                }
+                .houseRows()
+            }
+            .formStyle(.grouped)
+            .frame(width: 340)
+            Divider()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    if showingAccounts && session.isOwner {
+                        macPayments(karigar, position, pay, silver)
+                    } else {
+                        macWork(karigar, position)
+                    }
+                }
+                .padding(20)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .navigationDestination(item: $macOpened) { (r: Route) in PlaceScreen(path: r.path) }
+        .confirmDestructive(
+            isPresented: $confirmingRemove,
+            title: "Remove \(karigar.name.isEmpty ? "this karigar" : karigar.name)?",
+            message: "He is hidden from the lists. His jobs, given items and hisaab stay. Settings, then Recently removed, puts him back.",
+            action: "Remove karigar"
+        ) { askRemove(karigar) }
+        .accessibilityIdentifier("workshop.karigar")
+        .toolbar {
+            if session.isOwner {
+                ToolbarItem(placement: .principal) {
+                    Picker("Karigar view", selection: Binding(
+                        get: { showingAccounts },
+                        set: { on in Motion.run(reduce: reduceMotion) { showingAccounts = on } }
+                    )) {
+                        Text("Work").tag(false)
+                        Text("Payments").tag(true)
+                    }
+                    .pickerStyle(.segmented)
+                }
+            }
+            if showingAccounts && session.isOwner {
+                if let open = pay?.open {
+                    ToolbarItemGroup(placement: .primaryAction) {
+                        Button { ask = .pay(open.batch) } label: { Label("Add payment", systemImage: "plus") }
+                            .help("Add a payment to the open pay batch")
+                        Button { ask = .silver } label: { Label("Silver", systemImage: "scalemass") }
+                            .help("Silver received from him, with its surcharge")
+                        Button { ask = .settle(open) } label: { Label("Settle", systemImage: "checkmark.seal") }
+                            .help("Close the open pay batch")
+                    }
+                } else {
+                    ToolbarItemGroup(placement: .primaryAction) {
+                        Button { ask = .start } label: { Label("Start a pay batch", systemImage: "book.closed") }
+                        Button { ask = .silver } label: { Label("Silver", systemImage: "scalemass") }
+                    }
+                }
+            } else if session.isOwner {
+                ToolbarItem(placement: .primaryAction) {
+                    Button { ask = .assign } label: { Label("Assign stock work", systemImage: "plus.circle") }
+                        .help("Write up stock work for him")
+                }
+            }
+            if let load, load.active > 0 {
+                ToolbarItem(placement: .automatic) {
+                    ShareLink(item: WorkshopLogic.shareText(load, shopName: session.shop.name)) {
+                        Label("Send list", systemImage: "square.and.arrow.up")
+                    }
+                    .help("Send his list of pieces")
+                }
+            }
+            if session.isOwner {
+                ToolbarItem(placement: .automatic) {
+                    Menu {
+                        Button { macOpened = Route(path: "/karigars/" + WorkshopLogic.piece(karigar.id) + "/edit") } label: {
+                            Label("Edit karigar", systemImage: "pencil")
+                        }
+                        Button { macOpened = Route(path: "/my-work?preview=" + WorkshopLogic.piece(karigar.id)) } label: {
+                            Label("Their view", systemImage: "eye")
+                        }
+                        Divider()
+                        Button(role: .destructive) { confirmingRemove = true } label: {
+                            Label("Remove karigar", systemImage: "person.crop.circle.badge.minus")
+                        }
+                    } label: {
+                        Label("More", systemImage: "ellipsis.circle")
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: Helpers
+
+    private func macHeight(_ rows: Int) -> CGFloat { min(CGFloat(max(rows, 1)) * 28 + 36, 380) }
+
+    private func macBlock<Content: View>(_ title: String, count: Int? = nil, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            LedgerHeading(title: title, count: count)
+            content()
+        }
+    }
+
+    /// A double-click or "Open in New Window" on a row that is a place.
+    private func macOpenMenu(_ path: String?) -> some View {
+        Group {
+            if let path {
+                Button("Open") { macOpened = Route(path: path) }
+                Button("Open in New Window") { openPlace?(Route(path: path)) }
+            }
+        }
+    }
+
+    // MARK: Work
+
+    @ViewBuilder
+    private func macWork(_ karigar: Karigar, _ p: WorkshopPosition) -> some View {
+        macBlock("On the bench", count: p.bench.count) {
+            Table(p.bench, selection: $macBench) {
+                TableColumn("Piece") { (j: WorkshopJob) in Text(j.description).fontWeight(.medium).lineLimit(1) }
+                    .width(min: 160, ideal: 260)
+                TableColumn("For") { (j: WorkshopJob) in
+                    Text(j.source == .manual ? "Stock work" : (j.customerName ?? "")).foregroundStyle(.secondary).lineLimit(1)
+                }
+                .width(min: 100, ideal: 150)
+                TableColumn("Order") { (j: WorkshopJob) in
+                    Text(j.orderId ?? j.invoiceId ?? "").monospacedDigit().foregroundStyle(.secondary)
+                }
+                .width(min: 90, ideal: 110)
+                TableColumn("Weight") { (j: WorkshopJob) in
+                    Text((j.weightG ?? 0) > 0 ? WorkshopLogic.grams3(j.weightG ?? 0) : "").monospacedDigit()
+                }
+                .width(min: 80, ideal: 100)
+                TableColumn("Given") { (j: WorkshopJob) in Text("\(j.ageDays) d").monospacedDigit().foregroundStyle(ageTint(j)) }
+                    .width(min: 60, ideal: 70)
+            }
+            .contextMenu(forSelectionType: String.self) { ids in
+                if ids.count == 1, let id = ids.first, let j = p.bench.first(where: { $0.id == id }) {
+                    macOpenMenu(benchPath(j, karigar))
+                }
+            } primaryAction: { ids in
+                if ids.count == 1, let id = ids.first, let j = p.bench.first(where: { $0.id == id }) {
+                    macOpened = Route(path: benchPath(j, karigar))
+                }
+            }
+            .frame(height: macHeight(p.bench.count))
+            .overlay { if p.bench.isEmpty { Text("Nothing on his bench.").foregroundStyle(.secondary) } }
+        }
+        if !p.given.isEmpty {
+            macBlock("Handed to him, not back", count: p.given.count) {
+                Table(p.given, selection: $macGiven) {
+                    TableColumn("What") { (g: GivenItem) in Text(g.description).lineLimit(1) }
+                        .width(min: 200, ideal: 340)
+                    TableColumn("Given") { (g: GivenItem) in Text(g.date.isEmpty ? "" : ShopDate.say(g.date)) }
+                        .width(min: 100, ideal: 120)
+                }
+                .contextMenu(forSelectionType: String.self) { _ in
+                    macOpenMenu("/given")
+                } primaryAction: { _ in
+                    macOpened = Route(path: "/given")
+                }
+                .frame(height: macHeight(p.given.count))
+            }
+        }
+        let mine = book.karigarJobs.items.filter { $0.karigarId == karigar.id }
+        if !mine.isEmpty {
+            macBlock("His jobs", count: mine.count) {
+                Table(mine, selection: $macJobs) {
+                    TableColumn("Job") { (j: KarigarJob) in Text(j.description).fontWeight(.medium).lineLimit(1) }
+                        .width(min: 160, ideal: 280)
+                    TableColumn("Weight") { (j: KarigarJob) in
+                        Text((j.weightG ?? 0) > 0 ? WorkshopLogic.grams(j.weightG ?? 0) : "").monospacedDigit()
+                    }
+                    .width(min: 80, ideal: 100)
+                    TableColumn("Written up") { (j: KarigarJob) in Text(j.assignedDate.isEmpty ? "" : ShopDate.say(j.assignedDate)) }
+                        .width(min: 100, ideal: 120)
+                    TableColumn("Status") { (j: KarigarJob) in Text(statusWords(j.status)) }
+                        .width(min: 90, ideal: 110)
+                }
+                .contextMenu(forSelectionType: String.self) { _ in
+                    macOpenMenu("/workshop?karigar=" + WorkshopLogic.piece(karigar.id))
+                } primaryAction: { _ in
+                    macOpened = Route(path: "/workshop?karigar=" + WorkshopLogic.piece(karigar.id))
+                }
+                .frame(height: macHeight(mine.count))
+            }
+        }
+        if mine.isEmpty && p.given.isEmpty && p.bench.isEmpty {
+            Text("Nothing is with him now.").foregroundStyle(.secondary)
+        }
+    }
+
+    // MARK: Payments (owners)
+
+    private func macPaymentsTable(_ rows: [Expense]) -> some View {
+        Table(rows) {
+            TableColumn("Date") { (e: Expense) in Text(ShopDate.say(e.date)) }.width(min: 90, ideal: 110)
+            TableColumn("What for") { (e: Expense) in
+                Text(e.description.isEmpty ? (e.category.isEmpty ? "Payment" : e.category) : e.description).lineLimit(1)
+            }
+            .width(min: 160, ideal: 260)
+            TableColumn("Category") { (e: Expense) in Text(e.category).foregroundStyle(.secondary) }.width(min: 90, ideal: 130)
+            TableColumn("Amount") { (e: Expense) in Text(Money.pkr(e.amount)).monospacedDigit() }.width(min: 90, ideal: 110)
+        }
+        .frame(height: macHeight(rows.count))
+    }
+
+    @ViewBuilder
+    private func macPayments(_ karigar: Karigar, _ p: WorkshopPosition, _ pay: KarigarPay.Figures?, _ silver: KarigarPay.Silver?) -> some View {
+        let khata = book.hisaab.items.filter { $0.entityType == .karigar && $0.entityId == karigar.id }
+        if !khata.isEmpty {
+            macBlock("Hisaab", count: khata.count) {
+                HStack(alignment: .top, spacing: 10) {
+                    FigureTile(label: "Given", value: WorkshopLogic.grams3(p.khataGiven))
+                    FigureTile(label: "Received", value: WorkshopLogic.grams3(p.khataBack))
+                }
+                .frame(maxWidth: 420)
+                Table(khata, selection: $macHisaab) {
+                    TableColumn("Date") { (e: HisaabEntry) in Text(ShopDate.say(e.date)) }.width(min: 90, ideal: 110)
+                    TableColumn("What") { (e: HisaabEntry) in Text(e.description.isEmpty ? "Entry" : e.description).lineLimit(1) }
+                        .width(min: 160, ideal: 280)
+                    TableColumn("Amount") { (e: HisaabEntry) in
+                        Text(hisaabAmount(e)).monospacedDigit().foregroundStyle(hisaabTint(e))
+                    }
+                    .width(min: 110, ideal: 140)
+                }
+                .contextMenu(forSelectionType: String.self) { _ in
+                    macOpenMenu(hisaabPath(karigar))
+                } primaryAction: { _ in
+                    macOpened = Route(path: hisaabPath(karigar))
+                }
+                .frame(height: macHeight(khata.count))
+            }
+        }
+        if let pay {
+            if let open = pay.open {
+                macBlock(open.batch.label.isEmpty ? "Pay batch" : open.batch.label) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(Money.pkr(open.total)).font(.title2.weight(.semibold)).monospacedDigit()
+                        Text(startedWords(open)).foregroundStyle(.secondary)
+                    }
+                    macPaymentsTable(open.payments)
+                }
+            } else {
+                macBlock("Pay batch") {
+                    ContentUnavailableView {
+                        Label("No active pay batch", systemImage: "book.closed")
+                    } actions: {
+                        Button("Start a pay batch") { ask = .start }
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            }
+        }
+        if let silver, !silver.rows.isEmpty {
+            macBlock("Silver transactions", count: silver.rows.count) {
+                Table(silver.rows, selection: $macSilver) {
+                    TableColumn("Date") { (t: KarigarSilverTransaction) in Text(ShopDate.say(t.date)) }.width(min: 90, ideal: 110)
+                    TableColumn("What") { (t: KarigarSilverTransaction) in Text(t.description ?? "").lineLimit(1) }
+                        .width(min: 140, ideal: 220)
+                    TableColumn("Silver") { (t: KarigarSilverTransaction) in Text(WorkshopLogic.grams3(t.silverGrams)).monospacedDigit() }
+                        .width(min: 90, ideal: 110)
+                    TableColumn("Surcharge a gram") { (t: KarigarSilverTransaction) in Text(Money.pkr(t.surchargePerGram)).monospacedDigit() }
+                        .width(min: 110, ideal: 130)
+                    TableColumn("Surcharge") { (t: KarigarSilverTransaction) in Text(Money.pkr(t.totalSurcharge)).monospacedDigit() }
+                        .width(min: 90, ideal: 110)
+                }
+                .contextMenu(forSelectionType: String.self) { ids in
+                    if ids.count == 1, let id = ids.first, let t = silver.rows.first(where: { $0.id == id }) {
+                        Button(role: .destructive) { askDeleteSilver(t) } label: { Label("Delete", systemImage: "trash") }
+                    }
+                }
+                .onDeleteCommand {
+                    if macSilver.count == 1, let id = macSilver.first, let t = silver.rows.first(where: { $0.id == id }) { askDeleteSilver(t) }
+                }
+                .frame(height: macHeight(silver.rows.count))
+                Text("\(WorkshopLogic.grams3(silver.grams)) received \u{00B7} \(Money.pkr(silver.surcharge)) surcharge")
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
+        }
+        if let pay, !pay.settled.isEmpty {
+            macBlock("Settled pay batches", count: pay.settled.count) {
+                Table(pay.settled, selection: $macBatches) {
+                    TableColumn("Batch") { (s: KarigarPay.InBatch) in Text(s.batch.label).fontWeight(.medium) }
+                        .width(min: 120, ideal: 180)
+                    TableColumn("Period") { (s: KarigarPay.InBatch) in Text(settledWords(s)).foregroundStyle(.secondary).lineLimit(1) }
+                        .width(min: 200, ideal: 320)
+                    TableColumn("Total") { (s: KarigarPay.InBatch) in Text(Money.pkr(s.total)).monospacedDigit() }
+                        .width(min: 90, ideal: 110)
+                }
+                .contextMenu(forSelectionType: String.self) { ids in
+                    if ids.count == 1, let id = ids.first, let s = pay.settled.first(where: { $0.id == id }) {
+                        Button(role: .destructive) { askDeleteBatch(s) } label: { Label("Delete batch", systemImage: "trash") }
+                    }
+                }
+                .frame(height: macHeight(pay.settled.count))
+                if macBatches.count == 1, let id = macBatches.first, let s = pay.settled.first(where: { $0.id == id }) {
+                    Text("Payments in " + s.batch.label).font(.subheadline.weight(.semibold))
+                    if s.payments.isEmpty {
+                        Text("No payments in this batch.").font(.subheadline).foregroundStyle(.secondary)
+                    } else {
+                        macPaymentsTable(s.payments)
+                    }
+                }
+            }
+        }
+        if let pay, !pay.direct.isEmpty {
+            macBlock("Direct payments", count: pay.direct.count) {
+                Text("Not part of any hisaab \u{00B7} \(Money.pkr(pay.directTotal)) in all")
+                    .font(.footnote).foregroundStyle(.secondary)
+                macPaymentsTable(pay.direct)
+            }
+        }
+    }
+}
+#endif

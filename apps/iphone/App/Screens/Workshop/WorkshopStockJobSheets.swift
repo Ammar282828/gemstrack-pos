@@ -94,6 +94,9 @@ struct WorkshopStockJobSheet: View {
             .navigationTitle("Assign stock work")
             .modifier(HouseGround())
             .navigationBarTitleDisplayMode(.inline)
+            #if os(macOS)
+            .formStyle(.grouped)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(role: .cancel) { dismiss() }
@@ -105,6 +108,9 @@ struct WorkshopStockJobSheet: View {
             }
         }
         .presentationSizing(.page)
+        #if os(macOS)
+        .frame(minWidth: 520, idealWidth: 560, minHeight: 440, idealHeight: 520)
+        #endif
         .interactiveDismissDisabled(saving)
     }
 
@@ -197,6 +203,9 @@ struct WorkshopJobDetailsSheet: View {
             .navigationTitle("Making details")
             .modifier(HouseGround())
             .navigationBarTitleDisplayMode(.inline)
+            #if os(macOS)
+            .formStyle(.grouped)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(role: .cancel) { dismiss() }
@@ -208,6 +217,9 @@ struct WorkshopJobDetailsSheet: View {
             }
         }
         .presentationSizing(.page)
+        #if os(macOS)
+        .frame(minWidth: 520, idealWidth: 560, minHeight: 440, idealHeight: 520)
+        #endif
         .interactiveDismissDisabled(saving)
     }
 

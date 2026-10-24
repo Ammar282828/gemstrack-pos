@@ -49,6 +49,12 @@ struct RevenueEditSheet: View {
                 }
                 .houseRows()
             }
+            #if os(macOS)
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+            .background(Theme.ground)
+            .frame(minWidth: 520, idealWidth: 580, minHeight: 340)
+            #endif
             .navigationTitle(editing == nil ? "Add extra revenue" : "Edit extra revenue")
             .navigationBarTitleDisplayMode(.inline)
             .disabled(saving)

@@ -36,6 +36,9 @@ struct ScanTag: View {
     private var wide: Bool { sizeClass.isPadLayout && width >= 820 && !typeSize.isAccessibilitySize }
 
     var body: some View {
+        #if os(macOS)
+        macBody
+        #else
         ScrollView {
             if wide {
                 HStack(alignment: .top, spacing: 20) {
@@ -68,6 +71,7 @@ struct ScanTag: View {
             book.invoices.need()
             book.settings.need()
         }
+        #endif
     }
 
     /// What the last tag turned out to be, and the sale waiting.
@@ -233,3 +237,99 @@ struct ScanTag: View {
         }
     }
 }
+
+// MARK: - The Mac: a scanner window
+
+#if os(macOS)
+/// Scan a tag on the Mac: a window with the scanner's box already in focus (a USB barcode scanner types the SKU and
+/// presses Return, and the piece is found), the tags read this time listed under it, and what the last one turned out
+/// to be at the right. ⌘Return puts a found piece on a new sale; the next tag scanned simply replaces the card.
+extension ScanTag {
+    var macBody: some View {
+        HSplitView {
+            ScanTagMacScanner(
+                read: { code in handle(code) },
+                title: { sku in book.products.item(sku)?.name ?? "" })
+                .frame(minWidth: 400, idealWidth: 460, maxWidth: 560)
+            ScrollView {
+                VStack(spacing: 16) { foundBlock }
+                    .frame(maxWidth: 520)
+                    .padding(24)
+                    .frame(maxWidth: .infinity)
+            }
+            .frame(minWidth: 380)
+            .overlay {
+                if found == nil && !(onSale > 0 && session.isOwner) {
+                    ContentUnavailableView("Scan a tag", systemImage: "barcode.viewfinder",
+                                           description: Text("The piece it belongs to shows here."))
+                }
+            }
+        }
+        .background(Theme.ground)
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
+                if let primary = barAction {
+                    Button { primary.action() } label: { Label(primary.title, systemImage: primary.systemImage ?? "cart.badge.plus") }
+                        .keyboardShortcut(.return, modifiers: .command)
+                        .help("\(primary.title) (⌘↩)")
+                }
+                if found != nil {
+                    Button { scanAnother() } label: { Label("Clear", systemImage: "xmark.circle") }
+                        .help("Clear the card")
+                }
+            }
+        }
+        .navigationTitle("Scan a tag")
+        .navigationDestination(item: $openSale) { r in ScreenRegistry.view(for: r.path) }
+        .sensoryFeedback(.success, trigger: hits)
+        .sensoryFeedback(.warning, trigger: misses)
+        .onAppear { onSale = SaleDraftStore.load()?.lines.count ?? 0 }
+        .task {
+            book.products.need()
+            book.invoices.need()
+            book.settings.need()
+        }
+    }
+}
+
+/// The scanner's side of the window: the tag reader (its box takes the keyboard), and every tag read this time, newest
+/// first, to read again with a click.
+private struct ScanTagMacScanner: View {
+    let read: (String) -> Void
+    let title: (String) -> String
+    @State private var history: [String] = []
+
+    var body: some View {
+        VStack(spacing: 0) {
+            TagScanner(active: true, height: 200) { code in
+                let sku = TagCode.sku(from: code)
+                guard !sku.isEmpty else { return }
+                history.removeAll { $0 == sku }
+                history.insert(sku, at: 0)
+                read(code)
+            }
+            .padding(20)
+            Divider()
+            List {
+                Section {
+                    ForEach(history, id: \.self) { sku in
+                        Button { read(sku) } label: {
+                            HStack {
+                                Text(sku).font(.body.monospaced())
+                                Text(title(sku)).foregroundStyle(.secondary).lineLimit(1)
+                                Spacer()
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .contextMenu { Button("Copy SKU") { UIPasteboard.general.string = sku } }
+                    }
+                } header: {
+                    Text(history.isEmpty ? "Nothing scanned yet" : "Scanned this time")
+                }
+            }
+            .listStyle(.inset)
+        }
+    }
+}
+#endif

@@ -54,6 +54,9 @@ struct NewOrderStockPicker: View {
         }
         .presentationDetents([.medium, .large])
         .presentationSizing(.form)
+        #if os(macOS)
+        .ordersMacSheet(width: 560, height: 520)
+        #endif
         .task { book.products.need() }
     }
 }

@@ -38,6 +38,10 @@ interface ZebraDevice {
     manufacturer: string;
 }
 
+import { renderZpl } from '@/lib/zebra-zpl';
+import type { StoredLabelLayout } from '@/lib/label-layout';
+import type { LabelValues } from '@/lib/label-live';
+
 // --- ZPL Generation ---
 
 export interface LabelField {
@@ -67,65 +71,28 @@ export interface LabelLayout {
 }
 
 /**
- * Generates ZPL code from a structured layout and product data.
+ * Generates ZPL code from a structured layout and product data: one label, one copy. The renderer is
+ * lib/zebra-zpl.ts (the same one the iPhone's ERPCore has); `productData`'s keys fill `{placeholders}`.
  * @param layout The LabelLayout object defining the tag.
  * @param productData The product data to fill in placeholders.
  */
 export function generateZplFromLayout(layout: LabelLayout, productData: Record<string, any>): string {
-    const replacePlaceholders = (template: string): string => {
-        return template.replace(/\{(\w+)\}/g, (match, key) => {
-            return productData[key] !== undefined ? String(productData[key]) : match;
-        });
+    const piece: Record<string, string> = {};
+    for (const [k, v] of Object.entries(productData)) if (v !== undefined && v !== null) piece[k] = String(v);
+    const stored: StoredLabelLayout = {
+        id: layout.id,
+        name: layout.name,
+        widthDots: layout.widthDots,
+        heightDots: layout.heightDots,
+        fields: layout.fields.map((f) => ({
+            id: f.id, type: f.type, x: f.x, y: f.y, rotation: f.rotation, data: f.data,
+            fontFamily: f.fontFamily, fontSize: f.fontSize, width: f.width,
+            // Justified text (the old 'J') was never drawn any differently from left.
+            align: f.textAlign === 'C' || f.textAlign === 'R' ? f.textAlign : undefined,
+            qrMagnification: f.qrMagnification,
+        })),
     };
-
-    const getOrientationChar = (rotation: number | undefined): string => {
-        switch (rotation) {
-            case 90: return 'R';
-            case 180: return 'I';
-            case 270: return 'B';
-            default: return 'N';
-        }
-    };
-
-    let zplFields = '';
-    for (const field of layout.fields) {
-        const resolvedData = replacePlaceholders(field.data);
-        const orientation = getOrientationChar(field.rotation);
-
-        if (field.type === 'text') {
-            const fontFamily = field.fontFamily || '0';
-            const fontSize = field.fontSize || 20;
-            const alignment = field.textAlign || 'L';
-            
-            // If width is provided, use ^FB (Field Block) for alignment and wrapping
-            // ^FBwidth,max_lines,hanging_indent,justification
-            const fieldBlock = field.width ? `^FB${field.width},1,0,${alignment}` : '';
-            
-            // ^Afo,h,w -> f=font, o=orientation
-            zplFields += `^FO${field.x},${field.y}^A${fontFamily}${orientation},${fontSize},${fontSize}${fieldBlock}^FD${resolvedData}^FS\n`;
-        } else if (field.type === 'qr') {
-            const magnification = field.qrMagnification || 2;
-            // Using BQ command for QR code: ^BQo,2,m -> o=orientation
-            zplFields += `^FO${field.x},${field.y}^BQ${orientation},2,${magnification}^FDQA,${resolvedData}^FS\n`;
-        }
-    }
-
-    // ^MMT: Tear off mode (usually default, but good to ensure)
-    // ^PW: Print width
-    // ^LL: Label length
-    // ^LS: Label shift (optional)
-    // ^CI28: UTF-8 encoding support (essential for special chars)
-    const zpl = `
-^XA
-^CI28
-^PW${layout.widthDots}
-^LL${layout.heightDots}
-^LS0
-${zplFields}
-^PQ1,0,1,Y
-^XZ
-`;
-    return zpl;
+    return renderZpl(stored, [piece as LabelValues]);
 }
 
 // Generates a simple ZPL for a single product to verify connectivity or quick print

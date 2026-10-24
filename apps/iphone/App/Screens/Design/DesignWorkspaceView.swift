@@ -299,7 +299,7 @@ struct DesignWorkspaceView: View {
             guard let data = try await item.loadTransferable(type: Data.self), WebsitePhoto.jpegCopy(data) != nil else {
                 throw ERPAPI.Failure(status: 0, message: "Choose a readable photo, or save it to Photos first.")
             }
-            model.replacePhoto(data, label: "Photo from this iPhone")
+            model.replacePhoto(data, label: DesignPhotoSources.deviceLabel)
         } catch { model.error = error.localizedDescription }
     }
 }

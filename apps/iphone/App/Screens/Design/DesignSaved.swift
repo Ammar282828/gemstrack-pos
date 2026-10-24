@@ -77,6 +77,9 @@ struct DesignSavedView: View {
     @State private var deletingDraft: DesignDraftRow?
     @State private var deletingRecord: DesignRecord?
     @State private var problem: String?
+    #if os(macOS)
+    @State private var picked: String?
+    #endif
 
     private var counts: [String: Int] {
         var c: [String: Int] = [:]
@@ -94,6 +97,14 @@ struct DesignSavedView: View {
     private var folder: DesignFolder? { shelf.folders.first { $0.id == view } }
 
     var body: some View {
+        #if os(macOS)
+        macBody
+        #else
+        phoneBody
+        #endif
+    }
+
+    private var phoneBody: some View {
         List {
             Section {
                 ChipRow {
@@ -313,3 +324,183 @@ struct DesignDetailSheet: View {
         do { try data.write(to: url); share = MarketingFileShare(items: [url]) } catch { problem = error.localizedDescription }
     }
 }
+
+#if os(macOS)
+extension DesignSavedView {
+    /// The shelf as a Mac app's library: folders in a sidebar, the designs as a grid of pictures. Double-click (or Return)
+    /// opens one, right-click gives Open, Details and Delete, ⌫ deletes, the search is in the toolbar.
+    fileprivate var macBody: some View {
+        HSplitView {
+            macSidebar.frame(minWidth: 190, idealWidth: 220, maxWidth: 290)
+            macContent.frame(minWidth: 480, maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .background(Theme.ground)
+        .searchable(text: $q, placement: .toolbar, prompt: "Find a design")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button { renaming = nil; folderText = ""; asking = true } label: { Label("New folder", systemImage: "folder.badge.plus") }
+                    .help("Make a folder")
+            }
+            if let folder, view == folder.id {
+                ToolbarItem(placement: .automatic) {
+                    Menu {
+                        Button("Rename folder…", systemImage: "pencil") { renaming = folder; folderText = folder.name; asking = true }
+                        Button("Delete folder…", systemImage: "trash", role: .destructive) { deletingFolder = folder }
+                    } label: { Label("Folder", systemImage: "ellipsis.circle") }
+                    .help("Rename or delete this folder")
+                }
+            }
+            ToolbarItem(placement: .automatic) {
+                Button { if let r = pickedRecord { onOpen(r) } } label: { Label("Open", systemImage: "folder") }
+                    .disabled(!(pickedRecord?.canOpen ?? false))
+                    .keyboardShortcut("o", modifiers: [.command, .option])
+                    .help("Open the selected design")
+            }
+            ToolbarItem(placement: .automatic) {
+                Button { detail = pickedRecord } label: { Label("Details", systemImage: "info.circle") }
+                    .disabled(pickedRecord == nil)
+                    .keyboardShortcut("i", modifiers: .command)
+                    .help("Name, folder and picture of the selected design")
+            }
+            ToolbarItem(placement: .automatic) {
+                Button { deletingRecord = pickedRecord } label: { Label("Delete", systemImage: "trash") }
+                    .disabled(pickedRecord == nil)
+                    .help("Delete the selected design")
+            }
+        }
+        .navigationSubtitle("\(shown.count) design\(shown.count == 1 ? "" : "s")")
+        .task { await shelf.load(); await shelf.loadDrafts() }
+        .sheet(item: $detail) { r in
+            DesignDetailSheet(record: r, shelf: shelf, onOpen: { rec in detail = nil; onOpen(rec) }, onChanged: { Task { await shelf.load() } })
+        }
+        .alert(renaming == nil ? "New folder" : "Rename folder", isPresented: $asking) {
+            TextField("Name", text: $folderText)
+            Button(renaming == nil ? "Make folder" : "Rename") { saveFolder() }
+            Button("Cancel", role: .cancel) {}
+        }
+        .confirmDestructive(isPresented: Binding(get: { deletingFolder != nil }, set: { if !$0 { deletingFolder = nil } }),
+                            title: "Delete the folder “\(deletingFolder?.name ?? "")”?", message: "Its designs stay, unfiled.",
+                            action: "Delete folder") { if let f = deletingFolder { dropFolder(f) } }
+        .confirmDestructive(isPresented: Binding(get: { deletingDraft != nil }, set: { if !$0 { deletingDraft = nil } }),
+                            title: "Delete this draft from this Mac?", action: "Delete draft") { if let d = deletingDraft { Task { await shelf.deleteDraft(d) } } }
+        .confirmDestructive(isPresented: Binding(get: { deletingRecord != nil }, set: { if !$0 { deletingRecord = nil } }),
+                            title: "Delete “\(deletingRecord?.name ?? "this design")”?", message: "It is removed from the shop’s shelf.",
+                            action: "Delete") { if let d = deletingRecord { dropRecord(d) } }
+        .failureAlert($problem, title: "Could not finish")
+    }
+
+    private var pickedRecord: DesignRecord? { picked.flatMap { id in shown.first { $0.id == id } } }
+
+    // MARK: Folders
+
+    private var macSidebar: some View {
+        List(selection: Binding<String?>(get: { view }, set: { view = $0 ?? Self.all; picked = nil })) {
+            Section("Library") {
+                Label("All designs", systemImage: "square.grid.2x2").badge(shelf.items.count).tag(Self.all)
+                if (counts[""] ?? 0) > 0 { Label("Unfiled", systemImage: "tray").badge(counts[""] ?? 0).tag(Self.unfiled) }
+                Label("On this Mac", systemImage: "desktopcomputer").badge(shelf.draftRows.count).tag(Self.device)
+                if adsOk { Label("In the ad account", systemImage: "megaphone").tag(Self.account) }
+            }
+            if !shelf.folders.isEmpty {
+                Section("Folders") {
+                    ForEach(shelf.folders) { f in
+                        Label(f.name, systemImage: "folder").badge(counts[f.id] ?? 0).tag(f.id)
+                            .contextMenu {
+                                Button("Rename…", systemImage: "pencil") { renaming = f; folderText = f.name; asking = true }
+                                Button("Delete folder…", systemImage: "trash", role: .destructive) { deletingFolder = f }
+                            }
+                    }
+                }
+            }
+        }
+        .listStyle(.sidebar)
+    }
+
+    // MARK: The designs
+
+    @ViewBuilder private var macContent: some View {
+        if view == Self.device {
+            List {
+                ForEach(shelf.draftRows) { d in
+                    Button { onOpenDraft(d) } label: { DesignDraftLine(row: d) }.buttonStyle(.plain)
+                        .contextMenu {
+                            Button("Open", systemImage: "folder") { onOpenDraft(d) }
+                            Divider()
+                            Button("Delete…", systemImage: "trash", role: .destructive) { deletingDraft = d }
+                        }
+                }
+                if !shelf.draftRows.isEmpty {
+                    Text("Earlier Post a piece drafts open here as designs.").font(.footnote).foregroundStyle(.secondary)
+                }
+            }
+            .listStyle(.inset)
+            .overlay {
+                if shelf.draftRows.isEmpty {
+                    ContentUnavailableView("No drafts on this Mac", systemImage: "desktopcomputer",
+                                           description: Text("A design is kept here as you make it, and for 30 days after."))
+                }
+            }
+        } else if view == Self.account && adsOk {
+            List { DesignAccountAds(folders: shelf.folders) { Task { await shelf.load() } } }
+                .listStyle(.inset)
+        } else if let error = shelf.error {
+            ErrorState(error) { Task { await shelf.load() } }
+        } else if !shelf.loaded {
+            SkeletonLoading("Opening the shelf").frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if shown.isEmpty {
+            ContentUnavailableView(shelf.items.isEmpty ? "Nothing saved yet" : "Nothing here", systemImage: "folder",
+                                   description: Text(shelf.items.isEmpty ? "Save a design from the workspace and it waits here, in any folder you make." : "No design in this folder matches."))
+        } else {
+            ScrollView {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 170, maximum: 240), spacing: 16, alignment: .top)], spacing: 16) {
+                    ForEach(shown) { r in macCell(r) }
+                }
+                .padding(20)
+            }
+            .focusable()
+            .onKeyPress(.return) {
+                guard let r = pickedRecord else { return .ignored }
+                if r.canOpen { onOpen(r) } else { detail = r }
+                return .handled
+            }
+            .onDeleteCommand { deletingRecord = pickedRecord }
+        }
+    }
+
+    private func macCell(_ r: DesignRecord) -> some View {
+        let on = picked == r.id
+        return VStack(alignment: .leading, spacing: 6) {
+            Group {
+                if let image = r.thumbImage { Image(uiImage: image).resizable().scaledToFit() }
+                else { Image(systemName: "photo").font(.largeTitle).foregroundStyle(.secondary) }
+            }
+            .frame(maxWidth: .infinity).frame(height: 150)
+            .background(Theme.card)
+            .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Radius.thumb, style: .continuous).strokeBorder(on ? Theme.accent : Color.secondary.opacity(0.18), lineWidth: on ? 2.5 : 1))
+            Text(r.name).font(.subheadline.weight(.medium)).lineLimit(1)
+            Text(DesignKinds.label(r.kind) + " · \(r.pages.count) size" + (r.pages.count == 1 ? "" : "s") + " · " + ShopDate.say(r.updated))
+                .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+        }
+        .padding(6)
+        .contentShape(Rectangle())
+        .onTapGesture(count: 2) { if r.canOpen { onOpen(r) } else { detail = r } }
+        .onTapGesture { picked = r.id }
+        .pointerHover()
+        .contextMenu {
+            if r.canOpen { Button("Open", systemImage: "folder") { onOpen(r) } }
+            Button("Details…", systemImage: "info.circle") { detail = r }
+            Menu("Move to") {
+                Button("Unfiled") { Task { try? await DesignRecords.patch(r.id, folder: .some(nil), name: nil); await shelf.load() } }
+                ForEach(shelf.folders) { f in
+                    Button(f.name) { Task { try? await DesignRecords.patch(r.id, folder: .some(f.id), name: nil); await shelf.load() } }
+                }
+            }
+            Divider()
+            Button("Delete…", systemImage: "trash", role: .destructive) { deletingRecord = r }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(on ? .isSelected : [])
+    }
+}
+#endif

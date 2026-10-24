@@ -33,6 +33,12 @@ struct AdsCampaignsScreen: View {
     @State private var note: Note?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.layoutWidthClass) private var sizeClass
+    #if os(macOS)
+    @Environment(\.openPlaceWindow) private var openPlace
+    @State private var macSelection = Set<String>()
+    @State private var macOrder = [AdsCampaignOrder(field: .spend, order: .reverse)]
+    @State private var inspecting = true
+    #endif
 
     enum Filter: String, CaseIterable, Identifiable {
         case all = "All", running = "Running", paused = "Paused", problems = "Problems"
@@ -65,6 +71,9 @@ struct AdsCampaignsScreen: View {
         // An iPad's rows and tables sit in a centred column.
         .readableColumn(1040)
         .searchable(text: $search, prompt: "Search campaigns, ad sets, ads")
+        #if os(macOS)
+        .toolbar { macToolbar }
+        #else
         .toolbar {
             if mayRead {
                 ToolbarItem(placement: .primaryAction) { AdsRangeMenu(key: $rangeKey) }
@@ -84,6 +93,7 @@ struct AdsCampaignsScreen: View {
                 }
             }
         }
+        #endif
         .navigationDestination(item: $go) { (r: Route) in PlaceScreen(path: r.path) }
         // Back from a campaign, ad set or ad: what was paused, renamed or deleted there shows here.
         .onChange(of: go) { old, new in if old != nil && new == nil { Task { await load() } } }
@@ -108,7 +118,7 @@ struct AdsCampaignsScreen: View {
 
     // MARK: Asking Meta
 
-    private func load() async {
+    func load() async {
         if data == nil, let cached = AdsAPI.lastCampaigns(range: rangeKey, archived: archived) { data = cached }
         do {
             data = try await AdsAPI.campaigns(range: rangeKey, archived: archived)
@@ -195,6 +205,14 @@ struct AdsCampaignsScreen: View {
     // MARK: The page
 
     private func content(_ d: AdCampaigns) -> some View {
+        #if os(macOS)
+        macContent(d)
+        #else
+        phoneContent(d)
+        #endif
+    }
+
+    private func phoneContent(_ d: AdCampaigns) -> some View {
         let cur = d.account.currency
         let list = shown(d)
         let spent = list.reduce(0.0) { (sum: Double, c: AdCampaign) in sum + c.metrics.spend }
@@ -481,3 +499,262 @@ struct AdsCampaignsScreen: View {
         }
     }
 }
+
+#if os(macOS)
+// MARK: - The Mac's Campaigns: a table, the selected campaign's ad sets and ads in an inspector
+
+/// A column's order for the campaigns table: one comparator for all, the field says which number.
+struct AdsCampaignOrder: SortComparator, Hashable {
+    enum Field: Hashable { case name, status, budget, spend, results, cost, roas, reach }
+    var field: Field
+    var order: SortOrder = .forward
+
+    private func value(_ c: AdCampaign) -> Double {
+        switch field {
+        case .name, .status: return 0
+        case .budget: return c.dailyBudget ?? c.lifetimeBudget ?? 0
+        case .spend: return c.metrics.spend
+        case .results: return AdsResults.of(c.metrics, goal: c.adsets.count == 1 ? c.adsets[0].optimizationGoal : nil)?.value ?? 0
+        case .cost:
+            let r = AdsResults.of(c.metrics, goal: c.adsets.count == 1 ? c.adsets[0].optimizationGoal : nil)?.value ?? 0
+            return r > 0 ? c.metrics.spend / r : Double.greatestFiniteMagnitude
+        case .roas: return AdsResults.sales(c.metrics).roas ?? -1
+        case .reach: return c.metrics.reach
+        }
+    }
+
+    func compare(_ a: AdCampaign, _ b: AdCampaign) -> ComparisonResult {
+        var result: ComparisonResult
+        switch field {
+        case .name: result = a.name.localizedCaseInsensitiveCompare(b.name)
+        case .status: result = a.effectiveStatus.compare(b.effectiveStatus)
+        default:
+            let x = value(a), y = value(b)
+            result = x == y ? .orderedSame : (x < y ? .orderedAscending : .orderedDescending)
+        }
+        if order == .reverse {
+            if result == .orderedAscending { result = .orderedDescending } else if result == .orderedDescending { result = .orderedAscending }
+        }
+        return result
+    }
+}
+
+extension AdsCampaignsScreen {
+    @ToolbarContentBuilder
+    var macToolbar: some ToolbarContent {
+        if mayRead {
+            ToolbarItem(placement: .principal) {
+                Picker("Show", selection: $filter) {
+                    ForEach(Filter.allCases) { (f: Filter) in Text(f.rawValue).tag(f) }
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 320)
+                .help("Which campaigns to show")
+            }
+            ToolbarItemGroup(placement: .primaryAction) {
+                Picker("View", selection: $gallery) {
+                    Label("Campaigns", systemImage: "tablecells").tag(false)
+                    Label("Ads and pictures", systemImage: "square.grid.2x2").tag(true)
+                }
+                .pickerStyle(.segmented)
+                .help("Campaigns as a table, or the ads as pictures")
+                AdsRangeMenu(key: $rangeKey)
+                Button { go = Route(path: "/ads/new") } label: { Label("New ad", systemImage: "plus") }
+                    .help("Make a new ad")
+                Menu {
+                    Toggle("Show archived", isOn: $archived)
+                    Toggle("Expand all campaigns", isOn: $allExpanded)
+                    Button { Task { await exportCsv() } } label: { Label("Download (CSV)", systemImage: "tablecells") }
+                        .disabled(exporting)
+                } label: {
+                    Label("More", systemImage: "ellipsis.circle")
+                }
+                Button { inspecting.toggle() } label: { Label("Details", systemImage: "sidebar.right") }
+                    .keyboardShortcut("i", modifiers: [.command, .option])
+                    .help("Show or hide the selected campaign's ad sets and ads")
+                    .disabled(gallery)
+                Button { Task { await load() } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
+                    .keyboardShortcut("r", modifiers: .command)
+                    .help("Ask Meta again")
+            }
+        }
+    }
+
+    func macContent(_ d: AdCampaigns) -> some View {
+        let cur = d.account.currency
+        let list = shown(d)
+        let spent = list.reduce(0.0) { (sum: Double, c: AdCampaign) in sum + c.metrics.spend }
+        let views = list.reduce(0.0) { (sum: Double, c: AdCampaign) in sum + c.metrics.impressions }
+        let rows = list.sorted(using: macOrder)
+        return Group {
+            if gallery {
+                List {
+                    Group {
+                        Section {
+                            Picker("Sort", selection: $sort) {
+                                Text("Most spent").tag("spend"); Text("Most results").tag("results")
+                                Text("Cheapest result").tag("cost"); Text("Best ROAS").tag("roas")
+                                Text("Best click-through").tag("ctr"); Text("Name").tag("name")
+                            }
+                        }
+                        gallerySection(list, cur)
+                    }
+                    .houseRows()
+                }
+                .listStyle(.inset)
+            } else {
+                macTable(rows, cur)
+            }
+        }
+        .navigationSubtitle(summary(list.count, d.campaigns.count, spent, views, cur))
+        .overlay {
+            if list.isEmpty {
+                if d.campaigns.isEmpty {
+                    EmptyState("No campaigns yet", symbol: "megaphone", message: "Make the first ad from New ad.")
+                } else if !search.isEmpty {
+                    ContentUnavailableView.search(text: search)
+                } else {
+                    EmptyState("Nothing matches", symbol: "megaphone", message: "Try another filter.")
+                }
+            }
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if problem != nil || exporting || csvFile != nil {
+                HStack(spacing: 12) {
+                    if let problem { Label(problem, systemImage: "wifi.exclamationmark").foregroundStyle(.secondary) }
+                    if exporting { Label("Making the CSV…", systemImage: "tablecells") }
+                    if let csvFile {
+                        ShareLink(item: csvFile) { Label("Save or send \(csvFile.lastPathComponent)", systemImage: "square.and.arrow.up") }
+                    }
+                    Spacer()
+                }
+                .font(.callout)
+                .padding(.horizontal, 16).padding(.vertical, 8)
+                .background(.bar)
+            }
+        }
+    }
+
+    private func macTable(_ rows: [AdCampaign], _ cur: String) -> some View {
+        Table(rows, selection: $macSelection, sortOrder: $macOrder) {
+            TableColumn("Campaign", sortUsing: AdsCampaignOrder(field: .name)) { (c: AdCampaign) in
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(c.name).lineLimit(2)
+                    Text(AdsObjective.label(c.objective)).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            .width(min: 180, ideal: 260)
+            TableColumn("Status", sortUsing: AdsCampaignOrder(field: .status)) { (c: AdCampaign) in
+                HStack(spacing: 6) {
+                    AdsStatusBadge(status: shownStatus[c.id].map { (x: String) in x } ?? c.effectiveStatus)
+                    if !c.issues.isEmpty { Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Tone.owed.color).help(c.issues.joined(separator: "\n")) }
+                }
+            }
+            .width(min: 90, ideal: 120)
+            TableColumn("Budget", sortUsing: AdsCampaignOrder(field: .budget)) { (c: AdCampaign) in
+                Text(budget(c.dailyBudget, c.lifetimeBudget, cur)).monospacedDigit()
+            }
+            .width(min: 90, ideal: 130)
+            TableColumn("Spend", sortUsing: AdsCampaignOrder(field: .spend)) { (c: AdCampaign) in
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(AdsFormat.money(c.metrics.spend, cur)).monospacedDigit()
+                    if let change = AdsFormat.change(c.metrics.spend, c.previous?.spend) {
+                        Text(change).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+            .width(min: 90, ideal: 120)
+            TableColumn("Results", sortUsing: AdsCampaignOrder(field: .results)) { (c: AdCampaign) in
+                if let r = AdsResults.of(c.metrics, goal: c.adsets.count == 1 ? c.adsets[0].optimizationGoal : nil) {
+                    Text("\(AdsFormat.count(r.value)) \(r.label.lowercased())").monospacedDigit()
+                } else {
+                    Text("")
+                }
+            }
+            .width(min: 110, ideal: 160)
+            TableColumn("Each", sortUsing: AdsCampaignOrder(field: .cost)) { (c: AdCampaign) in
+                let r = AdsResults.of(c.metrics, goal: c.adsets.count == 1 ? c.adsets[0].optimizationGoal : nil)?.value ?? 0
+                Text(r > 0 ? AdsFormat.money(c.metrics.spend / r, cur) : "").monospacedDigit()
+            }
+            .width(min: 80, ideal: 100)
+            TableColumn("ROAS", sortUsing: AdsCampaignOrder(field: .roas)) { (c: AdCampaign) in
+                let s = AdsResults.sales(c.metrics)
+                Text(s.value > 0 ? AdsResults.roasText(s.roas) : "").monospacedDigit()
+            }
+            .width(min: 60, ideal: 80)
+            TableColumn("Reach", sortUsing: AdsCampaignOrder(field: .reach)) { (c: AdCampaign) in
+                Text(AdsFormat.compact(c.metrics.reach)).monospacedDigit()
+            }
+            .width(min: 60, ideal: 80)
+            TableColumn("Running") { (c: AdCampaign) in
+                runSwitch(Target(level: "campaign", id: c.id, name: c.name), status: c.status)
+            }
+            .width(60)
+        }
+        .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
+            macMenu(ids, cur)
+        } primaryAction: { (ids: Set<String>) in
+            if let id = ids.first { go = Route(path: objectPath("campaign", id)) }
+        }
+        .inspector(isPresented: $inspecting) {
+            macInspector(rows, cur)
+                .inspectorColumnWidth(min: 320, ideal: 400, max: 560)
+        }
+    }
+
+    /// The selected campaign: its numbers, then each ad set with its ads, as the phone's expanded row.
+    @ViewBuilder
+    private func macInspector(_ rows: [AdCampaign], _ cur: String) -> some View {
+        if macSelection.count == 1, let c = rows.first(where: { (x: AdCampaign) in macSelection.contains(x.id) }) {
+            let goal: String? = c.adsets.count == 1 ? c.adsets[0].optimizationGoal : nil
+            List {
+                Group {
+                    Section { campaignRow(c, goal, cur) }
+                    Section {
+                        if c.adsets.isEmpty { Text("No ad sets.").foregroundStyle(.secondary) }
+                        ForEach(c.adsets) { (s: AdSet) in adSetRow(s, cur) }
+                    } header: {
+                        LedgerHeading(title: "\(c.adsets.count) ad set\(c.adsets.count == 1 ? "" : "s")")
+                    }
+                }
+                .houseRows()
+            }
+            .listStyle(.inset)
+        } else {
+            ContentUnavailableView(macSelection.count > 1 ? "\(macSelection.count) campaigns selected" : "No campaign selected",
+                                   systemImage: "megaphone",
+                                   description: Text("Click a campaign to see its ad sets and ads."))
+        }
+    }
+
+    @ViewBuilder
+    private func macMenu(_ ids: Set<String>, _ cur: String) -> some View {
+        let picked = (data?.campaigns ?? []).filter { (c: AdCampaign) in ids.contains(c.id) }
+        if let c = picked.first, picked.count == 1 {
+            let running = (shownStatus[c.id] ?? c.status) == "ACTIVE"
+            Button("Open", systemImage: "arrow.up.forward.square") { go = Route(path: objectPath("campaign", c.id)) }
+            if let openPlace {
+                Button("Open in New Window", systemImage: "macwindow.badge.plus") { openPlace(Route(path: objectPath("campaign", c.id))) }
+            }
+            Divider()
+            if running {
+                Button("Pause", systemImage: "pause.circle") { Task { await setRunning(Target(level: "campaign", id: c.id, name: c.name), running: false) } }
+                    .disabled(busy != nil || c.status == "ARCHIVED" || c.status == "DELETED")
+            } else {
+                Button("Run…", systemImage: "play.circle") { asking = Target(level: "campaign", id: c.id, name: c.name) }
+                    .disabled(busy != nil || c.status == "ARCHIVED" || c.status == "DELETED")
+            }
+            Button("Change the budget…", systemImage: "pencil.circle") {
+                budgeting = AdsBudgetTarget(level: "campaign", id: c.id, name: c.name, daily: c.dailyBudget,
+                                            lifetime: c.lifetimeBudget, end: c.stopTime, currency: cur)
+            }
+            .disabled(!mayChange)
+            Divider()
+            Button("Copy the name", systemImage: "doc.on.doc") { MacClipboard.copy(c.name) }
+        } else if picked.count > 1 {
+            Button("Copy the names", systemImage: "doc.on.doc") { MacClipboard.copy(picked.map(\.name).joined(separator: "\n")) }
+        }
+    }
+}
+#endif

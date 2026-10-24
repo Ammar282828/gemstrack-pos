@@ -78,7 +78,22 @@ struct NewOrder: View {
         .sheet(item: $sizeAsk, onDismiss: {
             if edit != nil && savedEdit { dismiss() }
         }) { ask in NewOrderSizeAskSheet(ask: ask) }
+        #if os(macOS)
+        // The reader is a window-sized sheet over the form, closed when its reading is filled in.
+        .sheet(isPresented: $readingSlip) {
+            NavigationStack {
+                NewOrderScanScreen(draft: $draft)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Close") { readingSlip = false }
+                        }
+                    }
+            }
+            .frame(minWidth: 860, idealWidth: 960, minHeight: 620, idealHeight: 720)
+        }
+        #else
         .navigationDestination(isPresented: $readingSlip) { NewOrderScanScreen(draft: $draft) }
+        #endif
     }
 
     // MARK: Reading
@@ -141,7 +156,7 @@ struct NewOrder: View {
         editing = nil
         seedRates()
         settleTakenBy()
-        tell("Finished on another device", "The order kept on this phone was saved or discarded from Drafts on another device, so it is cleared here. Look for it under Orders.")
+        tell("Finished on another device", "The order kept on this \(OrderDevice.word) was saved or discarded from Drafts on another device, so it is cleared here. Look for it under Orders.")
     }
 
     /// The order in Drafts as the web's form holds it, a moment after the last change (`now` as the screen or
@@ -176,15 +191,26 @@ struct NewOrder: View {
     private var form: some View {
         let settings = book.settings.value
         let totals = NewOrderMath.totals(draft, settings)
+        #if os(macOS)
+        return macScreen(totals, settings)
+            .failureAlert($failure, title: failureTitle)
+            .confirmDestructive(isPresented: $confirmReset, title: "Start this order over?",
+                                message: "Everything typed so far is cleared from this \(OrderDevice.word) and from Drafts.",
+                                action: "Start over") { startOver() }
+            .interactiveDismissDisabled(saving)
+            .moneyFeedback(success: saves, failure: 0)
+            .modifier(keeping)
+        #else
         return screen(totals, settings)
             .failureAlert($failure, title: failureTitle)
             .confirmDestructive(isPresented: $confirmReset, title: "Start this order over?",
-                                message: "Everything typed so far is cleared from this phone and from Drafts.",
+                                message: "Everything typed so far is cleared from this \(OrderDevice.word) and from Drafts.",
                                 action: "Start over") { startOver() }
             .interactiveDismissDisabled(saving)
             // A refused save already gets the error tap from failureAlert; this is the success tap for the money.
             .moneyFeedback(success: saves, failure: 0)
             .modifier(keeping)
+        #endif
     }
 
     /// The form, its bar and its toolbar.
@@ -342,7 +368,7 @@ struct NewOrder: View {
                 Label("These are the pieces of your sale. Once this order is saved they leave the sale.", systemImage: "arrow.right.circle")
                     .font(.subheadline)
             } else {
-                Label("Your order in progress is back. It was kept on this phone.", systemImage: "arrow.uturn.backward.circle")
+                Label("Your order in progress is back. It was kept on this \(OrderDevice.word).", systemImage: "arrow.uturn.backward.circle")
                     .font(.subheadline)
             }
             if draft.photosLeftOut {
@@ -671,3 +697,99 @@ private struct NewOrderPinnedSummary: View {
         .accessibilityElement(children: .combine)
     }
 }
+
+#if os(macOS)
+// MARK: The Mac's form: one window
+
+/// New order and Edit order on a Mac are one window form: the phone's steps are the form's sections, one after the
+/// other, and the order's summary (who, the pieces and their prices, the money) stays in a column on the right while
+/// they are filled in. Save is the footer's default button (Return, or ⌘S from anywhere); a piece opens in a sheet.
+extension NewOrder {
+    fileprivate func macScreen(_ totals: NewOrderMath.Totals, _ settings: Settings?) -> some View {
+        let word = totals.balance < 0 ? "Credit to customer " : "Balance due "
+        return HStack(spacing: 0) {
+            Form {
+                Group {
+                    if restored { restoredBanner }
+                    if edit?.invoiced == true {
+                        Section {
+                            Label("This order is on an invoice already. The invoice keeps its own copy of the pieces and the money: change those on the invoice.", systemImage: "doc.text")
+                                .font(.subheadline)
+                        }
+                    }
+                    NewOrderCustomerSection(draft: $draft, people: people, takenBy: session.shop.takenBy) {
+                        CustomerField.recent(invoices: book.invoices.items, orders: book.orders.items, book: book.customers.items)
+                    }
+                    NewOrderPromisedSection(draft: $draft)
+                    piecesSection(totals)
+                    NewOrderRatesSection(draft: $draft, settings: settings)
+                    NewOrderPrintedSection(draft: $draft)
+                    NewOrderPaymentSection(draft: $draft, totals: totals)
+                    NewOrderExchangeSection(draft: $draft)
+                    tail(totals, settings)
+                }
+                .houseRows()
+            }
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+            .background(Theme.ground)
+            .frame(minWidth: 460, maxWidth: .infinity)
+            Divider()
+            VStack(spacing: 0) {
+                UpdateBanner()
+                ScrollView {
+                    TransactionReview(customer: draft.customerName, contact: draft.customerPhone,
+                        pieces: draft.pieces.enumerated().map { index, p in
+                            TransactionReviewRow(label: "\(index + 1). \(p.description.isEmpty ? "Untitled piece" : p.description)",
+                                                 value: Money.pkr(index < totals.prices.count ? totals.prices[index] : 0))
+                        }, figures: [
+                            TransactionReviewRow(label: "Estimate", value: Money.pkr(totals.subtotal)),
+                            TransactionReviewRow(label: "Discount", value: Money.pkr(totals.discount)),
+                            TransactionReviewRow(label: "Advance", value: Money.pkr(totals.advance)),
+                            TransactionReviewRow(label: "Exchange", value: Money.pkr(totals.exchange)),
+                            TransactionReviewRow(label: totals.balance < 0 ? "Credit to customer" : "Balance due", value: Money.pkr(abs(totals.balance)))
+                        ])
+                        .padding(20)
+                }
+            }
+            .frame(width: 330)
+            .background(Theme.ground)
+        }
+        .actionBar(primary: .init(edit == nil ? "Save order" : "Save changes", isBusy: saving, isDisabled: UpdateGate.blocked) { Task { await save() } },
+                   summary: word + Money.pkr(abs(totals.balance)))
+        .navigationTitle(edit.map { "Edit \($0.orderId)" } ?? "New order")
+        .toolbar {
+            // The AI slip reader: only an owner's sign-in may use it, so only an owner is offered it.
+            if edit == nil && session.isOwner {
+                ToolbarItem(placement: .primaryAction) {
+                    Button { readingSlip = true } label: {
+                        Label("Read a slip", systemImage: "doc.text.viewfinder").labelStyle(.titleAndIcon)
+                    }
+                    .help("Read a photographed slip into this order")
+                }
+            }
+            if edit == nil {
+                ToolbarItem(placement: .primaryAction) {
+                    Menu {
+                        Button(role: .destructive) { confirmReset = true } label: {
+                            Label("Start over", systemImage: "arrow.counterclockwise")
+                        }
+                        .disabled(draft.isBlank)
+                    } label: {
+                        Label("More", systemImage: "ellipsis.circle")
+                    }
+                }
+            }
+        }
+        // \u{2318}S saves from anywhere; a form missing something is told what, as the Save button would.
+        .background {
+            Button("Save") { Task { await save() } }
+                .keyboardShortcut("s", modifiers: .command).opacity(0).accessibilityHidden(true)
+        }
+        .sheet(item: $editing) { ref in
+            NavigationStack { editor(ref.id) }
+                .frame(minWidth: 820, idealWidth: 900, minHeight: 640, idealHeight: 720)
+        }
+    }
+}
+#endif
