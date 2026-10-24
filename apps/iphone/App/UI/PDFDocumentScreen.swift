@@ -1,5 +1,8 @@
 import SwiftUI
 import PDFKit
+#if os(macOS)
+import AppKit
+#endif
 
 /// A PDF the ERP draws on its server with the browser's own builder — the invoice Print saves
 /// (lib/invoice-pdf.ts), the workshop slip (lib/order-slip-pdf.ts) — fetched as the signed-in person

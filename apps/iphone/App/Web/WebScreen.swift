@@ -1,5 +1,8 @@
 import SwiftUI
 import WebKit
+#if os(macOS)
+import AppKit
+#endif
 
 /// An ERP page inside the app, for every place without a native screen yet (CONVENTIONS.md
 /// rule 5). Signed in with the app's own sign-in, shown without the ERP's sidebar and top bar
