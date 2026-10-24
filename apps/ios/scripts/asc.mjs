@@ -745,7 +745,7 @@ async function macSetup(name, dry) {
     },
     actions: [
       { name: 'Archive - macOS', actionType: 'ARCHIVE', destination: 'ANY_MAC', buildDistributionAudience: 'INTERNAL_ONLY', scheme: 'ERP Mac', platform: 'MACOS', isRequiredToPass: true },
-      { name: 'Build - iOS', actionType: 'BUILD', destination: 'ANY_IOS_DEVICE', scheme: 'ERP', platform: 'IOS', isRequiredToPass: false },
+      { name: 'Build - iOS', actionType: 'BUILD', destination: 'ANY_IOS_DEVICE', scheme: 'ERP', platform: 'IOS', isRequiredToPass: true },
     ],
     isEnabled: true,
     clean: false,
