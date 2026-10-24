@@ -1,5 +1,6 @@
 package erp.app.screens.design
 
+import erp.app.ui.AppClock
 import android.graphics.Bitmap
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -425,7 +426,7 @@ class DesignWorkspaceModel(
                 pendingOld?.let { old -> pendingOld = null; olderDisk?.remove(old) }
             }
             photosChanged = false
-            draftSaved = System.currentTimeMillis()
+            draftSaved = AppClock.now().toEpochMilli()
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

@@ -1,5 +1,6 @@
 package erp.app.screens.home
 
+import erp.app.ui.AppClock
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -79,7 +80,7 @@ fun Dashboard() {
     val connectionLost by Connection.isOffline.collectAsStateWithLifecycle()
 
     // The instant the page is worked out against; it turns over at Karachi's midnight on a screen left open.
-    var now by remember { mutableStateOf(Instant.now()) }
+    var now by remember { mutableStateOf(AppClock.now()) }
     var rateSheet by rememberSaveable { mutableStateOf(false) }
     var noteSheet by rememberSaveable { mutableStateOf(false) }
     var allNeeds by rememberSaveable { mutableStateOf(false) }
@@ -121,12 +122,12 @@ fun Dashboard() {
     val ratePause by OnlineInbox.ratePause.collectAsStateWithLifecycle()
     // The count itself is polled once for the whole app (RootScaffold); coming here, or back, asks again at once.
     LaunchedEffect(selling) { if (selling) OnlineInbox.refresh() }
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { now = Instant.now() }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { now = AppClock.now() }
     // Each minute, so the day turns over at Karachi's midnight.
     LaunchedEffect(Unit) {
         while (true) {
             delay(60_000)
-            now = Instant.now()
+            now = AppClock.now()
         }
     }
 
