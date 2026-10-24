@@ -711,8 +711,28 @@ async function macSetup(name, dry) {
   const enabled = flows.filter((f) => f.attributes.isEnabled !== false && !MAC_FLOW.test(f.attributes.name));
   const ios = enabled.find((f) => /release|testflight|archive/i.test(f.attributes.name)) || enabled[0];
   if (!ios) throw new Error('No iPhone workflow to copy the repository, Xcode and macOS versions from.');
-  const rel = async (what) => (await maybe(`/v1/ciWorkflows/${ios.id}/${what}`))?.id;
-  const [repository, xcodeVersion, macOsVersion] = await Promise.all([rel('repository'), rel('xcodeVersion'), rel('macOsVersion')]);
+  // The workflow's own repository, Xcode and macOS (the relationship URLs are refused, 403; `include` answers), else the
+  // product's repository and Xcode Cloud's newest release of Xcode and the newest macOS it runs on.
+  let repository, xcodeVersion, macOsVersion;
+  try {
+    const full = await api('GET', `/v1/ciWorkflows/${ios.id}?include=repository,xcodeVersion,macOsVersion`);
+    const r = full.data.relationships || {};
+    repository = r.repository?.data?.id; xcodeVersion = r.xcodeVersion?.data?.id; macOsVersion = r.macOsVersion?.data?.id;
+  } catch (e) { say(`  (the workflow's relationships: ${e.message})`); }
+  if (!repository) repository = (await api('GET', `/v1/ciProducts/${product.id}/primaryRepositories?limit=5`)).data[0]?.id;
+  if (!xcodeVersion || !macOsVersion) {
+    const xcodes = (await api('GET', '/v1/ciXcodeVersions?limit=50&include=macOsVersions')).data;
+    const ver = (v) => String(v.attributes.version || '').split('.').map((n) => parseInt(n, 10) || 0);
+    const newer = (a, b) => { const x = ver(a), y = ver(b); for (let i = 0; i < 4; i++) if ((x[i] || 0) !== (y[i] || 0)) return (y[i] || 0) - (x[i] || 0); return 0; };
+    const releases = xcodes.filter((x) => !/beta|rc/i.test(x.attributes.name || ''));
+    const xcode = (releases.length ? releases : xcodes).sort(newer)[0];
+    if (!xcode) throw new Error('Xcode Cloud lists no Xcode versions.');
+    const oses = (await api('GET', `/v1/ciXcodeVersions/${xcode.id}/macOsVersions?limit=50`)).data;
+    const os = oses.filter((o) => !/beta/i.test(o.attributes.name || '')).sort(newer)[0] || oses[0];
+    xcodeVersion = xcodeVersion || xcode.id;
+    macOsVersion = macOsVersion || os?.id;
+    say(`  Xcode ${xcode.attributes.name} (${xcode.id}), macOS ${os?.attributes?.name} (${os?.id})`);
+  }
   if (!repository || !xcodeVersion || !macOsVersion) throw new Error(`"${ios.attributes.name}" lacks a repository, Xcode or macOS version (${repository}, ${xcodeVersion}, ${macOsVersion}).`);
   const start = ios.attributes.branchStartCondition || {};
   const attributes = {
@@ -767,7 +787,7 @@ async function ciRuns(name, { workflow, commit, wait, start, branch }) {
     const runs = (await api('GET', `/v1/ciWorkflows/${flow.id}/buildRuns?limit=20&sort=-number`)).data;
     run = commit ? runs.find((r) => r.attributes.sourceCommit?.commitSha?.startsWith(commit)) : runs[0];
     if (!run && start && !started && branch && Date.now() > deadline - (wait || 0) * 60_000 + 120_000) {
-      const repo = await maybe(`/v1/ciWorkflows/${flow.id}/repository`);
+      const repo = (await api('GET', `/v1/ciProducts/${product.id}/primaryRepositories?limit=5`)).data[0];
       const refs = repo ? (await api('GET', `/v1/scmRepositories/${repo.id}/gitReferences?limit=200`)).data : [];
       const ref = refs.find((r) => r.attributes.name === branch && r.attributes.kind === 'BRANCH');
       if (ref) {
