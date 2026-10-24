@@ -84,6 +84,9 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 |---|---|---|---|---|---|---|
 | Stock list, piece page, add and edit, bulk add | ✓ | ✓ | ✓ | ✓ | 2026-10 | `Screens/Stock`, `screens/stock` |
 | Stock photos, tag printing from the piece | ✓ | ✓ | owed | ✓ | 2026-10-17 | `StockPiecePhoto.swift`, `StockPieceTag.swift`; Android has `StockImage.kt` only (check) |
+| Tag designer: interactive canvas (zoom, grid, rulers, resize, rotate, align, undo), all field types, placeholders, pictures, .lsc import, copy ZPL, test print | owed | wip | owed | wip | 2026-10-24 | Written on Linux, not yet compiled by Xcode Cloud (Mac column waits for that build). `Screens/Settings/LabelDesigner`; ERPCore `LabelGeometry`, `LabelEditing`, `LabelPlaceholders`; web has the older field list at `settings/printer` |
+| Zebra straight from the app: the shop's tag as ZPL (every Label LIVE mode and number: thermal, tear/peel/cut, media, darkness, speed, offsets, orientation, mirror), job sheet (copies, skip, counter), printer status | owed | wip | owed | wip | 2026-10-24 | `TagPrinter.swift`, `ZebraTransport.swift` (Mac: Zebra Browser Print or a Mac printer raw via CUPS; both: network 9100), `TagPrinterSettingsScreen.swift`, `TagPrintJobSheet.swift`; ERPCore `Zpl.swift` = `src/lib/zebra-zpl.ts` |
+| Label LIVE design import (.lsc) into the shop's tag | owed | wip | owed | wip | 2026-10-24 | `src/lib/label-lsc.ts` = ERPCore `LabelLSC.swift`; the web has the engine, no import button yet |
 | Label LIVE: print a piece's tag, several as one job, set-up (Integrate link, variables, printer), test print, print history | ✓ | ✓ | owed | ✓ | 2026-10-20 | [Label LIVE](features/label-live.md); ERPCore `LabelLive.swift`; Mac: localhost API then the link, iPhone: MQTT to the counter Mac; `LabelLivePrinter.swift` |
 | Rates (gold, silver, rate chip) | ✓ | ✓ | ✓ | ✓ | 2026-10 | [Rate chip](decisions.md#rate-chip) |
 | Scan a tag | ✓ | ✓ | ✓ | ✓ | 2026-10 | |
@@ -152,7 +155,7 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Settings in sections (Shop, Connections, Records) | ✓ | ✓ | owed | ✓ | 2026-10-23 | `SettingsRoot.swift` vs `SettingsRoot.kt` |
 | Shop, alerts, bank accounts, integrations, Shopify, data, voice, labels, backups, contact and hisaab imports, This phone | ✓ | ✓ | ✓ | ✓ | 2026-10 | `screens/settings` |
 | Taheri book import | ✓ | ✓ | owed | ✓ | 2026-10-17 | `TaheriBookImportSettings.swift` |
-| Connect an AI (scoped keys; MCP + REST) | ✓ | pg | pg | pg | 2026-10-19 | [AI keys](features/ai-keys.md) |
+| Connect an AI (scoped keys; MCP + REST) | ✓ | wip | pg | wip | 2026-10-19 | [AI keys](features/ai-keys.md) |
 | Appearance, Liquid Glass | ✓ | ✓ | n/a | ✓ | 2026-10 | Apple HIG glass; Android is Material 3 |
 | Businesses (add by address, order, turn off the picker) | n/a | ✓ | owed | ✓ | 2026-10-16 | `BusinessesScreen.swift` |
 

@@ -180,50 +180,14 @@ struct TagPrintJobSheet: View {
     }
 }
 
-/// The tag drawn small: each field where the layout puts it, in the label's proportions. Texts as text, a QR or barcode
-/// as a symbol; not the printer's fonts, only where things sit.
+/// The tag drawn small: each visible field where the layout puts it, as it prints (the designer's renderer,
+/// `LabelTagPreview`). Fonts are close, not the printer's; Code 39, EAN-13, UPC-A and Data Matrix are patterns.
 struct TagStripPreview: View {
     let layout: LabelLayout
     let fields: [LabelLayoutField]
 
     var body: some View {
-        let w = CGFloat(max(1, layout.widthDots)), h = CGFloat(max(1, layout.heightDots))
-        GeometryReader { geo in
-            let k = geo.size.width / w
-            ZStack(alignment: .topLeading) {
-                RoundedRectangle(cornerRadius: 6).fill(Color.white)
-                RoundedRectangle(cornerRadius: 6).stroke(Color.gray.opacity(0.4))
-                ForEach(fields.filter { !$0.hidden }, id: \.id) { f in
-                    piece(f, k)
-                }
-            }
-        }
-        .aspectRatio(w / h, contentMode: .fit)
-        .frame(maxWidth: 420)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Preview of the first tag")
-    }
-
-    @ViewBuilder
-    private func piece(_ f: LabelLayoutField, _ k: CGFloat) -> some View {
-        let x = CGFloat(f.x) * k, y = CGFloat(f.y) * k
-        switch f.type {
-        case .text:
-            Text(f.data ?? "")
-                .font(.system(size: max(5, CGFloat(f.fontSize ?? 20) * k), weight: f.bold == true ? .bold : .regular))
-                .foregroundStyle(.black)
-                .fixedSize()
-                .rotationEffect(.degrees(Double(f.rotation)), anchor: .topLeading)
-                .offset(x: x, y: y)
-        case .qr:
-            let side = CGFloat(max(1, f.qrMagnification ?? 4)) * 25 * k
-            Image(systemName: "qrcode").resizable().scaledToFit().foregroundStyle(.black)
-                .frame(width: side, height: side).offset(x: x, y: y)
-        case .barcode:
-            Image(systemName: "barcode").resizable().scaledToFit().foregroundStyle(.black)
-                .frame(width: CGFloat(f.width ?? 200) * k, height: CGFloat(f.height ?? 60) * k).offset(x: x, y: y)
-        case .box, .line, .ellipse, .image:
-            EmptyView()
-        }
+        LabelTagPreview(layout: layout, fields: fields)
+            .frame(maxWidth: 420)
     }
 }

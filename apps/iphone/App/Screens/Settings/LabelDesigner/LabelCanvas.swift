@@ -56,7 +56,7 @@ struct LabelCanvas: View {
                 Theme.ground
                 Color.primary.opacity(0.05)
                 paper(fields, z: z, w: w, h: h).offset(x: origin.x, y: origin.y)
-                overlay(fields, z: z, origin: origin, size: size)
+                selectionLayer(fields, z: z, origin: origin, size: size)
                     .allowsHitTesting(false)
                 if model.showRulers { rulers(z: z, origin: origin, size: size).allowsHitTesting(false) }
                 #if os(macOS)
@@ -143,7 +143,7 @@ struct LabelCanvas: View {
     }
 
     /// Selection boxes, handles, snap guides and the marquee.
-    private func overlay(_ fields: [LabelLayoutField], z: CGFloat, origin: CGPoint, size: CGSize) -> some View {
+    private func selectionLayer(_ fields: [LabelLayoutField], z: CGFloat, origin: CGPoint, size: CGSize) -> some View {
         let selected = fields.filter { model.selection.contains($0.id) }
         let measure = model.measure
         let accent = Theme.accent

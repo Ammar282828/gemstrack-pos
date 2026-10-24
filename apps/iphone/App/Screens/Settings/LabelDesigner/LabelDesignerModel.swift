@@ -32,6 +32,9 @@ final class LabelDesignerModel {
     var previewValues: [LabelValues] = []
     var previewNames: [String] = []
     var previewNow = Date()
+    /// The pieces chosen for the preview (one a tag), and the number a `{counter}` starts at.
+    var previewProducts: [Product] = []
+    var previewCounter: Int?
 
     @ObservationIgnored var onChange: ((LabelLayout) -> Void)?
 
@@ -47,7 +50,19 @@ final class LabelDesignerModel {
     }
 
     /// The fields with their text filled, as they print: what the canvas draws and measures.
-    var resolved: [LabelLayoutField] { Zpl.resolveFields(layout, pieces: pieces, now: previewNow) }
+    var resolved: [LabelLayoutField] { Zpl.resolveFields(layout, pieces: pieces, now: previewNow, counterStart: previewCounter) }
+
+    /// Choose the pieces the preview is filled from (none: made-up values).
+    func setPreview(_ products: [Product], settings: Settings?) {
+        previewProducts = Array(products.prefix(layout.tagsPerLabel))
+        if let settings, !previewProducts.isEmpty {
+            previewValues = TagPrinter.values(for: previewProducts, settings: settings)
+            previewNames = previewProducts.map(\.name)
+        } else {
+            previewValues = []
+            previewNames = []
+        }
+    }
 
     var selectedFields: [LabelLayoutField] { layout.fields.filter { selection.contains($0.id) } }
     var primary: LabelLayoutField? { selectedFields.last }
@@ -199,7 +214,7 @@ final class LabelDesignerModel {
 
     /// A handle's drag: the field as it was when the drag began, resized to the box.
     func resize(_ start: LabelLayoutField, handle: LabelHandle, to box: LabelBox, key: String) {
-        let startResolved = Zpl.resolveFields(LabelLayout(id: "", name: "", widthDots: 1, heightDots: 1, fields: [start]), pieces: pieces, now: previewNow)[0]
+        let startResolved = Zpl.resolveFields(LabelLayout(id: "", name: "", widthDots: 1, heightDots: 1, fields: [start]), pieces: pieces, now: previewNow, counterStart: previewCounter)[0]
         var out = LabelEditing.resized(startResolved, handle: handle, to: box, measure: measure)
         out.data = start.data
         if start.type == .image, let bmp = start.bitmap, let ow = start.width, let oh = start.height, let nw = out.width, let nh = out.height {
