@@ -462,17 +462,22 @@ extension ArtworkEditor {
     /// Right-click on a layer's box on the artwork.
     @ViewBuilder
     func macLayerMenu(_ id: String, _ l: MarketingValue) -> some View {
-        Button("Select") { select(id, multiple: false) }
-        Button("Select together") { select(id, multiple: true) }
-        Divider()
-        Button("Duplicate") { select(id, multiple: false); duplicate(layers.filter { $0.s("id") == id }) }
-        Button(l["locked"].bool ? "Unlock" : "Lock") { patch(id, ["locked": .bool(!l["locked"].bool)]) }
-        Button(l["hidden"].bool ? "Show" : "Hide") { patch(id, ["hidden": .bool(!l["hidden"].bool)]) }
-        Divider()
-        Button("Bring forward") { select(id, multiple: false); step(1) }
-        Button("Send backward") { select(id, multiple: false); step(-1) }
-        Divider()
-        Button("Remove…", role: .destructive) { select(id, multiple: false); removing = true }
+        // Two groups: a ViewBuilder block holds at most ten views.
+        Group {
+            Button("Select") { select(id, multiple: false) }
+            Button("Select together") { select(id, multiple: true) }
+            Divider()
+            Button("Duplicate") { select(id, multiple: false); duplicate(layers.filter { $0.s("id") == id }) }
+            Button(l["locked"].bool ? "Unlock" : "Lock") { patch(id, ["locked": .bool(!l["locked"].bool)]) }
+            Button(l["hidden"].bool ? "Show" : "Hide") { patch(id, ["hidden": .bool(!l["hidden"].bool)]) }
+        }
+        Group {
+            Divider()
+            Button("Bring forward") { select(id, multiple: false); step(1) }
+            Button("Send backward") { select(id, multiple: false); step(-1) }
+            Divider()
+            Button("Remove…", role: .destructive) { select(id, multiple: false); removing = true }
+        }
     }
 }
 #endif

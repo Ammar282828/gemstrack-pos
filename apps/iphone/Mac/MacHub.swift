@@ -89,7 +89,7 @@ struct MacHub: View {
                         Label(selection.count > 1 ? "Print \(selection.count) tags" : "Print tag", systemImage: "printer")
                     }
                     .disabled(selection.isEmpty || printing)
-                    .help("Print the selected pieces' tags with Label LIVE, as one job")
+                    .help("Print the selected pieces' tags as one job: choose copies and blank labels, then Print (⌥⌘P prints at once)")
                 }
             }
         }

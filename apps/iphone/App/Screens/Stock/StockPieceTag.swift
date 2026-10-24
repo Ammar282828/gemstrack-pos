@@ -23,6 +23,7 @@ struct StockPieceTagSheet: View {
     @State private var note: Note?
     @State private var printing = false
     @State private var problem: String?
+    @State private var jobOpen = false
 
     init(product: Product) {
         self.product = product
@@ -33,7 +34,7 @@ struct StockPieceTagSheet: View {
         NavigationStack {
             Form { Group {
                 qrSection
-                labelLiveSection
+                if TagPrinter.method == .zebra { zebraSection } else { labelLiveSection }
                 csvSection
                 }
                 .houseRows()
@@ -53,6 +54,24 @@ struct StockPieceTagSheet: View {
             .task { book.settings.need() }
         }
         .presentationDetents([.medium, .large])
+        .sheet(isPresented: $jobOpen) {
+            TagPrintJobSheet(pieces: [product]) { message in
+                Note.show(Note(title: "Tag sent", detail: message), in: $note, reduce: reduceMotion)
+            }
+        }
+    }
+
+    // MARK: The shop's own tag, to a Zebra
+
+    /// This device prints the shop's tag as ZPL straight to a Zebra (Settings → Labels → Printer); the job sheet asks
+    /// for copies and blank labels. With Label LIVE chosen there, the Label LIVE button below stays as it was.
+    private var zebraSection: some View {
+        Section {
+            Button { jobOpen = true } label: { Label("Print tag…", systemImage: "printer") }
+            NavigationLink(value: Route(path: TagPrinterSettingsScreen.path)) { Label("Printer", systemImage: "printer.dotmatrix") }
+        } footer: {
+            Text("Sends the shop's tag for this piece to the Zebra, at today's rates.")
+        }
     }
 
     // MARK: The QR

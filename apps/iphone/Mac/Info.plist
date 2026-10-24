@@ -82,7 +82,7 @@
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>To add photos of pieces from your library.</string>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>To send tags to Label LIVE, the label printer's app, on this Mac.</string>
+	<string>To send tags to the label printer: a Zebra on the shop's network, or Label LIVE on this Mac.</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>The shop's own ERP.</string>
 </dict>

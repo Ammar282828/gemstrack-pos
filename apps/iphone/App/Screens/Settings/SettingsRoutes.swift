@@ -33,6 +33,7 @@ enum SettingsRoutes {
             .exact("/settings/ai") { SettingsAIKeysScreen() },
             .exact("/settings/printer") { LabelSettings() },
             .exact(LabelLiveSettingsScreen.path) { LabelLiveSettingsScreen() },
+            .exact(TagPrinterSettingsScreen.path) { TagPrinterSettingsScreen() },
             .exact("/settings/weprint-api") { WeprintSettings() },
             .exact("/settings/backups") { BackupSettings() },
             .exact("/settings/contact-import") { ContactImportSettings() },

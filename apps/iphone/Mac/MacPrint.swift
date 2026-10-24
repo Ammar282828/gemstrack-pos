@@ -4,7 +4,7 @@ import AppKit
 import PDFKit
 import ERPCore
 
-/// File › Print (⌘P) for the page in front: a stock piece's tag through Label LIVE (LabelLivePrinter), an invoice as the
+/// File › Print (⌘P) for the page in front: a stock piece's tag (the print-job sheet: Label LIVE, or the shop's tag straight to a Zebra, TagPrinter), an invoice as the
 /// PDF the browser prints (/api/app/pdf/invoice, lib/invoice-pdf.ts), an order's workshop slip, a repair's receipt, all
 /// drawn on the ERP's server and handed to the Mac's print panel.
 @MainActor
@@ -51,20 +51,38 @@ enum MacPrint {
         }
     }
 
-    /// Pieces' tags as one Label LIVE job (the Stock table's selection, or one piece), told in an alert if it failed.
-    static func printTags(_ skus: [String]) async {
+    /// Pieces' tags: the print-job sheet (pieces, copies, blank labels, counter, the number of labels, the printer), or with
+    /// `now` straight away on the defaults (⌥⌘P, "Print Tags Now"). Either goes by this Mac's method (TagPrinter: Label LIVE,
+    /// or the shop's tag as ZPL to a Zebra). Told in an alert if it failed.
+    static func printTags(_ skus: [String], now: Bool = false) async {
         let book = Book.shared
         book.settings.need()
         book.products.need()
         guard let settings = book.settings.value else { return say("The shop's settings haven't loaded yet. Try again in a moment.") }
-        guard let config = settings.labelLiveConfig else {
-            return say("Label LIVE isn't set up. Paste the design's Integrate link in Settings → Labels → Label LIVE.")
-        }
         let pieces = skus.compactMap { book.products.item($0) }
         guard !pieces.isEmpty else { return say("Those pieces aren't in the stock list.") }
-        let outcome = await LabelLivePrinter.print(pieces: pieces, settings: settings, config: config)
+        guard now else { return presentJob(pieces) }
+        let outcome = await TagPrinter.print(pieces: pieces, settings: settings)
         if !outcome.ok { say(outcome.message) }
         else { NSSound(named: "Glass")?.play() }
+    }
+
+    /// The job sheet on the window in front, with the app's session and books (a window sheet is outside SwiftUI's tree).
+    private static func presentJob(_ pieces: [Product]) {
+        guard let window = NSApp.keyWindow ?? NSApp.mainWindow, window.attachedSheet == nil else { return }
+        var panel: NSWindow?
+        let sheet = TagPrintJobSheet(pieces: pieces, onPrinted: { _ in NSSound(named: "Glass")?.play() }, onClose: {
+            if let panel { window.endSheet(panel) }
+        })
+        .environment(Sessions.shared.current)
+        .environment(Book.shared)
+        .tint(Theme.accent)
+        .environment(\.locale, Locale(identifier: "en_PK"))
+        let controller = NSHostingController(rootView: sheet)
+        let sheetWindow = NSWindow(contentViewController: controller)
+        sheetWindow.styleMask = [.titled, .closable]
+        panel = sheetWindow
+        window.beginSheet(sheetWindow)
     }
 
     /// The ERP's own PDF, shown in the Mac's print panel.

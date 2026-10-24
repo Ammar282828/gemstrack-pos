@@ -242,8 +242,11 @@ private struct LabelDesigner: View {
                 NavigationLink(value: Route(path: LabelLiveSettingsScreen.path)) {
                     Label("Label LIVE", systemImage: "printer")
                 }
+                NavigationLink(value: Route(path: TagPrinterSettingsScreen.path)) {
+                    Label("Printer", systemImage: "printer.dotmatrix")
+                }
             } footer: {
-                Text("Print tags straight to the label printer through Label LIVE on the Mac at the counter.")
+                Text("Print tags through Label LIVE on the Mac at the counter, or straight to a Zebra. Printer also holds the Zebra's media, darkness and speed.")
             }
             Section {
                 SettingsTagPreview(layout: l)

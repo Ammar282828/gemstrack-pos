@@ -44,6 +44,8 @@ struct MacCommands: Commands {
             if let skus = stockSelection?.skus, !skus.isEmpty, place == nil {
                 Button(skus.count == 1 ? "Print Tag…" : "Print \(skus.count) Tags…") { Task { await MacPrint.printTags(skus) } }
                     .keyboardShortcut("p", modifiers: .command)
+                Button(skus.count == 1 ? "Print Tag Now" : "Print \(skus.count) Tags Now") { Task { await MacPrint.printTags(skus, now: true) } }
+                    .keyboardShortcut("p", modifiers: [.command, .option])
             } else {
                 Button(MacPrint.title(for: current)) { if let r = current { MacPrint.print(r) } }
                     .keyboardShortcut("p", modifiers: .command)

@@ -653,22 +653,27 @@ extension StudioBoards {
     @ViewBuilder
     func macFrameMenu(_ f: MarketingValue) -> some View {
         let id = f.s("id")
-        Button("Edit design", systemImage: "slider.horizontal.3") { selected = id; sheet = .editor(id) }
-        Button("Show its details", systemImage: "sidebar.trailing") { selected = id; inspectorShown = true }
-        Divider()
-        Button("Download or share…", systemImage: "square.and.arrow.up") { share(f) }
-        Button("Duplicate", systemImage: "plus.square.on.square") { Task { await board.duplicate(f) } }
-        Menu("In another shape", systemImage: "rectangle.on.rectangle") {
-            ForEach(board.formats.map { $0.s("id") }.filter { $0 != f.s("format") }, id: \.self) { fid in
-                Button(board.formatInfo(fid).s("label", fid)) { Task { await board.duplicate(f, format: fid) } }
+        // Two groups: a ViewBuilder block holds at most ten views.
+        Group {
+            Button("Edit design", systemImage: "slider.horizontal.3") { selected = id; sheet = .editor(id) }
+            Button("Show its details", systemImage: "sidebar.trailing") { selected = id; inspectorShown = true }
+            Divider()
+            Button("Download or share…", systemImage: "square.and.arrow.up") { share(f) }
+            Button("Duplicate", systemImage: "plus.square.on.square") { Task { await board.duplicate(f) } }
+            Menu("In another shape", systemImage: "rectangle.on.rectangle") {
+                ForEach(board.formats.map { $0.s("id") }.filter { $0 != f.s("format") }, id: \.self) { fid in
+                    Button(board.formatInfo(fid).s("label", fid)) { Task { await board.duplicate(f, format: fid) } }
+                }
             }
         }
-        Divider()
-        Button("Queue a post…", systemImage: "paperplane") { sheet = .queue(id) }
-        Button("Use in a new Meta ad", systemImage: "megaphone") { Task { if let route = await board.newAd(f) { model.route = route } } }
-        Button("Save to Saved ads", systemImage: "folder") { Task { await board.saveToSaved(f) } }
-        Divider()
-        Button("Remove design…", systemImage: "trash", role: .destructive) { removing = BoardRemoval(id: id, note: false) }
+        Group {
+            Divider()
+            Button("Queue a post…", systemImage: "paperplane") { sheet = .queue(id) }
+            Button("Use in a new Meta ad", systemImage: "megaphone") { Task { if let route = await board.newAd(f) { model.route = route } } }
+            Button("Save to Saved ads", systemImage: "folder") { Task { await board.saveToSaved(f) } }
+            Divider()
+            Button("Remove design…", systemImage: "trash", role: .destructive) { removing = BoardRemoval(id: id, note: false) }
+        }
     }
 }
 #endif
