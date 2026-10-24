@@ -120,8 +120,8 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 |---|---|---|---|---|---|
 | Website menu, Photos, Edit a piece, Photo weights | ✓ | ✓ | ✓ | 2026-10-19 | `screens/marketing/Website*` |
 | Investments and its schedule | ✓ | ✓ | ✓ | 2026-10-19 | [Investments](features/investments.md) |
-| Website → Interest: site report (sources, places, devices, funnel, pages, searches) and piece rankings | ✓ | ✓ | owed | 2026-10-22 | [Website analytics](decisions.md#website-analytics), [Piece interest](decisions.md#piece-interest); `WebsiteInterest.swift` |
-| Website → Live (who is on the site now) | ✓ | ✓ | owed | 2026-10-23 | `WebsiteLive.swift` |
+| Website → Interest: site report (sources, places, devices, funnel, pages, searches) and piece rankings | ✓ | ✓ | ✓ | 2026-10-22 | [Website analytics](decisions.md#website-analytics), [Piece interest](decisions.md#piece-interest); `WebsiteInterest.swift`, `screens/marketing/WebsiteInterest.kt` |
+| Website → Live (who is on the site now) | ✓ | ✓ | ✓ | 2026-10-23 | `WebsiteLive.swift`, `WebsiteLive.kt` |
 | Website selling settings | ✓ | ✓ | owed | 2026-10 | `WebsiteSellingSettings.swift` (check) |
 
 ## Posts and Design
@@ -130,7 +130,7 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 |---|---|---|---|---|---|
 | Posts hub: Today, queue, pieces, Send all, Spread over the day | ✓ | ✓ | ✓ | 2026-10-19 | [Hub](features/from-the-website.md#posts-hub) |
 | Several photos of a piece, one caption, Instagram carousel of 10 | ✓ | ✓ | ✓ | 2026-10-23 | [Queue and Mina](features/post-a-piece.md#queue-and-mina) |
-| A post's card starts with the hero photo alone | ✓ | ✓ | owed | 2026-10-23 | `PostTrayPhotos.swift` (check) |
+| A post's card starts with the hero photo alone | ✓ | ✓ | ✓ | 2026-10-23 | `PostTrayPhotos.swift` |
 | Design: make, pages, resize, publish, AI tools, saved | ✓ | ✓ | ✓ | 2026-10-19 | [Design](decisions.md#design) |
 | Designer v2 (effects, rich text, gradients, QR, photo adjust) | ✓ | ✓ | ✓ | 2026-10-19 | |
 | Design Board (Studio canvas, Let it cook, agent) | ✓ | ✓ | pg | 2026-10-15 | [Ad studio](features/ad-studio.md#board); Android opens `/design?v=board&web=1` |

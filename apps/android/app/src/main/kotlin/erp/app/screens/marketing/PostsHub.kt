@@ -26,6 +26,8 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Public
@@ -140,9 +142,12 @@ fun PostsHub() {
             confirmButton = {
                 androidx.compose.material3.TextButton(onClick = {
                     confirmingAll = false
-                    scope.launch {
-                        sendingAll = true
-                        try {
+                    val n = state.waiting.size
+                    if (n > 0) {
+                        note.show(erp.app.ui.Note("Sending $n ${if (n == 1) "piece" else "pieces"}…", "It says here when they have gone."))
+                        // In the app's own scope (the iPhone's Outbox): the hub is free at once; "sendNow" only sends what has not
+                        // gone, so sending again after a failure posts nothing twice.
+                        erp.app.ErpApp.scope.launch {
                             val (sent, of) = PostsStore.sendAll()
                             val whole = sent == of
                             note.show(
@@ -151,8 +156,6 @@ fun PostsHub() {
                                     if (whole) "" else "The ones that failed say why; sending again sends only what didn't go.", failed = !whole,
                                 ),
                             )
-                        } finally {
-                            sendingAll = false
                         }
                     }
                 }) { Text(if (state.failingChecks.isEmpty()) "Send" else "Send anyway") }
@@ -206,8 +209,24 @@ private fun MakeSection(role: String) {
 private fun FailingSection(state: PostsState) {
     val failing = state.failingChecks
     if (failing.isEmpty()) return
-    Titled("Needs a look") {
-        RowsCard {
+    // The connection checks stay folded until tapped, even when something fails (owner, 2026-10-23).
+    var open by rememberSaveable { mutableStateOf(false) }
+    RowsCard {
+        Row(
+            Modifier.fillMaxWidth().clickable(role = Role.Button, onClickLabel = if (open) "Fold the checks" else "Show the checks") { open = !open }.ledgerRow(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Filled.Warning, contentDescription = null, tint = Tone.owed.color())
+            Text(
+                "${failing.size} ${if (failing.size == 1) "thing needs" else "things need"} attention", Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium), color = Tone.owed.color(),
+            )
+            Icon(
+                if (open) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, contentDescription = if (open) "Fold" else "Unfold",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (open) {
             for (c in failing) {
                 Row(Modifier.fillMaxWidth().ledgerRow(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
                     Icon(Icons.Filled.Warning, contentDescription = null, tint = Tone.owed.color())

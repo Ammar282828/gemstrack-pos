@@ -118,6 +118,7 @@ fun PostComposerScreen(path: String) {
     val engine = rememberDesignEngine()
     val model = remember { PostComposerModel(scope, engine) { draftsFolder(context) } }
     val navigator = LocalNavigator.current
+    val note = erp.app.ui.LocalNoteState.current
     val d = model.draft
     var draftsOpen by remember { mutableStateOf(false) }
     var sitePicker by remember { mutableStateOf(false) }
@@ -256,7 +257,7 @@ fun PostComposerScreen(path: String) {
             text = {
                 Text(PostComposerRules.publishWords(model.draft, model.config.s("siteName", "Website"), model.instagram.s("username"), model.instagramConnected, model.health["checks"].array, which != "queue"))
             },
-            confirmButton = { TextButton(onClick = { confirmation = null; scope.launch { model.finish(queueOnly = which == "queue") } }) { Text(if (which == "queue") "Add to queue" else "Publish") } },
+            confirmButton = { TextButton(onClick = { confirmation = null; model.finish(queueOnly = which == "queue", note = note) }) { Text(if (which == "queue") "Add to queue" else "Publish") } },
             dismissButton = { TextButton(onClick = { confirmation = null }) { Text("Cancel") } },
         )
     }
@@ -485,12 +486,13 @@ private fun PublishSection(
 ) {
     val d = model.draft
     val scope = rememberCoroutineScope()
+    val note = erp.app.ui.LocalNoteState.current
     RowsCard {
         MarketingDisclosure("Where it goes", initiallyOpen = true) { Destinations(model, onConnectInstagram, openLink) }
         val queued = d.queuedID
         if (model.frozen && queued != null) {
             ActionRow("Open queued piece", { onOpenQueued(queued) })
-            if (d.queueReady != true) ActionRow("Finish uploading", { scope.launch { model.finish(queueOnly = true) } })
+            if (d.queueReady != true) ActionRow("Finish uploading", { model.finish(queueOnly = true, note = note) })
             else ActionRow("Send what remains", { onConfirm("send") })
             ActionRow("Next piece", { scope.launch { model.startOver() } })
         } else {
