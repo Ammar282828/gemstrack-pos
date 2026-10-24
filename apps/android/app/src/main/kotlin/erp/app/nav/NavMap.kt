@@ -17,6 +17,12 @@ data class NavPlace(
     val staff: Boolean?,
     val keywords: List<String>?,
     val match: List<String>?,
+    /** nav.ts `moved`: the address redirects (Post a piece, the Studio, into Design); search lists no row for it. */
+    val moved: Boolean? = null,
+    /** nav.ts `section`: the sub-section of an entry whose tabs are grouped (Analytics: Sales, Website, Social, Ads; Settings: Shop, Connections, Records). */
+    val section: String? = null,
+    /** nav.ts `marketing`: the marketing account may open this tab from outside the Marketing group. */
+    val marketing: Boolean? = null,
 ) {
     val title: String get() = heading ?: label
 }
@@ -37,6 +43,12 @@ data class NavEntry(
     val count: String?,
 ) {
     val place: NavPlace get() = NavPlace(href, label, heading, icon, staff, keywords, match)
+
+    /** The tabs' sections in order of first appearance; empty when the tabs are not grouped. */
+    val sections: List<String> get() = (tabs ?: emptyList()).mapNotNull { it.section }.distinct()
+
+    /** The tabs of one section, in the JSON's order. */
+    fun tabsIn(section: String): List<NavPlace> = (tabs ?: emptyList()).filter { it.section == section }
 }
 
 /** A place found by search, with the entry it sits under. */
@@ -62,8 +74,16 @@ data class NavMap(
     fun visible(role: String): NavMap {
         if (role == "owner") return this
         if (role == "marketing") {
-            // Every entry of the group with all its tabs and pages, `staff` or not (Ads has none); no Settings, no New sale and nothing to create.
-            return NavMap(groups, null, entries.filter { it.group == "marketing" }, null, emptyList())
+            // The Marketing group whole, with all its tabs and pages, `staff` or not (Ads has none). Outside it, as nav.ts
+            // forRole does, only the tabs marked `marketing` (Analytics' Website, Social and Ads), and the entry only if it
+            // has any. No Settings, no New sale and nothing to create.
+            val theirs = entries.mapNotNull { e ->
+                if (e.group == "marketing") return@mapNotNull e
+                val tabs = (e.tabs ?: emptyList()).filter { it.marketing == true }
+                val first = tabs.firstOrNull() ?: return@mapNotNull null
+                e.copy(href = first.href, tabs = tabs, pages = emptyList())
+            }
+            return NavMap(groups, null, theirs, null, emptyList())
         }
         fun keep(p: NavPlace) = p.staff == true
         val mine = entries.mapNotNull { e ->
@@ -104,7 +124,7 @@ data class NavMap(
             actions.forEach { out.add(NavHit(it, null)) }
             for (e in listOfNotNull(newSale) + entries + listOfNotNull(settings)) {
                 out.add(NavHit(e.place, e))
-                for (t in (e.tabs ?: emptyList()) + (e.pages ?: emptyList())) if (t.href != e.href) out.add(NavHit(t, e))
+                for (t in (e.tabs ?: emptyList()) + (e.pages ?: emptyList())) if (t.href != e.href && t.moved != true) out.add(NavHit(t, e))
             }
             val seen = HashSet<String>()
             return out.filter { seen.add(it.id) }
@@ -152,6 +172,7 @@ data class NavMap(
                 href = m["href"] as? String ?: return null, label = m["label"] as? String ?: return null,
                 heading = m["heading"] as? String, icon = m["icon"] as? String, staff = m["staff"] as? Boolean,
                 keywords = strings(m["keywords"]), match = strings(m["match"]),
+                moved = m["moved"] as? Boolean, section = m["section"] as? String, marketing = m["marketing"] as? Boolean,
             )
         }
 

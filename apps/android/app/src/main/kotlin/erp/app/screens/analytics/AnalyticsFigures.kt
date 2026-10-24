@@ -10,6 +10,7 @@ import erp.core.logic.cashInForPeriod
 import erp.core.logic.invoiceMargin
 import erp.core.logic.invoiceSaleValue
 import erp.core.logic.invoicedOrderIds
+import erp.core.logic.lineCategory
 import erp.core.logic.orderMargin
 import erp.core.logic.saleCustomerKey
 import erp.core.models.AdditionalRevenue
@@ -311,8 +312,9 @@ private class AnaGather(val books: AnaBooks, val margin: MarginSettings?, val re
         p.quantity += quantity
         p.revenue += item.itemTotal
 
-        if (item.categoryId.isNotEmpty()) {
-            categories[item.categoryId] = (categories[item.categoryId] ?: 0.0) + item.itemTotal
+        // Its own category, else its order's, else its name's (lineCategory, categories.ts).
+        lineCategory(item.categoryId, item.itemCategory, item.name)?.let { cat ->
+            categories[cat] = (categories[cat] ?: 0.0) + item.itemTotal
         }
     }
 
@@ -492,7 +494,7 @@ object AnaBreakdown {
         val acc = LinkedHashMap<String, CategoryAcc>()
         for (inv in invoices(books, range)) {
             for (item in inv.items) {
-                val id = item.categoryId.ifEmpty { "uncategorized" }
+                val id = lineCategory(item.categoryId, item.itemCategory, item.name) ?: "uncategorized"
                 val a = acc.getOrPut(id) { CategoryAcc() }
                 a.items += item.quantity
                 a.revenue += item.itemTotal

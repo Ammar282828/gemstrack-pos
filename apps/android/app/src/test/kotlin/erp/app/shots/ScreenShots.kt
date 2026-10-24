@@ -2,6 +2,8 @@ package erp.app.shots
 
 import android.os.Looper
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performClick
 import erp.app.ErpApp
 import erp.app.auth.SignInScreen
@@ -40,10 +42,19 @@ class ScreenShots(config: ShotConfig) : ShotBase(config) {
         shoot("root-home")
     }
 
+    // The house's colour is the point of the idle list, so both houses are kept.
     @Test fun search() {
-        onlyTaheri()
         showPlace(SEARCH_PATH)
         shoot("search")
+    }
+
+    // Typed into: places, customers and orders (the demo's made-up Sana).
+    @Test fun search_typed() {
+        onlyTaheri()
+        showPlace(SEARCH_PATH)
+        compose.onNode(hasSetTextAction()).performTextInput("sana")
+        settle(800)
+        shoot("search-typed")
     }
 
     @Test fun orders_hub() {
