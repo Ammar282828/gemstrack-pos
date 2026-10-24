@@ -312,6 +312,7 @@ struct OrderScreen: View {
         let canDelete = OrderActions.canDeleteAdvance(order, isOwner: session.isOwner)
         // One advance and no exchange is the split's Paid figure already; the line only says more than that, or
         // carries the advance's delete for an owner.
+        let hasGoldLine = lines.contains { !$0.gold.isEmpty }
         let showAdvance = order.advancePayment > 0 && (lines.count > 1 || exchangeValue > 0 || (canDelete && lines.count == 1))
         Section {
             // The page's own sums, so the three always add up: the pieces less the discount, what has come in
@@ -326,10 +327,10 @@ struct OrderScreen: View {
                 if showAdvance {
                     // One advance: its delete sits on this line; several: each line has its own below.
                     MoneyRow("Advance paid", -order.advancePayment, signed: true)
-                        .advanceDeletion(canDelete && lines.count == 1 ? lines.first : nil) { l in undo = OrderUndo.deleteAdvance(order, line: l) }
+                        .advanceDeletion(canDelete && lines.count == 1 && !hasGoldLine ? lines.first : nil) { l in undo = OrderUndo.deleteAdvance(order, line: l) }
                 }
                 // Each advance with its day and how it was paid: these become the invoice's payments.
-                if lines.count > 1 {
+                if lines.count > 1 || hasGoldLine {
                     ForEach(lines) { l in
                         advanceLine(l)
                             .advanceDeletion(canDelete ? l : nil) { l in undo = OrderUndo.deleteAdvance(order, line: l) }
@@ -357,10 +358,13 @@ struct OrderScreen: View {
 
     private func advanceLine(_ l: OrdersLogic.AdvanceLine) -> some View {
         let words = [ShopDate.say(l.date), l.method, l.note].filter { !$0.isEmpty }.joined(separator: " \u{00B7} ")
-        return HStack(alignment: .firstTextBaseline) {
-            Text(words)
-            Spacer(minLength: 8)
-            Text(Money.pkr(l.amount)).monospacedDigit()
+        return VStack(alignment: .leading, spacing: 2) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(words)
+                Spacer(minLength: 8)
+                if l.amount > 0 || l.gold.isEmpty { Text(Money.pkr(l.amount)).monospacedDigit() }
+            }
+            if !l.gold.isEmpty { Text(l.gold) }
         }
         .font(.caption)
         .foregroundStyle(.secondary)
@@ -714,8 +718,8 @@ struct OrderScreen: View {
         }
     }
 
-    private func advanced(_ amount: Double) {
-        Note.show(Note(title: "Advance recorded", detail: Money.pkr(amount)), in: $note, reduce: reduceMotion)
+    private func advanced(_ amount: Double, _ exchanges: [[String: Any]] = []) {
+        Note.show(Note(title: "Advance recorded", detail: OrderAdvance.said(amount: amount, exchanges: exchanges)), in: $note, reduce: reduceMotion)
     }
 
     private func advanceSheet(_ order: Order) -> some View {
@@ -726,10 +730,10 @@ struct OrderScreen: View {
                             settle: { amount, method, _, note, remainder in
                                 try await OrderAdvance.settle(order, amount: amount, method: method, note: note, remainder: remainder)
                                 await MainActor.run { advanced(amount) }
-                            }) { amount, method, note in
-            try await OrderAdvance.record(order, amount: amount, method: method, note: note)
+                            }) { amount, method, note, exchanges in
+            try await OrderAdvance.record(order, amount: amount, method: method, note: note, exchanges: exchanges)
             // PaymentSheet plays the success tap itself.
-            await MainActor.run { advanced(amount) }
+            await MainActor.run { advanced(amount, exchanges) }
         }
     }
 

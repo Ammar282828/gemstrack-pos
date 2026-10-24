@@ -15,7 +15,7 @@ import { NextResponse } from 'next/server';
 import { FieldValue } from 'firebase-admin/firestore';
 import { adminPort } from '@/lib/db-admin-port';
 import { passDeleteCode } from '@/lib/delete-code-gate';
-import { orderAdvancePayments } from '@/lib/order-payment';
+import { orderAdvanceLines } from '@/lib/order-payment';
 import type { Order } from '@/lib/store';
 import {
   CHANGED_ADVANCES, deleteAdvanceWhat, deleteOrderAdvance, OrderPieceRefusal, orderWithoutPiece, removeOrderPiece, removePieceWhat,
@@ -76,7 +76,7 @@ export const runOrders2Op: OpHandler = async (op, body, ctx) => {
       const amount = typeof body.amount === 'number' && Number.isFinite(body.amount) ? body.amount : null;
       if (lineIndex === null || amount === null) return bad('Which advance?');
       if (order.invoiceId) return bad(`${orderId} is invoiced: delete the payment on ${order.invoiceId} instead.`, 409);
-      const line = orderAdvancePayments({ ...order, id: orderId }, '')[lineIndex];
+      const line = orderAdvanceLines({ ...order, id: orderId }, '')[lineIndex];
       if (!line || Math.abs(line.amount - amount) >= 1) return bad(CHANGED_ADVANCES, 409);
       const code = await passDeleteCode(ctx.email, body.deleteCode, deleteAdvanceWhat(orderId, amount));
       if (!code.ok) return bad(code.error, code.status);

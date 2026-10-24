@@ -26,7 +26,7 @@ import { EXPENSE_CATEGORIES } from '@/lib/expense-categories';
 import { STORE_CONFIG, STORE_INVOICE_WHATSAPP_PDF } from '@/lib/store-config';
 import { ORDER_CATEGORIES, type OrderDraft, type DraftItem } from '@/lib/vision/order-draft';
 import type { BillLine } from '@/lib/vision/bill-draft';
-import { orderAdvancePayments } from '@/lib/order-payment';
+import { orderAdvanceLines } from '@/lib/order-payment';
 import { PAYMENT_METHOD_WORDS } from './documents';
 import type { ArgSpec, ArgType } from './args';
 import type { HandoffKind } from './handoff';
@@ -339,11 +339,11 @@ export const COMMANDS: CommandDef[] = [
     describe: l => `Delete ${l.which ? `advance ${l.which}` : 'the latest advance'} on ${l.order}.`,
     run: async (v, x) => {
       const o = v.order as Order;
-      const lines = orderAdvancePayments(o, '');
+      const lines = orderAdvanceLines(o, '');
       const i = v.which ? Number(v.which) - 1 : lines.length - 1;
       if (!lines[i]) throw new Error(`${o.id} has no advance ${i + 1}.`);
       await x.s.deleteOrderAdvance(o.id, i);
-      return { said: `Advance of ${rs(lines[i].amount)} deleted from ${o.id}.`, href: `/orders/${o.id}` };
+      return { said: `Advance of ${lines[i].amount > 0 ? rs(lines[i].amount) : 'gold'} deleted from ${o.id}.`, href: `/orders/${o.id}` };
     },
   },
   {

@@ -319,6 +319,7 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
         cashInFromExchange: 0,
         exchangeOffInvoices: 0,
         cashOut: 0,
+        creditPaidBack: 0,
         netCashFlow: 0,
         // ── Acquisition source ──────────────────────────────────────────────
         sourceBreakdown: [] as SourceBreakdownData[],
@@ -621,10 +622,13 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
       period: { from: rangeFrom, to: rangeTo },
       invoiceDate: inv => getInvoiceRevenueDate(inv, ordersById),
     });
-    const cashIn = cash.total;
-    const cashOut = calcData.totalExpenses; // every logged expense is cash out
+    // Credit handed back to a customer is a negative payment on its invoice, so cash-in.ts nets it off the
+    // payments; here it is shown as money out instead, and added back to money in so the net is the same.
+    const cashIn = cash.total + cash.paidBack;
+    const cashOut = calcData.totalExpenses + cash.paidBack; // every logged expense is cash out
+    calcData.creditPaidBack = cash.paidBack;
     calcData.cashIn = cashIn;
-    calcData.cashInFromInvoicePayments = cash.invoicePayments;
+    calcData.cashInFromInvoicePayments = cash.invoicePayments + cash.paidBack;
     calcData.cashInFromOrderAdvances = cash.orderAdvances;
     calcData.cashInFromExtraRevenue = cash.extraRevenue;
     calcData.cashInFromExchange = cash.exchange;
@@ -964,7 +968,7 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
           {(() => {
             const { cashIn, cashOut, netCashFlow, cashInFromInvoicePayments, cashInFromOrderAdvances, cashInFromExtraRevenue, cashInFromExchange, exchangeOffInvoices } = analyticsData;
             // Gold taken off an invoice's total is in Cash In but was never in revenue.
-            const accrualVsCashGap = analyticsData.totalSales - (cashIn - exchangeOffInvoices);
+            const accrualVsCashGap = analyticsData.totalSales - (cashIn - analyticsData.creditPaidBack - exchangeOffInvoices);
             return (
               <Card>
                 <CardHeader className="pb-3">
@@ -1003,7 +1007,10 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
                       <div className="text-xl sm:text-2xl font-bold text-destructive">
                         {pkrLac(cashOut)}
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1">Every expense paid in this period</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Every expense paid in this period
+                        {analyticsData.creditPaidBack > 0 && <> · Credit paid back: {pkrLac(analyticsData.creditPaidBack)}</>}
+                      </p>
                     </div>
                     <div className={cn('rounded-lg border p-4 col-span-2 lg:col-span-1', netCashFlow >= 0 ? 'border-success/40 bg-success/10' : 'border-destructive/40 bg-destructive/10')}>
                       <div className="flex flex-row items-center justify-between pb-2">

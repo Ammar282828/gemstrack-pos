@@ -44,7 +44,7 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Whole rupees, round-off chips, Settle | ✓ | ✓ | ✓ | 2026-10-17 | [Whole rupees](decisions.md#whole-rupees), [Round-off](decisions.md#round-off) |
 | Invoice PDF and WhatsApp send | ✓ | ✓ | ✓ | 2026-10 | [Invoice PDF](decisions.md#invoice-pdf) |
 | Exchange as cash / exchange rows | ✓ | ✓ | ✓ | 2026-10 | [Exchange as cash](decisions.md#exchange-as-cash) |
-| Give back customer credit (overpaid refund) | wip | wip | owed | 2026-10-24 | [Invoice credit](decisions.md#invoice-credit); `src/lib/writes` |
+| Give back customer credit (overpaid refund) | ✓ | ✓ | owed | 2026-10-24 | [Invoice credit](decisions.md#invoice-credit); `src/lib/writes/invoice-credit-payback.ts` (`payBackCredit`) |
 | A money write keeps its request id across timeouts and relaunches | ✓ | ✓ | owed | 2026-10-20 | Android de-duplicates 30 s only; `Data/Outbox.swift`, `src/app/api/app/write/idempotency.ts` |
 
 ## Orders
@@ -57,7 +57,7 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Edit order (keeps quoted rates, ticks, photos) | ✓ | ✓ | ✓ | 2026-10-09 | `NewOrderEdit.swift`; Android (check) |
 | Finalize and invoice | ✓ | ✓ | ✓ | 2026-10 | [Order to invoice](decisions.md#order-to-invoice) |
 | Online orders: a person confirms | ✓ | ✓ | ✓ | 2026-10 | [Online orders](decisions.md#online-orders) |
-| Order advance with exchanged gold | wip | wip | owed | 2026-10-24 | [Order to invoice](decisions.md#order-to-invoice), [Exchange rows](decisions.md#exchange-rows) |
+| Order advance with exchanged gold | ✓ | ✓ | owed | 2026-10-24 | [Order to invoice](decisions.md#order-to-invoice), [Exchange rows](decisions.md#exchange-rows) |
 | Settle an advance (order stays as it was) | ✓ | ✓ | ✓ | 2026-10-17 | `settleOrderAdvance` |
 | Order slip printed from the phone | ✓ | ✓ | ✓ | 2026-10-09 | |
 

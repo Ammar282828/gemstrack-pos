@@ -9,6 +9,8 @@
  *        recorded for those: "Not recorded")
  *   out  expenses paid by the business today — expenses carry no method, so every one the business
  *        paid (not a partner out of pocket) is counted as leaving the drawer
+ *   (a customer's credit handed back is a negative invoice payment: it lowers money in and the drawer
+ *   by its method, and is also shown as `paidBack`, money out; the sale's revenue is untouched)
  *   exchange  gold (or anything) taken in exchange today, at the value agreed: its own line, never
  *        in cash — it is in the safe, not the drawer
  * Net cash is the drawer: money in by Cash, less the business's expenses.
@@ -18,6 +20,7 @@
 import type { AdditionalRevenue, Expense, Invoice, Order, PaymentType, Repair } from '@/lib/store';
 import { cashInForPeriod, invoicedOrderIds, paymentExchangePart, type Period } from '@/lib/analytics/cash-in';
 import { orderAdvancePayments } from '@/lib/order-payment';
+import { isCreditPayback } from '@/lib/invoice-credit';
 
 export const METHODS = ['Cash', 'Card', 'Bank Transfer', 'Cheque', 'Not recorded'] as const;
 export type Method = typeof METHODS[number];
@@ -30,6 +33,8 @@ export interface CashLine {
   amount: number;
   method: Method;
   at: string;
+  /** A customer's credit handed back (amount is negative). */
+  payback?: boolean;
 }
 
 export interface TodaysCash {
@@ -40,6 +45,8 @@ export interface TodaysCash {
   /** Money in, every method. */
   totalIn: number;
   exchange: number;
+  /** Credit handed back to customers today (positive; already taken off money in and the drawer). */
+  paidBack: number;
   /** What the business paid out today. */
   expenses: number;
   expenseLines: { description: string; amount: number; category: string }[];
@@ -82,7 +89,7 @@ export function todaysCash(input: {
     for (const p of Array.isArray(inv.paymentHistory) ? inv.paymentHistory : []) {
       if (!p || !within(p.date, period)) continue;
       const amount = (Number(p.amount) || 0) - paymentExchangePart(p);
-      if (amount) lines.push({ source: 'invoice', ref: inv.id, who: inv.customerName || 'Walk-in', amount, method: methodOf(p.method), at: p.date });
+      if (amount) lines.push({ source: 'invoice', ref: inv.id, who: inv.customerName || 'Walk-in', amount, method: methodOf(p.method), at: p.date, ...(isCreditPayback(p) && { payback: true }) });
     }
   }
   const invoiced = invoicedOrderIds(input.orders, input.invoices);
@@ -113,6 +120,7 @@ export function todaysCash(input: {
     console.warn('[todaysCash] lines and cash-in.ts disagree', totalIn, cashIn);
   }
 
+  const paidBack = lines.reduce((s, l) => s + (l.payback ? -l.amount : 0), 0);
   const paidOut = input.expenses.filter(e => e && within(e.date, period) && (!e.paidBy || e.paidBy === 'business'));
   const expenses = paidOut.reduce((s, e) => s + (Number(e.amount) || 0), 0);
 
@@ -121,6 +129,7 @@ export function todaysCash(input: {
     byMethod,
     totalIn,
     exchange: cashIn.exchange,
+    paidBack,
     expenses,
     expenseLines: paidOut.map(e => ({ description: e.description, amount: Number(e.amount) || 0, category: String(e.category ?? '') })),
     netCash: byMethod.Cash - expenses,

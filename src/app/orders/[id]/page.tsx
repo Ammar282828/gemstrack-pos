@@ -18,7 +18,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useAppStore, Order, OrderStatus, ORDER_STATUSES, KaratValue, OrderItem, Settings, Invoice, Product, MetalType, Karigar, CUSTOMER_SOURCE_LABELS, PAYMENT_TYPES } from '@/lib/store';
 import { orderExchanges, describeExchangeEntry } from '@/lib/exchange';
-import { getOrderPaymentStatus, orderAdvancePayments, type PaymentStatus as OrderPaymentStatus } from '@/lib/order-payment';
+import { getOrderPaymentStatus, orderAdvanceLines, type PaymentStatus as OrderPaymentStatus } from '@/lib/order-payment';
 import { useIsStoreHydrated } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -529,7 +529,7 @@ export default function OrderDetailPage() {
   const grandTotal = subtotal - discountAmount - advancePayment - advanceInExchangeValue;
   // The advances as they will land on the invoice: the one taken with the order, then each
   // recorded after it (lib/order-payment.ts).
-  const advanceLines = orderAdvancePayments(order, '').map(a => ({ ...a, notes: a.notes?.replace(/^: /, '') || (a.date === order.createdAt ? 'With the order' : '') }));
+  const advanceLines = orderAdvanceLines(order, '').map(a => ({ ...a, notes: a.notes?.replace(/^: /, '') || (a.date === order.createdAt ? 'With the order' : '') }));
 
   // The page's hero: the person, the track, and the money split (the app's order page). An invoiced order shows
   // its invoice's money, since that is where it is taken.
@@ -1087,7 +1087,7 @@ export default function OrderDetailPage() {
                           <div className="flex justify-between items-center text-tone-settled-ink"><span>Advance paid:</span>
                             <span className="font-semibold inline-flex items-center gap-1">- PKR {advancePayment.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                               {/* One advance: its delete sits here; several: each line has its own below. */}
-                              {!order.invoiceId && advanceLines.length === 1 && (
+                              {!order.invoiceId && advanceLines.length === 1 && !advanceLines[0].exchanges?.length && (
                                 <button type="button" onClick={() => handleDeleteAdvance(0, advanceLines[0].amount)} className="min-h-0 p-1 text-muted-foreground hover:text-destructive"
                                   aria-label="Delete this advance" title="Delete this advance (asks for the delete code)"><Trash2 className="h-3.5 w-3.5" /></button>
                               )}
@@ -1095,15 +1095,15 @@ export default function OrderDetailPage() {
                           </div>
                           {/* Each advance with its day and how it was paid — these become the
                               invoice's payments when the order is finalised. */}
-                          {advanceLines.length > 1 && (
+                          {(advanceLines.length > 1 || advanceLines.some(a => a.exchanges?.length)) && (
                             <ul className="text-xs text-muted-foreground space-y-0.5 pl-3">
                               {advanceLines.map((a, i) => (
                                 <li key={i} className="flex justify-between items-center gap-3">
                                   <span>{format(parseISO(a.date), 'dd MMM yyyy')}{a.method ? ` · ${a.method}` : ''}{a.notes ? ` · ${a.notes}` : ''}</span>
-                                  <span className="tabular-nums inline-flex items-center gap-1">{a.amount.toLocaleString()}
+                                  <span className="tabular-nums inline-flex items-center gap-1">{[a.amount > 0 ? a.amount.toLocaleString() : '', ...(a.exchanges?.length ? [`Gold: ${a.exchanges.map(e => `${describeExchangeEntry(e)} · PKR ${e.value.toLocaleString()}`).join('; ')}`] : [])].filter(Boolean).join(' + ')}
                                     {!order.invoiceId && (
                                       <button type="button" onClick={() => handleDeleteAdvance(i, a.amount)} className="min-h-0 p-1 hover:text-destructive"
-                                        aria-label={`Delete the advance of ${a.amount.toLocaleString()}`} title="Delete this advance (asks for the delete code)"><Trash2 className="h-3 w-3" /></button>
+                                        aria-label={`Delete the advance of ${a.amount > 0 ? a.amount.toLocaleString() : 'gold'}`} title="Delete this advance (asks for the delete code)"><Trash2 className="h-3 w-3" /></button>
                                     )}
                                   </span>
                                 </li>

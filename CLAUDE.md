@@ -151,7 +151,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Whole rupees](docs/decisions.md#whole-rupees) — no decimals; each line rounded, `lib/money-round.ts`; under 1 rupee is settled
 - [Round-off](docs/decisions.md#round-off) — up to 3 round-down chips by the discount; "Settle" a remainder under 5,000 as discount
 - [Lac and crore](docs/decisions.md#lac-and-crore) — `lib/money.ts`
-- [Invoice credit](docs/decisions.md#invoice-credit) — overpaid is a named customer's credit, on their hisaab
+- [Invoice credit](docs/decisions.md#invoice-credit) — overpaid is a named customer's credit, on their hisaab; the owner gives it back with "Give back" (`payBackCredit`, not a refund)
 - [Margin](docs/decisions.md#margin) — typed 24k less 6 ratti, else 10%; never the customer's
 - [Exchange as cash](docs/decisions.md#exchange-as-cash) — in Cash In and in revenue (`invoiceSaleValue`)
 - [Analytics default: this month](docs/decisions.md#analytics-default-this-month) — the 1st to today, not a rolling 30 days; Home's ledger too

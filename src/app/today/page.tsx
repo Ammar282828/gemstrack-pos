@@ -50,7 +50,7 @@ export default function TodaysCashPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
         <Tile label="In the drawer" value={pkr(t.netCash)} hint="Cash in, less what was paid out" strong tone={t.netCash < 0 ? 'bad' : 'good'} />
         <Tile label="Money in" value={pkr(t.totalIn)} hint="Every method" />
-        <Tile label="Paid out" value={pkr(t.expenses)} hint={`${t.expenseLines.length} expense${t.expenseLines.length === 1 ? '' : 's'}`} />
+        <Tile label="Paid out" value={pkr(t.expenses + t.paidBack)} hint={`${t.expenseLines.length} expense${t.expenseLines.length === 1 ? '' : 's'}${t.paidBack > 0 ? ` and ${pkr(t.paidBack)} of credit given back` : ''}`} />
         <Tile label="Exchange" value={pkr(t.exchange)} hint="Taken in exchange — not cash" />
       </div>
 
@@ -75,7 +75,7 @@ export default function TodaysCashPage() {
                 <li key={i} className="flex items-center gap-3 py-2 text-sm">
                   <span className="w-12 flex-shrink-0 text-xs text-muted-foreground tabular-nums">{time(l.at)}</span>
                   <Link href={hrefOf(l.source, l.ref)} className="min-w-0 flex-1 truncate hover:underline">
-                    <span className="text-muted-foreground">{SOURCE[l.source]}</span> · {l.source === 'extra' ? l.ref : <>{l.ref}{l.who ? ` · ${l.who}` : ''}</>}
+                    <span className="text-muted-foreground">{l.payback ? 'Credit paid back' : SOURCE[l.source]}</span> · {l.source === 'extra' ? l.ref : <>{l.ref}{l.who ? ` · ${l.who}` : ''}</>}
                   </Link>
                   <span className="text-xs text-muted-foreground flex-shrink-0">{l.method}</span>
                   <span className="w-28 text-right font-medium tabular-nums flex-shrink-0">{pkr(l.amount)}</span>

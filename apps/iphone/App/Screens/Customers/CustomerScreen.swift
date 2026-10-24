@@ -17,6 +17,8 @@ struct CustomerScreen: View {
     private let seed: Customer?
     @State private var deletion: OwnerDeletion?
     @State private var note: Note?
+    /// An invoice whose credit is being handed back (InvoiceActionCreditSheet).
+    @State private var givingBack: Invoice?
     /// The customer's figures, worked out once per change of the books rather than on every drawing (every
     /// invoice, order, repair and hisaab row was walked each time the page moved).
     @State private var reckoned = Memo<Facts>()
@@ -73,6 +75,12 @@ struct CustomerScreen: View {
         .sheet(item: $deletion) { (d: OwnerDeletion) in
             OwnerDeleteCodeSheet(deletion: d) {}
                 .presentationSizing(.form)
+        }
+        .sheet(item: $givingBack) { (inv: Invoice) in
+            InvoiceActionCreditSheet(invoice: inv) { (o: InvoiceActionOutcome) in
+                Note.show(Note(title: o.note.title, detail: o.note.detail), in: $note, reduce: reduceMotion)
+            }
+            .presentationSizing(.form)
         }
         .noteToast($note)
         .destructiveFeedback(trigger: deletion != nil)
@@ -276,6 +284,21 @@ struct CustomerScreen: View {
                 ForEach(list) { inv in
                     NavigationLink(value: CustomerKit.place("/invoices/", inv.id)) {
                         CustInvoiceRow(invoice: inv)
+                    }
+                    // Credit they have paid ahead: the owner can hand it back (decision "Invoice credit").
+                    .swipeActions(edge: .trailing) {
+                        if session.isOwner && InvoiceCredit.held(inv) >= 1 {
+                            Button { givingBack = inv } label: { Label("Give back", systemImage: "banknote") }
+                                .tint(Tone.credit.color)
+                        }
+                    }
+                }
+                // Swipe is easy to miss: the same action as a plain row, one per invoice in credit.
+                if session.isOwner {
+                    ForEach(list.filter { InvoiceCredit.held($0) >= 1 }) { inv in
+                        Button { givingBack = inv } label: {
+                            Label("Give back \(Money.pkr(InvoiceCredit.held(inv))) on \(inv.id)", systemImage: "banknote")
+                        }
                     }
                 }
             }

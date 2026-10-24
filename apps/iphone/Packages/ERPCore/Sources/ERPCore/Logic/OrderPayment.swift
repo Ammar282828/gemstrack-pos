@@ -27,8 +27,11 @@ public func getOrderPaymentStatus(_ order: Order) -> PaymentStatus {
     return .unpaid
 }
 
-/// An order's cash advances as the invoice's payments, each with its day and how it was paid
-/// (the owner, 2026-09-25: "carry over all details from order to invoice, such as advances").
+/// An advance line that shows: cash, or gold handed over.
+private func isAdvanceLine(_ p: Payment) -> Bool { p.amount > 0 || !p.exchanges.isEmpty }
+
+/// An order's advance lines as the order page lists them: the cash ones (the invoice's payments, see
+/// `orderAdvancePayments`) and those paid in gold only (amount 0, never a payment).
 ///
 /// `advancePayment` is the running total of every cash advance; `advances` lists the ones
 /// recorded after the order was placed. What the list does not account for was taken with the
@@ -36,10 +39,10 @@ public func getOrderPaymentStatus(_ order: Order) -> PaymentStatus {
 /// total is trusted as one advance. `label` is what each payment's note says ("Advance on order
 /// ORD-000123"); the order page shows the same lines. (The TS takes a `Pick` of the order: its
 /// id, createdAt, advancePayment, advanceMethod and advances.)
-public func orderAdvancePayments(_ order: Order, label: String? = nil) -> [Payment] {
+public func orderAdvanceLines(_ order: Order, label: String? = nil) -> [Payment] {
     let label = label ?? "Advance on order \(order.id)"
     let cash = order.advancePayment
-    let later = order.advances.filter { $0.amount > 0 }
+    let later = order.advances.filter(isAdvanceLine)
     let laterSum = later.reduce(0) { $0 + $1.amount }
     if laterSum > cash + 0.5 {
         return cash > 0 ? [Payment(amount: cash, date: order.createdAt, notes: label)] : []
@@ -51,9 +54,18 @@ public func orderAdvancePayments(_ order: Order, label: String? = nil) -> [Payme
     }
     for p in later {
         let note = JS.trim(p.notes ?? "")
-        lines.append(Payment(amount: p.amount, date: p.date, notes: note.isEmpty ? label : "\(label): \(note)", method: p.method, reference: p.reference))
+        lines.append(Payment(amount: p.amount, date: p.date, notes: note.isEmpty ? label : "\(label): \(note)", method: p.method, reference: p.reference, exchanges: p.exchanges))
     }
     return lines
+}
+
+/// An order's cash advances as the invoice's payments, each with its day and how it was paid
+/// (the owner, 2026-09-25: "carry over all details from order to invoice, such as advances").
+/// Gold taken with an advance is not here: it is the order's exchange row, carried as that.
+public func orderAdvancePayments(_ order: Order, label: String? = nil) -> [Payment] {
+    orderAdvanceLines(order, label: label).filter { $0.amount > 0 }.map {
+        Payment(amount: $0.amount, date: $0.date, notes: $0.notes, method: $0.method, reference: $0.reference)
+    }
 }
 
 /// The order after one of its advance lines is taken away (`withoutOrderAdvance`).
@@ -72,13 +84,13 @@ public struct OrderAdvanceRemoval: Equatable {
     }
 }
 
-/// The order without one of its advance lines, as `orderAdvancePayments` lists them (owner,
+/// The order without one of its advance lines, as `orderAdvanceLines` lists them (owner,
 /// 2026-10-01: "add ability to delete … advances"). The first line, when the total is more than
 /// the list, is the advance taken with the order (its `advanceMethod` goes with it); the rest are
 /// the `advances` list, in order. Nil for a line that isn't there. The balance is the caller's:
 /// subtotal − discount − what is left − exchange, as recording an advance works it out.
 public func withoutOrderAdvance(_ order: Order, lineIndex: Int) -> OrderAdvanceRemoval? {
-    let lines = orderAdvancePayments(order, label: "")
+    let lines = orderAdvanceLines(order, label: "")
     guard lineIndex >= 0, lineIndex < lines.count else { return nil }
     let removed = lines[lineIndex]
     let cash = order.advancePayment
@@ -90,10 +102,10 @@ public func withoutOrderAdvance(_ order: Order, lineIndex: Int) -> OrderAdvanceR
     if hasFirst && lineIndex == 0 {
         return OrderAdvanceRemoval(advancePayment: rupees(laterSum), advances: all, dropMethod: true, removed: removed)
     }
-    // The k-th positive entry of the list.
+    // The k-th line of the list (cash, or gold handed over).
     var k = lineIndex - (hasFirst ? 1 : 0)
     var at = -1
-    for (i, p) in all.enumerated() where p.amount > 0 {
+    for (i, p) in all.enumerated() where isAdvanceLine(p) {
         if k == 0 { at = i; break }
         k -= 1
     }

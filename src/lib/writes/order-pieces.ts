@@ -15,6 +15,7 @@
 import type { DbPort, SideEffects } from '@/lib/db-port';
 import type { Order, OrderItem } from '@/lib/store';
 import { withoutOrderAdvance } from '@/lib/order-payment';
+import { orderExchangeFields, orderExchanges } from '@/lib/exchange';
 
 const ORDERS = 'orders';
 
@@ -95,17 +96,22 @@ export async function deleteOrderAdvance(
     const order = { ...o, id: orderId, createdAt: String(o.createdAt || '') } as Order;
     const cut = withoutOrderAdvance(order, lineIndex);
     if (!cut || Math.abs(cut.removed.amount - amount) >= 1) throw new OrderPieceRefusal(CHANGED_ADVANCES);
-    const grandTotal = orderBalance({ ...o, advancePayment: cut.advancePayment });
+    // The gold that came with this advance goes with it: its tagged exchange rows, then the totals kept from them.
+    // Rows without the tag (the order's own, older advances') are left as they are.
+    const rows = orderExchanges(o, true);
+    const kept = rows.filter((r) => !(r.advanceId && cut.dropAdvanceIds.includes(r.advanceId)));
+    const exchangeFields = kept.length !== rows.length ? orderExchangeFields(kept) : undefined;
+    const grandTotal = orderBalance({ ...o, advancePayment: cut.advancePayment, ...(exchangeFields && { advanceInExchangeValue: exchangeFields.advanceInExchangeValue }) });
     tx.update(ORDERS, orderId, {
-      advancePayment: cut.advancePayment, advances: cut.advances, grandTotal,
+      advancePayment: cut.advancePayment, advances: cut.advances, grandTotal, ...exchangeFields,
       ...(cut.dropMethod ? { advanceMethod: deps.deleteField() } : {}),
     });
-    const next = { ...order, advancePayment: cut.advancePayment, advances: cut.advances, grandTotal } as Order;
+    const next = { ...order, advancePayment: cut.advancePayment, advances: cut.advances, grandTotal, ...exchangeFields } as Order;
     if (cut.dropMethod) delete next.advanceMethod;
     return { order: next, removed: cut.removed };
   });
   void Promise.resolve(fx.log?.('order.update', `Advance deleted from Order ${orderId}`,
-    `Amount: ${out.removed.amount.toLocaleString()} of ${String(out.removed.date).slice(0, 10)} | Advance now ${out.order.advancePayment.toLocaleString()}, balance ${out.order.grandTotal.toLocaleString()}`,
+    `Amount: ${out.removed.amount.toLocaleString()}${out.removed.exchanges?.length ? ` + gold ${out.removed.exchanges.reduce((n, e) => n + (Number(e.value) || 0), 0).toLocaleString()}` : ''} of ${String(out.removed.date).slice(0, 10)} | Advance now ${out.order.advancePayment.toLocaleString()}, balance ${out.order.grandTotal.toLocaleString()}`,
     orderId)).catch(() => undefined);
   return out.order;
 }

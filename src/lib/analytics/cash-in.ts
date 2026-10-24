@@ -23,6 +23,7 @@
 import { parseISO } from 'date-fns';
 import type { AdditionalRevenue, Invoice, Order, Payment } from '@/lib/store';
 import { orderAdvancePayments } from '@/lib/order-payment';
+import { isCreditPayback } from '@/lib/invoice-credit';
 import { exchangeTotal, invoiceExchanges, orderExchanges } from '@/lib/exchange';
 
 /** Either end left null is open. */
@@ -41,6 +42,8 @@ export interface CashIn {
   /** The part of `exchange` taken off an invoice's grand total, which revenue therefore never
    *  counted. Revenue less (total less this) is what is still owed. */
   exchangeOffInvoices: number;
+  /** Credit handed back to customers in the period (positive). Already taken off `invoicePayments`, like a refund; Cash Out shows it. */
+  paidBack: number;
 }
 
 type CashInvoice = Pick<Invoice, 'status' | 'createdAt' | 'paymentHistory' | 'exchanges' | 'exchangeDescription' | 'exchangeAmount1' | 'exchangeAmount2'>;
@@ -95,12 +98,14 @@ export function cashInForPeriod<I extends CashInvoice>({
   let invoicePayments = 0;
   let invoiceExchange = 0;
   let legacyExchange = 0;
+  let paidBack = 0;
   for (const inv of invoices) {
     if (!inv || inv.status === 'Refunded') continue;
     for (const p of Array.isArray(inv.paymentHistory) ? inv.paymentHistory : []) {
       if (!p || !inPeriod(p.date, period)) continue;
       const inKind = paymentExchangePart(p);
       invoicePayments += (Number(p.amount) || 0) - inKind;
+      if (isCreditPayback(p)) paidBack -= Number(p.amount) || 0;
       legacyExchange += inKind;
     }
     if (inPeriod(invoiceDate(inv), period)) invoiceExchange += exchangeTotal(invoiceExchanges(inv));
@@ -124,5 +129,6 @@ export function cashInForPeriod<I extends CashInvoice>({
     extraRevenue,
     total: invoicePayments + orderAdvances + exchange + extraRevenue,
     exchangeOffInvoices: invoiceExchange,
+    paidBack,
   };
 }

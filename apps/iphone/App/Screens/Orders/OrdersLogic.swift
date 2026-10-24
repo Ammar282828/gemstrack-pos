@@ -257,16 +257,22 @@ enum OrdersLogic {
         let method: String
         let note: String
         let amount: Double
+        /// "Old ring · 22k · 5 g at 20,000/g · PKR 100,000" for each row of gold handed over with it; "" for cash only.
+        let gold: String
+        /// What the line comes to: cash and gold.
+        let goldValue: Double
     }
 
     /// The advances as they will land on the invoice: the one taken with the order, then each
     /// recorded after it, each with its day, how it was paid and its note.
     static func advanceLines(_ order: Order) -> [AdvanceLine] {
-        orderAdvancePayments(order, label: "").enumerated().map { i, a in
+        orderAdvanceLines(order, label: "").enumerated().map { i, a in
             let raw = a.notes ?? ""
             let clean = raw.hasPrefix(": ") ? String(raw.dropFirst(2)) : raw
             let note = clean.isEmpty ? (a.date == order.createdAt ? "With the order" : "") : clean
-            return AdvanceLine(id: i, date: a.date, method: a.method?.rawValue ?? "", note: note, amount: a.amount)
+            let gold = a.exchanges.map { "\(describeExchangeEntry($0)) \u{00B7} \(Money.pkr($0.value))" }.joined(separator: "; ")
+            return AdvanceLine(id: i, date: a.date, method: a.method?.rawValue ?? "", note: note, amount: a.amount,
+                               gold: gold.isEmpty ? "" : "Gold: " + gold, goldValue: a.exchanges.reduce(0) { $0 + $1.value })
         }
     }
 

@@ -520,8 +520,8 @@ struct OrdersHub: View {
         }
     }
 
-    private func advanced(_ amount: Double) {
-        Note.show(Note(title: "Advance recorded", detail: Money.pkr(amount)), in: $note, reduce: reduceMotion)
+    private func advanced(_ amount: Double, _ exchanges: [[String: Any]] = []) {
+        Note.show(Note(title: "Advance recorded", detail: OrderAdvance.said(amount: amount, exchanges: exchanges)), in: $note, reduce: reduceMotion)
     }
 
     /// An advance from the card: owners only (the ERP refuses anyone else), and never once invoiced.
@@ -536,9 +536,9 @@ struct OrdersHub: View {
                              throw e
                          }
                          await MainActor.run { advanced(amount) }
-                     }) { amount, method, note in
-            try await OrderAdvance.record(order, amount: amount, method: method, note: note)
-            await MainActor.run { advanced(amount) }
+                     }) { amount, method, note, exchanges in
+            try await OrderAdvance.record(order, amount: amount, method: method, note: note, exchanges: exchanges)
+            await MainActor.run { advanced(amount, exchanges) }
         }
     }
 }
