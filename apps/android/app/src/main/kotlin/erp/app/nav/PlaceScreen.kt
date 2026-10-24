@@ -59,6 +59,9 @@ import erp.app.ui.readableColumn
 /** True under the phone layout's bottom bar, which already takes the system navigation inset. */
 val LocalBottomBar = compositionLocalOf { false }
 
+/** True where the business chip sits in the wide navigation rail's header already, so a screen's own top bar does not repeat it. */
+val LocalChipInRail = compositionLocalOf { false }
+
 /**
  * One ERP place: its tabs (the ERP's "one tab row per screen") as the title's menu, and the screen for the
  * chosen tab, native or the ERP page. `onClose` is set on a sheet's first screen (the create sheet).
@@ -119,6 +122,8 @@ fun PlaceScreen(
                     }
                 },
                 actions = {
+                    // The open business, at the head of every tab's first screen: tap for the Businesses sheet, hold to switch.
+                    if (isRoot && onClose == null && !LocalChipInRail.current) erp.app.screens.businesses.BusinessChip()
                     // On a tablet the create menu sits here, beside the page's own actions, so nothing floats over a form or the last row.
                     LocalCreateInBar.current?.let { if (isRoot) CreateMenuButton(it) }
                     chrome.actions?.invoke(this)

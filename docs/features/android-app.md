@@ -5,8 +5,9 @@
 Started 2026-10-12 (owner: port the native iPhone/iPad ERP to Android, both houses, built and handed out without a Mac).
 
 **What it is.** `apps/android`: Kotlin, Jetpack Compose, Material 3 (expressive), one codebase with two product
-flavors, **taheri** (`shop.taheri.erp`, "Taheri ERP") and **mina** (`store.houseofmina.erp`, "Mina ERP"), the same
-IDs as the iPhone apps. The design reference is `apps/iphone` (its 2026-10-12 redesign): the same places, words,
+flavors, **taheri** (`shop.taheri.erp`, "ERP": the one app that holds Taheri, House of Mina and any business added by its
+address, [below](#one-app-many-businesses-2026-10-24)) and **mina** (`store.houseofmina.erp`, "Mina ERP", deprecated like Mina's own
+iPhone app: it starts on Mina and holds only Mina), the same IDs as the iPhone apps. The design reference is `apps/iphone` (its 2026-10-12 redesign): the same places, words,
 money rules, payloads and look, in Android's own idiom (Material, not Liquid Glass). `apps/android/CONVENTIONS.md`
 is its rulebook, mirroring `apps/iphone/CONVENTIONS.md`.
 
@@ -75,6 +76,83 @@ is its rulebook, mirroring `apps/iphone/CONVENTIONS.md`.
 - **Notifications.** FCM. `src/lib/push` sends to Android phones beside Apple's, from the same events, with the same
   words and the same per-kind switches (`push_devices` entries carry `platform: 'android'`); sent with
   `firebase-admin` messaging under the backend's own service account (no FCM key to upload). A phone registers at `/api/push/devices` with `{ token: <FCM registration token>, platform: "android", bundleId: <applicationId>, label: <Build.MODEL> }`, owners only, after an owner's sign-in (that is when Android 13+ is asked for `POST_NOTIFICATIONS`, as the iPhone asks then, never at launch), again whenever FCM refreshes the token, and is forgotten on sign-out (`DELETE {token}`, capped at 3 s, while the sign-in token is good). It only happens when the house's Android app is registered in Firebase (`House.firebaseOptions`), never in the demo. Four channels, made at app start and named as the server's `kind`: `sales` "Sales", `payments` "Payments", `orders` "Orders", `karigar` "Karigar work". A notification shown while the app is open is built by `ErpMessagingService`; a tap, in either case, opens the `url` in its data over the tabs (`AppRouter`, from the intent's extras when the app was in the background). The App Hosting runtime service account (`firebase-app-hosting-compute@<project>.iam.gserviceaccount.com`) may need `roles/firebasecloudmessaging.admin` in each project to send: an owner step, unverified.
+
+### One app, many businesses (2026-10-24)
+
+The iPhone's model ([iphone-app.md](iphone-app.md#one-app-many-businesses-2026-10-16)) on Android: the taheri flavor is the one app, and
+the house is a thing it holds at run time. Owner, 2026-10-16: one app for all his businesses, to switch between them and to add more.
+
+- **A business** (`config/Business.kt`) is exactly the ERP's `GET /api/app/business`, with an `android` block beside `ios`
+  (`src/lib/store-config.ts` `storeAppAndroid()`): `{ googleWebClientId, firebase: { appId, apiKey, projectId, senderId, storageBucket } }`
+  from `APP_ANDROID_FIREBASE_APP_ID` / `APP_ANDROID_GOOGLE_WEB_CLIENT_ID` (Taheri's are the code's defaults) and the web's `NEXT_PUBLIC_FIREBASE_*`.
+  Either variable `none`, `0`, `off` or empty means "not registered": `android: null`. An override cannot remove a variable, so
+  `apphosting.mina.yaml` sets both to `"none"` or Mina would wear Taheri's Firebase app. Taheri and Mina ship in the app
+  (`app/src/main/assets/businesses.json`, written by `apps/iphone/scripts/businesses.mjs` with the iPhone's list from `houses.json` and the `android`
+  block from `apps/android/houses.json`; a JVM test keeps them equal), so a first launch needs no network and each keeps its bundled art
+  (`brand_logo_<id>`, `badge_mark_<id>` copied from the iPhone's asset catalog by Gradle, with each house's menu and design bundle).
+- **The list** (`config/BusinessStore.kt`, `Businesses.kt`): kept in `files/erp-businesses.json` with the built-ins the person hid. Add by
+  address (`BusinessRules.origin`: https, the host only; `judge`: the descriptor must come from that host, name that host or its erp./pos. twin as its
+  own and pass `Business.problem`; the typed address is the one kept, so the sign-in token goes where the person pointed it); a refresh
+  (`Businesses.refresh`, after the launch) keeps names, colours and switches current and never moves an address or a Firebase identity. A
+  descriptor with no `android` can still be added: it shows its sign-in page saying it **isn't set up for this Android app yet** (the owner
+  registers `shop.taheri.erp` in that Firebase project with the signing fingerprints) and offers the other businesses instead of failing. The
+  last business cannot go; a built-in is hidden, not deleted (it comes back by typing its address); removing signs the business out (alerts
+  unregistered, widget key revoked, Firebase user, books on disk, drafts, unsent saves).
+- **One of everything per business, none shared.** Its own named `FirebaseApp` (`b-<id>`; the build's own business keeps the default app,
+  so an install stays signed in) with its own Auth and Firestore (and Firestore's copy on disk); its `Session` (`auth/Sessions.kt`), `Book`
+  (`Book.of(business)`), `ErpApi.forBusiness(b)` (its address and its token; a call begun for one business is finished for it whatever is open),
+  `WriteIntents.forBusiness`, and `Outbox.of(b)` over `files/erp-outbox/{outbox,write-intents}-<id>.json`: what one business has on its way
+  when the person switches is sent to its own server with its own token, and `Outbox.resume` also resumes the other businesses' files. `Prefs`
+  scopes every key to the open business (`erp.orderDraft` becomes `erp.orderDraft.taheri`) except the phone's own (theme, lock, the picker's
+  switch, widget option); the first run moves what the one-business build kept to the build's business (`Prefs.moveLegacy`). `House` is a
+  thin facade over the open business (every property computed), and the palette, logo, margin, metal, flags and menus follow it
+  (`EntryHouse` gets its metal and margin from the descriptor).
+- **A switch** (`Businesses.switchTo`) lets go of the business left (its books' listeners stop, its session and the stores that hold one
+  business's data are emptied) and bumps `generation`: every Activity (`rebuildOnBusinessSwitch`) starts the task again at the tabs, so no
+  screen or saved page of the old one survives. The demo (`erp.demo`) is one business of the build's look with no Firebase, as before.
+- **The chip and the sheet.** The open business's badge heads every tab root (`screens/businesses/BusinessChip.kt`, in the top bar; on
+  tablets in the rail's header with the ERP's whole name): tap opens the Businesses sheet, touch and hold lists the businesses to switch
+  between at once. The sheet (`BusinessesPanel.kt`, also `/app/businesses` from Settings → Businesses and Search → Businesses) lists each
+  business with its address and who is signed in, switches on a tap, reorders and removes in Edit, adds by address with a "Found" card (name,
+  logo, colours) before "Add", and holds "Ask which business at launch".
+- **The cold-start picker** (`BusinessPicker.kt`, `LaunchPicker`) is on by default with two or more businesses: it paints first and the
+  open business is built under it (its books load while the person decides), lives above the Activities so a switch never brings it back, and
+  sits under the lock cover (a window of its own). `LaunchClock` stamps `picker:shown` and `picked`, and a launch whose books were still on
+  their way when the person chose ends as `ready:picker`. A widget's tap or a notification that names a business skips it.
+- **Notifications.** The server already sends `business` in the data; a tap opens the app on that business, then its `url`
+  (`AppRouter.prepare`: the business is switched to before the shell is built; a link while the app runs rebuilds it, then opens the page).
+  Each business's Firebase project has its own sender, so each signed-in business gets its own FCM token from its own app
+  (`FirebaseApp.get(FirebaseMessaging::class.java)`, the component `FirebaseMessaging.getInstance()` itself asks the default app for) and files it at
+  its own `/api/push/devices`; the token is kept per business. **Limitation:** only the default app is told when FCM changes a token
+  (`onNewToken`), so the others are looked at again whenever the app comes to the front (`Push.refreshAll`). `FirebaseApp.get` is public but annotated for
+  SDK use; delivery for a secondary sender is the part not run on a phone. FCM tokens are bound to their sender, so the default app's token cannot
+  stand in for another business's.
+- **Widgets** (`widget/`, Glance), redone as the iPhone's: today's takings (hero) with the week's line (a sparkline on the small face, bars on the
+  medium and large) and its change on last week, Owed to you / due / on the bench, and on the large face Needs you (4) and Recent sales (3) and
+  the pinned note, all from `/api/widget/summary`'s `extras` (`WidgetExtras`, decoded leniently). **Both businesses are shown on every size by
+  default** when two are linked (small stacks two rows, medium sets two columns, large stacks two medium faces, each on its own palette), and
+  Settings → Widgets' "Show both businesses" turns it off (Android's Glance widget has no Edit-widget sheet, so the option is the app's, for every widget;
+  off shows the open business). The widget keys are a sealed list, one per business (`WidgetStore`, the Keystore AES key), made when that business is
+  signed in to and **revoked on the ERP (`DELETE /api/widget/key`) and forgotten on that business's sign-out or removal**; the figures last read are kept per
+  business under the key's hash. A tap opens the app on that business and screen (`shoperp://open?b=<business>&p=<path>`, an intent of the app's own,
+  never the browser); a line of Needs you or Recent sales opens its screen. `WidgetLayout.plan` is the one layout the Glance widget and the
+  Settings → Widgets preview (`WidgetFacePreview`, the same chart bitmaps) draw, with JVM tests.
+- **The launcher label** is the flavor's `homeName`: "ERP" for the taheri flavor, "Mina ERP" for the deprecated one. The launcher icon is still
+  each house's own wordmark (the iPhone's gold-diamond `AppIcon-erp` is not drawn here).
+
+**The Mina Firebase step (once, by the owner).** For House of Mina to sign in inside the one Android app, its Firebase project needs the app:
+1. Firebase console → project `hom-pos-52710474-ceeea` → Add app → Android, package **`shop.taheri.erp`**; add the SHA fingerprints: the **upload key**'s
+   SHA-256 is the one in `public/.well-known/assetlinks.json` (`1A:AC:EA:…:3D:24`, public) and its SHA-1 from
+   `keytool -list -v -keystore release.jks` on the decrypted `apps/android/signing/release.jks.enc` (passphrase: the repository secret
+   `ANDROID_KEYSTORE_PASSWORD`); once the app is on Google Play, also **Play's app signing key** (SHA-1 and SHA-256, Play Console → Test and release → App
+   integrity), or sign-in fails on phones that installed from Play. Note the **App ID** (`1:288366939838:android:…`).
+2. Google Cloud console (same project) → Credentials: the **Web client** Firebase made for it (its id ends `.apps.googleusercontent.com`) is the
+   `serverClientId`; no Android OAuth client needs creating by hand (Firebase makes it from the SHA-1).
+3. Put both in `apphosting.mina.yaml` (`APP_ANDROID_FIREBASE_APP_ID`, `APP_ANDROID_GOOGLE_WEB_CLIENT_ID`, replacing `"none"`) and in
+   `apps/android/houses.json` under `mina` (`firebaseAndroidAppId`, `googleWebClientId`), then run `node apps/iphone/scripts/businesses.mjs`
+   so the bundled copy matches. Deploy both houses as always. Until step 3 reaches the ERP the app lists Mina with "Android sign-in not set up" and
+   never fails; after it, the app picks Mina's registration up on its next launch (the refresh gives a built-in the sign-in it lacked).
+4. Taheri's App Links already cover both ERP addresses (`assetlinks.json` is served by each house and names `shop.taheri.erp`).
 
 ### Build and hand-out (Linux only)
 
@@ -165,6 +243,7 @@ key and handed over directly.
 - Phase 2 in progress: Orders, Invoices, New sale.
 - 2026-10-13 — Phase 5 (device): notifications (FCM client), Glance widgets and voice, as above. Not run on a phone: no emulator here, so the recorder/recogniser sharing the microphone, FCM delivery and the launcher's widget sizes are unverified.
 - 2026-10-19 — Marketing, native (`screens/marketing`): Posts (the hub with Send all and Spread over the day, the tray with its captions, stamps, designs, story and Later, the queue, the pieces), Investments and its schedule, Add photos, Edit a piece (the words and the photo re-made by the bundled engine: shape, layouts, designer, AI), Photo weights (Futura LT Light geometry), the Website menu and Insights (overview, posts, audience). No button in Posts or Website opens the ERP's page; `/design` is still the ERP's until Design lands. `core` gained `QueuePlan` and `SiteWeight` with their tests. Not run on a phone: the engine's web view, the camera and the story post are checked by unit tests and screenshots only.
+- 2026-10-24 — One app, many businesses on Android, with the iPhone's new widgets ([above](#one-app-many-businesses-2026-10-24)): the server's `android` block (`storeAppAndroid`, vitest), the Business model and store (descriptor checks, list merge, per-business file keys, widget layout and the picker's rules are JVM-tested: `BusinessTests`, `WidgetPlanTests`), a Firebase app, session, books, Outbox and settings per business, the chip, the Businesses sheet and screen, the cold-start picker, per-business FCM and widget keys. Not run on a phone: a second business's sign-in and FCM token (Mina's Android app is not registered yet), the widget on a launcher, the Activities' rebuild on a switch. Screenshots: `BusinessShots`, `settings-widgets`.
 - 2026-10-24 — The iPhone's blind-spot and snappy rounds, in the data layer. A write names itself: `ErpApi.write` takes the name from `WriteIntents` (`data/WriteIntents.kt`), kept on disk per house against what the change is (the body without its date and its own name, hashed) until the ERP answers, so a retry after a timeout or a relaunch is the same change and the ERP replays its first answer (`idempotency.ts`; money ops require a name); a 409 clears it, a day forgets it. The request is not cut off when its screen goes. A save that does not move money leaves at once through `ErpApi.enqueue(op, fields, label)` (`data/Outbox.kt`): applied on screen first (`ui/Optimistic.kt` `LocalChanges`, cleared when the shelf agrees or the Outbox gives up), kept in `files/erp-outbox/outbox-<house>.json`, retried at 2, 8, 25 and 80 s, then "Not saved: <label>" with Retry over every screen (`ui/OutboxHost.kt`, hosted by `AppShell`); resumed and the server warmed (`/api/app/me`) whenever an Activity comes forward. Money ops (`OutboxEngine.moneyOps`) stay awaited. Page loads time out at 15 s. One number reader (`core/logic/ShopNumber.kt`, `ShopNumberTests`): Urdu and Arabic-Indic digits, lakh commas, a lone comma with 1-2 digits is a decimal point, unreadable is null and holds Save in the sale, order and repair forms. The launch is timed (`device/LaunchClock.kt`) and sent once to `/api/app/launch` with `platform: "android"`. The lock cover is a window of its own, so it sits over sheets and dialogs. Not run on a phone: the cover over an open sheet and the Outbox's background retries are checked by unit tests only.
 - 2026-10-24 — Website → Interest (the site's report: periods with comparison and a custom range, tiles, chart, WhatsApp funnel, sources with Sources|Kinds, places with Cities|Countries, devices, pages, collections, searches, then the piece rankings) and Live, native (`WebsiteInterest.kt`, `WebsiteLive.kt`, `WebsiteAnalytics*.kt`). Posts: a card starts with the hero photo alone, the piece's other photos offered beneath (tap adds one, Add all), more from the website or the phone, one caption; WhatsApp gets one message per photo (caption on the first), Instagram a carousel of the first 10 (`Album` in `core`, `ig-post` queue step, `instagramPost`); Ads Check again asks `?fresh=1`; the checks panel is folded. Sends (tray, queue sheet, Send all, composer) run in `ErpApp.scope` with their result as a toast; the tray reads each card's photos first (the engine belongs to the screen) and returns any card that did not go. Not run on a phone; no drag to reorder photos (arrows only).
 - 2026-10-24 — iPhone parity round (Search, Home, Analytics, tablet): Search is one calm list on the house ground (the map by group, Home's own group shown as Overview with Analytics and its later sections, then the account) and a typed search over customers (name, phone digits), invoices, orders, stock, repairs and places, five rows a kind then "Show all N"; no quick buttons or recents, each row one `clickable`. Home is titled Today with four figures always showing (Owed to you, On the bench, This month, Orders due); Needs you only when something needs you. The nav JSON's `section`/`marketing`/`moved` are read (`NavMap`): Analytics shows a section picker (Sales · Website · Social · Ads) and the title menu lists the open section's pages, the marketing account sees only tabs marked `marketing`, Settings is headed Shop · Connections · Records. Categories read a line's own category, else its order's, else its name's (`core` `lineCategory`/`guessCategory`, tests) and draw ranked share bars. Android has no house badge to change (one app per house; its rail shows the logo/wordmark), so the badge item needed no code.

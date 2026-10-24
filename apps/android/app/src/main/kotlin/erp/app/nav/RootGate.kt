@@ -95,8 +95,14 @@ object ThemeChoice {
 @Composable
 fun AppRoot(session: Session) {
     AppShell(session) {
-        RootGate()
-        CrashReportDialog()
+        // The cold start's business picker (when this phone holds two or more) paints first; the app is built under it
+        // once it has, so the last business's books load while the person decides.
+        erp.app.screens.businesses.LaunchPickerLayer {
+            RootGate()
+            CrashReportDialog()
+        }
+        // The Businesses sheet sits above the screens, not in them: a switch rebuilds those, and the sheet closes with it.
+        erp.app.screens.businesses.BusinessesSheetHost()
     }
 }
 
@@ -107,7 +113,8 @@ fun AppRoot(session: Session) {
  */
 @Composable
 fun AppShell(session: Session, content: @Composable BoxScope.() -> Unit) {
-    val book = LocalBook.current
+    // This business's own books (LocalBook's default is whichever business was open when it was first read).
+    val book = remember(session) { erp.app.data.Book.of(session.business) }
     val settings by book.settings.value.collectAsStateWithLifecycle()
     val device by ThemeChoice.device.collectAsStateWithLifecycle()
     val lastShop by ThemeChoice.lastShop.collectAsStateWithLifecycle()
@@ -122,7 +129,7 @@ fun AppShell(session: Session, content: @Composable BoxScope.() -> Unit) {
             // One toast per Activity: the banner sits over every screen, so `LocalNoteState.current.show(Note(...))`
             // works wherever it is called (a page on top of the tabs shows it on the page).
             val note = rememberNoteState()
-            CompositionLocalProvider(LocalSession provides session, LocalNoteState provides note) {
+            CompositionLocalProvider(LocalSession provides session, LocalBook provides book, LocalNoteState provides note) {
                 Box(Modifier.fillMaxSize()) {
                     content()
                     NoteHost(note)

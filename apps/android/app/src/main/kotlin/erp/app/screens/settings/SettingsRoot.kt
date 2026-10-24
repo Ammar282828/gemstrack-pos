@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalance
+import androidx.compose.material.icons.rounded.Domain
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Mic
@@ -80,6 +81,7 @@ fun SettingsRoot() {
         }
 
         SettingsSection {
+            SettingsLinkRow("Businesses", Icons.Rounded.Domain, SettingsColors.orange, "/app/businesses")
             SettingsLinkRow("This phone", Icons.Filled.PhoneAndroid, SettingsColors.teal, "/app/phone")
         }
 

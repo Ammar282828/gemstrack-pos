@@ -17,6 +17,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.Clear
+import androidx.compose.material.icons.rounded.Domain
 import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.AlertDialog
@@ -128,6 +129,7 @@ fun SearchScreen() {
             }
             item(key = "account") {
                 Group("Account") {
+                    Line("Businesses", null, Icons.Rounded.Domain, "/app/businesses"); Hairline()
                     if (session.isOwner) { Line("This phone", null, Icons.Rounded.PhoneAndroid, "/app/phone"); Hairline() }
                     // The map is already this person's: Settings is in it for owners only.
                     map.settings?.let { s -> Line(s.label, null, NavIcon.vector(s.icon), s.href); Hairline() }

@@ -39,12 +39,21 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- App Links: the ERP's own address opens in the app (verified once the house's assetlinks.json names this app) -->
+            <!-- App Links: the ERP's own address opens in the app, on its business (verified once the house's assetlinks.json names this app).
+                 One app holds Taheri and House of Mina, so both addresses open here (a business added by its address opens through its own tap). -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="${erpHost}" />
+                <data android:scheme="https" android:host="${erpHostOther}" />
+            </intent-filter>
+            <!-- A widget's tap: the app on that business and screen, never the browser (shoperp://open?b=<business>&p=<path>) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="shoperp" android:host="open" />
             </intent-filter>
             <!-- The app's own address: erp://orders/ORD-000123 -->
             <intent-filter>

@@ -1,6 +1,8 @@
 package erp.app.data
 
 import erp.app.ErpApp
+import erp.app.config.Business
+import erp.app.config.Businesses
 import erp.app.config.House
 import erp.core.Json
 import java.util.UUID
@@ -245,16 +247,30 @@ class OutboxEngine(
     }
 }
 
-/** The app's one Outbox, over the house's file and `ErpApi.write`. */
+/**
+ * The Outbox of each business, over its own file and its own `ErpApi.write` (Outbox in Outbox.swift, one per business here:
+ * a save that is on its way when the person switches business is finished for the business it was made in, to that business's
+ * server with that business's token, and what a kill leaves is found again in that business's file). The functions below are the
+ * open business's; a screen only ever sees its own business's saves and failures.
+ */
 object Outbox {
-    val engine: OutboxEngine by lazy {
+    private val engines = HashMap<String, OutboxEngine>()
+
+    @Synchronized
+    fun of(b: Business): OutboxEngine = engines.getOrPut(b.id) {
         OutboxEngine(
             scope = ErpApp.scope,
-            send = { op, fields, id -> ErpApi.shared.write(op, fields, requestId = id) },
-            load = { OutboxDisk.read(OutboxDisk.file("outbox")) },
-            save = { OutboxDisk.write(OutboxDisk.file("outbox"), it) },
+            send = { op, fields, id -> ErpApi.forBusiness(b).write(op, fields, requestId = id) },
+            load = { OutboxDisk.read(OutboxDisk.file("outbox", b.id)) },
+            save = { OutboxDisk.write(OutboxDisk.file("outbox", b.id), it) },
         )
     }
+
+    /** A business was removed: its queue is dropped with its file. */
+    @Synchronized
+    fun drop(id: String) { engines.remove(id) }
+
+    val engine: OutboxEngine get() = of(Businesses.current)
 
     val failure get() = engine.failure
     val items get() = engine.items
@@ -265,7 +281,11 @@ object Outbox {
     fun retry(id: String? = null) = engine.retry(id)
     fun dismissFailure() = engine.dismissFailure()
     fun status(label: String) = engine.status(label)
-    fun resume() = engine.resume()
+    fun resume() {
+        engine.resume()
+        // What another business left on its way (a switch, a kill) is sent to its own server now, not when it is next opened.
+        for (b in Businesses.list.value) if (b.id != Businesses.current.id && OutboxDisk.has("outbox", b.id)) of(b).resume()
+    }
 
     private var lastWarm = 0L
 
@@ -274,6 +294,7 @@ object Outbox {
         val t = System.currentTimeMillis()
         if (House.isDemo || t - lastWarm < 60_000) return
         lastWarm = t
-        ErpApp.scope.launch(Dispatchers.IO) { runCatching { ErpApi.shared.data("/api/app/me", timeoutMs = 10_000) } }
+        val api = ErpApi.shared
+        ErpApp.scope.launch(Dispatchers.IO) { runCatching { api.data("/api/app/me", timeoutMs = 10_000) } }
     }
 }

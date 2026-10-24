@@ -288,7 +288,7 @@ object AdsUpload {
             .build()
         val builder = Request.Builder().url(url).header("Accept", "application/json").post(body)
         val token = try {
-            FirebaseAuth.getInstance().currentUser?.getIdToken(false)?.await()?.token
+            erp.app.config.Businesses.auth?.currentUser?.getIdToken(false)?.await()?.token
         } catch (e: Exception) {
             null
         }

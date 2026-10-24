@@ -3,6 +3,7 @@ package erp.app.screens
 import erp.app.nav.ScreenRoute
 import erp.app.screens.ads.AdsRoutes
 import erp.app.screens.analytics.AnalyticsRoutes
+import erp.app.screens.businesses.BusinessesRoutes
 import erp.app.screens.customers.CustomersRoutes
 import erp.app.screens.design.DesignRoutes
 import erp.app.screens.home.HomeRoutes
@@ -29,6 +30,8 @@ object NativeScreens {
         listOf(
             // First, as the Swift NativeScreens has it: Settings' paths (/settings, /settings/printer …) are its own.
             SettingsRoutes,
+            // The businesses on this phone (/app/businesses), beside Settings.
+            BusinessesRoutes,
             HomeRoutes,
             // Before Orders: its "/orders/add" would otherwise be taken for an order's id.
             NewOrderRoutes,

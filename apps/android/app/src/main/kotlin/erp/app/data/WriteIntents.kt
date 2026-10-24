@@ -57,9 +57,12 @@ class WriteIntents(
         const val KEEP_SECONDS = 24 * 3600L
         private val WHEN = listOf("date", "createdAt", "at", "now", "requestId")
 
-        /** The app's own, in the house's file. */
-        val shared: WriteIntents by lazy {
-            fun file(): File? = OutboxDisk.file("write-intents")
+        private val all = HashMap<String, WriteIntents>()
+
+        /** A business's own names, in its file: a change is never named by, nor sent under, another business's. */
+        @Synchronized
+        fun forBusiness(id: String): WriteIntents = all.getOrPut(id) {
+            fun file(): File? = OutboxDisk.file("write-intents", id)
             WriteIntents({ OutboxDisk.read(file()) }, { OutboxDisk.write(file(), it) })
         }
     }

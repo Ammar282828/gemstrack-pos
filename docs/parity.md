@@ -30,8 +30,8 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Team note (owners write, staff read) | ✓ | ✓ | ✓ | 2026-09 | [Team note](decisions.md#team-note) |
 | Search: one calm list (the map by group, then the account; no quick buttons, no recents) that finds customers, invoices, orders, stock, repairs, places | n/a (web search is the page's own) | ✓ | ✓ | 2026-10-21 | `Nav/SearchHome.swift`, `nav/SearchScreen.kt` + `SearchLogic.kt`; Android has no long-press menu of a row's tabs |
 | Analytics listed in Search (Home's group shown as Overview) | n/a | ✓ | ✓ | 2026-10-24 | with the row above |
-| Business switcher: Taheri, Mina and any business by address, a widget each | n/a | ✓ | owed | 2026-10-16 | [iphone-app.md](features/iphone-app.md#one-app-many-businesses-2026-10-16); Android ships one app per house (two flavors) |
-| Cold start asks which business | n/a | ✓ | owed | 2026-10-20 | `Nav/BusinessPicker.swift` |
+| Business switcher: Taheri, Mina and any business by address, a widget each | n/a | ✓ | ✓ | 2026-10-16 | [iphone-app.md](features/iphone-app.md#one-app-many-businesses-2026-10-16), [android-app.md](features/android-app.md#one-app-many-businesses-2026-10-24); `screens/businesses`, `config/Businesses.kt`; Mina needs its Android app registered |
+| Cold start asks which business | n/a | ✓ | ✓ | 2026-10-20 | `Nav/BusinessPicker.swift`, `screens/businesses/BusinessPicker.kt` |
 
 ## Sales and invoices
 
@@ -153,15 +153,15 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Taheri book import | ✓ | ✓ | owed | 2026-10-17 | `TaheriBookImportSettings.swift` |
 | Connect an AI (scoped keys; MCP + REST) | ✓ | pg | pg | 2026-10-19 | [AI keys](features/ai-keys.md) |
 | Appearance, Liquid Glass | ✓ | ✓ | n/a | 2026-10 | Apple HIG glass; Android is Material 3 |
-| Businesses (add by address, order, turn off the picker) | n/a | ✓ | owed | 2026-10-16 | `BusinessesScreen.swift` |
+| Businesses (add by address, order, turn off the picker) | n/a | ✓ | ✓ | 2026-10-16 | `BusinessesScreen.swift`, `screens/businesses/BusinessesPanel.kt` |
 
 ## Widgets and notifications
 
 | Feature | Web | iPhone | Android | Since | Where |
 |---|---|---|---|---|---|
 | Home-screen widget, three sizes, refreshed in the background | n/a | ✓ | ✓ | 2026-10-13 | `Widget/`, `widget/` (Glance) |
-| Widgets redone: 7-day sparkline, week's change, owed/due/bench, Needs you, recent sales; taps open the app on that screen | n/a | ✓ | owed | 2026-10-23 | `shoperp://`; Android draws the old faces |
-| Both businesses on every widget size | n/a | ✓ | owed | 2026-10-24 | |
+| Widgets redone: 7-day sparkline, week's change, owed/due/bench, Needs you, recent sales; taps open the app on that screen | n/a | ✓ | ✓ | 2026-10-23 | `shoperp://`; `widget/` (Glance, `WidgetLayout.plan`) |
+| Both businesses on every widget size | n/a | ✓ | ✓ | 2026-10-24 | "Show both businesses" in Settings → Widgets (Android has no per-widget configuration) |
 | Lock Screen widget / gauge | n/a | ✓ | n/a | 2026-10-23 | no lock-screen widgets on Android |
 | Push notifications, per-kind switches, naming the store | n/a | ✓ | ✓ | 2026-10-13 | `src/lib/push` |
 | WhatsApp reports and the monthly PDF by WhatsApp | ✓ | n/a | n/a | 2026-10 | server-side, [notifications.md](features/notifications.md) |

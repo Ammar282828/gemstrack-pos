@@ -33,7 +33,7 @@ class LaunchLog(private val elapsedMs: () -> Long) {
         marks += Mark(step, elapsedMs().toInt(), detail)
     }
 
-    /** Ends the launch with the step that ended it ("home", "work", "timeout"): the body to send, once; null after that. */
+    /** Ends the launch with the step that ended it ("home", "work", "picker", "timeout"): the body to send, once; null after that. */
     fun finish(ready: String, business: String, build: String, device: String): Map<String, Any?>? {
         if (sent) return null
         mark("ready:$ready")
