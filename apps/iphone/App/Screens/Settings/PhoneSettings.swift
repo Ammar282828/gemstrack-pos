@@ -33,6 +33,14 @@ struct PhoneSettings: View {
     @Environment(\.openURL) private var openURL
 
     var body: some View {
+        #if os(macOS)
+        macBody
+        #else
+        phoneBody
+        #endif
+    }
+
+    private var phoneBody: some View {
         Form { Group {
             Section {
                 switch allowed {
@@ -263,6 +271,114 @@ struct PhoneSettings: View {
         saving = false
     }
 }
+
+#if os(macOS)
+extension PhoneSettings {
+    /// "This Mac": the Mac's own notifications, appearance and Touch ID lock, as a grouped page of System Settings' kind.
+    fileprivate var macBody: some View {
+        Form {
+            Section {
+                switch allowed {
+                case .denied:
+                    LabeledContent("Notifications") { Text("Off for this app").foregroundStyle(.secondary) }
+                    Button("Open System Settings…") {
+                        if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension") { openURL(url) }
+                    }
+                case .notDetermined:
+                    Button("Turn on notifications") { Task { await Push.shared.register(); await refresh() } }
+                default:
+                    LabeledContent("This Mac") {
+                        if loaded {
+                            Label("Linked", systemImage: "checkmark.circle").foregroundStyle(.secondary)
+                        } else {
+                            Text(Push.shared.registering ? "Registering…" : "Not linked").foregroundStyle(.secondary)
+                        }
+                    }
+                    if !loaded {
+                        Button("Register again") { Task { await Push.shared.register(); await refresh() } }
+                            .disabled(Push.shared.registering)
+                    } else {
+                        ForEach(Self.kinds, id: \.id) { k in
+                            Toggle(isOn: binding(k.id)) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(k.title)
+                                    Text(k.detail).font(.caption).foregroundStyle(.secondary)
+                                }
+                            }
+                            .disabled(saving)
+                        }
+                        HStack {
+                            Button(testing ? "Sending…" : "Send a test notification") {
+                                Task {
+                                    testing = true; testResult = nil; error = nil
+                                    do {
+                                        try await Push.shared.sendTest()
+                                        testResult = "The test was sent. Check this Mac's notifications."
+                                    } catch { self.error = error.localizedDescription }
+                                    testing = false
+                                }
+                            }
+                            .disabled(testing || saving)
+                            if let testResult { Text(testResult).font(.caption).foregroundStyle(.secondary) }
+                        }
+                    }
+                }
+                if let providerStatus { Text(providerStatus).font(.caption).foregroundStyle(.secondary) }
+                if let problem = Push.shared.registrationError { Text(problem).font(.caption).foregroundStyle(Tone.problem.color) }
+            } header: {
+                Text("Notifications on this Mac")
+            } footer: {
+                Text("The shop's WhatsApp alerts are set in Settings → Alerts.")
+            }
+
+            if Businesses.shared.list.count > 1 && !House.isDemo {
+                Section {
+                    ForEach(Businesses.shared.list) { b in businessPush(b) }
+                } header: {
+                    Text("Notifications by business")
+                } footer: {
+                    Text("An alert names its business: clicking one opens that business. Which kinds come is chosen above for the open business; open another to set its own.")
+                }
+            }
+
+            Section {
+                Picker("Appearance", selection: $deviceTheme) {
+                    Text("Follow the shop").tag("")
+                    Text("Light").tag("default")
+                    Text("Dark").tag("taheri")
+                }
+            } header: {
+                Text("Appearance")
+            } footer: {
+                Text("The theme for this Mac. If not chosen, it follows the shop's appearance in the ERP.")
+            }
+
+            Section {
+                Toggle("Lock with Touch ID", isOn: Binding(get: { lockOn }, set: { lockOn = $0; AppLock.shared.enabled = $0 }))
+                    .disabled(!AppLock.available)
+            } header: {
+                Text("Lock")
+            } footer: {
+                Text(AppLock.available
+                     ? "Asks for Touch ID or your Mac's password when the app is opened after a minute away. The books are hidden while it is locked."
+                     : "Set a password on this Mac to lock the app.")
+            }
+        }
+        .macSettingsPage()
+        .scrollContentBackground(.hidden)
+        .background(Theme.ground)
+        .navigationTitle("This Mac")
+        .failureAlert($error, title: "Couldn't do that")
+        .task { await refresh() }
+        .onChange(of: Push.shared.registeredOnServer) { _, linked in
+            if linked { Task { await refresh() } }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { Task { await refresh() } }
+        }
+    }
+}
+#endif
 
 extension PhoneSettings {
     /// An App Clip's short-lived permission: only an iPhone has it.

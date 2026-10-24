@@ -53,6 +53,9 @@ struct AnaCustomersPage: View {
                 TwoLine(title: c.name, subtitle: subtitle, trailing: Money.lacCrore(c.totalSpent))
             }
             .zoomSource(id: AnaPath.customer(id))
+            #if os(macOS)
+            .macOpenMenu(AnaPath.customer(id))
+            #endif
         } else {
             TwoLine(title: c.name, subtitle: subtitle, trailing: Money.lacCrore(c.totalSpent))
         }
@@ -144,6 +147,9 @@ struct AnaCustomersPage: View {
                 TwoLine(title: c.name, subtitle: rowLine(c), trailing: Money.lacCrore(c.totalSpent))
             }
             .zoomSource(id: AnaPath.customer(id))
+            #if os(macOS)
+            .macOpenMenu(AnaPath.customer(id))
+            #endif
         } else {
             TwoLine(title: c.name, subtitle: rowLine(c), trailing: Money.lacCrore(c.totalSpent))
         }

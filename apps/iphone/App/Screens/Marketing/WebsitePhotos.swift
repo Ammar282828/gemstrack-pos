@@ -4,6 +4,9 @@ import PhotosUI
 import UIKit
 #endif
 import ERPCore
+#if os(macOS)
+import UniformTypeIdentifiers
+#endif
 
 /// Website → Add photos (src/app/website/photos/page.tsx): choose the collection once, then add the tray's
 /// photographs from Photos or the camera, and send them. Each goes on its own to the same route the web page
@@ -39,6 +42,10 @@ struct WebsitePhotosScreen: View {
     @State private var said: String?
     @State private var failure: String?
     @State private var note: Note?
+    #if os(macOS)
+    @State private var importing = false
+    @State private var dropping = false
+    #endif
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private static var folderKey: String { BizKey("erp.website.photoFolder") }
@@ -116,6 +123,14 @@ struct WebsitePhotosScreen: View {
     }
 
     private var page: some View {
+        #if os(macOS)
+        macPage
+        #else
+        phonePage
+        #endif
+    }
+
+    private var phonePage: some View {
         List {
             Group {
                 if !configured {
@@ -194,6 +209,9 @@ struct WebsitePhotosScreen: View {
                             Button(role: .destructive) { remove(item.id) } label: { Label("Remove", systemImage: "trash") }
                         }
                     }
+                    #if os(macOS)
+                    .contextMenu { macItemMenu(item) }
+                    #endif
             }
         } header: {
             LedgerHeading(title: "Photographs · \(items.count)")
@@ -386,10 +404,19 @@ struct WebsitePhotosScreen: View {
     private func add(_ chosen: [PhotosPickerItem]) async {
         reading = true
         defer { reading = false }
-        var skipped = 0
-        var tooBig = 0
+        var raws: [Data] = []
+        var unread = 0
         for p in chosen {
-            guard let raw = try? await p.loadTransferable(type: Data.self) else { skipped += 1; continue }
+            if let raw = try? await p.loadTransferable(type: Data.self) { raws.append(raw) } else { unread += 1 }
+        }
+        await addRaw(raws, unread: unread)
+    }
+
+    /// The photographs as bytes (from Photos, or on the Mac dropped or chosen as files), made ready and added to the tray.
+    func addRaw(_ raws: [Data], unread: Int = 0) async {
+        var skipped = unread
+        var tooBig = 0
+        for raw in raws {
             let ready = await Task.detached(priority: .userInitiated) { () -> (Data, WebsitePhoto.Kind, UIImage?)? in
                 guard let r = WebsitePhoto.prepared(raw) else { return nil }
                 return (r.data, r.kind, WebsitePhoto.thumbnail(r.data, maxPixel: 240))
@@ -428,13 +455,13 @@ struct WebsitePhotosScreen: View {
         return "IMG-\(f.string(from: Date()))-\(items.count + 1)\(tag)"
     }
 
-    private func remove(_ id: UUID) {
+    func remove(_ id: UUID) {
         items.removeAll { (i: WebsitePhotoItem) in i.id == id }
     }
 
     // MARK: Retouch (the AI route's own, as the web page calls it)
 
-    private func retouch(_ id: UUID) async {
+    func retouch(_ id: UUID) async {
         guard let k = items.firstIndex(where: { (i: WebsitePhotoItem) in i.id == id }) else { return }
         items[k].retouching = true
         let source = items[k].data
@@ -467,7 +494,7 @@ struct WebsitePhotosScreen: View {
         }
     }
 
-    private func undoRetouch(_ id: UUID) {
+    func undoRetouch(_ id: UUID) {
         guard let k = items.firstIndex(where: { (i: WebsitePhotoItem) in i.id == id }), let o = items[k].original else { return }
         items[k].data = o.data
         items[k].kind = o.kind
@@ -538,6 +565,108 @@ struct WebsitePhotosScreen: View {
         }
     }
 }
+
+#if os(macOS)
+extension WebsitePhotosScreen {
+    /// The collection and the ways to add on the left; the tray of photographs on the right. Files dropped anywhere are added.
+    var macPage: some View {
+        MacTwoPane(sideWidth: 380) {
+            List {
+                Group {
+                    if !configured {
+                        Section {
+                            Label("Uploads are not switched on yet: the website's upload secret isn't set on this ERP. Until it is, nothing below can be sent.", systemImage: "exclamationmark.triangle.fill")
+                                .foregroundStyle(Tone.owed.color)
+                        }
+                    }
+                    collectionSection
+                    addSection
+                    Section {
+                        Button { importing = true } label: { Label("Choose files…", systemImage: "folder") }
+                            .disabled(folder.isEmpty || sending)
+                    } footer: {
+                        Text("Or drop photographs anywhere in this window.")
+                    }
+                }
+                .houseRows()
+            }
+            .listStyle(.inset)
+        } main: {
+            List {
+                Group {
+                    if !items.isEmpty { photosSection }
+                    if !done.isEmpty && !sending { clearSection }
+                    if !done.isEmpty { WebsiteSetOfTheDay(withNote: false) }
+                    if !done.isEmpty { afterSection }
+                }
+                .houseRows()
+            }
+            .listStyle(.inset)
+            .overlay {
+                if items.isEmpty {
+                    ContentUnavailableView("No photographs yet", systemImage: "photo.on.rectangle.angled",
+                                           description: Text(folder.isEmpty ? "Choose a collection, then add or drop photographs." : "Choose or drop photographs to add them."))
+                }
+            }
+        }
+        .overlay {
+            if dropping {
+                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                    .strokeBorder(Theme.accent, style: StrokeStyle(lineWidth: 3, dash: [8]))
+                    .padding(8)
+                    .allowsHitTesting(false)
+            }
+        }
+        .dropDestination(for: URL.self) { (urls: [URL], _) in
+            guard !folder.isEmpty, !sending else { return false }
+            Task { await readFiles(urls) }
+            return true
+        } isTargeted: { dropping = $0 }
+        .fileImporter(isPresented: $importing, allowedContentTypes: [.image], allowsMultipleSelection: true) { (result: Result<[URL], Error>) in
+            if case .success(let urls) = result { Task { await readFiles(urls) } }
+        }
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button { Task { await load() } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
+                    .keyboardShortcut("r", modifiers: .command)
+                    .help("Read the collections again")
+            }
+        }
+        .actionBar(
+            primary: .init(sending ? "Sending…" : "Send \(pending.count) to the website", systemImage: "arrow.up.circle.fill",
+                           isBusy: sending, isDisabled: !canSend || items.isEmpty) { confirmingSend = true },
+            summary: items.isEmpty ? nil : (unnamed > 0 ? "\(unnamed) still need\(unnamed == 1 ? "s" : "") a house and a name." : nil))
+    }
+
+    private func readFiles(_ urls: [URL]) async {
+        reading = true
+        var raws: [Data] = []
+        var unread = 0
+        for url in urls {
+            let scoped = url.startAccessingSecurityScopedResource()
+            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+            if let data = try? Data(contentsOf: url) { raws.append(data) } else { unread += 1 }
+        }
+        reading = false
+        await addRaw(raws, unread: unread)
+    }
+
+    @ViewBuilder
+    func macItemMenu(_ item: WebsitePhotoItem) -> some View {
+        let editable = (item.status == .queued || item.status == .failed) && !sending
+        if editable && !item.retouching {
+            Button(item.original == nil ? "Retouch" : "Retouch again", systemImage: "wand.and.stars") { Task { await retouch(item.id) } }
+            if item.original != nil {
+                Button("Back to the original", systemImage: "arrow.uturn.backward") { undoRetouch(item.id) }
+            }
+        }
+        if item.status != .uploading && !sending && !item.retouching {
+            Divider()
+            Button("Remove", systemImage: "trash", role: .destructive) { remove(item.id) }
+        }
+    }
+}
+#endif
 
 /// One photograph in the tray, from Photos or the camera.
 struct WebsitePhotoItem: Identifiable {
@@ -634,5 +763,8 @@ struct WebsiteCollectionSheet: View {
                 }
             }
         }
+        #if os(macOS)
+        .frame(minWidth: 480, minHeight: 520)
+        #endif
     }
 }

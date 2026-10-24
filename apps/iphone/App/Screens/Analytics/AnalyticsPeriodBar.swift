@@ -115,5 +115,8 @@ struct AnaCustomPeriod: View {
         }
         .presentationDetents([.medium, .large])
         .presentationSizing(.form)
+        #if os(macOS)
+        .frame(minWidth: 420, minHeight: 240)
+        #endif
     }
 }

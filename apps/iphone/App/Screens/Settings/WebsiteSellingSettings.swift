@@ -265,7 +265,11 @@ private struct WebsiteSellingForm: View {
             } header: {
                 LedgerHeading(title: "Per-collection pricing")
             } footer: {
+                #if os(macOS)
+                Text("Only the fields you fill differ from the default. Right-click a collection to remove it.")
+                #else
                 Text("Only the fields you fill differ from the default. Swipe a collection to remove it.")
+                #endif
             }
 
             Section {
@@ -330,6 +334,7 @@ private struct WebsiteSellingForm: View {
             optionalRow("Stones", row.stoneChargesDefault, placeholder: Self.plain(def.stoneChargesDefault))
         }
         .padding(.vertical, 4)
+        .macRemoveMenu("Remove \(name)") { draft.categoryPricing[name] = nil }
     }
 
     /// A sum of money: whole rupees (owner, 2026-10-17: "there should be no decimals").

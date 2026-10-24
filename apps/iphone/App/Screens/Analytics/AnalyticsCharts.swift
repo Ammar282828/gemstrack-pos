@@ -45,6 +45,12 @@ struct AnaRevenueBars: View {
         }
         .frame(height: 190)
         .chartYAxisLabel("PKR lac")
+        #if os(macOS)
+        .macChartReadout(dates: days.map { $0.plotDate }) { (at: Date) in
+            let d = days.first { $0.plotDate == at }
+            return ChartSummary.day(at) + ": " + Money.pkrLac(d?.sales ?? 0)
+        }
+        #endif
         .accessibilityLabel("Revenue each day")
         .accessibilityValue(ChartSummary.say(days.map { (label: ChartSummary.day($0.plotDate), value: $0.sales) }))
     }
@@ -69,6 +75,12 @@ struct AnaSalesChart: View {
                 }
             }
             .frame(height: 200)
+            #if os(macOS)
+            .macChartReadout(dates: days.map { $0.plotDate }) { (at: Date) in
+                let d = days.first { $0.plotDate == at }
+                return ChartSummary.day(at) + ": " + Money.pkrLac(d?.sales ?? 0) + " · " + String(d?.orders ?? 0) + " sales"
+            }
+            #endif
             .accessibilityLabel("Sales each day over the period")
             .accessibilityValue(ChartSummary.say(days.map { (label: ChartSummary.day($0.plotDate), value: $0.sales) }))
             Text("Sales, PKR lac")
@@ -89,6 +101,11 @@ struct AnaOrdersChart: View {
                     .foregroundStyle(Tone.settled.color)
             }
             .frame(height: 110)
+            #if os(macOS)
+            .macChartReadout(dates: days.map { $0.plotDate }) { (at: Date) in
+                ChartSummary.day(at) + ": " + String(days.first { $0.plotDate == at }?.orders ?? 0) + " sales"
+            }
+            #endif
             .accessibilityLabel("Orders each day over the period")
             .accessibilityValue(ChartSummary.say(days.map { (label: ChartSummary.day($0.plotDate), value: Double($0.orders)) }, money: false))
             Text("Orders")
@@ -116,6 +133,12 @@ struct AnaMonthlyChart: View {
                     .foregroundStyle(.secondary)
             }
             .frame(height: 220)
+            #if os(macOS)
+            .macChartReadout(dates: months.map { $0.plotDate }) { (at: Date) in
+                let m = months.first { $0.plotDate == at }
+                return (m?.label ?? "") + ": " + Money.pkrLac(m?.revenue ?? 0)
+            }
+            #endif
             .accessibilityLabel("Revenue for each month on record")
             .accessibilityValue(ChartSummary.say(months.map { (label: $0.label, value: $0.revenue) }) + ". Average " + Spoken.rupees(average, lac: true))
             Text("Revenue, PKR lac. Dashed line: the average of months with sales.")
@@ -137,6 +160,12 @@ struct AnaSourceTrendChart: View {
                     .interpolationMethod(.monotone)
             }
             .frame(height: 240)
+            #if os(macOS)
+            .macChartReadout(dates: Array(Set(points.map { $0.plotDate })).sorted()) { (at: Date) in
+                let rows = points.filter { $0.plotDate == at }.sorted { $0.amount > $1.amount }
+                return ([ChartSummary.day(at)] + rows.map { $0.label + " " + Money.lacCrore($0.amount) }).joined(separator: " · ")
+            }
+            #endif
             .accessibilityLabel("Revenue by source each day")
             .accessibilityValue(Dictionary(grouping: points, by: { $0.label }).map { (name: String, rows: [AnaSourcePoint]) -> String in
                 "\(name), \(Spoken.rupees(rows.reduce(0) { $0 + $1.amount }, lac: true))"

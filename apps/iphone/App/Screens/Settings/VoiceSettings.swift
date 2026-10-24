@@ -193,6 +193,11 @@ private struct VoiceSettingsPage: View {
             }
             Spacer(minLength: 8)
             if busy == a.id { SkeletonLoading() }
+            #if os(macOS)
+            Button("Forget…") { askToForget(a) }
+                .buttonStyle(.borderless)
+                .disabled(busy != nil)
+            #endif
         }
         .swipeActions {
             Button(role: .destructive) { askToForget(a) } label: { Label("Forget", systemImage: "trash") }

@@ -70,7 +70,10 @@ struct OrderPieceRow: View {
     /// "21K Gold · Est. 12.5 g · 8% wastage · Size 14 · White Rhodium": what the order captured, in the order
     /// the bench reads it. The percentage stays here and on the slip; an invoice shows grams (decision
     /// "Wastage in grams").
-    private var facts: [String] {
+    private var facts: [String] { Self.facts(item) }
+
+    /// The same line for any piece (the Mac's pieces table reads it too).
+    static func facts(_ item: OrderItem) -> [String] {
         var out: [String] = []
         let metal = describeMetal(item.metalType, item.karat)
         if !metal.isEmpty { out.append(metal) }

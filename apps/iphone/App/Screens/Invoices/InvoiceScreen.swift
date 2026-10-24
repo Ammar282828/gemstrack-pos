@@ -52,6 +52,9 @@ struct InvoiceScreen: View {
     private let firstPieces = 5
 
     var body: some View {
+        #if os(macOS)
+        macBody
+        #else
         let invoice = book.invoices.item(id)
         Group {
             if let invoice {
@@ -70,6 +73,7 @@ struct InvoiceScreen: View {
             book.invoices.need()
             book.customers.need()
         }
+        #endif
     }
 
     /// An invoice the books do not hold: refunded in full, which removes it (the ERP's words).
@@ -898,3 +902,405 @@ enum InvoiceAct: String, Identifiable {
         }
     }
 }
+
+// MARK: - The Mac: the invoice as a record window
+
+#if os(macOS)
+/// The Mac's invoice (docs/features/mac-app.md): a record window. Who it was for, what is due and the totals stand in a
+/// column at the left; the pieces and the payments are tables at the right, with a right-click on every row. The actions
+/// are the toolbar's (Take payment, Edit, Discount, Refund, Send on WhatsApp, PDF, and the rest under More); ⌘P prints the
+/// bill (MacCommands). Every action is the iPhone's own function and sheet.
+extension InvoiceScreen {
+    var macBody: some View {
+        let invoice = book.invoices.item(id)
+        return Group {
+            if let invoice {
+                macDetail(invoice)
+            } else {
+                ShelfState(loaded: book.invoices.loaded, error: book.invoices.error, offline: book.invoices.offline) {
+                    notFound
+                }
+            }
+        }
+        .navigationTitle(id)
+        .task {
+            book.invoices.need()
+            book.customers.need()
+        }
+    }
+
+    private func macDetail(_ inv: Invoice) -> some View {
+        let line = balanceLine(inv.balanceDue)
+        let subtitle: String = {
+            if inv.status == .refunded { return "Refunded" }
+            switch line.state {
+            case .due: return "Due \(Money.pkr(line.amount))"
+            case .credit: return "In credit \(Money.pkr(line.amount))"
+            case .paid: return "Paid in full"
+            }
+        }()
+        return macSheets(
+            GeometryReader { geo in
+                // In the Invoices hub's pane the window is narrow: the summary goes above the tables.
+                if geo.size.width >= 760 {
+                    HStack(spacing: 0) {
+                        macSummary(inv).frame(width: 340)
+                        Divider()
+                        macTables(inv).frame(maxWidth: .infinity)
+                    }
+                } else {
+                    VStack(spacing: 0) {
+                        macSummary(inv).frame(height: min(geo.size.height * 0.45, 360))
+                        Divider()
+                        macTables(inv).frame(maxHeight: .infinity)
+                    }
+                }
+            }
+            .background(Theme.ground)
+            .navigationSubtitle(subtitle)
+            .toolbar { macToolbar(inv) },
+            inv)
+    }
+
+    /// The pages and sheets the invoice opens: the same ones the iPhone's page presents.
+    private func macSheets<V: View>(_ content: V, _ inv: Invoice) -> some View {
+        content
+            .navigationDestination(item: $web) { r in
+                ScreenRegistry.view(for: r.path)
+                    .navigationTitle(inv.id)
+            }
+            .navigationDestination(item: $pdf) { t in
+                PDFDocumentScreen(path: t.path, fileName: t.fileName, title: t.title)
+            }
+            .invoicePaymentSheet(for: $paying) { paid, amount in recorded(paid, amount) }
+            .sheet(isPresented: $settingCustomer) {
+                InvoiceCustomerSheet(invoice: inv) { (saved: InvoiceNote) in say(saved) }
+                    .presentationSizing(.form)
+            }
+            .sheet(item: $acting) { a in
+                Group {
+                    switch a {
+                    case .discount: InvoiceActionDiscountSheet(invoice: inv, onDone: acted)
+                    case .giveBack: InvoiceActionCreditSheet(invoice: inv, onDone: acted)
+                    case .refund: InvoiceActionRefundSheet(invoice: inv, onDone: acted)
+                    case .delete: InvoiceActionDeleteSheet(invoice: inv, onDone: acted)
+                    }
+                }
+                .presentationSizing(.form)
+            }
+            .invoiceActionCode($paymentDeletion) {
+                if let outcome = paymentOutcome { acted(outcome) }
+            }
+            .invoiceWhatsAppSend($sending) { sent in say(sent) }
+            .invoicePaymentLink($linking) { made in say(made) }
+            .failureAlert($ownersOnly, title: "Owners only")
+            .noteToast($note)
+    }
+
+    // MARK: The toolbar
+
+    @ToolbarContentBuilder
+    private func macToolbar(_ inv: Invoice) -> some ToolbarContent {
+        ToolbarItemGroup(placement: .primaryAction) {
+            if mayTakePayment(inv) {
+                Button { paying = inv } label: {
+                    Label(owing(inv) ? "Take payment · \(Money.pkr(inv.balanceDue))" : "Take payment as credit", systemImage: "banknote")
+                }
+                .keyboardShortcut("p", modifiers: [.command, .option])
+                .help("Take a payment on this invoice (⌥⌘P)")
+            }
+            Button { web = Route(path: InvoiceFacts.editPath(inv.id)) } label: { Label("Edit", systemImage: "pencil") }
+                .keyboardShortcut("e", modifiers: .command)
+                .help("Change this invoice's pieces, payment or customer (⌘E)")
+            if session.isOwner && inv.status != .refunded {
+                Button { act(.discount, inv) } label: { Label("Discount", systemImage: "percent") }
+                    .keyboardShortcut("d", modifiers: [.command, .shift])
+                    .help("Change the discount (⇧⌘D)")
+                Button { act(.refund, inv) } label: { Label("Refund…", systemImage: "arrow.uturn.backward") }
+                    .help("Refund all or part of this invoice")
+            }
+            Button { sending = inv } label: { Label("Send on WhatsApp", systemImage: "message") }
+                .keyboardShortcut("k", modifiers: [.command, .shift])
+                .help(inv.sentOnWhatsApp == nil ? "Send the PDF to the customer on WhatsApp (⇧⌘K)" : "Send the PDF again on WhatsApp (⇧⌘K)")
+            Menu {
+                Button { pdf = InvoiceFacts.pdfTarget(inv, byCustomer: session.shop.invoiceByCustomer) } label: {
+                    Label("PDF", systemImage: "doc.richtext")
+                }
+                if inv.items.count > 1 {
+                    Button { pdf = InvoiceFacts.pdfTarget(inv, byCustomer: session.shop.invoiceByCustomer, perPiece: true) } label: {
+                        Label("PDF per piece", systemImage: "doc.on.doc")
+                    }
+                }
+            } label: {
+                Label("PDF", systemImage: "doc.richtext")
+            }
+            .help("The bill as a PDF (⌘P prints it)")
+            Menu {
+                macMoreItems(inv)
+            } label: {
+                Label("More", systemImage: "ellipsis.circle")
+            }
+        }
+    }
+
+    /// What the toolbar does not carry: the customer link, the payment link, naming the customer, deleting the invoice.
+    @ViewBuilder
+    private func macMoreItems(_ inv: Invoice) -> some View {
+        if let url = InvoiceFacts.shareURL(inv) {
+            Button { UIPasteboard.general.string = url.absoluteString } label: { Label("Copy the customer's link", systemImage: "link") }
+        }
+        if InvoiceFacts.offersPaymentLink(inv) {
+            Button { linking = inv } label: { Label(InvoiceFacts.paymentLinkTitle(inv), systemImage: "link.badge.plus") }
+        }
+        if session.isOwner && inv.status != .refunded {
+            Button { settingCustomer = true } label: {
+                Label(unnamed(inv) ? "Name the customer" : "Change customer", systemImage: "person.crop.circle")
+            }
+        }
+        Button { UIPasteboard.general.string = inv.id } label: { Label("Copy the number", systemImage: "doc.on.doc") }
+        if session.isOwner {
+            Divider()
+            Button(role: .destructive) { act(.delete, inv) } label: { Label("Delete invoice…", systemImage: "trash") }
+        }
+    }
+
+    // MARK: The summary column
+
+    /// Who and when, what is due, the totals as the bill reads them, and the quiet facts.
+    private func macSummary(_ inv: Invoice) -> some View {
+        Form {
+            Section {
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack(alignment: .center, spacing: 14) {
+                        Monogram(name: inv.customerName, size: Monogram.Size.hero)
+                        VStack(alignment: .leading, spacing: 4) {
+                            customerTitle(inv)
+                            let when = ShopDate.say(inv.createdAt, withTime: true)
+                            if !when.isEmpty {
+                                Text(when).font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
+                            }
+                            Text(piecesLine(inv)).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
+                        }
+                    }
+                    if session.isOwner && unnamed(inv) && inv.status != .refunded {
+                        Button { settingCustomer = true } label: {
+                            Label("Name the customer", systemImage: "person.crop.circle.badge.plus")
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                    PerforationDivider()
+                    figures(inv)
+                    if let sent = inv.sentOnWhatsApp {
+                        Label("PDF sent to \(sent.to) · \(ShopDate.say(sent.at, withTime: true))", systemImage: "checkmark.circle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+            Section {
+                totalRows(inv)
+            } header: {
+                LedgerHeading(title: "Bill")
+            }
+            detailsSection(inv)
+            shopSection(inv)
+        }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+    }
+
+    // MARK: The tables column
+
+    private func macTables(_ inv: Invoice) -> some View {
+        let line = balanceLine(inv.balanceDue)
+        let credit = line.state == .credit && inv.status != .refunded && !inv.paymentHistory.isEmpty
+        let who = InvoiceFacts.customerName(inv, walkIn: "the customer")
+        return MacInvoiceTables(
+            invoice: inv,
+            isOwner: session.isOwner,
+            creditNote: credit ? "\(line.label), on \(who)'s hisaab" : nil,
+            giveBack: credit && session.isOwner && InvoiceCredit.held(inv) >= 1
+                ? (label: "Give back \(Money.pkr(InvoiceCredit.held(inv)))", run: { act(.giveBack, inv) })
+                : nil,
+            onDeletePayment: { index, payment in askDelete(inv, index: index, payment: payment) })
+    }
+}
+
+/// The pieces and the payments of an invoice as two tables, one above the other.
+private struct MacInvoiceTables: View {
+    let invoice: Invoice
+    let isOwner: Bool
+    let creditNote: String?
+    let giveBack: (label: String, run: () -> Void)?
+    let onDeletePayment: (Int, Payment) -> Void
+
+    @Environment(\.openPlaceWindow) private var openPlace
+    @State private var pieceSelection = Set<Int>()
+    @State private var paymentSelection = Set<Int>()
+
+    private struct PieceRow: Identifiable {
+        let id: Int
+        let item: InvoiceItem
+        var row: InvoicePieceRow { InvoicePieceRow(item: item) }
+    }
+
+    private struct PaymentRow: Identifiable {
+        let id: Int
+        let payment: Payment
+        var row: InvoicePaymentRow { InvoicePaymentRow(payment: payment) }
+    }
+
+    private var pieces: [PieceRow] { invoice.items.enumerated().map { PieceRow(id: $0.offset, item: $0.element) } }
+    private var payments: [PaymentRow] { invoice.paymentHistory.enumerated().map { PaymentRow(id: $0.offset, payment: $0.element) } }
+
+    var body: some View {
+        VSplitView {
+            piecesBlock.frame(minHeight: 220)
+            paymentsBlock.frame(minHeight: 150, idealHeight: 210)
+        }
+    }
+
+    // MARK: Pieces
+
+    private var piecesBlock: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            LedgerHeading(title: "Pieces", count: invoice.items.count)
+                .padding(.horizontal, 20).padding(.top, 14).padding(.bottom, 6)
+            Table(pieces, selection: $pieceSelection) {
+                TableColumn("Piece") { r in
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(r.row.macTitle).fontWeight(.medium)
+                        if let sub = r.row.macSubtitle { Text(sub).font(.caption).foregroundStyle(.secondary) }
+                    }
+                }
+                .width(min: 160, ideal: 240)
+                TableColumn("Metal") { r in Text(r.row.macMetal) }.width(min: 80, ideal: 110)
+                TableColumn("Weight") { r in Text(r.row.macWeight).monospacedDigit() }.width(min: 60, ideal: 80)
+                TableColumn("Size") { r in Text(r.item.size ?? "") }.width(min: 40, ideal: 60)
+                TableColumn("Total") { r in
+                    Text(Money.pkr(r.item.itemTotal)).monospacedDigit().frame(maxWidth: .infinity, alignment: .trailing)
+                }
+                .width(min: 100, ideal: 120)
+            }
+            .contextMenu(forSelectionType: Int.self) { ids in
+                if let i = ids.first, invoice.items.indices.contains(i) {
+                    let item = invoice.items[i]
+                    let sku = InvoicePieceRow(item: item).macStock
+                    if let sku {
+                        Button("Open Piece in New Window") { openPlace?(SaleLinks.piece(sku)) }
+                        Button("Copy SKU") { UIPasteboard.general.string = sku }
+                    }
+                    Button("Copy Name") { UIPasteboard.general.string = item.name }
+                }
+            } primaryAction: { ids in
+                if let i = ids.first, invoice.items.indices.contains(i),
+                   let sku = InvoicePieceRow(item: invoice.items[i]).macStock {
+                    openPlace?(SaleLinks.piece(sku))
+                }
+            }
+            .overlay { if invoice.items.isEmpty { Text("No pieces on this invoice.").foregroundStyle(.secondary) } }
+            pieceDetail
+        }
+    }
+
+    /// The picked piece's own facts: what is set into it and, for owners, the price broken into its parts.
+    @ViewBuilder
+    private var pieceDetail: some View {
+        if pieceSelection.count == 1, let i = pieceSelection.first, invoice.items.indices.contains(i) {
+            let row = InvoicePieceRow(item: invoice.items[i], showBreakdown: isOwner)
+            let lines = row.macSettings + (isOwner ? [row.macCosts.joined(separator: " · ")] : [])
+            let facts = row.macFacts.joined(separator: " · ")
+            if !lines.filter({ !$0.isEmpty }).isEmpty || !facts.isEmpty {
+                VStack(alignment: .leading, spacing: 3) {
+                    if !facts.isEmpty { Text(facts).font(.callout) }
+                    ForEach(lines.filter { !$0.isEmpty }, id: \.self) { Text($0).font(.caption).foregroundStyle(.secondary).monospacedDigit() }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 20).padding(.vertical, 8)
+                .background(.bar)
+            }
+        }
+    }
+
+    // MARK: Payments
+
+    private var paymentsBlock: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            LedgerHeading(title: "Payments", count: invoice.paymentHistory.count > 1 ? invoice.paymentHistory.count : nil)
+                .padding(.horizontal, 20).padding(.top, 14).padding(.bottom, 6)
+            Table(payments, selection: $paymentSelection) {
+                TableColumn("When") { r in Text(ShopDate.say(r.payment.date, withTime: true)).monospacedDigit() }
+                    .width(min: 120, ideal: 160)
+                TableColumn("Method") { r in Text(r.row.macTitle) }.width(min: 90, ideal: 120)
+                TableColumn("Reference and note") { r in Text(r.row.macNote).foregroundStyle(.secondary) }
+                TableColumn("Amount") { r in
+                    Text(r.payment.amount < 0 ? Money.minus(r.payment.amount) : Money.pkr(r.payment.amount))
+                        .monospacedDigit()
+                        .foregroundStyle(r.payment.amount < 0 ? Color.secondary : Color.primary)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+                .width(min: 100, ideal: 120)
+            }
+            .contextMenu(forSelectionType: Int.self) { ids in
+                if let i = ids.first, invoice.paymentHistory.indices.contains(i) {
+                    let p = invoice.paymentHistory[i]
+                    Button("Copy Amount") { UIPasteboard.general.string = String(Int(p.amount.rounded())) }
+                    if isOwner {
+                        Divider()
+                        Button("Delete Payment…", role: .destructive) { onDeletePayment(i, p) }
+                    }
+                }
+            }
+            .onDeleteCommand {
+                // ⌫ asks the delete code too (decision "Delete code"): the owner's, on the payment picked.
+                if isOwner, paymentSelection.count == 1, let i = paymentSelection.first, invoice.paymentHistory.indices.contains(i) {
+                    onDeletePayment(i, invoice.paymentHistory[i])
+                }
+            }
+            .overlay { if invoice.paymentHistory.isEmpty { Text("No payments yet").foregroundStyle(.secondary) } }
+            if let creditNote {
+                HStack(spacing: 12) {
+                    Label(creditNote, systemImage: "arrow.uturn.left.circle.fill")
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(Tone.credit.color)
+                    Spacer()
+                    if let giveBack {
+                        Button(giveBack.label, action: giveBack.run).controlSize(.small)
+                    }
+                }
+                .padding(.horizontal, 20).padding(.vertical, 8)
+                .background(.bar)
+            }
+        }
+    }
+}
+
+extension InvoicePieceRow {
+    var macTitle: String { title }
+    /// The category beside the name when the name does not already say it.
+    var macSubtitle: String? {
+        guard let category, title != category, !title.localizedCaseInsensitiveContains(category) else { return nil }
+        return category
+    }
+    var macMetal: String { describeMetal(item.metalType, item.karat) }
+    var macWeight: String { item.metalWeightG > 0 ? Self.say(item.metalWeightG) + " g" : "" }
+    var macStock: String? { stockSku(item.sku) }
+    var macFacts: [String] { facts }
+    var macSettings: [String] { settings }
+    var macCosts: [String] { costs }
+}
+
+extension InvoicePaymentRow {
+    var macTitle: String { title }
+    /// The reference and any note, without the date (its own column).
+    var macNote: String {
+        let when = ShopDate.say(payment.date, withTime: true)
+        var d = detail
+        if !when.isEmpty, d.hasPrefix(when) {
+            d = String(d.dropFirst(when.count)).trimmingCharacters(in: CharacterSet(charactersIn: " ·"))
+        }
+        return d == "—" ? "" : d
+    }
+}
+#endif

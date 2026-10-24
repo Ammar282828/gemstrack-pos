@@ -15,7 +15,11 @@ struct SettingsRoot: View {
     var body: some View {
         Group {
             if session.isOwner {
+                #if os(macOS)
+                macList
+                #else
                 list
+                #endif
             } else {
                 NotAvailableState("Owners only", why: "Settings are the owners’.", symbol: "lock")
                     .navigationTitle("Settings")
@@ -112,3 +116,51 @@ struct SettingsRoot: View {
         .padding(.vertical, 4)
     }
 }
+
+#if os(macOS)
+extension SettingsRoot {
+    /// System Settings' shape: one grouped page of sections, each row a page of its own (no second sidebar: the app's
+    /// sidebar is the only one). The rates are a toolbar button, as the gold rate is the day's first job.
+    fileprivate var macList: some View {
+        Form {
+            Section { account }
+
+            Section {
+                SettingsLinkRow(title: "Businesses", symbol: "building.2.fill", color: .orange, path: "/app/businesses")
+            } footer: {
+                Text("Switch between the shops on this Mac, or add another by its ERP's address.")
+            }
+
+            ForEach(settingsSections, id: \.name) { section in
+                Section {
+                    ForEach(section.tabs) { t in row(t) }
+                } header: { Text(section.name) }
+            }
+
+            Section {
+                SettingsLinkRow(title: "This Mac", symbol: "desktopcomputer", color: .teal, path: "/app/phone")
+            }
+
+            Section {
+                Button("Sign out…", role: .destructive) { signingOut = true }
+            } footer: {
+                Text("\(House.storeName) · \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "") (\(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""))")
+            }
+        }
+        .macSettingsPage()
+        .scrollContentBackground(.hidden)
+        .background(Theme.ground)
+        .navigationTitle("Settings")
+        .navigationSubtitle(session.shop.name)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button { rates = true } label: { Label("Today's rates", systemImage: "chart.line.uptrend.xyaxis") }
+                    .help("Set today's gold rates")
+            }
+        }
+        .confirmDestructive(isPresented: $signingOut, title: "Sign out of \(session.shop.name)?",
+                            message: "The books are cleared from this Mac until you sign in again.",
+                            action: "Sign out") { session.signOut() }
+    }
+}
+#endif

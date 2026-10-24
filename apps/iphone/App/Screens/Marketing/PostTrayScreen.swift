@@ -33,6 +33,14 @@ struct PostTrayScreen: View {
     private var store: PostsStore { PostsStore.shared }
 
     var body: some View {
+        #if os(macOS)
+        macBody
+        #else
+        phoneBody
+        #endif
+    }
+
+    private var phoneBody: some View {
         List {
             Group {
                 if store.piecesPhase == .loaded && !model.audience.canSend && !model.toInstagram {
@@ -134,6 +142,15 @@ struct PostTrayScreen: View {
                         Button { model.active = c.id } label: { thumb(c, number: number) }
                             .buttonStyle(.plain)
                             .accessibilityLabel("\(number): \(c.piece.name)")
+                            #if os(macOS)
+                            .contextMenu {
+                                Button("Show this one", systemImage: "eye") { model.active = c.id }
+                                MacOpenInWindow(path: MarketingKit.piecePath(c.id))
+                                Divider()
+                                Button("Take it out", systemImage: "xmark", role: .destructive) { model.take(c.id) }
+                                    .disabled(model.busy != nil)
+                            }
+                            #endif
                     }
                 }
                 .padding(.horizontal, 16)
@@ -377,6 +394,9 @@ struct PostTrayScreen: View {
             .websiteBusy(working)
         }
         .interactiveDismissDisabled(working != nil)
+        #if os(macOS)
+        .frame(minWidth: 520, minHeight: 600)
+        #endif
     }
 
     private func postStory(_ s: Story, user: String) async {
@@ -608,6 +628,139 @@ struct PostTrayCardSections: View {
         }
     }
 }
+
+#if os(macOS)
+// MARK: - The Mac's tray: the photographs on the left, the words and where they go on the right
+
+extension PostTrayScreen {
+    var macBody: some View {
+        Group {
+            if model.cards.isEmpty {
+                VStack(spacing: 14) {
+                    ContentUnavailableView("Nothing picked", systemImage: "square.grid.2x2",
+                                           description: Text("Click pieces: one, or a few to send together. Each gets its own caption."))
+                    HStack {
+                        Button { picking = true } label: { Label("Choose pieces", systemImage: "square.grid.2x2") }
+                            .buttonStyle(.borderedProminent)
+                        Button { if let why = model.shuffle() { failure = why } } label: { Label("Shuffle a piece", systemImage: "shuffle") }
+                            .disabled(store.pieces.isEmpty)
+                    }
+                    .padding(.bottom, 40)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let card = model.activeCard {
+                macPanes(card)
+            } else {
+                SkeletonLoading().frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .navigationTitle(model.cards.count > 1 ? "\(model.cards.count) to send" : "Send a piece")
+        .navigationSubtitle(model.activeCard?.piece.name ?? "")
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
+                if model.cards.count > 1 {
+                    Button { clearing = true } label: { Label("Clear all", systemImage: "trash") }
+                        .disabled(model.busy != nil)
+                        .help("Take every piece off the tray")
+                }
+                Button { picking = true } label: { Label("Add pieces", systemImage: "plus") }
+                    .keyboardShortcut("a", modifiers: [.command, .shift])
+                    .disabled(model.busy != nil)
+                    .help("Add pieces to the tray")
+            }
+        }
+        .confirmDestructive(isPresented: $clearing, title: "Clear all \(model.cards.count)?",
+                            message: "They come off the tray. The pieces themselves are untouched.",
+                            action: "Clear all") { model.clear() }
+        .task { await start() }
+        .sheet(isPresented: $picking) {
+            NavigationStack {
+                PostPiecesScreen(tray: model)
+                    .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { picking = false } } }
+            }
+            .frame(minWidth: 760, minHeight: 600)
+        }
+        .sheet(item: $story) { (s: Story) in storySheet(s) }
+        .confirmationDialog(confirmTitle, isPresented: $confirming, titleVisibility: .visible) {
+            Button(model.blockers.isEmpty ? "Send" : "Send anyway") { Task { await send() } }
+            Button("Not yet", role: .cancel) {}
+        } message: {
+            Text(confirmWords)
+        }
+        .websiteBusy(working)
+        .noteToast($note)
+        .failureAlert($failure)
+    }
+
+    /// Left: the pieces in the tray, the photograph as it goes, its album. Right: where it goes, the weight, the caption.
+    private func macPanes(_ card: PostTrayCard) -> some View {
+        let sections = PostTrayCardSections(card: card, model: model, siteName: store.siteName, posted: store.posted[card.id],
+                                            access: access, locked: model.busy != nil, onStory: { Task { await makeStory(card) } },
+                                            onAI: { Task { await writeWithAI(card) } }, onSay: say,
+                                            onDesign: { Task { await design(card) } },
+                                            onDesignAI: { (edit: WebsitePhotoEdit, op: String, params: [String: Any], label: String) in Task { await designAI(edit, op, params, label) } })
+        let n = model.cards.count
+        let summary = model.placeNames.isEmpty
+            ? "Choose where they go."
+            : "To \(PostTrayModel.listOf(model.placeNames))\(n > 1 ? ", one after another" : ""). Later puts \(n > 1 ? "them" : "it") in the queue."
+        return MacTwoPane(sideWidth: 440) {
+            List {
+                Group {
+                    if store.piecesPhase == .loaded && !model.audience.canSend && !model.toInstagram {
+                        Section {
+                            Text("No WhatsApp community is set up for this shop yet (WHATSAPP_COMMUNITY_CHAT_ID), so nothing can be sent from here.")
+                                .foregroundStyle(Tone.owed.color)
+                        }
+                    }
+                    stripSection
+                    sections.macPhotos
+                }
+                .houseRows()
+            }
+            .listStyle(.inset)
+        } main: {
+            List {
+                Group {
+                    whereSection
+                    blockersSection
+                    sections.macWords
+                }
+                .houseRows()
+            }
+            .listStyle(.inset)
+        }
+        .actionBar(
+            primary: .init(n > 1 ? "Send all \(n)" : "Send it", systemImage: "paperplane.fill",
+                           isBusy: model.busy == "send", isDisabled: !model.canSend) { confirming = true },
+            secondary: [.init("Later", systemImage: "clock", isBusy: model.busy == "queue", isDisabled: !model.canSend) { Task { await queue() } }],
+            summary: summary)
+    }
+}
+
+extension PostTrayCardSections {
+    /// The photograph (or its design) and the album of photos, the left pane.
+    var macPhotos: some View {
+        Group {
+            photoSection
+                .task(id: "\(card.id)|\(card.weight)|\(card.overlay)|\(card.ink)") {
+                    try? await Task.sleep(for: .milliseconds(250))
+                    guard !Task.isCancelled else { return }
+                    await model.refresh(card)
+                }
+            PostAlbumStrip(card: card, model: model, siteName: siteName, locked: locked, onSay: onSay)
+        }
+    }
+
+    /// The weight, the caption and what else can be done with the piece, the right pane.
+    var macWords: some View {
+        Group {
+            weightSection
+            captionSection
+            moreSection
+        }
+    }
+}
+#endif
 
 private extension String {
     var lowercasedFirst: String { prefix(1).lowercased() + dropFirst() }

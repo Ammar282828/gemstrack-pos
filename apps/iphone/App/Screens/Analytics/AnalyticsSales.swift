@@ -82,14 +82,23 @@ struct AnaSalesPage: View {
                         }
                     }
                     .buttonStyle(.plain)
+                    #if os(macOS)
+                    .contextMenu { Button("Show Analytics for \(String(y.year))") { pick("year-\(y.year)") } }
+                    #endif
                     .accessibilityHint("Shows Analytics for \(String(y.year))")
                 }
             } header: {
                 LedgerHeading(title: "Yearly performance")
             } footer: {
+                #if os(macOS)
+                Text(showCosts
+                     ? "All-time revenue, expenses and profit by year. Click a year to filter Analytics to it."
+                     : "All-time revenue by year. Click a year to filter Analytics to it.")
+                #else
                 Text(showCosts
                      ? "All-time revenue, expenses and profit by year. Tap a year to filter Analytics to it."
                      : "All-time revenue by year. Tap a year to filter Analytics to it.")
+                #endif
             }
             .houseRows()
         }
@@ -145,6 +154,9 @@ struct AnaSalesPage: View {
                         }
                     }
                     .buttonStyle(.plain)
+                    #if os(macOS)
+                    .contextMenu { Button("Open day's report") { day = d } }
+                    #endif
                 }
                 if figures.salesOverTime.count > 5 {
                     Button(showDays ? "Show fewer days" : "Show all days · \(figures.salesOverTime.count)") {
@@ -155,7 +167,11 @@ struct AnaSalesPage: View {
         } header: {
             LedgerHeading(title: "Daily summary")
         } footer: {
+            #if os(macOS)
+            Text("Click a day for its report.")
+            #else
             Text("Tap a day for its report.")
+            #endif
         }
         .houseRows()
     }
@@ -229,6 +245,9 @@ struct AnaDaySheet: View {
                 }
             }
             .listStyle(.insetGrouped)
+            #if os(macOS)
+            .frame(minWidth: 560, minHeight: 520)
+            #endif
             .navigationTitle("Daily report")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

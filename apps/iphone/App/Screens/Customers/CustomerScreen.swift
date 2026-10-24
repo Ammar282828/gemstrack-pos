@@ -23,6 +23,13 @@ struct CustomerScreen: View {
     /// invoice, order, repair and hisaab row was walked each time the page moved).
     @State private var reckoned = Memo<Facts>()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    #if os(macOS)
+    // The Mac record window: which tab of tables is open, the picked row, and where a double-click goes.
+    @Environment(\.openPlaceWindow) private var openPlace
+    @State private var macTab: CustomerMacTab = .invoices
+    @State private var macPick = Set<String>()
+    @State private var macGo: Route?
+    #endif
 
     init(id: String, seed: Customer? = nil) {
         self.id = id
@@ -69,6 +76,10 @@ struct CustomerScreen: View {
                     NavigationLink(value: Route(path: CustomerKit.path(c.id, suffix: "/edit"))) {
                         Text("Edit")
                     }
+                    #if os(macOS)
+                    .keyboardShortcut("e", modifiers: .command)
+                    .help("Edit this customer (\u{2318}E)")
+                    #endif
                 }
             }
         }
@@ -99,7 +110,11 @@ struct CustomerScreen: View {
                 NotAvailableState("Removed", why: "\(CustomerKit.shown(c)) was removed. Settings, then Recently removed, puts them back.",
                                   symbol: "person.crop.circle.badge.minus")
             } else {
+                #if os(macOS)
+                macPage(facts(for: c))
+                #else
                 page(facts(for: c))
+                #endif
             }
         } else {
             NotAvailableState("Customer not found", why: "They are not in the book on this phone.",
@@ -453,3 +468,343 @@ private struct CustHisaabRow: View {
                 trailing: amount, trailingTint: net > 0 ? Tone.owed.color : Tone.settled.color)
     }
 }
+
+#if os(macOS)
+
+// MARK: - The Mac record window
+
+private enum CustomerMacTab: String, CaseIterable, Identifiable {
+    case invoices = "Invoices", orders = "Orders", repairs = "Repairs", hisaab = "Hisaab"
+    var id: String { rawValue }
+}
+
+/// A customer as a record window: who they are, what they owe, their details and sizes in a column on the left; their
+/// invoices, orders, repairs and hisaab as tabs of tables on the right, each row with a right-click menu and a
+/// double-click that opens it in a window of its own. The facts, the writes and the rules are the page's above.
+extension CustomerScreen {
+    private func macPage(_ f: Facts) -> some View {
+        HSplitView {
+            macSide(f)
+                .frame(minWidth: 300, idealWidth: 340, maxWidth: 460)
+            macTabs(f)
+                .frame(minWidth: 480)
+        }
+        .background(Theme.ground)
+        .navigationSubtitle(f.owing.total >= 1 ? "Owes \(Money.pkr(f.owing.total))" : "")
+        .navigationDestination(item: $macGo) { (r: Route) in PlaceScreen(path: r.path) }
+        .toolbar { macToolbar(f) }
+    }
+
+    @ToolbarContentBuilder
+    private func macToolbar(_ f: Facts) -> some ToolbarContent {
+        ToolbarItemGroup(placement: .primaryAction) {
+            if let url = CustomerKit.whatsAppURL(f.customer.phone) {
+                Button { openURL(url) } label: { Label("WhatsApp", systemImage: "message") }
+                    .help("Message them on WhatsApp")
+            }
+            if let url = CustomerKit.callURL(f.customer.phone) {
+                Button { openURL(url) } label: { Label("Call", systemImage: "phone") }
+                    .help("Call them")
+            }
+            if let url = CustomerKit.messageURL(f.customer.phone) {
+                Button { openURL(url) } label: { Label("Message", systemImage: "text.bubble") }
+                    .help("Send a text message")
+            }
+            if session.isOwner {
+                Menu {
+                    Button { macGo = Route(path: CustomerKit.hisaabPath(f.customer.id)) } label: {
+                        Label("Open their hisaab", systemImage: "book.closed")
+                    }
+                    Divider()
+                    Button(role: .destructive) { askToRemove(f) } label: {
+                        Label("Remove this customer", systemImage: "person.badge.minus")
+                    }
+                } label: {
+                    Label("More", systemImage: "ellipsis.circle")
+                }
+                .help("More about this customer")
+            }
+        }
+    }
+
+    // MARK: The column on the left
+
+    private func macSide(_ f: Facts) -> some View {
+        let c = f.customer
+        let address = [c.address, c.city, c.country].compactMap { CustomerKit.filled($0) }.joined(separator: ", ")
+        let owed = macOwedDetail(f.owing)
+        return Form {
+            Section {
+                VStack(spacing: 8) {
+                    Monogram(name: CustomerKit.shown(c), size: 64)
+                    Text(CustomerKit.shown(c))
+                        .font(.system(.title2, design: .serif).weight(.semibold))
+                        .multilineTextAlignment(.center)
+                        .textSelection(.enabled)
+                    if let phone = CustomerKit.filled(c.phone) {
+                        Text(phone).font(.subheadline).foregroundStyle(.secondary).monospacedDigit().textSelection(.enabled)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 4)
+            }
+            Section("Owed to you") {
+                HeroAmount(amount: f.owing.total)
+                if !owed.isEmpty {
+                    Text(owed).font(.footnote).foregroundStyle(.secondary)
+                }
+            }
+            Section("Customer details") {
+                if let phone = CustomerKit.filled(c.phone) { LabeledContent("Phone", value: phone) }
+                if let alt = CustomerKit.filled(c.altPhone) { LabeledContent("Second number", value: alt) }
+                if let email = CustomerKit.filled(c.email) { LabeledContent("Email", value: email) }
+                if !address.isEmpty { LabeledContent("Address", value: address) }
+                if let source = c.source { LabeledContent("Source", value: CustomerKit.sourceLabel(source)) }
+                if let birthday = CustomerKit.filled(c.birthday) { LabeledContent("Birthday", value: CustomerKit.day(birthday)) }
+                if let anniversary = CustomerKit.filled(c.anniversary) { LabeledContent("Anniversary", value: CustomerKit.day(anniversary)) }
+                if let preference = CustomerKit.filled(c.preference) { LabeledContent("Prefers", value: preference) }
+                if let notes = CustomerKit.filled(c.notes) { LabeledContent("Notes", value: notes) }
+            }
+            macSizes(c)
+            if session.isOwner {
+                Section {
+                    Button(role: .destructive) { askToRemove(f) } label: {
+                        Label("Remove this customer", systemImage: "person.badge.minus")
+                    }
+                } footer: {
+                    Text("Removing hides them; their invoices, orders and hisaab stay, and Settings, then Recently removed, puts them back. It asks for the delete code.")
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+    }
+
+    @ViewBuilder
+    private func macSizes(_ c: Customer) -> some View {
+        let ring = CustomerKit.filled(c.ringSize)
+        let bangle = CustomerKit.filled(c.bangleSize)
+        let bracelet = CustomerKit.filled(c.braceletSize)
+        let chain = CustomerKit.filled(c.chainLength)
+        if ring != nil || bangle != nil || bracelet != nil || chain != nil {
+            Section("Sizes") {
+                if let ring { LabeledContent("Ring", value: ring) }
+                if let bangle { LabeledContent("Bangle", value: bangle) }
+                if let bracelet { LabeledContent("Bracelet", value: bracelet) }
+                if let chain { LabeledContent("Chain", value: chain) }
+            }
+        }
+    }
+
+    private func macOwedDetail(_ o: CustomerKit.Owing) -> String {
+        var parts: [String] = []
+        if o.onInvoices >= 1 {
+            parts.append("On \(o.invoiceCount) invoice\(o.invoiceCount == 1 ? "" : "s") \(Money.pkr(o.onInvoices))")
+        }
+        if o.inHisaab >= 1 { parts.append("In the hisaab \(Money.pkr(o.inHisaab))") }
+        if o.shopOwesThem >= 1 { parts.append("The hisaab owes them \(Money.pkr(o.shopOwesThem))") }
+        return parts.joined(separator: " \u{00B7} ")
+    }
+
+    // MARK: The tabs of tables
+
+    private func macTabs(_ f: Facts) -> some View {
+        let tabs = CustomerMacTab.allCases.filter { $0 != .hisaab || session.isOwner }
+        return VStack(spacing: 0) {
+            HStack {
+                Picker("Show", selection: $macTab) {
+                    ForEach(tabs) { (t: CustomerMacTab) in
+                        Text("\(t.rawValue) \(macCount(t, f))").tag(t)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(maxWidth: 460)
+                Spacer(minLength: 0)
+            }
+            .padding(12)
+            Divider()
+            Group {
+                switch macTab {
+                case .invoices: macInvoices(f.invoices)
+                case .orders: macOrders(f.orders)
+                case .repairs: macRepairs(f.repairs)
+                case .hisaab: macHisaab(f.hisaab, id: f.customer.id)
+                }
+            }
+            .onChange(of: macTab) { _, _ in macPick = [] }
+        }
+    }
+
+    private func macCount(_ t: CustomerMacTab, _ f: Facts) -> String {
+        let n: Int
+        switch t {
+        case .invoices: n = f.invoices.count
+        case .orders: n = f.orders.count
+        case .repairs: n = f.repairs.count
+        case .hisaab: n = f.hisaab.count
+        }
+        return n == 0 ? "" : "(\(n))"
+    }
+
+    private func macRoute(_ t: CustomerMacTab, _ id: String) -> Route {
+        switch t {
+        case .invoices: return CustomerKit.place("/invoices/", id)
+        case .orders: return CustomerKit.place("/orders/", id)
+        case .repairs: return CustomerKit.place("/repairs?id=", id)
+        case .hisaab: return Route(path: MoneyPaths.invoice(id))
+        }
+    }
+
+    /// A row's right-click menu: open it here or in a window of its own, copy its number, and (an invoice in credit) give it back.
+    @ViewBuilder
+    private func macRowMenu(_ t: CustomerMacTab, _ ids: Set<String>, invoices: [Invoice] = []) -> some View {
+        if let id = ids.first {
+            Button("Open") { macGo = macRoute(t, id) }
+            Button("Open in New Window") { openPlace?(macRoute(t, id)) }
+            if t == .invoices, session.isOwner, let inv = invoices.first(where: { $0.id == id }), InvoiceCredit.held(inv) >= 1 {
+                Divider()
+                Button("Give back \(Money.pkr(InvoiceCredit.held(inv)))") { givingBack = inv }
+            }
+            Divider()
+            Button("Copy number") { UIPasteboard.general.string = ids.sorted().joined(separator: "\n") }
+        }
+    }
+
+    private func macEmpty(_ text: String, _ symbol: String) -> some View {
+        ContentUnavailableView(text, systemImage: symbol)
+    }
+
+    private func macInvoices(_ list: [Invoice]) -> some View {
+        Table(list, selection: $macPick) {
+            TableColumn("Invoice") { (inv: Invoice) in Text(inv.id).monospacedDigit() }.width(min: 90, ideal: 120)
+            TableColumn("Date") { (inv: Invoice) in Text(ShopDate.say(inv.createdAt)) }.width(min: 80, ideal: 100)
+            TableColumn("Total") { (inv: Invoice) in Text(Money.pkr(inv.grandTotal)).monospacedDigit() }.width(min: 90, ideal: 110)
+            TableColumn("Owed") { (inv: Invoice) in
+                // Only what needs someone is coloured: a settled or refunded bill shows nothing here.
+                let line = balanceLine(inv.balanceDue)
+                Text(inv.status != .refunded && line.state == .due ? Money.pkr(line.amount) : "")
+                    .monospacedDigit().foregroundStyle(Tone.owed.color)
+            }.width(min: 90, ideal: 110)
+            TableColumn("Credit") { (inv: Invoice) in
+                let held = InvoiceCredit.held(inv)
+                Text(held >= 1 ? Money.pkr(held) : "").monospacedDigit().foregroundStyle(Tone.credit.color)
+            }.width(min: 90, ideal: 110)
+            TableColumn("Status") { (inv: Invoice) in
+                Text(inv.status == .refunded ? "Refunded" : "").foregroundStyle(.secondary)
+            }.width(min: 70, ideal: 90)
+        }
+        .contextMenu(forSelectionType: String.self) { ids in
+            macRowMenu(.invoices, ids, invoices: list)
+        } primaryAction: { ids in
+            for id in ids.prefix(5) { openPlace?(macRoute(.invoices, id)) }
+        }
+        .overlay { if list.isEmpty { macEmpty("No sales history found for this customer", "doc.text") } }
+    }
+
+    private func macOrders(_ list: [Order]) -> some View {
+        Table(list, selection: $macPick) {
+            TableColumn("Order") { (o: Order) in Text(o.id).monospacedDigit() }.width(min: 90, ideal: 120)
+            TableColumn("Taken") { (o: Order) in Text(ShopDate.say(o.createdAt)) }.width(min: 80, ideal: 100)
+            TableColumn("Pieces") { (o: Order) in Text("\(o.items.count)").monospacedDigit() }.width(60)
+            TableColumn("Status") { (o: Order) in
+                // Completed is the expected end: no badge for it.
+                if o.status != .completed { StatusBadge(order: o.status) }
+            }.width(min: 90, ideal: 120)
+            TableColumn("Still to pay") { (o: Order) in
+                let closed = o.status == .cancelled || o.status == .refunded || !(o.invoiceId ?? "").isEmpty
+                Text(Money.pkr(o.grandTotal)).monospacedDigit().foregroundStyle(closed ? Color.secondary : Color.primary)
+            }.width(min: 90, ideal: 110)
+            TableColumn("Invoice") { (o: Order) in Text(o.invoiceId ?? "").monospacedDigit().foregroundStyle(.secondary) }
+                .width(min: 80, ideal: 110)
+        }
+        .contextMenu(forSelectionType: String.self) { ids in
+            macRowMenu(.orders, ids)
+        } primaryAction: { ids in
+            for id in ids.prefix(5) { openPlace?(macRoute(.orders, id)) }
+        }
+        .overlay { if list.isEmpty { macEmpty("No orders", "shippingbox") } }
+    }
+
+    private func macRepairs(_ list: [Repair]) -> some View {
+        Table(list, selection: $macPick) {
+            TableColumn("Repair") { (r: Repair) in Text(CustomerKit.repairSummary(r)) }.width(min: 140, ideal: 220)
+            TableColumn("Ticket") { (r: Repair) in Text(r.id).monospacedDigit() }.width(min: 80, ideal: 100)
+            TableColumn("Received") { (r: Repair) in Text(ShopDate.say(r.receivedAt)) }.width(min: 80, ideal: 100)
+            TableColumn("Promised") { (r: Repair) in
+                let open = r.status == .received || r.status == .ready
+                Text(open ? ShopDate.say(CustomerKit.filled(r.promisedDate) ?? "") : "")
+            }.width(min: 80, ideal: 100)
+            TableColumn("Status") { (r: Repair) in
+                let s = CustomerKit.repairStatus(r.status)
+                // Collected is the expected end: no pill for it.
+                if r.status != .collected { Pill(s.text, tone: s.tone) }
+            }.width(min: 90, ideal: 110)
+            TableColumn("Owed") { (r: Repair) in
+                let open = r.status == .received || r.status == .ready
+                let balance = CustomerKit.repairBalance(r)
+                Text(open && balance >= 1 ? Money.pkr(balance) : "").monospacedDigit().foregroundStyle(Tone.owed.color)
+            }.width(min: 90, ideal: 110)
+        }
+        .contextMenu(forSelectionType: String.self) { ids in
+            macRowMenu(.repairs, ids)
+        } primaryAction: { ids in
+            for id in ids.prefix(5) { openPlace?(macRoute(.repairs, id)) }
+        }
+        .overlay { if list.isEmpty { macEmpty("No repairs", "wrench.and.screwdriver") } }
+    }
+
+    private func macHisaab(_ rows: [HisaabEntry], id: String) -> some View {
+        Table(rows, selection: $macPick) {
+            TableColumn("Date") { (e: HisaabEntry) in Text(ShopDate.say(e.date)) }.width(min: 80, ideal: 100)
+            TableColumn("Entry") { (e: HisaabEntry) in
+                let metal: String = {
+                    var parts: [String] = []
+                    if e.goldDebitGrams > 0 { parts.append("gave \(CustomerKit.grams(e.goldDebitGrams)) g \(House.metal)") }
+                    if e.goldCreditGrams > 0 { parts.append("got \(CustomerKit.grams(e.goldCreditGrams)) g \(House.metal)") }
+                    return parts.joined(separator: " \u{00B7} ")
+                }()
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(CustomerKit.filled(e.description) ?? "Entry")
+                    if !metal.isEmpty { Text(metal).font(.caption).foregroundStyle(.secondary) }
+                }
+            }
+            TableColumn("You gave") { (e: HisaabEntry) in
+                Text(e.cashDebit > 0 ? Money.pkr(e.cashDebit) : "").monospacedDigit().foregroundStyle(Tone.owed.color)
+            }.width(min: 90, ideal: 110)
+            TableColumn("You got") { (e: HisaabEntry) in
+                Text(e.cashCredit > 0 ? Money.pkr(e.cashCredit) : "").monospacedDigit().foregroundStyle(Tone.settled.color)
+            }.width(min: 90, ideal: 110)
+            TableColumn("Invoice") { (e: HisaabEntry) in
+                Text(CustomerKit.filled(e.linkedInvoiceId) ?? "").monospacedDigit().foregroundStyle(.secondary)
+            }.width(min: 80, ideal: 100)
+        }
+        .contextMenu(forSelectionType: String.self) { ids in
+            if let eid = ids.first, let inv = rows.first(where: { $0.id == eid })?.linkedInvoiceId, !inv.isEmpty {
+                Button("Open invoice") { macGo = macRoute(.hisaab, inv) }
+                Button("Open invoice in New Window") { openPlace?(macRoute(.hisaab, inv)) }
+            }
+            Button("Open their hisaab") { macGo = Route(path: CustomerKit.hisaabPath(id)) }
+            Button("Open their hisaab in New Window") { openPlace?(Route(path: CustomerKit.hisaabPath(id))) }
+        } primaryAction: { ids in
+            if let eid = ids.first, let inv = rows.first(where: { $0.id == eid })?.linkedInvoiceId, !inv.isEmpty {
+                openPlace?(macRoute(.hisaab, inv))
+            }
+        }
+        .overlay { if rows.isEmpty { macEmpty("Nothing in their hisaab", "book.closed") } }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            VStack(spacing: 0) {
+                Divider()
+                HStack {
+                    Spacer()
+                    Button { macGo = Route(path: CustomerKit.hisaabPath(id)) } label: {
+                        Label("Open their hisaab", systemImage: "book.closed")
+                    }
+                }
+                .padding(10)
+            }
+            .background(.bar)
+        }
+    }
+}
+#endif

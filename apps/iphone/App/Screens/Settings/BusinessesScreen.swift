@@ -23,14 +23,27 @@ struct BusinessesScreen: View {
     @State private var chosenTick = 0
     @State private var addedTick = 0
 
+    #if os(macOS)
+    @State private var picked: String?
+    @State private var macAdding = false
+    #endif
+
     private enum Phase: Equatable {
         case idle, looking, adding
         case failed(String)
     }
 
     var body: some View {
+        #if os(macOS)
+        macBody
+        #else
+        phoneBody
+        #endif
+    }
+
+    private var phoneBody: some View {
         let store = Businesses.shared
-        Form {
+        return Form {
             Group {
                 Section {
                     ForEach(store.list) { b in row(b, open: b.id == store.current.id) }
@@ -273,3 +286,125 @@ struct BusinessesScreen: View {
         }
     }
 }
+
+#if os(macOS)
+extension BusinessesScreen {
+    /// The businesses as a table: who is open, its address, who is signed in. Double-click opens one; right-click (or the
+    /// toolbar) opens or removes it; Add business… is a Mac sheet with the look-up and the preview.
+    fileprivate var macBody: some View {
+        let store = Businesses.shared
+        let selected = picked.flatMap { id in store.list.first { $0.id == id } }
+        return VStack(spacing: 0) {
+            Table(store.list, selection: $picked) {
+                TableColumn("Business") { (b: Business) in
+                    HStack(spacing: 10) {
+                        BusinessBadge(business: b, size: 28)
+                        Text(b.displayName).fontWeight(.medium).lineLimit(1)
+                        if b.id == store.current.id { Pill("Open now", tone: .settled) }
+                    }
+                }
+                TableColumn("Address") { (b: Business) in Text(b.host).foregroundStyle(.secondary) }
+                TableColumn("Signed in as") { (b: Business) in macStatus(b) }
+            }
+            .contextMenu(forSelectionType: String.self) { ids in
+                if let id = ids.first, let b = store.list.first(where: { $0.id == id }) {
+                    if b.id != store.current.id { Button("Open", systemImage: "arrow.right.circle") { choose(b) } }
+                    if store.list.count > 1 {
+                        Divider()
+                        Button(b.art != nil ? "Hide on this Mac…" : "Remove from this Mac…", systemImage: "trash", role: .destructive) { removing = b }
+                    }
+                }
+            } primaryAction: { ids in
+                if let id = ids.first, let b = store.list.first(where: { $0.id == id }) { choose(b) }
+            }
+            .onDeleteCommand { if let b = selected, store.list.count > 1 { removing = b } }
+            Divider()
+            HStack {
+                if store.list.count > 1 && !House.isDemo {
+                    Toggle("Ask which business on opening", isOn: $askAtLaunch)
+                }
+                Spacer()
+                Text("Each business keeps its own sign-in, books, drafts and alerts on this Mac.")
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 20).padding(.vertical, 10)
+        }
+        .background(Theme.ground)
+        .navigationTitle("Businesses")
+        .toolbar {
+            if inSheet {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close") { store.switcherOpen = false }
+                }
+            }
+            ToolbarItem(placement: .primaryAction) {
+                Button { macAdding = true } label: { Label("Add business", systemImage: "plus") }
+                    .help("Add a business by its ERP's address")
+                    .disabled(House.isDemo)
+            }
+            ToolbarItem(placement: .automatic) {
+                Button { if let b = selected { choose(b) } } label: { Label("Open", systemImage: "arrow.right.circle") }
+                    .disabled(selected == nil || selected?.id == store.current.id)
+                    .help("Open the selected business")
+            }
+            ToolbarItem(placement: .automatic) {
+                Button { removing = selected } label: { Label("Remove", systemImage: "trash") }
+                    .disabled(selected == nil || store.list.count <= 1)
+                    .help("Remove the selected business from this Mac")
+            }
+        }
+        .noteToast($note)
+        .selectionFeedback(trigger: chosenTick)
+        .savedFeedback(trigger: addedTick)
+        .failureAlert(Binding(
+            get: { if case .failed(let why) = phase { return why } else { return nil } },
+            set: { if $0 == nil { phase = .idle } }
+        ), title: "Couldn't add that business")
+        .task { refreshWho() }
+        .onChange(of: store.list) { _, _ in refreshWho() }
+        .sheet(isPresented: $macAdding) { macAddSheet }
+        .confirmationDialog(removing.map { ($0.art != nil ? "Hide " : "Remove ") + $0.displayName + " on this Mac?" } ?? "",
+                            isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }),
+                            titleVisibility: .visible) {
+            Button(removing?.art != nil ? "Hide on this Mac" : "Remove from this Mac", role: .destructive) {
+                if let b = removing { remove(b) }
+            }
+        } message: {
+            Text("You are signed out of it here and its books are cleared from this Mac. Nothing in the ERP itself changes."
+                 + (removing?.art != nil ? " You can add it back by its address." : ""))
+        }
+    }
+
+    @ViewBuilder private func macStatus(_ b: Business) -> some View {
+        if House.isDemo {
+            Text("Demo: made-up books").foregroundStyle(.secondary)
+        } else if b.firebaseOptions == nil {
+            Label("Sign-in not set up", systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.owed.color)
+        } else if let email = who[b.id] {
+            Text(email).foregroundStyle(.secondary).lineLimit(1)
+        } else {
+            Text("Signed out").foregroundStyle(.secondary)
+        }
+    }
+
+    /// Add a business: the address, Look up (Return), then what was found with its name, logo and colours.
+    private var macAddSheet: some View {
+        VStack(spacing: 0) {
+            Text("Add a business").font(.headline)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 20).padding(.top, 16)
+            Form {
+                addSection
+                if let preview { previewSection(preview) }
+            }
+            .formStyle(.grouped)
+            MacSheetFooter(confirm: preview == nil ? "Look up" : "Close", cancel: "Cancel",
+                           busy: phase == .looking || phase == .adding,
+                           disabled: preview == nil && address.trimmingCharacters(in: .whitespaces).isEmpty,
+                           onCancel: { macAdding = false },
+                           onConfirm: { if preview == nil { lookUp() } else { macAdding = false } })
+        }
+        .frame(minWidth: 520, idealWidth: 560, minHeight: 420)
+    }
+}
+#endif

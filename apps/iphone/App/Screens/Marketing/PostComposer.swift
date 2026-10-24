@@ -19,6 +19,20 @@ struct PostComposerScreen: View {
     @Environment(\.openURL) private var openURL
     private var d: NativePostDraft { model.draft }
     private var form: some View {
+        #if os(macOS)
+        HStack(spacing: 0) {
+            formCore.frame(maxWidth: .infinity)
+            Divider()
+            macPreview.frame(width: 400)
+        }
+        .actionBar(primary: .init("Publish", isDisabled: !model.problems.isEmpty || model.frozen) { confirmation = "send" },
+                   secondary: [.init("Add to queue", isDisabled: !model.problems.isEmpty || model.frozen) { confirmation = "queue" }],
+                   summary: model.problems.isEmpty ? nil : model.problems.joined(separator: " "))
+        #else
+        formCore
+        #endif
+    }
+    private var formCore: some View {
         Form {
             if let said = model.said { Section { Text(said) }.houseRows() }
             photoSection
@@ -30,7 +44,9 @@ struct PostComposerScreen: View {
         .scrollDismissesKeyboard(.interactively)
         .keyboardDone()
         .failureAlert($model.error)
+        #if !os(macOS)
         .safeAreaBar(edge: .bottom, spacing: 0) { if !model.frozen { publishBar } }
+        #endif
         .sensoryFeedback(.success, trigger: model.said) { _, now in now != nil }
         .confirmDestructive(isPresented: $startingOver, title: "Start a new piece?",
                             message: "What is on screen is kept in Drafts.", action: "New piece") { Task { await model.startOver() } }
@@ -249,12 +265,18 @@ Section {
                     }
                     // A draft holds its photos: deleting it asks first (decision "Delete code": every delete asks).
                     .swipeActions(allowsFullSwipe: false) { Button("Delete", role: .destructive) { deletingDraft = saved } }
+                    #if os(macOS)
+                    .contextMenu { Button("Delete…", systemImage: "trash", role: .destructive) { deletingDraft = saved } }
+                    #endif
                 }
             }
             .houseRows()
             .overlay { if model.drafts.isEmpty { EmptyState("No drafts", symbol: "doc", message: "A piece you start is kept here, on this device, until it goes out.") } }
             .modifier(HouseGround()).navigationTitle("Drafts")
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { draftsOpen = false } } }
+            #if os(macOS)
+            .frame(minWidth: 480, minHeight: 420)
+            #endif
             .confirmationDialog("Delete “\(deletingDraft?.title ?? "this draft")” and its photos?", isPresented: Binding(get: { deletingDraft != nil }, set: { if !$0 { deletingDraft = nil } }), titleVisibility: .visible) {
                 Button("Delete draft", role: .destructive) { if let saved = deletingDraft { Task { await model.remove(saved) } } }
             }
@@ -290,6 +312,9 @@ struct NativePostAISheet: View {
                     ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.disabled(running) }
                     ToolbarItem(placement: .confirmationAction) { Button("Make \(request.target)") { Task { await run() } }.disabled(running) }
                 }.interactiveDismissDisabled(running).failureAlert($model.error).scrollDismissesKeyboard(.interactively)
+            #if os(macOS)
+                .frame(minWidth: 520, minHeight: 440)
+            #endif
         }
     }
     private func run() async {
@@ -329,7 +354,44 @@ struct NativeSitePhotoPicker: View {
         }.houseRows().modifier(HouseGround()).searchable(text: $q).navigationTitle("From the website").navigationBarTitleDisplayMode(.inline)
             .overlay { if loaded && shown.isEmpty { if q.isEmpty { EmptyState("No pieces on the website", symbol: "globe") } else { ContentUnavailableView.search(text: q) } } }
             .failureAlert($error)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }.task { do { pieces = try await MarketingRequest.get("/api/website/site-pieces")["pieces"].array.filter { !$0["hidden"].bool }; loaded = true } catch { self.error = error.localizedDescription } }.websiteBusy(busy) }
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+            #if os(macOS)
+            .frame(minWidth: 520, minHeight: 520)
+            #endif
+            .task { do { pieces = try await MarketingRequest.get("/api/website/site-pieces")["pieces"].array.filter { !$0["hidden"].bool }; loaded = true } catch { self.error = error.localizedDescription } }.websiteBusy(busy) }
     }
     private func take(_ p: MarketingValue) async { busy = "Bringing the photo…"; defer { busy = nil }; do { let data = try await ERPAPI.shared.data("/api/website/site-pieces/image?id=\(AdsQuery.escape(p.s("id")))&size=3000" + (p["photoSource"] == .null ? "" : "&original=1")); picked(p, data) } catch { self.error = error.localizedDescription } }
 }
+
+#if os(macOS)
+extension PostComposerScreen {
+    /// The story and the post as they will look, beside the form (the phone folds each into a disclosure).
+    var macPreview: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                if model.makeStory { macPreviewCard("Story · 9:16", response: model.storyPreview, kind: "story") }
+                if model.makeSquare { macPreviewCard("Post · 1:1", response: model.squarePreview, kind: "square") }
+                if !model.makeStory && !model.makeSquare {
+                    ContentUnavailableView("Nothing to make", systemImage: "photo", description: Text("Choose Post + story, Post only or Story only."))
+                }
+            }
+            .padding(20)
+        }
+        .background(Theme.ground)
+    }
+
+    private func macPreviewCard(_ title: String, response: MarketingValue, kind: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            LedgerHeading(title: title)
+            if let image = NativeArtwork.image(response) {
+                Image(uiImage: image).resizable().scaledToFit()
+                    .clipShape(.rect(cornerRadius: Radius.chip, style: .continuous))
+                    .frame(maxHeight: kind == "story" ? 520 : 380)
+                    .frame(maxWidth: .infinity)
+            } else {
+                MarketingReading(text: "Drawing the design…")
+            }
+        }
+    }
+}
+#endif

@@ -129,6 +129,13 @@ private struct StockPieceEditor: View {
                     Button("Done") { dismiss() }
                 }
             }
+            #if os(macOS)
+            if saved == nil {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }.disabled(saving)
+                }
+            }
+            #endif
         }
         .failureAlert($failure, title: editing ? "The piece wasn't saved" : "The piece wasn't added")
         .savedFeedback(trigger: tick)
@@ -138,6 +145,14 @@ private struct StockPieceEditor: View {
     }
 
     private var form: some View {
+        #if os(macOS)
+        macForm
+        #else
+        phoneForm
+        #endif
+    }
+
+    private var phoneForm: some View {
         TransactionWorkspace {
         Form { Group {
             pieceSection
@@ -415,6 +430,14 @@ private struct StockPieceEditor: View {
     // MARK: Saved
 
     private func savedPage(_ s: Saved) -> some View {
+        #if os(macOS)
+        macSavedPage(s)
+        #else
+        phoneSavedPage(s)
+        #endif
+    }
+
+    private func phoneSavedPage(_ s: Saved) -> some View {
         List {
             Section {
                 VStack(spacing: 8) {
@@ -767,3 +790,83 @@ struct StockPieceFields: Equatable {
         )
     }
 }
+
+// MARK: The Mac's window
+
+#if os(macOS)
+extension StockPieceEditor {
+    /// The form on the left in a grouped Form (the sections of the iPhone's, one window), the piece's summary in a
+    /// column on the right (its photo, what it is made of, what it sells for today). Return saves (the footer's
+    /// default button), ⌘S saves, Esc cancels.
+    var macForm: some View {
+        HStack(spacing: 0) {
+            Form { Group {
+                pieceSection
+                if f.silver { finishSection }
+                if f.isMensRing && !f.fixed { secondMetalSection }
+                sizeSection
+                priceSection
+                if !f.fixed && !f.isGoldCoin { stonesSection }
+                photoSection
+                }
+                .houseRows()
+            }
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+            .background(Theme.ground)
+            .frame(minWidth: 460, maxWidth: .infinity)
+            Divider()
+            ScrollView {
+                VStack(spacing: 14) {
+                    if let original {
+                        StockImage(imageUrl: original.imageUrl, name: original.name, key: original.sku, decodeDataURI: true)
+                            .aspectRatio(1, contentMode: .fit)
+                            .clipShape(.rect(cornerRadius: Radius.chip, style: .continuous))
+                    }
+                    PieceInspector(title: f.name, rows: [
+                        .init(label: "Metal", value: describeMetal(f.metalType, f.karat)),
+                        .init(label: "Size", value: f.size),
+                        .init(label: "Weight", value: f.weight.isEmpty ? "—" : f.weight + " g"),
+                        .init(label: "At today's rates", value: todaysPrice.map(Money.pkr) ?? "Pending rates")
+                    ])
+                }
+                .padding(16)
+            }
+            .frame(width: 300)
+            .background(Theme.ground)
+        }
+        .disabled(saving)
+        .background {
+            Button(editing ? "Save changes" : "Save piece") { Task { await save() } }
+                .keyboardShortcut("s", modifiers: .command).opacity(0).accessibilityHidden(true)
+        }
+        .actionBar(primary: ActionBar.Action(editing ? "Save changes" : "Save piece", isBusy: saving) { Task { await save() } },
+                   summary: todaysPrice.map { $0 > 0 ? "At today's rates · \(Money.pkr($0))" : "At today's rates · Price N/A" })
+        .onChange(of: f.ruleKey) { _, _ in f.settle() }
+    }
+
+    /// Saved: the result in the middle of the window, the photo to add beside it, and where to go next.
+    private func macSavedPage(_ s: Saved) -> some View {
+        VStack(spacing: 18) {
+            Image(systemName: "checkmark.circle.fill").font(.system(size: 44)).foregroundStyle(Tone.settled.color)
+            Text("Saved").font(.title2.weight(.semibold))
+            Text("\(s.name) is in stock as \(s.sku).").foregroundStyle(.secondary).multilineTextAlignment(.center)
+            StockPiecePhotoField(sku: s.sku, name: s.name, imageUrl: book.products.item(s.sku)?.imageUrl)
+                .padding(16)
+                .frame(maxWidth: 420, alignment: .leading)
+                .background(Theme.card, in: .rect(cornerRadius: Radius.card, style: .continuous))
+            HStack {
+                NavigationLink(value: Route(path: StockKit.piecePath(s.sku))) {
+                    Label("Open \(s.sku)", systemImage: "arrow.up.right.square")
+                }
+                Button { startAnother() } label: { Label("Add another piece", systemImage: "plus.square.on.square") }
+                    .keyboardShortcut(.defaultAction)
+            }
+            Text("Another piece starts in the same category.").font(.footnote).foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(24)
+        .background(Theme.ground)
+    }
+}
+#endif

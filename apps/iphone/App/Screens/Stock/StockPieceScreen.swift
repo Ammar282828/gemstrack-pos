@@ -21,6 +21,10 @@ struct StockPieceScreen: View {
     @Environment(\.layoutWidthClass) private var sizeClass
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var width: CGFloat = 0
+    #if os(macOS)
+    /// "Replace photo…" asked for: the file chooser (a picture dropped on the photo needs no asking).
+    @State private var replacing = false
+    #endif
 
     /// A wide window: the photo and facts on the left, the price and how it adds up on the right.
     private var twoColumns: Bool { sizeClass.isPadLayout && width >= 820 && !typeSize.isAccessibilitySize }
@@ -53,6 +57,9 @@ struct StockPieceScreen: View {
     // MARK: The page
 
     private func detail(_ p: Product) -> some View {
+        #if os(macOS)
+        macDetail(p)
+        #else
         let settings: Settings? = book.settings.value
         let rates: PricingRates? = StockKit.rates(settings) ?? (p.isCustomPrice ? PricingRates() : nil)
         let costs: ProductCosts? = rates.map { StockKit.costs(p, $0) }
@@ -61,6 +68,7 @@ struct StockPieceScreen: View {
         // Selling is the owners' (createInvoice is owner-only): staff read the piece without a Sell they cannot finish.
         .safeAreaBar(edge: .bottom, spacing: 0) { if session.isOwner { sellBar(p) } }
         .toolbar { if session.isOwner { ToolbarItem(placement: .primaryAction) { actionsMenu(p) } } }
+        #endif
     }
 
     @ViewBuilder
@@ -302,12 +310,19 @@ private struct StockSoldView: View {
                     NavigationLink(value: Route(path: "/invoices/" + StockKit.encode(inv.id))) {
                         saleRow(inv)
                     }
+                    #if os(macOS)
+                    .macOpenInWindowMenu("/invoices/" + StockKit.encode(inv.id))
+                    #endif
                 }
             }
             }
             .houseRows()
         }
         .listStyle(.insetGrouped)
+        #if os(macOS)
+        .frame(maxWidth: 760)
+        .frame(maxWidth: .infinity)
+        #endif
     }
 
     private func saleRow(_ inv: Invoice) -> some View {
@@ -322,3 +337,65 @@ private struct StockSoldView: View {
         }
     }
 }
+
+// MARK: The Mac's record window
+
+#if os(macOS)
+extension StockPieceScreen {
+    /// The piece as a record window: its photo (drop a picture on it to replace it) and what it is made of on the
+    /// left, the price at today's rates and how it adds up in a column on the right. The toolbar carries Sell, Edit,
+    /// Print tag (Label LIVE) and Delete (which asks for the delete code).
+    func macDetail(_ p: Product) -> some View {
+        let settings: Settings? = book.settings.value
+        let rates: PricingRates? = StockKit.rates(settings) ?? (p.isCustomPrice ? PricingRates() : nil)
+        let costs: ProductCosts? = rates.map { StockKit.costs(p, $0) }
+        return HStack(spacing: 0) {
+            Form { Group {
+                heroSection(p)
+                if !p.isCustomPrice { specsSection(p) }
+                }
+                .houseRows()
+            }
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+            .frame(minWidth: 380, maxWidth: .infinity)
+            .modifier(StockPhotoDrop(sku: p.sku, choosing: $replacing))
+            .contextMenu {
+                if session.isOwner {
+                    Button { replacing = true } label: { Label("Replace Photo…", systemImage: "photo") }
+                }
+                Button { UIPasteboard.general.string = p.sku } label: { Label("Copy SKU", systemImage: "doc.on.doc") }
+            }
+            Divider()
+            Form { Group {
+                priceSection(p, costs, settings)
+                }
+                .houseRows()
+            }
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+            .frame(width: 340)
+        }
+        .background(Theme.ground)
+        .toolbar {
+            if session.isOwner {
+                ToolbarItemGroup(placement: .primaryAction) {
+                    Button {
+                        SaleDraftStore.add(p)
+                        go = Route(path: StockKit.newSalePath)
+                    } label: { Label("Sell", systemImage: "cart") }
+                    .help("Put this piece on the sale in progress")
+                    Button { go = Route(path: StockKit.editPath(p.sku)) } label: { Label("Edit", systemImage: "pencil") }
+                        .keyboardShortcut("e", modifiers: .command)
+                        .help("Edit this piece (⌘E)")
+                    Button { MacPrint.print(Route(path: "/products/" + StockKit.encode(p.sku))) } label: { Label("Print tag", systemImage: "printer") }
+                        .help("Print this piece's tag with Label LIVE")
+                    Button(role: .destructive) { deletion = StockKit.deletion(p) } label: { Label("Delete", systemImage: "trash") }
+                        .keyboardShortcut(.delete, modifiers: .command)
+                        .help("Delete this piece (asks for the delete code)")
+                }
+            }
+        }
+    }
+}
+#endif

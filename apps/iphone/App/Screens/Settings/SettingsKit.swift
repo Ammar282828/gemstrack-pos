@@ -87,7 +87,7 @@ struct SettingsGate<Content: View>: View {
                 // A passing read error keeps the form that has already arrived; only no document at all is a failure.
                 ShelfState(loaded: book.settings.loaded, error: book.settings.value == nil ? book.settings.error : nil) {
                     if let s = book.settings.value ?? Settings.blank {
-                        content(s)
+                        content(s).macSettingsPage()
                     } else {
                         SkeletonLoading().frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
@@ -191,7 +191,7 @@ struct SettingsOwnersOnly<Content: View>: View {
     var body: some View {
         Group {
             if session.isOwner {
-                content()
+                content().macSettingsPage()
             } else {
                 NotAvailableState("Owners only", why: "Settings are the owners’.", symbol: "lock")
                     .navigationTitle(title)

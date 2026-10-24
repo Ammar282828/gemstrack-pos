@@ -27,6 +27,9 @@ struct WorkshopJobRow: View {
     /// The Given switch as tapped, held until the write settles so it does not snap back while the shelf catches up.
     @State private var pendingGiven: Bool?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    #if os(macOS)
+    @Environment(\.openPlaceWindow) private var openPlace
+    #endif
 
     /// The stock job's status in the ERP's words.
     private var stockStatus: KarigarJobStatus {
@@ -339,11 +342,18 @@ struct WorkshopJobRow: View {
     // MARK: Long press
 
     @ViewBuilder
-    private var menuItems: some View {
+    var menuItems: some View {
         if let place = referencePlace {
             Button { actions.open(place) } label: {
                 Label("Open " + (job.invoiceId ?? job.orderId ?? ""), systemImage: "doc.text")
             }
+            #if os(macOS)
+            if let openPlace {
+                Button { openPlace(Route(path: place.path)) } label: {
+                    Label("Open in New Window", systemImage: "macwindow.badge.plus")
+                }
+            }
+            #endif
         }
         if !job.isUnassigned {
             Button { actions.open(WorkshopPlace.karigar(job.karigarId)) } label: {

@@ -243,6 +243,9 @@ struct InvoicesList: View {
     private var canPay: Bool { InvoiceFacts.mayTakePayments(role: session.role) }
 
     var body: some View {
+        #if os(macOS)
+        macBody
+        #else
         let all = book.invoices.items
         ShelfState(loaded: book.invoices.loaded, error: book.invoices.error, offline: book.invoices.offline) {
             content(all)
@@ -280,6 +283,7 @@ struct InvoicesList: View {
             book.invoices.need()
             book.customers.need()
         }
+        #endif
     }
 
     // MARK: Content
@@ -858,3 +862,166 @@ private extension View {
             .listRowSeparator(.hidden)
     }
 }
+
+// MARK: - The Mac: the invoices overview
+
+#if os(macOS)
+/// The Mac's Invoices overview (the hub's table is MacHub's; this is the page behind its Overview): the three figures
+/// in a strip across the head of the window, the status as a segmented control and the filters in the toolbar, search in
+/// the toolbar, and each day's invoices as wide rows with the columns a counter reads (who, what was sold, number and
+/// time, total, balance). Right-click a row for Take payment, Send on WhatsApp, PDF and Open in New Window.
+extension InvoicesList {
+    var macBody: some View {
+        let all = book.invoices.items
+        let scoped = scope(all)
+        return macAttached(
+            ShelfState(loaded: book.invoices.loaded, error: book.invoices.error, offline: book.invoices.offline) {
+                macContent(all)
+            }
+            .navigationTitle("Invoices")
+            .navigationSubtitle(macSubtitle(all))
+            .searchable(text: $search, placement: .toolbar, prompt: "Search invoices")
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Picker("Status", selection: $chip) {
+                        ForEach(rowChips(scoped)) { c in Text(c.title).tag(c) }
+                    }
+                    .pickerStyle(.segmented)
+                    .help("Show all invoices, the unpaid ones or the paid ones")
+                }
+                ToolbarItem(placement: .primaryAction) { filterMenu(all) }
+                ToolbarItem(placement: .primaryAction) {
+                    NavigationLink(value: SaleLinks.newSale) { Label("New sale", systemImage: "plus") }
+                        .help("Make a new sale (⌘N)")
+                }
+            }
+            .task {
+                book.invoices.need()
+                book.customers.need()
+            })
+    }
+
+    /// What the list is narrowed to, under the title.
+    private func macSubtitle(_ all: [Invoice]) -> String {
+        let n = scope(all).filter { chip.matches($0) }.count
+        return "\(n) invoice\(n == 1 ? "" : "s")"
+    }
+
+    /// The sheets and pages the list opens, the same as the iPhone's.
+    private func macAttached<V: View>(_ content: V) -> some View {
+        content
+            .invoicePaymentSheet(for: $paying) { paid, amount in recorded(paid, amount) }
+            .invoiceWhatsAppSend($sending) { sent in
+                Note.show(Note(title: sent.title, detail: sent.detail), in: $note, reduce: reduceMotion)
+            }
+            .invoicePaymentLink($linking) { made in
+                Note.show(Note(title: made.title, detail: made.detail), in: $note, reduce: reduceMotion)
+            }
+            .sheet(isPresented: $importingCSV) {
+                InvoiceCSVImportSheet { (done: InvoiceNote) in
+                    Note.show(Note(title: done.title, detail: done.detail), in: $note, reduce: reduceMotion)
+                }
+                .presentationSizing(.form)
+            }
+            .noteToast($note)
+            .sheet(isPresented: $pickingRange) {
+                InvoiceRangeSheet(from: rangeFrom, to: rangeTo) { from, to in
+                    rangeFrom = from
+                    rangeTo = from == nil ? nil : to
+                }
+            }
+            .navigationDestination(item: $pdf) { t in
+                PDFDocumentScreen(path: t.path, fileName: t.fileName, title: t.title)
+            }
+    }
+
+    private func macContent(_ all: [Invoice]) -> some View {
+        let scoped = scope(all)
+        let shown = scoped.filter { chip.matches($0) }
+        let groups = sections(shown)
+        return VStack(spacing: 0) {
+            macFigures(all)
+            if filterActive { filterCaption.padding(.horizontal, 24).padding(.bottom, 6) }
+            Divider()
+            List {
+                ForEach(groups) { group in
+                    Section {
+                        ForEach(group.rows) { inv in
+                            MacInvoiceListRow(invoice: inv, mine: isMine(inv), dated: grouping != .day, canPay: canPay) {
+                                invoiceActions(inv)
+                            }
+                        }
+                    } header: {
+                        InvoiceSectionHeader(section: group)
+                    }
+                }
+            }
+            .listStyle(.inset)
+            .overlay {
+                if groups.isEmpty { emptyState }
+            }
+        }
+        .background(Theme.ground)
+    }
+
+    /// Owed to you, Today and This month across the head of the window: each a click to show what it counts.
+    private func macFigures(_ all: [Invoice]) -> some View {
+        HStack(alignment: .top, spacing: 0) {
+            summaryStrip(all)
+                .frame(maxWidth: 620)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 14)
+    }
+}
+
+/// One invoice on the Mac: who, what was sold, its number and time, the total and where its balance stands, in columns
+/// that line up from row to row. Click opens it; right-click offers its actions and a window of its own.
+private struct MacInvoiceListRow<Actions: View>: View {
+    let invoice: Invoice
+    let mine: Bool
+    let dated: Bool
+    let canPay: Bool
+    @ViewBuilder let actions: () -> Actions
+    @Environment(\.openPlaceWindow) private var openPlace
+
+    var body: some View {
+        NavigationLink(value: Route(path: InvoiceFacts.path(invoice.id))) {
+            HStack(alignment: .center, spacing: 16) {
+                Monogram(name: invoice.customerName, size: Monogram.Size.row)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(InvoiceFacts.customerName(invoice)).font(.headline).lineLimit(1)
+                        if mine { MineTag() }
+                    }
+                    if let sold = InvoiceFacts.whatSold(invoice), !sold.isEmpty {
+                        Text(sold).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                }
+                .frame(minWidth: 180, maxWidth: .infinity, alignment: .leading)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(invoice.id).font(.subheadline.monospacedDigit())
+                    Text(dated ? ShopDate.say(invoice.createdAt) : InvoiceFacts.time(invoice.createdAt))
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                .frame(width: 130, alignment: .leading)
+                Text(Money.pkr(invoice.grandTotal))
+                    .font(.subheadline.weight(.medium)).monospacedDigit()
+                    .frame(width: 120, alignment: .trailing)
+                InvoiceBalancePill(invoice: invoice)
+                    .frame(width: 150, alignment: .trailing)
+            }
+            .padding(.vertical, 3)
+            .contentShape(Rectangle())
+        }
+        .contextMenu {
+            Button("Open in New Window") { openPlace?(Route(path: InvoiceFacts.path(invoice.id))) }
+            Divider()
+            actions()
+            Divider()
+            Button("Copy Number") { UIPasteboard.general.string = invoice.id }
+        }
+    }
+}
+#endif

@@ -70,9 +70,17 @@ struct AddCustomer: View {
     var body: some View {
         Group {
             if let saved {
+                #if os(macOS)
+                macSaved(saved)
+                #else
                 savedPage(saved)
+                #endif
             } else {
+                #if os(macOS)
+                macForm
+                #else
                 form
+                #endif
             }
         }
         .navigationTitle(saved == nil ? "New customer" : "Saved")
@@ -255,3 +263,92 @@ struct AddCustomer: View {
         saving = false
     }
 }
+
+#if os(macOS)
+
+// MARK: - The Mac form
+
+/// A new customer as a Mac form: grouped sections at a reading width, the labelled fields a Mac types into, Return to
+/// save from the footer and ⌘S from the toolbar. The rules (a name left blank, the number already on file) are the page's.
+extension AddCustomer {
+    private var macForm: some View {
+        Form {
+            Section {
+                TextField("Full name", text: $name, prompt: Text("Optional"))
+                if walkIn {
+                    Text("A walk-in is not a customer: a sale to nobody in particular is left without one.")
+                        .font(.footnote)
+                        .foregroundStyle(Tone.problem.color)
+                }
+                TextField("Phone number", text: $phone, prompt: Text("Optional"))
+                if let match = sameNumber {
+                    Button {
+                        opened = match.id
+                    } label: {
+                        Label("Already on file: \(CustomerKit.shown(match))", systemImage: "person.fill.checkmark")
+                    }
+                    .buttonStyle(.link)
+                }
+                TextField("Email address", text: $email, prompt: Text("Optional"))
+                if !emailOK {
+                    Text("That doesn't look like an email address.")
+                        .font(.footnote)
+                        .foregroundStyle(Tone.problem.color)
+                }
+            } header: {
+                Text("Who")
+            }
+            Section("Address") {
+                TextField("Address", text: $address, prompt: Text("Optional"), axis: .vertical)
+                    .lineLimit(2...5)
+            }
+            Section("Where they came from") {
+                Picker("Referral source", selection: $source) {
+                    Text("Not specified").tag("")
+                    ForEach(CustomerKit.sources, id: \.rawValue) { s in
+                        Text(CustomerKit.sourceLabel(s)).tag(s.rawValue)
+                    }
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .frame(maxWidth: 640)
+        .frame(maxWidth: .infinity)
+        .background(Theme.ground)
+        .disabled(saving)
+        .actionBar(primary: ActionBar.Action("Save customer", isBusy: saving, isDisabled: !canSave) { Task { await save() } },
+                   summary: "The second number, sizes, dates and notes are filled in on the edit page.")
+    }
+
+    private func macSaved(_ s: Saved) -> some View {
+        VStack(spacing: 18) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 44))
+                .foregroundStyle(Tone.settled.color)
+            Text("Saved").font(.title2.weight(.semibold))
+            Text("\(s.name) is on file.").foregroundStyle(.secondary)
+            HStack(spacing: 10) {
+                // Editing a profile is an owner's (the shop floor has no write to it, in the ERP or here).
+                if !s.id.isEmpty && session.isOwner {
+                    Button { editing = EditTarget(id: s.id) } label: {
+                        Label("Add sizes, birthday and notes", systemImage: "ruler")
+                    }
+                }
+                Button { startAnother() } label: {
+                    Label("Add another customer", systemImage: "person.badge.plus")
+                }
+                if !s.id.isEmpty {
+                    Button("Open \(s.name)") { opened = s.id }
+                        .buttonStyle(.borderedProminent)
+                        .keyboardShortcut(.defaultAction)
+                }
+            }
+            .controlSize(.large)
+        }
+        .padding(32)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Theme.ground)
+    }
+}
+#endif

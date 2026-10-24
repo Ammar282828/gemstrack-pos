@@ -73,11 +73,19 @@ private struct AlertsForm: View {
             }
 
             if enabled {
+                #if os(macOS)
+                macRecipients
+                #else
                 recipients
+                #endif
                 switches("As it happens", Self.live)
                 switches("Reports", Self.reports)
                 switches("Checks", Self.checks)
+                #if os(macOS)
+                macSchedule
+                #else
                 schedule
+                #endif
             }
 
             AlertConnectionSections(settings: settings, enabled: enabled, phones: phones, note: $note, failure: $failure)
@@ -223,3 +231,54 @@ private struct AlertsForm: View {
         }
     }
 }
+
+#if os(macOS)
+extension AlertsForm {
+    /// Numbers as rows with a remove button and a right-click menu (a Form on the Mac has no swipe); Return adds the typed one.
+    fileprivate var macRecipients: some View {
+        Section {
+            ForEach(phones, id: \.self) { p in
+                HStack {
+                    Text(p).monospacedDigit()
+                    Spacer()
+                    Button { savePhones(phones.filter { $0 != p }) } label: { Image(systemName: "minus.circle") }
+                        .buttonStyle(.borderless)
+                        .help("Remove this number")
+                }
+                .contextMenu {
+                    Button("Copy number", systemImage: "doc.on.doc") { UIPasteboard.general.string = p }
+                    Button("Remove", systemImage: "trash", role: .destructive) { savePhones(phones.filter { $0 != p }) }
+                }
+            }
+            LabeledContent("WhatsApp number") {
+                HStack {
+                    TextField("0300 1234567", text: $newNumber)
+                        .multilineTextAlignment(.trailing)
+                        .onSubmit { addNumber() }
+                    Button("Add") { addNumber() }
+                        .disabled(newNumber.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+            }
+        } header: {
+            Text("Recipients")
+        } footer: {
+            Text("A number from Pakistan can start with 0; any other with its country code. Press Return to add it.")
+        }
+    }
+
+    /// The times as Mac time fields (type or step), in the shop's Karachi clock.
+    fileprivate var macSchedule: some View {
+        Section {
+            DatePicker("Daily checklist", selection: $times.checklist, displayedComponents: .hourAndMinute)
+            DatePicker("End of day", selection: $times.endOfDay, displayedComponents: .hourAndMinute)
+            DatePicker("Daily report", selection: $times.report, displayedComponents: .hourAndMinute)
+        } header: {
+            Text("Times")
+        } footer: {
+            Text("Karachi time. The checks, the weekly and the monthly reports go with the checklist.")
+        }
+        .datePickerStyle(.stepperField)
+        .environment(\.timeZone, Self.karachi)
+    }
+}
+#endif

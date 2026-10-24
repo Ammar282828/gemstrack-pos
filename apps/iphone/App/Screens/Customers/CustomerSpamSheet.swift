@@ -56,7 +56,11 @@ struct CustomerSpamSheet: View {
     var body: some View {
         NavigationStack {
             ShelfState(loaded: ready, error: failure, offline: book.customers.offline) {
+                #if os(macOS)
+                macList
+                #else
                 list
+                #endif
             }
             .navigationTitle("Clean up spam")
             .navigationBarTitleDisplayMode(.inline)
@@ -376,3 +380,102 @@ struct CustomerSpamSheet: View {
         }
     }
 }
+
+#if os(macOS)
+
+// MARK: - The Mac table
+
+/// The flagged accounts as a table you select in: every row starts selected (as the web's ticks do), click or shift-click
+/// to keep someone out, ⌘A for all. The delete code is asked once, as ever; the run's progress and summary are the page's.
+extension CustomerSpamSheet {
+    private var macList: some View {
+        Group {
+            if let run {
+                Form {
+                    progressSection(run)
+                    if run.finished { summarySections(run) }
+                }
+                .formStyle(.grouped)
+                .scrollContentBackground(.hidden)
+            } else if let found {
+                if found.isEmpty {
+                    ContentUnavailableView("No spam accounts found", systemImage: "checkmark.circle")
+                } else {
+                    macTable(found)
+                }
+            } else {
+                VStack(spacing: 10) {
+                    ProgressView()
+                    Text("Looking for spam\u{2026}").foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .frame(minWidth: 760, minHeight: 480)
+        .background(Theme.ground)
+        .modifier(DeleteBar(show: run == nil && !(found ?? []).isEmpty,
+                            count: (found ?? []).filter { selected.contains($0.id) }.count) {
+            confirmingDelete = true
+        })
+        .confirmDestructive(isPresented: $confirmingDelete,
+                            title: "Delete the selected accounts?",
+                            message: "Removing hides them; Settings, then Recently removed, puts them back. It asks for the delete code once.",
+                            action: "Continue") {
+            ask((found ?? []).filter { selected.contains($0.id) })
+        }
+        .toolbar {
+            if run == nil, let found, !found.isEmpty {
+                ToolbarItemGroup(placement: .primaryAction) {
+                    Button { selected = Set(found.map(\.id)) } label: { Label("Select all", systemImage: "checkmark.circle") }
+                        .help("Select every flagged account")
+                    Button { selected = [] } label: { Label("Select none", systemImage: "circle") }
+                        .help("Keep everyone: select no one")
+                }
+            }
+        }
+    }
+
+    private func macTable(_ found: [CustomerSpam.Candidate]) -> some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("\(selected.count) of \(found.count) selected to remove")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+                Spacer(minLength: 0)
+                if found.contains(where: { CustomerKit.filled($0.customer.shopifyCustomerId) != nil }) {
+                    Text("Rows tagged Shopify may sync back until the storefront's sign-up has a CAPTCHA.")
+                        .font(.footnote)
+                        .foregroundStyle(Tone.owed.color)
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            Divider()
+            Table(found, selection: $selected) {
+                TableColumn("Name") { (c: CustomerSpam.Candidate) in
+                    Text(CustomerKit.trim(c.customer.name).isEmpty ? "(no name)" : c.customer.name)
+                }
+                .width(min: 120, ideal: 180)
+                TableColumn("Email") { (c: CustomerSpam.Candidate) in
+                    Text(CustomerKit.filled(c.customer.email) ?? "no email").foregroundStyle(.secondary)
+                }
+                .width(min: 160, ideal: 240)
+                TableColumn("Why it was flagged") { (c: CustomerSpam.Candidate) in
+                    Text(c.reasons.joined(separator: " \u{00B7} ")).foregroundStyle(.secondary)
+                }
+                TableColumn("From") { (c: CustomerSpam.Candidate) in
+                    if CustomerKit.filled(c.customer.shopifyCustomerId) != nil { Pill("Shopify", tone: .working) }
+                }
+                .width(min: 80, ideal: 90)
+            }
+            .contextMenu(forSelectionType: String.self) { ids in
+                if let id = ids.first, let c = found.first(where: { $0.id == id }), let email = CustomerKit.filled(c.customer.email) {
+                    Button("Copy email") { UIPasteboard.general.string = email }
+                }
+            }
+            .selectionFeedback(trigger: selected)
+        }
+    }
+}
+#endif

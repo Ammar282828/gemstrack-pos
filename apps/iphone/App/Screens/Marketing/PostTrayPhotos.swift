@@ -65,6 +65,25 @@ struct PostAlbumStrip: View {
 
     var body: some View {
         Section {
+            #if os(macOS)
+            // The photos wrap across the pane, in order; right-click moves or takes one out.
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 132), spacing: 10, alignment: .top)], alignment: .leading, spacing: 10) {
+                ForEach(card.album) { (x: PostAlbumPhoto) in
+                    tile(x)
+                        .contextMenu {
+                            let at = card.album.firstIndex { (y: PostAlbumPhoto) in y.id == x.id } ?? 0
+                            Button("Move earlier", systemImage: "chevron.left") { model.move(card, x.id, by: -1) }.disabled(at == 0)
+                            Button("Move later", systemImage: "chevron.right") { model.move(card, x.id, by: 1) }.disabled(at == card.album.count - 1)
+                            if !x.isLead {
+                                Divider()
+                                Button("Take it out", systemImage: "xmark", role: .destructive) { model.remove(card, x.id) }
+                            }
+                        }
+                        .disabled(locked)
+                }
+            }
+            .padding(.vertical, 6)
+            #else
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(alignment: .top, spacing: 10) {
                     ForEach(card.album) { (x: PostAlbumPhoto) in tile(x) }
@@ -73,6 +92,7 @@ struct PostAlbumStrip: View {
                 .padding(.vertical, 10)
             }
             .listRowInsets(EdgeInsets())
+            #endif
             if !ownLeft.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("More of this piece:").font(.subheadline).foregroundStyle(.secondary)
@@ -96,7 +116,11 @@ struct PostAlbumStrip: View {
                 .disabled(locked || card.album.count >= Album.max)
             }
             PhotosPicker(selection: $chosen, maxSelectionCount: Swift.max(1, Album.max - card.album.count), matching: .images) {
+                #if os(macOS)
+                Label(reading ? "Reading the photos…" : "Add from this Mac", systemImage: "photo.on.rectangle")
+                #else
                 Label(reading ? "Reading the photos…" : "Add from this phone", systemImage: "photo.on.rectangle")
+                #endif
             }
             .disabled(locked || reading || card.album.count >= Album.max)
             Button { choosing = true } label: { Label("Add from \(siteName)", systemImage: "globe") }
@@ -269,6 +293,9 @@ struct PostAlbumSitePicker: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
         }
+        #if os(macOS)
+        .frame(minWidth: 560, minHeight: 560)
+        #endif
     }
 
     /// Its place among the card's photos, when it is one of them.

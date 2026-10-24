@@ -16,6 +16,11 @@ private struct SitePoint: Identifiable {
 /// One accent family: sessions pale, WhatsApp full, visitors grey.
 struct SiteChartSection: View {
     let report: SiteReport
+    #if os(macOS)
+    /// The day under the pointer (a Mac reads a chart by hovering, not by tapping).
+    @State private var hoverDate: Date?
+    @State private var hoverHour: Int?
+    #endif
 
     var body: some View {
         if let hours = report.hours {
@@ -55,8 +60,38 @@ struct SiteChartSection: View {
                     .foregroundStyle(by: .value("Series", "WhatsApp"))
                     .interpolationMethod(.monotone)
             }
+            #if os(macOS)
+            if let d = hoverDate {
+                RuleMark(x: .value("Day", d, unit: .day))
+                    .foregroundStyle(Color.secondary.opacity(0.5))
+                    .annotation(position: .top, overflowResolution: .init(x: .fit(to: .chart), y: .disabled)) {
+                        hoverCard(ChartSummary.day(d), [
+                            ("Sessions", sessions.first { (p: SitePoint) in p.date == d }?.value ?? 0),
+                            ("Visitors", visitors.first { (p: SitePoint) in p.date == d }?.value ?? 0),
+                            ("WhatsApp", asked.first { (p: SitePoint) in p.date == d }?.value ?? 0)])
+                    }
+            }
+            #endif
         }
         .chartForegroundStyleScale(domain: ["Sessions", "Visitors", "WhatsApp"], range: [Theme.accent.opacity(0.35), Color.secondary, Theme.accent])
+        #if os(macOS)
+        .chartOverlay { (proxy: ChartProxy) in
+            GeometryReader { (geo: GeometryProxy) in
+                Rectangle().fill(.clear).contentShape(Rectangle())
+                    .onContinuousHover { (phase: HoverPhase) in
+                        switch phase {
+                        case .active(let at):
+                            guard let frame = proxy.plotFrame else { return }
+                            let x = at.x - geo[frame].origin.x
+                            guard let date: Date = proxy.value(atX: x) else { return }
+                            hoverDate = sessions.min { (a: SitePoint, b: SitePoint) in abs(a.date.timeIntervalSince(date)) < abs(b.date.timeIntervalSince(date)) }?.date
+                        case .ended:
+                            hoverDate = nil
+                        }
+                    }
+            }
+        }
+        #endif
         .frame(height: 200)
         .padding(.vertical, 6)
         .accessibilityLabel("Sessions each day, with visitors and WhatsApp enquiries")
@@ -73,15 +108,64 @@ struct SiteChartSection: View {
                 BarMark(x: .value("Hour", h.hour), y: .value("Sessions", h.sessions))
                     .foregroundStyle(Theme.accent)
             }
+            #if os(macOS)
+            if let hour = hoverHour, let h = hours.first(where: { (x: SiteHour) in x.hour == hour }) {
+                RuleMark(x: .value("Hour", hour))
+                    .foregroundStyle(Color.secondary.opacity(0.5))
+                    .annotation(position: .top, overflowResolution: .init(x: .fit(to: .chart), y: .disabled)) {
+                        hoverCard(String(format: "%02d:00", hour), [("Sessions", Double(h.sessions)), ("Day before", Double(h.before))])
+                    }
+            }
+            #endif
         }
         .chartXScale(domain: 0...23)
         .chartXAxis { AxisMarks(values: [0, 6, 12, 18]) }
+        #if os(macOS)
+        .chartOverlay { (proxy: ChartProxy) in
+            GeometryReader { (geo: GeometryProxy) in
+                Rectangle().fill(.clear).contentShape(Rectangle())
+                    .onContinuousHover { (phase: HoverPhase) in
+                        switch phase {
+                        case .active(let at):
+                            guard let frame = proxy.plotFrame else { return }
+                            let x = at.x - geo[frame].origin.x
+                            if let hour: Double = proxy.value(atX: x) { hoverHour = min(23, max(0, Int(hour.rounded()))) }
+                        case .ended:
+                            hoverHour = nil
+                        }
+                    }
+            }
+        }
+        #endif
         .frame(height: 200)
         .padding(.vertical, 6)
         .accessibilityLabel("Sessions each hour of the day, Karachi time")
         .accessibilityValue(ChartSummary.say(hours.map { (h: SiteHour) in (label: String(format: "%02d:00", h.hour), value: Double(h.sessions)) }, money: false))
     }
 }
+
+#if os(macOS)
+extension SiteChartSection {
+    /// What the pointer is over: the day or hour, and each series' figure.
+    func hoverCard(_ title: String, _ rows: [(String, Double)]) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title).font(.caption.weight(.semibold))
+            ForEach(Array(rows.enumerated()), id: \.offset) { (_: Int, r: (String, Double)) in
+                HStack(spacing: 6) {
+                    Text(r.0).foregroundStyle(.secondary)
+                    Spacer(minLength: 8)
+                    Text("\(Int(r.1))").monospacedDigit()
+                }
+                .font(.caption)
+            }
+        }
+        .padding(8)
+        .frame(minWidth: 130)
+        .background(Theme.card, in: .rect(cornerRadius: 8, style: .continuous))
+        .shadow(color: .black.opacity(0.12), radius: 6, y: 2)
+    }
+}
+#endif
 
 // MARK: Funnel
 

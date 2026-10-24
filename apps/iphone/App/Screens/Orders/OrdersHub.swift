@@ -114,7 +114,9 @@ struct OrdersHub: View {
         // A search or a filter must reach the folded stages too, or its hits hide behind "Show".
         let forceOpen = filtering
         GeometryReader { geometry in
-          if geometry.size.width >= 760 && !typeSize.isAccessibilitySize {
+          if showsBoard(geometry.size.width) {
+            stageBoard(groups, owedOn: owedOn, now: now, forceOpen: forceOpen)
+          } else if geometry.size.width >= 760 && !typeSize.isAccessibilitySize {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 24) {
                     gridControls()
@@ -145,6 +147,34 @@ struct OrdersHub: View {
             }
           }
         }
+    }
+
+    /// The Mac's stage view is a board of columns; the phone and the iPad keep their lists and card grids.
+    private func showsBoard(_ width: CGFloat) -> Bool {
+        #if os(macOS)
+        return grouping == .stage && width >= 640
+        #else
+        return false
+        #endif
+    }
+
+    @ViewBuilder
+    private func stageBoard(_ groups: [OrdersSection], owedOn: [String: Double], now: Date, forceOpen: Bool) -> some View {
+        #if os(macOS)
+        VStack(alignment: .leading, spacing: 0) {
+            if narrowed { filterSummary.padding(.horizontal, 24).padding(.top, 12) }
+            OrdersStageBoard(
+                columns: groups.map { OrdersBoardColumn(id: $0.id, title: $0.title, hint: $0.hint, tone: $0.tone, folds: $0.folds, orders: $0.orders) },
+                opened: $opened,
+                forceOpen: forceOpen
+            ) { order in
+                card(order, owedOn: owedOn, now: now, standalone: true)
+            }
+            .overlay { if groups.isEmpty { emptyState(nothingOpen: false) } }
+        }
+        #else
+        EmptyView()
+        #endif
     }
 
     /// Search, Month, Taken by and Payment: everything but the status chip, so the chips can count what
@@ -380,9 +410,11 @@ struct OrdersHub: View {
     /// The controls as the list's first rows.
     private func listControls() -> some View {
         Section {
+            #if !os(macOS)
             groupingPicker
                 .padding(.horizontal, 16)
                 .chipRowInList()
+            #endif
             if narrowed {
                 filterSummary
                     .listRowBackground(Color.clear)
@@ -394,7 +426,9 @@ struct OrdersHub: View {
     /// The same controls on the wide window's page: no list rows, so no list modifiers, and the page's own padding.
     private func gridControls() -> some View {
         VStack(alignment: .leading, spacing: 12) {
+            #if !os(macOS)
             groupingPicker
+            #endif
             if narrowed { filterSummary }
         }
     }
@@ -439,6 +473,12 @@ struct OrdersHub: View {
 
     @ToolbarContentBuilder
     private var hubToolbar: some ToolbarContent {
+        #if os(macOS)
+        // Day, Stage or Due is the window's own control, in the middle of its toolbar.
+        ToolbarItem(placement: .principal) {
+            groupingPicker
+        }
+        #endif
         // The tab's own create menu already offers New order beside the rate chip (iPad): one "+" is enough.
         if !createMenuShown {
             ToolbarItem(placement: .primaryAction) {

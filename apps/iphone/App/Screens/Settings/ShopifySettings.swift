@@ -99,6 +99,14 @@ private struct ShopifyInnerForm: View {
     private var writing: Bool { busy.contains(.importing) || busy.contains(.webhooks) }
 
     var body: some View {
+        #if os(macOS)
+        macBody
+        #else
+        phoneBody
+        #endif
+    }
+
+    private var phoneBody: some View {
         Form {
             Group {
                 statusSection
@@ -136,6 +144,15 @@ private struct ShopifyInnerForm: View {
         }
     }
 
+    /// Where Shopify's sign-in opens: the phone's Safari, the Mac's own browser.
+    static var browserName: String {
+        #if os(macOS)
+        "your browser"
+        #else
+        "Safari"
+        #endif
+    }
+
     // MARK: Status
 
     @ViewBuilder private var statusSection: some View {
@@ -162,7 +179,7 @@ private struct ShopifyInnerForm: View {
                 }
                 if status.configured, let url = reauthorizeURL(status) {
                     Button { openURL(url) } label: {
-                        Label(status.connected == true ? "Reconnect in Safari" : "Connect in Safari", systemImage: "safari")
+                        Label(status.connected == true ? "Reconnect in \(Self.browserName)" : "Connect in \(Self.browserName)", systemImage: "safari")
                             .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                     }
                     .disabled(isDemo || writing)
@@ -545,3 +562,105 @@ private struct ShopifyInnerForm: View {
         await loadStatus()
     }
 }
+
+#if os(macOS)
+extension ShopifyInnerForm {
+    /// Shopify on the Mac: the connection, permissions and order notices as grouped sections, and the orders to import as a
+    /// multi-select table (Select all with ⌘A, the footer's Import button asks first).
+    fileprivate var macBody: some View {
+        Form {
+            statusSection
+            if let status, status.configured {
+                permissionsSection(status)
+                webhooksSection(status)
+                macImportSection
+            }
+        }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .background(Theme.ground)
+        .navigationTitle("Shopify")
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if !picked.isEmpty {
+                MacActionFooter(
+                    primary: .init("Import \(picked.count) order\(picked.count == 1 ? "" : "s")", systemImage: "square.and.arrow.down",
+                                   isBusy: busy.contains(.importing),
+                                   isDisabled: isDemo || writing || busy.contains(.list)) { confirmImport = true },
+                    secondary: [.init("Clear selection", isDisabled: writing) { picked = [] }],
+                    summary: "\(picked.count) selected · \(money(pickedTotal))")
+            }
+        }
+        .failureAlert($importFailure, title: "Import failed")
+        .failureAlert($webhookFailure, title: "Couldn't set up order notices")
+        .task { await loadStatus(); if status?.configured == true { await loadOrders() } }
+        .onChange(of: scenePhase) { _, phase in if phase == .active { Task { await loadStatus() } } }
+        .confirmationDialog(importTitle, isPresented: $confirmImport, titleVisibility: .visible) {
+            Button("Import \(picked.count) order\(picked.count == 1 ? "" : "s")") { Task { await runImport() } }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("They become ERP invoices with their Shopify payments. Nothing is written back to Shopify.")
+        }
+        .confirmationDialog("Set up order notices on Shopify?", isPresented: $confirmWebhooks, titleVisibility: .visible) {
+            Button("Set up order notices") { Task { await registerWebhooks() } }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This changes the store's notice settings so Shopify notifies the ERP of new and updated orders. It does not change orders, customers or products.")
+        }
+    }
+
+    @ViewBuilder fileprivate var macImportSection: some View {
+        Section {
+            if let outcome { outcomeView(outcome) }
+            if let orders {
+                if let listFailure {
+                    Text("Couldn't refresh the list: \(listFailure)").font(.footnote).foregroundStyle(.secondary)
+                }
+                if olderSkipped > 0, let since {
+                    Text("\(olderSkipped) older order\(olderSkipped == 1 ? "" : "s") at or below #\(since) \(olderSkipped == 1 ? "is" : "are") not offered; \(olderSkipped == 1 ? "it predates" : "they predate") the ERP.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
+                if orders.isEmpty {
+                    Label("Every Shopify order after #\(since.map(String.init) ?? "the cutoff") is already in the ERP.", systemImage: "checkmark.circle")
+                        .foregroundStyle(Tone.settled.color)
+                } else {
+                    TextField("Filter by order number or customer", text: $query)
+                        .autocorrectionDisabled()
+                    Table(visible, selection: $picked) {
+                        TableColumn("Order") { (o: PullOrder) in Text(o.title).font(.body.monospaced().weight(.medium)) }
+                        TableColumn("Customer") { (o: PullOrder) in Text(o.subtitle).foregroundStyle(.secondary).lineLimit(1) }
+                        TableColumn("Date") { (o: PullOrder) in
+                            Text(o.date.isEmpty ? "" : ShopDate.say(o.date, withTime: false)).foregroundStyle(.secondary)
+                        }
+                        TableColumn("Amount") { (o: PullOrder) in
+                            Text(o.amount > 0 ? money(o.amount) : "").monospacedDigit()
+                        }
+                    }
+                    .frame(minHeight: 280)
+                    .disabled(writing)
+                    HStack {
+                        Button(allVisibleOn ? "Clear all \(visible.count)" : "Select all \(visible.count)") { toggleAllVisible() }
+                            .disabled(visible.isEmpty || writing)
+                        Spacer()
+                        Text("\(orders.count) not imported").font(.footnote).foregroundStyle(.secondary)
+                    }
+                    let hidden = pickedOrders.filter { o in !visible.contains(where: { $0.id == o.id }) }.count
+                    if hidden > 0 {
+                        Text("\(hidden) selected order\(hidden == 1 ? " is" : "s are") hidden by the filter and will still be imported.")
+                            .font(.footnote).foregroundStyle(.secondary)
+                    }
+                }
+            } else if let listFailure {
+                Text(listFailure).font(.footnote).foregroundStyle(.secondary)
+            } else {
+                SkeletonLoading()
+            }
+            Button(orders == nil ? "Check for new orders" : "Re-check") { Task { await loadOrders() } }
+                .disabled(busy.contains(.list) || writing)
+        } header: {
+            Text("Import orders")
+        } footer: {
+            Text(isDemo ? "Importing is not available in the demo. " : "Shopify orders that aren't in the ERP yet. Import is one way: nothing is written back to Shopify.")
+        }
+    }
+}
+#endif

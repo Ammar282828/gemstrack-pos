@@ -17,6 +17,14 @@ struct AnaSplit<Head: View, Left: View, Right: View>: View {
     private var wide: Bool { sizeClass.isPadLayout && width >= 820 && !typeSize.isAccessibilitySize }
 
     var body: some View {
+        #if os(macOS)
+        macBody
+        #else
+        phoneBody
+        #endif
+    }
+
+    private var phoneBody: some View {
         Group {
             if wide {
                 VStack(spacing: 0) {
@@ -46,3 +54,22 @@ struct AnaSplit<Head: View, Left: View, Right: View>: View {
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
     }
 }
+
+#if os(macOS)
+extension AnaSplit {
+    /// The Mac's report: the head (the figure tiles, when the tab has them) across the top, then the tab's two columns
+    /// side by side, each its own scrolling list. The period is not chips here but the toolbar's menu (AnaPages).
+    fileprivate var macBody: some View {
+        VStack(spacing: 0) {
+            head(true)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+            HStack(alignment: .top, spacing: 0) {
+                List { left(true) }.listStyle(.inset)
+                Divider()
+                List { right(true) }.listStyle(.inset)
+            }
+        }
+    }
+}
+#endif

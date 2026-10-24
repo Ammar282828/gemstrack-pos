@@ -32,10 +32,14 @@ struct OrdersWebTarget: Hashable, Identifiable {
 extension View {
     /// The destination for an `OrdersWebTarget` set by a button.
     func ordersWebDestination(_ target: Binding<OrdersWebTarget?>) -> some View {
-        navigationDestination(item: target) { t in
+        #if os(macOS)
+        return modifier(OrdersMacDestination(target: target))
+        #else
+        return navigationDestination(item: target) { t in
             ScreenRegistry.view(for: t.path)
                 .modifier(HouseGround())
         }
+        #endif
     }
 
     /// The sheet's one action in the kit's bar (rule 16), or no bar while there is none (a sheet whose second step
@@ -279,3 +283,52 @@ struct OrderAdvanceExchange: View {
         }
     }
 }
+
+#if os(macOS)
+/// What an Orders button opens, on a Mac: an order's own page pushes into the window; Edit, Finalize, the slip, the
+/// bench and New order are forms and documents, so they open as a window-sized sheet (one window form, closed with Esc).
+struct OrdersMacDestination: ViewModifier {
+    @Binding var target: OrdersWebTarget?
+
+    private static func isPage(_ t: OrdersWebTarget) -> Bool { t.path.hasPrefix("/orders/") && !t.path.contains("/", after: "/orders/") }
+
+    private var pushed: Binding<OrdersWebTarget?> {
+        Binding(get: { target.flatMap { Self.isPage($0) ? $0 : nil } },
+                set: { if $0 == nil, let t = target, Self.isPage(t) { target = nil } })
+    }
+
+    private var sheeted: Binding<OrdersWebTarget?> {
+        Binding(get: { target.flatMap { Self.isPage($0) ? nil : $0 } },
+                set: { if $0 == nil, let t = target, !Self.isPage(t) { target = nil } })
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .navigationDestination(item: pushed) { t in
+                ScreenRegistry.view(for: t.path)
+                    .modifier(HouseGround())
+            }
+            .sheet(item: sheeted) { t in
+                NavigationStack {
+                    ScreenRegistry.view(for: t.path)
+                        .modifier(HouseGround())
+                        .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button("Close") { target = nil }.keyboardShortcut(.cancelAction)
+                            }
+                        }
+                }
+                .frame(minWidth: 900, idealWidth: 980, minHeight: 660, idealHeight: 760)
+            }
+    }
+}
+
+private extension String {
+    /// Whether `self` has a `/` after the given prefix (an order's id is one path part).
+    func contains(_ character: Character, after prefix: String) -> Bool {
+        guard hasPrefix(prefix) else { return false }
+        return dropFirst(prefix.count).contains(character)
+    }
+}
+#endif

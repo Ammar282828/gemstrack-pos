@@ -9,6 +9,9 @@ struct PostPiecesScreen: View {
     private var store: PostsStore { PostsStore.shared }
     @State private var refused: String?
     @Environment(\.layoutWidthClass) private var sizeClass
+    #if os(macOS)
+    @Environment(\.openPlaceWindow) private var openPlace
+    #endif
 
     /// The "new arrivals" chip; "" is everything.
     private static let newKey = "__new"
@@ -38,6 +41,26 @@ struct PostPiecesScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         .failureAlert($refused, title: "Not now")
         .searchable(text: $search, prompt: "Search: ruby, kara, jhumka…")
+        #if os(macOS)
+        .navigationSubtitle(store.piecesPhase == .loaded ? "\(filtered.count) of \(store.pieces.count) pieces" : "")
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
+                Picker("Collection", selection: $collection) {
+                    if hasNew { Text("New arrivals").tag(PostPiecesScreen.newKey) }
+                    Text("Everything").tag("")
+                    Divider()
+                    ForEach(collections, id: \.self) { (c: String) in Text(c).tag(c) }
+                }
+                .pickerStyle(.menu)
+                .help("Show one collection")
+                Toggle(isOn: $freshOnly) { Label("Hide recently posted", systemImage: "clock.badge.checkmark") }
+                    .help("Hide pieces posted in the last \(PostPiecesScreen.freshDays) days")
+                Button { Task { await store.load() } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
+                    .keyboardShortcut("r", modifiers: .command)
+                    .help("Read the website's pieces again")
+            }
+        }
+        #endif
         .task { await store.load() }
         .onChange(of: search) { _, _ in shown = PostPiecesScreen.pageSize }
         .onChange(of: collection) { _, _ in shown = PostPiecesScreen.pageSize }
@@ -77,6 +100,9 @@ struct PostPiecesScreen: View {
         let items = filtered
         return ScrollView {
             VStack(alignment: .leading, spacing: 14) {
+                #if os(macOS)
+                // The collection and the hide-recent switch are in the window's toolbar.
+                #else
                 chips
                 Toggle("Hide pieces posted in the last \(PostPiecesScreen.freshDays) days", isOn: $freshOnly)
                     .tint(Theme.accent)
@@ -84,6 +110,7 @@ struct PostPiecesScreen: View {
                 Text("\(items.count) of \(store.pieces.count) pieces")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+                #endif
                 if items.isEmpty {
                     ContentUnavailableView("Nothing matches", systemImage: "square.grid.2x2",
                                            description: Text("Clear the search, pick another collection, or show what went out lately."))
@@ -99,12 +126,18 @@ struct PostPiecesScreen: View {
                                 .buttonStyle(.plain)
                                 .pointerHover()
                                 .accessibilityAddTraits(tray.has(p.id) ? .isSelected : [])
+                                #if os(macOS)
+                                .contextMenu { macPieceMenu(p) }
+                                #endif
                             } else {
                                 NavigationLink(value: Route(path: MarketingKit.piecePath(p.id))) {
                                     PostPieceTile(piece: p, posted: store.posted[p.id])
                                         .ledgerCard(padding: 10)
                                 }
                                 .buttonStyle(.plain)
+                                #if os(macOS)
+                                .contextMenu { macPieceMenu(p) }
+                                #endif
                             }
                         }
                     }
@@ -154,6 +187,26 @@ struct PostPiecesScreen: View {
     }
 }
 
+#if os(macOS)
+extension PostPiecesScreen {
+    /// Right-click on a piece: open it, in a window of its own, send it, edit it, or (in the tray) pick it.
+    @ViewBuilder
+    func macPieceMenu(_ p: PostPiece) -> some View {
+        if let tray {
+            Button(tray.has(p.id) ? "Take out of the tray" : "Add to the tray", systemImage: tray.has(p.id) ? "minus.circle" : "plus.circle") {
+                refused = tray.pick(p)
+            }
+            Divider()
+        }
+        MacOpenInWindow(path: MarketingKit.piecePath(p.id))
+        Button("Copy the name", systemImage: "doc.on.doc") { MacClipboard.copy(p.name) }
+        if let url = URL(string: p.url), !p.url.isEmpty {
+            Button("Open on \(store.siteName)", systemImage: "safari") { NSWorkspace.shared.open(url) }
+        }
+    }
+}
+#endif
+
 /// One website piece (the hub's piece card without its tray): the photograph, the words the site has
 /// for it, when it went out, and what acts on it (the tray, Edit a piece, the site).
 struct PostPieceScreen: View {
@@ -177,6 +230,14 @@ struct PostPieceScreen: View {
     }
 
     private func detail(_ p: PostPiece) -> some View {
+        #if os(macOS)
+        macDetail(p)
+        #else
+        phoneDetail(p)
+        #endif
+    }
+
+    private func phoneDetail(_ p: PostPiece) -> some View {
         List {
             Group {
                 Section {
@@ -216,7 +277,7 @@ struct PostPieceScreen: View {
     }
 
     @ViewBuilder
-    private func actions(_ p: PostPiece) -> some View {
+    func actions(_ p: PostPiece) -> some View {
         Section {
             MarketingLink(title: "Send or queue it", symbol: "paperplane", path: MarketingKit.trayPath(p.id))
             if MarketingKit.has("/website/edit", role: session.role) {
@@ -230,24 +291,81 @@ struct PostPieceScreen: View {
         }
     }
 
-    private func editPath(_ p: PostPiece) -> String {
+    func editPath(_ p: PostPiece) -> String {
         let escaped = p.id.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? ""
         return "/website/edit?id=\(escaped)"
     }
 
-    private func lastPosted(_ p: PostPiece) -> String {
+    func lastPosted(_ p: PostPiece) -> String {
         guard let at = store.posted[p.id], let words = MarketingTime.postedAgo(at) else { return "Never from here" }
         return words.replacingOccurrences(of: "posted ", with: "").capitalizedFirst
     }
 
     /// 3.84, 12 (no trailing zeros).
-    private func trimmed(_ v: Double) -> String {
+    func trimmed(_ v: Double) -> String {
         var s = String(format: "%.2f", v)
         while s.hasSuffix("0") { s.removeLast() }
         if s.hasSuffix(".") { s.removeLast() }
         return s
     }
 }
+
+#if os(macOS)
+extension PostPieceScreen {
+    /// The photograph on the left at the window's height, its facts and what acts on it on the right.
+    func macDetail(_ p: PostPiece) -> some View {
+        MacTwoPane(sideWidth: 460) {
+            StockImage(imageUrl: p.image, name: p.name, key: p.id)
+                .aspectRatio(1, contentMode: .fit)
+                .clipShape(.rect(cornerRadius: Radius.chip, style: .continuous))
+                .padding(20)
+                .frame(maxHeight: .infinity, alignment: .top)
+        } main: {
+            List {
+                Group {
+                    Section {
+                        LabeledContent("Collection", value: p.collection.isEmpty ? "None" : p.collection)
+                        if let grams = p.weightGrams, grams > 0 {
+                            LabeledContent("Weight") { Text("\(trimmed(grams)) g").monospacedDigit() }
+                        }
+                        if let added = p.added, added > 0 {
+                            LabeledContent("On the site since", value: ShopDate.say(ERPDate.iso(Date(timeIntervalSince1970: added / 1000))))
+                        }
+                        LabeledContent("Last posted", value: lastPosted(p))
+                        if p.newArrival { LabeledContent("New arrival", value: "Yes") }
+                    }
+                    if !p.facts.isEmpty {
+                        LedgerSection("Details") {
+                            ForEach(p.facts, id: \.self) { (f: String) in Text(f) }
+                        }
+                    }
+                    if !p.about.isEmpty {
+                        LedgerSection("About") { Text(p.about).textSelection(.enabled) }
+                    }
+                }
+                .houseRows()
+            }
+            .listStyle(.inset)
+        }
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
+                NavigationLink(value: Route(path: MarketingKit.trayPath(p.id))) {
+                    Label("Send or queue it", systemImage: "paperplane")
+                }
+                .help("Open this piece in the tray")
+                if MarketingKit.has("/website/edit", role: session.role) {
+                    NavigationLink(value: Route(path: editPath(p))) { Label("Edit this piece", systemImage: "pencil.line") }
+                        .help("Edit this piece from its original")
+                }
+                if let url = URL(string: p.url), !p.url.isEmpty {
+                    Link(destination: url) { Label("Open on \(store.siteName)", systemImage: "safari") }
+                        .help("Open it on the website")
+                }
+            }
+        }
+    }
+}
+#endif
 
 private extension String {
     var capitalizedFirst: String { prefix(1).uppercased() + dropFirst() }

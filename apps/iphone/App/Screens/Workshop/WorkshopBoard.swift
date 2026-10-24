@@ -35,6 +35,12 @@ struct WorkshopBoard: View {
     @State private var note: Note?
     /// Bumped when a piece's write goes through (done, given, a karigar): the success tap.
     @State private var saved = 0
+    #if os(macOS)
+    @State private var macPicked = Set<String>()
+    @State private var macSort: [KeyPathComparator<WorkshopJob>] = []
+    @State private var macInspector = true
+    @Environment(\.openPlaceWindow) private var openPlace
+    #endif
 
     /// `?karigar=<id>` (the karigar page's "On his bench") opens on his whole bench.
     init(path: String) {
@@ -131,7 +137,11 @@ struct WorkshopBoard: View {
         let shownJobs = patches.isEmpty ? jobs : jobs.map { patched($0) }
         let all = orderId.map { id in shownJobs.filter { $0.orderId == id } } ?? shownJobs
         let snap = WorkshopSnapshot(all: all, filter: filter)
+        #if os(macOS)
+        macBoard(snap, live)
+        #else
         board(snap, live)
+        #endif
     }
 
     private func board(_ snap: WorkshopSnapshot, _ live: [Karigar]) -> some View {
@@ -751,3 +761,287 @@ private struct JobPatch {
     let to: JobSig
     let toName: String?
 }
+
+#if os(macOS)
+/// One column of the Mac's board: a karigar's bench, a stage, an urgency, or the benches with nothing on them.
+private struct MacBenchColumn: Identifiable {
+    let id: String
+    let title: String
+    let symbol: String
+    var tone: Tone = .quiet
+    var subtitle = ""
+    var critical = 0
+    var late = 0
+    /// Opens his page.
+    var karigarId: String?
+    var jobs: [WorkshopJob] = []
+    var showKarigar = false
+    /// The karigars with nothing on the bench (the free column).
+    var free: [Karigar] = []
+}
+
+// The Mac's workshop board: columns across the window (a karigar's bench each, or a stage each; the pieces keep every control
+// the iPhone's card has, and its right-click menu), or a Table of every piece with the picked one's card in an inspector. The
+// figures sit in a strip above; the focus, grouping, filters and "Assign stock work" are in the toolbar. The iPhone moves a
+// piece with a menu, not a drag, so the Mac does too: assign a karigar, Given and Done are on each card and in its menu.
+extension WorkshopBoard {
+    func macBoard(_ snap: WorkshopSnapshot, _ live: [Karigar]) -> some View {
+        let focused = snap.focused(focus)
+        let busyIds = Set(snap.all.filter { !$0.isDone }.map { $0.karigarId })
+        let choices = WorkshopChoices(karigars: live, busyIds: busyIds)
+        return VStack(spacing: 0) {
+            if orderId == nil {
+                macSummary(snap)
+                Divider()
+            }
+            Group {
+                if grouping == .list {
+                    macList(focused, choices: choices)
+                } else {
+                    macColumnsView(macColumns(snap, focused: focused, live: live), choices: choices)
+                }
+            }
+            .overlay {
+                if focused.isEmpty { emptyState(snap).allowsHitTesting(false) }
+            }
+        }
+        .toolbar {
+            if orderId == nil {
+                ToolbarItem(placement: .principal) {
+                    Picker("Layout", selection: Binding(
+                        get: { grouping },
+                        set: { g in Motion.run(reduce: reduceMotion) { grouping = g } }
+                    )) {
+                        Text("Karigars").tag(WorkshopGrouping.karigar)
+                        Text("Stages").tag(WorkshopGrouping.stage)
+                        Text("Pieces").tag(WorkshopGrouping.list)
+                    }
+                    .pickerStyle(.segmented)
+                    .help("A column for each karigar or stage, or a table of every piece")
+                }
+                ToolbarItem(placement: .automatic) {
+                    Picker("Show", selection: Binding(
+                        get: { focus },
+                        set: { f in Motion.run(reduce: reduceMotion) { focus = f } }
+                    )) {
+                        ForEach(WorkshopFocus.allCases) { f in
+                            Text(f == .all ? focusTitle(f) : "\(focusTitle(f)) (\(snap.count(f)))").tag(f)
+                        }
+                    }
+                    .help("All the work, or only what needs a hand")
+                }
+            }
+        }
+        .inspector(isPresented: Binding(
+            get: { grouping == .list && macInspector && macPicked.count == 1 },
+            set: { macInspector = $0 }
+        )) {
+            if grouping == .list, macPicked.count == 1, let id = macPicked.first, let job = focused.first(where: { $0.id == id }) {
+                ScrollView {
+                    jobRow(job, showKarigar: true, choices: choices).padding(16)
+                }
+                .inspectorColumnWidth(min: 300, ideal: 360, max: 460)
+            }
+        }
+        .onChange(of: macPicked) { _, _ in macInspector = true }
+    }
+
+    // MARK: The strip
+
+    private func macSummary(_ snap: WorkshopSnapshot) -> some View {
+        let loads = WorkshopLogic.groupByKarigar(snap.bench)
+        let grams = loads.reduce(0.0) { $0 + $1.totalWeightG }
+        let value = loads.reduce(0.0) { $0 + $1.totalValue }
+        let critical = snap.stats.critical
+        let late = snap.stats.overdue - critical
+        return HStack(alignment: .top, spacing: 10) {
+            FigureTile(label: "All active pieces", value: "\(snap.stats.active)")
+            FigureTile(label: "Benches working", value: "\(snap.stats.workers)")
+            FigureTile(label: "Late \(WorkshopLogic.warnDays)d+", value: "\(late)", tint: late > 0 ? Tone.owed.color : Color.primary)
+            FigureTile(label: "Critical \(WorkshopLogic.criticalDays)d+", value: "\(critical)", tint: critical > 0 ? Tone.late.color : Color.primary)
+            FigureTile(label: "Metal out", value: grams > 0 ? WorkshopLogic.number(grams, digits: 1) + "g" : "\u{2014}")
+            if session.isOwner {
+                FigureTile(label: "Value out", value: value > 0 ? Money.pkrLac(value) : "\u{2014}")
+            }
+        }
+        .padding(.horizontal, 16).padding(.vertical, 12)
+    }
+
+    // MARK: The columns
+
+    private func macColumns(_ snap: WorkshopSnapshot, focused: [WorkshopJob], live: [Karigar]) -> [MacBenchColumn] {
+        func urgent(_ jobs: [WorkshopJob]) -> (Int, Int) {
+            (jobs.filter { !$0.isDone && $0.urgency == .critical }.count, jobs.filter { !$0.isDone && $0.urgency == .warning }.count)
+        }
+        switch grouping {
+        case .list:
+            return []
+        case .stage:
+            return stages.map { (st: Stage) -> MacBenchColumn in
+                let jobs = focused.filter { $0.status == st.status }
+                let u = urgent(jobs)
+                return MacBenchColumn(id: st.id, title: st.title, symbol: st.symbol, critical: u.0, late: u.1, jobs: jobs, showKarigar: true)
+            }
+        case .karigar:
+            if !filter.karigarId.isEmpty && focus != .unassigned {
+                // One karigar chosen: his bench by how long each piece has sat.
+                let active = focused.filter { !$0.isDone }
+                let byAge = { (a: WorkshopJob, b: WorkshopJob) in a.ageDays > b.ageDays }
+                var out: [MacBenchColumn] = []
+                let critical = active.filter { $0.urgency == .critical }.sorted(by: byAge)
+                let late = active.filter { $0.urgency == .warning }.sorted(by: byAge)
+                if !critical.isEmpty {
+                    out.append(MacBenchColumn(id: "critical", title: "Critical", symbol: "flame", tone: .late,
+                                              subtitle: "sitting \(WorkshopLogic.criticalDays)+ days", jobs: critical))
+                }
+                if !late.isEmpty {
+                    out.append(MacBenchColumn(id: "late", title: "Late", symbol: "clock", tone: .owed,
+                                              subtitle: "\(WorkshopLogic.warnDays)\u{2013}\(WorkshopLogic.criticalDays) days", jobs: late))
+                }
+                out.append(MacBenchColumn(id: "ontrack", title: "On track", symbol: "hammer",
+                                          jobs: active.filter { $0.urgency == .ok }.sorted(by: byAge)))
+                if filter.status == .all || filter.status == .completed {
+                    out.append(MacBenchColumn(id: "done", title: "Completed", symbol: "checkmark.circle", jobs: focused.filter { $0.isDone }))
+                }
+                return out
+            }
+            var out = WorkshopLogic.groupByKarigar(focused).map { (load: WorkshopLoad) -> MacBenchColumn in
+                MacBenchColumn(id: load.karigarId, title: load.isUnassigned ? "Unassigned" : load.karigarName,
+                               symbol: load.isUnassigned ? "exclamationmark.triangle.fill" : "hammer",
+                               tone: load.isUnassigned ? .owed : .house, subtitle: headerCounts(load),
+                               critical: load.critical, late: load.late,
+                               karigarId: load.isUnassigned ? nil : load.karigarId,
+                               jobs: WorkshopLogic.byOrder(load.jobs))
+            }
+            if focus == .all && !filter.narrowed && filter.karigarId.isEmpty {
+                let busyIds = Set(snap.bench.filter { !$0.isDone }.map { $0.karigarId })
+                let idle = live.filter { !busyIds.contains($0.id) }
+                if !idle.isEmpty {
+                    out.append(MacBenchColumn(id: "free", title: "Free", symbol: "moon", subtitle: "Nothing on the bench: the next job can go here", free: idle))
+                }
+            }
+            return out
+        }
+    }
+
+    private func macColumnsView(_ columns: [MacBenchColumn], choices: WorkshopChoices) -> some View {
+        ScrollView(.horizontal) {
+            HStack(alignment: .top, spacing: 14) {
+                ForEach(columns) { (col: MacBenchColumn) in macColumn(col, choices: choices) }
+            }
+            .padding(16)
+            .frame(maxHeight: .infinity, alignment: .top)
+        }
+    }
+
+    private func macColumn(_ col: MacBenchColumn, choices: WorkshopChoices) -> some View {
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 6) {
+                    Image(systemName: col.symbol)
+                        .foregroundStyle(col.tone == .quiet ? Color.secondary : col.tone.color)
+                    Text(col.title).font(.headline).lineLimit(1)
+                    Text("\(col.free.isEmpty ? col.jobs.count : col.free.count)")
+                        .font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
+                    Spacer(minLength: 4)
+                    WorkshopUrgencyBadges(critical: col.critical, late: col.late)
+                    if let id = col.karigarId {
+                        Button { opened = WorkshopPlace.karigar(id) } label: { Image(systemName: "person.crop.circle") }
+                            .buttonStyle(.borderless)
+                            .help("Open " + col.title)
+                    }
+                }
+                if !col.subtitle.isEmpty {
+                    Text(col.subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(12)
+            Divider()
+            ScrollView {
+                LazyVStack(spacing: 10) {
+                    if !col.free.isEmpty {
+                        ForEach(col.free) { (k: Karigar) in
+                            Button { opened = WorkshopPlace.karigar(k.id) } label: {
+                                Label(k.name, systemImage: "hammer").frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            .buttonStyle(.plain)
+                            .ledgerCard(padding: 12)
+                            .cardHover()
+                        }
+                    } else if col.jobs.isEmpty {
+                        Text("Nothing here").font(.callout).foregroundStyle(.secondary).padding(.top, 12)
+                    } else {
+                        ForEach(col.jobs) { (job: WorkshopJob) in
+                            jobRow(job, showKarigar: col.showKarigar, choices: choices)
+                                .ledgerCard(padding: 12)
+                        }
+                    }
+                }
+                .padding(10)
+            }
+        }
+        .frame(width: 360)
+        .frame(maxHeight: .infinity, alignment: .top)
+        .background(Color.secondary.opacity(0.07), in: .rect(cornerRadius: Radius.card, style: .continuous))
+    }
+
+    // MARK: The table
+
+    private func macStage(_ job: WorkshopJob) -> String {
+        if job.isDone { return "Completed" }
+        if job.isUnassigned { return "Needs a karigar" }
+        return job.hasGiven ? "On the bench" : "Ready to give"
+    }
+
+    private func macList(_ focused: [WorkshopJob], choices: WorkshopChoices) -> some View {
+        let ordered = macSort.isEmpty ? focused : focused.sorted(using: macSort)
+        return Table(ordered, selection: $macPicked, sortOrder: $macSort) {
+            TableColumn("Piece", value: \.description) { (j: WorkshopJob) in Text(j.description).fontWeight(.medium).lineLimit(1) }
+                .width(min: 180, ideal: 280)
+            TableColumn("Order") { (j: WorkshopJob) in
+                Text(j.invoiceId ?? j.orderId ?? "Stock work").monospacedDigit().foregroundStyle(.secondary)
+            }
+            .width(min: 90, ideal: 120)
+            TableColumn("Customer") { (j: WorkshopJob) in Text(j.customerName ?? "").foregroundStyle(.secondary).lineLimit(1) }
+                .width(min: 100, ideal: 160)
+            TableColumn("Karigar", value: \.karigarName) { (j: WorkshopJob) in
+                Text(j.isUnassigned ? "Unassigned" : j.karigarName)
+                    .foregroundStyle(j.isUnassigned ? Tone.owed.color : Color.primary)
+            }
+            .width(min: 100, ideal: 140)
+            TableColumn("Stage") { (j: WorkshopJob) in
+                Text(macStage(j)).foregroundStyle(j.isDone ? Color.secondary : (j.isUnassigned || !j.hasGiven ? Tone.owed.color : Theme.accent))
+            }
+            .width(min: 100, ideal: 120)
+            TableColumn("Age", value: \.ageDays) { (j: WorkshopJob) in
+                HStack(spacing: 6) {
+                    Text(j.isDone ? "" : "\(j.ageDays)d").monospacedDigit()
+                    WorkshopAgeBadge(job: j)
+                }
+            }
+            .width(min: 80, ideal: 100)
+            TableColumn("Weight") { (j: WorkshopJob) in
+                Text((j.weightG ?? 0) > 0 ? WorkshopLogic.number(j.weightG ?? 0, digits: 1) + "g" : "").monospacedDigit()
+            }
+            .width(min: 60, ideal: 80)
+        }
+        .contextMenu(forSelectionType: String.self) { ids in
+            if ids.count == 1, let id = ids.first, let job = focused.first(where: { $0.id == id }) {
+                WorkshopJobRow(job: job, showKarigar: true, isOwner: session.isOwner, busy: busy.contains(job.id),
+                               choices: choices, actions: actions).menuItems
+                if let path = job.invoiceId.map({ "/invoices/" + WorkshopLogic.piece($0) }) ?? job.orderId.map({ "/orders/" + WorkshopLogic.piece($0) }) {
+                    Button { openPlace?(Route(path: path)) } label: {
+                        Label("Open in New Window", systemImage: "macwindow.badge.plus")
+                    }
+                }
+            }
+        } primaryAction: { ids in
+            if ids.count == 1, let id = ids.first, let job = focused.first(where: { $0.id == id }),
+               let path = job.invoiceId.map({ "/invoices/" + WorkshopLogic.piece($0) }) ?? job.orderId.map({ "/orders/" + WorkshopLogic.piece($0) }) {
+                openPlace?(Route(path: path))
+            }
+        }
+    }
+}
+#endif

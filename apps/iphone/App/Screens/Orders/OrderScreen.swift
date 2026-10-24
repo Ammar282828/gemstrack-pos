@@ -58,7 +58,11 @@ struct OrderScreen: View {
         ShelfState(loaded: book.orders.loaded, error: book.orders.error, offline: book.orders.offline) {
             // Read through `items`: the shelf's lookup is not observed, so a change would not redraw.
             if let order = book.orders.item(id) {
+                #if os(macOS)
+                macDetail(order)
+                #else
                 detail(order)
+                #endif
             } else {
                 ContentUnavailableView("Order not found", systemImage: "list.clipboard", description: Text("\(id) is not in the book."))
             }
@@ -843,3 +847,172 @@ extension View {
             .listRowSeparator(.hidden)
     }
 }
+
+#if os(macOS)
+// MARK: The Mac's record window
+
+/// The order as a Mac record (apps/iphone/Mac/MAC-CONVENTIONS.md): who it is for, where it stands and the money in a
+/// left column; the pieces as a table (right-click each) with the advances under it; the order's moves in the toolbar
+/// (the next step, Take advance, Print slip, Edit, More). In a hub's narrow side pane it is the phone's one list.
+extension OrderScreen {
+    fileprivate func macDetail(_ order: Order) -> some View {
+        let invoice = invoiceOf(order)
+        let owed = invoice.map { isOwing($0) ? $0.balanceDue : 0 } ?? 0
+        let stage = localStage(order, owedOnInvoice: owed)
+        let now = Date()
+        return MacRecordSplit {
+            heroSection(order, stage: stage, now: now, owed: owed, invoice: invoice)
+            noteSection(order)
+            if OrdersLogic.isOnline(order) {
+                Group {
+                    OrderOnlineSection(order: order, leopards: { leopardsOpen = true }) { kind, t in
+                        onlineMoved(kind, t)
+                    }
+                }
+                .houseRows()
+            }
+        } rest: {
+            Group {
+                if OrdersLogic.hasInvoice(order) {
+                    invoiceSection(order, invoice: invoice, owed: owed)
+                } else {
+                    moneySection(order)
+                }
+                detailsSection(order)
+            }
+            .houseRows()
+        } lines: {
+            Group { piecesSection(order) }.houseRows()
+        } wide: {
+            macLines(order)
+        }
+        .navigationSubtitle(OrdersLogic.customerName(order))
+        .toolbar { macToolbar(order, stage: stage, owed: owed) }
+        .sheet(isPresented: $advancing) { advanceSheet(order).presentationSizing(.form) }
+        .sheet(isPresented: $booking) { OrderCourierSheet(order: order) }
+        .sheet(isPresented: $tracking) { OrderTrackingSheet(order: order) }
+        .sheet(isPresented: $leopardsOpen) { OrderLeopardsSheet(order: order) }
+        .sheet(isPresented: $notifying) { OrderNotifySheet(order: order) }
+        .sheet(isPresented: $checkingTransfer) {
+            OnlineMoveSheet(order: order, kind: .paid) { t in
+                onlineMoved(.paid, t)
+            }
+        }
+        .confirmDestructive(isPresented: $confirmCancel, title: "Cancel order \(order.id)?",
+                            message: OrdersLogic.cancelWords, action: "Cancel order") {
+            setStatus(order, "Cancelled")
+        }
+    }
+
+    /// The wide page's right side: how far the pieces have come, the pieces, the advances.
+    @ViewBuilder
+    fileprivate func macLines(_ order: Order) -> some View {
+        let invoiced = OrdersLogic.hasInvoice(order)
+        let karigars: [Karigar] = session.isOwner && !invoiced ? workshopLive(book.karigars.items) : []
+        let counts = LocalPieceCounts(total: order.items.count,
+                                      unassigned: order.items.indices.filter { !hasKarigarNow(order, $0) }.count,
+                                      done: order.items.indices.filter { isDone(order, $0) }.count)
+        let rows: [OrderPieceTableRow] = order.items.indices.map { i in
+            OrderPieceTableRow(id: i, item: order.items[i], done: isDone(order, i), karigar: karigarName(order, i))
+        }
+        let ordered: [OrderPieceTableRow] = rows.filter { !$0.done } + rows.filter { $0.done }
+        let lines = OrdersLogic.advanceLines(order)
+        VStack(alignment: .leading, spacing: 22) {
+            VStack(alignment: .leading, spacing: 8) {
+                LedgerHeading(title: "Pieces",
+                              trailing: counts.total > 0 ? "\(counts.done) of \(counts.total) done" : nil)
+                if counts.total > 0 {
+                    ProgressView(value: Double(counts.done), total: Double(counts.total))
+                        .tint(counts.done == counts.total ? Tone.settled.color : Theme.accent)
+                        .accessibilityLabel("\(counts.done) of \(counts.total) pieces done")
+                }
+            }
+            if order.items.isEmpty {
+                Text("No pieces on this order.")
+                    .foregroundStyle(.secondary)
+            } else {
+                OrderPiecesTable(
+                    rows: ordered,
+                    canTick: session.isOwner && !invoiced,
+                    canRemove: OrderActions.canRemovePiece(order, isOwner: session.isOwner),
+                    karigars: karigars,
+                    karigarId: { i in localKarigar[i] ?? order.items[i].karigarId ?? "none" },
+                    tick: { i, done in tick(order, i, done) },
+                    assign: { i, kid in assign(order, i, kid) },
+                    remove: { i in undo = OrderUndo.removePiece(order, index: i) }
+                ) { i in
+                    OrderPieceRow(
+                        index: i,
+                        item: order.items[i],
+                        karigar: karigarName(order, i),
+                        canTick: session.isOwner && !invoiced,
+                        busy: false,
+                        showBreakdown: session.isOwner,
+                        onTick: { done in tick(order, i, done) },
+                        assign: karigars.isEmpty ? nil : OrderPieceAssign(karigars: karigars, busy: false) { kid in
+                            assign(order, i, kid)
+                        },
+                        doneOverride: localDone[i],
+                        karigarOverride: localKarigar[i]
+                    )
+                }
+            }
+            if counts.unassigned > 0 && !invoiced {
+                Button { web = .giveOut(order.id) } label: {
+                    Label("Give out: \(counts.unassigned) without a karigar", systemImage: "person.badge.plus")
+                }
+            }
+            if !lines.isEmpty && !invoiced {
+                VStack(alignment: .leading, spacing: 8) {
+                    LedgerHeading(title: "Advances")
+                    OrderAdvancesTable(lines: lines,
+                                       canDelete: OrderActions.canDeleteAdvance(order, isOwner: session.isOwner)) { l in
+                        undo = OrderUndo.deleteAdvance(order, line: l)
+                    }
+                }
+            }
+        }
+    }
+
+    /// The order's moves in the window's toolbar: the next step first (as the phone's bar has it), then Take advance,
+    /// Print slip and Edit, and the ⋯ menu for the rest.
+    @ToolbarContentBuilder
+    fileprivate func macToolbar(_ order: Order, stage: OrderStage, owed: Double) -> some ToolbarContent {
+        let step = barStep(order, stage: stage, owed: owed)
+        let advance = stage != .closed && OrdersLogic.offersAdvance(order, stage: stage, isOwner: session.isOwner)
+        let editable = session.isOwner && !OrdersLogic.hasInvoice(order)
+        ToolbarItemGroup(placement: .primaryAction) {
+            if stage != .closed, let step {
+                if let invoiceId = invoiceToOpen(step) {
+                    NavigationLink(value: Route(path: "/invoices/\(invoiceId)")) {
+                        Label(step.title, systemImage: step.symbol).labelStyle(.titleAndIcon)
+                    }
+                    .keyboardShortcut(.return, modifiers: .command)
+                    .help(step.title)
+                } else {
+                    Button { run(order, step) } label: {
+                        Label(step.title, systemImage: step.symbol).labelStyle(.titleAndIcon)
+                    }
+                    .keyboardShortcut(.return, modifiers: .command)
+                    .help(step.title + " (\u{2318}\u{21A9})")
+                }
+            }
+            if advance {
+                Button { advancing = true } label: {
+                    Label("Take advance", systemImage: "banknote").labelStyle(.titleAndIcon)
+                }
+                .keyboardShortcut("a", modifiers: [.command, .shift])
+                .help("Record an advance (\u{21E7}\u{2318}A)")
+            }
+            Button { web = .slip(order.id) } label: { Label("Print slip", systemImage: "printer") }
+                .help("Show the workshop slip to print or save")
+            if editable {
+                Button { web = .edit(order.id) } label: { Label("Edit", systemImage: "pencil") }
+                    .keyboardShortcut("e", modifiers: .command)
+                    .help("Change this order (\u{2318}E)")
+            }
+            moreMenu(order, stage: stage, owed: owed)
+        }
+    }
+}
+#endif
