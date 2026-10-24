@@ -22,16 +22,22 @@ Claude Code runs these repos in the cloud too, with no Mac.
   are written from the YAML with every secret filled (`scripts/cloud/fill-secrets.mjs`; prints counts, never values). The
   environment's setup script is `scripts/cloud/environment-setup.sh` (gcloud CLI), pasted into the environment. Network: Full
   (Meta, WAHA, Green API, Shopify, Magnific and the sites are off the Trusted list).
-- **Going live:** a cloud session can push only its own `claude/…` branch. `.github/workflows/cloud-deploy.yml` takes any push to
-  `claude/**`, merges `main`, `taheri-next` and gemstrack-pos `main` into it, runs the typecheck and tests, and pushes the result
-  to `main` + `taheri-next` here and to gemstrack-pos `main` (a write deploy key there; its private half is this repo's Actions
-  secret `HOM_DEPLOY_KEY`): both houses at once, **with no review** (owner, 2026-09-27). A conflict or a failed check stops
-  it before any push; nothing is force-pushed. taheri-site and mina-catalogue have their own `cloud-deploy.yml`. In a cloud
-  session: commit, push the branch, watch the run; on a conflict, rebase on `origin/main` and push again. "Run workflow" is a dry run.
-- **Going live needs Actions minutes.** This repo is private, so every job counts against the account's free 2,000 a month
-  (each job rounded up to a minute, a Mac minute as ten). When they run out, every job fails before it starts ("recent account
-  payments have failed or your spending limit needs to be increased", on the check run's annotations) and nothing deploys until
-  the allowance resets (2026-10-24). Read it with `gh api repos/Ammar282828/taheri-pos/check-runs/<id>/annotations`. Xcode
-  Cloud's checks on a commit still report: they are Apple's hours, not GitHub's.
+- **Going live:** a cloud session can push only its own `claude/…` branch. Since 2026-10-24 **Google Cloud Build** takes any push to
+  `claude/**` (the trigger `deploy-cloud-sessions`, us-central1, gemstrack-pos; `scripts/cloud/deploy.sh`, run as main has it):
+  it merges `main`, `taheri-next` and gemstrack-pos `main` into the pushed commit, refuses private keys and customer data, runs the
+  typecheck and tests, and pushes the result to `main` + `taheri-next` here and to gemstrack-pos `main`: both houses at once,
+  **with no review** (owner, 2026-09-27). A conflict or a failed check stops it before any push; nothing is force-pushed; when two
+  pushes race, the slower one merges what landed, checks again and pushes again. It pushes with `github-deploy-token` (Secret
+  Manager: a fine-grained GitHub token on both repositories, contents, workflows and commit statuses), as the service account
+  `cloud-deploy@gemstrack-pos`. In a cloud session: commit, push the branch, then read the commit's **`deploy (Cloud Build)`**
+  status (`gh api repos/Ammar282828/taheri-pos/commits/<sha>/statuses`) or the build (`gcloud builds list --region us-central1`,
+  `gcloud builds log <id> --region us-central1`); on a conflict, rebase on `origin/main` and push again. About 4 minutes a deploy,
+  inside Cloud Build's 2,500 free minutes a month. Set up once by the owner in Cloud Shell: `scripts/cloud/cloudbuild-setup.sh`.
+- **Why not GitHub Actions any more:** this repo is private, so every Actions job counts against the account's free 2,000
+  minutes a month (each job rounded up to a minute, a Mac minute as ten). They ran out on 2026-10-24 and every deploy stopped
+  ("recent account payments have failed or your spending limit needs to be increased", on the check run's annotations; read them with
+  `gh api repos/Ammar282828/taheri-pos/check-runs/<id>/annotations`). `cloud-deploy.yml` (the old deploy, `HOM_DEPLOY_KEY`) now runs
+  only by hand. The other workflows (parity, TestFlight status, the Mac build's log) still run on Actions while minutes last. Xcode
+  Cloud's checks on a commit are Apple's hours, not GitHub's. taheri-site and mina-catalogue are public: their Actions are free.
 - **Mac only:** SSH to Hostinger (the sites deploy through Actions), Google sign-in to a local ERP (typecheck, tests and the
   gate's `?dev=1` work here), the Mac's memory files (this file is the handoff), GoDaddy / Hostinger API tokens.
