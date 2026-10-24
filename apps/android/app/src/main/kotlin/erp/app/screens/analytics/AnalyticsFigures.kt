@@ -133,9 +133,11 @@ class AnaFigures {
     var coinInvoiceCount = 0
     var coin: AnaCoins.Summary = AnaCoins.summarise(emptyList())
 
-    val cashIn: Double get() = cash?.total ?: 0.0
-    val cashOut: Double get() = totalExpenses
-    val netCashFlow: Double get() = cashIn - totalExpenses
+    /** Credit handed back to customers: cash-in.ts nets it off the payments; here it is money out, added back to money in so the net is the same. */
+    val creditPaidBack: Double get() = cash?.paidBack ?: 0.0
+    val cashIn: Double get() = (cash?.total ?: 0.0) + creditPaidBack
+    val cashOut: Double get() = totalExpenses + creditPaidBack
+    val netCashFlow: Double get() = cashIn - cashOut
     val exchangeOffInvoices: Double get() = cash?.exchangeOffInvoices ?: 0.0
 
     companion object {

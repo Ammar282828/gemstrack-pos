@@ -136,7 +136,7 @@ import erp.app.ui.OwnerDeletion
 import erp.app.ui.OwnerDeleteCodeSheet
 
 /** The invoice's own actions, each a sheet. */
-private enum class InvoiceAct { Discount, Payment, Refund, Delete }
+private enum class InvoiceAct { Discount, Payment, GiveBack, Refund, Delete }
 
 /** Pieces shown before "Show N more". */
 private const val FIRST_PIECES = 5
@@ -277,6 +277,7 @@ private fun InvoiceDetail(inv: Invoice, customers: List<erp.core.models.Customer
                         mayTake = InvoiceFacts.mayTakePayment(role, inv, owing),
                         onTake = { paying = inv },
                         onDelete = { index, p -> paymentAsk = InvoiceActionWords.deletingPayment(inv, index, p) },
+                        onGiveBack = { act(InvoiceAct.GiveBack) },
                     )
                 }
                 item { DetailsCard(inv, customers) { navigator.open(it) } }
@@ -316,6 +317,7 @@ private fun InvoiceDetail(inv: Invoice, customers: List<erp.core.models.Customer
     when (acting) {
         InvoiceAct.Discount -> InvoiceDiscountSheet(inv, onDismiss = { acting = null }, onDone = ::acted)
         InvoiceAct.Payment -> InvoicePaymentDeleteSheet(inv, onDismiss = { acting = null }, onDone = ::acted)
+        InvoiceAct.GiveBack -> InvoiceCreditSheet(inv, onDismiss = { acting = null }, onDone = ::acted)
         InvoiceAct.Refund -> InvoiceRefundSheet(inv, onDismiss = { acting = null }, onDone = ::acted)
         InvoiceAct.Delete -> InvoiceDeleteSheet(inv, onDismiss = { acting = null }, onDone = ::acted)
         null -> Unit
@@ -582,6 +584,7 @@ private fun PaymentsCard(
     mayTake: Boolean,
     onTake: () -> Unit,
     onDelete: (Int, Payment) -> Unit,
+    onGiveBack: () -> Unit,
 ) {
     val line = balanceLine(inv.balanceDue)
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -620,6 +623,14 @@ private fun PaymentsCard(
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                         color = Tone.credit.color(),
                     )
+                }
+                // Finish the credit by handing the money over (an owner's; a walk-in holds none).
+                if (owner && InvoiceCredit.canGiveBack(inv)) {
+                    TextButton(onClick = onGiveBack, Modifier.padding(horizontal = 8.dp)) {
+                        Icon(Icons.Filled.Payments, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(InvoiceCredit.buttonWords(inv))
+                    }
                 }
             }
         }

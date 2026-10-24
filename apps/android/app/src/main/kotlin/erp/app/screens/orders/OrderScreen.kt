@@ -96,6 +96,7 @@ import erp.app.ui.NotAvailableState
 import erp.app.ui.Note
 import erp.app.ui.rememberLocalChanges
 import erp.app.ui.PaymentSheet
+import erp.app.ui.PaymentText
 import erp.app.ui.Pill
 import erp.app.ui.ShelfState
 import erp.app.ui.ShopDate
@@ -305,13 +306,17 @@ private fun Detail(shelfOrder: Order) {
             title = "Record an advance",
             onDismiss = { advancing = false },
             onSave = { entry ->
-                OrderAdvance.record(order, entry.amount, entry.method, entry.note)
+                OrderAdvance.record(order, entry.amount, entry.method, entry.note, entry.exchanges)
+                note.show(Note("Advance recorded", PaymentText.advanceSaid(entry.amount, entry.exchanges)))
                 // PaymentSheet plays the success tap itself.
             },
             owed = if (owesMoney(balance)) balance else null,
             noteDefault = "Advance payment received",
             // Settle gives a remainder under 5,000 off the order's discount (OrderAdvance.settle).
-            settle = if (erp.app.auth.LocalSession.current.isOwner) { entry, remainder -> OrderAdvance.settle(order, entry.amount, entry.method, entry.note, remainder) } else null,
+            settle = if (erp.app.auth.LocalSession.current.isOwner) { entry, remainder ->
+                OrderAdvance.settle(order, entry.amount, entry.method, entry.note, remainder)
+                note.show(Note("Advance recorded", PaymentText.advanceSaid(entry.amount, emptyList())))
+            } else null,
         )
     }
     if (booking) OrderCourierSheet(order) { booking = false }
@@ -528,6 +533,7 @@ private fun MoneyCard(order: Order) {
     val rates = OrdersLogic.rateLine(order)
     // One advance and no exchange is the split's Paid figure already; the line only says more than that.
     val showAdvance = order.advancePayment > 0 && (lines.size > 1 || exchangeValue > 0)
+    val hasGoldLine = lines.any { it.gold.isNotEmpty() }
     var open by remember { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         LedgerHeading("Money")
@@ -548,7 +554,7 @@ private fun MoneyCard(order: Order) {
                 if (discount > 0) MoneyRow("Discount", -discount, signed = true)
                 if (showAdvance) MoneyRow("Advance paid", -order.advancePayment, signed = true)
                 // Each advance with its day and how it was paid: these become the invoice's payments.
-                if (lines.size > 1) for (l in lines) AdvanceLineRow(l)
+                if (lines.size > 1 || hasGoldLine) for (l in lines) AdvanceLineRow(l)
                 if (exchangeValue > 0) MoneyRow("Taken in exchange", -exchangeValue, signed = true)
                 for (e in exchanges) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -568,9 +574,12 @@ private fun MoneyCard(order: Order) {
 @Composable
 private fun AdvanceLineRow(l: AdvanceLine) {
     val words = listOf(ShopDate.say(l.date), l.method, l.note).filter { it.isNotEmpty() }.joinToString(" · ")
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
-        Text(words, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(Money.pkr(l.amount), style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = TabularDigits), color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
+            Text(words, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (l.amount > 0 || l.gold.isEmpty()) Text(Money.pkr(l.amount), style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = TabularDigits), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        if (l.gold.isNotEmpty()) Text(l.gold, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

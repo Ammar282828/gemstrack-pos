@@ -239,7 +239,7 @@ class OutboxEngine(
             "recordPayment", "recordOrderAdvance", "createInvoice", "createOrder", "finalizeOrder",
             "addRepair", "recordRepairPayment", "addExpense",
             "addHisaabEntry", "addShareholderEntry", "addExtraRevenue",
-            "updateInvoiceDiscount", "refundInvoicePartial", "settleInvoicePayment", "settleOrderAdvance", "raiseOrderDiscount",
+            "updateInvoiceDiscount", "refundInvoicePartial", "payBackCredit", "settleInvoicePayment", "settleOrderAdvance", "raiseOrderDiscount",
             "startPayBatch", "settlePayBatch",
             "saveOverheadPlan", "deleteShareholderEntry", "deletePartnerSalary", "setWorkingCapitalFloor",
             "restoreRemoved", "purgeRemoved",

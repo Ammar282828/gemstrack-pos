@@ -84,6 +84,7 @@ import erp.app.ui.Note
 import erp.app.ui.rememberLocalChanges
 import erp.app.ui.NotAvailableState
 import erp.app.ui.PaymentSheet
+import erp.app.ui.PaymentText
 import erp.app.ui.ShelfState
 import erp.app.ui.Tone
 import erp.app.ui.color
@@ -309,10 +310,16 @@ fun OrdersHub() {
         PaymentSheet(
             title = "Advance on ${order.id}",
             onDismiss = { advancing = null },
-            onSave = { entry -> OrderAdvance.record(order, entry.amount, entry.method, entry.note) },
+            onSave = { entry ->
+                OrderAdvance.record(order, entry.amount, entry.method, entry.note, entry.exchanges)
+                note.show(Note("Advance recorded", PaymentText.advanceSaid(entry.amount, entry.exchanges)))
+            },
             owed = order.grandTotal,
             noteDefault = "Advance payment received",
-            settle = if (isOwner) { entry, remainder -> OrderAdvance.settle(order, entry.amount, entry.method, entry.note, remainder) } else null,
+            settle = if (isOwner) { entry, remainder ->
+                OrderAdvance.settle(order, entry.amount, entry.method, entry.note, remainder)
+                note.show(Note("Advance recorded", PaymentText.advanceSaid(entry.amount, emptyList())))
+            } else null,
         )
     }
 

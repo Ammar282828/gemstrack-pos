@@ -92,7 +92,7 @@ class ErpApiTests {
         val server = listOf(
             "recordPayment", "recordOrderAdvance", "createInvoice", "createOrder", "finalizeOrder",
             "addRepair", "recordRepairPayment", "addExpense", "addHisaabEntry", "addShareholderEntry", "addExtraRevenue",
-            "updateInvoiceDiscount", "refundInvoicePartial", "settleInvoicePayment", "settleOrderAdvance", "raiseOrderDiscount",
+            "updateInvoiceDiscount", "refundInvoicePartial", "payBackCredit", "settleInvoicePayment", "settleOrderAdvance", "raiseOrderDiscount",
             "startPayBatch", "settlePayBatch",
         )
         assertEquals(emptyList(), server.filter { it !in OutboxEngine.moneyOps })

@@ -169,7 +169,12 @@ private fun Tiles(t: TodaysCash) {
             FigureTile("Money in", Money.pkr(t.totalIn), Modifier.share(), detail = "Every method", number = t.totalIn)
         }
         FigureRow(spacing = 10.dp) {
-            FigureTile("Paid out", Money.pkr(t.expenses), Modifier.share(), detail = "$n expense${if (n == 1) "" else "s"}", number = t.expenses)
+            val out = t.expenses + t.paidBack
+            FigureTile(
+                "Paid out", Money.pkr(out), Modifier.share(),
+                detail = "$n expense${if (n == 1) "" else "s"}" + if (t.paidBack > 0) " and ${Money.pkr(t.paidBack)} of credit given back" else "",
+                number = out,
+            )
             FigureTile("Exchange", Money.pkr(t.exchange), Modifier.share(), detail = "Taken in exchange — not cash", number = t.exchange)
         }
     }
@@ -200,7 +205,7 @@ internal fun cashLinePath(l: CashLine): String = when (l.source) {
 /** An Extra revenue line's ref is its own words; the others are a document and who it was for. */
 internal fun cashLineTitle(l: CashLine): String = if (l.source == CashSource.extra || l.who.isEmpty()) l.ref else "${l.ref} · ${l.who}"
 
-internal fun cashLineSubtitle(l: CashLine): String = "${cashSourceWord(l.source)} · ${l.method.rawValue} · ${DashDate.clock(l.at)}"
+internal fun cashLineSubtitle(l: CashLine): String = "${if (l.payback) "Credit paid back" else cashSourceWord(l.source)} · ${l.method.rawValue} · ${DashDate.clock(l.at)}"
 
 @Composable
 private fun CameInRow(l: CashLine, open: (String) -> Unit) {

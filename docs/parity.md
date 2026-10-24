@@ -44,7 +44,7 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Whole rupees, round-off chips, Settle | ✓ | ✓ | ✓ | wip | 2026-10-17 | [Whole rupees](decisions.md#whole-rupees), [Round-off](decisions.md#round-off) |
 | Invoice PDF and WhatsApp send | ✓ | ✓ | ✓ | wip | 2026-10 | [Invoice PDF](decisions.md#invoice-pdf) |
 | Exchange as cash / exchange rows | ✓ | ✓ | ✓ | wip | 2026-10 | [Exchange as cash](decisions.md#exchange-as-cash) |
-| Give back customer credit (overpaid refund) | ✓ | ✓ | owed | wip | 2026-10-24 | [Invoice credit](decisions.md#invoice-credit); `src/lib/writes/invoice-credit-payback.ts` (`payBackCredit`) |
+| Give back customer credit (overpaid refund) | ✓ | ✓ | ✓ | wip | 2026-10-24 | [Invoice credit](decisions.md#invoice-credit); `src/lib/writes/invoice-credit-payback.ts` (`payBackCredit`); Android `InvoiceCreditSheet` (invoice page, customer page), Today's cash Paid out and Analytics Cash out show it |
 | A money write keeps its request id across timeouts and relaunches | ✓ | ✓ | ✓ | wip | 2026-10-20 | `WriteIntents` (iPhone `Data/ERPAPI.swift`, Android `data/WriteIntents.kt`), `src/app/api/app/write/idempotency.ts` |
 
 ## Orders
@@ -57,7 +57,7 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Edit order (keeps quoted rates, ticks, photos) | ✓ | ✓ | ✓ | wip | 2026-10-09 | `NewOrderEdit.swift`; Android (check) |
 | Finalize and invoice | ✓ | ✓ | ✓ | wip | 2026-10 | [Order to invoice](decisions.md#order-to-invoice) |
 | Online orders: a person confirms | ✓ | ✓ | ✓ | wip | 2026-10 | [Online orders](decisions.md#online-orders) |
-| Order advance with exchanged gold | ✓ | ✓ | owed | wip | 2026-10-24 | Edit order rewrites the rows untagged, so deleting an older gold advance after an edit leaves its gold (removed by editing the order). [Order to invoice](decisions.md#order-to-invoice), [Exchange rows](decisions.md#exchange-rows) |
+| Order advance with exchanged gold | ✓ | ✓ | ✓ | wip | 2026-10-24 | Edit order rewrites the rows untagged, so deleting an older gold advance after an edit leaves its gold (removed by editing the order). Android `ui/AdvanceExchange.kt` in the advance sheet. [Order to invoice](decisions.md#order-to-invoice), [Exchange rows](decisions.md#exchange-rows) |
 | Settle an advance (order stays as it was) | ✓ | ✓ | ✓ | wip | 2026-10-17 | `settleOrderAdvance` |
 | Order slip printed from the phone | ✓ | ✓ | ✓ | wip | 2026-10-09 | |
 

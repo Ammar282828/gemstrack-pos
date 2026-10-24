@@ -16,7 +16,8 @@ import erp.core.logic.isActiveOrder
 import erp.core.logic.isOwing
 import erp.core.logic.isUrgent
 import erp.core.logic.isWalkInName
-import erp.core.logic.orderAdvancePayments
+import erp.core.logic.describeExchangeEntry
+import erp.core.logic.orderAdvanceLines
 import erp.core.logic.orderTiming
 import erp.core.logic.percentLabel
 import erp.core.logic.stageOf
@@ -139,7 +140,17 @@ data class OrderPromise(
 )
 
 /** What the page's advances will land as on the invoice. */
-data class AdvanceLine(val id: Int, val date: String, val method: String, val note: String, val amount: Double)
+data class AdvanceLine(
+    val id: Int,
+    val date: String,
+    val method: String,
+    val note: String,
+    val amount: Double,
+    /** "Gold: Old ring · 22k · 5 g at 20,000/g · PKR 100,000" for each row handed over with it; "" for cash only. */
+    val gold: String = "",
+    /** What the line comes to in gold. */
+    val goldValue: Double = 0.0,
+)
 
 /** Karachi's days, weeks (from Monday) and months: what the shop means by "today" and "this week" (Invoices' InvoiceCalendar). */
 object OrdersCalendar {
@@ -423,11 +434,12 @@ object OrdersLogic {
     fun balance(order: Order): Double = subtotal(order) - discount(order) - order.advancePayment - exchangeValue(order)
 
     /** The advances as they will land on the invoice: the one taken with the order, then each recorded after it, each with its day, how it was paid and its note. */
-    fun advanceLines(order: Order): List<AdvanceLine> = orderAdvancePayments(order, label = "").mapIndexed { i, a ->
+    fun advanceLines(order: Order): List<AdvanceLine> = orderAdvanceLines(order, label = "").mapIndexed { i, a ->
         val raw = a.notes ?: ""
         val clean = if (raw.startsWith(": ")) raw.drop(2) else raw
         val note = if (clean.isEmpty()) (if (a.date == order.createdAt) "With the order" else "") else clean
-        AdvanceLine(i, a.date, a.method?.rawValue ?: "", note, a.amount)
+        val gold = a.exchanges.joinToString("; ") { "${describeExchangeEntry(it)} \u00B7 ${Money.pkr(it.value)}" }
+        AdvanceLine(i, a.date, a.method?.rawValue ?: "", note, a.amount, if (gold.isEmpty()) "" else "Gold: $gold", a.exchanges.fold(0.0) { s, e -> s + e.value })
     }
 
     // MARK: Online orders (components/order/website-order-panel.tsx)

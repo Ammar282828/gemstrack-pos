@@ -2,6 +2,7 @@ package erp.core
 
 import erp.core.logic.PaymentStatus
 import erp.core.logic.getOrderPaymentStatus
+import erp.core.logic.orderAdvanceLines
 import erp.core.logic.orderAdvancePayments
 import erp.core.logic.withoutOrderAdvance
 import erp.core.models.Order
@@ -110,6 +111,43 @@ class OrderPaymentTests {
     fun testNothingForALineThatIsNotThere() {
         assertNull(withoutOrderAdvance(advancedOrder, lineIndex = 9))
         assertNull(withoutOrderAdvance(advancedOrder, lineIndex = -1))
+    }
+
+    // MARK: Gold handed over with an advance (OrderPaymentTests.swift testAGoldOnlyAdvanceIsAListedLineButNeverAPayment)
+
+    @Test
+    fun testAGoldOnlyAdvanceIsAListedLineButNeverAPayment() {
+        val gold: Map<String, Any?> = mapOf(
+            "id" to "adv-x", "amount" to 0, "date" to "2026-09-10T12:00:00.000Z",
+            "exchanges" to listOf(mapOf("description" to "Old ring", "value" to 100000)),
+        )
+        val o = withBase(mapOf("advancePayment" to 0, "advances" to listOf(gold)))
+        assertEquals(1, orderAdvanceLines(o, label = "").size)
+        assertEquals(100000.0, orderAdvanceLines(o, label = "")[0].exchanges.firstOrNull()?.value)
+        assertEquals(emptyList(), orderAdvancePayments(o))
+        val removed = withoutOrderAdvance(o, lineIndex = 0)
+        assertEquals(0.0, removed?.advancePayment)
+        assertEquals(emptyList(), removed?.advances)
+    }
+
+    @Test
+    fun testACashAndGoldAdvanceIsOnePaymentOfItsCashAndTheGoldRidesOnTheLine() {
+        val both: Map<String, Any?> = mapOf(
+            "id" to "adv-y", "amount" to 20000, "date" to "2026-09-10T12:00:00.000Z", "method" to "Cash",
+            "exchanges" to listOf(mapOf("description" to "Old chain", "value" to 50000)),
+        )
+        val o = withBase(mapOf("advancePayment" to 20000, "advances" to listOf(both)))
+        val pay = orderAdvancePayments(o)
+        assertEquals(1, pay.size)
+        assertEquals(20000.0, pay[0].amount)
+        assertEquals(emptyList(), pay[0].exchanges) // gold is the order's exchange row, never a payment field
+        assertEquals(1, orderAdvanceLines(o)[0].exchanges.size)
+        // deleting a later gold line leaves the first advance and the rest in order
+        val first: Map<String, Any?> = mapOf("amount" to 5000, "date" to "2026-09-05T12:00:00.000Z")
+        val two = withBase(mapOf("advancePayment" to 25000, "advances" to listOf(first, both)))
+        val gone = withoutOrderAdvance(two, lineIndex = 1)
+        assertEquals(5000.0, gone?.advancePayment)
+        assertEquals(1, gone?.advances?.size)
     }
 
     // MARK: getOrderPaymentStatus (no TS test; the cases are the ones its comment names)
