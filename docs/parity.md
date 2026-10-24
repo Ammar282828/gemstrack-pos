@@ -57,7 +57,7 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Edit order (keeps quoted rates, ticks, photos) | ✓ | ✓ | ✓ | 2026-10-09 | `NewOrderEdit.swift`; Android (check) |
 | Finalize and invoice | ✓ | ✓ | ✓ | 2026-10 | [Order to invoice](decisions.md#order-to-invoice) |
 | Online orders: a person confirms | ✓ | ✓ | ✓ | 2026-10 | [Online orders](decisions.md#online-orders) |
-| Order advance with exchanged gold | ✓ | ✓ | owed | 2026-10-24 | [Order to invoice](decisions.md#order-to-invoice), [Exchange rows](decisions.md#exchange-rows) |
+| Order advance with exchanged gold | ✓ | ✓ | owed | 2026-10-24 | Edit order rewrites the rows untagged, so deleting an older gold advance after an edit leaves its gold (removed by editing the order). [Order to invoice](decisions.md#order-to-invoice), [Exchange rows](decisions.md#exchange-rows) |
 | Settle an advance (order stays as it was) | ✓ | ✓ | ✓ | 2026-10-17 | `settleOrderAdvance` |
 | Order slip printed from the phone | ✓ | ✓ | ✓ | 2026-10-09 | |
 
