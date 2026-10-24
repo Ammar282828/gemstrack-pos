@@ -36,7 +36,8 @@ val NewOrderRoutes: List<ScreenRoute> = listOf(
     ),
     ScreenRoute(
         matches = { NewOrderLogic.editId(it) != null },
-        make = { path -> NewOrderEditLoader(NewOrderLogic.editId(path) ?: "") },
+        // "?rates=1" (the order page's Change rate) opens the form on its rates.
+        make = { path -> NewOrderEditLoader(NewOrderLogic.editId(path) ?: "", ratesFirst = NewOrderLogic.asks(path, "rates", "1")) },
     ),
     ScreenRoute(
         matches = { NewOrderLogic.slipId(it) != null },
@@ -67,7 +68,7 @@ internal fun slipTarget(id: String): InvoicePdfTarget =
  * meanwhile must not throw away what is being typed).
  */
 @Composable
-internal fun NewOrderEditLoader(id: String) {
+internal fun NewOrderEditLoader(id: String, ratesFirst: Boolean = false) {
     val book = LocalBook.current
     val status = rememberShelfStatus(book.orders)
     val orders = status.items
@@ -79,7 +80,7 @@ internal fun NewOrderEditLoader(id: String) {
     }
     val opened = edit
     when {
-        opened != null -> NewOrder(edit = opened)
+        opened != null -> NewOrder(edit = opened, ratesFirst = ratesFirst)
         loaded && order == null -> {
             ScreenTitle("Edit $id")
             NotAvailableState("No such order", why = "$id isn't in the book. It may have been deleted.", icon = Icons.Filled.FolderOff)

@@ -43,7 +43,8 @@ interface AdsBackend {
     suspend fun setBudget(level: String, id: String, daily: Double?, lifetime: Double?)
     suspend fun setEnd(level: String, id: String, end: Instant?)
 
-    suspend fun status(): AdsStatusAnswer
+    /** [fresh] asks Meta again, past the server's short memories (the web's Check again / retry: `?fresh=1`). */
+    suspend fun status(fresh: Boolean = false): AdsStatusAnswer
     suspend fun newAdLists(): AdsNewAdLists
     suspend fun checkPlan(plan: Map<String, Any?>): AdsPlanCheck
     suspend fun checkDesign(design: Map<String, Any?>): AdsDesignCheck
@@ -141,7 +142,7 @@ object AdsAPI : AdsBackend {
         api.send("/api/ads/object/$id", body = mapOf("level" to level, "action" to "schedule", "end" to end?.let { AdsTime.iso(it) }))
     }
 
-    override suspend fun status(): AdsStatusAnswer = read("/api/ads/status", AdsStatusAnswer)
+    override suspend fun status(fresh: Boolean): AdsStatusAnswer = read(if (fresh) "/api/ads/status?fresh=1" else "/api/ads/status", AdsStatusAnswer)
 
     /** What New ad offers in this house: goals and buttons in the web's words, the links, the quiet days ahead. */
     override suspend fun newAdLists(): AdsNewAdLists = read("/api/ads/plan", AdsNewAdLists)
@@ -287,7 +288,7 @@ object AdsUpload {
             .build()
         val builder = Request.Builder().url(url).header("Accept", "application/json").post(body)
         val token = try {
-            FirebaseAuth.getInstance().currentUser?.getIdToken(false)?.await()?.token
+            erp.app.config.Businesses.auth?.currentUser?.getIdToken(false)?.await()?.token
         } catch (e: Exception) {
             null
         }

@@ -70,6 +70,10 @@ import erp.app.ui.theme.TabularDigits
 import erp.core.entry.NewOrderFormat
 import erp.core.entry.SaleNumber
 import erp.core.logic.Money
+import erp.core.logic.RateField
+import erp.core.logic.finalizeRateRows
+import erp.core.logic.orderInvoiceRates
+import erp.core.logic.rateShown
 import erp.core.logic.isCredit
 import erp.core.logic.takesWastageAndMaking
 import erp.core.models.Order
@@ -102,6 +106,8 @@ fun OrderFinalizeScreen(id: String) {
 
     var rows by remember { mutableStateOf(listOf<OrderFinalizeRow>()) }
     var discount by remember { mutableStateOf("") }
+    // The rate boxes as typed: the order's booked rates to start with (gold moves; the counter may change any).
+    var rateTexts by remember { mutableStateOf<RateTexts>(emptyMap()) }
     var costTola by remember { mutableStateOf("") }
     var started by remember { mutableStateOf(false) }
     var confirming by remember { mutableStateOf(false) }
@@ -111,9 +117,10 @@ fun OrderFinalizeScreen(id: String) {
     val scope = rememberCoroutineScope()
 
     // The dialog's opening figures, once: the order's own.
-    LaunchedEffect(order?.id) {
-        if (started || order == null) return@LaunchedEffect
+    LaunchedEffect(order?.id, settings != null) {
+        if (started || order == null || settings == null) return@LaunchedEffect
         rows = order.items.mapIndexed { i, item -> OrderFinalizeRow.of(item, i) }
+        settings?.let { rateTexts = OrderFinalizeMath.bookedTexts(order, it) }
         discount = erp.core.entry.NewOrderFormat.rupeeBox(order.discountAmount)
         val perGram = order.costRate24k ?: 0.0
         costTola = if (perGram > 0) OrdersLogic.halfAway(perGram * erp.core.entry.NewOrderWords.gramsPerTola).toLong().toString() else ""
@@ -138,14 +145,14 @@ fun OrderFinalizeScreen(id: String) {
                 NotAvailableState("Invoiced already", why = "${order.id} is on $inv.", icon = Icons.Filled.Description)
             } else {
                 FinalizeForm(
-                    order, s, rows, { rows = it }, discount, { discount = it }, costTola, { costTola = it },
+                    order, s, rows, { rows = it }, rateTexts, { rateTexts = it }, discount, { discount = it }, costTola, { costTola = it },
                     saving, failure, confirming, { confirming = it }, { failure = it },
                 ) {
                     scope.launch {
                         saving = true
                         failure = null
                         try {
-                            val out = ErpApi.shared.write("finalizeOrder", OrderFinalizeMath.request(order.id, rows, discount, costTola))
+                            val out = ErpApi.shared.write("finalizeOrder", OrderFinalizeMath.request(order.id, rows, discount, costTola, OrderFinalizeMath.changedRates(order, s, rateTexts)))
                             val invoiceId = ((out["invoice"] as? Map<*, *>)?.get("id") as? String) ?: ""
                             if (invoiceId.isEmpty()) {
                                 failure = "The invoice was made, but the ERP did not say its number. Look for it under Invoices."
@@ -182,6 +189,8 @@ private fun FinalizeForm(
     settings: Settings,
     rows: List<OrderFinalizeRow>,
     setRows: (List<OrderFinalizeRow>) -> Unit,
+    rateTexts: RateTexts,
+    setRateTexts: (RateTexts) -> Unit,
     discount: String,
     setDiscount: (String) -> Unit,
     costTola: String,
@@ -193,7 +202,7 @@ private fun FinalizeForm(
     setFailure: (String?) -> Unit,
     onFinalize: () -> Unit,
 ) {
-    val f = remember(order, rows, discount, settings) { OrderFinalizeMath.figures(order, rows, discount, settings) }
+    val f = remember(order, rows, discount, settings, rateTexts) { OrderFinalizeMath.figures(order, rows, discount, settings, rateTexts) }
     fun update(i: Int, change: (OrderFinalizeRow) -> OrderFinalizeRow) = setRows(rows.mapIndexed { n, r -> if (n == i) change(r) else r })
 
     TransactionWorkspace(
@@ -203,6 +212,7 @@ private fun FinalizeForm(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Header(order, f.balance)
+                RatesSection(order, settings, rateTexts, setRateTexts, enabled = !saving)
                 for (row in rows) {
                     PieceSection(row, if (row.index < f.prices.size) f.prices[row.index] else 0.0) { change -> update(row.index, change) }
                 }
@@ -215,7 +225,7 @@ private fun FinalizeForm(
                 }
                 Section(
                     title = "The invoice",
-                    footer = "Priced at the rates the order was booked at. The advances become the invoice's payments, each on its own day; the exchange comes off the total.",
+                    footer = "Priced at the rates above (the order's booked ones unless you changed one). The advances become the invoice's payments, each on its own day; the exchange comes off the total.",
                 ) {
                     Labeled("Pieces", Money.pkr(f.subtotal))
                     if (f.discount > 0) Labeled("Discount", "− " + Money.pkr(f.discount))
@@ -244,7 +254,7 @@ private fun FinalizeForm(
                 if (failure != null) OrdersStatusLine(Icons.Filled.Warning, failure, Tone.problem)
                 Button(
                     onClick = {
-                        val problem = OrderFinalizeMath.problem(rows, discount)
+                        val problem = OrderFinalizeMath.problem(rows, discount, order, rateTexts)
                         if (problem != null) setFailure(problem) else { setFailure(null); setConfirming(true) }
                     },
                     enabled = !saving, modifier = Modifier.fillMaxWidth(),
@@ -293,6 +303,35 @@ private fun Header(order: Order, due: Double) {
             } else {
                 Pill("Paid", tone = Tone.settled)
             }
+        }
+    }
+}
+
+/**
+ * Rates (PKR per gram) for the metals and karats the order uses, prefilled with the booked rates (the web dialog's
+ * block): gold moves daily and orders are delivered weeks after they are booked, so any may be changed, or all set
+ * to today's. Silver's rate is all-in (it holds the making and wastage). Nothing is sent unless one changed.
+ */
+@Composable
+private fun RatesSection(order: Order, settings: Settings, texts: RateTexts, setTexts: (RateTexts) -> Unit, enabled: Boolean) {
+    val rateRows = remember(order) { finalizeRateRows(order.items) }
+    if (rateRows.isEmpty()) return
+    val booked = remember(order, settings) { orderInvoiceRates(order, settings) }
+    val changed = OrderFinalizeMath.changedRates(order, settings, texts)
+    Section(
+        title = "Rates (PKR per gram)",
+        footer = "Booked rates unless you change one." +
+            (if (rateRows.any { it.field == RateField.SILVER }) " Silver's rate already holds its making and wastage." else "") +
+            " The invoice keeps the rates it was priced at.",
+    ) {
+        for (r in rateRows) {
+            Field(
+                r.label, texts[r.field] ?: "", { v -> setTexts(texts + (r.field to v)) }, KeyboardType.Decimal, "0", enabled = enabled,
+                helper = if (r.field in changed) "Booked at " + NewOrderFormat.boxText(rateShown(booked, r.field), 2) else null,
+            )
+        }
+        if (OrderFinalizeMath.todayDiffers(order, settings, texts)) {
+            TextButton(onClick = { setTexts(texts + OrderFinalizeMath.todayTexts(order, settings)) }, enabled = enabled) { Text("Use today's rates") }
         }
     }
 }

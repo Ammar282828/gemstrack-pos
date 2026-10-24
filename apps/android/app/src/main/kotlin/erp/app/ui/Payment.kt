@@ -41,7 +41,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import erp.app.ui.theme.ErpColors
 import erp.app.ui.theme.TabularDigits
+import erp.core.models.ExchangeEntry
 import erp.core.logic.Money
+import erp.core.logic.ShopNumber
+import erp.core.logic.blankExchangeRow
+import erp.core.logic.exchangesFromRows
 import erp.core.logic.rupees
 import erp.core.logic.settleRemainderOffer
 import kotlinx.coroutines.CancellationException
@@ -72,16 +76,13 @@ data class PaymentEntry(
     val reference: String,
     /** The note an advance is written with; empty where none is asked. */
     val note: String,
+    /** Gold handed over with an advance, as `recordOrderAdvance` takes the rows (see `OrderAdvance.exchangeJSON`); empty otherwise. */
+    val exchanges: List<Map<String, Any?>> = emptyList(),
 )
 
 /** The sheet's numbers and words, kept apart from the view so they read the same wherever they are used. */
 object PaymentText {
     // Swift's `.whitespaces`: spaces and tabs, not line breaks.
-    private fun isBlank(c: Char) = c == '\t' || Character.getType(c) == Character.SPACE_SEPARATOR.toInt()
-
-    // What Swift's `Double(String)` takes of a typed amount (it also reads hex and "nan", which a decimal pad cannot type).
-    private val plainNumber = Regex("""^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$""")
-
     // Swift's `.rounded()`: a half goes away from zero (Kotlin's `round` goes to even).
     internal fun rounded(x: Double): Double {
         if (x < 0) return -rounded(-x)
@@ -90,25 +91,13 @@ object PaymentText {
     }
 
     /**
-     * What was typed, in whole rupees (owner, 2026-10-17: "there should be no decimals"). Thousands commas
-     * are dropped; on a phone set to a region that types its decimal point as a comma ("1500,4") a comma
-     * followed by one or two digits is the decimal point, since a thousands comma always has three. Paise
-     * typed are rounded away, as the ERP rounds every sum to the rupee.
+     * What was typed, in whole rupees (owner, 2026-10-17: "there should be no decimals"), by the one number reader
+     * (Urdu and Arabic digits, lakh commas; a comma with one or two digits after it is a decimal point). Paise typed
+     * are rounded away, as the ERP rounds every sum to the rupee. Unreadable is null, never 0.
      */
     fun amount(text: String): Double? {
-        var t = text.trim(::isBlank)
-        if (!t.contains('.')) {
-            val comma = t.lastIndexOf(',')
-            if (comma >= 0) {
-                val after = t.length - comma - 1
-                if (after == 1 || after == 2) t = t.substring(0, comma) + "." + t.substring(comma + 1)
-            }
-        }
-        t = t.replace(",", "")
-        if (t.isEmpty() || !plainNumber.matches(t)) return null
-        val v = t.toDoubleOrNull() ?: return null
-        if (!v.isFinite() || v < 0) return null
-        return rounded(v)
+        val v = ShopNumber.parse(text) ?: return null
+        return if (v < 0) null else rounded(v)
     }
 
     /** A balance for the amount field: whole rupees, no grouping ("1500"). */
@@ -125,7 +114,7 @@ object PaymentText {
         if (text.all { it in '0'..'9' }) return text
         val v = amount(text)
         if (v != null && v < 1e15) return field(v)
-        return text.filter { it in '0'..'9' }
+        return ShopNumber.ascii(text).filter { it in '0'..'9' }
     }
 
     /** What the reference box is for, by how it was paid (the web's labels). */
@@ -134,6 +123,22 @@ object PaymentText {
         "Card" -> "Last 4 digits"
         "Bank Transfer" -> "Reference"
         else -> "Note"
+    }
+
+    /** One exchange row as `recordOrderAdvance` takes it (as the new order sends its rows). */
+    fun exchangeJson(e: ExchangeEntry): Map<String, Any?> {
+        val o = linkedMapOf<String, Any?>("description" to e.description, "value" to e.value)
+        if (!e.karat.isNullOrEmpty()) o["karat"] = e.karat
+        if ((e.weightG ?: 0.0) > 0) o["weightG"] = e.weightG
+        if ((e.ratePerGram ?: 0.0) > 0) o["ratePerGram"] = e.ratePerGram
+        return o
+    }
+
+    /** What was recorded, in words: the cash, the gold, or both ("PKR 50,000 cash + PKR 100,000 gold"). */
+    fun advanceSaid(amount: Double, exchanges: List<Map<String, Any?>>): String {
+        val gold = exchanges.fold(0.0) { s, e -> s + ((e["value"] as? Double) ?: 0.0) }
+        if (gold <= 0) return Money.pkr(amount)
+        return if (amount > 0) "${Money.pkr(amount)} cash + ${Money.pkr(gold)} gold" else "${Money.pkr(gold)} gold"
     }
 
     /** Rupees over the balance, as the web counts them: rounded, and only for an invoice. */
@@ -178,6 +183,8 @@ fun PaymentSheet(
     var method by rememberSaveable { mutableStateOf("Cash") }
     var reference by rememberSaveable { mutableStateOf("") }
     var note by rememberSaveable { mutableStateOf(noteDefault ?: "") }
+    // An advance may be paid in gold handed over, instead of or beside the cash (AdvanceExchange).
+    var exchangeRows by remember { mutableStateOf(listOf(blankExchangeRow())) }
     var saving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     // A Settle's payment was taken and its discount refused: nothing more is sent from this sheet.
@@ -186,12 +193,15 @@ fun PaymentSheet(
     val amount = pinned?.takeIf { it.first == amountText }?.second ?: (PaymentText.amount(amountText) ?: 0.0)
     val balance = maxOf(0.0, owed ?: 0.0)
     val over = PaymentText.over(amount, balance, forInvoice = customer != null)
+    val exchanged = if (noteDefault == null) emptyList() else exchangesFromRows(exchangeRows)
+    val exchangeValue = exchanged.fold(0.0) { s, e -> s + e.value }
 
     // Why Save is closed, in the web's words; null when it is open.
     val problem: String? = when {
         customer != null && over > 0 && !customer.canHoldCredit ->
             "More than the balance of ${PaymentText.pkr(balance)}. Credit needs a customer: name who this invoice is for first."
-        noteDefault != null && amount > 0 && note.trim().length < 3 -> "Please add a brief note for the payment."
+        exchanged.any { it.value <= 0 } -> "Give each exchange an amount, or its grams and rate."
+        noteDefault != null && (amount > 0 || exchangeValue > 0) && note.trim().length < 3 -> "Please add a brief note for the payment."
         else -> null
     }
     val creditNote: String? = if (customer != null && customer.canHoldCredit && over > 0) {
@@ -204,7 +214,8 @@ fun PaymentSheet(
     // What would be left owing after this amount, when it is small enough to give off (0 < it < 5,000): the web's
     // `rupees(balance) - rupees(amount)`. Null without a Settle, an amount, or a balance.
     val settleOffer: Double? =
-        if (settle == null || taken || owed == null || amount <= 0 || problem != null) null
+        // Gold taken beside it is not offered a Settle (the web's dialog hides it too).
+        if (settle == null || taken || owed == null || amount <= 0 || exchangeValue > 0 || problem != null) null
         else settleRemainderOffer(rupees(owed) - rupees(amount))
 
     // Save, or Settle (`settling` is the remainder to give off): the ERP's write, the sheet kept open with its words
@@ -217,7 +228,7 @@ fun PaymentSheet(
             error = null
             try {
                 // A cash payment has no reference to carry, whatever was typed before it was switched.
-                val entry = PaymentEntry(amount, method, if (method == "Cash") "" else reference, note.trim())
+                val entry = PaymentEntry(amount, method, if (method == "Cash") "" else reference, note.trim(), exchanged.map { PaymentText.exchangeJson(it) })
                 if (settling != null && settle != null) settle(entry, settling) else onSave(entry)
                 haptics.success()
                 sheetState.hide()
@@ -258,7 +269,7 @@ fun PaymentSheet(
                     style = MaterialTheme.typography.titleMedium,
                     textAlign = TextAlign.Center,
                 )
-                Button(onClick = { send(null) }, enabled = amount > 0 && problem == null && !saving && !taken) {
+                Button(onClick = { send(null) }, enabled = (amount > 0 || exchangeValue > 0) && problem == null && !saving && !taken) {
                     if (saving) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
                     else Text("Save")
                 }
@@ -319,6 +330,7 @@ fun PaymentSheet(
                     singleLine = true,
                 )
             }
+            if (noteDefault != null) AdvanceExchange(exchangeRows, { exchangeRows = it })
             settleOffer?.let { x ->
                 OutlinedButton(onClick = { send(x) }, enabled = !saving, modifier = Modifier.fillMaxWidth()) {
                     Text(SettleWords.offer(x), color = ErpColors.accent)

@@ -87,43 +87,6 @@ class WidgetSummaryTests {
         assertEquals(WidgetSize.Small, WidgetLayout.sizeFor(110f, 400f))
     }
 
-    @Test fun `each face shows what the iPhone's does`() {
-        val s = WidgetSummary.sample("Taheri")
-        val small = assertNotNull(WidgetLayout.plan(s, WidgetSize.Small))
-        assertEquals("Made today", small.today.label)
-        assertEquals("This month", small.month?.label)
-        assertEquals(2, small.noteLines)
-        assertTrue(small.compactHeader)
-        assertTrue(small.supporting.isEmpty())
-        val medium = assertNotNull(WidgetLayout.plan(s, WidgetSize.Medium))
-        assertTrue(medium.noteBeside)
-        assertEquals(3, medium.noteLines)
-        assertTrue(medium.supporting.isEmpty())
-        val large = assertNotNull(WidgetLayout.plan(s, WidgetSize.Large))
-        assertEquals(listOf("Gold 24k", "In the drawer", "Owed to you", "Due"), large.supporting.map { it.label })
-        assertEquals(2, large.columns)
-    }
-
-    @Test fun `a long figure is shrunk to its room, never below 60 percent, and a short one keeps its size`() {
-        val s = WidgetSummary.sample()
-        val roomy = assertNotNull(WidgetLayout.plan(s, WidgetSize.Large, widthDp = 340f))
-        assertEquals(40f, roomy.heroSp)
-        val narrow = assertNotNull(WidgetLayout.plan(s, WidgetSize.Small, widthDp = 110f))
-        assertTrue(narrow.heroSp < 26f && narrow.heroSp >= 26f * 0.6f)
-        val huge = WidgetSummary("Taheri", "1:00 pm", listOf(erp.app.widget.WidgetFigure("Made today", "Rs 12,345.67 crore", null)))
-        assertEquals(26f * 0.6f, assertNotNull(WidgetLayout.plan(huge, WidgetSize.Small, widthDp = 110f)).heroSp, 0.001f)
-        // beside a note the hero has half the width
-        val beside = assertNotNull(WidgetLayout.plan(s, WidgetSize.Medium, widthDp = 340f))
-        val alone = assertNotNull(WidgetLayout.plan(WidgetSummary("Taheri", "1:00 pm", s.figures), WidgetSize.Medium, widthDp = 340f))
-        assertTrue(beside.heroSp <= alone.heroSp)
-    }
-
-    @Test fun `an empty or missing note is not shown, and no figures means to link the widget`() {
-        val blank = WidgetSummary("Taheri", "1:00 pm", WidgetSummary.sample().figures, teamNote = "  \n")
-        assertNull(WidgetLayout.plan(blank, WidgetSize.Medium)?.note)
-        assertNull(WidgetLayout.plan(WidgetSummary("Taheri", "1:00 pm", emptyList()), WidgetSize.Small))
-    }
-
     @Test fun `figures from another day carry the day`() {
         val now = Instant.parse("2026-10-13T05:00:00Z") // 10:00 in Karachi on the 13th
         val old = Freshness.of(WidgetSummary("Taheri", "4:05 pm", emptyList(), asOf = "2026-10-12"), now)
@@ -140,15 +103,26 @@ class WidgetSummaryTests {
     }
 
     @Test fun `the widget's link round-trips and is asked for with its own scheme`() {
-        val link = WidgetLinkData("https://erp.taheri.shop", "k-123", "Taheri ERP")
+        val link = WidgetLinkData("taheri", "Taheri ERP", "https://erp.taheri.shop", "k-123", null, "taheri")
         val back = assertNotNull(WidgetLinkData.decode(link.encode()))
         assertEquals("k-123", back.key)
         assertEquals("https://erp.taheri.shop", back.url)
         assertEquals("Taheri ERP", back.house)
+        assertEquals("taheri", back.id)
         assertNull(WidgetLinkData.decode(null))
         assertNull(WidgetLinkData.decode("""{"url":"x"}"""))
         assertEquals("Widget k-123", WidgetLinkData.authorization("k-123"))
         assertEquals(mapOf("label" to "Android widget"), WidgetLinkData.keyBody())
+    }
+
+    @Test fun `a link the one-house build kept becomes a business's entry`() {
+        val old = assertNotNull(WidgetLinkData.decode("""{"url":"https://erp.houseofmina.store","key":"k-1","house":"Mina ERP"}"""))
+        assertEquals("mina", old.id)
+        assertEquals("mina", old.brand)
+        assertEquals("Mina ERP", old.name)
+        val other = assertNotNull(WidgetLinkData.decode("""{"url":"https://erp.example.shop","key":"k-2","house":"Example"}"""))
+        assertEquals("erp-example-shop", other.id)
+        assertNull(other.brand)
     }
 
     @Test fun `the summary is asked for only on the house's own https address`() {

@@ -71,6 +71,7 @@ import erp.app.ui.Tone
 import erp.app.ui.color
 import erp.app.ui.ledgerRow
 import erp.app.ui.readableColumn
+import erp.app.ui.rememberHaptics
 import erp.app.ui.theme.ErpColors
 import erp.app.ui.theme.TabularDigits
 import erp.core.logic.Money
@@ -247,20 +248,12 @@ fun RateSheet(onDismiss: () -> Unit) {
         }
     }
 
+    // Rates are not a money write: the sheet closes at once and the Outbox carries them.
+    val haptics = rememberHaptics()
     fun save() {
-        saving = true; error = null
-        scope.launch {
-            try {
-                ErpApi.shared.write("setRates", RateKeys.payload(changed, typed, fromGoldPk))
-                onDismiss()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                error = e.message ?: "Something went wrong. Try again."
-            } finally {
-                saving = false
-            }
-        }
+        ErpApi.shared.enqueue("setRates", RateKeys.payload(changed, typed, fromGoldPk), "Rates")
+        haptics.success()
+        onDismiss()
     }
 
     RateDialog(

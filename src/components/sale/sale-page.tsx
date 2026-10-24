@@ -384,7 +384,15 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
       });
     }
   }, [appReady, settings, isEditingEstimate, heldRates, editInvoiceId]);
-  
+
+  // "Change rate" on the invoice page opens this form at its rates (?rates=1), once the invoice is in the cart.
+  const wantRates = useRef(typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('rates') === '1');
+  useEffect(() => {
+    if (!wantRates.current || !appReady || !isEditingEstimate) return;
+    const t = setTimeout(() => { wantRates.current = false; document.getElementById('sale-rates')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 400);
+    return () => clearTimeout(t);
+  }, [appReady, isEditingEstimate]);
+
   const cartMetalInfo = useMemo(() => {
     const metals = new Set<MetalType>();
     const karats = new Set<KaratValue>();
@@ -1089,7 +1097,7 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
                         />
                     </CardContent>
                 </Card>
-                <Card>
+                <Card id="sale-rates">
                     <CardHeader>
                         <CardTitle className="text-base">Pricing</CardTitle>
                     </CardHeader>

@@ -34,14 +34,18 @@ val SaleRoutes: List<ScreenRoute> = listOf(
     // "?scan=bill" (the New chooser's Read a written bill) opens the bill reader over the new sale.
     ScreenRoute(matches = { ScreenRoute.bare(it) == "/invoices/new" }, make = { p -> NewSale(readsBill = SaleRouting.asks(p, "bill")) }),
     ScreenRoute.exact("/scan") { ScanTag() },
-    ScreenRoute(matches = { SaleRouting.editId(it) != null }, make = { p -> SaleEditLoader(SaleRouting.editId(p).orEmpty()) }),
+    ScreenRoute(matches = { SaleRouting.editId(it) != null }, // "?rates=1" (the invoice page's Change rate) opens the form on its rates.
+    make = { p -> SaleEditLoader(SaleRouting.editId(p).orEmpty(), ratesFirst = SaleRouting.asks(p, "rates", "1")) }),
 )
 
 object SaleRouting {
     /** A path's `scan=` asking for one of the AI readers ("bill", "parchi"). */
-    fun asks(path: String, scan: String): Boolean {
+    fun asks(path: String, scan: String): Boolean = asks(path, "scan", scan)
+
+    /** The path's query asks for `key=value` (Change rate: "?rates=1"). */
+    fun asks(path: String, key: String, value: String): Boolean {
         val query = path.substringBefore('#').substringAfter('?', "")
-        return query.split('&').any { it.substringBefore('=') == "scan" && it.substringAfter('=', "") == scan }
+        return query.split('&').any { it.substringBefore('=') == key && it.substringAfter('=', "") == value }
     }
 
     /** "/invoices/<id>/edit" → the id (the invoice page's Edit, src/app/invoices/[id]/edit). */
@@ -57,7 +61,7 @@ object SaleRouting {
 
 /** Edit invoice: owners only (the ERP's write is), once the invoice and the shop's rates are on the shelf. */
 @Composable
-fun SaleEditLoader(id: String) {
+fun SaleEditLoader(id: String, ratesFirst: Boolean = false) {
     val book = LocalBook.current
     val session = LocalSession.current
     if (!session.isOwner) {
@@ -77,7 +81,7 @@ fun SaleEditLoader(id: String) {
     }
     val taken = edit
     when {
-        taken != null -> SaleForm(edit = taken)
+        taken != null -> SaleForm(edit = taken, ratesFirst = ratesFirst)
         loaded && invoice == null -> {
             ScreenTitle("Edit invoice")
             NotAvailableState("No such invoice", why = "$id isn't in the book. It may have been deleted.", icon = Icons.Filled.FolderOff)
