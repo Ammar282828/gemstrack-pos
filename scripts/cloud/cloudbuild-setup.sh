@@ -7,7 +7,7 @@
 # It makes, and is safe to run again:
 #   - the service account cloud-deploy@gemstrack-pos, which the builds run as (logs, the token, the repository link);
 #   - the secret github-deploy-token, from a GitHub fine-grained token pasted at the prompt (never shown);
-#   - the Developer Connect link to taheri-pos on the connection App Hosting already uses (made if missing);
+#   - the Developer Connect link to taheri-pos on a Developer Connect GitHub App connection (made if missing);
 #   - the trigger "deploy-cloud-sessions" (us-central1): every push to claude/** runs deploy.sh.
 set -euo pipefail
 
@@ -46,8 +46,8 @@ gcloud secrets add-iam-policy-binding github-deploy-token --member="serviceAccou
 
 echo "3/4 The link to taheri-pos"
 DC=https://developerconnect.googleapis.com/v1/projects/$P/locations/$R
-CONNS=$(api "$DC/connections" | python3 -c 'import json,sys; [print(c["name"]) for c in json.load(sys.stdin).get("connections",[]) if c.get("githubConfig")]')
-[ -n "$CONNS" ] || { echo "No GitHub connection in Developer Connect ($R). App Hosting's should be here; make one in the console: Developer Connect → Connections." >&2; exit 1; }
+CONNS=$(api "$DC/connections" | python3 -c 'import json,sys; [print(c["name"]) for c in json.load(sys.stdin).get("connections",[]) if c.get("githubConfig", {}).get("githubApp") == "DEVELOPER_CONNECT"]')
+[ -n "$CONNS" ] || { echo "No Developer Connect GitHub App connection in $R. Create and authorize one in Developer Connect. Firebase connections forward events only to Firebase, not Cloud Build." >&2; exit 1; }
 LINK=""
 for c in $CONNS; do
   LINK=$(api "https://developerconnect.googleapis.com/v1/$c/gitRepositoryLinks" | python3 -c '
