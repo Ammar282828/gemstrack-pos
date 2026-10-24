@@ -30,7 +30,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Monogram, Pill, HeroAmount, MoneySplit, ContactActions } from '@/components/ledger';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, MessageSquare, Check, Banknote, Edit, PlusCircle, CalendarIcon, List, RotateCcw, CheckCircle, Lock, XCircle, Trash2 } from 'lucide-react';
+import { Loader2, MessageSquare, Check, Banknote, DollarSign, Edit, PlusCircle, CalendarIcon, List, RotateCcw, CheckCircle, Lock, XCircle, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { buildInvoicePdf, saveInvoicePdf } from '@/lib/invoice-pdf';
 import { invoiceWhatsAppCaption } from '@/lib/invoice-share';
@@ -421,6 +421,10 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
             <div className="flex flex-wrap gap-2">
                     <Button asChild variant="outline">
                       <Link href={`/invoices/${invoice.id}/edit`}><Edit className="mr-2 h-4 w-4"/> Edit invoice</Link>
+                    </Button>
+                    {/* The same edit, opened at its rates: gold moves, and the invoice reprices on save. */}
+                    <Button asChild variant="outline">
+                      <Link href={`/invoices/${invoice.id}/edit?rates=1`}><DollarSign className="mr-2 h-4 w-4"/> Change rate</Link>
                     </Button>
                      <PrintButton
                       variant="default" size="default"

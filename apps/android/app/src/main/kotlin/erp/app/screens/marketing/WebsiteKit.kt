@@ -34,6 +34,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import erp.app.config.House
+import erp.app.data.Outbox
 import erp.app.data.ErpApi
 import erp.app.screens.stock.StockImage
 import erp.app.ui.ActionRow
@@ -153,6 +154,31 @@ object WebsiteStore {
         _state.update { it.copy(featured = null, featuredRead = true) }
     }
 
+    /** Instant: taken off here at once, the DELETE goes through the Outbox (put back here if it is refused). */
+    fun clearFeaturedNow() {
+        val prev = _state.value.featured
+        Outbox.post("Take the set of the day off ${_state.value.siteName}") {
+            _state.update { it.copy(featured = null, featuredRead = true) }
+            try {
+                clearFeatured()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _state.update { it.copy(featured = prev) }
+                throw e
+            }
+            ""
+        }
+    }
+
+    /** Instant: the PUT goes through the Outbox; the home page's set of the day shows here when the site has it. */
+    fun featureNow(key: String, note: String? = null) {
+        Outbox.post("Feature on ${_state.value.siteName}") {
+            feature(key, note)
+            ""
+        }
+    }
+
     /** The same piece whatever its file ending (the site keeps a .webp of every upload): set-of-the-day.tsx `sameFeaturedKey`. */
     fun sameKey(a: String?, b: String?): Boolean {
         if (a.isNullOrEmpty() || b.isNullOrEmpty()) return false
@@ -227,18 +253,14 @@ fun WebsiteTimeDialog(title: String, initial: String, fallback: String, onDismis
 fun WebsiteFeatureButton(key: String, name: String, modifier: Modifier = Modifier) {
     val store by WebsiteStore.state.collectAsStateWithLifecycle()
     if (!store.hasFeatured) return
-    val scope = rememberCoroutineScope()
     var asking by remember { mutableStateOf(false) }
-    var busy by remember { mutableStateOf(false) }
-    var failure by remember { mutableStateOf<String?>(null) }
     val on = WebsiteStore.sameKey(store.featured?.key, key)
-    val enabled = !busy && store.featuredRead
+    val enabled = store.featuredRead
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         TextButton(onClick = { asking = true }, enabled = enabled) {
             Icon(if (on) Icons.Filled.Star else Icons.Filled.StarBorder, contentDescription = null, Modifier.size(18.dp))
             Text(if (on) "Set of the day: on the home page" else "Feature today", Modifier.padding(start = 6.dp))
         }
-        if (busy) SkeletonLoading(compact = true)
     }
     if (asking) {
         val instead = store.featured?.let { ", in place of ${it.file}" } ?: ""
@@ -248,23 +270,11 @@ fun WebsiteFeatureButton(key: String, name: String, modifier: Modifier = Modifie
             title = if (on) "Take it off the home page?" else "Lead the home page with it?",
             message = words,
             choices = listOf(WebsiteChoice(if (on) "Take it off" else "Feature today", destructive = on) {
-                scope.launch {
-                    busy = true
-                    try {
-                        if (on) WebsiteStore.clearFeatured() else WebsiteStore.feature(key)
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        failure = e.message ?: "Something went wrong."
-                    } finally {
-                        busy = false
-                    }
-                }
+                if (on) WebsiteStore.clearFeaturedNow() else WebsiteStore.featureNow(key)
             }),
             onDismiss = { asking = false },
         )
     }
-    FailureAlert(failure, { failure = null }, title = "The set of the day didn't change")
 }
 
 /**
@@ -275,28 +285,10 @@ fun WebsiteFeatureButton(key: String, name: String, modifier: Modifier = Modifie
 fun WebsiteSetOfTheDay(withNote: Boolean = true) {
     val store by WebsiteStore.state.collectAsStateWithLifecycle()
     if (!store.hasFeatured) return
-    val scope = rememberCoroutineScope()
     var note by remember { mutableStateOf("") }
     var asking by remember { mutableStateOf<String?>(null) }
-    var busy by remember { mutableStateOf(false) }
-    var failure by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(store.featured?.note) { note = store.featured?.note ?: "" }
     val f = store.featured
-
-    fun run(work: suspend () -> Unit) {
-        scope.launch {
-            busy = true
-            try {
-                work()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                failure = e.message ?: "Something went wrong."
-            } finally {
-                busy = false
-            }
-        }
-    }
 
     FormSection("Set of the day · on the home page") {
         when {
@@ -305,13 +297,12 @@ fun WebsiteSetOfTheDay(withNote: Boolean = true) {
                 Row(Modifier.fillMaxWidth().ledgerRow(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     StockImage(f.thumb, f.file, f.key, Modifier.size(52.dp).clip(Radius.thumbShape))
                     Box(Modifier.weight(1f)) { TwoLine(f.file, subtitle = f.collection) }
-                    if (busy) SkeletonLoading(compact = true)
                 }
                 if (withNote) {
                     FieldRow("A line about it (optional)", note, { note = it.take(160) }, imeAction = androidx.compose.ui.text.input.ImeAction.Done)
                     if (note != f.note) ActionRow("Put this line on the home page", { asking = "note" })
                 }
-                ActionRow("Take it off the home page", { asking = "remove" }, Icons.Filled.StarBorder, enabled = !busy, tone = Tone.problem)
+                ActionRow("Take it off the home page", { asking = "remove" }, Icons.Filled.StarBorder, tone = Tone.problem)
             }
             else -> Row(Modifier.fillMaxWidth().ledgerRow(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Filled.StarBorder, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -322,16 +313,15 @@ fun WebsiteSetOfTheDay(withNote: Boolean = true) {
     when (asking) {
         "remove" -> WebsiteConfirm(
             "Take it off the home page?", "${store.siteName}'s home page stops leading with ${f?.file ?: "it"}, for everyone who opens it.",
-            listOf(WebsiteChoice("Take it off", destructive = true) { run { WebsiteStore.clearFeatured() } }), { asking = null },
+            listOf(WebsiteChoice("Take it off", destructive = true) { WebsiteStore.clearFeaturedNow() }), { asking = null },
         )
         "note" -> WebsiteConfirm(
             "Change the line on the home page?",
             if (note.trim().isEmpty()) "The line under the set of the day on ${store.siteName}'s home page is taken away."
             else "Under the set of the day on ${store.siteName}'s home page, for everyone: “${note.trim()}”",
-            listOf(WebsiteChoice("Put it on the home page") { f?.let { run { WebsiteStore.feature(it.key, note.take(160)) } } }), { asking = null },
+            listOf(WebsiteChoice("Put it on the home page") { f?.let { WebsiteStore.featureNow(it.key, note.take(160)) } }), { asking = null },
         )
     }
-    FailureAlert(failure, { failure = null }, title = "The set of the day didn't change")
 }
 
 /**

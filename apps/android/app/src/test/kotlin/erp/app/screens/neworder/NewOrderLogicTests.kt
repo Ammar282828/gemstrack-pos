@@ -133,6 +133,24 @@ class NewOrderLogicTests {
         assertFalse(NewOrderLogic.hasSilver(d))
         d.pieces.add(piece(metal = "silver", karat = ""))
         assertTrue(NewOrderLogic.hasSilver(d))
+        // Silver's one all-in rate is a box of its own, last.
+        assertEquals("Silver (all-in)", NewOrderLogic.rateBoxes(d).last().label)
+    }
+
+    @Test fun silverTakesTheOrdersOwnRateElseTheShops() {
+        val s = settings()
+        val d = NewOrderDraft.fresh()
+        d.pieces.add(piece(metal = "silver", karat = ""))
+        d.seedRates(s)
+        // Blank or untouched: the shop's.
+        assertEquals(s.silverRatePerGram, NewOrderMath.formRates(d, s).silverRatePerGram)
+        d.rates["silverRatePerGram"] = "500"
+        assertEquals(500.0, NewOrderMath.formRates(d, s).silverRatePerGram)
+        assertTrue(NewOrderLogic.ratesDiffer(d, s))
+        // Stamped on the order, so it prices the same for ever.
+        assertEquals(500.0, NewOrderMath.ratesApplied(NewOrderMath.formRates(d, s))["silverRatePerGram"])
+        d.rates["silverRatePerGram"] = ""
+        assertEquals(s.silverRatePerGram, NewOrderMath.formRates(d, s).silverRatePerGram)
     }
 
     @Test fun aTypedRateThatIsNotTodaysOffersTodays() {
@@ -145,7 +163,7 @@ class NewOrderLogicTests {
         assertTrue(NewOrderLogic.ratesDiffer(d, s))
         assertFalse(NewOrderLogic.ratesDiffer(d, null))
         assertTrue(NewOrderLogic.ratesFooter(true, true).contains("flat palladium rate"))
-        assertTrue(NewOrderLogic.ratesFooter(false, true).contains("Silver is priced"))
+        assertTrue(NewOrderLogic.ratesFooter(false, true).contains("Silver's rate already holds"))
         assertFalse(NewOrderLogic.ratesFooter(false, false).contains("Silver"))
     }
 

@@ -122,7 +122,8 @@ object NewOrderLogic {
             }
             out[EntryStep.pieces] = if (complete) EntryStepState.done else EntryStepState.attention
         }
-        if (NewOrderFormat.num(d.discount) < 0 || NewOrderFormat.num(d.advance) < 0) {
+        // What would stop the save: a negative, or a figure that is not a number (NewOrderMath.problem).
+        if (NewOrderFormat.below0(d.discount) || NewOrderFormat.below0(d.advance) || NewOrderFormat.unreadable(d.discount) || NewOrderFormat.unreadable(d.advance)) {
             out[EntryStep.payment] = EntryStepState.attention
         } else if (NewOrderFormat.num(d.advance) > 0) {
             out[EntryStep.payment] = EntryStepState.done
@@ -208,6 +209,8 @@ object NewOrderLogic {
             val pd = listOf(RateKey.palladiumRatePerGram18k to "18k", RateKey.palladiumRatePerGram12k to "12k")
             for ((key, karat) in pd) if (palladiumKarats.isEmpty() || palladiumKarats.contains(karat)) out.add(RateBox(key, "Palladium $karat"))
         }
+        // Silver's one all-in rate (it holds the making and wastage); typed on the order, else the shop's.
+        if (hasSilver(d)) out.add(RateBox(RateKey.silverRatePerGram, "Silver (all-in)"))
         return out
     }
 
@@ -227,7 +230,7 @@ object NewOrderLogic {
     fun ratesFooter(palladium: Boolean, silver: Boolean): String {
         var s = "Applies to every piece on this order, and is kept on it. A rate typed here is used for this order only: today's rates are changed with the rate chip."
         if (palladium) s += " A palladium rate left at zero falls back to the shop's flat palladium rate."
-        if (silver) s += " Silver is priced at the shop's rate, which already holds its making and wastage."
+        if (silver) s += " Silver's rate already holds its making and wastage; the number is this order's own."
         return s
     }
 
@@ -300,10 +303,13 @@ object NewOrderLogic {
     }
 
     /** A path's `scan=` asking for one of the AI readers ("bill", "parchi"). */
-    fun asks(path: String, scan: String): Boolean {
+    fun asks(path: String, scan: String): Boolean = asks(path, "scan", scan)
+
+    /** The path's query asks for `key=value` (Change rate: "?rates=1"). */
+    fun asks(path: String, key: String, value: String): Boolean {
         if (!path.contains('?')) return false
         val query = path.substringAfter('?').substringBefore('#')
-        return query.split('&').any { it == "scan=$scan" }
+        return query.split('&').any { it == "$key=$value" }
     }
 
     // MARK: Messages

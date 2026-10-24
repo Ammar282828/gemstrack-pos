@@ -243,6 +243,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 
 **Android app** (`docs/features/android-app.md`)
 - [Android app](docs/features/android-app.md#android-app) — `apps/android`, Kotlin/Compose port of `apps/iphone`, two flavors; money in `core` to the iPhone's contract; Play internal testing
+- [One app, many businesses (Android)](docs/features/android-app.md#one-app-many-businesses-2026-10-24) — the taheri flavor (`shop.taheri.erp`, "ERP") holds Taheri, Mina and added businesses; `/api/app/business` carries an `android` block (`storeAppAndroid`; `none` = not registered, Mina's until the owner registers the app)
 
 ## graphify
 

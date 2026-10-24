@@ -46,6 +46,23 @@ class CashInTests {
         )
     }
 
+    // A customer's credit handed back is a negative invoice payment tagged kind "credit-payback" (lib/invoice-credit.ts):
+    // netted off the payments like a refund, and also reported as `paidBack`.
+    @Test
+    fun testCreditHandedBackIsNettedOffPaymentsAndReportedAsPaidBack() {
+        val inv = mapOf(
+            "id" to "INV-9", "status" to "Paid", "createdAt" to "2026-09-02T10:00:00.000Z",
+            "paymentHistory" to listOf(
+                mapOf("amount" to 120000, "date" to "2026-09-02T10:00:00.000Z", "method" to "Cash"),
+                mapOf("amount" to -20000, "date" to "2026-09-12T10:00:00.000Z", "method" to "Cash", "kind" to "credit-payback", "notes" to "Credit paid back"),
+                mapOf("amount" to -1000, "date" to "2026-09-13T10:00:00.000Z", "method" to "Cash", "notes" to "Refund: small"),
+            ),
+        )
+        val r = run(september, listOf(inv), emptyList())
+        assertEquals(99000.0, r.invoicePayments)
+        assertEquals(20000.0, r.paidBack) // a refund is not a give-back
+    }
+
     private fun paymentFields(p: Payment): Map<String, Any?> {
         val fields = mutableMapOf<String, Any?>("amount" to p.amount, "date" to p.date)
         p.notes?.let { fields["notes"] = it }

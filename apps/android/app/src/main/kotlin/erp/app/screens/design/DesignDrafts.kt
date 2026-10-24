@@ -91,7 +91,7 @@ class DesignDraftDisk(private val folder: File, private val now: () -> Long = Sy
         /** The same scope the Post a piece drafts use (PostComposer's draftsFolder): per house and per account. */
         fun scope(): String = when {
             House.isDemo -> "demo"
-            ErpApp.firebaseReady -> FirebaseAuth.getInstance().currentUser?.uid ?: "signed-out"
+            ErpApp.firebaseReady -> erp.app.config.Businesses.auth?.currentUser?.uid ?: "signed-out"
             else -> "signed-out"
         }
 

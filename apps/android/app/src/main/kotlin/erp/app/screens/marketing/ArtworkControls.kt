@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.core.logic.ShopNumber
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -313,7 +314,7 @@ private fun PropertyRow(value: MarketingValue, key: String, onChange: (Marketing
             var text by remember(key, shown) { mutableStateOf(shown) }
             NumberRow(label, text, { t ->
                 text = t
-                t.toDoubleOrNull()?.let { onChange(value.with(key, MarketingValue.number(it))) }
+                ShopNumber.parse(t)?.let { onChange(value.with(key, MarketingValue.number(it))) }
             }, decimal = true)
         }
         ArtworkProperties.choices[key] != null -> PickerRow(label, field.string, ArtworkProperties.choices.getValue(key).map { it to ArtworkProperties.label(it) }) { onChange(value.with(key, MarketingValue.string(it))) }

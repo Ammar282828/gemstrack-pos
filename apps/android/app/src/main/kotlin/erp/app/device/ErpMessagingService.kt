@@ -17,7 +17,7 @@ import kotlinx.coroutines.launch
 
 /**
  * What FCM hands the app: a refreshed token, and a notification that arrives while the app is open (in the background
- * the system shows it itself, on the channel the server named). A tap opens the page in `url` (MainActivity).
+ * the system shows it itself, on the channel the server named). A tap opens the business in `business`, then the page in `url` (AppRouter).
  */
 class ErpMessagingService : FirebaseMessagingService() {
     override fun onNewToken(token: String) {
@@ -35,6 +35,8 @@ class ErpMessagingService : FirebaseMessagingService() {
         val open = Intent(this, MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             .putExtra("url", message.data["url"].orEmpty())
+            // The business that sent it: a tap opens the app on that business, then the page (AppRouter).
+            .putExtra("business", message.data["business"].orEmpty())
             .putExtra("kind", kind.orEmpty())
         val id = (message.messageId ?: title).hashCode()
         val tap = PendingIntent.getActivity(this, id, open, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
