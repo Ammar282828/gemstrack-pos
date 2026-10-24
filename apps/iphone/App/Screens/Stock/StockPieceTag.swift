@@ -15,11 +15,14 @@ struct StockPieceTagSheet: View {
     /// Drawn once as the sheet opens, not on every redraw.
     private let image: UIImage?
 
+    @Environment(Book.self) private var book
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var making = false
     @State private var csv: URL?
     @State private var note: Note?
+    @State private var printing = false
+    @State private var problem: String?
 
     init(product: Product) {
         self.product = product
@@ -30,6 +33,7 @@ struct StockPieceTagSheet: View {
         NavigationStack {
             Form { Group {
                 qrSection
+                labelLiveSection
                 csvSection
                 }
                 .houseRows()
@@ -43,6 +47,10 @@ struct StockPieceTagSheet: View {
                 }
             }
             .noteToast($note)
+            .failureAlert($problem, title: "The tag wasn't printed")
+            // The sheet has its own stack, so the link to Settings resolves here.
+            .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
+            .task { book.settings.need() }
         }
         .presentationDetents([.medium, .large])
     }
@@ -90,6 +98,47 @@ struct StockPieceTagSheet: View {
         guard let out = filter.outputImage?.transformed(by: CGAffineTransform(scaleX: 12, y: 12)),
               let cg = CIContext().createCGImage(out, from: out.extent) else { return nil }
         return UIImage(cgImage: cg)
+    }
+
+    // MARK: Label LIVE
+
+    /// Print this piece's tag through Label LIVE (docs/features/label-live.md), or the way to set it up. The design is the
+    /// shop's, saved in Settings → Labels; the tag is worked out at today's rates.
+    @ViewBuilder
+    private var labelLiveSection: some View {
+        if book.settings.value?.labelLiveConfig != nil {
+            Section {
+                Button { Task { await printTag() } } label: {
+                    HStack(spacing: 8) {
+                        if printing { ProgressView().controlSize(.small) }
+                        Label("Print with Label LIVE", systemImage: "printer")
+                    }
+                }
+                .disabled(printing)
+            } footer: {
+                Text("Sends this piece's tag to Label LIVE at the counter, at today's rates.")
+            }
+        } else {
+            Section {
+                NavigationLink(value: Route(path: LabelLiveSettingsScreen.path)) {
+                    Label("Set up Label LIVE", systemImage: "printer")
+                }
+            } footer: {
+                Text("Paste the design's link once in Settings, and tags print from here.")
+            }
+        }
+    }
+
+    private func printTag() async {
+        guard !printing, let settings = book.settings.value, let config = settings.labelLiveConfig else { return }
+        printing = true
+        let outcome = await LabelLivePrinter.print(pieces: [product], settings: settings, config: config)
+        printing = false
+        if outcome.ok {
+            Note.show(Note(title: "Tag sent", detail: outcome.message), in: $note, reduce: reduceMotion)
+        } else {
+            problem = outcome.message
+        }
     }
 
     // MARK: The CSV

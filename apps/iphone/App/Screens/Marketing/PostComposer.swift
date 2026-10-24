@@ -60,7 +60,9 @@ struct PostComposerScreen: View {
     }
     private var presentedForm: some View {
         observedForm
+        #if os(iOS)
         .fullScreenCover(isPresented: $camera) { NewOrderCamera { image in camera = false; if let image, let data = WebsitePhoto.jpeg(image) { Task { await model.add(data, name: "Camera photo") } } }.ignoresSafeArea() }
+        #endif
         .sheet(isPresented: $sitePicker) { NativeSitePhotoPicker { piece, data in
             Task { if d.words.s("headline").isEmpty { model.draft.words["headline"] = piece["name"] }; if d.words.s("weight").isEmpty, piece.n("weightGrams") > 0 { model.draft.words["weight"] = .string(WebsiteNumber.grams(piece.n("weightGrams"))) }; await model.add(data, name: piece.s("name"), from: MarketingValue(["id": piece.s("id"), "name": piece.s("name"), "url": piece.s("url"), "marked": piece["photoSource"] == .null || piece["sourceMarked"].bool])) }
         }.presentationSizing(.page) }
@@ -98,7 +100,7 @@ Section {
                     // Twelve photos is the most a piece takes: past that the picker would only fail.
                     if d.photos.count < 12 { PhotosPicker(selection: $photos, maxSelectionCount: max(1, 12 - d.photos.count), matching: .images) { Label("Add photos", systemImage: "photo.badge.plus") } }
                     else { Text("Twelve photos is the most a piece takes.").font(.footnote).foregroundStyle(.secondary) }
-                    if UIImagePickerController.isSourceTypeAvailable(.camera) { Button { camera = true } label: { Label("Camera", systemImage: "camera") } }
+                    if MarketingCamera.available { Button { camera = true } label: { Label("Camera", systemImage: "camera") } }
                     Button { sitePicker = true } label: { Label("From the website", systemImage: "globe") }
                 }
                 DisclosureGroup("Piece details") {

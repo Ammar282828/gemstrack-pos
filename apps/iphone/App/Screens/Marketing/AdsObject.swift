@@ -221,7 +221,7 @@ struct MarketingDetails: View {
 }
 
 /// Meta's actual ad iframe, only for preview media; all ERP controls remain native.
-struct MetaAdPreview: UIViewRepresentable {
+struct MetaAdPreview: MarketingWebRepresentable {
     let url: URL
     static func url(in html: String) -> URL? {
         guard let range = html.range(of: #"src="([^"]+)""#, options: .regularExpression) else { return nil }
@@ -230,10 +230,17 @@ struct MetaAdPreview: UIViewRepresentable {
               host == "facebook.com" || host.hasSuffix(".facebook.com") else { return nil }
         return url
     }
-    func makeUIView(context: Context) -> WKWebView {
+    private func make() -> WKWebView {
         let configuration = WKWebViewConfiguration(); configuration.websiteDataStore = .nonPersistent()
         let view = WKWebView(frame: .zero, configuration: configuration)
         view.load(URLRequest(url: url)); return view
     }
-    func updateUIView(_ view: WKWebView, context: Context) { if view.url != url { view.load(URLRequest(url: url)) } }
+    private func refresh(_ view: WKWebView) { if view.url != url { view.load(URLRequest(url: url)) } }
+    #if os(iOS)
+    func makeUIView(context: Context) -> WKWebView { make() }
+    func updateUIView(_ view: WKWebView, context: Context) { refresh(view) }
+    #else
+    func makeNSView(context: Context) -> WKWebView { make() }
+    func updateNSView(_ view: WKWebView, context: Context) { refresh(view) }
+    #endif
 }

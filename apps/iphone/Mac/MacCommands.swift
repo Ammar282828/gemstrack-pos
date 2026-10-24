@@ -8,6 +8,7 @@ struct MacCommands: Commands {
     @FocusedValue(\.macShell) private var shell
     @FocusedValue(\.macMap) private var map
     @FocusedValue(\.macPlace) private var place
+    @FocusedValue(\.macStockSelection) private var stockSelection
     @Environment(\.openWindow) private var openWindow
 
     /// The page in front: a separate window's, else the main window's deepest.
@@ -39,9 +40,15 @@ struct MacCommands: Commands {
                 .disabled(current == nil)
         }
         CommandGroup(replacing: .printItem) {
-            Button(MacPrint.title(for: current)) { if let r = current { MacPrint.print(r) } }
-                .keyboardShortcut("p", modifiers: .command)
-                .disabled(!MacPrint.canPrint(current))
+            // Stock's table with pieces ticked prints their tags as one Label LIVE job; otherwise the page in front.
+            if let skus = stockSelection?.skus, !skus.isEmpty, place == nil {
+                Button(skus.count == 1 ? "Print Tag…" : "Print \(skus.count) Tags…") { Task { await MacPrint.printTags(skus) } }
+                    .keyboardShortcut("p", modifiers: .command)
+            } else {
+                Button(MacPrint.title(for: current)) { if let r = current { MacPrint.print(r) } }
+                    .keyboardShortcut("p", modifiers: .command)
+                    .disabled(!MacPrint.canPrint(current))
+            }
         }
         CommandMenu("Go") {
             Button("Home") { shell?.go("/") }

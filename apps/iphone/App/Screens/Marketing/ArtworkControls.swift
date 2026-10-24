@@ -101,7 +101,11 @@ enum ArtworkLogo {
         if !doc["bg"].s("photoId").isEmpty { return "#FFFFFF" }
         guard let c = Color(hex: doc["bg"].s("color")) else { return "#111111" }
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        #if os(macOS)
+        (NSColor(c).usingColorSpace(.sRGB) ?? NSColor.black).getRed(&r, green: &g, blue: &b, alpha: &a)
+        #else
         UIColor(c).getRed(&r, green: &g, blue: &b, alpha: &a)
+        #endif
         return 0.299 * r + 0.587 * g + 0.114 * b < 0.5 ? "#FFFFFF" : "#111111"
     }
 

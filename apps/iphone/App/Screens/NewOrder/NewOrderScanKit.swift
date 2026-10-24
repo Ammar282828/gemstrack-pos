@@ -4,6 +4,10 @@ import PhotosUI
 import UIKit
 #endif
 import ERPCore
+#if os(macOS)
+import UniformTypeIdentifiers
+import PDFKit
+#endif
 
 // What Read a slip (New order) and Read a written bill (New sale) share: the paper coming in (Apple's document
 // scanner, or Photos for one that arrived on WhatsApp), the photos kept on screen beside what was read off them
@@ -22,7 +26,11 @@ struct PaperPhoto: Identifiable {
     /// A page or photo made ready, off the main thread; nil when it cannot be read.
     static func make(_ picture: UIImage) async -> PaperPhoto? {
         await Task.detached(priority: .userInitiated) { () -> PaperPhoto? in
+            #if os(macOS)
+            let fitted = NewOrderPhotoCodec.macFitted(picture, longest: 2200)
+            #else
             let fitted = DocumentScanner.fitted(picture, longest: 2200)
+            #endif
             guard let jpeg = fitted.jpegData(compressionQuality: 0.82),
                   let small = NewOrderPhotoCodec.jpeg(from: fitted) else { return nil }
             return PaperPhoto(jpeg: jpeg, small: small, image: fitted)
@@ -54,25 +62,48 @@ struct PaperPicker: View {
     @State private var picked: [PhotosPickerItem] = []
     @State private var camera = false
     @State private var loading = false
+    @State private var importing = false
 
     var body: some View {
         HStack(spacing: 10) {
+            #if os(macOS)
+            // No scanner on the desk: the paper comes from a file (a photo or a PDF), chosen or dropped here.
+            Button { importing = true } label: {
+                Label(scanTitle == "Retake" ? "Choose another file" : "Choose a file…", systemImage: "doc.viewfinder")
+            }
+            .buttonStyle(.bordered)
+            #else
             Button { scan() } label: {
                 Label(scanTitle, systemImage: "doc.viewfinder")
             }
             .buttonStyle(.bordered)
+            #endif
             Button { library = true } label: {
                 Label("From Photos", systemImage: "photo.on.rectangle")
             }
             .buttonStyle(.bordered)
             if loading { SkeletonLoading() }
+            #if os(macOS)
+            Text("or drop a photo or PDF here").font(.footnote).foregroundStyle(.secondary)
+            #endif
         }
         .disabled(disabled || loading || room <= 0)
+        #if os(macOS)
+        .fileImporter(isPresented: $importing, allowedContentTypes: [.image, .pdf], allowsMultipleSelection: room > 1) { result in
+            if case .success(let urls) = result { Task { await loadFiles(urls) } }
+        }
+        .dropDestination(for: URL.self) { urls, _ in
+            guard !urls.isEmpty else { return false }
+            Task { await loadFiles(urls) }
+            return true
+        }
+        #endif
         .photosPicker(isPresented: $library, selection: $picked, maxSelectionCount: max(1, room), matching: .images)
         .onChange(of: picked) { _, items in
             guard !items.isEmpty else { return }
             Task { await load(items) }
         }
+        #if !os(macOS)
         .fullScreenCover(isPresented: $camera) {
             NewOrderCamera { image in
                 camera = false
@@ -80,8 +111,41 @@ struct PaperPicker: View {
             }
             .ignoresSafeArea()
         }
+        #endif
     }
 
+    #if os(macOS)
+    /// Files chosen or dropped: each picture as it is, each PDF as its pages (the first `room` in all), then the same
+    /// path as a photo from Photos, so the reader is sent exactly what the phone would send.
+    private func loadFiles(_ urls: [URL]) async {
+        loading = true
+        let wanted = max(1, room)
+        let images: [UIImage] = await Task.detached(priority: .userInitiated) { () -> [UIImage] in
+            var out: [UIImage] = []
+            for url in urls where out.count < wanted {
+                let scoped = url.startAccessingSecurityScopedResource()
+                defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+                if url.pathExtension.lowercased() == "pdf" {
+                    guard let pdf = PDFDocument(url: url) else { continue }
+                    for i in 0..<pdf.pageCount where out.count < wanted {
+                        guard let page = pdf.page(at: i) else { continue }
+                        let box = page.bounds(for: .mediaBox)
+                        let side = max(box.width, box.height)
+                        guard side > 0 else { continue }
+                        let k = 2200 / side
+                        out.append(page.thumbnail(of: CGSize(width: (box.width * k).rounded(), height: (box.height * k).rounded()), for: .mediaBox))
+                    }
+                } else if let data = try? Data(contentsOf: url), let image = UIImage(data: data) {
+                    out.append(image)
+                }
+            }
+            return out
+        }.value
+        if images.isEmpty { problem("Couldn't read that file. Choose a photo or a PDF of the paper.") }
+        loading = false
+        await take(images)
+    }
+    #else
     private func scan() {
         if DocumentScanner.isSupported {
             Task {
@@ -100,6 +164,7 @@ struct PaperPicker: View {
             problem("This phone has no camera to scan with. Choose the photo from Photos.")
         }
     }
+    #endif
 
     private func load(_ items: [PhotosPickerItem]) async {
         loading = true

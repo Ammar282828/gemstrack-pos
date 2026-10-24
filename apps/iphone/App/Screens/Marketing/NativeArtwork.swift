@@ -130,7 +130,12 @@ struct ArtworkProperties: View {
     ]
     static func hex(_ color: Color) -> String {
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        #if os(macOS)
+        // getRed on a SwiftUI-made NSColor raises unless it is in an RGB space.
+        (NSColor(color).usingColorSpace(.sRGB) ?? NSColor.black).getRed(&r, green: &g, blue: &b, alpha: &a)
+        #else
         UIColor(color).getRed(&r, green: &g, blue: &b, alpha: &a)
+        #endif
         // Wide-gamut colours come back outside 0…1; clamped, the hex stays six valid digits.
         func byte(_ v: CGFloat) -> Int { Int((min(1, max(0, v)) * 255).rounded()) }
         return String(format: "#%02X%02X%02X", byte(r), byte(g), byte(b))
