@@ -16,7 +16,6 @@ import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DocumentScanner
-import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Search
@@ -235,7 +234,6 @@ internal fun LineRow(s: SaleFormState, line: SaleLine, f: SaleFigures, d: SaleDa
 internal fun PiecesSection(s: SaleFormState, f: SaleFigures, d: SaleData) {
     val taken = s.draft.lines.map { it.sku }.toSet()
     val results = SaleLookup.matches(s.query, d.products, taken)
-    var menu by remember { mutableStateOf(false) }
     val n = s.draft.lines.size
     FormSection("Pieces", footer = { Text("$n piece${if (n == 1) "" else "s"}. Tap to edit; swipe to remove.") }) {
         s.draft.lines.forEach { line -> LineRow(s, line, f, d) }
@@ -257,19 +255,8 @@ internal fun PiecesSection(s: SaleFormState, f: SaleFigures, d: SaleData) {
             }
         }
         ActionRow("Scan a tag", { s.scanning = true }, Icons.Filled.QrCodeScanner)
-        Box {
-            ActionRow("New item", { menu = true }, Icons.Filled.AddCircle)
-            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                DropdownMenuItem(
-                    text = { Text("For this bill only") }, leadingIcon = { Icon(Icons.Filled.AddCircle, null) },
-                    onClick = { menu = false; s.startNewItem() },
-                )
-                DropdownMenuItem(
-                    text = { Text("Create in stock and add") }, leadingIcon = { Icon(Icons.Filled.Inventory2, null) },
-                    onClick = { menu = false; s.createInStock() },
-                )
-            }
-        }
+        // Straight to the piece: no "this bill only or stock too?" question first (owner, 2026-10-24).
+        ActionRow("New item", { s.startNewItem() }, Icons.Filled.AddCircle)
         // The AI bill reader (SaleScanScreen): the ERP's own reader, its lines put on this sale.
         ActionRow("Read a written bill", { s.readingBill = true }, Icons.Filled.DocumentScanner)
     }

@@ -131,9 +131,12 @@ struct SearchView: View {
     }
 
     private var groups: [(group: NavMap.Group, entries: [NavEntry])] {
+        // The unlabelled group is Home's: Home is a tab, but Analytics lives beside it (nav.ts) and was listed nowhere
+        // (owner, 2026-10-24: "where is the analytics tab"). It leads the list, under its own name.
         map.groups.compactMap { g in
-            let entries = map.entries.filter { $0.group == g.key }
-            return g.label.isEmpty || entries.isEmpty ? nil : (g, entries)
+            let entries = map.entries.filter { $0.group == g.key && $0.id != "home" }
+            guard !entries.isEmpty else { return nil }
+            return g.label.isEmpty ? (NavMap.Group(key: g.key, label: "Overview"), entries) : (g, entries)
         }
     }
 

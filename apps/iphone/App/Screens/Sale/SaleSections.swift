@@ -104,10 +104,8 @@ extension SaleForm {
                 Label(notice, systemImage: "exclamationmark.circle").font(.footnote).foregroundStyle(Tone.problem.color)
             }
             Button { scanning = true } label: { Label("Scan a tag", systemImage: "qrcode.viewfinder") }
-            Menu {
-                Button("For this bill only", systemImage: "plus.circle") { startNewItem() }
-                Button("Create in stock and add", systemImage: "shippingbox") { addingStock = true }
-            } label: { Label("New item", systemImage: "plus.circle") }
+            // Straight to the piece: no "this bill only or stock too?" question first (owner, 2026-10-24). Stock is made on Stock.
+            Button { startNewItem() } label: { Label("New item", systemImage: "plus.circle") }
         } header: {
             LedgerHeading(title: "Pieces")
         }

@@ -68,7 +68,6 @@ struct SaleForm: View {
     @State var editing: SaleLine?
     /// A piece being described that is not on the sale yet.
     @State var newItem: SaleLine?
-    @State var addingStock = false
     @State var step: EntryStep = .customer
     @State var scanning = false
     @State var rateSheet = false
@@ -228,14 +227,6 @@ struct SaleForm: View {
                 .presentationSizing(.page)
         }
         .sheet(isPresented: $rateSheet) { RateSheet() }
-        .sheet(isPresented: $addingStock) {
-            NavigationStack {
-                StockPieceForm(sku: nil, onCreated: { product in add(product) })
-                    .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
-                    .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { addingStock = false } } }
-            }
-            .presentationSizing(.page)
-        }
         .confirmDestructive(isPresented: $confirmingReset, title: "Start over?",
                             message: "This empties the sale on this phone and takes it out of Drafts: the pieces, the customer and everything typed.",
                             action: "Start over") { startOver() }
