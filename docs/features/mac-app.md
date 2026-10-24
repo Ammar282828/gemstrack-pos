@@ -67,5 +67,10 @@ How a tag reaches Label LIVE (`App/Device/LabelLivePrinter.swift`):
 
 ## Status
 
-Kept current in [parity.md](../parity.md)'s Mac column. Verified so far: ERPCore's tests on Linux (487), the web's
-typecheck and tests. Not yet verified: the Mac target compiling on Xcode Cloud, signing, TestFlight.
+Kept current in [parity.md](../parity.md)'s Mac column. Verified: ERPCore's tests on Linux (487), the web's typecheck and
+tests, and **the Mac target archived on Xcode Cloud with no errors** ("Mac release", commit c5080d8, 2026-10-24; the iPhone's
+scheme built beside it). Round 1 (034ddeb) found 19 errors, all iOS-only SwiftUI that a same-named stand-in cannot cover (the
+compiler prefers SwiftUI's own, marked unavailable): `contentShape(.hoverEffect)`, `listSectionSpacing`, the zoom transition,
+`appLaunchDiagnostics`, a nested `NavigationBarDrawerDisplayMode`. They are platform modifiers now (`pointerHover`,
+`sectionSpacing24`, `alwaysShownSearch`, `fieldKind`). Not yet verified: the build in TestFlight (the API-made workflow has no
+TestFlight post-action; reading App Store Connect needs the Actions job), and the app run on a Mac.
