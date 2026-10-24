@@ -6,6 +6,20 @@ import erp.core.Decodable
 // The Posts hub's answers, read as leniently as the web reads them (src/app/posts/page.tsx): a missing or odd field
 // gives a default, never an error that would empty the hub (CONVENTIONS.md rule 3).
 
+/**
+ * One more photograph of a piece, after its lead (`photos` of /api/website/site-pieces; the n-th, from 2, is
+ * /api/website/site-pieces/image?id=<piece>&photo=<n>).
+ */
+data class PostPiecePhoto(val key: String, val image: String, val thumb: String) {
+    companion object : Decodable<PostPiecePhoto> {
+        override fun fromMap(m: Map<String, Any?>): PostPiecePhoto {
+            val c = Container(m)
+            val image = c.string("image", "")
+            return PostPiecePhoto(c.string("key", ""), image, c.string("thumb", "").ifEmpty { image })
+        }
+    }
+}
+
 /** A piece on the house's own website (src/lib/website/site-pieces.ts `SitePiece`), with what the phone shows. */
 data class PostPiece(
     val id: String,
@@ -29,6 +43,8 @@ data class PostPiece(
     /** The catalogue's photo before it was marked, which a design starts from (Mina). */
     val photoSource: String? = null,
     val sourceMarked: Boolean = false,
+    /** The piece's own other photographs, after the lead, in order (none on most sites). */
+    val photos: List<PostPiecePhoto> = emptyList(),
 ) {
     companion object : Decodable<PostPiece> {
         override fun fromMap(m: Map<String, Any?>): PostPiece {
@@ -42,6 +58,7 @@ data class PostPiece(
                 newArrival = c.bool("newArrival", false), hidden = c.bool("hidden", false),
                 weightOnPhoto = c.bool("weightOnPhoto", false), source = c.string("source"),
                 photoSource = c.string("photoSource")?.ifEmpty { null }, sourceMarked = c.bool("sourceMarked", false),
+                photos = c.list("photos", PostPiecePhoto).filter { it.image.isNotEmpty() },
             )
         }
     }
