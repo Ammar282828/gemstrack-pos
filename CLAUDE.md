@@ -92,6 +92,13 @@ The rest (the account's reach, the setup script, network) is in `docs/cloud-sess
 gemstrack-pos is public and its `main` is this history. hom-pos's Firebase admin key (commit 3aea1ff) **must still be deleted in
 IAM**; Taheri's Firestore is open until the owner publishes `firestore.rules`. Details: `docs/security.md`.
 
+## Keeping the three apps aligned
+
+Owner, 2026-10-24: web, Android and iPhone stay aligned at all times. The ledger is `docs/parity.md` ([Parity](docs/decisions.md#parity)).
+- Every user-facing change updates its row there **in the same commit**: ✓ where built, `owed` where not (`parity.yml` warns when a push touches one or two surfaces and not the ledger).
+- A session finishing a feature on one surface relays it to the other surfaces' chats; the daily parity check (scheduled per surface) works the owed rows.
+- `src/lib/nav.ts` is the only menu; its export (`npm run nav:export`, read by iPhone and Android) is checked in CI and a stale one fails.
+
 ## Where the rest is written down
 
 - taheri.shop, the Mina catalogue and the ERP (`/api/public/*`, website routes), WhatsApp via WAHA: `docs/features/site-and-erp.md` (runbook `ops/waha/README.md`).
@@ -105,6 +112,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 
 **Navigation and the look**
 - [The map](docs/decisions.md#the-map) — the sidebar rows, the one tab row per screen, and `lib/nav.ts` as the only registry; grouped tabs: Analytics (Sales · Website · Social · Ads) and Settings in sections
+- [Parity](docs/decisions.md#parity) — `docs/parity.md` is the ledger of what web, iPhone and Android each have; ✓ / owed in the same commit; CI checks the exported nav
 - [Web matches the app](docs/decisions.md#web-matches-the-app) — the app's palette, flat 22px cards, capsules, tones in `lib/tones.ts`; spec `docs/features/web-matches-app.md`
 - [The name ERP](docs/decisions.md#the-name-erp) — ERP in every word people read; Shopify codes and code names stay POS
 - [Number fields](docs/decisions.md#number-fields) — and sale-flow fields show 0 as blank

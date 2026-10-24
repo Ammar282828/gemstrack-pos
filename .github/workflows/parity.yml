@@ -1,0 +1,83 @@
+# Keeps the web, iPhone and Android apps aligned (docs/parity.md, decisions.md#parity).
+#
+# (a) FAILS when the exported menu is stale: src/lib/nav.ts is the only menu; `npm run nav:export` writes
+#     apps/iphone/App/Resources/nav-<house>.json, which the iPhone bundles and the Android app reads from the
+#     same path (Gradle source set, no copy of its own). If the committed JSON differs, every app is on an old map.
+# (b) WARNS (never fails) when a push changes user-facing code on one or two of the three surfaces without
+#     touching docs/parity.md.
+name: Parity
+
+on:
+  push:
+    branches: ['claude/**', main]
+
+permissions:
+  contents: read
+
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PUPPETEER_SKIP_DOWNLOAD: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Surfaces changed without the ledger (warning only)
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          set -e
+          base="$BEFORE"
+          if [ -z "$base" ] || echo "$base" | grep -Eq '^0+$' || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            # New branch (zero sha) or a rewritten history: compare with main, else with the parent.
+            if git rev-parse --verify -q origin/main >/dev/null; then
+              base=$(git merge-base origin/main "$AFTER" || true)
+            fi
+            if [ -z "$base" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+              base=$(git rev-parse -q --verify "$AFTER^" || true)
+            fi
+          fi
+          if [ -z "$base" ]; then
+            echo "No base to compare with; skipping the surface check."
+            exit 0
+          fi
+          files=$(git diff --name-only "$base" "$AFTER" || true)
+          web=0; ios=0; and=0; ledger=0
+          if echo "$files" | grep -Eq '^src/(app|components)/' ; then web=1; fi
+          if echo "$files" | grep -Eq '^apps/iphone/App/' ; then ios=1; fi
+          if echo "$files" | grep -Eq '^apps/android/app/' ; then and=1; fi
+          if echo "$files" | grep -Fxq 'docs/parity.md' ; then ledger=1; fi
+          n=$((web + ios + and))
+          if [ "$n" -ge 1 ] && [ "$n" -le 2 ] && [ "$ledger" -eq 0 ]; then
+            names=""
+            if [ "$web" -eq 1 ]; then names="$names web"; fi
+            if [ "$ios" -eq 1 ]; then names="$names iPhone"; fi
+            if [ "$and" -eq 1 ]; then names="$names Android"; fi
+            echo "::warning title=Parity::This push changes user-facing code on${names} only, and docs/parity.md is untouched. Mark the feature's row done on that surface and owed on the others."
+          else
+            echo "Surfaces touched: $n, ledger touched: $ledger. Nothing to warn about."
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci --no-audit --no-fund
+
+      - name: The exported menu is current
+        run: |
+          set -e
+          npm run nav:export
+          if ! git diff --exit-code -- apps/iphone/App/Resources/nav-taheri.json apps/iphone/App/Resources/nav-mina.json; then
+            echo "::error title=Stale menu::src/lib/nav.ts changed but the exported menus did not. Run 'npm run nav:export' and commit apps/iphone/App/Resources/nav-*.json (the iPhone and Android apps both read them)."
+            exit 1
+          fi
+          if [ -n "$(git ls-files --others --exclude-standard -- apps/iphone/App/Resources)" ]; then
+            echo "::error title=Stale menu::nav:export wrote a file that is not committed."
+            exit 1
+          fi

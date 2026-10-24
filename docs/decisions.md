@@ -45,6 +45,17 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   batch (a karigar's), Extra revenue, Bank accounts, Design; never the Shopify note strings (`POS Invoice`, `POS-DISCOUNT`,
   `POS Item`).
 
+### Parity
+
+Owner, 2026-10-24: "I want a way to keep the web app / android app / ios app aligned at all times." **`docs/parity.md` is the one
+ledger** of what each surface (web, iPhone, Android) has: a table per area, a row per user-facing feature, ✓ / pg (the ERP's own page in
+the app) / wip / owed / n/a (with a reason), a since date and a pointer. The rule: a user-facing change updates its row **in the same
+commit** (✓ where built, owed where not); finishing a feature on one surface is relayed to the others' chats; the daily parity check,
+scheduled per surface, works that surface's owed rows. The menu is not a row: `src/lib/nav.ts` is the only map, `npm run nav:export`
+writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that same file (no copy), and `.github/workflows/parity.yml`
+**fails** a push whose export differs from what is committed, and **warns** (never fails) when a push changes `src/app|src/components`,
+`apps/iphone/App` or `apps/android/app` on one or two surfaces without touching the ledger.
+
 ### Web matches the app
 
 - **The web ERP wears the iPhone/iPad app's look** (owner, 2026-10-12: "re-skin the web ERP to match the native app as much as
