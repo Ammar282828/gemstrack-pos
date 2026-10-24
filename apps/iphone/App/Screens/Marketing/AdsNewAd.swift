@@ -4,6 +4,9 @@ import PhotosUI
 import UIKit
 #endif
 import ERPCore
+#if os(macOS)
+import UniformTypeIdentifiers
+#endif
 
 /// Ads → New ad (src/app/ads/new/page.tsx), in the order a shop thinks of it: what to promote (an Instagram
 /// post as it is, new photos from this phone or the ad account's library, a piece from the website, a new video, a
@@ -80,6 +83,10 @@ struct AdsNewAdScreen: View {
     @State private var sending = false
     @State private var made: AdsMade?
     @State private var failure: String?
+    #if os(macOS)
+    @State private var importing = false
+    @State private var dropping = false
+    #endif
 
     private var mayUse: Bool { session.role == "owner" || session.role == "marketing" }
 
@@ -443,6 +450,11 @@ struct AdsNewAdScreen: View {
             }
             return
         }
+        await uploadImage(image, key: key, token: token)
+    }
+
+    /// A picture made a JPEG of at most 2048 px and sent to Meta through the ERP, the entry `key` showing its state.
+    func uploadImage(_ image: UIImage, key: String, token: String?) async {
         let coded = await Task.detached(priority: .userInitiated) { () -> (Data?, Data?) in
             (AdsPhotoCodec.jpeg(from: image), AdsPhotoCodec.thumbnail(from: image))
         }.value
@@ -578,6 +590,14 @@ struct AdsNewAdScreen: View {
     // MARK: The form
 
     private func form(_ s: AdsStatusAnswer, _ l: AdsNewAdLists) -> some View {
+        #if os(macOS)
+        macForm(s, l)
+        #else
+        phoneForm(s, l)
+        #endif
+    }
+
+    private func phoneForm(_ s: AdsStatusAnswer, _ l: AdsNewAdLists) -> some View {
         List {
             Group {
                 AdsAlertsSection(status: s)
@@ -685,9 +705,17 @@ struct AdsNewAdScreen: View {
             if kind == .photos && photos.count < 10 {
                 HStack(spacing: 10) {
                     Button { picking = true } label: {
+                        #if os(macOS)
+                        Label(photos.isEmpty ? "From Photos" : "Add more", systemImage: "photo.badge.plus")
+                        #else
                         Label(photos.isEmpty ? "From this phone" : "Add more", systemImage: "photo.badge.plus")
+                        #endif
                     }
                     .buttonStyle(.bordered)
+                    #if os(macOS)
+                    Button { importing = true } label: { Label("From files…", systemImage: "folder") }
+                        .buttonStyle(.bordered)
+                    #endif
                     Button { libraryOpen = true } label: {
                         Label("Ad account photos", systemImage: "photo.stack")
                     }
@@ -995,7 +1023,7 @@ struct AdsNewAdScreen: View {
     }
 
     /// The page's one action, pinned: the server's check opens the confirmation.
-    private var reviewBar: some View {
+    var reviewBar: some View {
         ActionBar(primary: .init(launch == "live" ? "Review and put it live" : "Review and make it, paused",
                                  isBusy: checking || sending, isDisabled: stillUploading) { Task { await review() } },
                   summary: stillUploading ? (kind == .video ? "Wait for the video to reach Meta." : "Wait for the photos to reach Meta.") : nil)
@@ -1042,3 +1070,142 @@ struct AdsNewAdScreen: View {
         .readableColumn(780)
     }
 }
+
+#if os(macOS)
+extension AdsNewAdScreen {
+    /// One window: the steps as sections of a form on the left, the ad as it will look in a column on the right that
+    /// follows what is typed. Return reviews it; the footer holds the one action.
+    func macForm(_ s: AdsStatusAnswer, _ l: AdsNewAdLists) -> some View {
+        HStack(spacing: 0) {
+            List {
+                Group {
+                    AdsAlertsSection(status: s)
+                    if let notice {
+                        Section { Label(notice, systemImage: "info.circle").font(.subheadline) }
+                    }
+                    promoteSections(s, l)
+                    goalSection(l)
+                    if !asIs { wordsSection(l) }
+                    audienceSection
+                    budgetSection(s)
+                    AdsAdvancedSection(advanced: $advanced, needsTotal: { budgetKind = "total"; if days == nil { days = 7 } },
+                                       sales: goalKey == "sales", currency: s.currency)
+                    quietSection
+                    makeSections
+                }
+                .houseRows()
+            }
+            .listStyle(.inset)
+            .frame(minWidth: 520)
+            Divider()
+            macPreviewColumn(s, l)
+                .frame(width: 360)
+        }
+        .overlay {
+            if dropping {
+                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                    .strokeBorder(Theme.accent, style: StrokeStyle(lineWidth: 3, dash: [8]))
+                    .padding(8)
+                    .allowsHitTesting(false)
+            }
+        }
+        .dropDestination(for: URL.self) { (urls: [URL], _) in
+            guard kind == .photos, photos.count < 10 else { return false }
+            Task { await takeFiles(urls) }
+            return true
+        } isTargeted: { dropping = $0 }
+        .fileImporter(isPresented: $importing, allowedContentTypes: [.image], allowsMultipleSelection: true) { (result: Result<[URL], Error>) in
+            if case .success(let urls) = result { Task { await takeFiles(urls) } }
+        }
+        .actionBar(primary: .init(launch == "live" ? "Review and put it live" : "Review and make it, paused",
+                                  isBusy: checking || sending, isDisabled: stillUploading) { Task { await review() } },
+                   summary: stillUploading ? (kind == .video ? "Wait for the video to reach Meta." : "Wait for the photos to reach Meta.") : nil)
+    }
+
+    /// Picture files from the Mac, each sent to Meta like a photo from Photos.
+    private func takeFiles(_ urls: [URL]) async {
+        let room = max(0, 10 - photos.count)
+        let chosen = Array(urls.prefix(room))
+        guard !chosen.isEmpty else { return }
+        let token = await session.idToken()
+        for url in chosen {
+            let key = UUID().uuidString
+            photos.append(AdsPhoto(key: key, uploading: true))
+            let scoped = url.startAccessingSecurityScopedResource()
+            let data = try? Data(contentsOf: url)
+            if scoped { url.stopAccessingSecurityScopedResource() }
+            guard let data, let image = UIImage(data: data) else {
+                update(key) { (p: inout AdsPhoto) in
+                    p.uploading = false
+                    p.error = "Couldn't read that picture. Try another."
+                }
+                continue
+            }
+            Task { await uploadImage(image, key: key, token: token) }
+        }
+    }
+
+    /// The ad as the first photo, headline, words and button will show it, and Meta's own preview behind a button.
+    private func macPreviewColumn(_ s: AdsStatusAnswer, _ l: AdsNewAdLists) -> some View {
+        let picture: String? = {
+            switch kind {
+            case .post: return post?.thumb
+            case .photos, .site: return readyPhotos.first.flatMap { (p: AdsPhoto) in p.thumb ?? p.url } ?? photos.first.flatMap { (p: AdsPhoto) in p.thumb ?? p.url }
+            default: return nil
+            }
+        }()
+        let words = asIs ? (post?.caption ?? "") : text
+        let buttonLabel = l.buttons.first { (b: AdsChoice) in b.key == button }?.label ?? ""
+        return ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                LedgerHeading(title: "How it will look")
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "person.crop.circle.fill").font(.title2).foregroundStyle(.secondary)
+                        Text(s.settings?.instagramUsername.map { (u: String) in "@" + u } ?? "Your page").font(.subheadline.weight(.semibold))
+                        Spacer()
+                        Text("Sponsored").font(.caption).foregroundStyle(.secondary)
+                    }
+                    if picture == nil, kind == .photos || kind == .site, let data = photos.first?.preview, let image = UIImage(data: data) {
+                        Image(uiImage: image).resizable().scaledToFill()
+                            .aspectRatio(1, contentMode: .fit)
+                            .clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))
+                    } else if let picture {
+                        StockImage(imageUrl: picture, name: headline, key: "preview-" + picture)
+                            .aspectRatio(1, contentMode: .fit)
+                            .clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))
+                    } else {
+                        RoundedRectangle(cornerRadius: Radius.tile, style: .continuous).fill(.quaternary)
+                            .aspectRatio(1, contentMode: .fit)
+                            .overlay { Image(systemName: "photo").font(.largeTitle).foregroundStyle(.secondary) }
+                    }
+                    if !words.isEmpty { Text(words).font(.callout).lineLimit(6) }
+                    if !headline.isEmpty || (goal?.toSite == true && !buttonLabel.isEmpty) {
+                        HStack {
+                            Text(headline).font(.subheadline.weight(.semibold)).lineLimit(2)
+                            Spacer(minLength: 8)
+                            if goal?.toSite == true, !buttonLabel.isEmpty {
+                                Text(buttonLabel).font(.caption.weight(.semibold))
+                                    .padding(.horizontal, 10).padding(.vertical, 5)
+                                    .background(.quaternary, in: .capsule)
+                            }
+                        }
+                    }
+                }
+                .padding(14)
+                .background(Theme.card, in: .rect(cornerRadius: Radius.card, style: .continuous))
+                Button { Task { await showPreview() } } label: {
+                    Label(previewBusy ? "Asking Meta…" : "See it as Instagram will show it", systemImage: "eye")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .disabled(previewBusy || !previewable)
+                Text("This is a sketch from what is typed. Meta's own preview shows feed, stories and reels exactly.")
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
+            .padding(20)
+        }
+        .background(Theme.ground)
+    }
+}
+#endif

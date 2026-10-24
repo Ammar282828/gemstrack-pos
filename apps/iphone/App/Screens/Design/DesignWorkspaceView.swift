@@ -24,6 +24,9 @@ struct DesignWorkspaceView: View {
     @State private var devicePicker = false
     @State private var removing: DesignPageState?
     @State private var safe = true
+    #if os(macOS)
+    @State private var inspectorOn = true
+    #endif
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.layoutWidthClass) private var sizeClass
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -42,6 +45,7 @@ struct DesignWorkspaceView: View {
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
         .sheet(item: $editing, onDismiss: { model.endEditing() }) { target in
             ArtworkEditor(doc: model.docBinding(target.pageId), photos: model.photos, fields: model.work?.fields ?? [:], ad: model.work?.kind == "ad")
+                .macSheetSize(minWidth: 980, minHeight: 700)
         }
         .sheet(item: $model.sheet) { $0.shown }
         .photosPicker(isPresented: $devicePicker, selection: $picked, matching: .images)
@@ -71,6 +75,14 @@ struct DesignWorkspaceView: View {
     }
 
     private func content(_ w: DesignWork) -> some View {
+        #if os(macOS)
+        macContent(w)
+        #else
+        phoneContent(w)
+        #endif
+    }
+
+    private func phoneContent(_ w: DesignWork) -> some View {
         Group {
             if wide { wideContent(w) } else { narrowContent(w) }
         }
@@ -101,6 +113,22 @@ struct DesignWorkspaceView: View {
                 if id != nil { Motion.run(Motion.travel, reduce: reduceMotion) { proxy.scrollTo("candidate", anchor: .top) } }
             }
         }
+    }
+
+    /// The device the photograph can come from.
+    private static var deviceName: String {
+        #if os(macOS)
+        "This Mac"
+        #else
+        "This device"
+        #endif
+    }
+    private static var deviceSymbol: String {
+        #if os(macOS)
+        "desktopcomputer"
+        #else
+        "iphone"
+        #endif
     }
 
     /// The page and its sizes on the left (each scrolls on its own), the name, words and photograph on the right.
@@ -146,7 +174,7 @@ struct DesignWorkspaceView: View {
             TextField(w.fields["headline"].flatMap { $0.isEmpty ? nil : $0 } ?? "Name this design", text: Binding(get: { model.work?.name ?? "" }, set: { model.rename($0) }))
                 .font(.title3.weight(.semibold)).submitLabel(.done)
             if let at = model.draftSaved {
-                Text("Draft kept on this phone " + ShopDate.stamp(at, withTime: true)).font(.caption).foregroundStyle(.secondary)
+                Text("Draft kept on \(DesignDraftLine.device) " + ShopDate.stamp(at, withTime: true)).font(.caption).foregroundStyle(.secondary)
             }
         }
         .ledgerCard()
@@ -247,7 +275,7 @@ struct DesignWorkspaceView: View {
                 Button { onChangePhoto() } label: { Label("Browse photos", systemImage: "photo.on.rectangle") }
                 Button { sitePicker = true } label: { Label("From the website", systemImage: "globe") }
                 // A PhotosPicker inside a Menu loses its sheet when the menu closes: the picker is presented from the screen (`.photosPicker`).
-                Button { devicePicker = true } label: { Label("This device", systemImage: "iphone") }
+                Button { devicePicker = true } label: { Label(Self.deviceName, systemImage: Self.deviceSymbol) }
                 if MarketingCamera.available { Button { camera = true } label: { Label("Camera", systemImage: "camera") } }
             } label: { Label(model.photos["photo"] == nil ? "Choose a photograph" : "Change the photograph", systemImage: "photo.badge.plus").frame(maxWidth: .infinity) }
                 .buttonStyle(.bordered).controlSize(.large)
@@ -337,16 +365,23 @@ private struct PageCell: View {
         .overlay(RoundedRectangle(cornerRadius: Radius.chip, style: .continuous).strokeBorder(on ? Theme.accent : Color.secondary.opacity(0.18), lineWidth: on ? 1.5 : 1))
         .accessibilityElement(children: .contain)
         .task(id: "\(page.id)-\(page.rev)-\(model.tick)") { await model.refreshThumb(page.id) }
+        #if os(macOS)
+        .contextMenu { actions }
+        #endif
+    }
+
+    @ViewBuilder private var actions: some View {
+        if work.stale.contains(page.id) {
+            // PHASE 2: DesignHooks.redoFromMaster.
+            Button { DesignHooks.shared.redoFromMaster(model, page.id) } label: { Label("Re-do from the master", systemImage: "arrow.clockwise") }
+        }
+        if page.id != work.master { Button { model.setMaster(page.id) } label: { Label("Make this the master", systemImage: "star") } }
+        if work.pages.count > 1 { Button(role: .destructive) { removing = page } label: { Label("Take this size out", systemImage: "trash") } }
     }
 
     private var menu: some View {
         Menu {
-            if work.stale.contains(page.id) {
-                // PHASE 2: DesignHooks.redoFromMaster.
-                Button { DesignHooks.shared.redoFromMaster(model, page.id) } label: { Label("Re-do from the master", systemImage: "arrow.clockwise") }
-            }
-            if page.id != work.master { Button { model.setMaster(page.id) } label: { Label("Make this the master", systemImage: "star") } }
-            if work.pages.count > 1 { Button(role: .destructive) { removing = page } label: { Label("Take this size out", systemImage: "trash") } }
+            actions
         } label: { Image(systemName: "ellipsis.circle").font(.footnote) }
             .accessibilityLabel("This size")
     }
@@ -397,3 +432,141 @@ private struct DesignPhotoThumb: View {
         .task(id: model.tick) { image = model.photos["photo"].flatMap { WebsitePhoto.thumbnail($0, maxPixel: 160) } }
     }
 }
+
+#if os(macOS)
+extension DesignWorkspaceView {
+    /// The workspace as a Mac editor: the sizes down the left, the page large in the middle, the name, words and photograph in
+    /// an inspector column on the right (⌥⌘I hides it). Edit design ⌘E, Save ⌘S and Publish ⌘↩ are in the toolbar; a picture
+    /// dropped on the window becomes the photograph.
+    fileprivate func macContent(_ w: DesignWork) -> some View {
+        let page = w.activePage
+        let zone = DesignSizes.safeZone(h: page.h)
+        return HStack(spacing: 0) {
+            ScrollView {
+                VStack(spacing: 10) {
+                    ForEach(w.pages) { p in PageCell(model: model, work: w, page: p, removing: $removing) }
+                    Button { DesignHooks.shared.resize(model) } label: {
+                        VStack(spacing: 6) {
+                            Image(systemName: "plus").font(.title3)
+                            Text("Size").font(.caption)
+                        }
+                        .foregroundStyle(.secondary).frame(width: 84, height: 64)
+                        .overlay(RoundedRectangle(cornerRadius: Radius.chip, style: .continuous).strokeBorder(.secondary.opacity(0.4), style: StrokeStyle(lineWidth: 1.5, dash: [5, 4])))
+                    }
+                    .buttonStyle(.plain).help("Add a size: the master's design on another shape")
+                    .accessibilityLabel("Resize: add a size")
+                }
+                .padding(10)
+            }
+            .frame(width: 124)
+            Divider()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    DesignCandidateBanner(model: model)
+                    HStack {
+                        Text(page.label).font(.headline)
+                        Text("\(Int(page.w))×\(Int(page.h))").font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
+                        Spacer(minLength: 0)
+                    }
+                    Group {
+                        if let image = model.previews[page.id] {
+                            Image(uiImage: image).resizable().scaledToFit()
+                                .overlay { if safe && zone.top > 0 { SafeZones(top: zone.top / page.h, bottom: zone.bottom / page.h) } }
+                        } else { SkeletonLoading("Drawing the page").frame(maxWidth: .infinity, minHeight: 320) }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: 760)
+                    .clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))
+                    .shadow(color: .black.opacity(0.12), radius: 8, y: 2)
+                    .onTapGesture(count: 2) { model.beginEditing(page.id); editing = DesignEditTarget(pageId: page.id) }
+                    .help("Double-click to edit the design")
+                    .task(id: "\(page.id)-\(page.rev)-\(model.tick)") { await model.refreshPreview(page.id) }
+                    if w.stale.contains(page.id) {
+                        Text("This size is behind the master. Re-do it from the master, or leave it as it is.").font(.footnote).foregroundStyle(Tone.owed.color)
+                    }
+                }
+                .padding(24)
+                .frame(maxWidth: 900)
+                .frame(maxWidth: .infinity)
+            }
+            .frame(minWidth: 380, maxWidth: .infinity)
+        }
+        .inspector(isPresented: $inspectorOn) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    macInspectorHeader(w)
+                    words(w)
+                    photograph
+                    if w.kind == "ad" || !(w.copy["adText"] ?? "").isEmpty { adCopy }
+                }
+                .padding(16)
+            }
+            .inspectorColumnWidth(min: 300, ideal: 350, max: 460)
+        }
+        .navigationSubtitle(w.dirty ? "Not saved" : "Saved")
+        .toolbar {
+            ToolbarItem(placement: .navigation) {
+                Button(action: onClose) { Label("Designs", systemImage: "chevron.left") }
+                    .help("Back to all designs")
+            }
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button { model.beginEditing(page.id); editing = DesignEditTarget(pageId: page.id) } label: {
+                    Label("Edit design", systemImage: "slider.horizontal.3")
+                }
+                .keyboardShortcut("e", modifiers: .command)
+                .help("Edit this page's layers (⌘E)")
+                Menu {
+                    let layouts = model.templates
+                    ForEach(layouts) { t in Button(t.label) { Task { await model.applyTemplate(t.id) } } }
+                    if layouts.isEmpty { Text("Layouts are loading") }
+                } label: { Label("Layout", systemImage: "rectangle.3.group") }
+                .help("Lay this page out again")
+                if zone.top > 0 {
+                    Toggle(isOn: $safe) { Label("Safe zones", systemImage: "rectangle.split.1x2") }
+                        .help("Show the bands Instagram covers")
+                }
+                Button { DesignHooks.shared.resize(model) } label: { Label("Resize", systemImage: "arrow.up.left.and.arrow.down.right") }
+                    .keyboardShortcut("r", modifiers: [.command, .option])
+                    .help("Make the design on another shape (⌥⌘R)")
+                Button { inspectorOn.toggle() } label: { Label("Inspector", systemImage: "sidebar.trailing") }
+                    .keyboardShortcut("i", modifiers: [.command, .option])
+                    .help("Show or hide the words and photograph (⌥⌘I)")
+            }
+            ToolbarItemGroup(placement: .confirmationAction) {
+                Button { Task { await model.saveInBackground() } } label: {
+                    if model.saving || model.uploading { ProgressView().controlSize(.small) } else { Label("Save", systemImage: "square.and.arrow.down") }
+                }
+                .keyboardShortcut("s", modifiers: .command)
+                .disabled(model.saving || model.uploading)
+                .help("Save to the shelf (⌘S)")
+                Button { DesignHooks.shared.publish(model) } label: { Label("Publish", systemImage: "paperplane") }
+                    .keyboardShortcut(.return, modifiers: .command)
+                    .disabled(model.saving)
+                    .help("Send it to the website, WhatsApp, Instagram or an ad (⌘↩)")
+            }
+        }
+        .dropDestination(for: URL.self) { urls, _ in
+            guard let url = urls.first else { return false }
+            let open = url.startAccessingSecurityScopedResource()
+            defer { if open { url.stopAccessingSecurityScopedResource() } }
+            guard let data = try? Data(contentsOf: url), WebsitePhoto.jpegCopy(data) != nil else {
+                model.error = "That is not a picture the ERP can read. Drop a photograph (JPEG, PNG or HEIC)."
+                return true
+            }
+            model.replacePhoto(data, label: url.lastPathComponent)
+            return true
+        }
+    }
+
+    private func macInspectorHeader(_ w: DesignWork) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Pill(DesignKinds.label(w.kind), tone: .house)
+            TextField(w.fields["headline"].flatMap { $0.isEmpty ? nil : $0 } ?? "Name this design", text: Binding(get: { model.work?.name ?? "" }, set: { model.rename($0) }))
+                .font(.title3.weight(.semibold))
+                .textFieldStyle(.roundedBorder)
+            if let at = model.draftSaved {
+                Text("Draft kept on this Mac " + ShopDate.stamp(at, withTime: true)).font(.caption).foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+#endif

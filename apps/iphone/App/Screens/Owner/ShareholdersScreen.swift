@@ -71,6 +71,11 @@ private struct ShareholdersBoard: View {
     /// Bumped when the floor is saved, so the money tap fires on the event.
     @State private var floorSaved = 0
     @State private var showHistory = false
+    #if os(macOS)
+    /// The distribution calculator sits in the window's inspector; the toolbar button shows and hides it.
+    @State private var macCalc = true
+    @State private var macPick = Set<String>()
+    #endif
 
     private var ready: Bool {
         book.expenses.loaded && book.invoices.loaded && book.orders.loaded && book.revenue.loaded
@@ -96,6 +101,12 @@ private struct ShareholdersBoard: View {
                     Label("Add", systemImage: "plus")
                 }
             }
+            #if os(macOS)
+            ToolbarItem(placement: .automatic) {
+                Button { macCalc.toggle() } label: { Label("Distribution calculator", systemImage: "sidebar.right") }
+                    .help("Show or hide the distribution calculator")
+            }
+            #endif
         }
         .sheet(item: $asking) { (a: ShareholderAsk) in
             ShareholderEntrySheet(ask: a, salaryPaid: salaryPaid) { (saved: Note) in
@@ -148,6 +159,9 @@ private struct ShareholdersBoard: View {
     @ViewBuilder
     private var content: some View {
         let f = reckon()
+        #if os(macOS)
+        macBoard(f)
+        #else
         List {
             Group {
                 tilesSection(f.totals)
@@ -161,6 +175,7 @@ private struct ShareholdersBoard: View {
         .scrollDismissesKeyboard(.interactively)
         .keyboardDone()
         .motion(Self.shows(cashText))
+        #endif
     }
 
     /// Whether the calculator has any cash to spread, for the animation that opens its rows.
@@ -253,18 +268,23 @@ private struct ShareholdersBoard: View {
         )
         .swipeActions {
             Button(role: .destructive) {
-                var d = OwnerDeletion(
-                    what: "Delete expense \"\(e.description)\"",
-                    detail: "Remove this salary payment? \(e.description) \u{2014} \(ShareholderMoney.fmt(e.amount)). It will be deleted from Expenses too."
-                ) { code in
-                    _ = try await ERPAPI.shared.write("deletePartnerSalary", ["expenseId": e.id, "deleteCode": code])
-                }
-                d.removedTitle = "Salary payment removed"
-                deletion = d
+                askToDeleteSalary(e)
             } label: {
                 Label("Delete", systemImage: "trash")
             }
         }
+    }
+
+    /// The code is asked with the delete; the salary goes from Expenses too.
+    private func askToDeleteSalary(_ e: Expense) {
+        var d = OwnerDeletion(
+            what: "Delete expense \"\(e.description)\"",
+            detail: "Remove this salary payment? \(e.description) \u{2014} \(ShareholderMoney.fmt(e.amount)). It will be deleted from Expenses too."
+        ) { code in
+            _ = try await ERPAPI.shared.write("deletePartnerSalary", ["expenseId": e.id, "deleteCode": code])
+        }
+        d.removedTitle = "Salary payment removed"
+        deletion = d
     }
 
     private func ledgerRow(_ r: ShareholderLedgerRow, of p: ShareholderFigures.Position) -> some View {
@@ -280,16 +300,22 @@ private struct ShareholdersBoard: View {
         )
         .swipeActions {
             Button(role: .destructive) {
-                deletion = OwnerDeletion(
-                    what: "Delete this \(p.name) ledger entry",
-                    detail: "Remove this entry? \(r.description) \u{2014} \(ShareholderMoney.fmt(r.amount))."
-                        + (linked ? " The matching Partner Drawings expense will be deleted too." : "")
-                ) { code in
-                    _ = try await ERPAPI.shared.write("deleteShareholderEntry", ["shareholderId": p.id, "entryId": r.id, "deleteCode": code])
-                }
+                askToDeleteEntry(r, of: p)
             } label: {
                 Label("Delete", systemImage: "trash")
             }
+        }
+    }
+
+    /// The code is asked with the delete; a draw's matching Partner Drawings expense goes with it.
+    private func askToDeleteEntry(_ r: ShareholderLedgerRow, of p: ShareholderFigures.Position) {
+        let linked = r.linkedExpenseId != nil
+        deletion = OwnerDeletion(
+            what: "Delete this \(p.name) ledger entry",
+            detail: "Remove this entry? \(r.description) \u{2014} \(ShareholderMoney.fmt(r.amount))."
+                + (linked ? " The matching Partner Drawings expense will be deleted too." : "")
+        ) { code in
+            _ = try await ERPAPI.shared.write("deleteShareholderEntry", ["shareholderId": p.id, "entryId": r.id, "deleteCode": code])
         }
     }
 
@@ -447,3 +473,150 @@ private struct ShareholdersBoard: View {
         savingFloor = false
     }
 }
+
+#if os(macOS)
+
+// MARK: - The Mac board
+
+/// One line of a partner's book as a table row: a salary paid, or an entry of their ledger.
+private struct PartnerMacRow: Identifiable {
+    let id: String
+    let day: String
+    let what: String
+    let kind: String
+    let amount: Double
+    let isIn: Bool
+    let salary: Expense?
+    let entry: ShareholderLedgerRow?
+}
+
+/// Shareholders as a Mac window: the totals across the top, the two partners side by side (their position over their
+/// book as a table), and the distribution calculator in the inspector. Right-click or ⌫ deletes an entry (the delete
+/// code is asked); "Pay salary", "Add a contribution" and "Withdraw capital" are on each partner's header and in the
+/// toolbar's Add menu. Every figure is the page's own.
+extension ShareholdersBoard {
+    private func macBoard(_ f: ShareholderBoardFigures) -> some View {
+        let share = f.totals.revShare - f.totals.expShare
+        return VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .top, spacing: 12) {
+                    FigureTile(label: "Revenue", value: ShareholderMoney.fmt(f.totals.totalRevenue))
+                    FigureTile(label: "Expenses", value: ShareholderMoney.fmt(f.totals.totalExpenses))
+                    FigureTile(label: "Each partner's share", value: ShareholderMoney.signed(share), tint: share >= 0 ? Color.primary : Tone.owed.color)
+                }
+                Text("Divided equally \u{00B7} expenses from \(OwnerText.shortDate(ShareholderFigures.expenseCutoff)) \u{00B7} revenue from Shopify #1103")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(14)
+            Divider()
+            HSplitView {
+                ForEach(f.positions) { (p: ShareholderFigures.Position) in
+                    macPartner(p)
+                        .frame(minWidth: 380)
+                }
+            }
+        }
+        .background(Theme.ground)
+        .inspector(isPresented: $macCalc) {
+            Form {
+                distributionSection(f.positions)
+                notesSection(f)
+            }
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+            .inspectorColumnWidth(min: 300, ideal: 360, max: 460)
+        }
+    }
+
+    private func macRows(_ p: ShareholderFigures.Position) -> [PartnerMacRow] {
+        var out: [PartnerMacRow] = []
+        for e in p.salaries {
+            out.append(PartnerMacRow(id: "salary-" + e.id, day: e.date,
+                                     what: e.description.replacingOccurrences(of: "\(p.name) salary \u{2014} ", with: ""),
+                                     kind: "Salary \u{00B7} a business cost", amount: e.amount, isIn: false, salary: e, entry: nil))
+        }
+        for r in p.rows {
+            var kind = r.category == .loan ? "Loan" : "Equity"
+            if r.linkedExpenseId != nil { kind += " \u{00B7} logged as an expense" }
+            out.append(PartnerMacRow(id: "entry-" + r.id, day: r.date, what: r.description, kind: kind,
+                                     amount: r.amount, isIn: r.type == .payment, salary: nil, entry: r))
+        }
+        return out.sorted { $0.day > $1.day }
+    }
+
+    private func macPartner(_ p: ShareholderFigures.Position) -> some View {
+        let claim = p.balance.totalClaim
+        let owed = claim > 0
+        let words = owed ? "The business owes \(p.name)" : (claim < 0 ? "\(p.name) owes the business" : "All settled")
+        let tone: Color = owed ? Tone.credit.color : (claim < 0 ? Tone.owed.color : Color.primary)
+        let rows = macRows(p)
+        return VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(p.name).font(.system(.title2, design: .serif).weight(.semibold))
+                    Spacer(minLength: 8)
+                    Menu {
+                        Button { asking = ShareholderAsk(move: .salary, who: p.id) } label: { Label("Pay salary", systemImage: "banknote") }
+                        Button { asking = ShareholderAsk(move: .contribution, who: p.id) } label: { Label("Add a contribution", systemImage: "plus.circle") }
+                        Button { asking = ShareholderAsk(move: .withdrawal, who: p.id) } label: { Label("Withdraw capital", systemImage: "arrow.up.right.circle") }
+                    } label: {
+                        Label("Record", systemImage: "plus")
+                    }
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
+                    .help("Pay a salary, add a contribution or withdraw capital for \(p.name)")
+                }
+                HStack(alignment: .firstTextBaseline) {
+                    Text(words).foregroundStyle(.secondary)
+                    Spacer(minLength: 8)
+                    HeroAmount(amount: abs(claim.rounded()), tone: tone)
+                }
+                Divider()
+                LabeledContent("Loan to the business") { RowAmount(amount: abs(p.balance.loanBalance.rounded())) }
+                LabeledContent("Equity in the business") { RowAmount(amount: abs(p.balance.equityBalance.rounded())) }
+                LabeledContent("Half of profit & loss") {
+                    Text(ShareholderMoney.signed(p.balance.netPnL))
+                        .monospacedDigit()
+                        .foregroundStyle(p.balance.netPnL >= 0 ? Color.primary : Tone.owed.color)
+                }
+                HStack(alignment: .top, spacing: 8) {
+                    smallFigure("Contributed", p.contributed, symbol: "arrow.down.left")
+                    smallFigure("Salary", p.salaryPaid, symbol: "banknote")
+                    smallFigure("Capital drawn", p.withdrawn, symbol: "arrow.up.right")
+                }
+            }
+            .padding(14)
+            Divider()
+            Table(rows, selection: $macPick) {
+                TableColumn("Date") { (r: PartnerMacRow) in Text(OwnerText.shortDate(r.day)) }.width(min: 80, ideal: 100)
+                TableColumn("What") { (r: PartnerMacRow) in
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(r.what)
+                        Text(r.kind).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                TableColumn("Amount") { (r: PartnerMacRow) in
+                    Text(r.salary != nil ? ShareholderMoney.fmt(r.amount) : "\(r.isIn ? "+" : "\u{2212}")\(ShareholderMoney.fmt(r.amount))")
+                        .monospacedDigit()
+                        .foregroundStyle(r.salary != nil ? Color.primary : (r.isIn ? Tone.settled.color : Tone.owed.color))
+                }
+                .width(min: 100, ideal: 120)
+            }
+            .contextMenu(forSelectionType: String.self) { ids in
+                if let id = ids.first, let r = rows.first(where: { $0.id == id }) {
+                    Button(role: .destructive) { macDelete(r, of: p) } label: { Label("Delete", systemImage: "trash") }
+                }
+            }
+            .onDeleteCommand {
+                if macPick.count == 1, let id = macPick.first, let r = rows.first(where: { $0.id == id }) { macDelete(r, of: p) }
+            }
+            .overlay { if rows.isEmpty { ContentUnavailableView("No entries recorded", systemImage: "tray") } }
+        }
+    }
+
+    private func macDelete(_ r: PartnerMacRow, of p: ShareholderFigures.Position) {
+        if let e = r.salary { askToDeleteSalary(e) } else if let entry = r.entry { askToDeleteEntry(entry, of: p) }
+    }
+}
+#endif

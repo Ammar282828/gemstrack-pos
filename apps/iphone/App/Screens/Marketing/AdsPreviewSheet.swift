@@ -41,6 +41,9 @@ struct AdsPreviewSheet: View {
                 ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
             }
         }
+        #if os(macOS)
+        .frame(minWidth: 520, minHeight: 760)
+        #endif
     }
 }
 
