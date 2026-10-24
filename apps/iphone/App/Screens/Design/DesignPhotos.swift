@@ -11,10 +11,19 @@ struct DesignPhotosView: View {
     var body: some View {
         VStack(spacing: 0) {
             if DesignPhotoPart.offered(access).count > 1 {
+                #if os(macOS)
+                Picker("Photos from", selection: $part) {
+                    ForEach(DesignPhotoPart.offered(access)) { Text($0.title).tag($0) }
+                }
+                .pickerStyle(.segmented).labelsHidden()
+                .frame(maxWidth: 420)
+                .padding(.vertical, 10)
+                #else
                 ChipRow {
                     ForEach(DesignPhotoPart.offered(access)) { p in FilterChip(title: p.title, chosen: part == p) { part = p } }
                 }
                 .padding(.vertical, 4)
+                #endif
             }
             switch part {
             case .site: DesignSitePieces(onPick: onPick)
@@ -60,11 +69,12 @@ struct DesignSitePieces: View {
                 else if !loaded { SkeletonLoading("Reading the website").padding(.horizontal, 16) }
                 else if filtered.isEmpty { EmptyState("No pieces", symbol: "globe", message: "Nothing on the website matches.") }
                 else {
-                    Text("\(filtered.count) of \(pieces.count) pieces. Tap one to design it.").font(.footnote).foregroundStyle(.secondary).padding(.horizontal, 16)
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 104), spacing: 10)], spacing: 10) {
+                    Text("\(filtered.count) of \(pieces.count) pieces. \(DesignPhotoGrid.pickVerb) one to design it.").font(.footnote).foregroundStyle(.secondary).padding(.horizontal, 16)
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: DesignPhotoGrid.cell), spacing: 10)], spacing: 10) {
                         ForEach(Array(filtered.prefix(shown)), id: \.text) { p in
                             Button { onPick(DesignPhotoSources.site(p)) } label: { PieceCell(name: p.s("name"), sub: p.s("collection"), thumb: p.s("thumb", p.s("image"))) }
                                 .buttonStyle(.plain)
+                                .designPieceMenu { onPick(DesignPhotoSources.site(p)) }
                         }
                     }.padding(.horizontal, 16)
                     if filtered.count > shown { Button("Show more (\(filtered.count - shown) left)") { shown += 60 }.frame(maxWidth: .infinity) }
@@ -132,11 +142,12 @@ struct DesignLibraryPhotos: View {
                 else if !loaded { SkeletonLoading("Loading the photos").padding(.horizontal, 16) }
                 else if rows.isEmpty { EmptyState("No photos", symbol: "photo", message: "No photos match.") }
                 else {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 104), spacing: 10)], spacing: 10) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: DesignPhotoGrid.cell), spacing: 10)], spacing: 10) {
                         ForEach(rows, id: \.text) { item in
                             Button { onPick(DesignPhotoSources.library(item)) } label: {
                                 PieceCell(name: item.s("name"), sub: item["adScore"] == .null ? item.s("collection") : "Ad score \(Int(item.n("adScore")))", thumb: item.s("thumb"))
                             }.buttonStyle(.plain)
+                                .designPieceMenu { onPick(DesignPhotoSources.library(item)) }
                         }
                     }.padding(.horizontal, 16)
                     if rows.count < total { Button("Show more") { Task { await load(more: true) } }.frame(maxWidth: .infinity) }
@@ -165,5 +176,34 @@ struct DesignLibraryPhotos: View {
             error = nil
         } catch { if !Task.isCancelled { self.error = error.localizedDescription } }
         loaded = true
+    }
+}
+
+
+/// The photograph grids: bigger cells and "click" on the Mac, and a right-click menu to design the piece.
+enum DesignPhotoGrid {
+    static var cell: CGFloat {
+        #if os(macOS)
+        150
+        #else
+        104
+        #endif
+    }
+    static var pickVerb: String {
+        #if os(macOS)
+        "Click"
+        #else
+        "Tap"
+        #endif
+    }
+}
+
+private extension View {
+    @ViewBuilder func designPieceMenu(_ use: @escaping () -> Void) -> some View {
+        #if os(macOS)
+        self.pointerHover().contextMenu { Button("Design this piece", systemImage: "wand.and.stars", action: use) }
+        #else
+        self
+        #endif
     }
 }

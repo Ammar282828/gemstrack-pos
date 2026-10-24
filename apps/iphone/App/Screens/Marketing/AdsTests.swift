@@ -92,6 +92,14 @@ struct AdsTestsScreen: View {
     // MARK: The page
 
     private func content(_ s: AdsStatusAnswer) -> some View {
+        #if os(macOS)
+        macContent(s)
+        #else
+        phoneContent(s)
+        #endif
+    }
+
+    private func phoneContent(_ s: AdsStatusAnswer) -> some View {
         List {
             Group {
                 AdsAlertsSection(status: s)
@@ -291,3 +299,39 @@ struct AdsTestsAnswer: Decodable {
         adsets = c.list(.adsets, of: AdsTestAdset.self).filter { (a: AdsTestAdset) in !a.id.isEmpty }
     }
 }
+
+#if os(macOS)
+extension AdsTestsScreen {
+    /// Making a test (the ad sets to split) on the left; the tests so far with their sides on the right.
+    func macContent(_ s: AdsStatusAnswer) -> some View {
+        MacTwoPane(sideWidth: 460) {
+            List {
+                Group {
+                    AdsAlertsSection(status: s)
+                    if let loadProblem {
+                        Section {
+                            Label(loadProblem, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color)
+                            Button("Try again") { Task { await loadTests() } }
+                        }
+                    }
+                    newSection
+                }
+                .houseRows()
+            }
+            .listStyle(.inset)
+        } main: {
+            List {
+                Group { testsSection(s) }.houseRows()
+            }
+            .listStyle(.inset)
+        }
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button { Task { await loadTests() } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
+                    .keyboardShortcut("r", modifiers: .command)
+                    .help("Read the tests again")
+            }
+        }
+    }
+}
+#endif

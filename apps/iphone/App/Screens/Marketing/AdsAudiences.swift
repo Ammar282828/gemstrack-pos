@@ -28,6 +28,10 @@ struct AdsAudiencesScreen: View {
     @State private var note: Note?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var failure: String?
+    #if os(macOS)
+    @State private var macPicked = Set<String>()
+    @State private var macOrder = [KeyPathComparator(\AdsAudienceRow.name)]
+    #endif
 
     private static let countries = [
         AdsChoice(key: "PK", label: "Pakistan"), AdsChoice(key: "AE", label: "UAE"), AdsChoice(key: "SA", label: "Saudi Arabia"),
@@ -151,6 +155,14 @@ struct AdsAudiencesScreen: View {
     // MARK: The page
 
     private func content(_ s: AdsStatusAnswer) -> some View {
+        #if os(macOS)
+        macContent(s)
+        #else
+        phoneContent(s)
+        #endif
+    }
+
+    private func phoneContent(_ s: AdsStatusAnswer) -> some View {
         List {
             Group {
                 AdsAlertsSection(status: s)
@@ -181,7 +193,7 @@ struct AdsAudiencesScreen: View {
         }
     }
 
-    private var customersSection: some View {
+    var customersSection: some View {
         Section {
             if isOwner {
                 ForEach(data?.segments ?? []) { (seg: AdsHinted) in
@@ -330,3 +342,78 @@ struct AdsAudiencesScreen: View {
         }
     }
 }
+
+#if os(macOS)
+extension AdsAudiencesScreen {
+    /// Making an audience on the left; the ad account's audiences as a table on the right (right-click: add today's customers, delete).
+    func macContent(_ s: AdsStatusAnswer) -> some View {
+        let rows = (data?.audiences ?? []).sorted(using: macOrder)
+        return MacTwoPane(sideWidth: 440) {
+            List {
+                Group {
+                    AdsAlertsSection(status: s)
+                    if let loadProblem {
+                        Section {
+                            Label(loadProblem, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color)
+                            Button("Try again") { Task { await loadAudiences() } }
+                        }
+                    }
+                    customersSection
+                    engagersSection
+                    websiteSection
+                    lookalikeSection
+                }
+                .houseRows()
+                .disabled(busy != nil)
+            }
+            .listStyle(.inset)
+        } main: {
+            Table(rows, selection: $macPicked, sortOrder: $macOrder) {
+                TableColumn("Audience", value: \.name) { (a: AdsAudienceRow) in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(a.name)
+                        if let st = a.status { Text(st).font(.caption).foregroundStyle(Tone.owed.color) }
+                    }
+                }
+                .width(min: 160, ideal: 240)
+                TableColumn("Kind", value: \.kind) { (a: AdsAudienceRow) in Text(a.kind) }
+                    .width(min: 90, ideal: 120)
+                TableColumn("People") { (a: AdsAudienceRow) in Text(a.sizeWords ?? "not known yet").monospacedDigit() }
+                    .width(min: 80, ideal: 110)
+                TableColumn("Made") { (a: AdsAudienceRow) in Text(a.created.map { (c: String) in ShopDate.say(c) } ?? "") }
+                    .width(min: 80, ideal: 110)
+            }
+            .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
+                let picked = rows.filter { (a: AdsAudienceRow) in ids.contains(a.id) }
+                if let a = picked.first, picked.count == 1 {
+                    if a.kind == "Customer list" && isOwner {
+                        Button("Add today's customers", systemImage: "arrow.clockwise") { Task { await refresh(a) } }
+                    }
+                    Button("Copy the name", systemImage: "doc.on.doc") { MacClipboard.copy(a.name) }
+                    Divider()
+                    Button("Delete…", systemImage: "trash", role: .destructive) { deleting = a }
+                }
+            }
+            .onDeleteCommand {
+                let picked = rows.filter { (a: AdsAudienceRow) in macPicked.contains(a.id) }
+                if picked.count == 1 { deleting = picked[0] }
+            }
+            .overlay {
+                if let data, data.audiences.isEmpty {
+                    ContentUnavailableView("No audiences yet", systemImage: "person.2", description: Text("Make one on the left."))
+                } else if data == nil && loadProblem == nil {
+                    MarketingReading(text: "Reading the audiences…")
+                }
+            }
+        }
+        .navigationSubtitle(data.map { (d: AdsAudiencesAnswer) in "\(d.audiences.count) in the ad account" } ?? "")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button { Task { await loadAudiences() } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
+                    .keyboardShortcut("r", modifiers: .command)
+                    .help("Read the audiences again")
+            }
+        }
+    }
+}
+#endif

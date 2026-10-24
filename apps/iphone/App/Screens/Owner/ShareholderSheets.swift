@@ -151,6 +151,9 @@ struct ShareholderEntrySheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button(move.action) { Task { await save() } }
                         .disabled(saving || cleaned.isEmpty || amount <= 0)
+                        #if os(macOS)
+                        .keyboardShortcut(.defaultAction)
+                        #endif
                 }
             }
         }

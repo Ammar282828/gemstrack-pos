@@ -34,6 +34,10 @@ private struct RecentlyRemovedList: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var deletion: OwnerDeletion?
     @State private var history = Memo<[String: RecentlyRemoved.History]>()
+    #if os(macOS)
+    @State private var macSort = [KeyPathComparator(\RemovedMacRow.removedAt, order: .reverse)]
+    @State private var macPick = Set<String>()
+    #endif
 
     private var ready: Bool { book.customers.loaded && book.karigars.loaded && book.hisaab.loaded && book.orders.loaded }
 
@@ -77,6 +81,9 @@ private struct RecentlyRemovedList: View {
         let customers = removedCustomers
         let karigars = removedKarigars
         let h = reckon()
+        #if os(macOS)
+        macTable(customers, karigars, h)
+        #else
         List {
             Group {
                 if !(customers.isEmpty && karigars.isEmpty) {
@@ -108,6 +115,7 @@ private struct RecentlyRemovedList: View {
                                   symbol: "arrow.uturn.backward")
             }
         }
+        #endif
     }
 
     /// "1 customer", "2 customers".
@@ -224,3 +232,121 @@ private struct RecentlyRemovedList: View {
         busy = nil
     }
 }
+
+#if os(macOS)
+
+// MARK: - The Mac table
+
+/// One removed customer or karigar as a table row.
+private struct RemovedMacRow: Identifiable {
+    let id: String
+    let name: String
+    let isCustomer: Bool
+    let contact: String
+    let carries: String
+    let removedAt: String
+    var kind: String { isCustomer ? "Customer" : "Karigar" }
+}
+
+/// Recently removed as a Mac page: everyone removed as a sortable table (who, what history they carry, when), "Put back" for
+/// the selected rows from the toolbar or the right-click menu (⌘Return), "Put everything back" beside it, and "Empty"
+/// (which asks, then asks for the delete code) apart at the end. Putting back and emptying are the page's own.
+extension RecentlyRemovedList {
+    private func macTable(_ customers: [Customer], _ karigars: [Karigar], _ h: [String: RecentlyRemoved.History]) -> some View {
+        var all: [RemovedMacRow] = []
+        for c in customers {
+            let carries = RecentlyRemoved.carriesText(h[c.id])
+            all.append(RemovedMacRow(id: c.id, name: c.name.isEmpty ? c.id : c.name, isCustomer: true, contact: c.phone ?? "",
+                                     carries: carries.isEmpty ? "no history" : carries, removedAt: c.deletedAt ?? ""))
+        }
+        for k in karigars {
+            let carries = RecentlyRemoved.carriesText(h[k.id])
+            all.append(RemovedMacRow(id: k.id, name: k.name.isEmpty ? k.id : k.name, isCustomer: false, contact: k.contact ?? "",
+                                     carries: carries.isEmpty ? "no history" : carries, removedAt: k.deletedAt ?? ""))
+        }
+        let rows = all.sorted(using: macSort)
+        let picked = rows.filter { macPick.contains($0.id) }
+        return Table(rows, selection: $macPick, sortOrder: $macSort) {
+            TableColumn("Name", value: \.name) { (r: RemovedMacRow) in
+                HStack(spacing: 8) {
+                    Image(systemName: r.isCustomer ? "person.2" : "hammer").foregroundStyle(.secondary)
+                    Text(r.name)
+                }
+            }
+            .width(min: 160, ideal: 220)
+            TableColumn("Who", value: \.kind) { (r: RemovedMacRow) in Text(r.kind).foregroundStyle(.secondary) }
+                .width(min: 70, ideal: 90)
+            TableColumn("Contact", value: \.contact) { (r: RemovedMacRow) in Text(r.contact).monospacedDigit().foregroundStyle(.secondary) }
+                .width(min: 100, ideal: 130)
+            TableColumn("History they carry", value: \.carries) { (r: RemovedMacRow) in Text(r.carries).foregroundStyle(.secondary) }
+                .width(min: 160, ideal: 260)
+            TableColumn("Removed", value: \.removedAt) { (r: RemovedMacRow) in Text(ShopDate.say(r.removedAt)) }
+                .width(min: 90, ideal: 110)
+        }
+        .contextMenu(forSelectionType: String.self) { ids in
+            let chosen = rows.filter { ids.contains($0.id) }
+            if !chosen.isEmpty {
+                Button(chosen.count == 1 ? "Put back" : "Put \(chosen.count) back") { macPutBack(chosen) }
+                    .disabled(busy != nil)
+            }
+        } primaryAction: { ids in
+            let chosen = rows.filter { ids.contains($0.id) }
+            if !chosen.isEmpty { macPutBack(chosen) }
+        }
+        .overlay {
+            if rows.isEmpty {
+                NotAvailableState("Nobody has been removed", why: "Their history is exactly where they left it.",
+                                  symbol: "arrow.uturn.backward")
+            }
+        }
+        .background(Theme.ground)
+        .navigationSubtitle(rows.isEmpty ? "" : "\(rows.count) removed")
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if !rows.isEmpty {
+                VStack(spacing: 0) {
+                    Divider()
+                    HStack {
+                        Text("Nothing here has been destroyed. Their history is exactly where they left it.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                }
+                .background(.bar)
+            }
+        }
+        .toolbar {
+            if !rows.isEmpty {
+                ToolbarItemGroup(placement: .primaryAction) {
+                    Button { macPutBack(picked) } label: {
+                        Label(picked.count > 1 ? "Put \(picked.count) back" : "Put back", systemImage: "arrow.uturn.backward")
+                    }
+                    .disabled(picked.isEmpty || busy != nil)
+                    .keyboardShortcut(.return, modifiers: .command)
+                    .help("Put the selected people back in the book (\u{2318}Return)")
+                    Button {
+                        Task { await restore(customerIds: customers.map(\.id), karigarIds: karigars.map(\.id), key: "all", name: nil) }
+                    } label: {
+                        Label("Put everything back", systemImage: "arrow.uturn.backward.circle")
+                    }
+                    .disabled(busy != nil)
+                    .help("Put everyone listed back")
+                    Button(role: .destructive) { confirmingEmpty = true } label: { Label("Empty", systemImage: "trash") }
+                        .disabled(busy != nil)
+                        .help("Delete everyone listed for good. It asks, then asks for the delete code")
+                }
+            }
+        }
+    }
+
+    private func macPutBack(_ chosen: [RemovedMacRow]) {
+        guard !chosen.isEmpty else { return }
+        let customerIds = chosen.filter { $0.isCustomer }.map(\.id)
+        let karigarIds = chosen.filter { !$0.isCustomer }.map(\.id)
+        let single = chosen.count == 1 ? chosen[0] : nil
+        Task { await restore(customerIds: customerIds, karigarIds: karigarIds, key: single?.id ?? "some", name: single?.name) }
+    }
+}
+#endif

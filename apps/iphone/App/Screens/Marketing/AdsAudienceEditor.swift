@@ -67,6 +67,10 @@ struct AdsAudienceSheet: View {
                                          estimateAgain: estimateAgain, searchPlaces: searchPlaces, searchInterests: searchInterests))
             .task { if showAudiences { await loadAudiences() } }
         }
+        #if os(macOS)
+        .formStyle(.grouped)
+        .frame(minWidth: 560, idealWidth: 640, minHeight: 560, idealHeight: 700)
+        #endif
     }
 
     // MARK: The estimate

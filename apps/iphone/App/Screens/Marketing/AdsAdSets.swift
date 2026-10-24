@@ -281,6 +281,14 @@ struct AdsAdSetsScreen: View {
     // MARK: The form
 
     private func form(_ l: AdsNewAdLists) -> some View {
+        #if os(macOS)
+        macForm(l)
+        #else
+        phoneForm(l)
+        #endif
+    }
+
+    private func phoneForm(_ l: AdsNewAdLists) -> some View {
         List {
             Group {
                 if let s = status { AdsAlertsSection(status: s) }
@@ -449,6 +457,52 @@ struct AdsAdSetsScreen: View {
         .listStyle(.insetGrouped)
     }
 }
+
+#if os(macOS)
+extension AdsAdSetsScreen {
+    /// The campaign, the ads and how to launch on the left; the ad sets side by side as cards on the right.
+    func macForm(_ l: AdsNewAdLists) -> some View {
+        MacTwoPane(sideWidth: 440) {
+            List {
+                Group {
+                    if let s = status { AdsAlertsSection(status: s) }
+                    campaignSection
+                    adsSection
+                    makeSections
+                }
+                .houseRows()
+            }
+            .listStyle(.inset)
+        } main: {
+            List {
+                Group {
+                    ForEach($sets) { (s: Binding<AdsSetDraft>) in
+                        let key = s.wrappedValue.key
+                        AdsSetCard(draft: s, number: (sets.firstIndex(where: { (x: AdsSetDraft) in x.key == key }) ?? 0) + 1,
+                                   goals: allowed, budgeted: budgeted, currency: currency, removable: sets.count > 1,
+                                   audience: { editing = s.wrappedValue },
+                                   remove: { sets.removeAll { (x: AdsSetDraft) in x.key == key } })
+                    }
+                    Section {
+                        Button {
+                            if let last = sets.last { sets.append(last.next(sets.count + 1)) }
+                        } label: {
+                            Label("Another ad set", systemImage: "plus")
+                        }
+                        .disabled(sets.count >= 6)
+                    } footer: {
+                        Text("It starts as a copy of the last, so a test changes one thing. Six at most.")
+                    }
+                }
+                .houseRows()
+            }
+            .listStyle(.inset)
+        }
+        .actionBar(primary: .init("Review: \(sets.count) ad set\(sets.count == 1 ? "" : "s") · \(adCount) ad\(adCount == 1 ? "" : "s")",
+                                  isBusy: checking || sending) { Task { await review() } })
+    }
+}
+#endif
 
 /// One ad set's card: its name, goal, budget (unless the campaign holds it), dates and audience.
 private struct AdsSetCard: View {

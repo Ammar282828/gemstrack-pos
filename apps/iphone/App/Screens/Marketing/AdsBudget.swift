@@ -142,6 +142,10 @@ struct AdsBudgetSheet: View {
                 Text(review)
             }
         }
+        #if os(macOS)
+        .formStyle(.grouped)
+        .frame(minWidth: 480, idealWidth: 520, minHeight: 440)
+        #endif
     }
 
     @ViewBuilder

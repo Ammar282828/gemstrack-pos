@@ -74,11 +74,20 @@ struct OwnerDeleteCodeSheet: View {
                             if !typed.isEmpty { error = nil }
                         }
                     if canFace && kept {
+                        #if os(macOS)
+                        Button { Task { await byFace() } } label: { Label("Use Touch ID", systemImage: "touchid") }
+                            .disabled(busy)
+                        #else
                         Button { Task { await byFace() } } label: { Label("Use Face ID", systemImage: "faceid") }
                             .disabled(busy)
+                        #endif
                     }
                     if canFace && !kept {
+                        #if os(macOS)
+                        Toggle("Use Touch ID next time on this Mac", isOn: $keep)
+                        #else
                         Toggle("Use Face ID next time on this phone", isOn: $keep)
+                        #endif
                     }
                 } footer: {
                     Text("Enter the code to go ahead.")
@@ -100,6 +109,9 @@ struct OwnerDeleteCodeSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Delete", role: .destructive) { Task { await submit(code, byFace: false) } }
                         .disabled(busy || code.count < 4)
+                        #if os(macOS)
+                        .keyboardShortcut(.defaultAction)
+                        #endif
                 }
             }
         }

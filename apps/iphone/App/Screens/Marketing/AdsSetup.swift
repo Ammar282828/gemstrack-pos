@@ -165,6 +165,14 @@ struct AdsSetupScreen: View {
     // MARK: The page
 
     private func content(_ s: AdsStatusAnswer) -> some View {
+        #if os(macOS)
+        macContent(s)
+        #else
+        phoneContent(s)
+        #endif
+    }
+
+    private func phoneContent(_ s: AdsStatusAnswer) -> some View {
         List {
             Group {
                 AdsAlertsSection(status: s)
@@ -650,3 +658,47 @@ struct AdsSetupScreen: View {
         }
     }
 }
+
+#if os(macOS)
+extension AdsSetupScreen {
+    /// The Meta app, its login and what is wrong on the left; the choices (account, Page, Instagram), the greeting and the pixel on the right.
+    func macContent(_ s: AdsStatusAnswer) -> some View {
+        MacTwoPane(sideWidth: 520, sideOnRight: true) {
+            List {
+                Group {
+                    choiceSections(s)
+                    greetingSection
+                    pixelSection
+                }
+                .houseRows()
+                .disabled(busy != nil)
+            }
+            .listStyle(.inset)
+        } main: {
+            List {
+                Group {
+                    AdsAlertsSection(status: s)
+                    readinessSection(s)
+                    Section {
+                        MarketingLink(title: "Audiences", symbol: "person.3", path: "/ads/audiences")
+                        MarketingLink(title: "Rules", symbol: "checklist", path: "/ads/rules")
+                        MarketingLink(title: "A/B tests", symbol: "flask", path: "/ads/tests")
+                    }
+                    appSections(s)
+                    connectSection(s)
+                }
+                .houseRows()
+                .disabled(busy != nil)
+            }
+            .listStyle(.inset)
+        }
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button { Task { await load(fresh: true) } } label: { Label("Check again", systemImage: "arrow.clockwise") }
+                    .keyboardShortcut("r", modifiers: .command)
+                    .help("Check every step again")
+            }
+        }
+    }
+}
+#endif

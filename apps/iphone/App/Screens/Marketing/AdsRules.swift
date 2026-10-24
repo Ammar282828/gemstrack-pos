@@ -153,6 +153,14 @@ struct AdsRulesScreen: View {
     // MARK: The page
 
     private func content(_ s: AdsStatusAnswer) -> some View {
+        #if os(macOS)
+        macContent(s)
+        #else
+        phoneContent(s)
+        #endif
+    }
+
+    private func phoneContent(_ s: AdsStatusAnswer) -> some View {
         List {
             Group {
                 AdsAlertsSection(status: s)
@@ -237,6 +245,16 @@ struct AdsRulesScreen: View {
                     .swipeActions {
                         Button(role: .destructive) { deleting = r } label: { Label("Delete", systemImage: "trash") }
                     }
+                    #if os(macOS)
+                    .contextMenu {
+                        Button(r.enabled ? "Switch off" : "Switch on…", systemImage: r.enabled ? "pause.circle" : "play.circle") {
+                            if r.enabled { Task { await set(r, on: false) } } else { switchingOn = r }
+                        }
+                        .disabled(busy != nil)
+                        Divider()
+                        Button("Delete…", systemImage: "trash", role: .destructive) { deleting = r }
+                    }
+                    #endif
                 }
             } else if loadProblem == nil {
                 MarketingReading(text: "Reading the rules…")
@@ -244,7 +262,11 @@ struct AdsRulesScreen: View {
         } header: {
             LedgerHeading(title: "Rules on the account")
         } footer: {
+            #if os(macOS)
+            if let data, !data.rules.isEmpty { Text("Right-click a rule to delete it.") }
+            #else
             if let data, !data.rules.isEmpty { Text("Swipe a rule to delete it.") }
+            #endif
         }
     }
 
@@ -268,3 +290,43 @@ struct AdsRulesScreen: View {
         }
     }
 }
+
+#if os(macOS)
+extension AdsRulesScreen {
+    /// Making a rule on the left; the rules on the account and the log of changes on the right.
+    func macContent(_ s: AdsStatusAnswer) -> some View {
+        MacTwoPane(sideWidth: 420) {
+            List {
+                Group {
+                    AdsAlertsSection(status: s)
+                    if let loadProblem {
+                        Section {
+                            Label(loadProblem, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color)
+                            Button("Try again") { Task { await loadRules() } }
+                        }
+                    }
+                    newRuleSection
+                }
+                .houseRows()
+            }
+            .listStyle(.inset)
+        } main: {
+            List {
+                Group {
+                    rulesSection
+                    logSection
+                }
+                .houseRows()
+            }
+            .listStyle(.inset)
+        }
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button { Task { await loadRules() } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
+                    .keyboardShortcut("r", modifiers: .command)
+                    .help("Read the rules again")
+            }
+        }
+    }
+}
+#endif

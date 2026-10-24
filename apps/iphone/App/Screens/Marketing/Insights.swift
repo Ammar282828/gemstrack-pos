@@ -702,6 +702,9 @@ struct InsightsOverviewScreen: View {
                 Chart(points) { (p: Point) in
                     BarMark(x: .value("Day", p.date, unit: .day), y: .value("Reached", p.value)).foregroundStyle(Theme.accent)
                 }
+                #if os(macOS)
+                .macDayHover(points.map { (p: Point) in MacHoverPoint(id: p.id, date: p.date, value: p.value) }) { (v: Double) in "\(AdsFormat.compact(v)) reached" }
+                #endif
                 .frame(height: 180)
                 .accessibilityLabel("Accounts reached each day, ads included")
                 .accessibilityValue(ChartSummary.say(points.map { (label: ChartSummary.day($0.date), value: $0.value) }, money: false))
@@ -720,6 +723,9 @@ struct InsightsOverviewScreen: View {
                     LineMark(x: .value("Day", p.date, unit: .day), y: .value("Followers", p.value)).foregroundStyle(Theme.accent)
                 }
                 .chartYScale(domain: .automatic(includesZero: false))
+                #if os(macOS)
+                .macDayHover(points.map { (p: Point) in MacHoverPoint(id: p.id, date: p.date, value: p.value) }) { (v: Double) in "\(AdsFormat.count(v)) followers" }
+                #endif
                 .frame(height: 160)
                 .accessibilityLabel("Followers over time")
                 .accessibilityValue(ChartSummary.say(points.map { (label: ChartSummary.day($0.date), value: $0.value) }, money: false, total: false))
@@ -777,6 +783,9 @@ struct InsightsOverviewScreen: View {
                     Chart(points) { (x: Point) in
                         BarMark(x: .value("Day", x.date, unit: .day), y: .value("Views", x.value)).foregroundStyle(Theme.accent)
                     }
+                    #if os(macOS)
+                    .macDayHover(points.map { (p: Point) in MacHoverPoint(id: p.id, date: p.date, value: p.value) }) { (v: Double) in "\(AdsFormat.compact(v)) views" }
+                    #endif
                     .frame(height: 140)
                     .accessibilityLabel("Page views each day")
                     .accessibilityValue(ChartSummary.say(points.map { (label: ChartSummary.day($0.date), value: $0.value) }, money: false))
