@@ -216,7 +216,8 @@ enum ZebraTransport {
         guard job > 0 else {
             return TagPrinter.Outcome(ok: false, message: "The Mac wouldn't start the job: \(String(cString: cupsLastErrorString()))")
         }
-        let bytes = Array(zpl.utf8)
+        // CChar, not UInt8: cupsWriteRequestData takes `const char *`, and Swift will not pass a UInt8 pointer for it.
+        let bytes: [CChar] = zpl.utf8.map { CChar(bitPattern: $0) }
         let started = cupsStartDocument(nil, queue, job, "tags.zpl", "application/vnd.cups-raw", 1)
         guard started == HTTP_STATUS_CONTINUE else {
             return TagPrinter.Outcome(ok: false, message: "The Mac wouldn't take the tags: \(String(cString: cupsLastErrorString()))")

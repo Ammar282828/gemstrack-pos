@@ -865,7 +865,7 @@ extension WorkshopKarigarScreen {
     }
 
     /// A double-click or "Open in New Window" on a row that is a place.
-    private func macOpenMenu(_ path: String?) -> some View {
+    private func macPlaceMenu(_ path: String?) -> some View {
         Group {
             if let path {
                 Button("Open") { macOpened = Route(path: path) }
@@ -899,7 +899,7 @@ extension WorkshopKarigarScreen {
             }
             .contextMenu(forSelectionType: String.self) { ids in
                 if ids.count == 1, let id = ids.first, let j = p.bench.first(where: { $0.id == id }) {
-                    macOpenMenu(benchPath(j, karigar))
+                    macPlaceMenu(benchPath(j, karigar))
                 }
             } primaryAction: { ids in
                 if ids.count == 1, let id = ids.first, let j = p.bench.first(where: { $0.id == id }) {
@@ -918,7 +918,7 @@ extension WorkshopKarigarScreen {
                         .width(min: 100, ideal: 120)
                 }
                 .contextMenu(forSelectionType: String.self) { _ in
-                    macOpenMenu("/given")
+                    macPlaceMenu("/given")
                 } primaryAction: { _ in
                     macOpened = Route(path: "/given")
                 }
@@ -941,7 +941,7 @@ extension WorkshopKarigarScreen {
                         .width(min: 90, ideal: 110)
                 }
                 .contextMenu(forSelectionType: String.self) { _ in
-                    macOpenMenu("/workshop?karigar=" + WorkshopLogic.piece(karigar.id))
+                    macPlaceMenu("/workshop?karigar=" + WorkshopLogic.piece(karigar.id))
                 } primaryAction: { _ in
                     macOpened = Route(path: "/workshop?karigar=" + WorkshopLogic.piece(karigar.id))
                 }
@@ -988,7 +988,7 @@ extension WorkshopKarigarScreen {
                     .width(min: 110, ideal: 140)
                 }
                 .contextMenu(forSelectionType: String.self) { _ in
-                    macOpenMenu(hisaabPath(karigar))
+                    macPlaceMenu(hisaabPath(karigar))
                 } primaryAction: { _ in
                     macOpened = Route(path: hisaabPath(karigar))
                 }
