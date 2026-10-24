@@ -65,9 +65,31 @@ How a tag reaches Label LIVE (`App/Device/LabelLivePrinter.swift`):
   Mac build that passes reaches TestFlight even when this job cannot run.
 - `keep-fresh` leaves the Mac workflow alone (it picks the iPhone's release line only).
 
+## Labels and Zebra (2026-10-24)
+
+Owner: "use something to be able to directly print from mac app, for any zebra printer like i do through label live",
+"make the label designer full interactive, use the label i will give you for reference", "copy label live one to one for
+every feature i might need for these labels, and printing functionality and modes and numbers".
+- **One tag model** (`src/lib/label-layout.ts` = ERPCore `LabelLayout`): text blocks, QR, six barcodes, lines, boxes,
+  ellipses, pictures (threshold/Atkinson/Floyd), two tags a label (`{SKU_1}`/`{SKU_2}`), `{date:…}`, `{counter:…}`,
+  transforms (`|upper`, `|fixed:2`, `|group`, prefix/suffix), hidden and locked fields, and the printer's settings
+  (`printer`: transfer/direct, tear/peel/cut/rewind, gap/mark/continuous, darkness, speed, label top/shift, tear-off,
+  orientation, mirror, home). ZPL by `src/lib/zebra-zpl.ts` = ERPCore `Zpl.swift`, byte for byte, text through `^FH_`.
+- **Label LIVE import** (`label-lsc.ts` = `LabelLSC.swift`): a `.lsc` becomes the shop's tag (geometry and variable names
+  only; never its data).
+- **The designer** (Settings → Labels, `Screens/Settings/LabelDesigner/`, iPhone and Mac): the canvas drawn as it
+  prints, drag, handles, rotate, nudge, align, distribute, layers, inspector, undo, preview with real pieces, import,
+  copy ZPL, test print. Saves the whole layout through `saveLabelLayout`.
+- **Printing** (`TagPrinter`, `ZebraTransport`): per device, Label LIVE or the shop's tag to a Zebra: Zebra Browser Print
+  or a Mac printer sent raw (CUPS, `Mac/CUPS`), or a network address (both apps). Settings → Labels → Printer; the
+  print-job sheet (copies, skip, counter start); ⌘P opens it, ⌥⌘P prints at once. Printer status by `~HS`.
+- Not tried on a printer from here: the first prints at the counter are the test (Browser Print's JSON, raw CUPS in the
+  sandbox, `~HS` parsing, picture darkness).
+
 ## Status
 
-Kept current in [parity.md](../parity.md)'s Mac column. Verified: ERPCore's tests on Linux (487), the web's typecheck and
+Kept current in [parity.md](../parity.md)'s Mac column. Every screen Mac-shaped (round 4, cb87c32) and the labels
+(round 5, a82280c) built on Xcode Cloud, Mac and iPhone. Verified before: ERPCore's tests on Linux (487), the web's typecheck and
 tests, and **the Mac target archived on Xcode Cloud with no errors** ("Mac release", commit c5080d8, 2026-10-24; the iPhone's
 scheme built beside it). Round 1 (034ddeb) found 19 errors, all iOS-only SwiftUI that a same-named stand-in cannot cover (the
 compiler prefers SwiftUI's own, marked unavailable): `contentShape(.hoverEffect)`, `listSectionSpacing`, the zoom transition,
