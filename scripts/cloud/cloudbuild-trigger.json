@@ -1,0 +1,31 @@
+{
+  "name": "deploy-cloud-sessions",
+  "description": "A push to claude/** in taheri-pos goes live in both houses (scripts/cloud/deploy.sh)",
+  "developerConnectEventConfig": {
+    "gitRepositoryLink": "__GIT_REPOSITORY_LINK__",
+    "push": { "branch": "^claude/.*$" }
+  },
+  "serviceAccount": "projects/gemstrack-pos/serviceAccounts/cloud-deploy@gemstrack-pos.iam.gserviceaccount.com",
+  "build": {
+    "timeout": "1500s",
+    "options": { "logging": "CLOUD_LOGGING_ONLY" },
+    "availableSecrets": {
+      "secretManager": [
+        { "versionName": "projects/gemstrack-pos/secrets/github-deploy-token/versions/latest", "env": "DEPLOY_TOKEN" }
+      ]
+    },
+    "steps": [
+      {
+        "id": "deploy",
+        "name": "mirror.gcr.io/library/node:20",
+        "entrypoint": "bash",
+        "secretEnv": ["DEPLOY_TOKEN"],
+        "env": ["COMMIT=$COMMIT_SHA", "BRANCH=$BRANCH_NAME", "BUILD=$BUILD_ID", "WORKDIR=/workspace/erp"],
+        "args": [
+          "-c",
+          "set -euo pipefail; rm -rf $$WORKDIR; git -c credential.helper='!f() { echo username=x-access-token; echo \"password=$$DEPLOY_TOKEN\"; }; f' clone --quiet https://github.com/Ammar282828/taheri-pos.git $$WORKDIR; cd $$WORKDIR; git config credential.helper '!f() { echo username=x-access-token; echo \"password=$$DEPLOY_TOKEN\"; }; f'; git fetch --quiet origin $$COMMIT; if git cat-file -e origin/main:scripts/cloud/deploy.sh 2>/dev/null; then git show origin/main:scripts/cloud/deploy.sh > /workspace/deploy.sh; else git show $$COMMIT:scripts/cloud/deploy.sh > /workspace/deploy.sh; fi; exec bash /workspace/deploy.sh"
+        ]
+      }
+    ]
+  }
+}
