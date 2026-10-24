@@ -1,5 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#endif
 import ERPCore
 
 /// New order (src/app/orders/add/page.tsx, components/order/order-form.tsx): who it is for, when it is

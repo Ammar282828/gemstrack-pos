@@ -1,5 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#endif
 import ERPCore
 
 /// What both the list and a repair's sheet do to a ticket: Ready, Collected, a payment, Cancel. One

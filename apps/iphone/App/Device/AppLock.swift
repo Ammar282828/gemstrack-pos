@@ -13,7 +13,12 @@ final class AppLock {
     static let shared = AppLock()
 
     private static let enabledKey = "erp.lock.enabled"
+    #if os(macOS)
+    /// A Mac at the counter sits behind other windows all day: it locks after five minutes away, not one.
+    private static let grace: TimeInterval = 300
+    #else
     private static let grace: TimeInterval = 60
+    #endif
 
     /// The app is behind the lock screen.
     private(set) var locked = false
@@ -34,7 +39,12 @@ final class AppLock {
         guard !House.isDemo else { return }
         switch phase {
         case .inactive:
+            #if os(macOS)
+            // Another app in front is not the switcher's photograph: the window stays readable, and the time away counts.
+            if leftAt == nil { leftAt = Date() }
+            #else
             covered = signedIn
+            #endif
         case .background:
             covered = signedIn
             if leftAt == nil { leftAt = Date() }
@@ -68,7 +78,11 @@ final class AppLock {
         unlocking = true
         defer { unlocking = false }
         let context = LAContext()
+        #if os(macOS)
+        context.localizedFallbackTitle = "Use password"
+        #else
         context.localizedFallbackTitle = "Use passcode"
+        #endif
         do {
             if try await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "Open \(House.storeName)") { locked = false }
         } catch {
@@ -81,6 +95,11 @@ final class AppLock {
 /// on its ground, nothing of the books.
 struct LockCover: View {
     let lock: AppLock
+    #if os(macOS)
+    static let symbol = "touchid"
+    #else
+    static let symbol = "faceid"
+    #endif
 
     var body: some View {
         ZStack {
@@ -91,7 +110,7 @@ struct LockCover: View {
                     Button {
                         Task { await lock.unlock() }
                     } label: {
-                        Label("Unlock", systemImage: "faceid").padding(.horizontal, 12).padding(.vertical, 4)
+                        Label("Unlock", systemImage: LockCover.symbol).padding(.horizontal, 12).padding(.vertical, 4)
                     }
                     .buttonStyle(.houseProminent)
                     .controlSize(.large)
@@ -106,6 +125,14 @@ struct LockCover: View {
 /// The cover in a window of its own, above every sheet, full-screen cover, menu and alert of the app's window (a
 /// SwiftUI ZStack can only cover what it contains), and so in the app switcher's snapshot. Made once, moved to the
 /// active scene, gone the moment the lock is.
+#if os(macOS)
+/// On the Mac every window of the app carries the cover itself (`MacLockCover`), so there is no window to raise.
+@MainActor
+final class LockWindow {
+    static let shared = LockWindow()
+    func update(show: Bool) {}
+}
+#else
 @MainActor
 final class LockWindow {
     static let shared = LockWindow()
@@ -146,3 +173,4 @@ private struct LockCoverHost: View {
         LockCover(lock: lock)
     }
 }
+#endif

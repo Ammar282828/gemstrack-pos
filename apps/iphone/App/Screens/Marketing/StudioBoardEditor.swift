@@ -44,7 +44,7 @@ struct StudioBoardEditor: View {
     }
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.layoutWidthClass) private var sizeClass
     @State private var engine = NativeArtwork()
     @State private var design = Design()
     @State private var initial = Design()

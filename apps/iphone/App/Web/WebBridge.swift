@@ -1,4 +1,6 @@
+#if canImport(UIKit)
 import UIKit
+#endif
 import WebKit
 
 /// What an ERP page inside the app asks of the phone: the same calls it made to the Capacitor

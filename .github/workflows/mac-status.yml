@@ -1,0 +1,37 @@
+name: Mac build
+
+# The Mac app (docs/features/mac-app.md) is built by Xcode Cloud's "Mac release" workflow, started by a line in
+# apps/iphone/MAC-RELEASES.md on a claude/ branch. A cloud session has no Mac and no App Store Connect key, so this
+# run is its compiler's voice: it makes sure the workflow and macOS on the app record exist (asc.mjs mac-setup), waits
+# for Xcode Cloud's run of the pushed commit, and prints each action's result and every compile error with its file
+# and line (asc.mjs ci-runs). Ubuntu minutes only; nothing here builds.
+
+on:
+  push:
+    branches: ['claude/**']
+    paths: ['apps/iphone/MAC-RELEASES.md', '.github/workflows/mac-status.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  status:
+    if: github.repository == 'Ammar282828/taheri-pos'
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - env:
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+        run: |
+          node apps/ios/scripts/asc.mjs mac-setup taheri || echo "::warning::mac-setup failed"
+          # The run for this very commit; started on the branch if the workflow was only just made.
+          node apps/ios/scripts/asc.mjs ci-runs taheri --workflow '^Mac release$' --commit "$GITHUB_SHA" --branch "$GITHUB_REF_NAME" --start --wait 65
+          # A green Mac build joins Shop (the iPhone's newest is left as it is).
+          node apps/ios/scripts/asc.mjs builds taheri --fix || echo "::warning::builds failed"

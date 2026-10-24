@@ -11,7 +11,7 @@ struct ArtworkEditor: View {
     /// its website photo's layouts, in its own shape as well as square).
     var layoutGroup: String? = nil
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.layoutWidthClass) private var sizeClass
     @Environment(\.dynamicTypeSize) private var typeSize
     /// The sheet's own width: on an iPad's page sheet the artwork is pinned on the left and the tools sit beside it.
     @State private var sheetWidth: CGFloat = 0

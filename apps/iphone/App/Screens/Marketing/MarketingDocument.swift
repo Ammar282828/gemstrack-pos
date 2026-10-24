@@ -1,5 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#endif
 
 /// Keeps the editor's documents intact across phones and the web, including fields added by either.
 indirect enum MarketingValue: Codable, Equatable {

@@ -10,7 +10,7 @@ struct AnaSplit<Head: View, Left: View, Right: View>: View {
     @ViewBuilder let left: (Bool) -> Left
     @ViewBuilder let right: (Bool) -> Right
 
-    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.layoutWidthClass) private var sizeClass
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var width: CGFloat = 0
 

@@ -1,5 +1,7 @@
 import Foundation
+#if canImport(UIKit)
 import UIKit
+#endif
 
 /// The Saved API, exactly as the web client calls it (src/app/design/{use-design,saved-shelf}.ts, src/app/api/design/designs/**):
 ///

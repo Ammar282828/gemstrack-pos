@@ -8,7 +8,7 @@ import ERPCore
 struct PostsHub: View {
     @Environment(Session.self) private var session
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.layoutWidthClass) private var sizeClass
     @Environment(\.dynamicTypeSize) private var typeSize
     private var store: PostsStore { PostsStore.shared }
     @State private var showAllToday = false

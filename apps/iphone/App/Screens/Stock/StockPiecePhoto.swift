@@ -1,6 +1,8 @@
 import SwiftUI
 import PhotosUI
+#if canImport(UIKit)
 import UIKit
+#endif
 import ERPCore
 
 /// A piece's photo, added, changed or taken off from the phone (the product form's Photo, product-form.tsx).

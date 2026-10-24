@@ -28,7 +28,7 @@ struct ScanTag: View {
     /// The new sale, opened from the bar's Open the sale.
     @State private var openSale: Route?
 
-    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.layoutWidthClass) private var sizeClass
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var width: CGFloat = 0
 

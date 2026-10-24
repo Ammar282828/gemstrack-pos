@@ -1,4 +1,6 @@
+#if canImport(UIKit)
 import UIKit
+#endif
 import VisionKit
 
 /// Paper for the ERP's readers (a bill, a parchi, an order slip): Apple's scanner finds the page's

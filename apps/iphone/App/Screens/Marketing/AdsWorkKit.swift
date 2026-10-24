@@ -1,5 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#endif
 import ERPCore
 
 // What New ad, the ad set designer, Audiences, Rules and Setup share on the phone: the routes they call (the

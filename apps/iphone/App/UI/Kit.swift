@@ -1,5 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#endif
 import ERPCore
 
 /// Static placeholders never obscure a page with a spinning activity indicator.
@@ -144,7 +146,7 @@ struct FigureGrid<Content: View>: View {
     var spacing: CGFloat = 12
     @ViewBuilder let content: () -> Content
     @Environment(\.dynamicTypeSize) private var typeSize
-    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.layoutWidthClass) private var sizeClass
     @State private var availableWidth: CGFloat = 0
 
     /// Two across, up to four where 240 pt each fit; on an iPad's wide window four across as soon as 160 pt each do
@@ -211,7 +213,26 @@ extension EnvironmentValues {
 extension Optional where Wrapped == UserInterfaceSizeClass {
     /// The iPad layout: an iPad whose window is wide. A Plus or Max iPhone turned sideways is `.regular` too, and must keep
     /// the phone's tabs and floating button; an iPad in Split View or Slide Over is `.compact` and takes the phone path.
-    @MainActor var isPadLayout: Bool { UIDevice.current.userInterfaceIdiom == .pad && self == .regular }
+    @MainActor var isPadLayout: Bool {
+        #if os(macOS)
+        // A Mac window is always the wide layout (the iPad's columns, lists beside their item).
+        self == .regular
+        #else
+        UIDevice.current.userInterfaceIdiom == .pad && self == .regular
+        #endif
+    }
+}
+
+extension EnvironmentValues {
+    /// The width class the screens lay themselves out by: the phone's and iPad's horizontal size class, and on the Mac,
+    /// which has none, always regular (its windows take the iPad's wide layout).
+    var layoutWidthClass: UserInterfaceSizeClass? {
+        #if os(macOS)
+        .regular
+        #else
+        horizontalSizeClass
+        #endif
+    }
 }
 
 /// A page's rows in a readable column on an iPad's wide window (about 70 characters of a form, as Settings
@@ -219,7 +240,7 @@ extension Optional where Wrapped == UserInterfaceSizeClass {
 /// List or Form insets its rows and keeps its scroll edge to edge; a phone (compact width) is never touched.
 struct ReadableColumn: ViewModifier {
     var maxWidth: CGFloat = 720
-    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.layoutWidthClass) private var sizeClass
     @State private var width: CGFloat = 0
 
     func body(content: Content) -> some View {

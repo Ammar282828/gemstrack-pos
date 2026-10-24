@@ -1,5 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#endif
 import ERPCore
 
 /// Read a written bill (components/cart/bill-scanner.tsx): a handwritten bill or estimate photographed, read by the

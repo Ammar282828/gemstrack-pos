@@ -1,3 +1,4 @@
+#if os(iOS)
 import SwiftUI
 import FirebaseCore
 
@@ -141,3 +142,4 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         Push.shared.didFail(error)
     }
 }
+#endif

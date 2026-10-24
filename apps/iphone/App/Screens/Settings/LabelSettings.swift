@@ -239,6 +239,13 @@ private struct LabelDesigner: View {
     private func form(_ l: SettingsLabelLayout) -> some View {
         Form { Group {
             Section {
+                NavigationLink(value: Route(path: LabelLiveSettingsScreen.path)) {
+                    Label("Label LIVE", systemImage: "printer")
+                }
+            } footer: {
+                Text("Print tags straight to the label printer through Label LIVE on the Mac at the counter.")
+            }
+            Section {
                 SettingsTagPreview(layout: l)
                     .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12))
                 if saved != nil, let standard {

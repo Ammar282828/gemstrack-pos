@@ -1,4 +1,6 @@
+#if canImport(UIKit)
 import UIKit
+#endif
 
 /// The success tap for a save that leaves its sheet at once (a sheet that is closing cannot play `.savedFeedback`).
 enum SaveTap {

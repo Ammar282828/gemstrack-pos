@@ -1,5 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#endif
 
 /// Connect an agent (board.tsx AgentDialog): a key for Claude Code, or any MCP client, to work on the Studio's
 /// boards over /api/studio/mcp. The server keeps only the key's hash, so a new key is shown once, here, and

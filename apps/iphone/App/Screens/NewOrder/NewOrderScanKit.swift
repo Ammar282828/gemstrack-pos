@@ -1,6 +1,8 @@
 import SwiftUI
 import PhotosUI
+#if canImport(UIKit)
 import UIKit
+#endif
 import ERPCore
 
 // What Read a slip (New order) and Read a written bill (New sale) share: the paper coming in (Apple's document

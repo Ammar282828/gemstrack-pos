@@ -1,5 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#endif
 
 // The toast said after a save or a refusal. It was the owners' pages' (OwnerNote); every screen uses it now.
 // `@State private var note: Note?`, `.noteToast($note)` on the screen, `Note.show(...)` to say something.

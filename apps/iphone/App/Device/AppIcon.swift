@@ -1,4 +1,6 @@
+#if canImport(UIKit)
 import UIKit
+#endif
 
 /// The app's icon: the one app's own (AppIcon-erp, a diamond) is the primary; Taheri's and House of Mina's are alternates
 /// (project.yml ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES, from houses.json). It changes only when the person asks for it in

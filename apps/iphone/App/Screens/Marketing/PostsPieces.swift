@@ -8,7 +8,7 @@ struct PostPiecesScreen: View {
     var tray: PostTrayModel?
     private var store: PostsStore { PostsStore.shared }
     @State private var refused: String?
-    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.layoutWidthClass) private var sizeClass
 
     /// The "new arrivals" chip; "" is everything.
     private static let newKey = "__new"

@@ -1,4 +1,4 @@
-# Keeps the web, iPhone and Android apps aligned (docs/parity.md, decisions.md#parity).
+# Keeps the web, iPhone, Android and Mac apps aligned (docs/parity.md, decisions.md#parity).
 #
 # (a) FAILS when the exported menu is stale: src/lib/nav.ts is the only menu; `npm run nav:export` writes
 #     apps/iphone/App/Resources/nav-<house>.json, which the iPhone bundles and the Android app reads from the
@@ -46,17 +46,19 @@ jobs:
             exit 0
           fi
           files=$(git diff --name-only "$base" "$AFTER" || true)
-          web=0; ios=0; and=0; ledger=0
+          web=0; ios=0; and=0; mac=0; ledger=0
           if echo "$files" | grep -Eq '^src/(app|components)/' ; then web=1; fi
           if echo "$files" | grep -Eq '^apps/iphone/App/' ; then ios=1; fi
           if echo "$files" | grep -Eq '^apps/android/app/' ; then and=1; fi
+          if echo "$files" | grep -Eq '^apps/iphone/Mac/' ; then mac=1; fi
           if echo "$files" | grep -Fxq 'docs/parity.md' ; then ledger=1; fi
-          n=$((web + ios + and))
-          if [ "$n" -ge 1 ] && [ "$n" -le 2 ] && [ "$ledger" -eq 0 ]; then
+          n=$((web + ios + and + mac))
+          if [ "$n" -ge 1 ] && [ "$n" -le 3 ] && [ "$ledger" -eq 0 ]; then
             names=""
             if [ "$web" -eq 1 ]; then names="$names web"; fi
             if [ "$ios" -eq 1 ]; then names="$names iPhone"; fi
             if [ "$and" -eq 1 ]; then names="$names Android"; fi
+            if [ "$mac" -eq 1 ]; then names="$names Mac"; fi
             echo "::warning title=Parity::This push changes user-facing code on${names} only, and docs/parity.md is untouched. Mark the feature's row done on that surface and owed on the others."
           else
             echo "Surfaces touched: $n, ledger touched: $ledger. Nothing to warn about."

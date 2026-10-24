@@ -1,5 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#endif
 import ERPCore
 
 // The pieces of New ad (AdsNewAd.swift) and the ad set designer (AdsAdSets.swift) that are views of their own:

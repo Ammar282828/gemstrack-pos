@@ -6,6 +6,7 @@ name: ERP
 options:
   deploymentTarget:
     iOS: "26.0"
+    macOS: "26.0"
   createIntermediateGroups: true
 configFiles:
   Debug: House.xcconfig
@@ -71,6 +72,38 @@ targets:
         PROVISIONING_PROFILE_SPECIFIER: $(ERP_WIDGET_PROFILE)
         APPLICATION_EXTENSION_API_ONLY: YES
         SKIP_INSTALL: YES
+  # The Mac app (docs/features/mac-app.md): the same app record and bundle ID as the iPhone's (a universal purchase), a
+  # native macOS SwiftUI app, not Catalyst. It compiles the iPhone's App/ and Shared/ as they are (App/Platform/MacPlatform.swift
+  # answers UIKit's names with AppKit's) plus Mac/: its own window, sidebar, menus, tables, menu-bar figures and Label LIVE.
+  ERPMac:
+    type: application
+    platform: macOS
+    sources:
+      - path: App
+        excludes:
+          - Info.plist
+          - App.entitlements
+      - path: Shared
+      - path: Mac
+        excludes:
+          - Info.plist
+          - ERPMac.entitlements
+    settings:
+      base:
+        PRODUCT_NAME: ERP
+        PRODUCT_BUNDLE_IDENTIFIER: $(ERP_BUNDLE_ID)
+        INFOPLIST_FILE: Mac/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Mac/ERPMac.entitlements
+        ENABLE_HARDENED_RUNTIME: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon-mac
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: Accent-$(ERP_HOUSE)
+        COMBINE_HIDPI_IMAGES: YES
+    dependencies:
+      - package: Firebase
+        product: FirebaseAuth
+      - package: Firebase
+        product: FirebaseFirestore
+      - package: ERPCore
   # The demo driven as a person would (UITests/): every place opens and stays up, the sheets most used
   # open, and launch and scrolling are timed, at today's size and at many times it (`-ERPDemoScale`).
   ERPUITests:
@@ -96,5 +129,14 @@ schemes:
       config: Debug
       targets:
         - ERPUITests
+    archive:
+      config: Release
+  # Xcode Cloud's "Mac release" workflow archives this (asc.mjs mac-setup).
+  ERP Mac:
+    build:
+      targets:
+        ERPMac: all
+    run:
+      config: Debug
     archive:
       config: Release

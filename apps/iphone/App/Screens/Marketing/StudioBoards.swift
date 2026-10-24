@@ -22,7 +22,7 @@ struct StudioBoards: View {
     @State private var sheet: BoardSheet?
     @State private var asking: BoardQuestion?
     @State private var nameText = ""
-    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.layoutWidthClass) private var sizeClass
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var note: Note?

@@ -1,6 +1,8 @@
 import SwiftUI
 import PhotosUI
+#if canImport(UIKit)
 import UIKit
+#endif
 import ERPCore
 
 /// Ads → New ad (src/app/ads/new/page.tsx), in the order a shop thinks of it: what to promote (an Instagram

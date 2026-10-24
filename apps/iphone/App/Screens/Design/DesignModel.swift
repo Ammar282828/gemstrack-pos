@@ -1,5 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#endif
 
 // Design's records and rules, ported from the web (docs/features/design.md): src/lib/design/{model,sizes,gate}.ts
 // and src/app/design/design-state.ts. A design is a master page and any number of other sizes (origin

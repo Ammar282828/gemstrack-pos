@@ -27,7 +27,7 @@ struct WorkshopKarigarScreen: View {
     @State private var expanded: Set<String> = []
     @State private var showingAccounts = false
     @State private var width: CGFloat = 0
-    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.layoutWidthClass) private var sizeClass
     @Environment(\.dynamicTypeSize) private var typeSize
 
     private var wide: Bool { sizeClass.isPadLayout && width >= 820 && !typeSize.isAccessibilitySize }

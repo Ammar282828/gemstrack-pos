@@ -10,7 +10,7 @@ import ERPCore
 struct SearchView: View {
     @Environment(Session.self) private var session
     @Environment(Book.self) private var book
-    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.layoutWidthClass) private var sizeClass
     @Environment(\.accessibilityReduceMotion) private var reduce
     let map: NavMap
     @State private var text = ""

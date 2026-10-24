@@ -1,5 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#endif
 import ERPCore
 
 /// Finalize & invoice (/orders/<id>/finalize; the web's dialog on the order page, ?do=finalize): each finished

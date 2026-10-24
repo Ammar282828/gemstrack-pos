@@ -1,5 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#endif
 import ERPCore
 
 // Three small controls the order form's views share, and the size box.
@@ -11,7 +13,7 @@ import ERPCore
 /// a phone and a compact iPad window are never touched.
 private struct FormColumn: ViewModifier {
     var maxWidth: CGFloat
-    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.layoutWidthClass) private var sizeClass
     @State private var width: CGFloat = 0
 
     func body(content: Content) -> some View {

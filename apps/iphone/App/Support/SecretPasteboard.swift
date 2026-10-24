@@ -1,4 +1,6 @@
+#if canImport(UIKit)
 import UIKit
+#endif
 
 /// Copies of secrets (a customer's invoice link carries its key, a command carries a token): this device only
 /// (no Universal Clipboard to the owner's other Apple devices) and gone after five minutes.

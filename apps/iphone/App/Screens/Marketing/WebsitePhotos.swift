@@ -1,6 +1,8 @@
 import SwiftUI
 import PhotosUI
+#if canImport(UIKit)
 import UIKit
+#endif
 import ERPCore
 
 /// Website → Add photos (src/app/website/photos/page.tsx): choose the collection once, then add the tray's

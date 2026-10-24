@@ -32,7 +32,7 @@ struct AdsCampaignsScreen: View {
     @State private var exporting = false
     @State private var note: Note?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.layoutWidthClass) private var sizeClass
 
     enum Filter: String, CaseIterable, Identifiable {
         case all = "All", running = "Running", paused = "Paused", problems = "Problems"

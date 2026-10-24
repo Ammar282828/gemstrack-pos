@@ -20,7 +20,7 @@ struct AdsOverviewScreen: View {
     @State private var go: Route?
     @State private var note: Note?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.layoutWidthClass) private var sizeClass
     @Environment(\.dynamicTypeSize) private var typeSize
 
     private var mayRead: Bool { session.role == "owner" || session.role == "marketing" }

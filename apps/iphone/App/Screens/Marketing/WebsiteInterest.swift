@@ -1,5 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#endif
 import ERPCore
 
 /// Website → Interest (src/app/website/interest/page.tsx): which of the site's pieces visitors save, ask about on
@@ -120,7 +122,7 @@ struct WebsiteInterestScreen: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.layoutWidthClass) private var sizeClass
     /// The window's own width, to choose between the phone's List and an iPad's columns of cards.
     @State private var width: CGFloat = 0
 
