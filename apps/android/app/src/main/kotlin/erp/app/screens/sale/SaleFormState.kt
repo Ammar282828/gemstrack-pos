@@ -61,6 +61,9 @@ class SaleFormState(
     /** A piece being described that is not on the sale yet. */
     var newItem by mutableStateOf<SaleLine?>(null)
     var step by mutableStateOf(EntryStep.customer)
+
+    /** Change rate: the rates lead the Pieces step instead of following it. */
+    var ratesFirst = false
     var scanning by mutableStateOf(false)
     var rateSheet by mutableStateOf(false)
     var confirmingReset by mutableStateOf(false)

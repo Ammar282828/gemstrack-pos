@@ -543,12 +543,18 @@ export default function OrderDetailPage() {
   
   const getRateDisplay = () => {
     const goldKarats = order.items.filter(i => i.metalType === 'gold').map(i => i.karat).filter((v, i, a) => a.indexOf(v) === i);
-    if (goldKarats.length === 0) return 'N/A';
-    return goldKarats.map(k => {
+    const parts = goldKarats.map(k => {
       const rate = ratesApplied[`goldRatePerGram${k}` as keyof typeof ratesApplied];
       return `Gold (${k?.toUpperCase()}): PKR ${Number(rate || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}/g`;
-    }).join(' | ');
+    });
+    // Silver's one all-in rate, now that an order can carry its own.
+    if (order.items.some(i => i.metalType === 'silver') && Number(ratesApplied.silverRatePerGram) > 0) {
+      parts.push(`Silver: PKR ${Number(ratesApplied.silverRatePerGram).toLocaleString(undefined, { maximumFractionDigits: 0 })}/g`);
+    }
+    return parts.length ? parts.join(' | ') : 'N/A';
   }
+  // Where "Change rate" goes: the order's edit before it is invoiced, the invoice's after.
+  const changeRateHref = order.invoiceId ? `/invoices/${order.invoiceId}/edit?rates=1` : `/orders/${order.id}/edit?rates=1`;
 
 
   return (
@@ -682,6 +688,9 @@ export default function OrderDetailPage() {
                                 {' · '}
                                 {format(parseISO(order.createdAt), 'd MMM yyyy')}
                                 {getRateDisplay() !== 'N/A' && <> · {getRateDisplay()}</>}
+                                {order.status !== 'Cancelled' && order.status !== 'Refunded' && (
+                                  <> · <Link href={changeRateHref} className="text-primary underline-offset-2 hover:underline">Change rate</Link></>
+                                )}
                               </p>
                               {/* Its own line rather than another item in the run
                                   above: when this one has gone red it is the thing

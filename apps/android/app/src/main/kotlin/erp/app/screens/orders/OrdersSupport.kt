@@ -89,6 +89,9 @@ object OrderPaths {
     /** New order's form on the order on file (NewOrderEdit). */
     fun edit(id: String) = "/orders/${piece(id)}/edit"
 
+    /** Change rate: the same edit, opened at its rates. */
+    fun changeRate(id: String) = edit(id) + "?rates=1"
+
     fun invoice(id: String) = "/invoices/${piece(id)}"
 
     fun customer(id: String) = "/customers/${piece(id)}"
