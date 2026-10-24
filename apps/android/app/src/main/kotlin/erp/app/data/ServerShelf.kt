@@ -21,11 +21,12 @@ object ServerShelf {
 
     fun wake() { nudges.incrementAndGet() }
 
-    fun <T : Any> poll(name: String, single: Boolean, model: Decodable<T>, deliver: (Delivery<T>) -> Unit): () -> Unit {
+    /** `api` is the business's own: the poll goes to its server whichever business is open. */
+    fun <T : Any> poll(api: ErpApi, name: String, single: Boolean, model: Decodable<T>, deliver: (Delivery<T>) -> Unit): () -> Unit {
         val job = ErpApp.scope.launch {
             while (isActive) {
                 try {
-                    val text = ErpApi.shared.data("/api/staff/collections?name=$name")
+                    val text = api.data("/api/staff/collections?name=$name")
                     // Read and decoded off the main thread: staff's whole copy arrives every 25 seconds.
                     val items = withContext(Dispatchers.Default) { decode(model, text, single) }
                     deliver(Delivery.All(items, offline = false))

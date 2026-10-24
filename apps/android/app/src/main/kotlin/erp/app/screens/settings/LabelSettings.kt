@@ -57,6 +57,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import erp.app.ErpApp
 import erp.app.data.Book
 import erp.app.data.ErpApi
+import erp.app.data.Outbox
 import erp.app.data.LocalBook
 import erp.app.data.Single
 import erp.app.data.rememberShelfStatus
@@ -111,7 +112,9 @@ private fun LabelDesigner() {
     var layout by remember { mutableStateOf<LabelLayout?>(null) }
     // Changed here and not yet saved: the copy from the books does not replace it.
     var edited by remember { mutableStateOf(false) }
-    var saving by remember { mutableStateOf(false) }
+    // On its way through the Outbox: the heading says "Saving…" until it is sent.
+    val queued by Outbox.items.collectAsStateWithLifecycle()
+    val saving = queued.any { it.label == "Label layout" }
     var failure by remember { mutableStateOf<String?>(null) }
 
     val docValue by doc.value.collectAsStateWithLifecycle()
@@ -136,17 +139,10 @@ private fun LabelDesigner() {
         }
     }
 
-    suspend fun save(next: LabelLayout) {
-        saving = true
-        try {
-            ErpApi.shared.write("saveLabelLayout", LabelLogic.savePayload(next, UUID.randomUUID().toString()))
-            if (layout == next) edited = false
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            note.show(Note("Layout not saved", "Check the connection; it will try again on the next change. ${e.message ?: e}", failed = true))
-        }
-        saving = false
+    fun save(next: LabelLayout) {
+        // `seq` makes each save its own: a field moved and moved back is a new change, not one sent twice.
+        ErpApi.shared.enqueue("saveLabelLayout", LabelLogic.savePayload(next, UUID.randomUUID().toString()), "Label layout")
+        if (layout == next) edited = false
     }
 
     DisposableEffect(doc) {
@@ -166,7 +162,7 @@ private fun LabelDesigner() {
     // A change made in the last second before leaving is saved rather than dropped with the timer.
     val latestLayout by rememberUpdatedState(layout)
     val latestEdited by rememberUpdatedState(edited)
-    DisposableEffect(Unit) { onDispose { val l = latestLayout; if (latestEdited && l != null) ErpApp.scope.launch { save(l) } } }
+    DisposableEffect(Unit) { onDispose { val l = latestLayout; if (latestEdited && l != null) save(l) } }
 
     val l = layout
     when {

@@ -99,9 +99,9 @@ fun AdsAudiencesScreen() {
         }
     }
 
-    suspend fun load() {
+    suspend fun load(fresh: Boolean = false) {
         try {
-            val s = backend.status()
+            val s = backend.status(fresh)
             status = s
             problem = null
             if (s.ready) loadAudiences()
@@ -219,7 +219,7 @@ fun AdsAudiencesScreen() {
                 )
             }
         }
-        else -> AdsNotReady(status, problem) { scope.launch { load() } }
+        else -> AdsNotReady(status, problem) { scope.launch { load(fresh = true) } }
     }
 
     if (sendingCustomers) {

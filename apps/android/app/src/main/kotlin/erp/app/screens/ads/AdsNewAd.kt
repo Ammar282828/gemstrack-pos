@@ -242,9 +242,9 @@ fun AdsNewAdScreen(path: String) {
         d = d.fitGoal(l)
     }
 
-    suspend fun load() {
+    suspend fun load(fresh: Boolean = false) {
         try {
-            val s = backend.status()
+            val s = backend.status(fresh)
             status = s
             problem = null
             if (s.ready && lists == null) lists = backend.newAdLists()
@@ -426,7 +426,7 @@ fun AdsNewAdScreen(path: String) {
             previewBusy = previewBusy, previewError = previewError, onPreview = ::showPreview,
             check = check, checking = checking, sending = sending, onReview = ::review,
         )
-        else -> AdsNotReady(status, problem) { scope.launch { load() } }
+        else -> AdsNotReady(status, problem) { scope.launch { load(fresh = true) } }
     }
 
     // MARK: Dialogs and sheets

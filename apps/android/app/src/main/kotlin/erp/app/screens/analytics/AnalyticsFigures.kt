@@ -10,6 +10,7 @@ import erp.core.logic.cashInForPeriod
 import erp.core.logic.invoiceMargin
 import erp.core.logic.invoiceSaleValue
 import erp.core.logic.invoicedOrderIds
+import erp.core.logic.lineCategory
 import erp.core.logic.orderMargin
 import erp.core.logic.saleCustomerKey
 import erp.core.models.AdditionalRevenue
@@ -132,9 +133,11 @@ class AnaFigures {
     var coinInvoiceCount = 0
     var coin: AnaCoins.Summary = AnaCoins.summarise(emptyList())
 
-    val cashIn: Double get() = cash?.total ?: 0.0
-    val cashOut: Double get() = totalExpenses
-    val netCashFlow: Double get() = cashIn - totalExpenses
+    /** Credit handed back to customers: cash-in.ts nets it off the payments; here it is money out, added back to money in so the net is the same. */
+    val creditPaidBack: Double get() = cash?.paidBack ?: 0.0
+    val cashIn: Double get() = (cash?.total ?: 0.0) + creditPaidBack
+    val cashOut: Double get() = totalExpenses + creditPaidBack
+    val netCashFlow: Double get() = cashIn - cashOut
     val exchangeOffInvoices: Double get() = cash?.exchangeOffInvoices ?: 0.0
 
     companion object {
@@ -311,8 +314,9 @@ private class AnaGather(val books: AnaBooks, val margin: MarginSettings?, val re
         p.quantity += quantity
         p.revenue += item.itemTotal
 
-        if (item.categoryId.isNotEmpty()) {
-            categories[item.categoryId] = (categories[item.categoryId] ?: 0.0) + item.itemTotal
+        // Its own category, else its order's, else its name's (lineCategory, categories.ts).
+        lineCategory(item.categoryId, item.itemCategory, item.name)?.let { cat ->
+            categories[cat] = (categories[cat] ?: 0.0) + item.itemTotal
         }
     }
 
@@ -492,7 +496,7 @@ object AnaBreakdown {
         val acc = LinkedHashMap<String, CategoryAcc>()
         for (inv in invoices(books, range)) {
             for (item in inv.items) {
-                val id = item.categoryId.ifEmpty { "uncategorized" }
+                val id = lineCategory(item.categoryId, item.itemCategory, item.name) ?: "uncategorized"
                 val a = acc.getOrPut(id) { CategoryAcc() }
                 a.items += item.quantity
                 a.revenue += item.itemTotal

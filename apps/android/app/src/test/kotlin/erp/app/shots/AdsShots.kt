@@ -246,7 +246,7 @@ object AdsFixtures {
     val backend: AdsBackend = object : AdsBackend by AdsAPI {
         override suspend fun overview(range: String, fresh: Boolean) = AdOverview.from(parse(overview))!!
         override suspend fun campaigns(range: String, archived: Boolean) = AdCampaigns.from(parse(campaigns))!!
-        override suspend fun status() = AdsStatusAnswer.from(parse(status))!!
+        override suspend fun status(fresh: Boolean) = AdsStatusAnswer.from(parse(status))!!
         override suspend fun newAdLists() = AdsNewAdLists.from(parse(lists))!!
         override suspend fun media(after: String?) = AdsMediaAnswer.from(parse(media))!!
         override suspend fun sitePieces(): List<AdsSitePiece> = emptyList()

@@ -46,6 +46,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -81,6 +82,8 @@ import erp.app.ui.LocalNoteState
 import erp.app.ui.MinTouchTarget
 import erp.app.ui.NotAvailableState
 import erp.app.ui.Note
+import erp.app.ui.rememberHaptics
+import erp.app.ui.rememberLocalChanges
 import erp.app.ui.Radius
 import erp.app.ui.ShelfState
 import erp.app.ui.Tone
@@ -138,7 +141,9 @@ fun WorkshopBoard(path: String) {
     var grouping by rememberSaveable { mutableStateOf(WorkshopGrouping.list) }
     var showFree by rememberSaveable { mutableStateOf(false) }
     var showTotals by rememberSaveable { mutableStateOf(false) }
-    var busy by remember { mutableStateOf(setOf<String>()) }
+    // What the person just did to a piece, until the shelf's copy says so: a tick leaves at once (Outbox).
+    val patches = rememberLocalChanges<String, JobPatch>()
+    val haptics = rememberHaptics()
     var failure by remember { mutableStateOf<String?>(null) }
     var assigning by remember { mutableStateOf<String?>(null) }
     var editing by remember { mutableStateOf<KarigarJob?>(null) }
@@ -157,40 +162,46 @@ fun WorkshopBoard(path: String) {
     val jobs = remember(orders.revision, invoices.revision, karigars.revision, stockJobs.revision) {
         WorkshopLogic.buildJobs(orders.items, stockJobs.items, live, invoices.items)
     }
-    val all = remember(jobs, orderId) { if (orderId == null) jobs else jobs.filter { it.orderId == orderId } }
+    val shownJobs = remember(jobs, patches.entries) { if (patches.isEmpty) jobs else jobs.map { WorkshopPatches.patched(it, patches[it.id]) } }
+    // Drop what the shelf now says too.
+    LaunchedEffect(jobs) { patches.reconcile { id, p -> jobs.firstOrNull { it.id == id }?.let { WorkshopPatches.agrees(it, p) } ?: true } }
+    val all = remember(shownJobs, orderId) { if (orderId == null) shownJobs else shownJobs.filter { it.orderId == orderId } }
     val snap = remember(all, filter) { WorkshopSnapshot(all, filter) }
     val focused = snap.focused(focus)
     val busyIds = remember(snap) { snap.all.filter { !it.isDone }.map { it.karigarId }.toSet() }
     val choices = remember(live, busyIds) { WorkshopChoices(live, busyIds) }
 
-    /** One write for one piece, with its controls off meanwhile. The shelf brings the change back. */
-    fun write(job: WorkshopJob, w: WorkshopWrite?) {
-        if (w == null || job.id in busy) return
-        busy = busy + job.id
-        scope.launch {
-            try {
-                // These say the state wanted (done, given, a karigar), so Done → Not done → Done within the ERP's
-                // 30-second once-only window is three changes, not a repeat: `seq` makes each its own (busy stops double taps).
-                ErpApi.shared.write(w.op, w.fields + ("seq" to UUID.randomUUID().toString()))
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                failure = workshopSay(e)
-            } finally {
-                busy = busy - job.id
-            }
-        }
+    /** One write for one piece: the board shows it at once and the Outbox carries it (the shelf brings the real copy). */
+    fun write(
+        job: WorkshopJob, w: WorkshopWrite?,
+        status: WorkshopJob.Status? = null, given: Boolean? = null, karigarId: String? = null,
+    ) {
+        if (w == null) return
+        patches[job.id] = WorkshopPatches.next(job, patches[job.id], status, given, karigarId) { id -> book.karigars.item(id)?.name }
+        haptics.success()
+        // These say the state wanted (done, given, a karigar), so Done → Not done → Done within the ERP's 30-second
+        // once-only window is three changes, not a repeat: `seq` makes each its own.
+        ErpApi.shared.enqueue(w.op, w.fields + ("seq" to UUID.randomUUID().toString()), job.description)
     }
 
     val actions = remember(book, owner) {
         WorkshopActions(
-            done = { job, done -> write(job, WorkshopWrites.done(job, done)) },
+            done = { job, done -> write(job, WorkshopWrites.done(job, done), status = if (done) WorkshopJob.Status.completed else WorkshopJob.Status.pending) },
             given = { job, given ->
                 // Nobody to have given it to: refused here as on the web.
-                if (job.isUnassigned && given) failure = WorkshopWrites.nobodyYet else write(job, WorkshopWrites.given(job, given))
+                if (job.isUnassigned && given) failure = WorkshopWrites.nobodyYet else write(job, WorkshopWrites.given(job, given), given = given)
             },
-            assign = { job, karigarId -> write(job, WorkshopWrites.karigar(job, karigarId)) },
-            status = { job, status -> write(job, WorkshopWrites.status(job, status)) },
+            assign = { job, karigarId -> write(job, WorkshopWrites.karigar(job, karigarId), karigarId = karigarId) },
+            status = { job, status ->
+                write(
+                    job, WorkshopWrites.status(job, status),
+                    status = when (status) {
+                        KarigarJobStatus.completed -> WorkshopJob.Status.completed
+                        KarigarJobStatus.inProgress -> WorkshopJob.Status.inProgress
+                        else -> WorkshopJob.Status.pending
+                    },
+                )
+            },
             details = { job ->
                 // The job as it is on file: the sheet edits its own fields (the board's line merges the instructions).
                 val t = WorkshopLogic.writeTarget(job) as? WorkshopLogic.WriteTarget.Stock
@@ -231,7 +242,7 @@ fun WorkshopBoard(path: String) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val large = isLargeText()
             val columns = workshopColumns((maxWidth - 32.dp).value, large, 420f)
-            val ctx = BoardContext(columns, owner, busy, choices, actions)
+            val ctx = BoardContext(columns, owner, emptySet(), choices, actions)
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 96.dp)) {
                 if (orderId == null) {
                     item(key = "search") {
