@@ -19,9 +19,10 @@ is the iPhone's.
    Return, ⌘O). Back (⌘[) exists only where a page truly leads into another (a report's drill-down).
 2. **Nothing hidden in the title.** Every tab of the ERP's map is a sidebar row (an entry's children, disclosed), and the
    Mac adds saved lists under the places people chase (Orders ▸ Late). The title is a title.
-3. **An action is declared once** and appears in three places, always alike: the toolbar (the three to five used most), the
-   menu bar (every action, with its shortcut, in the record's own menu: Invoice, Order, Customer, Piece, Repair, Karigar),
-   and the right-click menu. Never as a big button in the content. (`MacActions`, below.)
+3. **An action is declared once** and appears in three places, always alike: the inspector's head (the two or three used
+   most), the menu bar (every action, with its shortcut, in the record's own menu: Invoice, Order, Customer, Piece, Repair,
+   Karigar), and the right-click menu. A place's toolbar holds its New and one Filter, never the picked record's actions
+   (a record window's toolbar may hold four and a More menu). Never as a big button in the content. (`MacActions`, below.)
 4. **Tables, not cards.** A collection is a `Table`: sortable columns, multi-select, a status dot and word, money
    right-aligned in monospaced digits. Boards (Orders by stage, Workshop by karigar) are compact rows in columns, selectable,
    and a row can be dragged where the move is a plain status change.
@@ -46,14 +47,15 @@ is the iPhone's.
 
 ## The window
 
-- **Sidebar** (220 pt): the business pop-up at its head ("Taheri ▾": the businesses, then "Manage Businesses…"), then the
-  places, then nothing else (Settings is the Settings window; Search is ⌘K and each list's own field).
-- **Toolbar** (unified): the sidebar toggle; the place's title with a subtitle (its count, or the business); the place's own
-  items (+ for its new, a view switcher where a place has two views, a filter pop-up); then, at the trailing end on every
-  place: the **rate** ("21K 26,250", orange ⚠ when not set today; a click opens a popover with the rate fields, Return
-  saves), the search field, the inspector toggle.
+- **Sidebar** (230 pt): at its head the business (its badge beside a pop-up, "Taheri ERP ▾": the businesses, then
+  "Manage Businesses…"), then **New Sale ⌘N**, **New Order ⇧⌘N** and **Search ⌘K** as rows, as the Claude app keeps New
+  chat and Search at its sidebar's head; then the places; at its foot the day's **rate** ("21K 32,500", amber ⚠ "Rate not
+  set today"; a click opens the rate sheet). Settings is the Settings window.
+- **Toolbar** (unified) is the place's alone: the sidebar toggle; the place's title with a subtitle (its count); a view
+  switch where a place has two views; one group of the place's New and one Filter menu; the search field; the inspector
+  toggle above the inspector. Nothing of the window's own (2026-10-25: nine glass capsules overflowed a 13-inch screen).
 - **Content**: the list, board or report.
-- **Inspector** (320 pt, ⌥⌘I, on by default for lists): the picked record — a plain header (name, number, status dot and
+- **Inspector** (300 pt, ⌥⌘I, on by default for lists): the picked record — a plain header (name, number, status dot and
   word, the one figure that matters), a row of its main actions as bordered buttons, then its sections as a grouped form,
   edited in place where the field is simple.
 - **Record windows**: an invoice, order, repair, customer, piece or karigar in a window of its own, the same view as the
@@ -121,7 +123,7 @@ One page, no cards. A team-note strip at the top when there is one (yellow, the 
 figures, each a link to its list: Taken today (with a 7-day sparkline), Owed to you, On the bench, This month (± against
 last month), Orders due. Then three columns of plain lists with section headers: **Needs you**, **Due to customers**,
 **Recent sales** — selectable rows (the inspector shows the record), no chevrons, all rows shown (the columns scroll).
-The rate is the toolbar's.
+The rate is the sidebar's foot.
 
 ### Invoices
 Table: Number, Customer, Date, Pieces, Total, Paid, Owed, Status (dot: Paid · Owed · In credit · Refunded), Taken by,

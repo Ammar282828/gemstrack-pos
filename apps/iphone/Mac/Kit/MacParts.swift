@@ -1,6 +1,7 @@
 #if os(macOS)
 import SwiftUI
 import AppKit
+import ERPCore
 
 // The parts every Mac place is built from (docs/features/mac-design.md, "The kit"): a list's summary bar, a status dot,
 // a report's row of figures, the inspector and its head, a record window's head, a combo box. Plain system styling:
@@ -56,6 +57,29 @@ extension View {
     /// The list's summary bar at its foot.
     func macSummaryBar(_ parts: [String]) -> some View {
         safeAreaInset(edge: .bottom, spacing: 0) { MacSummaryBar(parts: parts) }
+    }
+}
+
+// MARK: A sum in a table
+
+/// A sum in a table's cell: the digits only, grouped the shop's way and right-aligned ("1,23,000"), as Numbers sets a
+/// column of money. The column's header names what it is, the summary bar carries "PKR": a "PKR " in every cell only
+/// widens the column. Blank for nil.
+struct MacAmount: View {
+    let amount: Double?
+    var tone: Tone = .quiet
+
+    init(_ amount: Double?, tone: Tone = .quiet) {
+        self.amount = amount
+        self.tone = tone
+    }
+
+    var body: some View {
+        Text(amount.map { Money.grouped($0) } ?? "")
+            .monospacedDigit()
+            .lineLimit(1)
+            .foregroundStyle(tone == .quiet ? Color.primary : tone.color)
+            .frame(maxWidth: .infinity, alignment: .trailing)
     }
 }
 
@@ -217,14 +241,26 @@ private struct MacInspectorModifier<Panel: View>: ViewModifier {
     func body(content: Content) -> some View {
         content
             .inspector(isPresented: $shown) {
-                panel().inspectorColumnWidth(min: 280, ideal: 320, max: 440)
+                panel()
+                    .inspectorColumnWidth(min: 260, ideal: 300, max: 420)
+                    // Declared inside the inspector, the toggle sits above it at the window's trailing edge, as
+                    // Xcode's and Keynote's do; declared on the list it lands among the list's own buttons.
+                    .toolbar {
+                        ToolbarSpacer(.flexible)
+                        ToolbarItem(placement: .primaryAction) { toggle }
+                    }
             }
             .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button { shown.toggle() } label: { Label("Inspector", systemImage: "sidebar.trailing") }
-                        .help("Show or hide the inspector (⌥⌘I)")
+                // Hidden, the inspector draws nothing, so the list carries the toggle until it is shown again.
+                if !shown {
+                    ToolbarItem(placement: .primaryAction) { toggle }
                 }
             }
+    }
+
+    private var toggle: some View {
+        Button { shown.toggle() } label: { Label(shown ? "Hide Inspector" : "Show Inspector", systemImage: "sidebar.trailing") }
+            .help(shown ? "Hide the inspector (⌥⌘I)" : "Show the inspector (⌥⌘I)")
     }
 }
 

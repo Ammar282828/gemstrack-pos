@@ -102,6 +102,27 @@ Read its ten rules and your place's section before touching a screen. The parts 
   `FigureTile`/`ledgerCard` cards on a Mac body, no serif (`LedgerHeading` → a plain `Text` section header); no
   `controlSize(.large)`; no "Tap" in words.
 
+## The polish rules (2026-10-25, after the first real build: "ui is quite fucked")
+
+What the owner's screenshot (13-inch MacBook Air, 1470 points) showed, and the rules that came of it:
+- **A window grows to fit its content's minimum widths.** A Menu's label drew the shop's logo 500 points wide at the
+  sidebar's head; the window went off the screen and took the table's last columns and the inspector with it. A list
+  must work at 600 points: the sum of a table's column minimums ≤ 620, seven columns at most (the inspector has the
+  rest), the name column the only wide one; nothing in an inspector wider than 240; a sheet's minimum ≤ 560 × 520.
+- **A Menu's label is AppKit's.** macOS keeps one `Text` and one `Image` of it and drops every other view (a badge, an
+  `HStack`'s layout, `.frame`, `.clipShape`); an asset or `NSImage` is drawn at its pixel size. Labels are
+  `Label("…", systemImage:)`, `Text` or `Image(systemName:)`; a picture goes beside the Menu, not in it.
+- **The toolbar is the place's, and short.** The shell has no toolbar items: New Sale, New Order, Search (⌘K) and the
+  day's rate are at the head and foot of the sidebar, as the Claude app keeps New chat and Search. A place's toolbar is
+  its view switch (`.principal`, if it has two views), then ONE `.primaryAction` group of its New and one Filter menu
+  (every filter inline inside it), the search field, and the inspector toggle `.macInspector` draws above the inspector.
+  A picked record's actions are the inspector's head, the menu bar's record menu and the right-click menu — never also
+  the toolbar's. A record window may carry four actions and a More menu.
+- **Money in a table is digits.** `MacAmount(value)` (grouped, right-aligned, blank for nil); the header names the
+  figure, the summary bar and the inspector say "PKR".
+- **Snappy:** a shelf walked, sorted or filtered in `body` is behind a `Memo` keyed on the shelves' `revision`; no
+  `.animation` on a table or list; never `.id()` a table by its selection; `need()` on appear, never a reload.
+
 ## Done means
 
 Each screen of the group: a Mac layout that uses the window (no stretched phone column), right-click on rows, the

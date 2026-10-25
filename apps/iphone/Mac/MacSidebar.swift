@@ -160,10 +160,22 @@ enum MacSidebarMap {
     }
 }
 
-/// The sidebar: the business menu at its head, then the sections; a place with rows under it discloses them.
+/// What the sidebar's head offers, as the Claude app keeps New chat and Search at the head of its sidebar: the counter's
+/// two jobs and ⌘K. Nil hides a row (a role that may not sell; a house without New sale).
+struct MacSidebarCommands {
+    var newSale: (() -> Void)?
+    var newOrder: (() -> Void)?
+    var search: () -> Void
+}
+
+/// The sidebar: the business, New Sale, New Order and Search at its head, then the sections (a place with rows under it
+/// discloses them), and the day's rate at its foot. The window's toolbar is left to the place in front.
 struct MacSidebar: View {
     let sections: [MacSidebarSection]
     @Binding var selection: String?
+    let commands: MacSidebarCommands
+    /// The day's rate at the foot (not for marketing).
+    let showsRate: Bool
     let open: (Route) -> Void
 
     @Environment(Book.self) private var book
@@ -186,9 +198,25 @@ struct MacSidebar: View {
         }
         .listStyle(.sidebar)
         .safeAreaInset(edge: .top, spacing: 0) {
-            MacBusinessMenu()
-                .padding(.horizontal, 12).padding(.top, 6).padding(.bottom, 4)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .leading, spacing: 1) {
+                MacBusinessMenu()
+                    .padding(.horizontal, 8)
+                    .padding(.bottom, 6)
+                if let newSale = commands.newSale {
+                    MacSidebarCommand(title: "New Sale", symbol: "square.and.pencil", key: "\u{2318}N", action: newSale)
+                }
+                if let newOrder = commands.newOrder {
+                    MacSidebarCommand(title: "New Order", symbol: "list.clipboard", key: "\u{21E7}\u{2318}N", action: newOrder)
+                }
+                MacSidebarCommand(title: "Search", symbol: "magnifyingglass", key: "\u{2318}K", action: commands.search)
+            }
+            .padding(.horizontal, 10)
+            .padding(.top, 4)
+            .padding(.bottom, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if showsRate { MacSidebarRate() }
         }
         .contextMenu(forSelectionType: String.self) { picked in
             if let p = picked.first {
@@ -245,36 +273,122 @@ struct MacSidebar: View {
     }
 }
 
-/// The business at the head of the sidebar: a menu of the businesses on this Mac (a tick on the open one) and Manage
-/// Businesses…, as Slack's or Xcode's switcher.
+/// The business at the head of the sidebar: its badge, then a menu of the businesses on this Mac (a tick on the open one)
+/// and Manage Businesses…, as Slack's or Xcode's switcher. The badge sits beside the Menu, not in its label: macOS draws a
+/// Menu's label through AppKit, which keeps only its text and image and drew the logo at its pixel size, 500 points wide.
 struct MacBusinessMenu: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         let store = Businesses.shared
         let current = store.current
-        Menu {
-            ForEach(store.list) { b in
-                Button {
-                    guard b.id != current.id else { return }
-                    Motion.run(Motion.travel, reduce: reduceMotion) { Businesses.shared.switch(to: b.id) }
-                } label: {
-                    if b.id == current.id { Label(b.displayName, systemImage: "checkmark") } else { Text(b.displayName) }
+        HStack(spacing: 8) {
+            BusinessBadge(business: current, size: 22)
+            Menu {
+                ForEach(store.list) { b in
+                    Button {
+                        guard b.id != current.id else { return }
+                        Motion.run(Motion.travel, reduce: reduceMotion) { Businesses.shared.switch(to: b.id) }
+                    } label: {
+                        if b.id == current.id { Label(b.displayName, systemImage: "checkmark") } else { Text(b.displayName) }
+                    }
                 }
+                Divider()
+                Button("Manage Businesses\u{2026}") { store.switcherOpen = true }
+            } label: {
+                Text(current.displayName)
             }
-            Divider()
-            Button("Manage Businesses…") { store.switcherOpen = true }
-        } label: {
-            HStack(spacing: 8) {
-                BusinessBadge(business: current, size: 22)
-                Text(current.displayName).font(.headline).lineLimit(1)
-                Image(systemName: "chevron.up.chevron.down").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
-            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.visible)
+            .fixedSize()
+            .help("Switch business (\u{21E7}\u{2318}B manages them)")
+            Spacer(minLength: 0)
         }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
-        .fixedSize()
-        .help("Switch business (⇧⌘B manages them)")
+        .frame(height: 28)
+    }
+}
+
+/// A command at the sidebar's head: an icon, its name and its key, lit under the pointer, as the Claude app's New chat.
+struct MacSidebarCommand: View {
+    let title: String
+    let symbol: String
+    let key: String
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: symbol)
+                    .foregroundStyle(.tint)
+                    .frame(width: 18)
+                Text(title)
+                    .foregroundStyle(.primary)
+                Spacer(minLength: 6)
+                Text(key)
+                    .font(.callout)
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 8)
+            .frame(height: 28)
+            .contentShape(Rectangle())
+            .background(hovering ? Color.primary.opacity(0.07) : Color.clear,
+                        in: .rect(cornerRadius: 8, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .help("\(title) (\(key))")
+    }
+}
+
+/// The day's rate at the sidebar's foot: always in sight, whatever place is open, and amber when it was not set today.
+/// A click sets it (owners) or reads it (everyone else), the sheet the iPhone's rate chip opens.
+struct MacSidebarRate: View {
+    @Environment(Book.self) private var book
+    @Environment(Session.self) private var session
+    @State private var open = false
+    @State private var hovering = false
+
+    var body: some View {
+        let s = book.settings.value
+        let today = RateKeys.setToday(s)
+        let rate = s.map { Money.grouped($0[keyPath: RateKeys.main.value]) } ?? "\u{2014}"
+        VStack(spacing: 0) {
+            Divider()
+            Button { open = true } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: today ? "scalemass" : "exclamationmark.triangle.fill")
+                        .foregroundStyle(today ? Color.secondary : Tone.owed.color)
+                        .frame(width: 18)
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(today ? "Today\u{2019}s rate" : "Rate not set today")
+                            .font(.caption)
+                            .foregroundStyle(today ? Color.secondary : Tone.owed.color)
+                        HStack(spacing: 4) {
+                            Text(RateKeys.main.label).fontWeight(.semibold)
+                            Text(rate).monospacedDigit()
+                        }
+                    }
+                    Spacer(minLength: 4)
+                    Text(session.isOwner ? (today ? "Change" : "Set") : "See")
+                        .font(.callout)
+                        .foregroundStyle(.tint)
+                        .opacity(hovering || !today ? 1 : 0)
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .contentShape(Rectangle())
+                .background(hovering ? Color.primary.opacity(0.07) : Color.clear,
+                            in: .rect(cornerRadius: 8, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .onHover { hovering = $0 }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .help(today ? "Today\u{2019}s rates" : "The rate was not set today")
+        }
+        .onAppear { book.settings.need() }
+        .sheet(isPresented: $open) { RateSheetHost() }
     }
 }
 #endif

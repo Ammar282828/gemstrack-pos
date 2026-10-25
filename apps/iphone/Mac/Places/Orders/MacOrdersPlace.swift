@@ -158,13 +158,12 @@ struct MacOrdersPlace: View {
             .pickerStyle(.segmented)
             .help("The orders as a table or by stage (\u{2303}\u{2318}1, \u{2303}\u{2318}2)")
         }
+        // New and the one filter; the picked order's actions are the inspector's, the Order menu's and the right-click
+        // menu's, never the toolbar's (a Tahoe toolbar of nine capsules overflowed a 13-inch screen).
         ToolbarItemGroup(placement: .primaryAction) {
             Button { newOrder() } label: { Label("New Order", systemImage: "plus") }
                 .help("New order (\u{21E7}\u{2318}N)")
             filterMenu(base)
-            ForEach(MacOrdersMenu.pick(pickedGroups, MacOrdersMenu.toolbarIDs)) { (a: MacAction) in
-                MacToolbarAction(action: a)
-            }
         }
     }
 

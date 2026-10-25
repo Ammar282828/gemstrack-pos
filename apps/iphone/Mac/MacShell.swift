@@ -31,7 +31,7 @@ final class MacShellModel {
 }
 
 /// The signed-in Mac: the ERP's whole map down the sidebar (src/lib/nav.ts, exported per house), the chosen place in
-/// the detail with its own stack, the business chip heading the sidebar, and New in the toolbar.
+/// the detail with its own stack; the business, New Sale, New Order and Search at the sidebar's head, the rate at its foot.
 struct MacShell: View {
     static let searchID = "search"
     @Environment(Session.self) private var session
@@ -58,10 +58,13 @@ struct MacShell: View {
         let map = map
         let sections = sidebarSections(map)
         NavigationSplitView(columnVisibility: $columns) {
-            MacSidebar(sections: sections, selection: Binding(get: { model.selection }, set: { if let s = $0 { model.go(s) } })) {
+            MacSidebar(sections: sections,
+                       selection: Binding(get: { model.selection }, set: { if let s = $0 { model.go(s) } }),
+                       commands: commands(map),
+                       showsRate: session.role != "marketing") {
                 openWindow(id: MacWindows.place, value: $0)
             }
-            .navigationSplitViewColumnWidth(min: 200, ideal: 230, max: 320)
+            .navigationSplitViewColumnWidth(min: 210, ideal: 230, max: 300)
         } detail: {
             NavigationStack(path: $model.stack) {
                 detailRoot
@@ -70,19 +73,8 @@ struct MacShell: View {
             // A hub's row opened in a window of its own (its context menu or a double-click) comes through here.
             .environment(\.openPlaceWindow, OpenPlaceWindow { openWindow(id: MacWindows.place, value: $0) })
         }
-        .toolbar {
-            ToolbarItem(placement: .navigation) {
-                MacCreateMenu(map: map, voiceShown: session.isOwner, shown: session.role != "marketing") { model.creating = Route(path: $0) } talk: { model.voice = true }
-            }
-            ToolbarItem(placement: .navigation) {
-                Button { model.quickOpen = true } label: { Label("Quick Open", systemImage: "magnifyingglass") }
-                    .help("Open a customer, invoice, order, piece or place (⌘K)")
-            }
-            // The shop's rate on every place, as the ERP's top bar has it: a click sets it (owners) or reads it.
-            if session.role != "marketing" {
-                ToolbarItem(placement: .navigation) { RateChip() }
-            }
-        }
+        // No toolbar items of the window's own: the toolbar is the place's (its New, its filter, its search). New Sale,
+        // New Order, Search and the day's rate are at the head and foot of the sidebar.
         // ⌘K: the panel over the whole window; a click outside it, or Esc, puts it away.
         .overlay(alignment: .top) {
             if model.quickOpen {
@@ -159,6 +151,18 @@ struct MacShell: View {
         }
     }
 
+    /// The sidebar's head: New Sale and New Order for those who sell, Search for everyone.
+    private func commands(_ map: NavMap) -> MacSidebarCommands {
+        let model = self.model
+        let sells = session.role != "marketing"
+        var out = MacSidebarCommands(search: { model.quickOpen = true })
+        if sells {
+            if map.newSale != nil { out.newSale = { model.creating = Route(path: "/invoices/new") } }
+            out.newOrder = { model.creating = Route(path: "/orders/add") }
+        }
+        return out
+    }
+
     // MARK: The detail
 
     /// The Mac's own places (docs/features/mac-design.md), by the sidebar's path; nil for a place drawn by its screen.
@@ -184,36 +188,6 @@ struct MacShell: View {
         } else {
             PlaceScreen(path: selection, isRoot: true)
                 .id(selection)
-        }
-    }
-}
-
-/// New: a sale, an order, a scan, or the voice assistant, from the toolbar (⌘N and ⇧⌘N are the menu bar's).
-struct MacCreateMenu: View {
-    let map: NavMap
-    let voiceShown: Bool
-    let shown: Bool
-    let open: (String) -> Void
-    let talk: () -> Void
-
-    var body: some View {
-        if shown {
-            Menu {
-                if map.newSale != nil {
-                    // Straight to the sale: the iPhone's "What is it?" chooser is not the Mac's (⌘N, ⇧⌘N, ⌥⌘N say it).
-                    Button("New sale", systemImage: "banknote") { open("/invoices/new") }
-                }
-                Button("New order", systemImage: "list.clipboard") { open("/orders/add") }
-                Button("New repair", systemImage: "wrench.and.screwdriver") { open("/repairs?new=1") }
-                Button("Scan a tag", systemImage: "barcode.viewfinder") { open("/scan") }
-                if voiceShown {
-                    Divider()
-                    Button("Voice assistant", systemImage: "mic") { talk() }
-                }
-            } label: {
-                Label("New", systemImage: "plus")
-            }
-            .help("New sale, order, repair or scan")
         }
     }
 }

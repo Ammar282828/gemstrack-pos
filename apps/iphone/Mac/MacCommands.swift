@@ -92,6 +92,8 @@ struct MacCommands: Commands {
                 Button("Scan a Tag…") { shell?.creating = Route(path: "/scan") }
                     .keyboardShortcut("t", modifiers: [.command, .shift])
                     .disabled(shell == nil || !sells)
+                Button("Voice Assistant…") { shell?.voice = true }
+                    .disabled(shell == nil || !isOwner)
             }
             CommandGroup(after: .saveItem) {
                 Menu("Import") {
