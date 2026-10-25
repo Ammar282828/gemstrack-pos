@@ -75,7 +75,7 @@ struct OrderCardRows: View {
                 if let step {
                     OrderNextStepRow(order: order, step: step, canAdvance: canAdvance, busy: busy, actions: actions, showsAdvanceMenu: false)
                 } else { Spacer(minLength: 0) }
-                Menu { menu } label: { Image(systemName: "ellipsis").frame(width: 44, height: 44) }
+                Menu { menu } label: { Image(systemName: "ellipsis").frame(width: Metrics.tap, height: Metrics.tap) }
                     .buttonStyle(.borderless).accessibilityLabel("Actions for \(order.id)")
             }
         }
@@ -316,7 +316,7 @@ struct OrderNextStepRow: View {
                     Menu {
                         Button("Record an advance", systemImage: "banknote") { actions.advance(order) }
                     } label: {
-                        Image(systemName: "ellipsis").frame(minWidth: 44, minHeight: 44)
+                        Image(systemName: "ellipsis").frame(minWidth: Metrics.tap, minHeight: Metrics.tap)
                     }
                     .buttonStyle(.borderless)
                     .accessibilityLabel("More order actions")
@@ -335,7 +335,7 @@ struct OrderNextStepRow: View {
     private var primary: some View {
         if busy {
             ProgressView().controlSize(.small)
-                .frame(minWidth: 44, minHeight: 44)
+                .frame(minWidth: Metrics.tap, minHeight: Metrics.tap)
         } else {
             // A small tinted capsule, so the card's one action reads as a button and not as more words. Not glass
             // (a glass button under an animated swap shrinks into a blob, iphone-app.md "The bubble").
@@ -345,7 +345,7 @@ struct OrderNextStepRow: View {
                 .controlSize(.small)
                 .tint(Theme.accent)
                 .font(.subheadline.weight(.semibold))
-                .frame(minHeight: 44)
+                .frame(minHeight: Metrics.tap)
         }
     }
 

@@ -167,7 +167,7 @@ struct DesignWorkspaceView: View {
     private func header(_ w: DesignWork) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
-                Button(action: onClose) { Label("Designs", systemImage: "chevron.left").font(.subheadline.weight(.medium)).frame(minHeight: 44) }.buttonStyle(.plain)
+                Button(action: onClose) { Label("Designs", systemImage: "chevron.left").font(.subheadline.weight(.medium)).frame(minHeight: Metrics.tap) }.buttonStyle(.plain)
                 Pill(DesignKinds.label(w.kind), tone: .house)
                 Spacer(minLength: 0)
             }
@@ -225,13 +225,13 @@ struct DesignWorkspaceView: View {
             HStack(spacing: 10) {
                 Button { model.beginEditing(page.id); editing = DesignEditTarget(pageId: page.id) } label: {
                     Label("Edit design", systemImage: "slider.horizontal.3").frame(maxWidth: .infinity)
-                }.buttonStyle(.bordered).tint(Theme.accent).controlSize(.large)
+                }.buttonStyle(.bordered).tint(Theme.accent).largeOnPhone()
                 Menu {
                     let layouts = model.templates
                     ForEach(layouts) { t in Button(t.label) { Task { await model.applyTemplate(t.id) } } }
                     if layouts.isEmpty { Text("Layouts are loading") }
                 } label: { Label("Layout", systemImage: "rectangle.3.group").frame(maxWidth: .infinity) }
-                    .buttonStyle(.bordered).controlSize(.large)
+                    .buttonStyle(.bordered).largeOnPhone()
             }
             if w.stale.contains(page.id) {
                 Text("This size is behind the master. Re-do it from the master, or leave it as it is.").font(.footnote).foregroundStyle(Tone.owed.color)
@@ -278,7 +278,7 @@ struct DesignWorkspaceView: View {
                 Button { devicePicker = true } label: { Label(Self.deviceName, systemImage: Self.deviceSymbol) }
                 if MarketingCamera.available { Button { camera = true } label: { Label("Camera", systemImage: "camera") } }
             } label: { Label(model.photos["photo"] == nil ? "Choose a photograph" : "Change the photograph", systemImage: "photo.badge.plus").frame(maxWidth: .infinity) }
-                .buttonStyle(.bordered).controlSize(.large)
+                .buttonStyle(.bordered).largeOnPhone()
             moreRow
             DesignAITools(model: model, access: access)
         }
@@ -302,7 +302,7 @@ struct DesignWorkspaceView: View {
                                     else { Rectangle().fill(Theme.ground) }
                                 }
                                 .frame(width: 56, height: 56).clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
-                                Button { model.removePhoto(id) } label: { Image(systemName: "xmark.circle.fill").symbolRenderingMode(.palette).foregroundStyle(.white, .black.opacity(0.7)).frame(minWidth: 44, minHeight: 44) }
+                                Button { model.removePhoto(id) } label: { Image(systemName: "xmark.circle.fill").symbolRenderingMode(.palette).foregroundStyle(.white, .black.opacity(0.7)).frame(minWidth: Metrics.tap, minHeight: Metrics.tap) }
                                     .buttonStyle(.plain).offset(x: 5, y: -5).accessibilityLabel("Take this photo out")
                             }
                         }

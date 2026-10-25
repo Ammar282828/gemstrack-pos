@@ -204,7 +204,7 @@ struct InvoiceScreen: View {
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.regular)
-                    .frame(minHeight: 44)
+                    .frame(minHeight: Metrics.tap)
                 }
                 PerforationDivider()
                 figures(inv)

@@ -32,6 +32,10 @@ rules (ERPCore), the same writes (`/api/app/write`), the same Outbox. A fork wou
 - `MacTodayMenu.swift`: a menu-bar extra with today's figures for **every** business signed in on the Mac, from the widget's
   summary and the widget's key per business (`ERPWidgetLink`), so it shows what the iPhone's widget shows.
 
+**Mac sizes (2026-10-25).** Owner: "doesn't seem very optimized for mac in terms of ui and ux". The shared kit answers
+a Mac's sizes on macOS (`Metrics`, `Radius`, 28 pt rows, push buttons for glass, regular controls, group-box cards, the
+arrow pointer), and a new sale, order, repair or scan opens in its own window. The rules: `apps/iphone/Mac/MAC-CONVENTIONS.md`.
+
 ## Label LIVE on the Mac and the iPhone
 
 The tag logic is ERPCore's (`LabelLive.swift`, `LabelCSV.swift`: `src/lib/label-live.ts`, `label-live-values.ts`,

@@ -53,19 +53,16 @@ extension SearchFieldPlacement {
 }
 
 #if os(macOS)
-/// A card that opens something, under a Mac's pointer: a faint wash of the accent and the pointing hand, as Finder and
-/// Mail mark what a click will open.
+/// A card that opens something, under a Mac's pointer: a faint wash, as Finder and Mail light a row. The arrow stays the
+/// arrow (a Mac shows the pointing hand only over a link).
 struct MacHoverHighlight: ViewModifier {
     let shape: AnyShape
     @State private var hovering = false
 
     func body(content: Content) -> some View {
         content
-            .overlay { shape.fill(Theme.accent.opacity(hovering ? 0.07 : 0)).allowsHitTesting(false) }
-            .onHover { inside in
-                hovering = inside
-                if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
-            }
+            .overlay { shape.fill(Color.primary.opacity(hovering ? 0.05 : 0)).allowsHitTesting(false) }
+            .onHover { hovering = $0 }
             .animation(.easeOut(duration: 0.12), value: hovering)
     }
 }

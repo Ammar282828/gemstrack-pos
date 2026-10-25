@@ -345,7 +345,7 @@ struct OrdersHub: View {
                 } actions: {
                     if filtering {
                         Button("Clear filters") { clearFilters() }
-                            .buttonStyle(.glass)
+                            .buttonStyle(.houseGlass)
                     }
                     Button("New order") {
                         web = .newOrder
@@ -403,7 +403,7 @@ struct OrdersHub: View {
             Spacer(minLength: 0)
             Button("Clear") { statusFilter = "All"; month = ""; takenBy = ""; payment = "All" }
                 .font(.footnote.weight(.medium)).buttonStyle(.borderless)
-                .frame(minWidth: 44, minHeight: 44)
+                .frame(minWidth: Metrics.tap, minHeight: Metrics.tap)
         }
     }
 

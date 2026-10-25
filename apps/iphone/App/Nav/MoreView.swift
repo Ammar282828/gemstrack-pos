@@ -38,7 +38,7 @@ struct SignInView: View {
                                 .padding(.vertical, 6)
                         }
                         .buttonStyle(.houseProminent)
-                        .controlSize(.large)
+                        .largeOnPhone()
                         .disabled(signingIn)
                     }
                     if let e = session.error {
@@ -51,7 +51,7 @@ struct SignInView: View {
                         } label: {
                             Label(Businesses.shared.list.count > 1 ? "Switch business" : "Add a business", systemImage: "arrow.left.arrow.right")
                         }
-                        .buttonStyle(.glass)
+                        .buttonStyle(.houseGlass)
                         .disabled(session.state == .signingIn)
                         .accessibilityIdentifier("signin.switch")
                     }

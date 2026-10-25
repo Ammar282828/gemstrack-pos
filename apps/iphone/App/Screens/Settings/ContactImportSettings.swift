@@ -375,7 +375,7 @@ private struct ContactImportPage: View {
                         Image(systemName: off ? "checkmark" : "xmark")
                     }
                     .buttonStyle(.plain)
-                    .frame(minWidth: 44, minHeight: 44)
+                    .frame(minWidth: Metrics.tap, minHeight: Metrics.tap)
                     .contentShape(Rectangle())
                     .foregroundStyle(off ? Tone.settled.color : Color.secondary)
                     .accessibilityLabel(off ? "Put back" : "Drop")

@@ -154,7 +154,7 @@ struct RateChip: View {
             }
             .font(.footnote)
             .foregroundStyle(today ? Color.primary : Tone.owed.color)
-            .frame(minHeight: 44)
+            .frame(minHeight: Metrics.tap)
             .contentShape(Rectangle())
         }
         .accessibilityLabel(accessibility(today: today, rate: s.map { $0[keyPath: RateKeys.main.value] }))

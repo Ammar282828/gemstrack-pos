@@ -65,7 +65,7 @@ struct DesignAccountAds: View {
                             Button { Task { await keep(a) } } label: {
                                 if busy == a.id { ProgressView() } else { Image(systemName: "square.and.arrow.down") }
                             }
-                            .buttonStyle(.borderless).frame(minWidth: 44, minHeight: 44).disabled(busy != nil).accessibilityLabel("Keep in a folder")
+                            .buttonStyle(.borderless).frame(minWidth: Metrics.tap, minHeight: Metrics.tap).disabled(busy != nil).accessibilityLabel("Keep in a folder")
                         }
                     }
                 }.houseRows()

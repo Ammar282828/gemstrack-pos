@@ -153,7 +153,7 @@ struct WorkshopGivenScreen: View {
                 Text(item.description).font(.headline).fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 4)
                 Menu { itemMenu(item) } label: {
-                    Image(systemName: "ellipsis").frame(width: 44, height: 44)
+                    Image(systemName: "ellipsis").frame(width: Metrics.tap, height: Metrics.tap)
                 }
                 .buttonStyle(.borderless)
                 .accessibilityLabel("Actions for " + item.description)
@@ -261,7 +261,7 @@ struct WorkshopGivenScreen: View {
             Button { markReturned(item) } label: {
                 Label("Got back", systemImage: "checkmark.circle")
                     .font(.subheadline)
-                    .frame(minHeight: 44)
+                    .frame(minHeight: Metrics.tap)
             }
             .buttonStyle(.bordered)
             .tint(Tone.settled.color)

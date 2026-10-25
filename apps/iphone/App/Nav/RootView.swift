@@ -282,7 +282,7 @@ private struct CreateAccessory: ViewModifier {
                                     .font(.system(size: compact ? 16 : 20))
                                     .frame(width: compact ? 44 : 52, height: compact ? 44 : 52)
                             }
-                            .buttonStyle(.glass).buttonBorderShape(.circle)
+                            .buttonStyle(.houseGlass).buttonBorderShape(.circle)
                             .accessibilityLabel("Voice assistant")
                         }
                         createMenu {
@@ -291,7 +291,7 @@ private struct CreateAccessory: ViewModifier {
                                 .frame(width: compact ? 44 : 52, height: compact ? 44 : 52)
                                 .foregroundStyle(Theme.onAccent)
                         }
-                        .buttonStyle(.glassProminent).buttonBorderShape(.circle)
+                        .buttonStyle(.houseGlassProminent).buttonBorderShape(.circle)
                         .accessibilityLabel("Create: new sale, new order or scan")
                     }
                 }
@@ -508,7 +508,7 @@ struct TeamNotePresentation: ViewModifier {
                         .accessibilityHint("Opens the full team note")
                         if session.isOwner {
                             Button("Edit note", systemImage: "pencil") { editing = true }
-                                .labelStyle(.iconOnly).frame(minWidth: 44, minHeight: 44)
+                                .labelStyle(.iconOnly).frame(minWidth: Metrics.tap, minHeight: Metrics.tap)
                         }
                     }
                     .padding(12)

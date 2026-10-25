@@ -185,7 +185,7 @@ struct ScanTag: View {
             Label("Open the piece", systemImage: "arrow.up.right.square").frame(maxWidth: .infinity)
         }
         .buttonStyle(.bordered)
-        .controlSize(.large)
+        .largeOnPhone()
         Button("Scan another") { scanAnother() }
             .buttonStyle(.borderless)
             .frame(maxWidth: .infinity)
@@ -206,7 +206,7 @@ struct ScanTag: View {
                 Text("Open \(invoiceId)").frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)
-            .controlSize(.large)
+            .largeOnPhone()
             Button("Scan another") { scanAnother() }
                 .buttonStyle(.borderless)
                 .frame(maxWidth: .infinity)
@@ -220,7 +220,7 @@ struct ScanTag: View {
                 .foregroundStyle(.secondary)
             Button("Scan another") { scanAnother() }
                 .buttonStyle(.bordered)
-                .controlSize(.large)
+                .largeOnPhone()
                 .frame(maxWidth: .infinity)
         }
     }
@@ -233,7 +233,7 @@ struct ScanTag: View {
                 Text("Open the sale").frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)
-            .controlSize(.large)
+            .largeOnPhone()
         }
     }
 }

@@ -84,7 +84,7 @@ struct BusinessPicker: View {
                     Label("Add a business", systemImage: "plus")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .frame(maxWidth: .infinity, minHeight: Metrics.tap)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)

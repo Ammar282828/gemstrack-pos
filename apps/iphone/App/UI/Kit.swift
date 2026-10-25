@@ -392,11 +392,11 @@ struct TwoLine: View {
                 }
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, Metrics.tap > 30 ? 4 : 1)
     }
 
     private var words: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: Metrics.tap > 30 ? 6 : 2) {
             Text(title).fontWeight(.medium)
             if let subtitle, !subtitle.isEmpty {
                 Text(subtitle).font(.subheadline).foregroundStyle(.secondary)

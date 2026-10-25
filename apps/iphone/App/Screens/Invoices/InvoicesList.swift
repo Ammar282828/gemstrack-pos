@@ -311,11 +311,11 @@ struct InvoicesList: View {
                                         if canPay && isOwing(inv) {
                                             Button("Take payment", systemImage: "banknote") { paying = inv }
                                                 .buttonStyle(.borderless).font(.subheadline.weight(.medium))
-                                                .frame(minHeight: 44)
+                                                .frame(minHeight: Metrics.tap)
                                         }
                                         Spacer()
                                         Menu { invoiceActions(inv) } label: {
-                                            Image(systemName: "ellipsis").frame(width: 44, height: 44)
+                                            Image(systemName: "ellipsis").frame(width: Metrics.tap, height: Metrics.tap)
                                         }.accessibilityLabel("Actions for \(inv.id)")
                                     }
                                 }
@@ -389,7 +389,7 @@ struct InvoicesList: View {
             Spacer()
             Button("Clear") { clearFilters() }
                 .font(.caption.weight(.semibold)).buttonStyle(.borderless)
-                .frame(minHeight: 44)
+                .frame(minHeight: Metrics.tap)
         }
     }
 

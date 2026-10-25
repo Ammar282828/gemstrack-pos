@@ -322,7 +322,7 @@ struct RepairsForm: View {
         Button(title) { promised = RepairsKit.days(adding: days) }
             .buttonStyle(.bordered)
             .controlSize(.regular)
-            .frame(minHeight: 44)
+            .frame(minHeight: Metrics.tap)
     }
 
     // MARK: Advance

@@ -24,7 +24,7 @@ struct WebScreen: View {
                 ContentUnavailableView {
                     Label("Couldn't open this page", systemImage: "wifi.exclamationmark")
                 } description: { Text(failed) } actions: {
-                    Button("Try again") { self.failed = nil; loading = true }.buttonStyle(.glass)
+                    Button("Try again") { self.failed = nil; loading = true }.buttonStyle(.houseGlass)
                 }
                 .background(.background)
             }

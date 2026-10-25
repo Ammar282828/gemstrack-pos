@@ -10,7 +10,7 @@ final class MacShellModel {
     var selection: String? = "/"
     /// Pages opened from it, the detail's stack.
     var stack: [Route] = []
-    /// New sale, New order, Scan, a repair: a sheet over the window.
+    /// New sale, New order, Scan, a repair: opened in a window of its own (`MacPlaceWindow`).
     var creating: Route?
     var voice = false
     var pendingRoute: Route?
@@ -65,17 +65,12 @@ struct MacShell: View {
         }
         .focusedSceneValue(\.macShell, model)
         .focusedSceneValue(\.macMap, map)
-        .sheet(item: $model.creating) { r in
-            NavigationStack {
-                PlaceScreen(path: r.path)
-                    .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button("Close") { model.creating = nil }.keyboardShortcut(.cancelAction)
-                        }
-                    }
-            }
-            .frame(minWidth: 760, idealWidth: 920, minHeight: 640, idealHeight: 820)
+        // A new sale, order or repair is a window of its own, as a new document is on a Mac: the main window stays
+        // usable beside it (look up a customer, check the stock), and two can be open at once.
+        .onChange(of: model.creating) { _, r in
+            guard let r else { return }
+            openWindow(id: MacWindows.place, value: r)
+            model.creating = nil
         }
         .sheet(isPresented: $model.voice, onDismiss: {
             if let p = model.pendingRoute { model.pendingRoute = nil; model.creating = p }

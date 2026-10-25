@@ -676,7 +676,7 @@ extension SaleForm {
                 .frame(maxWidth: .infinity)
             }
             .buttonStyle(.houseProminent)
-            .controlSize(.large)
+            .largeOnPhone()
             .disabled(!f.canSave || saving || UpdateGate.blocked)
         }
         .padding(.horizontal, 16)

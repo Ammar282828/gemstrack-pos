@@ -11,3 +11,4 @@ app archived for TestFlight's "Shop" group, and the iPhone app built beside it a
 - 2026-10-24: round 5, labels: the interactive tag designer (Label LIVE's elements, import a .lsc), Zebra straight from the app (Browser Print, a Mac printer, a network address) with every printer mode and number, the print-job sheet.
 - 2026-10-25: the lock covers sheets and panels too (MacLockSheets).
 - 2026-10-25: Change the rate (finalize, order and invoice pages, silver per order) from the iPhone's screens, on the Mac; the one-window forms open with the rates on top.
+- 2026-10-25: Mac sizes: the kit's pointer sizes (Metrics, Radius, rows 28, push buttons not glass, regular controls), group-box cards, no pointing hand, New sale/order/repair/scan in their own window.

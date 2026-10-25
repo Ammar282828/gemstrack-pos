@@ -527,7 +527,7 @@ extension SaleForm {
             .frame(minWidth: 140)
         }
         .buttonStyle(.houseProminent)
-        .controlSize(.large)
+        .largeOnPhone()
         .disabled(!f.canSave || saving || UpdateGate.blocked)
         // Return in the scanner's box adds a piece: it must never also save the sale.
         if scannerFocused {

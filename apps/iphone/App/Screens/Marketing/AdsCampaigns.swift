@@ -377,7 +377,7 @@ struct AdsCampaignsScreen: View {
 
     private func detailsButton(_ level: String, _ id: String) -> some View {
         Button("Details and actions", systemImage: "ellipsis.circle") { go = Route(path: objectPath(level, id)) }
-            .labelStyle(.iconOnly).buttonStyle(.borderless).frame(minWidth: 44, minHeight: 44)
+            .labelStyle(.iconOnly).buttonStyle(.borderless).frame(minWidth: Metrics.tap, minHeight: Metrics.tap)
     }
 
     private func gallerySection(_ campaigns: [AdCampaign], _ cur: String) -> some View {

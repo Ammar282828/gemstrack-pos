@@ -251,7 +251,7 @@ struct BusinessesScreen: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.houseProminent)
-                .controlSize(.large)
+                .largeOnPhone()
                 .disabled(phase == .adding)
                 Button("Not this one", role: .cancel) {
                     Motion.run(reduce: reduceMotion) { preview = nil }

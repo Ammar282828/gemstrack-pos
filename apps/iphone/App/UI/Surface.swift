@@ -52,7 +52,7 @@ struct ActionBar: View {
                 AdaptiveStack(spacing: 10, alignment: .center) {
                     ForEach(Array(secondary.enumerated()), id: \.offset) { _, item in
                         Button(role: item.role, action: item.action) { label(item, wide: false) }
-                            .buttonStyle(.glass)
+                            .buttonStyle(.houseGlass)
                             .controlSize(.large)
                             .disabled(item.isDisabled || item.isBusy || primary.isBusy)
                     }

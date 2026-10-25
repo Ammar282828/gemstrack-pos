@@ -309,7 +309,7 @@ private struct StockBulkEditor: View {
                 Label("Remove piece \(index + 1)", systemImage: "minus.circle.fill").labelStyle(.iconOnly)
             }
             .buttonStyle(.borderless)
-            .frame(minWidth: 44, minHeight: 44)
+            .frame(minWidth: Metrics.tap, minHeight: Metrics.tap)
         }
         .swipeActions(edge: .trailing) {
             Button(role: .destructive) { remove(row.id) } label: { Label("Remove", systemImage: "trash") }

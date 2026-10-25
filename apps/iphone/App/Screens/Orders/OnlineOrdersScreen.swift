@@ -225,13 +225,13 @@ struct OnlineOrdersScreen: View {
         }
         .buttonStyle(.borderedProminent)
         .tint(Theme.accent)
-        .controlSize(.large)
+        .largeOnPhone()
         Button(role: .destructive) { declining = r } label: {
             Label("Decline", systemImage: "xmark")
                 .frame(maxWidth: .infinity)
         }
         .buttonStyle(.bordered)
-        .controlSize(.large)
+        .largeOnPhone()
     }
 
     // MARK: The last fortnight's

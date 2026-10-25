@@ -316,13 +316,13 @@ struct DesignSmartSheet: View {
                     Button { Task { await m.read() } } label: {
                         Label("Read it again", systemImage: "sparkles").frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.bordered).controlSize(.large)
+                    .buttonStyle(.bordered).largeOnPhone()
                     .disabled(m.busy != nil || m.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
                 PhotosPicker(selection: $picked, maxSelectionCount: 8, matching: .images) {
                     Label("Photos", systemImage: "photo.on.rectangle").frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.bordered).controlSize(.large).disabled(m.busy != nil)
+                .buttonStyle(.bordered).largeOnPhone().disabled(m.busy != nil)
             }
             Text("Nothing is used until you tick it. No figure appears that is not in what you gave.").font(.footnote).foregroundStyle(.secondary)
         }
@@ -346,7 +346,7 @@ struct DesignSmartSheet: View {
                 if !sure { Pill("Check this", tone: .owed) }
                 if !item.parsed.s("suggestedKind").isEmpty { Text("suggests: " + item.parsed.s("suggestedKind")).font(.caption).foregroundStyle(.secondary) }
                 Spacer(minLength: 0)
-                Button { m.items.removeAll { $0.id == item.id } } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary).frame(minWidth: 44, minHeight: 44) }
+                Button { m.items.removeAll { $0.id == item.id } } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary).frame(minWidth: Metrics.tap, minHeight: Metrics.tap) }
                     .buttonStyle(.plain).accessibilityLabel("Remove")
             }
             if !item.photos.isEmpty {

@@ -130,7 +130,7 @@ struct WorkshopJobRow: View {
                             .font(.caption.monospaced().weight(.medium))
                         Image(systemName: "chevron.right").font(.caption2.weight(.semibold))
                     }
-                    .frame(minHeight: 44, alignment: .leading)
+                    .frame(minHeight: Metrics.tap, alignment: .leading)
                 }
                 .buttonStyle(.borderless)
                 if !referenceWords.isEmpty {
@@ -188,7 +188,7 @@ struct WorkshopJobRow: View {
             } label: {
                 Label("Instructions", systemImage: "note.text")
                     .font(.subheadline.weight(.medium))
-                    .frame(minHeight: 44)
+                    .frame(minHeight: Metrics.tap)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -206,7 +206,7 @@ struct WorkshopJobRow: View {
                     statusMenu
                     Button { actions.details(job) } label: {
                         Label("Details", systemImage: "pencil").font(.subheadline)
-                            .frame(minHeight: 44)
+                            .frame(minHeight: Metrics.tap)
                     }
                     .buttonStyle(.bordered)
                     .disabled(busy)
@@ -222,7 +222,7 @@ struct WorkshopJobRow: View {
                     Spacer(minLength: 0)
                     Button { actions.done(job, true) } label: {
                         Label("Mark done", systemImage: "checkmark.circle")
-                            .font(.subheadline.weight(.medium)).frame(minHeight: 44)
+                            .font(.subheadline.weight(.medium)).frame(minHeight: Metrics.tap)
                     }
                     .buttonStyle(.bordered)
                     .disabled(busy)
@@ -258,7 +258,7 @@ struct WorkshopJobRow: View {
         } label: {
             Label(WorkshopStatusWords.say(stockStatus), systemImage: WorkshopStatusWords.symbol(stockStatus))
                 .font(.subheadline)
-                .frame(minHeight: 44)
+                .frame(minHeight: Metrics.tap)
         }
         .buttonStyle(.bordered)
         .disabled(busy)
@@ -284,7 +284,7 @@ struct WorkshopJobRow: View {
             Label(assigned ? job.karigarName : "Assign karigar", systemImage: assigned ? "hammer" : "person.badge.plus")
                 .font(.subheadline)
                 .foregroundStyle(assigned ? Color.primary : Theme.accent)
-                .frame(minHeight: 44)
+                .frame(minHeight: Metrics.tap)
         }
         .buttonStyle(.bordered)
         .disabled(busy)
@@ -310,7 +310,7 @@ struct WorkshopJobRow: View {
                 .contentTransition(.opacity)
         }
         .font(.subheadline)
-        .frame(minHeight: 44)
+        .frame(minHeight: Metrics.tap)
         .disabled(job.isUnassigned || busy)
         .motion(job.hasGiven)
         .onChange(of: busy) { _, now in if !now { pendingGiven = nil } }

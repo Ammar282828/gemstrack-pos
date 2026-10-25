@@ -170,14 +170,14 @@ struct CalendarScreen: View {
         let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 7)
         return VStack(spacing: 8) {
             HStack {
-                Button { step(-1) } label: { Image(systemName: "chevron.left").frame(width: 44, height: 44) }
+                Button { step(-1) } label: { Image(systemName: "chevron.left").frame(width: Metrics.tap, height: Metrics.tap) }
                     .buttonStyle(.borderless)
                     .accessibilityLabel("Previous month")
                 Spacer()
                 Text(ShopCalendar.title(year: year, month: month)).font(.headline)
                     .contentTransition(.numericText())
                 Spacer()
-                Button { step(1) } label: { Image(systemName: "chevron.right").frame(width: 44, height: 44) }
+                Button { step(1) } label: { Image(systemName: "chevron.right").frame(width: Metrics.tap, height: Metrics.tap) }
                     .buttonStyle(.borderless)
                     .accessibilityLabel("Next month")
             }

@@ -49,7 +49,7 @@ struct SectionCard<Content: View>: View {
 /// The one hero card of a screen: a faint wash of the house's accent from the top corner and a hairline edge.
 /// Flat under Reduce Transparency or Increase Contrast. Once per screen; every other card is `ledgerCard`.
 struct HeroSheen: ViewModifier {
-    var padding: CGFloat = 16
+    var padding: CGFloat = Metrics.cardPadding
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorSchemeContrast) private var contrast
 
@@ -243,7 +243,7 @@ extension View {
     }
 
     /// The ONE hero card of a screen (see `HeroSheen`).
-    func heroSheen(padding: CGFloat = 16) -> some View {
+    func heroSheen(padding: CGFloat = Metrics.cardPadding) -> some View {
         modifier(HeroSheen(padding: padding))
     }
 }

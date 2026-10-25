@@ -66,6 +66,13 @@ enum Tone {
 
 /// The corner radii every surface uses (all `.continuous`). Nothing else picks a corner.
 enum Radius {
+    #if os(macOS)
+    // A Mac's surfaces are tighter-cornered: System Settings' groups and Finder's sidebar are 8-10, not a phone's 22.
+    static let card: CGFloat = 10
+    static let chip: CGFloat = 7
+    static let tile: CGFloat = 6
+    static let thumb: CGFloat = 5
+    #else
     /// A card of content: `ledgerCard`, hero and section cards.
     static let card: CGFloat = 22
     /// A chip or round-cornered control: `QuickAction`, a button-like tile.
@@ -74,6 +81,24 @@ enum Radius {
     static let tile: CGFloat = 12
     /// A thumbnail or a calendar leaf.
     static let thumb: CGFloat = 10
+    #endif
+}
+
+/// The sizes that are a finger's on a phone and a pointer's on a Mac. Nothing else picks them.
+enum Metrics {
+    #if os(macOS)
+    /// The least a clickable thing is tall or wide: a Mac's regular control.
+    static let tap: CGFloat = 24
+    /// A card's inner margin.
+    static let cardPadding: CGFloat = 12
+    /// A promised day's calendar leaf.
+    static let leaf: CGFloat = 34
+    #else
+    /// The least a tappable thing is tall or wide (Apple's 44 pt).
+    static let tap: CGFloat = 44
+    static let cardPadding: CGFloat = 16
+    static let leaf: CGFloat = 44
+    #endif
 }
 
 // MARK: Words in a capsule
@@ -119,16 +144,27 @@ struct Pill: View {
 /// A person's initials in the house's accent, or a figure for a walk-in: what a row leads with.
 struct Monogram: View {
     let name: String
+    #if os(macOS)
+    var size: CGFloat = Size.card
+    #else
     var size: CGFloat = 40
+    #endif
 
     /// The three sizes screens use; pass one rather than a number.
     enum Size {
+        #if os(macOS)
+        // A Mac's rows are about 28 pt (Mail's, Contacts'): the monogram takes the row's height, not a finger's.
+        static let row: CGFloat = 26
+        static let card: CGFloat = 28
+        static let hero: CGFloat = 44
+        #else
         /// A list row.
         static let row: CGFloat = 38
         /// Inside a card (it was 36; one size for rows and cards).
         static let card: CGFloat = 38
         /// A detail page's header.
         static let hero: CGFloat = 56
+        #endif
     }
 
     var body: some View {
@@ -286,7 +322,7 @@ struct MoneySplit: View {
 struct DateLeaf: View {
     let date: Date?
     var tone: Tone = .quiet
-    var size: CGFloat = 44
+    var size: CGFloat = Metrics.leaf
     @ScaledMetric(relativeTo: .caption2) private var scale: CGFloat = 1
 
     private static func formatter(_ pattern: String) -> DateFormatter {
@@ -506,11 +542,20 @@ struct LedgerSection<Content: View, Footer: View>: View {
 
 extension View {
     /// Content on the house's card: the padding and corner every ledger card shares.
-    func ledgerCard(padding: CGFloat = 16) -> some View {
+    func ledgerCard(padding: CGFloat = Metrics.cardPadding) -> some View {
+        #if os(macOS)
+        // A Mac's group box: the card's colour with a hairline edge, as System Settings draws its groups.
         self
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Theme.card, in: .rect(cornerRadius: Radius.card, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(Color(nsColor: .separatorColor), lineWidth: 0.5))
+        #else
+        self
+            .padding(padding)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Theme.card, in: .rect(cornerRadius: Radius.card, style: .continuous))
+        #endif
     }
 }
 
@@ -557,12 +602,26 @@ struct QuickAction: View {
     let action: () -> Void
 
     var body: some View {
+        #if os(macOS)
+        // A Mac's row of actions: ordinary bordered buttons, the word beside its symbol (Contacts' Mac card).
+        Button(action: action) {
+            Label(title, systemImage: symbol).lineLimit(1)
+        }
+        .buttonStyle(.bordered)
+        .tint(prominent ? Theme.accent : nil)
+        .accessibilityLabel(title)
+        #else
+        phoneBody
+        #endif
+    }
+
+    private var phoneBody: some View {
         Button(action: action) {
             VStack(spacing: 5) {
                 Image(systemName: symbol)
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(prominent ? Theme.onAccent : Theme.accent)
-                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .frame(maxWidth: .infinity, minHeight: Metrics.tap)
                     .background(prominent ? Theme.accent : Theme.accent.opacity(0.12), in: .rect(cornerRadius: Radius.chip, style: .continuous))
                 Text(title)
                     .font(.caption2.weight(.medium))
@@ -600,8 +659,8 @@ struct ChipRow<Content: View>: View {
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) { content() }
-                .padding(.horizontal, 16)
+            HStack(spacing: Metrics.tap > 30 ? 8 : 6) { content() }
+                .padding(.horizontal, Metrics.cardPadding)
                 .padding(.vertical, 2)
         }
     }
@@ -613,6 +672,13 @@ struct FilterChip: View {
     var count: Int?
     let chosen: Bool
     let action: () -> Void
+    #if os(macOS)
+    private static let horizontal: CGFloat = 9
+    private static let vertical: CGFloat = 2
+    #else
+    private static let horizontal: CGFloat = 13
+    private static let vertical: CGFloat = 7
+    #endif
 
     var body: some View {
         Button(action: action) {
@@ -626,9 +692,9 @@ struct FilterChip: View {
             }
             .font(.subheadline.weight(chosen ? .semibold : .medium))
             .foregroundStyle(chosen ? Theme.onAccent : Color.primary)
-            .padding(.horizontal, 13)
-            .padding(.vertical, 7)
-            .frame(minHeight: 44)
+            .padding(.horizontal, Self.horizontal)
+            .padding(.vertical, Self.vertical)
+            .frame(minHeight: Metrics.tap)
             .background(chosen ? Theme.accent : Theme.card, in: .capsule)
             .overlay(Capsule().strokeBorder(Color.secondary.opacity(chosen ? 0 : 0.18), lineWidth: 1))
         }

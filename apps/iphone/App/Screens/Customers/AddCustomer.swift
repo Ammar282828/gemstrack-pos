@@ -345,7 +345,7 @@ extension AddCustomer {
                         .keyboardShortcut(.defaultAction)
                 }
             }
-            .controlSize(.large)
+            .largeOnPhone()
         }
         .padding(32)
         .frame(maxWidth: .infinity, maxHeight: .infinity)

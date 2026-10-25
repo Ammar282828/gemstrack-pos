@@ -221,7 +221,7 @@ struct CustomerScreen: View {
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(.bordered)
-        .controlSize(.large)
+        .largeOnPhone()
         .disabled(url == nil)
     }
 

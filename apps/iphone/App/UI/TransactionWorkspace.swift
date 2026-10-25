@@ -40,7 +40,7 @@ struct EntrySteps: View {
                     }
                         .font(.subheadline.weight(selection == step ? .semibold : .regular))
                         .foregroundStyle(selection == step ? Theme.accent : Color.secondary)
-                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .frame(maxWidth: .infinity, minHeight: Metrics.tap)
                         .background(selection == step ? Theme.accent.opacity(0.1) : Color.clear, in: .rect(cornerRadius: Radius.tile, style: .continuous))
                 }
                 .buttonStyle(.plain)
@@ -62,14 +62,14 @@ struct EntryContinue: View {
         HStack(spacing: 12) {
             if selection != .customer {
                 Button("Back", systemImage: "chevron.left") { move(selection.previous) }
-                    .buttonStyle(.glass).controlSize(.large)
+                    .buttonStyle(.houseGlass).largeOnPhone()
             }
             // The width goes on the label: on the button itself the glass kept its own size and the step's main
             // action sat as a small pill in the middle of the bar.
             Button { move(selection.next) } label: {
                 Label("Continue", systemImage: "arrow.right").frame(maxWidth: .infinity)
             }
-                .buttonStyle(.houseProminent).controlSize(.large)
+                .buttonStyle(.houseProminent).largeOnPhone()
                 .accessibilityHint("Continue to \(selection.next.title)")
         }
         .padding(16)

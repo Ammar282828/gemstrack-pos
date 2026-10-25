@@ -153,7 +153,7 @@ struct StudioBoards: View {
                         Button("Delete board", systemImage: "trash", role: .destructive) { asking = .delete }.disabled(board.current.isEmpty)
                     } label: { Label("Board tools", systemImage: "ellipsis.circle").labelStyle(.iconOnly) }
                 }
-                .buttonStyle(.glass)
+                .buttonStyle(.houseGlass)
                 .padding(.horizontal, 16).padding(.vertical, 6)
             }
         }

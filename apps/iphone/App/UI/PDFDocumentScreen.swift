@@ -34,7 +34,7 @@ struct PDFDocumentScreen: View {
                 ContentUnavailableView {
                     Label("Couldn't draw the PDF", systemImage: "exclamationmark.triangle")
                 } description: { Text(failed) } actions: {
-                    Button("Try again") { self.failed = nil; attempt += 1 }.buttonStyle(.glass)
+                    Button("Try again") { self.failed = nil; attempt += 1 }.buttonStyle(.houseGlass)
                 }
             } else {
                 SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)

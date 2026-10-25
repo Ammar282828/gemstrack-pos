@@ -562,8 +562,8 @@ struct OrderScreen: View {
             stepButton(order, step)
             if advance {
                 Button { advancing = true } label: { Label("Advance", systemImage: "banknote").frame(maxWidth: .infinity) }
-                    .buttonStyle(.glass)
-                    .controlSize(.large)
+                    .buttonStyle(.houseGlass)
+                    .largeOnPhone()
                     .accessibilityLabel("Record an advance")
             }
         } else {
@@ -572,7 +572,7 @@ struct OrderScreen: View {
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.houseProminent)
-            .controlSize(.large)
+            .largeOnPhone()
         }
     }
 
@@ -601,7 +601,7 @@ struct OrderScreen: View {
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.houseProminent)
-            .controlSize(.large)
+            .largeOnPhone()
         } else {
             Button { run(order, step) } label: {
                 Group {
@@ -610,7 +610,7 @@ struct OrderScreen: View {
                 .frame(maxWidth: .infinity)
             }
             .buttonStyle(.houseProminent)
-            .controlSize(.large)
+            .largeOnPhone()
         }
     }
 

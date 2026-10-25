@@ -91,7 +91,7 @@ struct DesignPublishSheet: View {
                 if !plan.steps.isEmpty { steps(plan) }
                 if let path = p.metaPath ?? p.ref("meta-ad") {
                     Button { p.model.route = Route(path: path); dismiss() } label: { Label("Open the new ad", systemImage: "sparkles").frame(maxWidth: .infinity) }
-                        .buttonStyle(.bordered).controlSize(.large)
+                        .buttonStyle(.bordered).largeOnPhone()
                 }
                 if let n = p.note { Text(n).font(.footnote).foregroundStyle(.secondary) }
                 extras

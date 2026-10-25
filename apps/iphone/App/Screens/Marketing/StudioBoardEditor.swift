@@ -272,7 +272,7 @@ struct StudioBoardEditor: View {
                                 else { Image(systemName: p.symbol).font(.body.weight(.medium)).frame(height: 30) }
                                 Text(p.title).font(.caption2)
                             }
-                            .frame(maxWidth: .infinity, minHeight: 44)
+                            .frame(maxWidth: .infinity, minHeight: Metrics.tap)
                         }
                         .buttonStyle(.plain)
                         .foregroundStyle(panelShown && tab == p ? Theme.accent : .primary)
@@ -287,7 +287,7 @@ struct StudioBoardEditor: View {
     }
 
     private func quick(_ title: String, _ symbol: String, _ action: @escaping () -> Void) -> some View {
-        Button(action: action) { Image(systemName: symbol).frame(width: 44, height: 44) }
+        Button(action: action) { Image(systemName: symbol).frame(width: Metrics.tap, height: Metrics.tap) }
             .buttonStyle(.plain).accessibilityLabel(title)
     }
 

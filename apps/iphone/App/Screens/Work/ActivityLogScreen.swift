@@ -246,7 +246,7 @@ struct ActivityLogScreen: View {
                     .foregroundStyle(.secondary)
                 Button(role: .destructive) { askLock = true } label: {
                     Label(locking ? "Locking…" : "Lock database now", systemImage: "exclamationmark.shield")
-                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .frame(maxWidth: .infinity, minHeight: Metrics.tap)
                 }
                 .buttonStyle(.bordered)
                 .disabled(locking || House.isDemo)

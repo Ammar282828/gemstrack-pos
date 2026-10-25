@@ -162,7 +162,7 @@ extension NewChooser {
                         NavigationLink(value: Route(path: "/drafts")) { Label("Drafts", systemImage: "tray.full") }
                     }
                     .buttonStyle(.bordered)
-                    .controlSize(.large)
+                    .largeOnPhone()
                 }
             }
             .frame(maxWidth: 860, alignment: .leading)

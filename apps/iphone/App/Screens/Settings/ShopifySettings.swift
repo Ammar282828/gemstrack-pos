@@ -181,7 +181,7 @@ private struct ShopifyInnerForm: View {
                 if status.configured, let url = reauthorizeURL(status) {
                     Button { openURL(url) } label: {
                         Label(status.connected == true ? "Reconnect in \(Self.browserName)" : "Connect in \(Self.browserName)", systemImage: "safari")
-                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                            .frame(maxWidth: .infinity, minHeight: Metrics.tap, alignment: .leading)
                     }
                     .disabled(isDemo || writing)
                 }
@@ -255,7 +255,7 @@ private struct ShopifyInnerForm: View {
                                 scopeChip("Write", w)
                             }
                         }
-                        .frame(minHeight: 44, alignment: .leading)
+                        .frame(minHeight: Metrics.tap, alignment: .leading)
                         .accessibilityElement(children: .combine)
                     }
                     let extra = held.subtracting(required).sorted()
@@ -267,7 +267,7 @@ private struct ShopifyInnerForm: View {
                         .padding(.vertical, 4)
                     }
                 }
-                .frame(minHeight: 44)
+                .frame(minHeight: Metrics.tap)
                 if !missing.isEmpty {
                     Text("Reconnect in Safari to allow: \(missing.joined(separator: ", ")).")
                         .font(.footnote).foregroundStyle(.secondary)
@@ -306,7 +306,7 @@ private struct ShopifyInnerForm: View {
                     Spacer()
                     if busy.contains(.webhooks) { ProgressView().controlSize(.small) }
                 }
-                .frame(maxWidth: .infinity, minHeight: 44)
+                .frame(maxWidth: .infinity, minHeight: Metrics.tap)
             }
             .disabled(isDemo || writing || s.connected != true)
         } header: {
@@ -351,11 +351,11 @@ private struct ShopifyInnerForm: View {
                     TextField("Filter by order number or customer", text: $query)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
-                        .frame(minHeight: 44)
+                        .frame(minHeight: Metrics.tap)
                     HStack {
                         Button(allVisibleOn ? "Clear all \(visible.count)" : "Select all \(visible.count)") { toggleAllVisible() }
                             .disabled(visible.isEmpty || writing)
-                            .frame(minHeight: 44)
+                            .frame(minHeight: Metrics.tap)
                         Spacer()
                         Text("\(orders.count) not imported").font(.footnote).foregroundStyle(.secondary)
                     }
@@ -393,15 +393,15 @@ private struct ShopifyInnerForm: View {
                                 Spacer()
                                 Text(money(o.amount)).font(.subheadline).monospacedDigit()
                             }
-                            .frame(minHeight: 44)
+                            .frame(minHeight: Metrics.tap)
                         }
                     }
-                    .frame(minHeight: 44)
+                    .frame(minHeight: Metrics.tap)
                 }
                 if !picked.isEmpty {
                     Button("Clear selection") { picked = [] }
                         .disabled(writing)
-                        .frame(minHeight: 44)
+                        .frame(minHeight: Metrics.tap)
                 }
             } footer: {
                 if isDemo { Text("Importing is not available in the demo.") }
@@ -440,7 +440,7 @@ private struct ShopifyInnerForm: View {
                     }
                 }
             }
-            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            .frame(maxWidth: .infinity, minHeight: Metrics.tap, alignment: .leading)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -460,7 +460,7 @@ private struct ShopifyInnerForm: View {
                     Text("• " + e).font(.footnote).foregroundStyle(Tone.problem.color).fixedSize(horizontal: false, vertical: true)
                 }
             }
-            Button("Dismiss") { outcome = nil }.font(.footnote).frame(minHeight: 44)
+            Button("Dismiss") { outcome = nil }.font(.footnote).frame(minHeight: Metrics.tap)
         }
     }
 
@@ -471,7 +471,7 @@ private struct ShopifyInnerForm: View {
                 Spacer()
                 if busy.contains(kind) { ProgressView().controlSize(.small) }
             }
-            .frame(maxWidth: .infinity, minHeight: 44)
+            .frame(maxWidth: .infinity, minHeight: Metrics.tap)
         }
         .disabled(busy.contains(kind) || writing)
     }

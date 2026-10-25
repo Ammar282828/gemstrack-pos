@@ -80,7 +80,7 @@ struct TagScanner: View {
                 .background(Theme.card, in: .rect(cornerRadius: Radius.chip, style: .continuous))
             Button("Find") { find() }
                 .buttonStyle(.bordered)
-                .controlSize(.large)
+                .largeOnPhone()
                 .disabled(typed.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
     }
@@ -228,11 +228,11 @@ struct TagScanner: View {
                 .background(Theme.card, in: .rect(cornerRadius: Radius.chip, style: .continuous))
             Button("Find") { find() }
                 .buttonStyle(.bordered)
-                .controlSize(.large)
+                .largeOnPhone()
                 .disabled(typed.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             Button("Read a photo…") { choosing = true }
                 .buttonStyle(.bordered)
-                .controlSize(.large)
+                .largeOnPhone()
         }
     }
 

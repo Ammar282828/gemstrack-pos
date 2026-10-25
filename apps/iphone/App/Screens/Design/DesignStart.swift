@@ -231,12 +231,12 @@ struct DesignStartView: View {
                 .font(.subheadline).foregroundStyle(.secondary)
             Button { DesignHooks.shared.startWithAnything(start) } label: {
                 Label("Paste or describe a piece…", systemImage: "sparkles").frame(maxWidth: .infinity)
-            }.buttonStyle(.bordered).controlSize(.large)
+            }.buttonStyle(.bordered).largeOnPhone()
             let found = start.fields.filter { !$0.value.isEmpty }
             if !found.isEmpty || !start.price.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(foundLine).font(.footnote).foregroundStyle(.secondary)
-                    Button("Clear") { start.fields = [:]; start.price = "" }.font(.footnote).frame(minHeight: 44)
+                    Button("Clear") { start.fields = [:]; start.price = "" }.font(.footnote).frame(minHeight: Metrics.tap)
                 }
             }
             if !start.waiting.isEmpty {
@@ -247,7 +247,7 @@ struct DesignStartView: View {
                             Text(f.name.isEmpty ? "A piece" : f.name).font(.subheadline).lineLimit(1)
                             Spacer(minLength: 0)
                             Button("Use") { start.use(f); start.waiting.removeAll { $0.id == f.id } }.buttonStyle(.bordered)
-                            Button { start.waiting.removeAll { $0.id == f.id } } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary).frame(minWidth: 44, minHeight: 44) }
+                            Button { start.waiting.removeAll { $0.id == f.id } } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary).frame(minWidth: Metrics.tap, minHeight: Metrics.tap) }
                                 .buttonStyle(.plain).accessibilityLabel("Put it aside")
                         }
                     }
@@ -271,7 +271,7 @@ struct DesignStartView: View {
                 HStack(spacing: 8) {
                     Text("Making ").font(.subheadline) + Text(play.s("title")).font(.subheadline.weight(.semibold)) + Text(" — “\(play.s("cta"))” · \(play.s("where"))").font(.subheadline)
                     Spacer(minLength: 0)
-                    Button("Not this play") { start.play = nil }.font(.footnote).frame(minHeight: 44)
+                    Button("Not this play") { start.play = nil }.font(.footnote).frame(minHeight: Metrics.tap)
                 }
                 .padding(10).background(Theme.accent.opacity(0.12), in: .rect(cornerRadius: Radius.tile, style: .continuous))
             }
@@ -333,7 +333,7 @@ struct DesignStartView: View {
                     Image(systemName: "photo").foregroundStyle(Theme.accent)
                     Text(photo.label).font(.subheadline.weight(.medium)).lineLimit(1)
                     Spacer(minLength: 0)
-                    Button { start.photo = nil } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary).frame(minWidth: 44, minHeight: 44) }
+                    Button { start.photo = nil } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary).frame(minWidth: Metrics.tap, minHeight: Metrics.tap) }
                         .buttonStyle(.plain).accessibilityLabel("Choose another photograph")
                 }
             } else {
@@ -366,7 +366,7 @@ struct DesignStartView: View {
     private func chipLabel(_ title: String, _ symbol: String) -> some View {
         Label(title, systemImage: symbol)
             .font(.subheadline.weight(.medium)).foregroundStyle(Color.primary)
-            .padding(.horizontal, 13).padding(.vertical, 7).frame(minHeight: 44)
+            .padding(.horizontal, 13).padding(.vertical, 7).frame(minHeight: Metrics.tap)
             .background(Theme.ground, in: .capsule)
             .overlay(Capsule().strokeBorder(Color.secondary.opacity(0.18), lineWidth: 1))
     }

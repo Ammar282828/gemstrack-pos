@@ -136,7 +136,7 @@ struct SearchView: View {
         let subs = subPlaces(e)
         return NavigationLink(value: Route(path: e.href)) {
             Label { Text(e.label) } icon: { Image(systemName: symbol).foregroundStyle(Theme.accent) }
-                .frame(minHeight: 44)
+                .frame(minHeight: Metrics.tap)
         }
         .zoomSource(id: e.href)
         .contextMenu {
@@ -164,7 +164,7 @@ struct SearchView: View {
                     Label { Text("\(e.label): \(name)").foregroundStyle(.secondary) } icon: {
                         Image(systemName: NavIcon.symbol(for: first.icon ?? e.icon)).foregroundStyle(Theme.accent)
                     }
-                    .frame(minHeight: 44)
+                    .frame(minHeight: Metrics.tap)
                 }
             }
         }
@@ -189,10 +189,10 @@ struct SearchView: View {
             if let s = map.settings { accountLink(s.label, NavIcon.symbol(for: s.icon), s.href) }
             if let email = session.me?.email, !email.isEmpty {
                 Text("Signed in as \(email)").font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
-                    .frame(minHeight: 44, alignment: .leading)
+                    .frame(minHeight: Metrics.tap, alignment: .leading)
             }
             Button(role: .destructive) { confirmingSignOut = true } label: {
-                Label("Sign out", systemImage: "rectangle.portrait.and.arrow.right").frame(minHeight: 44)
+                Label("Sign out", systemImage: "rectangle.portrait.and.arrow.right").frame(minHeight: Metrics.tap)
             }
         } header: {
             LedgerHeading(title: "Account")
@@ -205,7 +205,7 @@ struct SearchView: View {
     private func accountLink(_ title: String, _ symbol: String, _ path: String) -> some View {
         NavigationLink(value: Route(path: path)) {
             Label { Text(title) } icon: { Image(systemName: symbol).foregroundStyle(Theme.accent) }
-                .frame(minHeight: 44)
+                .frame(minHeight: Metrics.tap)
         }
     }
 

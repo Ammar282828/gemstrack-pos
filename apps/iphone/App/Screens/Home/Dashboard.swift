@@ -394,7 +394,7 @@ struct Dashboard: View {
         Button(expanded.wrappedValue ? "Show less" : "Show \(count) more") {
             Motion.run(expanded.wrappedValue ? Motion.exit : Motion.enter, reduce: reduceMotion) { expanded.wrappedValue.toggle() }
         }
-        .font(.subheadline.weight(.medium)).frame(minHeight: 44).padding(.horizontal, 4)
+        .font(.subheadline.weight(.medium)).frame(minHeight: Metrics.tap).padding(.horizontal, 4)
     }
 
     // MARK: Time and the server

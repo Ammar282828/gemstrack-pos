@@ -48,6 +48,21 @@ words) hold on the Mac too.
 - **Charts** (Swift Charts) get hover read-outs (`.chartOverlay` + `onContinuousHover`) where the iPhone uses a tap.
 - **Words**: the ERP's (rule 6, 15). "Click", not "tap", in any text the Mac shows.
 
+## Sizes are a pointer's, not a finger's (2026-10-25)
+
+Owner: "doesn't seem very optimized for mac in terms of ui and ux". The Mac's screens were built from the iPhone's
+parts at the iPhone's sizes. The kit now answers the Mac's own on macOS, so every screen takes them; a screen never
+writes a phone's number:
+- `Metrics.tap` (44 on a phone, 24 on a Mac) for any least height or width of a clickable thing; `Metrics.cardPadding`
+  (16 / 12); `Radius` is 10/7/6/5 on a Mac (22/14/12/10 on a phone); `Monogram.Size` 26/28/44; list rows 28 (`houseGround`).
+- Buttons in a page: `.buttonStyle(.houseGlass)` / `.houseGlassProminent` / `.houseProminent` (glass on a phone, push
+  buttons on a Mac) and `.largeOnPhone()` instead of `.controlSize(.large)`. Glass on the Mac is the window's own (toolbar,
+  sidebar), never a button in the content. `SkeletonLoading().controlSize(.large)` keeps its meaning (a whole page loading).
+- `ledgerCard` is a Mac group box (the card colour, a hairline edge); `QuickAction` is a bordered button with its word.
+- The pointer stays the arrow over cards and rows (the pointing hand is a link's); hover is a faint wash.
+- New sale, New order, a repair and Scan open in a window of their own (`MacShell`'s `creating`), never a sheet over
+  the main window.
+
 ## Done means
 
 Each screen of the group: a Mac layout that uses the window (no stretched phone column), right-click on rows, the

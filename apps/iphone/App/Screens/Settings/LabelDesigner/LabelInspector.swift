@@ -317,7 +317,7 @@ struct LabelDotRow: View {
                 TextField("", value: $dots, format: .number)
                     .multilineTextAlignment(.trailing)
                     .keyboardType(.numbersAndPunctuation)
-                    .frame(minWidth: 44, maxWidth: 64)
+                    .frame(minWidth: Metrics.tap, maxWidth: 64)
                 Text("dots").font(.caption).foregroundStyle(.secondary)
                 TextField("", value: mm, format: .number.precision(.fractionLength(0...1)))
                     .multilineTextAlignment(.trailing)

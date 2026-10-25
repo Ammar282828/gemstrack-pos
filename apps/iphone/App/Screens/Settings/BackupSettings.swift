@@ -381,7 +381,7 @@ private struct BackupPage: View {
                                 if recovering == p.sku { SkeletonLoading() } else { Label("Re-add", systemImage: "plus.circle") }
                             }
                             .buttonStyle(.bordered)
-                            .frame(minHeight: 44)
+                            .frame(minHeight: Metrics.tap)
                             .disabled(recovering != nil)
                         }
                     }

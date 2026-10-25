@@ -65,7 +65,58 @@ struct HouseProminentStyle: PrimitiveButtonStyle {
         Button(role: configuration.role, action: configuration.trigger) {
             configuration.label.foregroundStyle(Theme.onAccent)
         }
+        #if os(macOS)
+        // On a Mac glass is for the window's own controls (toolbar, sidebar); a button in the page is a push button,
+        // the default one filled with the accent.
+        .buttonStyle(.borderedProminent)
+        .tint(Theme.accent)
+        #else
         .buttonStyle(.glassProminent)
+        #endif
+    }
+}
+
+/// `.buttonStyle(.houseGlass)`: the phone's glass button; a Mac's ordinary bordered push button.
+struct HouseGlassStyle: PrimitiveButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Button(role: configuration.role, action: configuration.trigger) { configuration.label }
+        #if os(macOS)
+            .buttonStyle(.bordered)
+        #else
+            .buttonStyle(.glass)
+        #endif
+    }
+}
+
+/// `.buttonStyle(.houseGlassProminent)`: the phone's prominent glass; a Mac's filled push button.
+struct HouseGlassProminentStyle: PrimitiveButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Button(role: configuration.role, action: configuration.trigger) { configuration.label }
+        #if os(macOS)
+            .buttonStyle(.borderedProminent)
+        #else
+            .buttonStyle(.glassProminent)
+        #endif
+    }
+}
+
+extension PrimitiveButtonStyle where Self == HouseGlassStyle {
+    static var houseGlass: HouseGlassStyle { HouseGlassStyle() }
+}
+
+extension PrimitiveButtonStyle where Self == HouseGlassProminentStyle {
+    static var houseGlassProminent: HouseGlassProminentStyle { HouseGlassProminentStyle() }
+}
+
+extension View {
+    /// The phone's large control (a thumb's); a Mac's regular one, as every Mac window sizes its buttons.
+    @ViewBuilder
+    func largeOnPhone() -> some View {
+        #if os(macOS)
+        self
+        #else
+        controlSize(.large)
+        #endif
     }
 }
 
@@ -111,10 +162,16 @@ extension View {
 
 /// A screen on the house's ground: the list's own background hidden so the ground shows behind its cards.
 struct HouseGround: ViewModifier {
+    #if os(macOS)
+    /// A Mac's list row (Mail's, Finder's): the row's words decide, not a finger.
+    private static let rowHeight: CGFloat = 28
+    #else
+    private static let rowHeight: CGFloat = 56
+    #endif
     func body(content: Content) -> some View {
         content
             .scrollContentBackground(.hidden)
-            .environment(\.defaultMinListRowHeight, 56)
+            .environment(\.defaultMinListRowHeight, Self.rowHeight)
             .sectionSpacing24()
             .background(Theme.ground.ignoresSafeArea())
     }

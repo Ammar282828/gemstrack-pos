@@ -253,7 +253,7 @@ struct WorkshopBoard: View {
                         Image(systemName: "person.crop.circle")
                     }
                     .buttonStyle(.borderless)
-                    .frame(minWidth: 44, minHeight: 44)
+                    .frame(minWidth: Metrics.tap, minHeight: Metrics.tap)
                     .accessibilityLabel("Open " + load.karigarName)
                 }
             }
