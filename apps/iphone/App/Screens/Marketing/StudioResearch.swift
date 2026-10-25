@@ -9,7 +9,21 @@ struct StudioRivals: View {
     @State private var busy: String?
     @State private var error: String?
     @State private var removing: MarketingValue?
+    #if os(macOS)
+    @State private var macPicked = Set<String>()
+    @State private var macOrder = [KeyPathComparator(\StudioMacRival.username)]
+    @State private var macAdding = false
+    @State private var macFinding = false
+    #endif
     var body: some View {
+        #if os(macOS)
+        macBody
+        #else
+        phoneBody
+        #endif
+    }
+    @ViewBuilder
+    private var phoneBody: some View {
         Section {
             TextField("Search focus (optional)", text: $brief, axis: .vertical)
             Button("Find competitors") { action("Searching…") { found = try await MarketingRequest.send("/api/ads/studio/competitors", ["action": "find", "brief": brief])["found"].array } }
@@ -62,6 +76,205 @@ struct StudioRivals: View {
     private func add(_ item: MarketingValue) { action("Adding account…") { var body = item.object.mapValues(\.any); body["action"] = "add"; _ = try await MarketingRequest.send("/api/ads/studio/competitors", body); username = ""; await load() } }
     private func look(_ item: MarketingValue, read: Bool) { action(read ? "Reading the feed…" : "Looking up account…") { let path = "/api/ads/studio/competitors/" + AdsQuery.escape(item.s("username")); let r = read ? try await MarketingRequest.send(path) : try await MarketingRequest.get(path + "?fresh=1"); rows = rows.map { $0.s("username") == item.s("username") ? r["competitor"] : $0 } } }
 }
+
+#if os(macOS)
+/// A competitor's account as a row of the table.
+struct StudioMacRival: Identifiable {
+    let id: String
+    let username: String
+    let name: String
+    let followers: Double
+    let posts: Double
+    let source: String
+    let value: MarketingValue
+
+    init(_ v: MarketingValue) {
+        id = v.s("username")
+        username = v.s("username")
+        name = v.s("name", v.s("username"))
+        followers = v["profile"].n("followers")
+        posts = v["profile"].n("mediaCount")
+        source = v.s("source")
+        value = v
+    }
+}
+
+// MARK: - The Mac's Competitors: the accounts as a table with the picked one in the inspector; Add and Find are the
+// toolbar's and short sheets (docs/features/mac-design.md, "Ads").
+
+extension StudioRivals {
+    @ViewBuilder
+    var macBody: some View {
+        let list = rows.map(StudioMacRival.init).sorted(using: macOrder)
+        let picked = list.filter { (r: StudioMacRival) in macPicked.contains(r.id) }
+        Table(list, selection: $macPicked, sortOrder: $macOrder) {
+            TableColumn("Account", value: \.username) { (r: StudioMacRival) in
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("@" + r.username).lineLimit(1)
+                    if r.name != r.username { Text(r.name).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
+                }
+            }
+            .width(min: 160, ideal: 260)
+            TableColumn("Followers", value: \.followers) { (r: StudioMacRival) in
+                Text(r.followers > 0 ? AdsFormat.compact(r.followers) : "").monospacedDigit().frame(maxWidth: .infinity, alignment: .trailing)
+            }
+            .width(min: 70, ideal: 90)
+            TableColumn("Posts", value: \.posts) { (r: StudioMacRival) in
+                Text(r.posts > 0 ? AdsFormat.compact(r.posts) : "").monospacedDigit().frame(maxWidth: .infinity, alignment: .trailing)
+            }
+            .width(min: 60, ideal: 80)
+            TableColumn("Added", value: \.source) { (r: StudioMacRival) in Text(r.source == "owner" ? "By you" : (r.source == "search" ? "From a search" : r.source)) }
+                .width(min: 80, ideal: 110)
+        }
+        .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
+            let hit = list.filter { (r: StudioMacRival) in ids.contains(r.id) }
+            MacActionItems(groups: macActions(hit))
+        }
+        .overlay {
+            if rows.isEmpty { ContentUnavailableView("No Competitors Yet", systemImage: "binoculars", description: Text("Add an account, or find some.")) }
+        }
+        .macInspector { macInspectorPanel(picked) }
+        .macRefresh { Task { await load() } }
+        .macRecordMenu(MacRecordMenu(title: "Competitor", groups: macActions(picked)))
+        .macSummaryBar(["\(rows.count) account\(rows.count == 1 ? "" : "s")"])
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
+                MacToolbarAction(action: macAddAction)
+                MacToolbarAction(action: macFindAction)
+            }
+        }
+        .task { if !House.isDemo { await load() } }
+        .disabled(busy != nil)
+        .failureAlert($error)
+        .sheet(isPresented: $macAdding) { macAddSheet }
+        .sheet(isPresented: $macFinding) { macFindSheet }
+        .confirmationDialog("Remove @\(removing?.s("username") ?? "") and its readings?", isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }), titleVisibility: .visible) {
+            Button("Remove Account", role: .destructive) {
+                if let item = removing { action("Removing…") { _ = try await MarketingRequest.send("/api/ads/studio/competitors", ["action": "remove", "username": item.s("username")]); await load() } }
+            }
+        }
+    }
+
+    private var macAddAction: MacAction {
+        MacAction("Add Account…", symbol: "plus", shortcut: KeyboardShortcut("n", modifiers: [.control, .command])) { macAdding = true }
+    }
+
+    private var macFindAction: MacAction {
+        MacAction("Find Competitors…", symbol: "magnifyingglass") { macFinding = true }
+    }
+
+    private func macActions(_ picked: [StudioMacRival]) -> [[MacAction]] {
+        let one: StudioMacRival? = picked.count == 1 ? picked[0] : nil
+        let lookUp = MacAction("Look Up Again", symbol: "arrow.clockwise", enabled: one != nil && busy == nil) {
+            if let r = one { look(r.value, read: false) }
+        }
+        let read = MacAction("Read Their Feed", symbol: "square.grid.2x2", enabled: one != nil && busy == nil) {
+            if let r = one { look(r.value, read: true) }
+        }
+        let remove = MacAction("Remove…", symbol: "trash", shortcut: KeyboardShortcut(.delete, modifiers: .command),
+                               role: .destructive, enabled: one != nil && busy == nil) {
+            if let r = one { removing = r.value }
+        }
+        return [[lookUp, read], [remove], [macAddAction, macFindAction]]
+    }
+
+    // MARK: The inspector
+
+    @ViewBuilder
+    private func macInspectorPanel(_ picked: [StudioMacRival]) -> some View {
+        if picked.count == 1, let r = picked.first {
+            let item = r.value
+            let actions = macActions(picked)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    MacInspectorHeader(title: r.name, subtitle: "@" + r.username, actions: [actions[0][0], actions[0][1]])
+                    HStack(spacing: 14) { StudioLinks(value: item) }.font(.callout)
+                    if !item["profile"].s("picture").isEmpty {
+                        MarketingPhoto(path: item["profile"].s("picture")).frame(width: 80, height: 80).clipShape(Circle())
+                    }
+                    if !item["profile"].s("bio").isEmpty { Text(item["profile"].s("bio")) }
+                    MacFigures([MacFigure("Followers", AdsFormat.count(r.followers)), MacFigure("Posts", AdsFormat.count(r.posts))])
+                    if !item.s("profileError").isEmpty { Text(item.s("profileError")).foregroundStyle(Tone.problem.color) }
+                    DisclosureGroup("Recent Posts") {
+                        ForEach(item["profile"]["posts"].array.sorted { $0.n("rate") > $1.n("rate") }, id: \.text) { (post: MarketingValue) in
+                            VStack(alignment: .leading, spacing: 5) {
+                                MarketingPhoto(path: post.s("image")).frame(height: 160)
+                                Text(post.s("caption")).font(.callout)
+                                MarketingDetails(fields: post.object.filter { !["thumbnailUrl", "mediaUrl", "caption"].contains($0.key) }.mapValues(\.any))
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
+                    if item["reading"] != .null {
+                        DisclosureGroup("What Their Feed Shows") { MarketingDetails(fields: item["reading"].object.mapValues(\.any)) }
+                    }
+                }
+                .padding(16)
+            }
+        } else {
+            MacInspectorEmpty(title: macPicked.count > 1 ? "\(macPicked.count) Selected" : "No Account Selected",
+                              detail: "Click an account to see its profile and recent posts.")
+        }
+    }
+
+    // MARK: Add and find
+
+    private var macAddSheet: some View {
+        VStack(spacing: 0) {
+            Form {
+                Section {
+                    TextField("@username or Instagram link", text: $username)
+                        .autocorrectionDisabled()
+                }
+            }
+            .formStyle(.grouped)
+            AdsMacSheetFooter(title: "Add Account", disabled: username.trimmingCharacters(in: .whitespaces).isEmpty, cancel: { macAdding = false }) {
+                macAdding = false
+                add(MarketingValue(["username": username, "source": "owner"]))
+            }
+        }
+        .frame(width: 440, height: 180)
+    }
+
+    private var macFindSheet: some View {
+        VStack(spacing: 0) {
+            Form {
+                Section {
+                    TextField("Search focus (optional)", text: $brief, axis: .vertical)
+                        .lineLimit(1...3)
+                }
+                if !found.isEmpty {
+                    Section("Found") {
+                        ForEach(found, id: \.text) { (item: MarketingValue) in
+                            HStack(alignment: .top, spacing: 8) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(item.s("name")).fontWeight(.medium)
+                                    Text(item.s("why")).font(.callout).foregroundStyle(.secondary)
+                                }
+                                Spacer(minLength: 8)
+                                Button("Add @" + item.s("instagram")) {
+                                    var payload = item
+                                    payload["username"] = item["instagram"]
+                                    payload["source"] = .string("search")
+                                    add(payload)
+                                }
+                                .disabled(item.s("instagram").isEmpty)
+                            }
+                        }
+                    }
+                }
+            }
+            .formStyle(.grouped)
+            AdsMacSheetFooter(title: found.isEmpty ? "Find Competitors" : "Find Again", disabled: busy != nil, cancelTitle: "Done", cancel: { macFinding = false }) {
+                action("Searching…") {
+                    found = try await MarketingRequest.send("/api/ads/studio/competitors", ["action": "find", "brief": brief])["found"].array
+                }
+            }
+        }
+        .frame(width: 520, height: 460)
+    }
+}
+#endif
 
 struct StudioLinks: View {
     let value: MarketingValue

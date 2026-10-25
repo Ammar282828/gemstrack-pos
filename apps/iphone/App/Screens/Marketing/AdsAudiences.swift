@@ -31,6 +31,9 @@ struct AdsAudiencesScreen: View {
     #if os(macOS)
     @State private var macPicked = Set<String>()
     @State private var macOrder = [KeyPathComparator(\AdsAudienceRow.name)]
+    @State private var macMaking = false
+    /// Which kind the New Audience sheet makes: customers, engagers, website, lookalike.
+    @State private var macKind = "customers"
     #endif
 
     private static let countries = [
@@ -344,74 +347,254 @@ struct AdsAudiencesScreen: View {
 }
 
 #if os(macOS)
+// MARK: - The Mac's Audiences: the ad account's audiences as a table with the picked one in the inspector, and a new
+// audience made in a short sheet whose button says what it will do (the customer book's privacy is told in the sheet,
+// so nothing asks a second time).
+
 extension AdsAudiencesScreen {
-    /// Making an audience on the left; the ad account's audiences as a table on the right (right-click: add today's customers, delete).
-    func macContent(_ s: AdsStatusAnswer) -> some View {
-        let rows = (data?.audiences ?? []).sorted(using: macOrder)
-        return MacTwoPane(sideWidth: 440) {
-            List {
-                Group {
-                    AdsAlertsSection(status: s)
-                    if let loadProblem {
-                        Section {
-                            Label(loadProblem, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color)
-                            Button("Try again") { Task { await loadAudiences() } }
-                        }
-                    }
-                    customersSection
-                    engagersSection
-                    websiteSection
-                    lookalikeSection
-                }
-                .houseRows()
-                .disabled(busy != nil)
-            }
-            .listStyle(.inset)
-        } main: {
-            Table(rows, selection: $macPicked, sortOrder: $macOrder) {
-                TableColumn("Audience", value: \.name) { (a: AdsAudienceRow) in
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(a.name)
-                        if let st = a.status { Text(st).font(.caption).foregroundStyle(Tone.owed.color) }
-                    }
-                }
-                .width(min: 160, ideal: 240)
-                TableColumn("Kind", value: \.kind) { (a: AdsAudienceRow) in Text(a.kind) }
-                    .width(min: 90, ideal: 120)
-                TableColumn("People") { (a: AdsAudienceRow) in Text(a.sizeWords ?? "not known yet").monospacedDigit() }
-                    .width(min: 80, ideal: 110)
-                TableColumn("Made") { (a: AdsAudienceRow) in Text(a.created.map { (c: String) in ShopDate.say(c) } ?? "") }
-                    .width(min: 80, ideal: 110)
-            }
-            .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
-                let picked = rows.filter { (a: AdsAudienceRow) in ids.contains(a.id) }
-                if let a = picked.first, picked.count == 1 {
-                    if a.kind == "Customer list" && isOwner {
-                        Button("Add today's customers", systemImage: "arrow.clockwise") { Task { await refresh(a) } }
-                    }
-                    Button("Copy the name", systemImage: "doc.on.doc") { MacClipboard.copy(a.name) }
-                    Divider()
-                    Button("Delete…", systemImage: "trash", role: .destructive) { deleting = a }
-                }
-            }
-            .onDeleteCommand {
-                let picked = rows.filter { (a: AdsAudienceRow) in macPicked.contains(a.id) }
-                if picked.count == 1 { deleting = picked[0] }
-            }
-            .overlay {
-                if let data, data.audiences.isEmpty {
-                    ContentUnavailableView("No audiences yet", systemImage: "person.2", description: Text("Make one on the left."))
-                } else if data == nil && loadProblem == nil {
-                    MarketingReading(text: "Reading the audiences…")
-                }
-            }
+    private var macRows: [AdsAudienceRow] { (data?.audiences ?? []).sorted(using: macOrder) }
+    private var macPickedRows: [AdsAudienceRow] { macRows.filter { (a: AdsAudienceRow) in macPicked.contains(a.id) } }
+
+    private var macNewAudience: MacAction {
+        MacAction("New Audience…", symbol: "plus", shortcut: KeyboardShortcut("n", modifiers: [.control, .command]),
+                  enabled: busy == nil && data != nil) {
+            macMaking = true
         }
+    }
+
+    private func macActions(_ picked: [AdsAudienceRow]) -> [[MacAction]] {
+        let one: AdsAudienceRow? = picked.count == 1 ? picked[0] : nil
+        let refreshable = one.map { (a: AdsAudienceRow) in a.kind == "Customer list" && isOwner } ?? false
+        let add = MacAction("Add Today's Customers", symbol: "arrow.clockwise", enabled: refreshable && busy == nil) {
+            if let a = one { Task { await refresh(a) } }
+        }
+        let copy = MacAction("Copy Name", symbol: "doc.on.doc", enabled: !picked.isEmpty) {
+            MacClipboard.copy(picked.map { (a: AdsAudienceRow) in a.name }.joined(separator: "\n"))
+        }
+        let delete = MacAction("Delete…", symbol: "trash", shortcut: KeyboardShortcut(.delete, modifiers: .command),
+                               role: .destructive, enabled: one != nil && busy == nil) {
+            if let a = one { deleting = a }
+        }
+        return [[add, copy], [delete], [macNewAudience]]
+    }
+
+    func macContent(_ s: AdsStatusAnswer) -> some View {
+        let rows = macRows
+        let picked = macPickedRows
+        return VStack(spacing: 0) {
+            AdsMacAlertBar(status: s)
+            if let loadProblem {
+                Label(loadProblem, systemImage: "exclamationmark.triangle.fill")
+                    .foregroundStyle(Tone.problem.color)
+                    .padding(8)
+            }
+            macTable(rows)
+        }
+        .macInspector { macInspectorPanel(picked) }
+        .macRefresh { Task { await loadAudiences() } }
+        .macRecordMenu(MacRecordMenu(title: "Audience", groups: macActions(picked)))
+        .macSummaryBar(["\(rows.count) audience\(rows.count == 1 ? "" : "s") in the ad account"])
         .navigationSubtitle(data.map { (d: AdsAudiencesAnswer) in "\(d.audiences.count) in the ad account" } ?? "")
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .primaryAction) {
+                MacToolbarAction(action: macNewAudience)
                 Button { Task { await loadAudiences() } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
-                    .keyboardShortcut("r", modifiers: .command)
-                    .help("Read the audiences again")
+                    .help("Read the audiences again (⌘R)")
+            }
+        }
+        .disabled(busy != nil)
+        .sheet(isPresented: $macMaking) { macNewSheet }
+    }
+
+    private func macTable(_ rows: [AdsAudienceRow]) -> some View {
+        Table(rows, selection: $macPicked, sortOrder: $macOrder) {
+            TableColumn("Audience", value: \.name) { (a: AdsAudienceRow) in
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(a.name).lineLimit(1)
+                    if let st = a.status { Text(st).font(.caption).foregroundStyle(Tone.owed.color) }
+                }
+            }
+            .width(min: 160, ideal: 280)
+            TableColumn("Kind", value: \.kind) { (a: AdsAudienceRow) in Text(a.kind) }
+                .width(min: 90, ideal: 130)
+            TableColumn("People") { (a: AdsAudienceRow) in
+                Text(a.sizeWords ?? "not known yet").monospacedDigit().foregroundStyle(a.sizeWords == nil ? Color.secondary : Color.primary)
+            }
+            .width(min: 90, ideal: 120)
+            TableColumn("Made") { (a: AdsAudienceRow) in Text(a.created.map { (c: String) in ShopDate.say(c) } ?? "") }
+                .width(min: 80, ideal: 110)
+        }
+        .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
+            let picked = macRows.filter { (a: AdsAudienceRow) in ids.contains(a.id) }
+            MacActionItems(groups: macActions(picked))
+        }
+        .overlay {
+            if let data, data.audiences.isEmpty {
+                ContentUnavailableView("No Audiences Yet", systemImage: "person.2", description: Text("New Audience… makes one."))
+            } else if data == nil && loadProblem == nil {
+                MarketingReading(text: "Reading the audiences…")
+            }
+        }
+    }
+
+    // MARK: The inspector
+
+    @ViewBuilder
+    private func macInspectorPanel(_ picked: [AdsAudienceRow]) -> some View {
+        if picked.count == 1, let a = picked.first {
+            let actions = macActions(picked)
+            VStack(alignment: .leading, spacing: 14) {
+                MacInspectorHeader(title: a.name, subtitle: a.kind,
+                                   status: a.status.map { (st: String) in MacStatus(st, tone: .owed) },
+                                   headline: MacHeadline("People", a.sizeWords ?? "not known yet"),
+                                   actions: a.kind == "Customer list" && isOwner ? [actions[0][0], actions[1][0]] : [actions[1][0]])
+                LabeledContent("Made", value: a.created.map { (c: String) in ShopDate.say(c) } ?? "")
+                Text(macAbout(a)).font(.callout).foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        } else {
+            MacInspectorEmpty(title: macPicked.count > 1 ? "\(macPicked.count) Selected" : "No Audience Selected",
+                              detail: "Click an audience to see it. Pick it on a new ad under Who Sees It.")
+        }
+    }
+
+    private func macAbout(_ a: AdsAudienceRow) -> String {
+        switch a.kind {
+        case "Customer list": return "The shop's customers, as Meta matched them. Add today's customers to bring it up to date."
+        case "Lookalike": return "People like an audience of the shop's, found by Meta."
+        default: return "Any ad can reach this audience, or leave it out, from its Who Sees It."
+        }
+    }
+
+    // MARK: A new audience
+
+    private var macKinds: [(key: String, label: String)] {
+        var out: [(key: String, label: String)] = []
+        if isOwner { out.append((key: "customers", label: "The Shop's Customers")) }
+        out.append((key: "engagers", label: "Instagram Engagers"))
+        out.append((key: "website", label: "Website Visitors"))
+        out.append((key: "lookalike", label: "Lookalike"))
+        return out
+    }
+
+    /// What the sheet's button says, and does.
+    private var macMakeTitle: String {
+        switch macKind {
+        case "customers": return "Send “\(segmentLabel)” to Meta"
+        case "engagers": return "Make the Engagers Audience"
+        case "website": return "Make the Website Audience"
+        default: return "Make the Lookalike"
+        }
+    }
+
+    private var macMakeDisabled: Bool {
+        if data == nil || busy != nil { return true }
+        switch macKind {
+        case "website": return data?.pixel != true
+        case "lookalike": return origin.isEmpty
+        default: return false
+        }
+    }
+
+    private func macMake() {
+        macMaking = false
+        switch macKind {
+        case "customers": Task { await make(["kind": "customers", "segment": segment], "customers") }
+        case "engagers": Task { await make(["kind": "engagers", "days": days, "event": event], "engagers") }
+        case "website": Task { await make(["kind": "website", "days": webDays, "event": webEvent], "website") }
+        default: Task { await make(["kind": "lookalike", "origin": origin, "percent": percent, "country": country], "lookalike") }
+        }
+    }
+
+    private var macNewSheet: some View {
+        VStack(spacing: 0) {
+            Form {
+                Section {
+                    Picker("Audience of", selection: $macKind) {
+                        ForEach(macKinds, id: \.key) { (k: (key: String, label: String)) in Text(k.label).tag(k.key) }
+                    }
+                    .pickerStyle(.menu)
+                }
+                macKindFields
+            }
+            .formStyle(.grouped)
+            AdsMacSheetFooter(title: macMakeTitle, disabled: macMakeDisabled, cancel: { macMaking = false }) { macMake() }
+        }
+        .frame(width: 480, height: 440)
+        .onAppear { if macKind == "customers" && !isOwner { macKind = "engagers" } }
+    }
+
+    @ViewBuilder
+    private var macKindFields: some View {
+        switch macKind {
+        case "customers":
+            Section {
+                Picker("Customers", selection: $segment) {
+                    ForEach(data?.segments ?? []) { (seg: AdsHinted) in Text(seg.label).tag(seg.key) }
+                }
+                .pickerStyle(.menu)
+                if let hint = data?.segments.first(where: { (seg: AdsHinted) in seg.key == segment })?.hint {
+                    Text(hint).font(.caption).foregroundStyle(.secondary)
+                }
+                Text("Show ads to people who already buy from the shop, or leave them out of ads meant for new people. The customers' phone numbers, emails and names are scrambled (SHA-256) on the ERP's server first; Meta receives only the scrambled codes, matches them to accounts, and doesn't keep the unmatched ones. It costs nothing. The first time, Meta may ask for its Custom Audience terms to be accepted.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+        case "engagers":
+            Section {
+                Picker(data?.instagram.map { (ig: String) in "Who on @\(ig)" } ?? "Who", selection: $event) {
+                    ForEach(data?.events ?? []) { (e: AdsChoice) in Text(e.label).tag(e.key) }
+                }
+                .pickerStyle(.menu)
+                Picker("In the last", selection: $days) {
+                    Text("30 days").tag(30)
+                    Text("90 days").tag(90)
+                    Text("180 days").tag(180)
+                    Text("Year").tag(365)
+                    Text("2 years").tag(730)
+                }
+                .pickerStyle(.menu)
+            }
+        case "website":
+            Section {
+                if let data, !data.pixel {
+                    Text("Choose the shop's pixel on Setup first.").foregroundStyle(.secondary)
+                } else {
+                    Picker("Visitors who", selection: $webEvent) {
+                        ForEach(data?.websiteEvents ?? []) { (e: AdsHinted) in Text(e.label).tag(e.key) }
+                    }
+                    .pickerStyle(.menu)
+                    if let hint = data?.websiteEvents.first(where: { (e: AdsHinted) in e.key == webEvent })?.hint {
+                        Text(hint).font(.caption).foregroundStyle(.secondary)
+                    }
+                    Picker("In the last", selection: $webDays) {
+                        ForEach([7, 14, 30, 60, 90, 180], id: \.self) { (d: Int) in Text("\(d) days").tag(d) }
+                    }
+                    .pickerStyle(.menu)
+                }
+            }
+        default:
+            Section {
+                Picker("Like which audience", selection: $origin) {
+                    Text("Choose one").tag("")
+                    ForEach(seeds) { (a: AdsAudienceRow) in
+                        Text(a.sizeWords.map { (w: String) in "\(a.name) (\(w))" } ?? a.name).tag(a.id)
+                    }
+                }
+                .pickerStyle(.menu)
+                Picker("How alike", selection: $percent) {
+                    ForEach([1, 2, 3, 5, 10], id: \.self) { (p: Int) in Text("\(p)%").tag(p) }
+                }
+                .pickerStyle(.menu)
+                Picker("Country", selection: $country) {
+                    ForEach(Self.countries) { (c: AdsChoice) in Text(c.label).tag(c.key) }
+                }
+                .pickerStyle(.menu)
+                Text("1% is the closest match. Meta needs at least 100 matched people in the country to start from.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
     }

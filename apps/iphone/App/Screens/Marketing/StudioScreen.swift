@@ -7,6 +7,33 @@ struct StudioScreen: View {
     @State private var model = StudioModel()
     @Environment(Session.self) private var session
     var body: some View {
+        #if os(macOS)
+        macRedirect
+        #else
+        phoneBody
+        #endif
+    }
+
+    #if os(macOS)
+    /// The legacy Studio shell is gone on the Mac (docs/features/mac-design.md): its address opens the place that took over its
+    /// part. Plan is Ads › Plan; Photos, Make, Board and Saved are Design's.
+    private var designPath: String {
+        switch AdsQuery.value("v", in: path) ?? "plan" {
+        case "plan": return "/ads/plan"
+        case "guide": return "/ads/plan?s=guide"
+        case "rivals": return "/ads/plan?s=rivals"
+        case "photos", "picks", "library": return "/design?v=photos"
+        case "board": return "/design?v=board"
+        case "saved": return "/design?v=saved"
+        default: return "/design?v=make"
+        }
+    }
+
+    private var macRedirect: some View { ScreenRegistry.view(for: designPath) }
+    #endif
+
+    @ViewBuilder
+    private var phoneBody: some View {
         Group {
             if session.role == "owner" || session.role == "marketing" {
                 #if os(macOS)
@@ -64,7 +91,19 @@ struct StudioScreen: View {
 
 struct StudioPlan: View {
     @Bindable var model: StudioModel
+    #if os(macOS)
+    @State private var macPicked = Set<String>()
+    @State private var macOrder = [KeyPathComparator(\StudioMacPlay.stageOrder)]
+    #endif
     var body: some View {
+        #if os(macOS)
+        macBody
+        #else
+        phoneBody
+        #endif
+    }
+    @ViewBuilder
+    private var phoneBody: some View {
         List {
             Section {
                 #if os(macOS)
@@ -325,6 +364,185 @@ struct StudioMaker: View {
         } }
     }
 }
+
+#if os(macOS)
+/// One play of the plan as a row of the table.
+struct StudioMacPlay: Identifiable {
+    let id: String
+    let stage: String
+    let stageOrder: Int
+    let title: String
+    let place: String
+    let format: String
+    let budget: String
+    let core: Bool
+    let value: MarketingValue
+}
+
+// MARK: - The Mac's Plan: the plays as a table with the picked one's reasons in the inspector, the ad days and rules as a
+// form, and the toolbar's segmented control for the three parts (docs/features/mac-design.md, "Ads").
+
+extension StudioPlan {
+    @ViewBuilder
+    var macBody: some View {
+        Group {
+            switch model.part {
+            case "guide": macGuide
+            case "rivals": StudioRivals()
+            default: macPlays
+            }
+        }
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Picker("Plan", selection: $model.part) {
+                    Text("What to Run").tag("plays")
+                    Text("Ad Days and Rules").tag("guide")
+                    Text("Competitors").tag("rivals")
+                }
+                .pickerStyle(.segmented)
+                .help("What to run, the ad days and rules, or the competitors")
+            }
+        }
+        .task(id: model.part) { if model.part == "guide" { await loadGuide() } }
+    }
+
+    // MARK: What to run
+
+    private var macPlayRows: [StudioMacPlay] {
+        var out: [StudioMacPlay] = []
+        let stages = model.catalogue["stages"].array
+        for (i, stage) in stages.enumerated() {
+            for play in model.catalogue["plays"].array where play.s("stage") == stage.s("id") {
+                out.append(StudioMacPlay(id: play.s("id"), stage: stage.s("title"), stageOrder: i, title: play.s("title"),
+                                         place: play.s("where"), format: play.s("format") + (play["pair"].bool ? " + story" : ""),
+                                         budget: play.s("budget"), core: play["core"].bool, value: play))
+            }
+        }
+        return out.sorted(using: macOrder)
+    }
+
+    private func macMakeAction(_ picked: [StudioMacPlay]) -> MacAction {
+        let one: StudioMacPlay? = picked.count == 1 ? picked[0] : nil
+        return MacAction("Make This", symbol: "wand.and.stars", shortcut: KeyboardShortcut(.return, modifiers: .command),
+                         enabled: one != nil, isDefault: true) {
+            if let p = one {
+                model.route = Route(path: "/design?v=make&kind=ad&play=" + (p.id.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? p.id))
+            }
+        }
+    }
+
+    private var macPlays: some View {
+        let rows = macPlayRows
+        let picked = rows.filter { (p: StudioMacPlay) in macPicked.contains(p.id) }
+        let make = macMakeAction(picked)
+        return Table(rows, selection: $macPicked, sortOrder: $macOrder) {
+            TableColumn("Play", value: \.title) { (p: StudioMacPlay) in
+                HStack(spacing: 6) {
+                    Image(systemName: p.core ? "star.fill" : "megaphone").foregroundStyle(p.core ? Tone.owed.color : Color.secondary).frame(width: 16)
+                    Text(p.title).lineLimit(1)
+                }
+            }
+            .width(min: 180, ideal: 280)
+            TableColumn("Stage", value: \.stageOrder) { (p: StudioMacPlay) in Text(p.stage).lineLimit(1) }
+                .width(min: 90, ideal: 130)
+            TableColumn("Where It Runs", value: \.place) { (p: StudioMacPlay) in Text(p.place).foregroundStyle(.secondary).lineLimit(1) }
+                .width(min: 120, ideal: 240)
+            TableColumn("Format", value: \.format) { (p: StudioMacPlay) in Text(p.format).lineLimit(1) }
+                .width(min: 80, ideal: 120)
+        }
+        .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
+            let hit = rows.filter { (p: StudioMacPlay) in ids.contains(p.id) }
+            MacActionItems(groups: [[macMakeAction(hit)]])
+        } primaryAction: { (ids: Set<String>) in
+            let hit = rows.filter { (p: StudioMacPlay) in ids.contains(p.id) }
+            macMakeAction(hit).perform()
+        }
+        .overlay {
+            if rows.isEmpty { MarketingReading(text: "Reading the plan…") }
+        }
+        .macInspector { macPlayInspector(picked, make) }
+        .macRecordMenu(MacRecordMenu(title: "Play", groups: [[make]]))
+        .macSummaryBar(["\(rows.count) plays", "\(rows.filter { (p: StudioMacPlay) in p.core }.count) core"])
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) { MacToolbarAction(action: make) }
+        }
+    }
+
+    @ViewBuilder
+    private func macPlayInspector(_ picked: [StudioMacPlay], _ make: MacAction) -> some View {
+        if picked.count == 1, let p = picked.first {
+            VStack(spacing: 0) {
+                MacInspectorHeader(title: p.title, subtitle: p.stage + (p.core ? " · core" : ""), actions: [make])
+                    .padding(16)
+                Divider()
+                Form {
+                    Section("Where It Runs") { Text(p.place) }
+                    Section("Why") { Text(p.value.s("why")) }
+                    Section {
+                        LabeledContent("Who", value: p.value.s("who"))
+                        LabeledContent("Budget", value: p.budget)
+                        LabeledContent("Judge it by", value: p.value.s("judge"))
+                        LabeledContent("Format", value: p.format)
+                        LabeledContent("Layout", value: p.value.s("template"))
+                        LabeledContent("Call to action", value: p.value.s("cta"))
+                    }
+                }
+                .formStyle(.grouped)
+            }
+        } else {
+            MacInspectorEmpty(title: macPicked.count > 1 ? "\(macPicked.count) Selected" : "No Play Selected",
+                              detail: "Click a play to see why, for whom and for how much. Make This opens Design on it.")
+        }
+    }
+
+    // MARK: Ad days and rules
+
+    private func macReadWinners() {
+        Task {
+            await model.run("Reading the account's ads…") {
+                let r = try await MarketingRequest.send("/api/ads/studio/guide")
+                model.guide["winners"] = r["winners"]
+            }
+        }
+    }
+
+    private var macGuide: some View {
+        Form {
+            if model.guide != .null {
+                Section("Ad Days") { MarketingDetails(fields: model.guide["calendar"].object.mapValues(\.any)) }
+            }
+            Section("What Our Ads Say") { MarketingDetails(fields: model.guide["winners"].object.mapValues(\.any)) }
+            Section("This Week's Board") { MarketingDetails(fields: model.weekly["weekly"].object.mapValues(\.any)) }
+            ForEach(model.catalogue["playbook"].array, id: \.text) { (section: MarketingValue) in
+                Section(section.s("title")) {
+                    Text(section.s("lead")).foregroundStyle(.secondary)
+                    ForEach(section["points"].array, id: \.text) { (point: MarketingValue) in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(point.s("head")).fontWeight(.semibold)
+                            Text(point.s("body")).foregroundStyle(.secondary)
+                        }
+                        .padding(.vertical, 2)
+                    }
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Button("Read the Account's Winners Again") { macReadWinners() }
+                    Divider()
+                    Button("Make This Week's Board") { weekly("start") }
+                    Button("Continue Designing") { weekly("continue") }
+                } label: {
+                    Label("Board and Winners", systemImage: "ellipsis.circle")
+                }
+                .help("Read the account's winners again, or design this week's board")
+            }
+        }
+    }
+}
+#endif
 
 /// Ads → Plan (src/app/ads/plan/page.tsx): what to run, ad days and rules, competitors. It was Studio's Plan tab; the
 /// web moved it to its own page on 2026-10-12 and the app kept opening that page in a web view until 2026-10-17 (owner:

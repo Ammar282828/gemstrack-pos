@@ -240,8 +240,14 @@ struct StudioBoardEditor: View {
         Group {
             Button("Duplicate") { if let s = selected { duplicate(s) } }.keyboardShortcut("d", modifiers: .command)
             Button("Remove") { if let s = selected { remove(s) } }.keyboardShortcut(.delete, modifiers: .command)
+            #if os(macOS)
+            // ⌘[ and ⌘] are Back and Forward; the layer order is the Arrange menu's.
+            Button("Bring forward") { if let s = selected { step(s, 1) } }.keyboardShortcut("f", modifiers: [.command, .option, .shift])
+            Button("Send backward") { if let s = selected { step(s, -1) } }.keyboardShortcut("b", modifiers: [.command, .option, .shift])
+            #else
             Button("Bring forward") { if let s = selected { step(s, 1) } }.keyboardShortcut("]", modifiers: .command)
             Button("Send backward") { if let s = selected { step(s, -1) } }.keyboardShortcut("[", modifiers: .command)
+            #endif
         }
         .opacity(0).frame(width: 0, height: 0).accessibilityHidden(true).disabled(selected == nil)
     }

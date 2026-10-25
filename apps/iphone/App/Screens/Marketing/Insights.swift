@@ -559,17 +559,10 @@ struct InsightsOverviewScreen: View {
         }
         .navigationTitle("Insights")
         .hubTitleDisplay()
-        .toolbar { if mayRead { ToolbarItem(placement: .primaryAction) { InsightRangeMenu(key: $rangeKey) } } }
         #if os(macOS)
-        .toolbar {
-            if mayRead {
-                ToolbarItem(placement: .primaryAction) {
-                    Button { Task { await load(fresh: true) } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
-                        .keyboardShortcut("r", modifiers: .command)
-                        .help("Ask Meta again")
-                }
-            }
-        }
+        .toolbar { if mayRead { ToolbarItemGroup(placement: .primaryAction) { macToolbarItems } } }
+        #else
+        .toolbar { if mayRead { ToolbarItem(placement: .primaryAction) { InsightRangeMenu(key: $rangeKey) } } }
         #endif
         .task(id: rangeKey) { if mayRead { await load() } }
     }
@@ -587,6 +580,14 @@ struct InsightsOverviewScreen: View {
     }
 
     private func content(_ d: InsightsOverview) -> some View {
+        #if os(macOS)
+        macContent(d)
+        #else
+        phoneContent(d)
+        #endif
+    }
+
+    private func phoneContent(_ d: InsightsOverview) -> some View {
         InsightPage(refresh: { await load(fresh: true) }) {
             List {
                 Group {
@@ -831,6 +832,8 @@ struct InsightsPostsScreen: View {
     #if os(macOS)
     @State private var macOrder = [InsightPostOrder(field: .at, order: .reverse)]
     @State private var macPicked = Set<String>()
+    /// Which numbers the table shows beside the post: engagement, reach and video, or Facebook and clicks.
+    @State private var macColumns = "engagement"
     #endif
 
     private var mayRead: Bool { session.role == "owner" || session.role == "marketing" }
@@ -874,10 +877,20 @@ struct InsightsPostsScreen: View {
                     .help("Which posts to show")
                 }
                 ToolbarItemGroup(placement: .primaryAction) {
-                    InsightRangeMenu(key: $rangeKey)
+                    Picker("Columns", selection: $macColumns) {
+                        Text("Engagement").tag("engagement")
+                        Text("Reach and Video").tag("video")
+                        Text("Facebook and Clicks").tag("facebook")
+                    }
+                    .pickerStyle(.menu)
+                    .help("Which numbers the table shows beside each post")
+                    Picker("Range", selection: $rangeKey) {
+                        ForEach(InsightRange.all) { (r: AdsRange.Option) in Text(r.label).tag(r.key) }
+                    }
+                    .pickerStyle(.menu)
+                    .help("The days the numbers cover")
                     Button { Task { await load(fresh: true) } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
-                        .keyboardShortcut("r", modifiers: .command)
-                        .help("Ask Meta again")
+                        .help("Ask Meta again (⌘R)")
                 }
             }
         }
@@ -1055,10 +1068,16 @@ struct InsightsAudienceScreen: View {
         #if os(macOS)
         .toolbar {
             if mayRead {
-                ToolbarItem(placement: .primaryAction) {
+                ToolbarItemGroup(placement: .primaryAction) {
+                    Picker("Who", selection: $group) {
+                        Text("Followers").tag("followers")
+                        Text("Reached").tag("reached")
+                        Text("Engaged").tag("engaged")
+                    }
+                    .pickerStyle(.menu)
+                    .help("Who the numbers are about")
                     Button { Task { await load(fresh: true) } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
-                        .keyboardShortcut("r", modifiers: .command)
-                        .help("Ask Meta again")
+                        .help("Ask Meta again (⌘R)")
                 }
             }
         }
@@ -1078,7 +1097,15 @@ struct InsightsAudienceScreen: View {
 
     private func content(_ a: InsightsAudience) -> some View {
         let dims = group == "reached" ? a.reached : (group == "engaged" ? a.engaged : a.followers)
-        return InsightPage(refresh: { await load(fresh: true) }) {
+        #if os(macOS)
+        return macContent(a, dims)
+        #else
+        return phoneContent(a, dims)
+        #endif
+    }
+
+    private func phoneContent(_ a: InsightsAudience, _ dims: InsightDims?) -> some View {
+        InsightPage(refresh: { await load(fresh: true) }) {
             audienceList(a, dims)
         } wide: { _ in
             audienceWide(a, dims)
@@ -1191,10 +1218,189 @@ struct InsightsAudienceScreen: View {
 }
 
 #if os(macOS)
-// MARK: - The Mac's Posts: every post as a row of a table, sorted by the column clicked
+// MARK: - The Mac's Insights (docs/features/mac-design.md, "Ads"): Overview as a report, Posts as a table with every number, Audience as tables and a chart.
+
+extension InsightsOverviewScreen {
+    @ViewBuilder
+    var macToolbarItems: some View {
+        Picker("Range", selection: $rangeKey) {
+            ForEach(InsightRange.all) { (r: AdsRange.Option) in Text(r.label).tag(r.key) }
+        }
+        .pickerStyle(.menu)
+        .help("The days the numbers cover")
+        Button { Task { await load(fresh: true) } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
+            .help("Ask Meta again (⌘R)")
+    }
+
+    func macContent(_ d: InsightsOverview) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                macFindings
+                if let ig = d.instagram { macInstagram(d, ig) }
+                macPaid(d)
+                if let fb = d.facebook { macFacebook(fb) }
+                macFoot(d)
+            }
+            .padding(20)
+            .frame(maxWidth: 1100, alignment: .leading)
+            .frame(maxWidth: .infinity)
+        }
+        .macRefresh { Task { await load(fresh: true) } }
+        .navigationSubtitle(InsightRange.label(rangeKey))
+    }
+
+    @ViewBuilder
+    private var macFindings: some View {
+        if !found.isEmpty {
+            AdsMacSection(title: "What the Numbers Say") {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(found) { (f: InsightFinding) in
+                        HStack(alignment: .top, spacing: 8) {
+                            Image(systemName: f.tone == "good" ? "checkmark.circle" : (f.tone == "warn" ? "exclamationmark.triangle.fill" : "info.circle"))
+                                .foregroundStyle(f.tone == "good" ? Tone.settled.color : (f.tone == "warn" ? Tone.owed.color : Color.secondary))
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(f.title).fontWeight(.medium)
+                                Text(f.why).foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func macInstagram(_ d: InsightsOverview, _ ig: InstagramInsight) -> some View {
+        VStack(alignment: .leading, spacing: 24) {
+            AdsMacSection(title: "Instagram", detail: "@" + ig.username) {
+                VStack(spacing: 0) {
+                    ForEach(Array(InsightsMacFigures.instagram(ig).enumerated()), id: \.offset) { _, cells in
+                        MacFigures(cells)
+                    }
+                }
+            }
+            HStack(alignment: .top, spacing: 20) {
+                macReach(ig).frame(maxWidth: .infinity, alignment: .top)
+                macFollowers(d).frame(maxWidth: .infinity, alignment: .top)
+            }
+            macSplit(ig)
+        }
+    }
+
+    @ViewBuilder
+    private func macReach(_ ig: InstagramInsight) -> some View {
+        let points: [Point] = ig.daily.compactMap { (d: InstagramInsight.Day) -> Point? in
+            guard let date = AdsDay.plot(d.date) else { return nil }
+            return Point(id: d.date, date: date, value: d.reach)
+        }
+        if points.count > 1 {
+            AdsMacSection(title: "Reached, Day by Day") {
+                Chart(points) { (p: Point) in
+                    BarMark(x: .value("Day", p.date, unit: .day), y: .value("Reached", p.value)).foregroundStyle(Theme.accent)
+                }
+                .macDayHover(points.map { (p: Point) in MacHoverPoint(id: p.id, date: p.date, value: p.value) }) { (v: Double) in "\(AdsFormat.compact(v)) reached" }
+                .frame(height: 180)
+                .accessibilityLabel("Accounts reached each day, ads included")
+                .accessibilityValue(ChartSummary.say(points.map { (label: ChartSummary.day($0.date), value: $0.value) }, money: false))
+            }
+        }
+    }
+
+    private func macFollowers(_ d: InsightsOverview) -> some View {
+        let points: [Point] = d.followerDays.compactMap { (k: (date: String, followers: Double)) -> Point? in
+            guard let date = AdsDay.plot(k.date) else { return nil }
+            return Point(id: k.date, date: date, value: k.followers)
+        }
+        return AdsMacSection(title: "Followers Over Time") {
+            if points.count > 1 {
+                Chart(points) { (p: Point) in
+                    LineMark(x: .value("Day", p.date, unit: .day), y: .value("Followers", p.value)).foregroundStyle(Theme.accent)
+                }
+                .chartYScale(domain: .automatic(includesZero: false))
+                .macDayHover(points.map { (p: Point) in MacHoverPoint(id: p.id, date: p.date, value: p.value) }) { (v: Double) in "\(AdsFormat.count(v)) followers" }
+                .frame(height: 180)
+                .accessibilityLabel("Followers over time")
+                .accessibilityValue(ChartSummary.say(points.map { (label: ChartSummary.day($0.date), value: $0.value) }, money: false, total: false))
+            } else {
+                Text("Meta keeps no follower history, so the ERP writes the count down every day. The line fills in from there.")
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func macSplit(_ ig: InstagramInsight) -> some View {
+        let candidates: [(String, InsightSplit?)] = [("Accounts reached", ig.reach), ("Views", ig.views), ("Interactions", ig.interactions)]
+        let rows = candidates.compactMap { (c: (String, InsightSplit?)) -> InsightsMacSplitRow? in
+            guard let split = c.1, split.ads + split.organic > 0 else { return nil }
+            return InsightsMacSplitRow(c.0, split)
+        }
+        return Group {
+            if !rows.isEmpty {
+                AdsMacSection(title: "Ads or Own Posts?", detail: "Counted per surface (posts, carousels, reels, stories, ads), so the parts can add up to more than the account's reach.") {
+                    InsightsMacSplitTable(rows: rows)
+                }
+            }
+        }
+    }
+
+    private func macPaid(_ d: InsightsOverview) -> some View {
+        let shown = d.paid.filter { (p: InsightPlatform) in p.metrics.spend > 0 || p.metrics.impressions > 0 }
+        var before: [String: Double] = [:]
+        for p in d.paidBefore { before[p.platform] = p.metrics.spend }
+        let rows = shown.map { (p: InsightPlatform) -> InsightsMacPlatformRow in
+            let results = AdsResults.headlineActions(p.metrics, limit: 4)
+                .map { (r: AdsResults.Line) in "\(AdsFormat.count(r.value)) \(r.label.lowercased())" }
+                .joined(separator: " · ")
+            return InsightsMacPlatformRow(id: p.platform, name: InsightWords.platform[p.platform] ?? p.platform, spend: p.metrics.spend,
+                                          change: AdsFormat.change(p.metrics.spend, before[p.platform]) ?? "", reach: p.metrics.reach,
+                                          views: p.metrics.impressions, clicks: p.metrics.linkClicks, results: results)
+        }
+        return AdsMacSection(title: "Ads by Platform") {
+            if rows.isEmpty {
+                Text("No ad ran in \(InsightRange.label(rangeKey).lowercased()).").foregroundStyle(.secondary)
+            } else {
+                InsightsMacPlatformTable(rows: rows, currency: d.currency)
+            }
+        }
+    }
+
+    private func macFacebook(_ fb: FacebookInsight) -> some View {
+        let points: [Point] = fb.daily.compactMap { (d: FacebookInsight.Day) -> Point? in
+            guard let date = AdsDay.plot(d.date) else { return nil }
+            return Point(id: d.date, date: date, value: d.views)
+        }
+        return AdsMacSection(title: "Facebook", detail: fb.name) {
+            VStack(alignment: .leading, spacing: 8) {
+                MacFigures(InsightsMacFigures.facebook(fb))
+                if points.count > 1 && points.contains(where: { (x: Point) in x.value > 0 }) {
+                    Chart(points) { (x: Point) in
+                        BarMark(x: .value("Day", x.date, unit: .day), y: .value("Views", x.value)).foregroundStyle(Theme.accent)
+                    }
+                    .macDayHover(points.map { (p: Point) in MacHoverPoint(id: p.id, date: p.date, value: p.value) }) { (v: Double) in "\(AdsFormat.compact(v)) views" }
+                    .frame(height: 160)
+                    .accessibilityLabel("Page views each day")
+                    .accessibilityValue(ChartSummary.say(points.map { (label: ChartSummary.day($0.date), value: $0.value) }, money: false))
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func macFoot(_ d: InsightsOverview) -> some View {
+        if !d.at.isEmpty {
+            Text("\(ShopDate.say(d.since)) to \(ShopDate.say(d.until)), compared with \(ShopDate.say(d.beforeSince)) to \(ShopDate.say(d.beforeUntil)). From Meta, \(MarketingTime.clock(d.at)). Instagram's numbers include its ads; the split takes them apart.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+// MARK: Posts
 
 struct InsightPostOrder: SortComparator, Hashable {
-    enum Field: Hashable { case at, kind, caption, views, reach, interactions, rate, shares, saves }
+    enum Field: Hashable {
+        case at, kind, caption, views, reach, interactions, rate, shares, saves
+        case likes, comments, profileVisits, follows, avgWatch, facebookViews, clicks
+    }
     var field: Field
     var order: SortOrder = .forward
 
@@ -1206,6 +1412,13 @@ struct InsightPostOrder: SortComparator, Hashable {
         case .rate: return p.rate ?? -1
         case .shares: return p.shares ?? -1
         case .saves: return p.saves ?? -1
+        case .likes: return p.likes ?? -1
+        case .comments: return p.comments ?? -1
+        case .profileVisits: return p.profileVisits ?? -1
+        case .follows: return p.follows ?? -1
+        case .avgWatch: return p.avgWatchMs ?? -1
+        case .facebookViews: return p.facebookViews ?? -1
+        case .clicks: return p.clicks ?? -1
         default: return 0
         }
     }
@@ -1228,63 +1441,208 @@ struct InsightPostOrder: SortComparator, Hashable {
 }
 
 extension InsightsPostsScreen {
+    private func macNumber(_ v: Double?) -> some View {
+        Text(InsightWords.optional(v)).monospacedDigit().frame(maxWidth: .infinity, alignment: .trailing)
+    }
+
+    private func macPostCell(_ p: InsightPost, _ d: InsightsPosts) -> some View {
+        HStack(spacing: 10) {
+            StockImage(imageUrl: p.thumb, name: p.caption, key: p.id)
+                .frame(width: 32, height: 32)
+                .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
+            VStack(alignment: .leading, spacing: 1) {
+                Text(p.caption.isEmpty ? (InsightWords.kind[p.kind] ?? p.kind) : p.caption).lineLimit(1)
+                if d.live.contains(p.id) { Text("Up now").font(.caption).foregroundStyle(Tone.settled.color) }
+                else if p.older { Text("before this range").font(.caption).foregroundStyle(.secondary) }
+            }
+        }
+    }
+
+    /// Every post as a row; which numbers sit beside it is the toolbar's Columns (engagement, reach and video, Facebook and clicks).
     func macPosts(_ d: InsightsPosts, _ rows: [InsightPost]) -> some View {
         let sorted = rows.sorted(using: macOrder)
-        return Table(sorted, selection: $macPicked, sortOrder: $macOrder) {
-            TableColumn("Post", sortUsing: InsightPostOrder(field: .caption)) { (p: InsightPost) in
-                HStack(spacing: 10) {
-                    StockImage(imageUrl: p.thumb, name: p.caption, key: p.id)
-                        .frame(width: 36, height: 36)
-                        .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(p.caption.isEmpty ? (InsightWords.kind[p.kind] ?? p.kind) : p.caption).lineLimit(1)
-                        if d.live.contains(p.id) { Text("Up now").font(.caption).foregroundStyle(Tone.settled.color) }
-                        else if p.older { Text("before this range").font(.caption).foregroundStyle(.secondary) }
+        let picked = sorted.first { (x: InsightPost) in macPicked.count == 1 && macPicked.contains(x.id) }
+        return macTable(d, sorted)
+            .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
+                let hit = sorted.first { (x: InsightPost) in ids.count == 1 && ids.contains(x.id) }
+                MacActionItems(groups: macActions(hit))
+            } primaryAction: { (ids: Set<String>) in
+                let hit = sorted.first { (x: InsightPost) in ids.count == 1 && ids.contains(x.id) }
+                macOpenAction(hit).perform()
+            }
+            .overlay {
+                if sorted.isEmpty { ContentUnavailableView("Nothing Here", systemImage: "square.grid.2x2", description: Text("Nothing for \(InsightRange.label(rangeKey).lowercased()) with this filter.")) }
+            }
+            .macInspector {
+                if let p = picked { InsightsMacPostPanel(post: p, live: d.live.contains(p.id)).id(p.id) }
+                else { MacInspectorEmpty(title: macPicked.count > 1 ? "\(macPicked.count) Selected" : "No Post Selected", detail: Self.postsNote) }
+            }
+            .macRefresh { Task { await load(fresh: true) } }
+            .macRecordMenu(MacRecordMenu(title: "Post", groups: macActions(picked)))
+            .macSummaryBar(macSummary(sorted))
+            .navigationSubtitle(d.lastPostAt.map { (last: String) in "Last Instagram post \(ShopDate.say(last))" } ?? "")
+    }
+
+    private func macSummary(_ rows: [InsightPost]) -> [String] {
+        let views = rows.reduce(0.0) { (sum: Double, p: InsightPost) in sum + (p.views ?? 0) }
+        let reach = rows.reduce(0.0) { (sum: Double, p: InsightPost) in sum + (p.reach ?? 0) }
+        return ["\(rows.count) post\(rows.count == 1 ? "" : "s")", "\(AdsFormat.compact(views)) views", "\(AdsFormat.compact(reach)) reached"]
+    }
+
+    private func macOpenAction(_ p: InsightPost?) -> MacAction {
+        let url: URL? = p?.link.flatMap { (l: String) in URL(string: l) }
+        return MacAction("Open on Instagram", symbol: "safari", enabled: url != nil, isDefault: true) {
+            if let url { NSWorkspace.shared.open(url) }
+        }
+    }
+
+    private func macActions(_ p: InsightPost?) -> [[MacAction]] {
+        let link = p?.link
+        let copyLink = MacAction("Copy the Link", symbol: "link", enabled: link != nil) {
+            if let link { MacClipboard.copy(link) }
+        }
+        let copyCaption = MacAction("Copy the Caption", symbol: "doc.on.doc", enabled: !(p?.caption ?? "").isEmpty) {
+            if let p { MacClipboard.copy(p.caption) }
+        }
+        return [[macOpenAction(p)], [copyLink, copyCaption]]
+    }
+
+    @ViewBuilder
+    private func macTable(_ d: InsightsPosts, _ sorted: [InsightPost]) -> some View {
+        switch macColumns {
+        case "video": macVideoTable(d, sorted)
+        case "facebook": macFacebookTable(d, sorted)
+        default: macEngagementTable(d, sorted)
+        }
+    }
+
+    private func macEngagementTable(_ d: InsightsPosts, _ sorted: [InsightPost]) -> some View {
+        Table(sorted, selection: $macPicked, sortOrder: $macOrder) {
+            TableColumn("Post", sortUsing: InsightPostOrder(field: .caption)) { (p: InsightPost) in macPostCell(p, d) }
+                .width(min: 150, ideal: 280)
+            TableColumn("Kind", sortUsing: InsightPostOrder(field: .kind)) { (p: InsightPost) in Text(InsightWords.kind[p.kind] ?? p.kind).lineLimit(1) }
+                .width(min: 60, ideal: 90)
+            TableColumn("Date", sortUsing: InsightPostOrder(field: .at)) { (p: InsightPost) in Text(ShopDate.say(p.at)).lineLimit(1) }
+                .width(min: 70, ideal: 100)
+            TableColumn("Views", sortUsing: InsightPostOrder(field: .views)) { (p: InsightPost) in macNumber(p.views) }
+                .width(min: 50, ideal: 64)
+            TableColumn("Reach", sortUsing: InsightPostOrder(field: .reach)) { (p: InsightPost) in macNumber(p.reach) }
+                .width(min: 50, ideal: 64)
+            TableColumn("Likes", sortUsing: InsightPostOrder(field: .likes)) { (p: InsightPost) in macNumber(p.likes) }
+                .width(min: 46, ideal: 60)
+            TableColumn("Comments", sortUsing: InsightPostOrder(field: .comments)) { (p: InsightPost) in macNumber(p.comments) }
+                .width(min: 66, ideal: 78)
+            TableColumn("Shares", sortUsing: InsightPostOrder(field: .shares)) { (p: InsightPost) in macNumber(p.shares) }
+                .width(min: 50, ideal: 62)
+            TableColumn("Saves", sortUsing: InsightPostOrder(field: .saves)) { (p: InsightPost) in macNumber(p.saves) }
+                .width(min: 46, ideal: 58)
+            TableColumn("Rate", sortUsing: InsightPostOrder(field: .rate)) { (p: InsightPost) in
+                Text(InsightWords.percent(p.rate)).monospacedDigit().frame(maxWidth: .infinity, alignment: .trailing)
+            }
+            .width(min: 46, ideal: 60)
+        }
+    }
+
+    private func macVideoTable(_ d: InsightsPosts, _ sorted: [InsightPost]) -> some View {
+        Table(sorted, selection: $macPicked, sortOrder: $macOrder) {
+            TableColumn("Post", sortUsing: InsightPostOrder(field: .caption)) { (p: InsightPost) in macPostCell(p, d) }
+                .width(min: 150, ideal: 280)
+            TableColumn("Date", sortUsing: InsightPostOrder(field: .at)) { (p: InsightPost) in Text(ShopDate.say(p.at)).lineLimit(1) }
+                .width(min: 70, ideal: 100)
+            TableColumn("Views", sortUsing: InsightPostOrder(field: .views)) { (p: InsightPost) in macNumber(p.views) }
+                .width(min: 50, ideal: 64)
+            TableColumn("Reach", sortUsing: InsightPostOrder(field: .reach)) { (p: InsightPost) in macNumber(p.reach) }
+                .width(min: 50, ideal: 64)
+            TableColumn("Interactions", sortUsing: InsightPostOrder(field: .interactions)) { (p: InsightPost) in macNumber(p.interactions) }
+                .width(min: 80, ideal: 90)
+            TableColumn("Profile Visits", sortUsing: InsightPostOrder(field: .profileVisits)) { (p: InsightPost) in macNumber(p.profileVisits) }
+                .width(min: 80, ideal: 96)
+            TableColumn("Follows", sortUsing: InsightPostOrder(field: .follows)) { (p: InsightPost) in macNumber(p.follows) }
+                .width(min: 54, ideal: 66)
+            TableColumn("Average Watch", sortUsing: InsightPostOrder(field: .avgWatch)) { (p: InsightPost) in
+                Text(p.avgWatchMs.map { (w: Double) in String(format: "%.1fs", w / 1000) } ?? "—").monospacedDigit()
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+            .width(min: 90, ideal: 104)
+        }
+    }
+
+    private func macFacebookTable(_ d: InsightsPosts, _ sorted: [InsightPost]) -> some View {
+        Table(sorted, selection: $macPicked, sortOrder: $macOrder) {
+            TableColumn("Post", sortUsing: InsightPostOrder(field: .caption)) { (p: InsightPost) in macPostCell(p, d) }
+                .width(min: 150, ideal: 280)
+            TableColumn("Date", sortUsing: InsightPostOrder(field: .at)) { (p: InsightPost) in Text(ShopDate.say(p.at)).lineLimit(1) }
+                .width(min: 70, ideal: 100)
+            TableColumn("Views", sortUsing: InsightPostOrder(field: .views)) { (p: InsightPost) in macNumber(p.views) }
+                .width(min: 50, ideal: 64)
+            TableColumn("Reach", sortUsing: InsightPostOrder(field: .reach)) { (p: InsightPost) in macNumber(p.reach) }
+                .width(min: 50, ideal: 64)
+            TableColumn("On Facebook", sortUsing: InsightPostOrder(field: .facebookViews)) { (p: InsightPost) in macNumber(p.facebookViews) }
+                .width(min: 80, ideal: 96)
+            TableColumn("Clicks", sortUsing: InsightPostOrder(field: .clicks)) { (p: InsightPost) in macNumber(p.clicks) }
+                .width(min: 50, ideal: 64)
+            TableColumn("Rate", sortUsing: InsightPostOrder(field: .rate)) { (p: InsightPost) in
+                Text(InsightWords.percent(p.rate)).monospacedDigit().frame(maxWidth: .infinity, alignment: .trailing)
+            }
+            .width(min: 46, ideal: 60)
+        }
+    }
+}
+
+// MARK: Audience
+
+extension InsightsAudienceScreen {
+    func macContent(_ a: InsightsAudience, _ dims: InsightDims?) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                Text(audienceNote()).font(.callout).foregroundStyle(.secondary)
+                if let dims {
+                    HStack(alignment: .top, spacing: 20) {
+                        VStack(alignment: .leading, spacing: 24) {
+                            macShares("Age", "Age", dims.age) { (k: String) in k }
+                            macShares("Cities", "City", dims.city) { (k: String) in k }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                        VStack(alignment: .leading, spacing: 24) {
+                            macShares("Gender", "Gender", dims.gender) { (k: String) in InsightWords.gender[k] ?? k }
+                            macShares("Countries", "Country", dims.country) { (k: String) in InsightWords.country[k] ?? k }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
                     }
                 }
+                macOnline(a.online)
             }
-            .width(min: 220, ideal: 320)
-            TableColumn("Kind", sortUsing: InsightPostOrder(field: .kind)) { (p: InsightPost) in Text(InsightWords.kind[p.kind] ?? p.kind) }
-                .width(min: 80, ideal: 110)
-            TableColumn("Date", sortUsing: InsightPostOrder(field: .at)) { (p: InsightPost) in Text(ShopDate.say(p.at)) }
-                .width(min: 90, ideal: 120)
-            TableColumn("Views", sortUsing: InsightPostOrder(field: .views)) { (p: InsightPost) in Text(InsightWords.optional(p.views)).monospacedDigit() }
-                .width(min: 60, ideal: 80)
-            TableColumn("Reach", sortUsing: InsightPostOrder(field: .reach)) { (p: InsightPost) in Text(InsightWords.optional(p.reach)).monospacedDigit() }
-                .width(min: 60, ideal: 80)
-            TableColumn("Interactions", sortUsing: InsightPostOrder(field: .interactions)) { (p: InsightPost) in Text(InsightWords.optional(p.interactions)).monospacedDigit() }
-                .width(min: 80, ideal: 100)
-            TableColumn("Rate", sortUsing: InsightPostOrder(field: .rate)) { (p: InsightPost) in Text(InsightWords.percent(p.rate)).monospacedDigit() }
-                .width(min: 60, ideal: 80)
-            TableColumn("Shares", sortUsing: InsightPostOrder(field: .shares)) { (p: InsightPost) in Text(InsightWords.optional(p.shares)).monospacedDigit() }
-                .width(min: 60, ideal: 70)
-            TableColumn("Saves", sortUsing: InsightPostOrder(field: .saves)) { (p: InsightPost) in Text(InsightWords.optional(p.saves)).monospacedDigit() }
-                .width(min: 60, ideal: 70)
+            .padding(20)
+            .frame(maxWidth: 1100, alignment: .leading)
+            .frame(maxWidth: .infinity)
         }
-        .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
-            if let p = sorted.first(where: { (x: InsightPost) in ids.contains(x.id) }), ids.count == 1 {
-                if let link = p.link, let url = URL(string: link) {
-                    Button("Open on Instagram", systemImage: "safari") { NSWorkspace.shared.open(url) }
-                    Button("Copy the link", systemImage: "link") { MacClipboard.copy(link) }
-                }
-                if !p.caption.isEmpty { Button("Copy the caption", systemImage: "doc.on.doc") { MacClipboard.copy(p.caption) } }
-            }
-        } primaryAction: { (ids: Set<String>) in
-            if let p = sorted.first(where: { (x: InsightPost) in ids.contains(x.id) }), let link = p.link, let url = URL(string: link) {
-                NSWorkspace.shared.open(url)
+        .macRefresh { Task { await load(fresh: true) } }
+        .navigationSubtitle(group == "followers" ? "Followers" : (group == "reached" ? "Reached this month" : "Engaged this month"))
+    }
+
+    private func macShares(_ title: String, _ heading: String, _ parts: [InsightPart], label: @escaping (String) -> String) -> some View {
+        let total = max(1, parts.reduce(0) { (s: Double, p: InsightPart) in s + p.value })
+        let rows = parts.map { (p: InsightPart) in InsightsMacShareRow(id: p.key, label: label(p.key), value: p.value, share: p.value / total) }
+        return AdsMacSection(title: title) {
+            if rows.isEmpty {
+                Text("Meta has nothing for this yet.").foregroundStyle(.secondary)
+            } else {
+                InsightsMacShareTable(heading: heading, rows: rows)
             }
         }
-        .overlay {
-            if sorted.isEmpty { ContentUnavailableView("Nothing here", systemImage: "square.grid.2x2", description: Text("Nothing for \(InsightRange.label(rangeKey).lowercased()) with this filter.")) }
+    }
+
+    private func macOnline(_ hours: [Double]?) -> some View {
+        AdsMacSection(title: "When Followers Are Online", detail: "Karachi time") {
+            if let hours, hours.count == 24, hours.contains(where: { (v: Double) in v > 0 }) {
+                InsightsMacHourChart(hours: hours.indices.map { (i: Int) in
+                    InsightsMacHourChart.Hour(id: i, label: InsightWords.hour(i), online: hours[i])
+                })
+                .frame(height: 180)
+            } else {
+                Text("Meta isn't sharing this for the account yet (it holds it back for smaller accounts).").foregroundStyle(.secondary)
+            }
         }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            Text(Self.postsNote)
-                .font(.footnote).foregroundStyle(.secondary)
-                .padding(.horizontal, 16).padding(.vertical, 8)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(.bar)
-        }
-        .navigationSubtitle(d.lastPostAt.map { (last: String) in "Last Instagram post \(ShopDate.say(last))" } ?? "")
     }
 }
 #endif

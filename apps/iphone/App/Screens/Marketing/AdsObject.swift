@@ -17,6 +17,9 @@ struct AdsObjectScreen: View {
     @State private var audienceSheet = false
     @State private var budgeting: AdsBudgetTarget?
     @State private var format = 0
+    #if os(macOS)
+    @FocusState private var macNameFocus: Bool
+    #endif
     @Environment(\.dismiss) private var dismiss
 
     private var id: String { AdsQuery.value("id", in: path) ?? "" }
@@ -207,44 +210,177 @@ struct AdsObjectScreen: View {
 }
 
 #if os(macOS)
+// MARK: - The Mac's record window for one campaign, ad set or ad: the ad as Meta will show it at the left (an ad only), a
+// form at the right whose fields apply as you leave them, and the actions in the toolbar and the Ad menu. The writes are
+// the screen's own (`act`), the same as the phone's.
+
 extension AdsObjectScreen {
+    private var macStatus: String { object["status"] as? String ?? "" }
+    private var macRunning: Bool { macStatus == "ACTIVE" }
+    private var macTitle: String { level == "ad" ? "Ad" : (level == "adset" ? "Ad Set" : "Campaign") }
+
+    private var macPauseRun: MacAction {
+        MacAction(macRunning ? "Pause" : "Run…", symbol: macRunning ? "pause.circle" : "play.circle", enabled: !busy && response != nil, isDefault: true) {
+            if macRunning { Task { await act("status", ["status": "PAUSED"]) } } else { confirming = "activate" }
+        }
+    }
+
+    private var macDuplicate: MacAction {
+        MacAction("Duplicate", symbol: "doc.on.doc", shortcut: KeyboardShortcut("d", modifiers: .command), enabled: !busy && response != nil) {
+            Task { await act("duplicate", [:]) }
+        }
+    }
+
+    private var macArchive: MacAction {
+        MacAction("Archive…", symbol: "archivebox", enabled: !busy && response != nil) { confirming = "archive" }
+    }
+
+    private var macDelete: MacAction {
+        MacAction("Delete…", symbol: "trash", shortcut: KeyboardShortcut(.delete, modifiers: .command), role: .destructive,
+                  enabled: !busy && response != nil) { confirming = "delete" }
+    }
+
     /// A record window: the ad as Meta will show it on the left (an ad only), its fields and actions on the right.
     @ViewBuilder
     var macRecord: some View {
         Group {
             if level == "ad" {
                 MacTwoPane(sideWidth: 420) {
-                    Form { previewSection }.formStyle(.grouped).scrollContentBackground(.hidden)
+                    Form { macPreview }.formStyle(.grouped)
                 } main: {
-                    form.formStyle(.grouped)
+                    macForm
                 }
             } else {
-                form.formStyle(.grouped).macReadingWidth(820)
+                macForm.macReadingWidth(820)
             }
         }
-        .navigationSubtitle(level == "ad" ? "Ad" : level == "adset" ? "Ad set" : "Campaign")
+        .navigationSubtitle(macTitle)
+        .macRefresh { Task { await load() } }
+        .macRecordMenu(MacRecordMenu(title: macTitle, groups: [[macPauseRun], [macDuplicate, macArchive, macDelete]]))
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
-                let running = object["status"] as? String == "ACTIVE"
-                Button {
-                    if running { Task { await act("status", ["status": "PAUSED"]) } } else { confirming = "activate" }
-                } label: {
-                    Label(running ? "Pause" : "Run", systemImage: running ? "pause.circle" : "play.circle")
-                }
-                .disabled(busy)
-                .help(running ? "Pause it" : "Run it (asks first, it spends)")
+                MacToolbarAction(action: macPauseRun)
+                MacToolbarAction(action: macDuplicate)
                 Menu {
-                    Button("Duplicate (paused)", systemImage: "doc.on.doc") { confirming = "duplicate" }
-                    Button("Archive", systemImage: "archivebox") { confirming = "archive" }
-                    Divider()
-                    Button("Delete permanently", systemImage: "trash", role: .destructive) { confirming = "delete" }
-                        .keyboardShortcut(.delete, modifiers: .command)
+                    MacActionItems(groups: [[macArchive, macDelete]])
                 } label: { Label("More", systemImage: "ellipsis.circle") }
                 .disabled(busy)
-                .help("Duplicate, archive or delete")
+                .help("Archive or delete")
                 Button { Task { await load() } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
-                    .keyboardShortcut("r", modifiers: .command)
-                    .help("Ask Meta again")
+                    .help("Ask Meta again (⌘R)")
+            }
+        }
+    }
+
+    private var macPreview: some View {
+        Section("Preview") {
+            if !previews.isEmpty {
+                Picker("Placement", selection: $format) {
+                    ForEach(Array(previews.enumerated()), id: \.offset) { i, p in
+                        Text((p["format"] as? String ?? "Preview").replacingOccurrences(of: "_", with: " ").capitalized).tag(i)
+                    }
+                }
+                .pickerStyle(.menu)
+                if format < previews.count, let html = previews[format]["html"] as? String, let url = MetaAdPreview.url(in: html) {
+                    MetaAdPreview(url: url).frame(height: (previews[format]["format"] as? String ?? "").contains("STORY") ? 620 : 520)
+                }
+            } else {
+                Text("Meta hasn't returned a preview yet.").foregroundStyle(.secondary)
+            }
+            if let creative = object["creative"] as? [String: Any] {
+                if let image = creative["image_url"] as? String ?? creative["thumbnail_url"] as? String {
+                    StockImage(imageUrl: image, name: name, key: id).aspectRatio(contentMode: .fit)
+                }
+                if let text = creative["body"] as? String { Text(text).textSelection(.enabled) }
+                if let title = creative["title"] as? String { Text(title).fontWeight(.semibold) }
+                if let link = creative["instagram_permalink_url"] as? String, let url = URL(string: link), url.scheme == "https" {
+                    Link("On Instagram", destination: url)
+                }
+            }
+        }
+    }
+
+    private var macForm: some View {
+        Form {
+            if busy { Section { SkeletonLoading("Saving…") } }
+            macStatusAndName
+            if level != "ad" { macBudgetAndDates }
+            if level == "adset" { macAudience }
+            macMakeFromThis
+            Section("Meta's Details and Review Notes") {
+                DisclosureGroup("Show") { MarketingDetails(fields: object) }
+            }
+        }
+        .formStyle(.grouped)
+        .failureAlert($failure, title: "Meta didn't take that")
+        .disabled(busy)
+    }
+
+    /// The name is saved when Return is pressed or the field is left, as every Mac field is.
+    private func macCommitName() {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !busy, !trimmed.isEmpty, trimmed != (object["name"] as? String ?? "") else { return }
+        Task { await act("rename", ["name": trimmed]) }
+    }
+
+    private var macStatusAndName: some View {
+        Section {
+            let words = AdsStatusWords.of(object["effective_status"] as? String ?? "")
+            LabeledContent("Status") { MacStatus(words.label, tone: AdsStatusWords.tone(words.tone)) }
+            TextField("Name", text: $name, axis: .vertical)
+                .lineLimit(1...4)
+                .focused($macNameFocus)
+                .onSubmit { macCommitName() }
+                .onChange(of: macNameFocus) { _, now in if !now { macCommitName() } }
+        }
+    }
+
+    private var macScheduleChanged: Bool {
+        let was = ERPDate.parse(object[level == "campaign" ? "stop_time" : "end_time"] as? String)
+        let wants = hasEnd || totalBudget
+        if (was != nil) != wants { return true }
+        guard let was, wants else { return false }
+        return ERPDate.karachiDay(was) != ERPDate.karachiDay(end)
+    }
+
+    private var macBudgetAndDates: some View {
+        Section("Budget and Dates") {
+            if let budget = response?["budget"] as? [String: Any], number(budget["daily"]) > 0 || number(budget["lifetime"]) > 0 {
+                let daily = number(budget["daily"])
+                LabeledContent("Budget", value: daily > 0 ? "\(AdsFormat.money(daily, currency)) a day" : "\(AdsFormat.money(number(budget["lifetime"]), currency)) in total")
+                Button("Change Budget…") {
+                    budgeting = AdsBudgetTarget(level: level, id: id, name: name,
+                        daily: number(budget["daily"]) > 0 ? number(budget["daily"]) : nil,
+                        lifetime: number(budget["lifetime"]) > 0 ? number(budget["lifetime"]) : nil,
+                        end: object[level == "campaign" ? "stop_time" : "end_time"] as? String, currency: currency)
+                }
+            }
+            Toggle("End date", isOn: $hasEnd).disabled(totalBudget)
+            if hasEnd || totalBudget { DatePicker("Stops", selection: $end, in: Date()..., displayedComponents: .date) }
+            if totalBudget { Text("A total budget needs an end date. Meta spreads the budget up to it.").font(.caption).foregroundStyle(.secondary) }
+            Button(hasEnd || totalBudget ? "Change the End Date" : "Remove the End Date") {
+                Task { await act("schedule", ["end": hasEnd || totalBudget ? ERPDate.iso(end) as Any : NSNull()]) }
+            }
+            .disabled(!macScheduleChanged)
+        }
+    }
+
+    private var macAudience: some View {
+        Section("Audience and Placements") {
+            Button("Edit Audience and Placements…") { audienceSheet = true }.disabled(audience == nil)
+            DisclosureGroup("Show") { MarketingDetails(fields: object["targeting"] as? [String: Any] ?? [:]) }
+        }
+    }
+
+    private var macMakeFromThis: some View {
+        Section("Make From This") {
+            if level == "ad" {
+                NavigationLink("Make One Like This", value: Route(path: "/ads/new?from=\(AdsQuery.escape(id))"))
+                NavigationLink("Into New Ad Sets", value: Route(path: "/ads/adset?ads=\(AdsQuery.escape(id))"))
+            } else if level == "campaign" {
+                NavigationLink("Add Ad Sets", value: Route(path: "/ads/adset?campaign=\(AdsQuery.escape(id))"))
+            } else {
+                NavigationLink("Copy and Change", value: Route(path: "/ads/adset?from=\(AdsQuery.escape(id))"))
             }
         }
     }

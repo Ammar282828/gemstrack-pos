@@ -86,6 +86,8 @@ struct AdsNewAdScreen: View {
     #if os(macOS)
     @State private var importing = false
     @State private var dropping = false
+    /// The right-hand panel: the ad's preview, or the audience editor.
+    @State private var macPane = AdsMacNewAdPane.preview
     #endif
 
     private var mayUse: Bool { session.role == "owner" || session.role == "marketing" }
@@ -99,7 +101,11 @@ struct AdsNewAdScreen: View {
             if !mayUse {
                 AdsOwnersOnly()
             } else if let made {
+                #if os(macOS)
+                macMade(made)
+                #else
                 madeView(made)
+                #endif
             } else if let status, status.ready, let lists {
                 form(status, lists)
             } else {
@@ -703,6 +709,16 @@ struct AdsNewAdScreen: View {
                             remove: { photos.removeAll { (x: AdsPhoto) in x.key == key } })
             }
             if kind == .photos && photos.count < 10 {
+                #if os(macOS)
+                Menu {
+                    Button("From Photos…") { picking = true }
+                    Button("From Files…") { importing = true }
+                    Button("Ad Account Photos…") { libraryOpen = true }
+                } label: {
+                    Label(photos.isEmpty ? "Add Photos" : "Add More", systemImage: "photo.badge.plus")
+                }
+                .fixedSize()
+                #else
                 HStack(spacing: pt(10)) {
                     Button { picking = true } label: {
                         #if os(macOS)
@@ -721,6 +737,7 @@ struct AdsNewAdScreen: View {
                     }
                     .buttonStyle(.bordered)
                 }
+                #endif
             }
             if let v = vertical, readyPhotos.count == 1 {
                 HStack(spacing: pt(10)) {
@@ -736,7 +753,11 @@ struct AdsNewAdScreen: View {
                 }
             }
         } header: {
+            #if os(macOS)
+            Text(kind == .site ? "The Pieces" : "The Photos")
+            #else
             LedgerHeading(title: kind == .site ? "The pieces" : "The photos")
+            #endif
         } footer: {
             Text(photosNote)
         }
@@ -1071,36 +1092,21 @@ struct AdsNewAdScreen: View {
     }
 }
 
+
 #if os(macOS)
 extension AdsNewAdScreen {
-    /// One window: the steps as sections of a form on the left, the ad as it will look in a column on the right that
-    /// follows what is typed. Return reviews it; the footer holds the one action.
+    /// A document: the source of the ad at the left, the form in the centre (no step numbers), the preview or the audience in
+    /// the panel at the right, and in the footer Create Ad with Paused or Live beside it.
     func macForm(_ s: AdsStatusAnswer, _ l: AdsNewAdLists) -> some View {
         HStack(spacing: 0) {
-            List {
-                Group {
-                    AdsAlertsSection(status: s)
-                    if let notice {
-                        Section { Label(notice, systemImage: "info.circle").font(.subheadline) }
-                    }
-                    promoteSections(s, l)
-                    goalSection(l)
-                    if !asIs { wordsSection(l) }
-                    audienceSection
-                    budgetSection(s)
-                    AdsAdvancedSection(advanced: $advanced, needsTotal: { budgetKind = "total"; if days == nil { days = 7 } },
-                                       sales: goalKey == "sales", currency: s.currency)
-                    quietSection
-                    makeSections
-                }
-                .houseRows()
-            }
-            .listStyle(.inset)
-            .frame(minWidth: 520)
+            macSourceColumn(s, l)
+                .frame(width: 300)
             Divider()
-            macPreviewColumn(s, l)
-                .frame(width: 360)
+            macFormColumn(s, l)
+                .frame(minWidth: 400, maxWidth: .infinity)
         }
+        .macInspector { macPaneBody(s, l) }
+        .toolbar { macToolbar }
         .overlay {
             if dropping {
                 RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
@@ -1117,9 +1123,7 @@ extension AdsNewAdScreen {
         .fileImporter(isPresented: $importing, allowedContentTypes: [.image], allowsMultipleSelection: true) { (result: Result<[URL], Error>) in
             if case .success(let urls) = result { Task { await takeFiles(urls) } }
         }
-        .actionBar(primary: .init(launch == "live" ? "Review and put it live" : "Review and make it, paused",
-                                  isBusy: checking || sending, isDisabled: stillUploading) { Task { await review() } },
-                   summary: stillUploading ? (kind == .video ? "Wait for the video to reach Meta." : "Wait for the photos to reach Meta.") : nil)
+        .safeAreaInset(edge: .bottom, spacing: 0) { macFooter }
     }
 
     /// Picture files from the Mac, each sent to Meta like a photo from Photos.
@@ -1145,8 +1149,216 @@ extension AdsNewAdScreen {
         }
     }
 
-    /// The ad as the first photo, headline, words and button will show it, and Meta's own preview behind a button.
-    private func macPreviewColumn(_ s: AdsStatusAnswer, _ l: AdsNewAdLists) -> some View {
+    // MARK: The toolbar and the footer
+
+    @ToolbarContentBuilder
+    private var macToolbar: some ToolbarContent {
+        ToolbarItem(placement: .primaryAction) {
+            Button { Task { await showPreview() } } label: {
+                Label(previewBusy ? "Asking Meta…" : "Meta Preview", systemImage: "eye")
+            }
+            .disabled(previewBusy || !previewable)
+            .help("See the ad as Instagram will show it, in Meta's own frame")
+        }
+    }
+
+    private var macFooter: some View {
+        AdsMacFooter(launch: $launch, summary: macFooterSummary, busy: checking || sending, disabled: stillUploading || !mayUse) {
+            Task { await review() }
+        }
+    }
+
+    /// What the footer says: what is still being sent, else what the budget comes to.
+    private var macFooterSummary: String {
+        if stillUploading { return kind == .video ? "Wait for the video to reach Meta." : "Wait for the photos to reach Meta." }
+        guard let v = AdsAmount.parse(amount) else { return "A budget above zero." }
+        let money = AdsFormat.money(v, currency)
+        if budgetKind == "daily" {
+            return money + " a day" + (days.map { (d: Int) in " for \(d) days" } ?? ", until you stop it")
+        }
+        return money + " in total" + (days.map { (d: Int) in " over \(d) days" } ?? "")
+    }
+
+    // MARK: The source, at the left
+
+    private func macSourceColumn(_ s: AdsStatusAnswer, _ l: AdsNewAdLists) -> some View {
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("What to Promote").font(.headline)
+                Picker("What to promote", selection: $kind) {
+                    Text("A post").tag(Kind.post)
+                    Text("New photos").tag(Kind.photos)
+                    if l.sitePieces { Text("Website piece").tag(Kind.site) }
+                    Text("New video").tag(Kind.video)
+                    Text("A creator's post").tag(Kind.partner)
+                    if !(l.shop.isEmpty && l.website.isEmpty) { Text("Catalogue").tag(Kind.catalog) }
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+                if let ig = s.settings?.instagramUsername { Text("It runs as @\(ig).").font(.caption).foregroundStyle(.secondary) }
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Divider()
+            Form { macSourceSections(l) }
+                .formStyle(.grouped)
+        }
+    }
+
+    @ViewBuilder
+    private func macSourceSections(_ l: AdsNewAdLists) -> some View {
+        switch kind {
+        case .post:
+            postSection
+        case .photos:
+            photosSection
+        case .site:
+            siteSection
+            if !photos.isEmpty { photosSection }
+        case .video:
+            AdsVideoSection(video: $video) { pickingVideo = true }
+        case .partner:
+            AdsPartnerSection(code: $partnerCode, checked: $partnerCheck, link: $link, button: $button,
+                              toSite: goal?.toSite ?? false, buttons: l.buttons)
+        case .catalog:
+            AdsCatalogSection(choice: $catalog)
+        }
+    }
+
+    // MARK: The form, in the centre
+
+    private func macFormColumn(_ s: AdsStatusAnswer, _ l: AdsNewAdLists) -> some View {
+        Form {
+            AdsAlertsSection(status: s)
+            if let notice {
+                Section { Label(notice, systemImage: "info.circle") }
+            }
+            macGoal(l)
+            if !asIs { macWords(l) }
+            macAudience
+            macBudget(s)
+            AdsAdvancedSection(advanced: $advanced, needsTotal: { budgetKind = "total"; if days == nil { days = 7 } },
+                               sales: goalKey == "sales", currency: s.currency)
+            quietSection
+            macName
+            AdsProblemsSection(problems: check?.problems ?? [])
+        }
+        .formStyle(.grouped)
+    }
+
+    private func macGoal(_ l: AdsNewAdLists) -> some View {
+        Section("Goal") {
+            Picker("What it's for", selection: $goalKey) {
+                ForEach(offered(l)) { (g: AdsGoal) in Text(g.label).tag(g.key) }
+            }
+            .pickerStyle(.menu)
+            if let g = goal { Text(g.hint).font(.caption).foregroundStyle(.secondary) }
+            goalNote.font(.caption)
+        }
+    }
+
+    private func macWords(_ l: AdsNewAdLists) -> some View {
+        Section("Words") {
+            TextField("What the ad says: the piece, its weight, why it's special.", text: $text, axis: .vertical)
+                .lineLimit(3...8)
+            TextField("Headline (short)", text: $headline)
+            if goalKey == "channel" {
+                TextField("https://whatsapp.com/channel/…", text: $link)
+                    .autocorrectionDisabled()
+            }
+            if goal?.toSite == true {
+                TextField("https://… the page the button opens", text: $link)
+                    .autocorrectionDisabled()
+                Picker("Button", selection: $button) {
+                    ForEach(l.buttons) { (b: AdsChoice) in Text(b.label).tag(b.key) }
+                }
+                .pickerStyle(.menu)
+            }
+        }
+    }
+
+    /// The audience in a line; its editor, with Meta's estimate at its head, is the panel at the right.
+    private var macAudience: some View {
+        Section("Who Sees It") {
+            Text(audience.words).font(.callout)
+            if audience.places.isEmpty { Text("Choose where the ad shows.").foregroundStyle(Tone.problem.color) }
+            Button("Choose…") {
+                macPane = .audience
+                UserDefaults.standard.set(true, forKey: MacInspector.key)
+            }
+        }
+    }
+
+    private func macBudget(_ s: AdsStatusAnswer) -> some View {
+        let quick: [Double] = budgetKind == "daily" ? [500, 1000, 2000, 3000, 5000] : [3000, 5000, 10000, 20000, 50000]
+        return Section("Budget and Dates") {
+            Picker("Budget", selection: budgetKindChoice) {
+                Text("Per day").tag("daily")
+                Text("In total").tag("total")
+            }
+            .pickerStyle(.menu)
+            LabeledContent(budgetKind == "daily" ? "A day (\(s.currency))" : "In total (\(s.currency))") {
+                HStack(spacing: 8) {
+                    TextField("Amount", text: $amount)
+                        .multilineTextAlignment(.trailing)
+                        .monospacedDigit()
+                        .frame(width: 110)
+                    Menu("Quick") {
+                        ForEach(quick, id: \.self) { (v: Double) in
+                            Button(AdsFormat.money(v, s.currency)) { amount = AdsAmount.field(v) }
+                        }
+                    }
+                    .fixedSize()
+                }
+            }
+            Picker("How long", selection: daysChoice) {
+                ForEach([3, 7, 14, 30], id: \.self) { (d: Int) in Text("\(d) days").tag(d) }
+                if budgetKind == "daily" { Text("Until I stop it").tag(0) }
+            }
+            .pickerStyle(.menu)
+            Toggle("Start later", isOn: $startLater)
+            if startLater {
+                DatePicker("Starts", selection: $start, in: Date()..., displayedComponents: [.date, .hourAndMinute])
+                    .environment(\.timeZone, ERPDate.karachi)
+            }
+            Text(budgetNote(s)).font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    private var macName: some View {
+        Section("Name") {
+            TextField("Name in Ads Manager (made for you)", text: $name)
+            Text(launch == "paused" ? "Look it over in Campaigns and switch it on there: nothing is spent until then."
+                 : "It starts once Meta approves it (usually within the hour) and spends its budget from then.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    // MARK: The panel, at the right
+
+    private func macPaneBody(_ s: AdsStatusAnswer, _ l: AdsNewAdLists) -> some View {
+        VStack(spacing: 0) {
+            Picker("Panel", selection: $macPane) {
+                Text("Preview").tag(AdsMacNewAdPane.preview)
+                Text("Who Sees It").tag(AdsMacNewAdPane.audience)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .padding(10)
+            Divider()
+            if macPane == .audience {
+                AdsAudienceSheet.makeInline(draft: audience, goal: goal?.optimization ?? "REACH", positions: l.igPositions) { (a: AdsAudience) in
+                    audience = a
+                }
+            } else {
+                macPreview(s, l)
+            }
+        }
+    }
+
+    /// The ad as the first photo, headline, words and button will show it; Meta's own frame is the toolbar's Meta Preview.
+    private func macPreview(_ s: AdsStatusAnswer, _ l: AdsNewAdLists) -> some View {
         let picture: String? = {
             switch kind {
             case .post: return post?.thumb
@@ -1155,57 +1367,40 @@ extension AdsNewAdScreen {
             }
         }()
         let words = asIs ? (post?.caption ?? "") : text
-        let buttonLabel = l.buttons.first { (b: AdsChoice) in b.key == button }?.label ?? ""
+        let buttonLabel = goal?.toSite == true ? (l.buttons.first { (b: AdsChoice) in b.key == button }?.label ?? "") : ""
         return ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                LedgerHeading(title: "How it will look")
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "person.crop.circle.fill").font(.title2).foregroundStyle(.secondary)
-                        Text(s.settings?.instagramUsername.map { (u: String) in "@" + u } ?? "Your page").font(.subheadline.weight(.semibold))
-                        Spacer()
-                        Text("Sponsored").font(.caption).foregroundStyle(.secondary)
-                    }
-                    if picture == nil, kind == .photos || kind == .site, let data = photos.first?.preview, let image = UIImage(data: data) {
-                        Image(uiImage: image).resizable().scaledToFill()
-                            .aspectRatio(1, contentMode: .fit)
-                            .clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))
-                    } else if let picture {
-                        StockImage(imageUrl: picture, name: headline, key: "preview-" + picture)
-                            .aspectRatio(1, contentMode: .fit)
-                            .clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))
-                    } else {
-                        RoundedRectangle(cornerRadius: Radius.tile, style: .continuous).fill(.quaternary)
-                            .aspectRatio(1, contentMode: .fit)
-                            .overlay { Image(systemName: "photo").font(.largeTitle).foregroundStyle(.secondary) }
-                    }
-                    if !words.isEmpty { Text(words).font(.callout).lineLimit(6) }
-                    if !headline.isEmpty || (goal?.toSite == true && !buttonLabel.isEmpty) {
-                        HStack {
-                            Text(headline).font(.subheadline.weight(.semibold)).lineLimit(2)
-                            Spacer(minLength: 8)
-                            if goal?.toSite == true, !buttonLabel.isEmpty {
-                                Text(buttonLabel).font(.caption.weight(.semibold))
-                                    .padding(.horizontal, 10).padding(.vertical, 5)
-                                    .background(.quaternary, in: .capsule)
-                            }
-                        }
-                    }
-                }
-                .padding(14)
-                .houseCard()
-                Button { Task { await showPreview() } } label: {
-                    Label(previewBusy ? "Asking Meta…" : "See it as Instagram will show it", systemImage: "eye")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .disabled(previewBusy || !previewable)
-                Text("This is a sketch from what is typed. Meta's own preview shows feed, stories and reels exactly.")
-                    .font(.footnote).foregroundStyle(.secondary)
+                AdsMacAdSketch(account: s.settings?.instagramUsername.map { (u: String) in "@" + u } ?? "Your page",
+                               picture: picture, preview: photos.first?.preview, words: words, headline: headline, button: buttonLabel)
+                Text("This is a sketch from what is typed. Meta Preview, in the toolbar, shows feed, stories and reels exactly.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
             }
-            .padding(20)
+            .padding(16)
         }
-        .background(Theme.ground)
+    }
+
+    // MARK: Made
+
+    private func macMade(_ m: AdsMade) -> some View {
+        ContentUnavailableView {
+            Label(m.live ? "The ad is on its way" : "The ad is made, paused", systemImage: "checkmark.circle.fill")
+        } description: {
+            VStack(spacing: 6) {
+                Text(m.live ? "Meta reviews every ad first (usually within the hour); it starts as soon as it is approved."
+                     : "Nothing is spent until it is switched on in Campaigns.")
+                ForEach(m.warnings, id: \.self) { (w: String) in
+                    Text(w).foregroundStyle(Tone.owed.color)
+                }
+            }
+        } actions: {
+            NavigationLink(value: Route(path: "/ads/campaigns")) { Text("See It in Campaigns") }
+                .buttonStyle(.bordered)
+            NavigationLink(value: Route(path: adSetPath(m))) { Text("Test It on Another Audience") }
+                .buttonStyle(.bordered)
+            Button("Make Another") { again() }
+                .buttonStyle(.bordered)
+        }
     }
 }
 #endif

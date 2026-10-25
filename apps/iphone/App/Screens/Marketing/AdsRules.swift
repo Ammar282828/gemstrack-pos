@@ -19,6 +19,11 @@ struct AdsRulesScreen: View {
     @State private var switchingOn: AdsRuleRow?
     @State private var deleting: AdsRuleRow?
     @State private var failure: String?
+    #if os(macOS)
+    @State private var macPicked = Set<String>()
+    @State private var macOrder = [KeyPathComparator(\AdsRuleRow.name)]
+    @State private var macMaking = false
+    #endif
 
     private var mayUse: Bool { session.role == "owner" || session.role == "marketing" }
 
@@ -292,41 +297,171 @@ struct AdsRulesScreen: View {
 }
 
 #if os(macOS)
+// MARK: - The Mac's Rules: the rules on the account as a table with the picked one in the inspector, the log of changes
+// below it, and a new rule made in a short sheet whose button says what it does.
+
 extension AdsRulesScreen {
-    /// Making a rule on the left; the rules on the account and the log of changes on the right.
+    private var macRules: [AdsRuleRow] { (data?.rules ?? []).sorted(using: macOrder) }
+    private var macPickedRules: [AdsRuleRow] { macRules.filter { (r: AdsRuleRow) in macPicked.contains(r.id) } }
+
+    private var macNewRule: MacAction {
+        MacAction("New Rule…", symbol: "plus", shortcut: KeyboardShortcut("n", modifiers: [.control, .command]), enabled: busy == nil && data != nil) {
+            macMaking = true
+        }
+    }
+
+    private func macActions(_ picked: [AdsRuleRow]) -> [[MacAction]] {
+        let one: AdsRuleRow? = picked.count == 1 ? picked[0] : nil
+        let toggle = MacAction(one?.enabled == true ? "Switch Off" : "Switch On…", symbol: one?.enabled == true ? "pause.circle" : "play.circle",
+                               enabled: one != nil && busy == nil, isDefault: true) {
+            if let r = one {
+                if r.enabled { Task { await set(r, on: false) } } else { switchingOn = r }
+            }
+        }
+        let delete = MacAction("Delete…", symbol: "trash", shortcut: KeyboardShortcut(.delete, modifiers: .command),
+                               role: .destructive, enabled: one != nil && busy == nil) {
+            if let r = one { deleting = r }
+        }
+        return [[toggle], [delete], [macNewRule]]
+    }
+
     func macContent(_ s: AdsStatusAnswer) -> some View {
-        MacTwoPane(sideWidth: 420) {
-            List {
-                Group {
-                    AdsAlertsSection(status: s)
-                    if let loadProblem {
-                        Section {
-                            Label(loadProblem, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color)
-                            Button("Try again") { Task { await loadRules() } }
-                        }
-                    }
-                    newRuleSection
-                }
-                .houseRows()
+        let rules = macRules
+        let picked = macPickedRules
+        return VStack(spacing: 0) {
+            AdsMacAlertBar(status: s)
+            if let loadProblem {
+                Label(loadProblem, systemImage: "exclamationmark.triangle.fill")
+                    .foregroundStyle(Tone.problem.color)
+                    .padding(8)
             }
-            .listStyle(.inset)
-        } main: {
-            List {
-                Group {
-                    rulesSection
-                    logSection
-                }
-                .houseRows()
+            VSplitView {
+                macRulesTable(rules)
+                    .frame(minHeight: 170)
+                macLog
+                    .frame(minHeight: 150)
             }
-            .listStyle(.inset)
         }
+        .macInspector { macInspectorPanel(picked) }
+        .macRefresh { Task { await loadRules() } }
+        .macRecordMenu(MacRecordMenu(title: "Rule", groups: macActions(picked)))
+        .macSummaryBar(macSummary(rules))
+        .navigationSubtitle(data.map { (d: AdsRulesAnswer) in "\(d.rules.count) on the account" } ?? "")
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .primaryAction) {
+                MacToolbarAction(action: macNewRule)
                 Button { Task { await loadRules() } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
-                    .keyboardShortcut("r", modifiers: .command)
-                    .help("Read the rules again")
+                    .help("Read the rules again (⌘R)")
             }
         }
+        .sheet(isPresented: $macMaking) { macNewRuleSheet }
+    }
+
+    private func macSummary(_ rules: [AdsRuleRow]) -> [String] {
+        let on = rules.filter { (r: AdsRuleRow) in r.enabled }.count
+        return ["\(rules.count) rule\(rules.count == 1 ? "" : "s")", "\(on) on"]
+    }
+
+    private func macRulesTable(_ rules: [AdsRuleRow]) -> some View {
+        Table(rules, selection: $macPicked, sortOrder: $macOrder) {
+            TableColumn("Rule", value: \.name) { (r: AdsRuleRow) in Text(r.name).lineLimit(1) }
+                .width(min: 150, ideal: 260)
+            TableColumn("What It Does") { (r: AdsRuleRow) in
+                Text(r.summary).foregroundStyle(.secondary).lineLimit(2)
+            }
+            .width(min: 200, ideal: 420)
+            TableColumn("On") { (r: AdsRuleRow) in
+                if busy == r.id {
+                    SkeletonLoading()
+                } else {
+                    Toggle("On", isOn: ruleSwitch(r)).labelsHidden().toggleStyle(.switch).controlSize(.small).disabled(busy != nil)
+                }
+            }
+            .width(min: 44, ideal: 52)
+        }
+        .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
+            let picked = macRules.filter { (r: AdsRuleRow) in ids.contains(r.id) }
+            MacActionItems(groups: macActions(picked))
+        }
+        .overlay {
+            if let data, data.rules.isEmpty {
+                ContentUnavailableView("No Rules Yet", systemImage: "checklist", description: Text("New Rule… makes one. Meta checks it around the clock."))
+            } else if data == nil && loadProblem == nil {
+                MarketingReading(text: "Reading the rules…")
+            }
+        }
+    }
+
+    private var macLog: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Changes Made from the ERP").font(.headline).padding(.horizontal, 12).padding(.top, 8)
+            Table(data?.log ?? []) {
+                TableColumn("When") { (r: AdsLogRow) in Text(ShopDate.say(r.at, withTime: true)).monospacedDigit() }
+                    .width(min: 110, ideal: 150)
+                TableColumn("Change") { (r: AdsLogRow) in Text(r.words(currency)) }
+                    .width(min: 160, ideal: 260)
+                TableColumn("What") { (r: AdsLogRow) in Text(r.name ?? r.target ?? "").lineLimit(1) }
+                    .width(min: 120, ideal: 220)
+                TableColumn("By") { (r: AdsLogRow) in Text(r.by).lineLimit(1) }
+                    .width(min: 80, ideal: 140)
+            }
+        }
+    }
+
+    // MARK: The inspector
+
+    @ViewBuilder
+    private func macInspectorPanel(_ picked: [AdsRuleRow]) -> some View {
+        if picked.count == 1, let r = picked.first {
+            let actions = macActions(picked)
+            VStack(alignment: .leading, spacing: 14) {
+                MacInspectorHeader(title: r.name, subtitle: "Rule on the ad account",
+                                   status: MacStatus(r.enabled ? "On" : "Off", tone: r.enabled ? .settled : .quiet),
+                                   actions: [actions[0][0], actions[1][0]])
+                Text(r.summary).foregroundStyle(.secondary)
+                Text("Meta checks it itself around the clock on every ad set in the account, even with the ERP closed. A rule costs nothing itself.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        } else {
+            MacInspectorEmpty(title: macPicked.count > 1 ? "\(macPicked.count) Selected" : "No Rule Selected",
+                              detail: "Click a rule to see what it does and switch it on or off.")
+        }
+    }
+
+    // MARK: A new rule
+
+    private var macNewRuleSheet: some View {
+        VStack(spacing: 0) {
+            Form {
+                Section {
+                    Picker("Rule", selection: $kind) {
+                        ForEach(data?.kinds ?? []) { (k: AdsHinted) in Text(k.label).tag(k.key) }
+                    }
+                    .pickerStyle(.menu)
+                    if let hint = chosen?.hint { Text(hint).font(.caption).foregroundStyle(.secondary) }
+                    LabeledContent(chosen?.needs == "cost" ? "Per result (\(currency))" : "Today (\(currency))") {
+                        TextField("Amount", text: $amount)
+                            .multilineTextAlignment(.trailing)
+                            .monospacedDigit()
+                            .frame(width: 110)
+                    }
+                }
+                Section("What It Will Do") {
+                    Text(newRuleName).fontWeight(.medium)
+                    Text(newRuleWords).foregroundStyle(.secondary)
+                }
+            }
+            .formStyle(.grouped)
+            AdsMacSheetFooter(title: "Make the Rule", disabled: busy != nil || amountValue == nil || data == nil, cancel: { macMaking = false }) {
+                macMaking = false
+                Task { await make() }
+            }
+        }
+        .frame(width: 460, height: 420)
     }
 }
 #endif

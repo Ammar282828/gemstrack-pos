@@ -29,6 +29,8 @@ struct StudioBoards: View {
     #if os(macOS)
     /// A design or note the Delete key or the right-click menu asked to remove (asks first).
     @State private var removing: BoardRemoval?
+    /// The View menu's Show or Hide Inspector (⌥⌘I) is one key for every window: the board's details follow it.
+    @AppStorage(MacInspector.key) private var shellInspector = true
     #endif
 
     private var compact: Bool { sizeClass == .compact }
@@ -101,6 +103,11 @@ struct StudioBoards: View {
         .onChange(of: board.current) { _, _ in selected = "" }
         .onChange(of: selected) { _, id in if narrow { inspectorShown = !id.isEmpty } }
         .onChange(of: inspectorShown) { _, shown in if narrow && !shown { selected = "" } }
+        #if os(macOS)
+        .onChange(of: shellInspector) { _, on in if inspectorShown != on { inspectorShown = on } }
+        .onChange(of: inspectorShown) { _, on in if shellInspector != on { shellInspector = on } }
+        .macRefresh { Task { await board.refresh(force: true) } }
+        #endif
         .onChange(of: board.value.s("id")) { _, id in
             guard !id.isEmpty, fitted != id else { return }
             // After the canvas has its size: fitted against the default size, a big iPad board sat small.
@@ -617,9 +624,9 @@ extension StudioBoards {
                 .disabled(board.current.isEmpty)
                 .help("Add a photo as a new design")
             Button { Task { if let id = await board.addNote() { selected = id } } } label: { Label("Add a note", systemImage: "note.text.badge.plus") }
-                .keyboardShortcut("n", modifiers: [.command, .option])
+                .keyboardShortcut("n", modifiers: [.control, .command])
                 .disabled(board.current.isEmpty)
-                .help("Add a sticky note")
+                .help("Add a sticky note (⌃⌘N)")
             ControlGroup {
                 Button { zoom = max(0.08, zoom / 1.25) } label: { Label("Zoom out", systemImage: "minus.magnifyingglass") }
                     .keyboardShortcut("-", modifiers: .command)
@@ -638,14 +645,12 @@ extension StudioBoards {
                 Button("Tidy up", systemImage: "square.grid.2x2") { Task { await board.tidy() } }.disabled(board.frames.count < 2)
                 Button("Rename board", systemImage: "pencil") { nameText = board.value.s("name"); asking = .rename }.disabled(board.current.isEmpty)
                 Button("Refresh", systemImage: "arrow.clockwise") { Task { await board.refresh(force: true) } }
-                    .keyboardShortcut("r", modifiers: .command)
                 Divider()
                 Button("Delete board…", systemImage: "trash", role: .destructive) { asking = .delete }.disabled(board.current.isEmpty)
             } label: { Label("Board tools", systemImage: "ellipsis.circle") }
             .help("Tidy up, rename, refresh or delete the board")
             Button { inspectorShown.toggle() } label: { Label("Details", systemImage: "sidebar.trailing") }
-                .keyboardShortcut("i", modifiers: [.command, .option])
-                .help("Show or hide the chosen design's details")
+                .help("Show or hide the chosen design's details (⌥⌘I)")
         }
     }
 

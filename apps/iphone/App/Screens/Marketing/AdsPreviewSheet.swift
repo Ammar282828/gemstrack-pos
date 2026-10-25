@@ -17,6 +17,7 @@ struct AdsPreviewSheet: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: pt(12)) {
+                #if !os(macOS)
                 if previews.count > 1 {
                     Picker("Where", selection: $chosen) {
                         ForEach(previews) { (p: AdsPreview) in Text(p.label).tag(p.format) }
@@ -24,6 +25,7 @@ struct AdsPreviewSheet: View {
                     .pickerStyle(.segmented)
                     .padding(.horizontal, pt(16))
                 }
+                #endif
                 if let p = previews.first(where: { (x: AdsPreview) in x.format == chosen }), let url = URL(string: p.src) {
                     AdsFrame(url: url)
                         .id(p.format)
@@ -38,6 +40,17 @@ struct AdsPreviewSheet: View {
             .navigationTitle("Preview")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                #if os(macOS)
+                // The placements are a view switch of this window: the toolbar's segmented control.
+                if previews.count > 1 {
+                    ToolbarItem(placement: .principal) {
+                        Picker("Where", selection: $chosen) {
+                            ForEach(previews) { (p: AdsPreview) in Text(p.label).tag(p.format) }
+                        }
+                        .pickerStyle(.segmented)
+                    }
+                }
+                #endif
                 ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
             }
         }

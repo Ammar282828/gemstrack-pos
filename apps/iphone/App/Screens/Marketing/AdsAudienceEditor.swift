@@ -12,6 +12,12 @@ struct AdsAudienceSheet: View {
     let goal: String
     let positions: [AdsChoice]
     let done: (AdsAudience) -> Void
+    #if os(macOS)
+    /// New ad's panel: the editor's sections as a form of their own, every change handed to `done` at once, and
+    /// `external` (New ad's own copy) read back when something outside changes it.
+    var inline = false
+    var external: AdsAudience?
+    #endif
 
     @Environment(\.dismiss) private var dismiss
     @State private var draft: AdsAudience
@@ -37,6 +43,14 @@ struct AdsAudienceSheet: View {
     private static let interestShortcuts = ["Jewellery", "Gold", "Diamonds", "Engagement ring", "Wedding", "Luxury goods", "Bridal"]
 
     var body: some View {
+        #if os(macOS)
+        if inline { macInlineBody } else { sheetBody }
+        #else
+        sheetBody
+        #endif
+    }
+
+    private var sheetBody: some View {
         NavigationStack {
             Form {
                 Group {
@@ -116,6 +130,15 @@ struct AdsAudienceSheet: View {
                 .textInputAutocapitalization(.words)
                 .autocorrectionDisabled()
             placeHitRows
+            #if os(macOS)
+            Menu("Quick Add") {
+                ForEach(Self.cityShortcuts, id: \.self) { (c: String) in
+                    Button(c.components(separatedBy: ",")[0]) { Task { await shortcut(c) } }
+                }
+                Button("All Pakistan") { add(AdsPlace.pakistan) }
+            }
+            .fixedSize()
+            #else
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: pt(8)) {
                     ForEach(Self.cityShortcuts, id: \.self) { (c: String) in
@@ -125,8 +148,13 @@ struct AdsAudienceSheet: View {
                     Button("+ All Pakistan") { add(AdsPlace.pakistan) }.buttonStyle(.bordered)
                 }
             }
+            #endif
         } header: {
+            #if os(macOS)
+            Text("Where")
+            #else
             LedgerHeading(title: "Where")
+            #endif
         } footer: {
             Text("People who live in, or were recently in, these places. A city takes the people around it too.")
         }
@@ -244,9 +272,17 @@ struct AdsAudienceSheet: View {
                 Text("Women").tag("women")
                 Text("Men").tag("men")
             }
+            #if os(macOS)
+            .pickerStyle(.menu)
+            #else
             .pickerStyle(.segmented)
+            #endif
         } header: {
+            #if os(macOS)
+            Text("Ages and who")
+            #else
             LedgerHeading(title: "Ages and who")
+            #endif
         }
     }
 
@@ -267,6 +303,18 @@ struct AdsAudienceSheet: View {
             }
             TextField("Jewellery, gold, weddings…", text: $interestQ)
                 .autocorrectionDisabled()
+            #if os(macOS)
+            Menu("Quick Add") {
+                ForEach(Self.interestShortcuts, id: \.self) { (s: String) in
+                    Button(s) { interestQ = s }
+                }
+                if !draft.interests.isEmpty {
+                    Divider()
+                    Button("More Like These", systemImage: "sparkles") { Task { await suggest() } }
+                }
+            }
+            .fixedSize()
+            #else
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: pt(8)) {
                     ForEach(Self.interestShortcuts, id: \.self) { (s: String) in
@@ -278,9 +326,14 @@ struct AdsAudienceSheet: View {
                     }
                 }
             }
+            #endif
             interestHitRows
         } header: {
+            #if os(macOS)
+            Text("Interests")
+            #else
             LedgerHeading(title: "Interests")
+            #endif
         } footer: {
             if draft.interests.isEmpty { Text("None: Meta finds the people itself (often the cheapest).") }
         }
@@ -348,7 +401,11 @@ struct AdsAudienceSheet: View {
                 MarketingReading(text: "Reading the audiences…")
             }
         } header: {
+            #if os(macOS)
+            Text("The shop's audiences")
+            #else
             LedgerHeading(title: "The shop's audiences")
+            #endif
         }
     }
 
@@ -367,8 +424,12 @@ struct AdsAudienceSheet: View {
                 Text("Reach").tag("include")
                 Text("Leave out").tag("exclude")
             }
+            #if os(macOS)
+            .pickerStyle(.menu)
+            #else
             .pickerStyle(.segmented)
             .labelsHidden()
+            #endif
         }
     }
 
@@ -420,7 +481,11 @@ struct AdsAudienceSheet: View {
                 }
             }
         } header: {
+            #if os(macOS)
+            Text("Where it appears")
+            #else
             LedgerHeading(title: "Where it appears")
+            #endif
         } footer: {
             if draft.placements != "auto" && draft.igPositions.isEmpty {
                 Text("None chosen: Meta uses the feed, stories and reels.")
@@ -428,6 +493,41 @@ struct AdsAudienceSheet: View {
         }
     }
 }
+
+#if os(macOS)
+extension AdsAudienceSheet {
+    /// The editor as a form of its own, with no sheet around it (New ad's panel): the estimate at its head, every change
+    /// handed to `done` at once, and `external` (the ad's own copy) taken back when something else replaces it.
+    @ViewBuilder
+    fileprivate var macInlineBody: some View {
+        Form {
+            estimateSection
+            placesSection
+            whoSection
+            interestsSection
+            audiencesSection
+            advantageSection
+            placementsSection
+        }
+        .formStyle(.grouped)
+        .modifier(AdsAudienceLookups(draft: draft, placeQ: placeQ, interestQ: interestQ,
+                                     estimateAgain: estimateAgain, searchPlaces: searchPlaces, searchInterests: searchInterests))
+        .onChange(of: draft) { _, now in done(now) }
+        .onChange(of: external) { _, now in
+            if let now, now != draft { draft = now }
+        }
+        .task { if showAudiences { await loadAudiences() } }
+    }
+
+    /// The editor inline: `done` hears every change as it is made.
+    static func makeInline(draft: AdsAudience, goal: String, positions: [AdsChoice], done: @escaping (AdsAudience) -> Void) -> AdsAudienceSheet {
+        var editor = AdsAudienceSheet(title: "Who sees it", draft: draft, goal: goal, positions: positions, done: done)
+        editor.inline = true
+        editor.external = draft
+        return editor
+    }
+}
+#endif
 
 /// The sheet's lookups, each a moment after the last change: Meta's estimate and the two searches. Its own
 /// modifier so the sheet's chain stays short for the compiler.

@@ -31,6 +31,9 @@ struct AdsSetupScreen: View {
     @State private var confirmOff = false
     @State private var confirmPixel = false
     @State private var failure: String?
+    #if os(macOS)
+    @FocusState private var macGreetingFocus: Bool
+    #endif
 
     private var mayUse: Bool { session.role == "owner" || session.role == "marketing" }
 
@@ -218,7 +221,11 @@ struct AdsSetupScreen: View {
                     Label(l, systemImage: "exclamationmark.triangle.fill").font(.subheadline).foregroundStyle(Tone.owed.color)
                 }
             } header: {
+                #if os(macOS)
+                Text("Before Every Kind of Ad Can Run")
+                #else
                 LedgerHeading(title: "Before every kind of ad can run")
+                #endif
             }
         }
     }
@@ -375,12 +382,21 @@ struct AdsSetupScreen: View {
                     TextField("Configuration ID", text: $configId)
                         .keyboardType(.numberPad)
                         .monospacedDigit()
+                        #if os(macOS)
+                        // Applied as you go: Return saves it.
+                        .onSubmit {
+                            let id = configId.filter { (c: Character) in c.isNumber }
+                            if !id.isEmpty && id != (app.loginConfigId ?? "") { Task { await save(["loginConfigId": id], "config") } }
+                        }
+                        #endif
+                    #if !os(macOS)
                     Button(busy == "config" ? "Saving…" : "Save") {
                         let id = configId.filter { (c: Character) in c.isNumber }
                         Task { await save(["loginConfigId": id], "config") }
                     }
                     .buttonStyle(.bordered)
                     .disabled(configId.isEmpty || configId == (app.loginConfigId ?? ""))
+                    #endif
                 }
                 Text(app.loginConfigId.map { (id: String) in "Saved: Connect uses configuration \(id)." }
                      ?? "Without one, Facebook answers \"Invalid Scopes\".")
@@ -660,44 +676,312 @@ struct AdsSetupScreen: View {
 }
 
 #if os(macOS)
+// MARK: - The Mac's Setup: a checklist. Each step is a section whose head says if it is done; choices are pop-ups, the
+// message and the configuration are saved as you leave them, and Connect, Check Again and Disconnect are the toolbar's.
+
 extension AdsSetupScreen {
-    /// The Meta app, its login and what is wrong on the left; the choices (account, Page, Instagram), the greeting and the pixel on the right.
     func macContent(_ s: AdsStatusAnswer) -> some View {
-        MacTwoPane(sideWidth: 520, sideOnRight: true) {
-            List {
-                Group {
-                    choiceSections(s)
-                    greetingSection
-                    pixelSection
-                }
-                .houseRows()
-                .disabled(busy != nil)
-            }
-            .listStyle(.inset)
-        } main: {
-            List {
-                Group {
-                    AdsAlertsSection(status: s)
-                    readinessSection(s)
-                    Section {
-                        MarketingLink(title: "Audiences", symbol: "person.3", path: "/ads/audiences")
-                        MarketingLink(title: "Rules", symbol: "checklist", path: "/ads/rules")
-                        MarketingLink(title: "A/B tests", symbol: "flask", path: "/ads/tests")
-                    }
-                    appSections(s)
-                    connectSection(s)
-                }
-                .houseRows()
-                .disabled(busy != nil)
-            }
-            .listStyle(.inset)
+        Form {
+            AdsAlertsSection(status: s)
+            readinessSection(s)
+            appSections(s)
+            macConnect(s)
+            macChoices(s)
+            macGreeting
+            macPixel
+            macAlso
         }
+        .formStyle(.grouped)
+        .disabled(busy != nil)
+        .macRefresh { Task { await load(fresh: true) } }
+        .navigationSubtitle(macSubtitle(s))
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button { Task { await load(fresh: true) } } label: { Label("Check again", systemImage: "arrow.clockwise") }
-                    .keyboardShortcut("r", modifiers: .command)
-                    .help("Check every step again")
+            ToolbarItemGroup(placement: .primaryAction) {
+                if let url = setupInSafari {
+                    Button { openURL(url) } label: {
+                        Label(s.connection?.connected == true ? "Connect Again" : "Connect", systemImage: "safari")
+                    }
+                    .disabled(!(s.app?.secret ?? false) || s.app?.id == nil)
+                    .help("Facebook's login comes back to the browser that started it, so Setup opens in Safari")
+                }
+                if s.connection != nil {
+                    Button { confirmOff = true } label: { Label("Disconnect", systemImage: "powerplug") }
+                        .help("Forget the Meta login (running ads keep running)")
+                }
+                Button { Task { await load(fresh: true) } } label: { Label("Check Again", systemImage: "arrow.clockwise") }
+                    .help("Check every step again (⌘R)")
             }
+        }
+    }
+
+    private func macSubtitle(_ s: AdsStatusAnswer) -> String {
+        if s.ready { return "Connected" }
+        if s.connection?.connected == true { return "Choose the ad account" }
+        return "Not connected"
+    }
+
+    // MARK: Step 3: the connection (Connect and Disconnect are the toolbar's)
+
+    private func macConnect(_ s: AdsStatusAnswer) -> some View {
+        Section {
+            if let conn = s.connection {
+                if conn.connected {
+                    Text(connectedLine(conn))
+                    if conn.kind == "user", let days = conn.daysLeft {
+                        Text("Good for \(days) more day\(days == 1 ? "" : "s"): connect again before then (running ads are never affected).")
+                            .font(.callout)
+                            .foregroundStyle(days <= 10 ? Tone.owed.color : Color.secondary)
+                    }
+                } else {
+                    Text(conn.error ?? "The connection is no longer valid.").foregroundStyle(Tone.problem.color)
+                }
+                if !conn.missingScopes.isEmpty {
+                    Label("Not granted: \(conn.missingScopes.joined(separator: ", ")). Add them to the login configuration (step 1), then connect again.",
+                          systemImage: "exclamationmark.triangle.fill")
+                        .font(.callout)
+                        .foregroundStyle(Tone.owed.color)
+                }
+            } else {
+                Text("Log in to Facebook as the person who runs \(session.shop.name)'s ads and approve, with Connect in the toolbar. The login is kept in this project's Secret Manager, never in the database.")
+                    .foregroundStyle(.secondary)
+            }
+            if let e = s.connectionError { Text(e).font(.callout).foregroundStyle(Tone.problem.color) }
+        } header: {
+            stepHeader(3, "Connect Facebook", done: s.connection.map { (c: AdsStatusAnswer.Connection) in c.connected })
+        } footer: {
+            Text("Facebook's login comes back to the ERP in the browser that started it, so Connect opens Setup in Safari: sign in there, press Connect, then Check Again here.")
+        }
+    }
+
+    // MARK: Steps 4 to 6: the ad account, Instagram, the Page
+
+    @ViewBuilder
+    private func macChoices(_ s: AdsStatusAnswer) -> some View {
+        Section {
+            if !connected {
+                Text("After connecting.").foregroundStyle(.secondary)
+            } else if let assetsProblem {
+                Label(assetsProblem, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color)
+                Button("Try Again") { Task { await loadAssets() } }
+            } else if let assets {
+                if assets.accounts.isEmpty {
+                    Text("This login can't see any ad account. In Meta Business Settings → Accounts → Ad accounts, give this person access to \(session.shop.name)'s ad account, then Check Again.")
+                        .foregroundStyle(Tone.problem.color)
+                } else {
+                    Picker("Ad account", selection: macAccount(assets)) {
+                        Text("Choose one").tag("")
+                        ForEach(assets.accounts) { (a: AdsAccountChoice) in Text(macAccountWords(a)).tag(a.id) }
+                    }
+                    .pickerStyle(.menu)
+                    .disabled(s.pinnedAccount)
+                }
+                if s.pinnedAccount { Text("Fixed for this shop by META_AD_ACCOUNT_ID.").font(.callout).foregroundStyle(.secondary) }
+            } else {
+                MarketingReading(text: "Reading what the login can see…")
+            }
+        } header: {
+            stepHeader(4, "The ad account", done: connected ? settings?.adAccountId != nil : nil)
+        }
+        if let assets, connected {
+            macInstagram(assets)
+            macPage(assets)
+        }
+    }
+
+    private func macAccountWords(_ a: AdsAccountChoice) -> String {
+        let st = AdsStatusWords.ofAccount(a.status)
+        return [a.name, "act \(a.id)", a.currency, st.label == "Active" ? "" : st.label].filter { (x: String) in !x.isEmpty }.joined(separator: " · ")
+    }
+
+    private func macAccount(_ assets: AdsSetupAssets) -> Binding<String> {
+        Binding(get: { settings?.adAccountId ?? "" }, set: { (id: String) in
+            guard let a = assets.accounts.first(where: { (x: AdsAccountChoice) in x.id == id }) else { return }
+            Task { await save(["adAccountId": a.id, "adAccountName": a.name], "account") }
+        })
+    }
+
+    private func macInstagram(_ assets: AdsSetupAssets) -> some View {
+        Section {
+            if assets.instagram.isEmpty {
+                Text("No Instagram account is linked to a Page or the ad account yet. Existing ads still show here; to make new ones, link \(house.map { (h: String) in "@\(h)" } ?? "the shop's Instagram") to a Facebook Page (step 6).")
+                    .foregroundStyle(.secondary)
+            } else {
+                Picker("Instagram account", selection: macInstagramChoice(assets)) {
+                    Text("Choose one").tag("")
+                    ForEach(assets.instagram) { (i: AdsInstagramChoice) in
+                        let page = i.pageId.flatMap { (id: String) in assets.pages.first { (p: AdsPageChoice) in p.id == id } }
+                        let via = page.map { (p: AdsPageChoice) in "Page “\(p.name)”" } ?? (i.via == "ad account" ? "ad account" : "business account")
+                        let notOurs = house != nil && i.username.lowercased() != house
+                        Text("@\(i.username.isEmpty ? i.id : i.username) · \(via)\(notOurs ? " · not this shop's" : "")").tag(i.id)
+                    }
+                }
+                .pickerStyle(.menu)
+            }
+            if wrongHouse, let house {
+                Text("This shop is @\(house); ads made here would appear as @\(settings?.instagramUsername ?? "").").font(.callout).foregroundStyle(Tone.problem.color)
+            }
+        } header: {
+            stepHeader(5, house.map { (h: String) in "Instagram · @\(h)" } ?? "Instagram", done: settings?.instagramUserId != nil && !wrongHouse)
+        }
+    }
+
+    private func macInstagramChoice(_ assets: AdsSetupAssets) -> Binding<String> {
+        Binding(get: { settings?.instagramUserId ?? "" }, set: { (id: String) in
+            guard let i = assets.instagram.first(where: { (x: AdsInstagramChoice) in x.id == id }) else { return }
+            let page = i.pageId.flatMap { (pid: String) in assets.pages.first { (p: AdsPageChoice) in p.id == pid } }
+            var patch: [String: Any] = ["instagramUserId": i.id, "instagramUsername": i.username]
+            if let page {
+                patch["pageId"] = page.id
+                patch["pageName"] = page.name
+            }
+            Task { await save(patch, "ig") }
+        })
+    }
+
+    private func macPage(_ assets: AdsSetupAssets) -> some View {
+        let chosenIg = assets.instagram.first { (i: AdsInstagramChoice) in i.id == settings?.instagramUserId }
+        return Section {
+            if assets.pages.isEmpty {
+                Text("No Facebook Page yet. Create one for \(session.shop.name) at facebook.com/pages/create, then in the Page's Settings → Linked accounts link the shop's Instagram (and WhatsApp, for chat ads). Then Check Again.")
+                    .foregroundStyle(Tone.owed.color)
+            } else {
+                Picker("Facebook Page", selection: macPageChoice(assets)) {
+                    Text("Choose one").tag("")
+                    ForEach(assets.pages) { (p: AdsPageChoice) in
+                        let line = [p.instagramUsername.map { (u: String) in "@\(u)" } ?? "no Instagram linked",
+                                    p.whatsapp.map { (w: String) in "WhatsApp \(w)" } ?? "no WhatsApp linked",
+                                    p.canAdvertise ? "" : "can't advertise"].filter { (x: String) in !x.isEmpty }.joined(separator: " · ")
+                        Text("\(p.name) · \(line)").tag(p.id)
+                    }
+                }
+                .pickerStyle(.menu)
+            }
+            if let ig = chosenIg, let linked = ig.pageId, let page = settings?.pageId, linked != page {
+                Text("@\(ig.username) is linked to another Page: Meta requires that same Page.").font(.callout).foregroundStyle(Tone.owed.color)
+            }
+        } header: {
+            stepHeader(6, "The Facebook Page behind new ads", done: settings?.pageId != nil)
+        } footer: {
+            Text("Meta runs every new ad through a Facebook Page, even an Instagram-only one (the Page doesn't show on Instagram). Viewing and running existing ads needs none.")
+        }
+    }
+
+    private func macPageChoice(_ assets: AdsSetupAssets) -> Binding<String> {
+        Binding(get: { settings?.pageId ?? "" }, set: { (id: String) in
+            guard let p = assets.pages.first(where: { (x: AdsPageChoice) in x.id == id }) else { return }
+            Task { await save(["pageId": p.id, "pageName": p.name], "page") }
+        })
+    }
+
+    // MARK: Step 7: the chat greeting, saved as you leave the field
+
+    private var macGreeting: some View {
+        let page = assets?.pages.first { (p: AdsPageChoice) in p.id == settings?.pageId }
+        return Section {
+            TextField("Hi! I saw your ad. Can you tell me more about this piece?", text: $greeting, axis: .vertical)
+                .lineLimit(2...4)
+                .focused($macGreetingFocus)
+                .onSubmit { macSaveGreeting() }
+                .onChange(of: macGreetingFocus) { _, now in if !now { macSaveGreeting() } }
+        } header: {
+            stepHeader(7, "Chat ads (optional)", done: nil)
+        } footer: {
+            Text(page?.whatsapp.map { (w: String) in "Chat ads open WhatsApp to \(w) (linked to the Page). The message they start with is above." }
+                 ?? "Chat ads to WhatsApp need a WhatsApp number linked to the Page (Page settings → Linked accounts → WhatsApp). Instagram-message ads need nothing more.")
+        }
+    }
+
+    private func macSaveGreeting() {
+        guard greeting != (settings?.whatsappGreeting ?? ""), busy == nil else { return }
+        Task { await save(["whatsappGreeting": greeting], "greeting") }
+    }
+
+    // MARK: Step 8: the website pixel
+
+    private var macPixel: some View {
+        Section {
+            if !(connected && settings?.adAccountId != nil) {
+                Text("Connect and choose the ad account first.").foregroundStyle(.secondary)
+            } else if let pixelProblem {
+                Text(pixelProblem).foregroundStyle(Tone.problem.color)
+                Button("Try Again") { Task { await loadPixel() } }
+            } else if let pixel, let st = pixel.state {
+                macPixelRows(pixel, st)
+            } else {
+                MarketingReading(text: "Reading the ad account's pixels…")
+            }
+        } header: {
+            stepHeader(8, "The website pixel", done: nil)
+        }
+    }
+
+    private func macPixelChoice(_ st: AdsPixelState) -> Binding<String> {
+        Binding(get: { st.id ?? "" }, set: { (id: String) in
+            Task { await pixelAct(["action": "choose", "id": id.isEmpty ? NSNull() as Any : id as Any], "pixel") }
+        })
+    }
+
+    @ViewBuilder
+    private func macPixelRows(_ p: AdsPixelAnswer, _ st: AdsPixelState) -> some View {
+        let listed = Set(p.pixels.map { (x: AdsPixelRow) in x.id })
+        ForEach(st.carried.filter { (id: String) in id != st.id }, id: \.self) { (id: String) in
+            VStack(alignment: .leading, spacing: 6) {
+                Label("\(st.sitesCarrying(id)) already carries pixel \(id)", systemImage: "globe").fontWeight(.medium)
+                Text(listed.contains(id)
+                     ? "Use it rather than making another: one pixel keeps every visit and order in one place, and its history is already there."
+                     : "It isn't shared with this ad account yet, so Meta won't let ads use it. In Meta Business settings → Data sources → Datasets, open \(id) → Assign assets → this ad account (full control); then it appears below.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                Button(listed.contains(id) ? "Use This Pixel" : "Use It Anyway (After Sharing It)") {
+                    Task { await pixelAct(["action": "choose", "id": id], "pixel") }
+                }
+            }
+        }
+        if let id = st.id {
+            VStack(alignment: .leading, spacing: 4) {
+                if st.live {
+                    Text("Pixel \(id) is receiving from the website")
+                } else {
+                    Label("Pixel \(id) has not received anything this week", systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(Tone.owed.color)
+                }
+                if let last = st.lastFired { Text("Last received \(ShopDate.say(last, withTime: true)).").font(.callout) }
+                if st.onSite == false {
+                    Text("\(st.sites.map { (x: AdsPixelSite) in x.host }.joined(separator: " and ")) doesn't load it yet: \(st.carried.isEmpty ? "the website needs its loader (it reads the id from this ERP's /api/public/pixel)" : "the site carries a different pixel (above)").")
+                        .font(.callout)
+                }
+                if st.events != nil { Text("This week: \(st.eventLine).").font(.callout) }
+            }
+        } else {
+            Text("No pixel chosen: website ads buy clicks, and nobody who visits can be retargeted.").font(.callout).foregroundStyle(Tone.owed.color)
+        }
+        Picker("Pixel in use", selection: macPixelChoice(st)) {
+            Text("None").tag("")
+            ForEach(p.pixels) { (x: AdsPixelRow) in
+                Text("\(x.name) · \(x.id) · \(x.lastFired.map { (l: String) in "last \(ShopDate.say(l))" } ?? "never fired")").tag(x.id)
+            }
+        }
+        .pickerStyle(.menu)
+        HStack(spacing: 8) {
+            TextField("New pixel's name", text: $pixelName)
+            Button(busy == "pixel" ? "Working…" : "Make a New Pixel") {
+                if st.carried.isEmpty {
+                    Task { await pixelAct(["action": "create", "name": pixelName], "pixel") }
+                } else {
+                    confirmPixel = true
+                }
+            }
+            .disabled(busy != nil || pixelName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        }
+    }
+
+    // MARK: The rest of Ads
+
+    private var macAlso: some View {
+        Section("Also in Ads") {
+            MarketingLink(title: "Audiences", symbol: "person.3", path: "/ads/audiences")
+            MarketingLink(title: "Rules", symbol: "checklist", path: "/ads/rules")
+            MarketingLink(title: "A/B Tests", symbol: "flask", path: "/ads/tests")
         }
     }
 }

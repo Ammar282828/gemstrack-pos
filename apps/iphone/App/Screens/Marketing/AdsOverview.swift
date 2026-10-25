@@ -22,6 +22,9 @@ struct AdsOverviewScreen: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.layoutWidthClass) private var sizeClass
     @Environment(\.dynamicTypeSize) private var typeSize
+    #if os(macOS)
+    @Environment(\.openPlaceWindow) private var openPlace
+    #endif
 
     private var mayRead: Bool { session.role == "owner" || session.role == "marketing" }
 
@@ -37,7 +40,11 @@ struct AdsOverviewScreen: View {
                 SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
+        #if os(macOS)
+        .navigationTitle("Ad Results")
+        #else
         .navigationTitle("Ads")
+        #endif
         .hubTitleDisplay()
         // An iPad's tables and rows sit in a centred column, not across the whole window.
         #if !os(macOS)
@@ -45,17 +52,10 @@ struct AdsOverviewScreen: View {
         #endif
         .toolbar {
             if mayRead {
-                ToolbarItem(placement: .primaryAction) { AdsRangeMenu(key: $rangeKey) }
                 #if os(macOS)
-                ToolbarItem(placement: .primaryAction) {
-                    Button { go = Route(path: "/ads/new") } label: { Label("New ad", systemImage: "plus") }
-                        .help("Make a new ad")
-                }
-                ToolbarItem(placement: .primaryAction) {
-                    Button { Task { await load(fresh: true) } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
-                        .keyboardShortcut("r", modifiers: .command)
-                        .help("Ask Meta again")
-                }
+                ToolbarItemGroup(placement: .primaryAction) { macToolbarItems }
+                #else
+                ToolbarItem(placement: .primaryAction) { AdsRangeMenu(key: $rangeKey) }
                 #endif
             }
         }
@@ -533,39 +533,146 @@ struct AdsDailyHoverChart: View {
     }
 }
 
+
 extension AdsOverviewScreen {
-    /// Two columns on a wide window: the figures, the days and the ads that spent most; beside them what needs a look,
-    /// what it brought, the month and who saw the ads.
+    // MARK: The toolbar
+
+    /// New Ad…, here as in Campaigns: the Ad menu's ⌃⌘N.
+    var macNewAd: MacAction {
+        MacAction("New Ad…", symbol: "plus", shortcut: KeyboardShortcut("n", modifiers: [.control, .command]), enabled: mayRead) {
+            let route = Route(path: "/ads/new")
+            if let openPlace { openPlace(route) } else { go = route }
+        }
+    }
+
+    @ViewBuilder
+    var macToolbarItems: some View {
+        Picker("Range", selection: $rangeKey) {
+            ForEach(AdsRange.all) { (r: AdsRange.Option) in Text(r.label).tag(r.key) }
+        }
+        .pickerStyle(.menu)
+        .help("The days the numbers cover")
+        MacToolbarAction(action: macNewAd)
+        Button { Task { await load(fresh: true) } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
+            .help("Ask Meta again (⌘R)")
+    }
+
+    // MARK: The report
+
+    /// One page: the figures with their change, what needs a look, the days, the ads that spent most, and who saw them.
     func macContent(_ d: AdOverview) -> some View {
         let cur = d.account.currency
-        return MacTwoPane(sideWidth: 420, sideOnRight: true) {
-            List {
-                Group {
-                    attentionSection(d)
-                    broughtSection(d)
-                    monthSection(d, cur)
-                    bottomSections(d, cur)
-                }
-                .houseRows()
+        return ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                macAccountLine(d)
+                MacFigures(AdsMacResultsFigures.head(d))
+                macMonth(d)
+                macAttention(d)
+                macDays(d, cur)
+                macTopAds(d, cur)
+                macBrought(d)
+                macSplits(d, cur)
+                macFoot(d)
             }
-            .listStyle(.inset)
-        } main: {
-            List {
-                Group {
-                    accountSection(d)
-                    if let problem {
-                        Section { Label(problem, systemImage: "wifi.exclamationmark").foregroundStyle(.secondary) } header: { LedgerHeading(title: "Couldn't refresh") }
-                    }
-                    figuresSection(d, cur)
-                    dailySection(d, cur)
-                    topAdsSection(d, cur)
-                }
-                .houseRows()
-            }
-            .listStyle(.inset)
+            .padding(20)
+            .frame(maxWidth: 1100, alignment: .leading)
+            .frame(maxWidth: .infinity)
         }
+        .macRefresh { Task { await load(fresh: true) } }
+        .macRecordMenu(MacRecordMenu(title: "Ad", groups: [[macNewAd]]))
         .navigationSubtitle(periodLine(d))
         .motion(d.totals.spend)
+    }
+
+    private func macAccountLine(_ d: AdOverview) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(d.account.name).font(.title3.weight(.semibold))
+                    if let funding = d.account.funding, !funding.isEmpty {
+                        Text(funding).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                }
+                Spacer(minLength: 8)
+                AdsAccountBadge(status: d.account.status)
+            }
+            if let problem { Label(problem, systemImage: "wifi.exclamationmark").foregroundStyle(.secondary) }
+        }
+    }
+
+    @ViewBuilder
+    private func macMonth(_ d: AdOverview) -> some View {
+        let figures = AdsMacResultsFigures.month(d)
+        if !figures.isEmpty {
+            AdsMacSection(title: "This Month") { MacFigures(figures) }
+        }
+    }
+
+    private func macAttention(_ d: AdOverview) -> some View {
+        AdsMacSection(title: "Needs a Look", detail: d.attention.isEmpty ? nil : "\(d.attention.count)") {
+            AdsMacAttentionTable(items: d.attention, acting: acting,
+                                 pause: { (a: AdAttention) in Task { await run(a, running: false) } },
+                                 resume: { (a: AdAttention) in asking = a },
+                                 open: { (a: AdAttention) in go = Route(path: a.href) })
+        }
+    }
+
+    @ViewBuilder
+    private func macDays(_ d: AdOverview, _ cur: String) -> some View {
+        let points: [AdsDailyPoint] = d.daily.compactMap { (day: AdDay) -> AdsDailyPoint? in
+            guard let date = AdsDay.plot(day.date) else { return nil }
+            return AdsDailyPoint(id: day.date, date: date, spend: day.metrics.spend)
+        }
+        if points.count > 1 {
+            AdsMacSection(title: "Day by Day") {
+                AdsDailyHoverChart(days: points, currency: cur).frame(height: 180)
+            }
+        }
+    }
+
+    private func macTopAds(_ d: AdOverview, _ cur: String) -> some View {
+        AdsMacSection(title: "The Ads That Spent Most") {
+            if d.topAds.isEmpty {
+                Text("No ad spent anything in \(AdsRange.label(rangeKey).lowercased()).").foregroundStyle(.secondary)
+            } else {
+                AdsMacTopAdsTable(ads: d.topAds, currency: cur) { (id: String) in
+                    let route = Route(path: "/ads/object?level=ad&id=\(AdsQuery.escape(id))")
+                    if let openPlace { openPlace(route) } else { go = route }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func macBrought(_ d: AdOverview) -> some View {
+        // The headline result is the first figure: not again here.
+        let shown = AdsResults.headlineResult(d.totals).label
+        let lines = AdsResults.headlineActions(d.totals, limit: 10).filter { (a: AdsResults.Line) in a.label != shown }
+        if !lines.isEmpty {
+            AdsMacSection(title: "What It Brought") { AdsMacBroughtTable(lines: lines) }
+        }
+    }
+
+    @ViewBuilder
+    private func macSplits(_ d: AdOverview, _ cur: String) -> some View {
+        if !d.ageGender.isEmpty {
+            AdsMacSection(title: "Who Saw Them") { AdsMacSplitTable(heading: "Age and gender", rows: Array(d.ageGender.prefix(12)), currency: cur) }
+        }
+        if !d.placement.isEmpty {
+            AdsMacSection(title: "Where") { AdsMacSplitTable(heading: "Placement", rows: Array(d.placement.prefix(12)), currency: cur) }
+        }
+        if !d.region.isEmpty {
+            AdsMacSection(title: "Region") { AdsMacSplitTable(heading: "Region", rows: Array(d.region.prefix(12)), currency: cur) }
+        }
+    }
+
+    @ViewBuilder
+    private func macFoot(_ d: AdOverview) -> some View {
+        if !d.at.isEmpty {
+            Text("From Meta, \(MarketingTime.clock(d.at)). Today's numbers keep changing for a few hours; reach across days can't be added up, so \"people reached\" is Meta's own count for the whole range.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
     }
 }
 #endif

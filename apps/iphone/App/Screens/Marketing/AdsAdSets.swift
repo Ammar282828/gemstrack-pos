@@ -85,7 +85,11 @@ struct AdsAdSetsScreen: View {
             if !mayUse {
                 AdsOwnersOnly()
             } else if let made {
+                #if os(macOS)
+                macMade(made)
+                #else
                 madeView(made)
+                #endif
             } else if let status, status.ready, let lists, info != nil {
                 form(lists)
             } else {
@@ -339,7 +343,11 @@ struct AdsAdSetsScreen: View {
                 Text("The account's campaigns didn't come: \(treeError)").font(.footnote).foregroundStyle(Tone.problem.color)
             }
         } header: {
+            #if os(macOS)
+            Text("Campaign")
+            #else
             LedgerHeading(title: "Campaign")
+            #endif
         } footer: {
             if budgeted { Text("This campaign holds the budget; its ad sets share it.") }
         }
@@ -351,14 +359,22 @@ struct AdsAdSetsScreen: View {
                 Text("Copies of ads").tag("copy")
                 Text("An Instagram post").tag("post")
             }
+            #if os(macOS)
+            .pickerStyle(.menu)
+            #else
             .pickerStyle(.segmented)
+            #endif
             if adsKind == "copy" {
                 copyRows
             } else {
                 postRows
             }
         } header: {
+            #if os(macOS)
+            Text("Ads in Them")
+            #else
             LedgerHeading(title: "Ads in them")
+            #endif
         } footer: {
             Text(adsKind == "copy" ? "\(adIds.count) chosen: a copy of each goes into every ad set." : "The post runs as it is in every ad set.")
         }
@@ -373,6 +389,21 @@ struct AdsAdSetsScreen: View {
             if shownAds.isEmpty { Text(adQ.isEmpty ? "No ads in the last 30 days." : "No ad matches “\(adQ)”.").foregroundStyle(.secondary) }
             ForEach(shownAds) { (r: AdRow) in
                 let on = adIds.contains(r.ad.id)
+                #if os(macOS)
+                Toggle(isOn: Binding(get: { on }, set: { (now: Bool) in
+                    if now { if !adIds.contains(r.ad.id) { adIds.append(r.ad.id) } } else { adIds.removeAll { (x: String) in x == r.ad.id } }
+                })) {
+                    HStack(spacing: pt(10)) {
+                        StockImage(imageUrl: r.ad.image, name: r.ad.name, key: r.ad.id)
+                            .frame(width: 32, height: 32)
+                            .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(r.ad.name).lineLimit(2)
+                            Text(r.place).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                        }
+                    }
+                }
+                #else
                 Button {
                     if on { adIds.removeAll { (x: String) in x == r.ad.id } } else { adIds.append(r.ad.id) }
                 } label: {
@@ -388,6 +419,7 @@ struct AdsAdSetsScreen: View {
                         Image(systemName: on ? "checkmark.circle.fill" : "circle").foregroundStyle(on ? Theme.accent : Color.secondary)
                     }
                 }
+                #endif
             }
         }
     }
@@ -410,11 +442,13 @@ struct AdsAdSetsScreen: View {
     @ViewBuilder
     private var makeSections: some View {
         Section {
+            #if !os(macOS)
             Picker("Launch", selection: $launch) {
                 Text("Make them paused").tag("paused")
                 Text("Run them once approved").tag("live")
             }
             .pickerStyle(.segmented)
+            #endif
         } footer: {
             Text(launch == "paused" ? "Nothing is spent until they are switched on in Campaigns." : "They start once Meta approves them and spend their budgets from then.")
         }
@@ -498,8 +532,27 @@ extension AdsAdSetsScreen {
             }
             .listStyle(.inset)
         }
-        .actionBar(primary: .init("Review: \(sets.count) ad set\(sets.count == 1 ? "" : "s") · \(adCount) ad\(adCount == 1 ? "" : "s")",
-                                  isBusy: checking || sending) { Task { await review() } })
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            AdsMacFooter(launch: $launch, title: "Create Ad Sets",
+                         summary: "\(sets.count) ad set\(sets.count == 1 ? "" : "s") · \(adCount) ad\(adCount == 1 ? "" : "s") · " + (launch == "paused" ? "paused until you switch them on in Campaigns" : "they start once Meta approves them"),
+                         busy: checking || sending, disabled: false) { Task { await review() } }
+        }
+    }
+
+    private func macMade(_ m: AdsDesignMade) -> some View {
+        ContentUnavailableView {
+            Label("\(m.adsets.count) ad set\(m.adsets.count == 1 ? "" : "s") made\(m.live ? "" : ", paused")", systemImage: "checkmark.circle.fill")
+        } description: {
+            VStack(spacing: 6) {
+                ForEach(m.adsets) { (s: AdsDesignMade.Made) in
+                    Text("\(s.name): \(s.ads.count) ad\(s.ads.count == 1 ? "" : "s")")
+                }
+                ForEach(m.warnings, id: \.self) { (w: String) in Text(w).foregroundStyle(Tone.owed.color) }
+            }
+        } actions: {
+            NavigationLink(value: Route(path: "/ads/campaigns")) { Text("See Them in Campaigns") }
+                .buttonStyle(.bordered)
+        }
     }
 }
 #endif
@@ -551,7 +604,11 @@ private struct AdsSetCard: View {
                     Text("A day").tag("daily")
                     Text("In total").tag("total")
                 }
+                #if os(macOS)
+                .pickerStyle(.menu)
+                #else
                 .pickerStyle(.segmented)
+                #endif
                 LabeledContent(draft.budgetKind == "daily" ? "A day (\(currency))" : "In total (\(currency))") {
                     TextField("Amount", text: $draft.amount)
                         .keyboardType(.decimalPad)
@@ -584,7 +641,11 @@ private struct AdsSetCard: View {
                 Button(role: .destructive, action: remove) { Label("Remove this ad set", systemImage: "trash") }
             }
         } header: {
+            #if os(macOS)
+            Text("Ad Set \(number)")
+            #else
             LedgerHeading(title: "Ad set \(number)")
+            #endif
         }
     }
 }

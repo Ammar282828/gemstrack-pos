@@ -89,10 +89,18 @@ struct StudioBoardCanvas: View {
             }
             // Handles sit just outside the box, so they never cover the words or the line above them.
             .overlay(alignment: .bottomTrailing) {
+                #if os(macOS)
+                if chosen && !locked { handle("arrow.up.left.and.arrow.down.right").offset(x: 10, y: 10).gesture(resize(l, scale: scale)).accessibilityLabel("Resize") }
+                #else
                 if chosen && !locked { handle("arrow.up.left.and.arrow.down.right").offset(x: 22, y: 22).gesture(resize(l, scale: scale)).accessibilityLabel("Resize") }
+                #endif
             }
             .overlay(alignment: .top) {
+                #if os(macOS)
+                if chosen && !locked { handle("arrow.clockwise").offset(y: -26).gesture(rotate(l, scale: scale)).accessibilityLabel("Turn") }
+                #else
                 if chosen && !locked { handle("arrow.clockwise").offset(y: -52).gesture(rotate(l, scale: scale)).accessibilityLabel("Turn") }
+                #endif
             }
             .frame(width: w, height: h)
             .rotationEffect(.degrees(angle))
@@ -108,10 +116,18 @@ struct StudioBoardCanvas: View {
     }
 
     private func handle(_ symbol: String) -> some View {
+        #if os(macOS)
+        // A pointer's handle: a small knob with a hairline edge and a little room around it to land on.
+        Image(systemName: symbol).font(.system(size: 7, weight: .bold)).foregroundStyle(Theme.onAccent)
+            .frame(width: 12, height: 12).background(Theme.accent, in: Circle())
+            .overlay(Circle().stroke(.white, lineWidth: 1))
+            .frame(width: 20, height: 20).contentShape(Rectangle())
+        #else
         Image(systemName: symbol).font(.system(size: 12, weight: .bold)).foregroundStyle(Theme.onAccent)
             .frame(width: 28, height: 28).background(Theme.accent, in: Circle())
             .overlay(Circle().stroke(.white, lineWidth: 1.5))
             .frame(width: 44, height: 44).contentShape(Rectangle())
+        #endif
     }
 
     private func layer(_ id: String) -> MarketingValue? { (start ?? layers).first { $0.s("id") == id } }

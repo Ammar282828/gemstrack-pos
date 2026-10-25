@@ -310,6 +310,13 @@ struct AdsAlertsSection: View {
     }
 }
 
+#if os(macOS)
+extension AdsAlertsSection {
+    /// The same lines for a Mac page that is not a List: a bar above its table (AdsMacAlertBar).
+    var macLines: [(bad: Bool, text: String)] { items.map { (i: Item) in (bad: i.bad, text: i.text) } }
+}
+#endif
+
 /// What stops a plan, as the server said it.
 struct AdsProblemsSection: View {
     let problems: [String]
@@ -328,7 +335,11 @@ struct AdsProblemsSection: View {
                     MarketingLink(title: "Open Setup", symbol: "slider.horizontal.3", path: "/ads/setup")
                 }
             } header: {
+                #if os(macOS)
+                Text("Before it can be made")
+                #else
                 LedgerHeading(title: "Before it can be made")
+                #endif
             }
         }
     }

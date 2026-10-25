@@ -224,7 +224,11 @@ struct AdsVideoSection: View {
             }
             .disabled(video?.busy == true)
         } header: {
+            #if os(macOS)
+            Text("The video")
+            #else
             LedgerHeading(title: "The video")
+            #endif
         } footer: {
             Text("An MP4 or MOV from Photos; vertical 9:16 suits stories and reels, 4:5 the feed. Keep the app open while it sends. Meta is told not to crop, filter or re-word it.")
         }
@@ -337,7 +341,11 @@ struct AdsPartnerSection: View {
                 }
             }
         } header: {
+            #if os(macOS)
+            Text("The creator's post")
+            #else
             LedgerHeading(title: "The creator's post")
+            #endif
         } footer: {
             Text("The post runs as it is, under both names (Instagram's partnership ads). The creator makes the code on the post: ⋯ → Partnership label and ads → Get ad code, and sends it to you.")
         }
@@ -435,9 +443,17 @@ struct AdsCatalogSection: View {
                 Text("Bring back lookers").tag("viewers")
                 Text("Find new buyers").tag("everyone")
             }
+            #if os(macOS)
+            .pickerStyle(.menu)
+            #else
             .pickerStyle(.segmented)
+            #endif
         } header: {
+            #if os(macOS)
+            Text("The catalogue")
+            #else
             LedgerHeading(title: "The catalogue")
+            #endif
         } footer: {
             Text(choice.who == "viewers"
                  ? "People who looked at or carted a piece in the last 14 days and didn't buy see those pieces again."
@@ -515,6 +531,16 @@ struct AdsAdvancedSection: View {
                 }
                 Toggle("Run only on set days and hours", isOn: hoursBinding).tint(Theme.accent)
                 if advanced.hoursOn {
+                    #if os(macOS)
+                    HStack(spacing: 6) {
+                        ForEach(0..<7, id: \.self) { (d: Int) in
+                            Toggle(Self.dayNames[d], isOn: Binding(get: { advanced.days.contains(d) }, set: { (on: Bool) in
+                                if on { advanced.days.insert(d) } else { advanced.days.remove(d) }
+                            }))
+                        }
+                    }
+                    .controlSize(.small)
+                    #else
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: pt(6)) {
                             ForEach(0..<7, id: \.self) { (d: Int) in
@@ -524,6 +550,7 @@ struct AdsAdvancedSection: View {
                             }
                         }
                     }
+                    #endif
                     Picker("From", selection: $advanced.from) {
                         ForEach(0..<24, id: \.self) { (h: Int) in Text(String(format: "%02d:00", h)).tag(h) }
                     }

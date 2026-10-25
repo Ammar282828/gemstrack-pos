@@ -90,7 +90,11 @@ struct AdsBudgetSheet: View {
                     LabeledContent("Now", value: before > 0 ? money(before) + (isDaily ? " a day" : " in total") : "None of its own")
                     LabeledContent("Ends", value: dayWords(endBefore))
                 } header: {
+                    #if os(macOS)
+                    Text(target.name)
+                    #else
                     LedgerHeading(title: target.name)
+                    #endif
                 }
                 Section {
                     LabeledContent(isDaily ? "A day" : "In total") {
@@ -100,7 +104,11 @@ struct AdsBudgetSheet: View {
                             .monospacedDigit()
                     }
                 } header: {
+                    #if os(macOS)
+                    Text("Budget (\(target.currency))")
+                    #else
                     LedgerHeading(title: "Budget (\(target.currency))")
+                    #endif
                 } footer: {
                     budgetNote
                 }
@@ -113,7 +121,11 @@ struct AdsBudgetSheet: View {
                             .environment(\.timeZone, ERPDate.karachi)
                     }
                 } header: {
+                    #if os(macOS)
+                    Text("End")
+                    #else
                     LedgerHeading(title: "End")
+                    #endif
                 } footer: {
                     Text(isDaily ? "Off runs it until it is paused." : "A total budget is spent by its end date.")
                 }
@@ -132,8 +144,15 @@ struct AdsBudgetSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
+                    #if os(macOS)
+                    // The button says what it will do and does it: no second question after it.
+                    Button(macButtonTitle) { Task { await save() } }
+                        .keyboardShortcut(.defaultAction)
+                        .disabled(busy || after == nil || !(budgetChanged || endChanged))
+                    #else
                     Button("Review") { confirming = true }
                         .disabled(busy || after == nil || !(budgetChanged || endChanged))
+                    #endif
                 }
             }
             .confirmationDialog("Change it at Meta?", isPresented: $confirming, titleVisibility: .visible) {
@@ -174,6 +193,15 @@ struct AdsBudgetSheet: View {
         lines.append("Meta starts spending at the new budget at once.")
         return lines.joined(separator: "\n")
     }
+
+    #if os(macOS)
+    /// "Change to PKR 2,000 a day": the amount on the button, as a Mac sheet's button names what it does.
+    private var macButtonTitle: String {
+        if budgetChanged, let v = after { return "Change to \(money(v)) \(isDaily ? "a day" : "in total")" }
+        if endChanged { return endAfter == nil ? "Remove the End Date" : "Change the End Date" }
+        return "Change"
+    }
+    #endif
 
     private func save() async {
         busy = true
