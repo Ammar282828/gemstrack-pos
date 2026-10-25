@@ -593,6 +593,10 @@ struct InvoiceScreen: View {
         }
         Section("Change") {
             Button { web = Route(path: InvoiceFacts.editPath(inv.id)) } label: { Label("Edit", systemImage: "pencil") }
+            // Gold moves: the same edit, at its rates (an owner's, as Edit invoice is).
+            if session.isOwner {
+                Button { web = Route(path: InvoiceFacts.changeRatePath(inv.id)) } label: { Label("Change rate", systemImage: "percent") }
+            }
             if inv.status != .refunded {
                 // The store's own Firestore write on the web, which the shop floor cannot make: an owner's.
                 if session.isOwner {

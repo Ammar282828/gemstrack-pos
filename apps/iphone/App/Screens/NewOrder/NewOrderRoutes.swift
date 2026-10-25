@@ -14,7 +14,8 @@ enum NewOrderRoutes {
     static var all: [ScreenRoute] {
         let edit = ScreenRoute(
             matches: { p in editId(p) != nil },
-            make: { p in AnyView(NewOrderEditLoader(id: editId(p) ?? "")) }
+            // "?rates=1" (the order page's Change rate) opens the form on its rates.
+            make: { p in AnyView(NewOrderEditLoader(id: editId(p) ?? "", ratesFirst: SaleRoutes.asks(p, "rates", "1"))) }
         )
         let finalize = ScreenRoute(
             matches: { p in finalizeId(p) != nil },
@@ -74,6 +75,7 @@ enum NewOrderRoutes {
 /// arriving meanwhile must not throw away what is being typed).
 struct NewOrderEditLoader: View {
     let id: String
+    var ratesFirst = false
 
     @Environment(Book.self) private var book
     @State private var edit: NewOrderEdit?
@@ -81,7 +83,7 @@ struct NewOrderEditLoader: View {
     var body: some View {
         Group {
             if let edit {
-                NewOrder(edit: edit)
+                NewOrder(edit: edit, ratesFirst: ratesFirst)
             } else if book.orders.loaded && book.orders.item(id) == nil {
                 ContentUnavailableView("No such order", systemImage: "questionmark.folder", description: Text("\(id) isn't in the book. It may have been deleted."))
             } else {

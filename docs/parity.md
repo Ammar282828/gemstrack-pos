@@ -60,7 +60,7 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Order advance with exchanged gold | ✓ | ✓ | ✓ | ✓ | 2026-10-24 | Edit order rewrites the rows untagged, so deleting an older gold advance after an edit leaves its gold (removed by editing the order). Android `ui/AdvanceExchange.kt` in the advance sheet. [Order to invoice](decisions.md#order-to-invoice), [Exchange rows](decisions.md#exchange-rows) |
 | Settle an advance (order stays as it was) | ✓ | ✓ | ✓ | ✓ | 2026-10-17 | `settleOrderAdvance` |
 | Order slip printed from the phone | ✓ | ✓ | ✓ | ✓ | 2026-10-09 | |
-| Change the rate: at finalize, from the order and invoice pages, silver per order | ✓ | owed | ✓ | owed | 2026-10-24 | [Order to invoice](decisions.md#order-to-invoice); `finalizeOrder` takes `ratesApplied`; web `order-dialogs.tsx`, Android `OrderFinalizeScreen.kt`, `?rates=1` on the edit pages |
+| Change the rate: at finalize, from the order and invoice pages, silver per order | ✓ | ✓ | ✓ | owed | 2026-10-24 | [Order to invoice](decisions.md#order-to-invoice); `finalizeOrder` takes `ratesApplied`; web `order-dialogs.tsx`, Android `OrderFinalizeScreen.kt`, `?rates=1` on the edit pages |
 
 ## Repairs
 

@@ -25,6 +25,13 @@ struct OrdersWebTarget: Hashable, Identifiable {
     static func finalize(_ id: String) -> OrdersWebTarget { OrdersWebTarget(path: "/orders/\(id)/finalize", title: id) }
     /// New order's form on the order on file (NewOrderEdit).
     static func edit(_ id: String) -> OrdersWebTarget { OrdersWebTarget(path: "/orders/\(id)/edit", title: "Edit \(id)") }
+    /// Change rate: Edit order, or Edit invoice once it is invoiced, opened at its rates (`?rates=1`).
+    static func changeRate(_ order: Order) -> OrdersWebTarget {
+        if let inv = order.invoiceId, !inv.isEmpty {
+            return OrdersWebTarget(path: InvoiceFacts.changeRatePath(inv), title: "Edit \(inv)")
+        }
+        return OrdersWebTarget(path: "/orders/\(order.id)/edit?rates=1", title: "Edit \(order.id)")
+    }
     /// New order's form (NewOrder).
     static let newOrder = OrdersWebTarget(path: "/orders/add", title: "New order")
 }

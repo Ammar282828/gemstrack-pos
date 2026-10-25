@@ -3,7 +3,7 @@ import ERPCore
 
 // Finalize & invoice (components/order/order-dialogs.tsx FinalizeOrderDialog), as the phone holds it: each
 // piece's final figures as typed, starting from the order's own, priced by ERPCore's `finalizedItemCosts`
-// at the rates the order was booked at, so what the screen shows is what the invoice will say
+// at the rates the order was booked at (or the ones typed in its Rates block), so what the screen shows is what the invoice will say
 // (lib/writes/finalize-order.ts prices the same pieces the same way). Pure, so it compiles without UIKit.
 
 /// One piece's final figures, as text while they are typed.
@@ -65,6 +65,9 @@ struct OrderFinalizeRow: Identifiable, Equatable {
     }
 }
 
+/// The rates the screen shows in its boxes, as typed (text), by field.
+typealias RateTexts = [RateField: String]
+
 enum OrderFinalizeMath {
     struct Figures: Equatable {
         var prices: [Double] = []
@@ -78,8 +81,46 @@ enum OrderFinalizeMath {
         var total: Double { subtotal - discount - exchange }
     }
 
-    static func figures(_ order: Order, rows: [OrderFinalizeRow], discount: String, settings: Settings) -> Figures {
-        let rates = orderInvoiceRates(order, settings)
+    /// A rate box's text for a figure: blank for none, no trailing zeros.
+    static func rateText(_ x: Double) -> String { NewOrderFormat.boxText(x, digits: 2) }
+
+    /// The boxes' opening figures: the rates the order was booked at (a palladium karat at its own, else the flat).
+    static func bookedTexts(_ order: Order, _ settings: Settings) -> RateTexts {
+        let booked = orderInvoiceRates(order, settings)
+        var out: RateTexts = [:]
+        for row in finalizeRateRows(order.items) { out[row.field] = rateText(rateShown(booked, row.field)) }
+        return out
+    }
+
+    /// "Use today's rates": the shop's own for every box where it has one.
+    static func todayTexts(_ order: Order, _ settings: Settings) -> RateTexts {
+        let today = PricingRates(settings)
+        var out: RateTexts = [:]
+        for row in finalizeRateRows(order.items) {
+            let v = rateShown(today, row.field)
+            if v > 0 { out[row.field] = rateText(v) }
+        }
+        return out
+    }
+
+    /// Whether today's rates would change any box as it stands (the "Use today's rates" button shows then).
+    static func todayDiffers(_ order: Order, _ settings: Settings, texts: RateTexts) -> Bool {
+        todayTexts(order, settings).contains { field, text in NewOrderFormat.num(text) != NewOrderFormat.num(texts[field] ?? "") }
+    }
+
+    /// Only the boxes that differ from the booked figure, as numbers: what the server is sent, and what prices the pieces.
+    static func changedRates(_ order: Order, _ settings: Settings, texts: RateTexts) -> [RateField: Double] {
+        let booked = orderInvoiceRates(order, settings)
+        var out: [RateField: Double] = [:]
+        for row in finalizeRateRows(order.items) {
+            let v = NewOrderFormat.num(texts[row.field] ?? "")
+            if v > 0 && v != rateShown(booked, row.field) { out[row.field] = v }
+        }
+        return out
+    }
+
+    static func figures(_ order: Order, rows: [OrderFinalizeRow], discount: String, settings: Settings, rateTexts: RateTexts = [:]) -> Figures {
+        let rates = finalizeRates(order, settings, typed: changedRates(order, settings, texts: rateTexts))
         var f = Figures()
         f.prices = rows.map { r in finalizedItemCosts(r.item, r.finalized, rates).price }
         f.subtotal = f.prices.reduce(0, +)
@@ -92,7 +133,14 @@ enum OrderFinalizeMath {
     }
 
     /// The dialog's checks (`finalizeOrderSchema`): a priced piece needs a weight; nothing negative.
-    static func problem(_ rows: [OrderFinalizeRow], discount: String) -> String? {
+    static func problem(_ rows: [OrderFinalizeRow], discount: String, order: Order? = nil, rateTexts: RateTexts = [:]) -> String? {
+        if let order {
+            for row in finalizeRateRows(order.items) {
+                let t = rateTexts[row.field] ?? ""
+                if NewOrderFormat.num(t) < 0 { return "\(row.label) rate cannot be negative." }
+                if NewOrderFormat.unreadable(t) { return "The \(row.label) rate is not a number. Retype it, or clear it." }
+            }
+        }
         for r in rows {
             if !r.manual && NewOrderFormat.num(r.weight) <= 0 { return "Piece \(r.index + 1): weight must be a positive number." }
             if r.manual && NewOrderFormat.num(r.price) <= 0 { return "Piece \(r.index + 1): a fixed price needs the price." }
@@ -102,7 +150,7 @@ enum OrderFinalizeMath {
     }
 
     /// What `ERPAPI.write("finalizeOrder", …)` takes. `costTola` is the 24k rate per tola, for the shop's margin.
-    static func request(_ orderId: String, rows: [OrderFinalizeRow], discount: String, costTola: String) -> [String: Any] {
+    static func request(_ orderId: String, rows: [OrderFinalizeRow], discount: String, costTola: String, changedRates: [RateField: Double] = [:]) -> [String: Any] {
         var out: [String: Any] = [
             "orderId": orderId,
             "items": rows.map { $0.payload },
@@ -110,6 +158,12 @@ enum OrderFinalizeMath {
         ]
         let tola = NewOrderFormat.num(costTola)
         if tola > 0 { out["costRate24k"] = tola / NewOrderWords.gramsPerTola }
+        // Only rates changed from the booked ones; none, and the server prices as booked.
+        if !changedRates.isEmpty {
+            var applied: [String: Any] = [:]
+            for (field, v) in changedRates { applied[field.rawValue] = v }
+            out["ratesApplied"] = applied
+        }
         return out
     }
 }
