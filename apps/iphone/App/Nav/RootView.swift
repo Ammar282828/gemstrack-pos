@@ -115,7 +115,7 @@ struct RootView: View {
         case .tab(let i):
             if entries.indices.contains(i) { tab = entries[i].id }
         case .newSale:
-            if session.isOwner, let sale = map.newSale { creating = Route(path: sale.href) }
+            if session.isOwner, map.newSale != nil { creating = Route(path: "/invoices/new") }
         case .newOrder:
             if session.role != "marketing" { creating = Route(path: "/orders/add") }
         case .search:
@@ -218,15 +218,23 @@ struct RootView: View {
 }
 
 /// Two floating controls leave the page itself free of repeated shortcuts.
+@MainActor
 private struct CreateAccessory: ViewModifier {
     let map: NavMap
     let shown: Bool
     let voiceShown: Bool
     let open: (String) -> Void
     let talk: () -> Void
+    /// The + at its small size (the page is scrolled). Held while the choices are open.
     @State private var compact = false
+    @State private var expanded = false
+    @State private var scrolled = false
+    @State private var offsetY: CGFloat = 0
+    @State private var openedAt: CGFloat = 0
+    @Namespace private var glassSpace
 
     @Environment(\.layoutWidthClass) private var sizeClass
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func body(content: Content) -> some View {
         if sizeClass.isPadLayout {
@@ -252,8 +260,9 @@ private struct CreateAccessory: ViewModifier {
 
     private func createMenu<L: View>(voice: Bool = false, @ViewBuilder label: () -> L) -> some View {
         Menu {
-            if let sale = map.newSale {
-                Button("New sale", systemImage: "banknote") { open(sale.href) }
+            if map.newSale != nil {
+                // Straight to the sale, not the New chooser (which asks Sale / Order / Repair again).
+                Button("New sale", systemImage: "banknote") { open("/invoices/new") }
             }
             Button("New order", systemImage: "list.clipboard") { open("/orders/add") }
             Button("Scan", systemImage: "qrcode.viewfinder") { open("/scan") }
@@ -264,41 +273,116 @@ private struct CreateAccessory: ViewModifier {
         } label: { label() }
     }
 
+    /// New sale, New order, Scan: a tap on the + spreads them as glass buttons out of the + itself, one tap each.
+    /// (A system Menu here, its label resizing as the page scrolled, was dismissed and re-presented while it was
+    /// open and sat in a glass morph that would not take taps: owner, 2026-10-25, "opens a menu that doesn't tap
+    /// properly which opens another menu".) New sale goes straight to the sale: the New chooser it used to open
+    /// asked Sale / Order / Repair again, though the owner had just said which.
+    private struct Action: Identifiable {
+        let id: String, title: String, symbol: String, path: String
+    }
+
+    private var actions: [Action] {
+        var out: [Action] = []
+        if map.newSale != nil { out.append(Action(id: "sale", title: "New sale", symbol: "banknote", path: "/invoices/new")) }
+        out.append(Action(id: "order", title: "New order", symbol: "list.clipboard", path: "/orders/add"))
+        out.append(Action(id: "scan", title: "Scan", symbol: "qrcode.viewfinder", path: "/scan"))
+        return out
+    }
+
+    private func collapse() {
+        guard expanded else { return }
+        Motion.run(Motion.exit, reduce: reduceMotion) {
+            expanded = false
+            compact = scrolled  // the size that was held while open catches up once it is closed
+        }
+    }
+
+    private func toggle() {
+        if expanded { collapse(); return }
+        openedAt = offsetY
+        Motion.run(Motion.travel, reduce: reduceMotion) { expanded = true }
+    }
+
     private func floating(_ content: Content) -> some View {
         content
             .safeAreaPadding(.bottom, shown ? 76 : 0)
-            .onScrollGeometryChange(for: Bool.self) { geometry in
-                geometry.contentOffset.y + geometry.contentInsets.top > 24
-            } action: { _, scrolled in
-                compact = scrolled
+            .onScrollGeometryChange(for: CGFloat.self) { geometry in
+                (geometry.contentOffset.y + geometry.contentInsets.top).rounded()
+            } action: { _, y in
+                offsetY = y
+                scrolled = y > 24
+                if expanded {
+                    // Scrolling closes it; the size stays as it was until then, so the + never changes under a finger.
+                    if abs(y - openedAt) > 12 { collapse() }
+                } else if compact != scrolled {
+                    compact = scrolled
+                }
+            }
+            .overlay {
+                if shown && expanded {
+                    // Anywhere else on the page: a tap or a drag closes.
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .onTapGesture { collapse() }
+                        .gesture(DragGesture(minimumDistance: 10).onChanged { _ in collapse() })
+                        .accessibilityHidden(true)
+                }
             }
             .overlay(alignment: .bottomTrailing) {
-            if shown {
-                GlassEffectContainer(spacing: compact ? 8 : 12) {
-                    HStack(spacing: compact ? 8 : 12) {
-                        if voiceShown {
-                            Button(action: talk) {
-                                Image(systemName: "mic.fill")
-                                    .font(.system(size: compact ? 16 : 20))
-                                    .frame(width: compact ? 44 : 52, height: compact ? 44 : 52)
+                if shown {
+                    let side: CGFloat = compact ? 44 : 52
+                    GlassEffectContainer(spacing: 12) {
+                        VStack(alignment: .trailing, spacing: 10) {
+                            if expanded {
+                                ForEach(actions) { a in
+                                    Button { collapse(); open(a.path) } label: {
+                                        Label(a.title, systemImage: a.symbol)
+                                            .font(.body.weight(.semibold))
+                                            .padding(.horizontal, 18)
+                                            .frame(minHeight: 48)
+                                            .contentShape(Capsule())
+                                            .glassEffect(.regular.interactive(), in: .capsule)
+                                            .glassEffectID(a.id, in: glassSpace)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .accessibilityLabel(a.title)
+                                }
                             }
-                            .buttonStyle(.glass).buttonBorderShape(.circle)
-                            .accessibilityLabel("Voice assistant")
+                            HStack(spacing: compact ? 8 : 12) {
+                                if voiceShown {
+                                    Button { collapse(); talk() } label: {
+                                        Image(systemName: "mic.fill")
+                                            .font(.system(size: compact ? 16 : 20))
+                                            .frame(width: side, height: side)
+                                    }
+                                    .buttonStyle(.glass).buttonBorderShape(.circle)
+                                    .accessibilityLabel("Voice assistant")
+                                }
+                                Button(action: toggle) {
+                                    Image(systemName: expanded ? "xmark" : "plus")
+                                        .font(.system(size: compact ? 18 : 22, weight: .semibold))
+                                        .contentTransition(.symbolEffect(.replace))
+                                        .foregroundStyle(Theme.onAccent)
+                                        .frame(width: side, height: side)
+                                        .contentShape(Circle())
+                                        .glassEffect(.regular.tint(Theme.accent).interactive(), in: .circle)
+                                        .glassEffectID("plus", in: glassSpace)
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("Create")
+                                .accessibilityValue(expanded ? "Expanded" : "Collapsed")
+                                .accessibilityHint(expanded ? "Closes the choices" : "New sale, new order or scan")
+                            }
                         }
-                        createMenu {
-                            Image(systemName: "plus")
-                                .font(.system(size: compact ? 18 : 22, weight: .semibold))
-                                .frame(width: compact ? 44 : 52, height: compact ? 44 : 52)
-                                .foregroundStyle(Theme.onAccent)
-                        }
-                        .buttonStyle(.glassProminent).buttonBorderShape(.circle)
-                        .accessibilityLabel("Create: new sale, new order or scan")
                     }
+                    .padding(.horizontal, 20).padding(.vertical, 8)
+                    .motion(compact, Motion.enter)
+                    // One tap on opening, none on closing (the page that opens gives its own).
+                    .sensoryFeedback(.impact(flexibility: .soft), trigger: expanded) { _, now in now }
+                    .accessibilityAction(.escape) { collapse() }
                 }
-                .padding(.horizontal, 20).padding(.vertical, 8)
-                .motion(compact, Motion.enter)
             }
-        }
     }
 }
 
