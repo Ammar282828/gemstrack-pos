@@ -79,6 +79,8 @@ struct DesignSavedView: View {
     @State private var problem: String?
     #if os(macOS)
     @State private var picked: String?
+    @State private var pickedDraft: String?
+    @FocusState private var macGalleryFocus: Bool
     #endif
 
     private var counts: [String: Int] {
@@ -328,121 +330,150 @@ struct DesignDetailSheet: View {
 
 #if os(macOS)
 extension DesignSavedView {
-    /// The shelf as a Mac app's library: folders in a sidebar, the designs as a grid of pictures. Double-click (or Return)
-    /// opens one, right-click gives Open, Details and Delete, ⌫ deletes, the search is in the toolbar.
+    /// The shelf as a Mac gallery (Finder's icon view, docs/features/mac-design.md): the designs as pictures, the folder a pop-up
+    /// in the toolbar, the search in the toolbar. Click picks, a double-click or Return opens, ⌫ deletes (it asks), right-click
+    /// gives the same actions as the Design menu. The drafts on this Mac are a table.
     @ViewBuilder
     fileprivate var macBody: some View {
-        HSplitView {
-            macSidebar.frame(minWidth: 190, idealWidth: 220, maxWidth: 290)
-            macContent.frame(minWidth: 480, maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .background(Theme.ground)
-        .searchable(text: $q, placement: .toolbar, prompt: "Find a design")
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button { renaming = nil; folderText = ""; asking = true } label: { Label("New folder", systemImage: "folder.badge.plus") }
-                    .help("Make a folder")
+        macDialogs(
+            macContent
+                .macSummaryBar(macSummary)
+                .macSearchable(text: $q, prompt: "Find a design")
+                .toolbar { macToolbar }
+                .macRecordMenu(macMenu)
+                .navigationSubtitle(macViewTitle)
+                .task { await shelf.load(); await shelf.loadDrafts() }
+        )
+    }
+
+    private func macDialogs<Content: View>(_ content: Content) -> some View {
+        content
+            .sheet(item: $detail) { r in
+                DesignDetailSheet(record: r, shelf: shelf, onOpen: { rec in detail = nil; onOpen(rec) }, onChanged: { Task { await shelf.load() } })
             }
-            if let folder, view == folder.id {
-                ToolbarItem(placement: .automatic) {
-                    Menu {
-                        Button("Rename folder…", systemImage: "pencil") { renaming = folder; folderText = folder.name; asking = true }
-                        Button("Delete folder…", systemImage: "trash", role: .destructive) { deletingFolder = folder }
-                    } label: { Label("Folder", systemImage: "ellipsis.circle") }
-                    .help("Rename or delete this folder")
-                }
+            .alert(renaming == nil ? "New folder" : "Rename folder", isPresented: $asking) {
+                TextField("Name", text: $folderText)
+                Button(renaming == nil ? "Make folder" : "Rename") { saveFolder() }
+                Button("Cancel", role: .cancel) {}
             }
-            ToolbarItem(placement: .automatic) {
-                Button { if let r = pickedRecord { onOpen(r) } } label: { Label("Open", systemImage: "folder") }
-                    .disabled(!(pickedRecord?.canOpen ?? false))
-                    .keyboardShortcut("o", modifiers: [.command, .option])
-                    .help("Open the selected design")
-            }
-            ToolbarItem(placement: .automatic) {
-                Button { detail = pickedRecord } label: { Label("Details", systemImage: "info.circle") }
-                    .disabled(pickedRecord == nil)
-                    .keyboardShortcut("i", modifiers: .command)
-                    .help("Name, folder and picture of the selected design")
-            }
-            ToolbarItem(placement: .automatic) {
-                Button { deletingRecord = pickedRecord } label: { Label("Delete", systemImage: "trash") }
-                    .disabled(pickedRecord == nil)
-                    .help("Delete the selected design")
-            }
-        }
-        .navigationSubtitle("\(shown.count) design\(shown.count == 1 ? "" : "s")")
-        .task { await shelf.load(); await shelf.loadDrafts() }
-        .sheet(item: $detail) { r in
-            DesignDetailSheet(record: r, shelf: shelf, onOpen: { rec in detail = nil; onOpen(rec) }, onChanged: { Task { await shelf.load() } })
-        }
-        .alert(renaming == nil ? "New folder" : "Rename folder", isPresented: $asking) {
-            TextField("Name", text: $folderText)
-            Button(renaming == nil ? "Make folder" : "Rename") { saveFolder() }
-            Button("Cancel", role: .cancel) {}
-        }
-        .confirmDestructive(isPresented: Binding(get: { deletingFolder != nil }, set: { if !$0 { deletingFolder = nil } }),
-                            title: "Delete the folder “\(deletingFolder?.name ?? "")”?", message: "Its designs stay, unfiled.",
-                            action: "Delete folder") { if let f = deletingFolder { dropFolder(f) } }
-        .confirmDestructive(isPresented: Binding(get: { deletingDraft != nil }, set: { if !$0 { deletingDraft = nil } }),
-                            title: "Delete this draft from this Mac?", action: "Delete draft") { if let d = deletingDraft { Task { await shelf.deleteDraft(d) } } }
-        .confirmDestructive(isPresented: Binding(get: { deletingRecord != nil }, set: { if !$0 { deletingRecord = nil } }),
-                            title: "Delete “\(deletingRecord?.name ?? "this design")”?", message: "It is removed from the shop’s shelf.",
-                            action: "Delete") { if let d = deletingRecord { dropRecord(d) } }
-        .failureAlert($problem, title: "Could not finish")
+            .confirmDestructive(isPresented: Binding(get: { deletingFolder != nil }, set: { if !$0 { deletingFolder = nil } }),
+                                title: "Delete the folder “\(deletingFolder?.name ?? "")”?", message: "Its designs stay, unfiled.",
+                                action: "Delete folder") { if let f = deletingFolder { dropFolder(f) } }
+            .confirmDestructive(isPresented: Binding(get: { deletingDraft != nil }, set: { if !$0 { deletingDraft = nil } }),
+                                title: "Delete this draft from this Mac?", action: "Delete draft") { if let d = deletingDraft { Task { await shelf.deleteDraft(d) } } }
+            .confirmDestructive(isPresented: Binding(get: { deletingRecord != nil }, set: { if !$0 { deletingRecord = nil } }),
+                                title: "Delete “\(deletingRecord?.name ?? "this design")”?", message: "It is removed from the shop’s shelf.",
+                                action: "Delete") { if let d = deletingRecord { dropRecord(d) } }
+            .failureAlert($problem, title: "Could not finish")
     }
 
     private var pickedRecord: DesignRecord? { picked.flatMap { id in shown.first { $0.id == id } } }
+    private var pickedDraftRow: DesignDraftRow? { pickedDraft.flatMap { id in shelf.draftRows.first { $0.id == id } } }
 
-    // MARK: Folders
-
-    @ViewBuilder
-    private var macSidebar: some View {
-        List(selection: Binding<String?>(get: { view }, set: { view = $0 ?? Self.all; picked = nil })) {
-            Section("Library") {
-                Label("All designs", systemImage: "square.grid.2x2").badge(shelf.items.count).tag(Self.all)
-                if (counts[""] ?? 0) > 0 { Label("Unfiled", systemImage: "tray").badge(counts[""] ?? 0).tag(Self.unfiled) }
-                Label("On this Mac", systemImage: "desktopcomputer").badge(shelf.draftRows.count).tag(Self.device)
-                if adsOk { Label("In the ad account", systemImage: "megaphone").tag(Self.account) }
-            }
-            if !shelf.folders.isEmpty {
-                Section("Folders") {
-                    ForEach(shelf.folders) { f in
-                        Label(f.name, systemImage: "folder").badge(counts[f.id] ?? 0).tag(f.id)
-                            .contextMenu {
-                                Button("Rename…", systemImage: "pencil") { renaming = f; folderText = f.name; asking = true }
-                                Button("Delete folder…", systemImage: "trash", role: .destructive) { deletingFolder = f }
-                            }
-                    }
-                }
-            }
-        }
-        .listStyle(.sidebar)
+    private var macViewTitle: String {
+        if view == Self.all { return "All Designs" }
+        if view == Self.unfiled { return "Unfiled" }
+        if view == Self.device { return "On This Mac" }
+        if view == Self.account { return "In the Ad Account" }
+        return folder?.name ?? "Designs"
     }
 
-    // MARK: The designs
+    private var macSummary: [String] {
+        if view == Self.device { return ["\(shelf.draftRows.count) draft\(shelf.draftRows.count == 1 ? "" : "s") on this Mac"] }
+        if view == Self.account { return [] }
+        let n = shown.count
+        return ["\(n) design\(n == 1 ? "" : "s")", folder.map { $0.name } ?? ""]
+    }
 
-    @ViewBuilder private var macContent: some View {
+    // MARK: Actions
+
+    private func macOpenAction(_ r: DesignRecord?) -> MacAction {
+        MacAction("Open", symbol: "folder", shortcut: KeyboardShortcut(.return, modifiers: .command), enabled: r?.canOpen ?? false, isDefault: true) {
+            if let r { onOpen(r) }
+        }
+    }
+
+    private func macDetailsAction(_ r: DesignRecord?) -> MacAction {
+        MacAction("Details…", symbol: "info.circle", shortcut: KeyboardShortcut("i", modifiers: .command), enabled: r != nil) { detail = r }
+    }
+
+    private func macDeleteAction(_ r: DesignRecord?) -> MacAction {
+        MacAction("Delete…", symbol: "trash", shortcut: KeyboardShortcut(.delete, modifiers: .command), role: .destructive, enabled: r != nil) { deletingRecord = r }
+    }
+
+    private func macOpenDraftAction(_ d: DesignDraftRow?) -> MacAction {
+        MacAction("Open", symbol: "folder", shortcut: KeyboardShortcut(.return, modifiers: .command), enabled: d != nil, isDefault: true, id: "open-draft") {
+            if let d { onOpenDraft(d) }
+        }
+    }
+
+    private func macDeleteDraftAction(_ d: DesignDraftRow?) -> MacAction {
+        MacAction("Delete…", symbol: "trash", shortcut: KeyboardShortcut(.delete, modifiers: .command), role: .destructive, enabled: d != nil, id: "delete-draft") {
+            deletingDraft = d
+        }
+    }
+
+    private var macNewFolderAction: MacAction {
+        MacAction("New Folder…", symbol: "folder.badge.plus") { renaming = nil; folderText = ""; asking = true }
+    }
+
+    private var macRenameFolderAction: MacAction {
+        MacAction("Rename Folder…", symbol: "pencil", enabled: folder != nil && view == folder?.id) {
+            if let folder { renaming = folder; folderText = folder.name; asking = true }
+        }
+    }
+
+    private var macDeleteFolderAction: MacAction {
+        MacAction("Delete Folder…", symbol: "folder.badge.minus", role: .destructive, enabled: folder != nil && view == folder?.id) { deletingFolder = folder }
+    }
+
+    private var macMenu: MacRecordMenu {
         if view == Self.device {
-            List {
-                ForEach(shelf.draftRows) { d in
-                    Button { onOpenDraft(d) } label: { DesignDraftLine(row: d) }.buttonStyle(.plain)
-                        .contextMenu {
-                            Button("Open", systemImage: "folder") { onOpenDraft(d) }
-                            Divider()
-                            Button("Delete…", systemImage: "trash", role: .destructive) { deletingDraft = d }
-                        }
-                }
-                if !shelf.draftRows.isEmpty {
-                    Text("Earlier Post a piece drafts open here as designs.").font(.footnote).foregroundStyle(.secondary)
-                }
+            return MacRecordMenu(title: "Design", groups: [[macOpenDraftAction(pickedDraftRow), macDeleteDraftAction(pickedDraftRow)],
+                                                            [macNewFolderAction, macRenameFolderAction, macDeleteFolderAction]])
+        }
+        let r = pickedRecord
+        return MacRecordMenu(title: "Design", groups: [[macOpenAction(r), macDetailsAction(r)],
+                                                        [macNewFolderAction, macRenameFolderAction, macDeleteFolderAction],
+                                                        [macDeleteAction(r)]])
+    }
+
+    @ToolbarContentBuilder
+    private var macToolbar: some ToolbarContent {
+        ToolbarItemGroup(placement: .primaryAction) {
+            Picker("Show", selection: Binding<String>(get: { view }, set: { (v: String) in view = v; picked = nil; pickedDraft = nil })) {
+                Text("All Designs").tag(Self.all)
+                if (counts[""] ?? 0) > 0 { Text("Unfiled").tag(Self.unfiled) }
+                if !shelf.folders.isEmpty { Divider() }
+                ForEach(shelf.folders) { (f: DesignFolder) in Text(f.name).tag(f.id) }
+                Divider()
+                Text("On This Mac").tag(Self.device)
+                if adsOk { Text("In the Ad Account").tag(Self.account) }
             }
-            .listStyle(.inset)
-            .overlay {
-                if shelf.draftRows.isEmpty {
-                    ContentUnavailableView("No drafts on this Mac", systemImage: "desktopcomputer",
-                                           description: Text("A design is kept here as you make it, and for 30 days after."))
+            .pickerStyle(.menu)
+            .help("Show a folder, the drafts on this Mac, or the ads in the ad account")
+            Menu {
+                ForEach([macNewFolderAction, macRenameFolderAction, macDeleteFolderAction]) { (a: MacAction) in
+                    Button(a.title, role: a.role) { a.perform() }.disabled(!a.enabled)
                 }
+            } label: { Label("Folder", systemImage: "folder.badge.gearshape") }
+                .help("Make, rename or delete a folder")
+            if view == Self.device {
+                MacToolbarAction(action: macOpenDraftAction(pickedDraftRow))
+                MacToolbarAction(action: macDeleteDraftAction(pickedDraftRow))
+            } else {
+                MacToolbarAction(action: macOpenAction(pickedRecord))
+                MacToolbarAction(action: macDeleteAction(pickedRecord))
             }
+        }
+    }
+
+    // MARK: The content
+
+    @ViewBuilder
+    private var macContent: some View {
+        if view == Self.device {
+            macDrafts
         } else if view == Self.account && adsOk {
             List { DesignAccountAds(folders: shelf.folders) { Task { await shelf.load() } } }
                 .listStyle(.inset)
@@ -454,20 +485,71 @@ extension DesignSavedView {
             ContentUnavailableView(shelf.items.isEmpty ? "Nothing saved yet" : "Nothing here", systemImage: "folder",
                                    description: Text(shelf.items.isEmpty ? "Save a design from the workspace and it waits here, in any folder you make." : "No design in this folder matches."))
         } else {
-            ScrollView {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 170, maximum: 240), spacing: 16, alignment: .top)], spacing: 16) {
-                    ForEach(shown) { r in macCell(r) }
-                }
-                .padding(20)
-            }
-            .focusable()
-            .onKeyPress(.return) {
-                guard let r = pickedRecord else { return .ignored }
-                if r.canOpen { onOpen(r) } else { detail = r }
-                return .handled
-            }
-            .onDeleteCommand { deletingRecord = pickedRecord }
+            macGallery
         }
+    }
+
+    private var macDrafts: some View {
+        Table(shelf.draftRows, selection: $pickedDraft) {
+            TableColumn("Name") { (d: DesignDraftRow) in
+                HStack(spacing: 8) {
+                    Group {
+                        if let image = d.thumb { Image(uiImage: image).resizable().scaledToFill() }
+                        else { Image(systemName: "photo").foregroundStyle(.secondary) }
+                    }
+                    .frame(width: 28, height: 28).clipShape(RoundedRectangle(cornerRadius: Radius.thumb, style: .continuous))
+                    Text(d.title).lineLimit(1)
+                }
+            }
+            TableColumn("Kept") { (d: DesignDraftRow) in Text(ShopDate.stamp(d.updated, withTime: true)) }
+                .width(min: 110, ideal: 150)
+            TableColumn("From") { (d: DesignDraftRow) in Text(d.old == nil ? "This Mac" : "Earlier Post a piece draft").foregroundStyle(.secondary) }
+                .width(min: 110, ideal: 170)
+        }
+        .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
+            let d = ids.first.flatMap { id in shelf.draftRows.first { $0.id == id } }
+            MacActionItems(groups: [[macOpenDraftAction(d)], [macDeleteDraftAction(d)]])
+        } primaryAction: { (ids: Set<String>) in
+            if let id = ids.first, let d = shelf.draftRows.first(where: { $0.id == id }) { onOpenDraft(d) }
+        }
+        .onDeleteCommand { deletingDraft = pickedDraftRow }
+        .overlay {
+            if shelf.draftRows.isEmpty {
+                ContentUnavailableView("No drafts on this Mac", systemImage: "desktopcomputer",
+                                       description: Text("A design is kept here as you make it, and for 30 days after. Earlier Post a piece drafts open here as designs."))
+            }
+        }
+    }
+
+    private var macGallery: some View {
+        ScrollView {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 170, maximum: 240), spacing: 16, alignment: .top)], spacing: 16) {
+                ForEach(shown) { (r: DesignRecord) in macCell(r) }
+            }
+            .padding(20)
+        }
+        .focusable()
+        .focused($macGalleryFocus)
+        .focusEffectDisabled()
+        .onKeyPress(.return) {
+            guard let r = pickedRecord else { return .ignored }
+            macOpenOrDetails(r)
+            return .handled
+        }
+        .onKeyPress(keys: [.leftArrow, .rightArrow]) { (press: KeyPress) in macMove(press.key == .rightArrow ? 1 : -1) }
+        .onDeleteCommand { deletingRecord = pickedRecord }
+    }
+
+    private func macMove(_ by: Int) -> KeyPress.Result {
+        let all = shown
+        guard !all.isEmpty else { return .ignored }
+        let at = all.firstIndex(where: { $0.id == picked }) ?? (by > 0 ? -1 : all.count)
+        picked = all[min(all.count - 1, max(0, at + by))].id
+        return .handled
+    }
+
+    private func macOpenOrDetails(_ r: DesignRecord) {
+        if r.canOpen { onOpen(r) } else { detail = r }
     }
 
     private func macCell(_ r: DesignRecord) -> some View {
@@ -487,20 +569,19 @@ extension DesignSavedView {
         }
         .padding(6)
         .contentShape(Rectangle())
-        .onTapGesture(count: 2) { if r.canOpen { onOpen(r) } else { detail = r } }
-        .onTapGesture { picked = r.id }
+        .onTapGesture { picked = r.id; macGalleryFocus = true }
+        .simultaneousGesture(TapGesture(count: 2).onEnded { picked = r.id; macOpenOrDetails(r) })
         .pointerHover()
         .contextMenu {
-            if r.canOpen { Button("Open", systemImage: "folder") { onOpen(r) } }
-            Button("Details…", systemImage: "info.circle") { detail = r }
+            MacActionItems(groups: [[macOpenAction(r), macDetailsAction(r)]])
             Menu("Move to") {
                 Button("Unfiled") { Task { try? await DesignRecords.patch(r.id, folder: .some(nil), name: nil); await shelf.load() } }
-                ForEach(shelf.folders) { f in
+                ForEach(shelf.folders) { (f: DesignFolder) in
                     Button(f.name) { Task { try? await DesignRecords.patch(r.id, folder: .some(f.id), name: nil); await shelf.load() } }
                 }
             }
             Divider()
-            Button("Delete…", systemImage: "trash", role: .destructive) { deletingRecord = r }
+            MacActionItems(groups: [[macDeleteAction(r)]])
         }
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(on ? .isSelected : [])

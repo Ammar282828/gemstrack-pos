@@ -1,5 +1,9 @@
 import SwiftUI
 import PhotosUI
+#if os(macOS)
+import AppKit
+import UniformTypeIdentifiers
+#endif
 
 struct DesignEditTarget: Identifiable {
     let pageId: String
@@ -25,7 +29,10 @@ struct DesignWorkspaceView: View {
     @State private var removing: DesignPageState?
     @State private var safe = true
     #if os(macOS)
-    @State private var inspectorOn = true
+    /// A picture chosen from a file (the Photo tab), and the field of the piece's words that has the keyboard (a double-click on a
+    /// layer bound to it).
+    @State private var filePicking = false
+    @FocusState private var macWordFocus: String?
     #endif
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.layoutWidthClass) private var sizeClass
@@ -435,137 +442,261 @@ private struct DesignPhotoThumb: View {
 
 #if os(macOS)
 extension DesignWorkspaceView {
-    /// The workspace as a Mac editor: the sizes down the left, the page large in the middle, the name, words and photograph in
-    /// an inspector column on the right (⌥⌘I hides it). Edit design ⌘E, Save ⌘S and Publish ⌘↩ are in the toolbar; a picture
-    /// dropped on the window becomes the photograph.
+    /// The workspace as a Mac design window (Keynote's shape): the pages down the left, the page itself in the middle and live
+    /// (the layer editor, inline: a click picks a layer, a drag moves it, a double-click goes to its words), and the inspector at
+    /// the right with its tabs in its head: Layer, Words, Photo, AI, Page. Layout, Sizes…, Safe Zones, Share and Publish… are the
+    /// toolbar; the Design menu carries Publish… ⌘↩, Save ⌘S and the layer's actions. A picture dropped on the window becomes the
+    /// photograph.
     fileprivate func macContent(_ w: DesignWork) -> some View {
         let page = w.activePage
         let zone = DesignSizes.safeZone(h: page.h)
         return HStack(spacing: 0) {
-            ScrollView {
-                VStack(spacing: 10) {
-                    ForEach(w.pages) { p in PageCell(model: model, work: w, page: p, removing: $removing) }
-                    Button { DesignHooks.shared.resize(model) } label: {
-                        VStack(spacing: 6) {
-                            Image(systemName: "plus").font(.title3)
-                            Text("Size").font(.caption)
-                        }
-                        .foregroundStyle(.secondary).frame(width: 84, height: 64)
-                        .overlay(RoundedRectangle(cornerRadius: Radius.chip, style: .continuous).strokeBorder(.secondary.opacity(0.4), style: StrokeStyle(lineWidth: 1.5, dash: [5, 4])))
-                    }
-                    .buttonStyle(.plain).help("Add a size: the master's design on another shape")
-                    .accessibilityLabel("Resize: add a size")
-                }
-                .padding(10)
-            }
-            .frame(width: 124)
+            macStrip(w)
             Divider()
-            ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    DesignCandidateBanner(model: model)
-                    HStack {
-                        Text(page.label).font(.headline)
-                        Text("\(Int(page.w))×\(Int(page.h))").font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
-                        Spacer(minLength: 0)
-                    }
-                    Group {
-                        if let image = model.previews[page.id] {
-                            Image(uiImage: image).resizable().scaledToFit()
-                                .overlay { if safe && zone.top > 0 { SafeZones(top: zone.top / page.h, bottom: zone.bottom / page.h) } }
-                        } else { SkeletonLoading("Drawing the page").frame(maxWidth: .infinity, minHeight: 320) }
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: 760)
-                    .clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))
-                    .shadow(color: .black.opacity(0.12), radius: 8, y: 2)
-                    .onTapGesture(count: 2) { model.beginEditing(page.id); editing = DesignEditTarget(pageId: page.id) }
-                    .help("Double-click to edit the design")
-                    .task(id: "\(page.id)-\(page.rev)-\(model.tick)") { await model.refreshPreview(page.id) }
-                    if w.stale.contains(page.id) {
-                        Text("This size is behind the master. Re-do it from the master, or leave it as it is.").font(.footnote).foregroundStyle(Tone.owed.color)
-                    }
-                }
-                .padding(24)
-                .frame(maxWidth: 900)
-                .frame(maxWidth: .infinity)
+            VStack(spacing: 0) {
+                MacDesignCandidateBar(model: model)
+                ArtworkEditor(doc: model.docBinding(page.id), photos: model.photos, fields: w.fields, ad: w.kind == "ad",
+                              macEmbed: macEmbedding(w, zone: zone))
             }
-            .frame(minWidth: 380, maxWidth: .infinity)
-        }
-        .inspector(isPresented: $inspectorOn) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    macInspectorHeader(w)
-                    words(w)
-                    photograph
-                    if w.kind == "ad" || !(w.copy["adText"] ?? "").isEmpty { adCopy }
-                }
-                .padding(16)
-            }
-            .inspectorColumnWidth(min: 300, ideal: 350, max: 460)
         }
         .navigationSubtitle(w.dirty ? "Not saved" : "Saved")
-        .toolbar {
-            ToolbarItem(placement: .navigation) {
-                Button(action: onClose) { Label("Designs", systemImage: "chevron.left") }
-                    .help("Back to all designs")
-            }
-            ToolbarItemGroup(placement: .primaryAction) {
-                Button { model.beginEditing(page.id); editing = DesignEditTarget(pageId: page.id) } label: {
-                    Label("Edit design", systemImage: "slider.horizontal.3")
-                }
-                .keyboardShortcut("e", modifiers: .command)
-                .help("Edit this page's layers (⌘E)")
-                Menu {
-                    let layouts = model.templates
-                    ForEach(layouts) { t in Button(t.label) { Task { await model.applyTemplate(t.id) } } }
-                    if layouts.isEmpty { Text("Layouts are loading") }
-                } label: { Label("Layout", systemImage: "rectangle.3.group") }
-                .help("Lay this page out again")
-                if zone.top > 0 {
-                    Toggle(isOn: $safe) { Label("Safe zones", systemImage: "rectangle.split.1x2") }
-                        .help("Show the bands Instagram covers")
-                }
-                Button { DesignHooks.shared.resize(model) } label: { Label("Resize", systemImage: "arrow.up.left.and.arrow.down.right") }
-                    .keyboardShortcut("r", modifiers: [.command, .option])
-                    .help("Make the design on another shape (⌥⌘R)")
-                Button { inspectorOn.toggle() } label: { Label("Inspector", systemImage: "sidebar.trailing") }
-                    .keyboardShortcut("i", modifiers: [.command, .option])
-                    .help("Show or hide the words and photograph (⌥⌘I)")
-            }
-            ToolbarItemGroup(placement: .confirmationAction) {
-                Button { Task { await model.saveInBackground() } } label: {
-                    if model.saving || model.uploading { ProgressView().controlSize(.small) } else { Label("Save", systemImage: "square.and.arrow.down") }
-                }
-                .keyboardShortcut("s", modifiers: .command)
-                .disabled(model.saving || model.uploading)
-                .help("Save to the shelf (⌘S)")
-                Button { DesignHooks.shared.publish(model) } label: { Label("Publish", systemImage: "paperplane") }
-                    .keyboardShortcut(.return, modifiers: .command)
-                    .disabled(model.saving)
-                    .help("Send it to the website, WhatsApp, Instagram or an ad (⌘↩)")
-            }
-        }
-        .dropDestination(for: URL.self) { urls, _ in
-            guard let url = urls.first else { return false }
-            let open = url.startAccessingSecurityScopedResource()
-            defer { if open { url.stopAccessingSecurityScopedResource() } }
-            guard let data = try? Data(contentsOf: url), WebsitePhoto.jpegCopy(data) != nil else {
-                model.error = "That is not a picture the ERP can read. Drop a photograph (JPEG, PNG or HEIC)."
-                return true
-            }
-            model.replacePhoto(data, label: url.lastPathComponent)
-            return true
+        .toolbar { macToolbar(zone: zone) }
+        .dropDestination(for: URL.self) { urls, _ in macTake(urls) }
+        .fileImporter(isPresented: $filePicking, allowedContentTypes: [.image]) { (result: Result<URL, Error>) in
+            if case .success(let url) = result { _ = macTake([url]) }
         }
     }
 
-    private func macInspectorHeader(_ w: DesignWork) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Pill(DesignKinds.label(w.kind), tone: .house)
-            TextField(w.fields["headline"].flatMap { $0.isEmpty ? nil : $0 } ?? "Name this design", text: Binding(get: { model.work?.name ?? "" }, set: { model.rename($0) }))
-                .font(.title3.weight(.semibold))
-                .textFieldStyle(.roundedBorder)
-            if let at = model.draftSaved {
-                Text("Draft kept on this Mac " + ShopDate.stamp(at, withTime: true)).font(.caption).foregroundStyle(.secondary)
+    // MARK: The pages
+
+    private func macStrip(_ w: DesignWork) -> some View {
+        ScrollView {
+            VStack(spacing: 10) {
+                ForEach(w.pages) { p in PageCell(model: model, work: w, page: p, removing: $removing) }
+                Button { DesignHooks.shared.resize(model) } label: {
+                    VStack(spacing: 6) {
+                        Image(systemName: "plus").font(.title3)
+                        Text("Size").font(.caption)
+                    }
+                    .foregroundStyle(.secondary).frame(width: 84, height: 64)
+                    .overlay(RoundedRectangle(cornerRadius: Radius.chip, style: .continuous).strokeBorder(.secondary.opacity(0.4), style: StrokeStyle(lineWidth: 1.5, dash: [5, 4])))
+                }
+                .buttonStyle(.plain).help("Add a size: the master's design on another shape")
+                .accessibilityLabel("Resize: add a size")
             }
+            .padding(10)
+        }
+        .frame(width: 124)
+    }
+
+    // MARK: Toolbar and menu
+
+    @ToolbarContentBuilder
+    private func macToolbar(zone: (top: Double, bottom: Double)) -> some ToolbarContent {
+        ToolbarItem(placement: .navigation) {
+            Button(action: onClose) { Label("Designs", systemImage: "chevron.left") }
+                .help("Back to all designs")
+        }
+        ToolbarItemGroup(placement: .primaryAction) {
+            Menu {
+                let layouts = model.templates
+                ForEach(layouts) { t in Button(t.label) { Task { await model.applyTemplate(t.id) } } }
+                if layouts.isEmpty { Text("Layouts are loading") }
+            } label: { Label("Layout", systemImage: "rectangle.3.group") }
+                .help("Lay this page out again")
+            MacToolbarAction(action: macSizesAction)
+            if zone.top > 0 {
+                Toggle(isOn: $safe) { Label("Safe Zones", systemImage: "rectangle.split.1x2") }
+                    .help("Show the bands Instagram covers")
+            }
+        }
+        ToolbarItem(placement: .confirmationAction) {
+            Button { DesignHooks.shared.publish(model) } label: { Text("Publish…") }
+                .buttonStyle(.borderedProminent)
+                .disabled(model.saving)
+                .help("Send it to the website, WhatsApp, Instagram or an ad (⌘↩)")
+        }
+    }
+
+    private var macPublishAction: MacAction {
+        MacAction("Publish…", symbol: "paperplane", shortcut: KeyboardShortcut(.return, modifiers: .command), enabled: !model.saving, isDefault: true) {
+            DesignHooks.shared.publish(model)
+        }
+    }
+
+    private var macSaveAction: MacAction {
+        MacAction("Save", symbol: "square.and.arrow.down", shortcut: KeyboardShortcut("s", modifiers: .command), enabled: !(model.saving || model.uploading)) {
+            Task { await model.saveInBackground() }
+        }
+    }
+
+    private var macSizesAction: MacAction {
+        MacAction("Sizes…", symbol: "arrow.up.left.and.arrow.down.right", shortcut: KeyboardShortcut("r", modifiers: [.command, .option])) {
+            DesignHooks.shared.resize(model)
+        }
+    }
+
+    private func macExportAction(_ w: DesignWork) -> MacAction {
+        MacAction("Export Every Size…", symbol: "square.and.arrow.up.on.square") { macExportAll(w) }
+    }
+
+    /// What the layer editor needs of the window: the page it edits, the tabs the window adds, the window's menu actions.
+    private func macEmbedding(_ w: DesignWork, zone: (top: Double, bottom: Double)) -> MacArtworkEmbed {
+        let page = w.activePage
+        var embed = MacArtworkEmbed(pageId: page.id)
+        embed.tabs = [
+            MacArtworkTab(id: "words", title: "Words", symbol: "textformat", content: AnyView(macWords(w))),
+            MacArtworkTab(id: "photo", title: "Photo", symbol: "photo", content: AnyView(macPhoto())),
+            MacArtworkTab(id: "ai", title: "AI", symbol: "wand.and.stars", content: AnyView(MacDesignAIPane(model: model, access: access))),
+        ]
+        embed.leading = [macPublishAction, macSaveAction]
+        embed.trailing = [macSizesAction, macExportAction(w)]
+        embed.shareExtras = [macExportAction(w)]
+        embed.layouts = model.templates.map { (t: DesignLayout) in MacArtworkLayout(id: t.id, label: t.label) }
+        embed.applyLayout = { (id: String) in Task { await model.applyTemplate(id) } }
+        embed.showSafe = safe && zone.top > 0
+        embed.safeTop = zone.top / max(1, page.h)
+        embed.safeBottom = zone.bottom / max(1, page.h)
+        embed.setSafe = { (on: Bool) in safe = on }
+        embed.focusWord = { (key: String) in macWordFocus = key }
+        return embed
+    }
+
+    // MARK: Words
+
+    @ViewBuilder
+    private func macWords(_ w: DesignWork) -> some View {
+        Form {
+            Section("Design") {
+                TextField("Name", text: Binding(get: { model.work?.name ?? "" }, set: { model.rename($0) }),
+                          prompt: Text(w.fields["headline"].flatMap { $0.isEmpty ? nil : $0 } ?? "Name this design"))
+                LabeledContent("Kind", value: DesignKinds.label(w.kind))
+                if let at = model.draftSaved {
+                    Text("Draft kept on this Mac " + ShopDate.stamp(at, withTime: true)).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            Section("On the page") {
+                macWordField("Kicker", "The Emerald Edit", key: "kicker", model.fieldBinding("kicker", limit: 60))
+                macWordField("Headline", "", key: "headline", model.fieldBinding("headline", limit: 140))
+                macWordField("Specs", "21K Yellow Gold · Ruby · 45.35g", key: "weight", model.fieldBinding("weight", limit: 120))
+                macWordField("Button line", "", key: "details", model.fieldBinding("details", limit: 80))
+                macWordField("Price (optional)", "", key: nil, model.copyBinding("price", limit: 40))
+            }
+            if w.kind == "ad" || !(w.copy["adText"] ?? "").isEmpty {
+                Section("The ad’s words") {
+                    macWordField("Primary text", "", key: nil, model.copyBinding("adText", limit: 2000), lines: 3...8)
+                    macWordField("Headline", "", key: nil, model.copyBinding("adHeadline", limit: 60))
+                }
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    @ViewBuilder
+    private func macWordField(_ label: String, _ prompt: String, key: String?, _ text: Binding<String>, lines: ClosedRange<Int> = 1...3) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label).font(.caption).foregroundStyle(.secondary)
+            if let key {
+                TextField(label, text: text, prompt: Text(prompt), axis: .vertical)
+                    .labelsHidden().lineLimit(lines).textFieldStyle(.roundedBorder)
+                    .focused($macWordFocus, equals: key)
+            } else {
+                TextField(label, text: text, prompt: Text(prompt), axis: .vertical)
+                    .labelsHidden().lineLimit(lines).textFieldStyle(.roundedBorder)
+            }
+        }
+    }
+
+    // MARK: Photo
+
+    @ViewBuilder
+    private func macPhoto() -> some View {
+        Form {
+            Section("The photograph") {
+                HStack(spacing: 12) {
+                    DesignPhotoThumb(model: model)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(model.photos["photo"] == nil ? "No photograph" : "The design’s photograph")
+                        Text("Your layouts stay; the new picture shows in them.").font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                Menu(model.photos["photo"] == nil ? "Choose a Photograph" : "Change the Photograph") {
+                    Button("Browse Photos", systemImage: "photo.on.rectangle") { onChangePhoto() }
+                    Button("From the Website", systemImage: "globe") { sitePicker = true }
+                    Button("From a File…", systemImage: "folder") { filePicking = true }
+                    Button("From Photos…", systemImage: "photo") { devicePicker = true }
+                }
+            }
+            Section {
+                PhotosPicker(selection: $morePicked, maxSelectionCount: 8, matching: .images) { Label("Add Photos…", systemImage: "plus") }
+                if !model.moreIds.isEmpty {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 64), spacing: 8)], spacing: 8) {
+                        ForEach(model.moreIds, id: \.self) { (id: String) in macMore(id) }
+                    }
+                }
+            } header: {
+                Text("More photos of this piece")
+            } footer: {
+                Text(model.moreIds.isEmpty ? "Other angles of the same piece go out with it as squares of their own." : "Publish sends each to the website and WhatsApp as a square of its own, on the same page design.")
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    private func macMore(_ id: String) -> some View {
+        ZStack(alignment: .topTrailing) {
+            Group {
+                if let data = model.photos[id], let image = WebsitePhoto.thumbnail(data, maxPixel: 160) { Image(uiImage: image).resizable().scaledToFill() }
+                else { Rectangle().fill(.quaternary) }
+            }
+            .frame(width: 64, height: 64).clipShape(RoundedRectangle(cornerRadius: Radius.thumb, style: .continuous))
+            Button { model.removePhoto(id) } label: {
+                Image(systemName: "xmark.circle.fill").symbolRenderingMode(.palette).foregroundStyle(.white, .black.opacity(0.7))
+            }
+            .buttonStyle(.plain).offset(x: 4, y: -4).help("Take this photo out")
+        }
+    }
+
+    // MARK: Files in and out
+
+    /// A picture dropped on the window, or chosen from a file: the design's photograph.
+    private func macTake(_ urls: [URL]) -> Bool {
+        guard let url = urls.first else { return false }
+        let open = url.startAccessingSecurityScopedResource()
+        defer { if open { url.stopAccessingSecurityScopedResource() } }
+        guard let data = try? Data(contentsOf: url), WebsitePhoto.jpegCopy(data) != nil else {
+            model.error = "That is not a picture the ERP can read. Drop a photograph (JPEG, PNG or HEIC)."
+            return true
+        }
+        model.replacePhoto(data, label: url.lastPathComponent)
+        return true
+    }
+
+    /// File › Export: every size of the design as a picture in a folder the person chooses.
+    private func macExportAll(_ w: DesignWork) {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = true
+        panel.prompt = "Export"
+        panel.message = "Choose where to save every size of “\(w.displayName)”."
+        guard panel.runModal() == .OK, let folder = panel.url else { return }
+        let clean = w.displayName.replacingOccurrences(of: "[^A-Za-z0-9 _-]+", with: "", options: .regularExpression)
+        let base = clean.isEmpty ? "design" : clean
+        let pages = w.pages
+        Task {
+            var saved = 0
+            for p in pages {
+                do {
+                    let data = try await model.render(pageId: p.id, px: Int(min(2160, max(p.w, 1080))))
+                    let label = p.label.replacingOccurrences(of: "[^A-Za-z0-9 _-]+", with: "", options: .regularExpression)
+                    try data.write(to: folder.appendingPathComponent("\(base) \(label).jpg"))
+                    saved += 1
+                } catch {
+                    model.say("Couldn’t export “\(p.label)”", detail: error.localizedDescription, failed: true)
+                }
+            }
+            if saved > 0 { model.say("Exported \(saved) size\(saved == 1 ? "" : "s")", detail: folder.lastPathComponent) }
         }
     }
 }

@@ -45,6 +45,8 @@ struct WebsitePhotosScreen: View {
     #if os(macOS)
     @State private var importing = false
     @State private var dropping = false
+    /// The photographs picked in the tray.
+    @State private var macPicked = Set<UUID>()
     #endif
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -569,47 +571,15 @@ struct WebsitePhotosScreen: View {
 
 #if os(macOS)
 extension WebsitePhotosScreen {
-    /// The collection and the ways to add on the left; the tray of photographs on the right. Files dropped anywhere are added.
+    /// Add photos as a Mac tray (docs/features/mac-design.md, "Marketing › Website"): the collection a pop-up in the toolbar, the
+    /// photographs a table (the house and the official name are cells where the collection asks for them), files dropped anywhere
+    /// are added, and the footer's button says what it sends.
     @ViewBuilder
     var macPage: some View {
-        MacTwoPane(sideWidth: 380) {
-            List {
-                Group {
-                    if !configured {
-                        Section {
-                            Label("Uploads are not switched on yet: the website's upload secret isn't set on this ERP. Until it is, nothing below can be sent.", systemImage: "exclamationmark.triangle.fill")
-                                .foregroundStyle(Tone.owed.color)
-                        }
-                    }
-                    collectionSection
-                    addSection
-                    Section {
-                        Button { importing = true } label: { Label("Choose files…", systemImage: "folder") }
-                            .disabled(folder.isEmpty || sending)
-                    } footer: {
-                        Text("Or drop photographs anywhere in this window.")
-                    }
-                }
-                .houseRows()
-            }
-            .listStyle(.inset)
-        } main: {
-            List {
-                Group {
-                    if !items.isEmpty { photosSection }
-                    if !done.isEmpty && !sending { clearSection }
-                    if !done.isEmpty { WebsiteSetOfTheDay(withNote: false) }
-                    if !done.isEmpty { afterSection }
-                }
-                .houseRows()
-            }
-            .listStyle(.inset)
-            .overlay {
-                if items.isEmpty {
-                    ContentUnavailableView("No photographs yet", systemImage: "photo.on.rectangle.angled",
-                                           description: Text(folder.isEmpty ? "Choose a collection, then add or drop photographs." : "Choose or drop photographs to add them."))
-                }
-            }
+        VStack(spacing: 0) {
+            macNotes
+            macTray
+            if !done.isEmpty && !sending { macAfter }
         }
         .overlay {
             if dropping {
@@ -628,16 +598,212 @@ extension WebsitePhotosScreen {
             if case .success(let urls) = result { Task { await readFiles(urls) } }
         }
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button { Task { await load() } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
-                    .keyboardShortcut("r", modifiers: .command)
-                    .help("Read the collections again")
+            ToolbarItemGroup(placement: .primaryAction) {
+                Picker("Collection", selection: $folder) {
+                    Text("Choose a collection…").tag("")
+                    ForEach(macShelves) { (shelf: WebsiteCollectionSheet.Shelf) in
+                        Section(shelf.id) {
+                            ForEach(shelf.list) { (c: WebsiteCollection) in Text(c.collection + (c.count > 0 ? " (\(c.count))" : "")).tag(c.folder) }
+                        }
+                    }
+                }
+                .pickerStyle(.menu)
+                .disabled(sending)
+                .help("Where these photographs go on \(site.siteName)")
+                Menu {
+                    Button("Choose Files…", systemImage: "folder") { importing = true }
+                    Button("From Photos…", systemImage: "photo.on.rectangle") { picking = true }
+                } label: { Label("Add Photographs", systemImage: "plus") }
+                .disabled(folder.isEmpty || sending)
+                .help("Add photographs, or drop them anywhere in this window")
             }
         }
+        .macRecordMenu(MacRecordMenu(title: "Photo", groups: [[macRetouchAction, macOriginalAction], [macRemoveAction]]))
+        .macRefresh { Task { await load() } }
         .actionBar(
-            primary: .init(sending ? "Sending…" : "Send \(pending.count) to the website", systemImage: "arrow.up.circle.fill",
+            primary: .init(sending ? "Sending…" : "Send \(pending.count) to the Website", systemImage: "arrow.up.circle.fill",
                            isBusy: sending, isDisabled: !canSend || items.isEmpty) { confirmingSend = true },
             summary: items.isEmpty ? nil : (unnamed > 0 ? "\(unnamed) still need\(unnamed == 1 ? "s" : "") a house and a name." : nil))
+    }
+
+    // MARK: The collection
+
+    private var macShelves: [WebsiteCollectionSheet.Shelf] {
+        var order: [String] = []
+        var by: [String: [WebsiteCollection]] = [:]
+        for c in collections ?? [] {
+            if by[c.category] == nil { order.append(c.category) }
+            by[c.category, default: []].append(c)
+        }
+        return order.map { (k: String) in WebsiteCollectionSheet.Shelf(id: k, list: by[k] ?? []) }
+    }
+
+    /// What is worth saying above the tray: uploads off, where the photographs go, how this collection names them.
+    @ViewBuilder
+    private var macNotes: some View {
+        let note: String? = {
+            if folder.isEmpty { return "Choose a collection in the toolbar, then add or drop photographs." }
+            if isMaison {
+                return "The houses' own pieces. Give each photograph its house and the model's official name, exactly as the house names it (“LOVE Bracelet, Classic”). The site shows it under its house, in 18k, with no gold-rate price. Several photographs of one piece: give them the same name."
+            }
+            if maisonUnknown { return "Couldn't check how this collection names its photographs. Refresh (⌘R) before sending." }
+            return "They appear on \(site.siteName) as soon as they arrive: no rebuild. JPEG, PNG, WebP or HEIC, up to 25 MB each."
+        }()
+        VStack(alignment: .leading, spacing: 6) {
+            if !configured {
+                Label("Uploads are not switched on yet: the website's upload secret isn't set on this ERP. Until it is, nothing below can be sent.", systemImage: "exclamationmark.triangle.fill")
+                    .foregroundStyle(Tone.owed.color)
+            }
+            if let c = chosen {
+                Text("\(c.category) → \(c.collection) · " + (c.count > 0 ? "it has \(c.count) pieces today" : "nothing in it yet")).font(.headline)
+            }
+            if let note { Text(note).font(.callout).foregroundStyle(.secondary) }
+            if reading { MarketingReading(text: "Reading the photographs…") }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        Divider()
+    }
+
+    // MARK: The tray
+
+    @ViewBuilder
+    private var macTray: some View {
+        if isMaison {
+            Table(items, selection: $macPicked) {
+                TableColumn("Photograph") { (item: WebsitePhotoItem) in macPhotograph(item) }
+                TableColumn("House") { (item: WebsitePhotoItem) in macHouse(item) }.width(min: 120, ideal: 160)
+                TableColumn("Official name") { (item: WebsitePhotoItem) in macOfficialName(item) }.width(min: 180, ideal: 260)
+                TableColumn("Status") { (item: WebsitePhotoItem) in macItemStatus(item) }.width(min: 110, ideal: 150)
+            }
+            .contextMenu(forSelectionType: UUID.self) { (ids: Set<UUID>) in macRowMenu(ids) }
+            .onDeleteCommand { macRemovePicked() }
+            .overlay { macTrayEmpty }
+        } else {
+            Table(items, selection: $macPicked) {
+                TableColumn("Photograph") { (item: WebsitePhotoItem) in macPhotograph(item) }
+                TableColumn("Size") { (item: WebsitePhotoItem) in Text(WebsitePhoto.size(item.data.count)).monospacedDigit().foregroundStyle(.secondary) }
+                    .width(min: 70, ideal: 90)
+                TableColumn("Status") { (item: WebsitePhotoItem) in macItemStatus(item) }.width(min: 110, ideal: 150)
+            }
+            .contextMenu(forSelectionType: UUID.self) { (ids: Set<UUID>) in macRowMenu(ids) }
+            .onDeleteCommand { macRemovePicked() }
+            .overlay { macTrayEmpty }
+        }
+    }
+
+    @ViewBuilder
+    private var macTrayEmpty: some View {
+        if items.isEmpty {
+            ContentUnavailableView("No photographs yet", systemImage: "photo.on.rectangle.angled",
+                                   description: Text(folder.isEmpty ? "Choose a collection, then add or drop photographs." : "Add or drop photographs to put them in the tray."))
+        }
+    }
+
+    private func macPhotograph(_ item: WebsitePhotoItem) -> some View {
+        HStack(spacing: 8) {
+            ZStack {
+                Rectangle().fill(.quaternary)
+                if let thumb = item.thumb { Image(uiImage: thumb).resizable().scaledToFill() } else { Image(systemName: "photo").foregroundStyle(.secondary) }
+            }
+            .frame(width: 36, height: 36)
+            .clipShape(RoundedRectangle(cornerRadius: Radius.thumb, style: .continuous))
+            .opacity(item.status == .done ? 0.7 : 1)
+            Text(displayName(item)).lineLimit(1)
+        }
+    }
+
+    @ViewBuilder
+    private func macHouse(_ item: WebsitePhotoItem) -> some View {
+        if (item.status == .queued || item.status == .failed) && !sending {
+            Picker("House", selection: houseBinding(item.id)) {
+                Text("House…").tag("")
+                ForEach(maison?.houses ?? [], id: \.self) { (h: String) in Text(h).tag(h) }
+            }
+            .labelsHidden()
+            .pickerStyle(.menu)
+        } else {
+            Text(item.house).foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder
+    private func macOfficialName(_ item: WebsitePhotoItem) -> some View {
+        if (item.status == .queued || item.status == .failed) && !sending {
+            TextField("Official name, e.g. LOVE Bracelet, Classic", text: modelBinding(item.id)).labelsHidden()
+        } else {
+            Text(item.model).foregroundStyle(.secondary).lineLimit(1)
+        }
+    }
+
+    @ViewBuilder
+    private func macItemStatus(_ item: WebsitePhotoItem) -> some View {
+        if item.retouching {
+            MacStatus("Retouching…", tone: .working)
+        } else if let check = item.check, !check.passes, item.status == .queued {
+            MacStatus("Check the retouch", tone: .owed).help(check.differences.first ?? "Not checked: compare it with the original.")
+        } else {
+            switch item.status {
+            case .queued: MacStatus(item.original == nil ? "Ready" : "Retouched", tone: .quiet)
+            case .uploading: MacStatus("Sending…", tone: .working)
+            case .done: MacStatus("On the website", tone: .settled)
+            case .failed: MacStatus("Failed", tone: .problem).help(item.error ?? "Failed")
+            }
+        }
+    }
+
+    // MARK: Actions on what is picked
+
+    private var macPickedItems: [WebsitePhotoItem] { items.filter { (i: WebsitePhotoItem) in macPicked.contains(i.id) } }
+
+    private func macEditable(_ item: WebsitePhotoItem) -> Bool {
+        (item.status == .queued || item.status == .failed) && !sending && !item.retouching
+    }
+
+    private var macRetouchAction: MacAction {
+        let one = macPickedItems.count == 1 ? macPickedItems.first : nil
+        return MacAction(one?.original == nil ? "Retouch" : "Retouch Again", symbol: "wand.and.stars", enabled: one.map { macEditable($0) } ?? false, id: "retouch") {
+            if let one { Task { await retouch(one.id) } }
+        }
+    }
+
+    private var macOriginalAction: MacAction {
+        let one = macPickedItems.count == 1 ? macPickedItems.first : nil
+        return MacAction("Back to the Original", symbol: "arrow.uturn.backward", enabled: (one?.original != nil) && (one.map { macEditable($0) } ?? false), id: "original") {
+            if let one { undoRetouch(one.id) }
+        }
+    }
+
+    private var macRemoveAction: MacAction {
+        MacAction("Remove from the Tray", symbol: "trash", shortcut: KeyboardShortcut(.delete, modifiers: .command), role: .destructive,
+                  enabled: macPickedItems.contains { (i: WebsitePhotoItem) in i.status != .uploading && !i.retouching } && !sending, id: "remove") {
+            macRemovePicked()
+        }
+    }
+
+    private func macRemovePicked() {
+        guard !sending else { return }
+        for item in macPickedItems where item.status != .uploading && !item.retouching { remove(item.id) }
+        macPicked = []
+    }
+
+    @ViewBuilder
+    private func macRowMenu(_ ids: Set<UUID>) -> some View {
+        if let id = ids.first, let item = items.first(where: { (i: WebsitePhotoItem) in i.id == id }) { macItemMenu(item) }
+    }
+
+    /// After sending: the set of the day, and the way on (their weights, the collection on the site).
+    private var macAfter: some View {
+        VStack(spacing: 0) {
+            Divider()
+            Form {
+                WebsiteSetOfTheDay(withNote: false)
+                afterSection
+            }
+            .formStyle(.grouped)
+            .frame(maxHeight: 220)
+        }
     }
 
     private func readFiles(_ urls: [URL]) async {
@@ -657,9 +823,9 @@ extension WebsitePhotosScreen {
     func macItemMenu(_ item: WebsitePhotoItem) -> some View {
         let editable = (item.status == .queued || item.status == .failed) && !sending
         if editable && !item.retouching {
-            Button(item.original == nil ? "Retouch" : "Retouch again", systemImage: "wand.and.stars") { Task { await retouch(item.id) } }
+            Button(item.original == nil ? "Retouch" : "Retouch Again", systemImage: "wand.and.stars") { Task { await retouch(item.id) } }
             if item.original != nil {
-                Button("Back to the original", systemImage: "arrow.uturn.backward") { undoRetouch(item.id) }
+                Button("Back to the Original", systemImage: "arrow.uturn.backward") { undoRetouch(item.id) }
             }
         }
         if item.status != .uploading && !sending && !item.retouching {

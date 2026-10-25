@@ -399,8 +399,9 @@ struct WebsiteWeightsScreen: View {
 
 #if os(macOS)
 extension WebsiteWeightsScreen {
-    /// The photograph large on the left with the weight as the site will draw it; the weight, the progress and what is next on
-    /// the right. Return saves and moves on, as the phone's Save & next; ⌘[ and ⌘] step through the photos.
+    /// The photograph large on the left with the weight as the site will draw it; the weight, the progress and what is next on the
+    /// right. Save & Next is the footer's default button (Return); Previous and Next are ⌥⌘← and ⌥⌘→ in the Photo menu (⌘[ and ⌘]
+    /// are Back and Forward).
     func macPage(_ all: [WebsiteWeightPiece]) -> some View {
         let c = counts
         let q = queue
@@ -421,39 +422,40 @@ extension WebsiteWeightsScreen {
             }
             .listStyle(.inset)
         } main: {
-            List {
-                Group {
-                    Section {
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack(alignment: .firstTextBaseline) {
-                                Text("\(c.withWeight)").font(.system(.title2, design: .serif).weight(.semibold)).monospacedDigit().contentTransition(.numericText(value: Double(c.withWeight)))
-                                Text("of \(c.total) weighed").foregroundStyle(.secondary)
-                                Spacer()
-                                Text(c.total - c.withWeight > 0 ? "\(c.total - c.withWeight) to go" : "all weighed")
-                                    .font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
-                            }
-                            ProgressView(value: Double(c.withWeight), total: Double(max(1, c.total))).tint(Theme.accent)
+            VStack(spacing: 0) {
+                MacFigures([
+                    MacFigure("Weighed", "\(c.withWeight) of \(c.total)"),
+                    MacFigure("To go", c.total - c.withWeight > 0 ? "\(c.total - c.withWeight)" : "None"),
+                ])
+                ProgressView(value: Double(c.withWeight), total: Double(max(1, c.total))).tint(Theme.accent).padding(.horizontal, 14)
+                Divider().padding(.top, 8)
+                List {
+                    Group {
+                        Section {
+                            savingRow
+                        } footer: {
+                            Text("\(site.siteName) shows it in the corner and prices from it.")
                         }
-                        .padding(.vertical, 4)
-                        savingRow
-                    } footer: {
-                        Text("\(site.siteName) shows it in the corner and prices from it.")
+                        if let p = current {
+                            macWeightSection(p)
+                            if !upcoming.isEmpty { upcomingSection }
+                        }
+                        WebsiteSetOfTheDay(withNote: true)
                     }
-                    if let p = current {
-                        weightSection(p)
-                        if !upcoming.isEmpty { upcomingSection }
-                    }
-                    WebsiteSetOfTheDay(withNote: true)
+                    .houseRows()
                 }
-                .houseRows()
+                .listStyle(.inset)
             }
-            .listStyle(.inset)
         }
         .navigationSubtitle(collection.isEmpty ? "" : collection)
+        .macRecordMenu(MacRecordMenu(title: "Photo", groups: [[macSaveNext(q.count), macSkip(q.count)], [macPrevious, macNext(q.count)]]))
+        .macRefresh { Task { await load() } }
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
+                MacToolbarAction(action: macPrevious)
+                MacToolbarAction(action: macNext(q.count))
                 Picker("Collection", selection: $collection) {
-                    Text("All collections").tag("")
+                    Text("All Collections").tag("")
                     Divider()
                     ForEach(collections, id: \.self) { (name: String) in Text(name).tag(name) }
                 }
@@ -462,22 +464,56 @@ extension WebsiteWeightsScreen {
                 Toggle(isOn: $onlyMissing) { Label("Only photos without a weight", systemImage: "scalemass") }
                     .toggleStyle(.button)
                     .help("Only the photos that have no weight yet")
-                Button { index = max(index - 1, 0) } label: { Label("Previous", systemImage: "chevron.left") }
-                    .keyboardShortcut("[", modifiers: .command)
-                    .disabled(index == 0)
-                    .help("Previous photo")
-                Button { index = min(index + 1, max(0, q.count - 1)) } label: { Label("Next", systemImage: "chevron.right") }
-                    .keyboardShortcut("]", modifiers: .command)
-                    .disabled(index >= q.count - 1)
-                    .help("Next photo")
-                Button { Task { await load() } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
-                    .keyboardShortcut("r", modifiers: .command)
-                    .help("Read the catalogue again")
             }
         }
         .savedFeedback(trigger: savedTick)
         .onAppear { typing = true }
-        .actionBar(primary: .init("Save & next", systemImage: "checkmark", isDisabled: current == nil) { ask(advance: true) })
+        .actionBar(primary: .init("Save & Next", systemImage: "checkmark", isDisabled: current == nil) { ask(advance: true) })
+    }
+
+    private var macPrevious: MacAction {
+        MacAction("Previous Photo", symbol: "chevron.left", shortcut: KeyboardShortcut(.leftArrow, modifiers: [.command, .option]), enabled: index > 0, id: "previous") {
+            index = max(index - 1, 0)
+        }
+    }
+
+    private func macNext(_ count: Int) -> MacAction {
+        MacAction("Next Photo", symbol: "chevron.right", shortcut: KeyboardShortcut(.rightArrow, modifiers: [.command, .option]), enabled: index < count - 1, id: "next") {
+            index = min(index + 1, max(0, count - 1))
+        }
+    }
+
+    private func macSaveNext(_ count: Int) -> MacAction {
+        MacAction("Save & Next", symbol: "checkmark", shortcut: KeyboardShortcut(.return, modifiers: .command), enabled: current != nil, isDefault: true, id: "save-next") {
+            ask(advance: true)
+        }
+    }
+
+    private func macSkip(_ count: Int) -> MacAction {
+        MacAction("Skip", symbol: "forward", enabled: index < count - 1, id: "skip") { index = min(index + 1, max(0, count - 1)) }
+    }
+
+    /// The weight, typed large; Return saves it and moves on (the footer's default button).
+    private func macWeightSection(_ p: WebsiteWeightPiece) -> some View {
+        Section {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                TextField("0.00", text: $value)
+                    .focused($typing)
+                    .font(.title.weight(.semibold))
+                    .monospacedDigit()
+                Text("g").font(.title3).foregroundStyle(.secondary)
+            }
+            WebsiteFeatureButton(key: p.key, name: p.file)
+        } header: {
+            Text("Weight")
+        } footer: {
+            if p.source == "label", let g = p.labelWeightGrams {
+                Text("The photo already shows \(WebsiteNumber.grams(g))g. A weight typed here is used for pricing instead; the photo keeps its own label.")
+            } else if p.source == "pos", let at = p.enteredAt {
+                let who = (p.enteredBy ?? "").isEmpty || p.enteredBy == "counter" ? "" : " by \(p.enteredBy ?? "")"
+                Text("Recorded \(ShopDate.say(at, withTime: true))\(who). Clear the field and save to remove it.")
+            }
+        }
     }
 }
 #endif

@@ -14,6 +14,13 @@ import ERPCore
 /// changes and where before it is sent.
 struct WebsiteEditPieceScreen: View {
     let id: String
+    #if os(macOS)
+    /// In Edit a piece's inspector (not a window of its own): a form that fits a narrow column and tells the table what it holds.
+    var inInspector = false
+    var macBridge: MacWebsiteEditBridge? = nil
+    @State private var macTab = 0
+    @Environment(\.openPlaceWindow) private var openPlace
+    #endif
 
     @Environment(Session.self) private var session
 
@@ -508,8 +515,196 @@ struct WebsiteEditPieceScreen: View {
 
 #if os(macOS)
 extension WebsiteEditPieceScreen {
-    /// The photograph and its tools on the left; what the website says, the weight and hiding it on the right.
+    /// A piece on a Mac: in Edit a piece's inspector (a tab of details and a tab of the photograph, Save to the Website in its
+    /// foot), or whole in a window of its own.
+    @ViewBuilder
     func macPage(_ p: WebsiteEditPiece) -> some View {
+        if inInspector { macInspectorPage(p) } else { macWindowPage(p) }
+    }
+
+    /// Whether there is a change worth saving: the words, the weight, hiding or the photo differ from the site's, the name is not
+    /// empty, and nothing is being sent.
+    private func macCanSave(_ p: WebsiteEditPiece) -> Bool {
+        anyChange(p) && !name.trimmingCharacters(in: .whitespaces).isEmpty && busy == nil
+    }
+
+    private func macSaveAction(_ p: WebsiteEditPiece) -> MacAction {
+        MacAction("Save to the Website", symbol: "square.and.arrow.down", shortcut: KeyboardShortcut("s", modifiers: .command),
+                  enabled: macCanSave(p), isDefault: true) { confirm = .save }
+    }
+
+    private func macUndoAction(_ p: WebsiteEditPiece) -> MacAction {
+        MacAction("Undo Every Change…", symbol: "arrow.uturn.backward.circle", role: .destructive, enabled: p.changed, id: "undo-all") { confirm = .all }
+    }
+
+    // MARK: In the inspector
+
+    private func macInspectorPage(_ p: WebsiteEditPiece) -> some View {
+        VStack(spacing: 0) {
+            macHead(p)
+            Picker("Section", selection: $macTab) {
+                Text("Details").tag(0)
+                Text("Photo").tag(1)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .padding(.horizontal, 12)
+            .padding(.bottom, 8)
+            Divider()
+            Form {
+                if let said {
+                    Section { Label(said, systemImage: "checkmark.circle.fill").foregroundStyle(Tone.settled.color) }
+                }
+                if macTab == 0 { macDetails(p) } else { macPhotoTab(p) }
+            }
+            .formStyle(.grouped)
+            macFoot(p)
+        }
+        .onAppear {
+            macBridge?.owner = id
+            macBridge?.save = { confirm = .save }
+        }
+        .onChange(of: macCanSave(p), initial: true) { _, on in macBridge?.canSave = on }
+        .onChange(of: anyChange(p), initial: true) { _, on in macBridge?.dirty = on }
+        .onDisappear { macBridge?.clear(id) }
+    }
+
+    private func macHead(_ p: WebsiteEditPiece) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            StockImage(imageUrl: p.thumb, name: p.words.name, key: p.id + (p.change?.at ?? ""))
+                .frame(width: 64, height: 64)
+                .clipShape(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
+                .opacity(p.hidden ? 0.5 : 1)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(p.words.name.isEmpty ? "A piece" : p.words.name).font(.title3.weight(.semibold)).lineLimit(2)
+                Text(headerWords(p)).font(.callout).foregroundStyle(.secondary).lineLimit(2)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+    }
+
+    @ViewBuilder
+    private func macDetails(_ p: WebsiteEditPiece) -> some View {
+        Section("What the website says") {
+            field("Name", own: p.own.name, now: name) { name = p.own.name } content: {
+                TextField("Name", text: limited($name, 160)).labelsHidden()
+            }
+            field("Description", own: p.own.about, now: about) { about = p.own.about } content: {
+                TextField(p.hasTags ? "A few lines about the piece, shown on its page." : "The piece in the house's words. A blank line starts a new paragraph.",
+                          text: limited($about, 4000), axis: .vertical)
+                    .labelsHidden()
+                    .lineLimit(3...10)
+            }
+            macTagFields(p)
+        }
+        Section {
+            HStack {
+                TextField("0.00", text: $weight).labelsHidden().monospacedDigit().multilineTextAlignment(.trailing)
+                Text("g").foregroundStyle(.secondary)
+            }
+        } header: {
+            Text("Weight")
+        } footer: {
+            Text(p.hasTags ? "Prices follow it; the site shows it on photos without one." : "For the photo and captions; the catalogue doesn't print weights.")
+        }
+        Section {
+            Toggle("Hide from the website", isOn: $hidden)
+        } footer: {
+            Text("Off every page; its links go to the collection. Show it again any time.")
+        }
+    }
+
+    @ViewBuilder
+    private func macTagFields(_ p: WebsiteEditPiece) -> some View {
+        if p.hasTags {
+            ForEach(WebsiteWords.tags) { (t: WebsiteWords.Tag) in
+                field(t.label, own: p.own.tag(t.key), now: tags.tag(t.key)) { tags.setTag(t.key, p.own.tag(t.key)) } content: {
+                    TextField(t.label, text: tagBinding(t.key)).labelsHidden()
+                }
+            }
+        } else {
+            field("Details, one per line", own: p.own.facts.joined(separator: "\n"), now: factsLines.joined(separator: "\n")) {
+                factsText = p.own.facts.joined(separator: "\n")
+            } content: {
+                TextField("Stone: Emerald\nSetting: Prong", text: $factsText, axis: .vertical).labelsHidden().lineLimit(2...8)
+            }
+        }
+    }
+
+    /// The photograph: re-make it (crop, the weight and the mark, the light, the AI), put the original back, the piece on the site,
+    /// and the piece in a design window.
+    @ViewBuilder
+    private func macPhotoTab(_ p: WebsiteEditPiece) -> some View {
+        Section {
+            if let photo, photo.ready {
+                WebsitePhotoEditRows(edit: photo, fields: photoFields(p), busy: busy != nil) { (op: String, params: [String: Any], label: String) in
+                    Task { await runAI(photo, op, params, label) }
+                }
+                if let photoWarning {
+                    Label(photoWarning, systemImage: "exclamationmark.triangle").foregroundStyle(Tone.owed.color)
+                }
+                Text(photo.changed(photoFields(p)) ? "The photo will be replaced when you save." : p.photoEdited ? "The website shows a photo made here." : "The website's photo, unchanged.")
+                    .font(.callout)
+                    .foregroundStyle(photo.changed(photoFields(p)) ? Color.primary : Color.secondary)
+            } else {
+                StockImage(imageUrl: p.image, name: p.words.name, key: p.id + (p.change?.at ?? ""))
+                    .aspectRatio(1, contentMode: .fit)
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.chip, style: .continuous))
+                    .opacity(p.hidden ? 0.5 : 1)
+                Text(p.photoEdited ? "The website shows a photo made here. The original is kept." : "The website's photo, unchanged.")
+                    .font(.callout).foregroundStyle(.secondary)
+                if let problem = photo?.problem {
+                    Text(problem).font(.callout).foregroundStyle(Tone.problem.color)
+                }
+                Button { Task { await beginPhoto(p) } } label: {
+                    Text(photo?.loading == true ? "Fetching the Photo…" : "Re-make the Photo…")
+                }
+                .disabled(photo?.loading == true || busy != nil)
+                Text("Crop it, put the weight and the logo on, fix the light.").font(.caption).foregroundStyle(.secondary)
+            }
+            if original != nil || p.photoEdited {
+                Button("Put the Original Photo Back…", role: .destructive) { confirm = .photo }
+            }
+            if let url = URL(string: p.url), !p.url.isEmpty {
+                Link("Open on \(siteName)", destination: url)
+            }
+            if MarketingKit.has("/design", role: session.role), let openPlace {
+                Button("Open in Design") { openPlace(Route(path: "/design?v=make&site=" + WebsiteNumber.query(p.id))) }
+            }
+        } header: {
+            Text("The photograph")
+        } footer: {
+            Text(photoNote(p))
+        }
+    }
+
+    /// The inspector's foot: what saving does, and the button that does it (⌘S is the same action in the menu bar).
+    private func macFoot(_ p: WebsiteEditPiece) -> some View {
+        VStack(spacing: 0) {
+            Divider()
+            VStack(alignment: .leading, spacing: 8) {
+                Text(anyChange(p) ? "It shows on \(siteName) within a minute." : "Nothing changed yet.")
+                    .font(.caption).foregroundStyle(.secondary)
+                HStack {
+                    if p.changed { Button("Undo Every Change…", role: .destructive) { confirm = .all }.buttonStyle(.link) }
+                    Spacer(minLength: 8)
+                    Button { confirm = .save } label: { Text("Save to the Website") }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(!macCanSave(p))
+                        .help("Save to the Website (⌘S)")
+                }
+            }
+            .padding(12)
+        }
+        .background(.bar)
+    }
+
+    // MARK: In a window of its own
+
+    /// The photograph and its tools on the left; what the website says, the weight and hiding it on the right. Save to the Website
+    /// is the Piece menu's ⌘S and the footer's button.
+    private func macWindowPage(_ p: WebsiteEditPiece) -> some View {
         MacTwoPane(sideWidth: 480) {
             List {
                 Group { photoSection(p) }.houseRows()
@@ -539,20 +734,11 @@ extension WebsiteEditPieceScreen {
             .listStyle(.inset)
         }
         .navigationSubtitle(p.collection)
+        .macRecordMenu(MacRecordMenu(title: "Piece", groups: [[macSaveAction(p)], [macUndoAction(p)]]))
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Menu {
-                    Button("Save to \(siteName)", systemImage: "square.and.arrow.down") { confirm = .save }
-                        .keyboardShortcut("s", modifiers: .command)
-                        .disabled(!anyChange(p) || name.trimmingCharacters(in: .whitespaces).isEmpty || busy != nil)
-                    if p.changed {
-                        Divider()
-                        Button(role: .destructive) { confirm = .all } label: {
-                            Label("Undo every change to this piece", systemImage: "arrow.uturn.backward.circle")
-                        }
-                    }
-                } label: { Label("More", systemImage: "ellipsis.circle") }
-                .help("Save, or undo every change")
+            ToolbarItemGroup(placement: .primaryAction) {
+                MacToolbarAction(action: macSaveAction(p))
+                if p.changed { MacToolbarAction(action: macUndoAction(p)) }
             }
         }
         .actionBar(

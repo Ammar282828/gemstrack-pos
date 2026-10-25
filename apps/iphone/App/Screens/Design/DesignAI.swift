@@ -474,7 +474,12 @@ struct DesignSettingSheet: View {
                     TextField("A velvet tray in window light…", text: $custom, axis: .vertical).lineLimit(1...4)
                 }
                 Section("Shape") {
-                    Picker("Shape", selection: $shape) { ForEach(shapes, id: \.self) { Text(Self.shapeName($0)).tag($0) } }.pickerStyle(.segmented)
+                    Picker("Shape", selection: $shape) { ForEach(shapes, id: \.self) { Text(Self.shapeName($0)).tag($0) } }
+                        #if os(macOS)
+                        .pickerStyle(.menu)
+                        #else
+                        .pickerStyle(.segmented)
+                        #endif
                 }
             }
             .houseForm()
@@ -484,7 +489,9 @@ struct DesignSettingSheet: View {
             .actionBar(primary: .init("Photograph it", systemImage: "photo.artframe", isDisabled: sceneId.isEmpty && custom.trimmingCharacters(in: .whitespaces).isEmpty, action: go))
             .onAppear { if shape.isEmpty { shape = own }; if sceneId.isEmpty { sceneId = scenes.first?.s("id") ?? "" } }
         }
+        #if os(iOS)
         .presentationDetents([.medium, .large])
+        #endif
     }
 
     private func go() {
@@ -517,7 +524,12 @@ struct DesignAskSheet: View {
                 Section("Shape") {
                     Picker("Shape", selection: $shape) {
                         Text("Same shape").tag("same"); Text("Story 9:16").tag("9:16"); Text("Portrait 4:5").tag("4:5"); Text("Square").tag("1:1")
-                    }.pickerStyle(.segmented)
+                    }
+                    #if os(macOS)
+                    .pickerStyle(.menu)
+                    #else
+                    .pickerStyle(.segmented)
+                    #endif
                 }
             }
             .houseForm()
@@ -526,7 +538,9 @@ struct DesignAskSheet: View {
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
             .actionBar(primary: .init("Do it", systemImage: "text.bubble", isDisabled: text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, action: go))
         }
+        #if os(iOS)
         .presentationDetents([.medium, .large])
+        #endif
     }
 
     private func go() {
@@ -558,7 +572,9 @@ struct DesignMakeAdSheet: View {
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
             .actionBar(primary: .init("Make it", systemImage: "wand.and.rays", action: go))
         }
+        #if os(iOS)
         .presentationDetents([.medium, .large])
+        #endif
     }
 
     private func go() {

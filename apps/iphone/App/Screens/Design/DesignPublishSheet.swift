@@ -1,4 +1,7 @@
 import SwiftUI
+#if os(macOS)
+import AppKit
+#endif
 
 /// The Publish sheet (publish-sheet.tsx): one list for everywhere a design can go. The engine is `DesignPublishModel`.
 struct DesignPublishSheet: View {
@@ -434,45 +437,367 @@ struct DesignShareRequest: Identifiable {
 
 #if os(macOS)
 extension DesignPublishSheet {
-    /// Publish as a Mac sheet: where it goes, the captions and the ad's words on the left; the connections, the timing, what
-    /// is wrong and the steps on the right; the footer holds Send (Return) with what it will do.
-    @ViewBuilder
+    /// Publish as a Mac sheet (docs/features/mac-design.md): the places as a checkbox list (the website with its collection, each
+    /// WhatsApp group and the channel on a row of its own, Instagram, the Meta ad), the captions, When as a pop-up, and the
+    /// default button saying what happens ("Publish to 4 Places", or the queue, or the time): it does it, with no second ask.
     fileprivate var macContent: some View {
         let plan = self.plan
         let problems = p.problems(plan)
-        return HStack(alignment: .top, spacing: 0) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    places
-                    if p.waOn || p.postOn { captions }
-                    if p.metaOn && p.ok("meta-ad") { metaWords }
-                }
-                .padding(20)
-            }
-            .frame(minWidth: 380)
-            Divider()
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    health
-                    timing
-                    if !(problems + p.wordIssues).isEmpty {
-                        VStack(alignment: .leading, spacing: 4) {
-                            ForEach(problems + p.wordIssues, id: \.self) { Label($0, systemImage: "exclamationmark.circle").font(.footnote).foregroundStyle(Tone.problem.color) }
-                        }
-                    }
-                    if !plan.steps.isEmpty { steps(plan) }
-                    if let path = p.metaPath ?? p.ref("meta-ad") {
-                        Button { p.model.route = Route(path: path); dismiss() } label: { Label("Open the new ad", systemImage: "sparkles") }
-                            .buttonStyle(.bordered)
-                    }
-                    if let n = p.note { Text(n).font(.footnote).foregroundStyle(.secondary) }
-                    extras
-                }
-                .padding(20)
-            }
-            .frame(minWidth: 340)
+        return Form {
+            macPlacesSection
+            if p.waOn || p.postOn { macCaptions }
+            if p.metaOn && p.ok("meta-ad") { macMetaWords }
+            macWhen
+            macProblems(problems + p.wordIssues)
+            if plan.steps.contains(where: { (s: DesignPublishModel.Step) in p.state(s).status != .waiting }) { macSteps(plan) }
+            macConnections
+            macExtras
         }
-        .actionBar(primary: sendAction(plan, problems), summary: sendSummary(plan))
+        .formStyle(.grouped)
+        .actionBar(primary: macSendAction(plan, problems), summary: macSummary(plan))
+    }
+
+    // MARK: Where it goes
+
+    @ViewBuilder
+    private var macPlacesSection: some View {
+        Section("Where it goes") {
+            if p.row("website") != nil { macWebsite }
+            macWhatsApp
+            macInstagram("instagram-story", "Instagram Story", bind(\.storyOn))
+            macInstagram("instagram-post", "Instagram Post", bind(\.postOn))
+            if p.ok("meta-ad") { macPlace("Meta Ad", bind(\.metaOn), dest: "meta-ad", note: metaNote) }
+            if p.ok("site-replace") { macPlace("Replace the Photo on the Website", bind(\.replaceOn), dest: "site-replace", note: nil) }
+            Toggle("Save the design", isOn: bind(\.saveOn)).toggleStyle(.checkbox)
+        }
+    }
+
+    private func macNote(_ text: String) -> some View {
+        Text(text).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+    }
+
+    /// The page a place takes, or the button that makes the one it lacks.
+    @ViewBuilder
+    private func macPicture(_ dest: String) -> some View {
+        let pick = p.pick(dest)
+        if let page = pick.page {
+            macNote("Uses: \(page.label)")
+        } else if let m = p.missing(dest) {
+            Button(m.label) { Task { await p.make(m) } }
+        }
+    }
+
+    @ViewBuilder
+    private func macPlace(_ title: String, _ on: Binding<Bool>, dest: String, note: String?) -> some View {
+        Toggle(title, isOn: on).toggleStyle(.checkbox)
+        if on.wrappedValue {
+            macPicture(dest)
+            if let note { macNote(note) }
+        }
+    }
+
+    @ViewBuilder
+    private var macWebsite: some View {
+        Toggle("Website", isOn: bind(\.websiteOn)).toggleStyle(.checkbox).disabled(!p.ok("website"))
+        if let reason = p.row("website")?.reason, !p.ok("website") { macNote(reason) }
+        if p.websiteOn && p.ok("website") {
+            Picker("Collection", selection: bind(\.folder)) {
+                Text("Choose a collection…").tag("")
+                ForEach(p.collections) { Text($0.title).tag($0.folder) }
+            }
+            if p.ok("featured") {
+                Toggle("Set of the day on the home page", isOn: bind(\.featured)).toggleStyle(.checkbox)
+                if p.featured, let f = WebsiteStore.shared.featured { macNote("It replaces \(f.file) as the set of the day.") }
+            }
+            if p.isMaison {
+                Picker("House", selection: bind(\.house)) {
+                    Text("Choose the house…").tag("")
+                    ForEach(p.model.catalogue["maisonHouses"].array.map(\.string), id: \.self) { Text($0).tag($0) }
+                }
+            }
+            macSiteName
+            macPicture("website")
+            if !p.pages.contains(where: { $0.label == DesignSizes.website.label }), let m = p.missing("website") {
+                Button("Make the Catalogue Photo (Weight Stamped)") { Task { await p.make(m) } }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var macSiteName: some View {
+        let fallback = p.work?.fields["headline"] ?? p.work?.displayName ?? ""
+        if p.renaming || p.isMaison {
+            TextField(p.isMaison ? "Official name" : "Name on the website", text: bind(\.siteName), prompt: Text(fallback))
+            if p.isMaison { macNote("Shown under its house, in 18k, with no gold-rate price.") }
+        } else {
+            LabeledContent("Named") {
+                HStack(spacing: 6) {
+                    Text("“\(p.siteName.trimmingCharacters(in: .whitespaces).isEmpty ? fallback : p.siteName)”").lineLimit(1)
+                    Button("Change") { p.renaming = true }.buttonStyle(.link)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var macWhatsApp: some View {
+        let wa = p.row("whatsapp"), ch = p.row("channel")
+        let targets: [DesignPublishModel.Target] = (wa?.available == true ? (wa?.targets ?? []) : []) + (ch?.available == true ? (ch?.targets ?? []) : [])
+        if wa != nil || ch != nil {
+            if targets.isEmpty { macNote(wa?.reason ?? ch?.reason ?? "This shop has no WhatsApp community set.") }
+            ForEach(targets, id: \.key) { (t: DesignPublishModel.Target) in
+                Toggle("WhatsApp · " + t.label + (t.key == "channel" ? " (channel)" : ""), isOn: macGroup(t.key)).toggleStyle(.checkbox)
+            }
+            if !p.whatsappChoice.isEmpty { macPicture(p.whatsappChoice.contains { $0 != "channel" } ? "whatsapp" : "channel") }
+        }
+    }
+
+    /// One WhatsApp place on or off. The first one ticked starts the choice afresh, so places left over from an earlier visit
+    /// do not come along unseen.
+    private func macGroup(_ key: String) -> Binding<Bool> {
+        Binding(
+            get: { p.waOn && p.waKeys.contains(key) },
+            set: { (on: Bool) in
+                if on {
+                    if !p.waOn { p.waKeys = [key]; p.waOn = true }
+                    else if !p.waKeys.contains(key) { p.waKeys.append(key) }
+                } else {
+                    p.waKeys.removeAll { $0 == key }
+                    if p.waKeys.isEmpty { p.waOn = false }
+                }
+            }
+        )
+    }
+
+    @ViewBuilder
+    private func macInstagram(_ id: String, _ title: String, _ on: Binding<Bool>) -> some View {
+        let r = p.row(id)
+        let byHand = p.igMode(id) == "share"
+        Toggle(title + (byHand ? " (saved, then posted by hand)" : ""), isOn: on).toggleStyle(.checkbox)
+        if let reason = r?.reason { macNote(reason) }
+        if on.wrappedValue {
+            macPicture(id)
+            if r?.connectable == true {
+                Button("Connect Instagram") { Task { if let url = await p.connectInstagram() { openURL(url) } } }
+            }
+        }
+    }
+
+    // MARK: Words and timing
+
+    private var macCaptions: some View {
+        Section("Captions") {
+            Button {
+                Task { await p.writeCaptions() }
+            } label: {
+                HStack(spacing: 6) {
+                    if p.aiBusy { ProgressView().controlSize(.small) } else { Image(systemName: "sparkles") }
+                    Text("Write with AI")
+                }
+            }
+            .disabled(p.aiBusy)
+            if p.waOn { macCaption("WhatsApp caption", bind(\.wa)) }
+            if p.postOn { macCaption("Instagram caption", bind(\.ig)) }
+        }
+    }
+
+    private var macMetaWords: some View {
+        Section("Meta ad words") {
+            macCaption("Ad headline", bind(\.adHeadline), lines: 1...2)
+            macCaption("Ad primary text", bind(\.adText))
+        }
+    }
+
+    private func macCaption(_ label: String, _ text: Binding<String>, lines: ClosedRange<Int> = 3...8) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label).font(.caption).foregroundStyle(.secondary)
+            TextField(label, text: text, axis: .vertical).labelsHidden().lineLimit(lines).textFieldStyle(.roundedBorder)
+        }
+    }
+
+    private var macWhen: some View {
+        Section("When") {
+            Picker("When", selection: bind(\.when)) {
+                Text("Now").tag("now")
+                Text("Hold in the Queue").tag("hold")
+                Text("Schedule at…").tag("schedule")
+            }
+            if p.when == "schedule" { DatePicker("Send at", selection: bind(\.due), in: Date()...) }
+            if p.queued && p.postOn { macNote("The queue carries the website, WhatsApp and the story; the Instagram post goes out now, not from the queue.") }
+        }
+    }
+
+    @ViewBuilder
+    private func macProblems(_ list: [String]) -> some View {
+        if !list.isEmpty {
+            Section {
+                ForEach(list, id: \.self) { Label($0, systemImage: "exclamationmark.circle").foregroundStyle(Tone.problem.color) }
+            }
+        }
+    }
+
+    // MARK: The button
+
+    /// How many places are left to go: each once, however many photographs go to it; the design's own save is not a place.
+    private func macPlaceCount(_ plan: DesignPublishModel.Plan) -> Int {
+        var n = plan.steps.filter { (s: DesignPublishModel.Step) in s.after.isEmpty && s.dest != "save" && s.dest != "queue" && p.ref(s.id) == nil }.count
+        if plan.steps.contains(where: { (s: DesignPublishModel.Step) in s.dest == "queue" && p.ref(s.id) == nil }) {
+            if p.websiteOK { n += 1 }
+            n += p.whatsappChoice.count
+            if p.storyOn && p.igMode("instagram-story") == "api" { n += 1 }
+        }
+        return n
+    }
+
+    private func macSendLabel(_ plan: DesignPublishModel.Plan) -> String {
+        let n = macPlaceCount(plan)
+        guard n > 0 else { return "Publish" }
+        let places = "\(n) \(n == 1 ? "Place" : "Places")"
+        switch p.when {
+        case "hold": return "Hold \(places) in the Queue"
+        case "schedule": return "Schedule \(places) for \(ShopDate.stamp(p.due, withTime: true))"
+        default: return "Publish to \(places)"
+        }
+    }
+
+    private func macSendAction(_ plan: DesignPublishModel.Plan, _ problems: [String]) -> ActionBar.Action {
+        let allDone = !plan.steps.isEmpty && plan.steps.allSatisfy { (s: DesignPublishModel.Step) in p.ref(s.id) != nil }
+        return .init(macSendLabel(plan), systemImage: "paperplane", isBusy: p.busy,
+                     isDisabled: !problems.isEmpty || !p.wordIssues.isEmpty || plan.steps.isEmpty || allDone) {
+            Task {
+                await p.checkWords()
+                guard problems.isEmpty, p.wordIssues.isEmpty else { return }
+                startRun()
+            }
+        }
+    }
+
+    /// What a post that cannot be taken back needs said beside the button: the whole community, a check that is failing.
+    private func macSummary(_ plan: DesignPublishModel.Plan) -> String? {
+        let groups = p.failingGroups(plan)
+        let risky = !p.whatsappChoice.isEmpty || (p.igMode("instagram-story") == "api" && p.storyOn) || (p.igMode("instagram-post") == "api" && p.postOn) || !groups.isEmpty
+        return risky ? confirmMessage : nil
+    }
+
+    // MARK: What went
+
+    private func macSteps(_ plan: DesignPublishModel.Plan) -> some View {
+        Section("What goes") {
+            ForEach(plan.steps, id: \.id) { (s: DesignPublishModel.Step) in macStep(s) }
+            if plan.steps.contains(where: { (s: DesignPublishModel.Step) in p.state(s).status == .failed }) && !p.busy {
+                Button("Retry What Failed") { Task { await p.run() } }
+            }
+        }
+    }
+
+    private func macStep(_ s: DesignPublishModel.Step) -> some View {
+        let st = p.state(s)
+        return HStack(alignment: .firstTextBaseline, spacing: 8) {
+            macIcon(st.status)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(s.label)
+                if let e = st.error { Text(e).font(.caption).foregroundStyle(Tone.problem.color) }
+            }
+            Spacer(minLength: 8)
+            if st.status == .failed { Button("Retry") { Task { await p.run(only: s.id) } }.disabled(p.busy) }
+            if s.manual && st.status == .manual {
+                Button("Show in Finder") { Task { await macReveal(s) } }
+                Button("Posted") { p.markDone(s.id, "by hand") }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func macIcon(_ s: DesignPublishModel.Status) -> some View {
+        switch s {
+        case .done: Image(systemName: "checkmark.circle.fill").foregroundStyle(Tone.settled.color)
+        case .failed: Image(systemName: "xmark.circle.fill").foregroundStyle(Tone.problem.color)
+        case .running: ProgressView().controlSize(.small)
+        case .manual: Image(systemName: "hand.point.up.left").foregroundStyle(Tone.owed.color)
+        case .waiting: Image(systemName: "circle").foregroundStyle(.secondary)
+        }
+    }
+
+    /// A story or post that is posted by hand: the picture saved and shown in the Finder (its caption is on the clipboard).
+    private func macReveal(_ s: DesignPublishModel.Step) async {
+        do {
+            let url = try await p.shareFile(s)
+            NSWorkspace.shared.activateFileViewerSelecting([url])
+        } catch { problem = error.localizedDescription }
+    }
+
+    // MARK: Connections and the rest
+
+    private var macConnections: some View {
+        let failing = p.checks.filter { $0.s("status") == "fail" }
+        return Section("Connections") {
+            if p.healthLoading && p.checks.isEmpty {
+                HStack(spacing: 8) { ProgressView().controlSize(.small); Text("Checking the connections").foregroundStyle(.secondary) }
+            } else if let f = p.healthFailed {
+                Text(f).foregroundStyle(Tone.owed.color)
+            } else if failing.isEmpty {
+                Label("Every connection is fine", systemImage: "checkmark.circle").foregroundStyle(Tone.settled.color)
+            } else {
+                ForEach(failing, id: \.text) { c in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Label(c.s("label"), systemImage: "xmark.circle").foregroundStyle(Tone.problem.color)
+                        if !c.s("fix").isEmpty { macNote(c.s("fix")) }
+                    }
+                }
+            }
+            Button("Check Again") { Task { await p.refreshHealth() } }.disabled(p.healthLoading)
+        }
+    }
+
+    private var macExtras: some View {
+        Section {
+            if let path = p.metaPath ?? p.ref("meta-ad") {
+                Button("Open the New Ad") { p.model.route = Route(path: path); dismiss() }
+            }
+            if let n = p.note { macNote(n) }
+            Button("Export Every Size…") { Task { await macExportAll() } }
+            if p.row("whatsapp") != nil || p.row("channel") != nil {
+                Button("Show the WhatsApp Picture in Finder") { Task { await macRevealCaptioned() } }
+            }
+            if !p.wa.trimmingCharacters(in: .whitespaces).isEmpty {
+                Button("Copy the Caption") { MacClipboard.copy(p.wa); p.model.say("The caption is copied") }
+            }
+            if let link = URL(string: p.config["posting"]["links"].s("waChannel")), link.scheme == "https" {
+                Link("Open the WhatsApp Channel", destination: link)
+            }
+            if !p.memory.isEmpty {
+                Button("Send Again from the Start…") { confirmingAgain = true }.disabled(p.busy)
+            }
+        }
+    }
+
+    /// Every size as a picture in a folder the person chooses.
+    private func macExportAll() async {
+        do {
+            let urls = try await p.allSizes()
+            let panel = NSOpenPanel()
+            panel.canChooseFiles = false
+            panel.canChooseDirectories = true
+            panel.canCreateDirectories = true
+            panel.prompt = "Export"
+            panel.message = "Choose where to save every size."
+            guard panel.runModal() == .OK, let folder = panel.url else { return }
+            for u in urls {
+                let to = folder.appendingPathComponent(u.lastPathComponent)
+                try? FileManager.default.removeItem(at: to)
+                try FileManager.default.copyItem(at: u, to: to)
+            }
+            p.model.say("Exported \(urls.count) size\(urls.count == 1 ? "" : "s")", detail: folder.lastPathComponent)
+        } catch { problem = error.localizedDescription }
+    }
+
+    /// The WhatsApp picture saved and shown in the Finder; its caption is on the clipboard (WhatsApp often drops text sent with a file).
+    private func macRevealCaptioned() async {
+        do {
+            let urls = try await p.captioned()
+            NSWorkspace.shared.activateFileViewerSelecting(urls)
+            p.note = p.wa.isEmpty ? nil : "The caption is on the clipboard: paste it under the picture."
+        } catch { problem = error.localizedDescription }
     }
 }
 #endif

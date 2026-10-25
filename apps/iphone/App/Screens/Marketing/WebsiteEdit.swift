@@ -1,6 +1,9 @@
 import SwiftUI
 import Observation
 import ERPCore
+#if os(macOS)
+import AppKit
+#endif
 
 /// Website → Edit a piece (src/app/website/edit/page.tsx): every piece on the house's website (taheri.shop, or
 /// the House of Mina catalogue), hidden ones too, with what the counter changed. Search, "Changed here",
@@ -16,10 +19,24 @@ struct WebsiteEditScreen: View {
     @State private var filter: Filter = .all
     @State private var collection = ""
     @State private var shown = WebsiteEditScreen.pageSize
+    #if os(macOS)
+    @Environment(\.openPlaceWindow) private var openPlace
+    /// The table: what is picked and how it is sorted; the form in the inspector and what it tells the table; the piece the pick
+    /// last settled on and the one it was asked to go to while words were unsaved.
+    @State private var macSelection = Set<String>()
+    @State private var macSort = [KeyPathComparator(\MacWebsitePieceRow.rank), KeyPathComparator(\MacWebsitePieceRow.name)]
+    @State private var macBridge = MacWebsiteEditBridge()
+    @State private var macSettled = Set<String>()
+    @State private var macPending: Set<String>?
+    @State private var macAsk = false
+    #endif
 
     private static let pageSize = 60
 
     var body: some View {
+        #if os(macOS)
+        macBody
+        #else
         Group {
             switch store.phase {
             case .off:
@@ -35,36 +52,11 @@ struct WebsiteEditScreen: View {
         .navigationTitle("Edit a piece")
         .hubTitleDisplay()
         .searchable(text: $search, prompt: "Name, collection, ruby, Ring 12…")
-        #if os(macOS)
-        .navigationSubtitle(store.phase == .loaded ? "\(filtered.count) of \(store.pieces.count) pieces" : "")
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                Picker("Show", selection: $filter) {
-                    Text("Everything").tag(Filter.all)
-                    Text("Changed here").tag(Filter.changed)
-                    Text("Hidden").tag(Filter.hidden)
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 320)
-            }
-            ToolbarItemGroup(placement: .primaryAction) {
-                Picker("Collection", selection: $collection) {
-                    Text("Every collection").tag("")
-                    Divider()
-                    ForEach(collections, id: \.self) { (c: String) in Text(c).tag(c) }
-                }
-                .pickerStyle(.menu)
-                .help("Show one collection")
-                Button { Task { await store.load(fresh: true) } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
-                    .keyboardShortcut("r", modifiers: .command)
-                    .help("Read the website again")
-            }
-        }
-        #endif
         .task { await store.load() }
         .onChange(of: search) { _, _ in shown = WebsiteEditScreen.pageSize }
         .onChange(of: filter) { _, _ in shown = WebsiteEditScreen.pageSize }
         .onChange(of: collection) { _, _ in shown = WebsiteEditScreen.pageSize }
+        #endif
     }
 
     /// One piece's own screen. Its id is a path on the site ("Rings/DSC0912.webp"), escaped whole.
@@ -289,40 +281,171 @@ final class WebsiteEdits {
 
 #if os(macOS)
 extension WebsiteEditScreen {
-    /// A wide grid of pieces with the recent changes in a column beside it; right-click on a piece.
-    func macPieces(_ items: [WebsiteEditPiece]) -> some View {
-        MacTwoPane(sideWidth: store.recent.isEmpty ? 0 : 320, sideOnRight: true) {
-            ScrollView {
-                if !store.recent.isEmpty { recentCard.padding(16) }
-            }
-        } main: {
-            ScrollView {
-                if items.isEmpty {
-                    ContentUnavailableView("Nothing matches", systemImage: "square.grid.2x2",
-                                           description: Text("Clear the search, or pick another collection."))
-                } else {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: 14, alignment: .top)], spacing: 14) {
-                        ForEach(Array(items.prefix(shown))) { (p: WebsiteEditPiece) in
-                            NavigationLink(value: Route(path: WebsiteEditScreen.piecePath(p.id))) {
-                                WebsiteEditTile(piece: p).ledgerCard(padding: 10)
-                            }
-                            .buttonStyle(.plain)
-                            .pointerHover()
-                            .contextMenu {
-                                MacOpenInWindow(path: WebsiteEditScreen.piecePath(p.id))
-                                Button("Copy the name", systemImage: "doc.on.doc") { MacClipboard.copy(p.words.name) }
-                            }
-                        }
-                    }
-                    .padding(20)
-                    if items.count > shown {
-                        Button("Show more (\(items.count - shown) left)") { shown += WebsiteEditScreen.pageSize }
-                            .buttonStyle(.bordered)
-                            .frame(maxWidth: .infinity)
-                            .padding(.bottom, 20)
-                    }
+    /// Edit a piece as a Mac table (docs/features/mac-design.md, "Marketing › Website"): every piece with its collection, weight
+    /// and what was changed here; the inspector changes the picked piece's words, weight and hiding in place and Save to the Website
+    /// (⌘S) sends them. Return or a double-click opens the piece in a window of its own; the filters are pop-ups in the toolbar.
+    @ViewBuilder
+    var macBody: some View {
+        macDialogs(
+            Group {
+                switch store.phase {
+                case .off:
+                    NotAvailableState("This shop doesn't edit its website from here", symbol: "globe")
+                case .failed(let message):
+                    ErrorState(message) { Task { await store.load(fresh: true) } }
+                case .idle, .loading:
+                    SkeletonLoading("Reading \(store.siteName)…").frame(maxWidth: .infinity, maxHeight: .infinity)
+                case .loaded:
+                    macPieces(filtered)
                 }
             }
+            .navigationTitle("Edit a piece")
+            .navigationSubtitle(store.phase == .loaded ? "\(filtered.count) of \(store.pieces.count) pieces" : "")
+            .toolbar { macToolbar }
+            .macRecordMenu(macMenu)
+            .macRefresh { Task { await store.load(fresh: true) } }
+            .task { await store.load() }
+        )
+    }
+
+    private func macDialogs<Content: View>(_ content: Content) -> some View {
+        content.alert("This piece has changes that are not saved", isPresented: $macAsk) {
+            Button("Discard Changes", role: .destructive) {
+                if let pending = macPending { macSettled = pending; macSelection = pending }
+                macPending = nil
+            }
+            Button("Cancel", role: .cancel) { macPending = nil }
+        } message: {
+            Text("Save them first (⌘S), or discard them to go to the other piece.")
+        }
+    }
+
+    // MARK: Actions
+
+    private var macPicked: WebsiteEditPiece? {
+        macSelection.count == 1 ? macSelection.first.flatMap { id in store.piece(id) } : nil
+    }
+
+    private var macSave: MacAction {
+        MacAction("Save to the Website", symbol: "square.and.arrow.down", shortcut: KeyboardShortcut("s", modifiers: .command),
+                  enabled: macSelection.count == 1 && macBridge.canSave, isDefault: true) { macBridge.save?() }
+    }
+
+    private func macOpenWindowAction(_ p: WebsiteEditPiece?) -> MacAction {
+        MacAction("Open in Window", symbol: "macwindow.badge.plus", enabled: p != nil && openPlace != nil, id: "open-window") {
+            if let p, let openPlace { openPlace(Route(path: WebsiteEditScreen.piecePath(p.id))) }
+        }
+    }
+
+    private func macOpenSiteAction(_ p: WebsiteEditPiece?) -> MacAction {
+        MacAction("Open on \(store.siteName)", symbol: "safari", enabled: !(p?.url ?? "").isEmpty, id: "open-site") {
+            if let p, let url = URL(string: p.url) { NSWorkspace.shared.open(url) }
+        }
+    }
+
+    private func macCopyNameAction(_ p: WebsiteEditPiece?) -> MacAction {
+        MacAction("Copy the Name", symbol: "doc.on.doc", enabled: p != nil, id: "copy-name") { if let p { MacClipboard.copy(p.words.name) } }
+    }
+
+    private var macMenu: MacRecordMenu {
+        let p = macPicked
+        return MacRecordMenu(title: "Piece", groups: [[macSave], [macOpenWindowAction(p), macOpenSiteAction(p), macCopyNameAction(p)]])
+    }
+
+    @ToolbarContentBuilder
+    private var macToolbar: some ToolbarContent {
+        ToolbarItemGroup(placement: .primaryAction) {
+            Picker("Show", selection: $filter) {
+                Text("Everything").tag(Filter.all)
+                Text("Changed Here (\(store.pieces.filter { (p: WebsiteEditPiece) in p.changed }.count))").tag(Filter.changed)
+                Text("Hidden (\(store.pieces.filter { (p: WebsiteEditPiece) in p.hidden }.count))").tag(Filter.hidden)
+            }
+            .pickerStyle(.menu)
+            .help("Everything, what was changed here, or what is hidden")
+            Picker("Collection", selection: $collection) {
+                Text("Every Collection").tag("")
+                Divider()
+                ForEach(collections, id: \.self) { (c: String) in Text(c).tag(c) }
+            }
+            .pickerStyle(.menu)
+            .help("Show one collection")
+            if !store.recent.isEmpty {
+                Menu {
+                    ForEach(store.recent.prefix(15)) { (r: WebsiteEditRecent) in
+                        Button((r.name.isEmpty ? "A piece" : r.name) + " · " + WebsiteEditScreen.recentWords(r)) { macSelection = [r.key] }
+                    }
+                } label: { Label("Recent Changes", systemImage: "clock.arrow.circlepath") }
+                .help("What was changed lately, and by whom")
+            }
+            MacToolbarAction(action: macSave)
+        }
+    }
+
+    // MARK: The table
+
+    func macPieces(_ items: [WebsiteEditPiece]) -> some View {
+        let rows = items.map { (p: WebsiteEditPiece) in MacWebsitePieceRow(piece: p) }.sorted(using: macSort)
+        let changed = store.pieces.filter { (p: WebsiteEditPiece) in p.changed }.count
+        let hidden = store.pieces.filter { (p: WebsiteEditPiece) in p.hidden }.count
+        return Table(rows, selection: $macSelection, sortOrder: $macSort) {
+            TableColumn("Name", value: \.name) { (r: MacWebsitePieceRow) in macName(r) }
+            TableColumn("Collection", value: \.collection) { (r: MacWebsitePieceRow) in Text(r.collection).foregroundStyle(.secondary).lineLimit(1) }
+                .width(min: 90, ideal: 140)
+            TableColumn("Weight", value: \.weight) { (r: MacWebsitePieceRow) in Text(r.weightText).monospacedDigit() }
+                .width(min: 70, ideal: 90)
+            TableColumn("Status", value: \.rank) { (r: MacWebsitePieceRow) in
+                if !r.status.isEmpty { MacStatus(r.status, tone: r.tone) }
+            }
+            .width(min: 120, ideal: 170)
+        }
+        .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
+            let p = ids.count == 1 ? ids.first.flatMap { id in store.piece(id) } : nil
+            MacActionItems(groups: [[macOpenWindowAction(p), macOpenSiteAction(p)], [macCopyNameAction(p)]])
+        } primaryAction: { (ids: Set<String>) in
+            for id in ids.prefix(3) { openPlace?(Route(path: WebsiteEditScreen.piecePath(id))) }
+        }
+        .overlay {
+            if rows.isEmpty {
+                ContentUnavailableView("Nothing matches", systemImage: "square.grid.2x2", description: Text("Clear the search, or pick another collection."))
+            }
+        }
+        .macSearchable(text: $search, prompt: "Name, collection, ruby, Ring 12…")
+        .macSummaryBar(["\(items.count) of \(store.pieces.count) pieces", "\(changed) changed here", "\(hidden) hidden",
+                        "It shows on \(store.siteName) within a minute; the original photo is kept to put back"])
+        .macInspector { macInspectorBody }
+        .onChange(of: macSelection) { _, new in macSelectionChanged(new) }
+    }
+
+    private func macName(_ r: MacWebsitePieceRow) -> some View {
+        HStack(spacing: 8) {
+            StockImage(imageUrl: r.piece.thumb, name: r.piece.words.name, key: r.piece.id)
+                .frame(width: 26, height: 26)
+                .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+                .opacity(r.piece.hidden ? 0.45 : 1)
+            Text(r.name).lineLimit(1)
+        }
+    }
+
+    /// Going to another piece while this one has words not saved asks first, as a document does on closing; the pick stays until it is answered.
+    private func macSelectionChanged(_ new: Set<String>) {
+        if new == macSettled { return }
+        if macSettled.count == 1, macBridge.dirty {
+            macPending = new
+            macSelection = macSettled
+            macAsk = true
+        } else {
+            macSettled = new
+        }
+    }
+
+    @ViewBuilder
+    private var macInspectorBody: some View {
+        if macSelection.count == 1, let id = macSelection.first {
+            WebsiteEditPieceScreen(id: id, inInspector: true, macBridge: macBridge).id(id)
+        } else if macSelection.count > 1 {
+            MacInspectorEmpty(title: "\(macSelection.count) pieces picked", detail: "Pick one to change its words, weight or photograph.")
+        } else {
+            MacInspectorEmpty(title: "No piece picked", detail: "Pick a piece to change what the website says about it.")
         }
     }
 }

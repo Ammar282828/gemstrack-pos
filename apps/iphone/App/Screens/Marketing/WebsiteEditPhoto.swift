@@ -303,7 +303,11 @@ struct WebsitePhotoEditRows: View {
                     Text("Its own shape").tag("own")
                     Text("Square").tag("square")
                 }
+                #if os(macOS)
+                .pickerStyle(.menu)
+                #else
                 .pickerStyle(.segmented)
+                #endif
                 .disabled(busy)
             }
             Picker("On the photo", selection: Binding(get: { edit.layout }, set: { (id: String) in Task { await edit.chooseLayout(id, fields: fields) } })) {
