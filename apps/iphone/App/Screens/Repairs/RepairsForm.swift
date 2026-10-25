@@ -31,6 +31,10 @@ struct RepairsForm: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    #if os(macOS)
+    /// In a sheet (Edit on a ticket) rather than the window's own content (New repair).
+    @Environment(\.isPresented) private var presented
+    #endif
 
     @State private var customerId: String?
     @State private var name = ""
@@ -452,7 +456,13 @@ struct RepairsForm: View {
                 onSaved(newId, seed)
             }
             saving = false
+            #if os(macOS)
+            // New repair is the window's own content: it turns into the ticket it wrote (RepairsScreen) rather than closing.
+            // In a sheet it goes, as the phone's does.
+            if presented { dismiss() }
+            #else
             dismiss()
+            #endif
         } catch {
             self.error = error.localizedDescription
             saving = false
@@ -499,53 +509,35 @@ struct RepairsForm: View {
 
 #if os(macOS)
 extension RepairsForm {
-    /// A Mac form window: the pieces as a grid of boxes (one row each, a minus beside it), the date as a date field,
-    /// Cancel (Esc) and Save (Return, or ⌘S) in the toolbar.
+    /// New repair is a document (docs/features/mac-design.md, "Repairs"): the window's own content, a grouped form with Save
+    /// (⌘S) in its footer, published to the Repair menu. Edit on a ticket is the same form in a sheet, with Cancel and Save
+    /// (Return) in the footer. Same fields, same `save()` and payload as the phone's.
     @ViewBuilder
     var macBody: some View {
-        NavigationStack {
-            Form { Group {
-                customerSection
+        VStack(spacing: 0) {
+            if presented { macSheetTitle }
+            Form {
+                macCustomerSection
                 macPiecesSection
                 macWhenSection
                 if let r = editing {
-                    paidSection(r)
+                    macPaidSection(r)
                 } else {
-                    advanceSection
+                    macAdvanceSection
                 }
-                shopSection
-                }
-                .houseRows()
+                macShopSection
             }
             .formStyle(.grouped)
-            .scrollContentBackground(.hidden)
-            .background(Theme.ground)
-            .navigationTitle(editing.map { "Repair \($0.id)" } ?? "New repair")
-            .failureAlert($error)
-            .disabled(saving)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        if dirty { confirmingDiscard = true } else { dismiss() }
-                    }
-                    .keyboardShortcut(.cancelAction)
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { Task { await save() } }
-                        .disabled(!canSave)
-                        .keyboardShortcut(.defaultAction)
-                }
-            }
-            .background {
-                Button("Save") { Task { await save() } }
-                    .keyboardShortcut("s", modifiers: .command).opacity(0).accessibilityHidden(true)
-                    .disabled(!canSave)
-            }
-            .confirmDestructive(isPresented: $confirmingDiscard,
-                                title: editing == nil ? "Discard this repair?" : "Discard your changes?",
-                                message: "What you typed is not saved.", action: "Discard") { dismiss() }
+            macFooter
         }
-        .frame(minWidth: 680, idealWidth: 760, minHeight: 560, idealHeight: 720)
+        .frame(minWidth: 640, idealWidth: 720, minHeight: 560, idealHeight: 680)
+        .navigationTitle(editing.map { "Repair \($0.id)" } ?? "New Repair")
+        .failureAlert($error)
+        .disabled(saving)
+        .modifier(RepairsFormMenu(menu: presented ? nil : MacRecordMenu(title: "Repair", groups: [[macSaveAction]])))
+        .confirmDestructive(isPresented: $confirmingDiscard,
+                            title: editing == nil ? "Discard this repair?" : "Discard your changes?",
+                            message: "What you typed is not saved.", action: "Discard") { dismiss() }
         .interactiveDismissDisabled(saving || dirty)
         .onAppear {
             book.customers.need()
@@ -558,7 +550,91 @@ extension RepairsForm {
         }
     }
 
-    @ViewBuilder
+    // MARK: Save
+
+    fileprivate var macSaveAction: MacAction {
+        MacAction(editing == nil ? "Save Repair" : "Save Changes",
+                  shortcut: KeyboardShortcut("s", modifiers: .command),
+                  enabled: canSave, isDefault: true, id: "save") {
+            Task { await save() }
+        }
+    }
+
+    private var macSheetTitle: some View {
+        Text(editing.map { "Repair \($0.id)" } ?? "New Repair")
+            .font(.headline)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
+    }
+
+    /// What the ticket comes to, and the footer's one Save.
+    private var macFooter: some View {
+        VStack(spacing: 0) {
+            Divider()
+            HStack(spacing: 12) {
+                Text(macSummary)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                Spacer(minLength: 12)
+                if saving { ProgressView().controlSize(.small) }
+                if presented {
+                    Button("Cancel") {
+                        if dirty { confirmingDiscard = true } else { dismiss() }
+                    }
+                    .keyboardShortcut(.cancelAction)
+                    Button("Save") { Task { await save() } }
+                        .buttonStyle(.borderedProminent)
+                        .keyboardShortcut(.defaultAction)
+                        .disabled(!canSave)
+                } else {
+                    MacActionButtons(actions: [macSaveAction])
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 10)
+        }
+        .background(.bar)
+    }
+
+    private var macSummary: String {
+        var parts: [String] = []
+        if total > 0 { parts.append("Total \(Money.pkr(total))") }
+        if editing == nil && advanceAmount > 0 { parts.append("Advance \(Money.pkr(advanceAmount))") }
+        return parts.joined(separator: " \u{00B7} ")
+    }
+
+    // MARK: Who
+
+    private var macCustomerSection: some View {
+        Section {
+            // The book is offered as the name is typed, in the combo box's list (the phone shows rows in the form).
+            MacNewOrderCustomerBox(
+                name: name,
+                pickedId: customerId,
+                phone: $phone,
+                book: people,
+                recent: { CustomerField.recent(invoices: book.invoices.items, orders: book.orders.items, book: people) },
+                recentKey: [book.invoices.revision, book.orders.revision, book.customers.revision],
+                type: { text in
+                    // Typing over a picked name lets go of the customer, as the web's autocomplete does.
+                    guard text != name else { return }
+                    customerId = nil
+                    name = text
+                },
+                pick: { c in pick(c) }
+            )
+        } header: {
+            Text("Customer")
+        } footer: {
+            Text(customerId == nil ? "Leave both blank for a walk-in." : "Linked to \(name) in the book.")
+        }
+    }
+
+    // MARK: The pieces
+
     private var macPiecesSection: some View {
         Section {
             Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 8) {
@@ -575,19 +651,19 @@ extension RepairsForm {
                     GridRow {
                         TextField("Piece", text: $piece.item, prompt: Text("Gold ring"))
                             .labelsHidden()
-                            .frame(minWidth: 140)
+                            .frame(minWidth: 130)
                         TextField("What to do", text: $piece.work, prompt: Text("Resize to 14"))
                             .labelsHidden()
-                            .frame(minWidth: 160)
+                            .frame(minWidth: 150)
                         TextField("Weight", text: $piece.weight, prompt: Text("g"))
                             .labelsHidden()
                             .monospacedDigit()
-                            .frame(width: 80)
+                            .frame(width: 70)
                         TextField("Price", text: $piece.price.wholeRupees, prompt: Text("PKR"))
                             .labelsHidden()
                             .multilineTextAlignment(.trailing)
                             .monospacedDigit()
-                            .frame(width: 100)
+                            .frame(width: 90)
                         Button { remove(piece.id) } label: { Image(systemName: "minus.circle") }
                             .buttonStyle(.borderless)
                             .disabled(pieces.count <= 1)
@@ -595,35 +671,123 @@ extension RepairsForm {
                     }
                 }
             }
-            Button { pieces.append(RepairsDraftPiece()) } label: { Label("Add another piece", systemImage: "plus.circle") }
+            Button { pieces.append(RepairsDraftPiece()) } label: { Label("Add a Piece", systemImage: "plus") }
+                .buttonStyle(.borderless)
             if total > 0 {
-                MoneyRow("Total", total, emphasis: true)
+                LabeledContent("Total") { Text(Money.pkr(total)).monospacedDigit().fontWeight(.semibold) }
             }
         } header: {
-            LedgerHeading(title: "Pieces")
+            Text("Pieces")
         } footer: {
             if !hasPiece { Text("What was brought in: \"gold ring\", \"chain\".") }
         }
     }
 
-    @ViewBuilder
+    // MARK: When
+
     private var macWhenSection: some View {
         Section {
-            Toggle("Ready by a date", isOn: $hasDate)
-            if hasDate {
-                DatePicker("Date", selection: $promised, displayedComponents: .date)
-                    .datePickerStyle(.field)
-                    .environment(\.timeZone, ERPDate.karachi)
-                LabeledContent("Quick pick") {
-                    HStack(spacing: 8) {
-                        ForEach([(3, "3 days"), (7, "1 week"), (14, "2 weeks")], id: \.0) { item in
-                            Button(item.1) { promised = RepairsKit.days(adding: item.0) }.buttonStyle(.bordered)
-                        }
+            LabeledContent("Ready by") {
+                HStack(spacing: 6) {
+                    if hasDate {
+                        // Stored as yyyy-MM-dd, Karachi's day.
+                        DatePicker("Ready by", selection: $promised, displayedComponents: .date)
+                            .labelsHidden()
+                            .datePickerStyle(.field)
+                            .environment(\.timeZone, ERPDate.karachi)
+                    } else {
+                        Text("No date").foregroundStyle(.secondary)
                     }
+                    Menu("Quick") {
+                        Button("3 days") { quick(3) }
+                        Button("1 week") { quick(7) }
+                        Button("2 weeks") { quick(14) }
+                        Divider()
+                        Button("No date") { hasDate = false }
+                    }
+                    .fixedSize()
                 }
             }
         } header: {
-            LedgerHeading(title: "When")
+            Text("When")
+        }
+    }
+
+    private func quick(_ days: Int) {
+        hasDate = true
+        promised = RepairsKit.days(adding: days)
+    }
+
+    // MARK: Money
+
+    private var macAdvanceSection: some View {
+        Section {
+            LabeledContent("Advance (PKR)") {
+                TextField("Advance", text: $advance.wholeRupees, prompt: Text("Optional"))
+                    .labelsHidden()
+                    .multilineTextAlignment(.trailing)
+                    .monospacedDigit()
+            }
+            if advanceAmount > 0 {
+                Picker("How it was paid", selection: $method) {
+                    ForEach(PaymentMethods.all, id: \.self) { Text($0) }
+                }
+            }
+        } header: {
+            Text("Advance")
+        } footer: {
+            Text(advanceAmount > 0 ? "\(Money.pkrLac(advanceAmount)), taken now and written to Extra revenue." : "Optional: money taken now.")
+        }
+    }
+
+    /// What was paid on the ticket so far: the edit never changes it (Take Payment does), as on the web.
+    @ViewBuilder
+    private func macPaidSection(_ r: Repair) -> some View {
+        if !r.payments.isEmpty {
+            Section {
+                ForEach(r.payments.indices, id: \.self) { i in
+                    LabeledContent(RepairsKit.paymentWords(r.payments[i])) {
+                        Text(Money.pkr(r.payments[i].amount)).monospacedDigit()
+                    }
+                }
+            } header: {
+                Text("Paid So Far")
+            } footer: {
+                Text("Money taken stays as it is. A new payment is Take Payment on the ticket.")
+            }
+        }
+    }
+
+    // MARK: The shop
+
+    private var macShopSection: some View {
+        Section {
+            Picker("Karigar", selection: $karigarId) {
+                Text("Done in the shop").tag("")
+                ForEach(karigars) { k in
+                    Text(k.name).tag(k.id)
+                }
+            }
+            takenByRow
+            TextField("Note for the shop", text: $note, axis: .vertical)
+                .lineLimit(2...5)
+        } header: {
+            Text("For the Shop")
+        } footer: {
+            Text("The note is for the shop only: it is never printed or sent.")
+        }
+    }
+}
+
+/// Publishes the Repair menu (Save Repair, ⌘S) from the new-repair document; a sheet leaves the menu to the place under it.
+private struct RepairsFormMenu: ViewModifier {
+    let menu: MacRecordMenu?
+
+    func body(content: Content) -> some View {
+        if let menu {
+            content.macRecordMenu(menu)
+        } else {
+            content
         }
     }
 }

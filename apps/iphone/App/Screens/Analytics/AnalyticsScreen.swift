@@ -166,10 +166,6 @@ struct AnaPages: View {
         return nil
     }
 
-    #if os(macOS)
-    @State private var macCustom = false
-    #endif
-
     var body: some View {
         #if os(macOS)
         macBody
@@ -243,54 +239,13 @@ struct AnaEmptyPage: View {
 
 #if os(macOS)
 extension AnaPages {
-    /// A wide report. The tab and the period are the window's toolbar, not rows of chips: a menu of the five tabs, and
-    /// the period as a pop-up with the quick ranges and "Custom period…". The period reads under the title.
+    /// A wide report (docs/features/mac-design.md, "Analytics"). The section is the sidebar's, so nothing here switches
+    /// between them; the period and the comparison are the toolbar's pop-ups. The page is MacReportsAnalyticsPage
+    /// (Mac/Places/Reports), over the same books, figures and period.
     @ViewBuilder
     fileprivate var macBody: some View {
-        Group {
-            if let kind = empty {
-                AnaEmptyPage(kind: kind, bar: bar)
-            } else {
-                page
-            }
-        }
-        .navigationSubtitle(AnaPeriod.describe(period.range))
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                Menu {
-                    ForEach(AnaSection.macTabs, id: \.path) { tab in
-                        NavigationLink(value: Route(path: tab.path)) {
-                            Label(tab.name, systemImage: tab.section == section ? "checkmark" : "chart.bar")
-                        }
-                    }
-                } label: {
-                    Label(section == .overview ? "Overview" : section.title, systemImage: "chart.bar.xaxis")
-                }
-                .help("Switch between Overview, Sales, Products, Customers and Categories")
-            }
-            ToolbarItem(placement: .primaryAction) {
-                Menu {
-                    Picker("Period", selection: $rangeKey) {
-                        ForEach(AnaPeriod.quick) { (q: AnaPeriod.Quick) in Text(q.label).tag(q.key) }
-                    }
-                    .pickerStyle(.inline)
-                    Divider()
-                    Button("Custom period…") { macCustom = true }
-                } label: {
-                    Label(period.key == "custom" ? "Custom" : (AnaPeriod.quick.first { $0.key == period.key }?.label ?? "Period"),
-                          systemImage: "calendar")
-                }
-                .help("The period every Analytics tab reads")
-            }
-        }
-        .sheet(isPresented: $macCustom) {
-            AnaCustomPeriod(start: period.range?.from ?? AnaDate.adding(days: -29, to: Date()),
-                            end: period.range?.to ?? Date()) { (a: Date, b: Date) in
-                customFrom = AnaDate.dayKey(a)
-                customTo = AnaDate.dayKey(b)
-                rangeKey = "custom"
-            }
-        }
+        MacReportsAnalyticsPage(section: section, books: books, figures: figures, period: period, margin: margin,
+                                empty: empty, rangeKey: $rangeKey, customFrom: $customFrom, customTo: $customTo)
     }
 }
 

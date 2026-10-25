@@ -204,58 +204,11 @@ struct TodaysCashScreen: View {
 
 #if os(macOS)
 extension TodaysCashScreen {
-    /// The Mac's report: the four figures across the top in a Grid, then two columns, what came in (each line opens its
-    /// document, with a right-click menu) beside how it was paid and what went out.
+    /// The Mac's report: a day picker in the toolbar (any day, not only today), the four figures in one row, then three
+    /// tables, what came in (each line opens its document), how it was paid, and what went out. The page is
+    /// MacReportsCashPage (Mac/Places/Reports); today's figures are the ones worked out above.
     fileprivate func macPage(_ t: TodaysCash) -> some View {
-        let n = t.expenseLines.count
-        return VStack(spacing: 0) {
-            Grid(horizontalSpacing: 12, verticalSpacing: 12) {
-                GridRow {
-                    FigureTile(label: "In the drawer", value: Money.pkr(t.netCash), detail: "Cash in, less what was paid out",
-                               tint: t.netCash < 0 ? Tone.owed.color : Theme.accent).frame(maxWidth: .infinity)
-                    FigureTile(label: "Money in", value: Money.pkr(t.totalIn)).frame(maxWidth: .infinity)
-                    FigureTile(label: "Paid out", value: Money.pkr(t.expenses), detail: "\(n) expense\(n == 1 ? "" : "s")").frame(maxWidth: .infinity)
-                    FigureTile(label: "Exchange", value: Money.pkr(t.exchange), detail: "Taken in exchange — not cash").frame(maxWidth: .infinity)
-                }
-            }
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(.horizontal, 20)
-            .padding(.top, 16)
-            .padding(.bottom, 4)
-            HStack(alignment: .top, spacing: 0) {
-                List {
-                    Group {
-                        if METHODS.contains(where: { (t.byMethod[$0] ?? 0) != 0 }) {
-                            LedgerSection("By how it was paid") {
-                                ForEach(METHODS.filter { (t.byMethod[$0] ?? 0) != 0 }, id: \.self) { (m: CashMethod) in
-                                    methodRow(m, t.byMethod[m] ?? 0)
-                                }
-                            }
-                        }
-                        paidOutSection(t)
-                    }
-                    .houseRows()
-                }
-                .listStyle(.inset)
-                .frame(minWidth: 320, idealWidth: 380, maxWidth: 440)
-                List {
-                    Group {
-                        LedgerSection("Came in") {
-                            if t.lines.isEmpty {
-                                Text("Nothing yet today.").foregroundStyle(.secondary)
-                            } else {
-                                ForEach(Self.keyed(t.lines) { "\($0.ref)|\($0.at)|\($0.method.rawValue)|\($0.amount)" }) { row in
-                                    cameInRow(row.item).macOpenMenu(path(for: row.item))
-                                }
-                            }
-                        }
-                    }
-                    .houseRows()
-                }
-                .listStyle(.inset)
-            }
-        }
-        .navigationSubtitle(DashDate.longDay(now))
+        MacReportsCashPage(today: t, now: now)
     }
 }
 #endif

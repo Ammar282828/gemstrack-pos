@@ -371,23 +371,23 @@ extension CalendarScreen {
             )
         }
         let figures = shopCalendarMonth(books.days, year: year, month: month)
-        HStack(spacing: 0) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    macFigures(figures)
-                    macGrid(books)
-                    legend
-                }
-                .padding(20)
-            }
-            .frame(minWidth: 520)
+        VStack(spacing: 0) {
+            macFigures(figures)
             Divider()
-            List {
-                daySection(books)
-                dueSection()
+            HStack(spacing: 0) {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        macGrid(books)
+                        legend
+                    }
+                    .padding(20)
+                }
+                .frame(minWidth: 520)
+                Divider()
+                MacReportsCalendarDay(day: selected, events: books.days[selected]?.events ?? [],
+                                      promised: shopCalendarDueOn(selected, orders: book.orders.items))
+                    .frame(minWidth: 300, idealWidth: 360, maxWidth: 420)
             }
-            .listStyle(.inset)
-            .frame(minWidth: 300, idealWidth: 360, maxWidth: 420)
         }
         .navigationSubtitle(ShopCalendar.title(year: year, month: month))
         .toolbar {
@@ -407,13 +407,14 @@ extension CalendarScreen {
         }
     }
 
+    /// The month on screen as plain figures: its money, its sales and orders, and the average day that took anything.
     private func macFigures(_ m: ShopCalendarMonth) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            FigureTile(label: ShopCalendar.title(year: year, month: month), value: Money.pkrLac(m.total), tint: Tone.settled.color)
-            FigureTile(label: "Sales", value: "\(m.sales)")
-            FigureTile(label: "Orders", value: "\(m.orders)")
-            FigureTile(label: "Average trading day", value: m.perTradingDay > 0 ? Money.pkrLac(m.perTradingDay) : "\u{2014}")
-        }
+        macReportsFigures([
+            MacFigure(ShopCalendar.title(year: year, month: month), Money.pkrLac(m.total)),
+            MacFigure("Sales", "\(m.sales)"),
+            MacFigure("Orders", "\(m.orders)"),
+            MacFigure("Average trading day", m.perTradingDay > 0 ? Money.pkrLac(m.perTradingDay) : "\u{2014}"),
+        ])
     }
 
     private func macGrid(_ books: Reckoned) -> some View {

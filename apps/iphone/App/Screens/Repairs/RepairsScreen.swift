@@ -27,9 +27,8 @@ struct RepairsScreen: View {
     @State private var linkRead = false
     @State private var missing: String?
     #if os(macOS)
-    /// The ticket picked in the table (shown in the inspector beside it).
-    @State private var picked = Set<String>()
-    @State private var inspecting = true
+    /// New Repair, once saved: the document window turns into the ticket it wrote.
+    @State private var savedTicket: RepairsOpen?
     #endif
 
     var body: some View {
@@ -311,84 +310,40 @@ struct RepairsRow: View {
     }
 }
 
-// MARK: The Mac's desk
+// MARK: The Mac's repairs
 
 #if os(macOS)
 extension RepairsScreen {
-    /// A ticket's address (/repairs?id=…) is the ticket itself, in the column or window that asked; the plain
-    /// /repairs is the desk: a table of every ticket, the ticket picked in an inspector beside it.
+    /// /repairs is the place (MacRepairsPlace: the table, the ticket in an inspector beside it); /repairs?id= is a ticket's own
+    /// window; /repairs?new=1 is the new-repair document, which turns into the ticket once it is saved.
     @ViewBuilder
     var macBody: some View {
-        Group {
-            if let id = linkedTicket {
-                RepairsSheet(id: id, seed: nil)
-            } else {
-                macDesk
-            }
+        if let made = savedTicket {
+            RepairsSheet(id: made.id, seed: made.seed)
+        } else if isNewLink {
+            macNewRepair
+        } else if let id = linkedTicket {
+            RepairsSheet(id: id, seed: nil)
+        } else {
+            MacRepairsPlace(path: path)
         }
     }
 
+    private var isNewLink: Bool {
+        (URLComponents(string: path)?.queryItems ?? []).contains { $0.name == "new" && $0.value == "1" }
+    }
+
     private var linkedTicket: String? {
-        let items = URLComponents(string: path)?.queryItems ?? []
-        if items.contains(where: { $0.name == "new" && $0.value == "1" }) { return nil }
-        let id = items.first { $0.name == "id" }?.value ?? ""
+        let id = (URLComponents(string: path)?.queryItems ?? []).first { $0.name == "id" }?.value ?? ""
         return id.isEmpty ? nil : id
     }
 
     @ViewBuilder
-    private var macDesk: some View {
-        ShelfState(loaded: book.repairs.loaded, error: book.repairs.error, offline: book.repairs.offline) {
-            RepairsMacDesk(desk: desk, query: query, selection: $picked, creating: $creating)
-        }
-        .navigationTitle("Repairs")
-        .navigationSubtitle(picked.count == 1 ? (picked.first ?? "") : "")
-        .searchable(text: $query, placement: .toolbar, prompt: "Name, phone, piece or REP no.")
-        .inspector(isPresented: $inspecting) {
-            Group {
-                if picked.count == 1, let id = picked.first {
-                    RepairsSheet(id: id, seed: nil).id(id)
-                } else {
-                    ContentUnavailableView(picked.count > 1 ? "\(picked.count) tickets selected" : "No ticket picked",
-                                           systemImage: "wrench.and.screwdriver",
-                                           description: Text(picked.count > 1 ? "Pick one to read it." : "Pick a repair in the table to read it here."))
-                }
-            }
-            .inspectorColumnWidth(min: 340, ideal: 420, max: 600)
-        }
-        .toolbar {
-            if session.isOwner {
-                ToolbarItem(placement: .primaryAction) {
-                    Button { creating = true } label: { Label("New repair", systemImage: "plus") }
-                        .help("Take a repair in")
-                }
-            }
-            ToolbarItem(placement: .primaryAction) {
-                Button { inspecting.toggle() } label: { Label("Ticket", systemImage: "sidebar.trailing") }
-                    .help(inspecting ? "Hide the ticket" : "Show the ticket")
-            }
-        }
-        .sheet(isPresented: $creating, onDismiss: macOpenPending) {
-            RepairsForm { id, seed in pending = RepairsOpen(id: id, seed: seed) }
-        }
-        .repairsDesk(desk)
-        .failureAlert(missingMessage, title: "Repair not found")
-        .onAppear {
-            book.repairs.need()
-            readLink()
-        }
-        .onChange(of: book.repairs.loaded) { _, _ in readLink() }
-        .onChange(of: sheet?.id) { _, id in
-            // A ?id= link read on the desk (it is the table's own path only without one): pick that ticket.
-            if let id { picked = [id]; sheet = nil }
-        }
-    }
-
-    /// A repair just written is the one picked, once the form has left.
-    private func macOpenPending() {
-        if let p = pending {
-            pending = nil
-            picked = [p.id]
-            inspecting = true
+    private var macNewRepair: some View {
+        if session.isOwner {
+            RepairsForm { id, seed in savedTicket = RepairsOpen(id: id, seed: seed) }
+        } else {
+            NotAvailableState("Only an owner can take a repair in", why: "Ask an owner to write the ticket up.", symbol: "lock")
         }
     }
 }

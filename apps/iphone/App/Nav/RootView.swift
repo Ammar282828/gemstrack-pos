@@ -475,7 +475,12 @@ struct PlaceScreen: View {
             .environment(\.inSectionedEntry, sections.count > 1)
             // Native screens sit on the house's ground; an ERP page brings its own (the same palette).
             .modifier(OptionalGround(on: ScreenRegistry.hasNative(current), width: ScreenRegistry.readableWidth(for: current)))
+            #if os(macOS)
+            // Today draws the note itself on a Mac (a strip at the head of its page).
+            .modifier(TeamNotePresentation(shown: isRoot && bare != "/"))
+            #else
             .modifier(TeamNotePresentation(shown: isRoot))
+            #endif
             #if os(iOS)
             .toolbar {
                 // The business at the top of every tab (an iPad keeps it in the sidebar's header).

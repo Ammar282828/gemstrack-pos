@@ -103,7 +103,8 @@ struct RepairsSheet: View {
 
     private func detail(_ r: Repair) -> some View {
         #if os(macOS)
-        macDetail(r)
+        // The Mac draws the ticket itself (MacRepairsTicket); this page is the phone's.
+        EmptyView()
         #else
         // The ticket's header left, its pieces, money and details right, once the sheet is wide enough.
         WideDetailList(leftWidth: 340, wideFrom: 720) {
@@ -358,100 +359,11 @@ struct RepairsSheet: View {
 
 #if os(macOS)
 extension RepairsSheet {
-    /// The ticket as a column or window of its own, not a sheet: no stack of its own (the desk's inspector or the
-    /// hub's detail column holds it), its actions in the toolbar and a footer, the receipt through the Mac's print panel.
+    /// A ticket on the Mac is the ticket's own window, or the inspector beside the table (Mac/Places/Repairs): its actions are
+    /// `MacAction`s in the toolbar and the Repair menu, and Collected asks once.
     @ViewBuilder
     var macBody: some View {
-        content
-            .navigationTitle(id)
-            .toolbar { macToolbar }
-            .repairsDesk(desk)
-            .sheet(isPresented: $editing) {
-                if let r = current { RepairsForm(editing: r) { _, _ in } }
-            }
-            .confirmDestructive(isPresented: $confirmingDelete, title: "Delete \(id)?",
-                                message: "It is removed for good. The delete code is asked next.",
-                                action: "Delete repair") {
-                if let r = current { askDelete(r) }
-            }
-            .sheet(isPresented: deletionShown, onDismiss: afterDeletion) {
-                if let d = deletion {
-                    OwnerDeleteCodeSheet(deletion: d) { deleted = true }
-                }
-            }
-            .onAppear { book.repairs.need() }
-    }
-
-    /// Everything on the ticket in one grouped form (header, pieces, money, details), the next step at the foot.
-    func macDetail(_ r: Repair) -> some View {
-        Form { Group {
-            headerSection(r)
-            piecesSection(r)
-            moneySection(r)
-            detailsSection(r)
-            }
-            .houseRows()
-        }
-        .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
-        .background(Theme.ground)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            if session.isOwner && RepairsKit.hasActions(r) { macFooter(r) }
-        }
-    }
-
-    /// The next step on the right and a balance taken beside it. Not the Return key: a ticket in a column is not a dialog.
-    private func macFooter(_ r: Repair) -> some View {
-        let busy = desk.isBusy(r.id)
-        let owing = desk.status(r) != .cancelled && RepairsKit.repairBalance(r) > 0
-        return VStack(spacing: 0) {
-            Divider()
-            HStack(spacing: 10) {
-                if owing {
-                    Text("\(Money.pkr(RepairsKit.repairBalance(r))) due").font(.callout).foregroundStyle(.secondary).monospacedDigit()
-                }
-                Spacer(minLength: 8)
-                if owing {
-                    Button { desk.taking = r } label: { Label("Take payment", systemImage: "banknote") }
-                        .disabled(busy)
-                }
-                switch desk.status(r) {
-                case .received:
-                    Button { desk.markReady(r) } label: { Label("Mark ready", systemImage: "checkmark.circle") }
-                        .buttonStyle(.borderedProminent).disabled(busy)
-                case .ready:
-                    Button { desk.collect(r) } label: { Label("Collected", systemImage: "shippingbox") }
-                        .buttonStyle(.borderedProminent).disabled(busy)
-                default:
-                    EmptyView()
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-        }
-        .background(.bar)
-    }
-
-    @ToolbarContentBuilder
-    var macToolbar: some ToolbarContent {
-        ToolbarItemGroup(placement: .primaryAction) {
-            Button { MacPrint.print(Route(path: repairsTicketPath(id))) } label: { Label("Print receipt", systemImage: "printer") }
-                .help("Print the receipt")
-            if session.isOwner, let r = current {
-                Button { editing = true } label: { Label("Edit", systemImage: "pencil") }
-                    .keyboardShortcut("e", modifiers: .command)
-                    .help("Edit this ticket (⌘E)")
-                Menu {
-                    if desk.status(r) == .received || desk.status(r) == .ready {
-                        Button(role: .destructive) { desk.askCancel(r) } label: { Label("Cancel repair", systemImage: "xmark.circle") }
-                    }
-                    Divider()
-                    Button(role: .destructive) { confirmingDelete = true } label: { Label("Delete repair…", systemImage: "trash") }
-                } label: {
-                    Label("More", systemImage: "ellipsis.circle")
-                }
-            }
-        }
+        MacRepairsTicketWindow(id: id, seed: seed)
     }
 }
 #endif

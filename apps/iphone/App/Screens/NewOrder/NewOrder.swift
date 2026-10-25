@@ -56,6 +56,12 @@ struct NewOrder: View {
     @State private var confirmReset = false
     @State private var pickingStock = false
     @State private var step: EntryStep = .customer
+    #if os(macOS)
+    /// The pieces picked in the Mac's table; the one picked is edited in the right panel.
+    @State private var macPicked = Set<UUID>()
+    /// Which tab of the right panel is showing (Piece or Order).
+    @State private var macPanel = MacNewOrderPanelTab.piece
+    #endif
     /// Bumped on a saved order or edit, so the money tap is felt once (never per keystroke).
     @State private var saves = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -753,98 +759,229 @@ private struct NewOrderPinnedSummary: View {
 #if os(macOS)
 // MARK: The Mac's form: one window
 
-/// New order and Edit order on a Mac are one window form: the phone's steps are the form's sections, one after the
-/// other, and the order's summary (who, the pieces and their prices, the money) stays in a column on the right while
-/// they are filled in. Save is the footer's default button (Return, or ⌘S from anywhere); a piece opens in a sheet.
+/// New order and Edit order on a Mac are one document window (docs/features/mac-design.md, "New order"): the order at the
+/// left (who, when), the pieces as a table in the centre, and at the right a panel switched between the piece picked (its
+/// editor, no sheet) and the order's money (rates, payment, exchange, delivery, notes, our margin). The balance and the one
+/// Save are the footer's; every action is a `MacAction`, published to the menu bar (Order) and shown in the toolbar. The
+/// logic is this screen's own: the same draft, the same keeping, the same `save()`.
 extension NewOrder {
     fileprivate func macScreen(_ totals: NewOrderMath.Totals, _ settings: Settings?) -> some View {
+        macColumns(totals, settings)
+            .navigationTitle(edit.map { "Edit \($0.orderId)" } ?? "New Order")
+            .toolbar { macToolbar }
+            .macRecordMenu(macMenu())
+            .background { macCloseGuard }
+            .sheet(isPresented: $pickingStock) {
+                NewOrderStockPicker { p in macAddFromStock(p) }
+            }
+            .onChange(of: macPicked) { _, now in
+                if now.count == 1 { macPanel = .piece }
+            }
+            .onAppear {
+                // Change rate (the order page's "?rates=1") opens on the rates.
+                if ratesFirst { macPanel = .order }
+            }
+    }
+
+    // MARK: The three columns and the footer
+
+    fileprivate func macColumns(_ totals: NewOrderMath.Totals, _ settings: Settings?) -> some View {
+        VStack(spacing: 0) {
+            UpdateBanner()
+            HStack(spacing: 0) {
+                macLeft
+                    .frame(width: 300)
+                Divider()
+                MacNewOrderPieces(
+                    rows: macRows(totals),
+                    selection: $macPicked,
+                    totals: totals,
+                    add: { macAddPiece() },
+                    addFromStock: { pickingStock = true },
+                    remove: { ids in macRemove(ids) },
+                    duplicate: { ids in macDuplicate(ids) },
+                    open: { _ in macPanel = .piece }
+                )
+                .frame(minWidth: 320, maxWidth: .infinity)
+                Divider()
+                macPanelView(totals, settings)
+                    .frame(width: 320)
+            }
+            macFooter(totals)
+        }
+        .frame(minWidth: 940, idealWidth: 1080, minHeight: 560, idealHeight: 680)
+    }
+
+    /// Who it is for and when: the order's first facts, in a grouped form.
+    fileprivate var macLeft: some View {
+        Form {
+            if restored { restoredBanner }
+            if edit?.invoiced == true {
+                Section {
+                    Label("This order is on an invoice already. The invoice keeps its own copy of the pieces and the money: change those on the invoice.", systemImage: "doc.text")
+                        .font(.callout)
+                }
+            }
+            MacNewOrderCustomerSection(
+                draft: $draft,
+                people: people,
+                takenBy: session.shop.takenBy,
+                recent: { CustomerField.recent(invoices: book.invoices.items, orders: book.orders.items, book: book.customers.items) },
+                recentKey: [book.invoices.revision, book.orders.revision, book.customers.revision]
+            )
+            MacNewOrderPromisedSection(draft: $draft)
+        }
+        .formStyle(.grouped)
+    }
+
+    fileprivate func macRows(_ totals: NewOrderMath.Totals) -> [MacNewOrderRow] {
+        let names = Dictionary(karigars.map { ($0.id, $0.name) }, uniquingKeysWith: { a, _ in a })
+        var rows: [MacNewOrderRow] = []
+        for (index, p) in draft.pieces.enumerated() {
+            rows.append(MacNewOrderRow(piece: p, number: index + 1,
+                                       price: index < totals.prices.count ? totals.prices[index] : 0,
+                                       karigar: names[p.karigarId] ?? ""))
+        }
+        return rows
+    }
+
+    fileprivate func macPanelView(_ totals: NewOrderMath.Totals, _ settings: Settings?) -> some View {
+        MacNewOrderPanel(
+            tab: $macPanel,
+            piece: { macPieceEditor(settings) },
+            order: {
+                MacNewOrderOrderForm(
+                    draft: $draft,
+                    totals: totals,
+                    settings: settings,
+                    knownAddresses: { knownAddresses },
+                    margin: { NewOrderMath.margin(draft, settings, totals) },
+                    ratesFirst: ratesFirst
+                )
+            }
+        )
+    }
+
+    /// The piece picked, edited where it is: the phone's editor fields, on the same binding.
+    @ViewBuilder
+    fileprivate func macPieceEditor(_ settings: Settings?) -> some View {
+        if macPicked.count == 1, let id = macPicked.first, let i = draft.pieces.firstIndex(where: { $0.id == id }) {
+            MacNewOrderPieceForm(
+                piece: pieceBinding(id),
+                number: i + 1,
+                rates: NewOrderMath.formRates(draft, settings),
+                karigars: karigars,
+                editingOrder: edit != nil
+            )
+            .id(id)
+        } else if macPicked.count > 1 {
+            ContentUnavailableView("\(macPicked.count) Pieces Picked", systemImage: "square.stack",
+                                   description: Text("Pick one to edit it."))
+        } else {
+            ContentUnavailableView("No Piece Picked", systemImage: "diamond",
+                                   description: Text(draft.pieces.isEmpty ? "Add a piece to begin." : "Pick a piece in the table to edit it here."))
+        }
+    }
+
+    fileprivate func macFooter(_ totals: NewOrderMath.Totals) -> some View {
         let word = totals.balance < 0 ? "Credit to customer " : "Balance due "
-        return HStack(spacing: 0) {
-            Form {
-                Group {
-                    if restored { restoredBanner }
-                    // Change rate (the order page's, "?rates=1"): the rates at the top of the one form.
-                    if ratesFirst { NewOrderRatesSection(draft: $draft, settings: settings) }
-                    if edit?.invoiced == true {
-                        Section {
-                            Label("This order is on an invoice already. The invoice keeps its own copy of the pieces and the money: change those on the invoice.", systemImage: "doc.text")
-                                .font(.subheadline)
-                        }
-                    }
-                    if edit == nil && draft.isBlank { DraftsNote() }
-                    NewOrderCustomerSection(draft: $draft, people: people, takenBy: session.shop.takenBy) {
-                        CustomerField.recent(invoices: book.invoices.items, orders: book.orders.items, book: book.customers.items)
-                    }
-                    NewOrderPromisedSection(draft: $draft)
-                    piecesSection(totals)
-                    if !ratesFirst { NewOrderRatesSection(draft: $draft, settings: settings) }
-                    NewOrderPrintedSection(draft: $draft)
-                    NewOrderPaymentSection(draft: $draft, totals: totals)
-                    NewOrderExchangeSection(draft: $draft)
-                    tail(totals, settings)
-                }
-                .houseRows()
-            }
-            .formStyle(.grouped)
-            .scrollContentBackground(.hidden)
-            .background(Theme.ground)
-            .frame(minWidth: 460, maxWidth: .infinity)
-            Divider()
-            VStack(spacing: 0) {
-                UpdateBanner()
-                ScrollView {
-                    TransactionReview(customer: draft.customerName, contact: draft.customerPhone,
-                        pieces: draft.pieces.enumerated().map { index, p in
-                            TransactionReviewRow(label: "\(index + 1). \(p.description.isEmpty ? "Untitled piece" : p.description)",
-                                                 value: Money.pkr(index < totals.prices.count ? totals.prices[index] : 0))
-                        }, figures: [
-                            TransactionReviewRow(label: "Estimate", value: Money.pkr(totals.subtotal)),
-                            TransactionReviewRow(label: "Discount", value: Money.pkr(totals.discount)),
-                            TransactionReviewRow(label: "Advance", value: Money.pkr(totals.advance)),
-                            TransactionReviewRow(label: "Exchange", value: Money.pkr(totals.exchange)),
-                            TransactionReviewRow(label: totals.balance < 0 ? "Credit to customer" : "Balance due", value: Money.pkr(abs(totals.balance)))
-                        ])
-                        .padding(20)
-                }
-            }
-            .frame(width: 330)
-            .background(Theme.ground)
+        let tone: Tone = totals.balance <= -1 ? .credit : (totals.balance >= 1 ? .owed : .settled)
+        return MacNewOrderFooter(summary: word + Money.pkr(abs(totals.balance)), tone: tone, busy: saving, actions: [macSaveAction])
+    }
+
+    // MARK: Actions
+
+    fileprivate var macSaveAction: MacAction {
+        MacAction(edit == nil ? "Save Order" : "Save Changes",
+                  shortcut: KeyboardShortcut("s", modifiers: .command),
+                  enabled: !saving && !UpdateGate.blocked, isDefault: true, id: "save") {
+            Task { await save() }
         }
-        .actionBar(primary: .init(edit == nil ? "Save order" : "Save changes", isBusy: saving, isDisabled: UpdateGate.blocked) { Task { await save() } },
-                   summary: word + Money.pkr(abs(totals.balance)))
-        .navigationTitle(edit.map { "Edit \($0.orderId)" } ?? "New order")
-        .toolbar {
-            // The AI slip reader: only an owner's sign-in may use it, so only an owner is offered it.
-            if edit == nil && session.isOwner {
-                ToolbarItem(placement: .primaryAction) {
-                    Button { readingSlip = true } label: {
-                        Label("Read a slip", systemImage: "doc.text.viewfinder").labelStyle(.titleAndIcon)
-                    }
-                    .help("Read a photographed slip into this order")
-                }
-            }
-            if edit == nil {
-                ToolbarItem(placement: .primaryAction) {
-                    Menu {
-                        Button(role: .destructive) { confirmReset = true } label: {
-                            Label("Start over", systemImage: "arrow.counterclockwise")
-                        }
-                        .disabled(draft.isBlank)
-                    } label: {
-                        Label("More", systemImage: "ellipsis.circle")
-                    }
-                }
+    }
+
+    fileprivate var macSlipAction: MacAction {
+        MacAction("Read a Slip\u{2026}", symbol: "doc.text.viewfinder",
+                  enabled: edit == nil && session.isOwner, id: "slip") {
+            readingSlip = true
+        }
+    }
+
+    fileprivate var macResetAction: MacAction {
+        MacAction("Start Over\u{2026}", symbol: "arrow.counterclockwise", role: .destructive,
+                  enabled: edit == nil && !draft.isBlank, id: "reset") {
+            confirmReset = true
+        }
+    }
+
+    /// The Order menu: every action, with its key.
+    fileprivate func macMenu() -> MacRecordMenu {
+        let picked = macPicked
+        let add = MacAction("Add a Piece", symbol: "plus", shortcut: KeyboardShortcut("l", modifiers: .command), id: "add") {
+            macAddPiece()
+        }
+        let stock = MacAction("Add from Stock\u{2026}", symbol: "shippingbox", id: "stock") {
+            pickingStock = true
+        }
+        let copy = MacAction("Duplicate Piece", symbol: "plus.square.on.square", enabled: !picked.isEmpty, id: "duplicate") {
+            macDuplicate(picked)
+        }
+        let remove = MacAction("Remove Piece", symbol: "minus.circle", enabled: !picked.isEmpty, id: "remove") {
+            macRemove(picked)
+        }
+        return MacRecordMenu(title: "Order", groups: [[macSaveAction], [add, stock, copy, remove], [macSlipAction, macResetAction]])
+    }
+
+    @ToolbarContentBuilder
+    fileprivate var macToolbar: some ToolbarContent {
+        if edit == nil {
+            ToolbarItemGroup(placement: .primaryAction) {
+                MacToolbarAction(action: macSlipAction)
+                MacToolbarAction(action: macResetAction)
             }
         }
-        // \u{2318}S saves from anywhere; a form missing something is told what, as the Save button would.
-        .background {
-            Button("Save") { Task { await save() } }
-                .keyboardShortcut("s", modifiers: .command).opacity(0).accessibilityHidden(true)
-        }
-        .sheet(item: $editing) { ref in
-            NavigationStack { editor(ref.id) }
-                .frame(minWidth: 820, idealWidth: 900, minHeight: 640, idealHeight: 720)
-        }
+    }
+
+    // MARK: The pieces
+
+    fileprivate func macAddPiece() {
+        let piece = NewOrderPieceDraft()
+        draft.pieces.append(piece)
+        macPicked = [piece.id]
+        macPanel = .piece
+    }
+
+    /// A piece in stock as the start of one to be made, picked and ready to change.
+    fileprivate func macAddFromStock(_ p: Product) {
+        let piece = NewOrderPieceDraft(fromSale: SaleLine(p))
+        draft.pieces.append(piece)
+        macPicked = [piece.id]
+        macPanel = .piece
+    }
+
+    fileprivate func macDuplicate(_ ids: Set<UUID>) {
+        for id in ids { draft.duplicatePiece(id) }
+    }
+
+    fileprivate func macRemove(_ ids: Set<UUID>) {
+        draft.pieces.removeAll { ids.contains($0.id) }
+        macPicked.subtract(ids)
+    }
+
+    // MARK: Closing
+
+    /// Edit order only: the changes made on the order on file, until they are saved. (A new order is kept in Drafts at every
+    /// change, so closing it loses nothing and asks nothing.)
+    fileprivate var macChanged: Bool {
+        guard let edit else { return false }
+        return !savedEdit && draft != edit.draft
+    }
+
+    fileprivate var macCloseGuard: some View {
+        MacNewOrderCloseGuard(
+            changed: macChanged,
+            question: "Do you want to save the changes to " + (edit?.orderId ?? "this order") + "?",
+            save: { Task { await save() } }
+        )
     }
 }
 #endif

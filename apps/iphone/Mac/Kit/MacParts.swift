@@ -86,6 +86,9 @@ struct MacFigure: Identifiable {
 struct MacFigures: View {
     let figures: [MacFigure]
 
+    init(_ figures: [MacFigure]) { self.figures = figures }
+    init(figures: [MacFigure]) { self.figures = figures }
+
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
             ForEach(Array(figures.enumerated()), id: \.element.id) { i, f in

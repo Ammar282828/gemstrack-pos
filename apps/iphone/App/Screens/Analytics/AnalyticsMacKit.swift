@@ -2,8 +2,9 @@
 import SwiftUI
 import Charts
 
-// The Mac's Analytics: a hover read-out for the charts (the iPhone has none; a pointer is not a finger) and the
-// window's own names for the five tabs. Nothing here works out a figure: the charts hand in the rows they draw.
+// The Mac's Analytics: a hover read-out for the charts (the iPhone has none; a pointer is not a finger). The five sections
+// are the sidebar's (docs/features/mac-design.md), so no list of them lives here. Nothing here works out a figure: the
+// charts hand in the rows they draw.
 
 /// Move the pointer along a chart and a line follows it with the day's figure beside it.
 struct MacChartReadout: ViewModifier {
@@ -51,16 +52,5 @@ extension View {
     func macChartReadout(dates: [Date], text: @escaping (Date) -> String) -> some View {
         modifier(MacChartReadout(dates: dates, text: text))
     }
-}
-
-extension AnaSection {
-    /// The five tabs in the toolbar's menu, by the names the web gives them.
-    static let macTabs: [(section: AnaSection, name: String, path: String)] = [
-        (.overview, "Overview", "/analytics"),
-        (.sales, "Sales", "/analytics/sales"),
-        (.products, "Products", "/analytics/products"),
-        (.customers, "Customers", "/analytics/customers"),
-        (.categories, "Categories", "/analytics/categories"),
-    ]
 }
 #endif
