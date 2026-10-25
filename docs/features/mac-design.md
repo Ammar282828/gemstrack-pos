@@ -126,8 +126,9 @@ last month), Orders due. Then three columns of plain lists with section headers:
 The rate is the sidebar's foot.
 
 ### Invoices
-Table: Number, Customer, Date, Pieces, Total, Paid, Owed, Status (dot: Paid · Owed · In credit · Refunded), Taken by,
-Source. Saved lists Unpaid, Today, This month; a filter pop-up for Taken by and Source; summary bar. Inspector: header
+Table: Number, Customer, Date, Total, Paid, Owed, Status (dot: Paid · Owed · In credit · Refunded); Pieces, Taken by and
+Source are the inspector's. Saved lists Unpaid, Today, This month; one Filter menu (Taken by and Source inline); summary
+bar. Inspector: header
 (customer, number, date, status, the due amount), actions (Take Payment, WhatsApp, PDF), Pieces (compact rows), Payments
 (compact rows, give back credit), Details. Record window: the invoice document (header, pieces table, totals block,
 payments table, details column). Menu **Invoice**: Take Payment… ⌥⌘P, Change Discount… ⇧⌘D, Send on WhatsApp ⇧⌘W, PDF
@@ -146,8 +147,8 @@ the scanner field is empty). Toolbar: Read a Written Bill…, Create Order from 
 its own draft (two sales at once never share one).
 
 ### Orders
-Two views, ⌃⌘1 / ⌃⌘2: **Table** — Number, Customer, Stage (dot and the stage's words), Promised (red when late), Pieces,
-Karigars, Total (the order's worth, not `grandTotal`, which is the balance), Advance, Owed; **Board** — a column per stage
+Two views, ⌃⌘1 / ⌃⌘2: **Table** — Number, Customer, Stage (dot and the stage's words), Promised (red when late),
+Karigars, Total (the order's worth, not `grandTotal`, which is the balance), Owed (pieces and advances are the inspector's); **Board** — a column per stage
 (Online, Not started, With karigars, Ready to hand over, Awaiting payment; Done and Cancelled folded), compact two-line
 rows, selectable, a row dragged from With karigars to Ready marks it ready, and back. Saved lists as in the sidebar.
 Inspector: header (customer, number, stage, promised leaf, owed), the next step as the default button, pieces (karigar
@@ -169,7 +170,7 @@ figures inline-editable), discount with Round ▾, the invoice's totals; **Make 
 never makes it. Making it turns the window into the invoice.
 
 ### Repairs
-Table: Number, Piece, Customer, Status, In, Ready by, Owed, Karigar; saved lists In the shop, Ready, Collected; summary
+Table: Number, Piece, Customer, Status, Ready by, Owed, Karigar (the day it came in is the inspector's); saved lists In the shop, Ready, Collected; summary
 bar with what is due. Inspector: the ticket (header, pieces, money, details) with Mark Ready / Collected as its default
 button and Take Payment beside it. New repair: a document window (Customer, Pieces table, Ready by with a menu of 3 days /
 1 week / 2 weeks, Advance, For the shop), Save. Menu **Repair**: Mark Ready, Collected…, Tell Them It's Ready, Take
@@ -177,11 +178,11 @@ Payment…, Print Receipt ⌘P, Edit ⌘E, Cancel…, Delete…. Collected with 
 "Hand back without it" / Cancel.
 
 ### Customers
-Table: Name, Phone, City, Last sale, Spent, Owed, Came from, Ring; saved lists Owe us, Recent; summary bar (customers,
+Table: Name, Phone, City, Last sale, Spent, Owed, Came from (sizes are the inspector's); saved lists Owe us, Recent; summary bar (customers,
 owed). Inspector: header (name, phone, owed), actions (Call, WhatsApp, Message, Hisaab), Contact (edited in place), Sizes
 (in place), Recent invoices and orders (compact). Record window: header, a toolbar segmented control Invoices / Orders /
 Repairs / Hisaab over one sortable table, the details column at the right edited in place. Merge Duplicates… and Clean Up
-Spam… are menu items (Customer menu, and the toolbar's ⋯). New customer: ⌃⌘N in Customers, a sheet (Name, Phone, Email,
+Spam… are menu items (Customer menu, and the toolbar's one Tidy Up menu). New customer: ⌃⌘N in Customers, a sheet (Name, Phone, Email,
 Address, Came from) — small, so a sheet.
 
 ### Drafts
