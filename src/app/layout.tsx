@@ -125,7 +125,7 @@ function AppBody({ children }: { children: React.ReactNode }) {
   useIsomorphicLayoutEffect(() => {
     applyThemeToDocument(shownTheme);
     const meta = document.querySelector('meta[name="theme-color"]');
-    const bar = onLinksPage ? LINKS_DRESS.ground : shownTheme === LIGHT_THEME ? (STORE_BRAND === 'mina' ? '#F4EFE8' : '#F2F3F6') : STORE_THEME_COLOR;
+    const bar = onLinksPage ? LINKS_DRESS.ground : shownTheme === LIGHT_THEME ? (STORE_BRAND === 'mina' ? '#F2E9E4' : '#ECE8E1') : STORE_THEME_COLOR;
     if (meta) meta.setAttribute('content', bar);
     // The iPhone app's status bar, which no meta tag reaches.
     tellAppChrome(bar, onLinksPage || shownTheme !== LIGHT_THEME);
@@ -229,8 +229,8 @@ export default function RootLayout({
         <link rel="icon" href={`${STORE_ICONS.dir}/favicon.ico`} sizes="48x48" />
         <link rel="icon" type="image/png" sizes="192x192" href={`${STORE_ICONS.dir}/icon-192.png`} />
         <link rel="apple-touch-icon" href={`${STORE_ICONS.dir}/apple-touch-icon.png`} />
-        {/* The browser chrome around the app. #0A1111 is taheri.shop's ground —
-            this was the other shop's maroon. */}
+        {/* The browser chrome around the app: the ERP's dark ground (#030606 for Taheri,
+            2026-10-25), once the other shop's maroon. */}
         <meta name="theme-color" content={head.themeColor} />
         {/*
           Paint the right background before anything else runs.

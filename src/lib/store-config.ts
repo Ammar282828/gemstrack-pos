@@ -169,7 +169,7 @@ export const STORE_BRAND = (process.env.NEXT_PUBLIC_STORE_BRAND ?? 'taheri') as 
 /** The house's own metal as a word, for the columns and labels that track it (Hisaab's metal
  *  balance, the rate form): "Silver" in a silver house, which Hisaab used to label "Gold". */
 export const STORE_METAL_WORD = STORE_CONFIG.defaultMetal === 'silver' ? 'Silver' : 'Gold';
-export const STORE_THEME_COLOR = process.env.NEXT_PUBLIC_STORE_THEME_COLOR?.trim() || '#0A1111';
+export const STORE_THEME_COLOR = process.env.NEXT_PUBLIC_STORE_THEME_COLOR?.trim() || '#030606';
 
 /**
  * The house's icons — browser tab, home screen, installed app — made by scripts/make-icons.mjs into
@@ -378,16 +378,17 @@ export const STORE_POST_FOOTER = lines(process.env.NEXT_PUBLIC_STORE_POST_FOOTER
 
 /**
  * The house's colours for the native app (GET /api/app/business): the app dresses itself from this when it
- * switches business, as #RRGGBB. Defaults are Taheri's (the iPhone app's Accent/Ground/Card/OnAccent colour
- * sets). A house sets NEXT_PUBLIC_STORE_PALETTE to a compact JSON string
- * `{"light":{"accent":"#…","ground":"#…","card":"#…","onAccent":"#…"},"dark":{…}}`; anything missing or not a
+ * switches business, as #RRGGBB. Defaults are Taheri's (the iPhone app's Accent/Ground/Card/Elevated/OnAccent
+ * colour sets; elevated = sheets, popovers and the grouped rows inside a card). A house sets
+ * NEXT_PUBLIC_STORE_PALETTE to a compact JSON string
+ * `{"light":{"accent":"#…","ground":"#…","card":"#…","elevated":"#…","onAccent":"#…"},"dark":{…}}`; anything missing or not a
  * #RRGGBB falls back to Taheri's for that colour. Empty is unset (the local env generator writes it empty).
  */
-export type PaletteSide = { accent: string; ground: string; card: string; onAccent: string };
+export type PaletteSide = { accent: string; ground: string; card: string; elevated: string; onAccent: string };
 export type StorePalette = { light: PaletteSide; dark: PaletteSide };
 const TAHERI_PALETTE: StorePalette = {
-  light: { accent: '#8A6B42', ground: '#F2F3F6', card: '#FFFFFF', onAccent: '#FFFFFF' },
-  dark: { accent: '#BE9F76', ground: '#0A1111', card: '#141A1A', onAccent: '#0B1414' },
+  light: { accent: '#8A6B42', ground: '#ECE8E1', card: '#FFFFFF', elevated: '#FFFFFF', onAccent: '#FFFFFF' },
+  dark: { accent: '#D3B47F', ground: '#030606', card: '#172020', elevated: '#202A29', onAccent: '#0B1414' },
 };
 export const parsePalette = (raw: string | undefined): StorePalette => {
   let given: Record<string, Record<string, unknown> | undefined> = {};

@@ -33,7 +33,7 @@ struct WebsiteEditScreen: View {
             }
         }
         .navigationTitle("Edit a piece")
-        .navigationBarTitleDisplayMode(.large)
+        .hubTitleDisplay()
         .searchable(text: $search, prompt: "Name, collection, ruby, Ring 12…")
         #if os(macOS)
         .navigationSubtitle(store.phase == .loaded ? "\(filtered.count) of \(store.pieces.count) pieces" : "")

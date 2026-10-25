@@ -63,7 +63,8 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
   primitives). **Dark was already the app's palette; light is new.** Per house and mode the four colours (ground, card, accent,
   on-accent) are the app's `Assets.xcassets` values and `lib/tones.test.ts` keeps the two copies equal: Taheri light is a grey
   `#F2F3F6` ground, white cards and a **deep gold `#8A6B42` accent (it was near-black navy)**; Mina light has its own cream
-  neutrals (`#F4EFE8`, `#FFFDF9`, maroon `#380000`) instead of inheriting Taheri's. **Dark-mode text is system white**
+  neutrals (`#F4EFE8`, `#FFFDF9`, maroon `#380000`) instead of inheriting Taheri's. *(2026-10-25: the grounds and dark cards moved;
+  see "Separated grounds, lifted cards" under Light and dark.)* **Dark-mode text is system white**
   (`0 0% 100%`), not each house's warm off-white. The houses are still the body's `brand-<house>` class and the variables: no
   fork. **Cards are flat** (22px, no border, no shadow; tone separates them), buttons, chips and tabs are capsules, fields 12px,
   sheets 28px, menus and popovers 14px; headings are semibold and untracked; **colour means something** (`lib/tones.ts`:
@@ -130,6 +131,21 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
   className now carries no theme (identical on server and client), and `applyThemeToDocument` toggles `theme-default` on it in
   a layout effect, before paint. Reproduced and re-checked in headless Chromium in five cache states (`gemstrack:theme` /
   `gemstrack:theme-device`).
+- **Separated grounds, lifted cards** (owner, 2026-10-25: "the light and dark modes need more separation and should be sexier").
+  The ground and the card were nearly one colour in both modes (card/ground 1.05:1). **Light** is a warm, deeper ground with
+  pure-white cards that float: Taheri `#ECE8E1`, Mina `#F2E9E4`, card `#FFFFFF` (1.2:1), and a very soft shadow on cards
+  (y 1, blur 3, black 5%). **Dark** is a near-black ground with clearly lifted cards, an *elevated* step for sheets, popovers and
+  rows inside cards, and a hairline (white 7%, 0.5 px) on cards instead of a border: Taheri ground `#030606`, card `#172020`,
+  elevated `#202A29`; Mina `#090405`, `#22131A`, `#2C1A21`. **Accents** are a touch richer in dark: Taheri champagne gold
+  `#D3B47F` (was `#BE9F76`), Mina rose `#EBA9B3` (was `#E8A5AE`); the light accents stay (`#8A6B42`, `#380000`). Contrast (WCAG):
+  the words on the accent keep `#FFFFFF` / `#0B1414` / `#FBF9F9` / `#251318` = 4.9 / 9.4 / 17.1 / 9.2:1; the accents are 10.3 and
+  10.5:1 on the dark grounds; secondary text was darkened where the deeper light ground dropped it under 4.5:1 (Taheri
+  `--muted-foreground` `220 8.9% 46.1%` to `42%` = 4.6:1 on `#ECE8E1`, was 4.0; Mina `30 8% 42%` to `37%` = 5.3:1, was 4.4).
+  Still flat 22 px cards, no borders, and glass only on controls: the shadow and the hairline are content-layer, never on a
+  toast or anything that fades or slides. One place each: web `.card` / `.rounded-card.bg-card` (`--card-shadow`, `--card-edge`),
+  iPhone/Mac `Theme.houseCard`, Android `Modifier.houseCardSurface`. The native palette contract gained `elevated`
+  (`/api/app/business` `palette.<mode>.elevated`; an older server's absence means the card). Values and the why:
+  `docs/features/web-matches-app.md` a.1. Rows of a native list (system-drawn) carry no shadow or hairline.
 
 ### Motion
 
@@ -581,6 +597,13 @@ balance below zero is the customer's credit (`lib/invoice-credit.ts`).
   says how many sales had a rate; the yearly table likewise. Mina (silver): `NEXT_PUBLIC_STORE_COST_RATTI_LESS` "none".
 - `STORE_EST_MARGIN` and the ratti read an empty variable as unset: the env generator writes Mina-only variables empty
   for a local Taheri, and `Number('')` made every local estimate 0%.
+
+### Net profit
+
+- **Net profit is the estimated profit less the expenses** (owner, 2026-10-25: "Net profit 5.51 crore, 100.0% margin" beside
+  an estimate of 55 lac). Revenue less expenses ignored what the goods cost. The margin is net ÷ revenue. Analytics'
+  Overview tile and its yearly table (web `src/lib/analytics/net-profit.ts`, tested; iPhone `AnaNet`). The Home "Net"
+  (revenue less expenses) and the monthly PDF's `net` are labelled revenue less expenses, not profit, and are unchanged.
 
 ### Exchange as cash
 

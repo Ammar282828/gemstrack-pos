@@ -46,7 +46,7 @@ struct WorkshopGivenScreen: View {
             content
         }
         .navigationTitle("Given items")
-        .navigationBarTitleDisplayMode(.large)
+        .hubTitleDisplay()
         .modifier(HouseGround())
         .searchable(text: $query, prompt: "Item or recipient")
         .toolbar { givenToolbar }

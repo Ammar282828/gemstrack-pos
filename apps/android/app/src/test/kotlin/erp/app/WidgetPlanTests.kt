@@ -21,8 +21,8 @@ import kotlin.test.assertTrue
 
 // The widget's two-business layout and what its faces show (WidgetSummary.kt): the same plan draws the Glance widget and the preview.
 
-private val SIDE = Business.Side("#8A6B42", "#F2F3F6", "#FFFFFF", "#FFFFFF")
-private val PALETTE = Business.Palette(SIDE, SIDE.copy(accent = "#BE9F76", ground = "#0A1111"))
+private val SIDE = Business.Side("#8A6B42", "#ECE8E1", "#FFFFFF", "#FFFFFF", "#FFFFFF")
+private val PALETTE = Business.Palette(SIDE, SIDE.copy(accent = "#D3B47F", ground = "#030606", card = "#172020", elevated = "#202A29"))
 
 private fun link(id: String, brand: String? = id) = WidgetLinkData(id, id.uppercase() + " ERP", "https://erp.$id.example", "key-$id", PALETTE, brand)
 
@@ -214,7 +214,7 @@ class WidgetLinkTests {
     @Test fun `a business's colours on the widget are its palette's`() {
         val look = link("mina").look
         assertEquals(androidx.compose.ui.graphics.Color(0xFF8A6B42), look.accent(false))
-        assertEquals(androidx.compose.ui.graphics.Color(0xFFBE9F76), look.accent(true))
+        assertEquals(androidx.compose.ui.graphics.Color(0xFFD3B47F), look.accent(true))
         assertTrue(look.ground(true) != look.ground(false))
     }
 }

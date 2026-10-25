@@ -34,12 +34,26 @@ from the app on purpose it is marked **deviation**._
 
 | Role (app name) | Taheri light | Taheri dark | Mina light | Mina dark |
 |---|---|---|---|---|
-| Ground (`Ground-*`) -> `--background` | `#F2F3F6` = `225 18% 95.7%` | `#0A1111` = `180 26% 5.3%` | `#F4EFE8` = `35 35% 93.3%` | `#1C1114` = `344 24% 8.8%` |
-| Card (`Card-*`) -> `--card`, `--popover` | `#FFFFFF` = `0 0% 100%` | `#141A1A` = `180 13% 9%` | `#FFFDF9` = `40 100% 98.8%` | `#27191D` = `343 22% 12.5%` |
-| Accent (`Accent-*`) -> `--primary`, `--ring` | `#8A6B42` = `34 35% 40%` | `#BE9F76` = `34 36% 60.4%` | `#380000` = `0 100% 11%` | `#E8A5AE` = `352 59% 77.8%` |
+| Ground (`Ground-*`, `Launch-*`) -> `--background` | `#ECE8E1` = `38.2 22.4% 90.4%` | `#030606` = `180 33.3% 1.76%` | `#F2E9E4` = `21.4 35% 92.16%` | `#090405` = `348 38.5% 2.55%` |
+| Card (`Card-*`) -> `--card` | `#FFFFFF` = `0 0% 100%` | `#172020` = `180 16.4% 10.78%` | `#FFFFFF` = `0 0% 100%` | `#22131A` = `332 28.3% 10.39%` |
+| Elevated (`Elevated-*`) -> `--popover`, `--elevated`, dark `--secondary`/`--muted` | `#FFFFFF` | `#202A29` = `174 13.5% 14.51%` | `#FFFFFF` | `#2C1A21` = `336.7 25.7% 13.73%` |
+| Accent (`Accent-*`) -> `--primary`, `--ring` | `#8A6B42` = `34 35% 40%` | `#D3B47F` = `37.9 48.8% 66.3%` | `#380000` = `0 100% 11%` | `#EBA9B3` = `350.9 62.3% 79.2%` |
 | On accent (`OnAccent-*`) -> `--primary-foreground` | `#FFFFFF` = `0 0% 100%` | `#0B1414` = `180 29% 6.1%` | `#FBF9F9` = `0 20% 98%` | `#251318` = `343 32% 11%` |
 
-Current web values for comparison: Taheri light `--background 220 30% 99.4%`, `--primary 220.9 39.3% 11%`; Taheri dark
+**2026-10-25 ("more separation, sexier", decision "Light and dark")** replaced the grounds, dark cards and dark accents above (they were
+Taheri `#F2F3F6` / `#0A1111` / card `#141A1A` / gold `#BE9F76`; Mina `#F4EFE8` / `#1C1114` / cards `#FFFDF9`, `#27191D` / rose `#E8A5AE`).
+Light cards float on a deeper warm ground with a soft shadow (`--card-shadow: 0 1px 3px rgb(0 0 0 / .05)`); dark cards lift off a
+near-black ground with a hairline (`--card-edge: inset 0 0 0 .5px rgb(255 255 255 / .07)`); both are applied by one rule in
+`globals.css` to `.card` and `.rounded-card.bg-card` (a caller opts out with `shadow-none`). Contrast, WCAG: card/ground 1.22 (Taheri
+light), 1.20 (Mina light), 1.22 (Taheri dark), 1.14 (Mina dark); on-accent on accent 4.93 (Taheri light, white on `#8A6B42`),
+9.43 (Taheri dark, `#0B1414` on `#D3B47F`), 17.14 (Mina light), 9.16 (Mina dark); accent on ground 4.03 (Taheri light: text goes on
+cards), 15.0 (Mina light), 10.27 and 10.53 (dark); `--muted-foreground` on ground 4.6 (Taheri light, was 4.0 so moved to
+`220 8.9% 42%`), 5.3 (Mina light, was 4.4 so moved to `30 8% 37%`), 8.2/8.5 dark. Hover (`--accent`) in light is one step under the
+ground (`38.6 20% 86.3%`, Mina `23.3 30% 88.2%`) so the sidebar, which sits on the ground, still shows it; in dark `--secondary` and
+`--muted` are the elevated colour and `--accent` a step above it (`175 12.2% 19.2%`, Mina `337.1 23.1% 17.84%`); dark `--border` and
+`--input` are the hairline over the card (`180 10.3% 17.1%`, Mina `332.3 15.3% 16.67%`).
+
+Previous web values, for the record (before this spec): Taheri light `--background 220 30% 99.4%`, `--primary 220.9 39.3% 11%`; Taheri dark
 `--background 180 24% 5%`, `--card 185 15% 9%`; Mina light = Taheri's neutrals with only `--primary 0 100% 11%`; Mina dark
 `--primary 352 52% 76%`. So: Taheri dark and Mina dark change only in the 3rd digit (adopt the exact values anyway, one source of truth
 with the app); **Taheri light and Mina light change fully** (Mina light needs its own neutrals block: today it inherits Taheri's).
@@ -56,7 +70,7 @@ Derived tokens (not in the app's asset catalogue; the app uses iOS system fills,
 | `--secondary-foreground`, `--accent-foreground` | `0 0% 0%` | same | unchanged |
 | `--chart-1` | = `--primary` | = `--primary` | unchanged |
 
-**Contrast note (carry into the CSS comment):** `#8A6B42` is 4.9:1 on white but ~4.4:1 on the `#F2F3F6` ground. So accent
+**Contrast note (carry into the CSS comment):** `#8A6B42` is 4.9:1 on white but 4.0:1 on the `#ECE8E1` ground (it was ~4.4 on `#F2F3F6`). So accent
 **text under 17px/semibold goes on cards, not on the ground**, or uses `--foreground`. Page titles use `text-foreground` (the app's
 titles are label colour; only controls and chosen states are accent).
 

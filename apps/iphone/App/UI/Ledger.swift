@@ -510,7 +510,7 @@ extension View {
         self
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Theme.card, in: .rect(cornerRadius: Radius.card, style: .continuous))
+            .houseCard()
     }
 }
 

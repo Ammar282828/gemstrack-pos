@@ -462,6 +462,7 @@ struct PlaceScreen: View {
             .modifier(WebTitle(title: ScreenRegistry.hasNative(current) ? nil : (title ?? "")))
             .modifier(TabsMenu(tabs: menuTabs, section: sections.count > 1 ? openSection : nil, current: ScreenRoute.bare(current), chosen: $chosen))
             .modifier(SectionPicker(tabs: tabs, sections: sections, open: openSection, chosen: $chosen))
+            .environment(\.inSectionedEntry, sections.count > 1)
             // Native screens sit on the house's ground; an ERP page brings its own (the same palette).
             .modifier(OptionalGround(on: ScreenRegistry.hasNative(current), width: ScreenRegistry.readableWidth(for: current)))
             .modifier(TeamNotePresentation(shown: isRoot))

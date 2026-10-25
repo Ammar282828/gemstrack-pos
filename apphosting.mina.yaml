@@ -22,16 +22,16 @@ env:
     availability:
       - BUILD
       - RUNTIME
-  # Mina's muted burgundy ground, for the browser chrome (globals.css .brand-mina).
+  # Mina's near-black wine ground, for the browser chrome (globals.css .brand-mina).
   - variable: NEXT_PUBLIC_STORE_THEME_COLOR
-    value: "#1C1114"
+    value: "#090405"
     availability:
       - BUILD
       - RUNTIME
   # The native app's colours for this house (GET /api/app/business; lib/store-config.ts STORE_PALETTE): the iPhone
-  # app's Accent/Ground/Card/OnAccent colour sets. Taheri's are the code's defaults.
+  # app's Accent/Ground/Card/Elevated/OnAccent colour sets. Taheri's are the code's defaults.
   - variable: NEXT_PUBLIC_STORE_PALETTE
-    value: '{"light":{"accent":"#380000","ground":"#F4EFE8","card":"#FFFDF9","onAccent":"#FBF9F9"},"dark":{"accent":"#E8A5AE","ground":"#1C1114","card":"#27191D","onAccent":"#251318"}}'
+    value: '{"light":{"accent":"#380000","ground":"#F2E9E4","card":"#FFFFFF","elevated":"#FFFFFF","onAccent":"#FBF9F9"},"dark":{"accent":"#EBA9B3","ground":"#090405","card":"#22131A","elevated":"#2C1A21","onAccent":"#251318"}}'
     availability:
       - BUILD
       - RUNTIME

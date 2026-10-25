@@ -117,6 +117,7 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Overview, Sales, Products, Customers (this month by default) | ✓ | ✓ | ✓ | ✓ | 2026-10 | [Analytics default](decisions.md#analytics-default-this-month) |
 | Categories as ranked share bars | ✓ | ✓ | ✓ | ✓ | 2026-10-20 | `lineCategory`/`guessCategory`: `Categories.swift`, `core/logic/Categories.kt` (+ tests); `AnaShareChart` |
 | One Analytics with sections (Sales · Website · Social · Ads) and a section picker; the marketing account sees only tabs marked `marketing` | ✓ | ✓ | ✓ | ✓ | 2026-10-23 | [The map](decisions.md#the-map) |
+| Net profit = estimated profit less expenses (not revenue less expenses) | ✓ | ✓ | owed | ✓ | 2026-10-25 | [Net profit](decisions.md#net-profit); `src/lib/analytics/net-profit.ts`, `AnaNet`; Android `AnaYear.netProfit` and the Overview tile still use revenue − expenses |
 | Monthly PDF | ✓ | ✓ | ✓ | ✓ | 2026-10 | [Monthly PDF](features/notifications.md#monthly-pdf) |
 | Sums spoken in rupees, charts summarised for screen readers | n/a | ✓ | n/a | ✓ | 2026-10-20 | Android uses TalkBack labels (`android-app.md`) |
 
@@ -159,6 +160,7 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Taheri book import | ✓ | ✓ | ✓ | ✓ | 2026-10-17 | `TaheriBookImportSettings.swift`; Android `TaheriBookImportSettings.kt` (`importTaheriBook` preview, then Import; the iPhone does not use `/api/app/taheri-book` either, that route is the web page's) |
 | Connect an AI (scoped keys; MCP + REST) | ✓ | ✓ | pg | ✓ | 2026-10-19 | [AI keys](features/ai-keys.md) |
 | Appearance, Liquid Glass | ✓ | ✓ | n/a | ✓ | 2026-10 | Apple HIG glass; Android is Material 3 |
+| Light/dark: separated grounds, lifted cards | ✓ | ✓ | ✓ | ✓ | 2026-10-25 | Warm deeper light ground + white cards with a soft shadow; near-black dark ground + lifted cards with a 0.5 hairline, richer dark accents ([Light and dark](decisions.md#light-and-dark)). Web `globals.css` `--card-shadow` / `--card-edge`; iPhone and Mac `Theme.houseCard` + `Elevated-*` colour sets (the Mac compiles the same `App/`); Android `Modifier.houseCardSurface` + `house_elevated`. Not built on a phone or a Mac here |
 | Businesses (add by address, order, turn off the picker) | n/a | ✓ | ✓ | ✓ | 2026-10-16 | `BusinessesScreen.swift`, `screens/businesses/BusinessesPanel.kt` |
 
 ## Widgets and notifications

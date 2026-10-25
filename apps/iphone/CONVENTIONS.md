@@ -55,6 +55,9 @@ Read before adding anything here. The why is in `docs/features/iphone-app.md`.
 12. **The look.** Screens sit on `HouseGround`; cards and tiles on `Theme.card`; list sections take
    `.houseRows()`; a filled button is `.buttonStyle(.houseProminent)` (its words in `Theme.onAccent`, as the
    web's --primary-foreground), never the system's white on the house's light dark-mode accent.
+   A card's surface is `.houseCard()` (`Theme.card` in the flat 22 pt shape, with the mode's lift: a soft shadow in light, a 0.5 pt
+   hairline in dark; never glass, never on something that fades or slides); `Theme.elevated` is the step above it (sheets, popovers,
+   rows inside a card). Owner, 2026-10-25.
    All native pages share the ledger hierarchy: `LedgerHeading` / `LedgerSection` for section titles,
    `HeroAmount` for the main balance, `FigureTile` for supporting figures, and `FilterChip` for filters.
    Use `FigureRow` / `FigureGrid` so supporting figures stack at accessibility text sizes. Let names,

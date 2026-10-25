@@ -56,3 +56,4 @@ cloud session cannot press that button, but it can push. One line per build, new
 - 2026-10-25: change the rate when finalizing an order (booked or today's, per metal), Change rate on the order and invoice, and a silver order's own rate.
 - 2026-10-25: + spreads into New sale, New order and Scan (one tap each); voice like Siri (instant, on-device words, ends by itself, keeps listening for changes and yes/no, Talk to ERP from Siri, the Action button and Control Center); drafts saved at every keystroke and never opened by themselves (a new form is blank; the unfinished one waits in Drafts).
 - 2026-10-25: the same build, compiling (drafts' card read the books without importing them).
+- 2026-10-25: light and dark pulled apart (warm grounds with floating white cards; near-black with lifted cards and a fine edge; richer gold and rose), no empty title band under Analytics or eleven other screens, and net profit counts the cost of the goods.

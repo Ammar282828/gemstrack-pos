@@ -59,7 +59,7 @@ struct HeroSheen: ViewModifier {
         content
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Theme.card, in: shape)
+            .houseCard(hairline: false)
             .overlay {
                 if !flat {
                     shape.fill(LinearGradient(colors: [Theme.accent.opacity(0.10), .clear],

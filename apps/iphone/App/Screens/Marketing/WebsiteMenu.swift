@@ -44,7 +44,7 @@ struct WebsiteMenu: View {
         .listStyle(.insetGrouped)
         .readableColumn(780)
         .navigationTitle("Website")
-        .navigationBarTitleDisplayMode(.large)
+        .hubTitleDisplay()
     }
 }
 

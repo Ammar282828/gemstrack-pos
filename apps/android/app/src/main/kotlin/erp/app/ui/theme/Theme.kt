@@ -49,11 +49,13 @@ class HouseColors(
     val card: Color,
     val onAccent: Color,
     val dark: Boolean,
+    /** A step above the card (sheets, popovers, grouped rows inside a card): the lifted surface in dark, white in light. */
+    val elevated: Color = card,
 )
 
 /** Outside [ErpTheme] (a bare preview) these keep the kit drawable: Taheri's light set. */
 private val FallbackHouseColors = HouseColors(
-    accent = Color(0xFF8A6B42), ground = Color(0xFFF2F3F6), card = Color.White, onAccent = Color.White, dark = false,
+    accent = Color(0xFF8A6B42), ground = Color(0xFFECE8E1), card = Color.White, onAccent = Color.White, dark = false,
 )
 
 val LocalHouseColors = staticCompositionLocalOf { FallbackHouseColors }
@@ -64,6 +66,7 @@ object ErpColors {
     val ground: Color @Composable @ReadOnlyComposable get() = LocalHouseColors.current.ground
     val card: Color @Composable @ReadOnlyComposable get() = LocalHouseColors.current.card
     val onAccent: Color @Composable @ReadOnlyComposable get() = LocalHouseColors.current.onAccent
+    val elevated: Color @Composable @ReadOnlyComposable get() = LocalHouseColors.current.elevated
     val dark: Boolean @Composable @ReadOnlyComposable get() = LocalHouseColors.current.dark
 }
 
@@ -122,7 +125,7 @@ fun ErpTheme(themeOverride: String? = null, content: @Composable () -> Unit) {
         else -> system
     }
     val house = rememberHouseColors(dark)
-    val scheme = remember(house) { houseColorScheme(dark, house.accent, house.onAccent, house.ground, house.card) }
+    val scheme = remember(house) { houseColorScheme(dark, house.accent, house.onAccent, house.ground, house.card, house.elevated) }
     val reduce = rememberSystemReduceMotion()
 
     // A forced scheme needs the bars' icons to follow it, not the device.
@@ -162,8 +165,9 @@ private fun rememberHouseColors(dark: Boolean): HouseColors {
             val ground = erp.app.config.parseHexColor(side.ground)
             val card = erp.app.config.parseHexColor(side.card)
             val onAccent = erp.app.config.parseHexColor(side.onAccent)
+            val elevated = side.elevated?.let { erp.app.config.parseHexColor(it) } ?: card
             if (accent != null && ground != null && card != null && onAccent != null) {
-                return@remember HouseColors(Color(accent), Color(ground), Color(card), Color(onAccent), dark)
+                return@remember HouseColors(Color(accent), Color(ground), Color(card), Color(onAccent), dark, Color(elevated ?: card))
             }
         }
         val night = if (dark) Configuration.UI_MODE_NIGHT_YES else Configuration.UI_MODE_NIGHT_NO
@@ -178,11 +182,12 @@ private fun rememberHouseColors(dark: Boolean): HouseColors {
             card = Color(source.getColor(R.color.house_card)),
             onAccent = Color(source.getColor(R.color.house_on_accent)),
             dark = dark,
+            elevated = Color(source.getColor(R.color.house_elevated)),
         )
     }
 }
 
-fun houseColorScheme(dark: Boolean, accent: Color, onAccent: Color, ground: Color, card: Color): ColorScheme {
+fun houseColorScheme(dark: Boolean, accent: Color, onAccent: Color, ground: Color, card: Color, elevated: Color = card): ColorScheme {
     // text is near-black on a light ground and near-white on a dark one, tinted toward the ground
     val ink = lerp(ground, if (dark) Color.White else Color.Black, 0.88f)
     val inkSoft = lerp(ground, ink, 0.66f)
@@ -205,8 +210,9 @@ fun houseColorScheme(dark: Boolean, accent: Color, onAccent: Color, ground: Colo
             surfaceContainerLowest = lerp(ground, Color.Black, 0.3f),
             surfaceContainerLow = lerp(ground, card, 0.5f),
             surfaceContainer = card,
-            surfaceContainerHigh = high,
-            surfaceContainerHighest = highest,
+            // Dialogs, pickers and menus sit on the elevated surface (2026-10-25: cards lifted off a near-black ground).
+            surfaceContainerHigh = elevated,
+            surfaceContainerHighest = lerp(elevated, ink, 0.06f),
             outline = inkSoft, outlineVariant = line,
         )
     } else {

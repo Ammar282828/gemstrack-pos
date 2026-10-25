@@ -65,7 +65,7 @@ abstract class HouseResources : DefaultTask() {
         val out = outDir.get().asFile
         out.deleteRecursively()
         val names = mapOf(
-            "Accent" to "house_accent", "Ground" to "house_ground", "Card" to "house_card",
+            "Accent" to "house_accent", "Ground" to "house_ground", "Card" to "house_card", "Elevated" to "house_elevated",
             "OnAccent" to "house_on_accent", "Launch" to "house_launch",
         )
         for ((dark, dir) in listOf(false to "values", true to "values-night")) {

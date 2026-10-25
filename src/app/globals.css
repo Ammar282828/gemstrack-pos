@@ -58,14 +58,16 @@ body {
      (lib/tones.test.ts) keeps the two copies equal. The rest are the web's equivalents of iOS's
      system fills.
 
-     Taheri light: a grey ground #F2F3F6, white cards, and the deep gold #8A6B42 as the accent
-     (it was a near-black navy). CONTRAST: #8A6B42 is 4.9:1 on a card but ~4.4:1 on the ground, so
-     accent text under 17px/semibold goes on cards, not on the ground, or uses --foreground. Page
-     titles are --foreground; only controls and chosen states are the accent.
+     Taheri light: a warm, deeper ground #ECE8E1, pure-white cards, and the deep gold #8A6B42 as the
+     accent. CONTRAST: #8A6B42 is 4.9:1 on a card but 4.0:1 on the ground, so accent text under
+     17px/semibold goes on cards, not on the ground, or uses --foreground. Page titles are
+     --foreground; only controls and chosen states are the accent.
 
-     Cards have no border and no shadow: tone separates them (Card, ui/card.tsx). */
+     Light cards float: the ground is deeper than they are (1.22:1) and they carry a very soft
+     shadow (--card-shadow). Dark cards lift off a near-black ground and carry a hairline instead
+     (--card-edge). Neither has a border (owner 2026-10-25, decision "Light and dark"). */
   :root, .theme-default {
-    --background: 225 18% 95.7%;
+    --background: 38.2 22.4% 90.4%;
     --foreground: 0 0% 0%;
     --card: 0 0% 100%;
     --card-foreground: 0 0% 0%;
@@ -77,9 +79,11 @@ body {
     --secondary: 240 6% 93%;
     --secondary-foreground: 0 0% 0%;
     --muted: 240 6% 93%;
-    /* The web keeps its AA grey: iOS's secondary label at 60% is ~3.5:1 on white. */
-    --muted-foreground: 220 8.9% 46.1%;
-    --accent: 240 6% 93%;
+    /* The web keeps its AA grey: iOS's secondary label at 60% is ~3.5:1 on white. Darkened from
+       46.1% so it still passes on the deeper ground (4.6:1 on #ECE8E1; it was 4.0). */
+    --muted-foreground: 220 8.9% 42%;
+    /* Hover and selected rows: one step under the ground, so the sidebar (on the ground) still shows them. */
+    --accent: 38.6 20% 86.3%;
     --accent-foreground: 0 0% 0%;
     /* Red / green / amber in light are the tones' INKS, so white on the fill passes and a word in
        the colour reads on white. They keep their names (230 uses of success / warning). */
@@ -120,6 +124,12 @@ body {
     --r-leaf: 0.625rem;      /* DateLeaf, a need row's icon tile */
     --r-control: 0.75rem;    /* form fields */
     --r-window: 1.75rem;     /* sheets and dialogs */
+    /* What lifts a card (ui/card.tsx, .card): light, a very soft shadow (y 1, blur 3, black 5%);
+       dark, a 0.5px hairline of white at 7%. No borders. */
+    --card-shadow: 0 1px 3px rgb(0 0 0 / 0.05);
+    --card-edge: 0 0 0 0 transparent;
+    /* Sheets, popovers and the grouped rows inside a card (the dark palette lifts it; light has white). */
+    --elevated: 0 0% 100%;
     /* The phone's tab bar, and the room the floating create buttons need above it (c.2). */
     --tabbar-h: calc(49px + env(safe-area-inset-bottom));
     --fab-clear: 76px;
@@ -162,20 +172,26 @@ body {
      The ramp is the one the light palette uses: the page sits below the cards, so a
      card lifts off the surface instead of relying on its border. */
   .dark {
-    --background: 180 26% 5.3%;
+    /* 2026-10-25 ("more separation, sexier"): a near-black ground #030606, cards #172020 (1.22:1
+       over it), an elevated #202A29 for sheets, popovers and rows inside cards, and champagne
+       gold #D3B47F (10.3:1 on the ground; the words on it stay #0B1414, 9.4:1). */
+    --background: 180 33.3% 1.76%;
     /* System white, as the app (it was a warm off-white, 40 14% 96%). */
     --foreground: 0 0% 100%;
-    --card: 180 13% 9%;
+    --card: 180 16.4% 10.78%;
     --card-foreground: 0 0% 100%;
-    --popover: 180 13% 9%;
+    --elevated: 174 13.5% 14.51%;
+    --popover: 174 13.5% 14.51%;
     --popover-foreground: 0 0% 100%;
-    --primary: 34 36% 60.4%;
+    --card-shadow: 0 0 0 0 transparent;
+    --card-edge: inset 0 0 0 0.5px rgb(255 255 255 / 0.07);
+    --primary: 37.9 48.8% 66.3%;
     --primary-foreground: 180 29% 6.1%;
-    --secondary: 185 12% 15%;
+    --secondary: 174 13.5% 14.51%;
     --secondary-foreground: 40 10% 92%;
-    --muted: 185 12% 15%;
+    --muted: 174 13.5% 14.51%;
     --muted-foreground: 40 8% 66%;
-    --accent: 185 14% 21%;
+    --accent: 175 12.2% 19.2%;
     --accent-foreground: 40 14% 96%;
     /* Red, and unmistakably not the gold: Save and Refund must never look alike. */
     --destructive: 4 62% 52%;
@@ -186,12 +202,12 @@ body {
     --warning: 48 96% 56%;
     --warning-foreground: 45 60% 10%;
     /* The storefront rules its sections with white at 10%; this is that, opaque. */
-    --border: 185 10% 19%;
-    --input: 185 10% 19%;
+    --border: 180 10.3% 17.1%;
+    --input: 180 10.3% 17.1%;
     --separator: 240 2% 22%;
-    --ring: 34 36% 60.4%;
+    --ring: 37.9 48.8% 66.3%;
     --radius: 0.75rem;
-    --chart-1: 34 36% 60.4%;
+    --chart-1: 37.9 48.8% 66.3%;
     --chart-2: 178 40% 46%;
     --chart-3: 28 48% 68%;
     --chart-4: 340 42% 62%;
@@ -230,19 +246,22 @@ body {
        saturation so the ground reads as wine, not as red; the rose is the only
        saturated colour, so buttons and headings carry it. Destructive is brick
        (hue 8) so it never reads as the rose. */
-    --background: 344 24% 8.8%;
+    /* 2026-10-25: a near-black wine ground #090405, cards #22131A, elevated #2C1A21, the rose
+       lifted to #EBA9B3 (10.5:1 on the ground; its words stay #251318, 9.2:1). */
+    --background: 348 38.5% 2.55%;
     --foreground: 0 0% 100%;
-    --card: 343 22% 12.5%;
+    --card: 332 28.3% 10.39%;
     --card-foreground: 0 0% 100%;
-    --popover: 343 22% 12.5%;
+    --elevated: 336.7 25.7% 13.73%;
+    --popover: 336.7 25.7% 13.73%;
     --popover-foreground: 0 0% 100%;
-    --primary: 352 59% 77.8%;
+    --primary: 350.9 62.3% 79.2%;
     --primary-foreground: 343 32% 11%;
-    --secondary: 345 16% 18%;
+    --secondary: 336.7 25.7% 13.73%;
     --secondary-foreground: 20 16% 90%;
-    --muted: 345 16% 18%;
+    --muted: 336.7 25.7% 13.73%;
     --muted-foreground: 15 10% 68%;
-    --accent: 345 20% 22%;
+    --accent: 337.1 23.1% 17.84%;
     --accent-foreground: 20 22% 94%;
     --destructive: 8 58% 46%;
     --destructive-foreground: 0 0% 100%;
@@ -250,11 +269,11 @@ body {
     --success-foreground: 145 60% 8%;
     --warning: 38 85% 60%;
     --warning-foreground: 40 60% 10%;
-    --border: 345 14% 22%;
-    --input: 345 14% 22%;
+    --border: 332.3 15.3% 16.67%;
+    --input: 332.3 15.3% 16.67%;
     --separator: 343 12% 24%;
-    --ring: 352 59% 77.8%;
-    --chart-1: 352 59% 77.8%;
+    --ring: 350.9 62.3% 79.2%;
+    --chart-1: 350.9 62.3% 79.2%;
     --chart-2: 36 45% 62%;
     --chart-3: 190 30% 58%;
     --chart-4: 290 22% 66%;
@@ -274,24 +293,25 @@ body {
 
 
 
-  /* Mina's light theme, its own neutrals (it used to inherit Taheri's): the app's cream ground
-     #F4EFE8, #FFFDF9 cards, and Mina's maroon — the ink of its wordmark, #380000 — as the accent.
+  /* Mina's light theme, its own neutrals (it used to inherit Taheri's): a blush-cream ground
+     #F2E9E4 (2026-10-25; was #F4EFE8), pure-white cards, and Mina's maroon — the ink of its wordmark, #380000 — as the accent.
      Re-declared whole because the body carries both `theme-default` and `brand-mina`, and this
      block (two classes) must beat `.theme-default` (one) for every token it names. */
   .brand-mina.theme-default {
-    --background: 35 35% 93.3%;
+    --background: 21.4 35% 92.16%;
     --foreground: 0 0% 0%;
-    --card: 40 100% 98.8%;
+    --card: 0 0% 100%;
     --card-foreground: 0 0% 0%;
-    --popover: 40 100% 98.8%;
+    --popover: 0 0% 100%;
     --popover-foreground: 0 0% 0%;
     --primary: 0 100% 11%;
     --primary-foreground: 0 20% 98%;
     --secondary: 35 20% 89%;
     --secondary-foreground: 0 0% 0%;
     --muted: 35 20% 89%;
-    --muted-foreground: 30 8% 42%;
-    --accent: 35 20% 89%;
+    /* 4.4:1 on the new ground at 42%; 5.3:1 at 37%. */
+    --muted-foreground: 30 8% 37%;
+    --accent: 23.3 30% 88.2%;
     --accent-foreground: 0 0% 0%;
     --border: 35 20% 86%;
     --input: 35 20% 86%;
@@ -798,6 +818,13 @@ html.ui-glass .card,
 html.ui-glass .alert { border-radius: var(--r-card); }
 html.ui-glass .tabs-list { border-radius: 9999px; }
 html.ui-glass .tabs-trigger { border-radius: 9999px; }
+/* What separates a card from the ground besides tone (owner 2026-10-25): light, a very soft shadow;
+   dark, a 0.5px hairline (both set per mode on --card-shadow / --card-edge). The flat 22px radius stays,
+   no borders. A caller that wants a flat card says `shadow-none`. Cards are content: never glass. */
+.card:not(.shadow-none),
+.rounded-card.bg-card:not(.shadow-none) {
+  box-shadow: var(--card-shadow), var(--card-edge);
+}
 /* A destructive toast keeps its colour: a status, which colour may mark (HIG: Color). */
 html.ui-glass .glass-toast.destructive {
   background-color: hsl(var(--destructive) / 0.88);

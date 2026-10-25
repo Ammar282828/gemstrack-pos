@@ -1193,7 +1193,7 @@ extension AdsNewAdScreen {
                     }
                 }
                 .padding(14)
-                .background(Theme.card, in: .rect(cornerRadius: Radius.card, style: .continuous))
+                .houseCard()
                 Button { Task { await showPreview() } } label: {
                     Label(previewBusy ? "Asking Meta…" : "See it as Instagram will show it", systemImage: "eye")
                         .frame(maxWidth: .infinity)

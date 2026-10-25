@@ -662,7 +662,8 @@ struct AnaYear: Identifiable {
     let unpaid: Double
     /// The estimated profit; owners only (0 where no margin was worked out).
     let profit: Double
-    var netProfit: Double { revenue - expenses }
+    /// Estimated profit less expenses, never revenue less expenses (decision "Net profit"; lib/analytics/net-profit.ts).
+    var netProfit: Double { AnaNet.profit(estimated: profit, expenses: expenses) }
     var id: Int { year }
 }
 
@@ -793,4 +794,11 @@ extension AnaHistory {
         let nm = m == 12 ? 1 : m + 1
         return String(format: "%04d-%02d", ny, nm)
     }
+}
+
+/// Net profit as the ERP works it (src/lib/analytics/net-profit.ts): the estimated profit, which already carries the
+/// cost of the goods, less the expenses. Revenue less expenses read ~100% margin for a jewellery shop.
+enum AnaNet {
+    static func profit(estimated: Double, expenses: Double) -> Double { estimated - expenses }
+    static func marginPercent(net: Double, revenue: Double) -> Double { revenue > 0 ? net / revenue * 100 : 0 }
 }
