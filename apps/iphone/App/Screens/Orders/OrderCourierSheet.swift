@@ -76,8 +76,12 @@ struct OrderCourierSheet: View {
                 if sent != nil { dismiss() } else { book() }
             })
         }
+        #if os(macOS)
+        .ordersMacSheet(width: 560, height: 480)
+        #else
         .presentationDetents([.medium, .large])
         .presentationSizing(.form)
+        #endif
         .interactiveDismissDisabled(busy != nil)
     }
 

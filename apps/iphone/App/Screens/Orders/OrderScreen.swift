@@ -44,6 +44,15 @@ struct OrderScreen: View {
     @State private var localStatus: String?
     @State private var localDone: [Int: Bool] = [:]
     @State private var localKarigar: [Int: String] = [:]
+    #if os(macOS)
+    /// The Mac's one sheet at a time, the piece picked for the page's right column, and where it opens other records.
+    @State private var macSheet: MacOrdersSheet?
+    @State private var macPiece: Int?
+    /// The window's width, which decides whether the details stand beside the lines or under them.
+    @State private var macWidth: CGFloat = 1100
+    @Environment(\.openPlaceWindow) private var openPlace
+    @Environment(\.openURL) private var openURL
+    #endif
 
     var body: some View {
         // "/orders/" + "add" can reach this screen as an order id: it is New order's form (NewOrderRoutes).
@@ -855,171 +864,372 @@ extension View {
     }
 }
 
+
 #if os(macOS)
 // MARK: The Mac's record window
 
-/// The order as a Mac record (apps/iphone/Mac/MAC-CONVENTIONS.md): who it is for, where it stands and the money in a
-/// left column; the pieces as a table (right-click each) with the advances under it; the order's moves in the toolbar
-/// (the next step, Take advance, Print slip, Edit, More). In a hub's narrow side pane it is the phone's one list.
+/// The order as a Mac document (docs/features/mac-design.md, "Orders"): a head (who, which, where it stands, what is owed),
+/// the pieces as a table at the page's full width with the picked piece in full in a column at the right, the advances,
+/// the money (Total, Paid, Due and what they are made of) and the details, in one scroll. Its actions are the Order menu's
+/// (MacOrdersMenu): the toolbar's few, the menu bar's all, the same as the Orders list's. The phone's list is not shown
+/// here, at any width.
 extension OrderScreen {
     fileprivate func macDetail(_ order: Order) -> some View {
         let invoice = invoiceOf(order)
-        let owed = invoice.map { isOwing($0) ? $0.balanceDue : 0 } ?? 0
+        let owed = MacOrdersLogic.invoiceOwed(invoice)
         let stage = localStage(order, owedOnInvoice: owed)
-        let now = Date()
-        return MacRecordSplit {
-            heroSection(order, stage: stage, now: now, owed: owed, invoice: invoice)
-            noteSection(order)
-            if OrdersLogic.isOnline(order) {
-                Group {
-                    OrderOnlineSection(order: order, leopards: { leopardsOpen = true }) { kind, t in
-                        onlineMoved(kind, t)
-                    }
-                }
-                .houseRows()
+        let groups = macGroups(order, stage: stage, owed: owed)
+        return ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                macHeader(order, stage: stage, owed: owed, invoice: invoice)
+                Divider()
+                macColumns(order, stage: stage, owed: owed, invoice: invoice)
             }
-        } rest: {
-            Group {
-                if OrdersLogic.hasInvoice(order) {
-                    invoiceSection(order, invoice: invoice, owed: owed)
-                } else {
-                    moneySection(order)
-                }
-                detailsSection(order)
-            }
-            .houseRows()
-        } lines: {
-            Group { piecesSection(order) }.houseRows()
-        } wide: {
-            macLines(order)
         }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { macWidth = $0 }
         .navigationSubtitle(OrdersLogic.customerName(order))
-        .toolbar { macToolbar(order, stage: stage, owed: owed) }
-        .sheet(isPresented: $advancing) { advanceSheet(order).presentationSizing(.form) }
-        .sheet(isPresented: $booking) { OrderCourierSheet(order: order) }
-        .sheet(isPresented: $tracking) { OrderTrackingSheet(order: order) }
-        .sheet(isPresented: $leopardsOpen) { OrderLeopardsSheet(order: order) }
-        .sheet(isPresented: $notifying) { OrderNotifySheet(order: order) }
-        .sheet(isPresented: $checkingTransfer) {
-            OnlineMoveSheet(order: order, kind: .paid) { t in
-                onlineMoved(.paid, t)
-            }
-        }
+        .toolbar { macToolbar(groups) }
+        .macRecordMenu(MacRecordMenu(title: "Order", groups: groups))
+        .macOrdersSheets($macSheet, advanced: { amount, exchanges in advanced(amount, exchanges) },
+                         moved: { kind, told in onlineMoved(kind, told) })
         .confirmDestructive(isPresented: $confirmCancel, title: "Cancel order \(order.id)?",
                             message: OrdersLogic.cancelWords, action: "Cancel order") {
             setStatus(order, "Cancelled")
         }
     }
 
-    /// The wide page's right side: how far the pieces have come, the pieces, the advances.
-    @ViewBuilder
-    fileprivate func macLines(_ order: Order) -> some View {
-        let invoiced = OrdersLogic.hasInvoice(order)
-        let karigars: [Karigar] = session.isOwner && !invoiced ? workshopLive(book.karigars.items) : []
+    // MARK: Head
+
+    private func macHeader(_ order: Order, stage: OrderStage, owed: Double, invoice: Invoice?) -> some View {
+        let phone = (order.customerContact ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let subtitle = phone.isEmpty ? caption(order) : caption(order) + " \u{00B7} " + OrdersLogic.phoneWords(phone)
+        return MacDocumentHeader(
+            title: OrdersLogic.customerName(order),
+            subtitle: subtitle,
+            status: MacStatus(macStageWords(order, stage: stage), tone: MacOrdersLogic.tone(stage)),
+            headline: macHeadline(order, stage: stage, owed: owed, invoice: invoice)
+        )
+    }
+
+    /// The stage's words, and how far the pieces have come while they are being made.
+    private func macStageWords(_ order: Order, stage: OrderStage) -> String {
+        let title = MacOrdersLogic.words(order, stage: stage)
         let counts = LocalPieceCounts(total: order.items.count,
                                       unassigned: order.items.indices.filter { !hasKarigarNow(order, $0) }.count,
                                       done: order.items.indices.filter { isDone(order, $0) }.count)
+        guard counts.total > 0, stage != .closed, stage != .done, !OrdersLogic.hasInvoice(order) else { return title }
+        return title + " \u{00B7} " + (counts.unassigned > 0 ? "\(counts.unassigned) unassigned" : "\(counts.done) of \(counts.total) done")
+    }
+
+    /// What is still owed, what is in credit, or what it came to once nothing is; nothing for a cancelled order.
+    private func macHeadline(_ order: Order, stage: OrderStage, owed: Double, invoice: Invoice?) -> MacHeadline? {
+        if stage == .closed { return nil }
+        let due = OrdersLogic.hasInvoice(order) ? (invoice?.balanceDue ?? owed) : OrdersLogic.balance(order)
+        if due >= 1 { return MacHeadline("Owed", Money.pkr(due), tone: .owed) }
+        if isCredit(due) { return MacHeadline("In credit", Money.pkr(-due), tone: .credit) }
+        let total = MacOrdersLogic.worth(order, invoice: invoice)
+        return total >= 1 ? MacHeadline("Paid", Money.pkr(total), tone: .settled) : nil
+    }
+
+    // MARK: The two columns
+
+    /// The lines at the left and the details at the right; narrower than both read in, the details go under.
+    @ViewBuilder
+    private func macColumns(_ order: Order, stage: OrderStage, owed: Double, invoice: Invoice?) -> some View {
+        if macWidth >= 1000 {
+            HStack(alignment: .top, spacing: 0) {
+                macMain(order, owed: owed, invoice: invoice)
+                    .padding(20)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                Divider()
+                macSide(order, stage: stage)
+                    .padding(20)
+                    .frame(width: 320, alignment: .topLeading)
+            }
+        } else {
+            VStack(alignment: .leading, spacing: 0) {
+                macMain(order, owed: owed, invoice: invoice)
+                    .padding(20)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                Divider()
+                macSide(order, stage: stage)
+                    .padding(20)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+            }
+        }
+    }
+
+    private func macMain(_ order: Order, owed: Double, invoice: Invoice?) -> some View {
+        VStack(alignment: .leading, spacing: 24) {
+            macPieces(order)
+            macAdvances(order)
+            macMoney(order, owed: owed, invoice: invoice)
+        }
+    }
+
+    private func macSide(_ order: Order, stage: OrderStage) -> some View {
+        VStack(alignment: .leading, spacing: 20) {
+            macPieceDetail(order)
+            macDetails(order, stage: stage)
+            macOnline(order)
+        }
+    }
+
+    // MARK: Pieces
+
+    @ViewBuilder
+    private func macPieces(_ order: Order) -> some View {
+        let invoiced = OrdersLogic.hasInvoice(order)
+        let karigars: [Karigar] = session.isOwner && !invoiced ? workshopLive(book.karigars.items) : []
+        let doneCount = order.items.indices.filter { isDone(order, $0) }.count
         let rows: [OrderPieceTableRow] = order.items.indices.map { i in
             OrderPieceTableRow(id: i, item: order.items[i], done: isDone(order, i), karigar: karigarName(order, i))
         }
+        // Open pieces first; the finished ones follow.
         let ordered: [OrderPieceTableRow] = rows.filter { !$0.done } + rows.filter { $0.done }
-        let lines = OrdersLogic.advanceLines(order)
-        VStack(alignment: .leading, spacing: 22) {
-            VStack(alignment: .leading, spacing: 8) {
-                LedgerHeading(title: "Pieces",
-                              trailing: counts.total > 0 ? "\(counts.done) of \(counts.total) done" : nil)
-                if counts.total > 0 {
-                    ProgressView(value: Double(counts.done), total: Double(counts.total))
-                        .tint(counts.done == counts.total ? Tone.settled.color : Theme.accent)
-                        .accessibilityLabel("\(counts.done) of \(counts.total) pieces done")
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Pieces").font(.headline)
+                Spacer(minLength: 8)
+                if !order.items.isEmpty {
+                    Text("\(doneCount) of \(order.items.count) done").foregroundStyle(.secondary).monospacedDigit()
                 }
             }
             if order.items.isEmpty {
-                Text("No pieces on this order.")
-                    .foregroundStyle(.secondary)
+                Text("No pieces on this order.").foregroundStyle(.secondary)
             } else {
-                OrderPiecesTable(
+                MacOrdersPiecesGrid(
                     rows: ordered,
+                    picked: $macPiece,
                     canTick: session.isOwner && !invoiced,
                     canRemove: OrderActions.canRemovePiece(order, isOwner: session.isOwner),
                     karigars: karigars,
-                    karigarId: { i in localKarigar[i] ?? order.items[i].karigarId ?? "none" },
+                    karigarId: { i in macKarigarID(order, i) },
                     tick: { i, done in tick(order, i, done) },
                     assign: { i, kid in assign(order, i, kid) },
                     remove: { i in undo = OrderUndo.removePiece(order, index: i) }
-                ) { i in
-                    OrderPieceRow(
-                        index: i,
-                        item: order.items[i],
-                        karigar: karigarName(order, i),
-                        canTick: session.isOwner && !invoiced,
-                        busy: false,
-                        showBreakdown: session.isOwner,
-                        onTick: { done in tick(order, i, done) },
-                        assign: karigars.isEmpty ? nil : OrderPieceAssign(karigars: karigars, busy: false) { kid in
-                            assign(order, i, kid)
-                        },
-                        doneOverride: localDone[i],
-                        karigarOverride: localKarigar[i]
-                    )
-                }
+                )
             }
-            if counts.unassigned > 0 && !invoiced {
-                Button { web = .giveOut(order.id) } label: {
-                    Label("Give out: \(counts.unassigned) without a karigar", systemImage: "person.badge.plus")
-                }
-            }
-            if !lines.isEmpty && !invoiced {
-                VStack(alignment: .leading, spacing: 8) {
-                    LedgerHeading(title: "Advances")
-                    OrderAdvancesTable(lines: lines,
-                                       canDelete: OrderActions.canDeleteAdvance(order, isOwner: session.isOwner)) { l in
-                        undo = OrderUndo.deleteAdvance(order, line: l)
-                    }
+        }
+    }
+
+    /// The karigar's id now on a piece ("none" when nobody), the one just chosen first.
+    private func macKarigarID(_ order: Order, _ index: Int) -> String {
+        if let k = localKarigar[index] { return k }
+        let item = order.items[index]
+        return OrdersLogic.hasKarigar(item) ? (item.karigarId ?? "none") : "none"
+    }
+
+    /// The piece picked in the table, else the first still to make.
+    private func macPickedIndex(_ order: Order) -> Int? {
+        if let p = macPiece, order.items.indices.contains(p) { return p }
+        return order.items.indices.first(where: { !isDone(order, $0) }) ?? order.items.indices.first
+    }
+
+    @ViewBuilder
+    private func macPieceDetail(_ order: Order) -> some View {
+        if let i = macPickedIndex(order) {
+            MacOrdersPieceDetail(index: i, item: order.items[i], showBreakdown: session.isOwner)
+                .id(i)
+        }
+    }
+
+    @ViewBuilder
+    private func macAdvances(_ order: Order) -> some View {
+        let lines = OrdersLogic.advanceLines(order)
+        if !lines.isEmpty && !OrdersLogic.hasInvoice(order) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Advances").font(.headline)
+                MacOrdersAdvancesGrid(lines: lines, canDelete: OrderActions.canDeleteAdvance(order, isOwner: session.isOwner)) { l in
+                    undo = OrderUndo.deleteAdvance(order, line: l)
                 }
             }
         }
     }
 
-    /// The order's moves in the window's toolbar: the next step first (as the phone's bar has it), then Take advance,
-    /// Print slip and Edit, and the ⋯ menu for the rest.
-    @ToolbarContentBuilder
-    fileprivate func macToolbar(_ order: Order, stage: OrderStage, owed: Double) -> some ToolbarContent {
-        let step = barStep(order, stage: stage, owed: owed)
-        let advance = stage != .closed && OrdersLogic.offersAdvance(order, stage: stage, isOwner: session.isOwner)
-        let editable = session.isOwner && !OrdersLogic.hasInvoice(order)
-        ToolbarItemGroup(placement: .primaryAction) {
-            if stage != .closed, let step {
-                if let invoiceId = invoiceToOpen(step) {
-                    NavigationLink(value: Route(path: "/invoices/\(invoiceId)")) {
-                        Label(step.title, systemImage: step.symbol).labelStyle(.titleAndIcon)
-                    }
-                    .keyboardShortcut(.return, modifiers: .command)
-                    .help(step.title)
-                } else {
-                    Button { run(order, step) } label: {
-                        Label(step.title, systemImage: step.symbol).labelStyle(.titleAndIcon)
-                    }
-                    .keyboardShortcut(.return, modifiers: .command)
-                    .help(step.title + " (\u{2318}\u{21A9})")
-                }
+    // MARK: Money
+
+    /// Total, Paid and Due, then what they are made of: the order's own sums until it is invoiced, the invoice's after.
+    @ViewBuilder
+    private func macMoney(_ order: Order, owed: Double, invoice: Invoice?) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Money").font(.headline)
+            if OrdersLogic.hasInvoice(order) {
+                macInvoiceMoney(order, invoice: invoice)
+            } else {
+                macOrderMoney(order)
             }
-            if advance {
-                Button { advancing = true } label: {
-                    Label("Take advance", systemImage: "banknote").labelStyle(.titleAndIcon)
-                }
-                .keyboardShortcut("a", modifiers: [.command, .shift])
-                .help("Record an advance (\u{21E7}\u{2318}A)")
-            }
-            Button { web = .slip(order.id) } label: { Label("Print slip", systemImage: "printer") }
-                .help("Show the workshop slip to print or save")
-            if editable {
-                Button { web = .edit(order.id) } label: { Label("Edit", systemImage: "pencil") }
-                    .keyboardShortcut("e", modifiers: .command)
-                    .help("Change this order (\u{2318}E)")
-            }
-            moreMenu(order, stage: stage, owed: owed)
         }
+        .frame(maxWidth: 380, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .trailing)
+    }
+
+    @ViewBuilder
+    private func macOrderMoney(_ order: Order) -> some View {
+        let subtotal = OrdersLogic.subtotal(order)
+        let discount = OrdersLogic.discount(order)
+        let exchangeValue = OrdersLogic.exchangeValue(order)
+        let due = OrdersLogic.balance(order)
+        let exchanges = orderExchanges(order)
+        let rates = OrdersLogic.rateLine(order)
+        MacOrdersMoneyRow(label: "Total", value: Money.pkr(subtotal - discount))
+        MacOrdersMoneyRow(label: "Paid", value: Money.pkr(order.advancePayment + exchangeValue))
+        MacOrdersMoneyRow(label: isCredit(due) ? "In credit" : "Due", value: Money.pkr(abs(due)), strong: true,
+                          tone: due >= 1 ? .owed : (isCredit(due) ? .credit : .quiet))
+        Divider().padding(.vertical, 2)
+        MacOrdersMoneyRow(label: "Pieces", value: Money.pkr(subtotal), small: true)
+        if discount > 0 { MacOrdersMoneyRow(label: "Discount", value: "\u{2212} " + Money.pkr(discount), small: true) }
+        if order.advancePayment > 0 {
+            MacOrdersMoneyRow(label: "Advance paid", value: "\u{2212} " + Money.pkr(order.advancePayment), small: true)
+        }
+        if exchangeValue > 0 { MacOrdersMoneyRow(label: "Taken in exchange", value: "\u{2212} " + Money.pkr(exchangeValue), small: true) }
+        ForEach(Array(exchanges.enumerated()), id: \.offset) { pair in
+            MacOrdersMoneyRow(label: describeExchangeEntry(pair.element),
+                              value: exchanges.count > 1 ? Money.pkr(pair.element.value) : "", small: true)
+        }
+        if !rates.isEmpty { Text(rates).font(.caption).foregroundStyle(.secondary) }
+        // The shop's margin: owners and staff, never a customer, never in a house that does not cost by gold, and
+        // blurred until clicked (docs/decisions.md "Margin").
+        if OrdersLogic.marginIsOn(House.margin) { OrdersMarginRow(order: order) }
+    }
+
+    @ViewBuilder
+    private func macInvoiceMoney(_ order: Order, invoice: Invoice?) -> some View {
+        let invoiceId = order.invoiceId ?? ""
+        let rates = OrdersLogic.rateLine(order)
+        if let inv = invoice {
+            MacOrdersMoneyRow(label: "Total", value: Money.pkr(inv.grandTotal))
+            MacOrdersMoneyRow(label: "Paid", value: Money.pkr(inv.amountPaid))
+            MacOrdersMoneyRow(label: isCredit(inv.balanceDue) ? "In credit" : "Due", value: Money.pkr(abs(inv.balanceDue)), strong: true,
+                              tone: inv.balanceDue >= 1 ? .owed : (isCredit(inv.balanceDue) ? .credit : .quiet))
+        }
+        if !rates.isEmpty { Text(rates).font(.caption).foregroundStyle(.secondary) }
+        Button { macOpenRoute("/invoices/\(invoiceId)") } label: {
+            Label("Invoiced \u{00B7} \(invoiceId)", systemImage: "doc.text")
+        }
+        .buttonStyle(.link)
+        Text(OrderActions.canUndoInvoice(order, isOwner: session.isOwner)
+             ? "To change it, use Unlock & Edit."
+             : "The order is locked to its invoice.")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+    }
+
+    // MARK: Details
+
+    @ViewBuilder
+    private func macDetails(_ order: Order, stage: OrderStage) -> some View {
+        let cid = order.customerId ?? ""
+        let by = order.takenBy ?? ""
+        let shipTo = describeDelivery(order.delivery)
+        let note = noteText(order) ?? ""
+        let blocked: String? = session.isOwner ? OrderActions.deleteBlocked(order) : nil
+        let p = OrdersLogic.promise(order, now: Date())
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Details").font(.headline)
+            if OrdersLogic.isOpen(order) || !p.undated {
+                MacOrdersFact(label: "Promised") {
+                    Text(OrdersLogic.promiseLine(order, now: Date()))
+                        .foregroundStyle(p.tone == .quiet ? Color.primary : p.tone.color)
+                }
+            }
+            if !cid.isEmpty {
+                MacOrdersFact(label: "Customer") {
+                    Button(OrdersLogic.customerName(order)) { macOpenRoute("/customers/\(cid)") }
+                        .buttonStyle(.link)
+                }
+            }
+            if !by.isEmpty { MacOrdersFact(label: "Taken by") { Text(by) } }
+            if let source = order.source { MacOrdersFact(label: "Found us via") { Text(OrdersLogic.sourceLabel(source)) } }
+            if !shipTo.isEmpty { MacOrdersFact(label: "Deliver to") { Text(shipTo.joined(separator: "\n")) } }
+            if !note.isEmpty { MacOrdersFact(label: "Note") { Text(note).textSelection(.enabled) } }
+            if let blocked { Text(blocked).font(.caption).foregroundStyle(.secondary) }
+        }
+    }
+
+    @ViewBuilder
+    private func macOnline(_ order: Order) -> some View {
+        if OrdersLogic.isOnline(order) {
+            OrderOnlineSection(order: order, leopards: { macSheet = .leopards(order) }) { kind, told in
+                onlineMoved(kind, told)
+            }
+        }
+    }
+
+    // MARK: Actions
+
+    /// The page's few in the window's toolbar; the menu bar has them all.
+    @ToolbarContentBuilder
+    private func macToolbar(_ groups: [[MacAction]]) -> some ToolbarContent {
+        ToolbarItemGroup(placement: .primaryAction) {
+            ForEach(MacOrdersMenu.pick(groups, MacOrdersMenu.toolbarIDs)) { (a: MacAction) in
+                MacToolbarAction(action: a)
+            }
+        }
+    }
+
+    private func macGroups(_ order: Order, stage: OrderStage, owed: Double) -> [[MacAction]] {
+        let input = MacOrdersMenuInput(order: order, stage: stage, invoiceOwed: owed, status: shownStatus(order),
+                                       unassigned: order.items.indices.filter { !hasKarigarNow(order, $0) }.count,
+                                       isOwner: session.isOwner, role: session.role)
+        return MacOrdersMenu.groups(input, run: macRun(order, stage: stage, owed: owed))
+    }
+
+    private func macRun(_ order: Order, stage: OrderStage, owed: Double) -> MacOrdersMenuRun {
+        var r = MacOrdersMenuRun()
+        r.nextStep = { macNextStep(order, stage: stage, owed: owed) }
+        r.advance = { macSheet = .advance(order) }
+        r.giveOut = { web = .giveOut(order.id) }
+        r.markReady = { setStatus(order, "Completed") }
+        r.makeInvoice = { web = .finalize(order.id) }
+        r.openInvoice = { if let id = order.invoiceId, !id.isEmpty { macOpenRoute("/invoices/\(id)") } }
+        r.printSlip = { web = .slip(order.id) }
+        r.message = { macSheet = .notify(order) }
+        r.call = { if let url = CustomerKit.callURL(order.customerContact) { openURL(url) } }
+        r.whatsApp = { if let url = CustomerKit.whatsAppURL(order.customerContact) { openURL(url) } }
+        r.bookCourier = { macSheet = .courier(order) }
+        r.track = { macSheet = .tracking(order) }
+        r.transfer = { macSheet = .transfer(order) }
+        r.lapse = { macSheet = .lapse(order) }
+        r.bankDetails = { macBankDetails(order) }
+        r.leopards = { macSheet = .leopards(order) }
+        r.edit = { web = .edit(order.id) }
+        r.changeRate = { web = .changeRate(order) }
+        r.unlock = { undo = OrderUndo.unlockAndEdit(order) }
+        r.setStatus = { status in choose(order, status) }
+        r.cancelInvoice = { undo = OrderUndo.undoInvoice(order) }
+        r.cancelOrder = { confirmCancel = true }
+        r.refund = { undo = OrderUndo.refund(order) }
+        r.delete = { undo = OrderUndo.delete(order) }
+        return r
+    }
+
+    private func macNextStep(_ order: Order, stage: OrderStage, owed: Double) {
+        let input = MacOrdersMenuInput(order: order, stage: stage, invoiceOwed: owed, isOwner: session.isOwner, role: session.role)
+        guard let step = MacOrdersMenu.step(input) else { return }
+        switch step {
+        case .checkTransfer: macSheet = .transfer(order)
+        case .giveOut: web = .giveOut(order.id)
+        case .markReady: setStatus(order, "Completed")
+        case .finalize: web = .finalize(order.id)
+        case .invoice(let id, _): macOpenRoute("/invoices/\(id)")
+        }
+    }
+
+    /// WhatsApp opens with the bank details written in; the person adds the account and presses send there.
+    private func macBankDetails(_ order: Order) {
+        guard let w = order.website else { return }
+        let contact = (order.customerContact ?? "").trimmingCharacters(in: .whitespaces)
+        let phone = contact.isEmpty ? (w.customerPhone ?? "") : contact
+        let ref = (w.onlineId ?? "").isEmpty ? order.id : (w.onlineId ?? order.id)
+        if let url = OnlineOrdersLogic.bankDetailsURL(phone: phone, name: order.customerName ?? "", ref: ref, total: OrdersLogic.onlineTotal(order)) {
+            openURL(url)
+        }
+    }
+
+    /// Another record (a customer, the invoice) in a window of its own.
+    private func macOpenRoute(_ path: String) {
+        if let openPlace { openPlace(Route(path: path)) } else { web = OrdersWebTarget(path: path, title: path) }
     }
 }
 #endif

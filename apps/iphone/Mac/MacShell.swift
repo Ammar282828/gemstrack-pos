@@ -161,13 +161,27 @@ struct MacShell: View {
 
     // MARK: The detail
 
+    /// The Mac's own places (docs/features/mac-design.md), by the sidebar's path; nil for a place drawn by its screen.
+    private func macPlace(_ path: String) -> AnyView? {
+        switch ScreenRoute.bare(path) {
+        case "/orders": return AnyView(MacOrdersPlace(path: path))
+        case "/invoices": return AnyView(MacInvoicesPlace(path: path))
+        case "/customers": return AnyView(MacCustomersPlace(path: path))
+        case "/repairs": return AnyView(MacRepairsPlace(path: path))
+        default: return nil
+        }
+    }
+
     @ViewBuilder
     private var detailRoot: some View {
         let selection = model.selection ?? "/"
         if selection == Self.searchID {
             SearchView(map: map).modifier(TeamNotePresentation())
+        } else if session.role != "marketing", let place = macPlace(selection) {
+            // Orders, Invoices, Customers, Repairs (and their saved lists): the place's table with the inspector.
+            place.id(selection)
         } else if session.role != "marketing", let kind = MacHubKind(path: selection) {
-            // Orders, Invoices, Customers, Stock, Repairs: a sortable table with the picked one beside it.
+            // Stock: a sortable table with the picked one beside it.
             MacHub(kind: kind, rootPath: selection)
                 .id(selection)
         } else {

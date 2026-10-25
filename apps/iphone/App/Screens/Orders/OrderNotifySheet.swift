@@ -72,7 +72,11 @@ struct OrderNotifySheet: View {
                 }
             })
         }
+        #if os(macOS)
+        .ordersMacSheet(width: 560, height: 520)
+        #else
         .presentationDetents([.medium, .large])
         .presentationSizing(.form)
+        #endif
     }
 }

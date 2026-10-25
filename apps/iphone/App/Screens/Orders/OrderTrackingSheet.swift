@@ -65,8 +65,12 @@ struct OrderTrackingSheet: View {
                 }
             }
         }
+        #if os(macOS)
+        .ordersMacSheet(width: 560, height: 420)
+        #else
         .presentationDetents([.medium, .large])
         .presentationSizing(.form)
+        #endif
         .task { await ask() }
     }
 

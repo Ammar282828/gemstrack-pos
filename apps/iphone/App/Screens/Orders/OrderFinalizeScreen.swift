@@ -40,7 +40,11 @@ struct OrderFinalizeScreen: View {
                 if let inv = order.invoiceId, !inv.isEmpty {
                     ContentUnavailableView("Invoiced already", systemImage: "doc.text", description: Text("\(order.id) is on \(inv)."))
                 } else {
+                    #if os(macOS)
+                    macForm(order, settings)
+                    #else
                     form(order, settings)
+                    #endif
                 }
             } else if book.orders.loaded && order == nil {
                 ContentUnavailableView("No such order", systemImage: "questionmark.folder", description: Text("\(id) isn't in the book."))
@@ -153,11 +157,6 @@ struct OrderFinalizeScreen: View {
             }
             .buttonStyle(.houseProminent)
             .largeOnPhone()
-            #if os(macOS)
-            // Return makes the invoice from the keyboard, as a Mac dialog's default button does.
-            .keyboardShortcut(.defaultAction)
-            .help("Make the invoice (Return)")
-            #endif
             .disabled(saving)
             }
             .padding(.horizontal, pt(16))
@@ -318,3 +317,245 @@ struct OrderFinalizeScreen: View {
         }
     }
 }
+
+#if os(macOS)
+// MARK: The Mac's Make invoice
+
+/// Make invoice as a Mac document (docs/features/mac-design.md, "Make invoice (from an order)"): the rates, one row to each
+/// piece with its final weight, wastage, making, stones and diamonds as fields of a table, the discount with its Round
+/// menu, and the invoice's totals; "Make Invoice · PKR x" in the footer on ⌘S. Return never makes it. Making it turns
+/// the window into the invoice. The figures and the write are the phone's (OrderFinalizeMath, `finalize`).
+extension OrderFinalizeScreen {
+    fileprivate func macForm(_ order: Order, _ settings: Settings) -> some View {
+        let f = OrderFinalizeMath.figures(order, rows: rows, discount: discount, settings: settings, rateTexts: rateTexts)
+        let problem = OrderFinalizeMath.problem(rows, discount: discount, order: order, rateTexts: rateTexts)
+        return VStack(spacing: 0) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    macHead(order, f)
+                    macRates(order, settings)
+                    macPieces(f)
+                    macDiscount(f)
+                    macTotals(f)
+                }
+                .padding(.bottom, 24)
+            }
+            .disabled(saving)
+            macFooter(order, f, problem: problem)
+        }
+        .navigationSubtitle(order.id)
+    }
+
+    // MARK: Head
+
+    private func macHead(_ order: Order, _ f: OrderFinalizeMath.Figures) -> some View {
+        let due = abs(f.balance) >= 1
+            ? MacHeadline(isCredit(f.balance) ? "In credit" : "Due", Money.pkr(abs(f.balance)), tone: isCredit(f.balance) ? .credit : .owed)
+            : MacHeadline("Paid", Money.pkr(f.total), tone: .settled)
+        return VStack(alignment: .leading, spacing: 0) {
+            MacDocumentHeader(title: OrdersLogic.customerName(order), subtitle: order.id + " \u{00B7} Make invoice", status: nil, headline: due)
+            Divider()
+        }
+    }
+
+    // MARK: Rates
+
+    @ViewBuilder
+    private func macRates(_ order: Order, _ settings: Settings) -> some View {
+        let rateRows = finalizeRateRows(order.items)
+        if !rateRows.isEmpty {
+            let booked = orderInvoiceRates(order, settings)
+            let changed = OrderFinalizeMath.changedRates(order, settings, texts: rateTexts)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Rates (PKR per gram)").font(.headline)
+                    Spacer(minLength: 8)
+                    if OrderFinalizeMath.todayDiffers(order, settings, texts: rateTexts) {
+                        Button("Use Today's Rates") {
+                            rateTexts.merge(OrderFinalizeMath.todayTexts(order, settings)) { _, today in today }
+                        }
+                        .buttonStyle(.link)
+                    }
+                }
+                Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {
+                    ForEach(rateRows, id: \.field) { r in
+                        GridRow {
+                            Text(r.label)
+                            macField(rateBinding(r.field), width: 110, label: "\(r.label) rate per gram")
+                            Text(changed[r.field] != nil ? "Booked at " + OrderFinalizeMath.rateText(rateShown(booked, r.field)) : "")
+                                .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                        }
+                    }
+                }
+                Text("Booked rates unless you change one."
+                     + (rateRows.contains { $0.field == .silverRatePerGram } ? " Silver's rate already holds its making and wastage." : "")
+                     + " The invoice keeps the rates it was priced at.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 20)
+        }
+    }
+
+    // MARK: Pieces
+
+    private func macPieces(_ f: OrderFinalizeMath.Figures) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Pieces").font(.headline)
+            ScrollView(.horizontal, showsIndicators: false) {
+                Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 10, verticalSpacing: 8) {
+                    macPiecesHeader
+                    Divider()
+                    ForEach($rows) { $row in
+                        macPieceRow($row, price: row.index < f.prices.count ? f.prices[row.index] : 0)
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 20)
+    }
+
+    private var macPiecesHeader: some View {
+        GridRow {
+            Text("")
+            Text("Piece")
+            Text("Fixed")
+            Text("Weight (g)").gridColumnAlignment(.trailing)
+            Text("Wastage %").gridColumnAlignment(.trailing)
+            Text("Making").gridColumnAlignment(.trailing)
+            Text("Stones").gridColumnAlignment(.trailing)
+            Text("Diamonds").gridColumnAlignment(.trailing)
+            Text("Price").gridColumnAlignment(.trailing)
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+    }
+
+    private func macPieceRow(_ row: Binding<OrderFinalizeRow>, price: Double) -> some View {
+        let r = row.wrappedValue
+        let takes = takesWastageAndMaking(r.item.metalType)
+        return GridRow {
+            Text("\(r.index + 1)").foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(r.item.description.isEmpty ? "A piece" : r.item.description).lineLimit(2)
+                if r.onOrder > 0 && Int(r.onOrder.rounded()) != Int(price.rounded()) {
+                    Text("On the order \(Money.pkr(r.onOrder))").font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                }
+            }
+            .frame(minWidth: 140, maxWidth: 240, alignment: .leading)
+            Toggle("Fixed price", isOn: row.manual).labelsHidden().toggleStyle(.checkbox)
+            macField(row.weight, placeholder: r.manual ? "Optional" : "0", width: 84, label: "Final weight in grams")
+            macWastage(row, takes: takes, manual: r.manual)
+            macMoney(row.making, show: takes && !r.manual, label: "Making")
+            macMoney(row.stones, show: !r.manual, label: "Stones")
+            macMoney(row.diamonds, show: !r.manual, label: "Diamonds")
+            macPrice(row, price: price)
+        }
+    }
+
+    @ViewBuilder
+    private func macWastage(_ row: Binding<OrderFinalizeRow>, takes: Bool, manual: Bool) -> some View {
+        if takes && !manual {
+            VStack(alignment: .trailing, spacing: 1) {
+                macField(row.wastage, width: 72, label: "Wastage percent")
+                Text(SaleNumber.grams(row.wrappedValue.wastageGrams) + " g")
+                    .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+            }
+        } else {
+            Text("\u{2014}").foregroundStyle(.tertiary)
+        }
+    }
+
+    @ViewBuilder
+    private func macMoney(_ text: Binding<String>, show: Bool, label: String) -> some View {
+        if show {
+            macField(text, width: 92, whole: true, label: label)
+        } else {
+            Text("\u{2014}").foregroundStyle(.tertiary)
+        }
+    }
+
+    /// A fixed price is typed; any other is worked out from the figures to its left.
+    @ViewBuilder
+    private func macPrice(_ row: Binding<OrderFinalizeRow>, price: Double) -> some View {
+        if row.wrappedValue.manual {
+            macField(row.price, width: 104, whole: true, label: "Final price")
+        } else {
+            Text(Money.pkr(price)).monospacedDigit().fontWeight(.medium)
+        }
+    }
+
+    private func macField(_ text: Binding<String>, placeholder: String = "0", width: CGFloat, whole: Bool = false,
+                          label: String) -> some View {
+        TextField(placeholder, text: whole ? text.wholeRupees : text)
+            .textFieldStyle(.roundedBorder)
+            .multilineTextAlignment(.trailing)
+            .monospacedDigit()
+            .frame(width: width)
+            .accessibilityLabel(label)
+    }
+
+    // MARK: Discount and totals
+
+    private func macDiscount(_ f: OrderFinalizeMath.Figures) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 8) {
+                GridRow {
+                    Text("Discount")
+                    HStack(spacing: 8) {
+                        macField($discount, width: 110, whole: true, label: "Discount")
+                        // FinalizeOrderDialog: the bill before any discount is the pieces less the exchange.
+                        MacOrdersRoundMenu(payable: f.subtotal - f.exchange, discount: f.discount) { n in
+                            discount = NewOrderFormat.rupeeBox(n)
+                        }
+                    }
+                }
+                // The shop's own figure for its margin: owners only, never the customer (decisions.md "Margin").
+                GridRow {
+                    Text("24k a tola now")
+                    macField($costTola, placeholder: "For the margin", width: 110, label: "24k rate a tola, for the margin")
+                }
+            }
+            Text("The 24k rate is the shop's own, for its margin. It is never printed.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 20)
+    }
+
+    private func macTotals(_ f: OrderFinalizeMath.Figures) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("The invoice").font(.headline)
+            MacOrdersMoneyRow(label: "Pieces", value: Money.pkr(f.subtotal))
+            if f.discount > 0 { MacOrdersMoneyRow(label: "Discount", value: "\u{2212} " + Money.pkr(f.discount)) }
+            if f.exchange > 0 { MacOrdersMoneyRow(label: "Exchange", value: "\u{2212} " + Money.pkr(f.exchange)) }
+            MacOrdersMoneyRow(label: "Invoice total", value: Money.pkr(f.total), strong: true)
+            if f.advances > 0 { MacOrdersMoneyRow(label: "Advance paid", value: "\u{2212} " + Money.pkr(f.advances)) }
+            MacOrdersMoneyRow(label: isCredit(f.balance) ? "Credit to customer" : "Balance due", value: Money.pkr(abs(f.balance)),
+                              strong: true, tone: f.balance >= 1 ? .owed : (isCredit(f.balance) ? .credit : .quiet))
+            Text("Priced at the rates above (the order's booked ones unless you changed one). The advances become the invoice's payments, each on its own day; the exchange comes off the total.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: 420, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .trailing)
+        .padding(.horizontal, 20)
+    }
+
+    // MARK: Footer
+
+    private func macFooter(_ order: Order, _ f: OrderFinalizeMath.Figures, problem: String?) -> some View {
+        let balance = isCredit(f.balance) ? "Credit to customer " + Money.pkr(abs(f.balance)) : "Balance due " + Money.pkr(f.balance)
+        return MacOrdersFooter(
+            summary: problem ?? balance,
+            summaryTone: problem == nil ? .quiet : .problem,
+            title: "Make Invoice \u{00B7} " + Money.pkr(f.total),
+            busy: saving,
+            enabled: problem == nil
+        ) {
+            failure = nil
+            Task { await finalize(order) }
+        }
+    }
+}
+#endif

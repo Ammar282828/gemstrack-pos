@@ -53,9 +53,14 @@ extension View {
     /// has nothing to offer). The bar is the same `ActionBar` `.actionBar` pins; only its presence changes, so the
     /// form beneath keeps its place.
     func ordersBar(_ primary: ActionBar.Action?) -> some View {
+        #if os(macOS)
+        // A Mac sheet's footer (Return does it, Esc cancels), not the phone's glass bar.
+        macOrdersBar(primary)
+        #else
         safeAreaBar(edge: .bottom, spacing: 0) {
             if let primary { ActionBar(primary: primary) }
         }
+        #endif
     }
 
     /// The ERP's own words when a write is refused (the kit's `failureAlert`, which also taps an error).
@@ -299,10 +304,12 @@ struct OrderAdvanceExchange: View {
 }
 
 #if os(macOS)
-/// What an Orders button opens, on a Mac: an order's own page pushes into the window; Edit, Finalize, the slip, the
-/// bench and New order are forms and documents, so they open as a window-sized sheet (one window form, closed with Esc).
+/// What an Orders button opens, on a Mac: in a window of its own where the shell gives one (an order's page, Edit,
+/// Finalize, the slip, the bench and New order are records and documents, as every record is on a Mac); else an order's
+/// page pushes into the window and the forms open as a window-sized sheet (one window form, closed with Esc).
 struct OrdersMacDestination: ViewModifier {
     @Binding var target: OrdersWebTarget?
+    @Environment(\.openPlaceWindow) private var openPlace
 
     private static func isPage(_ t: OrdersWebTarget) -> Bool {
         guard t.path.hasPrefix("/orders/"), t.path != "/orders/add" else { return false }
@@ -310,17 +317,23 @@ struct OrdersMacDestination: ViewModifier {
     }
 
     private var pushed: Binding<OrdersWebTarget?> {
-        Binding(get: { target.flatMap { Self.isPage($0) ? $0 : nil } },
+        Binding(get: { openPlace != nil ? nil : target.flatMap { Self.isPage($0) ? $0 : nil } },
                 set: { if $0 == nil, let t = target, Self.isPage(t) { target = nil } })
     }
 
     private var sheeted: Binding<OrdersWebTarget?> {
-        Binding(get: { target.flatMap { Self.isPage($0) ? nil : $0 } },
+        Binding(get: { openPlace != nil ? nil : target.flatMap { Self.isPage($0) ? nil : $0 } },
                 set: { if $0 == nil, let t = target, !Self.isPage(t) { target = nil } })
     }
 
     func body(content: Content) -> some View {
         content
+            .onChange(of: target) { _, t in
+                if let t, let openPlace {
+                    openPlace(Route(path: t.path))
+                    target = nil
+                }
+            }
             .navigationDestination(item: pushed) { t in
                 ScreenRegistry.view(for: t.path)
                     .modifier(HouseGround())

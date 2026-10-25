@@ -79,8 +79,12 @@ struct OrderLeopardsSheet: View {
                 Text(askWords)
             }
         }
+        #if os(macOS)
+        .ordersMacSheet(width: 560, height: 440)
+        #else
         .presentationDetents([.medium, .large])
         .presentationSizing(.form)
+        #endif
         .interactiveDismissDisabled(busy)
     }
 

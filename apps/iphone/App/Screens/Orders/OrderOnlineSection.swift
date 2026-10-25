@@ -25,6 +25,9 @@ struct OrderOnlineSection: View {
     private var mayAct: Bool { session.role == "owner" || session.role == "staff" }
 
     var body: some View {
+        #if os(macOS)
+        macBody
+        #else
         if let w = order.website {
             Section {
                 row("Payment", OrdersLogic.paymentWords(w.paymentStatus), tint: tone(w.paymentStatus))
@@ -53,6 +56,7 @@ struct OrderOnlineSection: View {
             }
             .sheet(item: $slip) { (s: WebsiteSlip) in OnlineSlipSheet(orderId: order.id, slip: s).presentationSizing(.form) }
         }
+        #endif
     }
 
     // MARK: The moves
@@ -188,3 +192,43 @@ struct OrderOnlineSection: View {
         .contentShape(.rect)
     }
 }
+
+#if os(macOS)
+// MARK: The Mac's panel
+
+/// The online order's facts in the record window's column: where the money stands, the price hold, the slips the customer
+/// sent (each opens). Its moves (Transfer received, Let it lapse, the bank details, Leopards) are the Order menu's, in the
+/// menu bar and the right-click menu, as every action of an order is.
+extension OrderOnlineSection {
+    @ViewBuilder
+    fileprivate var macBody: some View {
+        if let w = order.website {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Online Order" + (w.onlineId.map { " " + $0 } ?? "")).font(.headline)
+                MacOrdersFact(label: "Payment") {
+                    Text(OrdersLogic.paymentWords(w.paymentStatus)).foregroundStyle(tone(w.paymentStatus))
+                }
+                if let l = order.leopards, !l.cn.isEmpty {
+                    MacOrdersFact(label: "Courier") { courier(l) }
+                }
+                MacOrdersFact(label: "Placed") { Text(ShopDate.say(w.placedAt, withTime: true)) }
+                if let confirmed = w.confirmedAt, !confirmed.isEmpty {
+                    MacOrdersFact(label: "Confirmed") { Text(confirmedLine(w, confirmed)) }
+                }
+                MacOrdersFact(label: "Customer pays") { Text(Money.pkr(OrdersLogic.onlineTotal(order)) + deliveryNote(w)) }
+                if let city = order.delivery?.city, !city.isEmpty {
+                    MacOrdersFact(label: "City") { Text(city) }
+                }
+                hold(w)
+                ForEach(w.slips) { (s: WebsiteSlip) in slipRow(s) }
+                if w.slips.isEmpty && awaitingMoney(w) {
+                    Text("No slip yet. People often pay and send the slip on WhatsApp instead: check the bank and the chat.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .sheet(item: $slip) { (s: WebsiteSlip) in OnlineSlipSheet(orderId: order.id, slip: s) }
+        }
+    }
+}
+#endif
