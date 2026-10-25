@@ -19,6 +19,8 @@ struct WorkshopKarigarsList: View {
     /// The jobs and the rows worked out once per change of the books, the search, the filter and the sort.
     @State private var macJobsMemo = Memo<[WorkshopJob]>()
     @State private var macRowsMemo = Memo<MacKarigarRows>()
+    /// The rows in the table's order: a change of sort sorts again, it never works out his cash again.
+    @State private var macSortedMemo = Memo<[MacKarigarRow]>()
     @State private var macPositionMemo = Memo<WorkshopPosition>()
     /// Pay… asked for: the same sheet as his page's Add payment.
     @State private var paying: MacKarigarPay?
@@ -305,6 +307,8 @@ private struct MacKarigarRow: Identifiable {
     var active: Int { load?.active ?? 0 }
     var critical: Int { load?.critical ?? 0 }
     var late: Int { load?.late ?? 0 }
+    /// Active pieces 7 days old or more (late, and the critical ones among them).
+    var overdue: Int { load?.overdue ?? 0 }
     var grams: Double { load?.totalWeightG ?? 0 }
     var hisaab: String { batch?.label ?? "" }
 }
@@ -335,7 +339,7 @@ extension WorkshopKarigarsList {
         let data = macData()
         return macTable(data)
             .overlay {
-                if data.rows.isEmpty { emptyState.allowsHitTesting(false) }
+                if data.rows.isEmpty { macEmpty.allowsHitTesting(false) }
             }
             .macSummaryBar(macSummary(data))
             .toolbar { macToolbar(data) }
@@ -369,10 +373,11 @@ extension WorkshopKarigarsList {
 
     private func macData() -> MacKarigarRows {
         let jobs = macJobs()
+        // His cash is worked out for every karigar, so the rows wait for a change of the books and keep it across a sort.
         let key: [Int] = [book.orders.revision, book.invoices.revision, book.karigars.revision, book.karigarJobs.revision,
                    book.karigarBatches.revision, book.hisaab.revision, query.hashValue, show.rawValue.hashValue,
-                   macSort.hashValue, session.isOwner ? 1 : 0]
-        return macRowsMemo(key) {
+                   session.isOwner ? 1 : 0]
+        let base = macRowsMemo(key) {
             let live = workshopLive(book.karigars.items)
             let loads = loadsById(jobs)
             let owner = session.isOwner
@@ -396,11 +401,13 @@ extension WorkshopKarigarsList {
                     return MacKarigarRow(karigar: k, load: loads[k.id], batch: batches[k.id], cash: cash)
                 }
                 .filter { show == .everyone || (show == .working) == ($0.active > 0) }
-                .sorted(using: macSort)
             out.rows = rows
             for r in rows { out.byId[r.id] = r }
             return out
         }
+        var out = base
+        out.rows = macSortedMemo(key + [macSort.hashValue]) { base.rows.sorted(using: macSort) }
+        return out
     }
 
     private func macSummary(_ data: MacKarigarRows) -> [String] {
@@ -418,41 +425,43 @@ extension WorkshopKarigarsList {
 
     // MARK: The table
 
+    /// Seven columns, the name the wide one; his over-14-day pieces are the Late column's red, his whole page the inspector's.
     private func macTable(_ data: MacKarigarRows) -> some View {
         Table(data.rows, selection: $macPicked, sortOrder: $macSort) {
-            TableColumn("Name", value: \.name) { (r: MacKarigarRow) in Label(r.name, systemImage: "hammer").fontWeight(.medium) }
-                .width(min: 160, ideal: 220)
-            TableColumn("Contact", value: \.contact) { (r: MacKarigarRow) in Text(r.contact).monospacedDigit().foregroundStyle(.secondary) }
-                .width(min: 110, ideal: 150)
-            TableColumn("Pieces out", value: \.active) { (r: MacKarigarRow) in
+            TableColumn("Name", value: \.name) { (r: MacKarigarRow) in
+                Label(r.name, systemImage: "hammer").fontWeight(.medium).lineLimit(1)
+            }
+            .width(min: 120, ideal: 200)
+            TableColumn("Contact", value: \.contact) { (r: MacKarigarRow) in
+                Text(r.contact).monospacedDigit().lineLimit(1).foregroundStyle(.secondary)
+            }
+            .width(min: 100, ideal: 130)
+            TableColumn("Pieces", value: \.active) { (r: MacKarigarRow) in
                 Text(r.active > 0 ? "\(r.active)" : "").monospacedDigit().frame(maxWidth: .infinity, alignment: .trailing)
             }
-            .width(min: 80, ideal: 90)
-            TableColumn("Over \(WorkshopLogic.criticalDays) days", value: \.critical) { (r: MacKarigarRow) in
-                Text(r.critical > 0 ? "\(r.critical)" : "").monospacedDigit().foregroundStyle(Tone.late.color)
+            .width(min: 56, ideal: 64)
+            TableColumn("Late", value: \.overdue) { (r: MacKarigarRow) in
+                Text(r.overdue > 0 ? "\(r.overdue)" : "").monospacedDigit()
+                    .foregroundStyle(r.critical > 0 ? Tone.late.color : Tone.owed.color)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .help(r.critical > 0 ? "\(r.critical) of them over \(WorkshopLogic.criticalDays) days" : "")
+            }
+            .width(min: 48, ideal: 56)
+            TableColumn("Metal", value: \.grams) { (r: MacKarigarRow) in
+                Text(r.grams > 0 ? WorkshopLogic.number(r.grams, digits: 1) + "g" : "").monospacedDigit().lineLimit(1)
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
-            .width(min: 90, ideal: 110)
-            TableColumn("Late", value: \.late) { (r: MacKarigarRow) in
-                Text(r.late > 0 ? "\(r.late)" : "").monospacedDigit().foregroundStyle(Tone.owed.color)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-            }
-            .width(min: 50, ideal: 70)
-            TableColumn("Metal out", value: \.grams) { (r: MacKarigarRow) in
-                Text(r.grams > 0 ? WorkshopLogic.number(r.grams, digits: 1) + "g" : "").monospacedDigit()
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-            }
-            .width(min: 80, ideal: 100)
+            .width(min: 70, ideal: 90)
             // Empty for staff: the hisaab is the owner's book.
-            TableColumn("Holds / We owe", value: \.cash) { (r: MacKarigarRow) in
-                Text(macCashWords(r.cash)).monospacedDigit().foregroundStyle(r.cash < 0 ? Tone.owed.color : Color.primary)
+            TableColumn("Cash", value: \.cash) { (r: MacKarigarRow) in
+                Text(macCashWords(r.cash)).monospacedDigit().lineLimit(1).foregroundStyle(r.cash.rounded() < 0 ? Tone.owed.color : Color.primary)
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
-            .width(min: 120, ideal: 150)
-            TableColumn("Open hisaab", value: \.hisaab) { (r: MacKarigarRow) in
+            .width(min: 90, ideal: 120)
+            TableColumn("Hisaab", value: \.hisaab) { (r: MacKarigarRow) in
                 Text(r.hisaab).foregroundStyle(Theme.accent).lineLimit(1)
             }
-            .width(min: 120, ideal: 180)
+            .width(min: 90, ideal: 140)
         }
         .contextMenu(forSelectionType: String.self) { ids in
             if !ids.isEmpty { MacActionItems(groups: macGroups(Array(ids), data)) }
@@ -461,30 +470,52 @@ extension WorkshopKarigarsList {
         }
     }
 
-    /// "He holds PKR 5,000", "We owe PKR 3,000"; nothing for staff or when square.
+    /// "Holds 5,000", "We owe 3,000" (digits: the header says it is cash); nothing for staff or when square.
     private func macCashWords(_ cash: Double) -> String {
         guard session.isOwner else { return "" }
         let rounded = cash.rounded()
-        if rounded > 0 { return "Holds " + Money.pkr(rounded) }
-        if rounded < 0 { return "We owe " + Money.pkr(-rounded) }
+        if rounded > 0 { return "Holds " + Money.grouped(rounded) }
+        if rounded < 0 { return "We owe " + Money.grouped(-rounded) }
         return ""
+    }
+
+    /// The Mac's empty list: what is missing and how to make one (the key).
+    @ViewBuilder
+    private var macEmpty: some View {
+        if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            ContentUnavailableView.search(text: query)
+        } else {
+            switch show {
+            case .working: ContentUnavailableView("Nobody Is Working", systemImage: "person.2", description: Text("Nothing is on any bench."))
+            case .free: ContentUnavailableView("Nobody Is Free", systemImage: "person.2", description: Text("Every karigar has work."))
+            case .everyone:
+                ContentUnavailableView("No Karigars Yet", systemImage: "person.2",
+                                       description: Text(session.isOwner ? "Add one with \u{2303}\u{2318}N." : "The owner adds karigars."))
+            }
+        }
     }
 
     // MARK: The toolbar and the actions
 
     @ToolbarContentBuilder
     private func macToolbar(_ data: MacKarigarRows) -> some ToolbarContent {
-        ToolbarItem(placement: .automatic) {
+        // New and the one filter; the picked karigar's Pay… is the inspector's, the Karigar menu's and the right-click menu's.
+        ToolbarItemGroup(placement: .primaryAction) {
+            MacToolbarAction(action: macNewAction)
+            macFilterMenu
+        }
+    }
+
+    private var macFilterMenu: some View {
+        Menu {
             Picker("Show", selection: $show) {
                 ForEach(Show.allCases) { (s: Show) in Text(s.title).tag(s) }
             }
-            .pickerStyle(.menu)
-            .help("Everyone, only those with work, or only those with none")
+            .pickerStyle(.inline)
+        } label: {
+            Label("Filter", systemImage: show == .everyone ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
         }
-        ToolbarItemGroup(placement: .primaryAction) {
-            MacToolbarAction(action: macNewAction)
-            MacToolbarAction(action: macPayAction(Array(macPicked), data))
-        }
+        .help("Everyone, only those with work, or only those with none")
     }
 
     private var macNewAction: MacAction {

@@ -39,6 +39,9 @@ struct DraftsScreen: View {
     @Environment(\.openPlaceWindow) private var openPlace
     @State private var macSelection = Set<String>()
     @State private var macSort = [KeyPathComparator(\DraftsScreen.DraftRow.updatedAt, order: .reverse)]
+    /// The rows (and the month-old drafts) worked out once per change of the drafts, and in the table's order once per sort.
+    @State private var macDataMemo = Memo<MacDraftsData>()
+    @State private var macSortedMemo = Memo<[DraftRow]>()
     #endif
 
     /// One row: a draft in Drafts, or this phone's own work that Drafts does not hold.
@@ -400,40 +403,49 @@ extension DraftsScreen.DraftRow {
     var updatedAt: String { draft.updatedAt }
 }
 
+/// The drafts in hand for the owner or staff shown, and the ones a month old (which are removed as they are seen).
+private struct MacDraftsData {
+    var all: [DraftsScreen.DraftRow] = []
+    var expired: [WorkDraft] = []
+}
+
 // The Mac's Drafts (docs/features/mac-design.md, "Drafts"): one Table of the orders and sales in hand (sortable). Return or a
 // double-click continues the draft in a window of its own, the same form the iPhone pushes; ⌫ discards it, after asking. The
-// Draft menu, the toolbar and the right-click menu are the same two actions.
+// Draft menu, the toolbar and the right-click menu are the same two actions (a place without an inspector keeps two).
 extension DraftsScreen {
     @ViewBuilder
     var macPage: some View {
-        let now = Date()
-        let split = lists(now: now)
-        let all = rows(split.live).filter { session.isOwner || $0.draft.isOrder }
-        let ordered = all.sorted(using: macSort)
+        let key = macKey()
+        let data = macDataMemo(key) {
+            let split = lists(now: Date())
+            return MacDraftsData(all: rows(split.live).filter { session.isOwner || $0.draft.isOrder }, expired: split.expired)
+        }
+        let all = data.all
+        let ordered = macSortedMemo(key + [macSort.hashValue]) { all.sorted(using: macSort) }
         let groups = macActions(macSelection, all)
         Table(ordered, selection: $macSelection, sortOrder: $macSort) {
             TableColumn("Kind", value: \.kindWord) { (r: DraftRow) in
-                Label(r.kindWord, systemImage: r.draft.isOrder ? "list.clipboard" : "receipt")
+                Label(r.kindWord, systemImage: r.draft.isOrder ? "list.clipboard" : "receipt").lineLimit(1)
             }
-            .width(min: 80, ideal: 90)
-            TableColumn("For", value: \.title) { (r: DraftRow) in Text(r.draft.title).fontWeight(.medium) }
-                .width(min: 140, ideal: 200)
+            .width(min: 70, ideal: 84)
+            TableColumn("For", value: \.title) { (r: DraftRow) in Text(r.draft.title).fontWeight(.medium).lineLimit(1) }
+                .width(min: 110, ideal: 200)
             TableColumn("What is in it") { (r: DraftRow) in
                 Text(r.draft.detail).foregroundStyle(.secondary).lineLimit(1)
             }
-            .width(min: 180, ideal: 320)
-            TableColumn("Pieces") { (r: DraftRow) in Text("\(r.draft.items)").monospacedDigit() }
-                .width(55)
+            .width(min: 110, ideal: 240)
+            TableColumn("Pieces") { (r: DraftRow) in
+                Text("\(r.draft.items)").monospacedDigit().frame(maxWidth: .infinity, alignment: .trailing)
+            }
+            .width(min: 48, ideal: 56)
             TableColumn("Total", value: \.total) { (r: DraftRow) in
-                Text(r.total > 0 ? Money.pkr(r.total) : "")
-                    .monospacedDigit()
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+                MacAmount(r.total > 0 ? r.total : nil)
             }
-            .width(min: 90, ideal: 110)
+            .width(min: 70, ideal: 90)
             TableColumn("Last typed", value: \.updatedAt) { (r: DraftRow) in
-                Text(lastTyped(r)).foregroundStyle(.secondary).lineLimit(1)
+                Text(macLastTyped(r)).foregroundStyle(.secondary).lineLimit(1).help(lastTyped(r))
             }
-            .width(min: 180, ideal: 260)
+            .width(min: 110, ideal: 170)
         }
         .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
             if !ids.isEmpty { MacActionItems(groups: macActions(ids, all)) }
@@ -443,8 +455,8 @@ extension DraftsScreen {
         .onDeleteCommand { if let row = macPicked(all) { discarding = row } }
         .overlay {
             if all.isEmpty {
-                ContentUnavailableView("No unfinished work", systemImage: "doc.on.doc",
-                                       description: Text("A new order or sale is kept here as it is typed, on every device, until it is saved or has gone \(DRAFT_MAX_AGE_DAYS) days untouched."))
+                ContentUnavailableView("No Unfinished Work", systemImage: "doc.on.doc",
+                                       description: Text("A new order (\u{21E7}\u{2318}N) or sale (\u{2318}N) is kept here as it is typed, on every device, until it is saved or has gone \(DRAFT_MAX_AGE_DAYS) days untouched."))
             }
         }
         .macSummaryBar(macSummary(all))
@@ -455,7 +467,26 @@ extension DraftsScreen {
             }
         }
         .macRecordMenu(MacRecordMenu(title: "Draft", groups: groups))
-        .task(id: split.expired.map(\.id)) { await removeExpired(split.expired) }
+        .task(id: data.expired.map(\.id)) { await removeExpired(data.expired) }
+    }
+
+    /// What the rows were made from: a change of any makes them again.
+    private func macKey() -> [Int] {
+        [shelf.revision, shelf.loaded ? 1 : 0, (shelf.error ?? "").hashValue, book.settings.revision, book.customers.revision,
+         session.isOwner ? 1 : 0, demoGone.hashValue,
+         phoneOrder == nil ? 0 : 1, phoneSale == nil ? 0 : 1, phoneOrder?.pieces.count ?? -1, phoneSale?.lines.count ?? -1,
+         (phoneOrder?.customerName ?? "").hashValue, (phoneSale?.customerName ?? "").hashValue,
+         (WorkDraftSync.order.id ?? "").hashValue, (WorkDraftSync.sale.id ?? "").hashValue,
+         ERPDate.karachiDay(Date()).hashValue]
+    }
+
+    /// "Today 4:05 pm · iPhone": when it was last typed and where.
+    private func macLastTyped(_ row: DraftRow) -> String {
+        let d = row.draft
+        if row.phoneOnly { return "On this Mac" }
+        var line = ShopDate.say(d.updatedAt, withTime: true)
+        if !d.device.isEmpty { line += " \u{00B7} " + d.device }
+        return line
     }
 
     private func macPicked(_ all: [DraftRow]) -> DraftRow? {

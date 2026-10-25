@@ -506,10 +506,10 @@ extension StockBulkEditor {
                 }
             }
             .formStyle(.grouped)
-            .frame(minWidth: 380, idealWidth: 420, maxWidth: 460)
+            .frame(minWidth: 280, idealWidth: 380, maxWidth: 440)
             Divider()
             weightsTable
-                .frame(minWidth: 380, maxWidth: .infinity)
+                .frame(minWidth: 300, maxWidth: .infinity)
         }
         .disabled(saving)
         .onChange(of: shared.ruleKey) { _, _ in shared.settle(keepWastage: true) }
@@ -609,14 +609,16 @@ extension StockBulkEditor {
     private var weightsTable: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Weights to Add \u{00B7} \(rows.count)").font(.headline)
-            HStack(alignment: .top, spacing: 8) {
-                TextField("Weights", text: $pasted, prompt: Text("Paste or type weights, e.g. 4.2 5.1 6.75"), axis: .vertical)
-                    .lineLimit(1...3)
-                    .textFieldStyle(.roundedBorder)
+            // The paste field on its line, its buttons under it: side by side they would not fit the table's narrowest.
+            TextField("Weights", text: $pasted, prompt: Text("Paste or type weights, e.g. 4.2 5.1 6.75"), axis: .vertical)
+                .lineLimit(1...3)
+                .textFieldStyle(.roundedBorder)
+            HStack(spacing: 8) {
                 Button("Add These Weights") { addPasted() }
                     .disabled(StockBulk.weights(in: pasted).isEmpty)
                 Button { rows.append(StockBulkRow()) } label: { Label("Add a Row", systemImage: "plus") }
                     .help("Add an empty row")
+                Spacer(minLength: 0)
             }
             Table(rows, selection: $picked) {
                 TableColumn("#") { (row: StockBulkRow) in
@@ -626,10 +628,11 @@ extension StockBulkEditor {
                 TableColumn("Weight (g)") { (row: StockBulkRow) in
                     TextField("Weight", text: field(row.id, \.weight), prompt: Text("Weight (g)")).monospacedDigit()
                 }
-                .width(min: 90, ideal: 120)
+                .width(min: 80, ideal: 120)
                 TableColumn("Name suffix") { (row: StockBulkRow) in
                     TextField("Name suffix", text: field(row.id, \.suffix), prompt: Text("Name suffix"))
                 }
+                .width(min: 80, ideal: 160)
                 TableColumn("") { (row: StockBulkRow) in
                     Button { remove(row.id) } label: { Image(systemName: "minus.circle") }
                         .buttonStyle(.borderless)

@@ -787,7 +787,7 @@ extension WorkshopBoard {
             if macTable { macTableView(data) } else { macBoardView(data) }
         }
         .overlay {
-            if macTable && data.focused.isEmpty { emptyState(data.snap).allowsHitTesting(false) }
+            if macTable && data.focused.isEmpty { macEmpty(data.snap).allowsHitTesting(false) }
         }
         .modifier(MacWorkshopSummary(parts: orderId == nil ? macSummary(data) : []))
         .toolbar { macToolbar(data) }
@@ -834,6 +834,7 @@ extension WorkshopBoard {
                 live: live, snap: snap, focused: focused,
                 sorted: macSort.isEmpty ? focused : focused.sorted(using: macSort),
                 byId: byId, columns: columns,
+                counts: Dictionary(uniqueKeysWithValues: WorkshopFocus.allCases.map { ($0, snap.count($0)) }),
                 grams: loads.reduce(0.0) { $0 + $1.totalWeightG },
                 value: loads.reduce(0.0) { $0 + $1.totalValue }
             )
@@ -950,38 +951,47 @@ extension WorkshopBoard {
 
     // MARK: The table
 
+    /// Seven columns (the weight rides beside the piece; the inspector has the rest of the making).
     private func macTableView(_ data: MacWorkshopData) -> some View {
         Table(data.sorted, selection: $macPicked, sortOrder: $macSort) {
             TableColumn("Done") { (j: WorkshopJob) in macDoneCell(j) }
                 .width(46)
-            TableColumn("Piece", value: \.description) { (j: WorkshopJob) in Text(j.description).fontWeight(.medium).lineLimit(1) }
-                .width(min: 180, ideal: 280)
+            TableColumn("Piece", value: \.description) { (j: WorkshopJob) in macPieceCell(j) }
+                .width(min: 120, ideal: 220)
             TableColumn("Order") { (j: WorkshopJob) in
-                Text(j.invoiceId ?? j.orderId ?? "Stock work").monospacedDigit().foregroundStyle(.secondary)
+                Text(j.invoiceId ?? j.orderId ?? "Stock work").monospacedDigit().lineLimit(1).foregroundStyle(.secondary)
             }
-            .width(min: 90, ideal: 120)
+            .width(min: 70, ideal: 100)
             TableColumn("Customer") { (j: WorkshopJob) in Text(j.customerName ?? "").foregroundStyle(.secondary).lineLimit(1) }
-                .width(min: 100, ideal: 160)
+                .width(min: 90, ideal: 140)
             TableColumn("Karigar", value: \.karigarName) { (j: WorkshopJob) in macKarigarCell(j, data.live) }
-                .width(min: 130, ideal: 170)
+                .width(min: 110, ideal: 150)
             TableColumn("Stage") { (j: WorkshopJob) in MacStatus(macStageWords(j), tone: macStageTone(j)) }
-                .width(min: 110, ideal: 130)
+                .width(min: 90, ideal: 120)
             TableColumn("Age", value: \.ageDays) { (j: WorkshopJob) in
-                Text(j.isDone ? "" : "\(j.ageDays)d").monospacedDigit().foregroundStyle(macAgeColor(j))
+                Text(j.isDone ? "" : "\(j.ageDays)d").monospacedDigit().lineLimit(1).foregroundStyle(macAgeColor(j))
             }
-            .width(min: 60, ideal: 70)
-            TableColumn("Weight") { (j: WorkshopJob) in
-                Text((j.weightG ?? 0) > 0 ? WorkshopLogic.number(j.weightG ?? 0, digits: 1) + "g" : "").monospacedDigit()
-            }
-            .width(min: 60, ideal: 80)
+            .width(min: 40, ideal: 52)
         }
         .contextMenu(forSelectionType: String.self) { ids in
             let jobs = ids.compactMap { data.byId[$0] }
             if !jobs.isEmpty {
-                MacWorkshopJobMenu(give: macGiveActions(jobs, data.live, flat: false), groups: macJobGroups(jobs, data.live, flatGive: false))
+                MacWorkshopJobMenu(give: { macGiveActions(jobs, data.live, flat: false) },
+                                   groups: { macJobGroups(jobs, data.live, flatGive: false) })
             }
         } primaryAction: { ids in
             if ids.count == 1, let id = ids.first, let job = data.byId[id] { macOpenJob(job) }
+        }
+    }
+
+    /// The piece, with its weight in grey beside it.
+    private func macPieceCell(_ j: WorkshopJob) -> some View {
+        HStack(spacing: 6) {
+            Text(j.description).fontWeight(.medium).lineLimit(1)
+            if (j.weightG ?? 0) > 0 {
+                Text(WorkshopLogic.number(j.weightG ?? 0, digits: 1) + "g")
+                    .monospacedDigit().lineLimit(1).foregroundStyle(.secondary).layoutPriority(1)
+            }
         }
     }
 
@@ -1043,6 +1053,9 @@ extension WorkshopBoard {
 
     @ToolbarContentBuilder
     private func macToolbar(_ data: MacWorkshopData) -> some ToolbarContent {
+        // The view switch, then New (stock work for a karigar) and the one filter. The picked pieces' Give To and Done are
+        // the inspector's, the Job menu's and the right-click menu's, never the toolbar's. The one order's "Give out" page
+        // has none: its pieces are given in the table.
         if orderId == nil {
             ToolbarItem(placement: .principal) {
                 Picker("View", selection: $macViewRaw) {
@@ -1053,58 +1066,96 @@ extension WorkshopBoard {
                 .pickerStyle(.segmented)
                 .help("A column for each karigar, or a table of every piece")
             }
-            ToolbarItem(placement: .automatic) {
-                Picker("Show", selection: $focus) {
-                    ForEach(WorkshopFocus.allCases) { (f: WorkshopFocus) in
-                        Text(f == .all ? focusTitle(f) : "\(focusTitle(f)) (\(data.snap.count(f)))").tag(f)
-                    }
-                }
-                .pickerStyle(.menu)
-                .help("All the work, or only what needs a hand")
+            ToolbarItemGroup(placement: .primaryAction) {
+                let assign = macAssignStockAction(macPickedJobs(data))
+                Button(action: assign.perform) { Label("Assign Stock Work", systemImage: "plus") }
+                    .disabled(!assign.enabled)
+                    .help(assign.help)
+                macFilterMenu(data)
             }
-            ToolbarItem(placement: .automatic) { macFilterMenu(data.live) }
-        }
-        ToolbarItemGroup(placement: .primaryAction) {
-            let jobs = macPickedJobs(data)
-            Menu {
-                ForEach(macGiveActions(jobs, data.live, flat: false)) { (a: MacAction) in MacActionMenuItem(action: a) }
-            } label: {
-                Label("Give To", systemImage: "person.badge.plus")
-            }
-            .disabled(jobs.isEmpty || !session.isOwner)
-            .help("Give the picked pieces to a karigar")
-            MacToolbarAction(action: macDoneAction(jobs))
-            MacToolbarAction(action: macAssignStockAction(jobs))
         }
     }
 
-    private func macFilterMenu(_ live: [Karigar]) -> some View {
+    /// One Filter menu: what to show, and the people, kind of work, karigar and status, each an inline pick.
+    private func macFilterMenu(_ data: MacWorkshopData) -> some View {
         let people = session.shop.takenBy
+        let on = filter.menuCount > 0 || focus != .all
         return Menu {
+            Section("Show") {
+                Picker("Show", selection: $focus) {
+                    ForEach(WorkshopFocus.allCases) { (f: WorkshopFocus) in
+                        Text(f == .all ? focusTitle(f) : "\(focusTitle(f)) (\(data.counts[f] ?? 0))").tag(f)
+                    }
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
+            }
             if !people.isEmpty {
-                Picker("Taken by", selection: $filter.takenBy) {
-                    Text("Anyone").tag("")
-                    ForEach(people, id: \.self) { (p: String) in Text(p).tag(p) }
+                Section("Taken by") {
+                    Picker("Taken by", selection: $filter.takenBy) {
+                        Text("Anyone").tag("")
+                        ForEach(people, id: \.self) { (p: String) in Text(p).tag(p) }
+                    }
+                    .pickerStyle(.inline)
+                    .labelsHidden()
                 }
             }
-            Picker("Work", selection: $filter.type) {
-                ForEach(WorkshopTypeFilter.allCases) { (t: WorkshopTypeFilter) in Text(t.title).tag(t) }
+            Section("Work") {
+                Picker("Work", selection: $filter.type) {
+                    ForEach(WorkshopTypeFilter.allCases) { (t: WorkshopTypeFilter) in Text(t.title).tag(t) }
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
             }
-            Picker("Karigar", selection: $filter.karigarId) {
-                Text("Everyone").tag("")
-                ForEach(live) { (k: Karigar) in Text(k.name).tag(k.id) }
+            Section("Karigar") {
+                Picker("Karigar", selection: $filter.karigarId) {
+                    Text("Everyone").tag("")
+                    ForEach(data.live) { (k: Karigar) in Text(k.name).tag(k.id) }
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
             }
-            Picker("Status", selection: $filter.status) {
-                ForEach(WorkshopStatusFilter.allCases) { (s: WorkshopStatusFilter) in Text(s.title).tag(s) }
+            Section("Status") {
+                Picker("Status", selection: $filter.status) {
+                    ForEach(WorkshopStatusFilter.allCases) { (s: WorkshopStatusFilter) in Text(s.title).tag(s) }
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
             }
-            if filter.menuCount > 0 {
+            if on {
                 Divider()
-                Button("Reset Filters", systemImage: "arrow.counterclockwise") { filter = WorkshopFilter() }
+                Button("Reset Filters", systemImage: "arrow.counterclockwise") {
+                    filter = WorkshopFilter()
+                    focus = .all
+                }
             }
         } label: {
-            Label("Filter", systemImage: filter.menuCount > 0 ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+            Label("Filter", systemImage: on ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
         }
-        .help("Taken by, kind of work, karigar and status")
+        .help("What to show, taken by, kind of work, karigar and status")
+    }
+
+    /// The Mac's empty table: a line saying what is missing and how to make some.
+    @ViewBuilder
+    private func macEmpty(_ snap: WorkshopSnapshot) -> some View {
+        let searching = !filter.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        switch focus {
+        case .unassigned:
+            ContentUnavailableView("All Work Is Assigned", systemImage: "checkmark.circle", description: Text("No work is awaiting a karigar."))
+        case .attention:
+            ContentUnavailableView("Nothing Needs Attention", systemImage: "checkmark.circle", description: Text("No work is overdue or without a karigar."))
+        case .notGiven:
+            ContentUnavailableView("Everything Is Given", systemImage: "checkmark.circle", description: Text("No piece with a karigar is still in the safe."))
+        case .all:
+            if searching {
+                ContentUnavailableView.search(text: filter.query)
+            } else if !snap.all.isEmpty {
+                ContentUnavailableView("No Jobs Match", systemImage: "hammer", description: Text("Change the filters, or choose Reset Filters."))
+            } else {
+                ContentUnavailableView("No Pending Work", systemImage: "hammer",
+                                       description: Text("Give an order's piece to a karigar, or assign stock work with \u{2303}\u{2318}N."))
+            }
+        }
     }
 
     // MARK: The actions, declared once

@@ -25,6 +25,8 @@ struct CalendarScreen: View {
     @ScaledMetric(relativeTo: .caption) private var cellHeight: CGFloat = 60
     #if os(macOS)
     @Environment(\.openPlaceWindow) private var openPlace
+    /// The orders promised for the chosen day, found once per change of the orders or of the day.
+    @State private var promisedMemo = Memo<[Order]>()
     #endif
 
     private struct Reckoned {
@@ -359,8 +361,8 @@ private struct LegendLabel: LabelStyle {
 
 #if os(macOS)
 // The Mac's calendar: the month as a real grid that fills the window (days as tall cells with the money, the sales and orders
-// and what was promised), the month's figures above it, and the chosen day's events and promises in a column beside it.
-// ‹ › and Today are in the toolbar (⌘← ⌘→); the arrow keys move the chosen day, a click chooses one.
+// and what was promised), the month's figures above it, and the chosen day's events and promises in the inspector.
+// ‹ › are in the toolbar (⌘← ⌘→) and Today beside the inspector's toggle; the arrow keys move the chosen day, a click chooses one.
 extension CalendarScreen {
     @ViewBuilder
     var macPage: some View {
@@ -374,20 +376,14 @@ extension CalendarScreen {
         VStack(spacing: 0) {
             macFigures(figures)
             Divider()
-            HStack(spacing: 0) {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        macGrid(books)
-                        legend
-                    }
-                    .padding(20)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    macGrid(books)
+                    legend
                 }
-                .frame(minWidth: 520)
-                Divider()
-                MacReportsCalendarDay(day: selected, events: books.days[selected]?.events ?? [],
-                                      promised: shopCalendarDueOn(selected, orders: book.orders.items))
-                    .frame(minWidth: 300, idealWidth: 360, maxWidth: 420)
+                .padding(20)
             }
+            .frame(minWidth: 360)
         }
         .navigationSubtitle(ShopCalendar.title(year: year, month: month))
         .toolbar {
@@ -395,26 +391,42 @@ extension CalendarScreen {
                 HStack(spacing: 6) {
                     Button { step(-1) } label: { Image(systemName: "chevron.left") }
                         .keyboardShortcut(.leftArrow, modifiers: .command)
-                        .help("Previous month")
+                        .help("Previous month (\u{2318}\u{2190})")
                     Text(ShopCalendar.title(year: year, month: month))
                         .font(.headline).frame(minWidth: 150)
                         .contentTransition(.numericText())
                     Button { step(1) } label: { Image(systemName: "chevron.right") }
                         .keyboardShortcut(.rightArrow, modifiers: .command)
-                        .help("Next month")
+                        .help("Next month (\u{2318}\u{2192})")
                 }
             }
         }
+        // The chosen day's events and promises are the inspector (Today is the page's own toolbar button).
+        .macInspector {
+            MacReportsCalendarDay(day: selected, events: books.days[selected]?.events ?? [],
+                                  promised: promisedMemo([book.orders.revision, selected.hashValue]) {
+                                      shopCalendarDueOn(selected, orders: book.orders.items)
+                                  })
+        }
     }
 
-    /// The month on screen as plain figures: its money, its sales and orders, and the average day that took anything.
+    /// The month on screen as plain figures: its money, its sales and orders, and the average day that took anything. In a
+    /// narrow window they stand two and two.
     private func macFigures(_ m: ShopCalendarMonth) -> some View {
-        macReportsFigures([
+        let figures: [MacFigure] = [
             MacFigure(ShopCalendar.title(year: year, month: month), Money.pkrLac(m.total)),
             MacFigure("Sales", "\(m.sales)"),
             MacFigure("Orders", "\(m.orders)"),
             MacFigure("Average trading day", m.perTradingDay > 0 ? Money.pkrLac(m.perTradingDay) : "\u{2014}"),
-        ])
+        ]
+        return ViewThatFits(in: .horizontal) {
+            MacFigures(figures)
+            VStack(spacing: 0) {
+                MacFigures(Array(figures.prefix(2)))
+                Divider()
+                MacFigures(Array(figures.dropFirst(2)))
+            }
+        }
     }
 
     private func macGrid(_ books: Reckoned) -> some View {
@@ -433,7 +445,6 @@ extension CalendarScreen {
                 }
             }
         }
-        .motion(year * 100 + month)
         .focusable()
         .focusEffectDisabled()
         .onKeyPress(.leftArrow) { macMove(days: -1); return .handled }
@@ -448,7 +459,7 @@ extension CalendarScreen {
         let due = books.due[key] ?? 0
         let isSelected = key == selected
         let isToday = key == today
-        return Button { Motion.run(reduce: reduceMotion) { selected = key } } label: {
+        return Button { selected = key } label: {
             VStack(alignment: .leading, spacing: 3) {
                 HStack {
                     Text("\(day)")
@@ -497,11 +508,10 @@ extension CalendarScreen {
               let moved = cal.date(byAdding: .day, value: days, to: date) else { return }
         let c = cal.dateComponents([.year, .month, .day], from: moved)
         guard let y = c.year, let m = c.month, let d = c.day else { return }
-        Motion.run(reduce: reduceMotion) {
-            year = y
-            month = m
-            selected = ShopCalendar.dayKey(year: y, month: m, day: d)
-        }
+        // The pick moves at once (an arrow key held down must not queue animations).
+        year = y
+        month = m
+        selected = ShopCalendar.dayKey(year: y, month: m, day: d)
     }
 }
 #endif

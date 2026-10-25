@@ -29,6 +29,8 @@ struct WorkshopGivenScreen: View {
     @State private var macSort = [KeyPathComparator(\GivenItem.date, order: .reverse)]
     /// The rows worked out once per change of the books, the search, the filter and the sort.
     @State private var macRowsMemo = Memo<MacGivenRows>()
+    /// The items in the table's order: a change of sort sorts again, nothing else.
+    @State private var macSortedMemo = Memo<[GivenItem]>()
     @Environment(\.openPlaceWindow) private var openPlace
     #endif
 
@@ -343,7 +345,7 @@ extension WorkshopGivenScreen {
         let data = macData()
         return macTable(data)
             .overlay {
-                if data.shown.isEmpty { emptyState.allowsHitTesting(false) }
+                if data.shown.isEmpty { macEmpty.allowsHitTesting(false) }
             }
             .macSummaryBar(macSummary(data))
             .toolbar { macToolbar(data) }
@@ -354,17 +356,20 @@ extension WorkshopGivenScreen {
     // MARK: The rows, worked out once
 
     private func macData() -> MacGivenRows {
-        let key: [Int] = [book.givenItems.revision, query.hashValue, filter.rawValue.hashValue, macSort.hashValue,
+        let key: [Int] = [book.givenItems.revision, query.hashValue, filter.rawValue.hashValue,
                    returnedNow.sorted().joined(separator: ",").hashValue]
-        return macRowsMemo(key) {
+        let base = macRowsMemo(key) {
             let all = book.givenItems.items
             var out = MacGivenRows()
             out.total = all.count
             out.out = all.filter { isOut($0) }.count
-            out.shown = all.filter { matches($0) }.sorted(using: macSort)
+            out.shown = all.filter { matches($0) }
             for g in all { out.byId[g.id] = g }
             return out
         }
+        var out = base
+        out.shown = macSortedMemo(key + [macSort.hashValue]) { base.shown.sorted(using: macSort) }
+        return out
     }
 
     private func macPickedItems(_ data: MacGivenRows) -> [GivenItem] {
@@ -381,29 +386,44 @@ extension WorkshopGivenScreen {
 
     // MARK: The table
 
+    /// Five columns (the note and the rest are the inspector's).
     private func macTable(_ data: MacGivenRows) -> some View {
         Table(data.shown, selection: $macPick, sortOrder: $macSort) {
             TableColumn("What", value: \.description) { (g: GivenItem) in Text(g.description).fontWeight(.medium).lineLimit(1) }
-                .width(min: 180, ideal: 280)
+                .width(min: 120, ideal: 240)
             TableColumn("Given to", value: \.recipientName) { (g: GivenItem) in
                 Label(g.recipientName.isEmpty ? "\u{2014}" : g.recipientName, systemImage: icon(g.recipientType))
                     .lineLimit(1)
             }
-            .width(min: 140, ideal: 200)
-            TableColumn("Given", value: \.date) { (g: GivenItem) in Text(g.date.isEmpty ? "" : ShopDate.say(g.date)) }
-                .width(min: 90, ideal: 110)
+            .width(min: 100, ideal: 160)
+            TableColumn("Given", value: \.date) { (g: GivenItem) in Text(g.date.isEmpty ? "" : ShopDate.say(g.date)).lineLimit(1) }
+                .width(min: 70, ideal: 90)
             TableColumn("Where it stands") { (g: GivenItem) in macStanding(g) }
-                .width(min: 110, ideal: 150)
-            TableColumn("Given by") { (g: GivenItem) in Text(g.givenBy ?? "").foregroundStyle(.secondary) }
-                .width(min: 80, ideal: 110)
-            TableColumn("Note") { (g: GivenItem) in Text(g.notes ?? "").foregroundStyle(.secondary).lineLimit(1) }
-                .width(min: 120, ideal: 240)
+                .width(min: 90, ideal: 130)
+            TableColumn("Given by") { (g: GivenItem) in Text(g.givenBy ?? "").foregroundStyle(.secondary).lineLimit(1) }
+                .width(min: 70, ideal: 100)
         }
         .contextMenu(forSelectionType: String.self) { ids in
             let items = ids.compactMap { data.byId[$0] }
             if !items.isEmpty { MacActionItems(groups: macGroups(items)) }
         } primaryAction: { ids in
             if session.isOwner, ids.count == 1, let id = ids.first, let item = data.byId[id] { editing = item }
+        }
+    }
+
+    /// The Mac's empty list: what is missing and how to make one (the key).
+    @ViewBuilder
+    private var macEmpty: some View {
+        if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            ContentUnavailableView.search(text: query)
+        } else {
+            switch filter {
+            case .out: ContentUnavailableView("Nothing Is Out", systemImage: "shippingbox", description: Text("Every item given has come back."))
+            case .returned: ContentUnavailableView("Nothing Has Come Back Yet", systemImage: "shippingbox")
+            case .all:
+                ContentUnavailableView("Nothing Given Yet", systemImage: "shippingbox",
+                                       description: Text(session.isOwner ? "Record an item given with \u{2303}\u{2318}N." : "The owner records items given."))
+            }
         }
     }
 
@@ -428,17 +448,18 @@ extension WorkshopGivenScreen {
 
     @ToolbarContentBuilder
     private func macToolbar(_ data: MacGivenRows) -> some ToolbarContent {
-        ToolbarItem(placement: .automatic) {
-            Picker("Show", selection: $filter) {
-                ForEach(Filter.allCases) { (f: Filter) in Text(f.title).tag(f) }
-            }
-            .pickerStyle(.menu)
-            .help("All items, only those still out, or only those that came back")
-        }
+        // New and the one filter; Got Back is the inspector's, the Item menu's and the right-click menu's.
         ToolbarItemGroup(placement: .primaryAction) {
-            let items = macPickedItems(data)
             MacToolbarAction(action: macRecordAction)
-            MacToolbarAction(action: macBackAction(items))
+            Menu {
+                Picker("Show", selection: $filter) {
+                    ForEach(Filter.allCases) { (f: Filter) in Text(f.title).tag(f) }
+                }
+                .pickerStyle(.inline)
+            } label: {
+                Label("Filter", systemImage: filter == .all ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
+            }
+            .help("All items, only those still out, or only those that came back")
         }
     }
 
@@ -647,7 +668,7 @@ struct WorkshopGivenSheet: View {
         .presentationSizing(.page)
         .interactiveDismissDisabled(saving)
         #if os(macOS)
-        .frame(minWidth: 520, idealWidth: 560, minHeight: 540, idealHeight: 600)
+        .frame(minWidth: 520, idealWidth: 560, minHeight: 500, idealHeight: 600)
         #endif
     }
 

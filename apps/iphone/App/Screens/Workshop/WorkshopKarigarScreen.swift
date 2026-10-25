@@ -37,6 +37,9 @@ struct WorkshopKarigarScreen: View {
     @State private var macPaySort = [KeyPathComparator(\MacKarigarPayRow.date, order: .reverse)]
     /// What his page comes to, worked out once per change of the books and the sorts.
     @State private var macPageMemo = Memo<MacKarigarPageData>()
+    /// The two tables in their sorted order: a sort sorts these, it never works his page out again.
+    @State private var macWorkSorted = Memo<[MacKarigarWorkRow]>()
+    @State private var macPaySorted = Memo<[MacKarigarPayRow]>()
     @State private var macOpened: Route?
     @Environment(\.openPlaceWindow) private var openPlace
     #endif
@@ -814,7 +817,7 @@ extension WorkshopKarigarScreen {
                     Section("Details") { MacKarigarDetailRows(karigar: karigar) }
                 }
                 .formStyle(.grouped)
-                .frame(width: 320)
+                .frame(minWidth: 240, idealWidth: 300, maxWidth: 340)
             }
             .macSummaryBar(macSummary(data))
         }
@@ -830,8 +833,8 @@ extension WorkshopKarigarScreen {
         let owner = session.isOwner
         let key: [Int] = [book.orders.revision, book.invoices.revision, book.karigars.revision, book.karigarJobs.revision,
                    book.givenItems.revision, book.hisaab.revision, book.expenses.revision, book.karigarBatches.revision,
-                   silverBook.silver.revision, macWorkSort.hashValue, macPaySort.hashValue, owner ? 1 : 0, karigar.id.hashValue]
-        return macPageMemo(key) {
+                   silverBook.silver.revision, owner ? 1 : 0, karigar.id.hashValue]
+        let base = macPageMemo(key) {
             let live = workshopLive(book.karigars.items)
             let jobs = WorkshopLogic.buildJobs(
                 orders: book.orders.items,
@@ -847,10 +850,14 @@ extension WorkshopKarigarScreen {
             let pay = owner ? KarigarPay.figures(karigarId: karigar.id, expenses: book.expenses.items, batches: book.karigarBatches.items) : nil
             let silver = owner ? KarigarPay.silver(karigarId: karigar.id, rows: silverBook.silver.items) : nil
             var out = MacKarigarPageData(position: position, load: load, pay: pay, silver: silver)
-            out.work = macWorkRows(karigar, position).sorted(using: macWorkSort)
-            out.payments = macPayRows(pay, silver).sorted(using: macPaySort)
+            out.work = macWorkRows(karigar, position)
+            out.payments = macPayRows(pay, silver)
             return out
         }
+        var out = base
+        out.work = macWorkSorted(key + [macWorkSort.hashValue]) { base.work.sorted(using: macWorkSort) }
+        out.payments = macPaySorted(key + [macPaySort.hashValue]) { base.payments.sorted(using: macPaySort) }
+        return out
     }
 
     private func macWorkRows(_ karigar: Karigar, _ p: WorkshopPosition) -> [MacKarigarWorkRow] {
@@ -933,26 +940,32 @@ extension WorkshopKarigarScreen {
 
     // MARK: The tables
 
+    /// Five columns (the weight rides beside the piece, the order beside whom it is for): with his column at the right the
+    /// window stays narrow enough for a 13-inch screen.
     private func macWorkTable(_ karigar: Karigar, _ data: MacKarigarPageData) -> some View {
         Table(data.work, selection: $macWorkPick, sortOrder: $macWorkSort) {
-            TableColumn("Piece", value: \.title) { (r: MacKarigarWorkRow) in Text(r.title).fontWeight(.medium).lineLimit(1) }
-                .width(min: 160, ideal: 260)
-            TableColumn("What", value: \.kind) { (r: MacKarigarWorkRow) in Text(r.kind).foregroundStyle(.secondary) }
-                .width(min: 100, ideal: 120)
-            TableColumn("For", value: \.forWhom) { (r: MacKarigarWorkRow) in Text(r.forWhom).foregroundStyle(.secondary).lineLimit(1) }
-                .width(min: 100, ideal: 150)
-            TableColumn("Order", value: \.order) { (r: MacKarigarWorkRow) in Text(r.order).monospacedDigit().foregroundStyle(.secondary) }
-                .width(min: 90, ideal: 110)
-            TableColumn("Weight", value: \.weight) { (r: MacKarigarWorkRow) in
-                Text(r.weight > 0 ? WorkshopLogic.grams3(r.weight) : "").monospacedDigit().frame(maxWidth: .infinity, alignment: .trailing)
+            TableColumn("Piece", value: \.title) { (r: MacKarigarWorkRow) in
+                HStack(spacing: 6) {
+                    Text(r.title).fontWeight(.medium).lineLimit(1)
+                    if r.weight > 0 {
+                        Text(WorkshopLogic.grams3(r.weight)).monospacedDigit().lineLimit(1).foregroundStyle(.secondary).layoutPriority(1)
+                    }
+                }
             }
-            .width(min: 80, ideal: 100)
-            TableColumn("Given", value: \.ageDays) { (r: MacKarigarWorkRow) in
-                Text("\(r.ageDays) d").monospacedDigit().foregroundStyle(macAgeColor(r.urgency)).frame(maxWidth: .infinity, alignment: .trailing)
+            .width(min: 100, ideal: 220)
+            TableColumn("For", value: \.forWhom) { (r: MacKarigarWorkRow) in
+                Text(r.order.isEmpty ? r.forWhom : (r.forWhom.isEmpty ? r.order : r.forWhom + " \u{00B7} " + r.order))
+                    .foregroundStyle(.secondary).lineLimit(1)
             }
-            .width(min: 60, ideal: 70)
-            TableColumn("Status") { (r: MacKarigarWorkRow) in Text(r.status).foregroundStyle(.secondary) }
-                .width(min: 110, ideal: 140)
+            .width(min: 80, ideal: 150)
+            TableColumn("What", value: \.kind) { (r: MacKarigarWorkRow) in Text(r.kind).foregroundStyle(.secondary).lineLimit(1) }
+                .width(min: 70, ideal: 110)
+            TableColumn("Age", value: \.ageDays) { (r: MacKarigarWorkRow) in
+                Text("\(r.ageDays)d").monospacedDigit().lineLimit(1).foregroundStyle(macAgeColor(r.urgency)).frame(maxWidth: .infinity, alignment: .trailing)
+            }
+            .width(min: 36, ideal: 48)
+            TableColumn("Status") { (r: MacKarigarWorkRow) in Text(r.status).foregroundStyle(.secondary).lineLimit(1) }
+                .width(min: 80, ideal: 130)
         }
         .contextMenu(forSelectionType: String.self) { ids in
             if ids.count == 1, let id = ids.first, let r = data.work.first(where: { $0.id == id }) {
@@ -962,24 +975,34 @@ extension WorkshopKarigarScreen {
             if ids.count == 1, let id = ids.first, let r = data.work.first(where: { $0.id == id }) { macOpenPath(r.path) }
         }
         .overlay {
-            if data.work.isEmpty { ContentUnavailableView("Nothing Is With Him", systemImage: "hammer").allowsHitTesting(false) }
+            if data.work.isEmpty {
+                ContentUnavailableView("Nothing Is With Him", systemImage: "hammer",
+                                       description: Text(session.isOwner ? "Give him a piece from the Workshop, or assign stock work with \u{2303}\u{2318}N." : "Nothing is on his bench."))
+                    .allowsHitTesting(false)
+            }
         }
     }
 
+    /// Four columns; the category rides beside what the payment was for.
     private func macPaymentsTable(_ data: MacKarigarPageData) -> some View {
         Table(data.payments, selection: $macPayPick, sortOrder: $macPaySort) {
-            TableColumn("Date", value: \.date) { (r: MacKarigarPayRow) in Text(ShopDate.say(r.date)) }
-                .width(min: 90, ideal: 110)
-            TableColumn("What", value: \.what) { (r: MacKarigarPayRow) in Text(r.what).lineLimit(1) }
-                .width(min: 180, ideal: 320)
-            TableColumn("Batch", value: \.group) { (r: MacKarigarPayRow) in Text(r.group).foregroundStyle(.secondary).lineLimit(1) }
-                .width(min: 120, ideal: 170)
-            TableColumn("Category", value: \.category) { (r: MacKarigarPayRow) in Text(r.category).foregroundStyle(.secondary) }
-                .width(min: 90, ideal: 120)
-            TableColumn("Amount", value: \.amount) { (r: MacKarigarPayRow) in
-                Text(Money.pkr(r.amount)).monospacedDigit().frame(maxWidth: .infinity, alignment: .trailing)
+            TableColumn("Date", value: \.date) { (r: MacKarigarPayRow) in Text(ShopDate.say(r.date)).lineLimit(1) }
+                .width(min: 70, ideal: 90)
+            TableColumn("What", value: \.what) { (r: MacKarigarPayRow) in
+                HStack(spacing: 6) {
+                    Text(r.what).lineLimit(1)
+                    if !r.category.isEmpty && r.category != r.what {
+                        Text(r.category).foregroundStyle(.secondary).lineLimit(1).layoutPriority(-1)
+                    }
+                }
             }
-            .width(min: 100, ideal: 120)
+            .width(min: 110, ideal: 280)
+            TableColumn("Batch", value: \.group) { (r: MacKarigarPayRow) in Text(r.group).foregroundStyle(.secondary).lineLimit(1) }
+                .width(min: 80, ideal: 150)
+            TableColumn("Amount", value: \.amount) { (r: MacKarigarPayRow) in
+                MacAmount(r.amount)
+            }
+            .width(min: 70, ideal: 100)
         }
         .contextMenu(forSelectionType: String.self) { ids in
             if ids.count == 1, let id = ids.first, let r = data.payments.first(where: { $0.id == id }) {
@@ -987,7 +1010,11 @@ extension WorkshopKarigarScreen {
             }
         }
         .overlay {
-            if data.payments.isEmpty { ContentUnavailableView("No Payments Yet", systemImage: "banknote").allowsHitTesting(false) }
+            if data.payments.isEmpty {
+                ContentUnavailableView("No Payments Yet", systemImage: "banknote",
+                                       description: Text(session.isOwner ? "Add one with \u{2325}\u{2318}P once a pay batch is open." : ""))
+                    .allowsHitTesting(false)
+            }
         }
     }
 
@@ -1043,27 +1070,34 @@ extension WorkshopKarigarScreen {
             ToolbarItem(placement: .principal) {
                 Picker("Karigar view", selection: Binding(
                     get: { showingAccounts },
-                    set: { on in Motion.run(reduce: reduceMotion) { showingAccounts = on } }
+                    set: { on in showingAccounts = on }
                 )) {
                     Text("Work").tag(false)
                     Text("Payments").tag(true)
                 }
                 .pickerStyle(.segmented)
+                .help("What is on his bench, or what he has been paid")
             }
         }
+        // Up to four actions, the rest in More: the payments' main one is Add Payment, the silver and the batch are in More.
         ToolbarItemGroup(placement: .primaryAction) {
             if showingAccounts && session.isOwner {
                 MacToolbarAction(action: macAddPaymentAction(data))
-                MacToolbarAction(action: macSilverAction)
-                MacToolbarAction(action: macBatchAction(data))
+                Menu {
+                    MacActionMenuItem(action: macSilverAction)
+                    MacActionMenuItem(action: macBatchAction(data))
+                } label: {
+                    Label("More", systemImage: "ellipsis.circle")
+                }
+                .help("Silver and the pay batch")
             } else {
                 MacToolbarAction(action: macAssignAction)
-            }
-            if let load = data.load, load.active > 0 {
-                ShareLink(item: WorkshopLogic.shareText(load, shopName: session.shop.name)) {
-                    Label("Send list", systemImage: "square.and.arrow.up")
+                if let load = data.load, load.active > 0 {
+                    ShareLink(item: WorkshopLogic.shareText(load, shopName: session.shop.name)) {
+                        Label("Send list", systemImage: "square.and.arrow.up")
+                    }
+                    .help("Send his list of pieces")
                 }
-                .help("Send his list of pieces")
             }
         }
     }

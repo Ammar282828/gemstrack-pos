@@ -41,24 +41,28 @@ struct MacWorkshopData {
     var sorted: [WorkshopJob] = []
     var byId: [String: WorkshopJob] = [:]
     var columns: [MacWorkshopColumn] = []
+    /// How many pieces each "Show" choice holds (for the Filter menu), counted once with the rest.
+    var counts: [WorkshopFocus: Int] = [:]
     /// Metal on the bench, in grams, and what it is worth (the whole bench, not the filter).
     var grams = 0.0
     var value = 0.0
 }
 
-/// A piece's right-click menu: Give To as a submenu of the karigars, then the piece's other actions.
+/// A piece's right-click menu: Give To as a submenu of the karigars, then the piece's other actions. The actions are made
+/// when the menu opens (a closure), not for every row each time the board draws.
 struct MacWorkshopJobMenu: View {
-    let give: [MacAction]
-    let groups: [[MacAction]]
+    let give: () -> [MacAction]
+    let groups: () -> [[MacAction]]
 
     var body: some View {
-        if !give.isEmpty {
+        let toGive = give()
+        if !toGive.isEmpty {
             Menu("Give To") {
-                ForEach(give) { (a: MacAction) in MacActionMenuItem(action: a) }
+                ForEach(toGive) { (a: MacAction) in MacActionMenuItem(action: a) }
             }
             Divider()
         }
-        MacActionItems(groups: groups)
+        MacActionItems(groups: groups())
     }
 }
 
@@ -166,10 +170,11 @@ struct MacWorkshopBoardView: View {
         .padding(.horizontal, 8).padding(.vertical, 5)
         .background(isPicked ? Theme.accent.opacity(0.2) : Color.clear, in: .rect(cornerRadius: Radius.thumb, style: .continuous))
         .contentShape(Rectangle())
-        .onTapGesture(count: 2) { open(job) }
+        // The click picks at once; the second click of a double-click opens.
         .onTapGesture { click(job) }
+        .simultaneousGesture(TapGesture(count: 2).onEnded { open(job) })
         .draggable(job.id)
-        .contextMenu { MacWorkshopJobMenu(give: give(job), groups: groups(job)) }
+        .contextMenu { MacWorkshopJobMenu(give: { give(job) }, groups: { groups(job) }) }
     }
 
     /// "ORD-12 · Sana Demo", or "Stock work".

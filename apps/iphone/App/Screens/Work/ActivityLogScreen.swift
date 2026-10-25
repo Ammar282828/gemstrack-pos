@@ -41,6 +41,8 @@ struct ActivityLogScreen: View {
     @State private var macSort = [KeyPathComparator(\ActivityLogEntry.timestamp, order: .reverse)]
     @State private var macSelection = Set<String>()
     @State private var macDatesOpen = false
+    /// The lines in the table's order and page, made once per change of the log, a filter, the sort or the page.
+    @State private var macRowsMemo = Memo<[ActivityLogEntry]>()
     @Environment(\.openPlaceWindow) private var openPlace
     #endif
 
@@ -418,34 +420,8 @@ extension ActivityLogScreen {
                 .help("The log, the last sign-ins, or the emergency lock")
             }
             if macPane == .log {
-                ToolbarItem(placement: .automatic) {
-                    Picker("Event type", selection: $type) {
-                        Text("All events").tag("All")
-                        ForEach(ActivityLogRules.eventTypes, id: \.self) { (t: String) in
-                            Text(ActivityLogRules.title(t)).tag(t)
-                        }
-                    }
-                    .help("Show one kind of event")
-                }
-                ToolbarItem(placement: .automatic) {
-                    Button { macDatesOpen = true } label: {
-                        Label(range.useFrom ? "Dates on" : "Dates", systemImage: "calendar")
-                    }
-                    .help("Narrow the log to a range of days")
-                    .popover(isPresented: $macDatesOpen) {
-                        Form {
-                            WorkRangeFields(range: $range)
-                            if range.useFrom && !range.useTo {
-                                Text("Without an end date the range runs to the end of today.")
-                                    .font(.footnote).foregroundStyle(.secondary)
-                            }
-                        }
-                        .formStyle(.grouped)
-                        .frame(width: 320)
-                        .padding(.vertical, 6)
-                    }
-                }
-                ToolbarItem(placement: .primaryAction) {
+                // Revert (the picked line's) and the one filter; the right-click menu has Revert too.
+                ToolbarItemGroup(placement: .primaryAction) {
                     Button {
                         if let e = macRevertable(list) { askRevert(e) }
                     } label: {
@@ -453,8 +429,42 @@ extension ActivityLogScreen {
                     }
                     .disabled(macRevertable(list) == nil)
                     .help("Undo the picked invoice, order or expense that was added")
+                    macFilterMenu
                 }
             }
+        }
+    }
+
+    /// The kind of event and the range of days in one Filter menu; the days open in a popover from the menu.
+    private var macFilterMenu: some View {
+        let on = type != "All" || range.useFrom
+        return Menu {
+            Picker("Event type", selection: $type) {
+                Text("All Events").tag("All")
+                ForEach(ActivityLogRules.eventTypes, id: \.self) { (t: String) in
+                    Text(ActivityLogRules.title(t)).tag(t)
+                }
+            }
+            .pickerStyle(.inline)
+            Divider()
+            Button { macDatesOpen = true } label: {
+                Label("Days\u{2026}", systemImage: range.useFrom ? "calendar.badge.checkmark" : "calendar")
+            }
+        } label: {
+            Label("Filter", systemImage: on ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+        }
+        .help("Show one kind of event, or a range of days")
+        .popover(isPresented: $macDatesOpen) {
+            Form {
+                WorkRangeFields(range: $range)
+                if range.useFrom && !range.useTo {
+                    Text("Without an end date the range runs to the end of today.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
+            }
+            .formStyle(.grouped)
+            .frame(width: 320)
+            .padding(.vertical, 6)
         }
     }
 
@@ -476,7 +486,17 @@ extension ActivityLogScreen {
     }
 
     private func macLog(_ list: [ActivityLogEntry]) -> some View {
-        let rows = Array(list.sorted(using: macSort).prefix(shown))
+        // Sorted and cut to the page once, not on every click of a line.
+        let key: [Int] = [
+            House.isDemo ? demoEntries.count : shelf.revision,
+            ActivityLogRules.eventTypes.firstIndex(of: type) ?? -1,
+            (range.fromDay ?? "").hashValue,
+            (range.toDay ?? "").hashValue,
+            ERPDate.karachiDay(Date()).hashValue,
+            macSort.hashValue,
+            shown,
+        ]
+        let rows: [ActivityLogEntry] = macRowsMemo(key) { Array(list.sorted(using: macSort).prefix(shown)) }
         return VStack(spacing: 0) {
             Table(rows, selection: $macSelection, sortOrder: $macSort) {
                 TableColumn("Event", value: \.description) { (e: ActivityLogEntry) in
@@ -487,19 +507,19 @@ extension ActivityLogScreen {
                         Text(e.description).lineLimit(1)
                     }
                 }
-                .width(min: 220, ideal: 340)
+                .width(min: 140, ideal: 320)
                 TableColumn("Details", value: \.details) { (e: ActivityLogEntry) in
                     Text(e.details).foregroundStyle(.secondary).lineLimit(1)
                 }
-                .width(min: 160, ideal: 280)
+                .width(min: 100, ideal: 240)
                 TableColumn("Kind", value: \.eventType) { (e: ActivityLogEntry) in
-                    Text(ActivityLogRules.title(e.eventType)).foregroundStyle(.secondary)
+                    Text(ActivityLogRules.title(e.eventType)).foregroundStyle(.secondary).lineLimit(1)
                 }
-                .width(min: 90, ideal: 130)
+                .width(min: 80, ideal: 120)
                 TableColumn("When", value: \.timestamp) { (e: ActivityLogEntry) in
-                    Text(ShopDate.say(e.timestamp, withTime: true)).monospacedDigit()
+                    Text(ShopDate.say(e.timestamp, withTime: true)).monospacedDigit().lineLimit(1)
                 }
-                .width(min: 130, ideal: 160)
+                .width(min: 110, ideal: 150)
             }
             .contextMenu(forSelectionType: String.self) { ids in
                 if ids.count == 1, let id = ids.first, let e = list.first(where: { $0.id == id }) {
@@ -521,8 +541,10 @@ extension ActivityLogScreen {
             }
             .overlay {
                 if list.isEmpty {
-                    ContentUnavailableView("No activity found", systemImage: "clock.arrow.circlepath",
-                                           description: Text("Nothing matches these filters."))
+                    ContentUnavailableView("No Activity Found", systemImage: "clock.arrow.circlepath",
+                                           description: Text(type != "All" || range.useFrom
+                                                             ? "Nothing matches these filters. Choose Filter to change them."
+                                                             : "What is done in the ERP is listed here as it happens."))
                 }
             }
             if list.count > shown {
@@ -531,7 +553,7 @@ extension ActivityLogScreen {
                     Text("Showing \(shown) of \(list.count)").font(.callout).foregroundStyle(.secondary)
                     Spacer()
                     Button("Show \(min(ActivityLogScreen.pageSize, list.count - shown)) more") {
-                        Motion.run(reduce: reduceMotion) { shown += ActivityLogScreen.pageSize }
+                        shown += ActivityLogScreen.pageSize
                     }
                 }
                 .padding(.horizontal, 16).padding(.vertical, 8)
@@ -544,16 +566,19 @@ extension ActivityLogScreen {
         if let signIns {
             Table(signIns) {
                 TableColumn("Who") { (s: ActivitySignIn) in
-                    Text(s.displayName.isEmpty ? (s.email.isEmpty ? "\u{2014}" : s.email) : s.displayName)
+                    Text(s.displayName.isEmpty ? (s.email.isEmpty ? "\u{2014}" : s.email) : s.displayName).lineLimit(1)
                 }
-                TableColumn("Email") { (s: ActivitySignIn) in Text(s.email).foregroundStyle(.secondary) }
+                .width(min: 100, ideal: 160)
+                TableColumn("Email") { (s: ActivitySignIn) in Text(s.email).foregroundStyle(.secondary).lineLimit(1) }
+                    .width(min: 120, ideal: 200)
                 TableColumn("Device") { (s: ActivitySignIn) in
-                    Text([s.os, s.browser].filter { !$0.isEmpty }.joined(separator: " \u{00B7} ")).foregroundStyle(.secondary)
+                    Text([s.os, s.browser].filter { !$0.isEmpty }.joined(separator: " \u{00B7} ")).foregroundStyle(.secondary).lineLimit(1)
                 }
+                .width(min: 100, ideal: 150)
                 TableColumn("When") { (s: ActivitySignIn) in
-                    Text(s.timestamp.isEmpty ? "\u{2014}" : ShopDate.say(s.timestamp, withTime: true)).monospacedDigit()
+                    Text(s.timestamp.isEmpty ? "\u{2014}" : ShopDate.say(s.timestamp, withTime: true)).monospacedDigit().lineLimit(1)
                 }
-                .width(min: 130, ideal: 160)
+                .width(min: 110, ideal: 150)
             }
             .overlay {
                 if signIns.isEmpty {

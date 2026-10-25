@@ -63,6 +63,8 @@ struct MacStockPlace: View {
     @State private var anchor: String?
     @State private var sort = [KeyPathComparator(\MacStockPlaceRow.sku)]
     @State private var made = Memo<MacStockPlaceRows>()
+    /// The rows in the table's order: a change of sort sorts again, it never prices the pieces again.
+    @State private var ordered = Memo<[MacStockPlaceRow]>()
     @State private var categories = Memo<[StockKit.Category]>()
     @State private var deletion: OwnerDeletion?
     @State private var tagging: Product?
@@ -97,9 +99,10 @@ struct MacStockPlace: View {
     // MARK: The rows
 
     private func rowData() -> MacStockPlaceRows {
-        // Every piece is priced at today's rates, so the rows wait for a change of the rates as well as the stock.
-        let key: [Int] = [book.products.revision, book.settings.revision, query.hashValue, (category ?? "\u{0}all").hashValue, sort.hashValue]
-        return made(key) {
+        // Every piece is priced at today's rates, so the rows wait for a change of the rates as well as the stock; the
+        // pricing is kept across a change of the sort (only the order is made again).
+        let key: [Int] = [book.products.revision, book.settings.revision, query.hashValue, (category ?? "\u{0}all").hashValue]
+        let base = made(key) {
             let rates = StockKit.rates(book.settings.value)
             let words = query.lowercased().split(separator: " ").map(String.init)
             var out = MacStockPlaceRows()
@@ -113,7 +116,6 @@ struct MacStockPlace: View {
                 }
                 rows.append(MacStockPlaceRow(p, rates: rates))
             }
-            rows.sort(using: sort)
             var byId: [String: MacStockPlaceRow] = [:]
             var worth = 0.0
             for r in rows {
@@ -125,6 +127,9 @@ struct MacStockPlace: View {
             out.worth = rates == nil ? nil : worth
             return out
         }
+        var out = base
+        out.rows = ordered(key + [sort.hashValue]) { base.rows.sorted(using: sort) }
+        return out
     }
 
     /// The categories that have pieces, in the ERP's order (a chosen one stays even when emptied).
@@ -177,27 +182,33 @@ struct MacStockPlace: View {
         } else if category != nil {
             ContentUnavailableView("No Pieces Here", systemImage: "tag", description: Text("Nothing is in this category."))
         } else {
-            ContentUnavailableView("No Pieces Yet", systemImage: "tag", description: Text("Choose New Piece to begin."))
+            ContentUnavailableView("No Pieces Yet", systemImage: "tag",
+                                   description: Text(session.isOwner ? "Make a piece with \u{2303}\u{2318}N." : "The owner adds pieces to the stock."))
         }
     }
 
     private func table(_ data: MacStockPlaceRows) -> some View {
         Table(data.rows, selection: $selection, sortOrder: $sort) {
-            TableColumn("SKU", value: \.sku) { (r: MacStockPlaceRow) in Text(r.sku).monospacedDigit() }
-                .width(min: 90, ideal: 110)
+            TableColumn("SKU", value: \.sku) { (r: MacStockPlaceRow) in Text(r.sku).monospacedDigit().lineLimit(1) }
+                .width(min: 70, ideal: 96)
             TableColumn("Name", value: \.name) { (r: MacStockPlaceRow) in Text(r.name).lineLimit(1) }
-            TableColumn("Category", value: \.category) { (r: MacStockPlaceRow) in Text(r.category).lineLimit(1) }
-                .width(min: 80, ideal: 120)
-            TableColumn("Metal", value: \.metal) { (r: MacStockPlaceRow) in Text(r.metal).lineLimit(1) }
-                .width(min: 70, ideal: 100)
+                .width(min: 120, ideal: 200)
+            TableColumn("Category", value: \.category) { (r: MacStockPlaceRow) in
+                Text(r.category).lineLimit(1).foregroundStyle(.secondary)
+            }
+            .width(min: 80, ideal: 120)
+            TableColumn("Metal", value: \.metal) { (r: MacStockPlaceRow) in
+                Text(r.metal).lineLimit(1).foregroundStyle(.secondary)
+            }
+            .width(min: 70, ideal: 100)
             TableColumn("Weight", value: \.weight) { (r: MacStockPlaceRow) in
-                Text(StockKit.grams(r.weight)).monospacedDigit().frame(maxWidth: .infinity, alignment: .trailing)
+                Text(StockKit.grams(r.weight)).monospacedDigit().lineLimit(1).frame(maxWidth: .infinity, alignment: .trailing)
             }
-            .width(min: 70, ideal: 90)
+            .width(min: 60, ideal: 80)
             TableColumn("Price today", value: \.price) { (r: MacStockPlaceRow) in
-                Text(r.price > 0 ? Money.pkr(r.price) : "").monospacedDigit().frame(maxWidth: .infinity, alignment: .trailing)
+                MacAmount(r.price > 0 ? r.price : nil)
             }
-            .width(min: 100, ideal: 130)
+            .width(min: 70, ideal: 100)
         }
         .contextMenu(forSelectionType: String.self) { ids in
             if !ids.isEmpty { MacActionItems(groups: actionGroups(Array(ids))) }
@@ -243,8 +254,10 @@ struct MacStockPlace: View {
         .padding(6)
         .background(picked ? Theme.accent.opacity(0.14) : Color.clear, in: .rect(cornerRadius: Radius.chip, style: .continuous))
         .contentShape(Rectangle())
-        .onTapGesture(count: 2) { open([r.id]) }
+        // The click picks at once; the second click of a double-click opens (two exclusive gestures would hold the pick back
+        // by the double-click interval).
         .onTapGesture { click(r, data.rows) }
+        .simultaneousGesture(TapGesture(count: 2).onEnded { open([r.id]) })
         .contextMenu {
             MacActionItems(groups: actionGroups(selection.contains(r.id) ? Array(selection) : [r.id]))
         }
@@ -277,24 +290,41 @@ struct MacStockPlace: View {
                 }
             }
             .pickerStyle(.segmented)
-            .help("The pieces as a table or as photographs")
+            .help("The pieces as a table or as photographs (\u{2303}\u{2318}1, \u{2303}\u{2318}2)")
         }
-        ToolbarItem(placement: .automatic) {
+        // New (its arrow adds in bulk) and the one filter. The picked pieces' Sell and Print are the inspector's, the Piece
+        // menu's and the right-click menu's, never the toolbar's.
+        ToolbarItemGroup(placement: .primaryAction) {
+            newMenu
+            filterMenu
+        }
+    }
+
+    private var newMenu: some View {
+        Menu {
+            Button { openRoute(StockKit.bulkAddPath) } label: { Label("Add in Bulk\u{2026}", systemImage: "square.stack.3d.up") }
+        } label: {
+            Label("New Piece", systemImage: "plus")
+        } primaryAction: {
+            openRoute(StockKit.addPath)
+        }
+        .disabled(!session.isOwner)
+        .help("New piece (\u{2303}\u{2318}N); the arrow adds many at once")
+    }
+
+    private var filterMenu: some View {
+        Menu {
             Picker("Category", selection: $category) {
                 Text("All Categories").tag(String?.none)
                 ForEach(categoryOptions()) { (c: StockKit.Category) in
                     Text(c.title).tag(Optional(c.id))
                 }
             }
-            .pickerStyle(.menu)
-            .help("Show one category")
+            .pickerStyle(.inline)
+        } label: {
+            Label("Filter", systemImage: category == nil ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
         }
-        ToolbarItemGroup(placement: .primaryAction) {
-            MacToolbarAction(action: newAction)
-            MacToolbarAction(action: bulkAction)
-            MacToolbarAction(action: sellAction(Array(selection)))
-            MacToolbarAction(action: printAction(Array(selection), now: false))
-        }
+        .help("Show one category")
     }
 
     // MARK: The actions, declared once
@@ -419,6 +449,7 @@ struct MacStockPlace: View {
         let image = StockImage(imageUrl: p.imageUrl, name: p.name, key: p.sku, decodeDataURI: true)
             .aspectRatio(1, contentMode: .fit)
             .clipShape(.rect(cornerRadius: Radius.chip, style: .continuous))
+            .frame(maxWidth: 240)
             .frame(maxWidth: .infinity)
         if session.isOwner {
             image

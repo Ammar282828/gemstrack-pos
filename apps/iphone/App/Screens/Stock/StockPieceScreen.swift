@@ -371,21 +371,30 @@ extension StockPieceScreen {
                     MacStockDetailSections(product: p)
                 }
                 .formStyle(.grouped)
-                .frame(minWidth: 380, maxWidth: .infinity)
+                .frame(minWidth: 300, maxWidth: .infinity)
                 Divider()
                 Form {
                     MacStockPriceSection(product: p, settings: settings)
                 }
                 .formStyle(.grouped)
-                .frame(width: 340)
+                .frame(minWidth: 260, idealWidth: 320, maxWidth: 360)
             }
         }
         .toolbar {
+            // A record window: Sell, Edit and Print Tag, then the rest in More (Delete is never a toolbar button of its own).
             ToolbarItemGroup(placement: .primaryAction) {
                 MacToolbarAction(action: macSellAction(p))
                 MacToolbarAction(action: macEditAction(p))
                 MacToolbarAction(action: macPrintAction(p))
-                MacToolbarAction(action: macDeleteAction(p))
+                Menu {
+                    ForEach(macMoreActions(p)) { (a: MacAction) in
+                        Button(role: a.role, action: a.perform) { Label(a.title, systemImage: a.symbol ?? "circle") }
+                            .disabled(!a.enabled)
+                    }
+                } label: {
+                    Label("More", systemImage: "ellipsis.circle")
+                }
+                .help("More to do with this piece")
             }
         }
         .macRecordMenu(MacRecordMenu(title: "Piece", groups: macGroups(p)))
@@ -430,17 +439,24 @@ extension StockPieceScreen {
                   enabled: session.isOwner) { deletion = StockKit.deletion(p) }
     }
 
+    /// What the window's More menu holds: the SKU and the tag, the photo, and Delete last.
+    private func macMoreActions(_ p: Product) -> [MacAction] {
+        let sku = p.sku
+        let copying = MacAction("Copy SKU", symbol: "doc.on.doc") { UIPasteboard.general.string = sku }
+        let showing = MacAction("Show QR\u{2026}", symbol: "qrcode") { tagging = p }
+        let exporting = MacAction("Export Tag CSV\u{2026}", symbol: "arrow.down.doc") { tagging = p }
+        let replaceAction = MacAction("Replace Photo\u{2026}", symbol: "photo", enabled: session.isOwner) { replacing = true }
+        return [copying, showing, exporting, replaceAction, macDeleteAction(p)]
+    }
+
     private func macGroups(_ p: Product) -> [[MacAction]] {
         let sku = p.sku
         let printNow = MacAction("Print Tag Now", symbol: "printer.fill", shortcut: KeyboardShortcut("p", modifiers: [.command, .option])) {
             Task { await MacPrint.printTags([sku], now: true) }
         }
-        let copying = MacAction("Copy SKU", symbol: "doc.on.doc") { UIPasteboard.general.string = sku }
-        let showing = MacAction("Show QR\u{2026}", symbol: "qrcode") { tagging = p }
-        let exporting = MacAction("Export Tag CSV\u{2026}", symbol: "arrow.down.doc") { tagging = p }
-        let replaceAction = MacAction("Replace Photo\u{2026}", symbol: "photo", enabled: session.isOwner) { replacing = true }
+        let more = macMoreActions(p)
         let printing: [MacAction] = [macPrintAction(p), printNow, macEditAction(p)]
-        let tag: [MacAction] = [copying, showing, exporting, replaceAction]
+        let tag: [MacAction] = Array(more.prefix(4))
         return [[macSellAction(p)], printing, tag, [macDeleteAction(p)]]
     }
 
