@@ -26,6 +26,9 @@ enum InvoiceFacts {
     /// The sale form on an invoice (components/sale/sale-page.tsx): New sale's own form, native (SaleRoutes).
     static func editPath(_ id: String) -> String { "/invoices/" + encode(id) + "/edit" }
 
+    /// Change rate: the same edit, opened at its rates.
+    static func changeRatePath(_ id: String) -> String { editPath(id) + "?rates=1" }
+
     /// Still owing after this many days reads red, not orange. A way to see the old debts at a
     /// glance (the Awaiting payment section is oldest first for the same reason), not a rule.
     static let staleDays = 30

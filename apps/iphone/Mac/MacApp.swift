@@ -122,6 +122,7 @@ private struct MacBusinessRoot: View {
             if phase == .active, session.state == .signedIn { Outbox.shared.warm(); Outbox.shared.resume() }
         }
         .onChange(of: lock.locked) { _, locked in
+            MacLockSheets.cover(locked)
             if locked { Businesses.shared.switcherOpen = false }
             if !locked { AppRouter.shared.lockPassed() }
         }
@@ -148,6 +149,43 @@ struct MacLockCover: ViewModifier {
                     LockCover(lock: lock).zIndex(10)
                 }
             }
+    }
+}
+
+/// A sheet is a window of its own on the Mac, drawn above its parent's cover: while the app is locked each sheet (and
+/// each panel: an open or save panel, the menu-bar figures) gets the cover inside it too, Unlock button and all, since
+/// the parent under a sheet takes no clicks. A sheet that opens while locked is covered as it becomes key.
+@MainActor
+enum MacLockSheets {
+    private static let id = NSUserInterfaceItemIdentifier("erp.lockCover")
+    private static var watcher: NSObjectProtocol?
+
+    static func cover(_ locked: Bool) {
+        for window in NSApp.windows where window.sheetParent != nil || window is NSPanel { set(window, covered: locked) }
+        if locked, watcher == nil {
+            watcher = NotificationCenter.default.addObserver(forName: NSWindow.didBecomeKeyNotification, object: nil, queue: .main) { note in
+                guard let window = note.object as? NSWindow, window.sheetParent != nil || window is NSPanel else { return }
+                MainActor.assumeIsolated { if AppLock.shared.locked { set(window, covered: true) } }
+            }
+        } else if !locked, let w = watcher {
+            NotificationCenter.default.removeObserver(w)
+            watcher = nil
+        }
+    }
+
+    private static func set(_ window: NSWindow, covered: Bool) {
+        guard let content = window.contentView else { return }
+        let existing = content.subviews.first { $0.identifier == id }
+        if covered, existing == nil {
+            let cover = NSHostingView(rootView: LockCover(lock: AppLock.shared))
+            cover.identifier = id
+            cover.frame = content.bounds
+            cover.autoresizingMask = [.width, .height]
+            content.addSubview(cover, positioned: .above, relativeTo: nil)
+            window.makeFirstResponder(nil) // typing must not reach a field under the cover
+        } else if !covered {
+            existing?.removeFromSuperview()
+        }
     }
 }
 

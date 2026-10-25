@@ -18,6 +18,8 @@ struct OrderFinalizeScreen: View {
 
     @State private var rows: [OrderFinalizeRow] = []
     @State private var discount = ""
+    /// The rate boxes as typed: the order's booked rates to start with (gold moves; the counter may change any).
+    @State private var rateTexts: RateTexts = [:]
     @State private var costTola = ""
     @State private var started = false
     @State private var confirming = false
@@ -57,12 +59,14 @@ struct OrderFinalizeScreen: View {
             start()
         }
         .onChange(of: order?.id) { _, _ in start() }
+        .onChange(of: book.settings.value != nil) { _, _ in start() }
     }
 
     /// The dialog's opening figures, once: the order's own.
     private func start() {
-        guard !started, let order else { return }
+        guard !started, let order, let settings = book.settings.value else { return }
         rows = order.items.enumerated().map { OrderFinalizeRow($1, index: $0) }
+        rateTexts = OrderFinalizeMath.bookedTexts(order, settings)
         discount = NewOrderFormat.rupeeBox(order.discountAmount)
         let perGram = order.costRate24k ?? 0
         costTola = perGram > 0 ? String(Int((perGram * NewOrderWords.gramsPerTola).rounded())) : ""
@@ -72,12 +76,13 @@ struct OrderFinalizeScreen: View {
     // MARK: The form
 
     private func form(_ order: Order, _ settings: Settings) -> some View {
-        let f = OrderFinalizeMath.figures(order, rows: rows, discount: discount, settings: settings)
+        let f = OrderFinalizeMath.figures(order, rows: rows, discount: discount, settings: settings, rateTexts: rateTexts)
         return TransactionWorkspace {
           Form { Group {
             Section {
                 header(order, due: f.balance)
             }
+            ratesSection(order, settings)
             ForEach($rows) { $row in
                 pieceSection($row, price: row.index < f.prices.count ? f.prices[row.index] : 0)
             }
@@ -114,7 +119,7 @@ struct OrderFinalizeScreen: View {
             } header: {
                 LedgerHeading(title: "The invoice")
             } footer: {
-                Text("Priced at the rates the order was booked at. The advances become the invoice's payments, each on its own day; the exchange comes off the total.")
+                Text("Priced at the rates above (the order's booked ones unless you changed one). The advances become the invoice's payments, each on its own day; the exchange comes off the total.")
             }
             }
             .houseRows()
@@ -133,7 +138,7 @@ struct OrderFinalizeScreen: View {
         } footer: {
             VStack(spacing: 10) {
             Button {
-                if let problem = OrderFinalizeMath.problem(rows, discount: discount) {
+                if let problem = OrderFinalizeMath.problem(rows, discount: discount, order: order, rateTexts: rateTexts) {
                     failure = problem
                 } else {
                     failure = nil
@@ -163,6 +168,52 @@ struct OrderFinalizeScreen: View {
         } message: {
             Text(confirmWords(order, f))
         }
+    }
+
+    /// Rates (PKR per gram) for the metals and karats the order uses, prefilled with the booked rates (the web
+    /// dialog's block): gold moves daily and orders are delivered weeks after they are booked, so any may be changed,
+    /// or all set to today's. Silver's rate is all-in (it holds the making and wastage). Nothing is sent unless
+    /// one changed.
+    @ViewBuilder
+    private func ratesSection(_ order: Order, _ settings: Settings) -> some View {
+        let rateRows = finalizeRateRows(order.items)
+        if !rateRows.isEmpty {
+            let booked = orderInvoiceRates(order, settings)
+            let changed = OrderFinalizeMath.changedRates(order, settings, texts: rateTexts)
+            Section {
+                ForEach(rateRows, id: \.field) { r in
+                    LabeledContent(r.label) {
+                        VStack(alignment: .trailing, spacing: 2) {
+                            TextField("0", text: rateBinding(r.field))
+                                .keyboardType(.decimalPad)
+                                .multilineTextAlignment(.trailing)
+                                .monospacedDigit()
+                                .accessibilityLabel("\(r.label) rate per gram")
+                            if changed[r.field] != nil {
+                                Text("Booked at " + OrderFinalizeMath.rateText(rateShown(booked, r.field)))
+                                    .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                            }
+                        }
+                    }
+                }
+                if OrderFinalizeMath.todayDiffers(order, settings, texts: rateTexts) {
+                    Button("Use today's rates") {
+                        rateTexts.merge(OrderFinalizeMath.todayTexts(order, settings)) { _, today in today }
+                    }
+                    .buttonStyle(.borderless)
+                }
+            } header: {
+                LedgerHeading(title: "Rates (PKR per gram)")
+            } footer: {
+                Text("Booked rates unless you change one."
+                     + (rateRows.contains { $0.field == .silverRatePerGram } ? " Silver's rate already holds its making and wastage." : "")
+                     + " The invoice keeps the rates it was priced at.")
+            }
+        }
+    }
+
+    private func rateBinding(_ field: RateField) -> Binding<String> {
+        Binding(get: { rateTexts[field] ?? "" }, set: { rateTexts[field] = $0 })
     }
 
     /// Who it is for, which order, and what is due once the advances are counted.
@@ -243,7 +294,9 @@ struct OrderFinalizeScreen: View {
         failure = nil
         defer { saving = false }
         do {
-            let out = try await ERPAPI.shared.write("finalizeOrder", OrderFinalizeMath.request(order.id, rows: rows, discount: discount, costTola: costTola))
+            // Only the rates changed from the booked ones go (none, and the server prices as booked).
+            let changed = book.settings.value.map { OrderFinalizeMath.changedRates(order, $0, texts: rateTexts) } ?? [:]
+            let out = try await ERPAPI.shared.write("finalizeOrder", OrderFinalizeMath.request(order.id, rows: rows, discount: discount, costTola: costTola, changedRates: changed))
             let invoiceId = (out["invoice"] as? [String: Any])?["id"] as? String ?? ""
             if invoiceId.isEmpty {
                 failure = "The invoice was made, but the ERP did not say its number. Look for it under Invoices."

@@ -192,6 +192,8 @@ struct NewOrderRatesSection: View {
                 out.append(Box(key: key, label: "Palladium " + karat))
             }
         }
+        // Silver's one all-in rate (it holds the making and wastage); typed on the order, else the shop's.
+        if hasSilver { out.append(Box(key: .silverRatePerGram, label: "Silver (all-in)")) }
         return out
     }
 
@@ -213,7 +215,7 @@ struct NewOrderRatesSection: View {
     }
 
     var body: some View {
-        if !boxes.isEmpty || hasSilver {
+        if !boxes.isEmpty {
             Section {
                 ForEach(boxes) { box in
                     LabeledContent(box.label) {
@@ -221,11 +223,6 @@ struct NewOrderRatesSection: View {
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.trailing)
                             .monospacedDigit()
-                    }
-                }
-                if hasSilver, let settings {
-                    LabeledContent("Silver (all-in)") {
-                        Text(Money.pkr(settings.silverRatePerGram) + "/g").monospacedDigit()
                     }
                 }
                 if differs, let settings {
@@ -245,7 +242,7 @@ struct NewOrderRatesSection: View {
     private var footer: String {
         var s = "A rate typed here is used for this order only: today's rates are changed with the rate chip."
         if hasPalladium { s += " A palladium rate left at zero falls back to the shop's flat palladium rate." }
-        if hasSilver { s += " Silver is priced at the shop's rate, which already holds its making and wastage." }
+        if hasSilver { s += " Silver's rate already holds its making and wastage; the number is this order's own." }
         return s
     }
 }

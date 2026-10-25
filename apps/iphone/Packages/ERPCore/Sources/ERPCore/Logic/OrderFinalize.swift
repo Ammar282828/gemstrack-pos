@@ -63,6 +63,96 @@ public func orderInvoiceRates(ratesApplied: Rates?, _ settings: Settings) -> Inv
     return InvoiceRates(settings).flatPalladiumOnly
 }
 
+/// A rate a counter can type, by the key the server's `ratesApplied` knows it as (TS `RATE_FIELDS`): the same nine
+/// as the settings hold, so the rate key is the field.
+public typealias RateField = RateKey
+
+public extension PricingRates {
+    /// The figure for one rate.
+    func rate(_ field: RateField) -> Double {
+        switch field {
+        case .goldRatePerGram24k: return goldRatePerGram24k
+        case .goldRatePerGram22k: return goldRatePerGram22k
+        case .goldRatePerGram21k: return goldRatePerGram21k
+        case .goldRatePerGram18k: return goldRatePerGram18k
+        case .palladiumRatePerGram: return palladiumRatePerGram
+        case .palladiumRatePerGram18k: return palladiumRatePerGram18k
+        case .palladiumRatePerGram12k: return palladiumRatePerGram12k
+        case .platinumRatePerGram: return platinumRatePerGram
+        case .silverRatePerGram: return silverRatePerGram
+        }
+    }
+
+    /// The card with one rate replaced.
+    func setting(_ field: RateField, to value: Double) -> PricingRates {
+        var out = self
+        switch field {
+        case .goldRatePerGram24k: out.goldRatePerGram24k = value
+        case .goldRatePerGram22k: out.goldRatePerGram22k = value
+        case .goldRatePerGram21k: out.goldRatePerGram21k = value
+        case .goldRatePerGram18k: out.goldRatePerGram18k = value
+        case .palladiumRatePerGram: out.palladiumRatePerGram = value
+        case .palladiumRatePerGram18k: out.palladiumRatePerGram18k = value
+        case .palladiumRatePerGram12k: out.palladiumRatePerGram12k = value
+        case .platinumRatePerGram: out.platinumRatePerGram = value
+        case .silverRatePerGram: out.silverRatePerGram = value
+        }
+        return out
+    }
+}
+
+/// The booked rates with any typed at Finalize laid over them (TS `finalizeRates`): gold moves daily and an order is
+/// delivered weeks after it was booked, so the counter may price it at today's. Only positive figures win; none is
+/// the booked rates exactly.
+public func finalizeRates(_ order: Order, _ settings: Settings, typed: [RateField: Double] = [:]) -> InvoiceRates {
+    var out = orderInvoiceRates(order, settings)
+    // RateKey order, so the result never depends on dictionary order.
+    for field in RateField.allCases {
+        if let v = typed[field], v.isFinite, v > 0 { out = out.setting(field, to: v) }
+    }
+    return out
+}
+
+/// One rate box: the field and the words above it (TS `RateRow`).
+public struct RateRow: Hashable {
+    public let field: RateField
+    public let label: String
+
+    public init(field: RateField, label: String) {
+        self.field = field
+        self.label = label
+    }
+}
+
+/// The rate boxes an order's pieces need (TS `finalizeRateRows`): only the metals and karats in use, silver last.
+public func finalizeRateRows(_ items: [OrderItem]) -> [RateRow] {
+    var rows: [RateRow] = []
+    func add(_ field: RateField, _ label: String) {
+        if !rows.contains(where: { $0.field == field }) { rows.append(RateRow(field: field, label: label)) }
+    }
+    let gold = Set(items.filter { $0.metalType == .gold }.map { $0.karat?.rawValue ?? "" })
+    let golds: [(String, RateField)] = [("24k", .goldRatePerGram24k), ("22k", .goldRatePerGram22k), ("21k", .goldRatePerGram21k), ("18k", .goldRatePerGram18k)]
+    for (karat, field) in golds where gold.contains(karat) { add(field, "Gold " + karat) }
+    for item in items where item.metalType == .palladium {
+        switch item.karat?.rawValue ?? "" {
+        case "18k": add(.palladiumRatePerGram18k, "Palladium 18k")
+        case "12k": add(.palladiumRatePerGram12k, "Palladium 12k")
+        default: add(.palladiumRatePerGram, "Palladium")
+        }
+    }
+    if items.contains(where: { $0.metalType == .platinum }) { add(.platinumRatePerGram, "Platinum") }
+    // Silver's rate is all-in: it holds the making and the wastage (pricing.ts), so only the number changes.
+    if items.contains(where: { $0.metalType == .silver }) { add(.silverRatePerGram, "Silver (all-in)") }
+    return rows
+}
+
+/// The figure a rate box holds (TS `rateShown`): a palladium karat with no rate of its own is priced at the flat one.
+public func rateShown(_ rates: PricingRates, _ field: RateField) -> Double {
+    let own = rates.rate(field)
+    if own > 0 { return own }
+    return field == .palladiumRatePerGram18k || field == .palladiumRatePerGram12k ? rates.palladiumRatePerGram : 0
+}
+
 /// Wastage is a percentage of the metal: the weight less the stones (pricing.ts).
 public func netMetalG(_ weightG: Double, _ stoneWeightG: Double = 0) -> Double {
     JS.atLeastZero(JS.orZero(weightG) - JS.orZero(stoneWeightG))

@@ -60,7 +60,7 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Order advance with exchanged gold | ✓ | ✓ | ✓ | ✓ | 2026-10-24 | Edit order rewrites the rows untagged, so deleting an older gold advance after an edit leaves its gold (removed by editing the order). Android `ui/AdvanceExchange.kt` in the advance sheet. [Order to invoice](decisions.md#order-to-invoice), [Exchange rows](decisions.md#exchange-rows) |
 | Settle an advance (order stays as it was) | ✓ | ✓ | ✓ | ✓ | 2026-10-17 | `settleOrderAdvance` |
 | Order slip printed from the phone | ✓ | ✓ | ✓ | ✓ | 2026-10-09 | |
-| Change the rate: at finalize, from the order and invoice pages, silver per order | ✓ | owed | ✓ | owed | 2026-10-24 | [Order to invoice](decisions.md#order-to-invoice); `finalizeOrder` takes `ratesApplied`; web `order-dialogs.tsx`, Android `OrderFinalizeScreen.kt`, `?rates=1` on the edit pages |
+| Change the rate: at finalize, from the order and invoice pages, silver per order | ✓ | ✓ | ✓ | owed | 2026-10-24 | [Order to invoice](decisions.md#order-to-invoice); `finalizeOrder` takes `ratesApplied`; web `order-dialogs.tsx`, Android `OrderFinalizeScreen.kt`, `?rates=1` on the edit pages |
 
 ## Repairs
 
@@ -87,7 +87,7 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Stock photos, tag printing from the piece | ✓ | ✓ | owed | ✓ | 2026-10-17 | `StockPiecePhoto.swift`, `StockPieceTag.swift`; Android has `StockImage.kt` only (check) |
 | Tag designer: interactive canvas (zoom, grid, rulers, resize, rotate, align, undo), all field types, placeholders, pictures, .lsc import, copy ZPL, test print | owed | ✓ | owed | ✓ | 2026-10-24 | Built on Xcode Cloud (Mac release a82280c). `Screens/Settings/LabelDesigner`; ERPCore `LabelGeometry`, `LabelEditing`, `LabelPlaceholders`; web has the older field list at `settings/printer` |
 | Zebra straight from the app: the shop's tag as ZPL (every Label LIVE mode and number: thermal, tear/peel/cut, media, darkness, speed, offsets, orientation, mirror), job sheet (copies, skip, counter), printer status | owed | ✓ | owed | ✓ | 2026-10-24 | `TagPrinter.swift`, `ZebraTransport.swift` (Mac: Zebra Browser Print or a Mac printer raw via CUPS; both: network 9100), `TagPrinterSettingsScreen.swift`, `TagPrintJobSheet.swift`; ERPCore `Zpl.swift` = `src/lib/zebra-zpl.ts` |
-| Label LIVE design import (.lsc) into the shop's tag | owed | ✓ | owed | ✓ | 2026-10-24 | `src/lib/label-lsc.ts` = ERPCore `LabelLSC.swift`; the web has the engine, no import button yet |
+| Label LIVE design import (.lsc) into the shop's tag | ✓ | ✓ | owed | ✓ | 2026-10-24 | `src/lib/label-lsc.ts` = ERPCore `LabelLSC.swift`; web: Settings → Labels, "Import Label LIVE design (.lsc)" (2026-10-25) |
 | Label LIVE: print a piece's tag, several as one job, set-up (Integrate link, variables, printer), test print, print history | ✓ | ✓ | owed | ✓ | 2026-10-20 | [Label LIVE](features/label-live.md); ERPCore `LabelLive.swift`; Mac: localhost API then the link, iPhone: MQTT to the counter Mac; `LabelLivePrinter.swift` |
 | Rates (gold, silver, rate chip) | ✓ | ✓ | ✓ | ✓ | 2026-10 | [Rate chip](decisions.md#rate-chip) |
 | Scan a tag | ✓ | ✓ | ✓ | ✓ | 2026-10 | |
@@ -187,6 +187,6 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Menus from `lib/nav.ts` via the exported JSON | ✓ | ✓ | ✓ | ✓ | 2026-10 | checked by `parity.yml` |
 | Money contract (`contract/cases.json` equal on both phones) | ✓ | ✓ | ✓ | ✓ | 2026-10-12 | `src/app/api/app/write/contract.test.ts` |
 | Store distribution | n/a | ✓ TestFlight | ✓ Play internal | ✓ TestFlight (Mac) | 2026-10 | `ios.yml`, `android.yml` |
-| One number reader (Urdu and Arabic digits, lakh commas, never a silent 0) | n/a | ✓ | ✓ | owed | 2026-10-20 | `ShopNumber` (Android `core/logic/ShopNumber.kt`); marketing's weight and artwork boxes read through it on Android too |
-| The lock covers every sheet and dialog | n/a | ✓ | ✓ | owed | 2026-10-20 | Android: the cover is a window of its own, `device/AppLock.kt`; not run on a phone |
-| Page loads time out at 15 s; the server is warmed when the app comes forward | n/a | ✓ | ✓ | owed | 2026-10-23 | `/api/app/me`, `Outbox.warm()` |
+| One number reader (Urdu and Arabic digits, lakh commas, never a silent 0) | n/a | ✓ | ✓ | ✓ | 2026-10-20 | `ShopNumber` (Android `core/logic/ShopNumber.kt`); marketing's weight and artwork boxes read through it on Android too |
+| The lock covers every sheet and dialog | n/a | ✓ | ✓ | wip | 2026-10-20 | Android: the cover is a window of its own, `device/AppLock.kt`; not run on a phone. Mac: every sheet and panel gets the cover inside it (`MacLockSheets`) |
+| Page loads time out at 15 s; the server is warmed when the app comes forward | n/a | ✓ | ✓ | ✓ | 2026-10-23 | `/api/app/me`, `Outbox.warm()` |
