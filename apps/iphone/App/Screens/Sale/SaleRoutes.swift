@@ -13,13 +13,16 @@ enum SaleRoutes {
             // "?scan=bill" (the New chooser's Read a written bill) opens the bill reader over the new sale.
             ScreenRoute(matches: { ScreenRoute.bare($0) == "/invoices/new" }, make: { p in AnyView(NewSale(readsBill: asks(p, scan: "bill"))) }),
             .exact("/scan") { ScanTag() },
-            ScreenRoute(matches: { editId($0) != nil }, make: { p in AnyView(SaleEditLoader(id: editId(p) ?? "")) }),
+            ScreenRoute(matches: { editId($0) != nil }, make: { p in AnyView(SaleEditLoader(id: editId(p) ?? "", ratesFirst: asks(p, "rates", "1"))) }),
         ]
     }
 
     /// A path's `scan=` asking for one of the AI readers ("bill", "parchi").
-    static func asks(_ path: String, scan: String) -> Bool {
-        URLComponents(string: path)?.queryItems?.contains { $0.name == "scan" && $0.value == scan } ?? false
+    static func asks(_ path: String, scan: String) -> Bool { asks(path, "scan", scan) }
+
+    /// The path's query asks for `key=value` (Change rate: "?rates=1").
+    static func asks(_ path: String, _ key: String, _ value: String) -> Bool {
+        URLComponents(string: path)?.queryItems?.contains { $0.name == key && $0.value == value } ?? false
     }
 
     /// "/invoices/<id>/edit" → the id (the invoice page's Edit, src/app/invoices/[id]/edit).
@@ -35,6 +38,8 @@ enum SaleRoutes {
 /// Edit invoice: owners only (the ERP's write is), once the invoice and the shop's rates are on the shelf.
 struct SaleEditLoader: View {
     let id: String
+    /// "?rates=1" (the invoice page's Change rate): the form opens on its rates.
+    var ratesFirst = false
 
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
@@ -45,7 +50,7 @@ struct SaleEditLoader: View {
             if !session.isOwner {
                 ContentUnavailableView("Only an owner can change an invoice", systemImage: "lock", description: Text("Ask an owner to make the change."))
             } else if let edit {
-                SaleForm(edit: edit)
+                SaleForm(edit: edit, ratesFirst: ratesFirst)
             } else if book.invoices.loaded && book.invoices.item(id) == nil {
                 ContentUnavailableView("No such invoice", systemImage: "questionmark.folder", description: Text("\(id) isn't in the book. It may have been deleted."))
             } else {
