@@ -88,6 +88,10 @@ private struct StockPieceEditor: View {
     @State private var failure: String?
     @State private var saved: Saved?
     @State private var tick = 0
+    #if os(macOS)
+    /// Cancel was asked for while the form holds changes: asked once whether to let them go.
+    @State private var confirmingCancel = false
+    #endif
 
     private struct Saved: Equatable {
         let sku: String
@@ -132,7 +136,7 @@ private struct StockPieceEditor: View {
             #if os(macOS)
             if saved == nil {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }.disabled(saving)
+                    Button("Cancel") { macCancel() }.disabled(saving)
                 }
             }
             #endif
@@ -796,79 +800,247 @@ struct StockPieceFields: Equatable {
 
 #if os(macOS)
 extension StockPieceEditor {
-    /// The form on the left in a grouped Form (the sections of the iPhone's, one window), the piece's summary in a
-    /// column on the right (its photo, what it is made of, what it sells for today). Return saves (the footer's
-    /// default button), ⌘S saves, Esc cancels.
+    /// A document window (docs/features/mac-design.md): plain sections in one grouped form, no summary card, the price at
+    /// today's rates and Save in the footer. ⌘S is the Piece menu's Save; Return saves from the footer; Cancel asks only
+    /// when something was changed.
     @ViewBuilder
     var macForm: some View {
-        HStack(spacing: 0) {
-            Form { Group {
-                pieceSection
-                if f.silver { finishSection }
-                if f.isMensRing && !f.fixed { secondMetalSection }
-                sizeSection
-                priceSection
-                if !f.fixed && !f.isGoldCoin { stonesSection }
-                photoSection
-                }
-                .houseRows()
-            }
-            .formStyle(.grouped)
-            .scrollContentBackground(.hidden)
-            .background(Theme.ground)
-            .frame(minWidth: 460, maxWidth: .infinity)
-            Divider()
-            ScrollView {
-                VStack(spacing: 14) {
-                    if let original {
-                        StockImage(imageUrl: original.imageUrl, name: original.name, key: original.sku, decodeDataURI: true)
-                            .aspectRatio(1, contentMode: .fit)
-                            .clipShape(.rect(cornerRadius: Radius.chip, style: .continuous))
-                    }
-                    PieceInspector(title: f.name, rows: [
-                        .init(label: "Metal", value: describeMetal(f.metalType, f.karat)),
-                        .init(label: "Size", value: f.size),
-                        .init(label: "Weight", value: f.weight.isEmpty ? "—" : f.weight + " g"),
-                        .init(label: "At today's rates", value: todaysPrice.map(Money.pkr) ?? "Pending rates")
-                    ])
-                }
-                .padding(16)
-            }
-            .frame(width: 300)
-            .background(Theme.ground)
+        Form {
+            macPieceSection
+            if f.silver { macFinishSection }
+            if f.isMensRing && !f.fixed { macSecondMetalSection }
+            macSizeSection
+            macPriceSection
+            if !f.fixed && !f.isGoldCoin { macStonesSection }
+            macPhotoSection
         }
+        .formStyle(.grouped)
+        .frame(maxWidth: 720)
+        .frame(maxWidth: .infinity)
         .disabled(saving)
-        .background {
-            Button(editing ? "Save changes" : "Save piece") { Task { await save() } }
-                .keyboardShortcut("s", modifiers: .command).opacity(0).accessibilityHidden(true)
-        }
-        .actionBar(primary: ActionBar.Action(editing ? "Save changes" : "Save piece", isBusy: saving) { Task { await save() } },
-                   summary: todaysPrice.map { $0 > 0 ? "At today's rates · \(Money.pkr($0))" : "At today's rates · Price N/A" })
         .onChange(of: f.ruleKey) { _, _ in f.settle() }
+        .actionBar(primary: ActionBar.Action(editing ? "Save Changes" : "Save Piece", isBusy: saving) { Task { await save() } },
+                   summary: todaysPrice.map { $0 > 0 ? "At today's rates \u{00B7} \(Money.pkr($0))" : "At today's rates \u{00B7} Price N/A" })
+        .macRecordMenu(MacRecordMenu(title: "Piece", groups: [[
+            MacAction(editing ? "Save Changes" : "Save Piece", symbol: "checkmark", shortcut: KeyboardShortcut("s", modifiers: .command),
+                      enabled: !saving) { Task { await save() } },
+        ]]))
+        .confirmDestructive(isPresented: $confirmingCancel, title: "Discard your changes?",
+                            message: editing ? "The piece stays as it was." : "The piece is not added.",
+                            action: "Discard") { dismiss() }
     }
 
-    /// Saved: the result in the middle of the window, the photo to add beside it, and where to go next.
+    /// Whether the form holds anything the person typed or changed: against the form as it opened.
+    private var macChanged: Bool {
+        var base: StockPieceFields
+        if let original {
+            base = StockPieceFields(original)
+            base.settle(keepWastage: true)
+        } else {
+            base = StockPieceFields()
+            base.settle()
+        }
+        return f != base
+    }
+
+    /// Cancel closes the window; with changes in it, it asks first.
+    func macCancel() {
+        if macChanged { confirmingCancel = true } else { dismiss() }
+    }
+
+    // MARK: The sections
+
+    private var macPieceSection: some View {
+        Section {
+            Picker("Category", selection: $f.categoryId) {
+                if f.categoryId.isEmpty { Text("Choose").tag("") }
+                ForEach(categoryOptions) { (c: StockKit.Category) in
+                    Text(c.title).tag(c.id)
+                }
+            }
+            if f.fixed {
+                TextField("Description", text: $f.description, prompt: Text("e.g. Turkish silver ring with onyx stone"), axis: .vertical)
+                    .lineLimit(2...5)
+            } else {
+                TextField("Name", text: $f.name, prompt: Text("Name (optional)"))
+            }
+            Picker("Metal", selection: $f.metalType) {
+                ForEach(metalOptions, id: \.self) { (m: String) in
+                    Text(metalLabel(m)).tag(m)
+                }
+            }
+            if f.metalType == "gold" {
+                Picker("Karat", selection: $f.karat) {
+                    ForEach(karatOptions, id: \.self) { (k: String) in
+                        Text(karatLabel(k)).tag(k)
+                    }
+                }
+            }
+        } header: {
+            Text("The Piece")
+        } footer: {
+            if !f.fixed {
+                Text("Left blank, the name is made from the category and the SKU.")
+            }
+        }
+    }
+
+    private var macFinishSection: some View {
+        Section("925 Sterling Silver Finish") {
+            Picker("Plating", selection: $f.platingType) {
+                Text("No plating").tag("")
+                ForEach(platingOptions, id: \.self) { (p: String) in
+                    Text(p).tag(p)
+                }
+            }
+            if f.platingType == "Other" {
+                TextField("Describe the plating", text: $f.platingNote, prompt: Text("e.g. Rose gold plating"))
+            }
+            Toggle("Nickel free", isOn: $f.nickelFree)
+        }
+    }
+
+    private var macSecondMetalSection: some View {
+        Section {
+            Picker("Metal", selection: $f.secondMetal) {
+                Text("None").tag("")
+                ForEach(METAL_TYPES, id: \.rawValue) { (m: MetalType) in
+                    Text(metalLabel(m)).tag(m.rawValue)
+                }
+            }
+            if f.secondMetal == "gold" {
+                Picker("Karat", selection: $f.secondKarat) {
+                    if f.secondKarat.isEmpty { Text("Choose").tag("") }
+                    ForEach(karatsFor(MetalType.gold), id: \.rawValue) { (k: KaratValue) in
+                        Text(karatLabel(k)).tag(k.rawValue)
+                    }
+                }
+            }
+            if !f.secondMetal.isEmpty {
+                NewOrderNumberRow(title: "Weight", text: $f.secondWeight, prompt: "e.g. 1.25", unit: "g")
+            }
+        } header: {
+            Text("Second Metal")
+        } footer: {
+            Text("Optional.")
+        }
+    }
+
+    @ViewBuilder
+    private var macSizeSection: some View {
+        if let scale = NewOrderSizes.scale(for: f.categoryId) {
+            Section {
+                if scale.multi {
+                    ForEach(scale.parts) { (part: NewOrderSizes.Part) in
+                        NewOrderSizeField(title: part.label, options: part.options, value: partBinding(scale, part))
+                    }
+                } else if let only = scale.parts.first {
+                    NewOrderSizeField(title: "Size", options: only.options, value: $f.size)
+                }
+            } header: {
+                Text("Size")
+            } footer: {
+                Text(scale.multi ? scale.label + ". Leave either blank if not applicable." : scale.label)
+            }
+        }
+    }
+
+    private var macPriceSection: some View {
+        Section {
+            Picker("How it is priced", selection: $f.fixed) {
+                Text("Weight \u{00D7} rate").tag(false)
+                Text("Fixed price").tag(true)
+            }
+            if f.fixed {
+                NewOrderNumberRow(title: "Price (PKR)", text: $f.customPrice, prompt: "e.g. 15000", rupees: true)
+                NewOrderNumberRow(title: "Reference rate per gram", text: $f.silverRate, prompt: "Optional")
+            } else {
+                NewOrderNumberRow(title: "Weight", text: $f.weight, prompt: "e.g. 5.75", unit: "g")
+                if f.silver {
+                    NewOrderNumberRow(title: "Rate per gram (PKR)", text: $f.silverRate, prompt: "e.g. 275")
+                } else if !f.isGoldCoin {
+                    NewOrderNumberRow(title: "Wastage (%)", text: $f.wastage, prompt: "e.g. 10")
+                }
+                if !f.isGoldCoin {
+                    if !f.silver {
+                        NewOrderNumberRow(title: "Making (PKR)", text: $f.making, prompt: "e.g. 5000", rupees: true)
+                    }
+                    NewOrderNumberRow(title: "Misc (PKR)", text: $f.miscCharges, prompt: "e.g. 250", rupees: true)
+                }
+            }
+        } header: {
+            Text("Price")
+        } footer: {
+            priceFooter
+        }
+    }
+
+    private var macStonesSection: some View {
+        Section("Diamonds and Stones") {
+            Toggle("Has diamonds", isOn: $f.hasDiamonds)
+            if f.hasDiamonds {
+                NewOrderNumberRow(title: "Diamonds (PKR)", text: $f.diamondCharges, prompt: "e.g. 50000", rupees: true)
+                TextField("Diamond details", text: $f.diamondDetails, prompt: Text("e.g. Centre 1ct VVS1, sides 12 \u{00D7} 0.05ct VS2"), axis: .vertical)
+                    .lineLimit(2...4)
+            }
+            Toggle("Has other stones", isOn: $f.hasStones)
+            if f.hasStones {
+                NewOrderNumberRow(title: "Stone weight", text: $f.stoneWeight, prompt: "e.g. 0.5", unit: "g")
+                NewOrderNumberRow(title: "Stones (PKR)", text: $f.stoneCharges, prompt: "e.g. 15000", rupees: true)
+                TextField("Stone details", text: $f.stoneDetails, prompt: Text("e.g. 1 \u{00D7} ruby 2ct, and 2g gold accent"), axis: .vertical)
+                    .lineLimit(2...4)
+            }
+        }
+    }
+
+    /// The photo saves as soon as it is picked or dropped, on its own; a new piece takes its photo once it is saved.
+    @ViewBuilder
+    private var macPhotoSection: some View {
+        if let original {
+            Section {
+                StockPiecePhotoField(sku: original.sku, name: original.name, imageUrl: original.imageUrl)
+            } header: {
+                Text("Photo")
+            } footer: {
+                Text("A photo saves as soon as it is picked or dropped. Saving the form keeps the photo.")
+            }
+        } else {
+            Section {
+                Label("Add the photo once the piece is saved", systemImage: "photo")
+                    .foregroundStyle(.secondary)
+            } header: {
+                Text("Photo")
+            }
+        }
+    }
+
+    // MARK: Saved
+
+    /// Saved: said in a line, the photo to add, and where to go next. Add Another Piece is the footer's.
     private func macSavedPage(_ s: Saved) -> some View {
-        VStack(spacing: 18) {
-            Image(systemName: "checkmark.circle.fill").font(.system(size: 44)).foregroundStyle(Tone.settled.color)
-            Text("Saved").font(.title2.weight(.semibold))
-            Text("\(s.name) is in stock as \(s.sku).").foregroundStyle(.secondary).multilineTextAlignment(.center)
-            StockPiecePhotoField(sku: s.sku, name: s.name, imageUrl: book.products.item(s.sku)?.imageUrl)
-                .padding(16)
-                .frame(maxWidth: 420, alignment: .leading)
-                .houseCard()
-            HStack {
+        Form {
+            Section {
+                Label("\(s.name) is in stock as \(s.sku).", systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(Tone.settled.color)
+            }
+            Section {
+                StockPiecePhotoField(sku: s.sku, name: s.name, imageUrl: book.products.item(s.sku)?.imageUrl)
+            } header: {
+                Text("Photo")
+            } footer: {
+                Text("A photo saves as soon as it is picked or dropped.")
+            }
+            Section {
                 NavigationLink(value: Route(path: StockKit.piecePath(s.sku))) {
                     Label("Open \(s.sku)", systemImage: "arrow.up.right.square")
                 }
-                Button { startAnother() } label: { Label("Add another piece", systemImage: "plus.square.on.square") }
-                    .keyboardShortcut(.defaultAction)
             }
-            Text("Another piece starts in the same category.").font(.footnote).foregroundStyle(.secondary)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(24)
-        .background(Theme.ground)
+        .formStyle(.grouped)
+        .frame(maxWidth: 560)
+        .frame(maxWidth: .infinity)
+        .actionBar(primary: ActionBar.Action("Add Another Piece", systemImage: "plus.square.on.square") { startAnother() },
+                   summary: "Another piece starts in the same category.")
     }
 }
 #endif

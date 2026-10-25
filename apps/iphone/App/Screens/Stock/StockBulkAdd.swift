@@ -111,6 +111,8 @@ private struct StockBulkEditor: View {
     #if os(macOS)
     /// The rows picked in the weights table (⌫ removes them, right-click offers it).
     @State private var picked = Set<UUID>()
+    /// Cancel was asked for while the form holds changes: asked once whether to let them go.
+    @State private var confirmingCancel = false
     #endif
 
     var body: some View {
@@ -133,7 +135,7 @@ private struct StockBulkEditor: View {
             #if os(macOS)
             if done == nil {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }.disabled(saving)
+                    Button("Cancel") { macCancel() }.disabled(saving)
                 }
             }
             #endif
@@ -491,23 +493,19 @@ private struct StockBulkEditor: View {
 
 #if os(macOS)
 extension StockBulkEditor {
-    /// The setup in a column on the left; the weights are an editable table beside it, with the paste box above.
+    /// A document window: the setup shared by every piece in a grouped form at the left, the weights as an editable table
+    /// beside it, the number of pieces in the footer. ⌘S is the Piece menu's Add; Cancel asks only when something was typed.
     @ViewBuilder
     var macForm: some View {
         HStack(spacing: 0) {
-            Form { Group {
-                sharedSection
+            Form {
+                macSharedSection
                 if !shared.isGoldCoin {
-                    costSection
-                    stonesSection
+                    macCostSection
+                    macStonesSection
                 }
-                resetSection
-                }
-                .houseRows()
             }
             .formStyle(.grouped)
-            .scrollContentBackground(.hidden)
-            .background(Theme.ground)
             .frame(minWidth: 380, idealWidth: 420, maxWidth: 460)
             Divider()
             weightsTable
@@ -515,25 +513,109 @@ extension StockBulkEditor {
         }
         .disabled(saving)
         .onChange(of: shared.ruleKey) { _, _ in shared.settle(keepWastage: true) }
-        .background {
-            Button("Add pieces") { Task { await save() } }
-                .keyboardShortcut("s", modifiers: .command).opacity(0).accessibilityHidden(true)
-        }
         .actionBar(primary: ActionBar.Action("Add \(rows.count) piece\(rows.count == 1 ? "" : "s")", isBusy: saving, isDisabled: rows.isEmpty) {
             Task { await save() }
         }, summary: "\(rows.count) weight\(rows.count == 1 ? "" : "s") to add")
+        .macRecordMenu(MacRecordMenu(title: "Piece", groups: [
+            [MacAction("Add \(rows.count) Piece\(rows.count == 1 ? "" : "s")", symbol: "checkmark", shortcut: KeyboardShortcut("s", modifiers: .command),
+                       enabled: !rows.isEmpty && !saving) { Task { await save() } }],
+            [MacAction("Reset Form\u{2026}", symbol: "arrow.counterclockwise", role: .destructive, enabled: !saving) { confirmReset = true }],
+        ]))
+        .confirmDestructive(isPresented: $confirmReset, title: "Reset the form?",
+                            message: "Every row and the setup are cleared.", action: "Reset") { reset() }
+        .confirmDestructive(isPresented: $confirmingCancel, title: "Discard what you typed?",
+                            message: "No piece is added.", action: "Discard") { dismiss() }
     }
+
+    /// Whether anything was typed or changed since the window opened.
+    private var macChanged: Bool {
+        let typed = rows.contains { !NewOrderFormat.trim($0.weight).isEmpty || !NewOrderFormat.trim($0.suffix).isEmpty }
+        return shared != StockBulk.freshSetup() || !prefix.isEmpty || !pasted.isEmpty || typed
+    }
+
+    /// Cancel closes the window; with changes in it, it asks first.
+    func macCancel() {
+        if macChanged { confirmingCancel = true } else { dismiss() }
+    }
+
+    // MARK: The setup shared by every piece
+
+    private var macSharedSection: some View {
+        Section {
+            Picker("Category", selection: $shared.categoryId) {
+                if shared.categoryId.isEmpty { Text("Choose").tag("") }
+                ForEach(StockKit.categories) { (c: StockKit.Category) in
+                    Text(c.title).tag(c.id)
+                }
+            }
+            TextField("Name prefix", text: $prefix, prompt: Text("Optional, e.g. Gold ring design A"))
+            Picker("Metal", selection: $shared.metalType) {
+                ForEach(metalOptions, id: \.self) { (m: String) in
+                    Text(metalLabel(m)).tag(m)
+                }
+            }
+            if shared.metalType == "gold" {
+                Picker("Karat", selection: $shared.karat) {
+                    ForEach(karatOptions, id: \.self) { (k: String) in
+                        Text(karatLabel(k)).tag(k)
+                    }
+                }
+            }
+        } header: {
+            Text("Shared by Every Piece")
+        } footer: {
+            Text("A piece is named \u{201C}prefix suffix\u{201D}. With neither, it is named from the category and its SKU.")
+        }
+    }
+
+    private var macCostSection: some View {
+        Section {
+            if !shared.silver {
+                NewOrderNumberRow(title: "Wastage (%)", text: $shared.wastage, prompt: "e.g. 10")
+                NewOrderNumberRow(title: "Making (PKR)", text: $shared.making, prompt: "e.g. 5000", rupees: true)
+            }
+            NewOrderNumberRow(title: "Misc (PKR)", text: $shared.miscCharges, prompt: "e.g. 250", rupees: true)
+        } header: {
+            Text("Costs")
+        } footer: {
+            if shared.silver {
+                Text("Silver is priced by weight at the silver rate in settings, all-inclusive: no wastage or making.")
+            }
+        }
+    }
+
+    private var macStonesSection: some View {
+        Section {
+            Toggle("Has other stones", isOn: $shared.hasStones)
+            if shared.hasStones {
+                NewOrderNumberRow(title: "Stone weight", text: $shared.stoneWeight, prompt: "e.g. 0.5", unit: "g")
+                NewOrderNumberRow(title: "Stones (PKR)", text: $shared.stoneCharges, prompt: "e.g. 15000", rupees: true)
+            }
+            Toggle("Has diamonds", isOn: $shared.hasDiamonds)
+            if shared.hasDiamonds {
+                NewOrderNumberRow(title: "Diamonds (PKR)", text: $shared.diamondCharges, prompt: "e.g. 50000", rupees: true)
+            }
+        } header: {
+            Text("Diamonds and Stones")
+        } footer: {
+            if shared.hasStones || shared.hasDiamonds {
+                Text("The same figures go on every piece.")
+            }
+        }
+    }
+
+    // MARK: The weights
 
     private var weightsTable: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Weights to add · \(rows.count)").font(.headline)
+            Text("Weights to Add \u{00B7} \(rows.count)").font(.headline)
             HStack(alignment: .top, spacing: 8) {
                 TextField("Weights", text: $pasted, prompt: Text("Paste or type weights, e.g. 4.2 5.1 6.75"), axis: .vertical)
                     .lineLimit(1...3)
                     .textFieldStyle(.roundedBorder)
-                Button("Add these weights") { addPasted() }
+                Button("Add These Weights") { addPasted() }
                     .disabled(StockBulk.weights(in: pasted).isEmpty)
-                Button { rows.append(StockBulkRow()) } label: { Label("Add a row", systemImage: "plus") }
+                Button { rows.append(StockBulkRow()) } label: { Label("Add a Row", systemImage: "plus") }
                     .help("Add an empty row")
             }
             Table(rows, selection: $picked) {
@@ -565,7 +647,6 @@ extension StockBulkEditor {
                 .font(.footnote).foregroundStyle(.secondary)
         }
         .padding(16)
-        .background(Theme.ground)
     }
 
     private func removePicked(_ ids: Set<UUID>) {
@@ -573,28 +654,26 @@ extension StockBulkEditor {
         picked.subtract(ids)
     }
 
+    // MARK: Done
+
+    /// Added: said in a line with the SKUs, and Add More Pieces in the footer.
     func macDonePage(_ skus: [String]) -> some View {
-        HStack(alignment: .top, spacing: 0) {
-            VStack(spacing: 10) {
-                Image(systemName: "checkmark.circle.fill").font(.system(size: 44)).foregroundStyle(Tone.settled.color)
-                Text("Bulk add complete").font(.title2.weight(.semibold))
-                Text("\(skus.count) piece\(skus.count == 1 ? " is" : "s are") in stock.").foregroundStyle(.secondary)
-                HStack {
-                    NavigationLink(value: Route(path: "/products")) { Label("Open Stock", systemImage: "shippingbox") }
-                    Button { startAgain() } label: { Label("Add more pieces", systemImage: "plus.square.on.square") }
+        Form {
+            Section {
+                Label("\(skus.count) piece\(skus.count == 1 ? " is" : "s are") in stock.", systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(Tone.settled.color)
+            }
+            Section("Added") {
+                ForEach(skus, id: \.self) { (sku: String) in
+                    NavigationLink(value: Route(path: StockKit.piecePath(sku))) { Text(sku).monospacedDigit() }
                 }
-                .padding(.top, 6)
-                Text("The setup stays as it is; the weights start again.").font(.footnote).foregroundStyle(.secondary)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            Divider()
-            List(skus, id: \.self) { (sku: String) in
-                NavigationLink(value: Route(path: StockKit.piecePath(sku))) { Text(sku).monospacedDigit() }
-            }
-            .listStyle(.inset)
-            .frame(width: 280)
         }
-        .background(Theme.ground)
+        .formStyle(.grouped)
+        .frame(maxWidth: 560)
+        .frame(maxWidth: .infinity)
+        .actionBar(primary: ActionBar.Action("Add More Pieces", systemImage: "plus.square.on.square") { startAgain() },
+                   summary: "The setup stays as it is; the weights start again.")
     }
 }
 #endif

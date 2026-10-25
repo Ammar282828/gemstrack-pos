@@ -34,13 +34,20 @@ struct StockPieceTagSheet: View {
         NavigationStack {
             Form { Group {
                 qrSection
+                #if !os(macOS)
+                // The Mac prints a piece's tag from the Piece menu (Print Tag…, ⌘P); this sheet is its QR and its CSV.
                 if TagPrinter.method == .zebra { zebraSection } else { labelLiveSection }
+                #endif
                 csvSection
                 }
                 .houseRows()
             }
             .houseForm()
+            #if os(macOS)
+            .navigationTitle("QR Code and CSV")
+            #else
             .navigationTitle("Print tag")
+            #endif
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -54,6 +61,9 @@ struct StockPieceTagSheet: View {
             .task { book.settings.need() }
         }
         .presentationDetents([.medium, .large])
+        #if os(macOS)
+        .frame(minWidth: 460, minHeight: 520)
+        #endif
         .sheet(isPresented: $jobOpen) {
             TagPrintJobSheet(pieces: [product]) { message in
                 Note.show(Note(title: "Tag sent", detail: message), in: $note, reduce: reduceMotion)

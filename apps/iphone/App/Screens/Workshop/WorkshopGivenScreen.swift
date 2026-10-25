@@ -27,6 +27,9 @@ struct WorkshopGivenScreen: View {
     #if os(macOS)
     @State private var macPick = Set<String>()
     @State private var macSort = [KeyPathComparator(\GivenItem.date, order: .reverse)]
+    /// The rows worked out once per change of the books, the search, the filter and the sort.
+    @State private var macRowsMemo = Memo<MacGivenRows>()
+    @Environment(\.openPlaceWindow) private var openPlace
     #endif
 
     private enum Filter: String, CaseIterable, Identifiable {
@@ -48,8 +51,12 @@ struct WorkshopGivenScreen: View {
         .navigationTitle("Given items")
         .hubTitleDisplay()
         .modifier(HouseGround())
+        #if os(macOS)
+        .macSearchable(text: $query, prompt: "Search Given Items")
+        #else
         .searchable(text: $query, prompt: "Item or recipient")
         .toolbar { givenToolbar }
+        #endif
         .sheet(isPresented: $adding) {
             WorkshopGivenSheet(karigars: workshopLive(book.karigars.items), customers: liveCustomers,
                                takenBy: session.shop.takenBy, me: session.shop.person)
@@ -87,11 +94,11 @@ struct WorkshopGivenScreen: View {
 
     @ViewBuilder
     private var content: some View {
+        #if os(macOS)
+        macContent
+        #else
         let all = book.givenItems.items
         let shown = all.filter { matches($0) }
-        #if os(macOS)
-        macTable(all, shown)
-        #else
         List { Group {
             filterSection(all)
             if !shown.isEmpty {
@@ -319,14 +326,63 @@ struct WorkshopGivenScreen: View {
 }
 
 #if os(macOS)
-// The Mac's Given items: a Table (what, to whom, when, where it stands, who gave it, the note), sortable; Still out / Returned in
-// the toolbar with Record item given and Got back; right-click carries the same actions as the iPhone's menu, Return or a
-// double-click edits (owners), and Delete asks for the delete code.
+/// The items shown, and the figures over every item.
+private struct MacGivenRows {
+    var shown: [GivenItem] = []
+    var byId: [String: GivenItem] = [:]
+    var total = 0
+    var out = 0
+}
+
+// The Mac's Given items (docs/features/mac-design.md, "Workshop"): a Table (what, to whom, when, where it stands, who gave it, the
+// note), sortable; Show (All, Still out, Returned) in the toolbar; the picked item in the inspector; a summary bar at the foot;
+// every action declared once for the Item menu, the toolbar and the right-click menu. Record Item Given is a sheet (⌃⌘N); editing
+// an item opens that same sheet (its save is the sheet's), and Delete asks for the delete code.
 extension WorkshopGivenScreen {
-    func macTable(_ all: [GivenItem], _ shown: [GivenItem]) -> some View {
-        let ordered = shown.sorted(using: macSort)
-        let picked = macPicked(all)
-        return Table(ordered, selection: $macPick, sortOrder: $macSort) {
+    var macContent: some View {
+        let data = macData()
+        return macTable(data)
+            .overlay {
+                if data.shown.isEmpty { emptyState.allowsHitTesting(false) }
+            }
+            .macSummaryBar(macSummary(data))
+            .toolbar { macToolbar(data) }
+            .macInspector { macInspectorPanel(data) }
+            .macRecordMenu(MacRecordMenu(title: "Item", groups: macGroups(macPickedItems(data))))
+    }
+
+    // MARK: The rows, worked out once
+
+    private func macData() -> MacGivenRows {
+        let key: [Int] = [book.givenItems.revision, query.hashValue, filter.rawValue.hashValue, macSort.hashValue,
+                   returnedNow.sorted().joined(separator: ",").hashValue]
+        return macRowsMemo(key) {
+            let all = book.givenItems.items
+            var out = MacGivenRows()
+            out.total = all.count
+            out.out = all.filter { isOut($0) }.count
+            out.shown = all.filter { matches($0) }.sorted(using: macSort)
+            for g in all { out.byId[g.id] = g }
+            return out
+        }
+    }
+
+    private func macPickedItems(_ data: MacGivenRows) -> [GivenItem] {
+        macPick.compactMap { data.byId[$0] }.sorted { $0.id < $1.id }
+    }
+
+    private func macSummary(_ data: MacGivenRows) -> [String] {
+        let picked = macPickedItems(data)
+        if !picked.isEmpty {
+            return ["\(picked.count) selected", "\(picked.filter { isOut($0) }.count) still out"]
+        }
+        return ["\(data.shown.count) item\(data.shown.count == 1 ? "" : "s")", "\(data.out) still out"]
+    }
+
+    // MARK: The table
+
+    private func macTable(_ data: MacGivenRows) -> some View {
+        Table(data.shown, selection: $macPick, sortOrder: $macSort) {
             TableColumn("What", value: \.description) { (g: GivenItem) in Text(g.description).fontWeight(.medium).lineLimit(1) }
                 .width(min: 180, ideal: 280)
             TableColumn("Given to", value: \.recipientName) { (g: GivenItem) in
@@ -344,34 +400,11 @@ extension WorkshopGivenScreen {
                 .width(min: 120, ideal: 240)
         }
         .contextMenu(forSelectionType: String.self) { ids in
-            if ids.count == 1, let id = ids.first, let item = all.first(where: { $0.id == id }) { itemMenu(item) }
+            let items = ids.compactMap { data.byId[$0] }
+            if !items.isEmpty { MacActionItems(groups: macGroups(items)) }
         } primaryAction: { ids in
-            if session.isOwner, ids.count == 1, let id = ids.first, let item = all.first(where: { $0.id == id }) { editing = item }
+            if session.isOwner, ids.count == 1, let id = ids.first, let item = data.byId[id] { editing = item }
         }
-        .onDeleteCommand { if session.isOwner, let picked { askDelete(picked) } }
-        .overlay {
-            if shown.isEmpty { emptyState.allowsHitTesting(false) }
-        }
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                Picker("Show", selection: $filter) {
-                    ForEach(Filter.allCases) { Text($0.title).tag($0) }
-                }
-                .pickerStyle(.segmented)
-            }
-            if session.isOwner {
-                ToolbarItem(placement: .automatic) {
-                    Button { if let picked { markReturned(picked) } } label: { Label("Got back", systemImage: "checkmark.circle") }
-                        .disabled(picked.map { !canReturn($0) } ?? true)
-                        .help("The picked item has come back")
-                }
-            }
-        }
-    }
-
-    private func macPicked(_ all: [GivenItem]) -> GivenItem? {
-        guard macPick.count == 1, let id = macPick.first else { return nil }
-        return all.first { $0.id == id }
     }
 
     /// Out is the expected state: a coloured word only once it has been out a week; back says when.
@@ -380,7 +413,7 @@ extension WorkshopGivenScreen {
         if isOut(g) {
             let days = daysOut(g)
             if days >= 7 {
-                Pill("Out \(days) days", tone: .owed)
+                MacStatus("Out \(days) days", tone: .owed)
             } else {
                 Text("Still out").foregroundStyle(.secondary)
             }
@@ -389,6 +422,115 @@ extension WorkshopGivenScreen {
         } else {
             Text("Back").foregroundStyle(.secondary)
         }
+    }
+
+    // MARK: The toolbar and the actions
+
+    @ToolbarContentBuilder
+    private func macToolbar(_ data: MacGivenRows) -> some ToolbarContent {
+        ToolbarItem(placement: .automatic) {
+            Picker("Show", selection: $filter) {
+                ForEach(Filter.allCases) { (f: Filter) in Text(f.title).tag(f) }
+            }
+            .pickerStyle(.menu)
+            .help("All items, only those still out, or only those that came back")
+        }
+        ToolbarItemGroup(placement: .primaryAction) {
+            let items = macPickedItems(data)
+            MacToolbarAction(action: macRecordAction)
+            MacToolbarAction(action: macBackAction(items))
+        }
+    }
+
+    private var macRecordAction: MacAction {
+        MacAction("Record Item Given\u{2026}", symbol: "plus", shortcut: KeyboardShortcut("n", modifiers: [.control, .command]),
+                  enabled: session.isOwner) { adding = true }
+    }
+
+    private func macBackAction(_ items: [GivenItem]) -> MacAction {
+        let can = !items.isEmpty && items.allSatisfy { canReturn($0) }
+        return MacAction("Got Back", symbol: "checkmark.circle", shortcut: KeyboardShortcut(.return, modifiers: .command),
+                         enabled: can, isDefault: true) { for item in items { markReturned(item) } }
+    }
+
+    private func macEditAction(_ items: [GivenItem]) -> MacAction {
+        let single: GivenItem? = items.count == 1 ? items.first : nil
+        return MacAction("Edit\u{2026}", symbol: "pencil", shortcut: KeyboardShortcut("e", modifiers: .command),
+                         enabled: session.isOwner && single != nil) { editing = single }
+    }
+
+    private func macGroups(_ items: [GivenItem]) -> [[MacAction]] {
+        let single: GivenItem? = items.count == 1 ? items.first : nil
+        let place: WorkshopPlace? = single.flatMap { recipientPlace($0) }
+        let opening = MacAction("Open Recipient", symbol: "person.crop.circle", enabled: place != nil) {
+            if let place { macOpen(place) }
+        }
+        let deleting = MacAction("Delete\u{2026}", symbol: "trash", shortcut: KeyboardShortcut(.delete, modifiers: .command), role: .destructive,
+                                 enabled: session.isOwner && single != nil) {
+            if let single { askDelete(single) }
+        }
+        let recording: [MacAction] = [macRecordAction]
+        let changing: [MacAction] = [macBackAction(items), macEditAction(items), opening]
+        return [recording, changing, [deleting]]
+    }
+
+    /// A karigar's or customer's page opens in a window of its own where the window can; otherwise in this one.
+    private func macOpen(_ place: WorkshopPlace) {
+        if let openPlace { openPlace(Route(path: place.path)) } else { opened = place }
+    }
+
+    // MARK: The inspector
+
+    @ViewBuilder
+    private func macInspectorPanel(_ data: MacGivenRows) -> some View {
+        let items = macPickedItems(data)
+        if items.count == 1, let item = items.first {
+            macItemInspector(item)
+        } else if items.isEmpty {
+            MacInspectorEmpty(title: "No Item Selected", detail: "Pick an item to see who has it and whether it came back.")
+        } else {
+            MacInspectorEmpty(title: "\(items.count) Items", detail: "Got Back marks them all as back.")
+        }
+    }
+
+    private func macItemInspector(_ item: GivenItem) -> some View {
+        let out = isOut(item)
+        let days = daysOut(item)
+        var words = "Back"
+        var tone: Tone = .quiet
+        if out {
+            words = days >= 7 ? "Out \(days) days" : "Still out"
+            tone = days >= 7 ? .owed : .working
+        }
+        let status = MacStatus(words, tone: tone)
+        return Form {
+            Section {
+                MacInspectorHeader(
+                    title: item.description,
+                    subtitle: recipientWords(item),
+                    status: status,
+                    actions: [macBackAction([item]), macEditAction([item])]
+                )
+            }
+            Section("Details") {
+                LabeledContent("Given to", value: item.recipientName.isEmpty ? "\u{2014}" : item.recipientName)
+                LabeledContent("Given", value: item.date.isEmpty ? "\u{2014}" : ShopDate.say(item.date))
+                if let back = item.returnedDate, !back.isEmpty { LabeledContent("Came back", value: ShopDate.say(back)) }
+                if let by = item.givenBy, !by.isEmpty { LabeledContent("Given by", value: by) }
+                if let notes = item.notes, !notes.isEmpty {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Note").font(.callout).foregroundStyle(.secondary)
+                        Text(notes).textSelection(.enabled)
+                    }
+                }
+            }
+            if let place = recipientPlace(item) {
+                Section {
+                    Button("Open " + item.recipientName) { macOpen(place) }
+                }
+            }
+        }
+        .formStyle(.grouped)
     }
 }
 #endif

@@ -24,6 +24,8 @@ struct StockPieceScreen: View {
     #if os(macOS)
     /// "Replace photo…" asked for: the file chooser (a picture dropped on the photo needs no asking).
     @State private var replacing = false
+    /// A record opens in a window of its own where the window has the means to (MacShell's main window).
+    @Environment(\.openPlaceWindow) private var openPlace
     #endif
 
     /// A wide window: the photo and facts on the left, the price and how it adds up on the right.
@@ -263,6 +265,9 @@ private struct StockSoldView: View {
     /// The invoices that carry this piece, found once per change of the invoices (every invoice's every line was
     /// read on each drawing of the page).
     @State private var found = Memo<[Invoice]>()
+    #if os(macOS)
+    @Environment(\.openPlaceWindow) private var openPlace
+    #endif
 
     var body: some View {
         content
@@ -288,7 +293,11 @@ private struct StockSoldView: View {
                     NavigationLink(value: Route(path: "/products")) { Text("All stock") }
                 }
             } else {
+                #if os(macOS)
+                macSold(sales)
+                #else
                 soldList(sales)
+                #endif
             }
         }
     }
@@ -343,59 +352,135 @@ private struct StockSoldView: View {
 
 #if os(macOS)
 extension StockPieceScreen {
-    /// The piece as a record window: its photo (drop a picture on it to replace it) and what it is made of on the
-    /// left, the price at today's rates and how it adds up in a column on the right. The toolbar carries Sell, Edit,
-    /// Print tag (Label LIVE) and Delete (which asks for the delete code).
+    /// The piece as a record window (docs/features/mac-design.md, "Stock"): a document head (its name, SKU and category,
+    /// and what it sells for today), its photo (a picture dropped on it replaces it) and what it is made of on the left, the
+    /// price at today's rates and how it adds up at the right as plain rows. Its actions are declared once: the window's
+    /// toolbar, the Piece menu and the photo's right-click menu share them.
     func macDetail(_ p: Product) -> some View {
         let settings: Settings? = book.settings.value
-        let rates: PricingRates? = StockKit.rates(settings) ?? (p.isCustomPrice ? PricingRates() : nil)
-        let costs: ProductCosts? = rates.map { StockKit.costs(p, $0) }
-        return HStack(spacing: 0) {
-            Form { Group {
-                heroSection(p)
-                if !p.isCustomPrice { specsSection(p) }
-                }
-                .houseRows()
-            }
-            .formStyle(.grouped)
-            .scrollContentBackground(.hidden)
-            .frame(minWidth: 380, maxWidth: .infinity)
-            .modifier(StockPhotoDrop(sku: p.sku, choosing: $replacing))
-            .contextMenu {
-                if session.isOwner {
-                    Button { replacing = true } label: { Label("Replace Photo…", systemImage: "photo") }
-                }
-                Button { UIPasteboard.general.string = p.sku } label: { Label("Copy SKU", systemImage: "doc.on.doc") }
-            }
+        return VStack(spacing: 0) {
+            MacDocumentHeader(
+                title: p.name.isEmpty ? p.sku : p.name,
+                subtitle: p.sku + " \u{00B7} " + StockKit.categoryTitle(p.categoryId),
+                headline: MacHeadline("At today's rates", MacStockPricing.words(MacStockPricing.total(p, settings)))
+            )
             Divider()
-            Form { Group {
-                priceSection(p, costs, settings)
+            HStack(alignment: .top, spacing: 0) {
+                Form {
+                    Section { macPhoto(p) }
+                    MacStockDetailSections(product: p)
                 }
-                .houseRows()
+                .formStyle(.grouped)
+                .frame(minWidth: 380, maxWidth: .infinity)
+                Divider()
+                Form {
+                    MacStockPriceSection(product: p, settings: settings)
+                }
+                .formStyle(.grouped)
+                .frame(width: 340)
+            }
+        }
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
+                MacToolbarAction(action: macSellAction(p))
+                MacToolbarAction(action: macEditAction(p))
+                MacToolbarAction(action: macPrintAction(p))
+                MacToolbarAction(action: macDeleteAction(p))
+            }
+        }
+        .macRecordMenu(MacRecordMenu(title: "Piece", groups: macGroups(p)))
+    }
+
+    /// The photo; owners drop a picture on it or choose one from its right-click menu.
+    @ViewBuilder
+    private func macPhoto(_ p: Product) -> some View {
+        let image = StockImage(imageUrl: p.imageUrl, name: p.name, key: p.sku, decodeDataURI: true)
+            .aspectRatio(1, contentMode: .fit)
+            .clipShape(.rect(cornerRadius: Radius.chip, style: .continuous))
+            .frame(maxWidth: 360)
+            .frame(maxWidth: .infinity)
+        if session.isOwner {
+            image
+                .modifier(StockPhotoDrop(sku: p.sku, choosing: $replacing))
+                .contextMenu { Button("Replace Photo\u{2026}") { replacing = true } }
+                .help("Drop a picture here to replace the photo")
+        } else {
+            image
+        }
+    }
+
+    // MARK: The actions, declared once
+
+    private func macSellAction(_ p: Product) -> MacAction {
+        MacAction("Sell", symbol: "cart", enabled: session.isOwner, isDefault: true) { macSell(p) }
+    }
+
+    private func macEditAction(_ p: Product) -> MacAction {
+        MacAction("Edit", symbol: "pencil", shortcut: KeyboardShortcut("e", modifiers: .command), enabled: session.isOwner) { macOpen(StockKit.editPath(p.sku)) }
+    }
+
+    private func macPrintAction(_ p: Product) -> MacAction {
+        MacAction("Print Tag\u{2026}", symbol: "printer", shortcut: KeyboardShortcut("p", modifiers: .command)) {
+            MacPrint.print(Route(path: StockKit.piecePath(p.sku)))
+        }
+    }
+
+    private func macDeleteAction(_ p: Product) -> MacAction {
+        MacAction("Delete\u{2026}", symbol: "trash", shortcut: KeyboardShortcut(.delete, modifiers: .command), role: .destructive,
+                  enabled: session.isOwner) { deletion = StockKit.deletion(p) }
+    }
+
+    private func macGroups(_ p: Product) -> [[MacAction]] {
+        let sku = p.sku
+        let printNow = MacAction("Print Tag Now", symbol: "printer.fill", shortcut: KeyboardShortcut("p", modifiers: [.command, .option])) {
+            Task { await MacPrint.printTags([sku], now: true) }
+        }
+        let copying = MacAction("Copy SKU", symbol: "doc.on.doc") { UIPasteboard.general.string = sku }
+        let showing = MacAction("Show QR\u{2026}", symbol: "qrcode") { tagging = p }
+        let exporting = MacAction("Export Tag CSV\u{2026}", symbol: "arrow.down.doc") { tagging = p }
+        let replaceAction = MacAction("Replace Photo\u{2026}", symbol: "photo", enabled: session.isOwner) { replacing = true }
+        let printing: [MacAction] = [macPrintAction(p), printNow, macEditAction(p)]
+        let tag: [MacAction] = [copying, showing, exporting, replaceAction]
+        return [[macSellAction(p)], printing, tag, [macDeleteAction(p)]]
+    }
+
+    /// Selling and editing open in a window of their own where the window can; otherwise in this one, as before.
+    private func macOpen(_ path: String) {
+        if let openPlace { openPlace(Route(path: path)) } else { go = Route(path: path) }
+    }
+
+    private func macSell(_ p: Product) {
+        SaleDraftStore.add(p)
+        macOpen(StockKit.newSalePath)
+    }
+}
+
+extension StockSoldView {
+    /// A piece that is gone: a document head saying so, and the invoices it went out on.
+    func macSold(_ sales: [Invoice]) -> some View {
+        VStack(spacing: 0) {
+            MacDocumentHeader(title: sku, subtitle: sales.count == 1 ? "Sold on 1 invoice" : "Sold on \(sales.count) invoices",
+                              status: MacStatus("Sold", tone: .settled))
+            Divider()
+            Form {
+                Section(sales.count == 1 ? "Sold on" : "Sold on These Invoices") {
+                    ForEach(sales) { (inv: Invoice) in
+                        macSaleLink(inv)
+                    }
+                }
             }
             .formStyle(.grouped)
-            .scrollContentBackground(.hidden)
-            .frame(width: 340)
         }
-        .background(Theme.ground)
-        .toolbar {
-            if session.isOwner {
-                ToolbarItemGroup(placement: .primaryAction) {
-                    Button {
-                        SaleDraftStore.add(p)
-                        go = Route(path: StockKit.newSalePath)
-                    } label: { Label("Sell", systemImage: "cart") }
-                    .help("Put this piece on the sale in progress")
-                    Button { go = Route(path: StockKit.editPath(p.sku)) } label: { Label("Edit", systemImage: "pencil") }
-                        .keyboardShortcut("e", modifiers: .command)
-                        .help("Edit this piece (⌘E)")
-                    Button { MacPrint.print(Route(path: "/products/" + StockKit.encode(p.sku))) } label: { Label("Print tag", systemImage: "printer") }
-                        .help("Print this piece's tag with Label LIVE")
-                    Button(role: .destructive) { deletion = StockKit.deletion(p) } label: { Label("Delete", systemImage: "trash") }
-                        .keyboardShortcut(.delete, modifiers: .command)
-                        .help("Delete this piece (asks for the delete code)")
-                }
-            }
+    }
+
+    @ViewBuilder
+    private func macSaleLink(_ inv: Invoice) -> some View {
+        let path = "/invoices/" + StockKit.encode(inv.id)
+        if let openPlace {
+            Button { openPlace(Route(path: path)) } label: { saleRow(inv) }
+                .buttonStyle(.plain)
+        } else {
+            NavigationLink(value: Route(path: path)) { saleRow(inv) }
         }
     }
 }

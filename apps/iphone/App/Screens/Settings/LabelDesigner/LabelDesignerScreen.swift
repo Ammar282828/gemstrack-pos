@@ -133,9 +133,17 @@ struct LabelDesigner: View {
                 Text("Only owners can change the tag. This is how it prints.")
                     .font(.footnote).foregroundStyle(.secondary).frame(maxWidth: .infinity).padding(8)
             }
+            #if os(macOS)
+            macBody(m)
+            #else
             if wide { wideBody(m) } else { compactBody(m) }
+            #endif
         }
         .background(Theme.ground)
+        #if os(macOS)
+        // Field / Label / Preview are the inspector's own header, not a tab row over the content.
+        .macInspector { macInspectorPanel(m) }
+        #endif
         .toolbar { designerToolbar(m) }
         .sheet(isPresented: $addingPicture) {
             LabelPictureSheet(labelWidthDots: m.layout.widthDots, dpi: m.layout.dpi) { bitmap, w, h, dither, threshold, source in
@@ -457,3 +465,45 @@ private struct LabelStandardDoc: Decodable {
         standard = try decoder.container(keyedBy: K.self).object(.standard, of: LabelLayout.self)
     }
 }
+
+#if os(macOS)
+// The Mac's designer (docs/features/mac-design.md, "Stock"): the layers at the left and the canvas with its controls, as before;
+// the right-hand pane is the window's inspector (View › Show Inspector, ⌥⌘I) with Field / Label / Preview as its header switch.
+extension LabelDesigner {
+    fileprivate func macBody(_ m: LabelDesignerModel) -> some View {
+        HSplitView {
+            VStack(spacing: 0) {
+                HStack {
+                    Text("Layers").font(.headline)
+                    Spacer()
+                    Text("\(m.layout.fields.count)").foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 14).padding(.vertical, 10)
+                LabelLayersList(model: m)
+            }
+            .frame(minWidth: 190, idealWidth: 230, maxWidth: 320)
+            VStack(spacing: 0) {
+                canvas(m).frame(minWidth: 380, minHeight: 280)
+                Divider()
+                controlBar(m)
+            }
+        }
+        .onChange(of: m.selection) { _, s in if !s.isEmpty, panel != .field { panel = .field } }
+        .onAppear { if panel == .layers { panel = .field } }
+    }
+
+    fileprivate func macInspectorPanel(_ m: LabelDesignerModel) -> some View {
+        VStack(spacing: 0) {
+            Picker("Inspector", selection: $panel) {
+                Text("Field").tag(Panel.field)
+                Text("Label").tag(Panel.label)
+                Text("Preview").tag(Panel.preview)
+            }
+            .pickerStyle(.segmented).labelsHidden()
+            .padding(10)
+            Divider()
+            panelBody(m)
+        }
+    }
+}
+#endif

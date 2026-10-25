@@ -38,7 +38,11 @@ struct WorkshopBoard: View {
     #if os(macOS)
     @State private var macPicked = Set<String>()
     @State private var macSort: [KeyPathComparator<WorkshopJob>] = []
-    @State private var macInspector = true
+    /// The board or the table, remembered on this Mac.
+    @AppStorage(MacWorkshopView.key) private var macViewRaw = MacWorkshopView.board.rawValue
+    /// What the pieces and the board come to, worked out once per change of the books, the filters and the sort.
+    @State private var macJobsMemo = Memo<[WorkshopJob]>()
+    @State private var macDataMemo = Memo<MacWorkshopData>()
     @Environment(\.openPlaceWindow) private var openPlace
     #endif
 
@@ -54,7 +58,11 @@ struct WorkshopBoard: View {
     var body: some View {
         Group {
             if orderId == nil {
+                #if os(macOS)
+                screen.macSearchable(text: $filter.query, prompt: "Search Workshop")
+                #else
                 screen.searchable(text: $filter.query, prompt: "Item, karigar, customer, order")
+                #endif
             } else {
                 screen
             }
@@ -68,7 +76,10 @@ struct WorkshopBoard: View {
         .navigationTitle(orderId == nil ? "Workshop" : "Give out")
         .hubTitleDisplay()
         .navigationSubtitle(orderId ?? "")
+        #if !os(macOS)
+        // The Mac's toolbar is the board's own (Board / Table, Show, Filter, Give To, Mark Done): not the phone's menus too.
         .toolbar { if orderId == nil { boardToolbar } }
+        #endif
         .modifier(HouseGround())
         .workshopPlaceDestination($opened)
         .workshopFailureAlert($failure)
@@ -127,6 +138,9 @@ struct WorkshopBoard: View {
 
     @ViewBuilder
     private var content: some View {
+        #if os(macOS)
+        macContent
+        #else
         let live = workshopLive(book.karigars.items)
         let jobs = WorkshopLogic.buildJobs(
             orders: book.orders.items,
@@ -137,9 +151,6 @@ struct WorkshopBoard: View {
         let shownJobs = patches.isEmpty ? jobs : jobs.map { patched($0) }
         let all = orderId.map { id in shownJobs.filter { $0.orderId == id } } ?? shownJobs
         let snap = WorkshopSnapshot(all: all, filter: filter)
-        #if os(macOS)
-        macBoard(snap, live)
-        #else
         board(snap, live)
         #endif
     }
@@ -762,241 +773,187 @@ private struct JobPatch {
     let toName: String?
 }
 
+
 #if os(macOS)
-/// One column of the Mac's board: a karigar's bench, a stage, an urgency, or the benches with nothing on them.
-private struct MacBenchColumn: Identifiable {
-    let id: String
-    let title: String
-    let symbol: String
-    var tone: Tone = .quiet
-    var subtitle = ""
-    var critical = 0
-    var late = 0
-    /// Opens his page.
-    var karigarId: String?
-    var jobs: [WorkshopJob] = []
-    var showKarigar = false
-    /// The karigars with nothing on the bench (the free column).
-    var free: [Karigar] = []
-}
-
-// The Mac's workshop board: columns across the window (a karigar's bench each, or a stage each; the pieces keep every control
-// the iPhone's card has, and its right-click menu), or a Table of every piece with the picked one's card in an inspector. The
-// figures sit in a strip above; the focus, grouping, filters and "Assign stock work" are in the toolbar. The iPhone moves a
-// piece with a menu, not a drag, so the Mac does too: assign a karigar, Given and Done are on each card and in its menu.
+// The Mac's Workshop (docs/features/mac-design.md, "Workshop"): the board (a column for each karigar, Needs a karigar, Free and
+// Done, compact rows, a row dragged onto a column is given to that karigar or marked done) or a table of every piece (the
+// karigar a pop-up cell, Done a checkbox cell), the picked piece in the inspector, a summary bar at the foot, and every
+// action declared once for the Job menu, the toolbar, the right-click menu and the inspector. The writes are the screen's
+// own (setKarigar, setDone, setGiven, openDetails, askDelete): this is arrangement only.
 extension WorkshopBoard {
-    func macBoard(_ snap: WorkshopSnapshot, _ live: [Karigar]) -> some View {
-        let focused = snap.focused(focus)
-        let busyIds = Set(snap.all.filter { !$0.isDone }.map { $0.karigarId })
-        let choices = WorkshopChoices(karigars: live, busyIds: busyIds)
+    var macContent: some View {
+        let data = macData()
         return VStack(spacing: 0) {
-            if orderId == nil {
-                macSummary(snap)
-                Divider()
+            if macTable { macTableView(data) } else { macBoardView(data) }
+        }
+        .overlay {
+            if macTable && data.focused.isEmpty { emptyState(data.snap).allowsHitTesting(false) }
+        }
+        .modifier(MacWorkshopSummary(parts: orderId == nil ? macSummary(data) : []))
+        .toolbar { macToolbar(data) }
+        .macInspector { macInspectorPanel(data) }
+        .macRecordMenu(MacRecordMenu(title: "Job", groups: macJobGroups(macPickedJobs(data), data.live, flatGive: true)))
+    }
+
+    /// The table, for the board's "Give out" mode (one order's pieces) and when the Table view is chosen.
+    private var macTable: Bool { orderId != nil || macViewRaw == MacWorkshopView.table.rawValue }
+
+    // MARK: The pieces, worked out once
+
+    /// What the patches say, as a number: when a piece is moved the board redraws from the books and the patch together.
+    private var macPatchStamp: Int {
+        patches.map { "\($0.key)|\($0.value.to.status)|\($0.value.to.given)|\($0.value.to.karigarId)" }
+            .sorted().joined(separator: ",").hashValue
+    }
+
+    private func macData() -> MacWorkshopData {
+        let jobsKey: [Int] = [book.orders.revision, book.invoices.revision, book.karigars.revision, book.karigarJobs.revision, macPatchStamp]
+        let jobs: [WorkshopJob] = macJobsMemo(jobsKey) {
+            let live = workshopLive(book.karigars.items)
+            let built = WorkshopLogic.buildJobs(
+                orders: book.orders.items,
+                karigarJobs: book.karigarJobs.items,
+                karigars: live,
+                invoices: book.invoices.items
+            )
+            let shown = patches.isEmpty ? built : built.map { patched($0) }
+            return orderId.map { id in shown.filter { $0.orderId == id } } ?? shown
+        }
+        let stamp: Int = [filter.query, filter.status.rawValue, filter.type.rawValue, filter.takenBy, filter.karigarId]
+            .joined(separator: "\u{1}").hashValue
+        let key: [Int] = jobsKey + [stamp, focus.hashValue, macViewRaw.hashValue, macSort.hashValue]
+        return macDataMemo(key) {
+            let live = workshopLive(book.karigars.items)
+            let snap = WorkshopSnapshot(all: jobs, filter: filter)
+            let focused = snap.focused(focus)
+            let loads = WorkshopLogic.groupByKarigar(snap.bench)
+            var byId: [String: WorkshopJob] = [:]
+            for j in jobs { byId[j.id] = j }
+            let columns = macTable ? [] : macColumns(snap, focused: focused, live: live)
+            return MacWorkshopData(
+                live: live, snap: snap, focused: focused,
+                sorted: macSort.isEmpty ? focused : focused.sorted(using: macSort),
+                byId: byId, columns: columns,
+                grams: loads.reduce(0.0) { $0 + $1.totalWeightG },
+                value: loads.reduce(0.0) { $0 + $1.totalValue }
+            )
+        }
+    }
+
+    /// A column for each karigar with work (the one most at risk first), Needs a karigar before them, the karigars with
+    /// nothing on the bench together as Free, and Done last.
+    private func macColumns(_ snap: WorkshopSnapshot, focused: [WorkshopJob], live: [Karigar]) -> [MacWorkshopColumn] {
+        var needs = MacWorkshopColumn(id: "needs", title: "Needs a karigar", kind: .needs)
+        var people: [MacWorkshopColumn] = []
+        for load in WorkshopLogic.groupByKarigar(focused.filter { !$0.isDone }) {
+            if load.isUnassigned {
+                needs.jobs = WorkshopLogic.byOrder(load.jobs)
+                needs.critical = load.critical
+                needs.late = load.late
+            } else {
+                people.append(MacWorkshopColumn(id: load.karigarId, title: load.karigarName, kind: .karigar, karigarId: load.karigarId,
+                                                subtitle: headerCounts(load), critical: load.critical, late: load.late,
+                                                jobs: WorkshopLogic.byOrder(load.jobs)))
             }
-            Group {
-                if grouping == .list {
-                    macList(focused, choices: choices)
+        }
+        var out: [MacWorkshopColumn] = [needs]
+        out.append(contentsOf: people)
+        if focus == .all && !filter.narrowed && filter.karigarId.isEmpty {
+            let busyIds = Set(snap.bench.filter { !$0.isDone }.map { $0.karigarId })
+            let idle = live.filter { !busyIds.contains($0.id) }
+            if !idle.isEmpty {
+                out.append(MacWorkshopColumn(id: "free", title: "Free", kind: .free, subtitle: "Nothing on the bench", free: idle))
+            }
+        }
+        out.append(MacWorkshopColumn(id: "done", title: "Done", kind: .done, jobs: focused.filter { $0.isDone }))
+        return out
+    }
+
+    private func macPickedJobs(_ data: MacWorkshopData) -> [WorkshopJob] {
+        macPicked.compactMap { data.byId[$0] }.sorted { $0.id < $1.id }
+    }
+
+    private func macSummary(_ data: MacWorkshopData) -> [String] {
+        let picked = macPickedJobs(data)
+        if !picked.isEmpty {
+            var parts = ["\(picked.count) selected"]
+            let grams = picked.reduce(0.0) { $0 + ($1.weightG ?? 0) }
+            if grams > 0 { parts.append(WorkshopLogic.number(grams, digits: 1) + "g") }
+            return parts
+        }
+        let stats = data.snap.stats
+        var parts = ["\(stats.active) active"]
+        if stats.overdue > 0 { parts.append("\(stats.overdue) late") }
+        if stats.unassigned > 0 { parts.append("\(stats.unassigned) need a karigar") }
+        if data.grams > 0 { parts.append(WorkshopLogic.number(data.grams, digits: 1) + "g of metal out") }
+        if session.isOwner && data.value > 0 { parts.append(Money.pkrLac(data.value) + " out") }
+        return parts
+    }
+
+    // MARK: The board
+
+    private func macBoardView(_ data: MacWorkshopData) -> some View {
+        MacWorkshopBoardView(
+            columns: data.columns,
+            picked: $macPicked,
+            give: { (job: WorkshopJob) in macGiveActions(macClicked(job, data), data.live, flat: false) },
+            groups: { (job: WorkshopJob) in macJobGroups(macClicked(job, data), data.live, flatGive: false) },
+            drop: { (ids: [String], kind: MacWorkshopColumn.Kind, karigarId: String?) in macDrop(ids, kind, karigarId, data) },
+            open: { (job: WorkshopJob) in macOpenJob(job) },
+            openKarigar: { (id: String) in macOpen(WorkshopPlace.karigar(id)) }
+        )
+    }
+
+    /// The pieces a right-click on `job` is about: the pieces picked when it is one of them, else it alone.
+    private func macClicked(_ job: WorkshopJob, _ data: MacWorkshopData) -> [WorkshopJob] {
+        macPicked.contains(job.id) ? macPickedJobs(data) : [job]
+    }
+
+    /// Pieces dropped on a column: given to its karigar, taken off a karigar, or marked done. A stock job keeps the karigar
+    /// it was written for (the web offers no reassigning it either), so it only goes to Done.
+    private func macDrop(_ ids: [String], _ kind: MacWorkshopColumn.Kind, _ karigarId: String?, _ data: MacWorkshopData) -> Bool {
+        guard session.isOwner else {
+            failure = "Only an owner can move work."
+            return false
+        }
+        var moved = false
+        var refused = false
+        for id in ids {
+            guard let job = data.byId[id] else { continue }
+            switch kind {
+            case .done:
+                if !job.isDone && macCanWrite(job) {
+                    setDone(job, true)
+                    moved = true
+                }
+            case .needs:
+                if job.isUnassigned { continue }
+                if macCanAssign(job) {
+                    setKarigar(job, "none")
+                    moved = true
                 } else {
-                    macColumnsView(macColumns(snap, focused: focused, live: live), choices: choices)
+                    refused = true
                 }
-            }
-            .overlay {
-                if focused.isEmpty { emptyState(snap).allowsHitTesting(false) }
-            }
-        }
-        .toolbar {
-            if orderId == nil {
-                ToolbarItem(placement: .principal) {
-                    Picker("Layout", selection: Binding(
-                        get: { grouping },
-                        set: { g in Motion.run(reduce: reduceMotion) { grouping = g } }
-                    )) {
-                        Text("Karigars").tag(WorkshopGrouping.karigar)
-                        Text("Stages").tag(WorkshopGrouping.stage)
-                        Text("Pieces").tag(WorkshopGrouping.list)
-                    }
-                    .pickerStyle(.segmented)
-                    .help("A column for each karigar or stage, or a table of every piece")
-                }
-                ToolbarItem(placement: .automatic) {
-                    Picker("Show", selection: Binding(
-                        get: { focus },
-                        set: { f in Motion.run(reduce: reduceMotion) { focus = f } }
-                    )) {
-                        ForEach(WorkshopFocus.allCases) { f in
-                            Text(f == .all ? focusTitle(f) : "\(focusTitle(f)) (\(snap.count(f)))").tag(f)
-                        }
-                    }
-                    .help("All the work, or only what needs a hand")
+            case .karigar, .free:
+                guard let target = karigarId, job.karigarId != target else { continue }
+                if macCanAssign(job) {
+                    setKarigar(job, target)
+                    moved = true
+                } else {
+                    refused = true
                 }
             }
         }
-        .inspector(isPresented: Binding(
-            get: { grouping == .list && macInspector && macPicked.count == 1 },
-            set: { macInspector = $0 }
-        )) {
-            if grouping == .list, macPicked.count == 1, let id = macPicked.first, let job = focused.first(where: { $0.id == id }) {
-                ScrollView {
-                    jobRow(job, showKarigar: true, choices: choices).padding(16)
-                }
-                .inspectorColumnWidth(min: 300, ideal: 360, max: 460)
-            }
-        }
-        .onChange(of: macPicked) { _, _ in macInspector = true }
-    }
-
-    // MARK: The strip
-
-    private func macSummary(_ snap: WorkshopSnapshot) -> some View {
-        let loads = WorkshopLogic.groupByKarigar(snap.bench)
-        let grams = loads.reduce(0.0) { $0 + $1.totalWeightG }
-        let value = loads.reduce(0.0) { $0 + $1.totalValue }
-        let critical = snap.stats.critical
-        let late = snap.stats.overdue - critical
-        return HStack(alignment: .top, spacing: 10) {
-            FigureTile(label: "All active pieces", value: "\(snap.stats.active)")
-            FigureTile(label: "Benches working", value: "\(snap.stats.workers)")
-            FigureTile(label: "Late \(WorkshopLogic.warnDays)d+", value: "\(late)", tint: late > 0 ? Tone.owed.color : Color.primary)
-            FigureTile(label: "Critical \(WorkshopLogic.criticalDays)d+", value: "\(critical)", tint: critical > 0 ? Tone.late.color : Color.primary)
-            FigureTile(label: "Metal out", value: grams > 0 ? WorkshopLogic.number(grams, digits: 1) + "g" : "\u{2014}")
-            if session.isOwner {
-                FigureTile(label: "Value out", value: value > 0 ? Money.pkrLac(value) : "\u{2014}")
-            }
-        }
-        .padding(.horizontal, 16).padding(.vertical, 12)
-    }
-
-    // MARK: The columns
-
-    private func macColumns(_ snap: WorkshopSnapshot, focused: [WorkshopJob], live: [Karigar]) -> [MacBenchColumn] {
-        func urgent(_ jobs: [WorkshopJob]) -> (Int, Int) {
-            (jobs.filter { !$0.isDone && $0.urgency == .critical }.count, jobs.filter { !$0.isDone && $0.urgency == .warning }.count)
-        }
-        switch grouping {
-        case .list:
-            return []
-        case .stage:
-            return stages.map { (st: Stage) -> MacBenchColumn in
-                let jobs = focused.filter { $0.status == st.status }
-                let u = urgent(jobs)
-                return MacBenchColumn(id: st.id, title: st.title, symbol: st.symbol, critical: u.0, late: u.1, jobs: jobs, showKarigar: true)
-            }
-        case .karigar:
-            if !filter.karigarId.isEmpty && focus != .unassigned {
-                // One karigar chosen: his bench by how long each piece has sat.
-                let active = focused.filter { !$0.isDone }
-                let byAge = { (a: WorkshopJob, b: WorkshopJob) in a.ageDays > b.ageDays }
-                var out: [MacBenchColumn] = []
-                let critical = active.filter { $0.urgency == .critical }.sorted(by: byAge)
-                let late = active.filter { $0.urgency == .warning }.sorted(by: byAge)
-                if !critical.isEmpty {
-                    out.append(MacBenchColumn(id: "critical", title: "Critical", symbol: "flame", tone: .late,
-                                              subtitle: "sitting \(WorkshopLogic.criticalDays)+ days", jobs: critical))
-                }
-                if !late.isEmpty {
-                    out.append(MacBenchColumn(id: "late", title: "Late", symbol: "clock", tone: .owed,
-                                              subtitle: "\(WorkshopLogic.warnDays)\u{2013}\(WorkshopLogic.criticalDays) days", jobs: late))
-                }
-                out.append(MacBenchColumn(id: "ontrack", title: "On track", symbol: "hammer",
-                                          jobs: active.filter { $0.urgency == .ok }.sorted(by: byAge)))
-                if filter.status == .all || filter.status == .completed {
-                    out.append(MacBenchColumn(id: "done", title: "Completed", symbol: "checkmark.circle", jobs: focused.filter { $0.isDone }))
-                }
-                return out
-            }
-            var out = WorkshopLogic.groupByKarigar(focused).map { (load: WorkshopLoad) -> MacBenchColumn in
-                MacBenchColumn(id: load.karigarId, title: load.isUnassigned ? "Unassigned" : load.karigarName,
-                               symbol: load.isUnassigned ? "exclamationmark.triangle.fill" : "hammer",
-                               tone: load.isUnassigned ? .owed : .house, subtitle: headerCounts(load),
-                               critical: load.critical, late: load.late,
-                               karigarId: load.isUnassigned ? nil : load.karigarId,
-                               jobs: WorkshopLogic.byOrder(load.jobs))
-            }
-            if focus == .all && !filter.narrowed && filter.karigarId.isEmpty {
-                let busyIds = Set(snap.bench.filter { !$0.isDone }.map { $0.karigarId })
-                let idle = live.filter { !busyIds.contains($0.id) }
-                if !idle.isEmpty {
-                    out.append(MacBenchColumn(id: "free", title: "Free", symbol: "moon", subtitle: "Nothing on the bench: the next job can go here", free: idle))
-                }
-            }
-            return out
-        }
-    }
-
-    private func macColumnsView(_ columns: [MacBenchColumn], choices: WorkshopChoices) -> some View {
-        ScrollView(.horizontal) {
-            HStack(alignment: .top, spacing: 14) {
-                ForEach(columns) { (col: MacBenchColumn) in macColumn(col, choices: choices) }
-            }
-            .padding(16)
-            .frame(maxHeight: .infinity, alignment: .top)
-        }
-    }
-
-    private func macColumn(_ col: MacBenchColumn, choices: WorkshopChoices) -> some View {
-        VStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 6) {
-                    Image(systemName: col.symbol)
-                        .foregroundStyle(col.tone == .quiet ? Color.secondary : col.tone.color)
-                    Text(col.title).font(.headline).lineLimit(1)
-                    Text("\(col.free.isEmpty ? col.jobs.count : col.free.count)")
-                        .font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
-                    Spacer(minLength: 4)
-                    WorkshopUrgencyBadges(critical: col.critical, late: col.late)
-                    if let id = col.karigarId {
-                        Button { opened = WorkshopPlace.karigar(id) } label: { Image(systemName: "person.crop.circle") }
-                            .buttonStyle(.borderless)
-                            .help("Open " + col.title)
-                    }
-                }
-                if !col.subtitle.isEmpty {
-                    Text(col.subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(2)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(12)
-            Divider()
-            ScrollView {
-                LazyVStack(spacing: 10) {
-                    if !col.free.isEmpty {
-                        ForEach(col.free) { (k: Karigar) in
-                            Button { opened = WorkshopPlace.karigar(k.id) } label: {
-                                Label(k.name, systemImage: "hammer").frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                            .buttonStyle(.plain)
-                            .ledgerCard(padding: 12)
-                            .cardHover()
-                        }
-                    } else if col.jobs.isEmpty {
-                        Text("Nothing here").font(.callout).foregroundStyle(.secondary).padding(.top, 12)
-                    } else {
-                        ForEach(col.jobs) { (job: WorkshopJob) in
-                            jobRow(job, showKarigar: col.showKarigar, choices: choices)
-                                .ledgerCard(padding: 12)
-                        }
-                    }
-                }
-                .padding(10)
-            }
-        }
-        .frame(width: 360)
-        .frame(maxHeight: .infinity, alignment: .top)
-        .background(Color.secondary.opacity(0.07), in: .rect(cornerRadius: Radius.card, style: .continuous))
+        if refused { failure = "A stock job stays with the karigar it was written for." }
+        return moved
     }
 
     // MARK: The table
 
-    private func macStage(_ job: WorkshopJob) -> String {
-        if job.isDone { return "Completed" }
-        if job.isUnassigned { return "Needs a karigar" }
-        return job.hasGiven ? "On the bench" : "Ready to give"
-    }
-
-    private func macList(_ focused: [WorkshopJob], choices: WorkshopChoices) -> some View {
-        let ordered = macSort.isEmpty ? focused : focused.sorted(using: macSort)
-        return Table(ordered, selection: $macPicked, sortOrder: $macSort) {
+    private func macTableView(_ data: MacWorkshopData) -> some View {
+        Table(data.sorted, selection: $macPicked, sortOrder: $macSort) {
+            TableColumn("Done") { (j: WorkshopJob) in macDoneCell(j) }
+                .width(46)
             TableColumn("Piece", value: \.description) { (j: WorkshopJob) in Text(j.description).fontWeight(.medium).lineLimit(1) }
                 .width(min: 180, ideal: 280)
             TableColumn("Order") { (j: WorkshopJob) in
@@ -1005,43 +962,385 @@ extension WorkshopBoard {
             .width(min: 90, ideal: 120)
             TableColumn("Customer") { (j: WorkshopJob) in Text(j.customerName ?? "").foregroundStyle(.secondary).lineLimit(1) }
                 .width(min: 100, ideal: 160)
-            TableColumn("Karigar", value: \.karigarName) { (j: WorkshopJob) in
-                Text(j.isUnassigned ? "Unassigned" : j.karigarName)
-                    .foregroundStyle(j.isUnassigned ? Tone.owed.color : Color.primary)
-            }
-            .width(min: 100, ideal: 140)
-            TableColumn("Stage") { (j: WorkshopJob) in
-                Text(macStage(j)).foregroundStyle(j.isDone ? Color.secondary : (j.isUnassigned || !j.hasGiven ? Tone.owed.color : Theme.accent))
-            }
-            .width(min: 100, ideal: 120)
+            TableColumn("Karigar", value: \.karigarName) { (j: WorkshopJob) in macKarigarCell(j, data.live) }
+                .width(min: 130, ideal: 170)
+            TableColumn("Stage") { (j: WorkshopJob) in MacStatus(macStageWords(j), tone: macStageTone(j)) }
+                .width(min: 110, ideal: 130)
             TableColumn("Age", value: \.ageDays) { (j: WorkshopJob) in
-                HStack(spacing: 6) {
-                    Text(j.isDone ? "" : "\(j.ageDays)d").monospacedDigit()
-                    WorkshopAgeBadge(job: j)
-                }
+                Text(j.isDone ? "" : "\(j.ageDays)d").monospacedDigit().foregroundStyle(macAgeColor(j))
             }
-            .width(min: 80, ideal: 100)
+            .width(min: 60, ideal: 70)
             TableColumn("Weight") { (j: WorkshopJob) in
                 Text((j.weightG ?? 0) > 0 ? WorkshopLogic.number(j.weightG ?? 0, digits: 1) + "g" : "").monospacedDigit()
             }
             .width(min: 60, ideal: 80)
         }
         .contextMenu(forSelectionType: String.self) { ids in
-            if ids.count == 1, let id = ids.first, let job = focused.first(where: { $0.id == id }) {
-                WorkshopJobRow(job: job, showKarigar: true, isOwner: session.isOwner, busy: busy.contains(job.id),
-                               choices: choices, actions: actions).menuItems
-                if let path = job.invoiceId.map({ "/invoices/" + WorkshopLogic.piece($0) }) ?? job.orderId.map({ "/orders/" + WorkshopLogic.piece($0) }) {
-                    Button { openPlace?(Route(path: path)) } label: {
-                        Label("Open in New Window", systemImage: "macwindow.badge.plus")
+            let jobs = ids.compactMap { data.byId[$0] }
+            if !jobs.isEmpty {
+                MacWorkshopJobMenu(give: macGiveActions(jobs, data.live, flat: false), groups: macJobGroups(jobs, data.live, flatGive: false))
+            }
+        } primaryAction: { ids in
+            if ids.count == 1, let id = ids.first, let job = data.byId[id] { macOpenJob(job) }
+        }
+    }
+
+    /// Done as a checkbox, where the ERP can write it (an order's piece, a sold piece, a stock job).
+    private func macDoneCell(_ j: WorkshopJob) -> some View {
+        Toggle("Done", isOn: Binding(get: { j.isDone }, set: { on in setDone(j, on) }))
+            .labelsHidden()
+            .toggleStyle(.checkbox)
+            .disabled(!macCanWrite(j) || busy.contains(j.id))
+            .help(j.isDone ? "Done. Click to put it back on the bench." : "Mark done")
+    }
+
+    /// The karigar as a pop-up where the piece can be given to someone else; a stock job's is fixed.
+    @ViewBuilder
+    private func macKarigarCell(_ j: WorkshopJob, _ live: [Karigar]) -> some View {
+        if macCanAssign(j) && !j.isDone {
+            Picker("Karigar", selection: Binding(
+                get: { j.karigarId },
+                set: { id in
+                    if id != j.karigarId { setKarigar(j, id == WorkshopLogic.unassigned ? "none" : id) }
+                }
+            )) {
+                Text("Needs a karigar").tag(WorkshopLogic.unassigned)
+                if !j.isUnassigned && !live.contains(where: { $0.id == j.karigarId }) {
+                    Text(j.karigarName).tag(j.karigarId)
+                }
+                ForEach(live) { (k: Karigar) in Text(k.name).tag(k.id) }
+            }
+            .labelsHidden()
+            .pickerStyle(.menu)
+        } else {
+            Text(j.isUnassigned ? "Needs a karigar" : j.karigarName)
+                .foregroundStyle(j.isUnassigned ? Tone.owed.color : Color.primary)
+        }
+    }
+
+    private func macStageWords(_ j: WorkshopJob) -> String {
+        if j.isDone { return "Completed" }
+        if j.isUnassigned { return "Needs a karigar" }
+        return j.hasGiven ? "On the bench" : "Ready to give"
+    }
+
+    private func macStageTone(_ j: WorkshopJob) -> Tone {
+        if j.isDone { return .quiet }
+        if j.isUnassigned { return .owed }
+        return j.hasGiven ? .working : .owed
+    }
+
+    private func macAgeColor(_ j: WorkshopJob) -> Color {
+        if j.isDone { return Color.secondary }
+        switch j.urgency {
+        case .critical: return Tone.late.color
+        case .warning: return Tone.owed.color
+        case .ok: return Color.primary
+        }
+    }
+
+    // MARK: The toolbar
+
+    @ToolbarContentBuilder
+    private func macToolbar(_ data: MacWorkshopData) -> some ToolbarContent {
+        if orderId == nil {
+            ToolbarItem(placement: .principal) {
+                Picker("View", selection: $macViewRaw) {
+                    ForEach(MacWorkshopView.allCases) { (v: MacWorkshopView) in
+                        Label(v.title, systemImage: v.symbol).tag(v.rawValue)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .help("A column for each karigar, or a table of every piece")
+            }
+            ToolbarItem(placement: .automatic) {
+                Picker("Show", selection: $focus) {
+                    ForEach(WorkshopFocus.allCases) { (f: WorkshopFocus) in
+                        Text(f == .all ? focusTitle(f) : "\(focusTitle(f)) (\(data.snap.count(f)))").tag(f)
+                    }
+                }
+                .pickerStyle(.menu)
+                .help("All the work, or only what needs a hand")
+            }
+            ToolbarItem(placement: .automatic) { macFilterMenu(data.live) }
+        }
+        ToolbarItemGroup(placement: .primaryAction) {
+            let jobs = macPickedJobs(data)
+            Menu {
+                ForEach(macGiveActions(jobs, data.live, flat: false)) { (a: MacAction) in MacActionMenuItem(action: a) }
+            } label: {
+                Label("Give To", systemImage: "person.badge.plus")
+            }
+            .disabled(jobs.isEmpty || !session.isOwner)
+            .help("Give the picked pieces to a karigar")
+            MacToolbarAction(action: macDoneAction(jobs))
+            MacToolbarAction(action: macAssignStockAction(jobs))
+        }
+    }
+
+    private func macFilterMenu(_ live: [Karigar]) -> some View {
+        let people = session.shop.takenBy
+        return Menu {
+            if !people.isEmpty {
+                Picker("Taken by", selection: $filter.takenBy) {
+                    Text("Anyone").tag("")
+                    ForEach(people, id: \.self) { (p: String) in Text(p).tag(p) }
+                }
+            }
+            Picker("Work", selection: $filter.type) {
+                ForEach(WorkshopTypeFilter.allCases) { (t: WorkshopTypeFilter) in Text(t.title).tag(t) }
+            }
+            Picker("Karigar", selection: $filter.karigarId) {
+                Text("Everyone").tag("")
+                ForEach(live) { (k: Karigar) in Text(k.name).tag(k.id) }
+            }
+            Picker("Status", selection: $filter.status) {
+                ForEach(WorkshopStatusFilter.allCases) { (s: WorkshopStatusFilter) in Text(s.title).tag(s) }
+            }
+            if filter.menuCount > 0 {
+                Divider()
+                Button("Reset Filters", systemImage: "arrow.counterclockwise") { filter = WorkshopFilter() }
+            }
+        } label: {
+            Label("Filter", systemImage: filter.menuCount > 0 ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+        }
+        .help("Taken by, kind of work, karigar and status")
+    }
+
+    // MARK: The actions, declared once
+
+    private func macCanWrite(_ job: WorkshopJob) -> Bool {
+        session.isOwner && WorkshopLogic.writeTarget(job) != nil
+    }
+
+    /// An order's piece or a sold piece can be given to another karigar; a stock job keeps the one it was written for.
+    private func macCanAssign(_ job: WorkshopJob) -> Bool {
+        guard session.isOwner, let target = WorkshopLogic.writeTarget(job) else { return false }
+        if case .stock = target { return false }
+        return true
+    }
+
+    private func macDoneAction(_ jobs: [WorkshopJob]) -> MacAction {
+        let writable = !jobs.isEmpty && jobs.allSatisfy { macCanWrite($0) }
+        let allDone = !jobs.isEmpty && jobs.allSatisfy { $0.isDone }
+        return MacAction(allDone ? "Mark Not Done" : "Mark Done", symbol: allDone ? "circle" : "checkmark.circle",
+                         shortcut: KeyboardShortcut(.return, modifiers: .command), enabled: writable, isDefault: true) {
+            for j in jobs { setDone(j, !allDone) }
+        }
+    }
+
+    private func macAssignStockAction(_ jobs: [WorkshopJob]) -> MacAction {
+        var preset = filter.karigarId
+        if jobs.count == 1, let j = jobs.first, !j.isUnassigned { preset = j.karigarId }
+        let karigarId = preset
+        return MacAction("Assign Stock Work\u{2026}", symbol: "plus.circle", shortcut: KeyboardShortcut("n", modifiers: [.control, .command]),
+                         enabled: session.isOwner) { assigning = WorkshopStockJobAsk(karigarId: karigarId) }
+    }
+
+    /// The karigars the pieces can be given to (and taking them off). "Give to Ustad Demo" in the menu bar, just the name
+    /// in the right-click menu's Give To submenu.
+    private func macGiveActions(_ jobs: [WorkshopJob], _ live: [Karigar], flat: Bool) -> [MacAction] {
+        let can = !jobs.isEmpty && jobs.allSatisfy { macCanAssign($0) }
+        let only: String? = jobs.count == 1 ? jobs.first?.karigarId : nil
+        var out: [MacAction] = []
+        for k in live {
+            let id = k.id
+            out.append(MacAction((flat ? "Give to " : "") + k.name, symbol: only == id ? "checkmark" : nil, enabled: can, id: "give:" + id) {
+                for j in jobs where j.karigarId != id { setKarigar(j, id) }
+            })
+        }
+        out.append(MacAction(flat ? "Take Off the Karigar" : "No Karigar", symbol: "person.badge.minus", enabled: can, id: "give:none") {
+            for j in jobs where !j.isUnassigned { setKarigar(j, "none") }
+        })
+        return out
+    }
+
+    /// Every action of a piece, for the Job menu (`flatGive`: the karigars listed as items) and the right-click menu (Give To
+    /// is its own submenu there).
+    private func macJobGroups(_ jobs: [WorkshopJob], _ live: [Karigar], flatGive: Bool) -> [[MacAction]] {
+        let single: WorkshopJob? = jobs.count == 1 ? jobs.first : nil
+        let writable = !jobs.isEmpty && jobs.allSatisfy { macCanWrite($0) }
+        let givable = writable && jobs.allSatisfy { !$0.isDone && !$0.isUnassigned }
+        let allGiven = !jobs.isEmpty && jobs.allSatisfy { $0.hasGiven }
+        let inStock: Bool = {
+            guard let j = single, session.isOwner, let target = WorkshopLogic.writeTarget(j) else { return false }
+            if case .stock = target { return true }
+            return false
+        }()
+        var groups: [[MacAction]] = []
+        if flatGive { groups.append(macGiveActions(jobs, live, flat: true)) }
+        groups.append([
+            macDoneAction(jobs),
+            MacAction(allGiven ? "Mark Not Given" : "Mark Given", symbol: "shippingbox", enabled: givable) {
+                for j in jobs { setGiven(j, !allGiven) }
+            },
+        ])
+        groups.append([
+            MacAction("Making Details\u{2026}", symbol: "pencil", shortcut: KeyboardShortcut("e", modifiers: .command),
+                      enabled: single != nil && writable) { if let j = single { openDetails(j) } },
+            MacAction(single?.invoiceId != nil ? "Open Invoice" : "Open Order", symbol: "doc.text",
+                      enabled: single.map { $0.invoiceId != nil || $0.orderId != nil } ?? false) { if let j = single { macOpenJob(j) } },
+            MacAction("Open Karigar", symbol: "hammer",
+                      enabled: single.map { !$0.isUnassigned } ?? false) {
+                if let j = single { macOpen(WorkshopPlace.karigar(j.karigarId)) }
+            },
+        ])
+        groups.append([
+            macAssignStockAction(jobs),
+            MacAction("Delete Job\u{2026}", symbol: "trash", shortcut: KeyboardShortcut(.delete, modifiers: .command), role: .destructive,
+                      enabled: inStock) { if let j = single { askDelete(j) } },
+        ])
+        return groups
+    }
+
+    // MARK: Opening
+
+    /// A place opens in a window of its own where the window can; otherwise in this one, as before.
+    private func macOpen(_ place: WorkshopPlace) {
+        if let openPlace { openPlace(Route(path: place.path)) } else { opened = place }
+    }
+
+    /// Return and a double-click: the order (or the invoice) the piece is on; stock work has none, so its karigar.
+    private func macOpenJob(_ job: WorkshopJob) {
+        if let inv = job.invoiceId {
+            macOpen(WorkshopPlace(path: "/invoices/" + WorkshopLogic.piece(inv)))
+        } else if let ord = job.orderId {
+            macOpen(WorkshopPlace.order(ord))
+        } else if !job.isUnassigned {
+            macOpen(WorkshopPlace.karigar(job.karigarId))
+        }
+    }
+
+    // MARK: The inspector
+
+    @ViewBuilder
+    private func macInspectorPanel(_ data: MacWorkshopData) -> some View {
+        let jobs = macPickedJobs(data)
+        if jobs.count == 1, let job = jobs.first {
+            macJobInspector(job, data)
+        } else if jobs.isEmpty {
+            MacInspectorEmpty(title: "No Piece Selected", detail: "Pick a piece to see who has it and what it needs.")
+        } else {
+            macManyInspector(jobs, data)
+        }
+    }
+
+    private func macJobInspector(_ job: WorkshopJob, _ data: MacWorkshopData) -> some View {
+        let jobs = [job]
+        let writable = macCanWrite(job)
+        return Form {
+            Section {
+                MacInspectorHeader(
+                    title: job.description,
+                    subtitle: macReference(job),
+                    status: MacStatus(macStageWords(job), tone: macStageTone(job)),
+                    headline: job.isDone ? nil : MacHeadline("With the shop for", job.ageDays == 1 ? "1 day" : "\(job.ageDays) days", tone: macAgeTone(job)),
+                    actions: [macDoneAction(jobs)]
+                )
+            }
+            Section("Who Has It") {
+                macKarigarRow(job, data.live)
+                if writable && !job.isDone && !job.isUnassigned {
+                    Toggle(job.hasGiven ? "Given " + ShopDate.say(job.givenAt) : "Given to the karigar", isOn: Binding(
+                        get: { job.hasGiven },
+                        set: { on in setGiven(job, on) }
+                    ))
+                    .disabled(busy.contains(job.id))
+                }
+            }
+            Section("Making") { macMakingRows(job) }
+            if writable {
+                Section {
+                    Button("Making Details\u{2026}") { openDetails(job) }
+                    if job.source == .manual {
+                        Button("Delete Job\u{2026}", role: .destructive) { askDelete(job) }
                     }
                 }
             }
-        } primaryAction: { ids in
-            if ids.count == 1, let id = ids.first, let job = focused.first(where: { $0.id == id }),
-               let path = job.invoiceId.map({ "/invoices/" + WorkshopLogic.piece($0) }) ?? job.orderId.map({ "/orders/" + WorkshopLogic.piece($0) }) {
-                openPlace?(Route(path: path))
+        }
+        .formStyle(.grouped)
+    }
+
+    private func macManyInspector(_ jobs: [WorkshopJob], _ data: MacWorkshopData) -> some View {
+        let grams = jobs.reduce(0.0) { $0 + ($1.weightG ?? 0) }
+        return Form {
+            Section {
+                MacInspectorHeader(
+                    title: "\(jobs.count) Pieces",
+                    subtitle: grams > 0 ? WorkshopLogic.number(grams, digits: 1) + "g in all" : nil,
+                    actions: [macDoneAction(jobs)]
+                )
+            }
+            Section("Pieces") {
+                ForEach(jobs.prefix(40)) { (j: WorkshopJob) in
+                    LabeledContent(j.description) { Text(j.isUnassigned ? "Needs a karigar" : j.karigarName).foregroundStyle(.secondary) }
+                }
             }
         }
+        .formStyle(.grouped)
+    }
+
+    private func macReference(_ job: WorkshopJob) -> String {
+        guard let place = job.invoiceId ?? job.orderId else { return "Stock work" }
+        let who = (job.customerName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return who.isEmpty ? place : place + " \u{00B7} " + who
+    }
+
+    private func macAgeTone(_ job: WorkshopJob) -> Tone {
+        switch job.urgency {
+        case .critical: return .late
+        case .warning: return .owed
+        case .ok: return .quiet
+        }
+    }
+
+    @ViewBuilder
+    private func macKarigarRow(_ job: WorkshopJob, _ live: [Karigar]) -> some View {
+        if macCanAssign(job) && !job.isDone {
+            Picker("Karigar", selection: Binding(
+                get: { job.karigarId },
+                set: { id in
+                    if id != job.karigarId { setKarigar(job, id == WorkshopLogic.unassigned ? "none" : id) }
+                }
+            )) {
+                Text("Needs a karigar").tag(WorkshopLogic.unassigned)
+                if !job.isUnassigned && !live.contains(where: { $0.id == job.karigarId }) {
+                    Text(job.karigarName).tag(job.karigarId)
+                }
+                ForEach(live) { (k: Karigar) in Text(k.name).tag(k.id) }
+            }
+            .pickerStyle(.menu)
+            .disabled(busy.contains(job.id))
+        } else {
+            LabeledContent("Karigar", value: job.isUnassigned ? "Needs a karigar" : job.karigarName)
+        }
+    }
+
+    /// The making details the karigar sees: what it is, its size, weight, finish, and the instructions.
+    @ViewBuilder
+    private func macMakingRows(_ job: WorkshopJob) -> some View {
+        if let c = job.category, !c.isEmpty { LabeledContent("Kind", value: c) }
+        if let s = job.size, !s.isEmpty { LabeledContent("Size", value: s) }
+        if let w = job.weightG, w > 0 { LabeledContent("Weight", value: WorkshopLogic.grams(w)) }
+        if let k = job.karat, !k.isEmpty { LabeledContent("Karat", value: k.uppercased()) }
+        if let p = job.plating, !p.isEmpty { LabeledContent("Finish", value: p) }
+        if let r = job.referenceSku, !r.isEmpty { LabeledContent("Reference", value: r) }
+        if let by = job.takenBy, !by.isEmpty { LabeledContent("Taken by", value: by) }
+        if let notes = job.notes, !notes.isEmpty {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Instructions").font(.callout).foregroundStyle(.secondary)
+                Text(notes).textSelection(.enabled)
+            }
+        }
+    }
+}
+
+/// The summary bar at the foot of the Workshop, or nothing for the one order's "Give out" page.
+private struct MacWorkshopSummary: ViewModifier {
+    let parts: [String]
+
+    func body(content: Content) -> some View {
+        if parts.isEmpty { content } else { content.macSummaryBar(parts) }
     }
 }
 #endif

@@ -10,7 +10,6 @@ struct MacCommands: Commands {
     @FocusedValue(\.macMap) private var map
     @FocusedValue(\.macPlace) private var place
     @FocusedValue(\.macPlaces) private var places
-    @FocusedValue(\.macStockSelection) private var stockSelection
     @FocusedValue(\.macRecordMenu) private var recordMenu
     @FocusedValue(\.macRefresh) private var refresh
     @Environment(\.openWindow) private var openWindow
@@ -107,14 +106,9 @@ struct MacCommands: Commands {
                     .disabled(!isOwner)
             }
             CommandGroup(replacing: .printItem) {
-                // Stock's selection prints its tags as one job; else the record in front prints (its record menu's
-                // Print, or the page's own PDF).
-                if let skus = stockSelection?.skus, !skus.isEmpty, place == nil {
-                    Button(skus.count == 1 ? "Print Tag…" : "Print \(skus.count) Tags…") { Task { await MacPrint.printTags(skus) } }
-                        .keyboardShortcut("p", modifiers: .command)
-                    Button(skus.count == 1 ? "Print Tag Now" : "Print \(skus.count) Tags Now") { Task { await MacPrint.printTags(skus, now: true) } }
-                        .keyboardShortcut("p", modifiers: [.command, .option])
-                } else if let print = recordPrint {
+                // The record in front prints: its record menu's own Print (an invoice, an order's slip, the picked
+                // pieces' tags), else the page's PDF.
+                if let print = recordPrint {
                     Button(print.title.hasSuffix("…") ? print.title : print.title + "…") { print.perform() }
                         .keyboardShortcut("p", modifiers: .command)
                         .disabled(!print.enabled)
@@ -158,6 +152,13 @@ struct MacCommands: Commands {
                 d.set(!(d.object(forKey: MacInspector.key) as? Bool ?? true), forKey: MacInspector.key)
             }
             .keyboardShortcut("i", modifiers: [.command, .option])
+            Button("as Table") { setView(table: true) }
+                .keyboardShortcut("1", modifiers: [.command, .control])
+                .disabled(viewKey == nil)
+            Button(viewKey?.other == "gallery" ? "as Gallery" : "as Board") { setView(table: false) }
+                .keyboardShortcut("2", modifiers: [.command, .control])
+                .disabled(viewKey == nil)
+            Divider()
             Button("Refresh") {
                 if let refresh { refresh.run() } else { ServerShelf.wake() }
             }
@@ -168,6 +169,21 @@ struct MacCommands: Commands {
                 .keyboardShortcut("b", modifiers: [.command, .shift])
             Divider()
         }
+    }
+
+    /// The place in front that shows its records two ways (its key, and the word for the other way).
+    private var viewKey: (key: String, other: String)? {
+        switch ScreenRoute.bare(shell?.selection ?? "") {
+        case "/orders": return ("mac.orders.view", "board")
+        case "/products": return ("mac.stock.view", "gallery")
+        case "/workshop": return ("mac.workshop.view", "board")
+        default: return nil
+        }
+    }
+
+    private func setView(table: Bool) {
+        guard let v = viewKey else { return }
+        UserDefaults.standard.set(table ? "table" : v.other, forKey: v.key)
     }
 
     // MARK: Go

@@ -168,6 +168,7 @@ struct MacShell: View {
         case "/invoices": return AnyView(MacInvoicesPlace(path: path))
         case "/customers": return AnyView(MacCustomersPlace(path: path))
         case "/repairs": return AnyView(MacRepairsPlace(path: path))
+        case "/products": return AnyView(MacStockPlace(path: path))
         default: return nil
         }
     }
@@ -178,12 +179,8 @@ struct MacShell: View {
         if selection == Self.searchID {
             SearchView(map: map).modifier(TeamNotePresentation())
         } else if session.role != "marketing", let place = macPlace(selection) {
-            // Orders, Invoices, Customers, Repairs (and their saved lists): the place's table with the inspector.
+            // Orders, Invoices, Customers, Repairs, Stock (and their saved lists): the place's table with the inspector.
             place.id(selection)
-        } else if session.role != "marketing", let kind = MacHubKind(path: selection) {
-            // Stock: a sortable table with the picked one beside it.
-            MacHub(kind: kind, rootPath: selection)
-                .id(selection)
         } else {
             PlaceScreen(path: selection, isRoot: true)
                 .id(selection)

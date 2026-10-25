@@ -94,7 +94,12 @@ struct WorkshopPaySheet: View {
                 } header: {
                     LedgerHeading(title: "Paying \(name)")
                 } footer: {
+                    #if os(macOS)
+                    // The button states the amount; what is written is said here, in full, before it is pressed.
+                    Text(!chosenCategory.isEmpty && !cleanedWhat.isEmpty ? consequence : "Added to \(batch.label).")
+                    #else
                     Text("Added to \(batch.label).")
+                    #endif
                 }
                 LedgerSection("Amount (PKR)") {
                     TextField("0", text: $amountText.wholeRupees)
@@ -136,16 +141,25 @@ struct WorkshopPaySheet: View {
                     Button(role: .cancel) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
+                    #if os(macOS)
+                    // The button says the amount, so it is the confirmation: no second ask.
+                    Button("Pay \(Money.pkr(amount))") { Task { await save() } }
+                        .keyboardShortcut(.defaultAction)
+                        .disabled(!canSave)
+                    #else
                     Button("Pay") { confirming = true }
                         .disabled(!canSave)
+                    #endif
                 }
             }
+            #if !os(macOS)
             .confirmationDialog("Pay \(Money.pkr(amount)) to \(name)?", isPresented: $confirming, titleVisibility: .visible) {
                 Button("Pay \(Money.pkr(amount))") { Task { await save() } }
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text(consequence)
             }
+            #endif
         }
         .presentationSizing(.form)
         #if os(macOS)
@@ -241,7 +255,14 @@ struct WorkshopSilverSheet: View {
                     if !gramsText.isEmpty, let problem {
                         Text(problem).foregroundStyle(Tone.problem.color)
                     } else {
+                        #if os(macOS)
+                        // The button says what is recorded; what is written is said here, before it is pressed.
+                        Text(total > 0
+                             ? "Surcharge \(Money.pkr(total)): \(WorkshopLogic.grams3(grams)) at PKR \(RateKeys.say(rate)) a gram, kept under his silver transactions. No expense and no Hisaab entry is written."
+                             : "Record silver received from \(name) with per-gram surcharge.")
+                        #else
                         Text("Record silver received from \(name) with per-gram surcharge.")
+                        #endif
                     }
                 }
                 LedgerSection("Notes (optional)") {
@@ -265,16 +286,25 @@ struct WorkshopSilverSheet: View {
                     Button(role: .cancel) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
+                    #if os(macOS)
+                    // The button says what is recorded, so it is the confirmation: no second ask.
+                    Button("Record \(WorkshopLogic.grams3(grams)) of Silver") { Task { await save() } }
+                        .keyboardShortcut(.defaultAction)
+                        .disabled(problem != nil || saving)
+                    #else
                     Button("Save") { confirming = true }
                         .disabled(problem != nil || saving)
+                    #endif
                 }
             }
+            #if !os(macOS)
             .confirmationDialog("Record \(WorkshopLogic.grams3(grams)) of silver from \(name)?", isPresented: $confirming, titleVisibility: .visible) {
                 Button("Record silver") { Task { await save() } }
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text("Surcharge \(Money.pkr(total)): \(WorkshopLogic.grams3(grams)) at PKR \(RateKeys.say(rate)) a gram, kept under his silver transactions. No expense and no Hisaab entry is written.")
             }
+            #endif
         }
         .presentationDetents([.medium, .large])
         .presentationSizing(.form)
@@ -427,10 +457,18 @@ struct WorkshopSettleSheet: View {
                     Button(role: .cancel) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
+                    #if os(macOS)
+                    // The button says the amount and the sheet says what happens: no second ask.
+                    Button(cleanedCarry.isEmpty ? "Settle at \(Money.pkr(open.total))" : "Settle and Carry Over") { Task { await save() } }
+                        .keyboardShortcut(.defaultAction)
+                        .disabled(saving)
+                    #else
                     Button("Settle") { confirming = true }
                         .disabled(saving)
+                    #endif
                 }
             }
+            #if !os(macOS)
             // Closing a batch cannot be undone: asked once more, as Pay and Silver are.
             .confirmationDialog("Settle \u{201C}\(open.batch.label)\u{201D} at \(Money.pkr(open.total))?", isPresented: $confirming, titleVisibility: .visible) {
                 Button(cleanedCarry.isEmpty ? "Settle and close" : "Settle and carry over") { Task { await save() } }
@@ -438,6 +476,7 @@ struct WorkshopSettleSheet: View {
             } message: {
                 Text(consequence)
             }
+            #endif
         }
         .presentationDetents([.medium, .large])
         .presentationSizing(.form)

@@ -46,6 +46,10 @@ struct StockList: View {
     }
 
     var body: some View {
+        #if os(macOS)
+        // The Mac's Stock is its own place (Mac/Places/Stock): a table or a gallery, an inspector, the Piece menu.
+        MacStockPlace(path: "/products")
+        #else
         ShelfState(loaded: book.products.loaded, error: book.products.error, offline: book.products.offline) {
             content
         }
@@ -68,6 +72,7 @@ struct StockList: View {
             book.products.need()
             book.settings.need()
         }
+        #endif
     }
 
     @ToolbarContentBuilder
