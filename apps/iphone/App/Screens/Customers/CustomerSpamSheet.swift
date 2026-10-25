@@ -412,7 +412,7 @@ extension CustomerSpamSheet {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .frame(minWidth: 760, minHeight: 480)
+        .frame(minWidth: 560, idealWidth: 800, minHeight: 480, idealHeight: 600)
         .background(Theme.ground)
         .modifier(DeleteBar(show: run == nil && !(found ?? []).isEmpty,
                             count: (found ?? []).filter { selected.contains($0.id) }.count) {
@@ -461,10 +461,11 @@ extension CustomerSpamSheet {
                 TableColumn("Email") { (c: CustomerSpam.Candidate) in
                     Text(CustomerKit.filled(c.customer.email) ?? "no email").foregroundStyle(.secondary)
                 }
-                .width(min: 160, ideal: 240)
+                .width(min: 120, ideal: 240)
                 TableColumn("Why it was flagged") { (c: CustomerSpam.Candidate) in
-                    Text(c.reasons.joined(separator: " \u{00B7} ")).foregroundStyle(.secondary)
+                    Text(c.reasons.joined(separator: " \u{00B7} ")).foregroundStyle(.secondary).lineLimit(1)
                 }
+                .width(min: 100, ideal: 260)
                 TableColumn("From") { (c: CustomerSpam.Candidate) in
                     if CustomerKit.filled(c.customer.shopifyCustomerId) != nil { MacStatus("Shopify", tone: .working) }
                 }

@@ -340,7 +340,7 @@ extension SaleScanScreen {
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
-            .frame(minWidth: 320, idealWidth: 380, maxWidth: 480)
+            .frame(minWidth: 260, idealWidth: 380, maxWidth: 480)
             VStack(spacing: 0) {
                 if let reading, !busy {
                     MacBillLines(lines: reading.answer.lines, skipped: reading.skipped,
@@ -358,7 +358,7 @@ extension SaleScanScreen {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
-            .frame(minWidth: 460)
+            .frame(minWidth: 320, idealWidth: 460)
         }
         .background(Theme.ground)
         .actionBar(primary: fillAction)

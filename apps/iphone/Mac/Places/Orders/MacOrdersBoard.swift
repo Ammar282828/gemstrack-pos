@@ -23,29 +23,35 @@ struct MacOrdersBoard<RowMenu: View>: View {
 
     private var closedShown: Bool { showClosed || searching }
     private var closedCount: Int { closed.reduce(0) { $0 + $1.rows.count } }
+    /// The strip above the columns that folds Done and Cancelled in and out (not a column of its own: the columns share
+    /// the whole width).
+    private var showsFold: Bool { !searching && (closedCount > 0 || showClosed) }
+    private static var foldHeight: CGFloat { 29 }
 
     var body: some View {
         GeometryReader { geo in
             let columns = closedShown ? working + closed : working
-            let width = columnWidth(geo.size.width, count: columns.count + 1)
-            ScrollView(.horizontal) {
-                HStack(alignment: .top, spacing: 0) {
-                    ForEach(columns) { (c: MacOrdersBoardColumn) in
-                        column(c)
-                            .frame(width: width)
-                        Divider()
+            let width = columnWidth(geo.size.width, count: columns.count)
+            let height = showsFold ? geo.size.height - Self.foldHeight : geo.size.height
+            VStack(spacing: 0) {
+                if showsFold { foldBar }
+                ScrollView(.horizontal) {
+                    HStack(alignment: .top, spacing: 0) {
+                        ForEach(columns) { (c: MacOrdersBoardColumn) in
+                            column(c)
+                                .frame(width: width)
+                            Divider()
+                        }
                     }
-                    foldColumn
-                        .frame(width: width)
+                    .frame(height: max(height, 0), alignment: .top)
                 }
-                .frame(height: geo.size.height, alignment: .top)
             }
         }
     }
 
     private func columnWidth(_ total: CGFloat, count: Int) -> CGFloat {
         let fit = total / CGFloat(max(count, 1))
-        return min(max(fit, 250), 380)
+        return min(max(fit, 210), 380)
     }
 
     // MARK: A column
@@ -137,9 +143,10 @@ struct MacOrdersBoard<RowMenu: View>: View {
 
     // MARK: Done and Cancelled
 
-    private var foldColumn: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if !searching && (closedCount > 0 || showClosed) {
+    private var foldBar: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Spacer(minLength: 0)
                 Button {
                     showClosed.toggle()
                 } label: {
@@ -147,9 +154,10 @@ struct MacOrdersBoard<RowMenu: View>: View {
                 }
                 .buttonStyle(.link)
             }
+            .padding(.horizontal, 12)
+            .frame(height: Self.foldHeight - 1)
+            Divider()
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 }
 #endif

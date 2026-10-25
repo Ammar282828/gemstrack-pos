@@ -61,7 +61,7 @@ struct MacOrdersPiecesGrid: View {
         MacOrdersColumnSpec(title: "Piece", width: nil, trailing: false),
         MacOrdersColumnSpec(title: "What it is", width: nil, trailing: false),
         MacOrdersColumnSpec(title: "Karigar", width: 150, trailing: false),
-        MacOrdersColumnSpec(title: "Price", width: 96, trailing: true),
+        MacOrdersColumnSpec(title: "Price", width: 84, trailing: true),
     ]
 
     var body: some View {
@@ -93,9 +93,8 @@ struct MacOrdersPiecesGrid: View {
                 .lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading)
             karigarCell(r).frame(width: 150, alignment: .leading)
-            Text(r.item.totalEstimate.map { Money.pkr($0) } ?? "")
-                .monospacedDigit()
-                .frame(width: 96, alignment: .trailing)
+            MacAmount(r.item.totalEstimate)
+                .frame(width: 84, alignment: .trailing)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
@@ -259,7 +258,7 @@ struct MacOrdersAdvancesGrid: View {
         MacOrdersColumnSpec(title: "Day", width: 96, trailing: false),
         MacOrdersColumnSpec(title: "How it was paid", width: 120, trailing: false),
         MacOrdersColumnSpec(title: "Note", width: nil, trailing: false),
-        MacOrdersColumnSpec(title: "Amount", width: 96, trailing: true),
+        MacOrdersColumnSpec(title: "Amount", width: 84, trailing: true),
     ]
 
     var body: some View {
@@ -281,9 +280,8 @@ struct MacOrdersAdvancesGrid: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            Text(l.amount > 0 || l.gold.isEmpty ? Money.pkr(l.amount) : "")
-                .monospacedDigit()
-                .frame(width: 96, alignment: .trailing)
+            MacAmount(l.amount > 0 || l.gold.isEmpty ? l.amount : nil)
+                .frame(width: 84, alignment: .trailing)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 5)

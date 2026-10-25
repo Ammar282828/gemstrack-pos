@@ -587,18 +587,29 @@ extension CustomerScreen {
             .labelsHidden()
             .help("Invoices, orders, repairs or hisaab")
         }
+        // A record window: WhatsApp and Call, the rest under More (the keys are the Customer menu's, not these buttons').
         ToolbarItemGroup(placement: .primaryAction) {
-            ForEach(macToolbarActions(f)) { (a: MacAction) in
-                MacToolbarAction(action: a)
+            MacToolbarAction(action: macContactActions(f.customer)[1])
+            MacToolbarAction(action: macContactActions(f.customer)[0])
+            Menu {
+                ForEach(macMoreActions(f)) { (a: MacAction) in
+                    Button(role: a.role, action: a.perform) { Label(a.title, systemImage: a.symbol ?? "circle") }
+                        .disabled(!a.enabled)
+                }
+            } label: {
+                Label("More", systemImage: "ellipsis.circle")
             }
+            .help("Message, edit or open the hisaab")
         }
     }
 
-    /// WhatsApp, Call and Message, and (an owner's) Edit: the ones used most.
-    private func macToolbarActions(_ f: Facts) -> [MacAction] {
-        let contact = macContactActions(f.customer)
-        var out: [MacAction] = [contact[1], contact[0], contact[2]]
-        if session.isOwner { out.append(macEditAction) }
+    /// Message, and (an owner's) Edit and the hisaab.
+    private func macMoreActions(_ f: Facts) -> [MacAction] {
+        var out: [MacAction] = [macContactActions(f.customer)[2]]
+        if session.isOwner {
+            out.append(macEditAction)
+            out.append(macHisaabAction(f.customer))
+        }
         return out
     }
 
@@ -622,7 +633,7 @@ extension CustomerScreen {
                     }
                 }
         }
-        .frame(minWidth: 760, idealWidth: 820, minHeight: 560)
+        .frame(minWidth: 560, idealWidth: 720, minHeight: 520, idealHeight: 640)
     }
 
     // MARK: The table

@@ -59,8 +59,17 @@ struct NewOrder: View {
     #if os(macOS)
     /// The pieces picked in the Mac's table; the one picked is edited in the right panel.
     @State private var macPicked = Set<UUID>()
-    /// Which tab of the right panel is showing (Piece or Order).
+    /// Which tab of the right panel is showing (Piece or Order; Customer too in a narrow window).
     @State private var macPanel = MacNewOrderPanelTab.piece
+    /// Whether the window is wide enough for the customer's column beside the pieces and the panel (280 + the table + 320);
+    /// narrower, the customer's form is the panel's first tab and the window can shrink to about 640 points. Kept as a
+    /// flag, so only crossing the line (never each point of a drag) redraws the form.
+    @State private var macWide = true
+    /// What the form reads of the shelves, kept until they change (never walked while drawing, or on a keystroke).
+    @State private var macPeople = Memo<[Customer]>()
+    @State private var macKarigars = Memo<[Karigar]>()
+    @State private var macNames = Memo<[String: String]>()
+    @State private var macAddresses = Memo<[String]>()
     #endif
     /// Bumped on a saved order or edit, so the money tap is felt once (never per keystroke).
     @State private var saves = 0
@@ -110,7 +119,7 @@ struct NewOrder: View {
                         }
                     }
             }
-            .frame(minWidth: 860, idealWidth: 960, minHeight: 620, idealHeight: 720)
+            .frame(minWidth: 560, idealWidth: 960, minHeight: 520, idealHeight: 720)
         }
         #else
         .navigationDestination(isPresented: $readingSlip) { NewOrderScanScreen(draft: $draft) }
@@ -788,28 +797,44 @@ extension NewOrder {
     fileprivate func macColumns(_ totals: NewOrderMath.Totals, _ settings: Settings?) -> some View {
         VStack(spacing: 0) {
             UpdateBanner()
-            HStack(spacing: 0) {
-                macLeft
-                    .frame(width: 300)
-                Divider()
-                MacNewOrderPieces(
-                    rows: macRows(totals),
-                    selection: $macPicked,
-                    totals: totals,
-                    add: { macAddPiece() },
-                    addFromStock: { pickingStock = true },
-                    remove: { ids in macRemove(ids) },
-                    duplicate: { ids in macDuplicate(ids) },
-                    open: { _ in macPanel = .piece }
-                )
-                .frame(minWidth: 320, maxWidth: .infinity)
-                Divider()
-                macPanelView(totals, settings)
-                    .frame(width: 320)
+            if macWide {
+                HStack(spacing: 0) {
+                    macLeft
+                        .frame(width: 280)
+                    Divider()
+                    macPieces(totals)
+                        .frame(minWidth: 344, maxWidth: .infinity)
+                    Divider()
+                    macPanelView(totals, settings)
+                        .frame(width: 320)
+                }
+            } else {
+                HStack(spacing: 0) {
+                    macPieces(totals)
+                        .frame(minWidth: 344, maxWidth: .infinity)
+                    Divider()
+                    macPanelView(totals, settings)
+                        .frame(minWidth: 280, idealWidth: 320, maxWidth: 360)
+                }
             }
             macFooter(totals)
         }
-        .frame(minWidth: 940, idealWidth: 1080, minHeight: 560, idealHeight: 680)
+        .frame(minWidth: 620, idealWidth: 1080, minHeight: 520, idealHeight: 680)
+        .onGeometryChange(for: Bool.self) { $0.size.width >= 960 } action: { macWide = $0 }
+    }
+
+    /// The pieces as a table, with the bar and the figures under it.
+    fileprivate func macPieces(_ totals: NewOrderMath.Totals) -> some View {
+        MacNewOrderPieces(
+            rows: macRows(totals),
+            selection: $macPicked,
+            totals: totals,
+            add: { macAddPiece() },
+            addFromStock: { pickingStock = true },
+            remove: { ids in macRemove(ids) },
+            duplicate: { ids in macDuplicate(ids) },
+            open: { _ in macPanel = .piece }
+        )
     }
 
     /// Who it is for and when: the order's first facts, in a grouped form.
@@ -824,7 +849,7 @@ extension NewOrder {
             }
             MacNewOrderCustomerSection(
                 draft: $draft,
-                people: people,
+                people: macPeople([book.customers.revision]) { people },
                 takenBy: session.shop.takenBy,
                 recent: { CustomerField.recent(invoices: book.invoices.items, orders: book.orders.items, book: book.customers.items) },
                 recentKey: [book.invoices.revision, book.orders.revision, book.customers.revision]
@@ -834,8 +859,16 @@ extension NewOrder {
         .formStyle(.grouped)
     }
 
+    /// The live karigars, worked out once per change of the shelf.
+    fileprivate var macLiveKarigars: [Karigar] {
+        macKarigars([book.karigars.revision]) { karigars }
+    }
+
     fileprivate func macRows(_ totals: NewOrderMath.Totals) -> [MacNewOrderRow] {
-        let names = Dictionary(karigars.map { ($0.id, $0.name) }, uniquingKeysWith: { a, _ in a })
+        let live = macLiveKarigars
+        let names = macNames([book.karigars.revision]) { () -> [String: String] in
+            Dictionary(live.map { ($0.id, $0.name) }, uniquingKeysWith: { a, _ in a })
+        }
         var rows: [MacNewOrderRow] = []
         for (index, p) in draft.pieces.enumerated() {
             rows.append(MacNewOrderRow(piece: p, number: index + 1,
@@ -848,18 +881,26 @@ extension NewOrder {
     fileprivate func macPanelView(_ totals: NewOrderMath.Totals, _ settings: Settings?) -> some View {
         MacNewOrderPanel(
             tab: $macPanel,
+            showsCustomer: !macWide,
+            customer: { macLeft },
             piece: { macPieceEditor(settings) },
             order: {
                 MacNewOrderOrderForm(
                     draft: $draft,
                     totals: totals,
                     settings: settings,
-                    knownAddresses: { knownAddresses },
+                    knownAddresses: { macKnownAddresses },
                     margin: { NewOrderMath.margin(draft, settings, totals) },
                     ratesFirst: ratesFirst
                 )
             }
         )
+    }
+
+    /// The customer's addresses on file, worked out once per change of the shelves or of the customer.
+    fileprivate var macKnownAddresses: [String] {
+        let key: [Int] = [book.orders.revision, book.invoices.revision, book.customers.revision, draft.customerId.hashValue]
+        return macAddresses(key) { knownAddresses }
     }
 
     /// The piece picked, edited where it is: the phone's editor fields, on the same binding.
@@ -870,7 +911,7 @@ extension NewOrder {
                 piece: pieceBinding(id),
                 number: i + 1,
                 rates: NewOrderMath.formRates(draft, settings),
-                karigars: karigars,
+                karigars: macLiveKarigars,
                 editingOrder: edit != nil
             )
             .id(id)

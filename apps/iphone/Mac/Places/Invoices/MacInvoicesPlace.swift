@@ -3,10 +3,12 @@ import SwiftUI
 import ERPCore
 
 // The Invoices place (docs/features/mac-design.md, "Invoices"): a sortable, multi-select table of the books' invoices, a
-// saved list from the sidebar (Unpaid, Today, This Month) narrowing it, the search and a Taken by / Source pop-up in the
-// toolbar, a one-line summary at its foot, and the picked invoice in the inspector. The Invoice menu (menu bar, toolbar,
-// right-click) acts on the invoice picked; Return or a double-click opens it whole in a window of its own. Everything an
-// action does is the invoice page's own sheet or send (MacInvoiceDesk), so a payment is taken one way wherever it is taken.
+// saved list from the sidebar (Unpaid, Today, This Month) narrowing it, the search and one Filter menu (Taken by, Source) in
+// the toolbar beside New Sale, a one-line summary at its foot, and the picked invoice in the inspector. The Invoice menu
+// (menu bar, inspector, right-click) acts on the invoice picked, never the toolbar; Return or a double-click opens it whole
+// in a window of its own. Everything an action does is the invoice page's own sheet or send (MacInvoiceDesk), so a payment
+// is taken one way wherever it is taken. Seven columns fit a 13-inch MacBook beside the sidebar and the inspector (the
+// pieces, who took it and where it came from are the inspector's).
 
 /// A table row: what is worked out from an invoice once, when the books, the search or the sort change, never per drawing.
 struct MacInvoicesPlaceRow: Identifiable {
@@ -24,6 +26,13 @@ struct MacInvoicesPlaceRow: Identifiable {
     let tone: Tone
     let takenBy: String
     let source: String
+}
+
+/// What a search reads of an invoice, made once per change of the books (not once per keystroke): all its words in lower
+/// case, and the digits of its phone numbers.
+struct MacInvoicesPlaceHay {
+    let text: String
+    let digits: String
 }
 
 /// What the table shows and what its foot adds up.
@@ -50,67 +59,75 @@ struct MacInvoicesPlace: View {
     @State private var source = ""
     @State private var sort = [KeyPathComparator(\MacInvoicesPlaceRow.createdAt, order: .reverse)]
     @State private var made = Memo<MacInvoicesPlaceTable>()
+    @State private var ordered = Memo<[MacInvoicesPlaceRow]>()
     @State private var people = Memo<[String]>()
     @State private var channels = Memo<[String]>()
+    @State private var hays = Memo<[String: MacInvoicesPlaceHay]>()
     @State private var desk = MacInvoiceDesk()
 
     var body: some View {
         let list = MacLists.list(in: path)
-        let shown = made(rowsKey(list)) { build(list) }
+        let key = rowsKey(list)
+        let shown = made(key) { build(list) }
+        // The sort alone only puts the same rows in another order.
+        let sorted = ordered(key + [sort.hashValue]) { shown.rows.sorted(using: sort) }
         let picked = pickedInvoice()
         let cx = context()
-        table(shown, cx)
-            .macSummaryBar(summary(shown))
-            .macSearchable(text: $query, prompt: "Search Invoices")
-            .macInspector { MacInvoiceInspector(invoice: picked, count: selection.count, cx: cx) }
-            .macRecordMenu(MacRecordMenu(title: "Invoice", groups: MacInvoiceMenu.groups(picked, cx)))
-            .toolbar { toolbarItems(picked, cx) }
-            .modifier(MacInvoiceSheetHost(desk: desk))
-            .navigationTitle(title(list))
-            .navigationSubtitle(subtitle(shown))
-            .task {
-                book.invoices.need()
-                book.customers.need()
-            }
+        ShelfState(loaded: book.invoices.loaded, error: book.invoices.error, offline: book.invoices.offline) {
+            table(sorted, shown, list, cx)
+                .macSummaryBar(summary(shown))
+        }
+        .macSearchable(text: $query, prompt: "Search Invoices")
+        .macInspector { MacInvoiceInspector(invoice: picked, count: selection.count, cx: cx) }
+        .macRecordMenu(MacRecordMenu(title: "Invoice", groups: MacInvoiceMenu.groups(picked, cx) + [[MacInvoiceMenu.importOrders(cx)]]))
+        .toolbar { toolbarItems(cx) }
+        .modifier(MacInvoiceSheetHost(desk: desk))
+        .navigationTitle(title(list))
+        .navigationSubtitle(subtitle(shown))
+        .task {
+            book.invoices.need()
+            book.customers.need()
+        }
     }
 
     // MARK: The table
 
-    private func table(_ shown: MacInvoicesPlaceTable, _ cx: MacInvoiceContext) -> some View {
-        Table(shown.rows, selection: $selection, sortOrder: $sort) {
-            TableColumn("Number", value: \.id) { r in Text(r.id).monospacedDigit() }
-                .width(min: 90, ideal: 110)
-            TableColumn("Customer", value: \.customer)
-            TableColumn("Date", value: \.createdAt) { r in Text(r.dateText) }
-                .width(min: 80, ideal: 100)
-            TableColumn("Pieces", value: \.pieces) { r in Text("\(r.pieces)").monospacedDigit() }
-                .width(50)
-            TableColumn("Total", value: \.total) { r in
-                Text(Money.pkr(r.total)).monospacedDigit().frame(maxWidth: .infinity, alignment: .trailing)
+    private func table(_ rows: [MacInvoicesPlaceRow], _ shown: MacInvoicesPlaceTable, _ list: String?,
+                        _ cx: MacInvoiceContext) -> some View {
+        Table(rows, selection: $selection, sortOrder: $sort) {
+            TableColumn("Number", value: \.id) { (r: MacInvoicesPlaceRow) in
+                Text(r.id).monospacedDigit().lineLimit(1)
             }
-            .width(min: 90, ideal: 110)
-            TableColumn("Paid", value: \.paid) { r in
-                Text(Money.pkr(r.paid)).monospacedDigit().frame(maxWidth: .infinity, alignment: .trailing)
+            .width(min: 70, ideal: 96)
+            TableColumn("Customer", value: \.customer) { (r: MacInvoicesPlaceRow) in
+                Text(r.customer).lineLimit(1)
             }
-            .width(min: 90, ideal: 110)
-            TableColumn("Owed", value: \.due) { r in
+            .width(min: 120, ideal: 180)
+            TableColumn("Date", value: \.createdAt) { (r: MacInvoicesPlaceRow) in
+                Text(r.dateText).lineLimit(1)
+            }
+            .width(min: 70, ideal: 90)
+            TableColumn("Total", value: \.total) { (r: MacInvoicesPlaceRow) in
+                MacAmount(r.total)
+            }
+            .width(min: 70, ideal: 90)
+            TableColumn("Paid", value: \.paid) { (r: MacInvoicesPlaceRow) in
+                MacAmount(r.paid > 0 ? r.paid : nil)
+            }
+            .width(min: 70, ideal: 90)
+            TableColumn("Owed", value: \.due) { (r: MacInvoicesPlaceRow) in
                 // Only what needs someone is coloured; a settled bill shows nothing here.
-                Text(r.due >= 1 ? Money.pkr(r.due) : "")
-                    .monospacedDigit()
-                    .foregroundStyle(r.tone.color)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+                MacAmount(r.due >= 1 ? r.due : nil, tone: r.tone)
+            }
+            .width(min: 70, ideal: 90)
+            TableColumn("Status", value: \.statusRank) { (r: MacInvoicesPlaceRow) in
+                MacStatus(r.statusText, tone: r.tone)
             }
             .width(min: 90, ideal: 110)
-            TableColumn("Status", value: \.statusRank) { r in MacStatus(r.statusText, tone: r.tone) }
-                .width(min: 80, ideal: 100)
-            TableColumn("Taken By", value: \.takenBy)
-                .width(min: 70, ideal: 90)
-            TableColumn("Source", value: \.source)
-                .width(min: 70, ideal: 90)
         }
-        .contextMenu(forSelectionType: String.self) { ids in
+        .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
             rowMenu(ids, cx)
-        } primaryAction: { ids in
+        } primaryAction: { (ids: Set<String>) in
             open(ids, cx)
         }
         .onKeyPress(.space) {
@@ -119,13 +136,16 @@ struct MacInvoicesPlace: View {
             desk.pdf = InvoiceFacts.pdfTarget(inv, byCustomer: cx.byCustomer)
             return .handled
         }
-        .overlay { emptyState(shown) }
+        .overlay { emptyState(shown, list) }
     }
 
     /// The right-click menu: open it, then the Invoice menu's own actions for the invoice clicked.
     @ViewBuilder
     private func rowMenu(_ ids: Set<String>, _ cx: MacInvoiceContext) -> some View {
-        if ids.count == 1, let id = ids.first, let inv = book.invoices.item(id) {
+        if ids.isEmpty {
+            // The empty part of the table: what is not about one invoice.
+            MacActionItems(groups: [[MacInvoiceMenu.importOrders(cx)]])
+        } else if ids.count == 1, let id = ids.first, let inv = book.invoices.item(id) {
             Button("Open in New Window") { cx.open(Route(path: InvoiceFacts.path(id))) }
             Divider()
             MacActionItems(groups: MacInvoiceMenu.groups(inv, cx))
@@ -143,31 +163,32 @@ struct MacInvoicesPlace: View {
     }
 
     @ViewBuilder
-    private func emptyState(_ shown: MacInvoicesPlaceTable) -> some View {
-        if !book.invoices.loaded {
-            ProgressView()
-        } else if shown.rows.isEmpty {
+    private func emptyState(_ shown: MacInvoicesPlaceTable, _ list: String?) -> some View {
+        if shown.rows.isEmpty {
             if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 ContentUnavailableView.search(text: query)
+            } else if filtering {
+                ContentUnavailableView("No Invoices Match", systemImage: "line.3.horizontal.decrease.circle",
+                                       description: Text("Clear the filter in the toolbar to see them all."))
+            } else if list != nil {
+                ContentUnavailableView("Nothing in \(title(list))", systemImage: "doc.text",
+                                       description: Text("No invoice is in this list now."))
             } else {
-                ContentUnavailableView("No Invoices", systemImage: "doc.text",
-                                       description: Text("A sale you make will be here, with what is still owed on it."))
+                ContentUnavailableView("No Invoices Yet", systemImage: "doc.text",
+                                       description: Text("Make a sale with \u{2318}N."))
             }
         }
     }
 
     // MARK: The toolbar
 
+    /// New Sale and the one Filter menu. The picked invoice's actions are the inspector's, the Invoice menu's and the
+    /// right-click menu's, never the toolbar's.
     @ToolbarContentBuilder
-    private func toolbarItems(_ picked: Invoice?, _ cx: MacInvoiceContext) -> some ToolbarContent {
-        ToolbarItem(placement: .primaryAction) {
-            Button { cx.open(Route(path: "/invoices/new")) } label: { Label("New Sale", systemImage: "plus") }
-                .help("Make a new sale (⌘N)")
-        }
+    private func toolbarItems(_ cx: MacInvoiceContext) -> some ToolbarContent {
         ToolbarItemGroup(placement: .primaryAction) {
-            ForEach(MacInvoiceMenu.toolbar(picked, cx)) { MacToolbarAction(action: $0) }
-        }
-        ToolbarItem(placement: .primaryAction) {
+            Button { cx.open(Route(path: "/invoices/new")) } label: { Label("New Sale", systemImage: "plus") }
+                .help("New sale (\u{2318}N)")
             filterMenu()
         }
     }
@@ -185,20 +206,17 @@ struct MacInvoicesPlace: View {
         return Menu {
             Picker("Taken By", selection: $takenBy) {
                 Text("Anyone").tag("")
-                ForEach(who, id: \.self) { p in Text(p).tag(p) }
+                ForEach(who, id: \.self) { (p: String) in Text(p).tag(p) }
             }
+            .pickerStyle(.inline)
             Picker("Source", selection: $source) {
                 Text("Every Source").tag("")
-                ForEach(channelNames, id: \.self) { s in Text(s).tag(s) }
+                ForEach(channelNames, id: \.self) { (s: String) in Text(s).tag(s) }
             }
+            .pickerStyle(.inline)
             if filtering {
                 Divider()
                 Button("Clear Filters") { takenBy = ""; source = "" }
-            }
-            // The page's Import Shopify CSV: an owner's, as its own Firestore write is.
-            if session.isOwner {
-                Divider()
-                Button("Import Shopify Orders…") { desk.importing = true }
             }
         } label: {
             Label("Filter", systemImage: filtering ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
@@ -253,15 +271,25 @@ struct MacInvoicesPlace: View {
 
     // MARK: Making the rows
 
-    /// What the rows depend on: the books, the search, the sort, the list and the filters, and the hour (the words "Today"
-    /// and "Yesterday", and how old an owed bill is, move with the clock).
+    /// What the rows depend on: the books, the search, the list and the filters, and the hour (the words "Today" and
+    /// "Yesterday", and how old an owed bill is, move with the clock). The sort is not: it only reorders them.
     private func rowsKey(_ list: String?) -> [Int] {
-        [book.invoices.revision, book.customers.revision, query.hashValue, sort.hashValue, (list ?? "").hashValue,
+        [book.invoices.revision, book.customers.revision, query.hashValue, (list ?? "").hashValue,
          takenBy.hashValue, source.hashValue, Int(Date().timeIntervalSince1970 / 3_600)]
     }
 
     private func build(_ list: String?) -> MacInvoicesPlaceTable {
         let words = query.lowercased().split(whereSeparator: { $0 == " " }).map(String.init)
+        // The words each invoice can be found by are read off the books once, and only when something is typed.
+        var hay: [String: MacInvoicesPlaceHay] = [:]
+        if !words.isEmpty {
+            hay = hays([book.invoices.revision, book.customers.revision]) {
+                var found: [String: MacInvoicesPlaceHay] = [:]
+                found.reserveCapacity(book.invoices.items.count)
+                for inv in book.invoices.items { found[inv.id] = haystack(inv) }
+                return found
+            }
+        }
         var rows: [MacInvoicesPlaceRow] = []
         var billed = 0.0
         var owed = 0.0
@@ -269,7 +297,7 @@ struct MacInvoicesPlace: View {
             if !takenBy.isEmpty && (inv.takenBy ?? "") != takenBy { continue }
             let channel = MacInvoiceWords.source(inv) ?? ""
             if !source.isEmpty && channel != source { continue }
-            if !words.isEmpty && !matches(inv, words) { continue }
+            if !words.isEmpty && !matches(hay[inv.id] ?? haystack(inv), words) { continue }
             let status = MacInvoiceWords.status(inv)
             let due = isOwing(inv) ? inv.balanceDue : 0
             billed += inv.grandTotal
@@ -280,7 +308,6 @@ struct MacInvoicesPlace: View {
                 due: due, statusText: status.text, statusRank: status.rank, tone: status.tone,
                 takenBy: inv.takenBy ?? "", source: channel))
         }
-        rows.sort(using: sort)
         var out = MacInvoicesPlaceTable()
         out.rows = rows
         out.byId = Dictionary(rows.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
@@ -289,9 +316,9 @@ struct MacInvoicesPlace: View {
         return out
     }
 
-    /// Every word somewhere in the invoice: its number, the customer's name and number, a piece's name or stock number,
-    /// who took it (the iPhone's search, word by word).
-    private func matches(_ inv: Invoice, _ words: [String]) -> Bool {
+    /// Everything somewhere in the invoice a word can be found by: its number, the customer's name and number, a piece's name
+    /// or stock number, who took it (the iPhone's search, word by word).
+    private func haystack(_ inv: Invoice) -> MacInvoicesPlaceHay {
         var text = [inv.id, inv.customerName, inv.customerContact ?? "", inv.takenBy ?? "", inv.shopifyOrderName ?? ""]
         var digits = ""
         let own = inv.customerContact ?? ""
@@ -304,11 +331,15 @@ struct MacInvoicesPlace: View {
             text.append(item.name)
             text.append(item.sku)
         }
-        let hay = text.joined(separator: " ").lowercased()
-        return words.allSatisfy { word in
-            if hay.contains(word) { return true }
+        return MacInvoicesPlaceHay(text: text.joined(separator: " ").lowercased(), digits: digits)
+    }
+
+    /// Every word is in the invoice, or a number typed is among its numbers.
+    private func matches(_ hay: MacInvoicesPlaceHay, _ words: [String]) -> Bool {
+        words.allSatisfy { word in
+            if hay.text.contains(word) { return true }
             let typed = CustomerSearch.digitsTyped(word)
-            return typed.count >= 3 && word.allSatisfy { $0.isNumber || $0 == "+" } && digits.contains(typed)
+            return typed.count >= 3 && word.allSatisfy { $0.isNumber || $0 == "+" } && hay.digits.contains(typed)
         }
     }
 }

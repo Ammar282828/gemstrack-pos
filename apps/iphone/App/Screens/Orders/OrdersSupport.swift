@@ -349,7 +349,7 @@ struct OrdersMacDestination: ViewModifier {
                             }
                         }
                 }
-                .frame(minWidth: 900, idealWidth: 980, minHeight: 660, idealHeight: 760)
+                .frame(minWidth: 560, idealWidth: 980, minHeight: 520, idealHeight: 760)
             }
     }
 }

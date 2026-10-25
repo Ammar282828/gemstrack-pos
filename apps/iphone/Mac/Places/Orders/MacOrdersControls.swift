@@ -90,7 +90,6 @@ struct MacOrdersRoundMenu: View {
                 }
             }
         }
-        .fixedSize()
         .disabled(offers.isEmpty)
         .help("Give the bill a round number: the extra is added to the discount")
     }

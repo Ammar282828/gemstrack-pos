@@ -271,7 +271,7 @@ struct PaperPhotoStrip: View {
             }
             .presentationDetents([.large])
             #if os(macOS)
-            .ordersMacSheet(width: 720, height: 640)
+            .ordersMacSheet(width: 560, height: 520, idealWidth: 720, idealHeight: 640)
             #endif
         }
     }

@@ -167,23 +167,16 @@ struct SaleMacStock: View {
 
     private func table(_ rows: [SaleMacStockRow]) -> some View {
         Table(rows, selection: $selection, sortOrder: $sort) {
-            TableColumn("Piece", value: \.name) { row in pieceCell(row) }
-                .width(min: 100, ideal: 150)
-            TableColumn("Metal", value: \.metal) { row in
-                Text(row.metal).font(.callout).foregroundStyle(.secondary).lineLimit(1)
-            }
-            .width(min: 50, ideal: 90)
-            TableColumn("Weight", value: \.weight) { row in
+            TableColumn("Piece", value: \.name) { (row: SaleMacStockRow) in pieceCell(row) }
+                .width(min: 120, ideal: 170)
+            TableColumn("Weight", value: \.weight) { (row: SaleMacStockRow) in
                 Text(row.weight > 0 ? SaleNumber.grams(row.weight) + " g" : "").monospacedDigit().lineLimit(1)
             }
             .width(min: 48, ideal: 62)
-            TableColumn("Price", value: \.price) { row in
-                Text(row.price > 0 ? Money.pkr(row.price) : "—")
-                    .monospacedDigit()
-                    .lineLimit(1)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+            TableColumn("Price", value: \.price) { (row: SaleMacStockRow) in
+                MacAmount(row.price > 0 ? row.price : nil)
             }
-            .width(min: 72, ideal: 90)
+            .width(min: 70, ideal: 90)
         }
         .contextMenu(forSelectionType: String.self) { skus in
             if !skus.isEmpty { MacActionItems(groups: menuGroups(for: skus)) }
@@ -205,7 +198,8 @@ struct SaleMacStock: View {
     private func pieceCell(_ row: SaleMacStockRow) -> some View {
         VStack(alignment: .leading, spacing: 1) {
             Text(row.name).lineLimit(1)
-            Text(row.sku).font(.caption.monospaced()).foregroundStyle(.secondary).lineLimit(1)
+            Text(row.metal.isEmpty ? row.sku : row.sku + " \u{00B7} " + row.metal)
+                .font(.caption).foregroundStyle(.secondary).lineLimit(1)
         }
     }
 
@@ -267,18 +261,16 @@ struct SaleMacBill: View {
 
     private var table: some View {
         Table(lines, selection: $picked) {
-            TableColumn("Piece") { line in pieceCell(line) }
-                .width(min: 150, ideal: 220)
-            TableColumn("Details") { line in
+            TableColumn("Piece") { (line: SaleLine) in pieceCell(line) }
+                .width(min: 120, ideal: 220)
+            TableColumn("Details") { (line: SaleLine) in
                 Text(spec(line)).font(.callout).foregroundStyle(.secondary).lineLimit(1)
             }
-            .width(min: 100, ideal: 160)
-            TableColumn("Price") { line in
-                Text(figures.hasEstimate ? Money.pkr(figures.price(of: line.sku)) : "—")
-                    .monospacedDigit()
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+            .width(min: 80, ideal: 160)
+            TableColumn("Price") { (line: SaleLine) in
+                MacAmount(figures.hasEstimate ? figures.price(of: line.sku) : nil)
             }
-            .width(min: 90, ideal: 110)
+            .width(min: 70, ideal: 110)
         }
         .contextMenu(forSelectionType: String.self) { skus in
             if !skus.isEmpty { MacActionItems(groups: menuGroups(for: skus)) }
@@ -356,7 +348,7 @@ struct SaleMacTotals: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 0)
-                rows.frame(width: 300)
+                rows.frame(minWidth: 220, idealWidth: 300, maxWidth: 300)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 10)

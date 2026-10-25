@@ -7,17 +7,22 @@ import ERPCore
 // footer holds the balance and the order's one Save.
 
 enum MacNewOrderPanelTab: Hashable {
-    case piece, order
+    /// Who it is for and when: its own column in a wide window, the panel's first tab in a narrow one.
+    case customer, piece, order
 }
 
-struct MacNewOrderPanel<PieceContent: View, OrderContent: View>: View {
+struct MacNewOrderPanel<CustomerContent: View, PieceContent: View, OrderContent: View>: View {
     @Binding var tab: MacNewOrderPanelTab
+    /// A narrow window has no room for the customer's column: its form is the panel's first tab.
+    var showsCustomer = false
+    @ViewBuilder let customer: () -> CustomerContent
     @ViewBuilder let piece: () -> PieceContent
     @ViewBuilder let order: () -> OrderContent
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker("Panel", selection: $tab) {
+            Picker("Panel", selection: shownTab) {
+                if showsCustomer { Text("Customer").tag(MacNewOrderPanelTab.customer) }
                 Text("Piece").tag(MacNewOrderPanelTab.piece)
                 Text("Order").tag(MacNewOrderPanelTab.order)
             }
@@ -30,9 +35,18 @@ struct MacNewOrderPanel<PieceContent: View, OrderContent: View>: View {
         }
     }
 
+    /// The Customer tab means the Piece tab once the window is wide enough for the customer's own column.
+    private var shownTab: Binding<MacNewOrderPanelTab> {
+        Binding(
+            get: { tab == .customer && !showsCustomer ? .piece : tab },
+            set: { tab = $0 }
+        )
+    }
+
     @ViewBuilder
     private var content: some View {
-        switch tab {
+        switch shownTab.wrappedValue {
+        case .customer: customer()
         case .piece: piece()
         case .order: order()
         }

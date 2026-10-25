@@ -15,6 +15,8 @@ struct MacNewOrderRow: Identifiable {
     let size: String
     let karigar: String
     let price: Double
+    /// "Size 7 \u{00B7} Sana": what rides beside the name in the table.
+    let detail: String
 
     init(piece: NewOrderPieceDraft, number: Int, price: Double, karigar: String) {
         id = piece.id
@@ -27,9 +29,11 @@ struct MacNewOrderRow: Identifiable {
             let w = NewOrderFormat.num(piece.weight)
             weight = w > 0 ? NewOrderFormat.trimmed(w) + " g" : ""
         }
-        size = NewOrderFormat.trim(piece.size)
+        let sized = NewOrderFormat.trim(piece.size)
+        size = sized
         self.karigar = karigar
         self.price = price
+        detail = [sized.isEmpty ? "" : "Size " + sized, karigar].filter { !$0.isEmpty }.joined(separator: " \u{00B7} ")
     }
 }
 
@@ -53,6 +57,8 @@ struct MacNewOrderPieces: View {
         }
     }
 
+    /// Five columns, 344 points at the least: the size and the karigar ride beside the piece's name (the panel at the right
+    /// has them in full), so the table and the panel fit a narrow window together.
     private var table: some View {
         Table(rows, selection: $selection) {
             TableColumn("#") { (r: MacNewOrderRow) in
@@ -60,32 +66,29 @@ struct MacNewOrderPieces: View {
             }
             .width(28)
             TableColumn("Piece") { (r: MacNewOrderRow) in
-                Text(r.title.isEmpty ? "Untitled piece" : r.title)
-                    .foregroundStyle(r.title.isEmpty ? Color.secondary : Color.primary)
-                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    Text(r.title.isEmpty ? "Untitled piece" : r.title)
+                        .foregroundStyle(r.title.isEmpty ? Color.secondary : Color.primary)
+                        .lineLimit(1)
+                        .layoutPriority(1)
+                    if !r.detail.isEmpty {
+                        Text(r.detail).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                }
             }
+            .width(min: 120, ideal: 200)
             TableColumn("Metal") { (r: MacNewOrderRow) in
                 Text(r.metal).lineLimit(1)
             }
-            .width(min: 80, ideal: 110)
+            .width(min: 70, ideal: 110)
             TableColumn("Weight") { (r: MacNewOrderRow) in
                 Text(r.weight).monospacedDigit().lineLimit(1)
             }
-            .width(min: 60, ideal: 80)
-            TableColumn("Size") { (r: MacNewOrderRow) in
-                Text(r.size).monospacedDigit().lineLimit(1)
-            }
-            .width(min: 40, ideal: 70)
-            TableColumn("Karigar") { (r: MacNewOrderRow) in
-                Text(r.karigar).lineLimit(1)
-            }
-            .width(min: 60, ideal: 90)
+            .width(min: 56, ideal: 80)
             TableColumn("Price") { (r: MacNewOrderRow) in
-                Text(r.price > 0 ? Money.pkr(r.price) : "")
-                    .monospacedDigit()
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+                MacAmount(r.price > 0 ? r.price : nil)
             }
-            .width(min: 80, ideal: 100)
+            .width(min: 70, ideal: 90)
         }
         .contextMenu(forSelectionType: UUID.self) { ids in
             if !ids.isEmpty {
@@ -99,7 +102,7 @@ struct MacNewOrderPieces: View {
         .overlay {
             if rows.isEmpty {
                 ContentUnavailableView("No Pieces Yet", systemImage: "diamond",
-                                       description: Text("Add a piece to see the price."))
+                                       description: Text("Add a piece with \u{2318}L to see the price."))
             }
         }
     }
@@ -108,6 +111,7 @@ struct MacNewOrderPieces: View {
     private var bar: some View {
         HStack(spacing: 14) {
             Button(action: add) { Label("Add a Piece", systemImage: "plus") }
+                .help("Add a piece (\u{2318}L)")
             Button(action: addFromStock) { Label("From Stock\u{2026}", systemImage: "plus") }
             Button { remove(selection) } label: { Label("Remove", systemImage: "minus") }
                 .disabled(selection.isEmpty)

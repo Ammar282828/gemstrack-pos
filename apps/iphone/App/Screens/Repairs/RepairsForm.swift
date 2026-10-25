@@ -530,7 +530,7 @@ extension RepairsForm {
             .formStyle(.grouped)
             macFooter
         }
-        .frame(minWidth: 640, idealWidth: 720, minHeight: 560, idealHeight: 680)
+        .frame(minWidth: 560, idealWidth: 720, minHeight: 520, idealHeight: 680)
         .navigationTitle(editing.map { "Repair \($0.id)" } ?? "New Repair")
         .failureAlert($error)
         .disabled(saving)
@@ -705,7 +705,6 @@ extension RepairsForm {
                         Divider()
                         Button("No date") { hasDate = false }
                     }
-                    .fixedSize()
                 }
             }
         } header: {

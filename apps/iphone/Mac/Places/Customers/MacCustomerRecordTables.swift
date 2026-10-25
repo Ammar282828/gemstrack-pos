@@ -5,7 +5,9 @@ import ERPCore
 // The tables of a customer's record window (docs/features/mac-design.md, "Customers"): their invoices, orders, repairs and
 // hisaab, one at a time, each sortable and filling the window; the toolbar's segmented control picks which. A row opens in a
 // window of its own (double-click, Return, the right-click menu). The rows are the customer page's own facts
-// (CustomerScreen `Facts`); nothing is worked out here that the iPhone's page does not.
+// (CustomerScreen `Facts`); nothing is worked out here that the iPhone's page does not. The window also holds the inspector
+// (260 at least), so each table's column minimums add up to 380 at most: five columns, the rest merged into a cell or left
+// to the row's own window.
 
 // MARK: - Invoices
 
@@ -63,23 +65,17 @@ struct MacCustomerRecordInvoices: View {
             invoices.map { (i: Invoice) in MacCustomerRecordInvoiceRow(i) }.sorted(using: sort)
         }
         Table(rows, selection: $selection, sortOrder: $sort) {
-            TableColumn("Invoice", value: \.id) { (r: MacCustomerRecordInvoiceRow) in Text(r.id).monospacedDigit() }
-                .width(min: 90, ideal: 120)
-            TableColumn("Date", value: \.date) { (r: MacCustomerRecordInvoiceRow) in Text(ShopDate.say(r.date)) }
-                .width(min: 80, ideal: 100)
-            TableColumn("Total", value: \.total) { (r: MacCustomerRecordInvoiceRow) in money(r.total) }
-                .width(min: 90, ideal: 110)
-            TableColumn("Paid", value: \.paid) { (r: MacCustomerRecordInvoiceRow) in money(r.paid) }
-                .width(min: 90, ideal: 110)
+            TableColumn("Invoice", value: \.id) { (r: MacCustomerRecordInvoiceRow) in Text(r.id).monospacedDigit().lineLimit(1) }
+                .width(min: 70, ideal: 96)
+            TableColumn("Date", value: \.date) { (r: MacCustomerRecordInvoiceRow) in Text(ShopDate.say(r.date)).lineLimit(1) }
+                .width(min: 70, ideal: 90)
+            TableColumn("Total", value: \.total) { (r: MacCustomerRecordInvoiceRow) in MacAmount(r.total) }
+                .width(min: 70, ideal: 90)
             TableColumn("Owed", value: \.owed) { (r: MacCustomerRecordInvoiceRow) in
                 // Only what needs someone is coloured: a settled or refunded bill shows nothing here.
-                money(r.owed).foregroundStyle(Tone.owed.color)
+                MacAmount(r.owed >= 1 ? r.owed : nil, tone: .owed)
             }
-            .width(min: 90, ideal: 110)
-            TableColumn("Credit", value: \.credit) { (r: MacCustomerRecordInvoiceRow) in
-                money(r.credit).foregroundStyle(Tone.credit.color)
-            }
-            .width(min: 90, ideal: 110)
+            .width(min: 70, ideal: 90)
             TableColumn("Status", value: \.state) { (r: MacCustomerRecordInvoiceRow) in MacStatus(r.state, tone: r.tone) }
                 .width(min: 90, ideal: 110)
         }
@@ -97,13 +93,6 @@ struct MacCustomerRecordInvoices: View {
             for id in ids.prefix(5) { open(id) }
         }
         .overlay { if rows.isEmpty { ContentUnavailableView("No sales history found for this customer", systemImage: "doc.text") } }
-    }
-
-    /// Whole rupees, right-aligned; under one rupee is nothing.
-    private func money(_ v: Double) -> some View {
-        Text(v >= 1 ? Money.pkr(v) : "")
-            .monospacedDigit()
-            .frame(maxWidth: .infinity, alignment: .trailing)
     }
 }
 
@@ -147,25 +136,21 @@ struct MacCustomerRecordOrders: View {
             orders.map { (o: Order) in MacCustomerRecordOrderRow(o) }.sorted(using: sort)
         }
         Table(rows, selection: $selection, sortOrder: $sort) {
-            TableColumn("Order", value: \.id) { (r: MacCustomerRecordOrderRow) in Text(r.id).monospacedDigit() }
-                .width(min: 90, ideal: 120)
-            TableColumn("Taken", value: \.date) { (r: MacCustomerRecordOrderRow) in Text(ShopDate.say(r.date)) }
-                .width(min: 80, ideal: 100)
-            TableColumn("Pieces", value: \.pieces) { (r: MacCustomerRecordOrderRow) in Text("\(r.pieces)").monospacedDigit() }
-                .width(60)
+            TableColumn("Order", value: \.id) { (r: MacCustomerRecordOrderRow) in Text(r.id).monospacedDigit().lineLimit(1) }
+                .width(min: 70, ideal: 96)
+            TableColumn("Taken", value: \.date) { (r: MacCustomerRecordOrderRow) in Text(ShopDate.say(r.date)).lineLimit(1) }
+                .width(min: 70, ideal: 90)
             TableColumn("Status", value: \.status) { (r: MacCustomerRecordOrderRow) in MacStatus(r.status, tone: r.tone) }
-                .width(min: 100, ideal: 130)
+                .width(min: 90, ideal: 130)
             TableColumn("Still to pay", value: \.toPay) { (r: MacCustomerRecordOrderRow) in
-                Text(Money.pkr(r.toPay))
-                    .monospacedDigit()
-                    .foregroundStyle(r.closed ? Color.secondary : Color.primary)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+                // A closed order (cancelled, refunded, invoiced) is history: dimmed.
+                MacAmount(r.toPay).opacity(r.closed ? 0.55 : 1)
             }
-            .width(min: 90, ideal: 110)
+            .width(min: 70, ideal: 90)
             TableColumn("Invoice", value: \.invoiceId) { (r: MacCustomerRecordOrderRow) in
-                Text(r.invoiceId).monospacedDigit().foregroundStyle(.secondary)
+                Text(r.invoiceId).monospacedDigit().lineLimit(1).foregroundStyle(.secondary)
             }
-            .width(min: 80, ideal: 110)
+            .width(min: 70, ideal: 90)
         }
         .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
             if !ids.isEmpty {
@@ -191,11 +176,14 @@ struct MacCustomerRecordRepairRow: Identifiable {
     let tone: Tone
     let owed: Double
     var id: String { repair.id }
+    /// The ticket and the day it came in, under the piece.
+    let line: String
 
     init(_ r: Repair) {
         repair = r
         piece = CustomerKit.repairSummary(r)
         received = r.receivedAt
+        line = [r.id, ShopDate.say(r.receivedAt)].filter { !$0.isEmpty }.joined(separator: " \u{00B7} ")
         let open = r.status == .received || r.status == .ready
         promised = open ? (CustomerKit.filled(r.promisedDate) ?? "") : ""
         let s = CustomerKit.repairStatus(r.status)
@@ -220,25 +208,23 @@ struct MacCustomerRecordRepairs: View {
             repairs.map { (r: Repair) in MacCustomerRecordRepairRow(r) }.sorted(using: sort)
         }
         Table(rows, selection: $selection, sortOrder: $sort) {
-            TableColumn("Repair", value: \.piece)
-                .width(min: 140, ideal: 220)
-            TableColumn("Ticket", value: \.id) { (r: MacCustomerRecordRepairRow) in Text(r.id).monospacedDigit() }
-                .width(min: 80, ideal: 100)
-            TableColumn("Received", value: \.received) { (r: MacCustomerRecordRepairRow) in Text(ShopDate.say(r.received)) }
-                .width(min: 80, ideal: 100)
-            TableColumn("Promised", value: \.promised) { (r: MacCustomerRecordRepairRow) in
-                Text(r.promised.isEmpty ? "" : ShopDate.say(r.promised))
+            TableColumn("Repair", value: \.piece) { (r: MacCustomerRecordRepairRow) in
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(r.piece).lineLimit(1)
+                    Text(r.line).font(.caption).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
+                }
             }
-            .width(min: 80, ideal: 100)
+            .width(min: 120, ideal: 220)
+            TableColumn("Promised", value: \.promised) { (r: MacCustomerRecordRepairRow) in
+                Text(r.promised.isEmpty ? "" : ShopDate.say(r.promised)).lineLimit(1)
+            }
+            .width(min: 70, ideal: 90)
             TableColumn("Status", value: \.state) { (r: MacCustomerRecordRepairRow) in MacStatus(r.state, tone: r.tone) }
                 .width(min: 90, ideal: 110)
             TableColumn("Owed", value: \.owed) { (r: MacCustomerRecordRepairRow) in
-                Text(r.owed >= 1 ? Money.pkr(r.owed) : "")
-                    .monospacedDigit()
-                    .foregroundStyle(Tone.owed.color)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+                MacAmount(r.owed >= 1 ? r.owed : nil, tone: .owed)
             }
-            .width(min: 90, ideal: 110)
+            .width(min: 70, ideal: 90)
         }
         .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
             if !ids.isEmpty {
@@ -264,6 +250,8 @@ struct MacCustomerRecordHisaabRow: Identifiable {
     let got: Double
     let invoiceId: String
     var id: String { entry.id }
+    /// The metal that moved and the invoice it belongs to, under the entry.
+    var note: String { [metal, invoiceId].filter { !$0.isEmpty }.joined(separator: " \u{00B7} ") }
 
     init(_ e: HisaabEntry) {
         entry = e
@@ -295,32 +283,23 @@ struct MacCustomerRecordHisaab: View {
             rows.map { (e: HisaabEntry) in MacCustomerRecordHisaabRow(e) }.sorted(using: sort)
         }
         Table(lines, selection: $selection, sortOrder: $sort) {
-            TableColumn("Date", value: \.date) { (r: MacCustomerRecordHisaabRow) in Text(ShopDate.say(r.date)) }
-                .width(min: 80, ideal: 100)
+            TableColumn("Date", value: \.date) { (r: MacCustomerRecordHisaabRow) in Text(ShopDate.say(r.date)).lineLimit(1) }
+                .width(min: 70, ideal: 90)
             TableColumn("Entry", value: \.what) { (r: MacCustomerRecordHisaabRow) in
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(r.what)
-                    if !r.metal.isEmpty { Text(r.metal).font(.caption).foregroundStyle(.secondary) }
+                    Text(r.what).lineLimit(1)
+                    if !r.note.isEmpty { Text(r.note).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
                 }
             }
+            .width(min: 120, ideal: 240)
             TableColumn("You gave", value: \.gave) { (r: MacCustomerRecordHisaabRow) in
-                Text(r.gave > 0 ? Money.pkr(r.gave) : "")
-                    .monospacedDigit()
-                    .foregroundStyle(Tone.owed.color)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+                MacAmount(r.gave > 0 ? r.gave : nil, tone: .owed)
             }
-            .width(min: 90, ideal: 110)
+            .width(min: 70, ideal: 90)
             TableColumn("You got", value: \.got) { (r: MacCustomerRecordHisaabRow) in
-                Text(r.got > 0 ? Money.pkr(r.got) : "")
-                    .monospacedDigit()
-                    .foregroundStyle(Tone.settled.color)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+                MacAmount(r.got > 0 ? r.got : nil, tone: .settled)
             }
-            .width(min: 90, ideal: 110)
-            TableColumn("Invoice", value: \.invoiceId) { (r: MacCustomerRecordHisaabRow) in
-                Text(r.invoiceId).monospacedDigit().foregroundStyle(.secondary)
-            }
-            .width(min: 80, ideal: 100)
+            .width(min: 70, ideal: 90)
         }
         .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
             if let eid = ids.first, let inv = lines.first(where: { (r: MacCustomerRecordHisaabRow) in r.id == eid })?.invoiceId, !inv.isEmpty {

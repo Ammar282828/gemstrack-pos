@@ -3,9 +3,10 @@ import SwiftUI
 import ERPCore
 
 // Customers as a Mac place (docs/features/mac-design.md, "Customers"): a sortable, multi-select table of everyone on
-// file (Name, Phone, City, Last sale, Spent, Owed, Came from, Ring), the saved lists Owe Us and Recent from the
-// sidebar, a summary bar, the picked customer in the inspector, and the Customer menu. It replaces the hub's plain table
-// and the Overview page. What a customer owes and has spent is CustomerKit's (the ERP's one figure, lib/owed.ts);
+// file (Name, Phone, City, Last sale, Spent, Owed, Came from; the sizes are the inspector's), the saved lists Owe Us and
+// Recent from the sidebar, a summary bar, the picked customer in the inspector, and the Customer menu. The toolbar is New
+// and, for an owner, one Tidy Up menu; the picked customer's actions are the inspector's, the menu bar's and the right-click
+// menu's. It replaces the hub's plain table and the Overview page. What a customer owes and has spent is CustomerKit's (the ERP's one figure, lib/owed.ts);
 // removing, merging and cleaning up are the owner's, through the same sheets and writes as the iPhone.
 
 /// One customer as a row of the table.
@@ -67,6 +68,7 @@ struct MacCustomersPlace: View {
     @State private var selection = Set<String>()
     @State private var reckoned = Memo<MacCustomersBooks>()
     @State private var made = Memo<[MacCustomersRow]>()
+    @State private var ordered = Memo<[MacCustomersRow]>()
     @State private var nearby = Memo<MacCustomersRecent>()
     @State private var adding = false
     @State private var editing: MacCustomersEdit?
@@ -145,16 +147,18 @@ struct MacCustomersPlace: View {
     private func tableRows(_ b: MacCustomersBooks) -> [MacCustomersRow] {
         let list = listId
         let key = [book.customers.revision, book.invoices.revision, book.orders.revision, book.hisaab.revision,
-                   session.isOwner ? 1 : 0, query.hashValue, sort.hashValue, (list ?? "").hashValue]
-        return made(key) {
+                   session.isOwner ? 1 : 0, query.hashValue, (list ?? "").hashValue]
+        let rows = made(key) {
             let people = MacLists.customers(book.customers.items, list: list, invoices: book.invoices.items)
             var out: [MacCustomersRow] = []
             out.reserveCapacity(people.count)
             for c in people where CustomerKit.matches(c, query) {
                 out.append(MacCustomersRow(c, stats: b.stats[c.id]))
             }
-            return out.sorted(using: sort)
+            return out
         }
+        // The sort alone only puts the same rows in another order.
+        return ordered(key + [sort.hashValue]) { rows.sorted(using: sort) }
     }
 
     private func recent(for id: String) -> MacCustomersRecent {
@@ -171,32 +175,27 @@ struct MacCustomersPlace: View {
 
     private func table(_ rows: [MacCustomersRow], _ b: MacCustomersBooks) -> some View {
         Table(rows, selection: $selection, sortOrder: $sort) {
-            TableColumn("Name", value: \.name)
-                .width(min: 160, ideal: 240)
-            TableColumn("Phone", value: \.phone) { (r: MacCustomersRow) in Text(r.phone).monospacedDigit() }
-                .width(min: 110, ideal: 130)
-            TableColumn("City", value: \.city)
-                .width(min: 80, ideal: 110)
-            TableColumn("Last sale", value: \.lastAt) { (r: MacCustomersRow) in Text(CustomerKit.monthYear(r.lastAt)) }
-                .width(min: 80, ideal: 100)
-            TableColumn("Spent", value: \.spent) { (r: MacCustomersRow) in
-                Text(r.spent > 0 ? Money.pkrLac(r.spent) : "")
-                    .monospacedDigit()
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+            TableColumn("Name", value: \.name) { (r: MacCustomersRow) in Text(r.name).lineLimit(1) }
+                .width(min: 120, ideal: 200)
+            TableColumn("Phone", value: \.phone) { (r: MacCustomersRow) in Text(r.phone).monospacedDigit().lineLimit(1) }
+                .width(min: 100, ideal: 120)
+            TableColumn("City", value: \.city) { (r: MacCustomersRow) in Text(r.city).lineLimit(1) }
+                .width(min: 70, ideal: 100)
+            TableColumn("Last Sale", value: \.lastAt) { (r: MacCustomersRow) in
+                Text(CustomerKit.monthYear(r.lastAt)).lineLimit(1)
             }
-            .width(min: 90, ideal: 110)
+            .width(min: 70, ideal: 90)
+            TableColumn("Spent", value: \.spent) { (r: MacCustomersRow) in
+                MacAmount(r.spent > 0 ? r.spent : nil)
+            }
+            .width(min: 70, ideal: 90)
             TableColumn("Owed", value: \.owed) { (r: MacCustomersRow) in
                 // Only what needs someone is coloured.
-                Text(r.owed >= 1 ? Money.pkr(r.owed) : "")
-                    .monospacedDigit()
-                    .foregroundStyle(Tone.owed.color)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+                MacAmount(r.owed >= 1 ? r.owed : nil, tone: .owed)
             }
-            .width(min: 90, ideal: 110)
-            TableColumn("Came from", value: \.source)
-                .width(min: 80, ideal: 110)
-            TableColumn("Ring", value: \.ring)
-                .width(50)
+            .width(min: 70, ideal: 90)
+            TableColumn("Came From", value: \.source) { (r: MacCustomersRow) in Text(r.source).lineLimit(1) }
+                .width(min: 80, ideal: 100)
         }
         .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
             contextItems(ids)
@@ -216,7 +215,7 @@ struct MacCustomersPlace: View {
         } else if listId == "recent" {
             ContentUnavailableView("No recent buyers", systemImage: "clock", description: Text("Nobody has bought in the last 90 days."))
         } else {
-            ContentUnavailableView("No customers found", systemImage: "person.2", description: Text("Add a customer to begin."))
+            ContentUnavailableView("No Customers Yet", systemImage: "person.2", description: Text("Add one with \u{2303}\u{2318}N."))
         }
     }
 
@@ -353,18 +352,13 @@ struct MacCustomersPlace: View {
         }
     }
 
+    /// New, and for an owner the one Tidy Up menu (merging and cleaning up are about the whole book, not one customer).
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
-        let contact = contactActions(customer(selection), hisaab: false)
-        ToolbarItem(placement: .primaryAction) {
-            MacToolbarAction(action: newAction)
-        }
-        ToolbarItemGroup(placement: .automatic) {
-            MacToolbarAction(action: contact[1])
-            MacToolbarAction(action: contact[0])
-        }
-        if session.isOwner {
-            ToolbarItem(placement: .automatic) {
+        ToolbarItemGroup(placement: .primaryAction) {
+            Button { adding = true } label: { Label("New Customer", systemImage: "plus") }
+                .help("New customer (\u{2303}\u{2318}N)")
+            if session.isOwner {
                 Menu {
                     MacActionMenuItem(action: mergeAction)
                     MacActionMenuItem(action: cleanAction)
@@ -385,7 +379,7 @@ struct MacCustomersPlace: View {
                     }
                 }
         }
-        .frame(minWidth: 760, idealWidth: 820, minHeight: 560)
+        .frame(minWidth: 560, idealWidth: 720, minHeight: 520, idealHeight: 640)
     }
 
     // MARK: The inspector

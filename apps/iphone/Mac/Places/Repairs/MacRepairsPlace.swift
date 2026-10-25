@@ -71,6 +71,7 @@ struct MacRepairsPlace: View {
     @State private var selection = Set<String>()
     @State private var sort = [KeyPathComparator(\MacRepairsRow.promised)]
     @State private var made = Memo<[MacRepairsRow]>()
+    @State private var summed = Memo<[String]>()
     /// New Repair where there is no window to open it in (the place shown in a sheet or a pushed page).
     @State private var newSheet = false
 
@@ -78,15 +79,16 @@ struct MacRepairsPlace: View {
         let list = MacLists.list(in: path)
         let rows = tableRows(list)
         let groups = actions()
+        let line = summed(rowsKey(list) + [selection.hashValue]) { summary(rows) }
         ShelfState(loaded: book.repairs.loaded, error: book.repairs.error, offline: book.repairs.offline) {
             table(rows)
         }
         .navigationTitle(title(list))
         .navigationSubtitle(count(rows.count))
         .macSearchable(text: $query, prompt: "Name, phone, piece or REP no.")
-        .macSummaryBar(summary(rows))
+        .macSummaryBar(line)
         .macInspector { ticketPanel() }
-        .toolbar { placeToolbar(groups) }
+        .toolbar { placeToolbar() }
         .macRecordMenu(MacRecordMenu(title: "Repair", groups: groups))
         .modifier(MacRepairsDialogs(model: model))
         .sheet(isPresented: $newSheet) {
@@ -114,9 +116,7 @@ struct MacRepairsPlace: View {
     /// the sort, the list, a step just taken or the hour (a promise turns late).
     private func tableRows(_ list: String?) -> [MacRepairsRow] {
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let hour = Int(Date().timeIntervalSince1970 / 3600)
-        let key: [Int] = [book.repairs.revision, q.hashValue, sort.hashValue, (list ?? "").hashValue, model.desk.moves, hour]
-        return made(key) { () -> [MacRepairsRow] in
+        return made(rowsKey(list)) { () -> [MacRepairsRow] in
             let now = Date()
             var base = MacLists.repairs(book.repairs.items, list: list)
             // Without a saved list the place is the work in hand; a search looks through every ticket there is.
@@ -127,6 +127,13 @@ struct MacRepairsPlace: View {
             let rows = found.map { MacRepairsRow($0, status: model.desk.status($0), now: now) }
             return rows.sorted(using: sort)
         }
+    }
+
+    /// What the rows were made from: a change of any makes them again.
+    private func rowsKey(_ list: String?) -> [Int] {
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let hour = Int(Date().timeIntervalSince1970 / 3600)
+        return [book.repairs.revision, q.hashValue, sort.hashValue, (list ?? "").hashValue, model.desk.moves, hour]
     }
 
     private func summary(_ rows: [MacRepairsRow]) -> [String] {
@@ -143,36 +150,35 @@ struct MacRepairsPlace: View {
     private func table(_ rows: [MacRepairsRow]) -> some View {
         Table(rows, selection: $selection, sortOrder: $sort) {
             TableColumn("Number", value: \.number) { (r: MacRepairsRow) in
-                Text(r.number).monospacedDigit()
+                Text(r.number).monospacedDigit().lineLimit(1)
             }
-            .width(min: 90, ideal: 110)
+            .width(min: 76, ideal: 100)
             TableColumn("Piece", value: \.summary) { (r: MacRepairsRow) in
                 Text(r.summary)
                     .foregroundStyle(r.status == .collected || r.status == .cancelled ? Color.secondary : Color.primary)
                     .lineLimit(1)
             }
-            TableColumn("Customer", value: \.customer)
+            .width(min: 120, ideal: 180)
+            TableColumn("Customer", value: \.customer) { (r: MacRepairsRow) in
+                Text(r.customer).lineLimit(1)
+            }
+            .width(min: 100, ideal: 140)
             TableColumn("Status", value: \.statusLabel) { (r: MacRepairsRow) in
                 MacStatus(r.statusLabel, tone: r.statusTone)
             }
-            .width(min: 90, ideal: 110)
-            TableColumn("In", value: \.received) { (r: MacRepairsRow) in
-                Text(ShopDate.say(r.received))
-            }
-            .width(min: 80, ideal: 100)
+            .width(min: 90, ideal: 120)
             TableColumn("Ready by", value: \.promised) { (r: MacRepairsRow) in
                 Text(r.readyBy).foregroundStyle(r.readyByTone == .quiet ? Color.primary : r.readyByTone.color).lineLimit(1)
             }
-            .width(min: 110, ideal: 160)
+            .width(min: 80, ideal: 130)
             TableColumn("Owed", value: \.owed) { (r: MacRepairsRow) in
-                Text(r.owed >= 1 ? Money.pkr(r.owed) : "")
-                    .monospacedDigit()
-                    .foregroundStyle(Tone.owed.color)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+                MacAmount(r.owed >= 1 ? r.owed : nil, tone: .owed)
             }
-            .width(min: 90, ideal: 110)
-            TableColumn("Karigar", value: \.karigar)
-                .width(min: 80, ideal: 110)
+            .width(min: 70, ideal: 90)
+            TableColumn("Karigar", value: \.karigar) { (r: MacRepairsRow) in
+                Text(r.karigar).lineLimit(1).foregroundStyle(.secondary)
+            }
+            .width(min: 70, ideal: 100)
         }
         .contextMenu(forSelectionType: String.self) { ids in
             menu(ids)
@@ -188,15 +194,11 @@ struct MacRepairsPlace: View {
         if !typed.isEmpty {
             ContentUnavailableView.search(text: typed)
         } else if book.repairs.items.isEmpty {
-            if session.isOwner {
-                EmptyState("No Repairs Yet", symbol: "wrench.and.screwdriver",
-                           message: "When a customer leaves pieces to be mended, they are written up here.",
-                           action: (title: "New Repair", run: { newRepair() }))
-            } else {
-                EmptyState("No Repairs Yet", symbol: "wrench.and.screwdriver", message: "Repairs the shop takes in will show here.")
-            }
+            ContentUnavailableView("No Repairs Yet", systemImage: "wrench.and.screwdriver",
+                                   description: Text(session.isOwner ? "Take one in with New Repair (\u{2325}\u{2318}N)." : "Repairs the shop takes in will show here."))
         } else {
-            EmptyState("Nothing Here", symbol: "wrench.and.screwdriver", message: "No ticket is on this list.")
+            ContentUnavailableView("Nothing Here", systemImage: "wrench.and.screwdriver",
+                                   description: Text("No ticket is on this list."))
         }
     }
 
@@ -237,18 +239,14 @@ struct MacRepairsPlace: View {
         }
     }
 
+    /// New Repair, and nothing else: the picked ticket's steps are the inspector's head, the Repair menu's and the
+    /// right-click menu's (a Tahoe toolbar of capsules overflowed a 13-inch screen).
     @ToolbarContentBuilder
-    private func placeToolbar(_ groups: [[MacAction]]) -> some ToolbarContent {
-        let all = groups.flatMap { $0 }
+    private func placeToolbar() -> some ToolbarContent {
         if session.isOwner {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .primaryAction) {
                 Button { newRepair() } label: { Label("New Repair", systemImage: "plus") }
                     .help("Take a repair in (\u{2325}\u{2318}N)")
-            }
-        }
-        ToolbarItemGroup(placement: .primaryAction) {
-            ForEach(all.filter { ["ready", "collected", "pay", "print"].contains($0.id) }) { a in
-                MacToolbarAction(action: a)
             }
         }
     }

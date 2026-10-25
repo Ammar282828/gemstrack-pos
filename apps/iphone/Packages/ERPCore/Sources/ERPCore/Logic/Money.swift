@@ -14,13 +14,18 @@ public enum Money {
         return s
     }
 
-    /// Whole rupees grouped the way the ERP's en-US formatting groups them: 85,000.
-    public static func grouped(_ n: Double) -> String {
+    /// Made once: a formatter costs more to make than to use, and every sum on a screen (each table cell) asks for one.
+    private static let groupedFormatter: NumberFormatter = {
         let f = NumberFormatter()
         f.numberStyle = .decimal
         f.locale = Locale(identifier: "en_US")
         f.maximumFractionDigits = 0
-        return f.string(from: NSNumber(value: n.rounded())) ?? String(Int(n.rounded()))
+        return f
+    }()
+
+    /// Whole rupees grouped the way the ERP's en-US formatting groups them: 85,000.
+    public static func grouped(_ n: Double) -> String {
+        groupedFormatter.string(from: NSNumber(value: n.rounded())) ?? String(Int(n.rounded()))
     }
 
     public static func lacCrore(_ n: Double, digits: Int = 2) -> String {

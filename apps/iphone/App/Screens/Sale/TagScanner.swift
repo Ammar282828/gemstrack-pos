@@ -192,7 +192,7 @@ struct TagScanner: View {
     var body: some View {
         VStack(spacing: 12) {
             VStack(spacing: 6) {
-                Image(systemName: "barcode.viewfinder").font(.largeTitle).foregroundStyle(.secondary)
+                Image(systemName: "barcode.viewfinder").font(.title2).foregroundStyle(.secondary)
                 Text("Scan the tag with the barcode scanner").font(.headline)
                 Text("Point the scanner at the tag: it types the SKU. Or type it below, or read a photo of the tag.")
                     .font(.callout).foregroundStyle(.secondary)

@@ -502,14 +502,15 @@ extension SaleForm {
                 HSplitView {
                     if ui.stockShown {
                         macStock(f, ui)
-                            .frame(minWidth: 300, idealWidth: 340, maxWidth: 420)
+                            .frame(minWidth: 280, idealWidth: 340, maxWidth: 420)
                     }
                     macBill(f, ui)
-                        .frame(minWidth: 380, maxWidth: .infinity)
+                        .frame(minWidth: 320, maxWidth: .infinity)
                 }
                 Divider()
+                // 320 when the window has room, down to 280 when it has not (the window may shrink to 600 with the stock put away).
                 macPanel(f, ui)
-                    .frame(width: 320)
+                    .frame(minWidth: 280, idealWidth: 320, maxWidth: 320)
             }
             macFooter(f, actions)
         }

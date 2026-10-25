@@ -203,7 +203,6 @@ struct MacNewOrderPayment: View {
                 }
             }
         }
-        .fixedSize()
         .disabled(offers.isEmpty)
         .help("Round the bill down to a round number by adding to the discount")
     }
@@ -281,7 +280,7 @@ struct MacNewOrderExchange: View {
                         }
                     }
                     .labelsHidden()
-                    .fixedSize()
+                    .frame(maxWidth: 90)
                 }
                 TextField("Grams", text: text(row.id, { $0.weightG }, { ExchangeRowPatch(weightG: $0) }), prompt: Text("Grams"))
                     .labelsHidden()

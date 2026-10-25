@@ -26,12 +26,17 @@ struct MacNewOrderCustomerBox: View {
 
     @FocusState private var phoneFocused: Bool
     @State private var offered = Memo<[Customer]>()
+    /// What the book answered for the picked customer, the typed name and the typed number: asked once per change of the
+    /// shelves or of what was typed, never on another field's keystroke.
+    @State private var foundPicked = Memo<Customer?>()
+    @State private var foundExact = Memo<Bool>()
+    @State private var foundByPhone = Memo<[CustomerSearch.Hit]>()
 
     private var typed: String { name.trimmingCharacters(in: .whitespaces) }
 
     private var picked: Customer? {
         guard let id = pickedId, !id.isEmpty else { return nil }
-        return book.first { $0.id == id }
+        return foundPicked([id.hashValue] + recentKey) { book.first { $0.id == id } }
     }
 
     /// What the drop-down offers: the last people served while nothing is typed, then the best matches for what is.
@@ -51,7 +56,7 @@ struct MacNewOrderCustomerBox: View {
     /// A number being typed with no name picked: who it already belongs to.
     private var phoneHits: [CustomerSearch.Hit] {
         guard phoneFocused, picked == nil, CustomerSearch.digitsTyped(phone).count >= 4 else { return [] }
-        return CustomerSearch.rank(phone, in: book, limit: 3)
+        return foundByPhone([phone.hashValue] + recentKey) { CustomerSearch.rank(phone, in: book, limit: 3) }
     }
 
     var body: some View {
@@ -109,7 +114,7 @@ struct MacNewOrderCustomerBox: View {
             Label(sub.isEmpty ? "On file" : "On file \u{00B7} " + sub, systemImage: "checkmark.seal.fill")
                 .font(.callout)
                 .foregroundStyle(.secondary)
-        } else if !typed.isEmpty && CustomerSearch.exact(typed, in: book).isEmpty {
+        } else if !typed.isEmpty && foundExact([typed.hashValue] + recentKey, { CustomerSearch.exact(typed, in: book).isEmpty }) {
             Label("New customer \u{201C}\(typed)\u{201D}", systemImage: "person.badge.plus")
                 .font(.callout)
                 .foregroundStyle(.secondary)

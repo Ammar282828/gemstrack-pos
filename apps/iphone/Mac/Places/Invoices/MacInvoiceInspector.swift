@@ -42,12 +42,14 @@ private struct MacInvoiceInspectorBody: View {
     var body: some View {
         let status = MacInvoiceWords.status(invoice)
         VStack(spacing: 0) {
-            MacInspectorHeader(title: InvoiceFacts.customerName(invoice, walkIn: "Walk-in"),
-                               subtitle: MacInvoiceWords.subtitle(invoice, withTaker: false),
-                               status: MacStatus(status.text, tone: status.tone),
-                               headline: MacInvoiceWords.headline(invoice),
-                               actions: MacInvoiceMenu.buttons(invoice, cx))
-                .padding(16)
+            VStack(alignment: .leading, spacing: 12) {
+                MacInspectorHeader(title: InvoiceFacts.customerName(invoice, walkIn: "Walk-in"),
+                                   subtitle: MacInvoiceWords.subtitle(invoice, withTaker: false),
+                                   status: MacStatus(status.text, tone: status.tone),
+                                   headline: MacInvoiceWords.headline(invoice))
+                buttons
+            }
+            .padding(16)
             Divider()
             Form {
                 piecesSection
@@ -55,6 +57,18 @@ private struct MacInvoiceInspectorBody: View {
                 detailsSection
             }
             .formStyle(.grouped)
+        }
+    }
+
+    /// Take Payment, WhatsApp and PDF in a row, or in two when the inspector is at its narrowest.
+    private var buttons: some View {
+        let actions = MacInvoiceMenu.buttons(invoice, cx)
+        return ViewThatFits(in: .horizontal) {
+            MacActionButtons(actions: actions)
+            VStack(alignment: .leading, spacing: 6) {
+                MacActionButtons(actions: Array(actions.prefix(1)))
+                MacActionButtons(actions: Array(actions.dropFirst(1)))
+            }
         }
     }
 

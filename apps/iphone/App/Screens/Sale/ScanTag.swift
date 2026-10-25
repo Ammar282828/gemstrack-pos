@@ -257,9 +257,9 @@ extension ScanTag {
             ScanTagMacScanner(
                 read: { code in handle(code) },
                 title: { sku in book.products.item(sku)?.name ?? "" })
-                .frame(minWidth: 400, idealWidth: 460, maxWidth: 560)
+                .frame(minWidth: 280, idealWidth: 460, maxWidth: 560)
             macResult(open)
-                .frame(minWidth: 380)
+                .frame(minWidth: 320)
         }
         .background(Theme.ground)
         .macRecordMenu(MacRecordMenu(title: "Scan", groups: [[actions.primary], [actions.open], [actions.again]]))

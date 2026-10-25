@@ -372,7 +372,7 @@ extension NewOrderScanScreen {
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
             .background(Theme.ground)
-            .frame(width: 380)
+            .frame(minWidth: 260, idealWidth: 360, maxWidth: 400)
             Divider()
             Group {
                 if let reading {
@@ -389,7 +389,7 @@ extension NewOrderScanScreen {
                                            description: Text("Choose the photos of the slip on the left, then read it. The form is filled in for you to check."))
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .frame(minWidth: 280, maxWidth: .infinity, maxHeight: .infinity)
             .background(Theme.ground)
         }
         .motion(busy)

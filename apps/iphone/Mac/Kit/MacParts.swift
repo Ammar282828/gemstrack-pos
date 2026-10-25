@@ -62,7 +62,7 @@ extension View {
 
 // MARK: A sum in a table
 
-/// A sum in a table's cell: the digits only, grouped the shop's way and right-aligned ("1,23,000"), as Numbers sets a
+/// A sum in a table's cell: the digits only, grouped as the ERP groups them and right-aligned ("123,000"), as Numbers sets a
 /// column of money. The column's header names what it is, the summary bar carries "PKR": a "PKR " in every cell only
 /// widens the column. Blank for nil.
 struct MacAmount: View {

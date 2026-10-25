@@ -21,6 +21,9 @@ struct MacOrderInspector: View {
     /// What the person just did, shown before the shelf's copy catches up (dropped once the shelf agrees).
     @State private var localDone: [Int: Bool] = [:]
     @State private var localKarigar: [Int: String] = [:]
+    /// The karigars worked out from the shelf, kept until it changes (never walked while drawing).
+    @State private var liveKarigars = Memo<[Karigar]>()
+    @State private var karigarNames = Memo<[String: String]>()
 
     var body: some View {
         Group {
@@ -44,7 +47,7 @@ struct MacOrderInspector: View {
         let stage = MacOrdersLogic.stage(order, invoiceOwed: invoiceOwed, local: localStatus[order.id])
         let owed = MacOrdersLogic.owed(order, stage: stage, invoiceOwed: invoiceOwed)
         let worth = MacOrdersLogic.worth(order, invoice: invoice)
-        let buttons = MacOrdersMenu.pick(actions(order, stage, invoiceOwed), ["next", "advance"]).filter { $0.enabled }
+        let buttons = MacOrdersMenu.pick(actions(order, stage, invoiceOwed), ["next", "advance"]).filter { $0.enabled }.map(shortened)
         return VStack(spacing: 0) {
             MacInspectorHeader(
                 title: OrdersLogic.customerName(order),
@@ -64,7 +67,8 @@ struct MacOrderInspector: View {
     private func form(_ order: Order, invoice: Invoice?, stage: OrderStage, worth: Double) -> some View {
         let invoiced = OrdersLogic.hasInvoice(order)
         let counts = pieceCounts(order.items)
-        let karigars: [Karigar] = session.isOwner && !invoiced ? workshopLive(book.karigars.items) : []
+        let live = liveKarigars([book.karigars.revision]) { workshopLive(book.karigars.items) }
+        let karigars: [Karigar] = session.isOwner && !invoiced ? live : []
         let lines = OrdersLogic.advanceLines(order)
         return Form {
             promiseSection(order)
@@ -87,6 +91,14 @@ struct MacOrderInspector: View {
             detailsSection(order, invoice: invoice)
         }
         .formStyle(.grouped)
+    }
+
+    /// "Next Step: Make invoice" is too long for two buttons side by side in the inspector's column: the step's own words.
+    private func shortened(_ a: MacAction) -> MacAction {
+        guard a.id == "next" else { return a }
+        var b = a
+        b.title = a.title.replacingOccurrences(of: "Next Step: ", with: "")
+        return b
     }
 
     private func headline(owed: Double, worth: Double, stage: OrderStage) -> MacHeadline? {
@@ -195,7 +207,7 @@ struct MacOrderInspector: View {
             .labelsHidden()
             .pickerStyle(.menu)
             .controlSize(.small)
-            .fixedSize()
+            .frame(maxWidth: 200, alignment: .leading)
         } else if current != "none" {
             Text(karigarName(current)).font(.callout).foregroundStyle(.secondary)
         } else if !done {
@@ -204,7 +216,12 @@ struct MacOrderInspector: View {
     }
 
     private func karigarName(_ id: String) -> String {
-        book.karigars.items.first(where: { $0.id == id })?.name ?? "Karigar " + id
+        let names = karigarNames([book.karigars.revision]) { () -> [String: String] in
+            var out: [String: String] = [:]
+            for k in book.karigars.items where out[k.id] == nil { out[k.id] = k.name }
+            return out
+        }
+        return names[id] ?? "Karigar " + id
     }
 
     private func assign(_ order: Order, _ i: Int, _ karigarId: String) {

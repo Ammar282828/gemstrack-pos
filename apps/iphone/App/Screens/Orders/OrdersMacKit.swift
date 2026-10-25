@@ -8,9 +8,10 @@ import ERPCore
 // anything, it only arranges what they hand it.
 
 extension View {
-    /// A Mac sheet at the size its content reads at (rule: forms 520-720 wide).
-    func ordersMacSheet(width: CGFloat = 560, height: CGFloat = 440) -> some View {
-        frame(minWidth: width, idealWidth: width, minHeight: height, idealHeight: height)
+    /// A Mac sheet at the size its content reads at: never more than 560 by 520 at the least (the polish rules); `ideal` is
+    /// the size it opens at when that is larger, and the person can drag it larger still.
+    func ordersMacSheet(width: CGFloat = 560, height: CGFloat = 440, idealWidth: CGFloat? = nil, idealHeight: CGFloat? = nil) -> some View {
+        frame(minWidth: width, idealWidth: idealWidth ?? width, minHeight: height, idealHeight: idealHeight ?? height)
     }
 
     /// A sheet's one action in the Mac footer (what it will do on the right as the default button, Return; Esc cancels),

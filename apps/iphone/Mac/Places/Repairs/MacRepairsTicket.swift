@@ -168,7 +168,19 @@ struct MacRepairsTicket: View {
             if model.desk.status(r) == .ready, let url = RepairsKit.whatsAppURL(for: r, shopName: session.shop.name) {
                 Link(destination: url) { Label("Tell Them It's Ready", systemImage: "message") }
             }
+            if !wide, let receipt = receiptAction(r) {
+                Button { receipt.perform() } label: { Label("Print Receipt", systemImage: "printer") }
+                    .buttonStyle(.link)
+                    .help(receipt.help)
+            }
         }
+    }
+
+    /// Print Receipt for the inspector: its head has no room for a third button, the Repair menu (\u{2318}P) and the
+    /// right-click menu have it too.
+    private func receiptAction(_ r: Repair) -> MacAction? {
+        model.groups([r], owner: session.isOwner, shopName: session.shop.name, open: { openURL($0) })
+            .flatMap { $0 }.first { $0.id == "print" }
     }
 
     @ViewBuilder
@@ -304,13 +316,35 @@ struct MacRepairsTicketWindow: View {
         return model.groups(picked, owner: session.isOwner, shopName: session.shop.name, open: { openURL($0) })
     }
 
+    /// The More menu's actions in two groups: telling the customer, then cancelling and deleting.
+    private func moreGroups(_ more: [MacAction]) -> [[MacAction]] {
+        let tell: [MacAction] = more.filter { $0.id == "tell" }
+        let undo: [MacAction] = more.filter { $0.id != "tell" }
+        return [tell, undo].filter { !$0.isEmpty }
+    }
+
+    /// The next step, Take Payment, Print Receipt and Edit in the trailing group; the rest in one More menu.
     @ToolbarContentBuilder
     private func windowToolbar(_ groups: [[MacAction]]) -> some ToolbarContent {
         let all = groups.flatMap { $0 }
+        let shown = all.filter { (a: MacAction) -> Bool in
+            switch a.id {
+            case "ready", "collected": return a.enabled
+            case "pay", "print", "edit": return true
+            default: return false
+            }
+        }
+        let more: [MacAction] = all.filter { ["tell", "cancel", "delete"].contains($0.id) }
         ToolbarItemGroup(placement: .primaryAction) {
-            ForEach(all.filter { ["ready", "collected", "pay", "print", "edit"].contains($0.id) }) { a in
+            ForEach(shown) { (a: MacAction) in
                 MacToolbarAction(action: a)
             }
+            Menu {
+                MacActionItems(groups: moreGroups(more))
+            } label: {
+                Label("More", systemImage: "ellipsis.circle")
+            }
+            .help("More things to do with this repair")
         }
     }
 }

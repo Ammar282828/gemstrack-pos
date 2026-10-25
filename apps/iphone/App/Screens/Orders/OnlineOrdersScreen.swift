@@ -307,12 +307,12 @@ extension OnlineOrdersScreen {
                 }
             }
             .listStyle(.inset)
-            .frame(minWidth: 300, idealWidth: 360, maxWidth: 460)
+            .frame(minWidth: 240, idealWidth: 320, maxWidth: 440)
             .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
                 if let id = ids.first, let r = macRows.first(where: { $0.id == id }) { macMenu(r) }
             }
             macDetail(current)
-                .frame(minWidth: 460, maxWidth: .infinity, maxHeight: .infinity)
+                .frame(minWidth: 340, idealWidth: 560, maxWidth: .infinity, maxHeight: .infinity)
         }
         .overlay {
             if waiting.isEmpty && lately.isEmpty {
@@ -323,7 +323,7 @@ extension OnlineOrdersScreen {
         .navigationSubtitle(waiting.isEmpty ? "" : "\(waiting.count) to confirm")
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
-                ForEach(MacOrdersMenu.pick(groups, ["decline", "confirm", "open"])) { (a: MacAction) in
+                ForEach(macToolbarActions(groups)) { (a: MacAction) in
                     MacToolbarAction(action: a)
                 }
             }
@@ -334,6 +334,13 @@ extension OnlineOrdersScreen {
         .onChange(of: store.waiting.map(\.id)) { _, ids in
             if picked == nil || !macRows.contains(where: { $0.id == picked }) { picked = ids.first ?? lately.first?.id }
         }
+    }
+
+    /// No inspector here, so two actions may stay in the toolbar: Confirm and Decline for an order waiting, Open the Order for a
+    /// confirmed one (never both at once); the three shut while nothing is picked.
+    private func macToolbarActions(_ groups: [[MacAction]]) -> [MacAction] {
+        let onOffer = MacOrdersMenu.pick(groups, ["decline", "confirm", "open"]).filter { $0.enabled }
+        return onOffer.isEmpty ? MacOrdersMenu.pick(groups, ["decline", "confirm"]) : onOffer
     }
 
     // MARK: The list

@@ -157,7 +157,7 @@ struct MacInvoicePDFSheet: View {
                     }
                 }
         }
-        .frame(minWidth: 640, idealWidth: 720, minHeight: 700, idealHeight: 820)
+        .frame(minWidth: 560, idealWidth: 720, minHeight: 520, idealHeight: 820)
     }
 }
 

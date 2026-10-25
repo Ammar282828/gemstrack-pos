@@ -159,7 +159,6 @@ struct MacInvoiceRoundMenu: View {
                 }
             }
         }
-        .fixedSize()
         .disabled(offers.isEmpty)
         .help(offers.isEmpty ? "The bill is already round" : "Round the bill down by taking a little more off")
     }

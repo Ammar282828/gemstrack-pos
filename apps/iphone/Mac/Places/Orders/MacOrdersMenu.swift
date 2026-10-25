@@ -83,6 +83,11 @@ enum MacOrdersMenu {
         return ids.compactMap { id in all.first { $0.id == id } }
     }
 
+    /// The groups without these ids: what a record window's More menu holds once its toolbar has the few.
+    static func rest(_ groups: [[MacAction]], excluding ids: [String]) -> [[MacAction]] {
+        groups.map { (g: [MacAction]) -> [MacAction] in g.filter { !ids.contains($0.id) } }.filter { !$0.isEmpty }
+    }
+
     // MARK: The groups
 
     private static func steps(_ i: MacOrdersMenuInput, _ r: MacOrdersMenuRun) -> [MacAction] {
@@ -193,6 +198,29 @@ enum MacOrdersMenu {
         out.append(MacAction("Delete\u{2026}", symbol: "trash", shortcut: KeyboardShortcut(.delete, modifiers: .command),
                              role: .destructive, enabled: canDelete, id: "delete", perform: r.delete))
         return out
+    }
+}
+
+/// A record window's More menu: the actions its toolbar has no room for. No keys are declared here (the Order menu in the
+/// menu bar owns them); its label is the Label AppKit keeps.
+struct MacOrdersMoreMenu: View {
+    let groups: [[MacAction]]
+
+    var body: some View {
+        Menu {
+            ForEach(Array(groups.enumerated()), id: \.offset) { (pair: (offset: Int, element: [MacAction])) in
+                if pair.offset > 0 { Divider() }
+                ForEach(pair.element) { (a: MacAction) in
+                    Button(role: a.role, action: a.perform) {
+                        Label(a.title, systemImage: a.symbol ?? "circle")
+                    }
+                    .disabled(!a.enabled)
+                }
+            }
+        } label: {
+            Label("More", systemImage: "ellipsis.circle")
+        }
+        .help("More things to do with this order")
     }
 }
 #endif

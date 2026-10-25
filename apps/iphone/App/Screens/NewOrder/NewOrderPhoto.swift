@@ -131,7 +131,7 @@ struct NewOrderCamera: View {
 
     var body: some View {
         VStack(spacing: 14) {
-            Image(systemName: "photo.badge.plus").font(.largeTitle).foregroundStyle(.secondary)
+            Image(systemName: "photo.badge.plus").font(.title2).foregroundStyle(.secondary)
             Text("Choose a photo").font(.headline)
             Text("Pick a picture from your Mac, or drop one here.")
                 .font(.subheadline).foregroundStyle(.secondary)

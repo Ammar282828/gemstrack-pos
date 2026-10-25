@@ -1016,7 +1016,7 @@ extension InvoiceScreen {
             HStack(alignment: .top, spacing: 0) {
                 ScrollView { macMain(inv, cx) }
                 Divider()
-                macDetails(inv, cx).frame(width: 300)
+                macDetails(inv, cx).frame(minWidth: 220, idealWidth: 280, maxWidth: 300)
             }
         }
         .navigationSubtitle(who)
@@ -1044,10 +1044,13 @@ extension InvoiceScreen {
 
     // MARK: The toolbar
 
+    /// A record window: the four actions used most (money, the paper, the customer's copy), the rest under More. The keys are
+    /// the Invoice menu's (menu bar), not these buttons'.
     @ToolbarContentBuilder
     private func macToolbar(_ inv: Invoice, _ cx: MacInvoiceContext) -> some ToolbarContent {
         ToolbarItemGroup(placement: .primaryAction) {
-            ForEach(MacInvoiceMenu.toolbar(inv, cx, withEdit: true)) { MacToolbarAction(action: $0) }
+            ForEach(MacInvoiceMenu.toolbar(inv, cx, withEdit: true)) { (a: MacAction) in MacToolbarAction(action: a) }
+            MacInvoiceMoreMenu(groups: MacInvoiceMenu.more(inv, cx))
         }
     }
 
@@ -1185,20 +1188,18 @@ private struct MacInvoicePiecesTable: View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Pieces").font(.headline)
             Table(shown, selection: $selection) {
-                TableColumn("Piece") { r in
+                TableColumn("Piece") { (r: Row) in
                     HStack(spacing: 6) {
-                        Text(r.title).fontWeight(.medium)
-                        if let category = r.category { Text(category).foregroundStyle(.secondary) }
+                        Text(r.title).fontWeight(.medium).lineLimit(1)
+                        if let category = r.category { Text(category).foregroundStyle(.secondary).lineLimit(1) }
                     }
                 }
-                .width(min: 160, ideal: 260)
-                TableColumn("Metal") { r in Text(r.metal) }.width(min: 80, ideal: 110)
-                TableColumn("Weight") { r in Text(r.weight).monospacedDigit() }.width(min: 60, ideal: 80)
-                TableColumn("Size") { r in Text(r.item.size ?? "") }.width(min: 40, ideal: 60)
-                TableColumn("Total") { r in
-                    Text(Money.pkr(r.item.itemTotal)).monospacedDigit().frame(maxWidth: .infinity, alignment: .trailing)
-                }
-                .width(min: 100, ideal: 120)
+                .width(min: 120, ideal: 260)
+                TableColumn("Metal") { (r: Row) in Text(r.metal).lineLimit(1) }.width(min: 70, ideal: 110)
+                TableColumn("Weight") { (r: Row) in Text(r.weight).monospacedDigit().lineLimit(1) }.width(min: 56, ideal: 80)
+                TableColumn("Size") { (r: Row) in Text(r.item.size ?? "").lineLimit(1) }.width(min: 36, ideal: 60)
+                TableColumn("Total") { (r: Row) in MacAmount(r.item.itemTotal) }
+                    .width(min: 70, ideal: 100)
             }
             .frame(height: MacInvoiceTableSize.height(shown.count))
             .contextMenu(forSelectionType: Int.self) { ids in
@@ -1283,7 +1284,7 @@ private struct MacInvoiceTotalsBlock: View {
                 line("Paid", Money.pkr(invoice.amountPaid))
                 balanceRow(invoice)
             }
-            .frame(width: 300)
+            .frame(minWidth: 220, idealWidth: 300, maxWidth: 300)
         }
     }
 
@@ -1360,18 +1361,17 @@ private struct MacInvoicePaymentsTable: View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Payments").font(.headline)
             Table(shown, selection: $selection) {
-                TableColumn("When") { r in Text(r.when).monospacedDigit() }
-                    .width(min: 120, ideal: 160)
-                TableColumn("Method") { r in Text(r.method) }
-                    .width(min: 90, ideal: 120)
-                TableColumn("Reference and Note") { r in Text(r.note).foregroundStyle(.secondary) }
-                TableColumn("Amount") { r in
-                    Text(r.payment.amount < 0 ? Money.minus(r.payment.amount) : Money.pkr(r.payment.amount))
-                        .monospacedDigit()
-                        .foregroundStyle(r.payment.amount < 0 ? Color.secondary : Color.primary)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
+                TableColumn("When") { (r: Row) in Text(r.when).monospacedDigit().lineLimit(1) }
+                    .width(min: 110, ideal: 160)
+                TableColumn("Method") { (r: Row) in Text(r.method).lineLimit(1) }
+                    .width(min: 80, ideal: 120)
+                TableColumn("Reference and Note") { (r: Row) in Text(r.note).foregroundStyle(.secondary).lineLimit(1) }
+                    .width(min: 60, ideal: 200)
+                TableColumn("Amount") { (r: Row) in
+                    // A refund out is a minus, dimmed.
+                    MacAmount(r.payment.amount).opacity(r.payment.amount < 0 ? 0.6 : 1)
                 }
-                .width(min: 100, ideal: 120)
+                .width(min: 70, ideal: 100)
             }
             .frame(height: MacInvoiceTableSize.height(shown.count))
             .contextMenu(forSelectionType: Int.self) { ids in

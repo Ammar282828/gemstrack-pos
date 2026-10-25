@@ -29,6 +29,15 @@ enum MacInvoiceMenu {
         return out
     }
 
+    /// A record window's More menu: what its toolbar's four do not carry, in the Invoice menu's order.
+    static func more(_ inv: Invoice?, _ cx: MacInvoiceContext) -> [[MacAction]] {
+        [
+            [pdf(inv, cx), copyPaymentLink(inv, cx), copyCustomerLink(inv)],
+            [changeDiscount(inv, cx), giveBackCredit(inv, cx), changeRate(inv, cx), customer(inv, cx)],
+            [refund(inv, cx), delete(inv, cx)],
+        ]
+    }
+
     /// The inspector's buttons: Take Payment (the default while money is owed), WhatsApp, PDF.
     static func buttons(_ inv: Invoice?, _ cx: MacInvoiceContext) -> [MacAction] {
         let owing = inv.map { isOwing($0) } ?? false
@@ -40,6 +49,14 @@ enum MacInvoiceMenu {
         var paper = pdf(inv, cx)
         paper.title = "PDF"
         return [pay, whatsApp, paper]
+    }
+
+    /// The page's Import Shopify CSV: an owner's, as its own Firestore write is. It is about the books, not one invoice, so the
+    /// Invoices place adds it to its menu and to the empty part of its table, and a record window leaves it out.
+    static func importOrders(_ cx: MacInvoiceContext) -> MacAction {
+        MacAction("Import Shopify Orders…", symbol: "square.and.arrow.down", enabled: cx.isOwner, id: "import") {
+            cx.desk.importing = true
+        }
     }
 
     // MARK: Money
@@ -147,6 +164,27 @@ enum MacInvoiceMenu {
                   enabled: cx.isOwner && inv != nil) {
             if let inv { cx.desk.acting = MacInvoiceAct(act: .delete, invoice: inv) }
         }
+    }
+}
+
+/// The "More" menu of a record window's toolbar: actions in groups, drawn without their keys (the menu bar's Invoice menu owns
+/// them; the same key twice would answer in neither). Its label is an `Image` and a `Text` only, as AppKit draws a menu's.
+struct MacInvoiceMoreMenu: View {
+    let groups: [[MacAction]]
+
+    var body: some View {
+        Menu {
+            ForEach(Array(groups.enumerated()), id: \.offset) { i, group in
+                if i > 0 { Divider() }
+                ForEach(group) { (a: MacAction) in
+                    Button(role: a.role, action: a.perform) { Label(a.title, systemImage: a.symbol ?? "circle") }
+                        .disabled(!a.enabled)
+                }
+            }
+        } label: {
+            Label("More", systemImage: "ellipsis.circle")
+        }
+        .help("More: PDF, discount, customer, links, refund, delete")
     }
 }
 #endif

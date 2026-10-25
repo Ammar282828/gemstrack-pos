@@ -138,7 +138,6 @@ struct SaleMacRoundMenu: View {
         } label: {
             Text("Round")
         }
-        .fixedSize()
         .disabled(offers.isEmpty && lit == nil)
         .help("Give a small extra discount to round the bill down")
     }

@@ -502,7 +502,7 @@ struct OnlineSlipSheet: View {
             }
         }
         #if os(macOS)
-        .ordersMacSheet(width: 640, height: 560)
+        .ordersMacSheet(width: 560, height: 520)
         #endif
         .task { await load() }
     }

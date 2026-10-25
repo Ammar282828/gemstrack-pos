@@ -16,12 +16,18 @@ struct MacNewOrderCustomerSection: View {
     var recent: () -> [Customer] = { [] }
     var recentKey: [Int] = []
 
+    /// The book's answer to the typed number, asked once per change of the shelves or of what was typed.
+    @State private var matched = Memo<Customer?>()
+
     /// A typed number already on file is that customer (lib/walk-in.ts): said here, so it is no surprise.
     private var numberMatch: Customer? {
         guard draft.customerId.isEmpty, !phoneKey(draft.customerPhone).isEmpty else { return nil }
-        let r = resolveSaleCustomer(selectedId: nil, typedName: draft.customerName, typedPhone: draft.customerPhone, customers: people)
-        guard let id = r.id else { return nil }
-        return people.first { $0.id == id }
+        let key: [Int] = [draft.customerPhone.hashValue, draft.customerName.hashValue] + recentKey
+        return matched(key) { () -> Customer? in
+            let r = resolveSaleCustomer(selectedId: nil, typedName: draft.customerName, typedPhone: draft.customerPhone, customers: people)
+            guard let id = r.id else { return nil }
+            return people.first { $0.id == id }
+        }
     }
 
     var body: some View {
@@ -141,7 +147,6 @@ struct MacNewOrderPromisedSection: View {
             Divider()
             Button("No date") { draft.promised = "" }
         }
-        .fixedSize()
     }
 }
 #endif

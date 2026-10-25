@@ -45,7 +45,7 @@ struct MacOrdersAdvanceSheet: View {
             try await OrderAdvance.record(order, amount: amount, method: method, note: note, exchanges: exchanges)
             await MainActor.run { done(amount, exchanges) }
         }
-        .ordersMacSheet(width: 460, height: 560)
+        .ordersMacSheet(width: 460, height: 520)
     }
 }
 

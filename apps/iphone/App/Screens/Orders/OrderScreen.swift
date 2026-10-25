@@ -48,8 +48,11 @@ struct OrderScreen: View {
     /// The Mac's one sheet at a time, the piece picked for the page's right column, and where it opens other records.
     @State private var macSheet: MacOrdersSheet?
     @State private var macPiece: Int?
-    /// The window's width, which decides whether the details stand beside the lines or under them.
-    @State private var macWidth: CGFloat = 1100
+    /// Whether the window is wide enough for the details to stand beside the lines (else under them). A flag, so only
+    /// crossing the line (never each point of a drag) redraws the page.
+    @State private var macWide = true
+    /// The karigars worked out from the shelf, kept until it changes (never walked while drawing).
+    @State private var macKarigars = Memo<[Karigar]>()
     @Environment(\.openPlaceWindow) private var openPlace
     @Environment(\.openURL) private var openURL
     #endif
@@ -886,7 +889,7 @@ extension OrderScreen {
                 macColumns(order, stage: stage, owed: owed, invoice: invoice)
             }
         }
-        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { macWidth = $0 }
+        .onGeometryChange(for: Bool.self) { $0.size.width >= 1000 } action: { macWide = $0 }
         .navigationSubtitle(OrdersLogic.customerName(order))
         .toolbar { macToolbar(groups) }
         .macRecordMenu(MacRecordMenu(title: "Order", groups: groups))
@@ -936,7 +939,7 @@ extension OrderScreen {
     /// The lines at the left and the details at the right; narrower than both read in, the details go under.
     @ViewBuilder
     private func macColumns(_ order: Order, stage: OrderStage, owed: Double, invoice: Invoice?) -> some View {
-        if macWidth >= 1000 {
+        if macWide {
             HStack(alignment: .top, spacing: 0) {
                 macMain(order, owed: owed, invoice: invoice)
                     .padding(20)
@@ -980,7 +983,8 @@ extension OrderScreen {
     @ViewBuilder
     private func macPieces(_ order: Order) -> some View {
         let invoiced = OrdersLogic.hasInvoice(order)
-        let karigars: [Karigar] = session.isOwner && !invoiced ? workshopLive(book.karigars.items) : []
+        let live = macKarigars([book.karigars.revision]) { workshopLive(book.karigars.items) }
+        let karigars: [Karigar] = session.isOwner && !invoiced ? live : []
         let doneCount = order.items.indices.filter { isDone(order, $0) }.count
         let rows: [OrderPieceTableRow] = order.items.indices.map { i in
             OrderPieceTableRow(id: i, item: order.items[i], done: isDone(order, i), karigar: karigarName(order, i))
@@ -1158,13 +1162,14 @@ extension OrderScreen {
 
     // MARK: Actions
 
-    /// The page's few in the window's toolbar; the menu bar has them all.
+    /// The page's four in the window's toolbar and the rest in one More menu; the menu bar has them all.
     @ToolbarContentBuilder
     private func macToolbar(_ groups: [[MacAction]]) -> some ToolbarContent {
         ToolbarItemGroup(placement: .primaryAction) {
             ForEach(MacOrdersMenu.pick(groups, MacOrdersMenu.toolbarIDs)) { (a: MacAction) in
                 MacToolbarAction(action: a)
             }
+            MacOrdersMoreMenu(groups: MacOrdersMenu.rest(groups, excluding: MacOrdersMenu.toolbarIDs))
         }
     }
 

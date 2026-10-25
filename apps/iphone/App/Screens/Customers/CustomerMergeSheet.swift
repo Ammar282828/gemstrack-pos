@@ -306,13 +306,13 @@ extension CustomerMergeSheet {
             } else {
                 HSplitView {
                     macPairs(visible, byId)
-                        .frame(minWidth: 260, idealWidth: 320, maxWidth: 420)
+                        .frame(minWidth: 220, idealWidth: 300, maxWidth: 380)
                     macDetail(visible, byId)
-                        .frame(minWidth: 460)
+                        .frame(minWidth: 320)
                 }
             }
         }
-        .frame(minWidth: 820, minHeight: 520)
+        .frame(minWidth: 560, idealWidth: 860, minHeight: 520, idealHeight: 620)
         .background(Theme.ground)
         .toolbar {
             ToolbarItem(placement: .principal) {
