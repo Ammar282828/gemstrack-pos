@@ -315,6 +315,7 @@ dependencies {
     implementation(libs.androidx.work.runtime)
     implementation(libs.mlkit.document.scanner)
     implementation(libs.mlkit.code.scanner) // Scan a tag: Google's code scanner, no camera permission of its own
+    implementation(libs.zxing.core) // The tag designer draws QR and bar codes as the printer will (patterns, not the printer's own)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlin.test)

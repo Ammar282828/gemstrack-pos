@@ -534,7 +534,7 @@ object LabelLive {
     }
 
     /** `JSON.stringify` of one string. */
-    internal fun jsonString(s: String): String {
+    fun jsonString(s: String): String {
         val out = StringBuilder("\"")
         for (u in scalars(s)) {
             when (u) {
@@ -555,7 +555,7 @@ object LabelLive {
     }
 
     /** `JSON.stringify` of an object of strings, keys in the order given. */
-    internal fun jsonObject(pairs: List<Pair<String, String>>): String =
+    fun jsonObject(pairs: List<Pair<String, String>>): String =
         "{" + pairs.joinToString(",") { "${jsonString(it.first)}:${jsonString(it.second)}" } + "}"
 
     private fun isLineTerminator(u: Int): Boolean = u == '\n'.code || u == '\r'.code || u == 0x2028 || u == 0x2029

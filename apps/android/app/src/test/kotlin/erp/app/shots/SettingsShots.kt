@@ -16,9 +16,6 @@ import erp.app.screens.settings.HisaabImportPage
 import erp.app.screens.settings.HisaabPerson
 import erp.app.screens.settings.HisaabRead
 import erp.app.screens.settings.HisaabRow
-import erp.app.screens.settings.LabelField
-import erp.app.screens.settings.LabelForm
-import erp.app.screens.settings.LabelLayout
 import erp.app.screens.settings.PhonePush
 import erp.app.screens.settings.PullOrder
 import erp.app.screens.settings.PushNotRegistered
@@ -190,21 +187,6 @@ class SettingsShots(config: ShotConfig) : ShotBase(config) {
         onlyTaheri()
         show { column { BankAccountsForm(sample) } }
         shoot("settings-bank-accounts-filled")
-    }
-
-    @Test fun settings_labels_designer() {
-        onlyTaheri()
-        val layout = LabelLayout(
-            "std", "Double tag", 664, 296,
-            listOf(
-                LabelField("field-1", "text", 20, 20, 0, "SKU: {sku}", 22, null, null),
-                LabelField("field-2", "text", 20, 70, 0, "{weight} g", 20, null, null),
-                LabelField("field-3", "qr", 420, 30, 0, "{sku}", null, 4, null),
-                LabelField("field-4", "text", 300, 250, 270, "Demo Shop", 18, null, null),
-            ),
-        )
-        show { LabelForm(layout, layout, layout, false, {}, ShelfStatus<Product>(emptyList(), true, false, null, 0)) }
-        shoot("settings-labels-designer")
     }
 
     @Test fun settings_shopify_connected() {

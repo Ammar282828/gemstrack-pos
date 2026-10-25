@@ -21,6 +21,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -29,11 +31,13 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.automirrored.filled.ViewList
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,6 +47,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -72,6 +78,8 @@ import erp.app.ui.ShelfState
 import erp.app.ui.Tone
 import erp.app.ui.ledgerCard
 import erp.app.ui.theme.ErpColors
+import erp.app.ui.LocalNoteState
+import erp.app.ui.Note
 import erp.app.ui.zoomSource
 import erp.core.logic.Money
 import erp.core.models.Product
@@ -119,6 +127,13 @@ fun StockList() {
     }
     val filtering = category != null || q.isNotEmpty()
 
+    // Several pieces' tags as one job: "Select" lets the rows be ticked, and Print tags opens the print job (TagPrintJobSheet).
+    var selecting by rememberSaveable { mutableStateOf(false) }
+    var selected by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
+    var jobOpen by remember { mutableStateOf(false) }
+    val note = LocalNoteState.current
+    fun toggle(sku: String) { selected = if (selected.contains(sku)) selected - sku else selected + sku }
+
     fun sell(p: Product) {
         SaleStore.add(p)
         navigator.open(StockKit.newSalePath)
@@ -135,12 +150,22 @@ fun StockList() {
                 contentDescription = if (layout == StockLayout.grid) "List" else "Grid",
             )
         }
-        if (owner) IconButton(onClick = { navigator.open(StockKit.addPath) }) { Icon(Icons.Filled.Add, contentDescription = "Add piece") }
+        if (owner && selecting) {
+            TextButton(onClick = { selected = shown.map { it.id } }) { Text("All") }
+            TextButton(onClick = { jobOpen = true }, enabled = selected.isNotEmpty()) {
+                Icon(Icons.Filled.Print, contentDescription = null, Modifier.size(18.dp))
+                Text(if (selected.size > 1) "  Print ${selected.size} tags" else "  Print tag")
+            }
+            TextButton(onClick = { selecting = false; selected = emptyList() }) { Text("Done") }
+        } else {
+            if (owner) IconButton(onClick = { selecting = true }) { Icon(Icons.Filled.Checklist, contentDescription = "Select pieces to print their tags") }
+            if (owner) IconButton(onClick = { navigator.open(StockKit.addPath) }) { Icon(Icons.Filled.Add, contentDescription = "Add piece") }
+        }
     }
 
     fun actions(p: Product): List<RowAction> = buildList {
-        // Selling is the owners' (createInvoice): staff are not offered a sale they cannot save.
-        if (owner) {
+        // Selling is the owners' (createInvoice): staff are not offered a sale they cannot save. Ticking pieces offers no swipe.
+        if (owner && !selecting) {
             add(RowAction("Sell", Icons.Filled.ShoppingCart, Tone.settled) { sell(p) })
             add(RowAction("Edit", Icons.Filled.Edit, Tone.house) { navigator.open(StockKit.editPath(p.sku)) })
             add(RowAction("Delete", Icons.Filled.Delete, Tone.problem) { navigator.open(StockKit.piecePath(p.sku, web = true)) })
@@ -163,10 +188,19 @@ fun StockList() {
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
             )
             CategoryChips(all, category) { category = it }
+            val open: (String) -> Unit = { if (selecting) toggle(it) else navigator.open(StockKit.piecePath(it)) }
             when (layout) {
-                StockLayout.list -> ListView(all, shown, owner, filtering, ::actions, onOpen = { navigator.open(StockKit.piecePath(it)) })
-                StockLayout.grid -> GridView(all, shown, owner, filtering, ::actions, onOpen = { navigator.open(StockKit.piecePath(it)) })
+                StockLayout.list -> ListView(all, shown, owner, filtering, ::actions, selecting, selected.toSet(), onOpen = open)
+                StockLayout.grid -> GridView(all, shown, owner, filtering, ::actions, selecting, selected.toSet(), onOpen = open)
             }
+        }
+    }
+    if (jobOpen) {
+        val chosen = remember(jobOpen) { selected.mapNotNull { sku -> all.firstOrNull { it.sku == sku } } }
+        TagPrintJobSheet(chosen, { jobOpen = false }) { message ->
+            selecting = false
+            selected = emptyList()
+            note.show(Note("Tags sent", message))
         }
     }
 }
@@ -225,6 +259,8 @@ private fun ListView(
     owner: Boolean,
     filtering: Boolean,
     actions: (Product) -> List<RowAction>,
+    selecting: Boolean,
+    selected: Set<String>,
     onOpen: (String) -> Unit,
 ) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp)) {
@@ -249,7 +285,7 @@ private fun ListView(
                         menu = menu,
                         onClick = { onOpen(p.sku) },
                     ) {
-                        Box(Modifier.fillMaxWidth().background(ErpColors.card)) { StockRow(row) }
+                        Box(Modifier.fillMaxWidth().background(ErpColors.card)) { StockRow(row, selecting, selected.contains(row.id)) }
                     }
                     if (!last) LedgerDivider()
                 }
@@ -274,13 +310,14 @@ internal fun StockPrice(price: Double?, modifier: Modifier = Modifier) {
 
 /** One piece in the list: its photo, name and SKU, its metal, weight and category, today's price. */
 @Composable
-private fun StockRow(row: StockRowModel) {
+private fun StockRow(row: StockRowModel, selecting: Boolean = false, checked: Boolean = false) {
     val p = row.product
     Row(
         Modifier.fillMaxWidth().zoomSource(StockKit.piecePath(p.sku), Radius.tile).padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (selecting) Checkbox(checked = checked, onCheckedChange = null, modifier = Modifier.semantics { contentDescription = "${p.sku} ${if (checked) "selected" else "not selected"}" })
         StockImage(p.imageUrl, p.name, p.sku, Modifier.size(52.dp).clip(Radius.thumbShape))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(p.name, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium), maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -300,6 +337,8 @@ private fun GridView(
     owner: Boolean,
     filtering: Boolean,
     actions: (Product) -> List<RowAction>,
+    selecting: Boolean,
+    selected: Set<String>,
     onOpen: (String) -> Unit,
 ) {
     LazyVerticalGrid(
@@ -315,7 +354,7 @@ private fun GridView(
         } else {
             items(shown, key = { it.id }) { row ->
                 SwipeActions(menu = actions(row.product), onClick = { onOpen(row.product.sku) }, modifier = Modifier.clip(Radius.cardShape)) {
-                    StockCard(row)
+                    StockCard(row, selecting, selected.contains(row.id))
                 }
             }
         }
@@ -324,10 +363,13 @@ private fun GridView(
 
 /** One piece as a card in the grid. */
 @Composable
-private fun StockCard(row: StockRowModel) {
+private fun StockCard(row: StockRowModel, selecting: Boolean = false, checked: Boolean = false) {
     val p = row.product
     Column(Modifier.zoomSource(StockKit.piecePath(p.sku)).ledgerCard(padding = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        StockImage(p.imageUrl, p.name, p.sku, Modifier.fillMaxWidth().aspectRatio(1f).clip(Radius.tileShape))
+        Box {
+            StockImage(p.imageUrl, p.name, p.sku, Modifier.fillMaxWidth().aspectRatio(1f).clip(Radius.tileShape))
+            if (selecting) Checkbox(checked = checked, onCheckedChange = null, modifier = Modifier.align(Alignment.TopStart).padding(4.dp).semantics { contentDescription = "${p.sku} ${if (checked) "selected" else "not selected"}" })
+        }
         Text(p.name, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
         Text(p.sku, style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace), color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
         Text(
