@@ -79,7 +79,7 @@ struct NewChooser: View {
             let rates = PricingRates(s)
             for line in draft.lines { subtotal += calculateProductCosts(line.priced, rates).totalPrice }
         }
-        return NavigationLink(value: SaleLinks.newSale) {
+        return NavigationLink(value: SaleLinks.continueSale) {
             HStack(spacing: pt(12)) {
                 Image(systemName: "cart").font(.title3).foregroundStyle(Tone.owed.color)
                 VStack(alignment: .leading, spacing: 2) {
@@ -93,9 +93,9 @@ struct NewChooser: View {
         }
     }
 
-    /// An order left half-typed, one tap away like the sale.
+    /// An order left half-typed, one tap away like the sale (it is continued on purpose: a New order is blank).
     private var orderProgressRow: some View {
-        NavigationLink(value: Route(path: "/orders/add")) {
+        NavigationLink(value: Route(path: "/orders/add?resume=1")) {
             HStack(spacing: pt(12)) {
                 Image(systemName: "list.clipboard").font(.title3).foregroundStyle(Tone.owed.color)
                 Text("An order in progress").font(.headline)

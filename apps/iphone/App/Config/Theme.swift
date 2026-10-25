@@ -5,12 +5,16 @@ import AppKit
 
 /// The business's colours, as the ERP's own palettes have them (src/app/globals.css, docs/features/two-houses.md):
 ///
-/// - Taheri: its gold on its green-black ground in dark, as the storefront and the ERP's dark theme;
-///   in light, a deeper cut of the same gold, so a link or a button's word still reads on white (4.9:1).
-/// - House of Mina: its wordmark's maroon in light (`.brand-mina.theme-default`), the catalogue's dusty
-///   rose on wine in dark (`.dark .brand-mina`).
+/// - Taheri: champagne gold (#D3B47F) on a near-black green ground (#030606) in dark; in light, a deeper cut of
+///   the gold, so a link or a button's word still reads on white (4.9:1), on a warm #ECE8E1 ground.
+/// - House of Mina: its wordmark's maroon in light (`.brand-mina.theme-default`) on #F2E9E4, a lifted rose
+///   (#EBA9B3) on near-black wine (#090405) in dark (`.dark .brand-mina`).
 ///
-/// The built-ins' colours live in the asset catalogue (Accent-<id>, Ground-<id>, Card-<id>, OnAccent-<id>)
+/// Separation (owner, 2026-10-25, decision "Light and dark"): light cards are pure white on a deeper ground
+/// and carry a very soft shadow; dark cards are clearly lifted off a near-black ground and carry a 0.5 pt
+/// hairline (`houseCard`). Sheets, popovers and rows inside a card are `elevated`.
+///
+/// The built-ins' colours live in the asset catalogue (Accent-<id>, Ground-<id>, Card-<id>, Elevated-<id>, OnAccent-<id>)
 /// with a light and a dark value each; any other business's come from its palette (`/api/app/business`,
 /// STORE_PALETTE) as the same pair, which follows the phone's appearance as the ERP does (decision "Light and
 /// dark"). Cards and list rows take the business's `--card`, never the system's grey; glass takes its tint
@@ -26,13 +30,21 @@ enum Theme {
     // and Finder carry the system's.
     static var ground: Color { Color(nsColor: .windowBackgroundColor) }
     static var card: Color { Color(nsColor: macCard) }
+    /// A step above the card: a sheet, a popover, a grouped row inside a card.
+    static var elevated: Color { Color(nsColor: macElevated) }
     private static let macCard = NSColor(name: nil) { appearance in
         appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
             ? NSColor.white.withAlphaComponent(0.06) : NSColor.controlBackgroundColor
     }
+    private static let macElevated = NSColor(name: nil) { appearance in
+        appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            ? NSColor.white.withAlphaComponent(0.10) : NSColor.controlBackgroundColor
+    }
     #else
     static var ground: Color { color("Ground") { $0.ground } }
     static var card: Color { color("Card") { $0.card } }
+    /// A step above the card: a sheet, a popover, a grouped row inside a card.
+    static var elevated: Color { color("Elevated") { $0.elevated ?? $0.card } }
     #endif
     /// Words on the accent (a filled button): white on the deep light-mode accents, and the house's dark
     /// ground on its light dark-mode gold and rose, as the web's --primary-foreground (white there reads
@@ -147,6 +159,48 @@ extension Color {
         if s.hasPrefix("#") { s.removeFirst() }
         guard s.count == 6, let v = UInt64(s, radix: 16) else { return nil }
         self.init(red: Double((v >> 16) & 0xFF) / 255, green: Double((v >> 8) & 0xFF) / 255, blue: Double(v & 0xFF) / 255)
+    }
+}
+
+/// A card's surface: the house's card colour in the flat 22 pt shape, lifted off the ground by what each mode can
+/// carry (light: a very soft shadow, y 1 / blur 3 / black 5%; dark: a 0.5 pt hairline of white at 7%). Content
+/// only, never glass, and it never fades or slides on its own: put it on the card, not on a transition.
+/// `hairline: false` where the card already has an edge of its own (HeroSheen).
+struct HouseCardSurface: ViewModifier {
+    var radius: CGFloat
+    var hairline = true
+    @Environment(\.colorScheme) private var scheme
+
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+        #if os(macOS)
+        // A Mac's group box, as System Settings draws its groups: the content colour and a hairline edge, no shadow.
+        content.background {
+            shape.fill(Theme.card)
+                .overlay {
+                    if hairline {
+                        shape.strokeBorder(Color(nsColor: .separatorColor), lineWidth: 0.5).allowsHitTesting(false)
+                    }
+                }
+        }
+        #else
+        content.background {
+            shape.fill(Theme.card)
+                .shadow(color: scheme == .light ? .black.opacity(0.05) : .clear, radius: 1.5, x: 0, y: 1)
+                .overlay {
+                    if scheme == .dark && hairline {
+                        shape.strokeBorder(.white.opacity(0.07), lineWidth: 0.5).allowsHitTesting(false)
+                    }
+                }
+        }
+        #endif
+    }
+}
+
+extension View {
+    /// `.houseCard()` where a view is a card: `Theme.card` in `Radius.card`, with the mode's lift.
+    func houseCard(radius: CGFloat = Radius.card, hairline: Bool = true) -> some View {
+        modifier(HouseCardSurface(radius: radius, hairline: hairline))
     }
 }
 

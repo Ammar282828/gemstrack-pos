@@ -105,7 +105,7 @@ struct ScanTag: View {
     private var barAction: ActionBar.Action? {
         guard session.isOwner, case .piece(let sku)? = found, let p = book.products.item(sku) else { return nil }
         if addedSku == p.sku {
-            return ActionBar.Action("Open the sale") { openSale = SaleLinks.newSale }
+            return ActionBar.Action("Open the sale") { openSale = SaleLinks.continueSale }
         }
         return ActionBar.Action("Add to a new sale", systemImage: "cart.badge.plus") { addToSale(p) }
     }
@@ -229,7 +229,7 @@ struct ScanTag: View {
     private var saleCard: some View {
         card {
             Label("\(onSale) piece\(onSale == 1 ? "" : "s") on the new sale", systemImage: "cart").font(.headline)
-            NavigationLink(value: SaleLinks.newSale) {
+            NavigationLink(value: SaleLinks.continueSale) {
                 Text("Open the sale").frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)

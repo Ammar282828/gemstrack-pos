@@ -35,7 +35,7 @@ struct WorkshopKarigarsList: View {
             content
         }
         .navigationTitle("Karigars")
-        .navigationBarTitleDisplayMode(.large)
+        .hubTitleDisplay()
         .modifier(HouseGround())
         #if os(macOS)
         .navigationDestination(item: $opened) { (r: Route) in PlaceScreen(path: r.path) }

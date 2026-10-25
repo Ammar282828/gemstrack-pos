@@ -9,8 +9,9 @@ import ERPCore
 /// and the totals as the web works them out. Saved through the ERP's own shared write (`createOrder`,
 /// lib/writes/create-order.ts): it numbers the order and stamps the rates, exactly as the browser's does.
 ///
-/// The order in progress stays on this phone, and in Drafts, if the screen closes (NewOrderDraftStore,
-/// WorkDraftSync), until it is saved or started over. A piece can start from one in stock (Add from stock);
+/// The order in progress is kept at every change, on this phone and in Drafts (NewOrderDraftStore, WorkDraftSync), until
+/// it is saved or started over. A New order always opens blank: the one kept before is in Drafts, continued from there
+/// (or from a screen that opens this one with `?resume=1`). A piece can start from one in stock (Add from stock);
 /// sizes are offered to the customer's profile once the order is saved (NewOrderSizeAsk). "Read a slip" reads a parchi
 /// with the ERP's AI reader into this form (NewOrderScanScreen); the voice order stays on the ERP's page.
 ///
@@ -28,12 +29,19 @@ struct NewOrder: View {
     private let readsSlip: Bool
     /// Change rate: the order on file opens at the Pieces step with its rates on top.
     private let ratesFirst: Bool
+    /// Opened to continue the order kept on this phone (Drafts' Continue, a sale's "Create order", the voice
+    /// assistant: `?resume=1`); otherwise the form is blank and what was kept before has gone to Drafts.
+    private let resumes: Bool
     @State private var readerOpened = false
     @State private var readingSlip = false
 
     @State private var draft = NewOrderDraft.fresh()
-    /// The phone's copy has been read (and not before: an unread draft must never be overwritten).
+    /// The phone's copy has been dealt with (and not before: an unread draft must never be overwritten).
     @State private var loaded = false
+    /// The draft this form was opened on, until the first change: opening a draft is not a change to it.
+    @State private var baseline: NewOrderDraft?
+    /// Waiting for the shop's settings to say whether drafts are kept, before deciding what to open.
+    @State private var beginning = false
     /// The business this screen was opened in: every draft and the save go to it, whatever is open when they run.
     @State private var biz = House.business
     @State private var restored = false
@@ -52,15 +60,17 @@ struct NewOrder: View {
     @State private var saves = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    init(readsSlip: Bool = false) {
+    init(readsSlip: Bool = false, resumes: Bool = false) {
         edit = nil
         self.readsSlip = readsSlip
+        self.resumes = resumes
         ratesFirst = false
     }
 
     init(edit: NewOrderEdit, ratesFirst: Bool = false) {
         self.edit = edit
         readsSlip = false
+        resumes = false
         self.ratesFirst = ratesFirst
         if ratesFirst { _step = State(initialValue: .pieces) }
         _draft = State(initialValue: edit.draft)
@@ -134,13 +144,17 @@ struct NewOrder: View {
         book.settings.need()
         book.orders.need()
         book.invoices.need()
-        if !loaded {
-            if let saved = NewOrderDraftStore.load(business: biz.id) {
-                draft = saved
-                restored = true
-                Task { await stillOurs() }
+        if !loaded && !beginning {
+            beginning = true
+            // The shop's settings say whether drafts are kept: wait for them (a moment, from the phone's cache).
+            if book.settings.loaded {
+                begin()
+            } else {
+                Task {
+                    for _ in 0..<30 where !book.settings.loaded { try? await Task.sleep(for: .milliseconds(100)) }
+                    begin()
+                }
             }
-            loaded = true
         }
         seedRates()
         settleTakenBy()
@@ -148,6 +162,39 @@ struct NewOrder: View {
             readerOpened = true
             readingSlip = true
         }
+    }
+
+    /// What the form opens on, once: blank, with the order this phone was holding made sure of in Drafts (the owner,
+    /// 2026-10-25: "don't auto open the draft"); or that very order, when it is continued on purpose. Where the work
+    /// has no other place to be found, the phone's copy is continued as it always was: drafts turned off, the demo,
+    /// and staff, who cannot read Drafts (firestore.rules).
+    private func begin() {
+        guard !loaded, edit == nil else { return }
+        loaded = true
+        Task { await DraftsCount.shared.refresh() }
+        let settings = book.settings.value
+        let kept = (settings?.autoDraftForms ?? true) && !House.isDemo && session.isOwner
+        let saved = NewOrderDraftStore.load(business: biz.id)
+        if let saved, resumes || !kept {
+            // A form that was typed in while this waited keeps what it has.
+            if draft.isBlank {
+                draft = saved
+                baseline = saved
+                restored = true
+            }
+            Task { await stillOurs() }
+            // Work put on the phone's draft by another screen is in Drafts from now, not from its next key.
+            if WorkDraftSync.order.id == nil { sync() }
+        } else if let saved {
+            WorkDraftSync.order.release(business: biz, enabled: kept) { WorkDraftSync.snapshot(saved, settings: settings) }
+            NewOrderDraftStore.clear(business: biz.id)
+        } else {
+            // Nothing kept here: an id left from it is no draft of this form's.
+            WorkDraftSync.order.forget(biz.id)
+        }
+        WorkDraftSync.order.resume()
+        seedRates()
+        settleTakenBy()
     }
 
     /// The order kept on this phone is in Drafts too: one saved or thrown away at the counter since is not this
@@ -164,18 +211,14 @@ struct NewOrder: View {
         tell("Finished on another device", "The order kept on this \(OrderDevice.word) was saved or discarded from Drafts on another device, so it is cleared here. Look for it under Orders.")
     }
 
-    /// The order in Drafts as the web's form holds it, a moment after the last change (`now` as the screen or
-    /// the app goes), so it can be finished at the counter (WorkDraftSync).
+    /// The order in Drafts as the web's form holds it, within a third of a second of the last change (`now` as the screen
+    /// or the app goes), so it can be finished at the counter (WorkDraftSync).
     private func sync(now: Bool = false) {
         guard loaded, created == nil, edit == nil else { return }
         let d = draft
         let settings = book.settings.value
         WorkDraftSync.order.push(blank: d.isBlank, enabled: settings?.autoDraftForms ?? true, now: now, business: biz) {
-            WorkDraftSync.Snapshot(
-                values: d.webValues(settings: settings),
-                total: NewOrderMath.totals(d, settings).balance,
-                customerName: d.customerName
-            )
+            WorkDraftSync.snapshot(d, settings: settings)
         }
     }
 
@@ -235,6 +278,7 @@ struct NewOrder: View {
             }
             switch step {
             case .customer:
+                if edit == nil && draft.isBlank { DraftsNote() }
                 NewOrderCustomerSection(draft: $draft, people: people, takenBy: session.shop.takenBy) {
                     CustomerField.recent(invoices: book.invoices.items, orders: book.orders.items, book: book.customers.items)
                 }
@@ -348,22 +392,32 @@ struct NewOrder: View {
         return out
     }
 
-    /// Kept on this phone as it is typed: a moment after the last key, and at once when the app leaves.
+    /// Kept on this phone and in Drafts at every change, and at once when the app leaves or the screen goes.
     private var keeping: NewOrderKeeping {
         NewOrderKeeping(
             draft: draft,
-            // An edit is never kept on the phone or in Drafts: the order on file is the copy.
-            loaded: loaded && edit == nil,
             settingsValue: book.settings.value,
+            changed: { changed($0) },
             keep: { keepNow() },
-            sync: { sync() },
-            business: biz.id,
             seed: { seedRates() }
         )
     }
 
+    /// Any change to the form is on the phone at once (written off the main thread, the newest of a burst) and in
+    /// Drafts within a third of a second: a customer's name alone is worth keeping (NewOrderDraft.isBlank).
+    private func changed(_ d: NewOrderDraft) {
+        // An edit is never kept on the phone or in Drafts: the order on file is the copy.
+        guard loaded, created == nil, edit == nil else { return }
+        // The draft just opened is not a change to it.
+        if let baseline { if d == baseline { return }; self.baseline = nil }
+        NewOrderDraftStore.save(d, business: biz.id)
+        sync()
+    }
+
     private func keepNow() {
         guard loaded, created == nil, edit == nil else { return }
+        // A draft opened and left as it was has nothing new to keep.
+        if let baseline, draft == baseline { return }
         NewOrderDraftStore.save(draft, now: true, business: biz.id)
         sync(now: true)
     }
@@ -604,30 +658,22 @@ struct NewOrder: View {
     }
 }
 
-/// The order stays on this phone while it is typed (NewOrderDraftStore): written a moment after the last
-/// key, and at once when the app leaves or the screen goes. It also seeds the rates when the shop's settings
-/// arrive. Its own modifier so the form's chain of
-/// modifiers stays short for the compiler.
+/// The order is kept as it is typed (NewOrderDraftStore, WorkDraftSync): at every change, and at once when the app
+/// leaves (scenePhase: the home screen, the app switcher, a call) or the screen goes (back, or a sheet swiped down).
+/// It also seeds the rates when the shop's settings arrive. Its own modifier so the form's chain of modifiers stays
+/// short for the compiler.
 struct NewOrderKeeping: ViewModifier {
     let draft: NewOrderDraft
-    let loaded: Bool
     let settingsValue: Settings?
+    let changed: (NewOrderDraft) -> Void
     let keep: () -> Void
-    /// Drafts' copy, a second after this phone's (WorkDraftSync).
-    let sync: () -> Void
-    let business: String
     let seed: () -> Void
 
     @Environment(\.scenePhase) private var scenePhase
 
     func body(content: Content) -> some View {
         content
-            .task(id: draft) {
-                guard loaded else { return }
-                do { try await Task.sleep(for: .milliseconds(700)) } catch { return }
-                NewOrderDraftStore.save(draft, business: business)
-                sync()
-            }
+            .onChange(of: draft) { _, new in changed(new) }
             .onChange(of: scenePhase) { _, phase in
                 if phase != .active { keep() }
             }
@@ -725,6 +771,7 @@ extension NewOrder {
                                 .font(.subheadline)
                         }
                     }
+                    if edit == nil && draft.isBlank { DraftsNote() }
                     NewOrderCustomerSection(draft: $draft, people: people, takenBy: session.shop.takenBy) {
                         CustomerField.recent(invoices: book.invoices.items, orders: book.orders.items, book: book.customers.items)
                     }

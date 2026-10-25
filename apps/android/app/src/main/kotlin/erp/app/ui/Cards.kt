@@ -38,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -57,7 +58,22 @@ import erp.app.ui.theme.ErpType
 /** Content on the house's card: the padding and corner every ledger card shares. */
 @Composable
 fun Modifier.ledgerCard(padding: Dp = 16.dp): Modifier =
-    fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card).padding(padding)
+    fillMaxWidth().houseCardSurface().padding(padding)
+
+/**
+ * The card's surface in the flat 22 dp shape, lifted off the ground by what each mode can carry (the iPhone's `houseCard`):
+ * light, a very soft shadow (y 1, blur 3, black 5%); dark, a 0.5 dp hairline of white at 7%. No other border.
+ */
+@Composable
+fun Modifier.houseCardSurface(): Modifier {
+    val shape = Radius.cardShape
+    return if (ErpColors.dark) {
+        clip(shape).background(ErpColors.card).border(0.5.dp, Color.White.copy(alpha = 0.07f), shape)
+    } else {
+        shadow(1.dp, shape, clip = false, ambientColor = Color.Black.copy(alpha = 0.05f), spotColor = Color.Black.copy(alpha = 0.05f))
+            .clip(shape).background(ErpColors.card)
+    }
+}
 
 /**
  * A titled card: [LedgerHeading] over the content, on the house's card. Use it for a block of rows or figures

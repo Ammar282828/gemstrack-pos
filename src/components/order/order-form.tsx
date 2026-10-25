@@ -50,7 +50,7 @@ import { DEFAULT_PROMISE_DAYS, URGENT_WINDOW_DAYS } from '@/lib/order-timing';
 import { PageBack } from '@/components/shared/page-back';
 import { PhoneField } from '@/components/ui/phone-field';
 import { useWorkDraft } from '@/components/drafts/use-work-drafts';
-import { DraftsShortcut } from '@/components/drafts/draft-list';
+import { DraftsNote } from '@/components/drafts/draft-list';
 import { ORDER_DEFAULT_FIELDS, summarizeOrder } from '@/lib/work-drafts';
 import { STORE_CONFIG, STORE_SIZE_TO_PROFILE } from '@/lib/store-config';
 import { isWalkInName } from '@/lib/walk-in';
@@ -507,6 +507,8 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
     ignore: ORDER_DEFAULT_FIELDS,
     onId: id => {
       if (isEditMode || typeof window === 'undefined') return;
+      // A draft first written as the page goes (a link clicked as the first key lands) must not pull it back here.
+      if (window.location.pathname !== '/orders/add') return;
       const q = new URLSearchParams(window.location.search);
       if (id) q.set('draft', id); else q.delete('draft');
       const qs = q.toString();
@@ -1053,7 +1055,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
             </button>
           </p>
         ) : (
-          <div className="mb-4"><DraftsShortcut kind="order" /></div>
+          <div className="mb-3"><DraftsNote /></div>
         )
       )}
       {/*

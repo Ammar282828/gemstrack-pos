@@ -47,6 +47,7 @@ struct AnaOverviewPage: View {
                 tiles(wide: false)
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
             }
             DisclosureGroup("Revenue and profit details") {
                 MoneyRow("Invoices", figures.invoiceSales, lac: true)
@@ -59,8 +60,8 @@ struct AnaOverviewPage: View {
 
     private func tiles(wide: Bool) -> some View {
         let f = figures
-        let net = f.totalSales - f.totalExpenses
-        let netPct = f.totalSales > 0 ? net / f.totalSales * 100 : 0
+        let net = AnaNet.profit(estimated: f.estProfit, expenses: f.totalExpenses)
+        let netPct = AnaNet.marginPercent(net: net, revenue: f.totalSales)
         let netDetail = f.totalSales > 0 ? "\(AnaFormat.fixed(netPct, 1))% margin" : "No revenue in period"
         let netTint: Color = net >= 0 ? Tone.settled.color : Tone.owed.color
         let layout = wide ? AnyLayout(HStackLayout(alignment: .top, spacing: pt(10))) : AnyLayout(VStackLayout(spacing: pt(10)))

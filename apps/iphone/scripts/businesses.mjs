@@ -20,12 +20,12 @@ const houses = JSON.parse(fs.readFileSync(path.join(dir, 'houses.json'), 'utf8')
 
 const palettes = {
   taheri: {
-    light: { accent: '#8A6B42', ground: '#F2F3F6', card: '#FFFFFF', onAccent: '#FFFFFF' },
-    dark: { accent: '#BE9F76', ground: '#0A1111', card: '#141A1A', onAccent: '#0B1414' },
+    light: { accent: '#8A6B42', ground: '#ECE8E1', card: '#FFFFFF', elevated: '#FFFFFF', onAccent: '#FFFFFF' },
+    dark: { accent: '#D3B47F', ground: '#030606', card: '#172020', elevated: '#202A29', onAccent: '#0B1414' },
   },
   mina: {
-    light: { accent: '#380000', ground: '#F4EFE8', card: '#FFFDF9', onAccent: '#FBF9F9' },
-    dark: { accent: '#E8A5AE', ground: '#1C1114', card: '#27191D', onAccent: '#251318' },
+    light: { accent: '#380000', ground: '#F2E9E4', card: '#FFFFFF', elevated: '#FFFFFF', onAccent: '#FBF9F9' },
+    dark: { accent: '#EBA9B3', ground: '#090405', card: '#22131A', elevated: '#2C1A21', onAccent: '#251318' },
   },
 };
 const own = {

@@ -7,7 +7,8 @@
 
 import React from 'react';
 import { collection, deleteDoc, doc, getDoc, onSnapshot, setDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
+import { CoalescingWriter, draftAction, fitsBeacon } from '@/lib/draft-writer';
 import { useAppStore } from '@/lib/store';
 import {
   deviceName, isExpired, isWorthKeeping, legacyAlreadySaved, newDraftId, summarizeOrder, summarizeSale, toStorable,
@@ -16,8 +17,6 @@ import {
 import { listDrafts, clearAllDrafts } from '@/lib/form-drafts';
 
 const COLL = 'drafts';
-/** Quiet this long after the last keystroke, then write. */
-const SAVE_AFTER_MS = 1000;
 
 const thisDevice = () => (typeof navigator === 'undefined' ? 'This device' : deviceName(navigator.userAgent));
 
@@ -30,6 +29,22 @@ export async function readWorkDraft<T>(id: string): Promise<WorkDraft<T> | null>
 
 export async function deleteWorkDraft(id: string): Promise<void> {
   try { await deleteDoc(doc(db, COLL, id)); } catch { /* gone already, or offline: it expires on its own */ }
+}
+
+/**
+ * A sale left in Drafts when a new one is opened (the owner, 2026-10-25: a New sale is blank and the unfinished one
+ * stays in Drafts). It was written as it was typed; pieces put in the cart since (the scanner, the products page)
+ * are added to it, so none is lost when the cart is emptied for the new sale.
+ */
+export async function parkSaleCart(id: string, cart: unknown[]): Promise<void> {
+  try {
+    const snap = await getDoc(doc(db, COLL, id));
+    if (!snap.exists()) return;
+    const had = (snap.data() as WorkDraft).data?.cart;
+    const skus = (list: unknown) => (Array.isArray(list) ? list.map(p => (p as { sku?: string })?.sku ?? '').join('|') : '');
+    if (skus(had) === skus(cart)) return;
+    await setDoc(doc(db, COLL, id), { data: { cart: toStorable(cart).data }, items: cart.length, updatedAt: new Date().toISOString() }, { merge: true });
+  } catch { /* it keeps the pieces it had */ }
 }
 
 // ── The list ────────────────────────────────────────────────────────────────
@@ -100,8 +115,14 @@ export type DraftStatus = 'idle' | 'saving' | 'saved' | 'error';
  * Keep a NEW order or sale in Drafts as it is typed.
  *
  *  - `active` false (editing a record that exists, an invoice on screen) → nothing is written.
- *  - Written a second after typing stops, only when something changed, only when there is
- *    something worth keeping (`ignore`: fields a blank form already has). Emptied → removed.
+ *  - Saved at every moment (the owner, 2026-10-25: "auto save at every moment so even if I've just written the name a
+ *    draft gets saved"): a change is written within SAVE_EVERY_MS, a burst of changes is one write of the newest work,
+ *    and one write is on its way at a time (lib/draft-writer.ts). Only when something changed and there is something
+ *    worth keeping (`ignore`: fields a blank form already has). Emptied → removed.
+ *  - Written at once when the tab is hidden or the page closes (visibilitychange, pagehide: the Firestore write, which
+ *    is queued on disk if there is no line, and a keepalive request to /api/app/drafts), and when the form goes.
+ *  - Never opened on its own: a form is blank unless it is given a draft (`load`); `detach` lets go of the draft it
+ *    holds so the next change is a new one.
  *  - `finish()` once the record is saved: the draft is removed and nothing is written after,
  *    however the page goes on re-rendering while it navigates away.
  *  - `load(id)` continues a draft: it becomes this form's draft, and what it held is returned.
@@ -123,14 +144,17 @@ export function useWorkDraft<T>(opts: {
   const [savedAt, setSavedAt] = React.useState<string | null>(null);
   const idRef = React.useRef<string | null>(null);
   const createdAt = React.useRef<string | null>(null);
+  /** The work as last written (or loaded, or left behind): unchanged work is not written again. */
   const lastJson = React.useRef<string>('');
+  /** The work as the server last acknowledged it: the page-closing request is sent only for what is newer. */
+  const landedJson = React.useRef<string>('');
   const finished = React.useRef(false);
-  const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   // A draft being fetched to continue: nothing is written until it is on screen, or the blank
   // form it replaces would be taken for an emptied draft.
   const loading = React.useRef(false);
-  const latest = React.useRef({ value, summary, ignore, onId });
-  latest.current = { value, summary, ignore, onId };
+  const token = React.useRef('');
+  const latest = React.useRef({ value, summary, ignore, onId, enabled, active });
+  latest.current = { value, summary, ignore, onId, enabled, active };
 
   const setId = React.useCallback((next: string | null) => {
     idRef.current = next;
@@ -138,26 +162,16 @@ export function useWorkDraft<T>(opts: {
     latest.current.onId?.(next);
   }, []);
 
-  const cancel = () => { if (timer.current) { clearTimeout(timer.current); timer.current = null; } };
-
-  // A form that stops being new (an invoice now on screen) stops writing; one that becomes new
-  // again (the next sale) starts afresh.
-  const wasActive = React.useRef(active);
-  React.useEffect(() => {
-    if (active && !wasActive.current) { finished.current = false; lastJson.current = ''; createdAt.current = null; }
-    if (!active) cancel();
-    wasActive.current = active;
-  }, [active]);
-
   const writeNow = React.useCallback(async () => {
-    timer.current = null;
-    if (finished.current || loading.current) return;
-    const { value: v, summary: sum, ignore: ign } = latest.current;
+    const { value: v, summary: sum, ignore: ign, enabled: on, active: live } = latest.current;
+    if (!on || !live || finished.current || loading.current) return;
     const json = JSON.stringify(v ?? {});
-    if (json === lastJson.current) return;
-    if (!isWorthKeeping(v, ign)) {
+    const worth = isWorthKeeping(v, ign);
+    const act = draftAction({ json, lastJson: lastJson.current, worth, hasDraft: !!idRef.current });
+    if (!worth) lastJson.current = json;
+    if (act === 'skip') return;
+    if (act === 'remove') {
       // Emptied: a draft of nothing is removed, not kept.
-      lastJson.current = json;
       const gone = idRef.current;
       if (gone) { setId(null); createdAt.current = null; setStatus('idle'); await deleteWorkDraft(gone); }
       return;
@@ -168,6 +182,10 @@ export function useWorkDraft<T>(opts: {
     createdAt.current ??= now;
     const { data, leftOut } = toStorable(v);
     setStatus('saving');
+    // Counted as written from here, so the page going twice (hidden, then closed) is one write; a failure undoes it.
+    lastJson.current = json;
+    // The token the page-closing request will carry (a promise cannot be waited for while the page goes).
+    auth?.currentUser?.getIdToken().then(t => { token.current = t; }, () => undefined);
     try {
       await setDoc(doc(db, COLL, target), {
         kind, data, ...sum(v), device: thisDevice(), createdAt: createdAt.current, updatedAt: now,
@@ -175,25 +193,83 @@ export function useWorkDraft<T>(opts: {
       });
       // Finished while the write was in flight: take it back out.
       if (finished.current) { await deleteWorkDraft(target); return; }
-      lastJson.current = json;
+      landedJson.current = json;
       setSavedAt(now);
       setStatus('saved');
     } catch {
+      // Not written: the next change (or the page going) writes again.
+      if (lastJson.current === json) lastJson.current = '';
       setStatus('error');
     }
   }, [kind, setId]);
 
+  // One writer for the life of the form; it always runs the latest write.
+  const runRef = React.useRef(writeNow);
+  runRef.current = writeNow;
+  const writerRef = React.useRef<CoalescingWriter | null>(null);
+  if (!writerRef.current) writerRef.current = new CoalescingWriter(() => runRef.current());
+  const writer = writerRef.current;
+
+  // A form that stops being new (an invoice now on screen) stops writing; one that becomes new
+  // again (the next sale) starts afresh.
+  const wasActive = React.useRef(active);
+  React.useEffect(() => {
+    if (active && !wasActive.current) { finished.current = false; lastJson.current = ''; createdAt.current = null; }
+    if (!active) writer.cancel();
+    wasActive.current = active;
+  }, [active]);
+
   // Every render may carry a new object for the same values (react-hook-form's watch()), so the
-  // comparison is made when the timer fires, on the text, not on the object.
+  // comparison is made when the write starts, on the text, not on the object.
   React.useEffect(() => {
     if (!enabled || !active || finished.current) return;
-    cancel();
-    timer.current = setTimeout(() => { void writeNow(); }, SAVE_AFTER_MS);
-    return cancel;
+    writer.touch();
   });
 
+  // Leaving: the tab hidden (the phone's home button, another app), the page closing, the form going.
+  React.useEffect(() => {
+    const leave = () => {
+      const { value: v, summary: sum, ignore: ign, enabled: on, active: live } = latest.current;
+      if (!on || !live || finished.current || loading.current) return;
+      void writer.flush(true);
+      // The write above is the SDK's, queued on disk; this one reaches the server even as the page goes.
+      const target = idRef.current;
+      if (!target || !token.current || !isWorthKeeping(v, ign)) return;
+      const json = JSON.stringify(v ?? {});
+      if (json === landedJson.current) return;
+      const s = sum(v);
+      const { data } = toStorable(v);
+      const body = JSON.stringify({
+        action: 'save', id: target, kind, data, total: s.total,
+        customerName: kind === 'sale' && s.title !== 'No customer yet' ? s.title : '',
+        device: thisDevice(), createdAt: createdAt.current ?? new Date().toISOString(),
+      });
+      if (!fitsBeacon(body)) return;
+      try {
+        void fetch('/api/app/drafts', {
+          method: 'POST', keepalive: true, body,
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token.current}` },
+        }).catch(() => undefined);
+      } catch { /* the queued write carries it */ }
+    };
+    const onHidden = () => { if (document.visibilityState === 'hidden') leave(); };
+    document.addEventListener('visibilitychange', onHidden);
+    window.addEventListener('pagehide', leave);
+    // The token the page-closing request carries is kept fresh (they last an hour).
+    const refresh = () => { auth?.currentUser?.getIdToken().then(t => { token.current = t; }, () => undefined); };
+    refresh();
+    const tokenTimer = setInterval(refresh, 20 * 60_000);
+    return () => {
+      clearInterval(tokenTimer);
+      document.removeEventListener('visibilitychange', onHidden);
+      window.removeEventListener('pagehide', leave);
+      // The form going (a link inside the app): what was typed last is written now.
+      void writer.flush(true);
+    };
+  }, [kind]);
+
   const load = React.useCallback(async (draftId: string) => {
-    cancel();
+    writer.cancel();
     loading.current = true;
     let d: WorkDraft<T> | null = null;
     try { d = await readWorkDraft<T>(draftId); } finally { loading.current = false; }
@@ -201,6 +277,7 @@ export function useWorkDraft<T>(opts: {
     finished.current = false;
     createdAt.current = d.createdAt || new Date().toISOString();
     lastJson.current = JSON.stringify(d.data ?? {});
+    landedJson.current = lastJson.current;
     setId(draftId);
     setSavedAt(d.updatedAt || null);
     setStatus('saved');
@@ -210,7 +287,7 @@ export function useWorkDraft<T>(opts: {
   /** The record is saved: the draft goes, for good. */
   const finish = React.useCallback(() => {
     finished.current = true;
-    cancel();
+    writer.cancel();
     const gone = idRef.current;
     idRef.current = null;
     setIdState(null);
@@ -221,7 +298,7 @@ export function useWorkDraft<T>(opts: {
 
   /** Thrown away on purpose. */
   const discard = React.useCallback(() => {
-    cancel();
+    writer.cancel();
     const gone = idRef.current;
     // What is still on screen is not written straight back; only a change makes it a draft again.
     lastJson.current = JSON.stringify(latest.current.value ?? {});
@@ -233,7 +310,7 @@ export function useWorkDraft<T>(opts: {
 
   /** Let go of this draft without removing it (it stays in Drafts); the form starts a new one. */
   const detach = React.useCallback(() => {
-    cancel();
+    writer.cancel();
     // What is on screen is that draft's; it is not written again as a new one unless it changes.
     lastJson.current = JSON.stringify(latest.current.value ?? {});
     createdAt.current = null;

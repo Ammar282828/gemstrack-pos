@@ -105,7 +105,7 @@ private val owedInk = Color(0xFFB45309)
 
 @Composable
 private fun PreviewPaper(look: WidgetLook?, dark: Boolean, modifier: Modifier, tight: Boolean = false, content: @Composable () -> Unit) {
-    val ground = look?.ground(dark) ?: if (dark) Color(0xFF0A1111) else Color(0xFFF2F3F6)
+    val ground = look?.ground(dark) ?: if (dark) Color(0xFF030606) else Color(0xFFECE8E1)
     Box(modifier.clip(RoundedCornerShape(if (look == null) 0.dp else 18.dp)).background(ground).padding(horizontal = 14.dp, vertical = if (tight) 6.dp else 10.dp)) { content() }
 }
 

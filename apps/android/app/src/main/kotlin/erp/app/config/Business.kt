@@ -54,8 +54,12 @@ data class Business(
         }
     }
 
-    data class Side(val accent: String, val ground: String, val card: String, val onAccent: String) {
-        fun toMap() = mapOf("accent" to accent, "ground" to ground, "card" to card, "onAccent" to onAccent)
+    /** [elevated]: sheets, popovers and the grouped rows inside a card; an older server sends none and the card stands in. */
+    data class Side(val accent: String, val ground: String, val card: String, val onAccent: String, val elevated: String? = null) {
+        fun toMap(): Map<String, String> = buildMap {
+            put("accent", accent); put("ground", ground); put("card", card); put("onAccent", onAccent)
+            elevated?.let { put("elevated", it) }
+        }
     }
 
     data class Palette(val light: Side, val dark: Side) {
@@ -121,7 +125,7 @@ data class Business(
                 }
             }
             for (s in listOf(palette.light, palette.dark)) {
-                for (hex in listOf(s.accent, s.ground, s.card, s.onAccent)) if (!HEX.matches(hex.trim())) return "That ERP's colours aren't readable."
+                for (hex in listOf(s.accent, s.ground, s.card, s.onAccent, s.elevated ?: s.card)) if (!HEX.matches(hex.trim())) return "That ERP's colours aren't readable."
             }
             return null
         }
@@ -226,7 +230,7 @@ data class Business(
 
         private fun side(v: Any?): Side? {
             val m = v as? Map<*, *> ?: return null
-            return Side(m["accent"] as? String ?: return null, m["ground"] as? String ?: return null, m["card"] as? String ?: return null, m["onAccent"] as? String ?: return null)
+            return Side(m["accent"] as? String ?: return null, m["ground"] as? String ?: return null, m["card"] as? String ?: return null, m["onAccent"] as? String ?: return null, m["elevated"] as? String)
         }
 
         private fun palette(v: Any?): Palette? {

@@ -34,7 +34,7 @@ describe('tones', () => {
 });
 
 describe('the app palette in the CSS', () => {
-  // The four values per house that the app's Assets.xcassets hold (a.1), as the hex the app
+  // The values per house that the app's Assets.xcassets hold (a.1; popover = the app's Elevated), as the hex the app
   // names them; the CSS holds them as HSL, so compare after converting (to within rounding).
   const hsl = (h: number, s: number, l: number) => {
     s /= 100; l /= 100;
@@ -58,10 +58,10 @@ describe('the app palette in the CSS', () => {
   };
 
   const cases: Array<[string, string, Record<string, string>]> = [
-    ['Taheri light', ':root, .theme-default', { background: '#F2F3F6', card: '#FFFFFF', primary: '#8A6B42', 'primary-foreground': '#FFFFFF' }],
-    ['Taheri dark', '.dark', { background: '#0A1111', card: '#141A1A', primary: '#BE9F76', 'primary-foreground': '#0B1414' }],
-    ['Mina light', '.brand-mina.theme-default', { background: '#F4EFE8', card: '#FFFDF9', primary: '#380000', 'primary-foreground': '#FBF9F9' }],
-    ['Mina dark', '.dark .brand-mina:not(.theme-default)', { background: '#1C1114', card: '#27191D', primary: '#E8A5AE', 'primary-foreground': '#251318' }],
+    ['Taheri light', ':root, .theme-default', { background: '#ECE8E1', card: '#FFFFFF', popover: '#FFFFFF', primary: '#8A6B42', 'primary-foreground': '#FFFFFF' }],
+    ['Taheri dark', '.dark', { background: '#030606', card: '#172020', popover: '#202A29', primary: '#D3B47F', 'primary-foreground': '#0B1414' }],
+    ['Mina light', '.brand-mina.theme-default', { background: '#F2E9E4', card: '#FFFFFF', popover: '#FFFFFF', primary: '#380000', 'primary-foreground': '#FBF9F9' }],
+    ['Mina dark', '.dark .brand-mina:not(.theme-default)', { background: '#090405', card: '#22131A', popover: '#2C1A21', primary: '#EBA9B3', 'primary-foreground': '#251318' }],
   ];
   for (const [name, selector, want] of cases) {
     it(`${name} holds the app's four colours`, () => {

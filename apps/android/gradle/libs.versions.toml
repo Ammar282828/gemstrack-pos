@@ -22,6 +22,8 @@ okhttp = "5.5.0"
 coil = "3.6.3"
 mlkitDocScanner = "16.0.0"
 mlkitCodeScanner = "16.1.0"
+# QR and bar code patterns for the tag designer's drawing and a piece's QR (pure Java, no Play services)
+zxing = "3.5.3"
 splashscreen = "1.2.0"
 datastore = "1.2.1"
 webkit = "1.17.1"
@@ -77,6 +79,7 @@ coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" 
 coil-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coil" }
 mlkit-document-scanner = { module = "com.google.android.gms:play-services-mlkit-document-scanner", version.ref = "mlkitDocScanner" }
 mlkit-code-scanner = { module = "com.google.android.gms:play-services-code-scanner", version.ref = "mlkitCodeScanner" }
+zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 junit = { module = "junit:junit", version.ref = "junit" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }

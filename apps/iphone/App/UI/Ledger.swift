@@ -556,19 +556,10 @@ struct LedgerSection<Content: View, Footer: View>: View {
 extension View {
     /// Content on the house's card: the padding and corner every ledger card shares.
     func ledgerCard(padding: CGFloat = Metrics.cardPadding) -> some View {
-        #if os(macOS)
-        // A Mac's group box: the card's colour with a hairline edge, as System Settings draws its groups.
         self
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Theme.card, in: .rect(cornerRadius: Radius.card, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(Color(nsColor: .separatorColor), lineWidth: 0.5))
-        #else
-        self
-            .padding(padding)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Theme.card, in: .rect(cornerRadius: Radius.card, style: .continuous))
-        #endif
+            .houseCard()
     }
 }
 

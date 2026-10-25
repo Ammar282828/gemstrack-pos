@@ -76,6 +76,9 @@ struct Business: Codable, Sendable, Equatable, Identifiable {
         var ground: String
         var card: String
         var onAccent: String
+        /// Sheets, popovers and the grouped rows inside a card (a lifted surface in dark; white in light). Older
+        /// servers don't send it: the card stands in.
+        var elevated: String?
     }
 
     struct Palette: Codable, Sendable, Equatable {
@@ -187,7 +190,7 @@ struct Business: Codable, Sendable, Equatable, Identifiable {
             return "\(name) hasn't set up its iPhone sign-in yet. Ask the shop to register the app in Firebase."
         }
         for s in [palette.light, palette.dark] {
-            for hex in [s.accent, s.ground, s.card, s.onAccent] where UIColor(hex: hex) == nil { return "That ERP's colours aren't readable." }
+            for hex in [s.accent, s.ground, s.card, s.onAccent, s.elevated ?? s.card] where UIColor(hex: hex) == nil { return "That ERP's colours aren't readable." }
         }
         return nil
     }

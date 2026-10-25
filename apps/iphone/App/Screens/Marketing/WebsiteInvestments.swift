@@ -37,7 +37,7 @@ struct WebsiteInvestmentsScreen: View {
             }
         }
         .navigationTitle("Investments")
-        .navigationBarTitleDisplayMode(.large)
+        .hubTitleDisplay()
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button { adding = true } label: { Label("Add by hand", systemImage: "plus") }

@@ -130,7 +130,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [One screen per question](docs/decisions.md#one-screen-per-question) — `lib/owed.ts`, Today's cash, the karigar's Now
 
 **Selling: invoices, orders, repairs**
-- [Drafts](docs/decisions.md#drafts) — only a new order or sale is drafted, in Firestore `drafts`; `finish()` on save
+- [Drafts](docs/decisions.md#drafts) — only a new order or sale is drafted, in Firestore `drafts`; `finish()` on save; saved at every keystroke (within 300 ms, one write at a time), never auto-opened: a New sale/order is blank, the unfinished one waits in Drafts under its own id (Scan/Stock continue the sale with `?continue=1` / `?resume=1`)
 - [Order actions gate](docs/decisions.md#order-actions-gate) — it moves money
 - [Wastage in grams](docs/decisions.md#wastage-in-grams) — the workshop slip keeps the percentage
 - [Repairs](docs/decisions.md#repairs) — a ticket of many pieces; In the shop → Ready → Collected; money to Extra revenue
@@ -154,6 +154,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Lac and crore](docs/decisions.md#lac-and-crore) — `lib/money.ts`
 - [Invoice credit](docs/decisions.md#invoice-credit) — overpaid is a named customer's credit, on their hisaab; the owner gives it back with "Give back" (`payBackCredit`, not a refund)
 - [Margin](docs/decisions.md#margin) — typed 24k less 6 ratti, else 10%; never the customer's
+- [Net profit](docs/decisions.md#net-profit) — estimated profit less expenses, never revenue less expenses; margin = net ÷ revenue
 - [Exchange as cash](docs/decisions.md#exchange-as-cash) — in Cash In and in revenue (`invoiceSaleValue`)
 - [Analytics default: this month](docs/decisions.md#analytics-default-this-month) — the 1st to today, not a rolling 30 days; Home's ledger too
 
@@ -180,6 +181,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Vertex AI key](docs/features/ai.md#vertex-ai-key) — `vertex-ai-key` in gemstrack-pos Secret Manager, read at run time; tiny per-minute quota
 - [Scanners](docs/features/ai.md#scanners) — wastage in grams, weight before stones, the bill's rate and discount; never 3.8-flash
 - [Voice](docs/features/ai.md#voice) — live words; every part editable; anything, several steps
+- [Voice, Siri-grade](docs/decisions.md#voice-siri-grade) — iPhone/Mac: warm at launch, on-device words, end of speech by itself, keeps listening for changes and "yes"; Siri / Action button / Control Center open it listening
 
 **Design** (`docs/features/design.md`) — replaced Post a piece and the Ads Studio tab (2026-10-12)
 - [Design](docs/decisions.md#design) — Posts › Design: one editor, one Publish sheet, one shelf; Ads → Plan; old URLs redirect, every `/api` route kept

@@ -421,14 +421,16 @@ struct SaleDraft: Codable, Equatable {
     }
 }
 
-/// The phone's own unfinished sale ("erp.saleDraft"). The New sale screen writes it as it is typed
-/// and takes it back on appear; the scan screen adds a piece to it and opens the sale.
+/// The phone's own unfinished sale ("erp.saleDraft"). The New sale screen writes it at every change; it is read
+/// back only when the sale is continued on purpose (Drafts' Continue, or a piece put on the sale by Scan or Stock,
+/// which open it with `?resume=1`): a New sale otherwise starts blank and the one kept here goes to Drafts first
+/// (WorkDraftSync.release, decisions.md "Drafts").
 enum SaleDraftStore {
     /// Per business (BizKey).
     static var key: String { BizKey("erp.saleDraft") }
 
     /// A screen going away right after a business switch saves for the business it was in; later saves (a
-    /// new screen's, 0.7 s after a keystroke) are the open business's.
+    /// new screen's, on the next keystroke) are the open business's.
     private static func key(for business: String) -> String { BizKey("erp.saleDraft", business) }
 
     static func load(business: String? = nil) -> SaleDraft? {
@@ -437,6 +439,10 @@ enum SaleDraftStore {
     }
 
     static func save(_ draft: SaleDraft, business: String? = nil) {
+        write(draft, business: business)
+    }
+
+    private static func write(_ draft: SaleDraft, business: String?) {
         let k = key(for: business ?? BusinessSwitchPin.id(within: 0.4))
         if draft.isBlank {
             UserDefaults.standard.removeObject(forKey: k)
@@ -447,13 +453,14 @@ enum SaleDraftStore {
 
     static func clear(business: String? = nil) { UserDefaults.standard.removeObject(forKey: business.map { key(for: $0) } ?? key) }
 
-    /// Puts a piece on the unfinished sale (a new one if there is none). False when it is already there.
+    /// Puts a piece on the unfinished sale (a new one if there is none). False when it is already there. The caller
+    /// opens the sale with `?resume=1` (SaleLinks.continueSale).
     @discardableResult
     static func add(_ product: Product) -> Bool {
         var d = load() ?? SaleDraft()
         if d.lines.contains(where: { $0.sku == product.sku }) { return false }
         d.lines.append(SaleLine(product))
-        save(d)
+        write(d, business: nil)
         return true
     }
 }

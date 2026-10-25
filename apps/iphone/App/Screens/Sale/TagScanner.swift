@@ -66,7 +66,7 @@ struct TagScanner: View {
         .multilineTextAlignment(.center)
         .frame(maxWidth: .infinity)
         .padding(.vertical, pt(24))
-        .background(Theme.card, in: .rect(cornerRadius: Radius.card, style: .continuous))
+        .houseCard()
     }
 
     private var typeRow: some View {
@@ -203,7 +203,7 @@ struct TagScanner: View {
             .frame(maxWidth: .infinity, minHeight: min(height, 200))
             .padding(.vertical, pt(24))
             .padding(.horizontal, pt(16))
-            .background(Theme.card, in: .rect(cornerRadius: Radius.card, style: .continuous))
+            .houseCard()
             .dropDestination(for: URL.self) { urls, _ in
                 guard active, let url = urls.first else { return false }
                 Task { await read(url) }

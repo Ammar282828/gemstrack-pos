@@ -23,7 +23,7 @@ import kotlin.test.assertTrue
 // One app, many businesses (docs/features/android-app.md "One app, many businesses"): what a descriptor may say, how the list merges, what each
 // business keeps under its own name. Plain Kotlin, no device.
 
-private val TAHERI_PALETTE = """{"light":{"accent":"#8A6B42","ground":"#F2F3F6","card":"#FFFFFF","onAccent":"#FFFFFF"},"dark":{"accent":"#BE9F76","ground":"#0A1111","card":"#141A1A","onAccent":"#0B1414"}}"""
+private val TAHERI_PALETTE = """{"light":{"accent":"#8A6B42","ground":"#ECE8E1","card":"#FFFFFF","elevated":"#FFFFFF","onAccent":"#FFFFFF"},"dark":{"accent":"#D3B47F","ground":"#030606","card":"#172020","elevated":"#202A29","onAccent":"#0B1414"}}"""
 
 private fun descriptor(
     id: String = "acme", name: String = "ACME", url: String = "https://erp.acme.example", android: String? =

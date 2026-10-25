@@ -107,7 +107,7 @@ export function authorizePage(o: { house: string; client: string; redirectHost: 
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
 <title>Connect an AI · ${esc(o.house)}</title>
 <style>
-:root{color-scheme:light dark;--ground:#F2F3F6;--card:#fff;--ink:#111;--quiet:#6b6b70;--accent:#8A6B42;--late:#b3261e}
+:root{color-scheme:light dark;--ground:#ECE8E1;--card:#fff;--ink:#111;--quiet:#6b6b70;--accent:#8A6B42;--late:#b3261e}
 @media(prefers-color-scheme:dark){:root{--ground:#000;--card:#1c1c1e;--ink:#fff;--quiet:#98989f;--accent:#C9A45A}}
 body{margin:0;background:var(--ground);color:var(--ink);font:16px/1.45 -apple-system,system-ui,sans-serif}
 main{max-width:440px;margin:0 auto;padding:48px 16px}

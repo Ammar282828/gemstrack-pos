@@ -1,6 +1,7 @@
 package erp.app.screens.settings
 
 import erp.app.screens.NativeScreens
+import erp.core.ERPDecode
 import erp.core.Json
 import erp.core.models.Customer
 import erp.core.models.Karigar
@@ -152,76 +153,24 @@ class SettingsLogicTests {
 
     // MARK: Labels
 
-    @Test fun aFieldIsStoredAsThePageStoresIt() {
-        val f = LabelField("field-1", "text", 10, 20, 0, "SKU: {sku}", null, null, null)
-        assertEquals(mapOf("id" to "field-1", "type" to "text", "x" to 10, "y" to 20, "data" to "SKU: {sku}"), f.stored)
-        val g = f.copy(rotation = 90, fontSize = 24, qrMagnification = 3, fontFamily = "A")
-        assertEquals(90, g.stored["rotation"])
-        assertEquals(24, g.stored["fontSize"])
-        assertEquals(3, g.stored["qrMagnification"])
-        assertEquals("A", g.stored["fontFamily"])
-    }
-
-    @Test fun aNewTextFieldIsThePagesAddTextField() {
-        val f = LabelField.new(Instant.ofEpochMilli(1_760_000_000_123))
-        assertEquals("field-1760000000123", f.id)
-        assertEquals(listOf("text", 10, 10, 0, "New Text", 20), listOf(f.type, f.x, f.y, f.rotation, f.data, f.fontSize))
-    }
-
-    @Test fun aLayoutReadsLeniently() {
-        val layout = LabelLayout.from(
-            Json.parse("""{"id":"std","name":"Double tag","widthDots":"664","heightDots":296,"fields":[{"id":"a","type":"qr","x":"5","y":6},{"x":1},{"id":"b","type":"weird","data":7}]}"""),
-        )
-        assertNotNull(layout)
-        assertEquals(664, layout.widthDots)
-        assertEquals(listOf("a", "b"), layout.fields.map { it.id })
-        assertEquals("qr", layout.fields[0].type)
-        assertEquals("text", layout.fields[1].type)
-        assertEquals("7", layout.fields[1].data)
-        assertEquals(5, layout.fields[0].x)
-    }
-
-    @Test fun aLayoutWithNoSizeIsNoSavedLayout() {
-        assertNull(LabelDoc.from(Json.parse("""{"labelLayout":{"id":"x","name":"n","widthDots":0,"heightDots":10,"fields":[]}}"""))!!.labelLayout)
-        assertNotNull(LabelDoc.from(Json.parse("""{"labelLayout":{"id":"x","name":"n","widthDots":10,"heightDots":10,"fields":[]}}"""))!!.labelLayout)
-        assertNull(LabelDoc.from(Json.parse("{}"))!!.labelLayout)
-    }
-
     @Test fun theStandardTagIsRead() {
         val std = LabelLogic.standard(Json.parse("""{"standard":{"id":"s","name":"Std","widthDots":664,"heightDots":296,"fields":[]}}"""))
         assertEquals("Std", std?.name)
         assertNull(LabelLogic.standard(Json.parse("{}")))
-    }
-
-    @Test fun theNumberBoxesReadAsThePageDoes() {
-        assertEquals(12, LabelLogic.dots("12"))
-        assertEquals(-5, LabelLogic.dots("-5"))
-        assertEquals(0, LabelLogic.dots("-"))
-        assertEquals(0, LabelLogic.dots(""))
-        assertEquals(20, LabelLogic.fontSize(""))
-        assertEquals(20, LabelLogic.fontSize("0"))
-        assertEquals(32, LabelLogic.fontSize("32"))
-    }
-
-    @Test fun aLayoutSavesAsLayoutAndSeq() {
-        val l = LabelLayout("s", "Std", 664, 296, listOf(LabelField("a", "text", 1, 2, 0, "x", 20, null, null)))
-        val p = LabelLogic.savePayload(l, "u")
-        assertEquals("u", p["seq"])
-        @Suppress("UNCHECKED_CAST") val layout = p["layout"] as Map<String, Any?>
-        assertEquals(listOf("id", "name", "widthDots", "heightDots", "fields"), layout.keys.toList())
-    }
-
-    @Test fun aFieldIsFoundByItsIdWhenItChanges() {
-        val l = LabelLayout("s", "Std", 664, 296, listOf(LabelField("a", "text", 1, 2, 0, "x", 20, null, null), LabelField("b", "text", 3, 4, 0, "y", 20, null, null)))
-        val next = LabelLogic.edit(l, "b") { it.copy(x = 99) }
-        assertEquals(listOf(1, 99), next.fields.map { it.x })
+        // A standard tag with no size cannot be drawn or printed.
+        assertNull(LabelLogic.standard(Json.parse("""{"standard":{"id":"s","name":"Std","widthDots":0,"heightDots":296,"fields":[]}}""")))
     }
 
     @Test fun theCsvIsNamedByTheUtcTime() {
         assertEquals("gemstrack_double_tag_export_2026-10-12-08-00-00.csv", LabelLogic.csvName(Instant.parse("2026-10-12T08:00:00Z")))
-        assertEquals("Saving…", LabelLogic.saveStateText(true, false, true))
-        assertEquals("Layout saved.", LabelLogic.saveStateText(false, false, true))
-        assertEquals("", LabelLogic.saveStateText(false, false, false))
+    }
+
+    @Test fun thePiecesAPreviewOffersAreThoseWhoseNameOrSkuHoldTheSearch() {
+        val ring = ERPDecode.model<erp.core.models.Product>(mapOf("sku" to "RIN-000001", "name" to "Rose ring"))!!
+        val band = ERPDecode.model<erp.core.models.Product>(mapOf("sku" to "BND-000002", "name" to "Plain band"))!!
+        assertEquals(listOf("RIN-000001"), LabelLogic.hits(listOf(ring, band), " rose ").map { it.sku })
+        assertEquals(listOf("BND-000002"), LabelLogic.hits(listOf(ring, band), "bnd").map { it.sku })
+        assertEquals(emptyList(), LabelLogic.hits(listOf(ring, band), "  "))
     }
 
     // MARK: Backups
@@ -543,8 +492,9 @@ class SettingsLogicTests {
             "/settings", "/app/settings/shop", "/settings/alerts", "/settings/payment-methods", "/settings/integrations", "/app/settings/shopify",
             "/settings/data", "/settings/voice", "/settings/printer", "/settings/weprint-api", "/settings/backups", "/settings/contact-import",
             "/settings/hisaab-import", "/app/phone", "/app/widgets", "/app/settings/website", "/settings/import-taheri",
+            "/app/label-live", "/app/tag-printer",
         )
-        assertEquals(17, SettingsRoutes.size)
+        assertEquals(19, SettingsRoutes.size)
         for (p in paths) assertTrue(SettingsRoutes.any { it.matches(p) }, p)
         assertTrue(NativeScreens.all.first().matches("/settings"))
         // The ERP's own pages stay the ERP's, and Recently removed stays the Owner group's.

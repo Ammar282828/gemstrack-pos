@@ -10,8 +10,9 @@ enum SaleRoutes {
     static var all: [ScreenRoute] {
         [
             .exact("/new") { NewChooser() },
-            // "?scan=bill" (the New chooser's Read a written bill) opens the bill reader over the new sale.
-            ScreenRoute(matches: { ScreenRoute.bare($0) == "/invoices/new" }, make: { p in AnyView(NewSale(readsBill: asks(p, scan: "bill"))) }),
+            // "?scan=bill" (the New chooser's Read a written bill) opens the bill reader over the new sale. "?resume=1"
+            // continues the sale kept on this phone (a piece put on it by Scan or Stock, Drafts' Continue); otherwise blank.
+            ScreenRoute(matches: { ScreenRoute.bare($0) == "/invoices/new" }, make: { p in AnyView(NewSale(readsBill: asks(p, scan: "bill"), resumes: asks(p, "resume", "1"))) }),
             .exact("/scan") { ScanTag() },
             ScreenRoute(matches: { editId($0) != nil }, make: { p in AnyView(SaleEditLoader(id: editId(p) ?? "", ratesFirst: asks(p, "rates", "1"))) }),
         ]

@@ -99,7 +99,7 @@ private struct BusinessRoot: View {
         .environment(\.locale, Locale(identifier: "en_PK"))
         .onChange(of: scenePhase) { _, phase in
             lock.phase(phase, signedIn: session.state == .signedIn)
-            if phase == .active, session.state == .signedIn { Outbox.shared.warm(); Outbox.shared.resume() }
+            if phase == .active, session.state == .signedIn { Outbox.shared.warm(); Outbox.shared.resume(); WorkDraftSync.resumeAll() }
             // The window follows the scene: a move to another scene brings it along.
             LockWindow.shared.update(show: lock.locked || lock.covered)
         }

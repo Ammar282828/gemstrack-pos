@@ -856,7 +856,7 @@ extension StockPieceEditor {
             StockPiecePhotoField(sku: s.sku, name: s.name, imageUrl: book.products.item(s.sku)?.imageUrl)
                 .padding(16)
                 .frame(maxWidth: 420, alignment: .leading)
-                .background(Theme.card, in: .rect(cornerRadius: Radius.card, style: .continuous))
+                .houseCard()
             HStack {
                 NavigationLink(value: Route(path: StockKit.piecePath(s.sku))) {
                     Label("Open \(s.sku)", systemImage: "arrow.up.right.square")

@@ -97,8 +97,8 @@ class WidgetLook(
         return Color(parseHexColor(side?.let(f)) ?: fallback)
     }
 
-    fun accent(dark: Boolean): Color = pick(dark, { it.accent }, if (dark) 0xFFBE9F76 else 0xFF8A6B42)
-    fun ground(dark: Boolean): Color = pick(dark, { it.ground }, if (dark) 0xFF0A1111 else 0xFFF2F3F6)
+    fun accent(dark: Boolean): Color = pick(dark, { it.accent }, if (dark) 0xFFD3B47F else 0xFF8A6B42)
+    fun ground(dark: Boolean): Color = pick(dark, { it.ground }, if (dark) 0xFF030606 else 0xFFECE8E1)
 
     /** The app on this business's Home ("/") or on one of its screens: `shoperp://open?b=<business>&p=<path>` (AppRouter reads it). */
     fun url(path: String = "/"): String = "shoperp://open?b=" + java.net.URLEncoder.encode(id, "UTF-8") + "&p=" + java.net.URLEncoder.encode(path, "UTF-8")

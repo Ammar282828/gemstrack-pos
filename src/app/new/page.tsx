@@ -101,7 +101,7 @@ export default function NewSalePage() {
               </p>
             </div>
             <Button asChild size="sm" className="flex-shrink-0">
-              <Link href="/invoices/new">Continue <ArrowRight className="ml-1.5 h-4 w-4" /></Link>
+              <Link href="/invoices/new?continue=1">Continue <ArrowRight className="ml-1.5 h-4 w-4" /></Link>
             </Button>
           </CardContent>
         </Card>

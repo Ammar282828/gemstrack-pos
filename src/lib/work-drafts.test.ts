@@ -31,6 +31,18 @@ describe('what is worth keeping', () => {
     expect(isWorthKeeping({ ...blank, cart: [{ sku: 'R-12', name: 'Ring' }], subtotal: 120000 }, SALE_DEFAULT_FIELDS)).toBe(true);
     expect(isWorthKeeping({ ...blank, walkInCustomerName: 'Ali' }, SALE_DEFAULT_FIELDS)).toBe(true);
   });
+  // The owner, 2026-10-25: saved at every moment, "even if I've just written the name".
+  it('a first letter of a name is a draft; spaces are not', () => {
+    expect(isWorthKeeping({ ...blankOrder(), customerName: 'S' }, ORDER_DEFAULT_FIELDS)).toBe(true);
+    expect(isWorthKeeping({ ...blankOrder(), customerName: '   ' }, ORDER_DEFAULT_FIELDS)).toBe(false);
+    const blankSale = { walkInCustomerName: '', pickedCustomer: '', selectedCustomerId: '__WALK_IN__', cart: [], subtotal: 0 };
+    expect(isWorthKeeping({ ...blankSale, walkInCustomerName: 'A' }, SALE_DEFAULT_FIELDS)).toBe(true);
+    expect(isWorthKeeping({ ...blankSale, walkInCustomerName: ' ' }, SALE_DEFAULT_FIELDS)).toBe(false);
+  });
+  it('a customer picked from the book on a sale is a draft (the id is carried as pickedCustomer)', () => {
+    const blankSale = { walkInCustomerName: '', pickedCustomer: '', selectedCustomerId: '__WALK_IN__', cart: [], subtotal: 0 };
+    expect(isWorthKeeping({ ...blankSale, selectedCustomerId: 'cust-9', pickedCustomer: 'cust-9' }, SALE_DEFAULT_FIELDS)).toBe(true);
+  });
 });
 
 describe('cards', () => {

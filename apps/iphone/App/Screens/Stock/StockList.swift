@@ -50,7 +50,7 @@ struct StockList: View {
             content
         }
         .navigationTitle("Stock")
-        .navigationBarTitleDisplayMode(.large)
+        .hubTitleDisplay()
         .searchable(text: $search, prompt: "Search by name or SKU")
         .searchFocused($searching)
         .background {

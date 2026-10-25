@@ -63,7 +63,8 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
   primitives). **Dark was already the app's palette; light is new.** Per house and mode the four colours (ground, card, accent,
   on-accent) are the app's `Assets.xcassets` values and `lib/tones.test.ts` keeps the two copies equal: Taheri light is a grey
   `#F2F3F6` ground, white cards and a **deep gold `#8A6B42` accent (it was near-black navy)**; Mina light has its own cream
-  neutrals (`#F4EFE8`, `#FFFDF9`, maroon `#380000`) instead of inheriting Taheri's. **Dark-mode text is system white**
+  neutrals (`#F4EFE8`, `#FFFDF9`, maroon `#380000`) instead of inheriting Taheri's. *(2026-10-25: the grounds and dark cards moved;
+  see "Separated grounds, lifted cards" under Light and dark.)* **Dark-mode text is system white**
   (`0 0% 100%`), not each house's warm off-white. The houses are still the body's `brand-<house>` class and the variables: no
   fork. **Cards are flat** (22px, no border, no shadow; tone separates them), buttons, chips and tabs are capsules, fields 12px,
   sheets 28px, menus and popovers 14px; headings are semibold and untracked; **colour means something** (`lib/tones.ts`:
@@ -130,6 +131,21 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
   className now carries no theme (identical on server and client), and `applyThemeToDocument` toggles `theme-default` on it in
   a layout effect, before paint. Reproduced and re-checked in headless Chromium in five cache states (`gemstrack:theme` /
   `gemstrack:theme-device`).
+- **Separated grounds, lifted cards** (owner, 2026-10-25: "the light and dark modes need more separation and should be sexier").
+  The ground and the card were nearly one colour in both modes (card/ground 1.05:1). **Light** is a warm, deeper ground with
+  pure-white cards that float: Taheri `#ECE8E1`, Mina `#F2E9E4`, card `#FFFFFF` (1.2:1), and a very soft shadow on cards
+  (y 1, blur 3, black 5%). **Dark** is a near-black ground with clearly lifted cards, an *elevated* step for sheets, popovers and
+  rows inside cards, and a hairline (white 7%, 0.5 px) on cards instead of a border: Taheri ground `#030606`, card `#172020`,
+  elevated `#202A29`; Mina `#090405`, `#22131A`, `#2C1A21`. **Accents** are a touch richer in dark: Taheri champagne gold
+  `#D3B47F` (was `#BE9F76`), Mina rose `#EBA9B3` (was `#E8A5AE`); the light accents stay (`#8A6B42`, `#380000`). Contrast (WCAG):
+  the words on the accent keep `#FFFFFF` / `#0B1414` / `#FBF9F9` / `#251318` = 4.9 / 9.4 / 17.1 / 9.2:1; the accents are 10.3 and
+  10.5:1 on the dark grounds; secondary text was darkened where the deeper light ground dropped it under 4.5:1 (Taheri
+  `--muted-foreground` `220 8.9% 46.1%` to `42%` = 4.6:1 on `#ECE8E1`, was 4.0; Mina `30 8% 42%` to `37%` = 5.3:1, was 4.4).
+  Still flat 22 px cards, no borders, and glass only on controls: the shadow and the hairline are content-layer, never on a
+  toast or anything that fades or slides. One place each: web `.card` / `.rounded-card.bg-card` (`--card-shadow`, `--card-edge`),
+  iPhone/Mac `Theme.houseCard`, Android `Modifier.houseCardSurface`. The native palette contract gained `elevated`
+  (`/api/app/business` `palette.<mode>.elevated`; an older server's absence means the card). Values and the why:
+  `docs/features/web-matches-app.md` a.1. Rows of a native list (system-drawn) carry no shadow or hairline.
 
 ### Motion
 
@@ -230,13 +246,14 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
   (order/invoice drafts) and be saved there, dont draft ongoing orders … deal with them smartly"). Firestore `drafts`, one
   document per unfinished form, seen on every device (`src/lib/work-drafts.ts`, tested; `components/drafts/use-work-drafts.ts`).
   **Only a new order form and a new sale are drafted** — never an order being edited or invoiced, an invoice on screen, an
-  estimate being changed. Written a second after typing stops, only when something changed and something is there (a
-  blank form's rates, promised date and row ids don't count); removed the moment the order or invoice is saved and never
+  estimate being changed. Written as it is typed (see **Every keystroke, never auto-opened** below), only when something changed and something is there (a
+  blank form's rates, promised date and row ids don't count; a customer's name alone, one letter of it, does); removed the moment the order or invoice is saved and never
   written after (`finish()` — the old device-only drafts kept writing while the page navigated away, and kept a sale's
   customer while its invoice was on screen, which is how saved orders and sales showed up as "unfinished"); removed when
   the form is emptied; forgotten after 30 days. Each form is its own draft: an order's id rides in `?draft=`, the cart
   remembers its sale in `gemstrack:sale-draft` and carries its pieces, so `/invoices/new?draft=…` continues a sale on another
-  device. Opening an invoice over a sale in progress keeps that sale in Drafts. The old `gemstrack:draft:` browser drafts
+  device. Opening an invoice over a sale in progress keeps that sale in Drafts.
+  The old `gemstrack:draft:` browser drafts
   are moved over once per device, minus those saved afterwards. Settings' switch (`autoDraftForms`) turns it all off.
   A sale's draft keeps its held rate boxes (`rates`, `typedRates`), so it is priced at the rates it was quoted at.
   **The iPhone app** (2026-10-09) keeps its own copy on the phone and writes the same work to Drafts, in the web form's
@@ -244,6 +261,21 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
   draft opened at the counter to the figures the phone showed. A phone draft finished or discarded at the counter is
   cleared from the phone when its screen next opens, so it is never saved twice. Drafts begun on the web open in the web
   form inside the app (Drafts on the New screen).
+  **Every keystroke, never auto-opened** (owner, 2026-10-25: "for drafts auto save at every moment so even if I've just written the
+  name a draft gets saved. However don't auto open the draft"). (1) *Saved at every moment*: any change to a form that is not blank is
+  in Drafts within 300 ms, not after typing stops. A burst of keys is one write of the newest work and a draft has one write on its
+  way at a time (`lib/draft-writer.ts` on the web, `WorkDraftSync` on the phone). The phone also writes its own copy at once, off the
+  main thread. Leaving writes at once: the tab hidden or the page closing (`visibilitychange`, `pagehide`: the Firestore write, which is
+  queued on disk offline, plus a `keepalive` request to `/api/app/drafts` when the body fits 60 KB), the form going; on the phone the
+  app leaving (`scenePhase`), the screen going or a sheet swiped down, and a business switch. Offline the phone's copy is the truth and
+  the send is kept on disk and retried (backoff, and when the app comes forward). (2) *Never auto-opened*: opening New sale or New order
+  always starts a BLANK form. The unfinished one stays in Drafts; before the new form starts, the old one is made sure of there and its
+  id let go of (web: `detach`, `parkSaleCart`; phone: `WorkDraftSync.release`, then `forget`), so the new form's first change is a NEW draft
+  and never writes over the old. A draft opens only on purpose: Continue in Drafts (`?draft=` on the web; the phone adopts its id and
+  keeps saving into it), or **a screen that puts a piece on the sale in progress** (Scan, Stock's Sell, the New chooser's "in progress"
+  row), which says so: web `/invoices/new?continue=1`, phone `?resume=1`. Saving the sale or order removes only its own draft.
+  Where the work has no other place to be found the phone keeps continuing its own copy: drafts turned off, the demo, and staff, who
+  cannot read Drafts. (3) A blank form with drafts shows one quiet line, "N drafts", to Drafts: no card, no prompt.
 
 ### Order actions gate
 
@@ -566,6 +598,13 @@ balance below zero is the customer's credit (`lib/invoice-credit.ts`).
 - `STORE_EST_MARGIN` and the ratti read an empty variable as unset: the env generator writes Mina-only variables empty
   for a local Taheri, and `Number('')` made every local estimate 0%.
 
+### Net profit
+
+- **Net profit is the estimated profit less the expenses** (owner, 2026-10-25: "Net profit 5.51 crore, 100.0% margin" beside
+  an estimate of 55 lac). Revenue less expenses ignored what the goods cost. The margin is net ÷ revenue. Analytics'
+  Overview tile and its yearly table (web `src/lib/analytics/net-profit.ts`, tested; iPhone `AnaNet`). The Home "Net"
+  (revenue less expenses) and the monthly PDF's `net` are labelled revenue less expenses, not profit, and are unchanged.
+
 ### Exchange as cash
 
 - **Exchange gold counts as cash** in Analytics' Cash In (owner, 2026-09-25: "count exchange gold as cash only"): every exchange —
@@ -828,6 +867,15 @@ their standing "do everything yourself": `docs/features/design-studio-plan.md`; 
 - **The icon never changes by itself.** Taheri's is primary, Mina's an alternate; Settings → This phone sets it, because iOS alerts on every change.
 - **House of Mina's own app is deprecated** (kept building until its testers move). House of Mina inside the one app needs `shop.taheri.erp` registered as an
   iOS app in its Firebase project (`docs/features/iphone-app.md`).
+
+### Voice, Siri-grade
+
+2026-10-25. The owner: "The voice function on iOS should be as smooth and continuous and immediate and snappy as Siri." `docs/features/ai.md#voice`.
+
+- **Nothing waits for the tap.** Permissions are asked once; the speech model, the audio session and the engine are made ready when the mic first appears.
+- **It listens like a conversation.** A second of quiet ends a sentence by itself; the microphone stays open for a change ("make it 50,000") or a "yes" / "haan" / "no" to the plan on screen. Only a whole utterance of yes or no answers a plan.
+- **Words, not audio, go to the model** (on-device words as text); one model, thinking off. Money saves stay awaited, the rest go through the Outbox.
+- **Siri, the Action button, Spotlight and Control Center open it** straight into listening, for an owner, behind the lock, on the open business.
 
 ## Outside AI
 

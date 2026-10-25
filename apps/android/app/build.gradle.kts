@@ -65,7 +65,7 @@ abstract class HouseResources : DefaultTask() {
         val out = outDir.get().asFile
         out.deleteRecursively()
         val names = mapOf(
-            "Accent" to "house_accent", "Ground" to "house_ground", "Card" to "house_card",
+            "Accent" to "house_accent", "Ground" to "house_ground", "Card" to "house_card", "Elevated" to "house_elevated",
             "OnAccent" to "house_on_accent", "Launch" to "house_launch",
         )
         for ((dark, dir) in listOf(false to "values", true to "values-night")) {
@@ -130,8 +130,8 @@ android {
     defaultConfig {
         minSdk = 26
         targetSdk = 37
-        versionCode = 4 // above the interim web app (apps/android-twa, 1), so this installs over it
-        versionName = "0.2.1"
+        versionCode = 5 // above the interim web app (apps/android-twa, 1), so this installs over it
+        versionName = "0.3.0"
     }
 
     buildFeatures {
@@ -315,6 +315,7 @@ dependencies {
     implementation(libs.androidx.work.runtime)
     implementation(libs.mlkit.document.scanner)
     implementation(libs.mlkit.code.scanner) // Scan a tag: Google's code scanner, no camera permission of its own
+    implementation(libs.zxing.core) // The tag designer draws QR and bar codes as the printer will (patterns, not the printer's own)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlin.test)

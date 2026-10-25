@@ -2,6 +2,7 @@ package erp.core.models
 
 import erp.core.Container
 import erp.core.Decodable
+import erp.core.logic.StoredLabelLive
 
 /**
  * A piece in stock: Firestore `products/<SKU>`, and the same shape in `sold_products`
@@ -197,7 +198,7 @@ data class RepairPayment(
  * fills any missing field from placeholder seed values (a 240,000 24k rate, a sample phone
  * line); this model does not, so a missing rate is 0 and a missing text is "", honestly unset.
  * Left out on purpose: `shopifyAccessToken` (a secret that must never reach a phone),
- * `firebaseConfig`, `allowedDeviceIds`, `weprintApiSkus`, `labelLayout`, `overheadPlans` and
+ * `firebaseConfig`, `allowedDeviceIds`, `weprintApiSkus`, `overheadPlans` and
  * `monthlyOverheads` (web-only screens). Every `notif*` switch reads as off when absent, as the
  * server reads them (lib/notifications/schedule.ts); `autoDraftForms` defaults on. The times are
  * "HH:MM" in Karachi (defaults on the server: checklist 09:00, end of day 19:00, report 21:00).
@@ -283,6 +284,10 @@ data class Settings(
     val notifDailyChecklistTime: String?,
     val notifEndOfDayTime: String?,
     val notifDailyReportTime: String?,
+    /** Label LIVE's set-up as the card keeps it; read it with `labelLiveConfig`. */
+    val labelLive: StoredLabelLive? = null,
+    /** The shop's tag, drawn in Settings > Labels; null until one is saved (the standard tag is then used). */
+    val labelLayout: LabelLayout? = null,
 ) {
     companion object : Decodable<Settings> {
         override fun fromMap(m: Map<String, Any?>): Settings {
@@ -337,6 +342,8 @@ data class Settings(
                 notifDailyChecklistTime = c.string("notifDailyChecklistTime"),
                 notifEndOfDayTime = c.string("notifEndOfDayTime"),
                 notifDailyReportTime = c.string("notifDailyReportTime"),
+                labelLive = c.obj("labelLive", StoredLabelLive),
+                labelLayout = c.obj("labelLayout", LabelLayout),
             )
         }
     }

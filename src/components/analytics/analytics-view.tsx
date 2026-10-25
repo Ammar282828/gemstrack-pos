@@ -40,6 +40,7 @@ import { MonthlyReportButton } from '@/components/reports/monthly-report-button'
 import { bookedAsSale } from '@/lib/order-stage';
 import { chartMotion } from '@/lib/chart-motion';
 import { lineCategory } from '@/lib/categories';
+import { netProfit as netProfitOf, netMarginPercent } from '@/lib/analytics/net-profit';
 
 // Helper types for chart data
 type SalesOverTimeData = { date: string; sales: number; orders: number; itemsSold: number };
@@ -162,7 +163,8 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
         expenses: data.expenses,
         unpaid: data.unpaid,
         profit: data.profit,
-        netProfit: data.revenue - data.expenses,
+        // Estimated profit less expenses, never revenue less expenses (lib/analytics/net-profit.ts).
+        netProfit: netProfitOf(data.profit, data.expenses),
       }))
       .sort((a, b) => b.year - a.year);
   }, [jewelleryInvoices, orders, ordersById, expenses, additionalRevenues]);
@@ -807,7 +809,7 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
               One flat five-across strip read as cramped — everything shouting
               at the same volume is the same problem as nine full Cards. */}
           {(() => {
-            const netProfit = analyticsData.totalSales - analyticsData.totalExpenses;
+            const netProfit = netProfitOf(analyticsData.estProfit, analyticsData.totalExpenses);
             // Each sale at its own margin — worked out from the 24k rate typed when it was made, 10%
             // where none was (everything before 2026-10-05) — and extra revenue at 10% (lib/margin.ts).
             const estProfit = analyticsData.estProfit;
@@ -815,7 +817,7 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
             const estSub = COST_RATTI_LESS === null || analyticsData.salesCosted === 0
               ? `revenue × ${Math.round(STORE_EST_MARGIN * 100)}%, before expenses`
               : `${estPct}% of revenue · ${analyticsData.salesCosted} of ${analyticsData.salesCount} sales from their 24k rate, the rest at ${Math.round(ASSUMED_MARGIN * 100)}% · before expenses`;
-            const margin = analyticsData.totalSales > 0 ? (netProfit / analyticsData.totalSales) * 100 : 0;
+            const margin = netMarginPercent(netProfit, analyticsData.totalSales);
             const money = (n: number) => pkrLac(n);
 
             const money_tiles = [

@@ -75,3 +75,51 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   the shop presses Create. Read-only steps run at once; the rest go on the card, each changeable (`voice-command-editor.tsx`),
   done in order on one press, stopping at a failure with what went through kept (and undoable: "undo" takes back the whole batch).
   Deletes still ask for the delete code. Nothing outside the catalogue can be reached by talking.
+
+#### Voice, Siri-grade (iPhone and Mac, 2026-10-25)
+
+Owner: "The voice function on iOS should be as smooth and continuous and immediate and snappy as Siri." The native sheet
+(`App/Device/NativeVoice.swift`, the ears in `App/Device/VoiceEngine.swift`) is a conversation, not a recorder.
+
+- **Where the time went** (read from the code, not stopwatch; first sentence, before): permission asked on every start (two
+  system prompts' worth of awaits), the audio session category set and activated on tap, an `AVAudioRecorder` *and* a second
+  `AVAudioEngine` started on tap, SFSpeechRecognizer made on tap, a 100 ms polling meter, **no end-of-speech detection** (the
+  person tapped stop), then the whole recording (AAC, base64, tens to hundreds of KB) uploaded and listened to by Gemini, the server
+  reading a dozen collections cold (up to 45 s old copy otherwise), the model (~1.0-1.2 s with thinking off, 2.2-5.4 s with it
+  on: `gemini.ts`), a 120 s timeout, and a form that replaced the whole sheet.
+- **What it is now.** The mic button warms everything when it first appears (`VoiceEngine.warm`: the SpeechTranscriber's model
+  is fetched, the audio session's category set, the engine graph prepared); permissions are asked once, then read back from the
+  system. A tap opens the sheet with one haptic and starts the engine; one `AVAudioEngine` tap feeds the level meter (RMS,
+  smoothed quick-up slow-down, drawn by a `TimelineView` at display rate), the voice-activity detector and the recogniser.
+- **Recogniser.** iOS 26 `SpeechAnalyzer` + `SpeechTranscriber` (on device, volatile then final results), locale **en-IN** like
+  the web (the shop writes Roman script); until its model is installed, or if it fails outright, `SFSpeechRecognizer` with
+  `requiresOnDeviceRecognition` where the device supports it; with neither, the sentence is recorded and Gemini listens as before.
+  The deployment target is 26, so there is no `#available`; the choice is made at run time by what is installed.
+- **Continuous.** About one second of quiet after speech (`VoiceAudioTap.silenceToEnd`) ends the sentence and starts the reading
+  with no tap; "Done" or a tap on the orb ends it early. The microphone stays open: while the plan is read and after it, the next
+  sentence is a change to the same plan until it is saved or dismissed. A sentence said while a reading is out is queued.
+- **Immediate.** The sentence goes as **text** (the on-device words), not audio: no upload, no audio tokens. The model call is
+  unchanged where it already was minimal (gemini-2.5-flash, `thinkingBudget: 0`, the Vertex key; never 3.8-flash, and Pro/3.x are
+  slower and their quota tiny), the server's book is read the moment the sheet opens (`{ warm: true }`, no model call, not counted
+  against the day's cap), and the timeout is **30 s** with Try again, not 120 s. The route does not stream: the plan is a function
+  of the whole reading (`nativeVoicePlan`), so there are no partial cards to show. The wait shows the understood words and a
+  shimmer; the cards fade in.
+- **Follow-ups** (`POST /api/voice/native`): `previous: { words, reading }` is optional and backward compatible. The response now
+  carries `reading` (the model's own answer); the next change sends it back and `lib/voice/refine.ts` asks the model for the whole
+  corrected reading (tests: `refine.test.ts`). A recording stands alone (no `previous`).
+- **Saving is unchanged for money** (awaited `ERPAPI.write`, named by `requestId`); a plan's non-money steps go through the Outbox.
+  "Do it" in the action bar saves; so does a whole utterance of "yes", "haan", "ji haan", "save", "do it"; "no", "nahi", "cancel",
+  "rehne do" dismiss it (`ERPCore/Logic/VoiceReply.swift`, tested: only the *whole* utterance counts, a bare "okay" counts as
+  neither, and a "yes" said while a reading is out is dropped, never applied to the plan that arrives).
+- **Speaking** is the existing "read answers aloud" switch, now also a one-line confirmation ("Rashida paid 5,000. Save it?"). The
+  ear closes while it speaks (no echo) and opens after; other audio is ducked by the session's category, never stopped. A screen
+  reader gets an announcement instead.
+- **Siri.** `TalkToERPIntent` (Shared/VoiceLaunch.swift) opens the app listening; `ERPShortcuts` gives it the phrases "Talk to / Ask
+  / Voice in / New sale in / Record a payment in ERP"; the Action button, Spotlight and Shortcuts offer it by name; Control Center
+  and the Lock Screen have the "Talk to ERP" control (`Widget/ERPVoiceControl.swift`). Owners only; behind Face ID if the app is
+  locked; on the business that is open. iPhone only.
+- **Respect.** Reduce Motion: no scaling or wobble, the glow dims and brightens a few times a second, no shimmer. VoiceOver:
+  labelled orb, live words marked as updating. The lock and the app switcher close the microphone and it opens again with the app;
+  a call or a route change is handled by the engine. The sheet is the business's: switching rebuilds the screens and closes it.
+- **Not done / owed:** Urdu-script listening (the language picker went; en-IN only), barge-in over the spoken confirmation, web
+  auto end-of-speech and follow-ups, Android (`parity.md`).

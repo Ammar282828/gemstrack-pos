@@ -6,7 +6,7 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   default metal, margin, **brand**, logo, its aspect and its height in the sidebar (`NEXT_PUBLIC_STORE_LOGO_SIDEBAR_HEIGHT`, Mina 18 — its
   spaced capitals fill their file, so Taheri's 26 px was a banner; 2026-09-28), **counter staff** for "Taken by"); `globals.css`
   (`.dark .brand-mina:not(.theme-default)` is Mina's dark palette — muted burgundy with the catalogue's dusty rose
-  #E8A5AE as the accent, 2026-09-25 — and `.brand-mina.theme-default` gives its light theme Mina's maroon #380000; Taheri's
+  #E8A5AE as the accent, 2026-09-25 (since 2026-10-25 a near-black wine ground #090405 and the rose #EBA9B3; values in web-matches-app.md a.1) — and `.brand-mina.theme-default` gives its light theme Mina's maroon #380000; Taheri's
   dark is the plain `.dark`. A palette block on <body> must re-declare the `--sidebar-*` vars, which otherwise resolve on
   <html> to Taheri's colours. Each house's logo has a white cut for dark grounds, `NEXT_PUBLIC_STORE_LOGO_LIGHT_URL`:
   `taheri-logo-light.png` by default, Mina's `house-of-mina-logo-light.png`); `layout.tsx`
@@ -37,7 +37,7 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   serverURL (the request's own https origin), metal, margin ({kind:"rattiLess",ratti} when `NEXT_PUBLIC_STORE_COST_RATTI_LESS`
   is a number, else {kind:"percent"} from `_EST_MARGIN`), palette {light,dark}{accent,ground,card,onAccent}, logo {light,dark,aspect},
   icon, ios {googleClientId, firebase}, flags}`. `flags` is `shopFlags()` (`lib/app-shop.ts`), the same function `/api/app/me`'s
-  `shop` block spreads, so the two agree. New variables: `NEXT_PUBLIC_STORE_PALETTE` (compact JSON, `{"light":{…},"dark":{…}}`, #RRGGBB;
+  `shop` block spreads, so the two agree. New variables: `NEXT_PUBLIC_STORE_PALETTE` (compact JSON, `{"light":{…},"dark":{…}}`, each side accent / ground / card / elevated / onAccent as #RRGGBB (elevated added 2026-10-25: sheets, popovers, rows inside cards);
   Taheri's colours are the code's defaults, a missing or malformed colour falls back to them) and, run time only,
   `APP_IOS_GOOGLE_CLIENT_ID`, `APP_IOS_FIREBASE_API_KEY`, `APP_IOS_FIREBASE_APP_ID` (the iOS sign-in identifiers; defaults are Taheri's;
   `APP_ANDROID_FIREBASE_APP_ID` and `APP_ANDROID_GOOGLE_WEB_CLIENT_ID` do the same for the Android app, answered as `android: {…}` beside `ios`: a house that has not

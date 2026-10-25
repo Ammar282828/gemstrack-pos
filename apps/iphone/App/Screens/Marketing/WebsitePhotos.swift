@@ -65,7 +65,7 @@ struct WebsitePhotosScreen: View {
             }
         }
         .navigationTitle("Add photos")
-        .navigationBarTitleDisplayMode(.large)
+        .hubTitleDisplay()
         .task {
             await site.loadSettings()
             if collections == nil { await load() }

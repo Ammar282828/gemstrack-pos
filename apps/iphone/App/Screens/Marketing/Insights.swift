@@ -558,7 +558,7 @@ struct InsightsOverviewScreen: View {
             }
         }
         .navigationTitle("Insights")
-        .navigationBarTitleDisplayMode(.large)
+        .hubTitleDisplay()
         .toolbar { if mayRead { ToolbarItem(placement: .primaryAction) { InsightRangeMenu(key: $rangeKey) } } }
         #if os(macOS)
         .toolbar {
@@ -850,7 +850,7 @@ struct InsightsPostsScreen: View {
             }
         }
         .navigationTitle("Posts")
-        .navigationBarTitleDisplayMode(.large)
+        .hubTitleDisplay()
         #if !os(macOS)
         .toolbar {
             if mayRead {
@@ -964,6 +964,7 @@ struct InsightsPostsScreen: View {
                         }
                     }
                     .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
                     if let last = d.lastPostAt {
                         LabeledContent("Last Instagram post") { Text(ShopDate.say(last)) }
                     }
@@ -1050,7 +1051,7 @@ struct InsightsAudienceScreen: View {
             }
         }
         .navigationTitle("Audience")
-        .navigationBarTitleDisplayMode(.large)
+        .hubTitleDisplay()
         #if os(macOS)
         .toolbar {
             if mayRead {

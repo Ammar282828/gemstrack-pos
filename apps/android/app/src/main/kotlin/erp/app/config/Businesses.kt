@@ -107,9 +107,9 @@ object Businesses {
     private fun fallback(): Business {
         val mina = BuildConfig.HOUSE == "mina"
         val palette = if (mina) {
-            Business.Palette(Business.Side("#380000", "#F4EFE8", "#FFFDF9", "#FBF9F9"), Business.Side("#E8A5AE", "#1C1114", "#27191D", "#251318"))
+            Business.Palette(Business.Side("#380000", "#F2E9E4", "#FFFFFF", "#FBF9F9", "#FFFFFF"), Business.Side("#EBA9B3", "#090405", "#22131A", "#251318", "#2C1A21"))
         } else {
-            Business.Palette(Business.Side("#8A6B42", "#F2F3F6", "#FFFFFF", "#FFFFFF"), Business.Side("#BE9F76", "#0A1111", "#141A1A", "#0B1414"))
+            Business.Palette(Business.Side("#8A6B42", "#ECE8E1", "#FFFFFF", "#FFFFFF", "#FFFFFF"), Business.Side("#D3B47F", "#030606", "#172020", "#0B1414", "#202A29"))
         }
         return Business(
             version = 1, id = BuildConfig.HOUSE, name = if (mina) "MINA" else "TAHERI", shortName = BuildConfig.HOME_NAME,

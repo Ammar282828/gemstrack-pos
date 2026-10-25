@@ -156,7 +156,7 @@ fun WidgetPlanGlance(plan: WidgetPlan, appName: String) {
 /** A business's own ground: the colour of its palette, the whole of it a tap that opens that business. */
 @Composable
 private fun Paper(look: WidgetLook?, modifier: GlanceModifier, tight: Boolean = false, content: @Composable () -> Unit) {
-    val ground = look?.let { groundOf(it) } ?: ColorProvider(day = Color(0xFFF2F3F6), night = Color(0xFF0A1111))
+    val ground = look?.let { groundOf(it) } ?: ColorProvider(day = Color(0xFFECE8E1), night = Color(0xFF030606))
     Box(modifier.background(ground).cornerRadius(if (look == null) 0.dp else 18.dp).then(open(look)).padding(horizontal = 14.dp, vertical = if (tight) 6.dp else 10.dp)) { content() }
 }
 

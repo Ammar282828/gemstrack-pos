@@ -121,6 +121,7 @@ struct StockPieceScreen: View {
                 .frame(maxHeight: 340)
                 .frame(maxWidth: .infinity)
                 .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
                 .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
             // The SKU is the page's title, so it is not said again under the name.
             VStack(alignment: .leading, spacing: pt(6)) {

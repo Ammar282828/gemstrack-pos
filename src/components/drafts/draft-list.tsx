@@ -81,3 +81,21 @@ export function DraftsShortcut({ kind, exclude, limit = 3 }: { kind?: 'order' | 
     </div>
   );
 }
+
+/**
+ * On a blank New sale or New order, when there are drafts: one quiet line to Drafts, no card, no prompt. A new form is
+ * always blank (the owner, 2026-10-25: "don't auto open the draft"); the unfinished ones are here. It goes as soon as
+ * the form has something in it (the form stops rendering it), so its listener does not follow every keystroke.
+ */
+export function DraftsNote() {
+  const { drafts } = useWorkDrafts();
+  if (!drafts.length) return null;
+  return (
+    <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      <FileClock className="h-3.5 w-3.5" />
+      <Link href="/drafts" className="font-medium underline-offset-2 hover:text-foreground hover:underline">
+        {drafts.length === 1 ? '1 draft' : `${drafts.length} drafts`}
+      </Link>
+    </p>
+  );
+}

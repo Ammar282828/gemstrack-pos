@@ -12,16 +12,20 @@ import ERPCore
 /// What stays the ERP's page: editing an invoice, reading a written bill with the AI scanner, and
 /// adding a piece to stock. Owners only, as the ERP's write is.
 ///
-/// An unfinished sale is kept on this phone (UserDefaults "erp.saleDraft") and in the ERP's Drafts, in the
-/// sale page's own shape, so the counter can finish it (WorkDraftSync, SaleWebDraft). "Start over" empties both.
+/// An unfinished sale is kept at every change, on this phone (UserDefaults "erp.saleDraft") and in the ERP's Drafts, in
+/// the sale page's own shape, so the counter can finish it (WorkDraftSync, SaleWebDraft). "Start over" empties both.
+/// A New sale always opens blank: the one kept before is in Drafts, continued from there or from a screen that puts a
+/// piece on it and opens this with `?resume=1` (Scan, Stock).
 struct NewSale: View {
     @Environment(Session.self) private var session
     /// Opened from the New chooser's Read a written bill: the reader comes up over the form, once.
     var readsBill = false
+    /// Opened to continue the sale kept on this phone (`?resume=1`); otherwise the form is blank.
+    var resumes = false
 
     var body: some View {
         if session.isOwner {
-            SaleForm(startsReading: readsBill)
+            SaleForm(startsReading: readsBill, resumes: resumes)
         } else {
             ownersOnly
         }
@@ -55,6 +59,12 @@ struct SaleForm: View {
     var edit: SaleEdit? = nil
     /// The AI bill reader opens over the form when it first shows (NewSale.readsBill).
     var startsReading = false
+    /// The sale kept on this phone is continued rather than a blank one (NewSale.resumes).
+    var resumes = false
+    /// The first appearance has decided what the form opens on; later ones only read the phone's copy again.
+    @State var begun = false
+    /// The draft this form was opened on, until the first change: opening a draft is not a change to it.
+    @State var baseline: SaleDraft?
     /// Change rate opens an invoice on file at the Pieces step, its rates on top (the owner, 2026-10-24).
     var ratesFirst = false
     @State var ratesOpened = false
@@ -148,6 +158,7 @@ struct SaleForm: View {
             }
             switch step {
             case .customer:
+                if edit == nil && draft.isBlank { DraftsNote() }
                 customerSection(f)
             case .pieces:
                 if ratesFirst { ratesSection(f) }
@@ -245,17 +256,12 @@ struct SaleForm: View {
         .confirmDestructive(isPresented: $confirmingOrder, title: "Replace the order in progress?",
                             message: "An order is half typed on this phone. Making one from these pieces replaces it.",
                             action: "Replace it") { createOrder() }
-        // This phone's own unfinished sale, written as it is typed. The scan screen can add a piece
-        // to it while this one waits underneath, so it is read again whenever the screen appears.
+        // This phone's own unfinished sale, written at every change. The scan screen can add a piece to it while this
+        // one waits underneath, so it is read again whenever the screen appears (`appeared`).
         .onAppear { appeared() }
-        // Written a moment after the last key (as New order does), and at once as the app leaves or the screen goes.
-        .task(id: draft) {
-            // An edit is never kept on the phone or in Drafts: the invoice on file is the copy.
-            guard edit == nil, takenByStarted else { return }
-            do { try await Task.sleep(for: .milliseconds(700)) } catch { return }
-            SaleDraftStore.save(draft, business: biz.id)
-            sync(draft)
-        }
+        // Kept at once on the phone and in Drafts within a third of a second (WorkDraftSync), and at once as the app
+        // leaves (scenePhase) or the screen goes (back, or a sheet swiped down).
+        .onChange(of: draft) { _, new in changed(new) }
         .onChange(of: scenePhase) { _, phase in
             if phase != .active { keepNow() }
         }
@@ -270,9 +276,22 @@ struct SaleForm: View {
         }
     }
 
-    /// The unfinished sale, written now rather than after the pause (the app leaving, the screen going).
+    /// Any change to the sale is on the phone at once and in Drafts within a third of a second. A customer's name alone
+    /// is worth keeping (SaleDraft.isBlank).
+    func changed(_ d: SaleDraft) {
+        // An edit is never kept on the phone or in Drafts: the invoice on file is the copy.
+        guard edit == nil, takenByStarted, made == nil else { return }
+        // The draft just opened is not a change to it.
+        if let baseline { if d == baseline { return }; self.baseline = nil }
+        SaleDraftStore.save(d, business: biz.id)
+        sync(d)
+    }
+
+    /// The unfinished sale, written now (the app leaving, the screen going).
     func keepNow() {
         guard made == nil, edit == nil, takenByStarted else { return }
+        // A draft opened and left as it was has nothing new to keep.
+        if let baseline, draft == baseline { return }
         SaleDraftStore.save(draft, business: biz.id)
         sync(draft, now: true)
     }
@@ -280,9 +299,10 @@ struct SaleForm: View {
     /// The counter name Taken by starts on: this account's, when it has one on the house's list.
     var defaultTaker: String { session.shop.person ?? "" }
 
-    /// Every time the screen shows: this phone's unfinished sale is read again (the scan screen can add a
-    /// piece to it while this one waits underneath). A sale cleared elsewhere (an order made from its
-    /// pieces) starts afresh. A brand-new sale starts Taken by on the signed-in person, once.
+    /// Every time the screen shows. The first time decides what the form opens on (`begin`): blank, or the sale kept
+    /// on this phone when it is continued on purpose. After that this phone's copy is read again (the scan screen can
+    /// add a piece to it while this one waits underneath); a sale cleared elsewhere (an order made from its pieces)
+    /// starts afresh. A brand-new sale starts Taken by on the signed-in person, once.
     func appeared() {
         if let edit {
             if !editLoaded {
@@ -291,9 +311,11 @@ struct SaleForm: View {
             }
             return
         }
-        if let stored = SaleDraftStore.load(business: biz.id) {
+        if !begun {
+            begun = true
+            begin()
+        } else if let stored = SaleDraftStore.load(business: biz.id) {
             var kept = stored
-            // A sale begun from Scan a tag has no Taken by yet: it starts on the signed-in person, as every new one.
             if kept.takenBy.isEmpty && !takenByStarted { kept.takenBy = defaultTaker }
             if kept != draft { draft = kept }
             if !stored.isBlank { Task { await stillOurs() } }
@@ -310,14 +332,47 @@ struct SaleForm: View {
         }
     }
 
-    /// The sale in Drafts as the web's sale page holds it, a moment after the last change (`now` as the screen
-    /// goes), so it can be finished at the counter (WorkDraftSync).
+    /// What the form opens on, once (the owner, 2026-10-25: "don't auto open the draft"): blank, with the sale this
+    /// phone was holding made sure of in Drafts; or that very sale, when it is continued on purpose (`?resume=1`:
+    /// a piece put on it by Scan or Stock, Drafts' Continue).
+    /// Where the work has no other place to be found, the phone's copy is continued as it always was: drafts turned
+    /// off, and the demo.
+    func begin() {
+        Task { await DraftsCount.shared.refresh() }
+        let settings = book.settings.value
+        let enabled = (settings?.autoDraftForms ?? true) && !House.isDemo
+        if let stored = SaleDraftStore.load(business: biz.id) {
+            if resumes || !enabled {
+                var kept = stored
+                if kept.takenBy.isEmpty { kept.takenBy = defaultTaker }
+                draft = kept
+                baseline = kept
+                // Work put on the phone's draft by another screen is in Drafts from now, not from its next key.
+                if WorkDraftSync.sale.id == nil { sync(kept) }
+                if !stored.isBlank { Task { await stillOurs() } }
+                return
+            }
+            let customers = book.customers.items
+            WorkDraftSync.sale.release(business: biz, enabled: enabled) {
+                WorkDraftSync.snapshot(stored, settings: settings, customers: customers)
+            }
+            SaleDraftStore.clear(business: biz.id)
+        } else {
+            // Nothing kept here: an id left from it is no draft of this form's.
+            WorkDraftSync.sale.forget(biz.id)
+        }
+        draft = SaleDraft()
+        draft.takenBy = defaultTaker
+        WorkDraftSync.sale.resume()
+    }
+
+    /// The sale in Drafts as the web's sale page holds it, within a third of a second of the last change (`now` as the
+    /// screen goes), so it can be finished at the counter (WorkDraftSync).
     func sync(_ d: SaleDraft, now: Bool = false) {
         let settings = book.settings.value
         let customers = book.customers.items
         WorkDraftSync.sale.push(blank: d.isBlank, enabled: settings?.autoDraftForms ?? true, now: now, business: biz) {
-            let subtotal = SaleFigures(draft: d, settings: settings, customers: customers, marginSettings: House.margin).subtotal
-            return WorkDraftSync.Snapshot(values: d.webValues(subtotal: subtotal), total: subtotal, customerName: d.customerName)
+            WorkDraftSync.snapshot(d, settings: settings, customers: customers)
         }
     }
 
@@ -465,6 +520,7 @@ extension SaleForm {
                 }
                 // Change rate (the invoice page's, "?rates=1"): the rates at the top, the rest as they were.
                 if ratesFirst { ratesSection(f) }
+                if edit == nil && draft.isBlank { DraftsNote() }
                 customerSection(f)
                 if !ratesFirst { ratesSection(f) }
                 discountSection(f)
@@ -555,7 +611,7 @@ extension SaleForm {
                         .help("Read a handwritten bill and put its lines on this sale")
                     Menu {
                         if edit == nil {
-                            Button { if NewOrderDraftStore.orderInProgress { confirmingOrder = true } else { createOrder() } } label: {
+                            Button { if NewOrderDraftStore.orderInProgress && !draftsKept { confirmingOrder = true } else { createOrder() } } label: {
                                 Label("Create order from these pieces", systemImage: "list.clipboard")
                             }
                             .disabled(draft.lines.isEmpty)
@@ -588,14 +644,9 @@ extension SaleForm {
             .confirmDestructive(isPresented: $confirmingOrder, title: "Replace the order in progress?",
                                 message: "An order is half typed on this Mac. Making one from these pieces replaces it.",
                                 action: "Replace it") { createOrder() }
-            // The unfinished sale is kept as it is typed, as on the phone (appeared / keepNow / sync).
+            // The unfinished sale is kept at every change, as on the phone (appeared / changed / keepNow / sync).
             .onAppear { appeared() }
-            .task(id: draft) {
-                guard edit == nil, takenByStarted else { return }
-                do { try await Task.sleep(for: .milliseconds(700)) } catch { return }
-                SaleDraftStore.save(draft, business: biz.id)
-                sync(draft)
-            }
+            .onChange(of: draft) { _, new in changed(new) }
             .onChange(of: scenePhase) { _, phase in
                 if phase != .active { keepNow() }
             }

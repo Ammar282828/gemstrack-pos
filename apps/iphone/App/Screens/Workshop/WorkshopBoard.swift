@@ -66,7 +66,7 @@ struct WorkshopBoard: View {
             content
         }
         .navigationTitle(orderId == nil ? "Workshop" : "Give out")
-        .navigationBarTitleDisplayMode(.large)
+        .hubTitleDisplay()
         .navigationSubtitle(orderId ?? "")
         .toolbar { if orderId == nil { boardToolbar } }
         .modifier(HouseGround())

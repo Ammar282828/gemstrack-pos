@@ -78,7 +78,7 @@ struct SkeletonLoading: View {
         content()
             .padding(.horizontal, pt(16))
             .frame(maxWidth: .infinity, minHeight: height, alignment: .leading)
-            .background(Theme.card, in: .rect(cornerRadius: Radius.card, style: .continuous))
+            .houseCard()
     }
 }
 
@@ -278,12 +278,25 @@ extension EnvironmentValues {
     }
 }
 
+private struct InSectionedEntryKey: EnvironmentKey { static let defaultValue = false }
+
+extension EnvironmentValues {
+    /// The page sits under a sectioned entry's picker row (RootView's SectionPicker): its title stays in the bar.
+    var inSectionedEntry: Bool {
+        get { self[InSectionedEntryKey.self] }
+        set { self[InSectionedEntryKey.self] = newValue }
+    }
+}
+
 /// A hub's large title on a phone; over an iPad's centred column, the title in the bar, centred with the page,
 /// rather than a large one left at the window's edge.
 private struct HubTitleMode: ViewModifier {
     @Environment(\.inReadableColumn) private var inColumn
+    @Environment(\.inSectionedEntry) private var sectioned
     func body(content: Content) -> some View {
-        content.navigationBarTitleDisplayMode(inColumn ? .inline : .large)
+        // Under a sectioned entry's picker (Analytics) a large title only reserves an empty band between the bar and
+        // the picker (owner, 2026-10-25: "weird empty space in analytics"), so the title sits in the bar.
+        content.navigationBarTitleDisplayMode(inColumn || sectioned ? .inline : .large)
     }
 }
 

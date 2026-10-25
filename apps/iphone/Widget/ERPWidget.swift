@@ -249,7 +249,6 @@ struct ERPWidgetEntryView: View {
     }
 }
 
-@main
 struct ERPWidget: Widget {
     var body: some WidgetConfiguration {
         // The kind is the one the static widget had, so a widget already on a home screen keeps its place and shows
@@ -260,5 +259,14 @@ struct ERPWidget: Widget {
         .configurationDisplayName("Today at the shop")
         .description("Revenue today and this month, with the shop’s pinned message. Shows both businesses by default when two are linked; touch and hold, then Edit Widget, to choose which, or to show just one.")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .systemExtraLarge, .accessoryRectangular, .accessoryCircular, .accessoryInline])
+    }
+}
+
+/// The extension's widgets: Today at the shop, and the Talk to ERP control.
+@main
+struct ERPWidgets: WidgetBundle {
+    var body: some Widget {
+        ERPWidget()
+        ERPVoiceControl()
     }
 }
