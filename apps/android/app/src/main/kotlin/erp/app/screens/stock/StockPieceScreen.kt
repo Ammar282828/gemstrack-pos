@@ -29,7 +29,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -82,7 +84,7 @@ import erp.core.logic.Money
 /**
  * One piece in stock (src/app/products/[sku]/page.tsx): its photo, what it sells for at today's rates and how that adds
  * up, and what it is made of. Selling it opens the sale form and Edit the native product form (StockPieceForm);
- * printing its tag and deleting it (which asks for the delete code) are the ERP's own pages. A piece that has left the
+ * printing its tag is the native tag sheet and deleting it (which asks for the delete code) is the ERP's own page. A piece that has left the
  * stock reads "Sold", with the invoice it went out on.
  */
 @Composable
@@ -107,6 +109,7 @@ private fun Detail(p: Product, settings: Settings?) {
     val session = LocalSession.current
     val navigator = LocalNavigator.current
     val owner = session.isOwner
+    var tagging by remember { mutableStateOf(false) }
     val rates: PricingRates? = StockKit.rates(settings) ?: (if (p.isCustomPrice) PricingRates() else null)
     val costs: ProductCosts? = remember(p, rates) { rates?.let { StockKit.costs(p, it) } }
     Column(Modifier.fillMaxSize()) {
@@ -118,8 +121,9 @@ private fun Detail(p: Product, settings: Settings?) {
             item { Hero(p) }
             item { PriceSection(p, costs, settings) }
             if (!p.isCustomPrice) item { SpecsSection(p) }
-            if (owner) item { ErpSection(p) { navigator.open(it) } }
+            if (owner) item { ErpSection(p, { navigator.open(it) }, { tagging = true }) }
         }
+        if (tagging) StockPieceTagSheet(p) { tagging = false }
         // Selling is the owners' (createInvoice is owner-only): staff read the piece without a Sell they cannot finish.
         if (owner) {
             Button(
@@ -277,24 +281,26 @@ private fun TextBlock(title: String, text: String) {
 // MARK: Edit, and the ERP's own pages
 
 /**
- * Edit is the native product form. Print tag and Delete are the ERP's page: its label printer takes the tag's QR and
- * CSV, and Delete asks for the delete code there. Owners only (Stock is theirs).
+ * Edit is the native product form and Print tag the native tag sheet (StockPieceTag.kt: the QR, the shop's tag to a Zebra or
+ * Label LIVE, the CSV). The photo is added, changed or taken off here and saves at once. Delete is the ERP's page: it asks for
+ * the delete code there. Owners only (Stock is theirs).
  */
 @Composable
-private fun ErpSection(p: Product, open: (String) -> Unit) {
+private fun ErpSection(p: Product, open: (String) -> Unit, onTag: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
         Column(Modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card)) {
             LinkRow("Edit", Icons.Filled.Edit, ErpColors.accent) { open(StockKit.editPath(p.sku)) }
+            LedgerDivider()
+            LinkRow("Print tag", Icons.Filled.Print, ErpColors.accent, onTag)
         }
+        LedgerSection("Photo") { StockPiecePhotoField(p.sku, p.name, p.imageUrl) }
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             LedgerHeading("On the ERP's page", Modifier.padding(horizontal = 4.dp))
             Column(Modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card)) {
-                LinkRow("Print tag", Icons.Filled.Print, ErpColors.accent) { open(StockKit.piecePath(p.sku, web = true)) }
-                LedgerDivider()
                 LinkRow("Delete", Icons.Filled.Delete, Tone.problem.color()) { open(StockKit.piecePath(p.sku, web = true)) }
             }
             Text(
-                "These open the ERP's own page. Delete asks for the delete code there.",
+                "This opens the ERP's own page. Delete asks for the delete code there.",
                 Modifier.padding(horizontal = 4.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }

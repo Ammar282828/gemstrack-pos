@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.PhotoLibrary
@@ -98,9 +97,9 @@ import kotlinx.coroutines.launch
  * the ERP (`addProduct` / `updateProduct` on /api/app/write, lib/writes/products.ts): the same SKU numbering, names and
  * gold coin rules as the browser's store. Owners only, as Stock is.
  *
- * The photo is the one thing not here: the web uploads it to Firebase Storage from the browser, and the ERP has no
- * route a phone could send one through, so Photo opens the ERP's own edit page. An edit never sends the photo, the
- * tag's QR or the Shopify ids, so what is on file stays.
+ * The photo saves on its own, as the web's upload does (StockPiecePhotoField, /api/app/product-photo): the form's Save never
+ * sends it, so what is typed here and the photo never overwrite each other. An edit never sends the photo, the tag's QR or
+ * the Shopify ids, so what is on file stays.
  *
  * The web form puts the wastage back to 10% (25% with diamonds) whenever the metal, the diamonds, the stones or the
  * category changes, and also as it opens. Here an edit opens on the piece's own wastage, so changing only its name
@@ -251,7 +250,7 @@ private fun StockPieceEditor(original: Product?, onCreated: ((Product) -> Unit)?
     FailureAlert(failure, onDismiss = { failure = null }, title = if (editing) "The piece wasn't saved" else "The piece wasn't added")
 
     if (done != null) {
-        SavedPage(done, onPhoto = { navigator.open(StockKit.editPath(done.sku) + "?web=1") }, onAnother = ::startAnother, onOpen = { navigator.open(StockKit.piecePath(done.sku)) })
+        SavedPage(done, onAnother = ::startAnother, onOpen = { navigator.open(StockKit.piecePath(done.sku)) })
         return
     }
 
@@ -453,29 +452,17 @@ private fun StonesSection(f: StockPieceFields, set: (StockPieceFields) -> Unit) 
 
 // MARK: Photo
 
-/** Photos are the ERP's page: it uploads them from the browser, and the phone has no way to send one. */
+/** The photo saves as soon as it is picked, on its own (the web uploads it the moment it is chosen too). */
 @Composable
 private fun PhotoSection(original: Product?) {
-    val navigator = LocalNavigator.current
+    val book = LocalBook.current
     if (original != null) {
-        val photo = StockKit.filled(original.imageUrl)
-        FormSection(title = "Photo", footer = "The photo is uploaded on the ERP's own page. Everything else saves here, and saving here keeps the photo.") {
-            if (photo != null) {
-                Box(Modifier.padding(16.dp)) {
-                    StockImage(photo, original.name, original.sku, Modifier.size(96.dp).clip(Radius.tileShape), decodeDataUri = true)
-                }
-            }
-            Row(
-                Modifier.fillMaxWidth().clickable(role = Role.Button) { navigator.open(StockKit.editPath(original.sku) + "?web=1") }.formRow(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Icon(Icons.Filled.PhotoLibrary, contentDescription = null, tint = ErpColors.accent)
-                Text(if (photo == null) "Add a photo in the ERP" else "Change the photo in the ERP", color = ErpColors.accent, style = MaterialTheme.typography.bodyLarge)
-            }
+        val live = rememberShelfItem(book.products, original.sku)
+        FormSection(title = "Photo", footer = "A photo saves as soon as it is picked or taken. Saving the form keeps the photo.") {
+            StockPiecePhotoField(original.sku, original.name, (live ?: original).imageUrl)
         }
     } else {
-        FormSection(title = "Photo", footer = "The photo is uploaded on the ERP's own page, which opens from here after saving.") {
+        FormSection(title = "Photo", footer = "A photo can be added once the piece is saved.") {
             Row(Modifier.fillMaxWidth().formRow(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Icon(Icons.Filled.PhotoLibrary, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("Add the photo once the piece is saved", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
@@ -487,15 +474,19 @@ private fun PhotoSection(original: Product?) {
 // MARK: Saved
 
 @Composable
-private fun SavedPage(s: SavedPiece, onPhoto: () -> Unit, onAnother: () -> Unit, onOpen: () -> Unit) {
+private fun SavedPage(s: SavedPiece, onAnother: () -> Unit, onOpen: () -> Unit) {
+    val book = LocalBook.current
+    val live = rememberShelfItem(book.products, s.sku)
     Column(Modifier.fillMaxSize()) {
         Column(
             Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).readableColumn().padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
             SavedHeader("${s.name} is in stock as ${s.sku}.")
-            FormSection(footer = "The photo is added on the ERP's own page. Another piece starts in the same category.") {
-                SavedAction("Add a photo", Icons.Filled.AddPhotoAlternate, onPhoto)
+            FormSection(title = "Photo", footer = "A photo saves as soon as it is picked or taken.") {
+                StockPiecePhotoField(s.sku, s.name, live?.imageUrl)
+            }
+            FormSection(title = "Next", footer = "Another piece starts in the same category.") {
                 SavedAction("Add another piece", Icons.Filled.Inventory2, onAnother)
             }
         }
