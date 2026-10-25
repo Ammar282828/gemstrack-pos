@@ -171,6 +171,8 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Push notifications, per-kind switches, naming the store | n/a | ✓ | ✓ | ✓ | 2026-10-13 | `src/lib/push` |
 | WhatsApp reports and the monthly PDF by WhatsApp | ✓ | n/a | n/a | n/a | 2026-10 | server-side, [notifications.md](features/notifications.md) |
 | Voice (live words, any step) | ✓ | ✓ | ✓ | ✓ | 2026-10 | [Voice](features/ai.md#voice) |
+| Voice, Siri-grade: instant start, on-device words, end of speech by itself, keeps listening for changes and "yes", "Do it" | owed | ✓ | owed | ✓ | 2026-10-25 | [Voice, Siri-grade](features/ai.md#voice-siri-grade-iphone-and-mac-2026-10-25); `Device/NativeVoice.swift`, `Device/VoiceEngine.swift`; the Mac compiles the same sources (not yet run on a Mac). Web has live words only (`lib/voice/live.ts`); Android's recogniser and sheet are owed |
+| "Talk to ERP": Siri phrases, Action button, Spotlight, Control Center and Lock Screen control | n/a | ✓ | owed | n/a | 2026-10-25 | `Shared/VoiceLaunch.swift`, `Device/VoiceIntents.swift`, `Widget/ERPVoiceControl.swift`; web and Mac have no such entry points (Android: an assistant shortcut / quick-settings tile) |
 
 ## Platform and speed
 

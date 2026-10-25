@@ -180,6 +180,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Vertex AI key](docs/features/ai.md#vertex-ai-key) — `vertex-ai-key` in gemstrack-pos Secret Manager, read at run time; tiny per-minute quota
 - [Scanners](docs/features/ai.md#scanners) — wastage in grams, weight before stones, the bill's rate and discount; never 3.8-flash
 - [Voice](docs/features/ai.md#voice) — live words; every part editable; anything, several steps
+- [Voice, Siri-grade](docs/decisions.md#voice-siri-grade) — iPhone/Mac: warm at launch, on-device words, end of speech by itself, keeps listening for changes and "yes"; Siri / Action button / Control Center open it listening
 
 **Design** (`docs/features/design.md`) — replaced Post a piece and the Ads Studio tab (2026-10-12)
 - [Design](docs/decisions.md#design) — Posts › Design: one editor, one Publish sheet, one shelf; Ads → Plan; old URLs redirect, every `/api` route kept

@@ -8,6 +8,7 @@ import type { Book } from '@/lib/voice/args';
 import type { HisaabEntry } from '@/lib/store';
 import { DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL } from '@/lib/pricing';
 import { POST as listen } from '../listen/route';
+import { previousFrom, refinedText } from '@/lib/voice/refine';
 import { dailyCap, dailyCapForRequest, AI_PER_DAY, WHATSAPP_PER_DAY, INSTAGRAM_PER_DAY } from '@/lib/daily-cap';
 
 export const runtime = 'nodejs';
@@ -45,14 +46,22 @@ export async function POST(req: NextRequest) {
   const email = await verifyRequestEmail(req);
   if (!email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (roleForEmail(email) !== 'owner') return NextResponse.json({ error: 'Not available on this account.' }, { status: 403 });
-  const capped = await dailyCap('ai', email, req, AI_PER_DAY);
-  if (capped) return capped;
   let input: Record<string, unknown>;
   try { input = await req.json(); } catch { return NextResponse.json({ error: 'Could not read the request.' }, { status: 400 }); }
   if (!input || Array.isArray(input) || typeof input !== 'object') return NextResponse.json({ error: 'A sentence is needed.' }, { status: 400 });
+  // The phone opens the voice sheet and says so: the dozen collections are read now, while the person is still
+  // speaking, so the sentence that follows does not wait for them. No model call, so no part of the day's cap.
+  if (input.warm === true) {
+    void loadBook().catch(() => undefined);
+    return NextResponse.json({ ok: true }, { headers: { 'Cache-Control': 'no-store' } });
+  }
+  const capped = await dailyCap('ai', email, req, AI_PER_DAY);
+  if (capped) return capped;
   const text = typeof input.text === 'string' ? input.text.trim() : '';
   const audio = typeof input.audio === 'string' ? input.audio : '';
   if ((!text && !audio) || text.length > 4000 || audio.length > 12_000_000) return NextResponse.json({ error: 'Use a sentence or a recording of up to one minute.' }, { status: 400 });
+  // A follow-up to the plan on screen. Words only: a recording stands alone.
+  const previous = text && !audio ? previousFrom(input.previous) : null;
   try {
     const { rows, settings } = await loadBook();
     const destinations = paletteFor('owner').map(d => ({ label: d.label, href: d.href, keywords: d.keywords }));
@@ -64,13 +73,15 @@ export async function POST(req: NextRequest) {
     const { documentsFor } = await import('@/lib/voice/documents');
     const response = await listen(new NextRequest(req.url.replace(/\/native$/, '/listen'), {
       method: 'POST', headers: req.headers,
-      body: JSON.stringify({ ...(audio ? { audio, mimeType: 'audio/mp4' } : { text }), roster,
+      body: JSON.stringify({ ...(audio ? { audio, mimeType: 'audio/mp4' } : { text: previous ? refinedText(previous, text) : text }), roster,
         documents: documentsFor(book.orders, book.invoices), shopName: settings.shopName, today,
         orderKarat: DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL.replace('k', ''), screens: destinations.map(d => d.label) }),
     }));
     const raw = await response.json();
     if (!response.ok) return NextResponse.json(raw, { status: response.status });
-    return NextResponse.json(await nativeVoicePlan(raw, book, settings, rows.hisaab as unknown as HisaabEntry[]), { headers: { 'Cache-Control': 'no-store' } });
+    const plan = await nativeVoicePlan(raw, book, settings, rows.hisaab as unknown as HisaabEntry[]);
+    // `reading` is the model's own answer, handed back so the phone can send it with the next change (refine.ts).
+    return NextResponse.json({ ...plan, reading: raw }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     console.error('[/api/voice/native]', error);
     return NextResponse.json({ error: 'Could not read the shop’s book. Please try again.' }, { status: 500 });

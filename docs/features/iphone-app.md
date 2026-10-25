@@ -116,9 +116,10 @@ as version 2.0; `apps/iphone/CONVENTIONS.md` is its rulebook.
   Apple's document scanner reads paper for the bill and order-slip readers, notifications per kind (Search → This
   phone), the home-screen widget. Settings → This phone says whether the phone is registered for alerts and sends
   a test notification.
-- **Voice** is native (`Device/NativeVoice.swift`): Apple's recogniser or up to a minute of audio goes to
-  `/api/voice/native` (below), owners only. Its sheet closes before the page it chose opens (two sheets in one update
-  can drop the second).
+- **Voice** is native (`Device/NativeVoice.swift`, `Device/VoiceEngine.swift`): on-device words (SpeechTranscriber, else
+  SFSpeechRecognizer) go as text to `/api/voice/native` (below), owners only; it listens continuously and answers "Talk to
+  ERP" from Siri, the Action button and Control Center ([Voice, Siri-grade](ai.md#voice-siri-grade-iphone-and-mac-2026-10-25)).
+  Its sheet closes before the page it chose opens (two sheets in one update can drop the second).
 - **The team note** ([decision](../decisions.md#team-note)): owners edit it from the banner (600 characters; Save stays
   off past that and says why); everyone reads it. It heads each tab's first screen and Search, not pushed pages or
   forms, where it would repeat at every level and take room from the fields.

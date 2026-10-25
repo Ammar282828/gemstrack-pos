@@ -108,6 +108,21 @@ struct RootView: View {
         session.shop.websiteSelling && (session.role == "owner" || session.role == "staff")
     }
 
+    /// Opens the voice sheet when Siri, the Action button or a control asked for it. Only an owner has voice; for anyone
+    /// else the request is dropped (the app simply opened). Another sheet is closed first: two in one update can drop one.
+    private func openVoiceIfAsked() {
+        guard VoiceLaunch.requested, !AppLock.shared.locked else { return }
+        VoiceLaunch.requested = false
+        guard session.isOwner, !voice else { return }
+        Task {
+            if creating != nil {
+                creating = nil
+                try? await Task.sleep(for: .milliseconds(450))
+            }
+            voice = true
+        }
+    }
+
     /// A menu command or shortcut (⌘1…⌘5, ⌘N, ⇧⌘N, ⌘F).
     private func perform(_ kind: ShellCommands.Kind, entries: [NavEntry], map: NavMap) {
         guard creating == nil, !voice else { return }
@@ -185,7 +200,10 @@ struct RootView: View {
             NavigationStack {
                 NativeVoiceScreen { path in pendingRoute = Route(path: path); voice = false }
             }
+            // The whole height: a voice surface, not a form (the orb, the words, then the plan). An iPad keeps the form's width.
             .presentationSizing(.form)
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
         }
         .sheet(item: $creating) { r in
             NavigationStack {
@@ -204,6 +222,16 @@ struct RootView: View {
         .task(id: watchesOnline) {
             if watchesOnline { await OnlineInbox.shared.keep() }
         }
+        // The mic is on this screen for an owner: the speech model, the audio session and the engine are made ready
+        // now, so the tap only starts them (VoiceEngine.warm). Permissions are asked at the first use, not here.
+        .task(id: session.isOwner) {
+            if session.isOwner, !House.isDemo { VoiceEngine.shared.warm() }
+        }
+        // "Talk to ERP" from Siri, the Action button, Spotlight or Control Center (Shared/VoiceLaunch.swift): the
+        // request waits for Face ID, then the voice sheet opens listening. Cold starts find it set already.
+        .onReceive(NotificationCenter.default.publisher(for: VoiceLaunch.notification)) { _ in openVoiceIfAsked() }
+        .onChange(of: AppLock.shared.locked) { _, locked in if !locked { openVoiceIfAsked() } }
+        .task { openVoiceIfAsked() }
         // The simulator check opens one page over the tabs (`-ERPDemoOpen /invoices/INV-D0002`).
         .task {
             if House.isDemo, let p = UserDefaults.standard.string(forKey: "ERPDemoOpen"), p.hasPrefix("/") { creating = Route(path: p) }

@@ -829,6 +829,15 @@ their standing "do everything yourself": `docs/features/design-studio-plan.md`; 
 - **House of Mina's own app is deprecated** (kept building until its testers move). House of Mina inside the one app needs `shop.taheri.erp` registered as an
   iOS app in its Firebase project (`docs/features/iphone-app.md`).
 
+### Voice, Siri-grade
+
+2026-10-25. The owner: "The voice function on iOS should be as smooth and continuous and immediate and snappy as Siri." `docs/features/ai.md#voice`.
+
+- **Nothing waits for the tap.** Permissions are asked once; the speech model, the audio session and the engine are made ready when the mic first appears.
+- **It listens like a conversation.** A second of quiet ends a sentence by itself; the microphone stays open for a change ("make it 50,000") or a "yes" / "haan" / "no" to the plan on screen. Only a whole utterance of yes or no answers a plan.
+- **Words, not audio, go to the model** (on-device words as text); one model, thinking off. Money saves stay awaited, the rest go through the Outbox.
+- **Siri, the Action button, Spotlight and Control Center open it** straight into listening, for an owner, behind the lock, on the open business.
+
 ## Outside AI
 
 ### AI keys
