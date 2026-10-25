@@ -9,3 +9,5 @@ app archived for TestFlight's "Shop" group, and the iPhone app built beside it a
 - 2026-10-24: round 3, every screen Mac-shaped (tables, record windows, inspectors, one-window New sale and New order, Settings as Mac preferences, right-click and keys everywhere), Connect an AI native.
 - 2026-10-24: round 4, the split-out bodies as view builders; Marketing Mac-shaped.
 - 2026-10-24: round 5, labels: the interactive tag designer (Label LIVE's elements, import a .lsc), Zebra straight from the app (Browser Print, a Mac printer, a network address) with every printer mode and number, the print-job sheet.
+- 2026-10-25: the lock covers sheets and panels too (MacLockSheets).
+- 2026-10-25: Change the rate (finalize, order and invoice pages, silver per order) from the iPhone's screens, on the Mac; the one-window forms open with the rates on top.

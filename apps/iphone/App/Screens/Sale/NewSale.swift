@@ -55,6 +55,9 @@ struct SaleForm: View {
     var edit: SaleEdit? = nil
     /// The AI bill reader opens over the form when it first shows (NewSale.readsBill).
     var startsReading = false
+    /// Change rate opens an invoice on file at the Pieces step, its rates on top (the owner, 2026-10-24).
+    var ratesFirst = false
+    @State var ratesOpened = false
     @State var readerOpened = false
     @State var readingBill = false
     /// The invoice has been put in the form, once (a change arriving meanwhile must not undo what is typed).
@@ -118,6 +121,10 @@ struct SaleForm: View {
             book.products.need()
             book.customers.need()
             book.invoices.need()
+            if ratesFirst && edit != nil && !ratesOpened {
+                ratesOpened = true
+                step = .pieces
+            }
         }
     }
 
@@ -143,8 +150,9 @@ struct SaleForm: View {
             case .customer:
                 customerSection(f)
             case .pieces:
+                if ratesFirst { ratesSection(f) }
                 piecesSection(f)
-                ratesSection(f)
+                if !ratesFirst { ratesSection(f) }
             case .payment:
                 discountSection(f)
                 exchangeSection()
@@ -455,8 +463,10 @@ extension SaleForm {
                             .font(.subheadline)
                     }
                 }
+                // Change rate (the invoice page's, "?rates=1"): the rates at the top, the rest as they were.
+                if ratesFirst { ratesSection(f) }
                 customerSection(f)
-                ratesSection(f)
+                if !ratesFirst { ratesSection(f) }
                 discountSection(f)
                 exchangeSection()
                 paymentSection(f)

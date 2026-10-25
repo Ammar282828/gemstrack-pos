@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search, Loader2, FileSpreadsheet, Download, ArrowLeft, Trash2, PlusCircle } from 'lucide-react';
+import { Search, Loader2, FileSpreadsheet, Download, ArrowLeft, Trash2, PlusCircle, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { generateProductCsv } from '@/lib/csv';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -21,6 +21,8 @@ import { QrCode } from 'lucide-react';
 import { FormSkeleton } from '@/components/shared/skeletons';
 import { LabelLiveCard } from './label-live-card';
 import { LabelLiveButton } from '@/components/label-live-button';
+import { importLsc } from '@/lib/label-lsc';
+import { cleanLabelLayout } from '@/lib/writes/label-layout';
 
 // --- Types --- (lib/label-layout.ts: the layout is kept in settings)
 type LabelLayout = StoredLabelLayout;
@@ -301,6 +303,25 @@ function PrinterPageComponent() {
     }, 1000);
     return () => clearTimeout(t);
   }, [layout, edited, updateSettings, toast]);
+  // A Label LIVE design (.lsc) as the shop's tag, as the iPhone and Mac designer import it (lib/label-lsc.ts = ERPCore LabelLSC).
+  const lscInput = useRef<HTMLInputElement>(null);
+  const importDesign = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      const layout = importLsc(await file.text(), { name: file.name.replace(/\.(lsc|json)$/i, '') });
+      const checked = layout ? cleanLabelLayout(layout) : null;
+      if (!checked || !checked.ok) {
+        toast({ title: 'Not a Label LIVE design', description: checked && !checked.ok ? checked.error : 'Choose the design\'s .lsc file (Label LIVE → File → Save).', variant: 'destructive' });
+        return;
+      }
+      setLayout(checked.layout);
+      toast({ title: `Imported “${checked.layout.name}”`, description: `${checked.layout.fields.length} field(s); it is now the shop's tag on every device.` });
+    } catch {
+      toast({ title: 'Could not read that file', variant: 'destructive' });
+    } finally {
+      if (lscInput.current) lscInput.current.value = '';
+    }
+  };
   const [previewScale, setPreviewScale] = useState(0.5);
   const previewContainerRef = useRef<HTMLDivElement>(null);
 
@@ -354,8 +375,16 @@ function PrinterPageComponent() {
           <div className="lg:col-span-2 space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Interactive Tag Builder</CardTitle>
-                <CardDescription>Drag and drop fields to position them on the tag.</CardDescription>
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <CardTitle>Interactive Tag Builder</CardTitle>
+                    <CardDescription>Drag and drop fields to position them on the tag.</CardDescription>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => lscInput.current?.click()}>
+                    <Upload className="mr-2 h-4 w-4" /> Import Label LIVE design (.lsc)
+                  </Button>
+                  <input ref={lscInput} type="file" accept=".lsc,.json,application/json" className="hidden" aria-label="Label LIVE design file" onChange={(e) => importDesign(e.target.files?.[0])} />
+                </div>
               </CardHeader>
               <CardContent ref={previewContainerRef}>
                 <TagPreview layout={layout} scale={previewScale} />

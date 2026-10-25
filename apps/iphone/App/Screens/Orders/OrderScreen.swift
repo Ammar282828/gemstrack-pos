@@ -658,6 +658,7 @@ struct OrderScreen: View {
         let tcs = OrderActions.tcsConsignment(order)
         let canBook = OrderActions.canBookCourier(order, isOwner: session.isOwner)
         let canUndo = OrderActions.canUndoInvoice(order, isOwner: session.isOwner)
+        let canChangeRate = session.isOwner && !OrderActions.isClosed(order)
         let canRefund = OrderActions.canRefund(order, isOwner: session.isOwner)
         let canDelete = OrderActions.canDelete(order, isOwner: session.isOwner)
         return Menu {
@@ -693,9 +694,15 @@ struct OrderScreen: View {
                     }
                 }
             }
-            if canUndo {
+            if canChangeRate || canUndo {
                 Section("More") {
-                    Button { undo = OrderUndo.unlockAndEdit(order) } label: { Label("Unlock & edit", systemImage: "lock.open") }
+                    // Gold moves: Edit order (before an invoice) or Edit invoice (after), opened at the rates.
+                    if canChangeRate {
+                        Button { web = .changeRate(order) } label: { Label("Change rate", systemImage: "percent") }
+                    }
+                    if canUndo {
+                        Button { undo = OrderUndo.unlockAndEdit(order) } label: { Label("Unlock & edit", systemImage: "lock.open") }
+                    }
                 }
             }
             if canUndo || canRefund || canDelete {

@@ -26,6 +26,8 @@ struct NewOrder: View {
     private let edit: NewOrderEdit?
     /// Opened from the New chooser's Scan a parchi: the slip reader comes up over the form, once.
     private let readsSlip: Bool
+    /// Change rate: the order on file opens at the Pieces step with its rates on top.
+    private let ratesFirst: Bool
     @State private var readerOpened = false
     @State private var readingSlip = false
 
@@ -53,11 +55,14 @@ struct NewOrder: View {
     init(readsSlip: Bool = false) {
         edit = nil
         self.readsSlip = readsSlip
+        ratesFirst = false
     }
 
-    init(edit: NewOrderEdit) {
+    init(edit: NewOrderEdit, ratesFirst: Bool = false) {
         self.edit = edit
         readsSlip = false
+        self.ratesFirst = ratesFirst
+        if ratesFirst { _step = State(initialValue: .pieces) }
         _draft = State(initialValue: edit.draft)
         _loaded = State(initialValue: true)
     }
@@ -235,8 +240,9 @@ struct NewOrder: View {
                 }
                 NewOrderPromisedSection(draft: $draft)
             case .pieces:
+                if ratesFirst { NewOrderRatesSection(draft: $draft, settings: settings) }
                 piecesSection(totals)
-                NewOrderRatesSection(draft: $draft, settings: settings)
+                if !ratesFirst { NewOrderRatesSection(draft: $draft, settings: settings) }
                 NewOrderPrintedSection(draft: $draft)
             case .payment:
                 NewOrderPaymentSection(draft: $draft, totals: totals)
@@ -711,6 +717,8 @@ extension NewOrder {
             Form {
                 Group {
                     if restored { restoredBanner }
+                    // Change rate (the order page's, "?rates=1"): the rates at the top of the one form.
+                    if ratesFirst { NewOrderRatesSection(draft: $draft, settings: settings) }
                     if edit?.invoiced == true {
                         Section {
                             Label("This order is on an invoice already. The invoice keeps its own copy of the pieces and the money: change those on the invoice.", systemImage: "doc.text")
@@ -722,7 +730,7 @@ extension NewOrder {
                     }
                     NewOrderPromisedSection(draft: $draft)
                     piecesSection(totals)
-                    NewOrderRatesSection(draft: $draft, settings: settings)
+                    if !ratesFirst { NewOrderRatesSection(draft: $draft, settings: settings) }
                     NewOrderPrintedSection(draft: $draft)
                     NewOrderPaymentSection(draft: $draft, totals: totals)
                     NewOrderExchangeSection(draft: $draft)

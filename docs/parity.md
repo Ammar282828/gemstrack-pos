@@ -59,22 +59,22 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Online orders: a person confirms | ✓ | ✓ | ✓ | ✓ | 2026-10 | [Online orders](decisions.md#online-orders) |
 | Order advance with exchanged gold | ✓ | ✓ | ✓ | ✓ | 2026-10-24 | Edit order rewrites the rows untagged, so deleting an older gold advance after an edit leaves its gold (removed by editing the order). Android `ui/AdvanceExchange.kt` in the advance sheet. [Order to invoice](decisions.md#order-to-invoice), [Exchange rows](decisions.md#exchange-rows) |
 | Settle an advance (order stays as it was) | ✓ | ✓ | ✓ | ✓ | 2026-10-17 | `settleOrderAdvance` |
-| Order slip printed from the phone | ✓ | ✓ | ✓ | ✓ | 2026-10-09 | |
-| Change the rate: at finalize, from the order and invoice pages, silver per order | ✓ | owed | ✓ | owed | 2026-10-24 | [Order to invoice](decisions.md#order-to-invoice); `finalizeOrder` takes `ratesApplied`; web `order-dialogs.tsx`, Android `OrderFinalizeScreen.kt`, `?rates=1` on the edit pages |
+| Order slip printed from the phone | ✓ | ✓ | ✓ | ✓ | 2026-10-09 |  |
+| Change the rate: at finalize, from the order and invoice pages, silver per order | ✓ | ✓ | ✓ | owed | 2026-10-24 | [Order to invoice](decisions.md#order-to-invoice); `finalizeOrder` takes `ratesApplied`; web `order-dialogs.tsx`, Android `OrderFinalizeScreen.kt`, `?rates=1` on the edit pages |
 
 ## Repairs
 
 | Feature | Web | iPhone | Android | Mac | Since | Where |
 |---|---|---|---|---|---|---|
 | Repair tickets of many pieces: In the shop, Ready, Collected | ✓ | ✓ | ✓ | ✓ | 2026-10 | [Repairs](decisions.md#repairs); `Screens/Repairs`, `screens/repairs` |
-| Repairs desk, PDFs for repairs | ✓ | ✓ | ✓ | ✓ | 2026-10-17 | |
+| Repairs desk, PDFs for repairs | ✓ | ✓ | ✓ | ✓ | 2026-10-17 |  |
 
 ## Customers and Hisaab
 
 | Feature | Web | iPhone | Android | Mac | Since | Where |
 |---|---|---|---|---|---|---|
 | Customers list, profile, add, edit | ✓ | ✓ | ✓ | ✓ | 2026-10 | `Screens/Customers`, `screens/customers` |
-| Duplicates and merge | ✓ | ✓ | ✓ | ✓ | 2026-10 | |
+| Duplicates and merge | ✓ | ✓ | ✓ | ✓ | 2026-10 |  |
 | Spam clean-up | ✓ | ✓ | ✓ | ✓ | 2026-10-17 | `CustomerSpamSheet.swift`; Android in `CustomersList.kt` |
 | Hisaab ledger, entries, account picker, reminder | ✓ | ✓ | ✓ | ✓ | 2026-10 | `Screens/Money`, `screens/money` |
 | Walk-in row | ✓ | ✓ | ✓ | ✓ | 2026-10 | [Walk-ins](decisions.md#walk-ins) |
@@ -87,10 +87,10 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Stock photos, tag printing from the piece | ✓ | ✓ | ✓ | ✓ | 2026-10-17 | `StockPiecePhoto.swift`, `StockPieceTag.swift`; Android `StockPiecePhoto.kt` (take or choose, replace, `/api/app/product-photo`), `StockPieceTag.kt` (piece tag sheet; Stock list Select, then Print N tags as one job) |
 | Tag designer: interactive canvas (zoom, grid, rulers, resize, rotate, align, undo), all field types, placeholders, pictures, .lsc import, copy ZPL, test print | owed | ✓ | ✓ | ✓ | 2026-10-24 | Built on Xcode Cloud (Mac release a82280c). `Screens/Settings/LabelDesigner`; ERPCore `LabelGeometry`, `LabelEditing`, `LabelPlaceholders`; web has the older field list at `settings/printer`. Android: `screens/settings/label/` (Compose canvas) over `core/logic/LabelDesignerModel.kt`, `LabelGeometry`, `LabelEditing`, `LabelPlaceholders`; its ZPL, placeholders and .lsc import are proved equal to the web's by `LabelGoldenTests` |
 | Zebra straight from the app: the shop's tag as ZPL (every Label LIVE mode and number: thermal, tear/peel/cut, media, darkness, speed, offsets, orientation, mirror), job sheet (copies, skip, counter), printer status | owed | ✓ | ✓ | ✓ | 2026-10-24 | `TagPrinter.swift`, `ZebraTransport.swift` (Mac: Zebra Browser Print or a Mac printer raw via CUPS; both: network 9100), `TagPrinterSettingsScreen.swift`, `TagPrintJobSheet.swift`; ERPCore `Zpl.swift` = `src/lib/zebra-zpl.ts`. Android: raw TCP 9100 only (`device/TagPrinter.kt`, `core/logic/Zpl.kt`, `TagPrint.kt`); Browser Print and CUPS are n/a on Android |
-| Label LIVE design import (.lsc) into the shop's tag | owed | ✓ | ✓ | ✓ | 2026-10-24 | `src/lib/label-lsc.ts` = ERPCore `LabelLSC.swift`; the web has the engine, no import button yet; Android `LabelLSC.kt`, picked with the document picker in the designer's File menu |
+| Label LIVE design import (.lsc) into the shop's tag | ✓ | ✓ | ✓ | ✓ | 2026-10-24 | `src/lib/label-lsc.ts` = ERPCore `LabelLSC.swift`; web: Settings → Labels, "Import Label LIVE design (.lsc)" (2026-10-25); Android `LabelLSC.kt`, picked with the document picker in the designer's File menu |
 | Label LIVE: print a piece's tag, several as one job, set-up (Integrate link, variables, printer), test print, print history | ✓ | ✓ | ✓ | ✓ | 2026-10-20 | [Label LIVE](features/label-live.md); ERPCore `LabelLive.swift`; Mac: localhost API then the link, iPhone: MQTT to the counter Mac; `LabelLivePrinter.swift`. Android: the same MQTT (Label LIVE has no Android app), `LabelLivePrinter` in `device/TagPrinter.kt`, `TagPrint.Mqtt` in core; the counter Mac is typed by its address |
 | Rates (gold, silver, rate chip) | ✓ | ✓ | ✓ | ✓ | 2026-10 | [Rate chip](decisions.md#rate-chip) |
-| Scan a tag | ✓ | ✓ | ✓ | ✓ | 2026-10 | |
+| Scan a tag | ✓ | ✓ | ✓ | ✓ | 2026-10 |  |
 
 ## Workshop
 
@@ -98,14 +98,14 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 |---|---|---|---|---|---|---|
 | Board, karigars, karigar page, pay batches, silver and khata, given items | ✓ | ✓ | ✓ | ✓ | 2026-10 | `Screens/Workshop`, `screens/workshop` |
 | Piece details edit (order / invoice piece from the workshop) | ✓ | ✓ | ✓ | ✓ | 2026-10 | `WorkshopPieceDetailsSheet.swift`, `lib/writes/piece-details.ts`; Android `WorkshopPieceDetailsSheet.kt`, through the Outbox |
-| My work (karigar's own list) | ✓ | ✓ | ✓ | ✓ | 2026-10 | |
+| My work (karigar's own list) | ✓ | ✓ | ✓ | ✓ | 2026-10 |  |
 | Drafts, Calendar, Activity log | ✓ | ✓ | ✓ | ✓ | 2026-10-09 | `Screens/Work`, `screens/work` |
 
 ## Money
 
 | Feature | Web | iPhone | Android | Mac | Since | Where |
 |---|---|---|---|---|---|---|
-| Expenses (batches, partner salaries), Extra revenue | ✓ | ✓ | ✓ | ✓ | 2026-10 | |
+| Expenses (batches, partner salaries), Extra revenue | ✓ | ✓ | ✓ | ✓ | 2026-10 |  |
 | Overheads, Shareholders, Recently removed (behind the delete code) | ✓ | ✓ | ✓ | ✓ | 2026-10-09 | `Screens/Owner`, `screens/owner` |
 | Delete code on every delete | ✓ | ✓ | ✓ | ✓ | 2026-10 | [Delete code](decisions.md#delete-code) |
 
@@ -137,7 +137,7 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Several photos of a piece, one caption, Instagram carousel of 10 | ✓ | ✓ | ✓ | ✓ | 2026-10-23 | [Queue and Mina](features/post-a-piece.md#queue-and-mina) |
 | A post's card starts with the hero photo alone | ✓ | ✓ | ✓ | ✓ | 2026-10-23 | `PostTrayPhotos.swift` |
 | Design: make, pages, resize, publish, AI tools, saved | ✓ | ✓ | ✓ | ✓ | 2026-10-19 | [Design](decisions.md#design) |
-| Designer v2 (effects, rich text, gradients, QR, photo adjust) | ✓ | ✓ | ✓ | ✓ | 2026-10-19 | |
+| Designer v2 (effects, rich text, gradients, QR, photo adjust) | ✓ | ✓ | ✓ | ✓ | 2026-10-19 |  |
 | Design Board (Studio canvas, Let it cook, agent) | ✓ | ✓ | pg | ✓ | 2026-10-15 | [Ad studio](features/ad-studio.md#board); Android opens `/design?v=board&web=1` |
 | "Open in Design" from the Posts tray and Edit a piece | ✓ | ✓ | ✓ | ✓ | 2026-10-19 | `PostTray*.swift`; Android `PostTrayScreen.kt` and `WebsiteEditPiece.kt` open `/design?v=make&site=<id>`, which native `design/DesignRoutes.kt` starts a Piece from (this row was stale) |
 
@@ -187,6 +187,6 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Menus from `lib/nav.ts` via the exported JSON | ✓ | ✓ | ✓ | ✓ | 2026-10 | checked by `parity.yml` |
 | Money contract (`contract/cases.json` equal on both phones) | ✓ | ✓ | ✓ | ✓ | 2026-10-12 | `src/app/api/app/write/contract.test.ts` |
 | Store distribution | n/a | ✓ TestFlight | ✓ Play internal | ✓ TestFlight (Mac) | 2026-10 | `ios.yml`, `android.yml` |
-| One number reader (Urdu and Arabic digits, lakh commas, never a silent 0) | n/a | ✓ | ✓ | owed | 2026-10-20 | `ShopNumber` (Android `core/logic/ShopNumber.kt`); marketing's weight and artwork boxes read through it on Android too |
-| The lock covers every sheet and dialog | n/a | ✓ | ✓ | owed | 2026-10-20 | Android: the cover is a window of its own, `device/AppLock.kt`; not run on a phone |
-| Page loads time out at 15 s; the server is warmed when the app comes forward | n/a | ✓ | ✓ | owed | 2026-10-23 | `/api/app/me`, `Outbox.warm()` |
+| One number reader (Urdu and Arabic digits, lakh commas, never a silent 0) | n/a | ✓ | ✓ | ✓ | 2026-10-20 | `ShopNumber` (Android `core/logic/ShopNumber.kt`); marketing's weight and artwork boxes read through it on Android too |
+| The lock covers every sheet and dialog | n/a | ✓ | ✓ | ✓ | 2026-10-20 | Android: the cover is a window of its own, `device/AppLock.kt`; not run on a phone. Mac: every sheet and panel gets the cover inside it (`MacLockSheets`) |
+| Page loads time out at 15 s; the server is warmed when the app comes forward | n/a | ✓ | ✓ | ✓ | 2026-10-23 | `/api/app/me`, `Outbox.warm()` |

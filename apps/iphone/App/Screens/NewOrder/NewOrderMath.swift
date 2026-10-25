@@ -38,8 +38,8 @@ enum NewOrderMath {
     }
 
     /// The rate card this order is priced at: the four gold rates and the two palladium grades as typed,
-    /// and the flat palladium, platinum and silver rates from the shop (silver has one all-in rate that
-    /// the order form has no box for: order-form.tsx `ratesForOrder`).
+    /// and the flat palladium and platinum rates from the shop. Silver has one all-in rate (it holds the making
+    /// and wastage); the order's own box wins and a blank one is the shop's (order-form.tsx `ratesForOrder`, `silverRate`).
     static func formRates(_ d: NewOrderDraft, _ settings: Settings?) -> PricingRates {
         func typed(_ k: RateKey) -> Double { num(d.rates[k.rawValue] ?? "") }
         return PricingRates(
@@ -51,7 +51,7 @@ enum NewOrderMath {
             palladiumRatePerGram18k: typed(.palladiumRatePerGram18k),
             palladiumRatePerGram12k: typed(.palladiumRatePerGram12k),
             platinumRatePerGram: settings?.platinumRatePerGram ?? 0,
-            silverRatePerGram: settings?.silverRatePerGram ?? 0
+            silverRatePerGram: typed(.silverRatePerGram) > 0 ? typed(.silverRatePerGram) : (settings?.silverRatePerGram ?? 0)
         )
     }
 
