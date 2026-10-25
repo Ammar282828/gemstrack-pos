@@ -7,7 +7,7 @@ import java.time.Instant
 // take is tested on the JVM key for key. Nothing here decides whether an ad can be made or what it costs: that is the
 // server's (/api/ads/plan, then /api/ads/create, which checks again).
 
-enum class AdsKind { post, photos, site }
+enum class AdsKind { post, photos, site, video, partner, catalog }
 
 data class AdsNewAdDraft(
     val kind: AdsKind = AdsKind.post,
@@ -28,19 +28,51 @@ data class AdsNewAdDraft(
     val start: Instant = Instant.EPOCH,
     val launch: String = "paused",
     val name: String = "",
+    val video: AdsVideoDraft? = null,
+    /** A creator's partnership ad code, and what Meta said of it. */
+    val partnerCode: String = "",
+    val partnerCheck: AdsPartnerCheck? = null,
+    val catalog: AdsCatalogChoice = AdsCatalogChoice(),
+    val advanced: AdsAdvanced = AdsAdvanced(),
 ) {
     val readyPhotos: List<AdsPhoto> get() = photos.filter { it.ready }
-    val stillUploading: Boolean get() = photos.any { it.uploading }
+    val stillUploading: Boolean get() = photos.any { it.uploading } || video?.busy == true
+
+    /** The post or the creator's post runs as it is: no words of the shop's own. */
+    val asIs: Boolean get() = kind == AdsKind.post || kind == AdsKind.partner
+
+    private val code: String get() = partnerCode.trim()
+
+    /** Enough of the ad for Meta to draw it. */
+    val previewable: Boolean
+        get() = when (kind) {
+            AdsKind.post -> post != null
+            AdsKind.video -> video?.phase == AdsVideoDraft.Phase.ready
+            AdsKind.partner -> code.isNotEmpty()
+            AdsKind.catalog -> catalog.setId.isNotEmpty()
+            AdsKind.photos, AdsKind.site -> readyPhotos.isNotEmpty()
+        }
 
     /** The goals New ad offers here, for what is being promoted (a boosted post can't carry some, new photos others). */
-    fun offered(l: AdsNewAdLists): List<AdsGoal> =
-        l.goals.filter { g -> g.newAd && (if (kind == AdsKind.post) !g.photosOnly else !g.postOnly) }
+    fun offered(l: AdsNewAdLists): List<AdsGoal> = l.goals.filter { g ->
+        g.newAd && when (kind) {
+            AdsKind.post -> !g.photosOnly
+            AdsKind.partner -> !g.photosOnly && g.key != "profile" && g.key != "engagement"
+            AdsKind.video -> !g.postOnly && !g.photosOnly
+            AdsKind.catalog -> g.key == "sales"
+            AdsKind.photos, AdsKind.site -> !g.postOnly
+        }
+    }
 
-    /** A goal a boosted post can't carry (or new photos can't) goes back to WhatsApp chats. */
-    fun fitGoal(l: AdsNewAdLists): AdsNewAdDraft = if (offered(l).none { it.key == goalKey }) copy(goalKey = "whatsapp") else this
+    /** A goal what is promoted can't carry goes back to WhatsApp chats, or the first one it can (the catalogue runs for online orders only). */
+    fun fitGoal(l: AdsNewAdLists): AdsNewAdDraft {
+        val can = offered(l)
+        if (can.any { it.key == goalKey }) return this
+        return copy(goalKey = if (can.any { it.key == "whatsapp" }) "whatsapp" else (can.firstOrNull()?.key ?: "whatsapp"))
+    }
 
     /** Steps after the words move up one when a post is promoted (it keeps its own words). */
-    fun step(n: Int): Int = if (kind == AdsKind.post) n - 1 else n
+    fun step(n: Int): Int = if (asIs) n - 1 else n
 
     fun budget(now: Instant): AdsBudget {
         val from = if (startLater) start else now
@@ -55,7 +87,18 @@ data class AdsNewAdDraft(
     /** The ad as the routes take it (plan.ts AdPlan). */
     fun plan(now: Instant): Map<String, Any?> {
         val source = LinkedHashMap<String, Any?>()
-        if (kind == AdsKind.post) {
+        if (kind == AdsKind.video) {
+            source.putAll(video?.json ?: linkedMapOf("kind" to "video", "videoId" to "", "thumbHash" to ""))
+        } else if (kind == AdsKind.partner) {
+            source["kind"] = "partner"
+            source["adCode"] = code
+            partnerCheck?.takeIf { it.code == code }?.let { c ->
+                c.mediaId?.let { source["mediaId"] = it }
+                c.creator?.let { source["creator"] = it }
+            }
+        } else if (kind == AdsKind.catalog) {
+            source.putAll(catalog.json)
+        } else if (kind == AdsKind.post) {
             source["kind"] = "post"
             source["mediaId"] = post?.id ?: ""
             post?.permalink?.let { source["permalink"] = it }
@@ -77,6 +120,8 @@ data class AdsNewAdDraft(
         p["audience"] = audience.json
         p["budget"] = budget(now).json
         p["launch"] = launch
+        p["bidding"] = advanced.bidding
+        p["hours"] = advanced.hours
         p["name"] = name.trim()
         return p
     }

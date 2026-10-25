@@ -272,6 +272,21 @@ private fun Figures(d: AdOverview, cur: String) {
             }
             FigureTile("Click-through", AdsFormat.pct(t.ctr), Modifier.share(), detail = "${AdsFormat.money(t.cpm, cur)} per 1,000 views", number = t.ctr)
         }
+        SalesTiles(t, b, cur)
+    }
+}
+
+/** What the ads sold, when they sold anything (ads/page.tsx: Sales from ads · ROAS · Cost per purchase). */
+@Composable
+private fun SalesTiles(t: AdMetrics, b: AdMetrics?, cur: String) {
+    val s = AdsResults.sales(t)
+    if (s.purchases <= 0 && s.value <= 0) return
+    val before = b?.let { AdsResults.sales(it) }
+    FigureRow(spacing = 10.dp) {
+        FigureTile("Sales from ads", AdsFormat.money(s.value, cur), Modifier.share(),
+            detail = AdsFormat.change(s.value, before?.value) ?: "${AdsFormat.count(s.purchases)} order${if (s.purchases == 1.0) "" else "s"}", number = s.value)
+        FigureTile("ROAS", AdsResults.roasText(s.roas), Modifier.share(),
+            detail = s.costPerPurchase?.let { "${AdsFormat.money(it, cur)} per order" } ?: "Sales for every rupee spent")
     }
 }
 
@@ -372,9 +387,11 @@ private fun TopAds(d: AdOverview, cur: String, rangeKey: String) {
 }
 
 fun resultLine(a: AdTop, cur: String): String {
-    val r = AdsResults.of(a.metrics, a.goal) ?: return "${AdsFormat.compact(a.metrics.reach)} reached"
+    val s = AdsResults.sales(a.metrics)
+    val roas = if (s.value > 0) " · ${AdsResults.roasText(s.roas)} ROAS" else ""
+    val r = AdsResults.of(a.metrics, a.goal) ?: return "${AdsFormat.compact(a.metrics.reach)} reached$roas"
     val each = if (r.value > 0) " · ${AdsFormat.money(a.metrics.spend / r.value, cur)} each" else ""
-    return "${AdsFormat.count(r.value)} ${r.label.lowercase()}$each"
+    return "${AdsFormat.count(r.value)} ${r.label.lowercase()}$each$roas"
 }
 
 @Composable

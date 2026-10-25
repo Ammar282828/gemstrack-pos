@@ -337,6 +337,10 @@ data class AdsAudiencesAnswer(
     val segments: List<AdsHinted>,
     val events: List<AdsChoice>,
     val instagram: String?,
+    /** Website visitors the pixel can make an audience of (audience-rows.ts WEBSITE_EVENTS). */
+    val websiteEvents: List<AdsHinted> = emptyList(),
+    /** Whether a pixel is chosen on Setup. */
+    val pixel: Boolean = false,
 ) {
     companion object : Decodable<AdsAudiencesAnswer> {
         override fun fromMap(m: Map<String, Any?>): AdsAudiencesAnswer {
@@ -346,6 +350,8 @@ data class AdsAudiencesAnswer(
                 c.list("segments", AdsHinted).filter { it.key.isNotEmpty() },
                 c.list("events", AdsChoice).filter { it.key.isNotEmpty() },
                 c.text("instagram"),
+                c.list("websiteEvents", AdsHinted).filter { it.key.isNotEmpty() },
+                c.bool("pixel", false),
             )
         }
     }

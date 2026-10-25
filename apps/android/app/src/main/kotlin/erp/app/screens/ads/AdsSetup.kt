@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.FormatListNumbered
@@ -250,6 +251,7 @@ fun AdsSetupScreen() {
                         AdsSection(null) {
                             AdsLink("Audiences", Icons.Filled.Group, "/ads/audiences", "The ERP's customers, Instagram engagers, lookalikes")
                             AdsLink("Rules", Icons.Filled.Checklist, "/ads/rules", "Meta's automated rules, and every change logged")
+                            AdsLink("A/B tests", Icons.Filled.Science, "/ads/tests", "Two to five ad sets against each other, audiences kept apart")
                         }
                         AppSections(s0, configId, { configId = it }, busy) { id -> scope.launch { save(mapOf("loginConfigId" to id), "config") } }
                         ConnectSection(s0, session.shop.name, busy, onOpen = { openOutside(context, Uri.parse(AdsSetupLogic.setupAddress())) }, onDisconnect = { confirmOff = true })

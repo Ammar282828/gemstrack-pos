@@ -24,6 +24,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Campaign
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.TableChart
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.MoreVert
@@ -58,6 +60,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -68,6 +71,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import erp.app.auth.LocalSession
 import erp.app.config.House
+import erp.app.device.shareBytes
 import erp.app.nav.LocalNavigator
 import erp.app.nav.ScreenActions
 import erp.app.nav.ScreenTitle
@@ -120,6 +124,11 @@ fun AdsCampaignsScreen(path: String = "/ads/campaigns") {
     var budgeting by remember { mutableStateOf<AdsBudgetTarget?>(null) }
     var refreshing by remember { mutableStateOf(false) }
     var openedAd by rememberSaveable(path) { mutableStateOf(false) }
+    // The range's campaigns as a CSV (the web's Download (CSV)), ready for the share sheet.
+    var csv by remember { mutableStateOf<AdsCsv?>(null) }
+    var exporting by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    var exportCsv by remember { mutableStateOf(false) }
 
     ScreenTitle("Campaigns")
     if (mayRead) {
@@ -141,6 +150,10 @@ fun AdsCampaignsScreen(path: String = "/ads/campaigns") {
                         text = { Text("New ad") }, leadingIcon = { Icon(Icons.Filled.Add, null) },
                         onClick = { more = false; navigator.open("/ads/new") },
                     )
+                    DropdownMenuItem(
+                        text = { Text("Download (CSV)") }, leadingIcon = { Icon(Icons.Filled.TableChart, null) }, enabled = !exporting,
+                        onClick = { more = false; exportCsv = true },
+                    )
                 }
             }
         }
@@ -156,6 +169,26 @@ fun AdsCampaignsScreen(path: String = "/ads/campaigns") {
             problem = adsWords(e)
         }
     }
+
+    // Every campaign, ad set and ad in the range as the server's own CSV, offered to the share sheet at once.
+    LaunchedEffect(exportCsv) {
+        if (!exportCsv) return@LaunchedEffect
+        exportCsv = false
+        exporting = true
+        try {
+            val file = AdsCsv(AdsCampaignsLogic.csvName(rangeKey, erp.core.ERPDate.karachiDay(java.time.Instant.now())), backend.campaignsCsv(rangeKey, archived))
+            csv = file
+            shareBytes(context, file.bytes, file.name, "text/csv", file.name)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            failure = adsWords(e)
+        } finally {
+            exporting = false
+        }
+    }
+    // A different range or archive: the file made is no longer this page's.
+    LaunchedEffect(rangeKey, archived) { csv = null }
 
     // Back from a campaign, ad set or ad: what was paused, renamed or deleted there shows here.
     LaunchedEffect(rangeKey, archived, changes, mayRead) { if (mayRead) load() }
@@ -207,6 +240,7 @@ fun AdsCampaignsScreen(path: String = "/ads/campaigns") {
                     if (on) { if (id !in expanded) expanded.add(id) } else expanded.remove(id)
                 },
                 busy = null,
+                csv = csv, exporting = exporting, onShareCsv = { f -> shareBytes(context, f.bytes, f.name, "text/csv", f.name) },
                 onSwitch = { t, running -> if (running) asking = t else setRunning(t, false) },
                 onBudget = { budgeting = it },
                 onDetails = { level, id -> navigator.open(AdsCampaignsLogic.objectPath(level, id)) },
@@ -252,6 +286,9 @@ fun AdsCampaignsContent(
     onSwitch: (AdsTarget, Boolean) -> Unit,
     onBudget: (AdsBudgetTarget) -> Unit,
     onDetails: (String, String) -> Unit,
+    csv: AdsCsv? = null,
+    exporting: Boolean = false,
+    onShareCsv: (AdsCsv) -> Unit = {},
 ) {
     val cur = d.account.currency
     val list = AdsCampaignsLogic.shown(d.campaigns, filter, search)
@@ -281,6 +318,14 @@ fun AdsCampaignsContent(
                 }
                 if (gallery) {
                     PickerRow("Sort", sort.key, AdsSort.entries.map { it.key to it.label }) { k -> onSort(AdsSort.entries.first { it.key == k }) }
+                }
+            }
+        }
+        if (exporting || csv != null) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                AdsSection(null, footer = { Text("Every campaign, ad set and ad in the range, with spend, results, purchases, sales and ROAS.") }) {
+                    if (exporting) AdsReading("Making the CSV…")
+                    csv?.let { f -> AdsActionRow("Save or send ${f.name}", { onShareCsv(f) }, icon = Icons.Filled.Share) }
                 }
             }
         }
@@ -473,3 +518,6 @@ private fun Issues(list: List<String>) {
         }
     }
 }
+
+/** The CSV the server made for the range, ready to save or send. */
+class AdsCsv(val name: String, val bytes: ByteArray)

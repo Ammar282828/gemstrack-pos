@@ -2,6 +2,11 @@ package erp.app.shots
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.navigation3.runtime.rememberNavBackStack
 import erp.app.ErpApp
@@ -22,6 +27,21 @@ import erp.app.screens.ads.AdsRulesAnswer
 import erp.app.screens.ads.AdsSetupAssets
 import erp.app.screens.ads.AdsSitePiece
 import erp.app.screens.ads.AdsStatusAnswer
+import erp.app.screens.ads.AdsTestsAnswer
+import erp.app.screens.ads.AdsAdvanced
+import erp.app.screens.ads.AdsAdvancedSection
+import erp.app.screens.ads.AdsCampaignsContent
+import erp.app.screens.ads.AdsCatalogChoice
+import erp.app.screens.ads.AdsCatalogRow
+import erp.app.screens.ads.AdsCatalogSection
+import erp.app.screens.ads.AdsCsv
+import erp.app.screens.ads.AdsFilter
+import erp.app.screens.ads.AdsPage
+import erp.app.screens.ads.AdsPartnerCheck
+import erp.app.screens.ads.AdsPartnerSection
+import erp.app.screens.ads.AdsSort
+import erp.app.screens.ads.AdsVideoDraft
+import erp.app.screens.ads.AdsVideoSection
 import erp.app.screens.ads.LocalAdsBackend
 import erp.core.Json
 import org.junit.Test
@@ -86,6 +106,55 @@ class AdsShots(config: ShotConfig) : ShotBase(config) {
         shoot("ads-audiences")
     }
 
+    @Test fun ads_tests() {
+        onlyTaheri()
+        showAds("/ads/tests", below = listOf("/ads", "/ads/setup"))
+        shoot("ads-tests")
+    }
+
+    @Test fun ads_new_ad_other_sources() {
+        onlyTaheri()
+        show {
+            CompositionLocalProvider(LocalAdsBackend provides AdsFixtures.backend) {
+                AdsPage {
+                    AdsVideoSection(AdsVideoDraft("Video Mon 12 Oct, 10:40", AdsVideoDraft.Phase.sending, sent = 0.64), {})
+                    AdsPartnerSection(
+                        code = "kF3mQ9xYpLw2", onCode = {},
+                        checked = AdsPartnerCheck("kF3mQ9xYpLw2", true, "m9", "madeupmaker", null, null, null), onChecked = {},
+                        link = "", onLink = {}, button = "SHOP_NOW", onButton = {}, toSite = false, buttons = emptyList(),
+                    )
+                    AdsCatalogSection(
+                        AdsCatalogChoice(
+                            catalogs = listOf(AdsCatalogRow("c1", "Made Up Jewellers", 412), AdsCatalogRow("c2", "Made Up Old", 12)), catalogId = "c1",
+                            sets = listOf(AdsCatalogRow("s1", "All pieces", 412), AdsCatalogRow("s2", "Rings", 96)), setId = "s1",
+                        ),
+                    ) {}
+                    AdsAdvancedSection(AdsAdvanced(open = true, bid = "min_roas", roas = "3", hoursOn = true, days = setOf(1, 2, 3, 4, 5), from = 10, to = 22), {}, {}, sales = true, currency = "PKR")
+                }
+            }
+        }
+        shoot("ads-new-ad-other-sources")
+    }
+
+    @Test fun ads_campaigns_csv() {
+        onlyTaheri()
+        show {
+            CompositionLocalProvider(LocalAdsBackend provides AdsFixtures.backend) {
+                var campaigns by remember { mutableStateOf<AdCampaigns?>(null) }
+                LaunchedEffect(Unit) { campaigns = AdsFixtures.backend.campaigns("last_7d", false) }
+                campaigns?.let { d ->
+                    AdsCampaignsContent(
+                        d = d, problem = null, filter = AdsFilter.all, onFilter = {}, search = "", onSearch = {}, gallery = true, onGallery = {},
+                        sort = AdsSort.roas, onSort = {}, allExpanded = false, expanded = emptyList(), onExpand = { _, _ -> }, busy = null,
+                        onSwitch = { _, _ -> }, onBudget = {}, onDetails = { _, _ -> },
+                        csv = AdsCsv("ads-last_7d-2026-10-12.csv", ByteArray(0)),
+                    )
+                }
+            }
+        }
+        shoot("ads-campaigns-csv")
+    }
+
     @Test fun ads_ad_sets() {
         onlyTaheri()
         showAds("/ads/adset?campaign=5001&ads=9001", below = listOf("/ads", "/ads/campaigns"))
@@ -114,14 +183,15 @@ object AdsFixtures {
           "account": {"id":"act_1","name":"Made Up Jewellers","currency":"PKR","status":1,"amountSpent":412500,"spendCap":null,"funding":"Visa ending 4242","minDailyBudget":500},
           "since":"2026-10-06","until":"2026-10-12",
           "totals":{"spend":38400,"impressions":186000,"reach":71200,"clicks":3120,"linkClicks":2400,"ctr":1.68,"cpm":206,"cpc":12.3,
-                    "actions":{"onsite_conversion.messaging_conversation_started_7d":96,"link_click":2400,"post_engagement":5100,"post_reaction":740,"comment":58}},
-          "previous":{"since":"2026-09-29","until":"2026-10-05","metrics":{"spend":33800,"reach":69400,"actions":{"onsite_conversion.messaging_conversation_started_7d":80}}},
+                    "actions":{"onsite_conversion.messaging_conversation_started_7d":96,"link_click":2400,"post_engagement":5100,"post_reaction":740,"comment":58,"omni_purchase":9},
+                    "values":{"omni_purchase":223000}},
+          "previous":{"since":"2026-09-29","until":"2026-10-05","metrics":{"spend":33800,"reach":69400,"actions":{"onsite_conversion.messaging_conversation_started_7d":80,"omni_purchase":7},"values":{"omni_purchase":168000}}},
           "daily":[
             {"date":"2026-10-06","metrics":{"spend":4800}},{"date":"2026-10-07","metrics":{"spend":5600}},{"date":"2026-10-08","metrics":{"spend":5200}},
             {"date":"2026-10-09","metrics":{"spend":6900}},{"date":"2026-10-10","metrics":{"spend":7400}},{"date":"2026-10-11","metrics":{"spend":4700}},{"date":"2026-10-12","metrics":{"spend":3800}}
           ],
           "topAds":[
-            {"id":"9001","name":"Bridal diamond ring, reel","campaign":"Bridal season","thumbnail":null,"goal":"CONVERSATIONS","metrics":{"spend":14200,"reach":22000,"actions":{"onsite_conversion.messaging_conversation_started_7d":41}}},
+            {"id":"9001","name":"Bridal diamond ring, reel","campaign":"Bridal season","thumbnail":null,"goal":"CONVERSATIONS","metrics":{"spend":14200,"reach":22000,"actions":{"onsite_conversion.messaging_conversation_started_7d":41,"omni_purchase":6},"values":{"omni_purchase":158000}}},
             {"id":"9002","name":"Eid gold kara, photo","campaign":"Eid gifts","thumbnail":null,"goal":"LINK_CLICKS","metrics":{"spend":9100,"reach":18000,"actions":{"link_click":820}}},
             {"id":"9003","name":"Pearl set, carousel","campaign":"Bridal season","thumbnail":null,"goal":"REACH","metrics":{"spend":5400,"reach":15000}}
           ],
@@ -144,7 +214,7 @@ object AdsFixtures {
         {"account":{"id":"act_1","name":"Made Up Jewellers","currency":"PKR","status":1,"amountSpent":412500},
          "campaigns":[
           {"id":"5001","name":"Bridal season","status":"ACTIVE","effectiveStatus":"ACTIVE","objective":"OUTCOME_ENGAGEMENT","dailyBudget":3000,"stopTime":"2026-10-14T18:59:00+0000",
-           "metrics":{"spend":24600,"reach":41000,"impressions":98000,"actions":{"onsite_conversion.messaging_conversation_started_7d":64}},
+           "metrics":{"spend":24600,"reach":41000,"impressions":98000,"actions":{"onsite_conversion.messaging_conversation_started_7d":64,"omni_purchase":8},"values":{"omni_purchase":196000}},
            "previous":{"spend":21000},
            "adsets":[
              {"id":"6001","name":"Karachi women 25–40","status":"ACTIVE","effectiveStatus":"ACTIVE","optimizationGoal":"CONVERSATIONS","dailyBudget":2000,"learning":"Learning",
@@ -206,7 +276,26 @@ object AdsFixtures {
           {"id":"a3","name":"Lookalike 1% of buyers","kind":"Lookalike","size":[300000,420000],"ready":false,"status":"Meta is still filling it","created":"2026-10-10T08:00:00.000Z"}],
          "segments":[{"key":"all","label":"Every customer","hint":"Everyone in the customer book"},{"key":"buyers","label":"Bought","hint":"Customers who have bought something"},{"key":"lastyear","label":"Bought in the last year","hint":"Bought in the last 12 months"},{"key":"lapsed","label":"Lapsed","hint":"Bought, but not in the last year"}],
          "events":[{"key":"ig_business_profile_all","label":"Everyone who engaged"},{"key":"ig_business_profile_visit","label":"Visited the profile"}],
+         "websiteEvents":[
+          {"key":"Purchase","label":"Bought","hint":"People who ordered from the website"},
+          {"key":"AddToCart","label":"Added to cart","hint":"People who added a piece to the cart"},
+          {"key":"PageView","label":"Visited the website","hint":"Anyone the pixel saw"}],
+         "pixel":true,
          "instagram":"madeupjewellers"}
+    """.trimIndent()
+
+    private val tests = """
+        {"currency":"PKR",
+         "tests":[
+          {"id":"t1","name":"Packshot vs on-hand","start":"2026-10-08T09:00:00.000Z","end":"2026-10-15T09:00:00.000Z","running":true,"ahead":"B",
+           "cells":[
+            {"name":"A","adsets":[{"name":"Karachi women 25–40"}],"spend":9800,"result":21,"resultLabel":"Chats started","costPerResult":467,"roas":2.4},
+            {"name":"B","adsets":[{"name":"Karachi women 25–40, on-hand"}],"spend":9600,"result":29,"resultLabel":"Chats started","costPerResult":331,"roas":3.9}]}],
+         "adsets":[
+          {"id":"6001","name":"Karachi women 25–40","campaign":"Bridal season","status":"ACTIVE"},
+          {"id":"6002","name":"Karachi women 25–40, on-hand","campaign":"Bridal season","status":"ACTIVE"},
+          {"id":"7002","name":"Eid kara to Lahore","campaign":"Eid gifts","status":"PAUSED"},
+          {"id":"7003","name":"Pearl set, Lahore","campaign":"Bridal season","status":"CAMPAIGN_PAUSED"}]}
     """.trimIndent()
 
     private val rules = """
@@ -253,6 +342,7 @@ object AdsFixtures {
         override suspend fun adsetsInfo(campaign: String?, from: String?) = AdsAdsetsInfo.from(parse(adsets))!!
         override suspend fun audiences() = AdsAudiencesAnswer.from(parse(audiences))!!
         override suspend fun rules() = AdsRulesAnswer.from(parse(rules))!!
+        override suspend fun tests() = AdsTestsAnswer.from(parse(tests))!!
         override suspend fun setupAssets() = AdsSetupAssets.from(parse(assets))!!
         override suspend fun pixel() = AdsPixelAnswer.from(parse(pixel))!!
         override suspend fun objectDetail(id: String, level: String): Map<String, Any?> {

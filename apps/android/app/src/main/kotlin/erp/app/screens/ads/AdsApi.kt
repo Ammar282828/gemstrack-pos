@@ -38,6 +38,9 @@ interface AdsBackend {
     suspend fun overview(range: String, fresh: Boolean): AdOverview
     suspend fun campaigns(range: String, archived: Boolean): AdCampaigns
 
+    /** The range's campaigns as the web's CSV (export.ts, made by the server), whole. */
+    suspend fun campaignsCsv(range: String, archived: Boolean): ByteArray
+
     /** Run or pause one campaign, ad set or ad (`level` is "campaign", "adset" or "ad"). */
     suspend fun setRunning(level: String, id: String, running: Boolean)
     suspend fun setBudget(level: String, id: String, daily: Double?, lifetime: Double?)
@@ -80,6 +83,25 @@ interface AdsBackend {
     /** The campaign, ad set or ad menu's own answer (`/api/ads/object/<id>?level=`), as the raw object the page lists. */
     suspend fun objectDetail(id: String, level: String): Map<String, Any?>
     suspend fun objectAct(id: String, level: String, action: String, fields: Map<String, Any?>)
+
+    /** A/B tests (`/api/ads/tests`): the tests so far and the ad sets that can be split. */
+    suspend fun tests(): AdsTestsAnswer
+
+    /** Starts a test (`{ name, adsetIds, start, end, purchases }`); the route checks it with study.ts. */
+    suspend fun makeTest(body: Map<String, Any?>)
+
+    /** A new video's upload to Meta, a piece per request, then Meta's processing (`/api/ads/videos`). */
+    suspend fun videoStart(size: Int): AdsVideoStarted
+    suspend fun videoPiece(session: String, start: Int, chunk: ByteArray): AdsVideoRange
+    suspend fun videoFinish(session: String, name: String)
+    suspend fun videoStatus(id: String): AdsVideoStatus
+
+    /** A creator's partnership ad code, checked with Meta (`/api/ads/partner`). */
+    suspend fun partnerCheck(code: String): AdsPartnerCheck
+
+    /** The Meta business's catalogues, and one's product sets (`/api/ads/catalog`). */
+    suspend fun catalogs(): List<AdsCatalogRow>
+    suspend fun catalogSets(catalog: String): List<AdsCatalogRow>
 }
 
 val LocalAdsBackend = staticCompositionLocalOf<AdsBackend> { AdsAPI }
@@ -122,6 +144,38 @@ object AdsAPI : AdsBackend {
 
     override suspend fun campaigns(range: String, archived: Boolean): AdCampaigns =
         read("/api/ads/campaigns?range=$range${if (archived) "&archived=1" else ""}", AdCampaigns)
+
+    /** Every campaign, ad set and ad in the range as the web's CSV, for a sheet app. */
+    override suspend fun campaignsCsv(range: String, archived: Boolean): ByteArray = api.bytes(AdsCampaignsLogic.csvPath(range, archived))
+
+    override suspend fun tests(): AdsTestsAnswer = read("/api/ads/tests", AdsTestsAnswer)
+
+    override suspend fun makeTest(body: Map<String, Any?>) {
+        api.send("/api/ads/tests", body = body)
+    }
+
+    override suspend fun videoStart(size: Int): AdsVideoStarted = read("/api/ads/videos", AdsVideoStarted, "POST", mapOf("phase" to "start", "size" to size))
+
+    /** One piece, as a form (`session`, `start`, `chunk`) through ErpApi's own guards: this ERP over https only, the sign-in token fresh for each piece. */
+    override suspend fun videoPiece(session: String, start: Int, chunk: ByteArray): AdsVideoRange {
+        val text = api.upload(
+            "/api/ads/videos", listOf("session" to session, "start" to start.toString()),
+            listOf(ErpApi.FormFile("chunk", "chunk", "application/octet-stream", chunk)), timeoutMs = 120_000,
+        )
+        return AdsVideoRange.from(Json.parse(text)) ?: throw ErpApi.Failure(0, "The ERP's answer couldn't be read.")
+    }
+
+    override suspend fun videoFinish(session: String, name: String) {
+        api.send("/api/ads/videos", body = mapOf("phase" to "finish", "session" to session, "name" to name), timeoutMs = 90_000)
+    }
+
+    override suspend fun videoStatus(id: String): AdsVideoStatus = read("/api/ads/videos?id=${AdsQuery.escape(id)}", AdsVideoStatus)
+
+    override suspend fun partnerCheck(code: String): AdsPartnerCheck = read("/api/ads/partner?code=${AdsQuery.escape(code)}", AdsPartnerCheck)
+
+    override suspend fun catalogs(): List<AdsCatalogRow> = read("/api/ads/catalog", AdsCatalogsAnswer).catalogs
+
+    override suspend fun catalogSets(catalog: String): List<AdsCatalogRow> = read("/api/ads/catalog?catalog=${AdsQuery.escape(catalog)}", AdsCatalogsAnswer).sets
 
     /** The route the web's switches call, which checks the object is this house's and records the change in `ads_log`. */
     override suspend fun setRunning(level: String, id: String, running: Boolean) {

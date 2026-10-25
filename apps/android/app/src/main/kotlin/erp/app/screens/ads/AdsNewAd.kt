@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddPhotoAlternate
@@ -69,8 +70,8 @@ import kotlinx.coroutines.launch
 
 /**
  * Ads → New ad (src/app/ads/new/page.tsx), in the order a shop thinks of it: what to promote (an Instagram post as it
- * is, new photos from this phone or the ad account's library, or a piece from the website), what it's for, the words,
- * who sees it, budget and dates, Meta's own preview, then make it, paused or live.
+ * is, new photos from this phone or the ad account's library, a piece from the website, a new video, a creator's post as
+ * a partnership ad, or the catalogue: AdsNewAdSources.kt), what it's for, the words, who sees it, budget and dates, Meta's own preview, then make it, paused or live.
  *
  * Every call is the web's own route; nothing goes to Meta from the phone. Photos from this phone go to /api/ads/images
  * as the web sends them. Before anything is made the server checks the ad and says, in New ad's own lines
@@ -85,6 +86,7 @@ fun AdsNewAdScreen(path: String) {
     val scope = rememberCoroutineScope()
     val mayUse = adsMayUse(session.role)
     val now0 = AppClock.now()
+    val context = LocalContext.current
 
     var status by remember { mutableStateOf<AdsStatusAnswer?>(null) }
     var lists by remember { mutableStateOf<AdsNewAdLists?>(null) }
@@ -262,6 +264,30 @@ fun AdsNewAdScreen(path: String) {
         if (status?.ready != true || lists == null) return@LaunchedEffect
         if (d.kind == AdsKind.post && media == null && !mediaBusy) loadMedia(null)
         if (d.kind == AdsKind.site && pieces == null) loadPieces()
+        if (d.kind == AdsKind.catalog && d.catalog.catalogs == null) {
+            try {
+                val list = backend.catalogs()
+                d = d.copy(catalog = d.catalog.copy(catalogs = list, problem = null, catalogId = if (d.catalog.catalogId.isEmpty() && list.size == 1) list[0].id else d.catalog.catalogId))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                d = d.copy(catalog = d.catalog.copy(problem = adsWords(e)))
+            }
+        }
+    }
+    // A catalogue's sets once it is chosen; the biggest is the default (the server sorts them).
+    LaunchedEffect(d.catalog.catalogId) {
+        val id = d.catalog.catalogId
+        if (id.isEmpty()) return@LaunchedEffect
+        d = d.copy(catalog = d.catalog.copy(sets = null, setId = ""))
+        try {
+            val list = backend.catalogSets(id)
+            if (d.catalog.catalogId == id) d = d.copy(catalog = d.catalog.copy(sets = list, setId = list.firstOrNull()?.id ?: ""))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            d = d.copy(catalog = d.catalog.copy(problem = adsWords(e)))
+        }
     }
     // "Online orders" says what the pixel recorded this week; the channel goal opens the shop's channel; orders go where
     // the checkout is (the online shop when the house has one).
@@ -322,6 +348,37 @@ fun AdsNewAdScreen(path: String) {
                     }
                 }
             }
+        }
+    }
+
+    /** A video from this phone, sent to Meta in the pieces it asks for, then waited on until Meta has a cover for it. */
+    fun pickVideo() {
+        val activity = Foreground.activity
+        val launchers = Foreground.launchers
+        if (activity == null || launchers == null) { failure = "Videos can't open here."; return }
+        scope.launch {
+            val result = try {
+                launchers.intent(Intent(Intent.ACTION_GET_CONTENT).setType("video/*").addCategory(Intent.CATEGORY_OPENABLE))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                failure = "Videos couldn't open."
+                return@launch
+            }
+            val uri = result.data?.data
+            if (result.resultCode != Activity.RESULT_OK || uri == null) return@launch
+            val source = try {
+                AdsUriVideo(context, uri)
+            } catch (e: Exception) {
+                null
+            }
+            if (source == null || source.size <= 0) {
+                failure = "Couldn't read that video. Try another, or save it to the phone first."
+                return@launch
+            }
+            val name = "Video ${ShopDate.stamp(AppClock.now(), withTime = true)}"
+            d = d.copy(video = AdsVideoDraft(name))
+            AdsVideoUpload.send(source, name, backend, progress = { draft -> d = d.copy(video = draft) })
         }
     }
 
@@ -397,7 +454,10 @@ fun AdsNewAdScreen(path: String) {
     fun again() {
         made = null
         // The next ad starts paused again, as every new ad does; the last one's previews and errors go.
-        d = d.copy(post = null, photos = emptyList(), vertical = null, text = "", headline = "", name = "", launch = "paused")
+        d = d.copy(
+            post = null, photos = emptyList(), vertical = null, text = "", headline = "", name = "", launch = "paused",
+            video = null, partnerCode = "", partnerCheck = null,
+        )
         check = null
         notice = null
         previewError = null
@@ -420,7 +480,7 @@ fun AdsNewAdScreen(path: String) {
             onMoreMedia = { scope.launch { loadMedia(mediaAfter) } }, onRetryMedia = { scope.launch { loadMedia(null) } },
             pieces = pieces, piecesError = piecesError, pieceQ = pieceQ, onPieceQ = { pieceQ = it }, onPiece = { scope.launch { addPiece(it) } },
             pixel = pixel,
-            onPick = ::pickPhotos, onLibrary = { libraryOpen = true }, onMove = ::move,
+            onPick = ::pickPhotos, onPickVideo = ::pickVideo, onLibrary = { libraryOpen = true }, onMove = ::move,
             onChangePhoto = { p -> updatePhoto(p.key) { p } },
             onAudience = { editingAudience = true },
             previewBusy = previewBusy, previewError = previewError, onPreview = ::showPreview,
@@ -482,6 +542,7 @@ private fun NewAdForm(
     onPiece: (AdsSitePiece) -> Unit,
     pixel: AdsPixelState?,
     onPick: () -> Unit,
+    onPickVideo: () -> Unit,
     onLibrary: () -> Unit,
     onMove: (String, Int) -> Unit,
     onChangePhoto: (AdsPhoto) -> Unit,
@@ -502,13 +563,18 @@ private fun NewAdForm(
         }
         AdsTwoPane(
             left = {
-                PromoteSections(s, l, d, onDraft, goal, media, mediaAfter, mediaBusy, mediaError, onMoreMedia, onRetryMedia, pieces, piecesError, pieceQ, onPieceQ, onPiece, onPick, onLibrary, onMove, onChangePhoto)
+                PromoteSections(s, l, d, onDraft, goal, media, mediaAfter, mediaBusy, mediaError, onMoreMedia, onRetryMedia, pieces, piecesError, pieceQ, onPieceQ, onPiece, onPick, onPickVideo, onLibrary, onMove, onChangePhoto)
                 GoalSection(l, d, onDraft, s, pixel)
-                if (d.kind != AdsKind.post) WordsSection(l, d, onDraft, goal)
+                if (!d.asIs) WordsSection(l, d, onDraft, goal)
             },
             right = {
                 AudienceSection(d, onAudience)
                 BudgetSection(d, onDraft, s, currency)
+                AdsAdvancedSection(
+                    d.advanced, { onDraft(d.copy(advanced = it)) },
+                    needsTotal = { onDraft(d.copy(budgetKind = "total", days = d.days ?: 7)) },
+                    sales = d.goalKey == "sales", currency = s.currency,
+                )
                 QuietSection(l, d, now)
                 PreviewSection(d, previewBusy, previewError, onPreview)
                 MakeSections(d, onDraft, check, checking, sending, onReview)
@@ -538,6 +604,7 @@ private fun PromoteSections(
     onPieceQ: (String) -> Unit,
     onPiece: (AdsSitePiece) -> Unit,
     onPick: () -> Unit,
+    onPickVideo: () -> Unit,
     onLibrary: () -> Unit,
     onMove: (String, Int) -> Unit,
     onChangePhoto: (AdsPhoto) -> Unit,
@@ -551,6 +618,9 @@ private fun PromoteSections(
                 FilterChip("A post", d.kind == AdsKind.post, { onDraft(d.copy(kind = AdsKind.post)) })
                 FilterChip("New photos", d.kind == AdsKind.photos, { onDraft(d.copy(kind = AdsKind.photos)) })
                 if (l.sitePieces) FilterChip("Website piece", d.kind == AdsKind.site, { onDraft(d.copy(kind = AdsKind.site)) })
+                FilterChip("New video", d.kind == AdsKind.video, { onDraft(d.copy(kind = AdsKind.video)) })
+                FilterChip("A creator's post", d.kind == AdsKind.partner, { onDraft(d.copy(kind = AdsKind.partner)) })
+                if (!(l.shop.isEmpty() && l.website.isEmpty())) FilterChip("Catalogue", d.kind == AdsKind.catalog, { onDraft(d.copy(kind = AdsKind.catalog)) })
             }
         }
     }
@@ -561,6 +631,14 @@ private fun PromoteSections(
             SiteSection(d, pieces, piecesError, pieceQ, onPieceQ, onPiece)
             if (d.photos.isNotEmpty()) PhotosSection(d, onDraft, goal, onPick, onLibrary, onMove, onChangePhoto)
         }
+        AdsKind.video -> AdsVideoSection(d.video, onPickVideo)
+        AdsKind.partner -> AdsPartnerSection(
+            code = d.partnerCode, onCode = { onDraft(d.copy(partnerCode = it)) },
+            checked = d.partnerCheck, onChecked = { onDraft(d.copy(partnerCheck = it)) },
+            link = d.link, onLink = { onDraft(d.copy(link = it)) }, button = d.button, onButton = { onDraft(d.copy(button = it)) },
+            toSite = goal?.toSite ?: false, buttons = l.buttons,
+        )
+        AdsKind.catalog -> AdsCatalogSection(d.catalog) { onDraft(d.copy(catalog = it)) }
     }
 }
 
@@ -823,7 +901,7 @@ private fun PreviewSection(d: AdsNewAdDraft, busy: Boolean, error: String?, onPr
     AdsSection("${d.step(6)} · Preview") {
         AdsActionRow(
             if (busy) "Asking Meta…" else "See it as Instagram will show it", onPreview, icon = Icons.Filled.Visibility, busy = busy,
-            enabled = !busy && (if (d.kind == AdsKind.post) d.post != null else d.readyPhotos.isNotEmpty()),
+            enabled = !busy && d.previewable,
         )
         if (error != null) AdsRow { Text(error, style = MaterialTheme.typography.bodySmall, color = Tone.problem.color()) }
     }
@@ -856,7 +934,7 @@ private fun MakeSections(d: AdsNewAdDraft, onDraft: (AdsNewAdDraft) -> Unit, che
             if (d.launch == "live") "Review and put it live" else "Review and make it, paused", onReview,
             Modifier.fillMaxWidth(), enabled = !(checking || sending || d.stillUploading), busy = checking || sending,
         )
-        if (d.stillUploading) Text("Wait for the photos to reach Meta.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (d.stillUploading) Text(if (d.kind == AdsKind.video) "Wait for the video to reach Meta." else "Wait for the photos to reach Meta.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

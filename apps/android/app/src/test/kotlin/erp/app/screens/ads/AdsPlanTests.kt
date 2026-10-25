@@ -67,7 +67,7 @@ class AdsPlanTests {
     )
 
     @Test fun thePlanOfNewPhotosIsTheRoutesOwnShape() {
-        val expected = """{"audience":$defaultAudience,"budget":{"amount":1500,"end":"2026-10-19T08:00:00Z","kind":"daily","start":null},"button":"SHOP_NOW","goal":"website","headline":"Rings","launch":"paused","link":"https://made-up.example/ring","name":"My ad","source":{"kind":"photos","photos":[{"hash":"h1","headline":"One","url":"https://img.example/1.jpg"},{"hash":"h2","url":null}],"vertical":null},"text":"A ring"}"""
+        val expected = """{"audience":$defaultAudience,"bidding":{"kind":"lowest"},"budget":{"amount":1500,"end":"2026-10-19T08:00:00Z","kind":"daily","start":null},"button":"SHOP_NOW","goal":"website","headline":"Rings","hours":null,"launch":"paused","link":"https://made-up.example/ring","name":"My ad","source":{"kind":"photos","photos":[{"hash":"h1","headline":"One","url":"https://img.example/1.jpg"},{"hash":"h2","url":null}],"vertical":null},"text":"A ring"}"""
         assertEquals(expected, text(photosDraft().plan(now)))
     }
 

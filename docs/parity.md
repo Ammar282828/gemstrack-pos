@@ -146,7 +146,7 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Feature | Web | iPhone | Android | Mac | Since | Where |
 |---|---|---|---|---|---|---|
 | Ads: Overview, Campaigns, object page, New ad, ad sets, Audiences, Rules, Setup, Plan | ✓ | ✓ | ✓ | ✓ | 2026-10-17 | [Ads](features/ads.md) |
-| Ads as of 10-16 (sales and ROAS, CSV, website audiences, video, creator post, catalogue, bidding, A/B tests) | ✓ | ✓ | owed | ✓ | 2026-10-17 | check `screens/ads` against `Screens/Marketing/Ads*` |
+| Ads as of 10-16 (sales and ROAS, CSV, website audiences, video, creator post, catalogue, bidding, A/B tests) | ✓ | ✓ | ✓ | ✓ | 2026-10-17 | `screens/ads` (AdsNewAdSources, AdsTests) matches `Screens/Marketing/Ads*`; Android done 2026-10-25 |
 | Insights (Instagram + Facebook, organic beside paid) | ✓ | ✓ | ✓ | ✓ | 2026-10-17 | [Insights](features/insights.md) |
 
 ## Settings

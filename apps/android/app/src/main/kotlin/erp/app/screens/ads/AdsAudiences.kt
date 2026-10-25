@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.filled.Warning
@@ -75,6 +76,8 @@ fun AdsAudiencesScreen() {
     var segment by remember { mutableStateOf("buyers") }
     var days by remember { mutableStateOf(365) }
     var event by remember { mutableStateOf("ig_business_profile_all") }
+    var webEvent by remember { mutableStateOf("Purchase") }
+    var webDays by remember { mutableStateOf(180) }
     var origin by remember { mutableStateOf("") }
     var percent by remember { mutableStateOf(1) }
     var country by remember { mutableStateOf("PK") }
@@ -172,6 +175,23 @@ fun AdsAudiencesScreen() {
                                 "Make the engagers audience", { scope.launch { make(mapOf("kind" to "engagers", "days" to days, "event" to event), "engagers") } },
                                 icon = Icons.Filled.CameraAlt, enabled = data != null && busy == null, busy = busy == "engagers",
                             )
+                        }
+                        // Website visitors (the shop's pixel, audiences/page.tsx "Website visitors")
+                        AdsSection(
+                            "Website visitors",
+                            footer = { Text("People the shop's pixel saw on the website. Show ads again to those who looked or added to cart and didn't buy, or make a lookalike of the buyers.") },
+                        ) {
+                            val d = data
+                            if (d != null && !d.pixel) {
+                                AdsRow { Text("Choose the shop's pixel on Setup first.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                            } else {
+                                for (e in d?.websiteEvents ?: emptyList()) AdsChoiceRow(e.label, e.key == webEvent, { webEvent = e.key }, subtitle = e.hint, enabled = busy == null)
+                                PickerRow("In the last", webDays.toString(), listOf(7, 14, 30, 60, 90, 180).map { it.toString() to "$it days" }) { webDays = it.toInt() }
+                                AdsActionRow(
+                                    "Make the website audience", { scope.launch { make(AdsAudiencesLogic.websiteBody(webEvent, webDays), "website") } },
+                                    icon = Icons.Filled.Public, enabled = data != null && busy == null, busy = busy == "website",
+                                )
+                            }
                         }
                         // Lookalike
                         val seeds = (data?.audiences ?: emptyList()).filter { it.kind != "Lookalike" }
@@ -277,4 +297,10 @@ private fun AudienceRow(a: AdsAudienceRow, isOwner: Boolean, busy: String?, onRe
             IconButton(onClick = onDelete, enabled = busy == null) { Icon(Icons.Filled.Delete, "Delete ${a.name}", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
     }
+}
+
+/** The bodies the audiences route takes (AdsAudiences.swift), kept where a test can read them key for key. */
+object AdsAudiencesLogic {
+    /** `{ kind: 'website', days, event }`: the pixel's own event (Purchase, AddToCart…) over the last [days] days. */
+    fun websiteBody(event: String, days: Int): Map<String, Any?> = linkedMapOf("kind" to "website", "days" to days, "event" to event)
 }

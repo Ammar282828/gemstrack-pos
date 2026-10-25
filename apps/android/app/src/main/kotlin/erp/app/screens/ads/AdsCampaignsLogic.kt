@@ -9,7 +9,7 @@ enum class AdsFilter(val label: String) { all("All"), running("Running"), paused
 
 /** The gallery's orders (the web's sort box). */
 enum class AdsSort(val key: String, val label: String) {
-    spend("spend", "Most spent"), results("results", "Most results"), cost("cost", "Cheapest result"), ctr("ctr", "Best click-through"), byName("name", "Name"),
+    spend("spend", "Most spent"), results("results", "Most results"), cost("cost", "Cheapest result"), roas("roas", "Best ROAS"), ctr("ctr", "Best click-through"), byName("name", "Name"),
 }
 
 object AdsCampaignsLogic {
@@ -63,6 +63,7 @@ object AdsCampaignsLogic {
             AdsSort.byName -> ads.sortedWith { a, b -> a.name.compareTo(b.name, ignoreCase = true) }
             AdsSort.results -> ads.sortedByDescending { results(it) }
             AdsSort.cost -> ads.sortedBy { cost(it) }
+            AdsSort.roas -> ads.sortedByDescending { AdsResults.sales(it.metrics).roas ?: -1.0 }
             AdsSort.ctr -> ads.sortedByDescending { it.metrics.ctr }
             AdsSort.spend -> ads.sortedByDescending { it.metrics.spend }
         }
@@ -84,6 +85,8 @@ object AdsCampaignsLogic {
             parts.add("${AdsFormat.count(r.value)} ${r.label.lowercase()}")
             if (r.value > 0) parts.add("${AdsFormat.money(m.spend / r.value, cur)} each")
         }
+        val s = AdsResults.sales(m)
+        if (s.value > 0) parts.add("${AdsFormat.money(s.value, cur)} sales · ${AdsResults.roasText(s.roas)} ROAS")
         parts.add("${AdsFormat.compact(m.reach)} reached")
         return parts.joinToString(" · ")
     }
@@ -94,6 +97,11 @@ object AdsCampaignsLogic {
         "${c.adsets.size} ad set${if (c.adsets.size == 1) "" else "s"}",
         c.stopTime?.let { AdsDays.say(it) }?.takeIf { it.isNotEmpty() }?.let { "ends $it" } ?: "",
     ).filter { it.isNotEmpty() }.joinToString(" · ")
+
+    /** The CSV's path (the web's Download (CSV), export.ts, made by the server) and the name it is saved under. */
+    fun csvPath(range: String, archived: Boolean): String = "/api/ads/campaigns?range=$range&format=csv${if (archived) "&archived=1" else ""}"
+
+    fun csvName(range: String, day: String): String = "ads-$range-$day.csv"
 
     /** The path of a campaign's, ad set's or ad's own page. */
     fun objectPath(level: String, id: String): String = "/ads/object?level=$level&id=${AdsQuery.escape(id)}"

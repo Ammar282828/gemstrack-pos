@@ -49,6 +49,8 @@ data class AdMetrics(
     val cpc: Double = 0.0,
     /** Meta's action types ("link_click", "onsite_conversion.messaging_conversation_started_7d") and how many. */
     val actions: Map<String, Double> = emptyMap(),
+    /** What the actions were worth (shape.ts `values`, Meta's action_values): purchases' order value, in the account's money. */
+    val values: Map<String, Double> = emptyMap(),
 ) {
     companion object : Decodable<AdMetrics> {
         override fun fromMap(m: Map<String, Any?>): AdMetrics {
@@ -58,6 +60,7 @@ data class AdMetrics(
                 frequency = c.double("frequency", 0.0), clicks = c.double("clicks", 0.0), linkClicks = c.double("linkClicks", 0.0),
                 ctr = c.double("ctr", 0.0), cpm = c.double("cpm", 0.0), cpc = c.double("cpc", 0.0),
                 actions = numberMap(m["actions"]) ?: emptyMap(),
+                values = numberMap(m["values"]) ?: emptyMap(),
             )
         }
     }
@@ -495,9 +498,12 @@ object AdsResults {
 
     class Headline(val key: String, val label: String, val value: Double)
 
-    /** The result the account mostly buys: chats if there are any, then clicks, then engagement (ads/page.tsx mainAction). */
+    /**
+     * The result the account mostly buys: purchases if there are any, then chats, then clicks, then engagement
+     * (ads/page.tsx mainAction; purchases lead since 2026-10-16, when a sales account read as link clicks).
+     */
     fun headlineResult(m: AdMetrics): Headline {
-        for (k in listOf("onsite_conversion.messaging_conversation_started_7d", "link_click", "instagram_profile_visit", "post_engagement")) {
+        for (k in listOf("omni_purchase", "offsite_conversion.fb_pixel_purchase", "onsite_conversion.messaging_conversation_started_7d", "link_click", "instagram_profile_visit", "post_engagement")) {
             val v = m.actions[k]
             if (v != null && v > 0) return Headline(k, label(k), v)
         }
@@ -505,6 +511,30 @@ object AdsResults {
     }
 
     fun value(m: AdMetrics, key: String): Double = if (key == "reach") m.reach else (m.actions[key] ?: 0.0)
+
+    /** Meta's names for one purchase (shape.ts PURCHASE_ACTIONS): the biggest is taken, never their sum. */
+    val purchaseActions = listOf("omni_purchase", "offsite_conversion.fb_pixel_purchase", "purchase", "onsite_web_purchase")
+
+    data class Sales(
+        val purchases: Double,
+        val value: Double,
+        /** Sales per rupee spent (Ads Manager's "Purchase ROAS"); null when nothing was spent. */
+        val roas: Double?,
+        val costPerPurchase: Double?,
+    )
+
+    /** Purchases the ads brought and what they were worth (shape.ts salesOf), as Ads Manager's Purchases, conversion value and ROAS columns read them. */
+    fun sales(m: AdMetrics): Sales {
+        val purchases = purchaseActions.fold(0.0) { b, a -> maxOf(b, m.actions[a] ?: 0.0) }
+        val value = purchaseActions.fold(0.0) { b, a -> maxOf(b, m.values[a] ?: 0.0) }
+        return Sales(purchases, value, if (m.spend > 0) value / m.spend else null, if (purchases > 0) m.spend / purchases else null)
+    }
+
+    /** "5.8×" (shape.ts roasText). */
+    fun roasText(r: Double?): String {
+        if (r == null || !r.isFinite()) return "—"
+        return if (r >= 10) String.format(Locale.US, "%.0f×", r) else String.format(Locale.US, "%.1f×", r)
+    }
 }
 
 /** Meta's objectives, as the owner would say them (shape.ts objectiveLabel). */
