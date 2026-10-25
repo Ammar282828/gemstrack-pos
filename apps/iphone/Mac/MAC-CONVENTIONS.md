@@ -126,6 +126,10 @@ What the owner's screenshot (13-inch MacBook Air, 1470 points) showed, and the r
 ## Done means
 
 Each screen of the group: a Mac layout that uses the window (no stretched phone column), right-click on rows, the
-actions in the toolbar or the footer, keyboard for the main action, and the iPhone's path untouched. `swiftc -parse`
-on every file touched (`export PATH=/opt/swift/usr/bin:$PATH`). The Mac column of docs/parity.md says ✓ only after a
-Mac build on Xcode Cloud has compiled it.
+actions in the toolbar or the footer, keyboard for the main action, and the iPhone's path untouched.
+`python3 apps/iphone/scripts/mac-check.py` passes before every push (with `export PATH=/opt/swift/usr/bin:$PATH`): it
+runs `swiftc -parse` on each changed file, compares each file's iPhone view (the `#if os(macOS)` branches stripped) with
+`origin/main`, and finds a modifier left dangling after `#endif` (a branch that opens with a whole view leaves the
+`.modifier` after it a statement of its own; parse passes it, the compiler does not: the polish's one failed build).
+Push in one batch and wait for it: a push to a branch cancels the Mac build still running on it (the first fix's build was
+cancelled so). The Mac column of docs/parity.md says ✓ only after a Mac build on Xcode Cloud has compiled it.
