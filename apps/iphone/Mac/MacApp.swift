@@ -14,6 +14,7 @@ struct ERPMacApp: App {
     init() {
         LaunchClock.armTimeout()
         LaunchClock.mark("app:init")
+        UserDefaults.standard.register(defaults: [MacInspector.key: true])
         _ = Businesses.shared
         Diagnostics.start()
         if Sessions.shared.current.state == .signedIn { AppLock.shared.launched(signedIn: true) }
@@ -193,6 +194,18 @@ enum MacLockSheets {
 enum MacWindows {
     static let main = "main"
     static let place = "place"
+
+    /// The main window to the front: the one already open (a WindowGroup would make another on every ask), else a new one.
+    @MainActor static func bringMain(_ make: () -> Void) {
+        NSApp.activate()
+        let mains = NSApp.windows.filter { $0.identifier?.rawValue.hasPrefix(main) == true && $0.isVisible || ($0.identifier?.rawValue.hasPrefix(main) == true && $0.isMiniaturized) }
+        if let w = mains.first {
+            if w.isMiniaturized { w.deminiaturize(nil) }
+            w.makeKeyAndOrderFront(nil)
+        } else {
+            make()
+        }
+    }
 
     /// `shoperp://open?b=<business>&p=<path>` (a notification's or the menu-bar figures' tap): that business, that page.
     @MainActor static func openLink(_ url: URL) {

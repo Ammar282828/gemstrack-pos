@@ -182,11 +182,15 @@ struct MacQuickOpen: View {
     private func idle() -> [Hit] {
         var out: [Hit] = []
         if canCreate {
-            if let sale = map.newSale {
-                out.append(Hit(id: "new:sale", title: "New sale", detail: "⌘N", symbol: "banknote", path: sale.href, kind: .create))
+            if map.newSale != nil {
+                out.append(Hit(id: "new:sale", title: "New sale", detail: "⌘N", symbol: "banknote", path: "/invoices/new", kind: .create))
             }
             out.append(Hit(id: "new:order", title: "New order", detail: "⇧⌘N", symbol: "list.clipboard", path: "/orders/add", kind: .create))
             out.append(Hit(id: "new:repair", title: "New repair", detail: "⌥⌘N", symbol: "wrench.and.screwdriver", path: "/repairs?new=1", kind: .create))
+            out.append(Hit(id: "new:customer", title: "New customer", detail: "", symbol: "person.badge.plus", path: "/customers/add", kind: .create))
+            if map.settings != nil {
+                out.append(Hit(id: "new:piece", title: "New piece", detail: "", symbol: "tag", path: "/products/add", kind: .create))
+            }
         }
         for e in map.entries {
             out.append(Hit(id: "place:" + e.href, title: e.id == "home" ? "Home" : e.label, detail: "",

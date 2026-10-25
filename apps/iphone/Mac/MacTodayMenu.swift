@@ -28,8 +28,7 @@ struct MacTodayMenu: View {
             Divider()
             HStack {
                 Button("Open ERP") {
-                    openWindow(id: MacWindows.main)
-                    NSApp.activate()
+                    MacWindows.bringMain { openWindow(id: MacWindows.main) }
                 }
                 Spacer()
                 if loading { ProgressView().controlSize(.small) }
@@ -69,8 +68,7 @@ struct MacTodayMenu: View {
                     ForEach(needs.prefix(3), id: \.self) { n in
                         Button {
                             MacWindows.openLink(look.url(n.path) ?? URL(string: "shoperp://open")!)
-                            openWindow(id: MacWindows.main)
-                            NSApp.activate()
+                            MacWindows.bringMain { openWindow(id: MacWindows.main) }
                         } label: {
                             HStack {
                                 Text(n.title)

@@ -68,6 +68,12 @@ final class AppLock {
         if UIApplication.shared.applicationState == .active { Task { await unlock() } }
     }
 
+    /// ERP › Lock Now (⌃⌘L on the Mac): the cover at once, as if the app had been away past its grace.
+    func lockNow() {
+        guard !House.isDemo, enabled, Self.available else { return }
+        locked = true
+    }
+
     /// Nobody is signed in after all (the cached sign-in was gone): there is nothing to lock away.
     func signedOut() {
         locked = false

@@ -160,12 +160,20 @@ struct RateChip: View {
         .accessibilityLabel(accessibility(today: today, rate: s.map { $0[keyPath: RateKeys.main.value] }))
         .onAppear { book.settings.need() }
         .sheet(isPresented: $open) { RateSheetHost() }
+        #if os(macOS)
+        .help(today ? "Today's rates" : "The rate was not set today")
+        #endif
     }
 
     private func accessibility(today: Bool, rate: Double?) -> String {
         let said = rate.map { "\(RateKeys.main.label) \(Money.grouped($0)) rupees a gram. " } ?? ""
-        if session.isOwner { return said + (today ? "Today's rate. Tap to change." : "The rate was not set today. Tap to set it.") }
-        return said + (today ? "Today's rate. Tap to see when it was set." : "The rate was not set today. Tap to see it.")
+        #if os(macOS)
+        let verb = "Click"
+        #else
+        let verb = "Tap"
+        #endif
+        if session.isOwner { return said + (today ? "Today's rate. \(verb) to change." : "The rate was not set today. \(verb) to set it.") }
+        return said + (today ? "Today's rate. \(verb) to see when it was set." : "The rate was not set today. \(verb) to see it.")
     }
 }
 

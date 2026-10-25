@@ -50,11 +50,18 @@ struct MacShell: View {
         session.shop.websiteSelling && (session.role == "owner" || session.role == "staff")
     }
 
+    private func sidebarSections(_ map: NavMap) -> [MacSidebarSection] {
+        MacSidebarMap.sections(map, websiteSelling: session.shop.websiteSelling, role: session.role)
+    }
+
     var body: some View {
         let map = map
+        let sections = sidebarSections(map)
         NavigationSplitView(columnVisibility: $columns) {
-            sidebar(map)
-                .navigationSplitViewColumnWidth(min: 200, ideal: 236, max: 320)
+            MacSidebar(sections: sections, selection: Binding(get: { model.selection }, set: { if let s = $0 { model.go(s) } })) {
+                openWindow(id: MacWindows.place, value: $0)
+            }
+            .navigationSplitViewColumnWidth(min: 200, ideal: 230, max: 320)
         } detail: {
             NavigationStack(path: $model.stack) {
                 detailRoot
@@ -70,6 +77,10 @@ struct MacShell: View {
             ToolbarItem(placement: .navigation) {
                 Button { model.quickOpen = true } label: { Label("Quick Open", systemImage: "magnifyingglass") }
                     .help("Open a customer, invoice, order, piece or place (⌘K)")
+            }
+            // The shop's rate on every place, as the ERP's top bar has it: a click sets it (owners) or reads it.
+            if session.role != "marketing" {
+                ToolbarItem(placement: .navigation) { RateChip() }
             }
         }
         // ⌘K: the panel over the whole window; a click outside it, or Esc, puts it away.
@@ -89,6 +100,7 @@ struct MacShell: View {
         .animation(.easeOut(duration: 0.12), value: model.quickOpen)
         .focusedSceneValue(\.macShell, model)
         .focusedSceneValue(\.macMap, map)
+        .focusedSceneValue(\.macPlaces, MacSidebarMap.places(sections).map { MacPlaceLink(title: $0.title, path: $0.id) })
         // A new sale, order or repair is a window of its own, as a new document is on a Mac: the main window stays
         // usable beside it (look up a customer, check the stock), and two can be open at once.
         .onChange(of: model.creating) { _, r in
@@ -117,7 +129,7 @@ struct MacShell: View {
         // place the window reopened on).
         .onChange(of: session.role) { _, _ in
             let s = model.selection ?? "/"
-            if s == Self.searchID || map.entry(for: s) != nil { model.stack = [] } else { model.go("/") }
+            if MacSidebarMap.allPaths(sidebarSections(map)).contains(s) { model.stack = [] } else { model.go("/") }
         }
         .onChange(of: model.selection) { _, s in if restored { savedPlace = s ?? "/" } }
         // Every list a shop opens all day is read in the background once the window is up, so the first click on
@@ -129,7 +141,7 @@ struct MacShell: View {
             // Back where this window was when the app last quit (a place this person can still open).
             if !restored {
                 restored = true
-                if savedPlace != "/", savedPlace == Self.searchID || map.entry(for: savedPlace) != nil { model.selection = savedPlace }
+                if savedPlace != "/", MacSidebarMap.allPaths(sidebarSections(map)).contains(savedPlace) { model.selection = savedPlace }
             }
             guard session.role != "marketing" else { return }
             try? await Task.sleep(for: .milliseconds(400))
@@ -145,50 +157,6 @@ struct MacShell: View {
                 book.revenue.need()
             }
         }
-    }
-
-    // MARK: The sidebar
-
-    private func sidebar(_ map: NavMap) -> some View {
-        List(selection: Binding(get: { model.selection }, set: { if let s = $0 { model.go(s) } })) {
-            Label("Search", systemImage: "magnifyingglass").tag(Self.searchID)
-            ForEach(map.groups, id: \.key) { group in
-                let entries = map.entries.filter { $0.group == group.key }
-                if !entries.isEmpty {
-                    Section(group.label) {
-                        ForEach(entries) { e in
-                            row(e).tag(e.href)
-                        }
-                    }
-                }
-            }
-            if let settings = map.settings {
-                Section {
-                    Label(settings.label, systemImage: NavIcon.symbol(for: settings.icon)).tag(settings.href)
-                }
-            }
-        }
-        .listStyle(.sidebar)
-        .safeAreaInset(edge: .top) {
-            BusinessChip(wide: true)
-                .padding(.horizontal, 12).padding(.vertical, 8)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .contextMenu(forSelectionType: String.self) { picked in
-            if let p = picked.first, p != Self.searchID {
-                Button("Open in New Window") { openWindow(id: MacWindows.place, value: Route(path: p)) }
-            }
-        }
-    }
-
-    private func row(_ e: NavEntry) -> some View {
-        Label(e.id == "home" ? "Home" : e.label, systemImage: NavIcon.symbol(for: e.icon))
-            .badge(badge(for: e))
-    }
-
-    private func badge(for e: NavEntry) -> Int {
-        guard e.count == "online", session.isOwner, session.shop.websiteSelling else { return 0 }
-        return online.waiting
     }
 
     // MARK: The detail
@@ -220,8 +188,9 @@ struct MacCreateMenu: View {
     var body: some View {
         if shown {
             Menu {
-                if let sale = map.newSale {
-                    Button("New sale", systemImage: "banknote") { open(sale.href) }
+                if map.newSale != nil {
+                    // Straight to the sale: the iPhone's "What is it?" chooser is not the Mac's (⌘N, ⇧⌘N, ⌥⌘N say it).
+                    Button("New sale", systemImage: "banknote") { open("/invoices/new") }
                 }
                 Button("New order", systemImage: "list.clipboard") { open("/orders/add") }
                 Button("New repair", systemImage: "wrench.and.screwdriver") { open("/repairs?new=1") }
@@ -259,6 +228,7 @@ extension EnvironmentValues {
 struct MacPlaceWindow: View {
     let route: Route?
     @State private var stack: [Route] = []
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         let business = Businesses.shared.current
@@ -269,6 +239,8 @@ struct MacPlaceWindow: View {
                     PlaceScreen(path: route.path)
                         .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
                 }
+                // A record in this window opens another record in a window of its own, as the main window's do.
+                .environment(\.openPlaceWindow, OpenPlaceWindow { openWindow(id: MacWindows.place, value: $0) })
                 .focusedSceneValue(\.macPlace, stack.last ?? route)
             } else {
                 ContentUnavailableView("Sign in in the main window", systemImage: "person.crop.circle.badge.questionmark")
@@ -288,6 +260,13 @@ struct MacPlaceWindow: View {
 private struct MacShellKey: FocusedValueKey { typealias Value = MacShellModel }
 private struct MacMapKey: FocusedValueKey { typealias Value = NavMap }
 private struct MacPlaceKey: FocusedValueKey { typealias Value = Route }
+private struct MacPlacesKey: FocusedValueKey { typealias Value = [MacPlaceLink] }
+
+/// A sidebar place for the Go menu (⌘1–⌘9, in the sidebar's order).
+struct MacPlaceLink: Hashable {
+    let title: String
+    let path: String
+}
 
 extension FocusedValues {
     var macShell: MacShellModel? {
@@ -297,6 +276,11 @@ extension FocusedValues {
     var macMap: NavMap? {
         get { self[MacMapKey.self] }
         set { self[MacMapKey.self] = newValue }
+    }
+    /// The sidebar's places in order (the Go menu's ⌘1–⌘9).
+    var macPlaces: [MacPlaceLink]? {
+        get { self[MacPlacesKey.self] }
+        set { self[MacPlacesKey.self] = newValue }
     }
     /// The place a separate window shows (its deepest page).
     var macPlace: Route? {

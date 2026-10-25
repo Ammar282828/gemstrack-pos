@@ -12,7 +12,13 @@ struct RootGate: View {
     @AppStorage("erp.lastShopTheme") private var lastShopTheme = ""
 
     private var preferredScheme: ColorScheme? {
+        #if os(macOS)
+        // A Mac follows its own appearance (System Settings › Appearance) unless This Mac picks one: a Mac app does not
+        // take its light or dark from a shop setting (2026-10-25 design, rule 9).
+        let theme = deviceTheme
+        #else
         let theme = deviceTheme.isEmpty ? (book.settings.value?.theme ?? lastShopTheme) : deviceTheme
+        #endif
         if theme == "default" { return .light }
         if theme == "taheri" || theme == "slate" { return .dark }
         return nil
@@ -460,12 +466,17 @@ struct PlaceScreen: View {
             .motion(current, Motion.enter)
             // A native screen names itself (and a hub keeps its large title); an ERP page is named from the map.
             .modifier(WebTitle(title: ScreenRegistry.hasNative(current) ? nil : (title ?? "")))
+            #if os(iOS)
+            // On a Mac the sidebar lists every tab and section (docs/features/mac-design.md, rule 2): no title menu,
+            // no picker of sections above the page.
             .modifier(TabsMenu(tabs: menuTabs, section: sections.count > 1 ? openSection : nil, current: ScreenRoute.bare(current), chosen: $chosen))
             .modifier(SectionPicker(tabs: tabs, sections: sections, open: openSection, chosen: $chosen))
+            #endif
             .environment(\.inSectionedEntry, sections.count > 1)
             // Native screens sit on the house's ground; an ERP page brings its own (the same palette).
             .modifier(OptionalGround(on: ScreenRegistry.hasNative(current), width: ScreenRegistry.readableWidth(for: current)))
             .modifier(TeamNotePresentation(shown: isRoot))
+            #if os(iOS)
             .toolbar {
                 // The business at the top of every tab (an iPad keeps it in the sidebar's header).
                 if isRoot && !sizeClass.isPadLayout {
@@ -485,6 +496,7 @@ struct PlaceScreen: View {
                     }
                 }
             }
+            #endif
     }
 }
 

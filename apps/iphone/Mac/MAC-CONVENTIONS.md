@@ -78,6 +78,30 @@ writes a phone's number:
 - A Mac never shows a spinner for a list it can have read already: the shell reads the day-to-day shelves at launch.
 - No gate the person did not ask for between opening the app and the books: Touch ID, nothing else.
 
+## The redesign (2026-10-25): docs/features/mac-design.md is the design
+
+Read its ten rules and your place's section before touching a screen. The parts (apps/iphone/Mac/Kit/):
+- `MacAction(title, symbol:, shortcut: KeyboardShortcut(...), role:, enabled:, isDefault:) { … }` — every action of a
+  record, declared once. `.macRecordMenu(MacRecordMenu(title: "Invoice", groups: [[…], […]]))` on the place's root
+  publishes them to the menu bar (only the root publishes; disable the actions while nothing is picked, never drop the
+  menu). `MacActionItems(groups:)` draws them in a right-click menu; `MacToolbarAction(action:)` as a toolbar button
+  (no key: the menu owns it); `MacActionButtons(actions:)` as the inspector's push buttons. A key lives only on its
+  `MacAction` — delete the hidden zero-size shortcut buttons a Mac body used to carry.
+- `MacStatus("Owed", tone: .owed)`; `.macSummaryBar(["214 invoices", "PKR 32.4 lac billed"])` at a list's foot;
+  `MacFigures([MacFigure("Revenue", "PKR 32.4 lac", detail: "+12% on September", detailTone: .settled, open: {…})])` for a
+  report's head; `MacInspectorHeader(title:subtitle:status:headline:actions:)`; `MacDocumentHeader` for a record window;
+  `MacInspectorEmpty`; `.macInspector { … }` (the right-hand inspector with its toolbar toggle; it remembers itself);
+  `.macSearchable(text:prompt:)` (the toolbar field ⌘F reaches); `.macRefresh { … }` (⌘R, for places that fetch);
+  `MacComboBox(placeholder:text:items:pick:)` (a name with suggestions: never suggestion rows in a form).
+- `MacLists` — the saved lists (`MacLists.list(in: path)` and the rules `MacLists.orders/invoices/repairs/customers`).
+- Not yours to change: anything in `Mac/` outside `Mac/Places/`, `App/Nav/`, `App/UI/` (except where your brief says),
+  `App/Config/Theme.swift`, the ERPCore package, any write or model. The shell (sidebar, menus, the rate, Settings) is
+  being built beside you.
+- No new sheet over a sheet; no confirmation after a sheet whose button already states what it does; no chips, no
+  segmented control inside content (a toolbar segmented control for a place's views is fine); no hero figures, no
+  `FigureTile`/`ledgerCard` cards on a Mac body, no serif (`LedgerHeading` → a plain `Text` section header); no
+  `controlSize(.large)`; no "Tap" in words.
+
 ## Done means
 
 Each screen of the group: a Mac layout that uses the window (no stretched phone column), right-click on rows, the

@@ -345,7 +345,7 @@ extension PhoneSettings {
 
             Section {
                 Picker("Appearance", selection: $deviceTheme) {
-                    Text("Follow the shop").tag("")
+                    Text("Follow the Mac").tag("")
                     Text("Light").tag("default")
                     Text("Dark").tag("taheri")
                 }
