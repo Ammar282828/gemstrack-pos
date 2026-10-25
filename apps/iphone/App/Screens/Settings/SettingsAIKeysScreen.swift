@@ -503,7 +503,7 @@ extension AIKeysPage {
         .navigationTitle("Connect an AI")
         .navigationSubtitle("Let ChatGPT, Claude, Gemini or Cursor work in the ERP, only as far as you allow")
         .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .automatic) {
                 Button { showingMake = true } label: { Label("Make a key", systemImage: "plus") }
                     .keyboardShortcut("n", modifiers: [.command, .option])
                     .help("Make a key for an AI (\u{2325}\u{2318}N)")

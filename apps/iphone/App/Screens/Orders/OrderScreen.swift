@@ -649,12 +649,12 @@ struct OrderScreen: View {
         // Changing an order is an owner's, as in the browser, and only until it is invoiced (Unlock & edit
         // is in the menu then).
         if session.isOwner && !OrdersLogic.hasInvoice(order) {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItem(placement: .trailingAction) {
                 Button { web = .edit(order.id) } label: { Label("Edit", systemImage: "pencil") }
                     .accessibilityLabel("Edit order")
             }
         }
-        ToolbarItem(placement: .primaryAction) {
+        ToolbarItem(placement: .trailingAction) {
             moreMenu(order, stage: stage, owed: owed)
         }
     }
@@ -1165,7 +1165,7 @@ extension OrderScreen {
     /// The page's four in the window's toolbar and the rest in one More menu; the menu bar has them all.
     @ToolbarContentBuilder
     private func macToolbar(_ groups: [[MacAction]]) -> some ToolbarContent {
-        ToolbarItemGroup(placement: .primaryAction) {
+        ToolbarItemGroup(placement: .automatic) {
             ForEach(MacOrdersMenu.pick(groups, MacOrdersMenu.toolbarIDs)) { (a: MacAction) in
                 MacToolbarAction(action: a)
             }

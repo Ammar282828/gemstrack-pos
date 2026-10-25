@@ -355,7 +355,7 @@ struct MacCustomersPlace: View {
     /// New, and for an owner the one Tidy Up menu (merging and cleaning up are about the whole book, not one customer).
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
-        ToolbarItemGroup(placement: .primaryAction) {
+        ToolbarItemGroup(placement: .automatic) {
             Button { adding = true } label: { Label("New Customer", systemImage: "plus") }
                 .help("New customer (\u{2303}\u{2318}N)")
             if session.isOwner {

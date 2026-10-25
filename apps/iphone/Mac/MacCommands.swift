@@ -42,6 +42,9 @@ struct MacCommands: Commands {
             Button("The ERP on the Web") {
                 NSWorkspace.shared.open(House.business.url)
             }
+            Divider()
+            Button("Send Page Snapshots\u{2026}") { shell?.snapshots = true }
+                .disabled(shell == nil || !isOwner || MacSnapshots.running)
         }
         // Continuity Camera: "Import from iPhone" (Take Photo, Scan Documents) on the File menu, into whatever field has
         // focus and takes pictures (a piece's photo, a bill to read).
@@ -202,9 +205,12 @@ struct MacCommands: Commands {
                     .disabled(shell == nil)
             }
             Divider()
-            Button("Back") { if shell?.stack.isEmpty == false { shell?.stack.removeLast() } }
+            Button("Back") { shell?.goBack() }
                 .keyboardShortcut("[", modifiers: .command)
-                .disabled(shell?.stack.isEmpty != false)
+                .disabled(shell?.canGoBack != true)
+            Button("Forward") { shell?.goForward() }
+                .keyboardShortcut("]", modifiers: .command)
+                .disabled(shell?.canGoForward != true)
         }
     }
 
@@ -226,7 +232,7 @@ struct MacCommands: Commands {
         let reserved: [(KeyEquivalent, EventModifiers)] = [
             ("p", .command), ("n", .command), ("n", [.command, .shift]), ("n", [.command, .option]), ("o", .command),
             ("w", .command), ("k", .command), ("f", .command), ("r", .command), ("i", [.command, .option]), (",", .command),
-            ("h", [.command, .shift]), ("[", .command), ("t", [.command, .shift]), ("b", [.command, .shift]),
+            ("h", [.command, .shift]), ("[", .command), ("]", .command), ("t", [.command, .shift]), ("b", [.command, .shift]),
         ]
         return groups.map { group in
             group.map { a in
@@ -262,7 +268,7 @@ enum MacShortcutsWindow {
             ("Quick Open", "⌘K"), ("Find in the list", "⌘F"), ("Open in a window", "⌘O or Return"),
             ("The record's next step", "⌘↩"), ("Edit", "⌘E"), ("Print", "⌘P"), ("Delete", "⌘⌫"),
             ("Show or hide the inspector", "⌥⌘I"), ("Show or hide the sidebar", "⌃⌘S"), ("Refresh", "⌘R"),
-            ("Today", "⇧⌘H"), ("The sidebar's places", "⌘1 – ⌘9"), ("Back", "⌘["), ("Businesses", "⇧⌘B"),
+            ("Today", "⇧⌘H"), ("The sidebar's places", "⌘1 – ⌘9"), ("Back", "⌘["), ("Forward", "⌘]"), ("Businesses", "⇧⌘B"),
             ("Lock now", "⌃⌘L"), ("Settings", "⌘,"),
         ]
         let alert = NSAlert()

@@ -294,7 +294,7 @@ struct MacStockPlace: View {
         }
         // New (its arrow adds in bulk) and the one filter. The picked pieces' Sell and Print are the inspector's, the Piece
         // menu's and the right-click menu's, never the toolbar's.
-        ToolbarItemGroup(placement: .primaryAction) {
+        ToolbarItemGroup(placement: .automatic) {
             newMenu
             filterMenu
         }

@@ -290,7 +290,38 @@ extension OnlineOrdersScreen {
         let lately = store.lately
         let current = macRows.first { $0.id == picked }
         let groups = macActions(current)
-        return HSplitView {
+        return Group {
+            if waiting.isEmpty && lately.isEmpty {
+                // Nothing at all: the one empty state across the window (laid over the split, it collided with the
+                // detail's own "Pick an Online Order").
+                EmptyState("Nothing to confirm", symbol: "checkmark.seal",
+                           message: "Nothing is in the book, and nobody has the bank details, until you confirm.")
+            } else {
+                macSplit(waiting: waiting, lately: lately, current: current)
+            }
+        }
+        .navigationSubtitle(waiting.isEmpty ? "" : "\(waiting.count) to confirm")
+        .toolbar {
+            ToolbarItemGroup(placement: .automatic) {
+                // Nothing in the inbox, nothing to act on: no greyed Confirm and Decline.
+                if !(waiting.isEmpty && lately.isEmpty) {
+                    ForEach(macToolbarActions(groups)) { (a: MacAction) in
+                        MacToolbarAction(action: a)
+                    }
+                }
+            }
+        }
+        .macRecordMenu(MacRecordMenu(title: "Online Order", groups: groups))
+        .macRefresh { if asks { Task { await store.load() } } }
+        .onAppear { if picked == nil { picked = waiting.first?.id ?? lately.first?.id } }
+        .onChange(of: store.waiting.map(\.id)) { _, ids in
+            if picked == nil || !macRows.contains(where: { $0.id == picked }) { picked = ids.first ?? lately.first?.id }
+        }
+    }
+
+    @ViewBuilder
+    private func macSplit(waiting: [OnlineOrderRow], lately: [OnlineOrderRow], current: OnlineOrderRow?) -> some View {
+        HSplitView {
             List(selection: $picked) {
                 if waiting.isEmpty && !lately.isEmpty {
                     Label("Nothing to confirm", systemImage: "checkmark.seal").foregroundStyle(.secondary)
@@ -313,26 +344,6 @@ extension OnlineOrdersScreen {
             }
             macDetail(current)
                 .frame(minWidth: 340, idealWidth: 560, maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .overlay {
-            if waiting.isEmpty && lately.isEmpty {
-                EmptyState("Nothing to confirm", symbol: "checkmark.seal",
-                           message: "Nothing is in the book, and nobody has the bank details, until you confirm.")
-            }
-        }
-        .navigationSubtitle(waiting.isEmpty ? "" : "\(waiting.count) to confirm")
-        .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
-                ForEach(macToolbarActions(groups)) { (a: MacAction) in
-                    MacToolbarAction(action: a)
-                }
-            }
-        }
-        .macRecordMenu(MacRecordMenu(title: "Online Order", groups: groups))
-        .macRefresh { if asks { Task { await store.load() } } }
-        .onAppear { if picked == nil { picked = waiting.first?.id ?? lately.first?.id } }
-        .onChange(of: store.waiting.map(\.id)) { _, ids in
-            if picked == nil || !macRows.contains(where: { $0.id == picked }) { picked = ids.first ?? lately.first?.id }
         }
     }
 

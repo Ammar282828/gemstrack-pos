@@ -120,7 +120,7 @@ struct HisaabScreen: View {
             #if !os(macOS)
             ToolbarItem(placement: .topBarTrailing) { filterMenu }
             #endif
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItem(placement: .trailingAction) {
                 Button { picking = true } label: {
                     Label("Add entry", systemImage: "plus")
                 }
@@ -563,7 +563,7 @@ extension HisaabScreen {
     private func macToolbar(_ data: HisaabMacData) -> some ToolbarContent {
         let groups = macGroups(for: macPick, data)
         let counts = macRows(data)
-        ToolbarItemGroup(placement: .primaryAction) {
+        ToolbarItemGroup(placement: .automatic) {
             MacToolbarAction(action: groups[0][0])
             macFilterMenu(counts)
         }

@@ -47,7 +47,7 @@ struct PostPiecesScreen: View {
         #if os(macOS)
         .navigationSubtitle(store.piecesPhase == .loaded ? "\(filtered.count) of \(store.pieces.count) pieces" : "")
         .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .automatic) {
                 Menu {
                     Section("Collection") {
                         Picker("Collection", selection: $collection) {
@@ -353,7 +353,7 @@ extension PostPieceScreen {
             .listStyle(.inset)
         }
         .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .automatic) {
                 NavigationLink(value: Route(path: MarketingKit.trayPath(p.id))) {
                     Label("Send or queue it", systemImage: "paperplane")
                 }

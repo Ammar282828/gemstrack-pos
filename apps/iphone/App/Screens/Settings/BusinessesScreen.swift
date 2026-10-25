@@ -343,7 +343,7 @@ extension BusinessesScreen {
                 }
             }
             // Add and Remove; opening a business is a double-click or the right-click menu.
-            ToolbarItemGroup(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .automatic) {
                 Button { macAdding = true } label: { Label("Add business", systemImage: "plus") }
                     .help("Add a business by its ERP's address")
                     .disabled(House.isDemo)

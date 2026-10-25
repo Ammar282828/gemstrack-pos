@@ -460,7 +460,7 @@ extension DesignSavedView {
     // Delete is the Design menu's and the right-click menu's, not the toolbar's.
     @ToolbarContentBuilder
     private var macToolbar: some ToolbarContent {
-        ToolbarItemGroup(placement: .primaryAction) {
+        ToolbarItemGroup(placement: .automatic) {
             if view == Self.device {
                 MacToolbarAction(action: macOpenDraftAction(pickedDraftRow))
             } else {

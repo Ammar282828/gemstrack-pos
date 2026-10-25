@@ -366,7 +366,7 @@ struct NewOrder: View {
             }
             if edit == nil {
                 // Throwing the order away is a menu's item, not a red button in the form.
-                ToolbarItem(placement: .primaryAction) {
+                ToolbarItem(placement: .trailingAction) {
                     Menu {
                         Button(role: .destructive) { confirmReset = true } label: {
                             Label("Start over", systemImage: "arrow.counterclockwise")
@@ -975,7 +975,7 @@ extension NewOrder {
     @ToolbarContentBuilder
     fileprivate var macToolbar: some ToolbarContent {
         if edit == nil {
-            ToolbarItemGroup(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .automatic) {
                 MacToolbarAction(action: macSlipAction)
                 MacToolbarAction(action: macResetAction)
             }

@@ -140,7 +140,7 @@ struct WebsiteEditPieceScreen: View {
         .sensoryFeedback(.success, trigger: said) { _, now in now != nil }
         .toolbar {
             if p.changed {
-                ToolbarItem(placement: .primaryAction) {
+                ToolbarItem(placement: .trailingAction) {
                     Menu {
                         Button(role: .destructive) { confirm = .all } label: {
                             Label("Undo every change to this piece", systemImage: "arrow.uturn.backward.circle")
@@ -736,7 +736,7 @@ extension WebsiteEditPieceScreen {
         .navigationSubtitle(p.collection)
         .macRecordMenu(MacRecordMenu(title: "Piece", groups: [[macSaveAction(p)], [macUndoAction(p)]]))
         .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .automatic) {
                 MacToolbarAction(action: macSaveAction(p))
                 if p.changed { MacToolbarAction(action: macUndoAction(p)) }
             }

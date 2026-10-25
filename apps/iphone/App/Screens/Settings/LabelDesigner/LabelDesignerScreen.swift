@@ -354,7 +354,7 @@ struct LabelDesigner: View {
 
     @ToolbarContentBuilder
     private func designerToolbar(_ m: LabelDesignerModel) -> some ToolbarContent {
-        ToolbarItemGroup(placement: .primaryAction) {
+        ToolbarItemGroup(placement: .trailingAction) {
             LabelAddMenu(model: m, addPicture: { addingPicture = true }, addCounter: { addingCounter = true })
             arrangeMenu(m)
             fileMenu(m)

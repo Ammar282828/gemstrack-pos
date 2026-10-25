@@ -61,7 +61,7 @@ struct PostComposerScreen: View {
         form
         .modifier(HouseGround()).navigationTitle("Post a piece").navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItem(placement: .trailingAction) {
                 Menu {
                     Button("Drafts") { draftsOpen = true }
                     Button("New piece") { startingOver = true }

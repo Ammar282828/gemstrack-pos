@@ -462,7 +462,7 @@ extension DraftsScreen {
         .macSummaryBar(macSummary(all))
         .navigationSubtitle(all.isEmpty ? "" : "\(all.count) in hand")
         .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .automatic) {
                 ForEach(groups.flatMap { (g: [MacAction]) in g }) { (a: MacAction) in MacToolbarAction(action: a) }
             }
         }

@@ -93,7 +93,7 @@ private struct ShareholdersBoard: View {
         }
         .navigationTitle("Shareholders")
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItem(placement: .trailingAction) {
                 Menu {
                     Button { asking = ShareholderAsk(move: .contribution, who: "mina") } label: { Label("Add contribution", systemImage: "plus") }
                     Button { asking = ShareholderAsk(move: .salary, who: "mina") } label: { Label("Pay salary", systemImage: "banknote") }

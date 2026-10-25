@@ -247,13 +247,13 @@ private struct MacInspectorModifier<Panel: View>: ViewModifier {
                     // Xcode's and Keynote's do; declared on the list it lands among the list's own buttons.
                     .toolbar {
                         ToolbarSpacer(.flexible)
-                        ToolbarItem(placement: .primaryAction) { toggle }
+                        ToolbarItem(placement: .automatic) { toggle }
                     }
             }
             .toolbar {
                 // Hidden, the inspector draws nothing, so the list carries the toggle until it is shown again.
                 if !shown {
-                    ToolbarItem(placement: .primaryAction) { toggle }
+                    ToolbarItem(placement: .automatic) { toggle }
                 }
             }
     }

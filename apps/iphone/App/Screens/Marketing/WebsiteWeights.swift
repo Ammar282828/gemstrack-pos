@@ -451,7 +451,7 @@ extension WebsiteWeightsScreen {
         .macRecordMenu(MacRecordMenu(title: "Photo", groups: [[macSaveNext(q.count), macSkip(q.count)], [macPrevious, macNext(q.count)]]))
         .macRefresh { Task { await load() } }
         .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .automatic) {
                 MacToolbarAction(action: macPrevious)
                 MacToolbarAction(action: macNext(q.count))
                 Menu {

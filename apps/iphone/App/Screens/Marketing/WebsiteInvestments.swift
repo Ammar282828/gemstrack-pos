@@ -39,7 +39,7 @@ struct WebsiteInvestmentsScreen: View {
         .navigationTitle("Investments")
         .hubTitleDisplay()
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItem(placement: .trailingAction) {
                 Button { adding = true } label: { Label("Add by hand", systemImage: "plus") }
                     .disabled(gold.phase != .loaded)
             }

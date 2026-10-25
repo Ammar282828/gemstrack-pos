@@ -588,7 +588,7 @@ extension CustomerScreen {
             .help("Invoices, orders, repairs or hisaab")
         }
         // A record window: WhatsApp and Call, the rest under More (the keys are the Customer menu's, not these buttons').
-        ToolbarItemGroup(placement: .primaryAction) {
+        ToolbarItemGroup(placement: .automatic) {
             MacToolbarAction(action: macContactActions(f.customer)[1])
             MacToolbarAction(action: macContactActions(f.customer)[0])
             Menu {

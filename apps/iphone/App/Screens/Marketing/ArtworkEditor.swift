@@ -551,7 +551,7 @@ extension ArtworkEditor {
 
     @ToolbarContentBuilder
     private var macToolbar: some ToolbarContent {
-        ToolbarItemGroup(placement: .primaryAction) {
+        ToolbarItemGroup(placement: .automatic) {
             Menu { addMenu } label: { Label("Add", systemImage: "plus.square") }
                 .help("Add text, a shape, a badge, a logo, a picture, a link or a QR code")
             Button { history(true) } label: { Label("Undo", systemImage: "arrow.uturn.backward") }

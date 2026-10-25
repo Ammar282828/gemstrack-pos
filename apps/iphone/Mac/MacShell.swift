@@ -16,6 +16,8 @@ final class MacShellModel {
     var pendingRoute: Route?
     /// ⌘K's panel is over the window (MacQuickOpen).
     var quickOpen = false
+    /// Help › Send Page Snapshots… was chosen for this window (MacSnapshots).
+    var snapshots = false
 
     /// The place this window shows now, deepest first: what ⌘P prints and "Open in New Window" opens.
     var current: Route? {
@@ -24,9 +26,44 @@ final class MacShellModel {
         return Route(path: s)
     }
 
+    /// Where this window has been and, after Back, where it was going: ⌘[ and ⌘], the toolbar's ‹ › (as Finder's).
+    struct Visit: Equatable {
+        let selection: String?
+        let stack: [Route]
+    }
+    private(set) var history: [Visit] = []
+    private(set) var future: [Visit] = []
+
     func go(_ path: String) {
+        guard path != selection || !stack.isEmpty else { return }
+        history.append(Visit(selection: selection, stack: stack))
+        if history.count > 50 { history.removeFirst(history.count - 50) }
+        future = []
         stack = []
         selection = path
+    }
+
+    var canGoBack: Bool { !stack.isEmpty || !history.isEmpty }
+    var canGoForward: Bool { !future.isEmpty }
+
+    /// Out of the page opened inside a place first, then to the place before.
+    func goBack() {
+        guard canGoBack else { return }
+        future.append(Visit(selection: selection, stack: stack))
+        if !stack.isEmpty {
+            stack.removeLast()
+        } else if let last = history.popLast() {
+            selection = last.selection
+            stack = last.stack
+        }
+    }
+
+    func goForward() {
+        guard let next = future.popLast() else { return }
+        // Deeper in the same place is the page Back closed; another place is a visit of its own.
+        if next.selection != selection { history.append(Visit(selection: selection, stack: stack)) }
+        selection = next.selection
+        stack = next.stack
     }
 }
 
@@ -64,7 +101,7 @@ struct MacShell: View {
                        showsRate: session.role != "marketing") {
                 openWindow(id: MacWindows.place, value: $0)
             }
-            .navigationSplitViewColumnWidth(min: 210, ideal: 230, max: 300)
+            .navigationSplitViewColumnWidth(min: 220, ideal: 250, max: 320)
         } detail: {
             NavigationStack(path: $model.stack) {
                 detailRoot
@@ -73,8 +110,19 @@ struct MacShell: View {
             // A hub's row opened in a window of its own (its context menu or a double-click) comes through here.
             .environment(\.openPlaceWindow, OpenPlaceWindow { openWindow(id: MacWindows.place, value: $0) })
         }
-        // No toolbar items of the window's own: the toolbar is the place's (its New, its filter, its search). New Sale,
-        // New Order, Search and the day's rate are at the head and foot of the sidebar.
+        // The window's only toolbar items: Back and Forward, ahead of the title as Finder's are. A Mac toolbar with nothing
+        // before the title drew the title over the sidebar (owner's screenshots, 2026-10-25). The rest of the toolbar is
+        // the place's own (its New, its filter, its search); New Sale, New Order and Search are the sidebar's first rows.
+        .toolbar {
+            ToolbarItemGroup(placement: .navigation) {
+                Button { model.goBack() } label: { Label("Back", systemImage: "chevron.left") }
+                    .disabled(!model.canGoBack)
+                    .help("Back (\u{2318}[)")
+                Button { model.goForward() } label: { Label("Forward", systemImage: "chevron.right") }
+                    .disabled(!model.canGoForward)
+                    .help("Forward (\u{2318}])")
+            }
+        }
         // ⌘K: the panel over the whole window; a click outside it, or Esc, puts it away.
         .overlay(alignment: .top) {
             if model.quickOpen {
@@ -90,6 +138,9 @@ struct MacShell: View {
             }
         }
         .animation(.easeOut(duration: 0.12), value: model.quickOpen)
+        // Tables and lists without zebra stripes, as Mail's, Notes' and Reminders' on Tahoe: striped, an empty or short
+        // table read as a page of blank rows (owner's screenshot of Drafts, 2026-10-25).
+        .alternatingRowBackgrounds(.disabled)
         .focusedSceneValue(\.macShell, model)
         .focusedSceneValue(\.macMap, map)
         .focusedSceneValue(\.macPlaces, MacSidebarMap.places(sections).map { MacPlaceLink(title: $0.title, path: $0.id) })
@@ -124,6 +175,12 @@ struct MacShell: View {
             if MacSidebarMap.allPaths(sidebarSections(map)).contains(s) { model.stack = [] } else { model.go("/") }
         }
         .onChange(of: model.selection) { _, s in if restored { savedPlace = s ?? "/" } }
+        .onChange(of: model.snapshots) { _, asked in
+            guard asked else { return }
+            model.snapshots = false
+            let stops = MacSnapshots.stops(sections)
+            Task { @MainActor in MacSnapshots.ask(shell: model, stops: stops) }
+        }
         // Every list a shop opens all day is read in the background once the window is up, so the first click on
         // Orders, Invoices, Customers, Stock or Repairs shows its table at once, never a spinner. A Mac has the memory;
         // each shelf paints from its own file on disk first.
@@ -234,6 +291,7 @@ struct MacPlaceWindow: View {
         .environment(session)
         .environment(Book.shared)
         .tint(Theme.accent)
+        .alternatingRowBackgrounds(.disabled)
         .modifier(MacLockCover())
         .environment(\.locale, Locale(identifier: "en_PK"))
         .frame(minWidth: 640, minHeight: 520)

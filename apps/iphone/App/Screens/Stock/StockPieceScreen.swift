@@ -382,7 +382,7 @@ extension StockPieceScreen {
         }
         .toolbar {
             // A record window: Sell, Edit and Print Tag, then the rest in More (Delete is never a toolbar button of its own).
-            ToolbarItemGroup(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .automatic) {
                 MacToolbarAction(action: macSellAction(p))
                 MacToolbarAction(action: macEditAction(p))
                 MacToolbarAction(action: macPrintAction(p))

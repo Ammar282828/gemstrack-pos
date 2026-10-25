@@ -578,7 +578,7 @@ extension PostsHub {
             .pickerStyle(.segmented)
             .help("What went out and what waits, or the website's pieces to post")
         }
-        ToolbarItemGroup(placement: .primaryAction) {
+        ToolbarItemGroup(placement: .automatic) {
             MacToolbarAction(action: macNewPost)
             if macMode == .posts {
                 Menu {

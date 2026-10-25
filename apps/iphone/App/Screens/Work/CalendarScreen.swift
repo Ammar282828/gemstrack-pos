@@ -60,7 +60,7 @@ struct CalendarScreen: View {
         .navigationTitle("Calendar")
         .hubTitleDisplay()
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItem(placement: .trailingAction) {
                 Button("Today") { goToday() }
                     .disabled(selected == CalendarScreen.todayKey())
             }

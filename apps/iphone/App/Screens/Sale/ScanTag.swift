@@ -264,7 +264,7 @@ extension ScanTag {
         .background(Theme.ground)
         .macRecordMenu(MacRecordMenu(title: "Scan", groups: [[actions.primary], [actions.open], [actions.again]]))
         .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .automatic) {
                 MacToolbarAction(action: actions.primary)
                 MacToolbarAction(action: actions.open)
                 MacToolbarAction(action: actions.again)

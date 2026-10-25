@@ -44,6 +44,7 @@ struct MacSettingsWindow: View {
         .environment(session)
         .environment(Book.shared)
         .tint(Theme.accent)
+        .alternatingRowBackgrounds(.disabled)
         .modifier(MacLockCover())
         .environment(\.locale, Locale(identifier: "en_PK"))
         .frame(minWidth: 820, idealWidth: 920, minHeight: 600, idealHeight: 700)

@@ -138,7 +138,7 @@ extension StudioRivals {
         .macRecordMenu(MacRecordMenu(title: "Competitor", groups: macActions(picked)))
         .macSummaryBar(["\(rows.count) account\(rows.count == 1 ? "" : "s")"])
         .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .automatic) {
                 MacToolbarAction(action: macAddAction)
                 MacToolbarAction(action: macFindAction)
             }

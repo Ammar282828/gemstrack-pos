@@ -500,7 +500,7 @@ extension WorkshopKarigarsList {
     @ToolbarContentBuilder
     private func macToolbar(_ data: MacKarigarRows) -> some ToolbarContent {
         // New and the one filter; the picked karigar's Pay… is the inspector's, the Karigar menu's and the right-click menu's.
-        ToolbarItemGroup(placement: .primaryAction) {
+        ToolbarItemGroup(placement: .automatic) {
             MacToolbarAction(action: macNewAction)
             macFilterMenu
         }

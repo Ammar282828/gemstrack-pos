@@ -560,7 +560,7 @@ struct InsightsOverviewScreen: View {
         .navigationTitle("Insights")
         .hubTitleDisplay()
         #if os(macOS)
-        .toolbar { if mayRead { ToolbarItemGroup(placement: .primaryAction) { macToolbarItems } } }
+        .toolbar { if mayRead { ToolbarItemGroup(placement: .automatic) { macToolbarItems } } }
         #else
         .toolbar { if mayRead { ToolbarItem(placement: .primaryAction) { InsightRangeMenu(key: $rangeKey) } } }
         #endif
@@ -871,7 +871,7 @@ struct InsightsPostsScreen: View {
         #if os(macOS)
         .toolbar {
             if mayRead {
-                ToolbarItemGroup(placement: .primaryAction) { macFilterMenu }
+                ToolbarItemGroup(placement: .automatic) { macFilterMenu }
             }
         }
         #endif
@@ -1048,7 +1048,7 @@ struct InsightsAudienceScreen: View {
         #if os(macOS)
         .toolbar {
             if mayRead {
-                ToolbarItemGroup(placement: .primaryAction) {
+                ToolbarItemGroup(placement: .automatic) {
                     Menu {
                         Picker("Who", selection: $group) {
                             Text("Followers").tag("followers")

@@ -421,7 +421,7 @@ extension ActivityLogScreen {
             }
             if macPane == .log {
                 // Revert (the picked line's) and the one filter; the right-click menu has Revert too.
-                ToolbarItemGroup(placement: .primaryAction) {
+                ToolbarItemGroup(placement: .automatic) {
                     Button {
                         if let e = macRevertable(list) { askRevert(e) }
                     } label: {

@@ -47,13 +47,13 @@ is the iPhone's.
 
 ## The window
 
-- **Sidebar** (230 pt): at its head the business (its badge beside a pop-up, "Taheri ERP ▾": the businesses, then
-  "Manage Businesses…"), then **New Sale ⌘N**, **New Order ⇧⌘N** and **Search ⌘K** as rows, as the Claude app keeps New
-  chat and Search at its sidebar's head; then the places; at its foot the day's **rate** ("21K 32,500", amber ⚠ "Rate not
-  set today"; a click opens the rate sheet). Settings is the Settings window.
-- **Toolbar** (unified) is the place's alone: the sidebar toggle; the place's title with a subtitle (its count); a view
-  switch where a place has two views; one group of the place's New and one Filter menu; the search field; the inspector
-  toggle above the inspector. Nothing of the window's own (2026-10-25: nine glass capsules overflowed a 13-inch screen).
+- **Sidebar** (250 pt): its first rows **New Sale ⌘N**, **New Order ⇧⌘N** and **Search ⌘K** (buttons, never
+  selected), as the Claude app keeps New chat and Search at its sidebar's head; then the places; below the list, the
+  day's **rate** ("21K 32,500", amber ⚠ "Rate not set today"; a click opens the rate sheet) and the business (its badge
+  beside a pop-up: the businesses, then "Manage Businesses…"). Settings is the Settings window.
+- **Toolbar** (unified): the sidebar toggle; **‹ ›** Back and Forward (⌘[ ⌘], every place and page the window visited);
+  the place's title with a subtitle (its count); a view switch where a place has two views; one group of the place's
+  New and one Filter menu at the trailing end; the search field; the inspector toggle above the inspector.
 - **Content**: the list, board or report.
 - **Inspector** (300 pt, ⌥⌘I, on by default for lists): the picked record — a plain header (name, number, status dot and
   word, the one figure that matters), a row of its main actions as bordered buttons, then its sections as a grouped form,

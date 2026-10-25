@@ -53,7 +53,7 @@ struct AdsOverviewScreen: View {
         .toolbar {
             if mayRead {
                 #if os(macOS)
-                ToolbarItemGroup(placement: .primaryAction) { macToolbarItems }
+                ToolbarItemGroup(placement: .automatic) { macToolbarItems }
                 #else
                 ToolbarItem(placement: .primaryAction) { AdsRangeMenu(key: $rangeKey) }
                 #endif

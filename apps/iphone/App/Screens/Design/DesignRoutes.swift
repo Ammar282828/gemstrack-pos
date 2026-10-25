@@ -66,7 +66,7 @@ struct DesignScreen: View {
             // The web page's sections are all here (Make, Photos, Board, Saved, and the workspace's Resize, Publish and AI
             // tools), so there is no ERP page to fall back on; the menu is the open design's.
             if workspace.isOpen && current == .make {
-                ToolbarItem(placement: .primaryAction) {
+                ToolbarItem(placement: .trailingAction) {
                     Menu {
                         // PHASE 2: DesignHooks.resize.
                         Button { go(.make); DesignHooks.shared.resize(workspace) } label: { Label("Resize…", systemImage: "arrow.up.left.and.arrow.down.right") }

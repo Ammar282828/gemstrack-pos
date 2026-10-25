@@ -239,9 +239,10 @@ extension View {
 }
 
 extension ToolbarItemPlacement {
-    /// The phone's bar ends: the window's leading (navigation) area and its trailing actions.
+    /// The phone's bar ends: the window's leading (navigation) area and its trailing actions. Trailing on a Mac is
+    /// `.automatic`: `.primaryAction` is the leading edge there (Apple's ToolbarItemPlacement docs).
     static var topBarLeading: ToolbarItemPlacement { .navigation }
-    static var topBarTrailing: ToolbarItemPlacement { .primaryAction }
+    static var topBarTrailing: ToolbarItemPlacement { .automatic }
 }
 
 extension ListStyle where Self == InsetListStyle {

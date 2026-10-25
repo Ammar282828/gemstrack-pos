@@ -63,7 +63,7 @@ struct Dashboard: View {
         // The rate is the shell's, in every toolbar; Team note is the one action Today has (owners).
         .toolbar {
             if session.isOwner {
-                ToolbarItem(placement: .primaryAction) {
+                ToolbarItem(placement: .automatic) {
                     MacToolbarAction(action: macNoteAction)
                 }
             }

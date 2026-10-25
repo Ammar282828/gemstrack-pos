@@ -351,7 +351,7 @@ extension RecentlyRemovedList {
         .macRecordMenu(MacRecordMenu(title: "Removed", groups: [[putBack], [putAll], [macEmptyAction]]))
         .toolbar {
             if !rows.isEmpty {
-                ToolbarItemGroup(placement: .primaryAction) {
+                ToolbarItemGroup(placement: .automatic) {
                     MacToolbarAction(action: putBack)
                     Menu {
                         MacActionItems(groups: [[putAll], [macEmptyAction]])

@@ -113,7 +113,7 @@ struct InvoiceScreen: View {
         }
         .safeAreaBar(edge: .bottom, spacing: 0) { paymentBar(inv) }
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItem(placement: .trailingAction) {
                 Menu {
                     menuItems(inv)
                 } label: {
@@ -1048,7 +1048,7 @@ extension InvoiceScreen {
     /// the Invoice menu's (menu bar), not these buttons'.
     @ToolbarContentBuilder
     private func macToolbar(_ inv: Invoice, _ cx: MacInvoiceContext) -> some ToolbarContent {
-        ToolbarItemGroup(placement: .primaryAction) {
+        ToolbarItemGroup(placement: .automatic) {
             ForEach(MacInvoiceMenu.toolbar(inv, cx, withEdit: true)) { (a: MacAction) in MacToolbarAction(action: a) }
             MacInvoiceMoreMenu(groups: MacInvoiceMenu.more(inv, cx))
         }

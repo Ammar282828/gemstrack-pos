@@ -1152,7 +1152,7 @@ extension AdsNewAdScreen {
 
     @ToolbarContentBuilder
     private var macToolbar: some ToolbarContent {
-        ToolbarItem(placement: .primaryAction) {
+        ToolbarItem(placement: .automatic) {
             Button { Task { await showPreview() } } label: {
                 Label(previewBusy ? "Asking Meta…" : "Meta Preview", systemImage: "eye")
             }

@@ -344,7 +344,7 @@ extension AdsTestsScreen {
         .macSummaryBar(["\(tests.count) test\(tests.count == 1 ? "" : "s")", "\(tests.filter { (t: AdsTest) in t.running }.count) running"])
         .navigationSubtitle(data.map { (d: AdsTestsAnswer) in "\(d.tests.count) tests" } ?? "")
         .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .automatic) {
                 MacToolbarAction(action: macNewTest)
             }
         }

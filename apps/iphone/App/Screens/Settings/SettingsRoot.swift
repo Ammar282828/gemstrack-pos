@@ -154,7 +154,7 @@ extension SettingsRoot {
         .navigationTitle("Settings")
         .navigationSubtitle(session.shop.name)
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItem(placement: .automatic) {
                 Button { rates = true } label: { Label("Today's rates", systemImage: "chart.line.uptrend.xyaxis") }
                     .help("Set today's gold rates")
             }

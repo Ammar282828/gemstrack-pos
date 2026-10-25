@@ -227,7 +227,7 @@ struct SaleForm: View {
             }
             if edit == nil {
                 // Throwing the sale away is a menu's item, not a red button beside the title.
-                ToolbarItem(placement: .primaryAction) {
+                ToolbarItem(placement: .trailingAction) {
                     Menu {
                         Button(role: .destructive) { confirmingReset = true } label: {
                             Label("Start over", systemImage: "arrow.counterclockwise")
@@ -687,7 +687,7 @@ extension SaleForm {
                     Button { ui.toggleStock() } label: { Label("Stock", systemImage: "sidebar.left") }
                         .help("Show or hide the stock")
                 }
-                ToolbarItemGroup(placement: .primaryAction) {
+                ToolbarItemGroup(placement: .automatic) {
                     MacToolbarAction(action: a.readBill)
                     if edit == nil {
                         MacToolbarAction(action: a.createOrder)

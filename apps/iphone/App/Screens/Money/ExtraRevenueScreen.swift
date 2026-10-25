@@ -46,7 +46,7 @@ struct ExtraRevenueScreen: View {
         .hubTitleDisplay()
         .searchable(text: $search, prompt: "Search by description")
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItem(placement: .trailingAction) {
                 Button { adding = true } label: { Label("Add extra revenue", systemImage: "plus") }
                 #if os(macOS)
                     .keyboardShortcut("e", modifiers: [.command, .shift])
@@ -231,7 +231,7 @@ extension ExtraRevenueScreen {
         .navigationTitle("Extra revenue")
         .macSearchable(text: $search, prompt: "Search Extra Revenue")
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItem(placement: .automatic) {
                 MacToolbarAction(action: macGroups(for: macPick)[0][0])
             }
         }

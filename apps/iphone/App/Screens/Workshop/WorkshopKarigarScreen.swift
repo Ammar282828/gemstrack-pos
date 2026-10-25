@@ -1080,7 +1080,7 @@ extension WorkshopKarigarScreen {
             }
         }
         // Up to four actions, the rest in More: the payments' main one is Add Payment, the silver and the batch are in More.
-        ToolbarItemGroup(placement: .primaryAction) {
+        ToolbarItemGroup(placement: .automatic) {
             if showingAccounts && session.isOwner {
                 MacToolbarAction(action: macAddPaymentAction(data))
                 Menu {

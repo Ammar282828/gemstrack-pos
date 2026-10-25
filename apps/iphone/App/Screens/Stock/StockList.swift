@@ -79,7 +79,7 @@ struct StockList: View {
     private var toolbarButtons: some ToolbarContent {
         // A wide window is always cards, so the switch is for the narrow one.
         if !wide {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItem(placement: .trailingAction) {
                 Button {
                     Motion.run(reduce: reduceMotion) {
                         layoutRaw = layout == .grid ? StockLayout.list.rawValue : StockLayout.grid.rawValue
@@ -90,7 +90,7 @@ struct StockList: View {
             }
         }
         if session.isOwner {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItem(placement: .trailingAction) {
                 NavigationLink(value: Route(path: StockKit.addPath)) {
                     Label("Add piece", systemImage: "plus")
                 }
@@ -99,7 +99,7 @@ struct StockList: View {
                 #endif
             }
             #if os(macOS)
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItem(placement: .automatic) {
                 NavigationLink(value: Route(path: StockKit.bulkAddPath)) {
                     Label("Add in bulk", systemImage: "square.stack.3d.up")
                 }

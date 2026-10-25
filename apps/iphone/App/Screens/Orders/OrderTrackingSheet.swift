@@ -57,7 +57,7 @@ struct OrderTrackingSheet: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(role: .cancel) { dismiss() }
                 }
-                ToolbarItem(placement: .primaryAction) {
+                ToolbarItem(placement: .trailingAction) {
                     Button { Task { await ask() } } label: {
                         Label("Refresh", systemImage: "arrow.clockwise")
                     }

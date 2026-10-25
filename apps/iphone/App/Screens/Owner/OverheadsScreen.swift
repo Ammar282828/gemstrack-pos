@@ -83,7 +83,7 @@ private struct OverheadsBoard: View {
         // The toolbar has the one thing the page adds; Save is the footer's (it appears with the first change) and ⌘S is
         // the Overheads menu's, so the toolbar does not carry it twice.
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItem(placement: .automatic) {
                 MacToolbarAction(action: macAddAction)
             }
         }

@@ -93,7 +93,7 @@ private struct BankAccountsForm: View {
         }
         .settingsFailure(writer)
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItem(placement: .trailingAction) {
                 Button { editing = BankAccountDraft.new() } label: { Label("Add account", systemImage: "plus") }
             }
         }
@@ -317,7 +317,7 @@ private struct MacBankAccountsTable: View {
         .background(Theme.ground)
         .toolbar {
             // Add and Remove; changing an account is a double-click or the right-click menu (a Settings pane's toolbar is short).
-            ToolbarItemGroup(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .automatic) {
                 Button(action: onAdd) { Label("Add account", systemImage: "plus") }
                     .help("Add a bank account")
                 Button { onRemove(selection) } label: { Label("Remove", systemImage: "trash") }

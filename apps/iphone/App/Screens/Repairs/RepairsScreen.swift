@@ -231,7 +231,7 @@ struct RepairsScreen: View {
     @ToolbarContentBuilder
     private var newRepairButton: some ToolbarContent {
         if session.isOwner {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItem(placement: .trailingAction) {
                 Button { creating = true } label: { Label("New repair", systemImage: "plus") }
             }
         }

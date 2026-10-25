@@ -265,7 +265,7 @@ extension DesignPhotosView {
         }
         .toolbar {
             if DesignPhotoPart.offered(access).count > 1 {
-                ToolbarItem(placement: .primaryAction) {
+                ToolbarItem(placement: .automatic) {
                     Menu {
                         Picker("Photos from", selection: $part) {
                             ForEach(DesignPhotoPart.offered(access)) { (p: DesignPhotoPart) in Text(p.title).tag(p) }
@@ -318,7 +318,7 @@ extension DesignSitePieces {
         .macSearchable(text: $q, prompt: "Ruby, kara, jhumka")
         .navigationSubtitle("Photos from the website")
         .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .automatic) {
                 MacToolbarAction(action: designAction)
                 Menu {
                     Picker("Collection", selection: Binding<String>(get: { showing }, set: { (v: String) in collection = v })) {
@@ -397,7 +397,7 @@ extension DesignLibraryPhotos {
         .macSearchable(text: $q, prompt: "Name, subject or collection")
         .navigationSubtitle(all ? "Every photo" : "Best for ads")
         .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .automatic) {
                 MacToolbarAction(action: designAction)
                 Menu {
                     Picker("Placement", selection: $placement) {

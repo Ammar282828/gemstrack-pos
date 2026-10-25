@@ -57,7 +57,7 @@ struct ExpensesScreen: View {
             #if !os(macOS)
             ToolbarItem(placement: .topBarTrailing) { filterMenu }
             #endif
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItem(placement: .trailingAction) {
                 Button { adding = true } label: { Label("Add expense", systemImage: "plus") }
                 #if os(macOS)
                     .keyboardShortcut("e", modifiers: [.command, .shift])
@@ -563,7 +563,7 @@ extension ExpensesScreen {
     @ToolbarContentBuilder
     private var macToolbar: some ToolbarContent {
         let add = macGroups(for: macPick)[0][0]
-        ToolbarItemGroup(placement: .primaryAction) {
+        ToolbarItemGroup(placement: .automatic) {
             MacToolbarAction(action: add)
             macFilterMenu
         }

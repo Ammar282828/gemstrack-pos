@@ -620,7 +620,7 @@ extension AdsCampaignsScreen {
     @ToolbarContentBuilder
     var macToolbar: some ToolbarContent {
         if mayRead {
-            ToolbarItemGroup(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .automatic) {
                 MacToolbarAction(action: macNewAd)
                 macFilterMenu
             }

@@ -29,7 +29,7 @@ struct AnaOverviewPage: View {
         .toolbar {
             // The month's PDF is the ERP's own: any month, drawn by the server, the same document the 1st's WhatsApp report carries.
             if showCosts {
-                ToolbarItem(placement: .primaryAction) {
+                ToolbarItem(placement: .trailingAction) {
                     Button { monthlyPDF = true } label: {
                         Label("Monthly PDF", systemImage: "arrow.down.doc")
                     }

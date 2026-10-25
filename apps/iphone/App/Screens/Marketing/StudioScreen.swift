@@ -188,7 +188,7 @@ struct StudioMaker: View {
         makerForm
         .toolbar {
             if model.photo != nil {
-                ToolbarItem(placement: .primaryAction) {
+                ToolbarItem(placement: .trailingAction) {
                     Button(model.savedID == nil ? "Save design" : "Save changes") { Task { await model.save(asNew: false) } }
                         .disabled(model.busy != nil)
                         #if os(macOS)
@@ -464,7 +464,7 @@ extension StudioPlan {
         .macRecordMenu(MacRecordMenu(title: "Play", groups: [[make]]))
         .macSummaryBar(["\(rows.count) plays", "\(rows.filter { (p: StudioMacPlay) in p.core }.count) core"])
         .toolbar {
-            ToolbarItem(placement: .primaryAction) { MacToolbarAction(action: make) }
+            ToolbarItem(placement: .automatic) { MacToolbarAction(action: make) }
         }
     }
 
@@ -528,7 +528,7 @@ extension StudioPlan {
         }
         .formStyle(.grouped)
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItem(placement: .automatic) {
                 Menu {
                     Button("Read the Account's Winners Again") { macReadWinners() }
                     Divider()

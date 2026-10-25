@@ -258,7 +258,7 @@ extension AdsObjectScreen {
         .macRefresh { Task { await load() } }
         .macRecordMenu(MacRecordMenu(title: macTitle, groups: [[macPauseRun], [macDuplicate, macArchive, macDelete]]))
         .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .automatic) {
                 MacToolbarAction(action: macPauseRun)
                 MacToolbarAction(action: macDuplicate)
                 Menu {

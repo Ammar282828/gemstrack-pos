@@ -47,7 +47,7 @@ struct NativeVoiceScreen: View {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Close", systemImage: "xmark") { dismiss() }.disabled(voice.phase == .saving)
             }
-            ToolbarItemGroup(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .trailingAction) {
                 Button(typing ? "Hide keyboard" : "Type instead", systemImage: "keyboard") {
                     typing.toggle()
                     typingFocused = typing

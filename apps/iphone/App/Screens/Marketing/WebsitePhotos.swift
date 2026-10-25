@@ -598,7 +598,7 @@ extension WebsitePhotosScreen {
             if case .success(let urls) = result { Task { await readFiles(urls) } }
         }
         .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .automatic) {
                 Menu {
                     Button("Choose Files…", systemImage: "folder") { importing = true }
                     Button("From Photos…", systemImage: "photo.on.rectangle") { picking = true }

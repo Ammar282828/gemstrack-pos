@@ -481,7 +481,7 @@ struct OrdersHub: View {
         #endif
         // The tab's own create menu already offers New order beside the rate chip (iPad): one "+" is enough.
         if !createMenuShown {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItem(placement: .trailingAction) {
                 NavigationLink(value: Route(path: "/orders/add")) {
                     Label("New order", systemImage: "plus")
                 }

@@ -426,7 +426,7 @@ extension CustomerSpamSheet {
         }
         .toolbar {
             if run == nil, let found, !found.isEmpty {
-                ToolbarItemGroup(placement: .primaryAction) {
+                ToolbarItemGroup(placement: .automatic) {
                     Button { selected = Set(found.map(\.id)) } label: { Label("Select all", systemImage: "checkmark.circle") }
                         .help("Select every flagged account")
                     Button { selected = [] } label: { Label("Select none", systemImage: "circle") }

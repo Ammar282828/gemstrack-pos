@@ -112,10 +112,23 @@ What the owner's screenshot (13-inch MacBook Air, 1470 points) showed, and the r
 - **A Menu's label is AppKit's.** macOS keeps one `Text` and one `Image` of it and drops every other view (a badge, an
   `HStack`'s layout, `.frame`, `.clipShape`); an asset or `NSImage` is drawn at its pixel size. Labels are
   `Label("…", systemImage:)`, `Text` or `Image(systemName:)`; a picture goes beside the Menu, not in it.
-- **The toolbar is the place's, and short.** The shell has no toolbar items: New Sale, New Order, Search (⌘K) and the
-  day's rate are at the head and foot of the sidebar, as the Claude app keeps New chat and Search. A place's toolbar is
-  its view switch (`.principal`, if it has two views), then ONE `.primaryAction` group of its New and one Filter menu
-  (every filter inline inside it), the search field, and the inspector toggle `.macInspector` draws above the inspector.
+- **The toolbar is the place's, and short.** The shell's only items are Back and Forward (`.navigation`, ahead of the
+  title: with nothing there, Tahoe drew the title over the sidebar). New Sale, New Order and Search (⌘K) are the
+  sidebar's first rows; the day's rate and the business are below its list. A place's toolbar is its view switch
+  (`.principal`, if it has two views), then ONE `.automatic` group of its New and one Filter menu (every filter inline
+  inside it), the search field, and the inspector toggle `.macInspector` draws above the inspector.
+- **`.primaryAction` is the LEADING edge on a Mac** (Apple's ToolbarItemPlacement docs; it is trailing on the iPhone).
+  Trailing on a Mac is `.automatic`. Mac-only code writes `.automatic`; code both platforms compile writes
+  `.trailingAction` (App/Platform/ToolbarPlacements.swift: `.primaryAction` on the iPhone, `.automatic` on the Mac), and
+  the phone's `.topBarTrailing` is `.automatic` on the Mac. The polish's first build put every place's buttons at the
+  left and pushed the title over the sidebar (owner's screenshots, 2026-10-25).
+- **Nothing is laid over a list.** A `safeAreaInset` view over a sidebar or a list lets the rows scroll through it
+  (transparent) and, at the top of a sidebar, sits under the traffic lights: put rows in the list, or a footer below it
+  in a `VStack`. An empty table shows its empty state alone; tables have no zebra stripes (`.alternatingRowBackgrounds
+  (.disabled)` at the windows' roots).
+- **See it before guessing.** Help › Send Page Snapshots… (owners) walks every sidebar place and sends a picture of each
+  to the ERP's Firestore `app_snapshots` (one JPEG per document, `run` groups a walk); a cloud session reads them with
+  the Firestore REST API (`datastore.user`) and looks before it changes a page.
   A picked record's actions are the inspector's head, the menu bar's record menu and the right-click menu — never also
   the toolbar's. A record window may carry four actions and a More menu.
 - **Money in a table is digits.** `MacAmount(value)` (grouped, right-aligned, blank for nil); the header names the

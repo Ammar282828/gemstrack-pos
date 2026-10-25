@@ -696,7 +696,7 @@ extension AdsSetupScreen {
         .macRefresh { Task { await load(fresh: true) } }
         .navigationSubtitle(macSubtitle(s))
         .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .automatic) {
                 if let url = setupInSafari {
                     Button { openURL(url) } label: {
                         Label(s.connection?.connected == true ? "Connect Again" : "Connect", systemImage: "safari")

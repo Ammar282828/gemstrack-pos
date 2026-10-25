@@ -36,7 +36,8 @@ def iphone_view(text):
         if t == "#endif":
             parent, _, _ = stack.pop(); active = parent; continue
         if active:
-            s = re.sub(r"\s+", " ", t)
+            # `.trailingAction` is `.primaryAction` on the iPhone (App/Platform/ToolbarPlacements.swift).
+            s = re.sub(r"\s+", " ", t).replace("placement: .trailingAction", "placement: .primaryAction")
             if s: out.append(s)
     return out
 

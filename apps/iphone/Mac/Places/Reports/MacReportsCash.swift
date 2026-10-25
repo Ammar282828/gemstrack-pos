@@ -84,7 +84,7 @@ struct MacReportsCashPage: View {
         }
         .navigationSubtitle(DashDate.longDay(instant))
         .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .automatic) {
                 dayControls
             }
         }

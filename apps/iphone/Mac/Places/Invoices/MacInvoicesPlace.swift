@@ -186,7 +186,7 @@ struct MacInvoicesPlace: View {
     /// right-click menu's, never the toolbar's.
     @ToolbarContentBuilder
     private func toolbarItems(_ cx: MacInvoiceContext) -> some ToolbarContent {
-        ToolbarItemGroup(placement: .primaryAction) {
+        ToolbarItemGroup(placement: .automatic) {
             Button { cx.open(Route(path: "/invoices/new")) } label: { Label("New Sale", systemImage: "plus") }
                 .help("New sale (\u{2318}N)")
             filterMenu()

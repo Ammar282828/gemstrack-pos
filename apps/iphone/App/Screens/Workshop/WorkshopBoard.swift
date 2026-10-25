@@ -491,7 +491,7 @@ struct WorkshopBoard: View {
 
     @ToolbarContentBuilder
     private var boardToolbar: some ToolbarContent {
-        ToolbarItem(placement: .primaryAction) { filterMenu }
+        ToolbarItem(placement: .trailingAction) { filterMenu }
         if session.isOwner {
             ToolbarItem(placement: .topBarTrailing) {
                 // The karigar in focus is the one the work goes to, as the web's "Assign" on his card.
@@ -1066,7 +1066,7 @@ extension WorkshopBoard {
                 .pickerStyle(.segmented)
                 .help("A column for each karigar, or a table of every piece")
             }
-            ToolbarItemGroup(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .automatic) {
                 let assign = macAssignStockAction(macPickedJobs(data))
                 Button(action: assign.perform) { Label("Assign Stock Work", systemImage: "plus") }
                     .disabled(!assign.enabled)

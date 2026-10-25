@@ -353,7 +353,7 @@ extension AdsRulesScreen {
         .macSummaryBar(macSummary(rules))
         .navigationSubtitle(data.map { (d: AdsRulesAnswer) in "\(d.rules.count) on the account" } ?? "")
         .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .automatic) {
                 MacToolbarAction(action: macNewRule)
             }
         }

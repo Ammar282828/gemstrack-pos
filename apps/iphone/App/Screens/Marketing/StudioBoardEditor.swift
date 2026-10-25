@@ -129,13 +129,13 @@ struct StudioBoardEditor: View {
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Done") { Task { await finish() } }.disabled(busy != nil)
                     }
-                    ToolbarItem(placement: .primaryAction) { saveMark }
-                    ToolbarItemGroup(placement: .primaryAction) {
+                    ToolbarItem(placement: .trailingAction) { saveMark }
+                    ToolbarItemGroup(placement: .trailingAction) {
                         Button { history(true) } label: { Label("Undo", systemImage: "arrow.uturn.backward") }.disabled(undo.isEmpty).keyboardShortcut("z", modifiers: .command)
                         Button { history(false) } label: { Label("Redo", systemImage: "arrow.uturn.forward") }.disabled(redo.isEmpty).keyboardShortcut("z", modifiers: [.command, .shift])
                     }
                     // Moving between designs, the other sizes and Share live in one menu, so undo and redo stay in sight.
-                    ToolbarItem(placement: .primaryAction) {
+                    ToolbarItem(placement: .trailingAction) {
                         Menu {
                             Button { Task { await go(by: -1) } } label: { Label("Previous design", systemImage: "chevron.left") }
                                 .disabled(!ready || (place ?? 0) == 0)

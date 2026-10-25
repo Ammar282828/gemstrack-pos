@@ -59,7 +59,7 @@ struct MacReportsAnalyticsPage: View {
         .navigationSubtitle(AnaPeriod.describe(period.range))
         .toolbar {
             // One menu for the period and what it is compared with (inline pickers inside it), then the monthly PDF.
-            ToolbarItemGroup(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .automatic) {
                 periodMenu
                 if section == .overview && margin != nil { monthlyMenu }
             }

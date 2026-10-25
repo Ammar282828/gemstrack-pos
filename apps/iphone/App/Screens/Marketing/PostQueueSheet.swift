@@ -314,7 +314,7 @@ extension PostQueueSheet {
         .websiteBusy(busy)
         .failureAlert($failure)
         .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .automatic) {
                 if !e.caption.isEmpty {
                     Button { MacClipboard.copy(e.caption) } label: { Label("Copy the caption", systemImage: "doc.on.doc") }
                         .help("Copy the caption")

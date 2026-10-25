@@ -44,7 +44,7 @@ struct PDFDocumentScreen: View {
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) { shareButton }
+            ToolbarItemGroup(placement: .trailingAction) { shareButton }
         }
         .task(id: attempt) { await load() }
         .onDisappear { forget() }

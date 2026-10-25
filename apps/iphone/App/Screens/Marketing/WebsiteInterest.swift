@@ -582,7 +582,7 @@ extension WebsiteInterestScreen {
     /// Live (with the count on the site now) and the period as one menu; View › Refresh (⌘R) reads the report again.
     @ToolbarContentBuilder
     var macToolbar: some ToolbarContent {
-        ToolbarItemGroup(placement: .primaryAction) {
+        ToolbarItemGroup(placement: .automatic) {
             NavigationLink(value: Route(path: "/website/interest/live")) { liveLabel }
                 .help("Who is on the website right now")
             Menu {

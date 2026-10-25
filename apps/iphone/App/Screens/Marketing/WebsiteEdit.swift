@@ -358,7 +358,7 @@ extension WebsiteEditScreen {
     // The filter and the recent changes; saving is the inspector's foot, ⌘S and the Piece menu (not the toolbar's).
     @ToolbarContentBuilder
     private var macToolbar: some ToolbarContent {
-        ToolbarItemGroup(placement: .primaryAction) {
+        ToolbarItemGroup(placement: .automatic) {
             macFilterMenu
             if !store.recent.isEmpty {
                 Menu {

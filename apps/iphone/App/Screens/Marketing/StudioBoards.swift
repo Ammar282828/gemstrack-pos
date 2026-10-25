@@ -608,7 +608,7 @@ extension StudioBoards {
     /// to it) in one menu, and the details. Four capsules; the board's name is the window's subtitle.
     @ToolbarContentBuilder
     var macToolbar: some ToolbarContent {
-        ToolbarItemGroup(placement: .primaryAction) {
+        ToolbarItemGroup(placement: .automatic) {
             Menu {
                 Button("Photo…", systemImage: "photo.badge.plus") { sheet = .picker }
                     .keyboardShortcut("a", modifiers: [.command, .shift])

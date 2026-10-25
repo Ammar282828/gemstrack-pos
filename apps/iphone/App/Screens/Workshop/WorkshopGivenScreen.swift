@@ -296,7 +296,7 @@ struct WorkshopGivenScreen: View {
     @ToolbarContentBuilder
     private var givenToolbar: some ToolbarContent {
         if session.isOwner {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItem(placement: .trailingAction) {
                 Button { adding = true } label: {
                     Label("Record item given", systemImage: "plus")
                 }
@@ -449,7 +449,7 @@ extension WorkshopGivenScreen {
     @ToolbarContentBuilder
     private func macToolbar(_ data: MacGivenRows) -> some ToolbarContent {
         // New and the one filter; Got Back is the inspector's, the Item menu's and the right-click menu's.
-        ToolbarItemGroup(placement: .primaryAction) {
+        ToolbarItemGroup(placement: .automatic) {
             MacToolbarAction(action: macRecordAction)
             Menu {
                 Picker("Show", selection: $filter) {

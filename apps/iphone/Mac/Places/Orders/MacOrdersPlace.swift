@@ -160,7 +160,7 @@ struct MacOrdersPlace: View {
         }
         // New and the one filter; the picked order's actions are the inspector's, the Order menu's and the right-click
         // menu's, never the toolbar's (a Tahoe toolbar of nine capsules overflowed a 13-inch screen).
-        ToolbarItemGroup(placement: .primaryAction) {
+        ToolbarItemGroup(placement: .automatic) {
             Button { newOrder() } label: { Label("New Order", systemImage: "plus") }
                 .help("New order (\u{21E7}\u{2318}N)")
             filterMenu(base)

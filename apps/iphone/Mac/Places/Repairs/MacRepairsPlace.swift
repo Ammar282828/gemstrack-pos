@@ -244,7 +244,7 @@ struct MacRepairsPlace: View {
     @ToolbarContentBuilder
     private func placeToolbar() -> some ToolbarContent {
         if session.isOwner {
-            ToolbarItemGroup(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .automatic) {
                 Button { newRepair() } label: { Label("New Repair", systemImage: "plus") }
                     .help("Take a repair in (\u{2325}\u{2318}N)")
             }

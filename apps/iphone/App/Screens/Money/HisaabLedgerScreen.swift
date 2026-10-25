@@ -372,7 +372,7 @@ extension HisaabLedgerScreen {
 
     @ToolbarContentBuilder
     private func macLedgerToolbar(name: String, id: String, isCustomer: Bool, onFile: Bool) -> some ToolbarContent {
-        ToolbarItemGroup(placement: .primaryAction) {
+        ToolbarItemGroup(placement: .automatic) {
             ForEach(macBase(name: name, id: id, isCustomer: isCustomer, onFile: onFile).flatMap { (g: [MacAction]) in g }) { (a: MacAction) in
                 MacToolbarAction(action: a)
             }

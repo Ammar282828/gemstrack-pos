@@ -172,7 +172,7 @@ extension StudioLibrary {
         .macRefresh { Task { await load(fresh: true) } }
         .navigationSubtitle(answer.n("total") > 0 ? "\(Int(answer.n("total"))) photos" : "")
         .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .automatic) {
                 // One menu for every way to narrow the library; View › Refresh (⌘R) reads it again.
                 Menu {
                     Section("Photos") {

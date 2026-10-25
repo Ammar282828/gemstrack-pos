@@ -73,7 +73,7 @@ struct PostTrayScreen: View {
         .navigationTitle(model.cards.count > 1 ? "\(model.cards.count) to send" : "Send a piece")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItem(placement: .trailingAction) {
                 Button { picking = true } label: { Label("Add pieces", systemImage: "plus") }
                     .disabled(model.busy != nil)
             }
@@ -659,7 +659,7 @@ extension PostTrayScreen {
         .navigationTitle(model.cards.count > 1 ? "\(model.cards.count) to send" : "Send a piece")
         .navigationSubtitle(model.activeCard?.piece.name ?? "")
         .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .automatic) {
                 if model.cards.count > 1 {
                     Button { clearing = true } label: { Label("Clear all", systemImage: "trash") }
                         .disabled(model.busy != nil)

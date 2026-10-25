@@ -335,7 +335,7 @@ struct MacRepairsTicketWindow: View {
             }
         }
         let more: [MacAction] = all.filter { ["tell", "cancel", "delete"].contains($0.id) }
-        ToolbarItemGroup(placement: .primaryAction) {
+        ToolbarItemGroup(placement: .automatic) {
             ForEach(shown) { (a: MacAction) in
                 MacToolbarAction(action: a)
             }

@@ -401,7 +401,7 @@ extension AdsAudiencesScreen {
         .macSummaryBar(["\(rows.count) audience\(rows.count == 1 ? "" : "s") in the ad account"])
         .navigationSubtitle(data.map { (d: AdsAudiencesAnswer) in "\(d.audiences.count) in the ad account" } ?? "")
         .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .automatic) {
                 MacToolbarAction(action: macNewAudience)
             }
         }

@@ -125,7 +125,7 @@ struct RepairsSheet: View {
         ToolbarItem(placement: .cancellationAction) {
             Button(role: .close) { dismiss() }
         }
-        ToolbarItem(placement: .primaryAction) { ticketMenu }
+        ToolbarItem(placement: .trailingAction) { ticketMenu }
     }
 
     /// Print receipt is the ERP's receipt for this ticket, open to everyone who can read the ticket (the
