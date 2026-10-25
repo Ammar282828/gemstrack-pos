@@ -12,6 +12,16 @@ import FirebaseAuth
 final class LaunchPicker {
     /// Settings → Businesses → "Ask which business on opening". Global, not per business.
     static let key = "erp.askBusinessAtLaunch"
+    #if os(macOS)
+    /// A Mac opens straight into the business last open, as a Mac app reopens where it was (2026-10-25 audit: the
+    /// picker before every launch was a second gate after Touch ID); the switch is a click away (the sidebar's chip,
+    /// ⇧⌘B), and Settings → Businesses can still ask.
+    nonisolated static let askByDefault = false
+    /// Asked once per run of the app at most: a second window (File › New Window) opens on the business in front.
+    private static var askedThisRun = false
+    #else
+    nonisolated static let askByDefault = true
+    #endif
 
     /// A choice was made (or there was never one to make).
     private(set) var dismissed: Bool
@@ -24,7 +34,11 @@ final class LaunchPicker {
     init() {
         let store = Businesses.shared
         startID = store.current.id
-        let ask = UserDefaults.standard.object(forKey: Self.key) as? Bool ?? true
+        var ask = UserDefaults.standard.object(forKey: Self.key) as? Bool ?? Self.askByDefault
+        #if os(macOS)
+        if Self.askedThisRun { ask = false }
+        Self.askedThisRun = true
+        #endif
         let skip = House.isDemo || !ask || store.list.count < 2
         dismissed = skip
         ready = skip

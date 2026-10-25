@@ -14,6 +14,8 @@ final class MacShellModel {
     var creating: Route?
     var voice = false
     var pendingRoute: Route?
+    /// ⌘K's panel is over the window (MacQuickOpen).
+    var quickOpen = false
 
     /// The place this window shows now, deepest first: what ⌘P prints and "Open in New Window" opens.
     var current: Route? {
@@ -36,6 +38,9 @@ struct MacShell: View {
     @Environment(\.openWindow) private var openWindow
     @State private var model = MacShellModel()
     @State private var columns = NavigationSplitViewVisibility.all
+    /// The window's place, kept across quitting: a Mac app reopens where it was left.
+    @SceneStorage("mac.place") private var savedPlace = "/"
+    @State private var restored = false
 
     private var map: NavMap { NavMap.current.visible(to: session.role) }
     private var online: OnlineInbox { .shared }
@@ -62,7 +67,26 @@ struct MacShell: View {
             ToolbarItem(placement: .navigation) {
                 MacCreateMenu(map: map, voiceShown: session.isOwner, shown: session.role != "marketing") { model.creating = Route(path: $0) } talk: { model.voice = true }
             }
+            ToolbarItem(placement: .navigation) {
+                Button { model.quickOpen = true } label: { Label("Quick Open", systemImage: "magnifyingglass") }
+                    .help("Open a customer, invoice, order, piece or place (⌘K)")
+            }
         }
+        // ⌘K: the panel over the whole window; a click outside it, or Esc, puts it away.
+        .overlay(alignment: .top) {
+            if model.quickOpen {
+                ZStack(alignment: .top) {
+                    Color.black.opacity(0.08)
+                        .contentShape(Rectangle())
+                        .onTapGesture { model.quickOpen = false }
+                    MacQuickOpen(map: map, model: model, canCreate: session.role != "marketing")
+                        .padding(.top, 72)
+                        .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .top)))
+                }
+                .ignoresSafeArea()
+            }
+        }
+        .animation(.easeOut(duration: 0.12), value: model.quickOpen)
         .focusedSceneValue(\.macShell, model)
         .focusedSceneValue(\.macMap, map)
         // A new sale, order or repair is a window of its own, as a new document is on a Mac: the main window stays
@@ -89,7 +113,38 @@ struct MacShell: View {
         .onChange(of: AppRouter.shared.open) { _, r in
             if let r { model.creating = r; AppRouter.shared.open = nil }
         }
-        .onChange(of: session.role) { _, _ in model.go("/") }
+        // Another role sees another map: a place it may no longer open goes Home (a role arriving at launch keeps the
+        // place the window reopened on).
+        .onChange(of: session.role) { _, _ in
+            let s = model.selection ?? "/"
+            if s == Self.searchID || map.entry(for: s) != nil { model.stack = [] } else { model.go("/") }
+        }
+        .onChange(of: model.selection) { _, s in if restored { savedPlace = s ?? "/" } }
+        // Every list a shop opens all day is read in the background once the window is up, so the first click on
+        // Orders, Invoices, Customers, Stock or Repairs shows its table at once, never a spinner. A Mac has the memory;
+        // each shelf paints from its own file on disk first.
+        .task(id: session.role) {
+            // Only once the ERP has said who this is: the map and the shelves are by role.
+            guard session.role != "none" else { return }
+            // Back where this window was when the app last quit (a place this person can still open).
+            if !restored {
+                restored = true
+                if savedPlace != "/", savedPlace == Self.searchID || map.entry(for: savedPlace) != nil { model.selection = savedPlace }
+            }
+            guard session.role != "marketing" else { return }
+            try? await Task.sleep(for: .milliseconds(400))
+            let book = Book.shared
+            book.settings.need()
+            book.orders.need()
+            book.invoices.need()
+            book.customers.need()
+            book.products.need()
+            book.repairs.need()
+            if session.isOwner {
+                book.expenses.need()
+                book.revenue.need()
+            }
+        }
     }
 
     // MARK: The sidebar

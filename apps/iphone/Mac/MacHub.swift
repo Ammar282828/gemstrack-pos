@@ -133,6 +133,13 @@ extension FocusedValues {
 
 // MARK: - The tables
 
+/// A table's rows are made once per change of the books, the search or the sort, never once per drawing: a click on a
+/// row redraws the table (the selection is the hub's), and re-reading every record on each click is what made the
+/// tables catch (2026-10-25 audit). `Memo` holds them in the table's `@State`, so reading them redraws nothing.
+private func rowsKey(_ revision: Int, _ query: String, _ sort: some Hashable, _ more: Int = 0) -> [Int] {
+    [revision, query.hashValue, sort.hashValue, more]
+}
+
 /// Whether a row matches the search: every word somewhere in its text.
 private func matches(_ query: String, _ fields: [String?]) -> Bool {
     let words = query.lowercased().split(separator: " ").map(String.init)
@@ -163,12 +170,15 @@ struct MacOrdersTable: View {
     @Binding var selection: Set<String>
     @Environment(Book.self) private var book
     @State private var sort = [KeyPathComparator(\MacOrderRow.createdAt, order: .reverse)]
+    @State private var made = Memo<[MacOrderRow]>()
 
     var body: some View {
-        let rows = book.orders.items
-            .filter { matches(query, [$0.id, $0.customerName, $0.customerContact, $0.summary, $0.status.rawValue, $0.takenBy]) }
-            .map(MacOrderRow.init)
-            .sorted(using: sort)
+        let rows = made(rowsKey(book.orders.revision, query, sort)) {
+            book.orders.items
+                .filter { matches(query, [$0.id, $0.customerName, $0.customerContact, $0.summary, $0.status.rawValue, $0.takenBy]) }
+                .map(MacOrderRow.init)
+                .sorted(using: sort)
+        }
         Table(rows, selection: $selection, sortOrder: $sort) {
             TableColumn("Order", value: \.id) { Text($0.id).monospacedDigit() }.width(min: 90, ideal: 110)
             TableColumn("Customer", value: \.customer)
@@ -203,12 +213,15 @@ struct MacInvoicesTable: View {
     @Binding var selection: Set<String>
     @Environment(Book.self) private var book
     @State private var sort = [KeyPathComparator(\MacInvoiceRow.createdAt, order: .reverse)]
+    @State private var made = Memo<[MacInvoiceRow]>()
 
     var body: some View {
-        let rows = book.invoices.items
-            .filter { matches(query, [$0.id, $0.customerName, $0.customerContact, $0.takenBy, $0.shopifyOrderName]) }
-            .map(MacInvoiceRow.init)
-            .sorted(using: sort)
+        let rows = made(rowsKey(book.invoices.revision, query, sort)) {
+            book.invoices.items
+                .filter { matches(query, [$0.id, $0.customerName, $0.customerContact, $0.takenBy, $0.shopifyOrderName]) }
+                .map(MacInvoiceRow.init)
+                .sorted(using: sort)
+        }
         Table(rows, selection: $selection, sortOrder: $sort) {
             TableColumn("Invoice", value: \.id) { Text($0.id).monospacedDigit() }.width(min: 90, ideal: 110)
             TableColumn("Customer", value: \.customer)
@@ -245,12 +258,15 @@ struct MacCustomersTable: View {
     @Binding var selection: Set<String>
     @Environment(Book.self) private var book
     @State private var sort = [KeyPathComparator(\MacCustomerRow.name)]
+    @State private var made = Memo<[MacCustomerRow]>()
 
     var body: some View {
-        let rows = book.customers.items
-            .filter { $0.deletedAt == nil && matches(query, [$0.name, $0.phone, $0.altPhone, $0.email, $0.city, $0.tags.joined(separator: " ")]) }
-            .map(MacCustomerRow.init)
-            .sorted(using: sort)
+        let rows = made(rowsKey(book.customers.revision, query, sort)) {
+            book.customers.items
+                .filter { $0.deletedAt == nil && matches(query, [$0.name, $0.phone, $0.altPhone, $0.email, $0.city, $0.tags.joined(separator: " ")]) }
+                .map(MacCustomerRow.init)
+                .sorted(using: sort)
+        }
         Table(rows, selection: $selection, sortOrder: $sort) {
             TableColumn("Name", value: \.name)
             TableColumn("Phone", value: \.phone) { Text($0.phone).monospacedDigit() }.width(min: 110, ideal: 130)
@@ -282,13 +298,17 @@ struct MacStockTable: View {
     @Binding var selection: Set<String>
     @Environment(Book.self) private var book
     @State private var sort = [KeyPathComparator(\MacStockRow.sku)]
+    @State private var made = Memo<[MacStockRow]>()
 
     var body: some View {
-        let rates = book.settings.value.map(PricingRates.init)
-        let rows = book.products.items
-            .filter { matches(query, [$0.sku, $0.name, categoryTitle($0.categoryId) ?? $0.categoryId, $0.description, $0.stoneDetails]) }
-            .map { MacStockRow($0, rates: rates) }
-            .sorted(using: sort)
+        // Every piece is priced at today's rates here, so the rows wait for a change of the rates as well as the stock.
+        let rows = made(rowsKey(book.products.revision, query, sort, book.settings.revision)) {
+            let rates = book.settings.value.map(PricingRates.init)
+            return book.products.items
+                .filter { matches(query, [$0.sku, $0.name, categoryTitle($0.categoryId) ?? $0.categoryId, $0.description, $0.stoneDetails]) }
+                .map { MacStockRow($0, rates: rates) }
+                .sorted(using: sort)
+        }
         Table(rows, selection: $selection, sortOrder: $sort) {
             TableColumn("SKU", value: \.sku) { Text($0.sku).monospacedDigit() }.width(min: 90, ideal: 110)
             TableColumn("Name", value: \.name)
@@ -327,12 +347,15 @@ struct MacRepairsTable: View {
     @Binding var selection: Set<String>
     @Environment(Book.self) private var book
     @State private var sort = [KeyPathComparator(\MacRepairRow.receivedAt, order: .reverse)]
+    @State private var made = Memo<[MacRepairRow]>()
 
     var body: some View {
-        let rows = book.repairs.items
-            .filter { matches(query, [$0.id, $0.customerName, $0.customerContact, $0.karigarName, $0.pieces.map(\.item).joined(separator: " ")]) }
-            .map(MacRepairRow.init)
-            .sorted(using: sort)
+        let rows = made(rowsKey(book.repairs.revision, query, sort)) {
+            book.repairs.items
+                .filter { matches(query, [$0.id, $0.customerName, $0.customerContact, $0.karigarName, $0.pieces.map(\.item).joined(separator: " ")]) }
+                .map(MacRepairRow.init)
+                .sorted(using: sort)
+        }
         Table(rows, selection: $selection, sortOrder: $sort) {
             TableColumn("Repair", value: \.id) { Text($0.id).monospacedDigit() }.width(min: 90, ideal: 110)
             TableColumn("Customer", value: \.customer)

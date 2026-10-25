@@ -38,6 +38,20 @@ arrow pointer), and a new sale, order, repair or scan opens in its own window. T
 goes through `pt()` (77% on a Mac, Catalyst's "Match iPad" ratio, so room shrinks with the Mac's smaller text), and the Mac
 takes the system's window and list backgrounds with the house in the accent (owner: "a classic native mac os application"). The rules: `apps/iphone/Mac/MAC-CONVENTIONS.md`.
 
+**Fluid, as the Claude app is (2026-10-25 audit).** Owner: "you see how the claude app is a native mac app, i want it to
+operate this fluidly". The data was already fast (every shelf painted from its file on disk, decoded off the main thread,
+small changes slotted in without a re-sort, figures in `Memo`). What caught was the drawing and the gates:
+- The five tables re-read, re-lowercased and re-sorted every record on every redraw, and a click on a row redraws them
+  (Stock re-priced every piece at today's rates too). Their rows are now a `Memo` keyed on the shelf's revision, the
+  search and the sort (`Single.revision` for the rates).
+- Search worked its results out again on every ↑/↓; Analytics reckoned every figure again whenever the app came forward.
+  Both are `Memo`s now.
+- Each list loaded on its first click (a spinner over the table): the Mac reads them all in the background once the window
+  is up.
+- The business picker came before every launch (and in every new window), then Touch ID: on a Mac the app opens on the
+  business last open (`LaunchPicker.askByDefault`, Settings → Businesses can ask again), and a window reopens on its place.
+- ⌘K, Quick Open (`Mac/MacQuickOpen.swift`): any place, customer, invoice, order, piece or repair as you type, over the page.
+
 ## Label LIVE on the Mac and the iPhone
 
 The tag logic is ERPCore's (`LabelLive.swift`, `LabelCSV.swift`: `src/lib/label-live.ts`, `label-live-values.ts`,

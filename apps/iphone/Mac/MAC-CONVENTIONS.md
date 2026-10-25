@@ -70,6 +70,14 @@ writes a phone's number:
 - New sale, New order, a repair and Scan open in a window of their own (`MacShell`'s `creating`), never a sheet over
   the main window.
 
+## Fluid (2026-10-25)
+
+- Anything worked out from a shelf for drawing (a table's rows, search results, a page's figures) is a `Memo` in the
+  view's `@State`, keyed on the shelves' `revision` (and the search, the sort, the period): never recomputed per drawing.
+  A click on a row, a hover, an arrow key or the app coming forward redraws a view; none of them may walk the books.
+- A Mac never shows a spinner for a list it can have read already: the shell reads the day-to-day shelves at launch.
+- No gate the person did not ask for between opening the app and the books: Touch ID, nothing else.
+
 ## Done means
 
 Each screen of the group: a Mac layout that uses the window (no stretched phone column), right-click on rows, the

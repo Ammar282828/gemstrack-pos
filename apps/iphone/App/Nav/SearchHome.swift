@@ -18,6 +18,8 @@ struct SearchView: View {
     @State private var query = ""
     @State private var confirmingSignOut = false
     @State private var expanded: Set<String> = []
+    /// The results, made once per query and change of the books: ↑ and ↓ redraw the page on every press.
+    @State private var resultsMemo = Memo<SearchResults>()
     @FocusState private var searchFocused: Bool
     #if os(macOS)
     /// The window's model, to open a result from the keyboard (MacShell hands it down); the result Return opens.
@@ -212,7 +214,9 @@ struct SearchView: View {
     // MARK: Something typed
 
     private var results: SearchResults {
-        SearchResults(q: query, map: map, book: book, readsBooks: readsBooks)
+        let key = [query.hashValue, readsBooks ? 1 : 0, map.allPlaces.count, book.customers.revision, book.invoices.revision,
+                   book.orders.revision, book.products.revision, book.repairs.revision]
+        return resultsMemo(key) { SearchResults(q: query, map: map, book: book, readsBooks: readsBooks) }
     }
 
     private var found: some View {

@@ -9,7 +9,7 @@ struct BusinessesScreen: View {
     var inSheet = false
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @AppStorage(LaunchPicker.key) private var askAtLaunch = true
+    @AppStorage(LaunchPicker.key) private var askAtLaunch = LaunchPicker.askByDefault
     @FocusState private var typing: Bool
     /// The email signed in to each business, by id; read once the screen is up (it makes each business's Firebase app).
     @State private var who: [String: String] = [:]

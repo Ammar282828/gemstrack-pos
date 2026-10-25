@@ -3,7 +3,7 @@ import SwiftUI
 
 /// The Mac's menu bar. File: New Sale ⌘N, New Order ⇧⌘N, New Repair ⌥⌘N, Open in New Window ⌘O, Print ⌘P (a piece's tag
 /// through Label LIVE, an invoice or an order's slip as its PDF). Go: the sidebar's first nine places ⌘1–⌘9, Back ⌘[,
-/// Search ⌘F. Each acts on the frontmost window, which publishes what it shows (MacShell, MacPlaceWindow).
+/// Quick Open ⌘K, Search ⌘F. Each acts on the frontmost window, which publishes what it shows (MacShell, MacPlaceWindow).
 struct MacCommands: Commands {
     @FocusedValue(\.macShell) private var shell
     @FocusedValue(\.macMap) private var map
@@ -65,6 +65,9 @@ struct MacCommands: Commands {
             Button("Back") { if shell?.stack.isEmpty == false { shell?.stack.removeLast() } }
                 .keyboardShortcut("[", modifiers: .command)
                 .disabled(shell?.stack.isEmpty != false)
+            Button("Quick Open…") { shell?.quickOpen.toggle() }
+                .keyboardShortcut("k", modifiers: .command)
+                .disabled(shell == nil)
             Button("Search") {
                 ShellCommands.shared.searchWanted = true
                 shell?.go(MacShell.searchID)

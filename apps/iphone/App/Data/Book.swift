@@ -214,6 +214,8 @@ final class Single<T: Decodable>: Resettable {
     private(set) var value: T?
     private(set) var loaded = false
     private(set) var error: String?
+    /// Goes up whenever the value is replaced, as `Shelf.revision` does: what a Memo keys a figure on.
+    private(set) var revision = 0
     @ObservationIgnored private var stop: (() -> Void)?
     @ObservationIgnored private var epoch = 0
 
@@ -228,8 +230,8 @@ final class Single<T: Decodable>: Resettable {
         stop = Book.shared.attach(collection, docId: docId) { [weak self] (d: Delivery<T>) in
             guard let self, self.epoch == mine else { return }
             switch d {
-            case .all(let list, _, _): value = list.first ?? value; loaded = true; error = nil
-            case .changes(let upserts, _, _): value = upserts.first ?? value; loaded = true; error = nil
+            case .all(let list, _, _): value = list.first ?? value; revision += 1; loaded = true; error = nil
+            case .changes(let upserts, _, _): value = upserts.first ?? value; revision += 1; loaded = true; error = nil
             case .failed(let m): error = m; loaded = true
             }
         }
@@ -240,6 +242,7 @@ final class Single<T: Decodable>: Resettable {
         stop?()
         stop = nil
         value = nil
+        revision += 1
         loaded = false
         error = nil
     }

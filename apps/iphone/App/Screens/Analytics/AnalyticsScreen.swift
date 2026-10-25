@@ -40,6 +40,9 @@ struct AnalyticsScreen: View {
 
     /// The instant the period is worked out against; it turns over at Karachi's midnight on a screen left open.
     @State private var now = Date()
+    /// The books and figures, worked out once per change of the books, the period or the day, not once per drawing
+    /// (coming back to the app or a window coming forward redraws this screen).
+    @State private var reckoned = Memo<(AnaBooks, AnaFigures)>()
 
     var body: some View {
         if session.isOwner { owners } else {
@@ -112,18 +115,23 @@ struct AnalyticsScreen: View {
     private func pages() -> some View {
         let isOwner = session.isOwner
         let period = AnaPeriod.read(key: rangeKey, from: customFrom, to: customTo, now: now)
-        let live = book.customers.items.filter { (c: Customer) -> Bool in (c.deletedAt ?? "").isEmpty }
-        let books = AnaBooks(
-            invoices: book.invoices.items,
-            orders: book.orders.items,
-            products: book.products.items,
-            customers: live,
-            expenses: isOwner ? book.expenses.items : [],
-            extraRevenue: isOwner ? book.revenue.items : []
-        )
         // Margin is worked out for owners alone; a customer or a staff account never sees it.
         let margin: MarginSettings? = isOwner ? House.margin : nil
-        let figures = AnaFigures(books, range: period.range, margin: margin)
+        let key = [book.invoices.revision, book.orders.revision, book.products.revision, book.customers.revision,
+                   book.expenses.revision, book.revenue.revision, isOwner ? 1 : 0, rangeKey.hashValue, customFrom.hashValue,
+                   customTo.hashValue, Int(now.timeIntervalSince1970 / 60), book.settings.revision]
+        let (books, figures) = reckoned(key) {
+            let live = book.customers.items.filter { (c: Customer) -> Bool in (c.deletedAt ?? "").isEmpty }
+            let books = AnaBooks(
+                invoices: book.invoices.items,
+                orders: book.orders.items,
+                products: book.products.items,
+                customers: live,
+                expenses: isOwner ? book.expenses.items : [],
+                extraRevenue: isOwner ? book.revenue.items : []
+            )
+            return (books, AnaFigures(books, range: period.range, margin: margin))
+        }
         return AnaPages(section: section, books: books, figures: figures, period: period, margin: margin,
                         rangeKey: $rangeKey, customFrom: $customFrom, customTo: $customTo)
     }
