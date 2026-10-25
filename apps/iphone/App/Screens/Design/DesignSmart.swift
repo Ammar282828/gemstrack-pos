@@ -261,15 +261,15 @@ struct DesignSmartSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: pt(16)) {
                     input
                     if !m.notes.isEmpty {
-                        VStack(alignment: .leading, spacing: 4) { ForEach(m.notes, id: \.self) { Text($0).font(.footnote).foregroundStyle(.secondary) } }
+                        VStack(alignment: .leading, spacing: pt(4)) { ForEach(m.notes, id: \.self) { Text($0).font(.footnote).foregroundStyle(.secondary) } }
                     }
                     if let review = m.review { layerReview(review) }
                     ForEach(m.items) { item in card(item) }
                 }
-                .padding(.horizontal, 16).padding(.vertical, 12)
+                .padding(.horizontal, pt(16)).padding(.vertical, pt(12))
             }
             .scrollDismissesKeyboard(.interactively)
             .modifier(HouseGround())
@@ -307,10 +307,10 @@ struct DesignSmartSheet: View {
         SectionCard("Paste anything") {
             TextField("A caption, a WhatsApp message, a link or a SKU. Or type it: “ruby ring 21k 12.35g”.", text: bind(\.text), axis: .vertical)
                 .lineLimit(3...8)
-                .padding(.horizontal, 12).padding(.vertical, 9)
+                .padding(.horizontal, pt(12)).padding(.vertical, pt(9))
                 .background(Theme.ground, in: .rect(cornerRadius: Radius.tile, style: .continuous))
                 .disabled(m.busy != nil)
-            HStack(spacing: 10) {
+            HStack(spacing: pt(10)) {
                 // Reading again, once there are pieces: before that, "Read it" is the bar's.
                 if !m.items.isEmpty {
                     Button { Task { await m.read() } } label: {
@@ -340,8 +340,8 @@ struct DesignSmartSheet: View {
 
     private func card(_ item: DesignSmartModel.Item) -> some View {
         let sure = item.parsed.n("confidence") >= 0.6
-        return VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
+        return VStack(alignment: .leading, spacing: pt(10)) {
+            HStack(spacing: pt(8)) {
                 // Sure is the expected state: only a doubtful reading is marked (rule 15), without the percentage.
                 if !sure { Pill("Check this", tone: .owed) }
                 if !item.parsed.s("suggestedKind").isEmpty { Text("suggests: " + item.parsed.s("suggestedKind")).font(.caption).foregroundStyle(.secondary) }
@@ -351,9 +351,9 @@ struct DesignSmartSheet: View {
             }
             if !item.photos.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
+                    HStack(spacing: pt(8)) {
                         ForEach(Array(item.photos.enumerated()), id: \.element.id) { n, p in
-                            VStack(spacing: 4) {
+                            VStack(spacing: pt(4)) {
                                 Button { set(item.id) { $0.main = n } } label: {
                                     Group { if let image = p.image { Image(uiImage: image).resizable().scaledToFill() } else { Rectangle().fill(Theme.ground) } }
                                         .frame(width: 76, height: 76).clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
@@ -370,21 +370,21 @@ struct DesignSmartSheet: View {
             }
             ForEach(DesignSmartModel.fieldOrder, id: \.self) { k in
                 if item.fields[k] != nil || item.accept[k] == true {
-                    HStack(spacing: 8) {
+                    HStack(spacing: pt(8)) {
                         Toggle("", isOn: Binding(get: { item.accept[k] == true }, set: { on in set(item.id) { $0.accept[k] = on } })).labelsHidden().tint(Theme.accent)
                             .accessibilityLabel(DesignSmartModel.fieldLabel[k] ?? k)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(DesignSmartModel.fieldLabel[k] ?? k).font(.caption).foregroundStyle(.secondary)
                             TextField("", text: Binding(get: { item.fields[k] ?? "" }, set: { v in set(item.id) { $0.fields[k] = v; $0.accept[k] = true } }), axis: .vertical)
                                 .lineLimit(1...3)
-                                .padding(.horizontal, 10).padding(.vertical, 7)
+                                .padding(.horizontal, pt(10)).padding(.vertical, pt(7))
                                 .background(Theme.ground, in: .rect(cornerRadius: Radius.tile, style: .continuous))
                         }
                     }
                 }
             }
             if item.parsed["price"] != .null {
-                HStack(spacing: 8) {
+                HStack(spacing: pt(8)) {
                     Toggle("", isOn: Binding(get: { item.accept["price"] == true }, set: { on in set(item.id) { $0.accept["price"] = on } })).labelsHidden().tint(Theme.accent)
                         .accessibilityLabel("Price")
                     VStack(alignment: .leading, spacing: 2) {

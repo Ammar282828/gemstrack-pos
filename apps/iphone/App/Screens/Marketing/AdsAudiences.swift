@@ -187,7 +187,7 @@ struct AdsAudiencesScreen: View {
     }
 
     private func busyLabel(_ title: String, _ what: String, _ symbol: String) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: pt(8)) {
             if busy == what { SkeletonLoading() } else { Image(systemName: symbol) }
             Text(title)
         }
@@ -198,7 +198,7 @@ struct AdsAudiencesScreen: View {
             if isOwner {
                 ForEach(data?.segments ?? []) { (seg: AdsHinted) in
                     Button { segment = seg.key } label: {
-                        HStack(alignment: .top, spacing: 10) {
+                        HStack(alignment: .top, spacing: pt(10)) {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(seg.label).foregroundStyle(.primary)
                                 Text(seg.hint).font(.caption).foregroundStyle(.secondary)
@@ -250,7 +250,7 @@ struct AdsAudiencesScreen: View {
             } else {
                 ForEach(data?.websiteEvents ?? []) { (e: AdsHinted) in
                     Button { webEvent = e.key } label: {
-                        HStack(alignment: .top, spacing: 10) {
+                        HStack(alignment: .top, spacing: pt(10)) {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(e.label).foregroundStyle(.primary)
                                 Text(e.hint).font(.caption).foregroundStyle(.secondary)
@@ -320,7 +320,7 @@ struct AdsAudiencesScreen: View {
         let size = a.sizeWords.map { (w: String) in "\(w) people" } ?? "size not known yet"
         let made = a.created.map { (c: String) in ShopDate.say(c) } ?? ""
         let line = [a.kind, size, made].filter { (s: String) in !s.isEmpty }.joined(separator: " · ")
-        return HStack(spacing: 10) {
+        return HStack(spacing: pt(10)) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(a.name)
                 Text(line).font(.caption).foregroundStyle(.secondary)

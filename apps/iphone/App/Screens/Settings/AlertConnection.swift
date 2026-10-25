@@ -190,7 +190,7 @@ struct AlertConnectionSections: View {
 
     private var connection: some View {
         Section {
-            HStack(spacing: 10) {
+            HStack(spacing: pt(10)) {
                 Circle()
                     .fill(checking || health == nil ? Color.secondary : (health?.ok == true ? Tone.settled.color : Tone.problem.color))
                     .frame(width: 8, height: 8)
@@ -269,7 +269,7 @@ struct AlertConnectionSections: View {
             ForEach(AlertReport.all) { r in
                 let on = settings[keyPath: r.toggle]
                 let last = on && runs != nil ? AlertReport.lastLine(runs?[r.id]) : nil
-                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                HStack(alignment: .firstTextBaseline, spacing: pt(12)) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(r.title)
                         Text(r.when(settings) + (on ? "" : " · off"))

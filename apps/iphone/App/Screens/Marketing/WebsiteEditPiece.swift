@@ -258,7 +258,7 @@ struct WebsiteEditPieceScreen: View {
 
     /// A field with its label, and "The site's own" when the counter's words differ from what the site was built with.
     private func field<C: View>(_ label: String, own: String, now: String, reset: @escaping () -> Void, @ViewBuilder content: () -> C) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: pt(4)) {
             HStack {
                 Text(label).font(.caption).foregroundStyle(.secondary)
                 Spacer(minLength: 8)

@@ -85,19 +85,19 @@ struct PostAlbumStrip: View {
             .padding(.vertical, 6)
             #else
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(alignment: .top, spacing: 10) {
+                HStack(alignment: .top, spacing: pt(10)) {
                     ForEach(card.album) { (x: PostAlbumPhoto) in tile(x) }
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
+                .padding(.horizontal, pt(16))
+                .padding(.vertical, pt(10))
             }
             .listRowInsets(EdgeInsets())
             #endif
             if !ownLeft.isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: pt(6)) {
                     Text("More of this piece:").font(.subheadline).foregroundStyle(.secondary)
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
+                        HStack(spacing: pt(8)) {
                             ForEach(ownLeft, id: \.self) { (i: Int) in
                                 Button { addOwn([i]) } label: {
                                     StockImage(imageUrl: card.piece.photos[i].thumb, name: "\(card.piece.name), photo \(i + 2)", key: card.id + "|own\(i)")
@@ -164,16 +164,16 @@ struct PostAlbumStrip: View {
 
     private func tile(_ x: PostAlbumPhoto) -> some View {
         let number = (card.album.firstIndex { (y: PostAlbumPhoto) in y.id == x.id } ?? 0) + 1
-        return VStack(spacing: 4) {
+        return VStack(spacing: pt(4)) {
             picture(x)
                 .frame(width: 84, height: 84)
                 .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
                 .overlay(alignment: .topLeading) {
                     Text("\(number)").font(.caption2.weight(.semibold)).monospacedDigit()
                         .foregroundStyle(Theme.onAccent)
-                        .padding(.horizontal, 5).padding(.vertical, 1)
+                        .padding(.horizontal, pt(5)).padding(.vertical, pt(1))
                         .background(Theme.accent, in: .capsule)
-                        .padding(3)
+                        .padding(pt(3))
                 }
                 .draggable(x.id)
                 .dropDestination(for: String.self) { (ids: [String], _) in
@@ -261,7 +261,7 @@ struct PostAlbumSitePicker: View {
                     Button {
                         if let why = model.toggleSite(card, p) { onSay([Note(title: why, failed: true)]) }
                     } label: {
-                        HStack(spacing: 12) {
+                        HStack(spacing: pt(12)) {
                             StockImage(imageUrl: p.thumb, name: p.name, key: p.id)
                                 .frame(width: 52, height: 52)
                                 .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))

@@ -137,7 +137,7 @@ struct AdsTestsScreen: View {
             if let data {
                 ForEach(shownAdsets.prefix(40)) { (a: AdsTestAdset) in
                     Button { toggle(a.id) } label: {
-                        HStack(spacing: 10) {
+                        HStack(spacing: pt(10)) {
                             let i = picked.firstIndex(of: a.id)
                             ZStack {
                                 Circle().strokeBorder(i == nil ? Color.secondary.opacity(0.5) : Theme.accent, lineWidth: 1.5)
@@ -159,7 +159,7 @@ struct AdsTestsScreen: View {
             DatePicker("Ends", selection: $end, in: start..., displayedComponents: [.date, .hourAndMinute])
             Toggle("Judge on website purchases", isOn: $purchases).tint(Theme.accent)
             Button { asking = true } label: {
-                HStack(spacing: 8) {
+                HStack(spacing: pt(8)) {
                     if making { SkeletonLoading() }
                     Text("Start the test").frame(maxWidth: .infinity)
                 }
@@ -191,18 +191,18 @@ struct AdsTestsScreen: View {
     }
 
     private func testCard(_ t: AdsTest, _ cur: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: pt(8)) {
             Text(t.name).font(.headline)
             // Running is the expected state: only the dates.
             Text("\(ShopDate.say(t.start)) to \(ShopDate.say(t.end))").font(.caption).foregroundStyle(.secondary)
             ForEach(t.cells) { (c: AdsTestCell) in
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 4) {
+                VStack(alignment: .leading, spacing: pt(4)) {
+                    HStack(spacing: pt(4)) {
                         Text(c.name).font(.subheadline.weight(.semibold))
                         if t.ahead == c.name { Image(systemName: "trophy.fill").font(.caption).foregroundStyle(Tone.owed.color) }
                         Text(c.adsets.joined(separator: ", ")).font(.caption).foregroundStyle(.secondary).lineLimit(2)
                     }
-                    FigureRow(spacing: 8) {
+                    FigureRow(spacing: pt(8)) {
                         FigureTile(label: "Spent", value: AdsFormat.money(c.spend, cur))
                         FigureTile(label: c.resultLabel, value: AdsFormat.count(c.result))
                         FigureTile(label: "Each", value: c.costPerResult.map { (v: Double) in AdsFormat.money(v, cur) } ?? "—")
@@ -215,7 +215,7 @@ struct AdsTestsScreen: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, pt(6))
     }
 }
 

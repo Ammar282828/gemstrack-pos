@@ -78,7 +78,7 @@ struct StockPieceTagSheet: View {
 
     private var qrSection: some View {
         Section {
-            VStack(spacing: 8) {
+            VStack(spacing: pt(8)) {
                 if let image {
                     Image(uiImage: image)
                         .interpolation(.none)
@@ -86,7 +86,7 @@ struct StockPieceTagSheet: View {
                         .scaledToFit()
                         .frame(width: 160, height: 160)
                         // A QR reads dark on light, whatever the phone's own look.
-                        .padding(10)
+                        .padding(pt(10))
                         .background(Color.white, in: .rect(cornerRadius: Radius.thumb, style: .continuous))
                         .accessibilityLabel("QR Code for \(product.sku)")
                 } else {
@@ -96,7 +96,7 @@ struct StockPieceTagSheet: View {
                 Text(product.sku).font(.subheadline.monospaced()).foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 6)
+            .padding(.vertical, pt(6))
             if let image {
                 ShareLink(item: Image(uiImage: image), preview: SharePreview(product.sku, image: Image(uiImage: image))) {
                     Label("Save, send or print the QR", systemImage: "square.and.arrow.up")
@@ -128,7 +128,7 @@ struct StockPieceTagSheet: View {
         if book.settings.value?.labelLiveConfig != nil {
             Section {
                 Button { Task { await printTag() } } label: {
-                    HStack(spacing: 8) {
+                    HStack(spacing: pt(8)) {
                         if printing { ProgressView().controlSize(.small) }
                         Label("Print with Label LIVE", systemImage: "printer")
                     }
@@ -165,7 +165,7 @@ struct StockPieceTagSheet: View {
     private var csvSection: some View {
         Section {
             Button { Task { await makeCsv() } } label: {
-                HStack(spacing: 8) {
+                HStack(spacing: pt(8)) {
                     if making { ProgressView().controlSize(.small) }
                     Label("Export CSV for this piece", systemImage: "arrow.down.doc")
                 }

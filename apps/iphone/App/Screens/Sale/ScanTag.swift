@@ -41,19 +41,19 @@ struct ScanTag: View {
         #else
         ScrollView {
             if wide {
-                HStack(alignment: .top, spacing: 20) {
+                HStack(alignment: .top, spacing: pt(20)) {
                     TagScanner(active: found == nil, height: 560) { code in handle(code) }
                         .frame(maxWidth: .infinity)
-                    VStack(spacing: 16) { foundBlock }
+                    VStack(spacing: pt(16)) { foundBlock }
                         .frame(width: 360)
                 }
-                .padding(20)
+                .padding(pt(20))
             } else {
-                VStack(spacing: 16) {
+                VStack(spacing: pt(16)) {
                     TagScanner(active: found == nil) { code in handle(code) }
                     foundBlock
                 }
-                .padding(16)
+                .padding(pt(16))
             }
         }
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
@@ -127,7 +127,7 @@ struct ScanTag: View {
     // MARK: What it found
 
     private func card<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 12, content: content)
+        VStack(alignment: .leading, spacing: pt(12), content: content)
             .ledgerCard()
     }
 
@@ -154,7 +154,7 @@ struct ScanTag: View {
         let price: Double? = book.settings.value.map { calculateProductCosts(PricedPiece(p), PricingRates($0)).totalPrice }
         let added = addedSku == p.sku
         return card {
-            HStack(alignment: .top, spacing: 12) {
+            HStack(alignment: .top, spacing: pt(12)) {
                 if !(p.imageUrl ?? "").isEmpty {
                     StockImage(imageUrl: p.imageUrl, name: p.name, key: p.sku)
                         .frame(width: 72, height: 72)

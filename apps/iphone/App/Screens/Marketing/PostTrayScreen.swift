@@ -137,7 +137,7 @@ struct PostTrayScreen: View {
     private var stripSection: some View {
         Section {
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
+                HStack(spacing: pt(8)) {
                     ForEach(model.cards) { (c: PostTrayCard) in
                         let number = (model.cards.firstIndex { (x: PostTrayCard) in x.id == c.id } ?? 0) + 1
                         Button { model.active = c.id } label: { thumb(c, number: number) }
@@ -154,8 +154,8 @@ struct PostTrayScreen: View {
                             #endif
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
+                .padding(.horizontal, pt(16))
+                .padding(.vertical, pt(10))
             }
             .listRowInsets(EdgeInsets())
             if model.cards.count > 1 {
@@ -177,9 +177,9 @@ struct PostTrayScreen: View {
             .overlay(alignment: .topLeading) {
                 Text("\(number)").font(.caption2.weight(.semibold)).monospacedDigit()
                     .foregroundStyle(Theme.onAccent)
-                    .padding(.horizontal, 5).padding(.vertical, 1)
+                    .padding(.horizontal, pt(5)).padding(.vertical, pt(1))
                     .background(Theme.accent, in: .capsule)
-                    .padding(3)
+                    .padding(pt(3))
             }
             .overlay {
                 if c.sending {
@@ -189,7 +189,7 @@ struct PostTrayScreen: View {
             }
             .overlay(alignment: .bottom) {
                 if c.failed != nil {
-                    Image(systemName: "exclamationmark.circle.fill").foregroundStyle(Tone.problem.color).padding(3)
+                    Image(systemName: "exclamationmark.circle.fill").foregroundStyle(Tone.problem.color).padding(pt(3))
                         .accessibilityLabel("Didn't go")
                 }
             }

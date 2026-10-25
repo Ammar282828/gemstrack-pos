@@ -20,7 +20,7 @@ struct NewOrderSampleField: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: pt(12)) {
             if piece.photo == nil && !piece.removePhoto && hasStored {
                 if let uri = piece.sampleImageDataUri ?? storedURI, !uri.isEmpty {
                     StockImage(imageUrl: uri, name: piece.description, key: piece.id.uuidString, decodeDataURI: true)
@@ -211,9 +211,9 @@ struct NewOrderPhotoField: View {
     @State private var problem: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: pt(10)) {
             preview
-            HStack(spacing: 10) {
+            HStack(spacing: pt(10)) {
                 Button { library = true } label: {
                     Label("Photos", systemImage: "photo.on.rectangle")
                 }

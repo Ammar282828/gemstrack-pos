@@ -22,7 +22,7 @@ struct DesignPublishSheet: View {
                 if let err = p.loadError {
                     ErrorState(err) { Task { await p.load() } }
                 } else if !p.loaded {
-                    SkeletonLoading("Looking at where this can go").padding(16).frame(maxHeight: .infinity, alignment: .top)
+                    SkeletonLoading("Looking at where this can go").padding(pt(16)).frame(maxHeight: .infinity, alignment: .top)
                 } else {
                     content
                 }
@@ -77,14 +77,14 @@ struct DesignPublishSheet: View {
         let plan = self.plan
         let problems = p.problems(plan)
         return ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: pt(16)) {
                 health
                 places
                 if p.waOn || p.postOn { captions }
                 if p.metaOn && p.ok("meta-ad") { metaWords }
                 timing
                 if !(problems + p.wordIssues).isEmpty {
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: pt(4)) {
                         ForEach(problems + p.wordIssues, id: \.self) { Label($0, systemImage: "exclamationmark.circle").font(.footnote).foregroundStyle(Tone.problem.color) }
                     }
                 }
@@ -96,7 +96,7 @@ struct DesignPublishSheet: View {
                 if let n = p.note { Text(n).font(.footnote).foregroundStyle(.secondary) }
                 extras
             }
-            .padding(.horizontal, 16).padding(.vertical, 12)
+            .padding(.horizontal, pt(16)).padding(.vertical, pt(12))
         }
         .scrollDismissesKeyboard(.interactively)
         // Sending is the sheet's one job: it stays at the foot with what it will do (rule 16).
@@ -128,7 +128,7 @@ struct DesignPublishSheet: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Label(c.s("label"), systemImage: c.s("status") == "ok" ? "checkmark.circle" : "exclamationmark.triangle").font(.footnote)
                             Text(c.s("detail")).font(.caption).foregroundStyle(.secondary)
-                        }.padding(.vertical, 2)
+                        }.padding(.vertical, pt(2))
                     }
                 }.font(.subheadline)
             }
@@ -157,7 +157,7 @@ struct DesignPublishSheet: View {
     }
 
     private func placeToggle(_ title: String, _ symbol: String, _ on: Binding<Bool>, dest: String, note: String?) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: pt(6)) {
             Toggle(isOn: on) { Label(title, systemImage: symbol) }.tint(Theme.accent)
             if on.wrappedValue { pictureLine(dest) }
             if let note, on.wrappedValue { Text(note).font(.footnote).foregroundStyle(.secondary) }
@@ -175,7 +175,7 @@ struct DesignPublishSheet: View {
     }
 
     private var websiteBlock: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: pt(8)) {
             Toggle(isOn: bind(\.websiteOn)) { Label("Website", systemImage: "globe") }.tint(Theme.accent).disabled(!p.ok("website"))
             if let reason = p.row("website")?.reason, !p.ok("website") { Text(reason).font(.footnote).foregroundStyle(.secondary) }
             if p.websiteOn && p.ok("website") {
@@ -199,12 +199,12 @@ struct DesignPublishSheet: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(p.isMaison ? "Official name, as the house names it" : "Name on the website").font(.caption).foregroundStyle(.secondary)
                         TextField(p.work?.fields["headline"] ?? p.work?.displayName ?? "", text: bind(\.siteName))
-                            .padding(.horizontal, 12).padding(.vertical, 8)
+                            .padding(.horizontal, pt(12)).padding(.vertical, pt(8))
                             .background(Theme.ground, in: .rect(cornerRadius: Radius.tile, style: .continuous))
                         if p.isMaison { Text("Shown under its house, in 18k, with no gold-rate price.").font(.caption2).foregroundStyle(.secondary) }
                     }
                 } else {
-                    HStack(spacing: 4) {
+                    HStack(spacing: pt(4)) {
                         Text("Named “\(p.siteName.trimmingCharacters(in: .whitespaces).isEmpty ? (p.work?.fields["headline"] ?? p.work?.displayName ?? "") : p.siteName)”")
                             .font(.footnote).foregroundStyle(.secondary).lineLimit(1)
                         Button("Change") { p.renaming = true }.font(.footnote)
@@ -223,12 +223,12 @@ struct DesignPublishSheet: View {
         var targets: [DesignPublishModel.Target] = []
         if wa?.available == true { targets += wa?.targets ?? [] }
         if ch?.available == true { targets += ch?.targets ?? [] }
-        return VStack(alignment: .leading, spacing: 8) {
+        return VStack(alignment: .leading, spacing: pt(8)) {
             Toggle(isOn: bind(\.waOn)) { Label("WhatsApp", systemImage: "message") }.tint(Theme.accent).disabled(targets.isEmpty)
             if targets.isEmpty { Text(wa?.reason ?? ch?.reason ?? "This shop has no WhatsApp community set.").font(.footnote).foregroundStyle(.secondary) }
             if p.waOn && !targets.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
+                    HStack(spacing: pt(8)) {
                         ForEach(targets, id: \.key) { t in
                             FilterChip(title: t.label + (t.key == "channel" ? " (channel)" : ""), chosen: p.waKeys.contains(t.key)) {
                                 if let i = p.waKeys.firstIndex(of: t.key) { p.waKeys.remove(at: i) } else { p.waKeys.append(t.key) }
@@ -244,7 +244,7 @@ struct DesignPublishSheet: View {
     private func instagramBlock(_ id: String, _ title: String, _ symbol: String, _ on: Binding<Bool>) -> some View {
         let r = p.row(id)
         let share = p.igMode(id) == "share"
-        return VStack(alignment: .leading, spacing: 6) {
+        return VStack(alignment: .leading, spacing: pt(6)) {
             Toggle(isOn: on) { Label(title + (share ? " (share sheet)" : ""), systemImage: symbol) }.tint(Theme.accent)
             if let reason = r?.reason { Text(reason).font(.footnote).foregroundStyle(.secondary) }
             if on.wrappedValue {
@@ -276,16 +276,16 @@ struct DesignPublishSheet: View {
     }
 
     private func captionField(_ label: String, _ text: Binding<String>, lines: ClosedRange<Int> = 3...8) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: pt(4)) {
             Text(label).font(.caption).foregroundStyle(.secondary)
             TextField(label, text: text, axis: .vertical).lineLimit(lines)
-                .padding(.horizontal, 12).padding(.vertical, 9)
+                .padding(.horizontal, pt(12)).padding(.vertical, pt(9))
                 .background(Theme.ground, in: .rect(cornerRadius: Radius.tile, style: .continuous))
         }
     }
 
     private var timing: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: pt(8)) {
             Picker("When", selection: bind(\.when)) {
                 Text("Send now").tag("now"); Text("Hold in the queue").tag("hold"); Text("Schedule").tag("schedule")
             }.pickerStyle(.segmented)
@@ -345,8 +345,8 @@ struct DesignPublishSheet: View {
         SectionCard("What goes") {
             ForEach(plan.steps, id: \.id) { s in
                 let st = p.state(s)
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                VStack(alignment: .leading, spacing: pt(6)) {
+                    HStack(alignment: .firstTextBaseline, spacing: pt(8)) {
                         icon(st.status).motion(st.status)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(s.label).font(.subheadline)
@@ -358,7 +358,7 @@ struct DesignPublishSheet: View {
                         Button { Task { await p.run(only: s.id) } } label: { Label("Retry", systemImage: "arrow.clockwise") }.buttonStyle(.bordered).font(.footnote).disabled(p.busy)
                     }
                     if s.manual && st.status == .manual {
-                        HStack(spacing: 8) {
+                        HStack(spacing: pt(8)) {
                             Button { Task { await shareStep(s) } } label: { Label("Share it", systemImage: "square.and.arrow.up") }.buttonStyle(.bordered).font(.footnote)
                             Button("Posted") { p.markDone(s.id, "by hand") }.font(.footnote)
                         }
@@ -391,7 +391,7 @@ struct DesignPublishSheet: View {
     // MARK: The rest
 
     private var extras: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: pt(8)) {
             Divider()
             Button { Task { await shareAll() } } label: { Label("Share or save every size", systemImage: "square.and.arrow.up.on.square") }.font(.subheadline)
             if p.row("whatsapp") != nil || p.row("channel") != nil {

@@ -38,7 +38,7 @@ struct SectionCard<Content: View>: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: pt(12)) {
             LedgerHeading(title: title, count: count, trailing: trailing)
             content()
         }
@@ -132,7 +132,7 @@ struct MoneyRow: View {
             if typeSize.isAccessibilitySize {
                 VStack(alignment: .leading, spacing: 2) { name; figure }
             } else {
-                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                HStack(alignment: .firstTextBaseline, spacing: pt(12)) {
                     name.fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 8)
                     figure.multilineTextAlignment(.trailing)
@@ -177,7 +177,7 @@ struct PaidRing: View {
                 .opacity(settled ? 1 : 0)
                 .symbolEffect(.bounce, value: reduce ? false : settled)
         }
-        .padding(3.5)
+        .padding(pt(3.5))
         .frame(width: size, height: size)
         .animation(reduce ? nil : Motion.travel, value: fraction)
         .accessibilityElement(children: .ignore)

@@ -224,7 +224,7 @@ private struct ContactImportPage: View {
     private var fileSection: some View {
         Section {
             Button { picking = true } label: {
-                HStack(spacing: 8) {
+                HStack(spacing: pt(8)) {
                     if reading { SkeletonLoading() }
                     Label(fileName.isEmpty ? "Choose a .vcf file" : fileName, systemImage: "doc.badge.plus")
                 }
@@ -271,7 +271,7 @@ private struct ContactImportPage: View {
 
     private func summarySection(_ p: SettingsContactPlan) -> some View {
         Section {
-            FigureRow(spacing: 10) {
+            FigureRow(spacing: pt(10)) {
                 FigureTile(label: "Already saved", value: "\(p.summary.settled)")
                 FigureTile(label: "New", value: "\(willAdd)")
                 FigureTile(label: "Needs you", value: "\(p.summary.conflicts)")
@@ -326,8 +326,8 @@ private struct ContactImportPage: View {
         let target = c.matches[0]
         let opts = options(c)
         let chosen = choices[c.id] ?? "skip"
-        return VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top, spacing: 12) {
+        return VStack(alignment: .leading, spacing: pt(10)) {
+            HStack(alignment: .top, spacing: pt(12)) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("IN THE BOOK").font(.caption2).foregroundStyle(.secondary)
                     Text(target.name).font(.subheadline.weight(.medium))
@@ -351,7 +351,7 @@ private struct ContactImportPage: View {
                 Text(hint).font(.caption).foregroundStyle(.secondary)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, pt(4))
     }
 
     // MARK: New
@@ -360,7 +360,7 @@ private struct ContactImportPage: View {
         Section {
             ForEach(p.fresh) { (f: SettingsPendingContact) in
                 let off = dropped.contains(f.id)
-                HStack(spacing: 12) {
+                HStack(spacing: pt(12)) {
                     Image(systemName: f.kind == "karigar" ? "hammer" : "person.2").foregroundStyle(.secondary)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(f.name).fontWeight(.medium).strikethrough(off).lineLimit(1)

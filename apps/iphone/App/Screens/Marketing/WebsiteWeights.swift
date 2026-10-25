@@ -140,7 +140,7 @@ struct WebsiteWeightsScreen: View {
         return List {
             Group {
                 Section {
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: pt(8)) {
                         HStack(alignment: .firstTextBaseline) {
                             Text("\(c.withWeight)").font(.system(.title2, design: .serif).weight(.semibold)).monospacedDigit().contentTransition(.numericText(value: Double(c.withWeight)))
                             Text("of \(c.total) weighed").foregroundStyle(.secondary)
@@ -150,7 +150,7 @@ struct WebsiteWeightsScreen: View {
                         }
                         ProgressView(value: Double(c.withWeight), total: Double(max(1, c.total))).tint(Theme.accent)
                     }
-                    .padding(.vertical, 4)
+                    .padding(.vertical, pt(4))
                     savingRow
                     Picker("Collection", selection: $collection) {
                         Text("All collections").tag("")
@@ -228,9 +228,9 @@ struct WebsiteWeightsScreen: View {
                         Text("Weight on the photo: \(WebsiteNumber.grams(g))g")
                             .font(.caption)
                             .foregroundStyle(.primary)
-                            .padding(.horizontal, 8).padding(.vertical, 4)
+                            .padding(.horizontal, pt(8)).padding(.vertical, pt(4))
                             .background(Theme.card, in: .capsule)
-                            .padding(8)
+                            .padding(pt(8))
                     }
                 }
                 .listRowInsets(EdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8))
@@ -254,7 +254,7 @@ struct WebsiteWeightsScreen: View {
 
     private func weightSection(_ p: WebsiteWeightPiece) -> some View {
         Section {
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: pt(6)) {
                 TextField("0.00", text: $value)
                     .keyboardType(.decimalPad)
                     .keyboardDone()
@@ -281,7 +281,7 @@ struct WebsiteWeightsScreen: View {
     private var upcomingSection: some View {
         LedgerSection("Coming up") {
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
+                HStack(spacing: pt(8)) {
                     ForEach(upcoming) { (u: Upcoming) in
                         Button { index = u.at } label: {
                             StockImage(imageUrl: u.piece.thumb, name: u.piece.file, key: u.piece.key)
@@ -290,7 +290,7 @@ struct WebsiteWeightsScreen: View {
                                 .overlay(alignment: .topTrailing) {
                                     if let st = outbox.status(of: Self.labelPrefix + u.piece.file) {
                                         Image(systemName: st == .failed ? "exclamationmark.circle.fill" : "ellipsis.circle.fill")
-                                            .font(.caption).foregroundStyle(st == .failed ? Tone.problem.color : Color.secondary).padding(2)
+                                            .font(.caption).foregroundStyle(st == .failed ? Tone.problem.color : Color.secondary).padding(pt(2))
                                     }
                                 }
                                 .overlay(alignment: .bottom) {
@@ -307,7 +307,7 @@ struct WebsiteWeightsScreen: View {
                         .buttonStyle(.plain)
                     }
                 }
-                .padding(.vertical, 4)
+                .padding(.vertical, pt(4))
             }
         }
     }

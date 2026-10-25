@@ -274,7 +274,7 @@ struct SearchView: View {
 
     private func customersSection(_ r: SearchResults) -> some View {
         page("Customers", r.customers, path: { "/customers/" + SearchPath.encode($0.id) }) { c in
-            HStack(spacing: 12) {
+            HStack(spacing: pt(12)) {
                 Monogram(name: c.name, size: Monogram.Size.row)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(c.name)
@@ -286,7 +286,7 @@ struct SearchView: View {
 
     private func invoicesSection(_ r: SearchResults) -> some View {
         page("Invoices", r.invoices, path: { "/invoices/" + SearchPath.encode($0.id) }) { i in
-            HStack(spacing: 8) {
+            HStack(spacing: pt(8)) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(i.id)
                     Text(invoiceLine(i)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
@@ -304,7 +304,7 @@ struct SearchView: View {
     private func ordersSection(_ r: SearchResults) -> some View {
         page("Orders", r.orders, path: { "/orders/" + SearchPath.encode($0.id) }) { o in
             let due = OrdersLogic.balance(o)
-            HStack(spacing: 8) {
+            HStack(spacing: pt(8)) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(o.id)
                     Text(o.customerName ?? "").font(.caption).foregroundStyle(.secondary).lineLimit(1)

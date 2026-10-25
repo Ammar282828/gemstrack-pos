@@ -36,7 +36,7 @@ struct ActionBar: View {
     var summary: String?
 
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: pt(8)) {
             if let summary, !summary.isEmpty {
                 Text(summary)
                     .font(.footnote)
@@ -48,8 +48,8 @@ struct ActionBar: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             // Two glass controls side by side share one container, so they blend and sample together.
-            GlassEffectContainer(spacing: 10) {
-                AdaptiveStack(spacing: 10, alignment: .center) {
+            GlassEffectContainer(spacing: pt(10)) {
+                AdaptiveStack(spacing: pt(10), alignment: .center) {
                     ForEach(Array(secondary.enumerated()), id: \.offset) { _, item in
                         Button(role: item.role, action: item.action) { label(item, wide: false) }
                             .buttonStyle(.houseGlass)
@@ -68,12 +68,12 @@ struct ActionBar: View {
             }
         }
         .padding(.horizontal)
-        .padding(.bottom, 8)
+        .padding(.bottom, pt(8))
         .motion(primary.isBusy)
     }
 
     private func label(_ item: Action, wide: Bool) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: pt(8)) {
             if item.isBusy {
                 ProgressView()
             } else if let symbol = item.systemImage {
@@ -211,7 +211,7 @@ struct LoadingRow: View {
     init(_ label: String) { self.label = label }
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: pt(10)) {
             ProgressView()
             Text(label).foregroundStyle(.secondary)
         }

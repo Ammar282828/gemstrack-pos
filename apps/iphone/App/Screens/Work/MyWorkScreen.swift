@@ -219,12 +219,12 @@ struct MyWorkScreen: View {
 
     /// To do, Late (a week or more) and Urgent (two weeks or more).
     private func figures(_ s: KarigarPortalSummary) -> some View {
-        FigureRow(alignment: .top, spacing: 10) {
+        FigureRow(alignment: .top, spacing: pt(10)) {
             FigureTile(label: "To do", value: "\(s.active)")
             FigureTile(label: "Late", value: "\(s.late)", tint: s.late > 0 ? Tone.owed.color : .primary)
             FigureTile(label: "Urgent", value: "\(s.critical)", tint: s.critical > 0 ? Tone.late.color : .primary)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, pt(4))
     }
 
     // MARK: My Work
@@ -271,9 +271,9 @@ struct MyWorkScreen: View {
 
     /// An iPad: each order a card of its pieces, as many across as fit.
     private func orderGrid(_ jobs: [KarigarPortalJob], readOnly: Bool) -> some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 340), spacing: 12, alignment: .top)], alignment: .leading, spacing: 12) {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 340), spacing: pt(12), alignment: .top)], alignment: .leading, spacing: pt(12)) {
             ForEach(KarigarPortalRules.groups(jobs)) { (g: KarigarPortalGroup) in
-                VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: pt(10)) {
                     orderHeader(g)
                     ForEach(g.jobs) { (j: KarigarPortalJob) in pieceRow(j, readOnly: readOnly) }
                 }
@@ -311,9 +311,9 @@ struct MyWorkScreen: View {
     }
 
     private func pieceRow(_ j: KarigarPortalJob, readOnly: Bool) -> some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: pt(12)) {
             tick(j, readOnly: readOnly)
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: pt(8)) {
                 Text(j.description)
                     .font(.body.weight(.medium))
                     .strikethrough(j.isDone)
@@ -330,12 +330,12 @@ struct MyWorkScreen: View {
                         Text(notes).font(.subheadline)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(8)
+                    .padding(pt(8))
                     .background(Tone.owed.color.opacity(0.1), in: .rect(cornerRadius: Radius.thumb, style: .continuous))
                 }
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, pt(4))
     }
 
     @ViewBuilder
@@ -369,7 +369,7 @@ struct MyWorkScreen: View {
     private func specs(_ j: KarigarPortalJob) -> some View {
         let list = KarigarPortalRules.specs(j)
         if !list.isEmpty {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 6)], alignment: .leading, spacing: 6) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: pt(6))], alignment: .leading, spacing: pt(6)) {
                 ForEach(list, id: \.self) { (spec: KarigarPortalRules.Spec) in
                     VStack(alignment: .leading, spacing: 2) {
                         Text(spec.label.uppercased()).font(.caption2).foregroundStyle(.secondary)
@@ -379,8 +379,8 @@ struct MyWorkScreen: View {
                             .lineLimit(1)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
+                    .padding(.horizontal, pt(10))
+                    .padding(.vertical, pt(6))
                     .background(spec.accent ? Theme.accent.opacity(0.12) : Color.secondary.opacity(0.1), in: .rect(cornerRadius: Radius.thumb, style: .continuous))
                 }
             }
@@ -392,12 +392,12 @@ struct MyWorkScreen: View {
     @ViewBuilder
     private func account(_ a: KarigarPortalAccount) -> some View {
         Section {
-            FigureRow(alignment: .top, spacing: 10) {
+            FigureRow(alignment: .top, spacing: pt(10)) {
                 FigureTile(label: "Received", value: KarigarPortalRules.grams(a.goldGiven))
                 FigureTile(label: "Returned", value: KarigarPortalRules.grams(a.goldReceived))
                 FigureTile(label: "With you", value: KarigarPortalRules.grams(a.goldNet), tint: a.goldNet > 0 ? Tone.owed.color : .primary)
             }
-            .padding(.vertical, 4)
+            .padding(.vertical, pt(4))
             .listRowInsets(EdgeInsets())
             .listRowBackground(Color.clear)
             ForEach(Self.keyed(a.ledger) { "\($0.date)|\($0.description)|\($0.goldOut)|\($0.goldIn)" }) { row in

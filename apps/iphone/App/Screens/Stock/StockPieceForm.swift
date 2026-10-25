@@ -235,7 +235,7 @@ private struct StockPieceEditor: View {
                 }
             }
             if f.metalType == "gold" {
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: pt(6)) {
                     Text("Karat").font(.caption).foregroundStyle(.secondary)
                     Picker("Karat", selection: $f.karat) {
                         ForEach(karatOptions, id: \.self) { (k: String) in
@@ -441,7 +441,7 @@ private struct StockPieceEditor: View {
     private func phoneSavedPage(_ s: Saved) -> some View {
         List {
             Section {
-                VStack(spacing: 8) {
+                VStack(spacing: pt(8)) {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.largeTitle)
                         .imageScale(.large)
@@ -450,7 +450,7 @@ private struct StockPieceEditor: View {
                     Text("\(s.name) is in stock as \(s.sku).").foregroundStyle(.secondary).multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
+                .padding(.vertical, pt(8))
                 .listRowBackground(Color.clear)
             }
             .houseRows()

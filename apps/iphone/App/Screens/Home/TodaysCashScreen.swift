@@ -148,18 +148,18 @@ struct TodaysCashScreen: View {
 
     private func tiles(_ t: TodaysCash) -> some View {
         let n = t.expenseLines.count
-        return VStack(spacing: 10) {
-            HStack(alignment: .top, spacing: 10) {
+        return VStack(spacing: pt(10)) {
+            HStack(alignment: .top, spacing: pt(10)) {
                 FigureTile(label: "In the drawer", value: Money.pkr(t.netCash), detail: "Cash in, less what was paid out",
                            tint: t.netCash < 0 ? Tone.owed.color : Theme.accent)
                 FigureTile(label: "Money in", value: Money.pkr(t.totalIn))
             }
-            HStack(alignment: .top, spacing: 10) {
+            HStack(alignment: .top, spacing: pt(10)) {
                 FigureTile(label: "Paid out", value: Money.pkr(t.expenses), detail: "\(n) expense\(n == 1 ? "" : "s")")
                 FigureTile(label: "Exchange", value: Money.pkr(t.exchange), detail: "Taken in exchange — not cash")
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, pt(4))
     }
 
     private func methodRow(_ m: CashMethod, _ amount: Double) -> some View {

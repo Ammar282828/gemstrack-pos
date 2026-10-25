@@ -131,7 +131,7 @@ struct CustomerSpamSheet: View {
                     }
                 } else {
                     Section {
-                        HStack(spacing: 10) {
+                        HStack(spacing: pt(10)) {
                             ProgressView()
                             Text("Looking for spam…").foregroundStyle(.secondary)
                         }
@@ -184,7 +184,7 @@ struct CustomerSpamSheet: View {
         } header: {
             LedgerHeading(title: "Suspected bot accounts", count: found.count)
         } footer: {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: pt(6)) {
                 Text("Removing hides them; Settings, then Recently removed, puts them back. It asks for the delete code once.")
                 // The web's own warning: a storefront's bots sign up again until the store stops them.
                 if found.contains(where: { CustomerKit.filled($0.customer.shopifyCustomerId) != nil }) {
@@ -200,12 +200,12 @@ struct CustomerSpamSheet: View {
         return Button {
             if on { selected.remove(c.id) } else { selected.insert(c.id) }
         } label: {
-            HStack(alignment: .top, spacing: 12) {
+            HStack(alignment: .top, spacing: pt(12)) {
                 Image(systemName: on ? "checkmark.circle.fill" : "circle")
                     .font(.title3)
                     .foregroundStyle(on ? Theme.accent : Color.secondary)
                     .contentTransition(.symbolEffect(.replace))
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: pt(4)) {
                     Text(CustomerKit.trim(c.customer.name).isEmpty ? "(no name)" : c.customer.name)
                         .font(.body.weight(.medium))
                         .foregroundStyle(.primary)
@@ -229,7 +229,7 @@ struct CustomerSpamSheet: View {
     }
 
     private func tick(_ on: Bool, _ title: String) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: pt(12)) {
             Image(systemName: on ? "checkmark.circle.fill" : "circle")
                 .font(.title3)
                 .foregroundStyle(on ? Theme.accent : Color.secondary)
@@ -328,7 +328,7 @@ struct CustomerSpamSheet: View {
 
     private func progressSection(_ r: Run) -> some View {
         Section {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: pt(8)) {
                 Text(r.finished ? "Finished" : "Removing \(min(r.done + 1, r.queue.count)) of \(r.queue.count)…")
                     .font(.body.weight(.medium))
                 ProgressView(value: Double(r.done), total: Double(max(1, r.queue.count)))
@@ -338,7 +338,7 @@ struct CustomerSpamSheet: View {
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
             }
-            .padding(.vertical, 4)
+            .padding(.vertical, pt(4))
         } header: {
             LedgerHeading(title: "Clean-up")
         } footer: {

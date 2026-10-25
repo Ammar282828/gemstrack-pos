@@ -666,7 +666,7 @@ struct AdsNewAdScreen: View {
                 Button("Try again") { Task { await loadMedia(after: nil) } }.buttonStyle(.bordered)
             }
             if let post, !(media ?? []).contains(where: { (m: AdsMedia) in m.id == post.id }) {
-                HStack(spacing: 10) {
+                HStack(spacing: pt(10)) {
                     StockImage(imageUrl: post.thumb, name: "Post", key: post.id)
                         .frame(width: 56, height: 56)
                         .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
@@ -703,7 +703,7 @@ struct AdsNewAdScreen: View {
                             remove: { photos.removeAll { (x: AdsPhoto) in x.key == key } })
             }
             if kind == .photos && photos.count < 10 {
-                HStack(spacing: 10) {
+                HStack(spacing: pt(10)) {
                     Button { picking = true } label: {
                         #if os(macOS)
                         Label(photos.isEmpty ? "From Photos" : "Add more", systemImage: "photo.badge.plus")
@@ -723,7 +723,7 @@ struct AdsNewAdScreen: View {
                 }
             }
             if let v = vertical, readyPhotos.count == 1 {
-                HStack(spacing: 10) {
+                HStack(spacing: pt(10)) {
                     StockImage(imageUrl: v.thumb ?? v.url, name: "Story size", key: v.key)
                         .frame(width: 32, height: 56)
                         .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
@@ -865,8 +865,8 @@ struct AdsNewAdScreen: View {
     private var audienceSection: some View {
         Section {
             Button { editingAudience = true } label: {
-                HStack(spacing: 10) {
-                    VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: pt(10)) {
+                    VStack(alignment: .leading, spacing: pt(4)) {
                         Text("Who sees it").foregroundStyle(.primary)
                         Text(audience.words).font(.subheadline).foregroundStyle(.secondary)
                     }
@@ -910,7 +910,7 @@ struct AdsNewAdScreen: View {
                     .monospacedDigit()
             }
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
+                HStack(spacing: pt(8)) {
                     ForEach(quick, id: \.self) { (v: Double) in
                         MarketingChip(title: AdsFormat.money(v, s.currency), selected: AdsAmount.parse(amount) == v) {
                             amount = AdsAmount.field(v)
@@ -993,7 +993,7 @@ struct AdsNewAdScreen: View {
     private var previewSection: some View {
         Section {
             Button { Task { await showPreview() } } label: {
-                HStack(spacing: 8) {
+                HStack(spacing: pt(8)) {
                     if previewBusy { SkeletonLoading() }
                     Label(previewBusy ? "Asking Meta…" : "See it as Instagram will show it", systemImage: "eye")
                 }
@@ -1042,7 +1042,7 @@ struct AdsNewAdScreen: View {
         List {
             Group {
                 Section {
-                    VStack(spacing: 10) {
+                    VStack(spacing: pt(10)) {
                         Image(systemName: "checkmark.circle.fill").font(.largeTitle).foregroundStyle(Tone.settled.color)
                         Text(m.live ? "The ad is on its way" : "The ad is made, paused").font(.headline)
                         Text(m.live ? "Meta reviews every ad first (usually within the hour); it starts as soon as it is approved."
@@ -1055,7 +1055,7 @@ struct AdsNewAdScreen: View {
                         }
                     }
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
+                    .padding(.vertical, pt(8))
                 }
                 Section {
                     MarketingLink(title: "See it in Campaigns", symbol: "checklist", path: "/ads/campaigns")

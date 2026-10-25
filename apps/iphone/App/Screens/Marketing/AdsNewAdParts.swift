@@ -64,7 +64,7 @@ struct AdsGoalLabel: View {
     let chosen: Bool
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: pt(12)) {
             Image(systemName: AdsNewAdWords.symbol(goal.key))
                 .foregroundStyle(chosen ? Theme.accent : Color.secondary)
                 .frame(width: 24)
@@ -85,7 +85,7 @@ struct AdsMediaGrid: View {
     let pick: (AdsMedia) -> Void
 
     var body: some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 96), spacing: 6)], spacing: 6) {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 96), spacing: pt(6))], spacing: pt(6)) {
             ForEach(media) { (m: AdsMedia) in
                 Button { pick(m) } label: { tile(m) }
                     .buttonStyle(.plain)
@@ -93,7 +93,7 @@ struct AdsMediaGrid: View {
                     .accessibilityLabel(m.caption.isEmpty ? "Post" : m.caption)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, pt(4))
     }
 
     private func tile(_ m: AdsMedia) -> some View {
@@ -106,10 +106,10 @@ struct AdsMediaGrid: View {
                     Text(w)
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(.primary)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 2)
+                        .padding(.horizontal, pt(5))
+                        .padding(.vertical, pt(2))
                         .background(Theme.card, in: .rect(cornerRadius: Radius.thumb, style: .continuous))
-                        .padding(4)
+                        .padding(pt(4))
                 }
             }
             .overlay(alignment: .topTrailing) {
@@ -117,7 +117,7 @@ struct AdsMediaGrid: View {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.title3)
                         .foregroundStyle(Theme.accent)
-                        .padding(4)
+                        .padding(pt(4))
                 }
             }
             .overlay {
@@ -134,10 +134,10 @@ struct AdsPieceGrid: View {
     let pick: (PostPiece) -> Void
 
     var body: some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 96), spacing: 6)], spacing: 8) {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 96), spacing: pt(6))], spacing: pt(8)) {
             ForEach(pieces) { (p: PostPiece) in
                 Button { pick(p) } label: {
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: pt(4)) {
                         StockImage(imageUrl: p.thumb, name: p.name, key: p.id)
                             .aspectRatio(1, contentMode: .fit)
                             .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
@@ -148,7 +148,7 @@ struct AdsPieceGrid: View {
                 .disabled(full)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, pt(4))
     }
 }
 
@@ -166,14 +166,14 @@ struct AdsPhotoRow: View {
     let remove: () -> Void
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .top, spacing: pt(10)) {
             thumb
                 .frame(width: 56, height: 56)
                 .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
-            VStack(alignment: .leading, spacing: 6) { state }
+            VStack(alignment: .leading, spacing: pt(6)) { state }
             Spacer(minLength: 4)
             if carousel {
-                VStack(spacing: 8) {
+                VStack(spacing: pt(8)) {
                     Button { move(-1) } label: { Image(systemName: "chevron.up") }
                         .buttonStyle(.borderless)
                         .disabled(first)
@@ -195,7 +195,7 @@ struct AdsPhotoRow: View {
     @ViewBuilder
     private var state: some View {
         if photo.uploading {
-            HStack(spacing: 6) {
+            HStack(spacing: pt(6)) {
                 SkeletonLoading()
                 Text("Sending to Meta…")
             }
@@ -244,7 +244,7 @@ struct AdsLibrarySheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: pt(12)) {
                     Text("Every picture in this ad account's Ads Manager library: \(DeviceWords.tap) one to use it again.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
@@ -253,7 +253,7 @@ struct AdsLibrarySheet: View {
                     }
                     grid
                 }
-                .padding(16)
+                .padding(pt(16))
             }
             .modifier(HouseGround())
             .navigationTitle("Ad account photos")
@@ -274,7 +274,7 @@ struct AdsLibrarySheet: View {
             if images.isEmpty {
                 ContentUnavailableView("The library is empty so far", systemImage: "photo.on.rectangle")
             }
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 84), spacing: 6)], spacing: 6) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 84), spacing: pt(6))], spacing: pt(6)) {
                 ForEach(images) { (img: AdsLibraryImage) in tile(img) }
             }
             if let after {
@@ -299,7 +299,7 @@ struct AdsLibrarySheet: View {
                 .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
                 .overlay(alignment: .topTrailing) {
                     if used {
-                        Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.accent).padding(4)
+                        Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.accent).padding(pt(4))
                     }
                 }
         }

@@ -84,6 +84,19 @@ enum Radius {
     #endif
 }
 
+/// A spacing or size written for the phone, as the Mac lays it out: Apple's own ratio for an iPad app on a Mac (Mac
+/// Catalyst's "Scale Interface to Match iPad", 77%), so a screen's room shrinks with its words, which the Mac's text
+/// styles already set about 77% of the phone's (body 13 pt against 17). The phone gets the number as written.
+/// `.padding(pt(16))`, `spacing: pt(12)`: every literal spacing in a shared screen goes through it (MAC-CONVENTIONS.md).
+@inline(__always)
+func pt(_ phone: CGFloat) -> CGFloat {
+    #if os(macOS)
+    (phone * 0.77).rounded()
+    #else
+    phone
+    #endif
+}
+
 /// The sizes that are a finger's on a phone and a pointer's on a Mac. Nothing else picks them.
 enum Metrics {
     #if os(macOS)

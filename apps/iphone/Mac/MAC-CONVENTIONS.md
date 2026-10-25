@@ -60,6 +60,13 @@ writes a phone's number:
   sidebar), never a button in the content. `SkeletonLoading().controlSize(.large)` keeps its meaning (a whole page loading).
 - `ledgerCard` is a Mac group box (the card colour, a hairline edge); `QuickAction` is a bordered button with its word.
 - The pointer stays the arrow over cards and rows (the pointing hand is a link's); hover is a faint wash.
+- **`pt(_:)`**: every literal spacing, padding, corner and fixed font size in a shared screen is written `pt(16)`: the
+  number as written on a phone, 77% of it on a Mac (Apple's own ratio for an iPad app on a Mac, which the Mac's text
+  styles already follow: body 13 pt against 17). A Mac-only body (`#if os(macOS)`) writes Mac numbers and no `pt`.
+- **A classic Mac application** (owner: "operate as a classic native mac os application"): on the Mac `Theme.ground` is
+  the window's background and `Theme.card` the system's content colour; lists and forms keep the system's backgrounds
+  and draw their own rows and selection (`houseRows` does nothing there, `mineRow` is the accent's bar). The house shows
+  in the accent only, as Mail and Finder carry the system's.
 - New sale, New order, a repair and Scan open in a window of their own (`MacShell`'s `creating`), never a sheet over
   the main window.
 

@@ -319,7 +319,7 @@ struct DesignLayersSheet: View {
         NavigationStack {
             ScrollView {
                 DesignLayerReviewCard(plan: plan, keep: $keep, onCancel: { dismiss() }, onStart: start, showsActions: false)
-                    .padding(.horizontal, 16).padding(.vertical, 12)
+                    .padding(.horizontal, pt(16)).padding(.vertical, pt(12))
             }
             .modifier(HouseGround())
             .navigationTitle("Layers").navigationBarTitleDisplayMode(.inline)
@@ -346,7 +346,7 @@ struct DesignAITools: View {
     let access: DesignAccess
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: pt(10)) {
             Label("With AI: the piece stays as it is", systemImage: "wand.and.stars").font(.subheadline.weight(.semibold))
             if let check = model.photoCheck {
                 let ok = DesignAIRules.checkOK(check)
@@ -355,7 +355,7 @@ struct DesignAITools: View {
             }
             let off = model.aiBusy != nil || model.photos["photo"] == nil
             if model.photos["photo"] == nil { Text("Add a photograph first.").font(.footnote).foregroundStyle(.secondary) }
-            VStack(spacing: 8) {
+            VStack(spacing: pt(8)) {
                 tool("Enhance: clean, colour, sparkle", "sparkles", off) { Task { await model.photoTool(.enhance) } }
                 tool("Logo and labels off", "eraser", off) { Task { await model.photoTool(.clean) } }
                 tool("Extend to this shape", "arrow.up.left.and.arrow.down.right", off) { Task { await model.photoTool(.extend) } }
@@ -374,11 +374,11 @@ struct DesignAITools: View {
             }
             Toggle("Also remove tags and strings", isOn: Binding(get: { model.tidy }, set: { model.setTidy($0) })).font(.footnote).tint(Theme.accent)
             if let busy = model.aiBusy {
-                HStack(spacing: 8) { ProgressView(); Text(busy + "…").font(.footnote).foregroundStyle(.secondary) }
+                HStack(spacing: pt(8)) { ProgressView(); Text(busy + "…").font(.footnote).foregroundStyle(.secondary) }
             }
             Text("Every result is compared with your photo; one that changed the piece waits for your say.").font(.caption2).foregroundStyle(.secondary)
         }
-        .padding(10)
+        .padding(pt(10))
         .background(Theme.ground, in: .rect(cornerRadius: Radius.tile, style: .continuous))
     }
 
@@ -397,7 +397,7 @@ struct DesignCandidateBanner: View {
     var body: some View {
         if let c = model.candidate {
             let same = c.check.map { DesignAIRules.checkOK($0) }
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: pt(10)) {
                 Text("\(c.label): to look at").font(.headline)
                 if let image = WebsitePhoto.thumbnail(c.data, maxPixel: 900) {
                     Image(uiImage: image).resizable().scaledToFit().frame(maxHeight: 280).clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))
@@ -411,7 +411,7 @@ struct DesignCandidateBanner: View {
                 } else {
                     Label("Not checked: compare the piece with your photograph.", systemImage: "exclamationmark.shield").font(.footnote).foregroundStyle(Tone.owed.color)
                 }
-                HStack(spacing: 10) {
+                HStack(spacing: pt(10)) {
                     if same == false || same == nil {
                         Button("Use it anyway") { model.useCandidate() }.buttonStyle(.bordered)
                     } else {

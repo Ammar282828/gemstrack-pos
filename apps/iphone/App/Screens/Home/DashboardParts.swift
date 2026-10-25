@@ -60,8 +60,8 @@ struct DashHero: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: pt(8)) {
+            HStack(spacing: pt(6)) {
                 DashLabel("Taken today", font: .caption.weight(.semibold))
                 Spacer(minLength: 8)
                 if linked { DashChevron() }
@@ -77,7 +77,7 @@ struct DashHero: View {
                 .lineLimit(2)
             if week.contains(where: { $0.amount > 0 }) {
                 DashWeekBars(days: week)
-                    .padding(.top, 6)
+                    .padding(.top, pt(6))
             }
         }
         .heroSheen(padding: 18)
@@ -93,7 +93,7 @@ struct DashWeekBars: View {
 
     var body: some View {
         let today = days.last?.id
-        VStack(spacing: 4) {
+        VStack(spacing: pt(4)) {
             Chart {
                 ForEach(days) { (d: DashDay) in
                     BarMark(x: .value("Day", DashDate.weekdayDayMonth(d.day)), y: .value("Taken", d.amount))
@@ -131,8 +131,8 @@ struct DashStat<Content: View>: View {
     @ViewBuilder let content: () -> Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
+        VStack(alignment: .leading, spacing: pt(6)) {
+            HStack(alignment: .firstTextBaseline, spacing: pt(4)) {
                 DashLabel(label).lineLimit(2)
                 Spacer(minLength: 0)
                 if linked { DashChevron() }
@@ -236,7 +236,7 @@ struct DashHeader: View {
     var allLabel: String?
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
+        HStack(alignment: .firstTextBaseline, spacing: pt(8)) {
             LedgerHeading(title: title, count: count)
             if let allPath {
                 NavigationLink(value: Route(path: allPath)) {
@@ -251,7 +251,7 @@ struct DashHeader: View {
                 .accessibilityLabel(allLabel ?? "All")
             }
         }
-        .padding(.horizontal, 4)
+        .padding(.horizontal, pt(4))
     }
 }
 
@@ -277,7 +277,7 @@ extension View {
     /// A list's rows on one ledger card.
     func dashRowsCard() -> some View {
         VStack(spacing: 0) { self }
-            .padding(.horizontal, 14)
+            .padding(.horizontal, pt(14))
             .ledgerCard(padding: 0)
     }
 }
@@ -291,14 +291,14 @@ struct DashEmpty: View {
             .font(.subheadline)
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 16)
+            .padding(.vertical, pt(16))
     }
 }
 
 /// "Needs you" with nothing in it: calm, in the settled tone.
 struct DashAllClear: View {
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: pt(10)) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.title3)
                 .foregroundStyle(.secondary)
@@ -310,7 +310,7 @@ struct DashAllClear: View {
                 .lineLimit(2)
             Spacer(minLength: 0)
         }
-        .padding(.vertical, 14)
+        .padding(.vertical, pt(14))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("All clear: nothing late, unpaid or waiting")
     }
@@ -379,7 +379,7 @@ struct DashNeedRow: View {
     }
 
     private var content: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: pt(12)) {
             Image(systemName: symbol)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(tone.color)
@@ -402,7 +402,7 @@ struct DashNeedRow: View {
             }
             DashChevron()
         }
-        .padding(.vertical, 11)
+        .padding(.vertical, pt(11))
         .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(spoken)
@@ -443,7 +443,7 @@ struct DashDueRow: View {
 
     var body: some View {
         NavigationLink(value: Route(path: due.path)) {
-            HStack(spacing: 12) {
+            HStack(spacing: pt(12)) {
                 DateLeaf(date: due.timing.due, tone: leafTone, size: Self.leaf)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(due.customer)
@@ -459,7 +459,7 @@ struct DashDueRow: View {
                 trailing
                 DashChevron()
             }
-            .padding(.vertical, 9)
+            .padding(.vertical, pt(9))
             .contentShape(Rectangle())
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(spoken)
@@ -506,7 +506,7 @@ struct DashSaleRow: View {
 
     var body: some View {
         NavigationLink(value: Route(path: DashPath.invoice(invoice.id))) {
-            HStack(spacing: 12) {
+            HStack(spacing: pt(12)) {
                 Monogram(name: invoice.customerName, size: Self.monogram)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(name)
@@ -524,7 +524,7 @@ struct DashSaleRow: View {
                 }
                 DashChevron()
             }
-            .padding(.vertical, 10)
+            .padding(.vertical, pt(10))
             .contentShape(Rectangle())
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("\(name), \(when), \(Spoken.rupees(invoiceSaleValue(invoice), lac: true)), \(Spoken.text(standing?.text ?? "Paid"))")
@@ -550,8 +550,8 @@ struct DashMonthCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            AdaptiveStack(spacing: 8, alignment: .top) {
+        VStack(alignment: .leading, spacing: pt(14)) {
+            AdaptiveStack(spacing: pt(8), alignment: .top) {
                 stat("Revenue", figures.revenueMonth, .primary)
                 if showCosts {
                     stat("Expenses", figures.expensesMonth, .primary)
@@ -583,7 +583,7 @@ struct DashMonthCard: View {
     }
 
     private var chart: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: pt(4)) {
             Chart(figures.monthDays) { (d: DashDay) in
                 AreaMark(x: .value("Day", d.day), y: .value("Taken", d.amount))
                     .interpolationMethod(.monotone)

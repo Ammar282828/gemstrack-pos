@@ -283,7 +283,7 @@ private struct AIKeysPage: View {
                 if keys == nil { LoadingRow("Loading…") }
                 if keys?.isEmpty == true, problem == nil { Text("No keys yet.").foregroundStyle(.secondary) }
                 ForEach(keys ?? []) { k in
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: pt(4)) {
                         Text("\(k.label)  ··\(k.tail)").fontWeight(.medium)
                         Text(k.scopes.map(scopeLabel).joined(separator: ", ") + (k.expired ? " · Expired" : ""))
                             .font(.caption).foregroundStyle(.secondary)
@@ -361,7 +361,7 @@ private struct AIKeySetup: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: pt(12)) {
             Picker("AI", selection: $kind) {
                 ForEach(AIKind.allCases) { Text($0.rawValue).tag($0) }
             }
@@ -400,9 +400,9 @@ private struct AICopyBlock: View {
     @State private var copied = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: pt(4)) {
             if let caption { Text(caption).font(.footnote).foregroundStyle(.secondary) }
-            HStack(alignment: .top, spacing: 8) {
+            HStack(alignment: .top, spacing: pt(8)) {
                 Text(text)
                     .font(.system(.footnote, design: .monospaced))
                     .textSelection(.enabled)
@@ -418,8 +418,8 @@ private struct AICopyBlock: View {
                 .help("Copy")
                 .accessibilityLabel("Copy")
             }
-            .padding(10)
-            .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .padding(pt(10))
+            .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: pt(10), style: .continuous))
         }
     }
 }

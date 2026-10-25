@@ -131,7 +131,7 @@ struct CustomerField: View {
             focus = nil
             pick(hit.customer)
         } label: {
-            HStack(spacing: 12) {
+            HStack(spacing: pt(12)) {
                 Initials(name: hit.customer.name)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(marked(hit)).lineLimit(1)
@@ -151,7 +151,7 @@ struct CustomerField: View {
     }
 
     private func pickedRow(_ c: Customer) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: pt(12)) {
             Initials(name: c.name, size: 40)
             VStack(alignment: .leading, spacing: 2) {
                 Text(c.name).font(.headline).lineLimit(1)
@@ -171,7 +171,7 @@ struct CustomerField: View {
             .buttonBorderShape(.capsule)
             .controlSize(.small)
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, pt(2))
     }
 
     /// The typed letters marked in the name.

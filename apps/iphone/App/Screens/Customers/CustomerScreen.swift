@@ -190,8 +190,8 @@ struct CustomerScreen: View {
     // MARK: Who, and how to reach them
 
     private func header(_ c: Customer) -> some View {
-        VStack(spacing: 14) {
-            VStack(spacing: 8) {
+        VStack(spacing: pt(14)) {
+            VStack(spacing: pt(8)) {
                 Monogram(name: CustomerKit.shown(c), size: 56)
                 Text(CustomerKit.shown(c))
                     .font(.system(.title2, design: .serif).weight(.semibold))
@@ -200,21 +200,21 @@ struct CustomerScreen: View {
                     Text(phone).font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
                 }
             }
-            HStack(spacing: 10) {
+            HStack(spacing: pt(10)) {
                 contact("Call", "phone.fill", CustomerKit.callURL(c.phone))
                 contact("WhatsApp", "message.fill", CustomerKit.whatsAppURL(c.phone))
                 contact("Message", "text.bubble.fill", CustomerKit.messageURL(c.phone))
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 4)
+        .padding(.vertical, pt(4))
     }
 
     private func contact(_ title: String, _ symbol: String, _ url: URL?) -> some View {
         Button {
             if let url { openURL(url) }
         } label: {
-            VStack(spacing: 4) {
+            VStack(spacing: pt(4)) {
                 Image(systemName: symbol).font(.title3)
                 Text(title).font(.caption)
             }
@@ -229,7 +229,7 @@ struct CustomerScreen: View {
 
     @ViewBuilder private func owedSection(_ o: CustomerKit.Owing) -> some View {
         Section {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: pt(12)) {
                 Text("Owed to you").font(.subheadline).foregroundStyle(.secondary)
                 HeroAmount(amount: o.total)
                 if !owedDetail(o).isEmpty {
@@ -411,7 +411,7 @@ private struct CustOrderRow: View {
 
     var body: some View {
         // The order's total is stored net of its advances, so it is the balance still to pay (order-payment.ts).
-        HStack(spacing: 8) {
+        HStack(spacing: pt(8)) {
             TwoLine(title: order.id, subtitle: subtitle, trailing: Money.pkr(order.grandTotal),
                     trailingTint: (closed || invoiced) ? .secondary : .primary)
             // Completed is the expected end: no badge for it (rule 15). Open, cancelled and refunded keep theirs.
@@ -434,7 +434,7 @@ private struct CustRepairRow: View {
 
     var body: some View {
         let status = CustomerKit.repairStatus(repair.status)
-        HStack(spacing: 8) {
+        HStack(spacing: pt(8)) {
             TwoLine(title: CustomerKit.repairSummary(repair), subtitle: subtitle,
                     trailing: (open && balance >= 1) ? Money.pkr(balance) : nil, trailingTint: Tone.owed.color)
             // Collected is the expected end: no pill for it (rule 15).

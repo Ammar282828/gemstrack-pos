@@ -33,9 +33,9 @@ private struct InvoicePaymentLink: ViewModifier {
                 if making {
                     Label("Making the payment link…", systemImage: "link")
                         .font(.footnote.weight(.medium))
-                        .padding(.horizontal, 14).padding(.vertical, 7)
+                        .padding(.horizontal, pt(14)).padding(.vertical, pt(7))
                         .glassEffect(.regular, in: .capsule)
-                        .padding(.top, 8)
+                        .padding(.top, pt(8))
                         .transition(.move(edge: .top).combined(with: .opacity))
                 }
             }

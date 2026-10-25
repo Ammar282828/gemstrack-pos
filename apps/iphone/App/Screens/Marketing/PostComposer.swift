@@ -162,8 +162,8 @@ Section {
     private func flag(_ key: String) -> Binding<Bool> { Binding(get: { model.draft.words[key].bool }, set: { model.draft.words[key] = .bool($0) }) }
     private var photoStrip: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(alignment: .top, spacing: 16) {
-                ForEach(d.photos) { p in VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: pt(16)) {
+                ForEach(d.photos) { p in VStack(alignment: .leading, spacing: pt(8)) {
                     if let image = WebsitePhoto.thumbnail(p.data, maxPixel: 350) { Image(uiImage: image).resizable().scaledToFit().frame(width: 150, height: 150).background(Theme.ground, in: .rect(cornerRadius: Radius.tile, style: .continuous)) }
                     Button(model.hero?.id == p.id ? "Lead photo ✓" : "Make lead photo") { model.draft.story["bg"]["photoId"] = .string(p.id) }.font(.subheadline)
                     Toggle("Website", isOn: photoFlag(p.id, site: true)).disabled(model.frozen)
@@ -242,7 +242,7 @@ Section {
             DisclosureGroup("Connections and recent problems") {
                 Button("Check again") { Task { await model.checkHealth() } }
                 ForEach(model.health["checks"].array, id: \.text) { check in
-                    VStack(alignment: .leading, spacing: 5) {
+                    VStack(alignment: .leading, spacing: pt(5)) {
                         Label(check.s("label"), systemImage: check.s("status") == "ok" ? "checkmark.circle" : "exclamationmark.triangle")
                         Text(check.s("detail")).font(.footnote).foregroundStyle(.secondary)
                         if !check.s("fix").isEmpty { Text(check.s("fix")).font(.footnote) }
@@ -257,7 +257,7 @@ Section {
             List {
                 ForEach(model.drafts) { saved in
                     Button { Task { await model.open(saved); draftsOpen = false } } label: {
-                        VStack(alignment: .leading, spacing: 4) {
+                        VStack(alignment: .leading, spacing: pt(4)) {
                             Text(saved.title)
                             Text(saved.updated, style: .date).font(.caption).foregroundStyle(.secondary)
                             Text("\(saved.photos.count) photo\(saved.photos.count == 1 ? "" : "s")").font(.caption).foregroundStyle(.secondary)
@@ -349,7 +349,7 @@ struct NativeSitePhotoPicker: View {
         NavigationStack { List {
             if !loaded && error == nil { SkeletonLoading("Loading the website’s pieces") }
             ForEach(shown, id: \.text) { p in
-                Button { Task { await take(p) } } label: { HStack(spacing: 12) { MarketingPhoto(path: p.s("thumb", p.s("image"))).frame(width: 64, height: 64); VStack(alignment: .leading, spacing: 4) { Text(p.s("name")).foregroundStyle(.primary); Text(p.s("collection")).font(.caption).foregroundStyle(.secondary) } } }
+                Button { Task { await take(p) } } label: { HStack(spacing: pt(12)) { MarketingPhoto(path: p.s("thumb", p.s("image"))).frame(width: 64, height: 64); VStack(alignment: .leading, spacing: pt(4)) { Text(p.s("name")).foregroundStyle(.primary); Text(p.s("collection")).font(.caption).foregroundStyle(.secondary) } } }
             }
         }.houseRows().modifier(HouseGround()).searchable(text: $q).navigationTitle("From the website").navigationBarTitleDisplayMode(.inline)
             .overlay { if loaded && shown.isEmpty { if q.isEmpty { EmptyState("No pieces on the website", symbol: "globe") } else { ContentUnavailableView.search(text: q) } } }

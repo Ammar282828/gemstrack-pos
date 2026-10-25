@@ -19,7 +19,7 @@ struct AnaBarChart: View {
     var tint: Color = Theme.accent
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: pt(6)) {
             Chart(bars) { (b: AnaBar) in
                 BarMark(x: .value("Amount", b.value / Money.lac), y: .value("Name", b.label))
                     .foregroundStyle(tint)
@@ -61,7 +61,7 @@ struct AnaSalesChart: View {
     let days: [AnaDay]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: pt(6)) {
             Chart(days) { (d: AnaDay) in
                 AreaMark(x: .value("Day", d.plotDate), y: .value("Sales", d.sales / Money.lac))
                     .interpolationMethod(.monotone)
@@ -95,7 +95,7 @@ struct AnaOrdersChart: View {
     let days: [AnaDay]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: pt(6)) {
             Chart(days) { (d: AnaDay) in
                 BarMark(x: .value("Day", d.plotDate, unit: .day), y: .value("Orders", d.orders))
                     .foregroundStyle(Tone.settled.color)
@@ -122,7 +122,7 @@ struct AnaMonthlyChart: View {
     let best: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: pt(6)) {
             Chart {
                 ForEach(months) { (m: AnaMonth) in
                     BarMark(x: .value("Month", m.plotDate, unit: .month), y: .value("Revenue", m.revenue / Money.lac))
@@ -153,7 +153,7 @@ struct AnaSourceTrendChart: View {
     let points: [AnaSourcePoint]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: pt(6)) {
             Chart(points) { (p: AnaSourcePoint) in
                 LineMark(x: .value("Day", p.plotDate), y: .value("Revenue", p.amount / Money.lac), series: .value("Source", p.label))
                     .foregroundStyle(by: .value("Source", p.label))
@@ -191,11 +191,11 @@ struct AnaShareChart: View {
             Text("No category revenue in this period.").font(.subheadline).foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, minHeight: 80)
         } else {
-            VStack(spacing: 12) {
+            VStack(spacing: pt(12)) {
                 ForEach(rows) { (c: AnaBreakdown.CategoryRow) in
                     let muted = c.id == "uncategorized"
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    VStack(alignment: .leading, spacing: pt(4)) {
+                        HStack(alignment: .firstTextBaseline, spacing: pt(12)) {
                             Text(c.name).font(.subheadline).lineLimit(1)
                                 .foregroundStyle(muted ? Color.secondary : Color.primary)
                             Spacer(minLength: 0)

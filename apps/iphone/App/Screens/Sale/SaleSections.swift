@@ -51,7 +51,7 @@ extension SaleForm {
     func lineRow(_ line: SaleLine, _ f: SaleFigures) -> some View {
         // A piece gone from the shelf since it went on the sale (sold at the counter, or on another phone).
         let gone = book.products.loaded && !line.isOneOff && book.products.item(line.sku) == nil
-        return VStack(alignment: .leading, spacing: 4) {
+        return VStack(alignment: .leading, spacing: pt(4)) {
             TwoLine(title: line.name.isEmpty ? (line.stockSku ?? "New piece") : line.name, subtitle: spec(line), trailing: Money.pkr(f.price(of: line.sku)))
             if line.isCustomPrice {
                 Text("Fixed price: \(Money.pkr(line.customPrice ?? 0))").font(.caption).foregroundStyle(Tone.owed.color)
@@ -91,7 +91,7 @@ extension SaleForm {
         let results = SaleLookup.matches(query, in: book.products.items, excluding: taken)
         Section {
             ForEach(draft.lines) { line in lineButton(line, f) }
-            HStack(spacing: 8) {
+            HStack(spacing: pt(8)) {
                 Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
                 TextField("Search stock by SKU or name", text: $query)
                     .textInputAutocapitalization(.never)
@@ -215,8 +215,8 @@ extension SaleForm {
 
     private func exchangeRow(_ row: SaleExchangeRow) -> some View {
         let computed = !row.valueTyped && SaleNumber.value(row.weightG) > 0 && SaleNumber.value(row.ratePerGram) > 0
-        return VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 10) {
+        return VStack(alignment: .leading, spacing: pt(8)) {
+            HStack(spacing: pt(10)) {
                 TextField("What it is (e.g. old ring)", text: exchangeBinding(row.id, .description))
                 TextField("Amount", text: exchangeBinding(row.id, .value).wholeRupees)
                     .keyboardType(.numberPad)
@@ -225,7 +225,7 @@ extension SaleForm {
                     .frame(width: 110)
             }
             if row.hasDetails || openedExchange.contains(row.id) {
-                HStack(spacing: 10) {
+                HStack(spacing: pt(10)) {
                     // Karat only where the house sells gold; a silver house weighs without it.
                     if House.metal == "gold" {
                         Picker("Karat", selection: exchangeBinding(row.id, .karat)) {
@@ -292,8 +292,8 @@ extension SaleForm {
 
     private func paymentRow(_ row: Binding<SalePaymentRow>, _ f: SaleFigures) -> some View {
         let single = draft.payments.count < 2
-        return VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 10) {
+        return VStack(alignment: .leading, spacing: pt(8)) {
+            HStack(spacing: pt(10)) {
                 TextField("Amount (PKR)", text: row.amount.wholeRupees)
                     .keyboardType(.numberPad)
                     .monospacedDigit()
@@ -302,7 +302,7 @@ extension SaleForm {
                     .controlSize(.small)
                     .disabled(!f.hasEstimate)
             }
-            HStack(spacing: 10) {
+            HStack(spacing: pt(10)) {
                 Picker("Paid by", selection: row.method) {
                     ForEach(PaymentMethods.all, id: \.self) { m in Text(m).tag(m) }
                 }
@@ -422,7 +422,7 @@ extension SaleForm {
     func marginRow(_ m: Margin) -> some View {
         let tone: Color = m.assumed ? Tone.quiet.color : (m.percent < 0 ? Tone.late.color : Tone.settled.color)
         return Button { marginShown.toggle() } label: {
-            HStack(spacing: 12) {
+            HStack(spacing: pt(12)) {
                 Label("We earn", systemImage: "lock").foregroundStyle(.secondary)
                 Spacer()
                 Text(marginShown ? marginWords(m) : "00.0% · PKR 00,000")
@@ -549,7 +549,7 @@ extension SaleForm {
             }
         }()
         return ViewThatFits(in: .horizontal) {
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
+            HStack(alignment: .firstTextBaseline, spacing: pt(12)) {
                 total.lineLimit(1)
                 Spacer(minLength: 8)
                 summaryDue(due, f)
@@ -559,7 +559,7 @@ extension SaleForm {
                 summaryDue(due, f)
             }
         }
-        .padding(.horizontal, 16).padding(.vertical, 8)
+        .padding(.horizontal, pt(16)).padding(.vertical, pt(8))
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Theme.ground)
         .accessibilityElement(children: .combine)
@@ -637,7 +637,7 @@ extension SaleForm {
     /// The one action of the screen, with the ERP's own words above it: what it refused, else why
     /// Save is off (sale-page.tsx `invoiceBlockedReason`: a disabled button with no explanation reads as broken).
     func saveBar(_ f: SaleFigures) -> some View {
-        VStack(spacing: 8) {
+        VStack(spacing: pt(8)) {
             UpdateBanner()
             // What the refusal asks to be done about it. The refusal's own words come as an alert (failureAlert),
             // on whatever step the person is on.
@@ -668,7 +668,7 @@ extension SaleForm {
                     .frame(maxWidth: .infinity)
             }
             Button { Task { await save(f) } } label: {
-                HStack(spacing: 8) {
+                HStack(spacing: pt(8)) {
                     if saving { ProgressView().controlSize(.small) }
                     Text(edit != nil ? (f.hasEstimate ? "Save changes · \(Money.pkr(f.total))" : "Save changes")
                          : (f.hasEstimate ? "Save sale · \(Money.pkr(f.total))" : "Save sale"))
@@ -679,8 +679,8 @@ extension SaleForm {
             .largeOnPhone()
             .disabled(!f.canSave || saving || UpdateGate.blocked)
         }
-        .padding(.horizontal, 16)
-        .padding(.bottom, 8)
+        .padding(.horizontal, pt(16))
+        .padding(.bottom, pt(8))
         .motion(alreadySold || !goneSkus.isEmpty)
     }
 

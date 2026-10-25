@@ -16,24 +16,24 @@ struct AdsPreviewSheet: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 12) {
+            VStack(spacing: pt(12)) {
                 if previews.count > 1 {
                     Picker("Where", selection: $chosen) {
                         ForEach(previews) { (p: AdsPreview) in Text(p.label).tag(p.format) }
                     }
                     .pickerStyle(.segmented)
-                    .padding(.horizontal, 16)
+                    .padding(.horizontal, pt(16))
                 }
                 if let p = previews.first(where: { (x: AdsPreview) in x.format == chosen }), let url = URL(string: p.src) {
                     AdsFrame(url: url)
                         .id(p.format)
                         .clipShape(.rect(cornerRadius: Radius.chip, style: .continuous))
-                        .padding(.horizontal, 16)
+                        .padding(.horizontal, pt(16))
                 } else {
                     ContentUnavailableView("Meta gave no preview", systemImage: "eye.slash")
                 }
             }
-            .padding(.top, 8)
+            .padding(.top, pt(8))
             .modifier(HouseGround())
             .navigationTitle("Preview")
             .navigationBarTitleDisplayMode(.inline)

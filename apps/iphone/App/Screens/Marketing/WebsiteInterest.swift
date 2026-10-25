@@ -205,7 +205,7 @@ struct WebsiteInterestScreen: View {
 
     private var wideBody: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: pt(20)) {
                 widePeriod
                 if let r = report {
                     wideReport(r)
@@ -215,9 +215,9 @@ struct WebsiteInterestScreen: View {
                 }
             }
             .environment(\.siteWide, true)
-            .padding(.horizontal, 28)
-            .padding(.top, 8)
-            .padding(.bottom, 28)
+            .padding(.horizontal, pt(28))
+            .padding(.top, pt(8))
+            .padding(.bottom, pt(28))
             .frame(maxWidth: 1240)
             .frame(maxWidth: .infinity)
         }
@@ -229,8 +229,8 @@ struct WebsiteInterestScreen: View {
         // The period, Custom and Live are in the window's toolbar.
         EmptyView()
         #else
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .center, spacing: 16) {
+        VStack(alignment: .leading, spacing: pt(10)) {
+            HStack(alignment: .center, spacing: pt(16)) {
                 ChipRow {
                     ForEach(periods, id: \.key) { (p: (key: String, label: String)) in
                         FilterChip(title: p.label, chosen: !custom && periodKey == p.key) { choose(p.key) }
@@ -257,12 +257,12 @@ struct WebsiteInterestScreen: View {
                 .font(.subheadline).foregroundStyle(.secondary)
         }
         // Eight tiles in two rows of four.
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12, alignment: .top), count: 4), spacing: 12) {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: pt(12), alignment: .top), count: 4), spacing: pt(12)) {
             tiles(r)
         }
         SiteChartSection(report: r)
-        HStack(alignment: .top, spacing: 20) {
-            VStack(alignment: .leading, spacing: 20) {
+        HStack(alignment: .top, spacing: pt(20)) {
+            VStack(alignment: .leading, spacing: pt(20)) {
                 SiteFunnelSection(now: n, before: r.before)
                 SiteRankSection(title: "Where they came from", rows: SiteRanks.sourceRows(n.sources), total: n.sessions, empty: "No sessions yet.",
                                 alt: SiteRanks.channelRows(n.channels), picks: ["Sources", "Kinds"])
@@ -271,7 +271,7 @@ struct WebsiteInterestScreen: View {
                 deviceSections(n)
             }
             .frame(maxWidth: .infinity, alignment: .top)
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: pt(20)) {
                 SiteRankSection(title: "Where they are", rows: SiteRanks.cityRows(n.countries, cities: n.cities), total: n.sessions, empty: "No sessions yet.",
                                 alt: SiteRanks.countryRows(n.countries), picks: ["Cities", "Countries"])
                 pageSections(n)
@@ -282,14 +282,14 @@ struct WebsiteInterestScreen: View {
 
     private var widePieces: some View {
         let rows = list.ranked(pieces ?? [])
-        return VStack(alignment: .leading, spacing: 12) {
+        return VStack(alignment: .leading, spacing: pt(12)) {
             LedgerHeading(title: "Pieces")
             picker
             if pieces != nil && rows.isEmpty {
                 Text(list.emptyTitle + ". It fills as people use the website.")
                     .font(.subheadline).foregroundStyle(.secondary)
             }
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 20, alignment: .top), GridItem(.flexible(), spacing: 20, alignment: .top)], spacing: 14) {
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: pt(20), alignment: .top), GridItem(.flexible(), spacing: pt(20), alignment: .top)], spacing: pt(14)) {
                 ForEach(Array(rows.enumerated()), id: \.element.id) { (i: Int, r: WebsiteInterestPiece) in
                     row(r, rank: i + 1, in: list)
                 }
@@ -330,7 +330,7 @@ struct WebsiteInterestScreen: View {
     }
 
     var liveLabel: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: pt(10)) {
             Image(systemName: "dot.radiowaves.left.and.right")
                 .foregroundStyle((liveNow ?? 0) > 0 ? Tone.settled.color : Color.secondary)
             if let n = liveNow {
@@ -516,7 +516,7 @@ struct WebsiteInterestScreen: View {
         Button {
             if let u = URL(string: r.url), !r.url.isEmpty { openURL(u) }
         } label: {
-            HStack(spacing: 12) {
+            HStack(spacing: pt(12)) {
                 Text("\(rank)")
                     .font(.footnote.monospacedDigit())
                     .foregroundStyle(.tertiary)

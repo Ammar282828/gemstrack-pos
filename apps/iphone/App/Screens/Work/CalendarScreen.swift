@@ -139,21 +139,21 @@ struct CalendarScreen: View {
 
     /// The month on screen: its money, its sales and orders, and the average day that took anything.
     private func tiles(_ m: ShopCalendarMonth) -> some View {
-        VStack(spacing: 10) {
-            FigureRow(alignment: .top, spacing: 10) {
+        VStack(spacing: pt(10)) {
+            FigureRow(alignment: .top, spacing: pt(10)) {
                 FigureTile(label: ShopCalendar.title(year: year, month: month), value: Money.pkrLac(m.total), tint: Tone.settled.color)
                 FigureTile(label: "Sales", value: "\(m.sales)")
             }
-            FigureRow(alignment: .top, spacing: 10) {
+            FigureRow(alignment: .top, spacing: pt(10)) {
                 FigureTile(label: "Orders", value: "\(m.orders)")
                 FigureTile(label: "Average trading day", value: m.perTradingDay > 0 ? Money.pkrLac(m.perTradingDay) : "—")
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, pt(4))
     }
 
     private var legend: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: pt(14)) {
             Label("Sales", systemImage: "circle.fill").foregroundStyle(Tone.settled.color)
             Label("Orders", systemImage: "circle.fill").foregroundStyle(Tone.working.color)
             Label("Promised", systemImage: "calendar.badge.clock").foregroundStyle(Tone.owed.color)
@@ -167,8 +167,8 @@ struct CalendarScreen: View {
     private func monthGrid(_ books: Reckoned) -> some View {
         let cells = ShopCalendar.cells(year: year, month: month)
         let today = CalendarScreen.todayKey()
-        let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 7)
-        return VStack(spacing: 8) {
+        let columns = Array(repeating: GridItem(.flexible(), spacing: pt(4)), count: 7)
+        return VStack(spacing: pt(8)) {
             HStack {
                 Button { step(-1) } label: { Image(systemName: "chevron.left").frame(width: Metrics.tap, height: Metrics.tap) }
                     .buttonStyle(.borderless)
@@ -181,7 +181,7 @@ struct CalendarScreen: View {
                     .buttonStyle(.borderless)
                     .accessibilityLabel("Next month")
             }
-            LazyVGrid(columns: columns, spacing: 4) {
+            LazyVGrid(columns: columns, spacing: pt(4)) {
                 ForEach(["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"], id: \.self) { (name: String) in
                     Text(name).font(.caption2).foregroundStyle(.secondary)
                 }
@@ -195,7 +195,7 @@ struct CalendarScreen: View {
                 }
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, pt(4))
         .motion(year * 100 + month)
     }
 
@@ -288,7 +288,7 @@ struct CalendarScreen: View {
     private func eventRow(_ e: ShopCalendarEvent) -> some View {
         let path = e.isInvoice ? WorkPaths.invoice(e.docId) : WorkPaths.order(e.docId)
         return NavigationLink(value: Route(path: path)) {
-            HStack(alignment: .top, spacing: 12) {
+            HStack(alignment: .top, spacing: pt(12)) {
                 Image(systemName: e.isInvoice ? "receipt" : "list.clipboard")
                     .foregroundStyle(e.isInvoice ? Tone.settled.color : Tone.working.color)
                     .frame(width: 24)
@@ -319,7 +319,7 @@ struct CalendarScreen: View {
             Section {
                 ForEach(due) { o in
                     NavigationLink(value: Route(path: WorkPaths.order(o.id))) {
-                        HStack(alignment: .top, spacing: 12) {
+                        HStack(alignment: .top, spacing: pt(12)) {
                             Image(systemName: "calendar.badge.clock").foregroundStyle(Tone.owed.color).frame(width: 24)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(o.id).font(.subheadline.monospaced().weight(.semibold)).lineLimit(1)
@@ -350,7 +350,7 @@ struct CalendarScreen: View {
 /// The legend's small icon beside its word.
 private struct LegendLabel: LabelStyle {
     func makeBody(configuration: Configuration) -> some View {
-        HStack(spacing: 4) {
+        HStack(spacing: pt(4)) {
             configuration.icon.imageScale(.small)
             configuration.title
         }

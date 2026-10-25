@@ -221,10 +221,10 @@ struct WorkshopBoard: View {
                     FigureTile(label: "Value out", value: value > 0 ? Money.pkrLac(value) : "—")
                 }
             }
-            .padding(.vertical, 4)
+            .padding(.vertical, pt(4))
             }
             .font(.subheadline)
-            .padding(16)
+            .padding(pt(16))
             .listRowInsets(EdgeInsets())
             .listRowBackground(Color.clear)
         }
@@ -240,8 +240,8 @@ struct WorkshopBoard: View {
 
     private func karigarHeader(_ load: WorkshopLoad) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            AdaptiveStack(spacing: 8, alignment: .center) {
-                HStack(spacing: 6) {
+            AdaptiveStack(spacing: pt(8), alignment: .center) {
+                HStack(spacing: pt(6)) {
                     Image(systemName: load.isUnassigned ? "exclamationmark.triangle.fill" : "hammer")
                         .foregroundStyle(load.isUnassigned ? Tone.owed.color : Theme.accent)
                     LedgerHeading(title: load.isUnassigned ? "Unassigned" : load.karigarName)
@@ -394,8 +394,8 @@ struct WorkshopBoard: View {
     }
 
     private func stageHeader(_ stage: Stage, _ jobs: [WorkshopJob]) -> some View {
-        AdaptiveStack(spacing: 8, alignment: .center) {
-            HStack(spacing: 6) {
+        AdaptiveStack(spacing: pt(8), alignment: .center) {
+            HStack(spacing: pt(6)) {
                 Image(systemName: stage.symbol).foregroundStyle(.secondary)
                 LedgerHeading(title: stage.title, count: jobs.count)
             }
@@ -457,7 +457,7 @@ struct WorkshopBoard: View {
     /// Only the Focus chips live in the list; the rest of the filtering (and Group by, and Reset) is the toolbar's Filter menu.
     private func controlBar(_ snap: WorkshopSnapshot) -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
+            HStack(spacing: pt(8)) {
                 ForEach(WorkshopFocus.allCases) { f in
                     // A count only where it asks for a hand (rule 15): All work's is the tile above.
                     FilterChip(title: focusTitle(f), count: f == .all ? nil : snap.count(f), chosen: focus == f) {
@@ -734,7 +734,7 @@ private struct FocusedCells: View {
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 20) {
+            HStack(spacing: pt(20)) {
                 ForEach(cells) { c in
                     VStack(alignment: .leading, spacing: 2) {
                         Text(c.label.uppercased()).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
@@ -742,7 +742,7 @@ private struct FocusedCells: View {
                     }
                 }
             }
-            .padding(.vertical, 2)
+            .padding(.vertical, pt(2))
         }
     }
 }

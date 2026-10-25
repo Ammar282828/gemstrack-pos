@@ -1,4 +1,7 @@
 import SwiftUI
+#if os(macOS)
+import AppKit
+#endif
 
 /// The business's colours, as the ERP's own palettes have them (src/app/globals.css, docs/features/two-houses.md):
 ///
@@ -17,8 +20,20 @@ import SwiftUI
 /// is rebuilt on it.
 enum Theme {
     static var accent: Color { color("Accent") { $0.accent } }
+    #if os(macOS)
+    // A classic Mac application (owner, 2026-10-25: "operate as a classic native mac os application"): the window's own
+    // background and the system's content colour, light or dark as the Mac is; the house is in the accent, as Mail
+    // and Finder carry the system's.
+    static var ground: Color { Color(nsColor: .windowBackgroundColor) }
+    static var card: Color { Color(nsColor: macCard) }
+    private static let macCard = NSColor(name: nil) { appearance in
+        appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            ? NSColor.white.withAlphaComponent(0.06) : NSColor.controlBackgroundColor
+    }
+    #else
     static var ground: Color { color("Ground") { $0.ground } }
     static var card: Color { color("Card") { $0.card } }
+    #endif
     /// Words on the accent (a filled button): white on the deep light-mode accents, and the house's dark
     /// ground on its light dark-mode gold and rose, as the web's --primary-foreground (white there reads
     /// at under 2.5:1).
@@ -137,7 +152,14 @@ extension Color {
 
 /// A list's rows on the house's card colour (apply to each Section, or to the List's content).
 struct HouseRows: ViewModifier {
-    func body(content: Content) -> some View { content.listRowBackground(Theme.card) }
+    func body(content: Content) -> some View {
+        #if os(macOS)
+        // A Mac's list draws its own rows (and their selection); a colour behind each row would hide both.
+        content
+        #else
+        content.listRowBackground(Theme.card)
+        #endif
+    }
 }
 
 extension View {
@@ -150,9 +172,9 @@ extension View {
     @ViewBuilder
     func houseForm() -> some View {
         #if os(macOS)
-        // A Mac's grouped form (System Settings' look), at a width a form reads at, and a sheet at least that size.
+        // A Mac's grouped form (System Settings' look, its own background), at a width a form reads at, and a sheet at
+        // least that size.
         self.formStyle(.grouped)
-            .scrollContentBackground(.hidden).background(Theme.ground)
             .frame(minWidth: 520, idealWidth: 640, minHeight: 420, idealHeight: 620)
         #else
         self.scrollContentBackground(.hidden).background(Theme.ground)
@@ -169,10 +191,16 @@ struct HouseGround: ViewModifier {
     private static let rowHeight: CGFloat = 56
     #endif
     func body(content: Content) -> some View {
+        #if os(macOS)
+        // A Mac's list or form keeps the system's own background.
+        content
+            .environment(\.defaultMinListRowHeight, Self.rowHeight)
+        #else
         content
             .scrollContentBackground(.hidden)
             .environment(\.defaultMinListRowHeight, Self.rowHeight)
             .sectionSpacing24()
             .background(Theme.ground.ignoresSafeArea())
+        #endif
     }
 }

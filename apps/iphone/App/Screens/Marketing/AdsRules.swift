@@ -187,7 +187,7 @@ struct AdsRulesScreen: View {
         Section {
             ForEach(data?.kinds ?? []) { (k: AdsHinted) in
                 Button { kind = k.key } label: {
-                    HStack(alignment: .top, spacing: 10) {
+                    HStack(alignment: .top, spacing: pt(10)) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(k.label).foregroundStyle(.primary)
                             Text(k.hint).font(.caption).foregroundStyle(.secondary)
@@ -204,7 +204,7 @@ struct AdsRulesScreen: View {
                     .monospacedDigit()
             }
             Button { making = true } label: {
-                HStack(spacing: 8) {
+                HStack(spacing: pt(8)) {
                     if busy == "new" { SkeletonLoading() }
                     Text("Make the rule")
                 }
@@ -230,7 +230,7 @@ struct AdsRulesScreen: View {
                     Text("None yet.").foregroundStyle(.secondary)
                 }
                 ForEach(data.rules) { (r: AdsRuleRow) in
-                    HStack(spacing: 10) {
+                    HStack(spacing: pt(10)) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(r.name)
                             Text(r.summary).font(.caption).foregroundStyle(.secondary)

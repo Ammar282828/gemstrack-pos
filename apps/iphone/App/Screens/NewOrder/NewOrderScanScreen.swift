@@ -60,7 +60,7 @@ struct NewOrderScanScreen: View {
             photosSection
             if busy {
                 Section {
-                    HStack(spacing: 12) {
+                    HStack(spacing: pt(12)) {
                         SkeletonLoading()
                         Text(photos.count > 1 ? "Reading \(photos.count) photos…" : "Reading it…")
                         Spacer(minLength: 8)
@@ -189,7 +189,7 @@ struct NewOrderScanScreen: View {
         if s.num(it.stoneCharges) > 0 { bits.append("stones \(s.money(s.num(it.stoneCharges)))") }
         if let size = it.size, !size.isEmpty { bits.append("Size \(size)") }
         if let idx = it.photoIndex, photos.count > 1 { bits.append("photo \(s.jsNumber(idx))") }
-        return VStack(alignment: .leading, spacing: 4) {
+        return VStack(alignment: .leading, spacing: pt(4)) {
             TwoLine(title: (it.description ?? "").isEmpty ? "Unnamed piece" : it.description!,
                     subtitle: bits.joined(separator: " · "),
                     trailing: written > 0 ? Money.pkr(written) : nil,

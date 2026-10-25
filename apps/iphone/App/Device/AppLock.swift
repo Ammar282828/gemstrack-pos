@@ -104,13 +104,13 @@ struct LockCover: View {
     var body: some View {
         ZStack {
             Theme.ground.ignoresSafeArea()
-            VStack(spacing: 24) {
-                HouseLogo().padding(.horizontal, 32)
+            VStack(spacing: pt(24)) {
+                HouseLogo().padding(.horizontal, pt(32))
                 if lock.locked {
                     Button {
                         Task { await lock.unlock() }
                     } label: {
-                        Label("Unlock", systemImage: LockCover.symbol).padding(.horizontal, 12).padding(.vertical, 4)
+                        Label("Unlock", systemImage: LockCover.symbol).padding(.horizontal, pt(12)).padding(.vertical, pt(4))
                     }
                     .buttonStyle(.houseProminent)
                     .controlSize(.large)

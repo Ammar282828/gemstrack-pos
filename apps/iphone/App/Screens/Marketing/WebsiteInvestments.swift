@@ -137,9 +137,9 @@ struct WebsiteInvestmentsScreen: View {
     func dayRow(_ p: WebsiteGoldPost) -> some View {
         let targets = gold.targets
         let sent = targets.filter { (t: WebsiteGoldStatus.Target) in p.sent[t.id] != nil }.count
-        return HStack(spacing: 10) {
+        return HStack(spacing: pt(10)) {
             VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 6) {
+                HStack(spacing: pt(6)) {
                     Text(WebsiteGoldTime.longDate(p.date)).font(.body.weight(.semibold))
                     if p.hold { Pill("Held", tone: .quiet) }
                 }
@@ -332,7 +332,7 @@ struct WebsiteGoldDaySheet: View {
                 } header: {
                     LedgerHeading(title: "Teaser · for the main community")
                 } footer: {
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: pt(4)) {
                         if edited {
                             Text("You've changed the words: what you send now is your version, and it's saved when it goes.\(scheduled ? " The schedule sends the saved words, so send by hand to use these." : "")")
                                 .foregroundStyle(Tone.owed.color)
@@ -373,12 +373,12 @@ struct WebsiteGoldDaySheet: View {
 
     private func cardsSection(_ d: WebsiteGoldPost) -> some View {
         LedgerSection("Cards") {
-            HStack(alignment: .top, spacing: 12) {
+            HStack(alignment: .top, spacing: pt(12)) {
                 card(d, kind: "square", label: "Square")
                 card(d, kind: "story", label: "Story")
             }
             .buttonStyle(.borderless)
-            .padding(.vertical, 4)
+            .padding(.vertical, pt(4))
         }
     }
 
@@ -386,7 +386,7 @@ struct WebsiteGoldDaySheet: View {
     private func card(_ d: WebsiteGoldPost, kind: String, label: String) -> some View {
         if d.cards.contains(kind), let url = WebsiteGold.cardURL(d, kind: kind) {
             Link(destination: url) {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: pt(4)) {
                     StockImage(imageUrl: url.absoluteString, name: label, key: d.id + kind + d.receivedAt)
                         .aspectRatio(kind == "square" ? 1 : 9.0 / 16.0, contentMode: .fit)
                         .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
@@ -438,7 +438,7 @@ struct WebsiteGoldDaySheet: View {
     private func partRow(_ t: WebsiteGoldStatus.Target, _ d: WebsiteGoldPost) -> some View {
         let went = d.sent[t.id]
         let part = isToday ? gold.status?.parts[t.id] : nil
-        return VStack(alignment: .leading, spacing: 6) {
+        return VStack(alignment: .leading, spacing: pt(6)) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(t.label).font(.body.weight(.medium))
@@ -457,7 +457,7 @@ struct WebsiteGoldDaySheet: View {
                     .font(.caption)
                     .foregroundStyle(part?.tone == "warn" ? Tone.owed.color : Color.secondary)
             }
-            HStack(spacing: 16) {
+            HStack(spacing: pt(16)) {
                 Button(went == nil ? "Send now" : "Send again…") { ask = .send([t.id], force: went != nil) }
                     .disabled(missing(t.id, d))
                 if scheduled && part?.kind == "gave-up" {
@@ -467,7 +467,7 @@ struct WebsiteGoldDaySheet: View {
             .font(.subheadline.weight(.medium))
             .buttonStyle(.borderless)
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, pt(2))
     }
 
     /// A part with nothing to send (page.tsx `missing`): no teaser, no story card, no post.

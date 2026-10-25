@@ -100,9 +100,9 @@ struct WebsiteEditScreen: View {
 
     private func phoneGrid(items: [WebsiteEditPiece], changedCount: Int, hiddenCount: Int) -> some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: pt(14)) {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
+                    HStack(spacing: pt(8)) {
                         MarketingChip(title: "Everything", selected: filter == .all) { filter = .all }
                         MarketingChip(title: "Changed here", count: changedCount > 0 ? changedCount : nil, selected: filter == .changed) { filter = .changed }
                         MarketingChip(title: "Hidden", count: hiddenCount > 0 ? hiddenCount : nil, selected: filter == .hidden) { filter = .hidden }
@@ -110,7 +110,7 @@ struct WebsiteEditScreen: View {
                 }
                 .scrollClipDisabled()
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
+                    HStack(spacing: pt(8)) {
                         MarketingChip(title: "Every collection", selected: collection.isEmpty) { collection = "" }
                         ForEach(collections, id: \.self) { (c: String) in
                             MarketingChip(title: c, selected: collection == c) { collection = c }
@@ -125,7 +125,7 @@ struct WebsiteEditScreen: View {
                     ContentUnavailableView("Nothing matches", systemImage: "square.grid.2x2",
                                            description: Text("Clear the search, or pick another collection."))
                 } else {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: 12)], spacing: 14) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: pt(12))], spacing: pt(14)) {
                         ForEach(Array(items.prefix(shown))) { (p: WebsiteEditPiece) in
                             NavigationLink(value: Route(path: WebsiteEditScreen.piecePath(p.id))) {
                                 WebsiteEditTile(piece: p)
@@ -142,8 +142,8 @@ struct WebsiteEditScreen: View {
                 }
                 if !store.recent.isEmpty { recentCard }
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 16)
+            .padding(.horizontal, pt(16))
+            .padding(.bottom, pt(16))
         }
         .refreshable { await store.load(fresh: true) }
     }
@@ -186,18 +186,18 @@ struct WebsiteEditTile: View {
     let piece: WebsiteEditPiece
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: pt(6)) {
             StockImage(imageUrl: piece.thumb, name: piece.words.name, key: piece.id)
                 .aspectRatio(1, contentMode: .fit)
                 .clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))
                 .opacity(piece.hidden ? 0.45 : 1)
                 .overlay(alignment: .topLeading) {
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: pt(4)) {
                         if piece.hidden { badge("Hidden", symbol: "eye.slash") }
                         if piece.photoEdited { badge("New photo", symbol: "photo") }
                         if piece.wordsChanged { badge("Words changed", symbol: "pencil") }
                     }
-                    .padding(6)
+                    .padding(pt(6))
                 }
             Text(piece.words.name.isEmpty ? "A piece" : piece.words.name)
                 .font(.subheadline.weight(.medium))
@@ -221,7 +221,7 @@ struct WebsiteEditTile: View {
         Label(text, systemImage: symbol)
             .font(.caption2.weight(.medium))
             .foregroundStyle(.primary)
-            .padding(.horizontal, 6).padding(.vertical, 3)
+            .padding(.horizontal, pt(6)).padding(.vertical, pt(3))
             .background(Theme.card, in: .capsule)
     }
 }

@@ -29,10 +29,10 @@ struct AnaSplit<Head: View, Left: View, Right: View>: View {
         Group {
             if wide {
                 VStack(spacing: 0) {
-                    bar.padding(.top, 8)
+                    bar.padding(.top, pt(8))
                     head(true)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 8)
+                        .padding(.horizontal, pt(20))
+                        .padding(.vertical, pt(8))
                     HStack(alignment: .top, spacing: 0) {
                         List { left(true) }.listStyle(.insetGrouped)
                         List { right(true) }.listStyle(.insetGrouped)

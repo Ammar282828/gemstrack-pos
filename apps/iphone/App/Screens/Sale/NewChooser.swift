@@ -80,7 +80,7 @@ struct NewChooser: View {
             for line in draft.lines { subtotal += calculateProductCosts(line.priced, rates).totalPrice }
         }
         return NavigationLink(value: SaleLinks.newSale) {
-            HStack(spacing: 12) {
+            HStack(spacing: pt(12)) {
                 Image(systemName: "cart").font(.title3).foregroundStyle(Tone.owed.color)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("A sale in progress").font(.headline)
@@ -96,7 +96,7 @@ struct NewChooser: View {
     /// An order left half-typed, one tap away like the sale.
     private var orderProgressRow: some View {
         NavigationLink(value: Route(path: "/orders/add")) {
-            HStack(spacing: 12) {
+            HStack(spacing: pt(12)) {
                 Image(systemName: "list.clipboard").font(.title3).foregroundStyle(Tone.owed.color)
                 Text("An order in progress").font(.headline)
             }
@@ -106,7 +106,7 @@ struct NewChooser: View {
     /// An icon in its own colour, the title and one line: Settings' and Files' rows.
     private func choice(path: String, icon: String, title: String, tint: Color, blurb: String) -> some View {
         NavigationLink(value: Route(path: path)) {
-            HStack(spacing: 14) {
+            HStack(spacing: pt(14)) {
                 Image(systemName: icon)
                     .font(.body.weight(.semibold))
                     // A glyph on a filled tile: the house's own words on its accent, white on the other tones.
@@ -120,7 +120,7 @@ struct NewChooser: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .padding(.vertical, 4)
+            .padding(.vertical, pt(4))
         }
     }
 }

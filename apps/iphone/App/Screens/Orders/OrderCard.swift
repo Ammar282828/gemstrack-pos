@@ -64,14 +64,14 @@ struct OrderCardRows: View {
 
     var body: some View {
       if standalone {
-        VStack(spacing: 12) {
+        VStack(spacing: pt(12)) {
             NavigationLink(value: Route(path: "/orders/\(order.id)")) {
                 OrderCardHead(order: order, stage: stage, owed: owed, now: now, greyed: greyed, mine: mine, showsStage: showsStage)
             }
             .buttonStyle(.plain)
             .zoomSource(id: "/orders/\(order.id)")
             Divider()
-            HStack(spacing: 8) {
+            HStack(spacing: pt(8)) {
                 if let step {
                     OrderNextStepRow(order: order, step: step, canAdvance: canAdvance, busy: busy, actions: actions, showsAdvanceMenu: false)
                 } else { Spacer(minLength: 0) }
@@ -179,20 +179,20 @@ struct OrderCardHead: View {
     var body: some View {
         let counts = pieceCounts(order.items)
         let wide = !typeSize.isAccessibilitySize
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: pt(10)) {
             // Who first, and what is owed beside them; the name takes two lines before the sum gives way.
             let layout = wide
-                ? AnyLayout(HStackLayout(alignment: .top, spacing: 12))
-                : AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+                ? AnyLayout(HStackLayout(alignment: .top, spacing: pt(12)))
+                : AnyLayout(VStackLayout(alignment: .leading, spacing: pt(8)))
             layout {
-                HStack(alignment: .top, spacing: 12) {
+                HStack(alignment: .top, spacing: pt(12)) {
                     Monogram(name: OrdersLogic.customerName(order), size: Monogram.Size.row)
                     VStack(alignment: .leading, spacing: 3) {
                         Text(OrdersLogic.customerName(order))
                             .font(.headline)
                             .foregroundStyle(greyed ? Color.secondary : Color.primary)
                             .lineLimit(2)
-                        HStack(spacing: 6) {
+                        HStack(spacing: pt(6)) {
                             Text(order.id).font(.caption).foregroundStyle(.secondary)
                             if mine { MineTag() }
                             if OrdersLogic.isOnline(order) { OrdersOnlineBadge() }
@@ -211,7 +211,7 @@ struct OrderCardHead: View {
                 .lineLimit(1)
             stateRow(counts)
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, pt(2))
         .accessibilityElement(children: .combine)
     }
 
@@ -219,8 +219,8 @@ struct OrderCardHead: View {
     @ViewBuilder
     private func stateRow(_ counts: PieceCounts) -> some View {
         let layout = typeSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6))
-            : AnyLayout(HStackLayout(alignment: .center, spacing: 12))
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: pt(6)))
+            : AnyLayout(HStackLayout(alignment: .center, spacing: pt(12)))
         layout {
             if stage != .closed {
                 StageTrack(stage: stage)
@@ -309,7 +309,7 @@ struct OrderNextStepRow: View {
                 invoiceLink(inv.id)
             }
         } else {
-            HStack(spacing: 10) {
+            HStack(spacing: pt(10)) {
                 primary
                 Spacer(minLength: 0)
                 if canAdvance && showsAdvanceMenu {

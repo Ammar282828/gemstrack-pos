@@ -29,7 +29,7 @@ struct NoteBanner: View {
     let note: Note
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: pt(10)) {
             Image(systemName: note.failed ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
                 .foregroundStyle(note.failed ? Tone.problem.color : Tone.settled.color)
             VStack(alignment: .leading, spacing: 1) {
@@ -40,8 +40,8 @@ struct NoteBanner: View {
             }
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .padding(.horizontal, pt(16))
+        .padding(.vertical, pt(10))
         // A frosted card, not Liquid Glass: glass can't fade or slide, so a note rising after a save drew a stray
         // "bubble" as it formed and as it went (owner, 2026-10-15 and again 2026-10-17).
         .background(.regularMaterial, in: .rect(cornerRadius: Radius.card, style: .continuous))
@@ -77,7 +77,7 @@ private struct NotePresenter: ViewModifier {
                     NoteBanner(note: shown)
                         .frame(maxWidth: 560)
                         .padding(.horizontal)
-                        .padding(.bottom, 8)
+                        .padding(.bottom, pt(8))
                         .transition(reduce ? .opacity : .move(edge: .bottom).combined(with: .opacity))
                 }
             }

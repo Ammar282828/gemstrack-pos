@@ -296,15 +296,15 @@ struct InvoicesList: View {
         GeometryReader { geometry in
           if geometry.size.width >= 760 && !typeSize.isAccessibilitySize {
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 24) {
+                LazyVStack(alignment: .leading, spacing: pt(24)) {
                     chipRow(scoped)
                     if filterActive { filterCaption }
                     summaryStrip(all)
                     ForEach(groups) { group in
                         InvoiceSectionHeader(section: group)
-                        LazyVGrid(columns: CardColumns.grid(geometry.size.width - 48), alignment: .leading, spacing: 20) {
+                        LazyVGrid(columns: CardColumns.grid(geometry.size.width - 48), alignment: .leading, spacing: pt(20)) {
                             ForEach(group.rows) { inv in
-                                VStack(alignment: .leading, spacing: 12) {
+                                VStack(alignment: .leading, spacing: pt(12)) {
                                     row(inv).buttonStyle(.plain)
                                     Divider()
                                     HStack {
@@ -326,7 +326,7 @@ struct InvoicesList: View {
                             }
                         }
                     }
-                }.padding(24)
+                }.padding(pt(24))
             }
           } else {
         List {
@@ -351,7 +351,7 @@ struct InvoicesList: View {
         }
         // Nothing to show is an overlay of the list, never a row inside it (rule 16).
         .overlay {
-            if groups.isEmpty { emptyState.padding(.top, 120) }
+            if groups.isEmpty { emptyState.padding(.top, pt(120)) }
         }
     }
 
@@ -428,8 +428,8 @@ struct InvoicesList: View {
             stripDivider
             figureButton("This month", s.month, s.monthCount, .month)
         }
-        .padding(.vertical, 10)
-        .padding(.horizontal, 6)
+        .padding(.vertical, pt(10))
+        .padding(.horizontal, pt(6))
         .background(Theme.card, in: .rect(cornerRadius: Radius.chip, style: .continuous))
     }
 
@@ -453,8 +453,8 @@ struct InvoicesList: View {
                     .minimumScaleFactor(0.8)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
+            .padding(.horizontal, pt(8))
+            .padding(.vertical, pt(4))
             .background {
                 if chosen(figure) {
                     RoundedRectangle(cornerRadius: Radius.tile, style: .continuous).fill(Theme.accent.opacity(0.12))
@@ -728,7 +728,7 @@ private struct InvoiceSectionHeader: View {
             }
         }
         .textCase(nil)
-        .padding(.bottom, 2)
+        .padding(.bottom, pt(2))
     }
 }
 
@@ -745,12 +745,12 @@ private struct InvoiceListRow: View {
         NavigationLink(value: Route(path: InvoiceFacts.path(invoice.id))) {
             let stacked = typeSize.isAccessibilitySize
             let layout = stacked
-                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10))
-                : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: pt(10)))
+                : AnyLayout(HStackLayout(alignment: .top, spacing: pt(12)))
             layout {
-                HStack(alignment: .top, spacing: 12) {
+                HStack(alignment: .top, spacing: pt(12)) {
                     Monogram(name: invoice.customerName, size: Monogram.Size.row)
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: pt(4)) {
                         Text(InvoiceFacts.customerName(invoice)).font(.headline)
                             .fixedSize(horizontal: false, vertical: true)
                         if let sold = InvoiceFacts.whatSold(invoice), !sold.isEmpty {
@@ -761,7 +761,7 @@ private struct InvoiceListRow: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                VStack(alignment: stacked ? .leading : .trailing, spacing: 4) {
+                VStack(alignment: stacked ? .leading : .trailing, spacing: pt(4)) {
                     RowAmount(amount: invoice.grandTotal)
                     InvoiceBalancePill(invoice: invoice)
                 }
@@ -775,13 +775,13 @@ private struct InvoiceListRow: View {
     /// "Shopify" beside it, or under it where the line is too narrow for all three.
     private var reference: some View {
         ViewThatFits(in: .horizontal) {
-            HStack(spacing: 6) {
+            HStack(spacing: pt(6)) {
                 referenceText
                 if mine { MineTag() }
             }
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: pt(4)) {
                 referenceText
-                HStack(spacing: 6) {
+                HStack(spacing: pt(6)) {
                     if mine { MineTag() }
                 }
             }

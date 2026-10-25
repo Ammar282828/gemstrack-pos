@@ -123,11 +123,11 @@ struct StockPieceScreen: View {
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
             // The SKU is the page's title, so it is not said again under the name.
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: pt(6)) {
                 Pill(StockKit.categoryTitle(p.categoryId), tone: .house)
                 Text(p.name).font(.title2.weight(.bold))
             }
-            .padding(.vertical, 2)
+            .padding(.vertical, pt(2))
         }
     }
 
@@ -138,7 +138,7 @@ struct StockPieceScreen: View {
     @ViewBuilder
     private func priceSection(_ p: Product, _ costs: ProductCosts?, _ settings: Settings?) -> some View {
         LedgerSection("Price") {
-            VStack(spacing: 4) {
+            VStack(spacing: pt(4)) {
                 Text(p.isCustomPrice ? "Fixed price" : "At today's rates")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -150,11 +150,11 @@ struct StockPieceScreen: View {
                 }
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 6)
+            .padding(.vertical, pt(6))
 
             if p.isCustomPrice {
                 if let note = StockKit.filled(p.description) {
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: pt(4)) {
                         Text("Description").font(.subheadline).foregroundStyle(.secondary)
                         Text(note)
                     }
@@ -227,7 +227,7 @@ struct StockPieceScreen: View {
     private func capitalised(_ s: String) -> String { s.prefix(1).uppercased() + s.dropFirst() }
 
     private func textBlock(_ title: String, _ text: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: pt(4)) {
             Text(title).font(.subheadline).foregroundStyle(.secondary)
             Text(text)
         }
@@ -295,7 +295,7 @@ private struct StockSoldView: View {
     private func soldList(_ sales: [Invoice]) -> some View {
         List { Group {
             Section {
-                VStack(spacing: 6) {
+                VStack(spacing: pt(6)) {
                     Image(systemName: "checkmark.seal").font(.largeTitle).foregroundStyle(Tone.settled.color)
                         .symbolEffect(.bounce, value: reduceMotion ? 0 : sealed)
                         .onAppear { sealed += 1 }
@@ -303,7 +303,7 @@ private struct StockSoldView: View {
                     Text("Sold").font(.title2.weight(.bold))
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
+                .padding(.vertical, pt(8))
             }
             LedgerSection(sales.count == 1 ? "Sold on" : "Sold on these invoices") {
                 ForEach(sales) { (inv: Invoice) in

@@ -41,9 +41,9 @@ struct WorkshopJobRow: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top, spacing: 8) {
-                VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: pt(14)) {
+            HStack(alignment: .top, spacing: pt(8)) {
+                VStack(alignment: .leading, spacing: pt(6)) {
                     titleLine
                     badgeLine
                 }
@@ -70,7 +70,7 @@ struct WorkshopJobRow: View {
                 .overlay { if busy { ProgressView().accessibilityLabel("Updating job") } }
                 .motion(busy)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, pt(4))
         // No swipe actions: the cards share one list row (WorkshopCards' grid), so a swipe would act on whichever
         // card the row picked. The … menu and the long press carry the same actions, on the right piece.
         .contextMenu { menuItems }
@@ -85,7 +85,7 @@ struct WorkshopJobRow: View {
     }
 
     private var badgeLine: some View {
-        FigureRow(spacing: 8) {
+        FigureRow(spacing: pt(8)) {
             Label(stageWords, systemImage: stageSymbol)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(stageTone)
@@ -123,7 +123,7 @@ struct WorkshopJobRow: View {
     @ViewBuilder
     private var referenceLine: some View {
         if let place = referencePlace {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: pt(6)) {
                 Button { actions.open(place) } label: {
                     HStack(spacing: 2) {
                         Text(job.invoiceId ?? job.orderId ?? "")
@@ -184,7 +184,7 @@ struct WorkshopJobRow: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 8)
+                    .padding(.top, pt(8))
             } label: {
                 Label("Instructions", systemImage: "note.text")
                     .font(.subheadline.weight(.medium))
@@ -200,9 +200,9 @@ struct WorkshopJobRow: View {
     private var controls: some View {
         if canWrite && isStock {
             // A stock job's controls stay while it is done too (the web's): its status can go back, it can be deleted.
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: pt(12)) {
                 if !job.isDone && !job.isUnassigned { givenToggle }
-                FigureRow(spacing: 12) {
+                FigureRow(spacing: pt(12)) {
                     statusMenu
                     Button { actions.details(job) } label: {
                         Label("Details", systemImage: "pencil").font(.subheadline)
@@ -212,12 +212,12 @@ struct WorkshopJobRow: View {
                     .disabled(busy)
                 }
             }
-            .padding(.top, 2)
+            .padding(.top, pt(2))
         } else if canWrite && !job.isDone {
             // Who has it, and whether it has gone: nothing else on the card. A piece with nobody yet has nothing to
             // hand over, so no switch; the ERP's details are in the card's menu.
-            VStack(alignment: .leading, spacing: 12) {
-                FigureRow(spacing: 12) {
+            VStack(alignment: .leading, spacing: pt(12)) {
+                FigureRow(spacing: pt(12)) {
                     assignMenu
                     Spacer(minLength: 0)
                     Button { actions.done(job, true) } label: {
@@ -229,7 +229,7 @@ struct WorkshopJobRow: View {
                 }
                 if !job.isUnassigned { givenToggle }
             }
-            .padding(.top, 2)
+            .padding(.top, pt(2))
         } else if !job.isDone {
             readOnlyControls
         } else {
@@ -330,7 +330,7 @@ struct WorkshopJobRow: View {
             Label("No karigar yet", systemImage: "hammer")
                 .font(.subheadline).foregroundStyle(Tone.owed.color)
         } else {
-            AdaptiveStack(spacing: 8) {
+            AdaptiveStack(spacing: pt(8)) {
                 Label(job.karigarName, systemImage: "hammer").fontWeight(.medium)
                 Text(job.hasGiven ? "Given " + ShopDate.say(job.givenAt) : "Not given yet")
                     .foregroundStyle(.secondary)

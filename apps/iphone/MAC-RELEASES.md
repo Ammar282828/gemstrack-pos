@@ -12,3 +12,4 @@ app archived for TestFlight's "Shop" group, and the iPhone app built beside it a
 - 2026-10-25: the lock covers sheets and panels too (MacLockSheets).
 - 2026-10-25: Change the rate (finalize, order and invoice pages, silver per order) from the iPhone's screens, on the Mac; the one-window forms open with the rates on top.
 - 2026-10-25: Mac sizes: the kit's pointer sizes (Metrics, Radius, rows 28, push buttons not glass, regular controls), group-box cards, no pointing hand, New sale/order/repair/scan in their own window.
+- 2026-10-25: a classic Mac application: every shared spacing at 77% (pt), the system's window and list backgrounds, native rows and selection, the house in the accent.

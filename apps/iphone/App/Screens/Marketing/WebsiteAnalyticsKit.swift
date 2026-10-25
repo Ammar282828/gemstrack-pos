@@ -519,7 +519,7 @@ struct SiteTile: View {
     var detail: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: pt(6)) {
             Text(label).font(.subheadline).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             Text(value)
@@ -564,7 +564,7 @@ struct SiteBlock<Content: View>: View {
 
     var body: some View {
         if wide {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: pt(12)) {
                 head
                 content()
                 if let note {
@@ -586,7 +586,7 @@ struct SiteBlock<Content: View>: View {
 
     @ViewBuilder private var head: some View {
         if let choice, options.count > 1 {
-            HStack(alignment: .center, spacing: 12) {
+            HStack(alignment: .center, spacing: pt(12)) {
                 LedgerHeading(title: title)
                 Spacer(minLength: 8)
                 Picker(title, selection: choice) {
@@ -733,9 +733,9 @@ struct SiteRankSection: View {
         let parentTotal = sum(list)
         let share = parentTotal > 0 ? Double(row.value) / Double(parentTotal) : 0
         let top = Swift.max(1, list.map { (r: SiteRankRow) in r.value }.max() ?? 1)
-        return VStack(alignment: .leading, spacing: 6) {
-            AdaptiveStack(spacing: 8) {
-                HStack(spacing: 6) {
+        return VStack(alignment: .leading, spacing: pt(6)) {
+            AdaptiveStack(spacing: pt(8)) {
+                HStack(spacing: pt(6)) {
                     if let lead = row.lead { Text(lead).accessibilityHidden(true) }
                     VStack(alignment: .leading, spacing: 2) {
                         Text(row.label)
@@ -745,7 +745,7 @@ struct SiteRankSection: View {
                     }
                 }
                 Spacer(minLength: 8)
-                HStack(spacing: 6) {
+                HStack(spacing: pt(6)) {
                     Text(SiteWords.number(row.value)).monospacedDigit()
                         .contentTransition(.numericText(value: Double(row.value)))
                     Text(SiteWords.pct(share)).font(.footnote).foregroundStyle(.secondary).monospacedDigit()

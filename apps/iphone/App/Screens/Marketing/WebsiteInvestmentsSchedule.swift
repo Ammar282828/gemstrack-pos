@@ -200,14 +200,14 @@ struct WebsiteGoldScheduleSheet: View {
             Group {
                 Section {
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
+                        HStack(spacing: pt(8)) {
                             ForEach([1, 2, 3, 4, 5, 6, 0], id: \.self) { (n: Int) in
                                 MarketingChip(title: WebsiteGoldWords.dayNames[n], selected: d?.days.contains(n) ?? false) { toggleDay(n) }
                             }
                         }
                     }
                     .scrollClipDisabled()
-                    HStack(spacing: 16) {
+                    HStack(spacing: pt(16)) {
                         Button("Every day") { draft?.days = [0, 1, 2, 3, 4, 5, 6] }
                         Button("Mon–Sat") { draft?.days = [1, 2, 3, 4, 5, 6] }
                         Button("Mon–Fri") { draft?.days = [1, 2, 3, 4, 5] }
@@ -260,7 +260,7 @@ struct WebsiteGoldScheduleSheet: View {
 
     private func partRow(_ t: WebsiteGoldStatus.Target) -> some View {
         let plan = draft?.plan(t.id) ?? WebsiteGoldSchedule.Plan(on: false, at: "11:30")
-        return VStack(alignment: .leading, spacing: 8) {
+        return VStack(alignment: .leading, spacing: pt(8)) {
             Toggle(isOn: onBinding(t.id)) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(t.label)
@@ -280,7 +280,7 @@ struct WebsiteGoldScheduleSheet: View {
                 }
             }
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, pt(2))
     }
 
     // MARK: Bindings into the draft
@@ -452,7 +452,7 @@ struct WebsiteGoldAddSheet: View {
 
 
     private func cardRow(_ title: String, thumb: UIImage?, has: Bool, pick: @escaping () -> Void, clear: @escaping () -> Void) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: pt(12)) {
             ZStack {
                 Rectangle().fill(.quaternary)
                 if let thumb {
@@ -463,9 +463,9 @@ struct WebsiteGoldAddSheet: View {
             }
             .frame(width: 52, height: 52)
             .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: pt(4)) {
                 Text(title).font(.subheadline)
-                HStack(spacing: 14) {
+                HStack(spacing: pt(14)) {
                     Button(has ? "Replace" : "Choose", action: pick)
                     if has { Button("Remove", role: .destructive, action: clear) }
                 }

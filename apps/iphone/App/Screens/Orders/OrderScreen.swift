@@ -149,7 +149,7 @@ struct OrderScreen: View {
     private func heroSection(_ order: Order, stage: OrderStage, now: Date, owed: Double, invoice: Invoice?) -> some View {
         let phone = (order.customerContact ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         Section {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: pt(16)) {
                 who(order, phone: phone)
                 heroFigure(order, stage: stage, owed: owed, invoice: invoice)
                 promiseRow(order, now: now)
@@ -167,14 +167,14 @@ struct OrderScreen: View {
         let name = OrdersLogic.customerName(order)
         let online = OrdersLogic.isOnline(order)
         let mine = OrdersLogic.isMine(order, person: session.shop.person)
-        return HStack(alignment: .top, spacing: 14) {
+        return HStack(alignment: .top, spacing: pt(14)) {
             Monogram(name: name, size: Monogram.Size.hero)
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: pt(4)) {
                 Text(name)
                     .font(.system(.title2, design: .serif).weight(.semibold))
                     .lineLimit(2)
                 if !phone.isEmpty || online || mine {
-                    HStack(spacing: 8) {
+                    HStack(spacing: pt(8)) {
                         if !phone.isEmpty {
                             Text(OrdersLogic.phoneWords(phone))
                                 .font(.subheadline)
@@ -212,7 +212,7 @@ struct OrderScreen: View {
     private func heroFigure(_ order: Order, stage: OrderStage, owed: Double, invoice: Invoice?) -> some View {
         if stage != .closed {
             let due = OrdersLogic.hasInvoice(order) ? (invoice?.balanceDue ?? owed) : OrdersLogic.balance(order)
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: pt(4)) {
                 if due >= 1 {
                     Text("OWED")
                         .font(.caption2.weight(.semibold))
@@ -235,9 +235,9 @@ struct OrderScreen: View {
         let t = orderTiming(order, now: now)
         let p = OrdersLogic.promise(order, now: now)
         let tone = p.tone
-        return HStack(spacing: 12) {
+        return HStack(spacing: pt(12)) {
             DateLeaf(date: t.due, tone: tone)
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: pt(4)) {
                 Text(OrdersLogic.promiseLine(order, now: now))
                     .font(.subheadline.weight(tone == .quiet ? .regular : .semibold))
                     .foregroundStyle(tone == .late ? tone.color : (p.undated ? Color.secondary : Color.primary))
@@ -277,8 +277,8 @@ struct OrderScreen: View {
         if let notes = noteText(order) {
             let shipTo = describeDelivery(order.delivery)
             Section {
-                VStack(alignment: .leading, spacing: 10) {
-                    VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: pt(10)) {
+                    VStack(alignment: .leading, spacing: pt(4)) {
                         Label("Note", systemImage: "note.text")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.secondary)
@@ -288,7 +288,7 @@ struct OrderScreen: View {
                     }
                     if !shipTo.isEmpty {
                         Divider()
-                        VStack(alignment: .leading, spacing: 4) {
+                        VStack(alignment: .leading, spacing: pt(4)) {
                             Label("Deliver to", systemImage: "mappin.and.ellipse")
                                 .font(.caption.weight(.semibold))
                                 .foregroundStyle(.secondary)
@@ -324,7 +324,7 @@ struct OrderScreen: View {
             // and the balance due (OrdersLogic.balance).
             MoneySplit(total: subtotal - discount, paid: order.advancePayment + exchangeValue,
                        due: OrdersLogic.balance(order), paidLabel: "Paid")
-                .padding(.vertical, 6)
+                .padding(.vertical, pt(6))
             DisclosureGroup("Breakdown") {
                 MoneyRow("Pieces", subtotal)
                 if discount > 0 { MoneyRow("Discount", -discount, signed: true) }
@@ -393,7 +393,7 @@ struct OrderScreen: View {
         Section {
             if let inv = invoice {
                 MoneySplit(total: inv.grandTotal, paid: inv.amountPaid, due: inv.balanceDue)
-                    .padding(.vertical, 6)
+                    .padding(.vertical, pt(6))
             }
             if !rates.isEmpty {
                 Text(rates)
@@ -470,7 +470,7 @@ struct OrderScreen: View {
             }
         } header: {
             // How far the pieces have come, and its bar; the count is not said twice (CONVENTIONS rule 15).
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: pt(8)) {
                 LedgerHeading(title: "Pieces",
                               trailing: counts.total > 0 ? "\(counts.done) of \(counts.total) done" : nil)
                 if counts.total > 0 {
@@ -541,18 +541,18 @@ struct OrderScreen: View {
         let step = barStep(order, stage: stage, owed: owed)
         let advance = OrdersLogic.offersAdvance(order, stage: stage, isOwner: session.isOwner)
         if stage != .closed && (step != nil || advance) {
-            GlassEffectContainer(spacing: 10) {
+            GlassEffectContainer(spacing: pt(10)) {
                 if typeSize.isAccessibilitySize {
-                    VStack(spacing: 10) { barButtons(order, step: step, advance: advance) }
+                    VStack(spacing: pt(10)) { barButtons(order, step: step, advance: advance) }
                 } else {
                     ViewThatFits(in: .horizontal) {
-                        HStack(spacing: 10) { barButtons(order, step: step, advance: advance) }
-                        VStack(spacing: 10) { barButtons(order, step: step, advance: advance) }
+                        HStack(spacing: pt(10)) { barButtons(order, step: step, advance: advance) }
+                        VStack(spacing: pt(10)) { barButtons(order, step: step, advance: advance) }
                     }
                 }
             }
             .padding(.horizontal)
-            .padding(.bottom, 8)
+            .padding(.bottom, pt(8))
         }
     }
 

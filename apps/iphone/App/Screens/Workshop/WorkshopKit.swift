@@ -75,7 +75,7 @@ struct WorkshopUrgencyBadges: View {
     let late: Int
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: pt(6)) {
             if critical > 0 { Pill("\(critical) critical", tone: .late) }
             if late > 0 { Pill("\(late) late", tone: .owed) }
         }
@@ -158,11 +158,11 @@ struct WorkshopCards<Item: Identifiable, Content: View>: View {
 
     private var columns: [GridItem] {
         let count = typeSize.isAccessibilitySize ? 1 : max(1, min(3, Int((width + 16) / (minimumWidth + 16))))
-        return Array(repeating: GridItem(.flexible(), spacing: 16, alignment: .top), count: count)
+        return Array(repeating: GridItem(.flexible(), spacing: pt(16), alignment: .top), count: count)
     }
 
     var body: some View {
-        LazyVGrid(columns: columns, alignment: .leading, spacing: 16) {
+        LazyVGrid(columns: columns, alignment: .leading, spacing: pt(16)) {
             ForEach(items) { item in
                 content(item)
                     .ledgerCard()

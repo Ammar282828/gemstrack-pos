@@ -51,7 +51,7 @@ struct DesignAccountAds: View {
             } else {
                 Section {
                     ForEach(shown) { a in
-                        HStack(spacing: 12) {
+                        HStack(spacing: pt(12)) {
                             Group {
                                 if a.image.isEmpty { Rectangle().fill(Theme.ground) } else { MarketingPhoto(path: a.image) }
                             }

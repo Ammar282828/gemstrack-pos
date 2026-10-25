@@ -136,7 +136,7 @@ struct OrderFinalizeScreen: View {
                 .init(label: isCredit(f.balance) ? "Credit to customer" : "Balance due", value: Money.pkr(abs(f.balance)))
             ])
         } footer: {
-            VStack(spacing: 10) {
+            VStack(spacing: pt(10)) {
             Button {
                 if let problem = OrderFinalizeMath.problem(rows, discount: discount, order: order, rateTexts: rateTexts) {
                     failure = problem
@@ -145,7 +145,7 @@ struct OrderFinalizeScreen: View {
                     confirming = true
                 }
             } label: {
-                HStack(spacing: 8) {
+                HStack(spacing: pt(8)) {
                     if saving { ProgressView().controlSize(.small) }
                     Text("Make invoice \u{00B7} \(Money.pkr(f.total))")
                 }
@@ -160,8 +160,8 @@ struct OrderFinalizeScreen: View {
             #endif
             .disabled(saving)
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 8)
+            .padding(.horizontal, pt(16))
+            .padding(.bottom, pt(8))
         }
         .confirmationDialog("Make the invoice?", isPresented: $confirming, titleVisibility: .visible) {
             Button("Make invoice") { Task { await finalize(order) } }
@@ -218,7 +218,7 @@ struct OrderFinalizeScreen: View {
 
     /// Who it is for, which order, and what is due once the advances are counted.
     private func header(_ order: Order, due: Double) -> some View {
-        HStack(alignment: .center, spacing: 12) {
+        HStack(alignment: .center, spacing: pt(12)) {
             Monogram(name: OrdersLogic.customerName(order), size: Monogram.Size.row)
             VStack(alignment: .leading, spacing: 2) {
                 Text(OrdersLogic.customerName(order)).font(.headline).lineLimit(2)

@@ -106,7 +106,7 @@ struct AdsOverviewScreen: View {
             ErrorState(message, retry: House.isDemo ? nil : { Task { await load(fresh: true) } })
             Button("Open Setup") { go = Route(path: "/ads/setup") }
                 .buttonStyle(.bordered)
-                .padding(.bottom, 32)
+                .padding(.bottom, pt(32))
         }
     }
 
@@ -204,7 +204,7 @@ struct AdsOverviewScreen: View {
         return Section {
             if across {
                 // An iPad: every figure in one grid, four across.
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10, alignment: .top), count: 4), spacing: 10) {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: pt(10), alignment: .top), count: 4), spacing: pt(10)) {
                     FigureTile(label: "Spent", value: AdsFormat.money(t.spend, cur), detail: spentNote)
                     FigureTile(label: "People reached", value: AdsFormat.compact(t.reach), detail: reachNote)
                     mainTile(t, b, main, cur)
@@ -215,12 +215,12 @@ struct AdsOverviewScreen: View {
                 .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                 .listRowBackground(Color.clear)
             } else {
-            VStack(spacing: 10) {
-                FigureRow(spacing: 10) {
+            VStack(spacing: pt(10)) {
+                FigureRow(spacing: pt(10)) {
                     FigureTile(label: "Spent", value: AdsFormat.money(t.spend, cur), detail: spentNote)
                     FigureTile(label: "People reached", value: AdsFormat.compact(t.reach), detail: reachNote)
                 }
-                FigureRow(spacing: 10) {
+                FigureRow(spacing: pt(10)) {
                     mainTile(t, b, main, cur)
                     FigureTile(label: "Click-through", value: AdsFormat.pct(t.ctr),
                                detail: "\(AdsFormat.money(t.cpm, cur)) per 1,000 views")
@@ -252,7 +252,7 @@ struct AdsOverviewScreen: View {
         let s = AdsResults.sales(t)
         if s.purchases > 0 || s.value > 0 {
             let before = b.map { (m: AdMetrics) in AdsResults.sales(m) }
-            FigureRow(spacing: 10) {
+            FigureRow(spacing: pt(10)) {
                 FigureTile(label: "Sales from ads", value: AdsFormat.money(s.value, cur),
                            detail: AdsFormat.change(s.value, before?.value) ?? "\(AdsFormat.count(s.purchases)) order\(s.purchases == 1 ? "" : "s")")
                 FigureTile(label: "ROAS", value: AdsResults.roasText(s.roas),
@@ -316,10 +316,10 @@ struct AdsOverviewScreen: View {
     }
 
     private func attentionBody(_ a: AdAttention) -> some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .top, spacing: pt(10)) {
             Image(systemName: a.severity == "tip" ? "lightbulb" : "exclamationmark.triangle.fill")
                 .foregroundStyle(a.severity == "bad" ? Tone.problem.color : (a.severity == "warn" ? Tone.owed.color : Color.secondary))
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: pt(4)) {
                 Text(a.title).font(.body.weight(.medium))
                 Text(a.why).font(.subheadline).foregroundStyle(.secondary)
                 if a.doing == "pause" {
@@ -412,7 +412,7 @@ struct AdsOverviewScreen: View {
     }
 
     private func topAdRow(_ a: AdTop, _ cur: String) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: pt(12)) {
             StockImage(imageUrl: a.thumbnail, name: a.name, key: a.id)
                 .frame(width: 48, height: 48)
                 .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
@@ -446,7 +446,7 @@ struct AdsOverviewScreen: View {
             Section {
                 ForEach(top) { (r: AdSplit) in
                     let v = bySpend ? r.metrics.spend : r.metrics.impressions
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: pt(6)) {
                         HStack {
                             Text(r.label).lineLimit(1)
                             Spacer(minLength: 8)

@@ -253,7 +253,7 @@ struct DesignResizeSheet: View {
     private func bind<T>(_ key: ReferenceWritableKeyPath<DesignResizeModel, T>) -> Binding<T> {
         Binding(get: { r[keyPath: key] }, set: { r[keyPath: key] = $0 })
     }
-    private let columns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
+    private let columns = [GridItem(.flexible(), spacing: pt(10)), GridItem(.flexible(), spacing: pt(10))]
 
     init(model: DesignWorkspaceModel) { _r = State(initialValue: DesignResizeModel(model: model)) }
 
@@ -265,7 +265,7 @@ struct DesignResizeSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: pt(16)) {
                     Text("Make this design in other sizes. The words and the photo stay; the layout follows the new shape.")
                         .font(.subheadline).foregroundStyle(.secondary)
                     sizes
@@ -273,7 +273,7 @@ struct DesignResizeSheet: View {
                     runBar
                     if !r.shown.isEmpty { candidates }
                 }
-                .padding(.horizontal, 16).padding(.vertical, 12)
+                .padding(.horizontal, pt(16)).padding(.vertical, pt(12))
             }
             .scrollDismissesKeyboard(.interactively)
             .modifier(HouseGround())
@@ -302,10 +302,10 @@ struct DesignResizeSheet: View {
     private var sizes: some View {
         SectionCard("Sizes") {
             ForEach(DesignSizes.groups) { g in
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: pt(4)) {
                     Text(g.title).font(.caption).foregroundStyle(.secondary)
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
+                        HStack(spacing: pt(8)) {
                             ForEach(g.sizes) { s in
                                 FilterChip(title: s.ratio + (s.w == own.w && s.h == own.h ? " (this)" : ""), chosen: r.picked.contains(s.id)) { r.toggle(s.id) }
                             }
@@ -318,7 +318,7 @@ struct DesignResizeSheet: View {
 
     private var ownShape: some View {
         SectionCard("Your own shape") {
-            HStack(spacing: 8) {
+            HStack(spacing: pt(8)) {
                 TextField("W", text: bind(\.customW)).keyboardType(.decimalPad).multilineTextAlignment(.center)
                     .frame(width: 64).textFieldStyle(.roundedBorder).accessibilityLabel("Width")
                 Text(":")
@@ -328,14 +328,14 @@ struct DesignResizeSheet: View {
             }
             if !r.customs.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) { ForEach(r.customs) { c in FilterChip(title: c.ratio, chosen: r.picked.contains(c.id)) { r.toggle(c.id) } } }
+                    HStack(spacing: pt(8)) { ForEach(r.customs) { c in FilterChip(title: c.ratio, chosen: r.picked.contains(c.id)) { r.toggle(c.id) } } }
                 }
             }
         }
     }
 
     private var runBar: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: pt(10)) {
             Toggle(isOn: bind(\.smart)) {
                 VStack(alignment: .leading, spacing: 2) {
                     Label("Smart", systemImage: "sparkles")
@@ -353,7 +353,7 @@ struct DesignResizeSheet: View {
             if r.shown.contains(where: { id in r.entryFor(id).map { DesignSizes.safeZone(h: $0.h).top > 0 } ?? false }) {
                 Toggle("Show safe zones", isOn: bind(\.safe)).font(.subheadline).tint(Theme.accent)
             }
-            LazyVGrid(columns: columns, spacing: 10) {
+            LazyVGrid(columns: columns, spacing: pt(10)) {
                 ForEach(r.shown, id: \.self) { id in card(id) }
             }
             Text("\(r.accepted.count) of \(r.shown.count) kept").font(.footnote).foregroundStyle(.secondary)
@@ -366,7 +366,7 @@ struct DesignResizeSheet: View {
             let on = r.kept.contains(id)
             let score = res.n("score")
             let zone = DesignSizes.safeZone(h: e.h)
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: pt(6)) {
                 Button { if on { r.kept.remove(id) } else { r.kept.insert(id) } } label: {
                     Group {
                         if let image = r.images[id] {
@@ -393,7 +393,7 @@ struct DesignResizeSheet: View {
                     .buttonStyle(.bordered).disabled(r.extending != nil || r.busy != nil)
                 }
             }
-            .padding(8)
+            .padding(pt(8))
             .background(Theme.card, in: .rect(cornerRadius: Radius.chip, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: Radius.chip, style: .continuous).strokeBorder(on ? Theme.accent : Color.secondary.opacity(0.18), lineWidth: on ? 1.5 : 1))
             .opacity(on ? 1 : 0.7)

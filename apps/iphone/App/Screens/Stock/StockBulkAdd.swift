@@ -206,7 +206,7 @@ private struct StockBulkEditor: View {
                 }
             }
             if shared.metalType == "gold" {
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: pt(6)) {
                     Text("Karat").font(.caption).foregroundStyle(.secondary)
                     Picker("Karat", selection: $shared.karat) {
                         ForEach(karatOptions, id: \.self) { (k: String) in
@@ -293,12 +293,12 @@ private struct StockBulkEditor: View {
     }
 
     private func weightRow(_ index: Int, _ row: StockBulkRow) -> some View {
-        HStack(spacing: 10) {
+        HStack(spacing: pt(10)) {
             Text("\(index + 1)")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .frame(minWidth: 22)
-            AdaptiveStack(spacing: 10, alignment: .firstTextBaseline) {
+            AdaptiveStack(spacing: pt(10), alignment: .firstTextBaseline) {
                 TextField("Weight", text: field(row.id, \.weight), prompt: Text("Weight (g)"))
                     .keyboardType(.decimalPad)
                     .monospacedDigit()
@@ -440,7 +440,7 @@ private struct StockBulkEditor: View {
     private func phoneDonePage(_ skus: [String]) -> some View {
         List {
             Section {
-                VStack(spacing: 8) {
+                VStack(spacing: pt(8)) {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.largeTitle)
                         .imageScale(.large)
@@ -451,7 +451,7 @@ private struct StockBulkEditor: View {
                         .multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
+                .padding(.vertical, pt(8))
                 .listRowBackground(Color.clear)
             }
             Section {

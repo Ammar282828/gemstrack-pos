@@ -132,14 +132,14 @@ struct ExtraRevenueScreen: View {
     private func figures(_ shown: [MoneyLine<AdditionalRevenue>]) -> some View {
         var total = 0.0
         for line in shown { total += line.item.amount }
-        return FigureRow(alignment: .top, spacing: 10) {
+        return FigureRow(alignment: .top, spacing: pt(10)) {
             FigureTile(label: "Total revenue", value: Money.pkr(total), tint: Theme.accent)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, pt(4))
     }
 
     private func monthHeader(_ month: MoneyMonth<AdditionalRevenue>) -> some View {
-        return VStack(alignment: .leading, spacing: 6) {
+        return VStack(alignment: .leading, spacing: pt(6)) {
             LedgerHeading(title: month.title, trailing: Money.pkr(month.total))
             if !month.hint.isEmpty {
                 Text(month.hint).font(.footnote).foregroundStyle(.secondary)

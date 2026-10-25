@@ -77,7 +77,7 @@ struct AdsAudienceSheet: View {
 
     private var estimateSection: some View {
         Section {
-            HStack(spacing: 10) {
+            HStack(spacing: pt(10)) {
                 Image(systemName: "person.2").foregroundStyle(.secondary)
                 if let e = estimate, let upper = e.upper, upper > 0 {
                     Text("About \(AdsFormat.compact(e.lower ?? 0))–\(AdsFormat.compact(upper)) people").monospacedDigit()
@@ -117,7 +117,7 @@ struct AdsAudienceSheet: View {
                 .autocorrectionDisabled()
             placeHitRows
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
+                HStack(spacing: pt(8)) {
                     ForEach(Self.cityShortcuts, id: \.self) { (c: String) in
                         Button("+ \(c.components(separatedBy: ",")[0])") { Task { await shortcut(c) } }
                             .buttonStyle(.bordered)
@@ -151,7 +151,7 @@ struct AdsAudienceSheet: View {
     }
 
     private func placeRow(_ p: AdsPlace) -> some View {
-        HStack(spacing: 10) {
+        HStack(spacing: pt(10)) {
             Image(systemName: p.type == "pin" ? "mappin.and.ellipse" : "mappin").foregroundStyle(Theme.accent)
             VStack(alignment: .leading, spacing: 2) {
                 Text(p.name)
@@ -268,7 +268,7 @@ struct AdsAudienceSheet: View {
             TextField("Jewellery, gold, weddings…", text: $interestQ)
                 .autocorrectionDisabled()
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
+                HStack(spacing: pt(8)) {
                     ForEach(Self.interestShortcuts, id: \.self) { (s: String) in
                         Button(s) { interestQ = s }.buttonStyle(.bordered)
                     }
@@ -297,7 +297,7 @@ struct AdsAudienceSheet: View {
                 Button {
                     if !on { draft.interests.append(AdsNamed(id: h.id, name: h.name)) }
                 } label: {
-                    HStack(spacing: 8) {
+                    HStack(spacing: pt(8)) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(h.name).foregroundStyle(.primary)
                             if let path = h.path, !path.isEmpty { Text(path).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
@@ -359,7 +359,7 @@ struct AdsAudienceSheet: View {
 
     private func audienceRow(_ a: AdsAudienceRow) -> some View {
         let bits = [a.kind, a.sizeWords ?? "", a.ready ? "" : "not ready"].filter { (s: String) in !s.isEmpty }
-        return VStack(alignment: .leading, spacing: 6) {
+        return VStack(alignment: .leading, spacing: pt(6)) {
             Text(a.name)
             Text(bits.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary)
             Picker("Use", selection: use(a)) {

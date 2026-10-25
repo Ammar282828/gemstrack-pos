@@ -166,7 +166,7 @@ struct AdsCampaignsScreen: View {
             ErrorState(message, retry: House.isDemo ? nil : { Task { await load() } })
             Button("Open Setup") { go = Route(path: "/ads/setup") }
                 .buttonStyle(.bordered)
-                .padding(.bottom, 32)
+                .padding(.bottom, pt(32))
         }
     }
 
@@ -299,8 +299,8 @@ struct AdsCampaignsScreen: View {
             AdsObjective.label(c.objective),
             c.stopTime.map { (t: String) in "ends \(ShopDate.say(t))" } ?? "",
         ].filter { (s: String) in !s.isEmpty }
-        return HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
+        return HStack(alignment: .top, spacing: pt(12)) {
+            VStack(alignment: .leading, spacing: pt(4)) {
                 Text(c.name).font(.headline).fixedSize(horizontal: false, vertical: true)
                 AdsStatusBadge(status: c.effectiveStatus)
                 if !bits.isEmpty { Text(bits.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary) }
@@ -313,20 +313,20 @@ struct AdsCampaignsScreen: View {
                 issues(c.issues)
             }
             Spacer(minLength: 8)
-            VStack(spacing: 12) {
+            VStack(spacing: pt(12)) {
                 runSwitch(Target(level: "campaign", id: c.id, name: c.name), status: c.status)
                 detailsButton("campaign", c.id)
             }
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, pt(2))
     }
 
     private func adSetRow(_ s: AdSet, _ cur: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top, spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: pt(8)) {
+            HStack(alignment: .top, spacing: pt(12)) {
+                VStack(alignment: .leading, spacing: pt(4)) {
                     Text(s.name).font(.body.weight(.medium)).fixedSize(horizontal: false, vertical: true)
-                    HStack(spacing: 6) {
+                    HStack(spacing: pt(6)) {
                         AdsStatusBadge(status: s.effectiveStatus)
                         if let learning = s.learning { Text(learning).font(.caption).foregroundStyle(Tone.owed.color) }
                     }
@@ -339,24 +339,24 @@ struct AdsCampaignsScreen: View {
                     issues(s.issues)
                 }
                 Spacer(minLength: 8)
-                VStack(spacing: 12) {
+                VStack(spacing: pt(12)) {
                     runSwitch(Target(level: "adset", id: s.id, name: s.name), status: s.status)
                     detailsButton("adset", s.id)
                 }
             }
             if !s.ads.isEmpty { adStrip(s.ads, cur) }
         }
-        .padding(.leading, 14)
-        .padding(.vertical, 2)
+        .padding(.leading, pt(14))
+        .padding(.vertical, pt(2))
     }
 
     /// The ads of an ad set as pictures; each opens its own screen (previews and Meta's review notes).
     private func adStrip(_ ads: [AdItem], _ cur: String) -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            LazyHStack(alignment: .top, spacing: 10) {
+            LazyHStack(alignment: .top, spacing: pt(10)) {
                 ForEach(ads) { (a: AdItem) in
                     Button { go = Route(path: objectPath("ad", a.id)) } label: {
-                        VStack(alignment: .leading, spacing: 4) {
+                        VStack(alignment: .leading, spacing: pt(4)) {
                             StockImage(imageUrl: a.image, name: a.name, key: a.id)
                                 .aspectRatio(1, contentMode: .fit)
                                 .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
@@ -403,25 +403,25 @@ struct AdsCampaignsScreen: View {
         return Section {
             if sizeClass.isPadLayout {
                 // The same cards in an adaptive grid: a square picture at 1,000 points wide is not an ad.
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 300), spacing: 14, alignment: .top)], spacing: 14) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 300), spacing: pt(14), alignment: .top)], spacing: pt(14)) {
                     ForEach(ads) { ad in
-                        galleryCard(ad, cur).padding(14).background(Theme.card, in: .rect(cornerRadius: Radius.tile, style: .continuous))
+                        galleryCard(ad, cur).padding(pt(14)).background(Theme.card, in: .rect(cornerRadius: Radius.tile, style: .continuous))
                     }
                 }
                 .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                 .listRowBackground(Color.clear)
             } else {
                 ForEach(ads) { ad in
-                    galleryCard(ad, cur).padding(.vertical, 10)
+                    galleryCard(ad, cur).padding(.vertical, pt(10))
                 }
             }
         }
     }
 
     private func galleryCard(_ ad: AdItem, _ cur: String) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: pt(12)) {
             Button { go = Route(path: objectPath("ad", ad.id)) } label: {
-                VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: pt(10)) {
                     StockImage(imageUrl: ad.image, name: ad.name, key: ad.id).aspectRatio(1, contentMode: .fit).clipShape(.rect(cornerRadius: Radius.chip, style: .continuous))
                     Text(ad.name).font(.headline).foregroundStyle(.primary).fixedSize(horizontal: false, vertical: true)
                 }

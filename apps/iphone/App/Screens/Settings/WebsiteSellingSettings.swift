@@ -323,7 +323,7 @@ private struct WebsiteSellingForm: View {
             set: { draft.categoryPricing[name] = $0 }
         )
         let def = draft.defaultPricing
-        return VStack(alignment: .leading, spacing: 8) {
+        return VStack(alignment: .leading, spacing: pt(8)) {
             Text(name).font(.headline)
             Picker("Karat", selection: Binding<String>(get: { row.wrappedValue.karat ?? "" }, set: { row.wrappedValue.karat = $0.isEmpty ? nil : $0 })) {
                 Text("Default (\(def.karat ?? "21k"))").tag("")
@@ -333,7 +333,7 @@ private struct WebsiteSellingForm: View {
             optionalRow("Making per gram", row.makingChargesPerGram, placeholder: Self.plain(def.makingChargesPerGram))
             optionalRow("Stones", row.stoneChargesDefault, placeholder: Self.plain(def.stoneChargesDefault))
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, pt(4))
         .macRemoveMenu("Remove \(name)") { draft.categoryPricing[name] = nil }
     }
 

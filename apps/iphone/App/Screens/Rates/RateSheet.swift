@@ -142,7 +142,7 @@ struct RateChip: View {
         let s = book.settings.value
         let today = RateKeys.setToday(s)
         Button { open = true } label: {
-            HStack(spacing: 4) {
+            HStack(spacing: pt(4)) {
                 if !today {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .symbolEffect(.bounce, value: today)

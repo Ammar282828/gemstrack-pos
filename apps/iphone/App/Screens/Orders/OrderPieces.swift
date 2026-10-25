@@ -30,11 +30,11 @@ struct OrderPieceRow: View {
     @State private var storedPhoto: String?
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: pt(12)) {
             if let uri = OrderPiecePhoto.inline(item) ?? storedPhoto {
                 OrderPiecePhoto(uri: uri, item: item)
             }
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: pt(8)) {
                 heading
                 factLine
                 karigarLine
@@ -46,7 +46,7 @@ struct OrderPieceRow: View {
             Spacer(minLength: 0)
             tick
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, pt(6))
         .task(id: item.samplePhotoId) { storedPhoto = await OrderPiecePhoto.stored(item) }
     }
 
@@ -133,7 +133,7 @@ struct OrderPieceRow: View {
     }
 
     private var karigarWords: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: pt(6)) {
             Image(systemName: "hammer")
                 .foregroundStyle(karigar == nil && !done ? Tone.owed.color : Color.secondary)
             if let karigar {
@@ -184,7 +184,7 @@ struct OrderPieceRow: View {
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(8)
+        .padding(pt(8))
         .background(Color.secondary.opacity(0.12), in: .rect(cornerRadius: Radius.thumb, style: .continuous))
     }
 

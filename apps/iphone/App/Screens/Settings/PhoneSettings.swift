@@ -192,7 +192,7 @@ struct PhoneSettings: View {
     /// One business's line: its push state on this phone.
     private func businessPush(_ b: Business) -> some View {
         let signedIn = Businesses.shared.auth(for: b)?.currentUser != nil
-        return HStack(spacing: 12) {
+        return HStack(spacing: pt(12)) {
             BusinessBadge(business: b, size: 30)
             VStack(alignment: .leading, spacing: 1) {
                 Text(b.displayName).lineLimit(1)

@@ -26,7 +26,7 @@ struct OrderTrackingSheet: View {
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                         ForEach(Array(track.checkpoints.enumerated()), id: \.offset) { pair in
-                            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                            HStack(alignment: .firstTextBaseline, spacing: pt(10)) {
                                 Text(pair.element.datetime)
                                     .font(.caption)
                                     .foregroundStyle(.secondary)

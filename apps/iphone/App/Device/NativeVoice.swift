@@ -16,10 +16,10 @@ struct NativeVoiceScreen: View {
     var body: some View {
         Form {
             Section {
-                VStack(spacing: 16) {
+                VStack(spacing: pt(16)) {
                     Button { voice.listening ? voice.finish() : voice.start(language: language) } label: {
                         Image(systemName: voice.listening ? "stop.fill" : "mic.fill")
-                            .font(.system(size: 28)).frame(width: 72, height: 72)
+                            .font(.system(size: pt(28))).frame(width: 72, height: 72)
                     }
                     .buttonStyle(.houseProminent).buttonBorderShape(.circle)
                     .disabled(voice.busy)
@@ -27,7 +27,7 @@ struct NativeVoiceScreen: View {
                     Text(voice.listening ? "Listening… tap stop when done" : "Talk to the book")
                         .font(.headline)
                     if voice.listening {
-                        HStack(alignment: .center, spacing: 4) {
+                        HStack(alignment: .center, spacing: pt(4)) {
                             ForEach(0..<15) { n in
                                 Capsule().fill(Theme.accent)
                                     .frame(width: 4, height: 6 + CGFloat(voice.level) * CGFloat(8 + (n * 7) % 29))
@@ -38,7 +38,7 @@ struct NativeVoiceScreen: View {
                             .font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center)
                     }
                 }
-                .frame(maxWidth: .infinity).padding(.vertical, 12)
+                .frame(maxWidth: .infinity).padding(.vertical, pt(12))
                 Picker("Live words", selection: $language) {
                     Text("English").tag("en-PK")
                     Text("Urdu").tag("ur-PK")
@@ -58,7 +58,7 @@ struct NativeVoiceScreen: View {
             }.houseRows()
 
             if voice.busy {
-                Section { HStack(spacing: 12) { SkeletonLoading(); Text(voice.writing ? "Saving…" : "Reading…") } }.houseRows()
+                Section { HStack(spacing: pt(12)) { SkeletonLoading(); Text(voice.writing ? "Saving…" : "Reading…") } }.houseRows()
             }
             if let error = voice.failure {
                 Section { Text(error).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true) }.houseRows()

@@ -51,7 +51,7 @@ struct WebsiteLiveScreen: View {
 
     private var wideBody: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: pt(20)) {
                 if let l = live {
                     wideTop(l)
                     if l.visitors > 0 {
@@ -63,9 +63,9 @@ struct WebsiteLiveScreen: View {
                 }
             }
             .environment(\.siteWide, true)
-            .padding(.horizontal, 28)
-            .padding(.top, 8)
-            .padding(.bottom, 28)
+            .padding(.horizontal, pt(28))
+            .padding(.top, pt(8))
+            .padding(.bottom, pt(28))
             .frame(maxWidth: 1360)
             .frame(maxWidth: .infinity)
         }
@@ -74,9 +74,9 @@ struct WebsiteLiveScreen: View {
 
     private func wideTop(_ l: SiteLive) -> some View {
         let t = l.today
-        return HStack(alignment: .top, spacing: 12) {
+        return HStack(alignment: .top, spacing: pt(12)) {
             heroBody(l).ledgerCard().frame(maxWidth: 340)
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12, alignment: .top), count: 4), spacing: 12) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: pt(12), alignment: .top), count: 4), spacing: pt(12)) {
                 FigureTile(label: "Sessions", value: SiteWords.number(t.sessions), detail: SiteWords.number(t.visitors) + " people")
                 FigureTile(label: "Page views", value: SiteWords.number(t.pageviews), detail: SiteWords.duration(t.avgSessionMs) + " a session")
                 FigureTile(label: "Opened a piece", value: SiteWords.number(t.pieces), detail: SiteWords.number(t.saves) + " saved one")
@@ -101,14 +101,14 @@ struct WebsiteLiveScreen: View {
 
     @ViewBuilder
     private func columns(_ l: SiteLive) -> some View {
-        HStack(alignment: .top, spacing: 20) {
+        HStack(alignment: .top, spacing: pt(20)) {
             if width >= 1180 {
-                VStack(alignment: .leading, spacing: 20) { places(l); devices(l) }.frame(maxWidth: .infinity, alignment: .top)
-                VStack(alignment: .leading, spacing: 20) { looking(l); came(l) }.frame(maxWidth: .infinity, alignment: .top)
-                VStack(alignment: .leading, spacing: 20) { visitsSection(l.sessions) }.frame(maxWidth: .infinity, alignment: .top)
+                VStack(alignment: .leading, spacing: pt(20)) { places(l); devices(l) }.frame(maxWidth: .infinity, alignment: .top)
+                VStack(alignment: .leading, spacing: pt(20)) { looking(l); came(l) }.frame(maxWidth: .infinity, alignment: .top)
+                VStack(alignment: .leading, spacing: pt(20)) { visitsSection(l.sessions) }.frame(maxWidth: .infinity, alignment: .top)
             } else {
-                VStack(alignment: .leading, spacing: 20) { places(l); came(l); devices(l) }.frame(maxWidth: .infinity, alignment: .top)
-                VStack(alignment: .leading, spacing: 20) { looking(l); visitsSection(l.sessions) }.frame(maxWidth: .infinity, alignment: .top)
+                VStack(alignment: .leading, spacing: pt(20)) { places(l); came(l); devices(l) }.frame(maxWidth: .infinity, alignment: .top)
+                VStack(alignment: .leading, spacing: pt(20)) { looking(l); visitsSection(l.sessions) }.frame(maxWidth: .infinity, alignment: .top)
             }
         }
     }
@@ -149,13 +149,13 @@ struct WebsiteLiveScreen: View {
     }
 
     private func heroBody(_ l: SiteLive) -> some View {
-        HStack(spacing: 14) {
+        HStack(spacing: pt(14)) {
                 Image(systemName: "circle.fill")
                     .font(.caption)
                     .foregroundStyle(l.visitors > 0 ? Tone.settled.color : Color.secondary.opacity(0.4))
                     .symbolEffect(.pulse, isActive: l.visitors > 0 && !reduceMotion)
                     .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: pt(4)) {
                     Text("\(l.visitors)")
                         .font(.system(.largeTitle, design: .serif).weight(.semibold))
                         .monospacedDigit()
@@ -222,9 +222,9 @@ struct WebsiteLiveScreen: View {
     }
 
     private func visitRow(_ v: SiteLiveVisit) -> some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: pt(12)) {
             Text(SiteWords.flag(v.cc)).font(.title3).accessibilityHidden(true)
-            AdaptiveStack(spacing: 8, alignment: .top) {
+            AdaptiveStack(spacing: pt(8), alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(SiteWords.page(v.path))
                     Text(detail(v)).font(.footnote).foregroundStyle(.secondary)

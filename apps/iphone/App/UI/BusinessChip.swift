@@ -65,7 +65,7 @@ struct BusinessLogo: View {
                 Text(business.name).font(.title2.weight(.semibold)).foregroundStyle(.primary).lineLimit(1).minimumScaleFactor(0.5)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, pt(4))
         .frame(maxWidth: 200, maxHeight: 56, alignment: .leading)
         .task(id: "\(business.id)|\(scheme == .dark)") {
             guard business.art == nil else { return }
@@ -100,7 +100,7 @@ struct BusinessChip: View {
             }
             Button("Businesses…", systemImage: "building.2") { store.switcherOpen = true }
         } label: {
-            HStack(spacing: 6) {
+            HStack(spacing: pt(6)) {
                 BusinessBadge(business: current, size: wide ? 28 : 22)
                 if wide {
                     Text(current.displayName).font(.headline).lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)

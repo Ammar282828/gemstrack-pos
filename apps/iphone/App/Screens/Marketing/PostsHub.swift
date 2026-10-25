@@ -106,7 +106,7 @@ struct PostsHub: View {
             Section {
                 DisclosureGroup(isExpanded: $checksOpen) {
                     ForEach(failing) { (c: PostCheck) in
-                        HStack(alignment: .top, spacing: 10) {
+                        HStack(alignment: .top, spacing: pt(10)) {
                             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Tone.owed.color)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("\(c.group): \(c.label)").font(.body.weight(.medium))
@@ -168,7 +168,7 @@ struct PostsHub: View {
         let places = s.destinations.map { (d: String) in store.placeName(d) }.joined(separator: ", ")
         let storyOnly = s.destinations.contains("instagram-story") && !s.destinations.contains { (d: String) in d.hasPrefix("whatsapp") }
         let title = s.title.isEmpty ? (storyOnly ? "A story" : "A post") : s.title
-        return HStack(spacing: 12) {
+        return HStack(spacing: pt(12)) {
             sentPicture(s, storyOnly: storyOnly)
             TwoLine(title: title, subtitle: places, trailing: MarketingTime.clock(s.at))
         }
@@ -271,7 +271,7 @@ struct PostsHub: View {
     /// Opens the piece: where it goes, word for word, and Send now, Hold, a time or Remove.
     private func queueRow(_ e: PostQueueEntry) -> some View {
         Button { opened = Opened(id: e.id) } label: {
-            HStack(spacing: 12) {
+            HStack(spacing: pt(12)) {
                 StockImage(imageUrl: e.thumb, name: e.headline, key: e.id, decodeDataURI: true)
                     .frame(width: 44, height: 44)
                     .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
@@ -339,7 +339,7 @@ struct PostsHub: View {
         Section {
             if !strip.isEmpty && sizeClass.isPadLayout && !typeSize.isAccessibilitySize {
                 // The same tiles as an adaptive grid: all twelve in sight, none behind a swipe.
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 12, alignment: .top)], spacing: 14) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: pt(12), alignment: .top)], spacing: pt(14)) {
                     ForEach(strip) { (p: PostPiece) in
                         Button { go = Route(path: MarketingKit.piecePath(p.id)) } label: {
                             PostPieceTile(piece: p, posted: store.posted[p.id])
@@ -348,12 +348,12 @@ struct PostsHub: View {
                         .pointerHover()
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
+                .padding(.horizontal, pt(16))
+                .padding(.vertical, pt(10))
                 .listRowInsets(EdgeInsets())
             } else if !strip.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(alignment: .top, spacing: 12) {
+                    LazyHStack(alignment: .top, spacing: pt(12)) {
                         ForEach(strip) { (p: PostPiece) in
                             Button { go = Route(path: MarketingKit.piecePath(p.id)) } label: {
                                 PostPieceTile(piece: p, posted: store.posted[p.id]).frame(width: 112)
@@ -361,8 +361,8 @@ struct PostsHub: View {
                             .buttonStyle(.plain)
                         }
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
+                    .padding(.horizontal, pt(16))
+                    .padding(.vertical, pt(10))
                 }
                 .listRowInsets(EdgeInsets())
             }
@@ -379,7 +379,7 @@ struct PostPieceTile: View {
     var posted: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
+        VStack(alignment: .leading, spacing: pt(5)) {
             StockImage(imageUrl: piece.thumb, name: piece.name, key: piece.id)
                 .aspectRatio(1, contentMode: .fit)
                 .clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))
@@ -388,9 +388,9 @@ struct PostPieceTile: View {
                         Text("New")
                             .font(.caption2.weight(.semibold))
                             .foregroundStyle(Theme.onAccent)
-                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .padding(.horizontal, pt(6)).padding(.vertical, pt(2))
                             .background(Theme.accent, in: .capsule)
-                            .padding(6)
+                            .padding(pt(6))
                     }
                 }
             Text(piece.name).font(.caption.weight(.semibold)).lineLimit(2).multilineTextAlignment(.leading)

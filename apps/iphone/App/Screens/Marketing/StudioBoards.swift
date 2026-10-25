@@ -119,7 +119,7 @@ struct StudioBoards: View {
     private var controls: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             GlassEffectContainer {
-                HStack(spacing: 10) {
+                HStack(spacing: pt(10)) {
                     Menu {
                         ForEach(board.boards.map { $0.s("id") }, id: \.self) { id in
                             Button { Task { await board.choose(id) } } label: {
@@ -154,15 +154,15 @@ struct StudioBoards: View {
                     } label: { Label("Board tools", systemImage: "ellipsis.circle").labelStyle(.iconOnly) }
                 }
                 .buttonStyle(.houseGlass)
-                .padding(.horizontal, 16).padding(.vertical, 6)
+                .padding(.horizontal, pt(16)).padding(.vertical, pt(6))
             }
         }
     }
 
     @ViewBuilder private var banners: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: pt(6)) {
             if let working = board.working {
-                banner(HStack(spacing: 10) { SkeletonLoading(working); Text(working) })
+                banner(HStack(spacing: pt(10)) { SkeletonLoading(working); Text(working) })
             }
             if let offer = board.offer, offer.s("id") != board.current {
                 banner(HStack {
@@ -177,13 +177,13 @@ struct StudioBoards: View {
                 banner(Label("The agent is working on this board. Its designs appear as they come; keep the board open to draw them for it.", systemImage: "sparkles"))
             }
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, pt(16))
     }
 
     private func banner(_ content: some View) -> some View {
         content.font(.footnote).frame(maxWidth: .infinity, alignment: .leading)
             .ledgerCard(padding: 10)
-            .padding(.bottom, 4)
+            .padding(.bottom, pt(4))
     }
 
     // MARK: The canvas
@@ -191,7 +191,7 @@ struct StudioBoards: View {
     private var canvas: some View {
         ScrollView([.horizontal, .vertical]) {
             if board.current.isEmpty {
-                VStack(spacing: 16) {
+                VStack(spacing: pt(16)) {
                     if !board.loaded { SkeletonLoading("Loading the boards") }
                     else if let problem = board.listProblem {
                         ErrorState(problem) { Task { await board.loadList(initial: true) } }
@@ -258,7 +258,7 @@ struct StudioBoards: View {
         let w = px.width * StudioBoardModel.scale * z, h = px.height * StudioBoardModel.scale * z
         let isSelected = selected == id
         return VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 4) {
+            HStack(spacing: pt(4)) {
                 if f.s("by") == "agent" { Image(systemName: "cpu") }
                 if f.s("by") == "ai" { Image(systemName: "sparkles") }
                 Text(f.s("label", "Design")).lineLimit(1)
@@ -268,7 +268,7 @@ struct StudioBoards: View {
             ZStack {
                 Rectangle().fill(Theme.card)
                 if let image = board.pictures[id] { Image(uiImage: image).resizable().scaledToFill() }
-                else if let problem = board.problems[id] { Text("Couldn’t draw it: " + problem).font(.caption2).foregroundStyle(.secondary).padding(6) }
+                else if let problem = board.problems[id] { Text("Couldn’t draw it: " + problem).font(.caption2).foregroundStyle(.secondary).padding(pt(6)) }
                 else { SkeletonLoading("Drawing") }
             }
             .frame(width: w, height: h).clipped()
@@ -294,7 +294,7 @@ struct StudioBoards: View {
     private func noteCard(_ n: MarketingValue, bounds b: CGRect) -> some View {
         let id = n.s("id"), agent = n.s("by") == "agent"
         let isSelected = selected == id
-        return VStack(alignment: .leading, spacing: 4 * z) {
+        return VStack(alignment: .leading, spacing: pt(4) * z) {
             Text(agent ? "AGENT" : "NOTE").font(.system(size: max(8, 11 * z), weight: .semibold)).opacity(0.6)
             Text(n.s("text")).font(.system(size: max(9, 15 * z))).lineLimit(10)
         }
@@ -498,7 +498,7 @@ private struct StudioFramePanel: View {
             TextField("Aim (optional) — e.g. Eid gifting", text: $brief, axis: .vertical).lineLimit(2...5)
             if !ownNotes.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
+                    HStack(spacing: pt(6)) {
                         ForEach(ownNotes.prefix(4).map { $0.s("text") }, id: \.self) { text in
                             Button("Use note: " + String(text.prefix(40))) { brief = text }
                                 .font(.caption).buttonStyle(.bordered)
@@ -514,14 +514,14 @@ private struct StudioFramePanel: View {
         } header: { LedgerHeading(title: "Let it cook") }.houseRows()
 
         Section {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 84), spacing: 8)], spacing: 8) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 84), spacing: pt(8))], spacing: pt(8)) {
                 ForEach(board.formats.map { $0.s("id") }.filter { $0 != frame.s("format") }, id: \.self) { id in
                     Button(board.formatInfo(id).s("short", id)) { Task { await board.duplicate(frame, format: id) } }
                         .buttonStyle(.bordered).frame(maxWidth: .infinity)
                         .accessibilityLabel("Make it " + board.formatInfo(id).s("label", id))
                 }
             }
-            .padding(.vertical, 4)
+            .padding(.vertical, pt(4))
         } header: { LedgerHeading(title: "In another shape") }.houseRows()
     }
 

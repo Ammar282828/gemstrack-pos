@@ -240,7 +240,7 @@ private struct OutboxPresenter: ViewModifier {
         content
             .overlay(alignment: .bottom) {
                 if let f = outbox.failure {
-                    HStack(spacing: 10) {
+                    HStack(spacing: pt(10)) {
                         NoteBanner(note: Note(title: f.isPost ? "\(f.label) failed" : "Not saved: \(f.label)", detail: f.message.isEmpty ? "Tap to retry." : f.message + " Tap to retry.", failed: true))
                         Button("Retry") { Motion.run(Motion.exit, reduce: reduce) { outbox.retry(f.id) } }
                             .buttonStyle(.borderedProminent)
@@ -248,7 +248,7 @@ private struct OutboxPresenter: ViewModifier {
                     .onTapGesture { outbox.retry(f.id) }
                     .frame(maxWidth: 560)
                     .padding(.horizontal)
-                    .padding(.bottom, 64)
+                    .padding(.bottom, pt(64))
                     .transition(reduce ? .opacity : .move(edge: .bottom).combined(with: .opacity))
                     .accessibilityAction(named: "Retry") { outbox.retry(f.id) }
                 }

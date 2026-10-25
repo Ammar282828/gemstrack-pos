@@ -65,7 +65,7 @@ struct PaperPicker: View {
     @State private var importing = false
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: pt(10)) {
             #if os(macOS)
             // No scanner on the desk: the paper comes from a file (a photo or a PDF), chosen or dropped here.
             Button { importing = true } label: {
@@ -218,7 +218,7 @@ struct PaperPhotoStrip: View {
 
     var body: some View {
         ScrollView(.horizontal) {
-            HStack(spacing: 10) {
+            HStack(spacing: pt(10)) {
                 ForEach(Array(photos.enumerated()), id: \.element.id) { i, p in
                     Button { shown = p } label: {
                         Image(uiImage: p.image)
@@ -233,9 +233,9 @@ struct PaperPhotoStrip: View {
                         if photos.count > 1 {
                             Text("\(i + 1)")
                                 .font(.caption.weight(.semibold))
-                                .padding(.horizontal, 8).padding(.vertical, 3)
+                                .padding(.horizontal, pt(8)).padding(.vertical, pt(3))
                                 .background(.regularMaterial, in: .capsule)
-                                .padding(6)
+                                .padding(pt(6))
                         }
                     }
                     .overlay(alignment: .topTrailing) {
@@ -243,12 +243,12 @@ struct PaperPhotoStrip: View {
                             Button(role: .destructive) { remove(p.id) } label: {
                                 Image(systemName: "xmark")
                                     .font(.caption.weight(.bold))
-                                    .padding(7)
+                                    .padding(pt(7))
                                     .background(.regularMaterial, in: .capsule)
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel("Remove photo \(i + 1)")
-                            .padding(6)
+                            .padding(pt(6))
                         }
                     }
                 }
@@ -291,7 +291,7 @@ struct PaperNamePick: View {
     var body: some View {
         Section {
             if let pinned = guess.pinned {
-                HStack(spacing: 10) {
+                HStack(spacing: pt(10)) {
                     Label(pinned.name, systemImage: "checkmark.circle.fill")
                     Spacer(minLength: 8)
                     Button("Not them") { pick(nil) }

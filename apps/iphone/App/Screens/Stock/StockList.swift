@@ -159,10 +159,10 @@ struct StockList: View {
 
     private func gridView(_ all: [Product], _ shown: [StockRowModel]) -> some View {
         ScrollView {
-            VStack(spacing: 14) {
+            VStack(spacing: pt(14)) {
                 header(all, shown)
                 if !shown.isEmpty {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: wide ? 220 : 160), spacing: 12)], spacing: 12) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: wide ? 220 : 160), spacing: pt(12))], spacing: pt(12)) {
                         ForEach(shown) { row in
                             StockCard(row: row)
                                 .stockContextMenu(row.product, go: $go, mayEdit: session.isOwner, onDelete: askToDelete)
@@ -171,7 +171,7 @@ struct StockList: View {
                 }
             }
             .padding(.horizontal, wide ? 24 : 16)
-            .padding(.bottom, 16)
+            .padding(.bottom, pt(16))
         }
         .overlay { if shown.isEmpty { emptyState } }
     }
@@ -195,7 +195,7 @@ struct StockList: View {
     /// "N pieces in stock" (the web's subtitle) and, for an owner, what they would sell for today.
     /// While a category or a search is on, both figures are of what is shown.
     private func header(_ all: [Product], _ shown: [StockRowModel]) -> some View {
-        FigureRow(spacing: 12) {
+        FigureRow(spacing: pt(12)) {
             FigureTile(
                 label: "In stock",
                 value: "\(shown.count) piece\(shown.count == 1 ? "" : "s")"
@@ -229,14 +229,14 @@ struct StockList: View {
         let counts: [String: Int] = categoryCounts(all)
         let options: [StockKit.Category] = StockKit.categoryOptions(counts: counts, keep: category)
         return ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
+            HStack(spacing: pt(8)) {
                 chipButton("All", id: nil)
                 ForEach(options) { (c: StockKit.Category) in
                     chipButton(c.title, id: c.id)
                 }
             }
             .padding(.horizontal)
-            .padding(.vertical, 6)
+            .padding(.vertical, pt(6))
         }
     }
 
@@ -311,7 +311,7 @@ private struct StockRow: View {
     var body: some View {
         let p = row.product
         NavigationLink(value: Route(path: StockKit.piecePath(p.sku))) {
-            HStack(spacing: 12) {
+            HStack(spacing: pt(12)) {
                 StockImage(imageUrl: p.imageUrl, name: p.name, key: p.sku)
                     .frame(width: 52, height: 52)
                     .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
@@ -358,7 +358,7 @@ private struct StockCard: View {
     var body: some View {
         let p = row.product
         NavigationLink(value: Route(path: StockKit.piecePath(p.sku))) {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: pt(6)) {
                 StockImage(imageUrl: p.imageUrl, name: p.name, key: p.sku)
                     .aspectRatio(1, contentMode: .fit)
                     .clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))

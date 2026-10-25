@@ -248,9 +248,9 @@ private struct ShopifyInnerForm: View {
                     ForEach(scopeNeeds) { need in
                         let r = holds(held, "read_\(need.resource)")
                         let w = holds(held, "write_\(need.resource)")
-                        VStack(alignment: .leading, spacing: 4) {
+                        VStack(alignment: .leading, spacing: pt(4)) {
                             Text(need.label).font(.subheadline.weight(.semibold))
-                            HStack(spacing: 12) {
+                            HStack(spacing: pt(12)) {
                                 scopeChip("Read", r)
                                 scopeChip("Write", w)
                             }
@@ -260,11 +260,11 @@ private struct ShopifyInnerForm: View {
                     }
                     let extra = held.subtracting(required).sorted()
                     if !extra.isEmpty {
-                        VStack(alignment: .leading, spacing: 4) {
+                        VStack(alignment: .leading, spacing: pt(4)) {
                             Text("Also granted").font(.subheadline.weight(.semibold))
                             Text(extra.joined(separator: ", ")).font(.footnote).foregroundStyle(.secondary)
                         }
-                        .padding(.vertical, 4)
+                        .padding(.vertical, pt(4))
                     }
                 }
                 .frame(minHeight: Metrics.tap)
@@ -422,7 +422,7 @@ private struct ShopifyInnerForm: View {
     private func row(_ o: PullOrder) -> some View {
         let on = picked.contains(o.id)
         return Button { toggle(o.id) } label: {
-            HStack(alignment: .top, spacing: 12) {
+            HStack(alignment: .top, spacing: pt(12)) {
                 Image(systemName: on ? "checkmark.circle.fill" : "circle")
                     .foregroundStyle(on ? Theme.accent : .secondary)
                     .imageScale(.large)
@@ -449,7 +449,7 @@ private struct ShopifyInnerForm: View {
     }
 
     @ViewBuilder private func outcomeView(_ r: ImportOutcome) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: pt(6)) {
             Label("Imported \(r.imported) of \(r.requested) order\(r.requested == 1 ? "" : "s")",
                   systemImage: r.errors.isEmpty && r.imported == r.requested ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
                 .foregroundStyle(r.errors.isEmpty && r.imported == r.requested ? Tone.settled.color : Tone.owed.color)

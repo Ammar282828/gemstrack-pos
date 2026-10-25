@@ -20,7 +20,7 @@ struct SkeletonLoading: View {
             if size == .large {
                 page
             } else {
-                VStack(alignment: .leading, spacing: 5) {
+                VStack(alignment: .leading, spacing: pt(5)) {
                     ForEach(0..<3, id: \.self) { index in
                         Capsule()
                             .fill(.secondary.opacity(0.12))
@@ -35,23 +35,23 @@ struct SkeletonLoading: View {
     }
 
     private var page: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            line(width: 132, height: 10).padding(.horizontal, 4).padding(.top, 6)
+        VStack(alignment: .leading, spacing: pt(10)) {
+            line(width: 132, height: 10).padding(.horizontal, pt(4)).padding(.top, pt(6))
             card(height: 172) {
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: pt(12)) {
                     line(width: 84, height: 10)
                     line(width: 190, height: 30)
                     line(width: 120, height: 10)
                 }
             }
             card(height: 52) { line(width: 120, height: 12) }
-            line(width: 96, height: 12).padding(.horizontal, 4).padding(.top, 14)
+            line(width: 96, height: 12).padding(.horizontal, pt(4)).padding(.top, pt(14))
             card(height: nil) {
                 VStack(spacing: 0) {
                     ForEach(0..<3, id: \.self) { index in
-                        HStack(spacing: 12) {
+                        HStack(spacing: pt(12)) {
                             Circle().fill(.secondary.opacity(0.12)).frame(width: 36, height: 36)
-                            VStack(alignment: .leading, spacing: 8) {
+                            VStack(alignment: .leading, spacing: pt(8)) {
                                 line(width: index == 1 ? 120 : 150, height: 11)
                                 line(width: 90, height: 9)
                             }
@@ -63,8 +63,8 @@ struct SkeletonLoading: View {
                 }
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 4)
+        .padding(.horizontal, pt(16))
+        .padding(.top, pt(4))
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
@@ -76,7 +76,7 @@ struct SkeletonLoading: View {
 
     private func card<C: View>(height: CGFloat?, @ViewBuilder _ content: () -> C) -> some View {
         content()
-            .padding(.horizontal, 16)
+            .padding(.horizontal, pt(16))
             .frame(maxWidth: .infinity, minHeight: height, alignment: .leading)
             .background(Theme.card, in: .rect(cornerRadius: Radius.card, style: .continuous))
     }
@@ -106,7 +106,7 @@ struct FigureTile: View {
     var tint: Color = .primary
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: pt(8)) {
             Text(label).font(.subheadline).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             Text(value)
@@ -360,9 +360,9 @@ struct ShelfState<Content: View>: View {
                 if showingOfflineCopy {
                     Label("Offline: showing this phone's copy", systemImage: "icloud.slash")
                         .font(.footnote.weight(.medium))
-                        .padding(.horizontal, 14).padding(.vertical, 7)
+                        .padding(.horizontal, pt(14)).padding(.vertical, pt(7))
                         .glassEffect(.regular, in: .capsule)
-                        .padding(.top, 4)
+                        .padding(.top, pt(4))
                 }
             }
     }
@@ -380,13 +380,13 @@ struct TwoLine: View {
     var body: some View {
         Group {
             if typeSize.isAccessibilitySize {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: pt(8)) {
                     words
                     amount
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                HStack(alignment: .firstTextBaseline, spacing: pt(12)) {
                     words.frame(maxWidth: .infinity, alignment: .leading)
                     amount.fixedSize(horizontal: true, vertical: false)
                 }
@@ -407,7 +407,7 @@ struct TwoLine: View {
 
     @ViewBuilder private var amount: some View {
         if let trailing {
-            VStack(alignment: typeSize.isAccessibilitySize ? .leading : .trailing, spacing: 4) {
+            VStack(alignment: typeSize.isAccessibilitySize ? .leading : .trailing, spacing: pt(4)) {
                 Text(trailing).font(.subheadline.weight(.semibold))
                     .monospacedDigit().foregroundStyle(trailingTint)
                 if let trailingLabel {
@@ -742,7 +742,7 @@ struct MineRowBackground: View {
     var body: some View {
         Theme.card
             .overlay(alignment: .leading) {
-                Capsule().fill(Theme.accent).frame(width: 3).padding(.vertical, 10)
+                Capsule().fill(Theme.accent).frame(width: 3).padding(.vertical, pt(10))
             }
     }
 }
@@ -757,9 +757,17 @@ extension Binding where Value == String {
 
 extension View {
     /// A list row on the house's card colour, lit when it is the signed-in person's own.
+    @ViewBuilder
     func mineRow(_ mine: Bool) -> some View {
+        #if os(macOS)
+        // The system's row, so its selection still shows; one's own carries the accent's bar.
+        listRowBackground(mine ? AnyView(Color.clear.overlay(alignment: .leading) {
+            Capsule().fill(Theme.accent).frame(width: 3).padding(.vertical, 6)
+        }) : nil)
+        #else
         listRowBackground(Group {
             if mine { MineRowBackground() } else { Theme.card }
         })
+        #endif
     }
 }

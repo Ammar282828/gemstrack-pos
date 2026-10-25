@@ -21,8 +21,8 @@ struct UpdateBanner: View {
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(Tone.owed.color)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
+                .padding(.horizontal, pt(16))
+                .padding(.vertical, pt(8))
                 .background(.bar)
                 .accessibilityElement(children: .combine)
         }

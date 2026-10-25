@@ -120,7 +120,7 @@ struct SettingsIcon: View {
             .dynamicTypeSize(...DynamicTypeSize.xxLarge)
             .foregroundStyle(color == Theme.accent ? Theme.onAccent : .white)
             .frame(width: 29, height: 29)
-            .background(color, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .background(color, in: RoundedRectangle(cornerRadius: pt(7), style: .continuous))
     }
 }
 

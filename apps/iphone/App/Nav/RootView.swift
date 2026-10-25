@@ -170,7 +170,7 @@ struct RootView: View {
         // (the house's whole wordmark here was too big for a sidebar, owner 2026-10-23).
         .tabViewSidebarHeader {
             BusinessChip(wide: true)
-                .padding(.vertical, 6)
+                .padding(.vertical, pt(6))
         }
         .onChange(of: ShellCommands.shared.request) { _, r in
             if let r { perform(r.kind, entries: entries, map: map) }
@@ -295,7 +295,7 @@ private struct CreateAccessory: ViewModifier {
                         .accessibilityLabel("Create: new sale, new order or scan")
                     }
                 }
-                .padding(.horizontal, 20).padding(.vertical, 8)
+                .padding(.horizontal, pt(20)).padding(.vertical, pt(8))
                 .motion(compact, Motion.enter)
             }
         }
@@ -432,7 +432,7 @@ private struct SectionPicker: ViewModifier {
                     ForEach(sections, id: \.self) { name in Text(name).tag(name) }
                 }
                 .pickerStyle(.segmented)
-                .padding(.horizontal, 16).padding(.vertical, 8)
+                .padding(.horizontal, pt(16)).padding(.vertical, pt(8))
                 .background(Theme.ground)
                 .selectionFeedback(trigger: selection.wrappedValue)
             }
@@ -494,9 +494,9 @@ struct TeamNotePresentation: ViewModifier {
         content
             .safeAreaInset(edge: .top, spacing: 0) {
                 if shown && !text.isEmpty {
-                    HStack(alignment: .top, spacing: 12) {
+                    HStack(alignment: .top, spacing: pt(12)) {
                         Button { reading = true } label: {
-                            VStack(alignment: .leading, spacing: 5) {
+                            VStack(alignment: .leading, spacing: pt(5)) {
                                 Label("Urgent note", systemImage: "pin.fill")
                                     .font(.caption.weight(.semibold)).foregroundStyle(Theme.accent)
                                 Text(text).font(.subheadline).foregroundStyle(.primary)
@@ -511,10 +511,10 @@ struct TeamNotePresentation: ViewModifier {
                                 .labelStyle(.iconOnly).frame(minWidth: Metrics.tap, minHeight: Metrics.tap)
                         }
                     }
-                    .padding(12)
+                    .padding(pt(12))
                     .background(Theme.card, in: .rect(cornerRadius: Radius.chip, style: .continuous))
-                    .overlay(alignment: .leading) { Capsule().fill(Theme.accent).frame(width: 3).padding(.vertical, 12) }
-                    .padding(.horizontal, 16).padding(.vertical, 6)
+                    .overlay(alignment: .leading) { Capsule().fill(Theme.accent).frame(width: 3).padding(.vertical, pt(12)) }
+                    .padding(.horizontal, pt(16)).padding(.vertical, pt(6))
                     .background(Theme.ground)
                 }
             }
@@ -522,7 +522,7 @@ struct TeamNotePresentation: ViewModifier {
             .sheet(isPresented: $editing) { TeamNoteEditor() }
             .sheet(isPresented: $reading) {
                 NavigationStack {
-                    ScrollView { Text(text).frame(maxWidth: .infinity, alignment: .leading).padding(20) }
+                    ScrollView { Text(text).frame(maxWidth: .infinity, alignment: .leading).padding(pt(20)) }
                         .modifier(HouseGround())
                         .navigationTitle("Urgent note").navigationBarTitleDisplayMode(.inline)
                         .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { reading = false } } }
@@ -560,7 +560,7 @@ struct TeamNoteEditor: View {
                         .disabled(saving)
                 } header: { LedgerHeading(title: "Team note") } footer: {
                     // The field never cuts the text; Save stays off until it fits, so say so rather than leave it grey.
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: pt(4)) {
                         Text("Visible to everyone until cleared.")
                         Text(over ? "Keep it under \(Self.limit) characters: \(text.count) / \(Self.limit)" : "\(text.count) / \(Self.limit)")
                             .foregroundStyle(over ? Tone.problem.color : Color.secondary)

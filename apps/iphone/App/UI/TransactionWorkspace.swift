@@ -23,13 +23,13 @@ struct EntrySteps: View {
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: typeSize.isAccessibilitySize ? 2 : 4), spacing: 4) {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: pt(4)), count: typeSize.isAccessibilitySize ? 2 : 4), spacing: pt(4)) {
             ForEach(EntryStep.allCases) { step in
                 Button {
                     UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                     selection = step
                 } label: {
-                    HStack(spacing: 4) {
+                    HStack(spacing: pt(4)) {
                         if states[step] == .done {
                             Image(systemName: "checkmark").imageScale(.small).fontWeight(.bold)
                         }
@@ -48,7 +48,7 @@ struct EntrySteps: View {
                 .accessibilityAddTraits(selection == step ? .isSelected : [])
             }
         }
-        .padding(.horizontal, 16).padding(.vertical, 8)
+        .padding(.horizontal, pt(16)).padding(.vertical, pt(8))
         .background(Theme.ground)
         // A light tick as the step changes, from the tabs or from Continue.
         .sensoryFeedback(.selection, trigger: selection)
@@ -59,7 +59,7 @@ struct EntryContinue: View {
     @Binding var selection: EntryStep
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: pt(12)) {
             if selection != .customer {
                 Button("Back", systemImage: "chevron.left") { move(selection.previous) }
                     .buttonStyle(.houseGlass).largeOnPhone()
@@ -72,7 +72,7 @@ struct EntryContinue: View {
                 .buttonStyle(.houseProminent).largeOnPhone()
                 .accessibilityHint("Continue to \(selection.next.title)")
         }
-        .padding(16)
+        .padding(pt(16))
     }
 
     private func move(_ step: EntryStep) {
@@ -95,7 +95,7 @@ struct TransactionWorkspace<Editor: View, Review: View, Footer: View>: View {
                     editor().scrollContentBackground(.hidden).background(Theme.ground).frame(maxWidth: .infinity)
                     Divider()
                     VStack(spacing: 0) {
-                        ScrollView { review().padding(20) }
+                        ScrollView { review().padding(pt(20)) }
                         footer()
                     }
                     .frame(width: min(380, geometry.size.width * 0.35))
@@ -121,7 +121,7 @@ struct PieceInspector: View {
     let rows: [TransactionReviewRow]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: pt(20)) {
             Label("Piece summary", systemImage: "sparkles")
                 .font(.subheadline.weight(.semibold)).foregroundStyle(Theme.accent)
             Text(title.isEmpty ? "New piece" : title).font(.headline)
@@ -131,7 +131,7 @@ struct PieceInspector: View {
                     .font(.subheadline).monospacedDigit()
             }
         }
-        .padding(20)
+        .padding(pt(20))
         .background(Theme.card, in: .rect(cornerRadius: Radius.card, style: .continuous))
     }
 }
@@ -143,15 +143,15 @@ struct TransactionReview: View {
     let figures: [TransactionReviewRow]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: pt(20)) {
             Label("At a glance", systemImage: "list.clipboard")
                 .font(.subheadline.weight(.semibold)).foregroundStyle(Theme.accent)
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: pt(4)) {
                 Text(customer.isEmpty ? "Walk-in" : customer).font(.headline)
                 if !contact.isEmpty { Text(contact).font(.subheadline).foregroundStyle(.secondary) }
             }
             Divider()
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: pt(12)) {
                 Text("\(pieces.count) piece\(pieces.count == 1 ? "" : "s")").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
                 if pieces.isEmpty {
                     Text("Add a piece to begin.").font(.subheadline).foregroundStyle(.secondary)
@@ -159,16 +159,16 @@ struct TransactionReview: View {
                 ForEach(pieces) { row in reviewRow(row) }
             }
             Divider()
-            VStack(spacing: 12) {
+            VStack(spacing: pt(12)) {
                 ForEach(figures) { row in reviewRow(row) }
             }
         }
-        .padding(20)
+        .padding(pt(20))
         .background(Theme.card, in: .rect(cornerRadius: Radius.card, style: .continuous))
     }
 
     private func reviewRow(_ row: TransactionReviewRow) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
+        HStack(alignment: .firstTextBaseline, spacing: pt(12)) {
             Text(row.label).font(.subheadline).fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
             Text(row.value).font(.subheadline.weight(.medium)).monospacedDigit()

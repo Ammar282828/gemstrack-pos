@@ -471,7 +471,7 @@ struct InsightBlock<Content: View>: View {
     }
 
     private var stack: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: pt(12)) {
             if !title.isEmpty { LedgerHeading(title: title, count: count, trailing: trailing) }
             content()
             if let footer { Text(footer).font(.footnote).foregroundStyle(.secondary) }
@@ -486,13 +486,13 @@ private struct InsightTiles: View {
 
     var body: some View {
         if wide {
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10, alignment: .top), count: 4), spacing: 10) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: pt(10), alignment: .top), count: 4), spacing: pt(10)) {
                 ForEach(tiles.indices, id: \.self) { (i: Int) in tiles[i] }
             }
         } else {
-            VStack(spacing: 10) {
+            VStack(spacing: pt(10)) {
                 ForEach(Array(stride(from: 0, to: tiles.count, by: 2)), id: \.self) { (i: Int) in
-                    FigureRow(spacing: 10) {
+                    FigureRow(spacing: pt(10)) {
                         tiles[i]
                         if i + 1 < tiles.count { tiles[i + 1] }
                     }
@@ -518,11 +518,11 @@ private struct InsightPage<Narrow: View, Wide: View>: View {
         Group {
             if isWide {
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 20) { wide(width) }
+                    VStack(alignment: .leading, spacing: pt(20)) { wide(width) }
                         .environment(\.siteWide, true)
-                        .padding(.horizontal, 28)
-                        .padding(.top, 8)
-                        .padding(.bottom, 28)
+                        .padding(.horizontal, pt(28))
+                        .padding(.top, pt(8))
+                        .padding(.bottom, pt(28))
                         .frame(maxWidth: 1240)
                         .frame(maxWidth: .infinity)
                 }
@@ -610,11 +610,11 @@ struct InsightsOverviewScreen: View {
             if let ig = d.instagram {
                 instagramFigures(ig)
                 // The two charts side by side, then the split beside the paid platforms.
-                HStack(alignment: .top, spacing: 20) {
+                HStack(alignment: .top, spacing: pt(20)) {
                     reachChart(ig).frame(maxWidth: .infinity, alignment: .top)
                     followersSection(d).frame(maxWidth: .infinity, alignment: .top)
                 }
-                HStack(alignment: .top, spacing: 20) {
+                HStack(alignment: .top, spacing: pt(20)) {
                     splitSection(ig).frame(maxWidth: .infinity, alignment: .top)
                     paidSection(d).frame(maxWidth: .infinity, alignment: .top)
                 }
@@ -631,10 +631,10 @@ struct InsightsOverviewScreen: View {
         if !found.isEmpty {
             InsightBlock(title: "What the numbers say") {
                 ForEach(found) { (f: InsightFinding) in
-                    HStack(alignment: .top, spacing: 10) {
+                    HStack(alignment: .top, spacing: pt(10)) {
                         Image(systemName: f.tone == "good" ? "checkmark.circle" : (f.tone == "warn" ? "exclamationmark.triangle.fill" : "info.circle"))
                             .foregroundStyle(f.tone == "good" ? Tone.settled.color : (f.tone == "warn" ? Tone.owed.color : Color.secondary))
-                        VStack(alignment: .leading, spacing: 4) {
+                        VStack(alignment: .leading, spacing: pt(4)) {
                             Text(f.title).font(.body.weight(.medium))
                             Text(f.why).font(.subheadline).foregroundStyle(.secondary)
                         }
@@ -679,7 +679,7 @@ struct InsightsOverviewScreen: View {
     private func splitRow(_ title: String, _ s: InsightSplit?) -> some View {
         if let s, s.ads + s.organic > 0 {
             let share = s.adsShare ?? 0
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: pt(6)) {
                 HStack {
                     Text(title)
                     Spacer(minLength: 8)
@@ -758,7 +758,7 @@ struct InsightsOverviewScreen: View {
                 Text("No ad ran in \(InsightRange.label(rangeKey).lowercased()).").foregroundStyle(.secondary)
             } else {
                 ForEach(shown) { (p: InsightPlatform) in
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: pt(4)) {
                         HStack {
                             Text(InsightWords.platform[p.platform] ?? p.platform).font(.body.weight(.medium))
                             Spacer(minLength: 8)
@@ -786,7 +786,7 @@ struct InsightsOverviewScreen: View {
             return Point(id: d.date, date: date, value: d.views)
         }
         return InsightBlock(title: "Facebook", trailing: fb.name) {
-            VStack(spacing: 10) {
+            VStack(spacing: pt(10)) {
                 InsightTiles(tiles: [
                     FigureTile(label: "Followers", value: AdsFormat.count(fb.followers), detail: "+\(AdsFormat.count(v("page_daily_follows_unique"))) · −\(AdsFormat.count(v("page_daily_unfollows_unique")))"),
                     FigureTile(label: "Views", value: AdsFormat.compact(v("page_media_view")), detail: AdsFormat.change(v("page_media_view"), p["page_media_view"]) ?? "\(AdsFormat.compact(v("page_total_media_view_unique"))) people"),
@@ -932,7 +932,7 @@ struct InsightsPostsScreen: View {
     @ViewBuilder
     private func postsWide(_ d: InsightsPosts, _ shown: [InsightPost]) -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
+            HStack(spacing: pt(8)) {
                 ForEach(Self.filters, id: \.key) { (f: (key: String, label: String)) in
                     FilterChip(title: f.label, chosen: filter == f.key) { filter = f.key }
                 }
@@ -945,7 +945,7 @@ struct InsightsPostsScreen: View {
         if shown.isEmpty {
             Text("Nothing here for \(InsightRange.label(rangeKey).lowercased()).").foregroundStyle(.secondary)
         } else {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 440), spacing: 14, alignment: .top)], spacing: 14) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 440), spacing: pt(14), alignment: .top)], spacing: pt(14)) {
                 ForEach(shown) { (p: InsightPost) in row(p, live: d.live.contains(p.id)).ledgerCard() }
             }
         }
@@ -957,7 +957,7 @@ struct InsightsPostsScreen: View {
             Group {
                 Section {
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
+                        HStack(spacing: pt(8)) {
                             ForEach(Self.filters, id: \.key) { (f: (key: String, label: String)) in
                                 FilterChip(title: f.label, chosen: filter == f.key) { filter = f.key }
                             }
@@ -996,12 +996,12 @@ struct InsightsPostsScreen: View {
         if let w = p.avgWatchMs { stats.append(("Avg watch", String(format: "%.1fs", w / 1000))) }
         if let fv = p.facebookViews { stats.append(("On Facebook", AdsFormat.compact(fv))) }
         if let c = p.clicks { stats.append(("Clicks", AdsFormat.compact(c))) }
-        return HStack(alignment: .top, spacing: 12) {
+        return HStack(alignment: .top, spacing: pt(12)) {
             StockImage(imageUrl: p.thumb, name: p.caption, key: p.id)
                 .frame(width: tall ? 54 : 72, height: tall ? 96 : 72)
                 .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 6) {
+            VStack(alignment: .leading, spacing: pt(6)) {
+                HStack(spacing: pt(6)) {
                     Text(InsightWords.kind[p.kind] ?? p.kind).font(.caption.weight(.medium))
                     Text(ShopDate.say(p.at)).font(.caption).foregroundStyle(.secondary)
                     if live { StatusBadge("Up now", color: Tone.settled.color) }
@@ -1012,7 +1012,7 @@ struct InsightsPostsScreen: View {
                     }
                 }
                 if !p.caption.isEmpty { Text(p.caption).font(.subheadline).lineLimit(2) }
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: 6) {
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: pt(6)) {
                     ForEach(stats, id: \.0) { (s: (String, String)) in
                         VStack(alignment: .leading, spacing: 0) {
                             Text(s.0).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
@@ -1022,7 +1022,7 @@ struct InsightsPostsScreen: View {
                 }
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, pt(4))
     }
 }
 
@@ -1100,13 +1100,13 @@ struct InsightsAudienceScreen: View {
         .frame(maxWidth: 480)
         Text(audienceNote()).font(.footnote).foregroundStyle(.secondary)
         if let dims {
-            HStack(alignment: .top, spacing: 20) {
-                VStack(alignment: .leading, spacing: 20) {
+            HStack(alignment: .top, spacing: pt(20)) {
+                VStack(alignment: .leading, spacing: pt(20)) {
                     shares("Age", dims.age, label: { (k: String) in k })
                     shares("Cities", dims.city, label: { (k: String) in k })
                 }
                 .frame(maxWidth: .infinity, alignment: .top)
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: pt(20)) {
                     shares("Gender", dims.gender, label: { (k: String) in InsightWords.gender[k] ?? k })
                     shares("Countries", dims.country, label: { (k: String) in InsightWords.country[k] ?? k })
                 }
@@ -1154,7 +1154,7 @@ struct InsightsAudienceScreen: View {
                 Text("Meta has nothing for this yet.").foregroundStyle(.secondary)
             } else {
                 ForEach(top) { (p: InsightPart) in
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: pt(6)) {
                         HStack {
                             Text(label(p.key)).lineLimit(1)
                             Spacer(minLength: 8)

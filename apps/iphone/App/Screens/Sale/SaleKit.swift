@@ -110,17 +110,17 @@ struct SaleScanSheet: View {
             ScrollView {
                 if wide {
                     // Landscape on an iPad: the camera large, what the last tag did at its side.
-                    HStack(alignment: .top, spacing: 20) {
+                    HStack(alignment: .top, spacing: pt(20)) {
                         camera.frame(maxWidth: .infinity)
                         saidCard.frame(width: 300)
                     }
-                    .padding(20)
+                    .padding(pt(20))
                 } else {
-                    VStack(spacing: 16) {
+                    VStack(spacing: pt(16)) {
                         camera
                         saidCard
                     }
-                    .padding(16)
+                    .padding(pt(16))
                 }
             }
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }

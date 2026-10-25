@@ -213,7 +213,7 @@ struct StudioBoardEditor: View {
     // MARK: The canvas
 
     private var canvasArea: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: pt(8)) {
             if House.isDemo { Label(demoNote, systemImage: "info.circle").font(.footnote).foregroundStyle(.secondary).padding(.horizontal) }
             if ready {
                 StudioBoardCanvas(image: NativeArtwork.image(response), boxes: response["boxes"].array, layers: layers, frameSize: frameSize, selected: $selected,
@@ -248,10 +248,10 @@ struct StudioBoardEditor: View {
 
     @ViewBuilder
     private var phoneBar: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: pt(8)) {
             if let id = selected, layer(id) != nil {
                 GlassEffectContainer {
-                    HStack(spacing: 4) {
+                    HStack(spacing: pt(4)) {
                         quick("Edit", "slider.horizontal.3") { show(.edit) }
                         quick("Forward", "square.2.layers.3d.top.filled") { step(id, 1) }
                         quick("Back", "square.2.layers.3d.bottom.filled") { step(id, -1) }
@@ -259,7 +259,7 @@ struct StudioBoardEditor: View {
                         quick(layer(id)?["locked"].bool == true ? "Unlock" : "Lock", layer(id)?["locked"].bool == true ? "lock.fill" : "lock.open") { updateLayer(id) { $0["locked"] = .bool(!$0["locked"].bool) } }
                         quick("Remove", "trash") { remove(id) }
                     }
-                    .padding(6).glassEffect(.regular, in: .capsule)
+                    .padding(pt(6)).glassEffect(.regular, in: .capsule)
                 }
             }
             GlassEffectContainer {
@@ -279,10 +279,10 @@ struct StudioBoardEditor: View {
                         .accessibilityAddTraits(panelShown && tab == p ? .isSelected : [])
                     }
                 }
-                .padding(.horizontal, 8).padding(.vertical, 6).glassEffect(.regular, in: .capsule)
+                .padding(.horizontal, pt(8)).padding(.vertical, pt(6)).glassEffect(.regular, in: .capsule)
             }
         }
-        .padding(.horizontal, 14).padding(.bottom, 6)
+        .padding(.horizontal, pt(14)).padding(.bottom, pt(6))
         .disabled(!ready)
     }
 
@@ -298,7 +298,7 @@ struct StudioBoardEditor: View {
     private var panel: some View {
         VStack(spacing: 0) {
             Picker("Tools", selection: $tab) { ForEach(Pane.allCases) { Text($0.title).tag($0) } }
-                .pickerStyle(.segmented).padding(.horizontal).padding(.vertical, 10)
+                .pickerStyle(.segmented).padding(.horizontal).padding(.vertical, pt(10))
             Form {
                 switch tab {
                 case .add: addPane
@@ -369,7 +369,7 @@ struct StudioBoardEditor: View {
             Button("Link pill", systemImage: "link") { act("link", "Ask us on WhatsApp") }
         } header: { LedgerHeading(title: "Elements") }.houseRows()
         Section {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 52), spacing: 8)], spacing: 8) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 52), spacing: pt(8))], spacing: pt(8)) {
                 ForEach(Self.stickers, id: \.self) { glyph in
                     Button { sticker(glyph) } label: {
                         Text(glyph).font(.title2).frame(maxWidth: .infinity, minHeight: 48)
@@ -378,7 +378,7 @@ struct StudioBoardEditor: View {
                     .buttonStyle(.plain).accessibilityLabel("Sticker " + glyph)
                 }
             }
-            .padding(.vertical, 4)
+            .padding(.vertical, pt(4))
         } header: { LedgerHeading(title: "Stickers") }.houseRows()
     }
 
@@ -596,14 +596,14 @@ struct StudioBoardEditor: View {
             Button("Write three options", systemImage: "sparkles") { Task { await writeWords() } }.disabled(House.isDemo || busy != nil)
             if House.isDemo { Text("The demo’s AI is off.").font(.footnote).foregroundStyle(.secondary) }
             ForEach(Array(wordOptions.enumerated()), id: \.offset) { _, option in
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: pt(4)) {
                     if !(option["kicker"] ?? "").isEmpty { Text(option["kicker"] ?? "").font(.caption).foregroundStyle(.secondary) }
                     Text(option["headline"] ?? "").font(.headline)
                     if !(option["details"] ?? "").isEmpty { Text(option["details"] ?? "").font(.subheadline) }
                     Button("Use these words") { edit { d in for (k, v) in option where !v.isEmpty { d.fields[k] = v } } }
-                        .buttonStyle(.borderless).padding(.top, 2)
+                        .buttonStyle(.borderless).padding(.top, pt(2))
                 }
-                .padding(.vertical, 4)
+                .padding(.vertical, pt(4))
             }
         } header: { LedgerHeading(title: "AI words") } footer: { Text("Each option is written from a different angle for this design’s shape. Nothing changes until you use one.") }.houseRows()
     }
@@ -691,14 +691,14 @@ struct StudioBoardEditor: View {
     private func candidateSheet(_ c: Candidate) -> some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: pt(14)) {
                     if let warning = c.warning { Label(warning, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.owed.color).font(.subheadline) }
                     ViewThatFits(in: .horizontal) {
-                        HStack(alignment: .top, spacing: 12) { versions(c) }
-                        VStack(spacing: 12) { versions(c) }
+                        HStack(alignment: .top, spacing: pt(12)) { versions(c) }
+                        VStack(spacing: pt(12)) { versions(c) }
                     }
                 }
-                .padding(20)
+                .padding(pt(20))
             }
             .background(Theme.ground)
             .navigationTitle("The AI’s version").navigationBarTitleDisplayMode(.inline)
@@ -715,7 +715,7 @@ struct StudioBoardEditor: View {
 
     @ViewBuilder private func versions(_ c: Candidate) -> some View {
         ForEach([("Before", c.before), ("After", Optional(c.data))], id: \.0) { title, data in
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: pt(6)) {
                 Text(title).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
                 if let data, let image = UIImage(data: data) { Image(uiImage: image).resizable().scaledToFit().clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous)) }
             }
@@ -1367,8 +1367,8 @@ struct StudioBoardPhotoPicker: View {
     }
 
     private var outsideSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 10) {
+        VStack(alignment: .leading, spacing: pt(10)) {
+            HStack(spacing: pt(10)) {
                 PhotosPicker(selection: $device, matching: .images) { Label("Photos", systemImage: "photo.on.rectangle") }
                 Button { filesOpen = true } label: { Label("Files or Drive", systemImage: "folder") }
             }
@@ -1390,7 +1390,7 @@ struct StudioBoardPhotoPicker: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: pt(14)) {
                     if choosesShape {
                         Picker("Shape", selection: $format) {
                             ForEach(board.formats.map { $0.s("id") }, id: \.self) { Text(board.formatInfo($0).s("label", $0)).tag($0) }
@@ -1403,11 +1403,11 @@ struct StudioBoardPhotoPicker: View {
                         if items.isEmpty && problem == nil {
                             Text(q.isEmpty ? "The library has no photos yet." : "Nothing matches “\(q)”.").foregroundStyle(.secondary)
                         }
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 10)], spacing: 10) {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: pt(10))], spacing: pt(10)) {
                             ForEach(items.map { $0.s("id") }, id: \.self) { id in
                                 let item = items.first { $0.s("id") == id } ?? .null
                                 Button { pick(item, format) } label: {
-                                    VStack(alignment: .leading, spacing: 4) {
+                                    VStack(alignment: .leading, spacing: pt(4)) {
                                         MarketingPhoto(path: item.s("thumb")).frame(maxWidth: .infinity).aspectRatio(1, contentMode: .fit).clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
                                         Text(item.s("name")).font(.caption).lineLimit(2).foregroundStyle(.primary)
                                     }
@@ -1420,7 +1420,7 @@ struct StudioBoardPhotoPicker: View {
                         SkeletonLoading("Loading the photos")
                     }
                 }
-                .padding(20)
+                .padding(pt(20))
             }
             .background(Theme.ground)
             .searchable(text: $q, prompt: "Search — ring, emerald, bangles…")

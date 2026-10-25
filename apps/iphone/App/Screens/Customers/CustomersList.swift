@@ -263,8 +263,8 @@ private struct CustSummary: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: pt(16)) {
+            VStack(alignment: .leading, spacing: pt(8)) {
                 Text("Owed to you").font(.subheadline).foregroundStyle(.secondary)
                 HeroAmount(amount: owed.total)
                 if !owedDetail.isEmpty {
@@ -274,12 +274,12 @@ private struct CustSummary: View {
             }
             Divider()
             DisclosureGroup("Customer overview") {
-                VStack(spacing: 12) {
+                VStack(spacing: pt(12)) {
                     TwoLine(title: "Customers", trailing: "\(customerCount)")
                     TwoLine(title: "Bought in \(CustomerKit.dormantAfterMonths) months", trailing: "\(boughtRecently)")
                     TwoLine(title: "Lifetime sales", trailing: Money.pkrLac(lifetime))
                 }
-                .padding(.top, 12)
+                .padding(.top, pt(12))
             }
             .font(.subheadline)
         }
@@ -315,13 +315,13 @@ private struct CustRowLabel: View {
 
     var body: some View {
         // What is owed leads: it is the reason you look a customer up.
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: pt(12)) {
             Monogram(name: CustomerKit.shown(customer))
             TwoLine(title: CustomerKit.shown(customer), subtitle: subtitle,
                     trailing: trailing, trailingTint: owes ? Tone.owed.color : .primary,
                     trailingLabel: owes ? "Owed" : "Lifetime sales")
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, pt(8))
     }
 }
 

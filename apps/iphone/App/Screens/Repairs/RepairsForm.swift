@@ -276,12 +276,12 @@ struct RepairsForm: View {
     }
 
     private func pieceFields(_ piece: Binding<RepairsDraftPiece>) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: pt(8)) {
             TextField("Piece (gold ring)", text: piece.item)
                 .textInputAutocapitalization(.sentences)
             TextField("What to do (resize to 14)", text: piece.work)
                 .textInputAutocapitalization(.sentences)
-            HStack(spacing: 12) {
+            HStack(spacing: pt(12)) {
                 TextField("Weight g", text: piece.weight)
                     .keyboardType(.decimalPad)
                 TextField("Price", text: piece.price.wholeRupees)
@@ -289,7 +289,7 @@ struct RepairsForm: View {
                     .multilineTextAlignment(.trailing)
             }
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, pt(2))
     }
 
     private func remove(_ id: UUID) {
@@ -307,7 +307,7 @@ struct RepairsForm: View {
                 // Stored as yyyy-MM-dd, Karachi's day.
                 DatePicker("Date", selection: $promised, displayedComponents: .date)
                     .environment(\.timeZone, ERPDate.karachi)
-                AdaptiveStack(spacing: 8, alignment: .center) {
+                AdaptiveStack(spacing: pt(8), alignment: .center) {
                     quickDate(3, "3 days")
                     quickDate(7, "1 week")
                     quickDate(14, "2 weeks")

@@ -68,7 +68,7 @@ private struct ShopForm: View {
                         .submitLabel(.done)
                         .onSubmit { commit() }
                 }
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: pt(4)) {
                     Text("Address").font(.subheadline).foregroundStyle(.secondary)
                     TextField("Address", text: $draft.address, axis: .vertical)
                         .lineLimit(1...4)
@@ -166,7 +166,7 @@ private struct ShopForm: View {
             set: { numbers?[keyPath: key] = $0 }
         )
         let typed = value.wrappedValue
-        return VStack(alignment: .leading, spacing: 4) {
+        return VStack(alignment: .leading, spacing: pt(4)) {
             LabeledContent(title) {
                 TextField("\(stored)", value: value, format: .number.grouping(.never))
                     .keyboardType(.numberPad)

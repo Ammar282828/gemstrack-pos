@@ -184,19 +184,19 @@ private struct OverheadsBoard: View {
     private func thisMonthSection(target: Double, earned: Double, p: OverheadProgress) -> some View {
         let met = p.shortfall == 0 && target > 0
         return Section {
-            VStack(spacing: 10) {
-                FigureRow(alignment: .top, spacing: 10) {
+            VStack(spacing: pt(10)) {
+                FigureRow(alignment: .top, spacing: pt(10)) {
                     FigureTile(label: "Needed this month", value: OwnerText.pkr(target), tint: Theme.accent)
                     FigureTile(label: "Revenue so far", value: OwnerText.pkr(earned))
                 }
-                VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: pt(10)) {
                     ProgressView(value: p.percent, total: 100).tint(Theme.accent)
                     if met {
                         Label("Covered \u{2014} \(OwnerText.pkr(earned - target)) above the benchmark", systemImage: "chart.line.uptrend.xyaxis")
                             .font(.subheadline.weight(.medium))
                             .foregroundStyle(.secondary)
                     } else {
-                        HStack(spacing: 4) {
+                        HStack(spacing: pt(4)) {
                             RowAmount(amount: p.shortfall, tone: Theme.accent)
                             Text("still to earn").foregroundStyle(.secondary)
                         }
@@ -247,7 +247,7 @@ private struct OverheadsBoard: View {
         // A month that met its target is the expected end: no colour (rule 15); one that fell short is amber.
         let tone: Color = r.inProgress || r.met ? Color.secondary : Tone.owed.color
         let symbol = r.inProgress ? "minus.circle.fill" : (r.met ? "checkmark.circle.fill" : "arrow.down.right.circle.fill")
-        return HStack(spacing: 12) {
+        return HStack(spacing: pt(12)) {
             Image(systemName: symbol).foregroundStyle(tone)
             VStack(alignment: .leading, spacing: 2) {
                 Text(r.inProgress ? "\(r.label) · so far" : r.label).lineLimit(1)
@@ -270,7 +270,7 @@ private struct OverheadsBoard: View {
     private func sheetSection(_ target: Double) -> some View {
         Section {
             ForEach($lines) { $line in
-                AdaptiveStack(spacing: 10, alignment: .center) {
+                AdaptiveStack(spacing: pt(10), alignment: .center) {
                     TextField("What is it for", text: $line.label)
                         .textInputAutocapitalization(.sentences)
                     TextField("Amount", text: $line.amountText.wholeRupees)

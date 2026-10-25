@@ -106,7 +106,7 @@ struct BusinessesScreen: View {
 
     private func row(_ b: Business, open isOpen: Bool) -> some View {
         Button { choose(b) } label: {
-            HStack(spacing: 14) {
+            HStack(spacing: pt(14)) {
                 BusinessBadge(business: b, size: 44)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(b.displayName).font(.headline).foregroundStyle(.primary).lineLimit(1)
@@ -226,7 +226,7 @@ struct BusinessesScreen: View {
         let known = Businesses.shared.business(b.id) != nil
         return Section {
             SectionCard("Found") {
-                HStack(spacing: 14) {
+                HStack(spacing: pt(14)) {
                     BusinessBadge(business: b, size: 52)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(b.displayName).font(.headline)
@@ -234,7 +234,7 @@ struct BusinessesScreen: View {
                     }
                 }
                 BusinessLogo(business: b)
-                HStack(spacing: 8) {
+                HStack(spacing: pt(8)) {
                     ForEach(Array([b.palette.light.accent, b.palette.light.ground, b.palette.dark.accent, b.palette.dark.ground].enumerated()), id: \.offset) { item in
                         Circle().fill(Color(hex: item.element) ?? .gray).frame(width: 22, height: 22)
                             .overlay { Circle().strokeBorder(.primary.opacity(0.18), lineWidth: 0.5) }

@@ -72,7 +72,7 @@ struct NewOrderNumberRow: View {
 
     var body: some View {
         LabeledContent(title) {
-            HStack(spacing: 4) {
+            HStack(spacing: pt(4)) {
                 TextField(title, text: rupees ? $text.wholeRupees : $text, prompt: Text(prompt))
                     .keyboardType(rupees ? .numberPad : .decimalPad)
                     .multilineTextAlignment(.trailing)
@@ -98,7 +98,7 @@ struct NewOrderSizeField: View {
 
     var body: some View {
         LabeledContent(title) {
-            HStack(spacing: 6) {
+            HStack(spacing: pt(6)) {
                 TextField("Size", text: $value, prompt: Text("Optional"))
                     .multilineTextAlignment(.trailing)
                     .monospacedDigit()

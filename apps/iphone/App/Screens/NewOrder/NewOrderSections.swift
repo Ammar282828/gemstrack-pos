@@ -111,7 +111,7 @@ struct NewOrderPromisedSection: View {
 
     var body: some View {
         Section {
-            HStack(spacing: 8) {
+            HStack(spacing: pt(8)) {
                 ForEach(quick, id: \.self) { d in
                     NewOrderChip(title: "\(d)d", on: draft.promised == NewOrderDay.after(d)) {
                         draft.promised = NewOrderDay.after(d)
@@ -358,8 +358,8 @@ struct NewOrderExchangeSection: View {
     @ViewBuilder
     private func exchangeRow(_ row: NewOrderExchangeDraft) -> some View {
         let showDetails = opened.contains(row.id) || !row.karat.isEmpty || !row.weightG.isEmpty || !row.ratePerGram.isEmpty
-        VStack(alignment: .leading, spacing: 8) {
-            AdaptiveStack(spacing: 10, alignment: .firstTextBaseline) {
+        VStack(alignment: .leading, spacing: pt(8)) {
+            AdaptiveStack(spacing: pt(10), alignment: .firstTextBaseline) {
                 TextField("What it is", text: text(row.id, { $0.description }, { ExchangeRowPatch(description: $0) }),
                           prompt: Text("What it is (e.g. old ring)"))
                 TextField("Amount", text: text(row.id, { $0.value }, { ExchangeRowPatch(value: $0) }).wholeRupees, prompt: Text("Amount"))
@@ -394,7 +394,7 @@ struct NewOrderExchangeSection: View {
     @ViewBuilder
     private func details(_ row: NewOrderExchangeDraft) -> some View {
         let computed = !row.valueTyped && NewOrderFormat.num(row.weightG) > 0 && NewOrderFormat.num(row.ratePerGram) > 0
-        HStack(spacing: 10) {
+        HStack(spacing: pt(10)) {
             // Karat only means something where the house sells gold; a silver house weighs without it.
             if House.metal == "gold" {
                 Picker("Karat", selection: text(row.id, { $0.karat }, { ExchangeRowPatch(karat: $0) })) {

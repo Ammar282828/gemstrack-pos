@@ -184,8 +184,8 @@ private struct ShareholdersBoard: View {
     private func tilesSection(_ t: ShareholderFigures.Totals) -> some View {
         let share = t.revShare - t.expShare
         return Section {
-            VStack(spacing: 10) {
-                FigureRow(alignment: .top, spacing: 10) {
+            VStack(spacing: pt(10)) {
+                FigureRow(alignment: .top, spacing: pt(10)) {
                     FigureTile(label: "Revenue", value: ShareholderMoney.fmt(t.totalRevenue))
                     FigureTile(label: "Expenses", value: ShareholderMoney.fmt(t.totalExpenses))
                 }
@@ -208,7 +208,7 @@ private struct ShareholdersBoard: View {
         let tone: Color = owed ? Tone.credit.color : (claim < 0 ? Tone.owed.color : Color.primary)
         return Section {
             Group {
-                AdaptiveStack(spacing: 8) {
+                AdaptiveStack(spacing: pt(8)) {
                     Text(words).foregroundStyle(.secondary)
                     Spacer(minLength: 8)
                     HeroAmount(amount: abs(claim.rounded()), tone: tone)
@@ -220,7 +220,7 @@ private struct ShareholdersBoard: View {
                         .monospacedDigit()
                         .foregroundStyle(p.balance.netPnL >= 0 ? Color.primary : Tone.owed.color)
                 }
-                FigureRow(alignment: .top, spacing: 8) {
+                FigureRow(alignment: .top, spacing: pt(8)) {
                     smallFigure("Contributed", p.contributed, symbol: "arrow.down.left")
                     smallFigure("Salary", p.salaryPaid, symbol: "banknote")
                     smallFigure("Capital drawn", p.withdrawn, symbol: "arrow.up.right")
@@ -438,7 +438,7 @@ private struct ShareholdersBoard: View {
         let typed = floorText ?? PaymentText.field(s.workingCapitalFloor)
         let parsed = max(0, MoneyParse.rupees(typed) ?? 0)
         let changed = parsed != s.workingCapitalFloor.rounded()
-        return HStack(spacing: 10) {
+        return HStack(spacing: pt(10)) {
             Text("Working capital floor")
             Spacer(minLength: 8)
             TextField("0", text: Binding(get: { typed }, set: { floorText = PaymentText.whole($0) }))

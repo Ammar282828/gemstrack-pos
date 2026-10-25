@@ -238,11 +238,11 @@ struct HisaabScreen: View {
         getLines.append("On invoices: \(Money.pkr(onInvoices))")
         var giveLines: [String] = []
         if s.payableGold > 0 { giveLines.append("\(MoneyFormat.grams(s.payableGold)) \(MoneyWords.metal)") }
-        return FigureRow(alignment: .top, spacing: 10) {
+        return FigureRow(alignment: .top, spacing: pt(10)) {
             FigureTile(label: "You will get", value: Money.pkr(s.receivable), detail: getLines.joined(separator: "\n"), tint: Tone.owed.color)
             FigureTile(label: "You will give", value: Money.pkr(s.payable), detail: giveLines.isEmpty ? nil : giveLines.joined(separator: "\n"), tint: Tone.credit.color)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, pt(4))
     }
 
     // MARK: Rows
@@ -432,7 +432,7 @@ private struct HisaabAccountRow: View {
     let listInvoices: Bool
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: pt(12)) {
             Monogram(name: account.name, size: Monogram.Size.row)
             VStack(alignment: .leading, spacing: 3) {
                 top
@@ -446,7 +446,7 @@ private struct HisaabAccountRow: View {
     private var tint: Color { account.cash > 0 ? Tone.owed.color : Tone.credit.color }
 
     private var top: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
+        HStack(alignment: .firstTextBaseline, spacing: pt(8)) {
             Text(account.name).font(.body.weight(.medium))
             Spacer(minLength: 8)
             if account.hasCash {
@@ -486,7 +486,7 @@ private struct HisaabUnpaidLine: View {
     let invoice: HisaabUnpaid
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
+        HStack(alignment: .firstTextBaseline, spacing: pt(8)) {
             Text(invoice.id).font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary).lineLimit(1)
             Spacer(minLength: 8)
             Text(figures)

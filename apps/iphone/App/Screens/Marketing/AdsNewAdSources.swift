@@ -199,11 +199,11 @@ struct AdsVideoSection: View {
     var body: some View {
         Section {
             if let v = video {
-                HStack(spacing: 12) {
+                HStack(spacing: pt(12)) {
                     StockImage(imageUrl: v.thumb, name: v.name, key: v.videoId.isEmpty ? v.name : v.videoId)
                         .frame(width: 56, height: 56)
                         .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: pt(4)) {
                         Text(v.name).lineLimit(2)
                         switch v.phase {
                         case .sending:
@@ -308,7 +308,7 @@ struct AdsPartnerSection: View {
                 .disabled(trimmed.isEmpty || checking)
             }
             if let c = checked, c.code == trimmed {
-                HStack(spacing: 10) {
+                HStack(spacing: pt(10)) {
                     if let thumb = c.thumb {
                         StockImage(imageUrl: thumb, name: c.creator ?? "Post", key: c.mediaId ?? c.code)
                             .frame(width: 48, height: 48)
@@ -516,7 +516,7 @@ struct AdsAdvancedSection: View {
                 Toggle("Run only on set days and hours", isOn: hoursBinding).tint(Theme.accent)
                 if advanced.hoursOn {
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 6) {
+                        HStack(spacing: pt(6)) {
                             ForEach(0..<7, id: \.self) { (d: Int) in
                                 MarketingChip(title: Self.dayNames[d], selected: advanced.days.contains(d)) {
                                     if advanced.days.contains(d) { advanced.days.remove(d) } else { advanced.days.insert(d) }

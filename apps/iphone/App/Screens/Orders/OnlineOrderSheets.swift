@@ -31,7 +31,7 @@ struct OnlineMessageSection: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
-                HStack(spacing: 10) {
+                HStack(spacing: pt(10)) {
                     ProgressView().controlSize(.small)
                     Text("Reading what is sent…").foregroundStyle(.secondary)
                 }

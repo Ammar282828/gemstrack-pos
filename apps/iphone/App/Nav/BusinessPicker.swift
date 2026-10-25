@@ -64,12 +64,12 @@ struct BusinessPicker: View {
     private var phoneBody: some View {
         let store = Businesses.shared
         ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: pt(14)) {
                 Text("Open")
                     .font(.system(.largeTitle, design: .serif).weight(.semibold))
                     .accessibilityAddTraits(.isHeader)
-                    .padding(.top, 48)
-                    .padding(.bottom, 10)
+                    .padding(.top, pt(48))
+                    .padding(.bottom, pt(10))
                 ForEach(Array(store.list.enumerated()), id: \.element.id) { index, b in
                     Button { choose(b) } label: { card(b, last: b.id == store.current.id) }
                         .buttonStyle(PickerPress())
@@ -88,11 +88,11 @@ struct BusinessPicker: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .padding(.top, 6)
+                .padding(.top, pt(6))
                 .accessibilityHint("Opens the list of businesses, where you can add one")
             }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 32)
+            .padding(.horizontal, pt(20))
+            .padding(.bottom, pt(32))
         }
         .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
         .selectionFeedback(trigger: tick)
@@ -107,9 +107,9 @@ struct BusinessPicker: View {
     }
 
     private func card(_ b: Business, last: Bool) -> some View {
-        HStack(spacing: 16) {
+        HStack(spacing: pt(16)) {
             BusinessBadge(business: b, size: badge)
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: pt(4)) {
                 Text(b.displayName).font(.title3.weight(.semibold)).foregroundStyle(.primary)
                 if let email = signedInEmail(b) {
                     Text(email).font(.subheadline).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)

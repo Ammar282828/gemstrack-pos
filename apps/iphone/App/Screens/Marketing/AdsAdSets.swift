@@ -376,7 +376,7 @@ struct AdsAdSetsScreen: View {
                 Button {
                     if on { adIds.removeAll { (x: String) in x == r.ad.id } } else { adIds.append(r.ad.id) }
                 } label: {
-                    HStack(spacing: 10) {
+                    HStack(spacing: pt(10)) {
                         StockImage(imageUrl: r.ad.image, name: r.ad.name, key: r.ad.id)
                             .frame(width: 44, height: 44)
                             .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
@@ -433,7 +433,7 @@ struct AdsAdSetsScreen: View {
         List {
             Group {
                 Section {
-                    VStack(spacing: 10) {
+                    VStack(spacing: pt(10)) {
                         Image(systemName: "checkmark.circle.fill").font(.largeTitle).foregroundStyle(Tone.settled.color)
                         Text("\(m.adsets.count) ad set\(m.adsets.count == 1 ? "" : "s") made\(m.live ? "" : ", paused")").font(.headline)
                         ForEach(m.warnings, id: \.self) { (w: String) in
@@ -441,7 +441,7 @@ struct AdsAdSetsScreen: View {
                         }
                     }
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
+                    .padding(.vertical, pt(8))
                 }
                 Section {
                     ForEach(m.adsets) { (s: AdsDesignMade.Made) in
@@ -571,8 +571,8 @@ private struct AdsSetCard: View {
                     .environment(\.timeZone, ERPDate.karachi)
             }
             Button(action: audience) {
-                HStack(spacing: 10) {
-                    VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: pt(10)) {
+                    VStack(alignment: .leading, spacing: pt(4)) {
                         Text("Who sees it").foregroundStyle(.primary)
                         Text(draft.audience.words).font(.subheadline).foregroundStyle(.secondary)
                     }

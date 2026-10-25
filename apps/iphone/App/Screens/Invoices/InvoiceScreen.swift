@@ -173,14 +173,14 @@ struct InvoiceScreen: View {
     /// paid, with the total and the paid sum under it.
     private func heroSection(_ inv: Invoice) -> some View {
         let layout = typeSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
-            : AnyLayout(HStackLayout(alignment: .center, spacing: 14))
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: pt(12)))
+            : AnyLayout(HStackLayout(alignment: .center, spacing: pt(14)))
         let when = ShopDate.say(inv.createdAt, withTime: true)
         return Section {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: pt(14)) {
                 layout {
                     Monogram(name: inv.customerName, size: Monogram.Size.hero)
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: pt(4)) {
                         customerTitle(inv)
                         if !when.isEmpty {
                             Text(when)
@@ -188,7 +188,7 @@ struct InvoiceScreen: View {
                                 .foregroundStyle(.secondary)
                                 .monospacedDigit()
                         }
-                        HStack(spacing: 6) {
+                        HStack(spacing: pt(6)) {
                             Text(piecesLine(inv))
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
@@ -235,10 +235,10 @@ struct InvoiceScreen: View {
     /// What is due as the big figure, the ring of what is paid beside it, and both sums in a line under.
     private func figures(_ inv: Invoice) -> some View {
         let layout = typeSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
-            : AnyLayout(HStackLayout(alignment: .center, spacing: 12))
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: pt(12)))
+            : AnyLayout(HStackLayout(alignment: .center, spacing: pt(12)))
         return layout {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: pt(4)) {
                 leadFigure(inv)
                 // Paid in full says it once, in the lead; the sums are under Pieces and Payments (rule 15).
                 if balanceLine(inv.balanceDue).state != .paid || inv.status == .refunded {
@@ -307,7 +307,7 @@ struct InvoiceScreen: View {
         let phone = whatsAppPhone(inv)
         let reachable = !CustomerKit.dialable(phone).isEmpty
         return Section {
-            HStack(alignment: .top, spacing: 10) {
+            HStack(alignment: .top, spacing: pt(10)) {
                 if reachable { ContactActions(phone: phone) }
                 QuickAction(title: "PDF", symbol: "doc.richtext") {
                     pdf = InvoiceFacts.pdfTarget(inv, byCustomer: session.shop.invoiceByCustomer)
@@ -666,11 +666,11 @@ private struct InvoicePieceRow: View {
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: pt(4)) {
             // The name leading and the price trailing; at accessibility sizes the price goes under the name.
             let layout = typeSize.isAccessibilitySize
-                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
-                : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 12))
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: pt(4)))
+                : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: pt(12)))
             layout {
                 Text(title)
                     .font(.headline)
@@ -693,7 +693,7 @@ private struct InvoicePieceRow: View {
                     .monospacedDigit()
             }
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, pt(2))
         .accessibilityElement(children: .combine)
     }
 
@@ -763,7 +763,7 @@ private struct InvoicePaymentRow: View {
     @ScaledMetric(relativeTo: .subheadline) private var iconSize: CGFloat = 34
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
+        HStack(alignment: .center, spacing: pt(12)) {
             Image(systemName: symbol)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(tone.color)
@@ -840,7 +840,7 @@ private struct InvoiceMarginRow: View {
 
     var body: some View {
         Button { Motion.run(Motion.enter, reduce: reduceMotion) { shown.toggle() } } label: {
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
+            HStack(alignment: .firstTextBaseline, spacing: pt(12)) {
                 Label("We earn", systemImage: shown ? "eye.slash" : "eye")
                     .contentTransition(.symbolEffect(.replace))
                     .font(.subheadline)

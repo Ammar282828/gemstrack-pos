@@ -201,7 +201,7 @@ struct AdsSetupScreen: View {
     private func stepHeader(_ n: Int, _ title: String, done: Bool?) -> some View {
         let symbol = done == nil ? "circle" : (done == true ? "checkmark.circle.fill" : "xmark.circle.fill")
         let tint: Color = done == nil ? .secondary : (done == true ? Tone.settled.color : Tone.problem.color)
-        return HStack(spacing: 6) {
+        return HStack(spacing: pt(6)) {
             Image(systemName: symbol).foregroundStyle(tint)
             Text("\(n). \(title)")
         }
@@ -327,8 +327,8 @@ struct AdsSetupScreen: View {
     }
 
     private func dashboardStep(_ n: Int, _ words: String, copy: [String] = []) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
+        VStack(alignment: .leading, spacing: pt(6)) {
+            HStack(alignment: .firstTextBaseline, spacing: pt(8)) {
                 Text("\(n).").monospacedDigit().foregroundStyle(.secondary)
                 Text(words).font(.subheadline)
             }
@@ -336,7 +336,7 @@ struct AdsSetupScreen: View {
                 Text(line)
                     .font(.caption.monospaced())
                     .textSelection(.enabled)
-                    .padding(.leading, 22)
+                    .padding(.leading, pt(22))
                     .contextMenu { Button { UIPasteboard.general.string = line } label: { Label("Copy", systemImage: "doc.on.doc") } }
             }
         }
@@ -350,8 +350,8 @@ struct AdsSetupScreen: View {
 
     /// One thing Meta's Live switch asks for: ticked when the app has it (read from Meta), else the value to give it.
     private func liveRow(_ label: String, ok: Bool, known: Bool, now: String?, give: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: pt(4)) {
+            HStack(spacing: pt(6)) {
                 Image(systemName: known && ok ? "checkmark.circle.fill" : (known ? "xmark.circle.fill" : "circle"))
                     .foregroundStyle(known && ok ? Tone.settled.color : (known ? Tone.problem.color : Color.secondary))
                 Text(label)
@@ -369,9 +369,9 @@ struct AdsSetupScreen: View {
         if app.loginConfigFromEnv {
             LabeledContent("Login configuration", value: app.loginConfigId ?? "")
         } else {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: pt(6)) {
                 Text("Facebook Login for Business configuration ID")
-                HStack(spacing: 8) {
+                HStack(spacing: pt(8)) {
                     TextField("Configuration ID", text: $configId)
                         .keyboardType(.numberPad)
                         .monospacedDigit()
@@ -475,7 +475,7 @@ struct AdsSetupScreen: View {
     }
 
     private func choiceRow(title: String, line: String, picture: String?, on: Bool) -> some View {
-        HStack(spacing: 10) {
+        HStack(spacing: pt(10)) {
             if let picture {
                 StockImage(imageUrl: picture, name: title, key: title)
                     .frame(width: 36, height: 36)
@@ -594,7 +594,7 @@ struct AdsSetupScreen: View {
     private func pixelRows(_ p: AdsPixelAnswer, _ st: AdsPixelState) -> some View {
         let listed = Set(p.pixels.map { (x: AdsPixelRow) in x.id })
         ForEach(st.carried.filter { (id: String) in id != st.id }, id: \.self) { (id: String) in
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: pt(6)) {
                 Label("\(st.sitesCarrying(id)) already carries pixel \(id)", systemImage: "globe").font(.subheadline.weight(.medium))
                 Text(listed.contains(id)
                      ? "Use it rather than making another: one pixel keeps every visit and order in one place, and its history is already there."
@@ -608,7 +608,7 @@ struct AdsSetupScreen: View {
             }
         }
         if let id = st.id {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: pt(4)) {
                 // Receiving is the expected state: plain words; only silence is marked and coloured (CONVENTIONS rule 15).
                 if st.live {
                     Text("Pixel \(id) is receiving from the website")
@@ -627,7 +627,7 @@ struct AdsSetupScreen: View {
             Text("No pixel chosen: website ads buy clicks, and nobody who visits can be retargeted.").font(.footnote).foregroundStyle(Tone.owed.color)
         }
         ForEach(p.pixels) { (x: AdsPixelRow) in
-            HStack(spacing: 8) {
+            HStack(spacing: pt(8)) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(x.name)
                     Text("\(x.id) · \(x.lastFired.map { (l: String) in "last \(ShopDate.say(l))" } ?? "never fired")").font(.caption).foregroundStyle(.secondary)
@@ -641,7 +641,7 @@ struct AdsSetupScreen: View {
                 }
             }
         }
-        HStack(spacing: 8) {
+        HStack(spacing: pt(8)) {
             TextField("New pixel's name", text: $pixelName)
             Button(busy == "pixel" ? "Working…" : "Make a new pixel") {
                 if st.carried.isEmpty {

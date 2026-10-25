@@ -75,7 +75,7 @@ struct AnaSalesPage: View {
             Section {
                 ForEach(history.yearly) { (y: AnaYear) in
                     Button { pick("year-\(y.year)") } label: {
-                        HStack(spacing: 8) {
+                        HStack(spacing: pt(8)) {
                             yearRow(y)
                             Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
                                 .accessibilityHidden(true)
@@ -106,14 +106,14 @@ struct AnaSalesPage: View {
 
     private func yearRow(_ y: AnaYear) -> some View {
         VStack(alignment: .leading, spacing: 3) {
-            AdaptiveStack(spacing: 8) {
+            AdaptiveStack(spacing: pt(8)) {
                 Text(String(y.year)).font(.headline)
                 Spacer(minLength: 8)
                 RowAmount(amount: y.revenue, lac: true)
             }
             Text(yearDetail(y)).font(.caption).foregroundStyle(.secondary)
             if showCosts {
-                AdaptiveStack(spacing: 6) {
+                AdaptiveStack(spacing: pt(6)) {
                     Text("Net profit \(Money.lacCrore(y.netProfit))")
                         .foregroundStyle(y.netProfit >= 0 ? Color.secondary : Tone.late.color)
                     Text(y.revenue > 0 ? "\(AnaFormat.fixed(y.netProfit / y.revenue * 100, 1))% margin" : "—")
@@ -147,7 +147,7 @@ struct AnaSalesPage: View {
                 // Newest first: the first five are the latest days, not the oldest.
                 ForEach(Array(figures.salesOverTime.reversed().prefix(showDays ? figures.salesOverTime.count : 5))) { (d: AnaDay) in
                     Button { day = d } label: {
-                        HStack(spacing: 8) {
+                        HStack(spacing: pt(8)) {
                             dayRow(d)
                             Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
                                 .accessibilityHidden(true)

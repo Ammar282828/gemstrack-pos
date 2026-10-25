@@ -38,7 +38,7 @@ struct DesignWorkspaceView: View {
     var body: some View {
         Group {
             if let w = model.work {
-                if w.fresh { SkeletonLoading("Laying it out").controlSize(.large).padding(16).frame(maxHeight: .infinity, alignment: .top) }
+                if w.fresh { SkeletonLoading("Laying it out").controlSize(.large).padding(pt(16)).frame(maxHeight: .infinity, alignment: .top) }
                 else { content(w) }
             }
         }
@@ -96,7 +96,7 @@ struct DesignWorkspaceView: View {
     private func narrowContent(_ w: DesignWork) -> some View {
         ScrollViewReader { proxy in
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: pt(16)) {
                     header(w)
                     strip(w)
                     DesignCandidateBanner(model: model).id("candidate")
@@ -105,7 +105,7 @@ struct DesignWorkspaceView: View {
                     photograph
                     if w.kind == "ad" || !(w.copy["adText"] ?? "").isEmpty { adCopy }
                 }
-                .padding(.horizontal, 16).padding(.vertical, 12)
+                .padding(.horizontal, pt(16)).padding(.vertical, pt(12))
             }
             .scrollDismissesKeyboard(.interactively)
             // An AI picture that waits for a look appears above the tools that made it: bring it into view.
@@ -136,12 +136,12 @@ struct DesignWorkspaceView: View {
         HStack(alignment: .top, spacing: 0) {
             ScrollViewReader { proxy in
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading, spacing: pt(16)) {
                         strip(w)
                         DesignCandidateBanner(model: model).id("candidate")
                         stage(w)
                     }
-                    .padding(.horizontal, 24).padding(.vertical, 12)
+                    .padding(.horizontal, pt(24)).padding(.vertical, pt(12))
                 }
                 .onChange(of: model.candidate?.id) { _, id in
                     if id != nil { Motion.run(Motion.travel, reduce: reduceMotion) { proxy.scrollTo("candidate", anchor: .top) } }
@@ -149,13 +149,13 @@ struct DesignWorkspaceView: View {
             }
             .frame(maxWidth: .infinity)
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: pt(16)) {
                     header(w)
                     words(w)
                     photograph
                     if w.kind == "ad" || !(w.copy["adText"] ?? "").isEmpty { adCopy }
                 }
-                .padding(.horizontal, 24).padding(.vertical, 12)
+                .padding(.horizontal, pt(24)).padding(.vertical, pt(12))
             }
             .frame(width: min(480, max(380, width * 0.4)))
         }
@@ -165,8 +165,8 @@ struct DesignWorkspaceView: View {
     // MARK: Name and kind (Save and Publish are the action bar)
 
     private func header(_ w: DesignWork) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: pt(12)) {
+            HStack(spacing: pt(8)) {
                 Button(action: onClose) { Label("Designs", systemImage: "chevron.left").font(.subheadline.weight(.medium)).frame(minHeight: Metrics.tap) }.buttonStyle(.plain)
                 Pill(DesignKinds.label(w.kind), tone: .house)
                 Spacer(minLength: 0)
@@ -184,11 +184,11 @@ struct DesignWorkspaceView: View {
 
     private func strip(_ w: DesignWork) -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(alignment: .top, spacing: 10) {
+            HStack(alignment: .top, spacing: pt(10)) {
                 ForEach(w.pages) { p in PageCell(model: model, work: w, page: p, removing: $removing) }
                 // PHASE 2: "Resize…" makes the master's design on another shape (DesignHooks.resize).
                 Button { DesignHooks.shared.resize(model) } label: {
-                    VStack(spacing: 6) {
+                    VStack(spacing: pt(6)) {
                         Image(systemName: "plus").font(.title3)
                         Text("Size").font(.caption)
                     }
@@ -196,7 +196,7 @@ struct DesignWorkspaceView: View {
                     .overlay(RoundedRectangle(cornerRadius: Radius.chip, style: .continuous).strokeBorder(.secondary.opacity(0.4), style: StrokeStyle(lineWidth: 1.5, dash: [5, 4])))
                 }.buttonStyle(.plain).accessibilityLabel("Resize: add a size")
             }
-            .padding(.vertical, 2)
+            .padding(.vertical, pt(2))
         }
     }
 
@@ -205,7 +205,7 @@ struct DesignWorkspaceView: View {
     private func stage(_ w: DesignWork) -> some View {
         let page = w.activePage
         let zone = DesignSizes.safeZone(h: page.h)
-        return VStack(alignment: .leading, spacing: 12) {
+        return VStack(alignment: .leading, spacing: pt(12)) {
             HStack {
                 Text(page.label).font(.subheadline.weight(.semibold))
                 Text("\(Int(page.w))×\(Int(page.h))").font(.caption).foregroundStyle(.secondary).monospacedDigit()
@@ -222,7 +222,7 @@ struct DesignWorkspaceView: View {
             .frame(maxWidth: .infinity)
             .clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))
             .task(id: "\(page.id)-\(page.rev)-\(model.tick)") { await model.refreshPreview(page.id) }
-            HStack(spacing: 10) {
+            HStack(spacing: pt(10)) {
                 Button { model.beginEditing(page.id); editing = DesignEditTarget(pageId: page.id) } label: {
                     Label("Edit design", systemImage: "slider.horizontal.3").frame(maxWidth: .infinity)
                 }.buttonStyle(.bordered).tint(Theme.accent).largeOnPhone()
@@ -263,7 +263,7 @@ struct DesignWorkspaceView: View {
 
     private var photograph: some View {
         SectionCard("The photograph") {
-            HStack(spacing: 12) {
+            HStack(spacing: pt(12)) {
                 DesignPhotoThumb(model: model)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(model.photos["photo"] == nil ? "No photograph" : "The design’s photograph").font(.subheadline.weight(.medium))
@@ -286,7 +286,7 @@ struct DesignWorkspaceView: View {
 
     /// Other angles of the piece: they go out with it as squares of their own (publish.ts `more`).
     private var moreRow: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: pt(8)) {
             HStack {
                 Text("More photos of this piece").font(.subheadline.weight(.medium))
                 Spacer(minLength: 0)
@@ -294,7 +294,7 @@ struct DesignWorkspaceView: View {
             }
             if !model.moreIds.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
+                    HStack(spacing: pt(8)) {
                         ForEach(model.moreIds, id: \.self) { id in
                             ZStack(alignment: .topTrailing) {
                                 Group {
@@ -306,7 +306,7 @@ struct DesignWorkspaceView: View {
                                     .buttonStyle(.plain).offset(x: 5, y: -5).accessibilityLabel("Take this photo out")
                             }
                         }
-                    }.padding(.top, 5)
+                    }.padding(.top, pt(5))
                 }
             }
             Text(model.moreIds.isEmpty ? "Other angles of the same piece go out with it as squares of their own." : "Publish sends each to the website and WhatsApp as a square of its own, on the same page design.")
@@ -343,7 +343,7 @@ private struct PageCell: View {
 
     var body: some View {
         let on = page.id == work.active
-        VStack(spacing: 5) {
+        VStack(spacing: pt(5)) {
             Button { model.setActive(page.id) } label: {
                 Group {
                     if let image = model.thumbs[page.id] { Image(uiImage: image).resizable().scaledToFit() }
@@ -360,7 +360,7 @@ private struct PageCell: View {
             .foregroundStyle(work.stale.contains(page.id) ? Tone.owed.color : Color.secondary)
             if on { menu }
         }
-        .padding(8)
+        .padding(pt(8))
         .background(on ? Theme.accent.opacity(0.12) : Theme.card, in: .rect(cornerRadius: Radius.chip, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: Radius.chip, style: .continuous).strokeBorder(on ? Theme.accent : Color.secondary.opacity(0.18), lineWidth: on ? 1.5 : 1))
         .accessibilityElement(children: .contain)
@@ -409,11 +409,11 @@ private struct DesignField: View {
     var lines: ClosedRange<Int> = 1...3
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: pt(4)) {
             Text(label).font(.caption).foregroundStyle(.secondary)
             TextField(prompt, text: $text, axis: .vertical)
                 .lineLimit(lines)
-                .padding(.horizontal, 12).padding(.vertical, 9)
+                .padding(.horizontal, pt(12)).padding(.vertical, pt(9))
                 .background(Theme.ground, in: .rect(cornerRadius: Radius.tile, style: .continuous))
         }
     }

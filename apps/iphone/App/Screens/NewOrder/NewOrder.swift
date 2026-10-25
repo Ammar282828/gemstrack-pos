@@ -518,7 +518,7 @@ struct NewOrder: View {
                 summary: word + Money.pkr(abs(totals.balance))
             )
         }
-        .padding(.top, 8)
+        .padding(.top, pt(8))
     }
 
     /// Sizes on the order that the customer's profile doesn't hold are offered once, over the order's own page.
@@ -649,7 +649,7 @@ struct NewOrderLanding: View {
             OrderScreen(id: id)
                 .environment(\.zoomNamespace, nil)  // swapped in place after a save: no row to zoom from
         } else {
-            VStack(spacing: 12) {
+            VStack(spacing: pt(12)) {
                 SkeletonLoading().controlSize(.large)
                 Text("Opening \(id)…").foregroundStyle(.secondary)
             }
@@ -676,7 +676,7 @@ private struct NewOrderPinnedSummary: View {
     }
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
+        HStack(alignment: .firstTextBaseline, spacing: pt(12)) {
             VStack(alignment: .leading, spacing: 0) {
                 Text("Order total").font(.caption2.weight(.medium)).foregroundStyle(.secondary)
                 Text(Money.pkr(totals.subtotal))
@@ -696,7 +696,7 @@ private struct NewOrderPinnedSummary: View {
         }
         .lineLimit(1)
         .minimumScaleFactor(0.7)
-        .padding(.horizontal, 16).padding(.vertical, 8)
+        .padding(.horizontal, pt(16)).padding(.vertical, pt(8))
         .background(Theme.ground)
         .motion(totals.balance, Motion.travel)
         .motion(totals.subtotal, Motion.travel)

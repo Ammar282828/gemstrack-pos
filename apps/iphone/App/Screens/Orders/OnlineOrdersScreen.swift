@@ -128,7 +128,7 @@ struct OnlineOrdersScreen: View {
     /// Who it is from first (the section says Online already); the number the customer quotes and how long ago
     /// are the quiet line, and the total sits at the right.
     private func whoRow(_ r: OnlineOrderRow) -> some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: pt(12)) {
             Monogram(name: r.customer.name, size: Monogram.Size.row)
             VStack(alignment: .leading, spacing: 3) {
                 Text(r.customer.name.isEmpty ? "Customer" : r.customer.name)
@@ -152,7 +152,7 @@ struct OnlineOrdersScreen: View {
     }
 
     private func lineRow(_ l: OnlineOrderLine) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: pt(12)) {
             StockImage(imageUrl: l.image, name: l.description, key: l.key)
                 .frame(width: 48, height: 48)
                 .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
@@ -204,7 +204,7 @@ struct OnlineOrdersScreen: View {
     private func actionsRow(_ r: OnlineOrderRow) -> some View {
         if r.state == "confirming" {
             // Someone pressed Confirm a moment ago; the server holds it for them for two minutes.
-            HStack(spacing: 8) {
+            HStack(spacing: pt(8)) {
                 ProgressView().controlSize(.small)
                 Text("Being confirmed" + (OnlineOrdersLogic.who(r.claimedBy).map { " by \($0)" } ?? "") + "\u{2026}")
                     .foregroundStyle(.secondary)

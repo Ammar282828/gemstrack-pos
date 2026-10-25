@@ -166,7 +166,7 @@ struct WorkshopKarigarsList: View {
                     FigureTile(label: "Open hisaabs", value: "\(batches.count)")
                 }
             }
-            .padding(.vertical, 4)
+            .padding(.vertical, pt(4))
             .listRowInsets(EdgeInsets())
             .listRowBackground(Color.clear)
         }
@@ -175,7 +175,7 @@ struct WorkshopKarigarsList: View {
     private var showPicker: some View {
         Section {
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
+                HStack(spacing: pt(8)) {
                     ForEach(Show.allCases) { s in
                         FilterChip(title: s.title, chosen: show == s) { Motion.run(reduce: reduceMotion) { show = s } }
                     }
@@ -203,8 +203,8 @@ struct WorkshopKarigarsList: View {
 
     private func row(_ k: Karigar, _ load: WorkshopLoad?, _ batch: KarigarBatch?) -> some View {
         NavigationLink(value: Route(path: WorkshopLogic.karigarPath(k.id))) {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(alignment: .top, spacing: 8) {
+            VStack(alignment: .leading, spacing: pt(14)) {
+                HStack(alignment: .top, spacing: pt(8)) {
                     Text(k.name).font(.headline).fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 0)
                     Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
@@ -242,9 +242,9 @@ struct WorkshopKarigarsList: View {
     @ViewBuilder
     private func bench(_ load: WorkshopLoad?) -> some View {
         if let load, load.active > 0 {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: pt(8)) {
                 Text(WorkshopLogic.pieces(load.active)).font(.subheadline.weight(.semibold)).monospacedDigit()
-                FigureRow(spacing: 8) {
+                FigureRow(spacing: pt(8)) {
                     if load.critical > 0 { Pill("\(load.critical) over \(WorkshopLogic.criticalDays)d", tone: .late) }
                     if load.late > 0 { Pill("\(load.late) late", tone: .owed) }
                 }

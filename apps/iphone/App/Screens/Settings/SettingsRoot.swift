@@ -97,7 +97,7 @@ struct SettingsRoot: View {
     private var account: some View {
         let email = session.me?.email ?? ""
         let name = session.shop.person ?? email
-        return HStack(spacing: 14) {
+        return HStack(spacing: pt(14)) {
             ZStack {
                 Circle().fill(Theme.accent)
                 Text(String(name.prefix(1)).uppercased())
@@ -113,7 +113,7 @@ struct SettingsRoot: View {
                 Text("Owner · \(session.shop.name)").font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, pt(4))
     }
 }
 

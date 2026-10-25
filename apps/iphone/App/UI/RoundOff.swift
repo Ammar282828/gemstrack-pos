@@ -32,7 +32,7 @@ struct RoundOffChips: View {
         let base = lit?.base ?? disc
         let offers = roundOffOffers(whole, base)
         if !offers.isEmpty {
-            ArtworkFlow(spacing: 6) {
+            ArtworkFlow(spacing: pt(6)) {
                 ForEach(offers, id: \.target) { o in
                     let chosen = lit?.target == o.target
                     Button {
@@ -44,7 +44,7 @@ struct RoundOffChips: View {
                             onDiscountChange(discountWithOffer(base, o))
                         }
                     } label: {
-                        HStack(spacing: 4) {
+                        HStack(spacing: pt(4)) {
                             if chosen { Image(systemName: "checkmark") }
                             Text(roundOffLabel(o)).monospacedDigit()
                         }

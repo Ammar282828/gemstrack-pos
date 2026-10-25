@@ -201,28 +201,28 @@ struct ExpensesScreen: View {
     /// then the biggest day/week/month, which the page works out (`summary.biggest`) but leaves unshown.
     private func figures(_ s: ExpenseSummary) -> some View {
         let per = grouping.title.lowercased()
-        return VStack(spacing: 10) {
-            FigureRow(alignment: .top, spacing: 10) {
+        return VStack(spacing: pt(10)) {
+            FigureRow(alignment: .top, spacing: pt(10)) {
                 FigureTile(label: "Total expenses", value: Money.pkr(s.total), tint: Theme.accent)
                 FigureTile(label: "Payments", value: "\(s.count)", detail: category.isEmpty ? nil : category)
             }
             DisclosureGroup("Spending breakdown") {
-                VStack(spacing: 12) {
+                VStack(spacing: pt(12)) {
                     TwoLine(title: "Average per \(per)", trailing: Money.pkr(s.perBucket))
                     TwoLine(title: "Karigar payments", subtitle: "\(s.karigarShare)% of total", trailing: Money.pkr(s.karigarTotal))
                     TwoLine(title: "Biggest \(per)", subtitle: s.biggestLabel, trailing: Money.pkr(s.biggestTotal))
                 }
-                .padding(.top, 12)
+                .padding(.top, pt(12))
             }
             .font(.subheadline)
             .ledgerCard()
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, pt(4))
     }
 
     private func groupHeader(_ group: MoneyGroup<Expense>) -> some View {
         // The row count is not said: the rows are right under it.
-        return VStack(alignment: .leading, spacing: 6) {
+        return VStack(alignment: .leading, spacing: pt(6)) {
             LedgerHeading(title: group.label, trailing: Money.pkr(group.total))
             if !group.sub.isEmpty {
                 Text(group.sub).font(.footnote).foregroundStyle(.secondary)

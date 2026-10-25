@@ -54,7 +54,7 @@ struct DesignScreen: View {
                     ChipRow {
                         ForEach(DesignSection.offered(access)) { s in FilterChip(title: s.title, chosen: current == s) { go(s) } }
                     }
-                    .padding(.vertical, 4)
+                    .padding(.vertical, pt(4))
                     if workspace.isOpen && current != .make { openBanner }
                     page
                 }
@@ -111,12 +111,12 @@ struct DesignScreen: View {
     }
 
     private var openBanner: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: pt(10)) {
             Text("“\(workspace.work?.displayName ?? "")” is open.").font(.subheadline).lineLimit(1)
             Spacer(minLength: 0)
             Button("Back to it") { go(.make) }.buttonStyle(.bordered)
         }
-        .ledgerCard().padding(.horizontal, 16).padding(.bottom, 8)
+        .ledgerCard().padding(.horizontal, pt(16)).padding(.bottom, pt(8))
     }
 
     // MARK: Doing

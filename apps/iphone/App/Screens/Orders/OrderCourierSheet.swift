@@ -95,7 +95,7 @@ struct OrderCourierSheet: View {
     }
 
     private func step(_ n: Int, _ words: String, done: Bool) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
+        HStack(alignment: .firstTextBaseline, spacing: pt(10)) {
             Image(systemName: done ? "checkmark.circle.fill" : "\(n).circle")
                 .foregroundStyle(done ? Tone.settled.color : Color.secondary)
             Text(words)

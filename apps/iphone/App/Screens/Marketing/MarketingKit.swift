@@ -165,7 +165,7 @@ struct MarketingReading: View {
     let text: String
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: pt(10)) {
             SkeletonLoading()
             Text(text).foregroundStyle(.secondary)
         }

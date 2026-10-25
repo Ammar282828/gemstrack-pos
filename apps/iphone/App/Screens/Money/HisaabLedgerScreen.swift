@@ -319,11 +319,11 @@ struct HisaabLedgerScreen: View {
     private func tiles(_ r: HisaabLedgerPage) -> some View {
         let getGold: String? = r.gold > 0 ? "\(MoneyFormat.grams(r.gold)) \(MoneyWords.metal)" : nil
         let giveGold: String? = r.gold < 0 ? "\(MoneyFormat.grams(abs(r.gold))) \(MoneyWords.metal)" : nil
-        return FigureRow(alignment: .top, spacing: 10) {
+        return FigureRow(alignment: .top, spacing: pt(10)) {
             FigureTile(label: "You will get", value: Money.pkr(max(0, r.cash)), detail: getGold, tint: Tone.owed.color)
             FigureTile(label: "You will give", value: Money.pkr(abs(min(0, r.cash))), detail: giveGold, tint: Tone.credit.color)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, pt(4))
     }
 
     /// A row that is an invoice's own balance opens the invoice (the web's link beside it).
@@ -505,7 +505,7 @@ private struct HisaabLedgerRow: View {
     let showGold: Bool
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: pt(12)) {
             VStack(alignment: .leading, spacing: 3) {
                 Text(line.entry.description.isEmpty ? "No description" : line.entry.description)
                     .font(.body.weight(.medium))

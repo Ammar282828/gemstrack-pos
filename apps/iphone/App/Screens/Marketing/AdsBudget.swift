@@ -151,7 +151,7 @@ struct AdsBudgetSheet: View {
     @ViewBuilder
     private var budgetNote: some View {
         if let v = after {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: pt(4)) {
                 if isDaily { Text("About \(money(v * 30.4)) a month at this budget.") }
                 if before > 0 && v > before * 2 {
                     Text("That more than doubles what it spends.").foregroundStyle(Tone.owed.color)

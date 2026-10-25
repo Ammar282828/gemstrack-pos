@@ -93,7 +93,7 @@ struct SiteChartSection: View {
         }
         #endif
         .frame(height: 200)
-        .padding(.vertical, 6)
+        .padding(.vertical, pt(6))
         .accessibilityLabel("Sessions each day, with visitors and WhatsApp enquiries")
         .accessibilityValue(ChartSummary.say(sessions.map { (p: SitePoint) in (label: ChartSummary.day(p.date), value: p.value) }, money: false))
     }
@@ -138,7 +138,7 @@ struct SiteChartSection: View {
         }
         #endif
         .frame(height: 200)
-        .padding(.vertical, 6)
+        .padding(.vertical, pt(6))
         .accessibilityLabel("Sessions each hour of the day, Karachi time")
         .accessibilityValue(ChartSummary.say(hours.map { (h: SiteHour) in (label: String(format: "%02d:00", h.hour), value: Double(h.sessions)) }, money: false))
     }
@@ -202,11 +202,11 @@ struct SiteFunnelSection: View {
     private func stepRow(_ s: Step, index i: Int, all: [Step]) -> some View {
         let top = Swift.max(1, all[0].n)
         let ofVisits = all[0].n > 0 ? Double(s.n) / Double(all[0].n) : 0
-        return VStack(alignment: .leading, spacing: 6) {
-            AdaptiveStack(spacing: 8) {
+        return VStack(alignment: .leading, spacing: pt(6)) {
+            AdaptiveStack(spacing: pt(8)) {
                 Text(s.label)
                 Spacer(minLength: 8)
-                HStack(spacing: 8) {
+                HStack(spacing: pt(8)) {
                     Text(SiteWords.number(s.n)).monospacedDigit()
                         .contentTransition(.numericText(value: Double(s.n)))
                     if i > 0 {
@@ -266,8 +266,8 @@ struct SiteSourcesSection: View {
     }
 
     private func row(_ s: SiteSource) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            AdaptiveStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: pt(4)) {
+            AdaptiveStack(spacing: pt(8)) {
                 Text(SiteWords.source(s.key))
                 Spacer(minLength: 8)
                 Text(SiteWords.number(s.sessions) + (s.sessions == 1 ? " session" : " sessions"))

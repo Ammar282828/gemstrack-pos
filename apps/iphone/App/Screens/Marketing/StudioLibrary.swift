@@ -43,16 +43,16 @@ struct StudioLibrary: View {
                 Section {
                     ForEach(rows, id: \.text) { item in
                         Button { opened = StudioAssetChoice(item: item) } label: {
-                            HStack(alignment: .top, spacing: 12) {
+                            HStack(alignment: .top, spacing: pt(12)) {
                                 MarketingPhoto(path: item.s("thumb")).frame(width: 92, height: 92).clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
-                                VStack(alignment: .leading, spacing: 5) {
+                                VStack(alignment: .leading, spacing: pt(5)) {
                                     Text(item.s("name")).foregroundStyle(.primary)
                                     Text(item.s("collection")).font(.caption).foregroundStyle(.secondary)
                                     if item["adScore"] != .null { Text("Ad score · \(Int(item.n("adScore")))").font(.caption).foregroundStyle(.secondary) }
                                     else { Text("Not assessed").font(.caption).foregroundStyle(.secondary) }
                                     if item["usedInAds"].bool { Text("Used in an ad").font(.caption).foregroundStyle(.secondary) }
                                 }
-                            }.padding(.vertical, 5)
+                            }.padding(.vertical, pt(5))
                         }
                     }
                     if rows.count < Int(answer.n("total")) { Button("Show more") { Task { await load(more: true) } } }

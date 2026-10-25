@@ -318,7 +318,7 @@ struct WorkshopKarigarScreen: View {
 
     /// What he holds of ours, or what we owe him: the page's one big figure.
     private func cashHero(_ cash: Double, _ open: KarigarPay.InBatch?) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: pt(4)) {
             Text(cash > 0 ? "He holds of ours" : (cash < 0 ? "We owe him" : "Square"))
                 .font(.subheadline).foregroundStyle(.secondary)
             HeroAmount(amount: abs(cash), tone: cash < 0 ? Tone.owed.color : Color.primary)
@@ -484,12 +484,12 @@ struct WorkshopKarigarScreen: View {
 
     private func khataTiles(_ p: WorkshopPosition) -> some View {
         // The net is Now's Gold khata above: said once (rule 15).
-        let columns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
-        return LazyVGrid(columns: columns, spacing: 10) {
+        let columns = [GridItem(.flexible(), spacing: pt(10)), GridItem(.flexible(), spacing: pt(10))]
+        return LazyVGrid(columns: columns, spacing: pt(10)) {
             FigureTile(label: "Given", value: WorkshopLogic.grams3(p.khataGiven))
             FigureTile(label: "Received", value: WorkshopLogic.grams3(p.khataBack))
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, pt(4))
         .listRowInsets(EdgeInsets())
         .listRowBackground(Color.clear)
     }
@@ -551,7 +551,7 @@ struct WorkshopKarigarScreen: View {
                 }
                 .tint(Tone.settled.color)
             } header: {
-                AdaptiveStack(spacing: 6, alignment: .center) {
+                AdaptiveStack(spacing: pt(6), alignment: .center) {
                     Image(systemName: "lock.open").foregroundStyle(.secondary)
                     LedgerHeading(title: open.batch.label.isEmpty ? "Pay batch" : open.batch.label)
                 }

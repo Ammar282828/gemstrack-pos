@@ -103,7 +103,7 @@ struct CustomerMergeSheet: View {
         return List { Group {
             if found == nil {
                 Section {
-                    HStack(spacing: 10) {
+                    HStack(spacing: pt(10)) {
                         ProgressView()
                         Text("Looking for duplicates…").foregroundStyle(.secondary)
                     }
@@ -209,7 +209,7 @@ struct CustomerMergeSheet: View {
     private func chooser(_ title: String, picked: Customer?, tint: Color, search: Binding<String>, other: String,
                          choose: @escaping (String) -> Void) -> some View {
         if let c = picked {
-            HStack(spacing: 10) {
+            HStack(spacing: pt(10)) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title).font(.caption.weight(.semibold)).foregroundStyle(tint)
                     Text(CustomerKit.shown(c)).font(.body.weight(.medium))
@@ -225,7 +225,7 @@ struct CustomerMergeSheet: View {
                 .buttonStyle(.borderless)
             }
         } else {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: pt(4)) {
                 Text(title).font(.caption.weight(.semibold)).foregroundStyle(tint)
                 TextField(title, text: search, prompt: Text("Search by name or phone"))
                     .textInputAutocapitalization(.never)

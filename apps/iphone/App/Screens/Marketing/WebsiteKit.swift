@@ -364,7 +364,7 @@ struct WebsiteSetOfTheDay: View {
                 if !store.featuredRead {
                     MarketingReading(text: "Reading the set of the day…")
                 } else if let f = store.featured {
-                    HStack(spacing: 12) {
+                    HStack(spacing: pt(12)) {
                         StockImage(imageUrl: f.thumb, name: f.file, key: f.key)
                             .frame(width: 52, height: 52)
                             .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
@@ -453,7 +453,7 @@ struct WebsiteBusy: ViewModifier {
     func body(content: Content) -> some View {
         content
             .disabled(doing != nil)
-            .overlay { if let doing { SkeletonLoading(doing).padding(20).glassEffect(.regular, in: .rect(cornerRadius: Radius.chip, style: .continuous)) } }
+            .overlay { if let doing { SkeletonLoading(doing).padding(pt(20)).glassEffect(.regular, in: .rect(cornerRadius: Radius.chip, style: .continuous)) } }
     }
 }
 

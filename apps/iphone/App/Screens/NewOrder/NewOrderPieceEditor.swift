@@ -27,7 +27,7 @@ struct NewOrderPieceRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: pt(10)) {
             Text("#\(number)")
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
@@ -150,7 +150,7 @@ struct NewOrderPieceEditor: View {
     private var karatPicker: some View {
         let karats = karatsFor(metal)
         if !karats.isEmpty {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: pt(6)) {
                 Text("Karat").font(.caption).foregroundStyle(.secondary)
                 Picker("Karat", selection: $piece.karat) {
                     ForEach(karats, id: \.rawValue) { k in
@@ -276,7 +276,7 @@ struct NewOrderPieceEditor: View {
 
     private var workshopBox: some View {
         Section {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: pt(6)) {
                 Label("Instructions for the karigar", systemImage: "lock.fill")
                     .font(.subheadline)
                     .foregroundStyle(Tone.owed.color)

@@ -74,7 +74,7 @@ struct HisaabAccountPicker: View {
                 }
                 ForEach(shown) { (c: Contact) in
                     Button { pick(c) } label: {
-                        HStack(spacing: 12) {
+                        HStack(spacing: pt(12)) {
                             Monogram(name: c.name.isEmpty ? c.id : c.name, size: Monogram.Size.row)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(c.name.isEmpty ? c.id : c.name).font(.body.weight(.medium))
@@ -90,7 +90,7 @@ struct HisaabAccountPicker: View {
                 }
                 if canCreate || creating {
                     Button { Task { await createKarigar() } } label: {
-                        HStack(spacing: 12) {
+                        HStack(spacing: pt(12)) {
                             if creating { ProgressView() } else { Image(systemName: "plus.circle") }
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("\(creating ? "Adding" : "Add karigar") \u{201C}\(typed)\u{201D}").font(.body.weight(.medium))

@@ -193,7 +193,7 @@ private struct BackupPage: View {
                 }
                 if exporting { ProgressView(value: progress) }
                 Button { Task { await export() } } label: {
-                    HStack(spacing: 8) {
+                    HStack(spacing: pt(8)) {
                         if exporting { SkeletonLoading() }
                         Label(exporting ? "Exporting… \(Int(progress * 100))%" : "Download backup", systemImage: "doc.badge.arrow.up")
                     }
@@ -208,7 +208,7 @@ private struct BackupPage: View {
         } header: {
             LedgerHeading(title: "Export backup")
         } footer: {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: pt(4)) {
                 Text("Download all your data as a backup file you can keep or restore later.")
                 if list != nil { Text("\(BackupPage.grouped(totalDocs)) records selected") }
                 if !lastExport.isEmpty { Text("Last export: \(ShopDate.say(lastExport, withTime: true))") }
@@ -278,7 +278,7 @@ private struct BackupPage: View {
                     }
                 }
                 if let p = restoreProgress {
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: pt(6)) {
                         ProgressView(value: Double(p.written), total: Double(max(p.total, 1)))
                         Text("\(label(p.collection)): slice \(p.part) of \(p.parts) · \(BackupPage.grouped(p.written)) of \(BackupPage.grouped(p.total)) records")
                             .font(.caption).foregroundStyle(.secondary).monospacedDigit()
@@ -373,7 +373,7 @@ private struct BackupPage: View {
                     Text("No sold products found matching your search.").foregroundStyle(.secondary)
                 } else {
                     ForEach(soldHits) { (p: Product) in
-                        HStack(spacing: 12) {
+                        HStack(spacing: pt(12)) {
                             TwoLine(title: p.name, subtitle: p.sku)
                             Button {
                                 Task { await reAdd(p) }

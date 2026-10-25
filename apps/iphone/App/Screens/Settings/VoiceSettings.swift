@@ -100,13 +100,13 @@ private struct VoiceSettingsPage: View {
                 Image(systemName: ready == true ? "mic.fill" : "mic.slash")
             }
             if ready == false {
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: pt(6)) {
                     Text(problemTitle).font(.subheadline.weight(.semibold))
                     Text(problemDetail + " Everything else works meanwhile — every entry voice could make can still be made from the ordinary forms.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
-                .padding(.vertical, 2)
+                .padding(.vertical, pt(2))
             }
             Text("Nothing spoken is written down until it has been read back and confirmed. When two people sound alike, it asks which rather than choosing.")
                 .font(.subheadline)
@@ -182,9 +182,9 @@ private struct VoiceSettingsPage: View {
         if a.uses > 1 { sub += " · corrected \(a.uses) times" }
         let day = OwnerText.shortDate(a.createdAt)
         if !day.isEmpty { sub += " · \(day)" }
-        return HStack(spacing: 12) {
+        return HStack(spacing: pt(12)) {
             VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
+                HStack(spacing: pt(6)) {
                     Text("“\(a.heard)”").italic().foregroundStyle(.secondary).lineLimit(1)
                     Image(systemName: "arrow.right").font(.caption).foregroundStyle(.secondary)
                     Text(a.refName).fontWeight(.medium).lineLimit(1)

@@ -270,10 +270,10 @@ struct MarketingDetails: View {
             })
         }
         if value is NSNull { return AnyView(EmptyView()) }
-        return AnyView(VStack(alignment: .leading, spacing: 4) {
+        return AnyView(VStack(alignment: .leading, spacing: pt(4)) {
             Text(title).font(.caption).foregroundStyle(.secondary)
             Text(String(describing: value)).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
-        }.padding(.vertical, 3))
+        }.padding(.vertical, pt(3)))
     }
 }
 

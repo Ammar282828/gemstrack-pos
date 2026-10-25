@@ -15,7 +15,7 @@ struct WidgetPreviewScreen: View {
             ScrollView {
                 content(width: geometry.size.width)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(20)
+                    .padding(pt(20))
             }
         }
         .background(Theme.ground.ignoresSafeArea())
@@ -25,7 +25,7 @@ struct WidgetPreviewScreen: View {
 
     private func content(width: CGFloat) -> some View {
         let column = min(340, max(0, width - 40))
-        return VStack(alignment: .leading, spacing: 24) {
+        return VStack(alignment: .leading, spacing: pt(24)) {
             intro
             Picker("Appearance", selection: $look) {
                 ForEach(Look.allCases) { Text($0.rawValue).tag($0) }
@@ -33,7 +33,7 @@ struct WidgetPreviewScreen: View {
             .pickerStyle(.segmented)
             .frame(maxWidth: 340)
             if width >= 584 {
-                HStack(alignment: .top, spacing: 24) {
+                HStack(alignment: .top, spacing: pt(24)) {
                     preview("Small", size: .small, width: 160, height: 160)
                     preview("Medium", size: .medium, width: 340, height: 160)
                 }
@@ -50,7 +50,7 @@ struct WidgetPreviewScreen: View {
     }
 
     private var intro: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: pt(6)) {
             Label("Sample figures and message", systemImage: "eye")
                 .font(.subheadline.weight(.semibold))
             Text("These are examples, not your shop’s numbers.")
@@ -76,7 +76,7 @@ struct WidgetPreviewScreen: View {
     }
 
     private func preview(_ title: String, size: ERPWidgetSize, width: CGFloat, height: CGFloat) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: pt(8)) {
             Text(title).font(.subheadline.weight(.medium))
             card(size: size, width: width, height: height)
         }
@@ -84,10 +84,10 @@ struct WidgetPreviewScreen: View {
 
     private func card(size: ERPWidgetSize, width: CGFloat, height: CGFloat) -> some View {
         ERPWidgetFace(summary: summary, size: size, look: ERPWidgetLook(House.business), accented: look == .tinted)
-            .padding(16)
+            .padding(pt(16))
             .frame(width: width, height: height)
             .background { backdrop }
-            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: pt(22), style: .continuous))
             .environment(\.colorScheme, look == .light ? .light : .dark)
             // A real widget's text stops growing about here; past it the fixed-size preview would clip.
             .dynamicTypeSize(...DynamicTypeSize.xxxLarge)

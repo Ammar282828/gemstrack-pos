@@ -223,9 +223,9 @@ struct WebsitePhotosScreen: View {
 
     private func row(_ item: WebsitePhotoItem) -> some View {
         let editable = (item.status == .queued || item.status == .failed) && !sending
-        return HStack(alignment: .top, spacing: 12) {
+        return HStack(alignment: .top, spacing: pt(12)) {
             picture(item)
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: pt(6)) {
                 Text(displayName(item)).lineLimit(2)
                 statusLine(item)
                 if isMaison && editable {
@@ -244,7 +244,7 @@ struct WebsitePhotosScreen: View {
                         .foregroundStyle(Tone.owed.color)
                 }
                 if editable && !item.retouching {
-                    HStack(spacing: 14) {
+                    HStack(spacing: pt(14)) {
                         Button { Task { await retouch(item.id) } } label: {
                             Label(item.original == nil ? "Retouch" : "Retouch again", systemImage: "wand.and.stars")
                         }
@@ -262,7 +262,7 @@ struct WebsitePhotosScreen: View {
                 }
             }
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, pt(2))
     }
 
     private func picture(_ item: WebsitePhotoItem) -> some View {

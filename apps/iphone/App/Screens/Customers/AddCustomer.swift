@@ -184,7 +184,7 @@ struct AddCustomer: View {
     private func savedPage(_ s: Saved) -> some View {
         List {
             Section {
-                VStack(spacing: 8) {
+                VStack(spacing: pt(8)) {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.largeTitle)
                         .imageScale(.large)
@@ -193,7 +193,7 @@ struct AddCustomer: View {
                     Text("\(s.name) is on file.").foregroundStyle(.secondary).multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
+                .padding(.vertical, pt(8))
                 .listRowBackground(Color.clear)
             }
             Section {

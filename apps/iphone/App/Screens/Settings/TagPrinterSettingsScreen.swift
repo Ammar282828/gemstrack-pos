@@ -191,14 +191,14 @@ struct TagPrinterSettingsScreen: View {
     private var testSection: some View {
         Section {
             Button { Task { await testPrint() } } label: {
-                HStack(spacing: 8) {
+                HStack(spacing: pt(8)) {
                     if testing { ProgressView().controlSize(.small) }
                     Label(testing ? "Printing…" : "Test print", systemImage: "printer")
                 }
             }
             .disabled(testing || currentRoute == nil)
             Button { Task { await checkStatus() } } label: {
-                HStack(spacing: 8) {
+                HStack(spacing: pt(8)) {
                     if checking { ProgressView().controlSize(.small) }
                     Label("Check the printer", systemImage: "stethoscope")
                 }

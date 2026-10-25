@@ -144,12 +144,12 @@ struct MarketingShareSheet: View {
     var completion: ((Bool) -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
     var body: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: pt(14)) {
             Text("Share").font(.headline)
             MacShareButton(items: items) { completed in completion?(completed); dismiss() }
             Button("Cancel", role: .cancel) { completion?(false); dismiss() }
         }
-        .padding(24).frame(minWidth: 260)
+        .padding(pt(24)).frame(minWidth: 260)
     }
 }
 

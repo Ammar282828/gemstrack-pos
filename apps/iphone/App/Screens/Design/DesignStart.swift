@@ -171,7 +171,7 @@ struct DesignStartView: View {
     #if os(macOS)
     private let columns = [GridItem(.adaptive(minimum: 190), spacing: 10)]
     #else
-    private let columns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
+    private let columns = [GridItem(.flexible(), spacing: pt(10)), GridItem(.flexible(), spacing: pt(10))]
     #endif
 
     private var cards: [DesignKindCard] { DesignKinds.cards.filter { access.ads || !$0.ads } }
@@ -187,14 +187,14 @@ struct DesignStartView: View {
     @ViewBuilder
     private var phoneBody: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: pt(16)) {
                 anything
                 making
                 photograph
                 investments
                 leftOff
             }
-            .padding(.horizontal, 16).padding(.vertical, 12)
+            .padding(.horizontal, pt(16)).padding(.vertical, pt(12))
         }
         .scrollDismissesKeyboard(.interactively)
         .readableColumn(760)
@@ -234,13 +234,13 @@ struct DesignStartView: View {
             }.buttonStyle(.bordered).largeOnPhone()
             let found = start.fields.filter { !$0.value.isEmpty }
             if !found.isEmpty || !start.price.isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: pt(6)) {
                     Text(foundLine).font(.footnote).foregroundStyle(.secondary)
                     Button("Clear") { start.fields = [:]; start.price = "" }.font(.footnote).frame(minHeight: Metrics.tap)
                 }
             }
             if !start.waiting.isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: pt(6)) {
                     Text("Also found").font(.caption).foregroundStyle(.secondary)
                     ForEach(start.waiting) { f in
                         HStack {
@@ -268,14 +268,14 @@ struct DesignStartView: View {
     private var making: some View {
         SectionCard("What are you making?") {
             if let play = start.play, start.kind == "ad" {
-                HStack(spacing: 8) {
+                HStack(spacing: pt(8)) {
                     Text("Making ").font(.subheadline) + Text(play.s("title")).font(.subheadline.weight(.semibold)) + Text(" — “\(play.s("cta"))” · \(play.s("where"))").font(.subheadline)
                     Spacer(minLength: 0)
                     Button("Not this play") { start.play = nil }.font(.footnote).frame(minHeight: Metrics.tap)
                 }
-                .padding(10).background(Theme.accent.opacity(0.12), in: .rect(cornerRadius: Radius.tile, style: .continuous))
+                .padding(pt(10)).background(Theme.accent.opacity(0.12), in: .rect(cornerRadius: Radius.tile, style: .continuous))
             }
-            LazyVGrid(columns: columns, spacing: 10) {
+            LazyVGrid(columns: columns, spacing: pt(10)) {
                 ForEach(cards) { c in
                     Button { start.choose(c.kind) } label: {
                         VStack(alignment: .leading, spacing: 3) {
@@ -283,7 +283,7 @@ struct DesignStartView: View {
                             Text(c.note).font(.footnote).opacity(0.8)
                         }
                         .foregroundStyle(start.kind == c.kind ? Theme.onAccent : Color.primary)
-                        .frame(maxWidth: .infinity, alignment: .leading).padding(12)
+                        .frame(maxWidth: .infinity, alignment: .leading).padding(pt(12))
                         .background(start.kind == c.kind ? Theme.accent : Theme.ground, in: .rect(cornerRadius: Radius.chip, style: .continuous))
                     }
                     .buttonStyle(.plain)
@@ -291,7 +291,7 @@ struct DesignStartView: View {
                     .sensoryFeedback(.selection, trigger: start.kind) { _, now in now == c.kind }
                 }
             }
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: pt(8)) {
                 HStack { Text("Sizes").font(.subheadline.weight(.medium)); Text(start.summary).font(.subheadline).foregroundStyle(.secondary) }
                 ForEach(DesignSizes.groups) { g in
                     VStack(alignment: .leading, spacing: 2) {
@@ -302,7 +302,7 @@ struct DesignStartView: View {
                         }
                         #else
                         ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 8) {
+                            HStack(spacing: pt(8)) {
                                 ForEach(g.sizes) { s in FilterChip(title: s.ratio, chosen: start.sizes.contains(s.id)) { start.toggle(s.id) } }
                             }
                         }
@@ -311,7 +311,7 @@ struct DesignStartView: View {
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Your own").font(.caption).foregroundStyle(.secondary)
-                    HStack(spacing: 8) {
+                    HStack(spacing: pt(8)) {
                         FilterChip(title: "W:H", chosen: start.sizes.contains("custom")) { start.toggle("custom") }
                         if start.sizes.contains("custom") {
                             TextField("W", value: $start.customW, format: .number).keyboardType(.numberPad).multilineTextAlignment(.center)
@@ -329,7 +329,7 @@ struct DesignStartView: View {
     private var photograph: some View {
         SectionCard("The photograph") {
             if let photo = start.photo {
-                HStack(spacing: 10) {
+                HStack(spacing: pt(10)) {
                     Image(systemName: "photo").foregroundStyle(Theme.accent)
                     Text(photo.label).font(.subheadline.weight(.medium)).lineLimit(1)
                     Spacer(minLength: 0)
@@ -345,7 +345,7 @@ struct DesignStartView: View {
                 }
                 #else
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
+                    HStack(spacing: pt(8)) {
                         chip("Browse photos", "photo.on.rectangle", onBrowse)
                         chip("From the website", "globe") { sitePicker = true }
                         PhotosPicker(selection: $picked, matching: .images) { chipLabel("This device", "iphone") }.buttonStyle(.plain)
@@ -366,7 +366,7 @@ struct DesignStartView: View {
     private func chipLabel(_ title: String, _ symbol: String) -> some View {
         Label(title, systemImage: symbol)
             .font(.subheadline.weight(.medium)).foregroundStyle(Color.primary)
-            .padding(.horizontal, 13).padding(.vertical, 7).frame(minHeight: Metrics.tap)
+            .padding(.horizontal, pt(13)).padding(.vertical, pt(7)).frame(minHeight: Metrics.tap)
             .background(Theme.ground, in: .capsule)
             .overlay(Capsule().strokeBorder(Color.secondary.opacity(0.18), lineWidth: 1))
     }
@@ -380,7 +380,7 @@ struct DesignStartView: View {
                     .font(.subheadline).frame(maxWidth: .infinity, alignment: .leading)
             }
             .zoomSource(id: path)
-            .padding(.horizontal, 4)
+            .padding(.horizontal, pt(4))
         }
     }
 
@@ -423,7 +423,7 @@ struct DesignDraftLine: View {
         #endif
     }
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: pt(12)) {
             Group {
                 if let image = row.thumb { Image(uiImage: image).resizable().scaledToFill() }
                 else { Image(systemName: "iphone").foregroundStyle(.secondary) }
@@ -445,7 +445,7 @@ struct DesignDraftLine: View {
 struct DesignRecordLine: View {
     let record: DesignRecord
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: pt(12)) {
             Group {
                 if let image = record.thumbImage { Image(uiImage: image).resizable().scaledToFill() }
                 else { Image(systemName: "photo").foregroundStyle(.secondary) }

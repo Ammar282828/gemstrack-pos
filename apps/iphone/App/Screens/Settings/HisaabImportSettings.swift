@@ -131,7 +131,7 @@ private struct HisaabImportPage: View {
 
     private var instructionsSection: some View {
         Section {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: pt(6)) {
                 Text("Your CSV file must contain the following exact column headers: Date, Details, Cash IN, Cash OUT.")
                 Text("The date format should be one of dd-MMM-yy, dd/MM/yyyy, or yyyy-MM-dd.")
                 Text("‘Cash IN’ represents money you received from the person.")
@@ -153,7 +153,7 @@ private struct HisaabImportPage: View {
     private var fileSection: some View {
         LedgerSection("1. Upload the CSV file") {
             Button { picking = true } label: {
-                HStack(spacing: 8) {
+                HStack(spacing: pt(8)) {
                     if reading { SkeletonLoading() }
                     Label(fileName.isEmpty ? "Choose file" : "Change file", systemImage: "doc.badge.plus")
                 }
@@ -213,7 +213,7 @@ private struct HisaabImportPage: View {
     private var previewSection: some View {
         Section {
             ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
-                HStack(alignment: .top, spacing: 10) {
+                HStack(alignment: .top, spacing: pt(10)) {
                     // A good row carries no tick (rule 15); only a date that did not read is marked.
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(Tone.problem.color)

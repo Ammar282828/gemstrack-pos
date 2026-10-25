@@ -133,7 +133,7 @@ struct WorkshopGivenScreen: View {
         let out = all.filter { isOut($0) }.count
         return Section {
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
+                HStack(spacing: pt(8)) {
                     ForEach(Filter.allCases) { f in
                         FilterChip(title: f.title, count: f == .out && out > 0 ? out : nil, chosen: filter == f) {
                             Motion.run(reduce: reduceMotion) { filter = f }
@@ -148,8 +148,8 @@ struct WorkshopGivenScreen: View {
     // MARK: A row
 
     private func row(_ item: GivenItem) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top, spacing: 8) {
+        VStack(alignment: .leading, spacing: pt(14)) {
+            HStack(alignment: .top, spacing: pt(8)) {
                 Text(item.description).font(.headline).fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 4)
                 Menu { itemMenu(item) } label: {
@@ -173,7 +173,7 @@ struct WorkshopGivenScreen: View {
                 gotBack(item)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, pt(4))
         // No swipe actions: the cards share one list row (WorkshopCards' grid), so a swipe would act on whichever
         // card the row picked. The … menu and the long press carry the same actions, on the right piece.
         .contextMenu { itemMenu(item) }

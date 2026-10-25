@@ -102,11 +102,11 @@ struct PostQueueSheet: View {
     }
 
     func header(_ e: PostQueueEntry) -> some View {
-        HStack(alignment: .top, spacing: 14) {
+        HStack(alignment: .top, spacing: pt(14)) {
             StockImage(imageUrl: e.thumb, name: e.headline, key: e.id, decodeDataURI: true)
                 .frame(width: 84, height: 84)
                 .clipShape(.rect(cornerRadius: Radius.chip, style: .continuous))
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: pt(6)) {
                 Text(e.headline.isEmpty ? "A piece" : e.headline).font(.headline)
                 Text(statusWords(e)).font(.subheadline).foregroundStyle(e.status == "failed" ? Tone.problem.color : Color.secondary)
                 if e.units > 0 {
@@ -116,7 +116,7 @@ struct PostQueueSheet: View {
                 }
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, pt(4))
     }
 
     func statusWords(_ e: PostQueueEntry) -> String {
@@ -175,7 +175,7 @@ struct PostQueueSheet: View {
         let gone = p.units.filter { e?.doneKeys.contains($0) ?? false }.count
         let problem = p.units.compactMap { e?.unitErrors[$0] }.first
         // Gone is the expected end: a quiet word; only a failure is coloured (CONVENTIONS rule 15).
-        return HStack(spacing: 12) {
+        return HStack(spacing: pt(12)) {
             Image(systemName: p.symbol)
                 .font(.body.weight(.semibold))
                 .foregroundStyle(Theme.onAccent)

@@ -127,7 +127,7 @@ private struct RecentlyRemovedList: View {
             Button {
                 Task { await restore(customerIds: customers.map(\.id), karigarIds: karigars.map(\.id), key: "all", name: nil) }
             } label: {
-                HStack(spacing: 8) {
+                HStack(spacing: pt(8)) {
                     if busy == "all" { SkeletonLoading() }
                     Label("Put everything back", systemImage: "arrow.uturn.backward")
                 }
@@ -186,7 +186,7 @@ private struct RecentlyRemovedList: View {
         let carries = RecentlyRemoved.carriesText(history)
         let line = [sub ?? "", carries.isEmpty ? "no history" : carries].filter { !$0.isEmpty }.joined(separator: " \u{2014} ")
         let when = ShopDate.say(removedAt)
-        return HStack(spacing: 12) {
+        return HStack(spacing: pt(12)) {
             Image(systemName: kind == .customer ? "person.2" : "hammer").foregroundStyle(.secondary)
             VStack(alignment: .leading, spacing: 2) {
                 Text(name.isEmpty ? id : name).fontWeight(.medium).lineLimit(1)

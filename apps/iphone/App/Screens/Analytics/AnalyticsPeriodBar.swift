@@ -38,7 +38,7 @@ struct AnaPeriodBar: View {
     @State private var choosing = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: pt(4)) {
             ChipRow {
                 ForEach(AnaPeriod.quick) { (q: AnaPeriod.Quick) in
                     AnaChip(title: q.label, selected: state.key == q.key) { key = q.key }
@@ -53,7 +53,7 @@ struct AnaPeriodBar: View {
             Text(AnaPeriod.describe(state.range))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
-                .padding(.horizontal, 16)
+                .padding(.horizontal, pt(16))
         }
         .sheet(isPresented: $choosing) {
             AnaCustomPeriod(start: state.range?.from ?? AnaDate.adding(days: -29, to: Date()),

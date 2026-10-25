@@ -146,7 +146,7 @@ struct WorkshopPieceDetailsSheet: View {
     /// The picture on file while nothing new is chosen, its Remove, and Photos / Camera for a new one.
     @ViewBuilder
     private var samplePicture: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: pt(12)) {
             if photo == nil && !removePhoto && hasStoredPhoto {
                 if let uri = storedURI, !uri.isEmpty {
                     StockImage(imageUrl: uri, name: ask.job.description, key: ask.job.id, decodeDataURI: true)

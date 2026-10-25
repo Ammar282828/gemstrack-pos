@@ -145,8 +145,8 @@ struct Dashboard: View {
                 if wide {
                     wideColumns(f, needs: needs)
                 } else {
-                    VStack(alignment: .leading, spacing: 22) {
-                        VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: pt(22)) {
+                        VStack(alignment: .leading, spacing: pt(12)) {
                             dateLine
                             hero(f)
                             figureGrid(f)
@@ -158,8 +158,8 @@ struct Dashboard: View {
                 }
             }
             .padding(.horizontal, wide ? 28 : 16)
-            .padding(.top, 4)
-            .padding(.bottom, 24)
+            .padding(.top, pt(4))
+            .padding(.bottom, pt(24))
             // On the widest windows the page stays a page: the two columns never drift a room apart.
             .frame(maxWidth: wide ? 1480 : .infinity)
             .frame(maxWidth: .infinity)
@@ -171,16 +171,16 @@ struct Dashboard: View {
     /// An iPad's Home: today, the hero across the full width and the four figures in one row, then the three
     /// lists in columns: three from 1180 pt, else two, each list dealt to the shorter column so they balance.
     private func wideColumns(_ f: DashFigures, needs: [DashNeed]) -> some View {
-        VStack(alignment: .leading, spacing: 26) {
-            VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: pt(26)) {
+            VStack(alignment: .leading, spacing: pt(12)) {
                 dateLine
                 hero(f)
                 wideFigureRow(f)
             }
             let lists = wideLists(f, needs: needs)
-            HStack(alignment: .top, spacing: 24) {
+            HStack(alignment: .top, spacing: pt(24)) {
                 ForEach(lists.indices, id: \.self) { (c: Int) in
-                    VStack(alignment: .leading, spacing: 22) {
+                    VStack(alignment: .leading, spacing: pt(22)) {
                         ForEach(lists[c], id: \.self) { (l: HomeList) in wideList(l, f, needs: needs) }
                     }
                     .frame(maxWidth: .infinity, alignment: .top)
@@ -192,7 +192,7 @@ struct Dashboard: View {
     private enum HomeList: Hashable { case needs, due, sales }
 
     private func wideFigureRow(_ f: DashFigures) -> some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .top, spacing: pt(10)) {
             owedTile(f); benchTile(f); monthTile(f); dueTile(f)
         }
         .fixedSize(horizontal: false, vertical: true)
@@ -233,7 +233,7 @@ struct Dashboard: View {
             .tracking(0.8)
             .foregroundStyle(.secondary)
             .textCase(.uppercase)
-            .padding(.horizontal, 4)
+            .padding(.horizontal, pt(4))
             .accessibilityLabel(DashDate.longDay(now))
     }
 
@@ -262,17 +262,17 @@ struct Dashboard: View {
     @ViewBuilder
     private func figureGrid(_ f: DashFigures) -> some View {
         if typeSize.isAccessibilitySize {
-            VStack(spacing: 10) {
+            VStack(spacing: pt(10)) {
                 owedTile(f)
                 benchTile(f)
                 monthTile(f)
                 dueTile(f)
             }
         } else {
-            VStack(spacing: 10) {
-                HStack(alignment: .top, spacing: 10) { owedTile(f); benchTile(f) }
+            VStack(spacing: pt(10)) {
+                HStack(alignment: .top, spacing: pt(10)) { owedTile(f); benchTile(f) }
                     .fixedSize(horizontal: false, vertical: true)
-                HStack(alignment: .top, spacing: 10) { monthTile(f); dueTile(f) }
+                HStack(alignment: .top, spacing: pt(10)) { monthTile(f); dueTile(f) }
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -348,7 +348,7 @@ struct Dashboard: View {
     }
 
     private func needsCard(_ needs: [DashNeed]) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: pt(8)) {
             DashHeader(title: "Needs you", count: needs.count)
             DashNeedList(needs: allNeeds ? needs : Array(needs.prefix(3)), onRates: { rateSheet = true })
                 .dashRowsCard()
@@ -359,7 +359,7 @@ struct Dashboard: View {
     }
 
     private func dueSection(_ f: DashFigures) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: pt(8)) {
             DashHeader(title: "Due to customers", count: f.due.count, allPath: "/orders", allLabel: "All orders")
             Group {
                 if f.due.isEmpty {
@@ -375,7 +375,7 @@ struct Dashboard: View {
     }
 
     private func salesSection(_ f: DashFigures) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: pt(8)) {
             DashHeader(title: "Recent sales", allPath: "/invoices", allLabel: "All invoices")
             Group {
                 if f.recentInvoices.isEmpty {
@@ -394,7 +394,7 @@ struct Dashboard: View {
         Button(expanded.wrappedValue ? "Show less" : "Show \(count) more") {
             Motion.run(expanded.wrappedValue ? Motion.exit : Motion.enter, reduce: reduceMotion) { expanded.wrappedValue.toggle() }
         }
-        .font(.subheadline.weight(.medium)).frame(minHeight: Metrics.tap).padding(.horizontal, 4)
+        .font(.subheadline.weight(.medium)).frame(minHeight: Metrics.tap).padding(.horizontal, pt(4))
     }
 
     // MARK: Time and the server

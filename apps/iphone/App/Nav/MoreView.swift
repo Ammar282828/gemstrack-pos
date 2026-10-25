@@ -8,9 +8,9 @@ struct SignInView: View {
         // Scrolls rather than clips at the largest text sizes and in landscape; centred when it fits.
         GeometryReader { geo in
             ScrollView {
-                VStack(spacing: 28) {
-                    HouseLogo().padding(.horizontal, 32)
-                    VStack(spacing: 6) {
+                VStack(spacing: pt(28)) {
+                    HouseLogo().padding(.horizontal, pt(32))
+                    VStack(spacing: pt(6)) {
                         Text(House.storeName).font(.title.weight(.semibold)).multilineTextAlignment(.center)
                         // Which business this is for: the person may have come back to one of several.
                         Label {
@@ -35,7 +35,7 @@ struct SignInView: View {
                             Label(signingIn ? "Signing in…" : "Sign in with Google",
                                   systemImage: signingIn ? "hourglass" : "person.crop.circle.badge.checkmark")
                                 .frame(maxWidth: 280)
-                                .padding(.vertical, 6)
+                                .padding(.vertical, pt(6))
                         }
                         .buttonStyle(.houseProminent)
                         .largeOnPhone()
@@ -56,8 +56,8 @@ struct SignInView: View {
                         .accessibilityIdentifier("signin.switch")
                     }
                 }
-                .padding(.horizontal, 32)
-                .padding(.vertical, 24)
+                .padding(.horizontal, pt(32))
+                .padding(.vertical, pt(24))
                 .frame(maxWidth: 520)
                 .frame(maxWidth: .infinity, minHeight: geo.size.height)
             }

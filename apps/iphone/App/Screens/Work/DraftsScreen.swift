@@ -210,7 +210,7 @@ struct DraftsScreen: View {
     }
 
     private var footer: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: pt(6)) {
             Text("New orders and sales, kept as they are typed — on every device. One leaves this list the moment it is saved as an order or invoice, and after \(DRAFT_MAX_AGE_DAYS) days untouched. Orders and invoices that already exist are never drafted.")
             if !session.isOwner {
                 Text("Drafts begun on other devices are listed for the shop's owners; this shows what is kept on this phone.")

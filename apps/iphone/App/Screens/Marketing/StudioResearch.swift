@@ -23,11 +23,11 @@ struct StudioRivals: View {
         if !found.isEmpty {
             LedgerSection("Found") {
                 ForEach(found, id: \.text) { item in
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: pt(6)) {
                         Text(item.s("name")).font(.headline); Text(item.s("why")).font(.subheadline).foregroundStyle(.secondary)
                         StudioLinks(value: item)
                         Button("Add @" + item.s("instagram")) { var payload = item; payload["username"] = item["instagram"]; payload["source"] = .string("search"); add(payload) }.disabled(item.s("instagram").isEmpty)
-                    }.padding(.vertical, 5)
+                    }.padding(.vertical, pt(5))
                 }
             }
         }
@@ -44,7 +44,7 @@ struct StudioRivals: View {
                     if !item.s("profileError").isEmpty { Text(item.s("profileError")).foregroundStyle(Tone.problem.color) }
                     DisclosureGroup("Recent posts") {
                         ForEach(item["profile"]["posts"].array.sorted { $0.n("rate") > $1.n("rate") }, id: \.text) { post in
-                            VStack(alignment: .leading, spacing: 5) {
+                            VStack(alignment: .leading, spacing: pt(5)) {
                                 MarketingPhoto(path: post.s("image")).frame(height: 200)
                                 Text(post.s("caption")).font(.subheadline)
                                 MarketingDetails(fields: post.object.filter { !["thumbnailUrl", "mediaUrl", "caption"].contains($0.key) }.mapValues(\.any))
@@ -115,7 +115,7 @@ struct StudioSaved: View {
                 Section {
                     ForEach(items, id: \.text) { item in
                         Button { selected = StudioAssetChoice(item: item) } label: {
-                            HStack(spacing: 12) { StockImage(imageUrl: item.s("thumb"), name: item.s("name"), key: item.s("id"), decodeDataURI: true).frame(width: 90, height: 90); VStack(alignment: .leading, spacing: 4) { Text(item.s("name")).foregroundStyle(.primary); Text(item.s("format")).font(.caption).foregroundStyle(.secondary) } }
+                            HStack(spacing: pt(12)) { StockImage(imageUrl: item.s("thumb"), name: item.s("name"), key: item.s("id"), decodeDataURI: true).frame(width: 90, height: 90); VStack(alignment: .leading, spacing: pt(4)) { Text(item.s("name")).foregroundStyle(.primary); Text(item.s("format")).font(.caption).foregroundStyle(.secondary) } }
                         }
                     }
                     if items.isEmpty { Text("No saved designs here.").foregroundStyle(.secondary) }
@@ -136,7 +136,7 @@ struct StudioSaved: View {
         Section {
             if account.isEmpty { Text("No ads in the account.").foregroundStyle(.secondary) }
             ForEach(account, id: \.text) { ad in
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: pt(8)) {
                     Text(ad.s("name")).font(.headline)
                     // Running, the expected state, says nothing (CONVENTIONS rule 15).
                     if AdsStatusWords.of(ad.s("effective_status")).tone != .good {
@@ -147,7 +147,7 @@ struct StudioSaved: View {
                         Button("Unfiled") { mutate("/api/ads/studio/saved", ["fromAd": ad.s("id")]) }
                         ForEach(data["folders"].array, id: \.text) { f in Button(f.s("name")) { mutate("/api/ads/studio/saved", ["fromAd": ad.s("id"), "folder": f.s("id")]) } }
                     }
-                }.padding(.vertical, 5)
+                }.padding(.vertical, pt(5))
             }
         }.houseRows()
     }

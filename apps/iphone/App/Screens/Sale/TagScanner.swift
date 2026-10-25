@@ -30,7 +30,7 @@ struct TagScanner: View {
     private var cameraAvailable: Bool { DataScannerViewController.isSupported && DataScannerViewController.isAvailable }
 
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: pt(12)) {
             if cameraAvailable {
                 TagScannerCamera(active: active, onCode: onCode)
                     .frame(height: height)
@@ -38,9 +38,9 @@ struct TagScanner: View {
                     .overlay(alignment: .bottom) {
                         Text("Hold the tag's code in view, or tap a SKU printed on it")
                             .font(.footnote.weight(.medium))
-                            .padding(.horizontal, 12).padding(.vertical, 6)
+                            .padding(.horizontal, pt(12)).padding(.vertical, pt(6))
                             .glassEffect(.regular, in: .capsule)
-                            .padding(.bottom, 10)
+                            .padding(.bottom, pt(10))
                     }
             } else {
                 unavailable
@@ -50,7 +50,7 @@ struct TagScanner: View {
     }
 
     private var unavailable: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: pt(8)) {
             Image(systemName: "camera.slash").font(.largeTitle).foregroundStyle(.secondary)
             Text(cameraSupported ? "The camera is off for this app." : "This phone can't scan tags here.")
                 .font(.headline)
@@ -65,18 +65,18 @@ struct TagScanner: View {
         }
         .multilineTextAlignment(.center)
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 24)
+        .padding(.vertical, pt(24))
         .background(Theme.card, in: .rect(cornerRadius: Radius.card, style: .continuous))
     }
 
     private var typeRow: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: pt(10)) {
             TextField("Type the SKU", text: $typed)
                 .textInputAutocapitalization(.characters)
                 .autocorrectionDisabled()
                 .submitLabel(.search)
                 .onSubmit { find() }
-                .padding(.horizontal, 14).padding(.vertical, 11)
+                .padding(.horizontal, pt(14)).padding(.vertical, pt(11))
                 .background(Theme.card, in: .rect(cornerRadius: Radius.chip, style: .continuous))
             Button("Find") { find() }
                 .buttonStyle(.bordered)
@@ -190,8 +190,8 @@ struct TagScanner: View {
     @FocusState private var focused: Bool
 
     var body: some View {
-        VStack(spacing: 12) {
-            VStack(spacing: 8) {
+        VStack(spacing: pt(12)) {
+            VStack(spacing: pt(8)) {
                 Image(systemName: "barcode.viewfinder").font(.largeTitle).foregroundStyle(.secondary)
                 Text("Scan the tag with the barcode scanner").font(.headline)
                 Text("Point the scanner at the tag: it types the SKU. Or type it below, or read a photo of the tag.")
@@ -201,8 +201,8 @@ struct TagScanner: View {
             }
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity, minHeight: min(height, 200))
-            .padding(.vertical, 24)
-            .padding(.horizontal, 16)
+            .padding(.vertical, pt(24))
+            .padding(.horizontal, pt(16))
             .background(Theme.card, in: .rect(cornerRadius: Radius.card, style: .continuous))
             .dropDestination(for: URL.self) { urls, _ in
                 guard active, let url = urls.first else { return false }
@@ -219,12 +219,12 @@ struct TagScanner: View {
     }
 
     private var typeRow: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: pt(10)) {
             TextField("Type the SKU, or scan it", text: $typed)
                 .focused($focused)
                 .autocorrectionDisabled()
                 .onSubmit { find() }
-                .padding(.horizontal, 14).padding(.vertical, 11)
+                .padding(.horizontal, pt(14)).padding(.vertical, pt(11))
                 .background(Theme.card, in: .rect(cornerRadius: Radius.chip, style: .continuous))
             Button("Find") { find() }
                 .buttonStyle(.bordered)

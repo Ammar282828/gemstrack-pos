@@ -194,7 +194,7 @@ struct ActivityLogScreen: View {
         // Two lines: who and when; then their address and the device, quiet.
         let quiet = [s.email != who ? s.email : "", s.os, s.browser].filter { !$0.isEmpty }.joined(separator: " · ")
         return VStack(alignment: .leading, spacing: 3) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: pt(8)) {
                 Text(who.isEmpty ? "—" : who).font(.subheadline.weight(.semibold)).lineLimit(1)
                 Spacer(minLength: 8)
                 Text(s.timestamp.isEmpty ? "—" : ShopDate.say(s.timestamp, withTime: true))
@@ -303,7 +303,7 @@ struct ActivityLogScreen: View {
     private func row(_ e: ActivityLogEntry) -> some View {
         let tint = tone(ActivityLogRules.tone(e.eventType)).color
         let revertable = ActivityLogRules.isRevertable(e.eventType)
-        return HStack(alignment: .top, spacing: 12) {
+        return HStack(alignment: .top, spacing: pt(12)) {
             Image(systemName: symbol(e.eventType))
                 .foregroundStyle(tint)
                 .frame(width: 24)

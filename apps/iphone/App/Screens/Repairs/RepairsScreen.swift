@@ -252,11 +252,11 @@ struct RepairsRow: View {
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: pt(4)) {
             // The summary leads and the sum trails; at accessibility sizes the sum goes under the words.
             let layout = typeSize.isAccessibilitySize
-                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
-                : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 8))
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: pt(4)))
+                : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: pt(8)))
             layout {
                 Text(RepairsKit.repairSummary(repair))
                     .font(.headline)
@@ -275,7 +275,7 @@ struct RepairsRow: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, pt(2))
     }
 
     /// The customer; their number is on the ticket, not on every row.

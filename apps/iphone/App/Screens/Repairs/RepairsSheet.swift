@@ -159,7 +159,7 @@ struct RepairsSheet: View {
 
     private func headerSection(_ r: Repair) -> some View {
         Section {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: pt(6)) {
                 HStack(alignment: .firstTextBaseline) {
                     Text(RepairsKit.repairSummary(r))
                         .font(.title3.weight(.bold))

@@ -38,19 +38,19 @@ struct StockPiecePhotoField: View {
     private var shown: String? { StockKit.filled(answered ?? imageUrl) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: pt(12)) {
             if let shown {
                 StockImage(imageUrl: shown, name: name, key: shown, decodeDataURI: true)
                     .frame(width: 120, height: 120)
                     .clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))
             }
             if let busy {
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: pt(6)) {
                     ProgressView().progressViewStyle(.linear).tint(Theme.accent)
                     Text(words(busy)).font(.footnote).foregroundStyle(.secondary)
                 }
             }
-            AdaptiveStack(spacing: 10, alignment: .center) {
+            AdaptiveStack(spacing: pt(10), alignment: .center) {
                 Button { library = true } label: {
                     Label(shown == nil ? "Add from Photos" : "Photos", systemImage: "photo.on.rectangle")
                 }

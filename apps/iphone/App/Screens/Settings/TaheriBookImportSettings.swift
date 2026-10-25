@@ -150,9 +150,9 @@ private struct TaheriBookImportPage: View {
     }
 
     private func tallies(_ title: String, symbol: String, new: Int, here: Int, half: Int) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: pt(8)) {
             Label(title, systemImage: symbol).font(.subheadline.weight(.medium))
-            FigureRow(spacing: 10) {
+            FigureRow(spacing: pt(10)) {
                 FigureTile(label: "New", value: "\(new)")
                 FigureTile(label: "Already here", value: "\(here)")
                 FigureTile(label: "Half-matches", value: "\(half)", tint: half > 0 ? Tone.owed.color : .primary)

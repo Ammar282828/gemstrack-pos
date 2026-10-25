@@ -103,7 +103,7 @@ struct PostPiecesScreen: View {
     private var grid: some View {
         let items = filtered
         return ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: pt(14)) {
                 #if os(macOS)
                 // The collection and the hide-recent switch are in the window's toolbar.
                 #else
@@ -119,7 +119,7 @@ struct PostPiecesScreen: View {
                     ContentUnavailableView("Nothing matches", systemImage: "square.grid.2x2",
                                            description: Text("Clear the search, pick another collection, or show what went out lately."))
                 } else {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: sizeClass.isPadLayout ? 180 : 140), spacing: 12)], spacing: 14) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: sizeClass.isPadLayout ? 180 : 140), spacing: pt(12))], spacing: pt(14)) {
                         ForEach(Array(items.prefix(shown))) { (p: PostPiece) in
                             if let tray {
                                 Button { refused = tray.pick(p) } label: {
@@ -152,8 +152,8 @@ struct PostPiecesScreen: View {
                     }
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 16)
+            .padding(.horizontal, pt(16))
+            .padding(.bottom, pt(16))
         }
         .refreshable { await store.load() }
     }
@@ -167,17 +167,17 @@ struct PostPiecesScreen: View {
                 .foregroundStyle(Theme.onAccent)
                 .frame(minWidth: 24, minHeight: 24)
                 .background(Theme.accent, in: .circle)
-                .padding(14)
+                .padding(pt(14))
         } else {
             Circle().strokeBorder(.white.opacity(0.85), lineWidth: 2).background(Circle().fill(.black.opacity(0.2)))
                 .frame(width: 24, height: 24)
-                .padding(14)
+                .padding(pt(14))
         }
     }
 
     private var chips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
+            HStack(spacing: pt(8)) {
                 if hasNew {
                     MarketingChip(title: "New arrivals", selected: showing == PostPiecesScreen.newKey) { collection = PostPiecesScreen.newKey }
                 }

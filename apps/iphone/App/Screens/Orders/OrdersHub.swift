@@ -118,10 +118,10 @@ struct OrdersHub: View {
             stageBoard(groups, owedOn: owedOn, now: now, forceOpen: forceOpen)
           } else if geometry.size.width >= 760 && !typeSize.isAccessibilitySize {
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 24) {
+                LazyVStack(alignment: .leading, spacing: pt(24)) {
                     gridControls()
                     ForEach(groups) { g in
-                        VStack(alignment: .leading, spacing: 16) {
+                        VStack(alignment: .leading, spacing: pt(16)) {
                             groupHeading(g)
                             if g.folds {
                                 DisclosureGroup(isExpanded: expansion(g.id, forceOpen: forceOpen)) {
@@ -132,7 +132,7 @@ struct OrdersHub: View {
                     }
                     if groups.isEmpty { emptyState(nothingOpen: grouping == .due && !shown.isEmpty) }
                 }
-                .padding(24)
+                .padding(pt(24))
             }
           } else {
             List {
@@ -258,9 +258,9 @@ struct OrdersHub: View {
         if g.folds {
             Section {
                 DisclosureGroup(isExpanded: expansion(g.id, forceOpen: forceOpen)) {
-                    VStack(spacing: 16) {
+                    VStack(spacing: pt(16)) {
                         ForEach(g.orders) { order in card(order, owedOn: owedOn, now: now, standalone: true) }
-                    }.padding(.top, 12)
+                    }.padding(.top, pt(12))
                 } label: {
                     Text("\(g.orders.count) order\(g.orders.count == 1 ? "" : "s")")
                         .foregroundStyle(.secondary)
@@ -291,7 +291,7 @@ struct OrdersHub: View {
 
     /// The same columns for every group, so a day with one order keeps a card's width rather than the window's.
     private func cardGrid(_ orders: [Order], owedOn: [String: Double], now: Date, width: CGFloat) -> some View {
-        LazyVGrid(columns: CardColumns.grid(width), alignment: .leading, spacing: 20) {
+        LazyVGrid(columns: CardColumns.grid(width), alignment: .leading, spacing: pt(20)) {
             ForEach(orders) { order in card(order, owedOn: owedOn, now: now, standalone: true) }
         }
     }
@@ -355,7 +355,7 @@ struct OrdersHub: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.top, 40)
+        .padding(.top, pt(40))
     }
 
     /// Everything that narrows the list, put back: the search, the status, the month, whose and how paid.
@@ -393,7 +393,7 @@ struct OrdersHub: View {
 
     /// What the menu has narrowed the list to, with the way back.
     private var filterSummary: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
+        HStack(alignment: .firstTextBaseline, spacing: pt(12)) {
             Text([statusFilter == "All" ? nil : statusFilter,
                   month.isEmpty ? nil : InvoiceCalendar.monthLabel(month),
                   takenBy.isEmpty ? nil : takenBy,
@@ -412,7 +412,7 @@ struct OrdersHub: View {
         Section {
             #if !os(macOS)
             groupingPicker
-                .padding(.horizontal, 16)
+                .padding(.horizontal, pt(16))
                 .chipRowInList()
             #endif
             if narrowed {
@@ -425,7 +425,7 @@ struct OrdersHub: View {
 
     /// The same controls on the wide window's page: no list rows, so no list modifiers, and the page's own padding.
     private func gridControls() -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: pt(12)) {
             #if !os(macOS)
             groupingPicker
             #endif
@@ -616,7 +616,7 @@ struct OrdersSectionHeader: View {
             }
         }
         .textCase(nil)
-        .padding(.top, 4)
+        .padding(.top, pt(4))
         .contentTransition(.numericText(value: value))
         .motion(value)
     }

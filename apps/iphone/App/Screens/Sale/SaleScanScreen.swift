@@ -56,7 +56,7 @@ struct SaleScanScreen: View {
             photoSection
             if busy {
                 Section {
-                    HStack(spacing: 12) {
+                    HStack(spacing: pt(12)) {
                         SkeletonLoading()
                         Text("Reading it…")
                     }
@@ -163,11 +163,11 @@ struct SaleScanScreen: View {
             bits.append("As written on the bill: no breakdown, the figure is used as it stands")
         }
         let written = SaleBill.writtenTotal(l)
-        return HStack(alignment: .firstTextBaseline, spacing: 10) {
+        return HStack(alignment: .firstTextBaseline, spacing: pt(10)) {
             Image(systemName: on ? "checkmark.circle.fill" : "circle")
                 .foregroundStyle(on ? Theme.accent : Color.secondary)
                 .contentTransition(.symbolEffect(.replace))
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: pt(4)) {
                 TwoLine(title: (l.description ?? "").isEmpty ? "Unnamed line" : l.description!,
                         subtitle: bits.joined(separator: " · "),
                         trailing: written > 0 ? Money.pkr(written) : nil)
