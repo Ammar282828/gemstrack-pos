@@ -188,5 +188,5 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Money contract (`contract/cases.json` equal on both phones) | ✓ | ✓ | ✓ | ✓ | 2026-10-12 | `src/app/api/app/write/contract.test.ts` |
 | Store distribution | n/a | ✓ TestFlight | ✓ Play internal | ✓ TestFlight (Mac) | 2026-10 | `ios.yml`, `android.yml` |
 | One number reader (Urdu and Arabic digits, lakh commas, never a silent 0) | n/a | ✓ | ✓ | ✓ | 2026-10-20 | `ShopNumber` (Android `core/logic/ShopNumber.kt`); marketing's weight and artwork boxes read through it on Android too |
-| The lock covers every sheet and dialog | n/a | ✓ | ✓ | wip | 2026-10-20 | Android: the cover is a window of its own, `device/AppLock.kt`; not run on a phone. Mac: every sheet and panel gets the cover inside it (`MacLockSheets`) |
+| The lock covers every sheet and dialog | n/a | ✓ | ✓ | ✓ | 2026-10-20 | Android: the cover is a window of its own, `device/AppLock.kt`; not run on a phone. Mac: every sheet and panel gets the cover inside it (`MacLockSheets`) |
 | Page loads time out at 15 s; the server is warmed when the app comes forward | n/a | ✓ | ✓ | ✓ | 2026-10-23 | `/api/app/me`, `Outbox.warm()` |
