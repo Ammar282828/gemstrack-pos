@@ -276,6 +276,7 @@ private struct ContactImportPage: View {
                         MacFigure("New", "\(willAdd)"),
                         MacFigure("Needs you", "\(p.summary.conflicts)")])
                 .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets())
             #else
             FigureRow(spacing: pt(10)) {
                 FigureTile(label: "Already saved", value: "\(p.summary.settled)")
@@ -283,8 +284,8 @@ private struct ContactImportPage: View {
                 FigureTile(label: "Needs you", value: "\(p.summary.conflicts)")
             }
             .listRowBackground(Color.clear)
-            #endif
             .listRowInsets(EdgeInsets())
+            #endif
         } header: {
             LedgerHeading(title: "What would happen")
         } footer: {
