@@ -14,7 +14,7 @@ const MINA = {
   NEXT_PUBLIC_FIREBASE_PROJECT_ID: 'hom-pos', NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '288366939838',
   NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: 'hom-pos.firebasestorage.app',
 };
-const KEYS = [...Object.keys(MINA), 'APP_ANDROID_FIREBASE_APP_ID', 'APP_ANDROID_GOOGLE_WEB_CLIENT_ID'];
+const KEYS = [...Object.keys(MINA), 'APP_ANDROID_FIREBASE_APP_ID', 'APP_ANDROID_GOOGLE_WEB_CLIENT_ID', 'APP_MIN_BUILD', 'APP_MIN_ANDROID_BUILD'];
 
 async function get(env: Record<string, string> = {}, host = 'erp.taheri.shop') {
   vi.resetModules();
@@ -111,5 +111,15 @@ describe('push devices of the merged app', () => {
     expect(isBundleId('shop.taheri.erp')).toBe(true);
     expect(isBundleId('store.houseofmina.erp')).toBe(true);
     expect(isBundleId('nope')).toBe(false);
+  });
+
+  it('names the oldest build each app may be, apart: the iPhone\'s number is not the Android\'s', async () => {
+    expect((await get()).body).toMatchObject({ minBuild: 0, minAndroidBuild: 0 });
+    expect((await get({ APP_MIN_BUILD: '123', APP_MIN_ANDROID_BUILD: '45' })).body).toMatchObject({ minBuild: 123, minAndroidBuild: 45 });
+    // One floor does not set the other; a figure that is not a count means any.
+    expect((await get({ APP_MIN_BUILD: '123' })).body).toMatchObject({ minBuild: 123, minAndroidBuild: 0 });
+    expect((await get({ APP_MIN_ANDROID_BUILD: '45.9' })).body).toMatchObject({ minBuild: 0, minAndroidBuild: 45 });
+    expect((await get({ APP_MIN_ANDROID_BUILD: '-3' })).body.minAndroidBuild).toBe(0);
+    expect((await get({ APP_MIN_ANDROID_BUILD: 'soon' })).body.minAndroidBuild).toBe(0);
   });
 });

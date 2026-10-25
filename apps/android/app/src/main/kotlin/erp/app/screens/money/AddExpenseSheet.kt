@@ -92,7 +92,7 @@ internal fun ExpenseFormSheet(editing: Expense?, categories: List<String>, partn
     // salary form), or his page leaves the expense out of his salaries.
     val isSalary = partnership && chosenCategory == MoneyPartners.salaryCategory
     // The web's schema: a category, a description, and an amount of at least 0.01; a salary also says whose.
-    val canSave = !(isSalary && salaryFor.isEmpty()) && amount >= 0.01 && cleanedWhat.isNotEmpty() && chosenCategory.isNotEmpty() && !saving
+    val canSave = !(isSalary && salaryFor.isEmpty()) && amount >= 0.01 && cleanedWhat.isNotEmpty() && chosenCategory.isNotEmpty() && !saving && !erp.app.ui.rememberUpdateBlocked()
 
     // Removed karigars are left out, as the web's list leaves them (editing keeps the one this row already pays).
     val karigars = remember(allKarigars, editing) {
@@ -145,6 +145,7 @@ internal fun ExpenseFormSheet(editing: Expense?, categories: List<String>, partn
     }
 
     MoneySheet(if (editing != null) "Edit expense" else "Add expense", onDismiss, busy = saving, confirmText = "Save", confirmEnabled = canSave, onConfirm = ::save) {
+        erp.app.ui.UpdateBanner()
         SheetHeading("When and what")
         DayRow("Date", picked.atZone(phoneZone).toLocalDate(), { picked = pickedInstant(it, picked) }, latest = LocalDate.now())
         PickerRow(

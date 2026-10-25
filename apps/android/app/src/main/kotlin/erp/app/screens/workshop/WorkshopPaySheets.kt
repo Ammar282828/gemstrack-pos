@@ -150,7 +150,7 @@ fun WorkshopPaySheet(karigar: Karigar, batch: KarigarBatch, categories: List<Str
     val amount = MoneyParse.rupees(amountText) ?: 0.0
     val cleanedWhat = what.trim()
     val chosenCategory = (if (category == typed) typedCategory else category).trim()
-    val canSave = amount >= 0.01 && cleanedWhat.isNotEmpty() && chosenCategory.isNotEmpty() && !saving
+    val canSave = amount >= 0.01 && cleanedWhat.isNotEmpty() && chosenCategory.isNotEmpty() && !saving && !erp.app.ui.rememberUpdateBlocked()
     val name = karigar.name.ifEmpty { karigar.id }
     val partner = WorkshopPartners.all.firstOrNull { it.id == paidBy }
 
@@ -180,6 +180,7 @@ fun WorkshopPaySheet(karigar: Karigar, batch: KarigarBatch, categories: List<Str
 
     MoneyFeedback(success = savedTick, failure = failedTick)
     WorkshopFormSheet("Record payment", onDismiss, "Add", canSave, { confirming = true }, locked = saving) {
+        erp.app.ui.UpdateBanner()
         FormSection(title = "Paying $name", footer = "Added to ${batch.label}.") {
             WorkshopDayRow("Date", day) { day = it }
             PickerRow("Category", category, listOf("" to "Choose…") + categories.map { it to it } + (typed to "Another category…")) { category = it }

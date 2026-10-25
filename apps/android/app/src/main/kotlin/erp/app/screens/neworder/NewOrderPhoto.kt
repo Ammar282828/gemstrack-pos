@@ -205,19 +205,7 @@ internal fun SampleField(holder: DraftHolder, pieceId: UUID) {
     // The filed picture is read from its own document when the piece only holds its id.
     val stored by produceState<StoredSample>(StoredSample.Loading, piece.samplePhotoId, piece.sampleImageDataUri) {
         val id = piece.samplePhotoId
-        value = when {
-            id.isNullOrEmpty() || piece.sampleImageDataUri != null -> StoredSample.Loading
-            House.isDemo -> StoredSample.Failed("Sample photo preview unavailable in demo.")
-            else -> try {
-                val snapshot = (erp.app.config.Businesses.firestore ?: error("Not connected to the ERP.")).collection("order_photos").document(id).get().await()
-                val uri = snapshot.data?.get("dataUri") as? String
-                if (uri != null) StoredSample.Ready(uri) else StoredSample.Failed("The saved photo is unavailable. It stays on the order unless removed.")
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                StoredSample.Failed("Couldn't load the saved photo. It stays on the order unless removed.")
-            }
-        }
+        value = if (id.isNullOrEmpty() || piece.sampleImageDataUri != null) StoredSample.Loading else readStoredSample(id)
     }
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (piece.photo == null && !piece.removePhoto && hasStored) {
@@ -236,10 +224,24 @@ internal fun SampleField(holder: DraftHolder, pieceId: UUID) {
     }
 }
 
-private sealed interface StoredSample {
+internal sealed interface StoredSample {
     data object Loading : StoredSample
     class Ready(val uri: String) : StoredSample
     class Failed(val words: String) : StoredSample
+}
+
+/** The picture an order keeps in its own document (`order_photos/<id>`), read for an editor; the words say what failed. */
+internal suspend fun readStoredSample(id: String, keptOn: String = "order"): StoredSample {
+    if (House.isDemo) return StoredSample.Failed("Sample photo preview unavailable in demo.")
+    return try {
+        val snapshot = (erp.app.config.Businesses.firestore ?: error("Not connected to the ERP.")).collection("order_photos").document(id).get().await()
+        val uri = snapshot.data?.get("dataUri") as? String
+        if (uri != null) StoredSample.Ready(uri) else StoredSample.Failed("The saved photo is unavailable. It stays on the $keptOn unless removed.")
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        StoredSample.Failed("Couldn't load the saved photo. It stays on the $keptOn unless removed.")
+    }
 }
 
 /** A picture kept on the order: a data URI decoded here, or a web address loaded. */

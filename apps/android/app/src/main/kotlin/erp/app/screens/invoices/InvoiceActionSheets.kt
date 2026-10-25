@@ -279,6 +279,7 @@ fun InvoiceCreditSheet(invoice: Invoice, onDismiss: () -> Unit, onDone: (Invoice
             saving = true
             error = null
             try {
+                erp.app.config.UpdateGate.refuse()
                 ErpApi.shared.write("payBackCredit", InvoiceCredit.fields(invoice, amount, method))
                 haptics.success()
                 onDone(InvoiceActionOutcome(InvoiceCredit.note(amount, held, method), removed = false))

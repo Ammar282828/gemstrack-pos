@@ -542,13 +542,12 @@ class SettingsLogicTests {
         val paths = listOf(
             "/settings", "/app/settings/shop", "/settings/alerts", "/settings/payment-methods", "/settings/integrations", "/app/settings/shopify",
             "/settings/data", "/settings/voice", "/settings/printer", "/settings/weprint-api", "/settings/backups", "/settings/contact-import",
-            "/settings/hisaab-import", "/app/phone", "/app/widgets",
+            "/settings/hisaab-import", "/app/phone", "/app/widgets", "/app/settings/website", "/settings/import-taheri",
         )
-        assertEquals(15, SettingsRoutes.size)
+        assertEquals(17, SettingsRoutes.size)
         for (p in paths) assertTrue(SettingsRoutes.any { it.matches(p) }, p)
         assertTrue(NativeScreens.all.first().matches("/settings"))
         // The ERP's own pages stay the ERP's, and Recently removed stays the Owner group's.
-        assertFalse(SettingsRoutes.any { it.matches("/settings/import-taheri") })
         assertFalse(SettingsRoutes.any { it.matches("/settings/recently-removed") })
     }
 

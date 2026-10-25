@@ -6,6 +6,7 @@ import erp.app.config.BusinessRules
 import erp.app.config.BusinessStore
 import erp.app.config.DescriptorAnswer
 import erp.app.config.Prefs
+import erp.app.config.UpdateGate
 import erp.app.data.OutboxDisk
 import erp.app.device.LaunchLog
 import erp.app.screens.businesses.LaunchPicker
@@ -81,9 +82,12 @@ class BusinessDescriptorTests {
     }
 
     @Test fun `the minimum build keeps an old app out of money screens`() {
-        val b = assertNotNull(Business.decode(descriptor().replace("\"flags\"", "\"minBuild\":5,\"flags\"")))
+        val b = assertNotNull(Business.decode(descriptor().replace("\"flags\"", "\"minAndroidBuild\":5,\"flags\"")))
         assertTrue(b.needsUpdate(4))
         assertFalse(b.needsUpdate(5))
+        // The iPhone's floor is another number: it never shuts an Android build.
+        val phoneOnly = assertNotNull(Business.decode(descriptor().replace("\"flags\"", "\"minBuild\":500,\"flags\"")))
+        assertFalse(phoneOnly.needsUpdate(4))
         assertFalse(assertNotNull(Business.decode(descriptor())).needsUpdate(1))
     }
 }
@@ -338,5 +342,29 @@ class LaunchPickerTests {
         assertEquals(listOf("frame:first", "picker:shown", "picked", "ready:picker"), steps)
         assertEquals("android", body["platform"])
         assertNull(log.finish("home", "mina", "x", "y"))
+    }
+}
+
+/** The update gate: an out-of-date build writes nothing and says to install the latest version (UpdateGate.swift). */
+class UpdateGateTests {
+    @Test fun `an old build is blocked by the Android floor alone`() {
+        val b = business("acme").copy(minAndroidBuild = 50)
+        assertTrue(UpdateGate.blocked(b, build = 49))
+        assertFalse(UpdateGate.blocked(b, build = 50))
+        assertFalse(UpdateGate.blocked(b, build = 51))
+        // No floor, or 0, is any build; the iPhone floor is a different number and never counts here.
+        assertFalse(UpdateGate.blocked(business("acme"), build = 1))
+        assertFalse(UpdateGate.blocked(b.copy(minAndroidBuild = 0), build = 1))
+        assertFalse(UpdateGate.blocked(b.copy(minAndroidBuild = null, minBuild = 900), build = 1))
+    }
+
+    @Test fun `the words say to install the latest version`() {
+        assertEquals("This app is out of date: install the latest version.", UpdateGate.words)
+    }
+
+    @Test fun `a descriptor keeps its Android floor through the file it is kept in`() {
+        val b = business("acme").copy(minAndroidBuild = 7)
+        assertEquals(7, assertNotNull(Business.decode(b.toJson())).minAndroidBuild)
+        assertNull(business("acme").minAndroidBuild)
     }
 }

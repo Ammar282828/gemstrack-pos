@@ -16,7 +16,7 @@ import erp.core.models.Settings
 /**
  * Settings → Data (src/app/settings/data): drafts, backups, what was removed, the imports and the shop's defaults.
  * Backups and the contact and hisaab imports are native (BackupSettings, ContactImportSettings, HisaabImportSettings);
- * a backup's Restore and the Taheri Software book's one-off import stay the ERP's pages.
+ * and so is the Taheri Software book's one-off import (TaheriBookImportSettings); a backup's Restore stays the ERP's page.
  */
 @Composable
 fun DataSettings() {

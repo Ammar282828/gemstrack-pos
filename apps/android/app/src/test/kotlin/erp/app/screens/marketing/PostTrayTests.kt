@@ -34,6 +34,20 @@ class PostTrayTests {
         assertFalse(erp.app.nav.ScreenRegistry.wantsWeb(MarketingKit.trayPath()))
     }
 
+    // The tray's "Design" and Edit a piece's "Open in Design" hand the same piece over: the site's id, escaped whole, which
+    // the native Design reads back (`?site=`) and starts a Piece from (DesignRoutes `startFromSite`).
+    @Test fun theTrayAndEditAPieceHandTheSamePieceToNativeDesign() {
+        val id = "Rings/R-101 two.webp"
+        val path = WebsiteEditLogic.designPath(id)
+        assertEquals("/design?v=make&site=Rings%2FR%2D101%20two%2Ewebp", path)
+        assertEquals("/design?v=make&site=" + MarketingKit.escape(id), path)
+        assertEquals(id, MarketingKit.query("site", path))
+        assertEquals("make", MarketingKit.query("v", path))
+        // Native: the in-app designer answers it, not the ERP's page.
+        assertTrue(erp.app.screens.design.DesignRoutes.any { it.matches(path) })
+        assertFalse(erp.app.nav.ScreenRegistry.wantsWeb(path))
+    }
+
     @Test fun aPieceKeepsWhatTheTrayNeedsOfIt() {
         val p = piece("""{"id":"a","weightOnPhoto":true,"source":"pieces","photoSource":"","sourceMarked":true}""")
         assertTrue(p.weightOnPhoto)

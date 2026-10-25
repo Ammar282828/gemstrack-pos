@@ -97,7 +97,7 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Feature | Web | iPhone | Android | Mac | Since | Where |
 |---|---|---|---|---|---|---|
 | Board, karigars, karigar page, pay batches, silver and khata, given items | ✓ | ✓ | ✓ | ✓ | 2026-10 | `Screens/Workshop`, `screens/workshop` |
-| Piece details edit (order / invoice piece from the workshop) | ✓ | ✓ | owed | ✓ | 2026-10 | `WorkshopPieceDetailsSheet.swift`, `lib/writes/piece-details.ts` |
+| Piece details edit (order / invoice piece from the workshop) | ✓ | ✓ | ✓ | ✓ | 2026-10 | `WorkshopPieceDetailsSheet.swift`, `lib/writes/piece-details.ts`; Android `WorkshopPieceDetailsSheet.kt`, through the Outbox |
 | My work (karigar's own list) | ✓ | ✓ | ✓ | ✓ | 2026-10 | |
 | Drafts, Calendar, Activity log | ✓ | ✓ | ✓ | ✓ | 2026-10-09 | `Screens/Work`, `screens/work` |
 
@@ -127,7 +127,7 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Investments and its schedule | ✓ | ✓ | ✓ | ✓ | 2026-10-19 | [Investments](features/investments.md) |
 | Website → Interest: site report (sources, places, devices, funnel, pages, searches) and piece rankings | ✓ | ✓ | ✓ | ✓ | 2026-10-22 | [Website analytics](decisions.md#website-analytics), [Piece interest](decisions.md#piece-interest); `WebsiteInterest.swift`, `screens/marketing/WebsiteInterest.kt` |
 | Website → Live (who is on the site now) | ✓ | ✓ | ✓ | ✓ | 2026-10-23 | `WebsiteLive.swift`, `WebsiteLive.kt` |
-| Website selling settings | ✓ | ✓ | owed | ✓ | 2026-10 | `WebsiteSellingSettings.swift` (check) |
+| Website selling settings | ✓ | ✓ | ✓ | ✓ | 2026-10 | `WebsiteSellingSettings.swift`; Android `WebsiteSellingSettings.kt` at `/app/settings/website`, `saveWebsiteConfig` through the Outbox |
 
 ## Posts and Design
 
@@ -139,7 +139,7 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Design: make, pages, resize, publish, AI tools, saved | ✓ | ✓ | ✓ | ✓ | 2026-10-19 | [Design](decisions.md#design) |
 | Designer v2 (effects, rich text, gradients, QR, photo adjust) | ✓ | ✓ | ✓ | ✓ | 2026-10-19 | |
 | Design Board (Studio canvas, Let it cook, agent) | ✓ | ✓ | pg | ✓ | 2026-10-15 | [Ad studio](features/ad-studio.md#board); Android opens `/design?v=board&web=1` |
-| "Open in Design" from the Posts tray and Edit a piece | ✓ | ✓ | owed | ✓ | 2026-10-19 | `PostTray*.swift`; noted in `android-app.md` |
+| "Open in Design" from the Posts tray and Edit a piece | ✓ | ✓ | ✓ | ✓ | 2026-10-19 | `PostTray*.swift`; Android `PostTrayScreen.kt` and `WebsiteEditPiece.kt` open `/design?v=make&site=<id>`, which native `design/DesignRoutes.kt` starts a Piece from (this row was stale) |
 
 ## Ads and Insights
 
@@ -155,7 +155,7 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 |---|---|---|---|---|---|---|
 | Settings in sections (Shop, Connections, Records) | ✓ | ✓ | ✓ | ✓ | 2026-10-23 | `SettingsRoot.swift` vs `SettingsRoot.kt` |
 | Shop, alerts, bank accounts, integrations, Shopify, data, voice, labels, backups, contact and hisaab imports, This phone | ✓ | ✓ | ✓ | ✓ | 2026-10 | `screens/settings` |
-| Taheri book import | ✓ | ✓ | owed | ✓ | 2026-10-17 | `TaheriBookImportSettings.swift` |
+| Taheri book import | ✓ | ✓ | ✓ | ✓ | 2026-10-17 | `TaheriBookImportSettings.swift`; Android `TaheriBookImportSettings.kt` (`importTaheriBook` preview, then Import; the iPhone does not use `/api/app/taheri-book` either, that route is the web page's) |
 | Connect an AI (scoped keys; MCP + REST) | ✓ | ✓ | pg | ✓ | 2026-10-19 | [AI keys](features/ai-keys.md) |
 | Appearance, Liquid Glass | ✓ | ✓ | n/a | ✓ | 2026-10 | Apple HIG glass; Android is Material 3 |
 | Businesses (add by address, order, turn off the picker) | n/a | ✓ | ✓ | ✓ | 2026-10-16 | `BusinessesScreen.swift`, `screens/businesses/BusinessesPanel.kt` |
@@ -182,7 +182,7 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Crash and hang reports | n/a | ✓ | ✓ | ✓ | 2026-10-20 | MetricKit / `last-crash.txt` |
 | Biometric lock; delete code by biometric | n/a | ✓ | ✓ | ✓ | 2026-10 | Face ID / BiometricPrompt |
 | Widget key revoked on sign-out, kept on the device | n/a | ✓ | ✓ | ✓ | 2026-10-20 | `/api/widget/key` |
-| Update gate (out-of-date build writes nothing) | n/a | ✓ | owed | ✓ | 2026-10-20 | `Home/UpdateGate.swift` |
+| Update gate (out-of-date build writes nothing) | n/a | ✓ | ✓ | ✓ | 2026-10-20 | `Home/UpdateGate.swift`; Android `config/UpdateGate.kt` against `minAndroidBuild` (`APP_MIN_ANDROID_BUILD`): its own number, the iPhone's `minBuild` is a CFBundleVersion |
 | Tablet / iPad: lists beside item, columns, shortcuts; the item side always open with "Choose an order" etc. until picked | n/a | ✓ | ✓ | ✓ | 2026-10-23 | `HubSplit.swift`, `nav/HubSplit.kt`; ⌘ shortcuts n/a on Android |
 | Menus from `lib/nav.ts` via the exported JSON | ✓ | ✓ | ✓ | ✓ | 2026-10 | checked by `parity.yml` |
 | Money contract (`contract/cases.json` equal on both phones) | ✓ | ✓ | ✓ | ✓ | 2026-10-12 | `src/app/api/app/write/contract.test.ts` |

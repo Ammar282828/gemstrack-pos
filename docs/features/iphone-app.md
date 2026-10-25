@@ -434,4 +434,4 @@ From the blind-spot audit (App Store, platform, security):
   is `AfterFirstUnlockThisDeviceOnly` (an old item is moved in place). `DELETE /api/widget/key` (`{ key }`, the same account)
   takes a key back; `WidgetKeys.revoke(business:)` calls it, capped at 3 s.
 - **Pasteboard:** `SecretPasteboard.copy` (this device only, gone in 5 minutes) is for links that carry a key and for tokens.
-- **Minimum build:** `/api/app/business` carries `minBuild` (`APP_MIN_BUILD`, default 0); `Business.needsUpdate` is true below it.
+- **Minimum build:** `/api/app/business` carries `minBuild` (`APP_MIN_BUILD`, default 0); `Business.needsUpdate` is true below it. The Android app has its own floor in the same answer, `minAndroidBuild` (`APP_MIN_ANDROID_BUILD`, a versionCode), because the two stores number builds apart.
