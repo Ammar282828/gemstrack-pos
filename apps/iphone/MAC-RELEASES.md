@@ -17,3 +17,4 @@ app archived for TestFlight's "Shop" group, and the iPhone app built beside it a
 - 2026-10-25: fluid: tables, search and Analytics memoised, every list read at launch, no business picker on launch, the window reopens on its place, ⌘K Quick Open.
 - 2026-10-25: redesign, the frame: sidebar of every place and tab with saved lists and counts, the record menu, File/Edit/View/Go/Window/Help menus, Settings as a sidebar window, the rate in every toolbar, the Mac's own appearance, the kit (Mac/Kit).
 - 2026-10-25: redesign, every place: Invoices, New sale, Orders, New order, Repairs, Customers, Drafts, Money, Stock, Workshop, Today, Analytics, Design, Posts, Website, Ads, Insights.
+- 2026-10-25: the Mac release workflow now hands its archive to TestFlight (Shop): the redesign, to the owner's Mac.
