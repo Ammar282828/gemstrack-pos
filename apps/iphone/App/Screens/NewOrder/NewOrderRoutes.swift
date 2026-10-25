@@ -26,8 +26,9 @@ enum NewOrderRoutes {
             make: { p in AnyView(slipScreen(slipId(p) ?? "")) }
         )
         return [
-            // "?scan=parchi" (the New chooser's Scan a parchi) opens the slip reader over the new order.
-            ScreenRoute(matches: { ScreenRoute.bare($0) == "/orders/add" }, make: { p in AnyView(NewOrder(readsSlip: SaleRoutes.asks(p, scan: "parchi"))) }),
+            // "?scan=parchi" (the New chooser's Scan a parchi) opens the slip reader over the new order. "?resume=1" opens
+            // the order kept on this phone (Drafts' Continue, a sale's Create order); otherwise the form is blank.
+            ScreenRoute(matches: { ScreenRoute.bare($0) == "/orders/add" }, make: { p in AnyView(NewOrder(readsSlip: SaleRoutes.asks(p, scan: "parchi"), resumes: SaleRoutes.asks(p, "resume", "1"))) }),
             edit,
             finalize,
             slip,

@@ -38,8 +38,8 @@ import { ExchangeRows, type ExchangeRow, blankExchangeRow, rowsFromExchanges, ex
 import { invoiceExchanges } from '@/lib/exchange';
 import { FormSkeleton } from '@/components/shared/skeletons';
 import { PhoneField } from '@/components/ui/phone-field';
-import { useWorkDraft } from '@/components/drafts/use-work-drafts';
-import { DraftsShortcut } from '@/components/drafts/draft-list';
+import { parkSaleCart, useWorkDraft } from '@/components/drafts/use-work-drafts';
+import { DraftsNote } from '@/components/drafts/draft-list';
 import { SALE_DEFAULT_FIELDS, summarizeSale } from '@/lib/work-drafts';
 import { isWalkInName, resolveSaleCustomer } from '@/lib/walk-in';
 import { TakenByPicker } from '@/components/shared/taken-by-picker';
@@ -498,6 +498,8 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
   const saleDraftValue = useMemo(() => ({
     walkInCustomerName, walkInCustomerPhone, discountAmountInput, exchangeRows, internalNote, salePayments,
     selectedCustomerId, takenBy, hideRates, delivery, costRate24k: costRate24k ?? null,
+    // A customer picked from the book is something typed (selectedCustomerId alone is the blank form's default).
+    pickedCustomer: selectedCustomerId && selectedCustomerId !== WALK_IN_CUSTOMER_VALUE ? selectedCustomerId : '',
     cart: cartItemsFromStore, subtotal: estimatedInvoice?.subtotal ?? 0,
     // The rate boxes held on this sale (typed, or read off a bill), and which were typed by hand: continued on
     // another device, the sale is priced at the rates it was quoted at, not that day's.
@@ -545,17 +547,31 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
     }
     if (withCart && Array.isArray(d.cart)) { clearCart(); (d.cart as Product[]).forEach(p => addProductToCart(p)); }
   }, [clearCart, addProductToCart]);
-  // On arrival: ?draft=… continues that sale here (the cart becomes its pieces); otherwise this
-  // device's own unfinished sale comes back as it was left.
+  // On arrival, a new sale is BLANK (the owner, 2026-10-25: "don't auto open the draft"). The sale this device had in
+  // progress stays in Drafts. ?draft=… continues that one here (the cart becomes its pieces); ?continue=1 continues
+  // this device's own unfinished sale — the scanner's "Open the invoice", New's "An invoice in progress" — as it was left.
   const draftParam = searchParams.get('draft');
+  const continues = searchParams.get('continue') === '1';
   const arrived = useRef(false);
   useEffect(() => {
     if (!appReady || arrived.current || editInvoiceId || settings?.autoDraftForms === false) return;
     arrived.current = true;
     let stored: string | null = null;
     try { stored = localStorage.getItem(SALE_DRAFT_KEY); } catch { /* private mode */ }
-    const target = draftParam || stored;
-    if (!target) return;
+    const target = draftParam || (continues ? stored : null);
+    if (!target) {
+      // A new, blank sale. The one in progress was written as it was typed; it is let go of here, with the pieces
+      // now in the cart added to it, and the cart is emptied for this sale. Pieces put in the cart before any sale
+      // was open (the products page) are not a sale's: they start this one.
+      if (stored) {
+        try { localStorage.removeItem(SALE_DRAFT_KEY); } catch { /* fine */ }
+        const pieces = useAppStore.getState().cart;
+        saleDraft.detach();
+        if (pieces.length) clearCart();
+        void parkSaleCart(stored, pieces);
+      }
+      return;
+    }
     void saleDraft.load(target).then(d => {
       if (!d) {
         try { if (stored === target) localStorage.removeItem(SALE_DRAFT_KEY); } catch { /* fine */ }
@@ -566,10 +582,12 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
       if (draftParam) {
         router.replace('/invoices/new', { scroll: false });
         toast({ title: 'Sale continued', description: d.title !== 'No customer yet' ? `${d.title} — everything is as it was left.` : 'Everything is as it was left.' });
+      } else if (continues) {
+        router.replace('/invoices/new', { scroll: false });
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appReady, draftParam, editInvoiceId]);
+  }, [appReady, draftParam, continues, editInvoiceId]);
 
   // What the payment rows come to. Editing an invoice, what it had already been paid
   // stays paid; these rows are added on top.
@@ -870,9 +888,9 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
 
   return (
     <div className="container mx-auto py-8 px-4 pb-28 lg:pb-8">
-      {/* Other unfinished sales, until this one has something in it. */}
+      {/* The unfinished ones are in Drafts: one quiet line, until this sale has something in it. */}
       {!saleDraft.id && !isEditingEstimate && !editInvoiceId && cartItemsFromStore.length === 0 && (
-        <div className="mb-4"><DraftsShortcut kind="sale" /></div>
+        <div className="mb-4"><DraftsNote /></div>
       )}
 
       {cartItemsFromStore.length === 0 ? (

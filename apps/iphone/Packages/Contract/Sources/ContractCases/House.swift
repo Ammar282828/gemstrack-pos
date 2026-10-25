@@ -16,3 +16,4 @@ func BizKey(_ base: String, _ id: String? = nil) -> String { base + "." + (id ??
 enum BusinessSwitchPin {
     static func id(within window: TimeInterval = 2) -> String { House.id }
 }
+

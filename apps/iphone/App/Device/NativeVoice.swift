@@ -210,7 +210,7 @@ struct NativeVoiceScreen: View {
                 }
                 if card.operations.isEmpty, let path = card.href {
                     Button(card.handoff == nil ? "Open record" : "Fill the form", systemImage: "arrow.up.right") {
-                        do { try NativeVoiceHandoff.apply(card.handoff, book: book, person: session.shop.person); open(path) }
+                        do { try NativeVoiceHandoff.apply(card.handoff, book: book, person: session.shop.person); open(card.handoff == nil ? path : NativeVoiceHandoff.resuming(path)) }
                         catch { voice.failure = error.localizedDescription }
                     }
                     .buttonStyle(.bordered)
@@ -762,6 +762,13 @@ struct NativeVoicePlan {
 
 
 enum NativeVoiceHandoff {
+    /// The filled order or sale form opens on the draft just written (`?resume=1`), not blank (decisions.md "Drafts").
+    static func resuming(_ path: String) -> String {
+        let bare = ScreenRoute.bare(path)
+        guard bare == "/orders/add" || bare == "/invoices/new" else { return path }
+        return path + (path.contains("?") ? "&" : "?") + "resume=1"
+    }
+
     @MainActor static func apply(_ handoff: [String: Any]?, book: Book, person: String?) throws {
         guard let handoff else { return }
         let kind = handoff["kind"] as? String ?? ""
@@ -782,7 +789,7 @@ enum NativeVoiceHandoff {
             }
             if let method = payload["advanceMethod"] as? String { draft.advanceMethod = method }
             if draft.takenBy.isEmpty { draft.takenBy = person ?? "" }
-            NewOrderDraftStore.save(draft)
+            NewOrderDraftStore.save(draft, business: House.business.id)
         } else if kind == "sale" {
             var raw = payload
             raw["amountPaid"] = payload["paid"]
@@ -792,7 +799,7 @@ enum NativeVoiceHandoff {
             _ = draft.fill(fromBill: reading, customer: (payload["customerId"] as? String).flatMap { book.customers.item($0) }, fallbackMetal: House.metal)
             if let method = payload["method"] as? String, !draft.payments.isEmpty { draft.payments[0].method = method }
             if draft.takenBy.isEmpty { draft.takenBy = person ?? "" }
-            SaleDraftStore.save(draft)
+            SaleDraftStore.save(draft, business: House.business.id)
             for sku in payload["skus"] as? [String] ?? [] {
                 guard let product = book.products.items.first(where: { $0.sku == sku }) else { continue }
                 SaleDraftStore.add(product)

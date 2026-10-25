@@ -100,6 +100,7 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Piece details edit (order / invoice piece from the workshop) | ✓ | ✓ | ✓ | ✓ | 2026-10 | `WorkshopPieceDetailsSheet.swift`, `lib/writes/piece-details.ts`; Android `WorkshopPieceDetailsSheet.kt`, through the Outbox |
 | My work (karigar's own list) | ✓ | ✓ | ✓ | ✓ | 2026-10 |  |
 | Drafts, Calendar, Activity log | ✓ | ✓ | ✓ | ✓ | 2026-10-09 | `Screens/Work`, `screens/work` |
+| Drafts: saved at every keystroke, never auto-opened (a New sale / New order is blank; the unfinished one waits in Drafts; a quiet "N drafts" line on the blank form) | ✓ | ✓ | owed | ✓ | 2026-10-25 | [Drafts](decisions.md#drafts); web `use-work-drafts.ts` + `lib/draft-writer.ts`, `?continue=1`; iPhone/Mac one code: `Data/WorkDraftSync.swift`, `NewSale.swift`, `NewOrder.swift`, `Work/DraftsNote.swift`, `?resume=1`; Android: own copy on the phone still auto-opens, send within 300 ms, write the previous draft to Drafts and start blank, `?resume` for Scan/Stock/Drafts |
 
 ## Money
 

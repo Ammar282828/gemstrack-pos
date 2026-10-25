@@ -43,7 +43,8 @@ enum StockKit {
 
     static let addPath = "/products/add"
     static let bulkAddPath = "/products/bulk-add"
-    static let newSalePath = "/invoices/new"
+    /// Where Sell goes: the sale in progress, which the piece was just put on (it does not open blank).
+    static let newSalePath = "/invoices/new?resume=1"
 
     /// Pages under /products/ that are not a piece: the forms (adding one, adding many).
     static let ownPages: Set<String> = [addPath, bulkAddPath]
@@ -51,7 +52,7 @@ enum StockKit {
     /// A title for an ERP page opened from here (a native screen names itself; a web page does not).
     static func title(forPath path: String) -> String {
         let bare = ScreenRoute.bare(path)
-        if bare == newSalePath { return "New sale" }
+        if bare == "/invoices/new" { return "New sale" }
         if bare == addPath { return "Add piece" }
         if bare.hasSuffix("/edit") { return "Edit piece" }
         let last = bare.split(separator: "/").last.map(String.init) ?? ""

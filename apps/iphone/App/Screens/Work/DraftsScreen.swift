@@ -9,10 +9,11 @@ import ERPCore
 /// Owners read Firestore `drafts` live, as the web does. Staff have no Firestore (firestore.rules) and the server has no
 /// list of drafts for them, so they see what is kept on this phone, which is their own order in progress.
 ///
-/// A draft this phone wrote (WorkDraftSync) is continued in the native form, which holds that work already
-/// (NewOrderDraftStore, SaleDraftStore). One begun on the web or on another phone is read from Drafts, put into the
-/// native form (WorkDraftContinue) and taken on as this phone's draft, so the next change writes over it and saving
-/// removes it, as the web's form does with `?draft=`. Work this phone holds of that kind is replaced, after asking.
+/// A draft this phone wrote (WorkDraftSync) and still holds is continued in the native form, which holds that work
+/// already (NewOrderDraftStore, SaleDraftStore). Any other is read from Drafts, put into the native form
+/// (WorkDraftContinue) and taken on as this phone's draft, so the next change writes over it and saving removes it,
+/// as the web's form does with `?draft=`. The work this phone held before is made sure of in Drafts first, so nothing
+/// is replaced and nothing is asked. A draft opens only from here: a New order or New sale is always blank.
 struct DraftsScreen: View {
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
@@ -30,8 +31,6 @@ struct DraftsScreen: View {
     @State private var demoGone: Set<String> = []
     /// Month-old drafts already asked to go, so a list that redraws does not ask twice.
     @State private var purged: Set<String> = []
-    /// A draft from another device waiting for "replace the work on this phone?".
-    @State private var replacing: DraftRow?
     /// The draft being read from Drafts.
     @State private var continuing: String?
     /// The native form, once the draft is in it.
@@ -75,12 +74,6 @@ struct DraftsScreen: View {
         } message: { row in
             Text("\(row.draft.isOrder ? "Order" : "Sale") for \(row.draft.title).")
         }
-        .confirmationDialog("Replace your work in progress?", isPresented: replaceShown, titleVisibility: .visible, presenting: replacing) { row in
-            Button("Replace and continue", role: .destructive) { Task { await continueHere(row) } }
-            Button("Keep mine", role: .cancel) {}
-        } message: { row in
-            Text(replaceWords(row))
-        }
         .navigationDestination(item: $opening) { (r: Route) in PlaceScreen(path: r.path) }
         .failureAlert($failure, title: "Not done")
         .destructiveFeedback(trigger: discardedCount)
@@ -108,14 +101,12 @@ struct DraftsScreen: View {
             return lite
         }
         phoneSale = session.isOwner ? SaleDraftStore.load() : nil
+        // Drafts that could not be sent (no line) are sent now if the line is back.
+        WorkDraftSync.resumeAll()
     }
 
     private var discardShown: Binding<Bool> {
         Binding(get: { discarding != nil }, set: { if !$0 { discarding = nil } })
-    }
-
-    private var replaceShown: Binding<Bool> {
-        Binding(get: { replacing != nil }, set: { if !$0 { replacing = nil } })
     }
 
     // MARK: The rows
@@ -177,9 +168,10 @@ struct DraftsScreen: View {
                          items: d.lines.count, total: max(0, subtotal), device: "", createdAt: "", updatedAt: "")
     }
 
-    /// The native form of a row's kind.
+    /// The native form of a row's kind, opened on the work this phone holds (`?resume=1`): a New order or New sale
+    /// is blank, a draft is continued from here.
     private func path(_ row: DraftRow) -> String {
-        row.draft.isOrder ? "/orders/add" : "/invoices/new"
+        row.draft.isOrder ? "/orders/add?resume=1" : "/invoices/new?resume=1"
     }
 
     // MARK: The page
@@ -287,21 +279,10 @@ struct DraftsScreen: View {
 
     // MARK: Continuing a draft from another device
 
-    /// Work of the same kind on this phone is asked about first: the phone keeps one order and one sale.
+    /// A draft that is not this phone's current one is read in. The work this phone holds of that kind goes to Drafts
+    /// first, so there is nothing to ask.
     private func ask(_ row: DraftRow) {
-        let mine = row.draft.isOrder ? phoneOrder != nil : phoneSale != nil
-        if mine {
-            replacing = row
-        } else {
-            Task { await continueHere(row) }
-        }
-    }
-
-    private func replaceWords(_ row: DraftRow) -> String {
-        let kind = row.draft.isOrder ? "order" : "sale"
-        let sync = row.draft.isOrder ? WorkDraftSync.order : WorkDraftSync.sale
-        let kept = sync.id != nil ? " It stays in Drafts, to continue later." : " It is only on this phone, so it is lost."
-        return "This phone has its own \(kind) in progress. Continuing \(row.draft.title)'s replaces it here.\(kept)"
+        Task { await continueHere(row) }
     }
 
     /// The draft as Drafts holds it, into the native form, and taken on as this phone's (the form's `?draft=`).
@@ -323,11 +304,22 @@ struct DraftsScreen: View {
             }
             let doc = DocJSON.plain(raw, custom: FirestoreSource.plainSDK) as? [String: Any] ?? [:]
             let values = doc["data"] as? [String: Any] ?? [:]
+            // What this phone held goes to Drafts first (sent now, kept on disk until it lands), then this draft is
+            // the phone's work.
             if d.isOrder {
+                if let held = NewOrderDraftStore.load(), WorkDraftSync.order.id != d.id {
+                    let settings = book.settings.value
+                    WorkDraftSync.order.release(business: House.business, enabled: settings?.autoDraftForms ?? true) { WorkDraftSync.snapshot(held, settings: settings) }
+                }
                 NewOrderDraftStore.save(WorkDraftContinue.order(values, settings: book.settings.value), now: true)
                 WorkDraftSync.order.adopt(id: d.id, createdAt: d.createdAt)
                 phoneOrder = NewOrderDraftStore.load()
             } else {
+                if let held = SaleDraftStore.load(), WorkDraftSync.sale.id != d.id {
+                    let settings = book.settings.value
+                    let customers = book.customers.items
+                    WorkDraftSync.sale.release(business: House.business, enabled: settings?.autoDraftForms ?? true) { WorkDraftSync.snapshot(held, settings: settings, customers: customers) }
+                }
                 SaleDraftStore.save(WorkDraftContinue.sale(values, customer: { (id: String) in book.customers.item(id) }))
                 WorkDraftSync.sale.adopt(id: d.id, createdAt: d.createdAt)
                 phoneSale = SaleDraftStore.load()
@@ -370,6 +362,8 @@ struct DraftsScreen: View {
                 }
                 return
             }
+            // One still waiting to be sent (no line) must not come back after this.
+            (d.isOrder ? WorkDraftSync.order : WorkDraftSync.sale).abandon(d.id)
             do {
                 try await ERPAPI.shared.send("/api/app/drafts", ["action": "drop", "id": d.id])
             } catch {

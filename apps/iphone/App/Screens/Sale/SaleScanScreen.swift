@@ -281,7 +281,7 @@ struct SaleScanScreen: View {
         let before = draft
         let held = draft.fill(fromBill: reading, customer: customer, fallbackMetal: House.metal)
         SaleScanHeld.hold(held, before: before)
-        if keep { SaleDraftStore.save(draft) }
+        if keep { SaleDraftStore.save(draft, business: House.business.id) }
         dismiss()
     }
 }

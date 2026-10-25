@@ -133,7 +133,7 @@ export default function ScanPOSPage() {
             </CardContent>
             <CardFooter>
               <Button asChild size="lg" className="w-full" disabled={cartItems.length === 0}>
-                <Link href="/invoices/new">
+                <Link href="/invoices/new?continue=1">
                   Open the invoice <ExternalLink className="w-4 h-4 ml-2" />
                 </Link>
               </Button>

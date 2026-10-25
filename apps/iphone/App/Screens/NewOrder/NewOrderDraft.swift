@@ -366,8 +366,8 @@ extension NewOrderDraft {
 }
 
 extension NewOrderDraftStore {
-    /// Seeds the phone's order draft from the sale (the New order screen takes it back as it opens). It replaces
-    /// an order that was in progress: check `orderInProgress` first to ask.
+    /// Seeds the phone's order draft from the sale (the New order screen takes it back as it opens, `?resume=1`).
+    /// It replaces the phone's copy: release an order in progress to Drafts first (SaleForm.createOrder).
     static func startFromSale(_ sale: SaleDraft) {
         save(NewOrderDraft.seeded(from: sale), now: true)
     }
@@ -417,12 +417,18 @@ enum NewOrderDraftStore {
         }
     }
 
+    /// The newest draft waiting for the queue, per business: a burst of keys is one write, the last (the encode can
+    /// be heavy, and the form saves at every change).
+    private static let waitingLock = NSLock()
+    private static var waiting: [String: NewOrderDraft] = [:]
+
     /// `now` is for the moment the screen or the app is going away: the write is still off the main thread (the
     /// encode can be heavy), under a few seconds the phone lends so it finishes after the app has left.
     static func save(_ draft: NewOrderDraft, now: Bool = false, business: String? = nil) {
         // A screen passes the business it was opened in, so leaving after a switch never writes into the next one.
         let biz = business ?? (now ? BusinessSwitchPin.id() : House.id)
         if now {
+            waitingLock.lock(); waiting[biz] = nil; waitingLock.unlock()
             #if os(iOS)
             ProcessInfo.processInfo.performExpiringActivity(withReason: "erp.orderDraft") { expired in
                 guard !expired else { return }
@@ -433,12 +439,19 @@ enum NewOrderDraftStore {
             queue.sync { write(draft, biz) }
             #endif
         } else {
-            queue.async { write(draft, biz) }
+            waitingLock.lock(); waiting[biz] = draft; waitingLock.unlock()
+            queue.async {
+                waitingLock.lock()
+                let next = waiting.removeValue(forKey: biz)
+                waitingLock.unlock()
+                if let next { write(next, biz) }
+            }
         }
     }
 
     static func clear(business: String? = nil) {
         let biz = business ?? House.id
+        waitingLock.lock(); waiting[biz] = nil; waitingLock.unlock()
         queue.sync {
             UserDefaults.standard.removeObject(forKey: key(for: biz))
             if let dir = photoDir(biz) { try? FileManager.default.removeItem(at: dir) }

@@ -130,7 +130,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [One screen per question](docs/decisions.md#one-screen-per-question) — `lib/owed.ts`, Today's cash, the karigar's Now
 
 **Selling: invoices, orders, repairs**
-- [Drafts](docs/decisions.md#drafts) — only a new order or sale is drafted, in Firestore `drafts`; `finish()` on save
+- [Drafts](docs/decisions.md#drafts) — only a new order or sale is drafted, in Firestore `drafts`; `finish()` on save; saved at every keystroke (within 300 ms, one write at a time), never auto-opened: a New sale/order is blank, the unfinished one waits in Drafts under its own id (Scan/Stock continue the sale with `?continue=1` / `?resume=1`)
 - [Order actions gate](docs/decisions.md#order-actions-gate) — it moves money
 - [Wastage in grams](docs/decisions.md#wastage-in-grams) — the workshop slip keeps the percentage
 - [Repairs](docs/decisions.md#repairs) — a ticket of many pieces; In the shop → Ready → Collected; money to Extra revenue

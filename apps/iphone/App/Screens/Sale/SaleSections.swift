@@ -608,8 +608,8 @@ extension SaleForm {
         if edit == nil {
             Section {
                 Button {
-                    // An order half typed on this phone is not thrown away without asking.
-                    if NewOrderDraftStore.orderInProgress { confirmingOrder = true } else { createOrder() }
+                    // An order half typed is kept in Drafts, so nothing is thrown away; with drafts off it is asked about.
+                    if NewOrderDraftStore.orderInProgress && !draftsKept { confirmingOrder = true } else { createOrder() }
                 } label: {
                     Label("Create order", systemImage: "list.clipboard")
                 }
@@ -620,9 +620,17 @@ extension SaleForm {
         }
     }
 
+    /// Whether an unfinished form is kept in Drafts (not turned off, not the demo).
+    var draftsKept: Bool { (book.settings.value?.autoDraftForms ?? true) && !House.isDemo }
+
     func createOrder() {
+        // The order in progress goes to Drafts under its own id (durably); the order made from these pieces is a new draft.
+        if let held = NewOrderDraftStore.load(business: biz.id), draftsKept {
+            let settings = book.settings.value
+            WorkDraftSync.order.release(business: biz, enabled: true) { WorkDraftSync.snapshot(held, settings: settings) }
+        }
         NewOrderDraftStore.startFromSale(draft)
-        openOrder = Route(path: "/orders/add")
+        openOrder = Route(path: "/orders/add?resume=1")
     }
 
     /// A rate typed on the sale becomes the shop's, after the invoice is saved and never before (the invoice

@@ -36,6 +36,8 @@ enum SaleKeyboard {
 /// Where the sale links to.
 enum SaleLinks {
     static let newSale = Route(path: "/invoices/new")
+    /// The sale in progress: a piece was put on it (SaleDraftStore.add), so the sale opens on it rather than blank.
+    static let continueSale = Route(path: "/invoices/new?resume=1")
     /// The ERP's own pages, for what the phone does not do: reading a written bill (the AI scanner), and
     /// putting a new piece in stock ("New piece"). Editing an invoice is its `/edit` page.
     /// New sale with the AI bill reader open over it (SaleScanScreen).
