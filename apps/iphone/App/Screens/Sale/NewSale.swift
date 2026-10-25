@@ -463,8 +463,10 @@ extension SaleForm {
                             .font(.subheadline)
                     }
                 }
+                // Change rate (the invoice page's, "?rates=1"): the rates at the top, the rest as they were.
+                if ratesFirst { ratesSection(f) }
                 customerSection(f)
-                ratesSection(f)
+                if !ratesFirst { ratesSection(f) }
                 discountSection(f)
                 exchangeSection()
                 paymentSection(f)

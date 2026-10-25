@@ -717,6 +717,8 @@ extension NewOrder {
             Form {
                 Group {
                     if restored { restoredBanner }
+                    // Change rate (the order page's, "?rates=1"): the rates at the top of the one form.
+                    if ratesFirst { NewOrderRatesSection(draft: $draft, settings: settings) }
                     if edit?.invoiced == true {
                         Section {
                             Label("This order is on an invoice already. The invoice keeps its own copy of the pieces and the money: change those on the invoice.", systemImage: "doc.text")
@@ -728,7 +730,7 @@ extension NewOrder {
                     }
                     NewOrderPromisedSection(draft: $draft)
                     piecesSection(totals)
-                    NewOrderRatesSection(draft: $draft, settings: settings)
+                    if !ratesFirst { NewOrderRatesSection(draft: $draft, settings: settings) }
                     NewOrderPrintedSection(draft: $draft)
                     NewOrderPaymentSection(draft: $draft, totals: totals)
                     NewOrderExchangeSection(draft: $draft)
