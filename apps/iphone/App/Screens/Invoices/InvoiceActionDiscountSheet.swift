@@ -46,6 +46,9 @@ struct InvoiceActionDiscountSheet: View {
     }
 
     var body: some View {
+        #if os(macOS)
+        macBody
+        #else
         NavigationStack {
             Form { Group {
                 Section {
@@ -117,6 +120,7 @@ struct InvoiceActionDiscountSheet: View {
             }
         }
         .interactiveDismissDisabled(saving)
+        #endif
     }
 
     /// What moves with the total: the ledger row and the order's balance.
@@ -144,3 +148,77 @@ struct InvoiceActionDiscountSheet: View {
         saving = false
     }
 }
+
+#if os(macOS)
+// The Mac's discount sheet (docs/features/mac-design.md, rule 7): what the invoice is now as plain rows, the discount
+// focused with a Round menu beside it, and what it will be after. The figures, the rules and the write are the sheet's own.
+extension InvoiceActionDiscountSheet {
+    var macBody: some View {
+        MacInvoiceSheetFrame(title: "Change Discount", subtitle: invoice.id + " · " + InvoiceActionWords.who(invoice),
+                             confirmTitle: macConfirmTitle, canConfirm: after != nil && changed, busy: saving,
+                             confirm: { Task { await save() } }, cancel: { dismiss() }) {
+            macNow
+            macDiscount
+            macAfter
+        }
+        .failureAlert($error)
+        .interactiveDismissDisabled(saving)
+    }
+
+    /// The button says what it does: the discount it sets.
+    private var macConfirmTitle: String {
+        guard let d = discount else { return "Change Discount" }
+        return d > 0 ? "Set Discount to \(PaymentText.pkr(d))" : "Remove Discount"
+    }
+
+    /// The invoice as it stands.
+    @ViewBuilder
+    private var macNow: some View {
+        let line = balanceLine(invoice.balanceDue)
+        Section("Now") {
+            MacInvoiceFigureRow(label: "Subtotal", value: PaymentText.pkr(invoice.subtotal))
+            MacInvoiceFigureRow(label: "Discount", value: PaymentText.pkr(invoice.discountAmount))
+            if getInvoiceExchangeTotal(invoice) > 0 {
+                MacInvoiceFigureRow(label: "Exchange", value: Money.minus(getInvoiceExchangeTotal(invoice)))
+            }
+            MacInvoiceFigureRow(label: "Grand Total", value: PaymentText.pkr(invoice.grandTotal))
+            if invoice.amountPaid != 0 {
+                MacInvoiceFigureRow(label: "Paid", value: PaymentText.pkr(invoice.amountPaid))
+            }
+            MacInvoiceFigureRow(label: line.label, value: PaymentText.pkr(line.amount))
+        }
+    }
+
+    /// The discount in rupees, the Round menu beside it, and the page's refusal or the sum in lac under it.
+    @ViewBuilder
+    private var macDiscount: some View {
+        LabeledContent("Discount") {
+            HStack(spacing: 8) {
+                MacInvoiceNumberField(title: "Discount in rupees", text: $amountText.wholeRupees, prompt: "PKR")
+                // invoice-viewer.tsx: the bill before any discount is the lines less the exchange.
+                MacInvoiceRoundMenu(payable: invoice.subtotal - getInvoiceExchangeTotal(invoice), discount: discount ?? 0) { n in
+                    amountText = n > 0 ? PaymentText.field(n) : ""
+                }
+            }
+        }
+        if let problem {
+            Text(problem).foregroundStyle(Tone.problem.color)
+        } else if let d = discount, d > 0 {
+            Text(Money.pkrLac(d)).font(.callout).foregroundStyle(.secondary)
+        }
+    }
+
+    /// What it will be, and what moves with it.
+    @ViewBuilder
+    private var macAfter: some View {
+        if let after, changed {
+            let line = balanceLine(after.balanceDue)
+            Section("After") {
+                MacInvoiceFigureRow(label: "Grand Total", value: PaymentText.pkr(after.grandTotal), bold: true)
+                MacInvoiceFigureRow(label: line.label, value: PaymentText.pkr(line.amount))
+                Text(followers(after)).font(.callout).foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+#endif

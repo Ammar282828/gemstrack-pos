@@ -332,7 +332,7 @@ extension SaleScanScreen {
                                     .buttonStyle(.borderless)
                             }
                         } header: {
-                            LedgerHeading(title: "Could not read that")
+                            Text("Could not read that")
                         }
                     }
                 }
@@ -372,7 +372,7 @@ extension SaleScanScreen {
             Section {
                 Label(unread, systemImage: "questionmark.circle").foregroundStyle(Tone.owed.color)
             } header: {
-                LedgerHeading(title: "Could not make this out")
+                Text("Could not make this out")
             }
         }
         if let g = r.customer {
@@ -408,7 +408,8 @@ private struct MacBillLines: View {
         let rows = lines.enumerated().map { Row(id: $0.offset, line: $0.element) }
         let kept = lines.count - skipped.count
         VStack(alignment: .leading, spacing: 0) {
-            LedgerHeading(title: "\(kept) of \(lines.count) line\(lines.count == 1 ? "" : "s")")
+            Text("\(kept) of \(lines.count) line\(lines.count == 1 ? "" : "s")")
+                .font(.headline)
                 .padding(.horizontal, 20).padding(.top, 12).padding(.bottom, 6)
             Table(rows, selection: $selection) {
                 TableColumn("") { r in

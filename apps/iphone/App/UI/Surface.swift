@@ -124,13 +124,13 @@ struct MacActionFooter: View {
                 Spacer(minLength: 12)
                 ForEach(Array(secondary.enumerated()), id: \.offset) { _, item in
                     Button(role: item.role, action: item.action) { label(item) }
-                        .controlSize(.large)
+                        .controlSize(.regular)
                         .disabled(item.isDisabled || item.isBusy || primary.isBusy)
                 }
                 Button(role: primary.role, action: primary.action) { label(primary) }
                     .keyboardShortcut(.defaultAction)
                     .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
+                    .controlSize(.regular)
                     .disabled(primary.isDisabled || primary.isBusy)
             }
             .padding(.horizontal, 20)

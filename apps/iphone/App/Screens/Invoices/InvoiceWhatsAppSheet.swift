@@ -31,6 +31,9 @@ struct InvoiceWhatsAppSheet: View {
     private var url: URL? { text.flatMap { InvoiceFacts.whatsAppURL(phone: phone, text: $0) } }
 
     var body: some View {
+        #if os(macOS)
+        macBody
+        #else
         NavigationStack {
             Form { Group {
                 Section {
@@ -77,6 +80,7 @@ struct InvoiceWhatsAppSheet: View {
         }
         .presentationDetents([.medium, .large])
         .presentationSizing(.form)
+        #endif
     }
 }
 
@@ -104,6 +108,9 @@ struct InvoicePDFNumberSheet: View {
     }
 
     var body: some View {
+        #if os(macOS)
+        macBody
+        #else
         NavigationStack {
             Form { Group {
                 Section {
@@ -142,6 +149,7 @@ struct InvoicePDFNumberSheet: View {
         .presentationDetents([.medium, .large])
         .presentationSizing(.form)
         .interactiveDismissDisabled(sending)
+        #endif
     }
 
     /// invoice-viewer.tsx `handleSendWhatsApp`: sent, said as its toast says it; refused, the ERP's words here.
@@ -160,3 +168,68 @@ struct InvoicePDFNumberSheet: View {
         }
     }
 }
+
+#if os(macOS)
+// The Mac's WhatsApp sheets (docs/features/mac-design.md, rule 7): the number focused, what is sent or written under it, and a
+// button that says what it does. The numbers, the message and the send are the sheets' own.
+extension InvoiceWhatsAppSheet {
+    var macBody: some View {
+        MacInvoiceSheetFrame(title: "Send on WhatsApp", subtitle: invoice.id + " · " + InvoiceActionWords.who(invoice),
+                             confirmTitle: "Open WhatsApp", canConfirm: url != nil,
+                             confirm: {
+            if let url {
+                openURL(url)
+                dismiss()
+            }
+        }, cancel: { dismiss() }) {
+            MacInvoiceTextField(title: "WhatsApp Number", text: $phone, prompt: "0300 1234567")
+            macNumberNote
+            if let text {
+                Text("The Message").font(.headline)
+                Text(text).font(.callout).textSelection(.enabled)
+                Text("WhatsApp opens with it written: press send there.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var macNumberNote: some View {
+        if CustomerKit.whatsAppNumber(phone).isEmpty {
+            Text("Enter the customer's WhatsApp number.").font(.callout).foregroundStyle(.secondary)
+        } else if let sent = invoice.sentOnWhatsApp {
+            Text("PDF sent to \(sent.to) · \(ShopDate.say(sent.at, withTime: true))").font(.callout).foregroundStyle(.secondary)
+        }
+    }
+}
+
+extension InvoicePDFNumberSheet {
+    var macBody: some View {
+        let name = InvoiceFacts.customerName(invoice, walkIn: "")
+        let verb = invoice.sentOnWhatsApp == nil ? "Send PDF" : "Send PDF Again"
+        return MacInvoiceSheetFrame(title: "Send the PDF", subtitle: invoice.id + " · " + InvoiceActionWords.who(invoice),
+                                    confirmTitle: name.isEmpty ? verb : verb + " to " + name,
+                                    canConfirm: !number.isEmpty, busy: sending,
+                                    confirm: { Task { await send() } }, cancel: { dismiss() }) {
+            MacInvoiceTextField(title: "WhatsApp Number", text: $phone, prompt: "0300 1234567")
+            macNumberNote
+        }
+        .failureAlert($failure, title: "Could not send the PDF")
+        .interactiveDismissDisabled(sending)
+    }
+
+    @ViewBuilder
+    private var macNumberNote: some View {
+        if number.isEmpty {
+            Text("Enter the customer's WhatsApp number.").font(.callout).foregroundStyle(.secondary)
+        } else if let done = invoice.sentOnWhatsApp {
+            Text("PDF sent to \(done.to) · \(ShopDate.say(done.at, withTime: true))").font(.callout).foregroundStyle(.secondary)
+        } else {
+            Text("From the shop's own WhatsApp, with what is owed written under it: the PDF Print saves, drawn and sent by the ERP.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+#endif

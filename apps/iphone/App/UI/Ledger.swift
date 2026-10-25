@@ -490,7 +490,12 @@ struct LedgerHeading: View {
     private var heading: some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             Text(title)
+                #if os(macOS)
+                // A Mac's section heading is the system's (Mail's, System Settings'): no serif.
+                .font(.headline)
+                #else
                 .font(.system(.title3, design: .serif).weight(.semibold))
+                #endif
                 .foregroundStyle(tone == .late ? tone.color : Color.primary)
             if let count, count > 0 {
                 Text("\(count)")

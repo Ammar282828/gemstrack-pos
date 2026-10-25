@@ -190,20 +190,25 @@ struct TagScanner: View {
     @FocusState private var focused: Bool
 
     var body: some View {
-        VStack(spacing: pt(12)) {
-            VStack(spacing: pt(8)) {
+        VStack(spacing: 12) {
+            VStack(spacing: 6) {
                 Image(systemName: "barcode.viewfinder").font(.largeTitle).foregroundStyle(.secondary)
                 Text("Scan the tag with the barcode scanner").font(.headline)
                 Text("Point the scanner at the tag: it types the SKU. Or type it below, or read a photo of the tag.")
-                    .font(.subheadline).foregroundStyle(.secondary)
-                if reading { SkeletonLoading() }
-                if let said { Text(said).font(.footnote).foregroundStyle(Tone.owed.color) }
+                    .font(.callout).foregroundStyle(.secondary)
+                if reading { ProgressView().controlSize(.small) }
+                if let said { Text(said).font(.callout).foregroundStyle(Tone.owed.color) }
             }
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity, minHeight: min(height, 200))
-            .padding(.vertical, pt(24))
-            .padding(.horizontal, pt(16))
-            .houseCard()
+            .padding(.vertical, 16)
+            .padding(.horizontal, 12)
+            // A photo of a tag dropped here is read; the dashed edge says where.
+            .overlay {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .strokeBorder(.tertiary, style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
+            }
+            .contentShape(Rectangle())
             .dropDestination(for: URL.self) { urls, _ in
                 guard active, let url = urls.first else { return false }
                 Task { await read(url) }
@@ -219,20 +224,15 @@ struct TagScanner: View {
     }
 
     private var typeRow: some View {
-        HStack(spacing: pt(10)) {
+        HStack(spacing: 8) {
             TextField("Type the SKU, or scan it", text: $typed)
+                .textFieldStyle(.roundedBorder)
                 .focused($focused)
                 .autocorrectionDisabled()
                 .onSubmit { find() }
-                .padding(.horizontal, pt(14)).padding(.vertical, pt(11))
-                .background(Theme.card, in: .rect(cornerRadius: Radius.chip, style: .continuous))
             Button("Find") { find() }
-                .buttonStyle(.bordered)
-                .largeOnPhone()
                 .disabled(typed.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            Button("Read a photo…") { choosing = true }
-                .buttonStyle(.bordered)
-                .largeOnPhone()
+            Button("Read a Photo…") { choosing = true }
         }
     }
 

@@ -74,6 +74,7 @@ struct SaleLineEditor: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
             }
             .keyboardDone()
+            #if !os(macOS)
             .background {
                 Button("Apply") {
                     guard !(create && f.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) else { return }
@@ -82,6 +83,7 @@ struct SaleLineEditor: View {
                 }
                 .keyboardShortcut("s", modifiers: .command).opacity(0).accessibilityHidden(true)
             }
+            #endif
             // The one action stays at the foot with the line total beside it, where a long form never scrolls it away.
             // A new item needs a name before it can go on the bill (the web's dialog, mode "create").
             .actionBar(primary: ActionBar.Action(create ? "Add to bill" : "Apply",
@@ -99,7 +101,10 @@ struct SaleLineEditor: View {
                 }
             }
         }
+        // A Mac shows this editor in a popover of its own size (New sale's bill), not as a page-sized sheet.
+        #if !os(macOS)
         .presentationSizing(.page)
+        #endif
     }
 
     // MARK: Sections

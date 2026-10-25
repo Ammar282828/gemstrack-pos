@@ -29,6 +29,9 @@ struct InvoiceActionCreditSheet: View {
     private var left: Double { max(0, held - amount) }
 
     var body: some View {
+        #if os(macOS)
+        macBody
+        #else
         NavigationStack {
             Form { Group {
                 Section {
@@ -83,6 +86,7 @@ struct InvoiceActionCreditSheet: View {
         }
         .presentationDetents([.medium, .large])
         .interactiveDismissDisabled(saving)
+        #endif
     }
 
     private func save() async {
@@ -107,6 +111,45 @@ struct InvoiceActionCreditSheet: View {
         saving = false
     }
 }
+
+#if os(macOS)
+// The Mac's give-back sheet (docs/features/mac-design.md, rule 7): the credit held, the amount focused, how it is paid; the
+// button says how much goes back. The rules and the write are the sheet's own (`save`).
+extension InvoiceActionCreditSheet {
+    var macBody: some View {
+        MacInvoiceSheetFrame(title: "Give Back Credit",
+                             subtitle: "\(InvoiceActionWords.who(invoice))'s credit is \(PaymentText.pkr(held))",
+                             confirmTitle: valid ? "Give Back \(PaymentText.pkr(min(amount, held)))" : "Give Back",
+                             canConfirm: valid, busy: saving,
+                             confirm: { Task { await save() } }, cancel: { dismiss() }) {
+            LabeledContent("Amount") {
+                MacInvoiceNumberField(title: "Amount (PKR)", text: $amountText.wholeRupees, prompt: "PKR")
+            }
+            Picker("Paid By", selection: $method) {
+                Text("Cash").tag("Cash")
+                Text("Bank Transfer").tag("Bank Transfer")
+            }
+            .pickerStyle(.menu)
+            macNote
+        }
+        .failureAlert($error)
+        .interactiveDismissDisabled(saving)
+    }
+
+    @ViewBuilder
+    private var macNote: some View {
+        if amount > held + 0.5 {
+            Text("Only \(PaymentText.pkr(held)) is held.").foregroundStyle(Tone.problem.color)
+        } else if valid {
+            Text(left >= 1
+                 ? "\(PaymentText.pkr(left)) stays as credit on the hisaab."
+                 : "No credit is left, and its row on the hisaab goes. The sale is not refunded; it shows as money out in Today's cash.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+#endif
 
 /// The credit an invoice holds for a named customer (lib/invoice-credit.ts): none for a walk-in or a refunded invoice.
 enum InvoiceCredit {

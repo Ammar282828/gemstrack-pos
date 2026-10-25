@@ -650,6 +650,9 @@ struct PaymentSheet: View {
     }
 
     var body: some View {
+        #if os(macOS)
+        macBody
+        #else
         NavigationStack {
             Form {
                 Section {
@@ -714,6 +717,7 @@ struct PaymentSheet: View {
         }
         .sensoryFeedback(.success, trigger: recorded)
         .presentationDetents([.medium, .large])
+        #endif
     }
 
     /// Save, or Settle (`settling` is the remainder to give off): the ERP's write, the sheet kept open with its words
@@ -746,6 +750,94 @@ struct PaymentSheet: View {
         }
     }
 }
+
+#if os(macOS)
+// The Mac's payment sheet (docs/features/mac-design.md, rule 7): a short modal task, 440 pt wide, the amount focused with
+// "All That's Owed" beside it, the method a pop-up, a reference only when it is not cash, the Settle offer a plain button.
+// Return takes the payment and the button says how much, so nothing asks a second time. The state, the rules and the write
+// are the sheet's own (above); only the arrangement is the Mac's.
+extension PaymentSheet {
+    var macBody: some View {
+        MacInvoiceSheetFrame(title: title, subtitle: macSubtitle, confirmTitle: macConfirmTitle,
+                             cancelTitle: taken ? "Close" : "Cancel",
+                             canConfirm: macCanConfirm, busy: saving,
+                             confirm: { send(settling: nil) }, cancel: { dismiss() }) {
+            macFields
+        }
+        .failureAlert($error)
+        .sensoryFeedback(.success, trigger: recorded)
+    }
+
+    /// What is still owed, under the title.
+    private var macSubtitle: String? {
+        guard let owed, owed >= 1 else { return nil }
+        return "\(PaymentText.pkr(owed)) is owed."
+    }
+
+    /// "Take PKR 25,000": the button says what it does.
+    private var macConfirmTitle: String {
+        if amount > 0 { return "Take \(PaymentText.pkr(amount))" }
+        return exchangeValue > 0 ? "Take Exchange" : "Take Payment"
+    }
+
+    private var macCanConfirm: Bool {
+        !((amount <= 0 && exchangeValue <= 0) || problem != nil || saving || taken)
+    }
+
+    @ViewBuilder
+    private var macFields: some View {
+        LabeledContent("Amount") {
+            HStack(spacing: 8) {
+                MacInvoiceNumberField(title: "Amount in rupees", text: $amountText.wholeRupees, prompt: "PKR")
+                if let owed, owed >= 1 {
+                    Button("All That's Owed") {
+                        amountText = PaymentText.field(owed)
+                        pinned = Pinned(text: amountText, value: owed.rounded())
+                    }
+                }
+            }
+        }
+        if amount > 0 {
+            Text(Money.pkrLac(amount)).font(.callout).foregroundStyle(.secondary)
+        }
+        Picker("Paid By", selection: $method) {
+            ForEach(PaymentMethods.all, id: \.self) { Text($0) }
+        }
+        .pickerStyle(.menu)
+        if askReference && method != "Cash" {
+            TextField(PaymentText.referenceLabel(method), text: $reference, prompt: Text("Optional"))
+        }
+        if noteDefault != nil {
+            TextField("Note", text: $note, prompt: Text("e.g. Second advance payment"))
+            OrderAdvanceExchange(rows: $exchangeRows)
+        }
+        macSettle
+        macNotes
+    }
+
+    /// A remainder small enough to give off: a plain button, and what it does under it.
+    @ViewBuilder
+    private var macSettle: some View {
+        if let x = settleOffer {
+            Button(SettleWords.offer(x)) { send(settling: x) }
+                .disabled(saving)
+            Text("Takes this payment, then adds \(PaymentText.pkr(x)) to the discount, so nothing is left owing.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    /// Why the button is closed, or what happens to money over the balance.
+    @ViewBuilder
+    private var macNotes: some View {
+        if let problem {
+            Text(problem).foregroundStyle(Tone.problem.color)
+        } else if let creditNote {
+            Text(creditNote).foregroundStyle(Tone.credit.color)
+        }
+    }
+}
+#endif
 
 /// A row taken by whoever is signed in, left in its place in the list rather than sorted to the top
 /// (src/lib/utils.ts `mineRowClass`; the owner, 2026-10-05): a short bar of the house's accent at its

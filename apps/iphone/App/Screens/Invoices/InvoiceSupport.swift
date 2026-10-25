@@ -321,8 +321,10 @@ private struct InvoiceTakePayment: View {
             try await InvoiceFacts.record(inv, amount: amount, method: method, reference: reference)
             recorded?(inv, amount)
         }
+        #if !os(macOS)
         .houseForm()
         .presentationSizing(.form)
+        #endif
     }
 
     /// Settle: the payment, then the remainder off the discount. The page hears of the payment either way.
@@ -447,6 +449,13 @@ private struct InvoiceWhatsAppSend: ViewModifier {
     }
 
     private func start(_ inv: Invoice) {
+        #if os(macOS)
+        // One sheet, not a question and then a sheet: the number is in it, and its button says what it sends (and to whom).
+        if session.shop.invoiceWhatsappPdf {
+            typing = inv
+            return
+        }
+        #endif
         if session.shop.invoiceWhatsappPdf {
             if CustomerKit.whatsAppNumber(phone(inv)).isEmpty { typing = inv } else { confirming = inv }
         } else if InvoiceFacts.shareURL(inv, key: keys[inv.id]) == nil {

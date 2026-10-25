@@ -101,9 +101,16 @@ struct SaleScanSheet: View {
     @ViewBuilder
     private var saidCard: some View {
         if !said.isEmpty {
+            #if os(macOS)
+            // What the last tag did, in plain words under the scanner: no card.
+            Text(said)
+                .font(.callout.weight(.medium))
+                .frame(maxWidth: .infinity, alignment: .leading)
+            #else
             Text(said)
                 .font(.subheadline.weight(.medium))
                 .ledgerCard(padding: 14)
+            #endif
         }
     }
 

@@ -2,268 +2,412 @@
 import SwiftUI
 import ERPCore
 
-// The Mac's New sale / Edit invoice window (docs/features/mac-app.md): ONE window instead of the phone's four steps.
-// Stock to pick from at the left (a search box that a USB barcode scanner types into, then Return, adds the piece), the
-// bill at the right always in view (its pieces, then its totals), and under the bill the sale's other sections in one
-// scrolling form: customer, rates, discount, exchange, payment, for the shop, delivery. Save is the footer's, and Return
-// does it. Every function it calls is SaleForm's own (NewSale.swift, SaleSections.swift); only the arrangement is here.
-
-/// Left | right with a footer under the right side. Holds whether the scanner box has the keyboard, so Return in it adds a
-/// piece and never saves the sale.
-struct SaleMacSplit<Left: View, Right: View, Footer: View>: View {
-    @ViewBuilder let left: (Binding<Bool>) -> Left
-    @ViewBuilder let right: () -> Right
-    @ViewBuilder let footer: (Bool) -> Footer
-    @State private var scanner = false
-
-    var body: some View {
-        HSplitView {
-            left($scanner)
-                .frame(minWidth: 340, idealWidth: 420, maxWidth: 560)
-            VStack(spacing: 0) {
-                right().frame(maxWidth: .infinity, maxHeight: .infinity)
-                footer(scanner)
-            }
-            .frame(minWidth: 560)
-        }
-        .background(Theme.ground)
-    }
-}
+// The Mac's New sale / Edit invoice window, its stock and its bill (docs/features/mac-design.md, "New sale"). Three regions
+// in one document window: the stock at the left (the scanner's box, a table of the pieces), the bill in the centre (the
+// pieces as a table, the totals under it), and the sale's panel at the right (Mac/Places/Sale/SaleMacPanel.swift). Every
+// function the window calls is SaleForm's own (NewSale.swift, SaleSections.swift); only the arrangement is here.
 
 // MARK: The stock
 
-/// The piece picker: a search box that is also the scanner's (a USB scanner types the SKU and presses Return, which adds
-/// the piece through `submit`, SaleForm.addTyped), and the stock as a table; double-click or Return on a row adds it.
-struct SaleMacPicker: View {
+/// One piece of the stock as the table shows it, priced once for the rates in force.
+struct SaleMacStockRow: Identifiable {
+    let product: Product
+    let price: Double
+    let metal: String
+    var id: String { product.sku }
+    var sku: String { product.sku }
+    var name: String { product.name }
+    var weight: Double { product.metalWeightG }
+
+    init(_ p: Product, rates: PricingRates) {
+        product = p
+        price = calculateProductCosts(PricedPiece(p), rates).totalPrice
+        metal = describeMetal(p.metalType, p.karat)
+    }
+}
+
+/// The stock column: the scanner's box (a USB barcode scanner types the SKU and presses Return, which adds the piece
+/// exactly as typing it does), the stock as a sortable table (double-click or Return on a row adds it), Scan a Tag… and New
+/// Item. The rows are made once per change of the stock, the rates, the search, the sort or the bill (`Memo`), never once
+/// per drawing.
+struct SaleMacStock: View {
     let products: [Product]
+    /// `book.products.revision`: what the rows are keyed on, with the rates, the search, the sort and the bill's SKUs.
+    let revision: Int
     /// SKUs already on the bill.
     let taken: Set<String>
     let pricing: PricingRates
     @Binding var query: String
     let notice: String?
-    @Binding var scannerFocused: Bool
+    /// Goes up on Add Piece (⌘L): the box takes the keyboard.
+    let focusAsks: Int
     let add: (Product) -> Void
+    /// Return with something typed: SaleForm.addTyped.
     let submit: () -> Void
+    /// Return with the box empty: Save Sale (it does nothing until the sale can be saved).
+    let saveWhenEmpty: () -> Void
     let scan: () -> Void
     let newItem: () -> Void
 
     @Environment(\.openPlaceWindow) private var openPlace
+    @Environment(\.openWindow) private var openWindow
     @FocusState private var focus: Bool
     @State private var selection = Set<String>()
-
-    private static let cap = 300
-
-    private var rows: [Product] {
-        let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        if q.isEmpty { return Array(products.lazy.filter { !taken.contains($0.sku) }.prefix(Self.cap)) }
-        return SaleLookup.matches(q, in: products, excluding: taken, limit: Self.cap)
-    }
+    @State private var sort: [KeyPathComparator<SaleMacStockRow>] = []
+    @State private var priced = Memo<[String: SaleMacStockRow]>()
+    @State private var shown = Memo<[SaleMacStockRow]>()
+    /// When a piece last went on the sale: a scanner that ends its code with Return and a line feed presses Return twice,
+    /// and the second one must never save the sale.
+    @State private var lastAdded = Date.distantPast
 
     var body: some View {
-        let shown = rows
-        VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 8) {
-                    Image(systemName: "barcode.viewfinder").foregroundStyle(.secondary)
-                    TextField("Scan a tag, or search stock", text: $query)
-                        .textFieldStyle(.plain)
-                        .autocorrectionDisabled()
-                        .focused($focus)
-                        .onSubmit {
-                            submit()
-                            focus = true
-                        }
-                    if !query.isEmpty {
-                        Button { query = "" } label: { Image(systemName: "xmark.circle.fill") }
-                            .buttonStyle(.plain)
-                            .foregroundStyle(.secondary)
-                            .help("Clear the search")
-                    }
-                }
-                .padding(.horizontal, 12).padding(.vertical, 9)
-                .background(Theme.card, in: .rect(cornerRadius: Radius.chip, style: .continuous))
-                if let notice {
-                    Label(notice, systemImage: "exclamationmark.circle").font(.footnote).foregroundStyle(Tone.problem.color)
-                }
-                HStack(spacing: 8) {
-                    Button { scan() } label: { Label("Scan a tag…", systemImage: "qrcode.viewfinder") }
-                        .help("Read a photo of a tag, or type its SKU")
-                    Button { newItem() } label: { Label("New item", systemImage: "plus.circle") }
-                        .help("A piece that is not in stock, described for this bill only")
-                    Spacer()
-                    Text(query.trimmingCharacters(in: .whitespaces).isEmpty
-                         ? "Stock"
-                         : "\(shown.count) found")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-            }
-            .padding(14)
-            Table(shown, selection: $selection) {
-                TableColumn("Piece") { p in
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(p.name).lineLimit(1)
-                        Text(p.sku).font(.caption.monospaced()).foregroundStyle(.secondary)
-                    }
-                }
-                .width(min: 140, ideal: 190)
-                TableColumn("Metal") { p in
-                    Text([describeMetal(p.metalType, p.karat),
-                          p.metalWeightG > 0 ? SaleNumber.grams(p.metalWeightG) + " g" : ""].filter { !$0.isEmpty }.joined(separator: " · "))
-                        .font(.callout).foregroundStyle(.secondary).lineLimit(1)
-                }
-                .width(min: 80, ideal: 110)
-                TableColumn("Price") { p in
-                    Text(Money.pkr(calculateProductCosts(PricedPiece(p), pricing).totalPrice))
-                        .monospacedDigit()
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                }
-                .width(min: 80, ideal: 100)
-            }
-            .contextMenu(forSelectionType: String.self) { skus in
-                if !skus.isEmpty {
-                    Button(skus.count == 1 ? "Add to the Sale" : "Add \(skus.count) to the Sale") { addAll(skus) }
-                    if let sku = skus.first, skus.count == 1 {
-                        Button("Open Piece in New Window") { openPlace?(SaleLinks.piece(sku)) }
-                        Button("Copy SKU") { UIPasteboard.general.string = sku }
-                    }
-                }
-            } primaryAction: { skus in addAll(skus) }
-            .onKeyPress(.return) {
-                guard !selection.isEmpty else { return .ignored }
-                addAll(selection)
-                return .handled
-            }
-            .overlay {
-                if shown.isEmpty {
-                    ContentUnavailableView(query.trimmingCharacters(in: .whitespaces).isEmpty ? "No stock to add" : "Nothing matches",
-                                           systemImage: "magnifyingglass",
-                                           description: Text("Press Return to bill what you typed as a new item."))
+        let rows = currentRows()
+        VStack(spacing: 0) {
+            scannerBox
+            table(rows)
+        }
+        .macSummaryBar(summary(rows.count))
+        .task {
+            try? await Task.sleep(for: .milliseconds(200))
+            focus = true
+        }
+        .onChange(of: focusAsks) { _, _ in focus = true }
+    }
+
+    // MARK: The rows
+
+    private func currentRows() -> [SaleMacStockRow] {
+        let rates = pricing
+        let list = products
+        let bySku = priced([revision, rates.hashValue]) { Self.priceAll(list, rates) }
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let order = sort
+        let skipped = taken
+        return shown([revision, rates.hashValue, q.hashValue, skipped.hashValue, order.hashValue]) {
+            Self.choose(list, bySku, q, skipped, order)
+        }
+    }
+
+    private static func priceAll(_ products: [Product], _ rates: PricingRates) -> [String: SaleMacStockRow] {
+        var out: [String: SaleMacStockRow] = [:]
+        out.reserveCapacity(products.count)
+        for p in products where out[p.sku] == nil {
+            out[p.sku] = SaleMacStockRow(p, rates: rates)
+        }
+        return out
+    }
+
+    private static func choose(_ products: [Product], _ bySku: [String: SaleMacStockRow], _ q: String,
+                               _ taken: Set<String>, _ order: [KeyPathComparator<SaleMacStockRow>]) -> [SaleMacStockRow] {
+        let base: [Product]
+        if q.isEmpty {
+            base = products.filter { !taken.contains($0.sku) }
+        } else {
+            base = SaleLookup.matches(q, in: products, excluding: taken, limit: Int.max)
+        }
+        let rows = base.compactMap { bySku[$0.sku] }
+        return order.isEmpty ? rows : rows.sorted(using: order)
+    }
+
+    private func summary(_ shownCount: Int) -> [String] {
+        let left = max(0, products.count - taken.count)
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        var parts = [q.isEmpty ? (left == 1 ? "1 piece" : "\(left) pieces") : "\(shownCount) of \(left) pieces"]
+        if selection.count > 1 { parts.append("\(selection.count) picked") }
+        return parts
+    }
+
+    // MARK: The box and its buttons
+
+    private var scannerBox: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                TextField("Scan a tag, or search stock", text: $query)
+                    .textFieldStyle(.roundedBorder)
+                    .autocorrectionDisabled()
+                    .focused($focus)
+                    .onSubmit { returned() }
+                if !query.isEmpty {
+                    Button { query = "" } label: { Image(systemName: "xmark.circle.fill") }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.secondary)
+                        .help("Clear the search")
                 }
             }
-            if query.trimmingCharacters(in: .whitespaces).isEmpty && products.count - taken.count > Self.cap {
-                Text("The first \(Self.cap) pieces. Search to narrow them down.")
-                    .font(.caption).foregroundStyle(.secondary)
-                    .padding(.horizontal, 14).padding(.vertical, 6)
+            if let notice {
+                Label(notice, systemImage: "exclamationmark.circle")
+                    .font(.callout)
+                    .foregroundStyle(Tone.problem.color)
+            }
+            HStack(spacing: 8) {
+                Button { scan() } label: { Label("Scan a Tag…", systemImage: "qrcode.viewfinder") }
+                    .help("Read a photo of a tag, or type its SKU")
+                Button { newItem() } label: { Label("New Item", systemImage: "plus.circle") }
+                    .help("A piece that is not in stock, described for this bill only")
+                Spacer(minLength: 0)
             }
         }
-        .background(Theme.ground)
-        .task { focus = true }
-        .onChange(of: focus) { _, now in scannerFocused = now }
+        .padding(12)
+    }
+
+    /// Return in the box: with something typed it adds the piece; with the box empty it saves the sale, unless a piece
+    /// went on a moment ago (a scanner's second Return).
+    private func returned() {
+        let typed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        if typed.isEmpty {
+            if Date().timeIntervalSince(lastAdded) > 2 { saveWhenEmpty() }
+        } else {
+            lastAdded = Date()
+            submit()
+        }
+        focus = true
+    }
+
+    // MARK: The table
+
+    private func table(_ rows: [SaleMacStockRow]) -> some View {
+        Table(rows, selection: $selection, sortOrder: $sort) {
+            TableColumn("Piece", value: \.name) { row in pieceCell(row) }
+                .width(min: 100, ideal: 150)
+            TableColumn("Metal", value: \.metal) { row in
+                Text(row.metal).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+            }
+            .width(min: 50, ideal: 90)
+            TableColumn("Weight", value: \.weight) { row in
+                Text(row.weight > 0 ? SaleNumber.grams(row.weight) + " g" : "").monospacedDigit().lineLimit(1)
+            }
+            .width(min: 48, ideal: 62)
+            TableColumn("Price", value: \.price) { row in
+                Text(row.price > 0 ? Money.pkr(row.price) : "—")
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+            .width(min: 72, ideal: 90)
+        }
+        .contextMenu(forSelectionType: String.self) { skus in
+            if !skus.isEmpty { MacActionItems(groups: menuGroups(for: skus)) }
+        } primaryAction: { skus in addAll(skus) }
+        .onKeyPress(.return) {
+            guard !selection.isEmpty else { return .ignored }
+            addAll(selection)
+            return .handled
+        }
+        .overlay {
+            if rows.isEmpty {
+                ContentUnavailableView(query.trimmingCharacters(in: .whitespaces).isEmpty ? "No stock to add" : "Nothing matches",
+                                       systemImage: "magnifyingglass",
+                                       description: Text("Press Return to bill what you typed as a new item."))
+            }
+        }
+    }
+
+    private func pieceCell(_ row: SaleMacStockRow) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(row.name).lineLimit(1)
+            Text(row.sku).font(.caption.monospaced()).foregroundStyle(.secondary).lineLimit(1)
+        }
+    }
+
+    /// The right-click menu of the picked pieces, as actions.
+    private func menuGroups(for skus: Set<String>) -> [[MacAction]] {
+        let one = skus.count == 1 ? skus.first : nil
+        var groups: [[MacAction]] = [[
+            MacAction(skus.count == 1 ? "Add to the Sale" : "Add \(skus.count) to the Sale", symbol: "plus") { addAll(skus) }
+        ]]
+        if let sku = one {
+            groups.append([
+                MacAction("Open Piece in New Window", symbol: "macwindow") { openPiece(sku) },
+                MacAction("Copy SKU", symbol: "doc.on.doc") { UIPasteboard.general.string = sku },
+            ])
+        }
+        return groups
     }
 
     private func addAll(_ skus: Set<String>) {
         for sku in skus.sorted() {
             if let p = products.first(where: { $0.sku == sku }) { add(p) }
         }
+        lastAdded = Date()
         selection = []
+    }
+
+    private func openPiece(_ sku: String) {
+        let route = SaleLinks.piece(sku)
+        if let openPlace {
+            openPlace(route)
+        } else {
+            openWindow(id: MacWindows.place, value: route)
+        }
     }
 }
 
 // MARK: The bill
 
-/// The bill as it stands: its pieces in a table (double-click edits, right-click removes) and its totals under them,
-/// always in view while the form below is filled in.
+/// The bill as it stands: its pieces in a table (double-click or Return edits, ⌫ takes the picked off) with the totals
+/// under it, always in view while the sale's panel is filled in.
 struct SaleMacBill: View {
     let lines: [SaleLine]
     let figures: SaleFigures
     let spec: (SaleLine) -> String
     let isGone: (SaleLine) -> Bool
+    @Binding var picked: Set<String>
     let edit: (SaleLine) -> Void
     let remove: (Set<String>) -> Void
 
     @Environment(\.openPlaceWindow) private var openPlace
-    @State private var selection = Set<String>()
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                LedgerHeading(title: "Bill", count: lines.isEmpty ? nil : lines.count)
-                Spacer()
-                Button { remove(selection); selection = [] } label: { Label("Remove", systemImage: "minus.circle") }
-                    .disabled(selection.isEmpty)
-                    .help("Take the picked pieces off the sale")
-            }
-            .padding(.horizontal, 20).padding(.top, 12).padding(.bottom, 6)
-            Table(lines, selection: $selection) {
-                TableColumn("Piece") { line in
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(line.name.isEmpty ? (line.stockSku ?? "New piece") : line.name).fontWeight(.medium)
-                        if isGone(line) {
-                            Label("No longer in stock", systemImage: "exclamationmark.triangle.fill")
-                                .font(.caption).foregroundStyle(Tone.problem.color)
-                        } else if line.isCustomPrice {
-                            Text("Fixed price").font(.caption).foregroundStyle(Tone.owed.color)
-                        }
-                    }
-                }
-                .width(min: 150, ideal: 220)
-                TableColumn("Details") { line in Text(spec(line)).font(.callout).foregroundStyle(.secondary).lineLimit(1) }
-                    .width(min: 100, ideal: 160)
-                TableColumn("Price") { line in
-                    Text(figures.hasEstimate ? Money.pkr(figures.price(of: line.sku)) : "—")
-                        .monospacedDigit()
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                }
-                .width(min: 90, ideal: 110)
-            }
-            .contextMenu(forSelectionType: String.self) { skus in
-                if let sku = skus.first, let line = lines.first(where: { $0.sku == sku }) {
-                    if skus.count == 1 { Button("Edit Piece…") { edit(line) } }
-                    if skus.count == 1, !line.isOneOff {
-                        Button("Open Piece in New Window") { openPlace?(SaleLinks.piece(sku)) }
-                        Button("Copy SKU") { UIPasteboard.general.string = sku }
-                    }
-                    Divider()
-                    Button(skus.count == 1 ? "Remove from the Sale" : "Remove \(skus.count) from the Sale", role: .destructive) { remove(skus) }
-                }
-            } primaryAction: { skus in
-                if let sku = skus.first, let line = lines.first(where: { $0.sku == sku }) { edit(line) }
-            }
-            .onDeleteCommand { if !selection.isEmpty { remove(selection); selection = [] } }
-            .overlay {
-                if lines.isEmpty {
-                    ContentUnavailableView("Nothing on the bill yet", systemImage: "cart",
-                                           description: Text("Scan a tag or pick a piece from the stock."))
-                }
-            }
-            totals
+            table
+            SaleMacTotals(figures: figures, pieces: lines.count)
         }
     }
 
-    /// Subtotal to balance, as the bill will read.
-    private var totals: some View {
-        let f = figures
-        let line = balanceLine(f.balance)
-        return VStack(spacing: 4) {
-            totalRow("Subtotal", f.subtotal, f)
-            if f.discount != 0 { totalRow("Discount", -f.discount, f, signed: true) }
-            if f.exchange != 0 { totalRow("Exchange", -f.exchange, f, signed: true) }
-            totalRow("Total", f.total, f, strong: true)
-            if f.hasEstimate {
-                if f.paidNow > 0 { totalRow("Paid now", f.paidNow, f) }
-                if f.overpaid {
-                    MoneyRow("More than the total by", abs(f.balance), tone: .problem)
-                } else if line.state == .credit {
-                    MoneyRow(line.label, line.amount, tone: .credit)
-                } else if line.state == .due {
-                    MoneyRow(line.label, line.amount, tone: .owed)
-                } else {
-                    LabeledContent(line.label) { Image(systemName: "checkmark.circle.fill").foregroundStyle(Tone.settled.color) }
-                        .font(.subheadline)
-                }
+    private var table: some View {
+        Table(lines, selection: $picked) {
+            TableColumn("Piece") { line in pieceCell(line) }
+                .width(min: 150, ideal: 220)
+            TableColumn("Details") { line in
+                Text(spec(line)).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+            }
+            .width(min: 100, ideal: 160)
+            TableColumn("Price") { line in
+                Text(figures.hasEstimate ? Money.pkr(figures.price(of: line.sku)) : "—")
+                    .monospacedDigit()
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+            .width(min: 90, ideal: 110)
+        }
+        .contextMenu(forSelectionType: String.self) { skus in
+            if !skus.isEmpty { MacActionItems(groups: menuGroups(for: skus)) }
+        } primaryAction: { skus in
+            if skus.count == 1, let sku = skus.first, let line = lines.first(where: { $0.sku == sku }) { edit(line) }
+        }
+        .onDeleteCommand { removePicked() }
+        .overlay {
+            if lines.isEmpty {
+                ContentUnavailableView("Nothing on the bill yet", systemImage: "cart",
+                                       description: Text("Scan a tag or pick a piece from the stock."))
             }
         }
-        .padding(.horizontal, 20).padding(.vertical, 10)
+    }
+
+    private func pieceCell(_ line: SaleLine) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(line.name.isEmpty ? (line.stockSku ?? "New piece") : line.name).fontWeight(.medium).lineLimit(1)
+            if isGone(line) {
+                Label("No longer in stock", systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(Tone.problem.color)
+            } else if line.isCustomPrice {
+                Text("Fixed price").font(.caption).foregroundStyle(Tone.owed.color)
+            }
+        }
+    }
+
+    /// The right-click menu of the picked pieces, as actions.
+    private func menuGroups(for skus: Set<String>) -> [[MacAction]] {
+        var groups: [[MacAction]] = []
+        if skus.count == 1, let sku = skus.first, let line = lines.first(where: { $0.sku == sku }) {
+            groups.append([MacAction("Edit Piece…", symbol: "pencil") { edit(line) }])
+            if !line.isOneOff {
+                groups.append([
+                    MacAction("Open Piece in New Window", symbol: "macwindow") { openPiece(sku) },
+                    MacAction("Copy SKU", symbol: "doc.on.doc") { UIPasteboard.general.string = sku },
+                ])
+            }
+        }
+        groups.append([
+            MacAction(skus.count == 1 ? "Remove from the Sale" : "Remove \(skus.count) from the Sale", symbol: "minus.circle", role: .destructive) {
+                remove(skus)
+            }
+        ])
+        return groups
+    }
+
+    private func removePicked() {
+        guard !picked.isEmpty else { return }
+        remove(picked)
+        picked = []
+    }
+
+    private func openPiece(_ sku: String) {
+        let route = SaleLinks.piece(sku)
+        if let openPlace {
+            openPlace(route)
+        } else {
+            openWindow(id: MacWindows.place, value: route)
+        }
+    }
+}
+
+/// Subtotal to balance, as the bill will read: a block of plain rows at the right, under the Price column.
+struct SaleMacTotals: View {
+    let figures: SaleFigures
+    let pieces: Int
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Divider()
+            HStack(alignment: .top, spacing: 16) {
+                Text(pieces == 1 ? "1 piece" : "\(pieces) pieces")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+                rows.frame(width: 300)
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 10)
+        }
         .background(.bar)
     }
 
-    @ViewBuilder
-    private func totalRow(_ label: String, _ value: Double, _ f: SaleFigures, signed: Bool = false, strong: Bool = false) -> some View {
-        if f.hasEstimate {
-            MoneyRow(label, value, emphasis: strong, signed: signed)
-        } else {
-            LabeledContent(label) { Text("Pending rates").foregroundStyle(.secondary) }.font(.subheadline)
+    private var rows: some View {
+        let f = figures
+        return VStack(spacing: 3) {
+            row("Subtotal", money(f.subtotal))
+            row("Discount", f.discount != 0 ? money(-f.discount, signed: true) : "—")
+            row("Exchange", f.exchange != 0 ? money(-f.exchange, signed: true) : "—")
+            row("Total", money(f.total), strong: true)
+            row("Paid now", f.paidNow > 0 ? money(f.paidNow) : "—")
+            balanceRow
         }
+    }
+
+    /// A sum, or the words for a sale that cannot be priced yet.
+    private func money(_ value: Double, signed: Bool = false) -> String {
+        guard figures.hasEstimate else { return "Pending rates" }
+        return signed ? Money.signed(value) : Money.pkr(value)
+    }
+
+    @ViewBuilder
+    private var balanceRow: some View {
+        let f = figures
+        if f.hasEstimate {
+            let line = balanceLine(f.balance)
+            if f.overpaid {
+                row("More than the total by", Money.pkr(abs(f.balance)), tone: Tone.problem.color)
+            } else if line.state == .credit {
+                row(line.label, Money.pkr(line.amount), tone: Tone.credit.color)
+            } else if line.state == .due {
+                row(line.label, Money.pkr(line.amount), tone: Tone.owed.color)
+            } else {
+                row("Balance", line.label, tone: Tone.settled.color)
+            }
+        } else {
+            row("Balance", "Pending rates")
+        }
+    }
+
+    private func row(_ label: String, _ value: String, strong: Bool = false, tone: Color = .primary) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(label).foregroundStyle(strong ? Color.primary : Color.secondary)
+            Spacer(minLength: 8)
+            Text(value).monospacedDigit().foregroundStyle(tone)
+        }
+        .font(strong ? .headline : .callout)
     }
 }
 #endif

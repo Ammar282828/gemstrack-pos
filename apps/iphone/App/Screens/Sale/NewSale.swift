@@ -383,7 +383,11 @@ struct SaleForm: View {
         SaleDraftStore.clear(business: biz.id)
         WorkDraftSync.sale.forget(biz.id)
         startOver()
+        #if os(macOS)
+        failure = "The sale kept on this Mac was invoiced or discarded from Drafts on another device, so it is cleared here. Look for it under Invoices."
+        #else
         failure = "The sale kept on this phone was invoiced or discarded from Drafts on another device, so it is cleared here. Look for it under Invoices."
+        #endif
     }
 
     // MARK: Actions
@@ -475,163 +479,220 @@ struct SaleForm: View {
 // MARK: - The Mac: one window
 
 #if os(macOS)
-/// New sale and Edit invoice on the Mac (SaleMacKit.swift): the stock at the left with the scanner's box, the bill at the
-/// right with the rest of the sale's sections under it, Save in the footer (Return, or ⌘S). The steps of the phone are
-/// sections here; every action is SaleForm's own.
+/// New sale and Edit invoice on the Mac (docs/features/mac-design.md, "New sale"): a document window of three regions.
+/// The stock at the left (SaleMacKit.swift: the scanner's box and the stock table, put away with the toolbar's button), the
+/// bill in the centre (its pieces as a table, its totals under it), the sale's panel at the right (Mac/Places/Sale/
+/// SaleMacPanel.swift), and under all three the footer: what blocks saving or the balance, and Save. The steps of the
+/// phone are sections of the panel here; every action is SaleForm's own.
 extension SaleForm {
     @ViewBuilder
     var macPage: some View {
         let f = SaleFigures(draft: draft, settings: book.settings.value, customers: book.customers.items, marginSettings: House.margin)
-        let split = SaleMacSplit(
-            left: { scanner in
-                SaleMacPicker(products: book.products.items, taken: Set(draft.lines.map { $0.sku }),
-                              pricing: f.rateBook.pricing, query: $query, notice: notice, scannerFocused: scanner,
-                              add: { add($0) }, submit: { addTyped() }, scan: { scanning = true },
-                              newItem: { startNewItem() })
-            },
-            right: {
-                VSplitView {
-                    SaleMacBill(lines: draft.lines, figures: f, spec: { spec($0) },
-                                isGone: { line in book.products.loaded && !line.isOneOff && book.products.item(line.sku) == nil },
-                                edit: { editing = $0 },
-                                remove: { skus in draft.lines.removeAll { skus.contains($0.sku) } })
-                        .frame(minHeight: 230, idealHeight: 320)
-                    macForm(f)
-                        .frame(minHeight: 200)
-                }
-            },
-            footer: { scanner in macFooter(f, scannerFocused: scanner) })
-        return macWired(split, f)
-    }
-
-    /// The sale's other sections, one scrolling form under the bill: customer, rates, discount, exchange, payment,
-    /// the shop's own, delivery.
-    private func macForm(_ f: SaleFigures) -> some View {
-        Form {
-            Group {
-                if let edit {
-                    Section {
-                        Label(edit.paidBefore > 0
-                              ? "\(Money.pkr(edit.paidBefore)) paid before stays on \(edit.invoiceId). A payment added below is taken now. A piece taken off stays sold."
-                              : "Nothing is paid on \(edit.invoiceId) yet. A payment added below is taken now. A piece taken off stays sold.",
-                              systemImage: "pencil.and.list.clipboard")
-                            .font(.subheadline)
-                    }
-                }
-                // Change rate (the invoice page's, "?rates=1"): the rates at the top, the rest as they were.
-                if ratesFirst { ratesSection(f) }
-                if edit == nil && draft.isBlank { DraftsNote() }
-                customerSection(f)
-                if !ratesFirst { ratesSection(f) }
-                discountSection(f)
-                exchangeSection()
-                paymentSection(f)
-                shopSection(f)
-                deliverySection(f)
-                orderSection()
-            }
-            .houseRows()
+        SaleMacHost(ratesFirst: ratesFirst) { ui in
+            let actions = macActions(f, ui)
+            macWired(macLayout(f, ui, actions), f, actions, ui)
         }
-        .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
     }
 
-    /// What Save will do, and Save: the dialog's footer. Return saves unless the scanner's box has the keyboard.
-    private func macFooter(_ f: SaleFigures, scannerFocused: Bool) -> some View {
+    // MARK: The three regions
+
+    private func macLayout(_ f: SaleFigures, _ ui: SaleMacUI, _ actions: SaleMacActions) -> some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 0) {
+                HSplitView {
+                    if ui.stockShown {
+                        macStock(f, ui)
+                            .frame(minWidth: 300, idealWidth: 340, maxWidth: 420)
+                    }
+                    macBill(f, ui)
+                        .frame(minWidth: 380, maxWidth: .infinity)
+                }
+                Divider()
+                macPanel(f, ui)
+                    .frame(width: 320)
+            }
+            macFooter(f, actions)
+        }
+        .background(Theme.ground)
+    }
+
+    private func macStock(_ f: SaleFigures, _ ui: SaleMacUI) -> some View {
+        SaleMacStock(
+            products: book.products.items,
+            revision: book.products.revision,
+            taken: Set(draft.lines.map { $0.sku }),
+            pricing: f.rateBook.pricing,
+            query: $query,
+            notice: notice,
+            focusAsks: ui.scannerAsks,
+            add: { add($0) },
+            submit: { addTyped() },
+            saveWhenEmpty: { if f.canSave && !UpdateGate.blocked { Task { await save(f) } } },
+            scan: { scanning = true },
+            newItem: { startNewItem() })
+    }
+
+    /// The bill. A piece's editor is the existing SaleLineEditor in a popover on the table (double-click, Return or Edit
+    /// Piece…); a piece that was never in stock (New Item…) opens the same editor there.
+    private func macBill(_ f: SaleFigures, _ ui: SaleMacUI) -> some View {
+        SaleMacBill(
+            lines: draft.lines,
+            figures: f,
+            spec: { spec($0) },
+            isGone: { line in book.products.loaded && !line.isOneOff && book.products.item(line.sku) == nil },
+            picked: Bindable(ui).picked,
+            edit: { editing = $0 },
+            remove: { skus in
+                draft.lines.removeAll { skus.contains($0.sku) }
+                ui.picked.subtract(skus)
+            })
+            .popover(item: $editing, arrowEdge: .trailing) { line in
+                SaleLineEditor(line: line, rates: f.rateBook.pricing) { changed in replace(line.sku, with: changed) }
+                    .frame(width: 480, height: 620)
+            }
+            .popover(item: $newItem, arrowEdge: .trailing) { line in
+                SaleLineEditor(line: line, rates: f.rateBook.pricing, create: true) { made in addNew(made) }
+                    .frame(width: 480, height: 620)
+            }
+    }
+
+    // MARK: The footer
+
+    /// What Save will do, and Save: the document's footer. ⌘S saves (the Sale menu's key); Return saves only from the
+    /// stock's box while it is empty.
+    private func macFooter(_ f: SaleFigures, _ actions: SaleMacActions) -> some View {
         VStack(spacing: 0) {
             UpdateBanner()
             Divider()
             HStack(alignment: .center, spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    if alreadySold {
-                        Text("This sale was already saved. Look for it in Invoices before saving it again.")
-                            .font(.callout.weight(.semibold))
-                        NavigationLink(value: Route(path: "/invoices")) { Text("Open Invoices") }
-                    } else if !goneSkus.isEmpty {
-                        Button("Take them off the sale") {
-                            draft.lines.removeAll { goneSkus.contains($0.sku) }
-                            goneSkus = []
-                            alreadySold = false
-                        }
-                    } else if let reason = f.blockedReason {
-                        Text(reason)
-                            .font(.callout)
-                            .foregroundStyle(f.hasPieces ? Tone.problem.color : Tone.quiet.color)
-                            .lineLimit(2)
-                    } else if f.hasEstimate {
-                        let line = balanceLine(f.balance)
-                        Text(line.state == .paid ? "Paid in full" : "\(line.label) \(Money.pkr(line.amount))")
-                            .font(.callout).foregroundStyle(.secondary).monospacedDigit()
-                    }
-                }
+                macFooterStatus(f)
                 Spacer(minLength: 12)
-                macSaveButton(f, scannerFocused: scannerFocused)
+                Button { actions.save.perform() } label: {
+                    HStack(spacing: 8) {
+                        if saving { ProgressView().controlSize(.small) }
+                        Text(macSaveTitle(f))
+                    }
+                    .frame(minWidth: 140)
+                }
+                .buttonStyle(.houseProminent)
+                .disabled(!actions.save.enabled)
+                .help(actions.save.help)
             }
-            .padding(.horizontal, 20).padding(.vertical, 12)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 10)
         }
         .background(.bar)
     }
 
     @ViewBuilder
-    private func macSaveButton(_ f: SaleFigures, scannerFocused: Bool) -> some View {
-        let button = Button { Task { await save(f) } } label: {
-            HStack(spacing: 8) {
-                if saving { ProgressView().controlSize(.small) }
-                Text(edit != nil ? (f.hasEstimate ? "Save changes · \(Money.pkr(f.total))" : "Save changes")
-                     : (f.hasEstimate ? "Save sale · \(Money.pkr(f.total))" : "Save sale"))
+    private func macFooterStatus(_ f: SaleFigures) -> some View {
+        if alreadySold {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("This sale was already saved. Look for it in Invoices before saving it again.")
+                    .font(.callout.weight(.semibold))
+                NavigationLink(value: Route(path: "/invoices")) { Text("Open Invoices") }
             }
-            .frame(minWidth: 140)
-        }
-        .buttonStyle(.houseProminent)
-        .largeOnPhone()
-        .disabled(!f.canSave || saving || UpdateGate.blocked)
-        // Return in the scanner's box adds a piece: it must never also save the sale.
-        if scannerFocused {
-            button
-        } else {
-            button.keyboardShortcut(.defaultAction)
+        } else if !goneSkus.isEmpty {
+            Button("Take Them Off the Sale") {
+                draft.lines.removeAll { goneSkus.contains($0.sku) }
+                goneSkus = []
+                alreadySold = false
+            }
+        } else if let reason = f.blockedReason {
+            Text(reason)
+                .font(.callout)
+                .foregroundStyle(f.hasPieces ? Tone.problem.color : Tone.quiet.color)
+                .lineLimit(2)
+        } else if f.hasEstimate {
+            let line = balanceLine(f.balance)
+            Text(line.state == .paid ? "Paid in full" : "\(line.label) \(Money.pkr(line.amount))")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
         }
     }
 
-    /// The window's toolbar and everything the page presents: the same sheets, draft keeping and pages as the phone's.
-    private func macWired<V: View>(_ content: V, _ f: SaleFigures) -> some View {
+    private func macSaveTitle(_ f: SaleFigures) -> String {
+        let base = edit != nil ? "Save Changes" : "Save Sale"
+        return f.hasEstimate ? "\(base) · \(Money.pkr(f.total))" : base
+    }
+
+    // MARK: The actions, declared once
+
+    /// Every action of the window. The Sale menu, the toolbar and the right-click menus draw from these; a key lives only
+    /// here. While a piece's editor is open nothing else in the sale is done (Save waits for it).
+    func macActions(_ f: SaleFigures, _ ui: SaleMacUI) -> SaleMacActions {
+        let idle = editing == nil && newItem == nil
+        let picked = ui.picked
+        let saveAction = MacAction(edit != nil ? "Save Changes" : "Save Sale", symbol: "checkmark.circle",
+                                   shortcut: KeyboardShortcut("s", modifiers: .command),
+                                   enabled: f.canSave && !saving && !UpdateGate.blocked && idle, isDefault: true) {
+            Task { await save(f) }
+        }
+        let addPieceAction = MacAction("Add Piece", symbol: "plus", shortcut: KeyboardShortcut("l", modifiers: .command), enabled: idle) {
+            ui.focusScanner()
+        }
+        let newItemAction = MacAction("New Item…", symbol: "plus.circle", enabled: idle) { startNewItem() }
+        let scanAction = MacAction("Scan a Tag…", symbol: "qrcode.viewfinder", enabled: idle) { scanning = true }
+        let readBillAction = MacAction("Read a Written Bill…", symbol: "camera.viewfinder", enabled: idle && session.isOwner) {
+            readingBill = true
+        }
+        let editAction = MacAction("Edit Piece…", symbol: "pencil", enabled: picked.count == 1 && idle) {
+            if let sku = picked.first, let line = draft.lines.first(where: { $0.sku == sku }) { editing = line }
+        }
+        let removeAction = MacAction(picked.count > 1 ? "Remove \(picked.count) Pieces" : "Remove Piece", symbol: "minus.circle",
+                                     role: .destructive, enabled: !picked.isEmpty && idle) {
+            draft.lines.removeAll { picked.contains($0.sku) }
+            ui.picked = []
+        }
+        let orderAction = MacAction("Create Order from These Pieces", symbol: "list.clipboard",
+                                    enabled: edit == nil && !draft.lines.isEmpty && idle) {
+            // An order half typed is kept in Drafts, so nothing is thrown away; with drafts off it is asked about.
+            if NewOrderDraftStore.orderInProgress && !draftsKept { confirmingOrder = true } else { createOrder() }
+        }
+        let resetAction = MacAction("Start Over…", symbol: "arrow.counterclockwise", role: .destructive,
+                                    enabled: edit == nil && !draft.isBlank) {
+            confirmingReset = true
+        }
+        return SaleMacActions(save: saveAction, addPiece: addPieceAction, newItem: newItemAction, scanTag: scanAction,
+                              readBill: readBillAction, editPiece: editAction, removePieces: removeAction,
+                              createOrder: orderAction, startOver: resetAction)
+    }
+
+    /// The Sale menu in the menu bar: the same actions, grouped.
+    private func macMenu(_ a: SaleMacActions) -> MacRecordMenu {
+        var groups: [[MacAction]] = [
+            [a.save],
+            [a.addPiece, a.newItem, a.scanTag, a.readBill],
+            [a.editPiece, a.removePieces],
+        ]
+        if edit == nil {
+            groups.append([a.createOrder])
+            groups.append([a.startOver])
+        }
+        return MacRecordMenu(title: "Sale", groups: groups)
+    }
+
+    // MARK: The window's chrome and everything it presents
+
+    /// The toolbar, the menu, and what the window presents: the same alerts, sheets, draft keeping and pages as the phone's.
+    private func macWired<V: View>(_ content: V, _ f: SaleFigures, _ a: SaleMacActions, _ ui: SaleMacUI) -> some View {
         content
             .navigationSubtitle(f.hasEstimate ? "Total \(Money.pkr(f.total))" : "")
-            .background {
-                // ⌘S saves from anywhere (save(f) does nothing until the sale can be saved).
-                Button("Save") { Task { await save(f) } }
-                    .keyboardShortcut("s", modifiers: .command).opacity(0).accessibilityHidden(true)
-            }
+            .macRecordMenu(macMenu(a))
             .failureAlert($failure, title: "About this sale")
             .toolbar {
-                ToolbarItemGroup(placement: .primaryAction) {
-                    Button { startNewItem() } label: { Label("New item", systemImage: "plus.circle") }
-                        .help("A piece that is not in stock, described for this bill only")
-                    Button { readingBill = true } label: { Label("Read a written bill", systemImage: "camera.viewfinder") }
-                        .help("Read a handwritten bill and put its lines on this sale")
-                    Menu {
-                        if edit == nil {
-                            Button { if NewOrderDraftStore.orderInProgress && !draftsKept { confirmingOrder = true } else { createOrder() } } label: {
-                                Label("Create order from these pieces", systemImage: "list.clipboard")
-                            }
-                            .disabled(draft.lines.isEmpty)
-                            Divider()
-                            Button(role: .destructive) { confirmingReset = true } label: {
-                                Label("Start over", systemImage: "arrow.counterclockwise")
-                            }
-                            .disabled(draft.isBlank)
-                        }
-                    } label: {
-                        Label("More", systemImage: "ellipsis.circle")
-                    }
-                    .disabled(edit != nil)
+                ToolbarItem(placement: .navigation) {
+                    Button { ui.toggleStock() } label: { Label("Stock", systemImage: "sidebar.left") }
+                        .help("Show or hide the stock")
                 }
-            }
-            .sheet(item: $editing) { line in
-                SaleLineEditor(line: line, rates: f.rateBook.pricing) { changed in replace(line.sku, with: changed) }
-            }
-            .sheet(item: $newItem) { line in
-                SaleLineEditor(line: line, rates: f.rateBook.pricing, create: true) { made in addNew(made) }
+                ToolbarItemGroup(placement: .primaryAction) {
+                    MacToolbarAction(action: a.readBill)
+                    if edit == nil {
+                        MacToolbarAction(action: a.createOrder)
+                        MacToolbarAction(action: a.startOver)
+                    }
+                }
             }
             .sheet(isPresented: $scanning) {
                 SaleScanSheet { code in scanned(code) }
@@ -640,10 +701,10 @@ extension SaleForm {
             .sheet(isPresented: $rateSheet) { RateSheet() }
             .confirmDestructive(isPresented: $confirmingReset, title: "Start over?",
                                 message: "This empties the sale on this Mac and takes it out of Drafts: the pieces, the customer and everything typed.",
-                                action: "Start over") { startOver() }
+                                action: "Start Over") { startOver() }
             .confirmDestructive(isPresented: $confirmingOrder, title: "Replace the order in progress?",
                                 message: "An order is half typed on this Mac. Making one from these pieces replaces it.",
-                                action: "Replace it") { createOrder() }
+                                action: "Replace It") { createOrder() }
             // The unfinished sale is kept at every change, as on the phone (appeared / changed / keepNow / sync).
             .onAppear { appeared() }
             .onChange(of: draft) { _, new in changed(new) }

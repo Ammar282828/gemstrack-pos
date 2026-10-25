@@ -243,41 +243,31 @@ struct ScanTag: View {
 #if os(macOS)
 /// Scan a tag on the Mac: a window with the scanner's box already in focus (a USB barcode scanner types the SKU and
 /// presses Return, and the piece is found), the tags read this time listed under it, and what the last one turned out
-/// to be at the right. ⌘Return puts a found piece on a new sale; the next tag scanned simply replaces the card.
+/// to be at the right, in plain sections. Its actions (Add to a New Sale ⌘↩, Open the Piece, Scan Another) are the
+/// toolbar's and the Scan menu's; the next tag scanned simply replaces what is shown.
 extension ScanTag {
     @ViewBuilder
     var macBody: some View {
-        HSplitView {
+        SaleMacOpenReader { open in macContent(open) }
+    }
+
+    private func macContent(_ open: SaleMacOpener) -> some View {
+        let actions = macScanActions(open)
+        return HSplitView {
             ScanTagMacScanner(
                 read: { code in handle(code) },
                 title: { sku in book.products.item(sku)?.name ?? "" })
                 .frame(minWidth: 400, idealWidth: 460, maxWidth: 560)
-            ScrollView {
-                VStack(spacing: 16) { foundBlock }
-                    .frame(maxWidth: 520)
-                    .padding(24)
-                    .frame(maxWidth: .infinity)
-            }
-            .frame(minWidth: 380)
-            .overlay {
-                if found == nil && !(onSale > 0 && session.isOwner) {
-                    ContentUnavailableView("Scan a tag", systemImage: "barcode.viewfinder",
-                                           description: Text("The piece it belongs to shows here."))
-                }
-            }
+            macResult(open)
+                .frame(minWidth: 380)
         }
         .background(Theme.ground)
+        .macRecordMenu(MacRecordMenu(title: "Scan", groups: [[actions.primary], [actions.open], [actions.again]]))
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
-                if let primary = barAction {
-                    Button { primary.action() } label: { Label(primary.title, systemImage: primary.systemImage ?? "cart.badge.plus") }
-                        .keyboardShortcut(.return, modifiers: .command)
-                        .help("\(primary.title) (⌘↩)")
-                }
-                if found != nil {
-                    Button { scanAnother() } label: { Label("Clear", systemImage: "xmark.circle") }
-                        .help("Clear the card")
-                }
+                MacToolbarAction(action: actions.primary)
+                MacToolbarAction(action: actions.open)
+                MacToolbarAction(action: actions.again)
             }
         }
         .navigationTitle("Scan a tag")
@@ -291,6 +281,143 @@ extension ScanTag {
             book.settings.need()
         }
     }
+
+    // MARK: The actions, declared once
+
+    /// What can be done with what was found: put the piece on a new sale (then open that sale), open the piece or the
+    /// invoice it went out on in a window of its own, and clear the card.
+    private func macScanActions(_ open: SaleMacOpener) -> ScanTagMacActions {
+        let bar = barAction
+        var added = false
+        var target: Route?
+        var openTitle = "Open the Piece"
+        switch found {
+        case .piece(let sku)?:
+            added = addedSku == sku
+            target = SaleLinks.piece(sku)
+        case .sold(_, let invoice)?:
+            target = SaleLinks.invoice(invoice)
+            openTitle = "Open the Invoice"
+        default:
+            break
+        }
+        let goTo = target
+        return ScanTagMacActions(
+            primary: MacAction(added ? "Open the Sale" : "Add to a New Sale",
+                               symbol: added ? "arrow.right.circle" : "cart.badge.plus",
+                               shortcut: KeyboardShortcut(.return, modifiers: .command),
+                               enabled: bar != nil, isDefault: true) {
+                bar?.action()
+            },
+            open: MacAction(openTitle, symbol: "arrow.up.right.square", enabled: goTo != nil) {
+                if let goTo { open(goTo) }
+            },
+            again: MacAction("Scan Another", symbol: "xmark.circle", enabled: found != nil) {
+                scanAnother()
+            })
+    }
+
+    // MARK: What it found
+
+    private func macResult(_ open: SaleMacOpener) -> some View {
+        Form {
+            if let found {
+                switch found {
+                case .piece(let sku):
+                    if let p = book.products.item(sku) { macPiece(p) } else { macUnknown(sku) }
+                case .sold(let code, let invoiceId):
+                    macSold(code: code, invoiceId: invoiceId, open: open)
+                case .unknown(let code):
+                    macUnknown(code)
+                }
+            }
+            if found == nil && onSale > 0 && session.isOwner { macSaleWaiting }
+        }
+        .formStyle(.grouped)
+        .overlay {
+            if found == nil && !(onSale > 0 && session.isOwner) {
+                ContentUnavailableView("Scan a tag", systemImage: "barcode.viewfinder",
+                                       description: Text("The piece it belongs to shows here."))
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func macPiece(_ p: Product) -> some View {
+        let price: Double? = book.settings.value.map { calculateProductCosts(PricedPiece(p), PricingRates($0)).totalPrice }
+        Section {
+            HStack(alignment: .top, spacing: 12) {
+                if !(p.imageUrl ?? "").isEmpty {
+                    StockImage(imageUrl: p.imageUrl, name: p.name, key: p.sku)
+                        .frame(width: 72, height: 72)
+                        .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
+                }
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(p.name).font(.headline)
+                    Text(p.sku).font(.subheadline.monospaced()).foregroundStyle(.secondary)
+                    Text(spec(p)).font(.subheadline).foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+            }
+            if let price {
+                LabeledContent("Price today") { Text(Money.pkr(price)).monospacedDigit() }
+            }
+            if session.isOwner && addedSku == p.sku {
+                Label("On the new sale · \(onSale) piece\(onSale == 1 ? "" : "s")", systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(Tone.settled.color)
+            }
+        } header: {
+            Text("Piece")
+        }
+    }
+
+    @ViewBuilder
+    private func macSold(code: String, invoiceId: String, open: SaleMacOpener) -> some View {
+        let inv = book.invoices.item(invoiceId)
+        Section {
+            Label("\(code) is not in stock", systemImage: "magnifyingglass").font(.headline)
+            if let inv {
+                let who = isWalkInName(inv.customerName) || inv.customerName.isEmpty ? "Walk-in" : inv.customerName
+                Text("It was sold on \(inv.id) · \(ShopDate.say(inv.createdAt)) · \(who).")
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("It was sold on \(invoiceId).").foregroundStyle(.secondary)
+            }
+            Button("Open \(invoiceId)") { open(SaleLinks.invoice(invoiceId)) }
+                .buttonStyle(.link)
+        } header: {
+            Text("Sold")
+        }
+    }
+
+    @ViewBuilder
+    private func macUnknown(_ code: String) -> some View {
+        Section {
+            Label("No piece \(code) in stock", systemImage: "magnifyingglass").font(.headline)
+            Text("It may be a one-off piece that was billed without being stocked, or it is not entered yet.")
+                .foregroundStyle(.secondary)
+        } header: {
+            Text("Not in stock")
+        }
+    }
+
+    /// Pieces already waiting on the new sale.
+    private var macSaleWaiting: some View {
+        Section {
+            Label("\(onSale) piece\(onSale == 1 ? "" : "s") on the new sale", systemImage: "cart")
+            Button("Open the Sale") { openSale = SaleLinks.continueSale }
+                .buttonStyle(.link)
+        } header: {
+            Text("New sale")
+        }
+    }
+}
+
+/// The scan window's actions, declared once for its menu and its toolbar.
+private struct ScanTagMacActions {
+    var primary: MacAction
+    var open: MacAction
+    var again: MacAction
 }
 
 /// The scanner's side of the window: the tag reader (its box takes the keyboard), and every tag read this time, newest

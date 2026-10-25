@@ -44,6 +44,9 @@ struct InvoiceCustomerSheet: View {
     }
 
     var body: some View {
+        #if os(macOS)
+        macBody
+        #else
         NavigationStack {
             Form { Group {
                 Section {
@@ -94,6 +97,7 @@ struct InvoiceCustomerSheet: View {
             book.invoices.need()
             book.orders.need()
         }
+        #endif
     }
 
     /// Typing lets go of a picked customer and keeps the number typed, as the web's box does.
@@ -139,3 +143,62 @@ struct InvoiceCustomerSheet: View {
         saving = false
     }
 }
+
+#if os(macOS)
+// The Mac's customer sheet (docs/features/mac-design.md, rule 7): the customer is a combo box, typed or picked from the book
+// (a name or a number finds them), then their number. Typing lets go of a pick, as on the phone; the rules and the write
+// (`setInvoiceCustomer`) are the sheet's own.
+extension InvoiceCustomerSheet {
+    var macBody: some View {
+        MacInvoiceSheetFrame(title: named ? "Change Customer" : "Who Was It For?", subtitle: invoice.id,
+                             confirmTitle: "Save", canConfirm: canSave, busy: saving,
+                             confirm: { Task { await save() } }, cancel: { dismiss() }) {
+            macFields
+        }
+        .failureAlert($error)
+        .interactiveDismissDisabled(saving)
+        .task {
+            book.customers.need()
+            book.invoices.need()
+            book.orders.need()
+        }
+    }
+
+    @ViewBuilder
+    private var macFields: some View {
+        let hits = macHits
+        LabeledContent("Customer") {
+            MacComboBox(placeholder: "Search or type a new name",
+                        text: Binding(get: { name }, set: { typeName($0) }),
+                        items: macLabels(hits),
+                        pick: { i in
+                if hits.indices.contains(i) { pickCustomer(hits[i].customer) }
+            })
+        }
+        TextField("Phone", text: $phone, prompt: Text("Optional"))
+        Text(customerNote.isEmpty ? explanation : explanation + " " + customerNote)
+            .font(.callout)
+            .foregroundStyle(.secondary)
+    }
+
+    /// Who the book offers: the last people served before anything is typed, then the best matches for a name or a number.
+    private var macHits: [CustomerSearch.Hit] {
+        if typed.isEmpty {
+            return CustomerField.recent(invoices: book.invoices.items, orders: book.orders.items, book: book.customers.items, count: 8)
+                .map { CustomerSearch.Hit(customer: $0, match: nil, byPhone: false) }
+        }
+        return CustomerSearch.rank(typed, in: book.customers.items, limit: 8)
+    }
+
+    /// Their names; two of the same name carry their numbers ("Ali · 0300 1234567") so they can be told apart.
+    private func macLabels(_ hits: [CustomerSearch.Hit]) -> [String] {
+        let names = hits.map { $0.customer.name }
+        return hits.map { hit in
+            let c = hit.customer
+            let number = c.phone ?? ""
+            let twins = names.filter { $0 == c.name }.count > 1
+            return twins && !number.isEmpty ? c.name + " · " + number : c.name
+        }
+    }
+}
+#endif

@@ -221,7 +221,9 @@ private struct RepairsDeskModifier: ViewModifier {
         PaymentSheet(title: "Hand back \(r.id)", owed: RepairsKit.repairBalance(r), askReference: false) { amount, method, _ in
             try await desk.takeAndCollect(r, amount: amount, method: method)
         }
+        #if os(iOS)
         .houseForm()
+        #endif
     }
 
     private func paymentSheet(_ r: Repair) -> some View {
@@ -229,6 +231,8 @@ private struct RepairsDeskModifier: ViewModifier {
         return PaymentSheet(title: "Payment on \(r.id)", owed: balance >= 1 ? balance : nil, askReference: false) { amount, method, _ in
             try await desk.takePayment(r, amount: amount, method: method)
         }
+        #if os(iOS)
         .houseForm()
+        #endif
     }
 }

@@ -34,6 +34,9 @@ struct InvoiceActionRefundSheet: View {
     }
 
     var body: some View {
+        #if os(macOS)
+        macBody
+        #else
         NavigationStack {
             Form { Group {
                 Section {
@@ -84,6 +87,7 @@ struct InvoiceActionRefundSheet: View {
             if let outcome { onDone(outcome) }
             dismiss()
         }
+        #endif
     }
 
     private var refundTitle: String {
@@ -158,3 +162,80 @@ struct InvoiceActionRefundSheet: View {
         }
     }
 }
+
+#if os(macOS)
+// The Mac's refund sheet (docs/features/mac-design.md, rule 7): full or partial as a radio group, what goes or the amount and
+// what it leaves, and the delete code as a field of this one sheet (MacInvoiceCodeSheet), so nothing opens over it. The
+// words, the figures and the writes are the sheet's own: `ask()` builds the deletion and its note exactly as the phone does,
+// and the code is typed here instead of in a second sheet.
+extension InvoiceActionRefundSheet {
+    var macBody: some View {
+        MacInvoiceCodeSheet(title: "Refund \(invoice.id)", subtitle: InvoiceActionWords.who(invoice),
+                            confirmTitle: macRefundTitle, canConfirm: mode == .full || after != nil,
+                            prepare: { macPrepare() },
+                            onDone: { if let outcome { onDone(outcome) } }) {
+            Picker("Refund", selection: $mode) {
+                Text("Full refund").tag(Mode.full)
+                Text("Partial refund").tag(Mode.partial)
+            }
+            .pickerStyle(.radioGroup)
+            macWhat
+        }
+        .task {
+            book.invoices.need()
+            book.hisaab.need()
+        }
+    }
+
+    /// The button says what it does.
+    private var macRefundTitle: String {
+        if mode == .full { return "Refund Invoice" }
+        return amount > 0 ? "Refund \(PaymentText.pkr(amount))" : "Refund"
+    }
+
+    /// The deletion for the code to run, worked out by the sheet's own `ask()` (which also sets the note said afterwards).
+    private func macPrepare() -> OwnerDeletion? {
+        ask()
+        let made = deletion
+        deletion = nil
+        return made
+    }
+
+    @ViewBuilder
+    private var macWhat: some View {
+        if mode == .full {
+            Text("A full refund deletes the invoice, removes all hisaab entries, and returns all items to stock. This cannot be undone.")
+                .font(.callout)
+            Text(InvoiceActionDeleteSheet.detail(invoice, book: book))
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        } else {
+            Text("A partial refund records a negative payment on this invoice and issues a matching refund on Shopify. The invoice stays in your records.")
+                .font(.callout)
+            LabeledContent("Amount") {
+                MacInvoiceNumberField(title: "Refund amount (PKR)", text: $amountText.wholeRupees, prompt: "e.g. 1500", focused: false)
+            }
+            TextField("Reason", text: $reason, prompt: Text("e.g. damaged item (optional)"))
+            macPartialNotes
+        }
+    }
+
+    @ViewBuilder
+    private var macPartialNotes: some View {
+        if amount > 0 && amount > invoice.amountPaid + 0.5 {
+            // The web takes it; said so nobody hands back more than came in by a slip of the keys.
+            Text("More than was paid on it (\(PaymentText.pkr(invoice.amountPaid))).").foregroundStyle(Tone.owed.color)
+        } else if amount > 0 {
+            Text(Money.pkrLac(amount)).font(.callout).foregroundStyle(.secondary)
+        }
+        if let after {
+            Section("After") {
+                MacInvoiceFigureRow(label: "Paid", value: PaymentText.pkr(after.amountPaid))
+                MacInvoiceFigureRow(label: balanceLine(after.balanceDue).label,
+                                    value: PaymentText.pkr(balanceLine(after.balanceDue).amount), bold: true)
+                Text(partialFollowers(after)).font(.callout).foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+#endif

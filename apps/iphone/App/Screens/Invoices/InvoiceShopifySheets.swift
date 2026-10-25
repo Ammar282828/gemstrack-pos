@@ -98,6 +98,9 @@ struct InvoiceCSVImportSheet: View {
     }
 
     var body: some View {
+        #if os(macOS)
+        macBody
+        #else
         NavigationStack {
             Form { Group {
                 if let done {
@@ -178,6 +181,7 @@ struct InvoiceCSVImportSheet: View {
             .failureAlert($failure, title: "Not imported")
         }
         .interactiveDismissDisabled(importing)
+        #endif
     }
 
     /// The file's words, then what the ERP reads in them (nothing is written yet).
@@ -223,3 +227,75 @@ struct InvoiceCSVImportSheet: View {
         }
     }
 }
+
+#if os(macOS)
+// The Mac's import sheet (docs/features/mac-design.md, rule 7): choose the file, see what the ERP read in it, then a button
+// that says how many orders it imports. What is read and written is the sheet's own (`read`, `runImport`).
+extension InvoiceCSVImportSheet {
+    var macBody: some View {
+        MacInvoiceSheetFrame(title: "Import Shopify Orders", subtitle: done == nil ? "A Shopify orders export, as a CSV file." : nil,
+                             confirmTitle: macConfirmTitle, cancelTitle: done == nil ? "Cancel" : "Close",
+                             canConfirm: macCanConfirm, busy: importing || reading,
+                             confirm: {
+            if done != nil { dismiss() } else { Task { await runImport() } }
+        }, cancel: { dismiss() }) {
+            macContent
+        }
+        .fileImporter(isPresented: $picking, allowedContentTypes: [.commaSeparatedText, .plainText]) { result in
+            if case let .success(url) = result { Task { await read(url) } }
+            if case let .failure(error) = result { failure = error.localizedDescription }
+        }
+        .failureAlert($failure, title: "Not imported")
+        .interactiveDismissDisabled(importing)
+    }
+
+    private var macConfirmTitle: String {
+        if done != nil { return "Done" }
+        guard let preview else { return "Import" }
+        return "Import \(preview.orders) Order\(preview.orders == 1 ? "" : "s")"
+    }
+
+    private var macCanConfirm: Bool {
+        if done != nil { return true }
+        return csv != nil && !reading && (preview?.orders ?? 0) > 0
+    }
+
+    @ViewBuilder
+    private var macContent: some View {
+        if let done {
+            Label("Import complete", systemImage: "checkmark.circle.fill")
+                .foregroundStyle(Tone.settled.color)
+            Text(done.imported == 0
+                 ? "The file held no Shopify orders (names like #1001), so nothing was imported."
+                 : "\(done.imported) invoice\(done.imported == 1 ? "" : "s") saved, \(done.first) to \(done.last).")
+        } else {
+            LabeledContent("File") {
+                Button(fileName ?? "Choose a CSV File…") { picking = true }
+                    .disabled(importing)
+            }
+            Text("Each order becomes an invoice, numbered on from the last invoice number.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            macPreview
+            ForEach(Array(progress.enumerated()), id: \.offset) { pair in
+                Text(pair.element).font(.caption).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var macPreview: some View {
+        if reading {
+            ProgressView("Reading the file…")
+        } else if let preview {
+            MacInvoiceFigureRow(label: "Rows", value: "\(preview.rows)")
+            MacInvoiceFigureRow(label: "Shopify Orders", value: "\(preview.orders)")
+            if !preview.firstNames.isEmpty {
+                Text("First entries: " + preview.firstNames.joined(separator: ", ") + (preview.rows > 5 ? "…" : ""))
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+#endif

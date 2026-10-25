@@ -13,6 +13,9 @@ struct InvoiceActionDeleteSheet: View {
     @Environment(Book.self) private var book
 
     var body: some View {
+        #if os(macOS)
+        macBody
+        #else
         OwnerDeleteCodeSheet(deletion: deletion) {
             onDone(InvoiceActionOutcome(
                 note: InvoiceNote(title: "Invoice \(invoice.id) deleted", detail: "Its ledger rows went with it, and pieces only it had sold are back in stock."),
@@ -22,6 +25,7 @@ struct InvoiceActionDeleteSheet: View {
             book.invoices.need()
             book.hisaab.need()
         }
+        #endif
     }
 
     private var deletion: OwnerDeletion {
@@ -38,3 +42,27 @@ struct InvoiceActionDeleteSheet: View {
         return InvoiceActionWords.deletion(inv, others: book.invoices.items, ledgerRows: rows)
     }
 }
+
+#if os(macOS)
+// The Mac's delete sheet (docs/features/mac-design.md, rule 7): what goes with the invoice, then the delete code in this one
+// sheet. The deletion and its write are the sheet's own (`deletion`).
+extension InvoiceActionDeleteSheet {
+    var macBody: some View {
+        MacInvoiceCodeSheet(title: "Delete \(invoice.id)", subtitle: InvoiceActionWords.who(invoice),
+                            confirmTitle: "Delete Invoice",
+                            prepare: { deletion },
+                            onDone: {
+            onDone(InvoiceActionOutcome(
+                note: InvoiceNote(title: "Invoice \(invoice.id) deleted", detail: "Its ledger rows went with it, and pieces only it had sold are back in stock."),
+                removed: true))
+        }) {
+            Text(InvoiceActionDeleteSheet.detail(invoice, book: book) + " This can't be undone.")
+                .font(.callout)
+        }
+        .task {
+            book.invoices.need()
+            book.hisaab.need()
+        }
+    }
+}
+#endif
