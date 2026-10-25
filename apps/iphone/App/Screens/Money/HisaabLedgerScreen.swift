@@ -27,11 +27,6 @@ struct HisaabLedgerScreen: View {
     @State private var failure: String?
     @Environment(\.openURL) private var openURL
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    #if os(macOS)
-    @Environment(\.openPlaceWindow) private var openPlace
-    @State private var macPick = Set<String>()
-    @State private var macGo: Route?
-    #endif
 
     private var entityId: String { MoneyPaths.ledgerID(fromPath: path) ?? "" }
 
@@ -343,154 +338,44 @@ struct HisaabLedgerScreen: View {
 
 // MARK: - The Mac ledger
 
-/// One person's ledger as a Mac window: who, and what they owe or are owed, in a column on the left; every row of the ledger
-/// as a table (date, entry, you gave, you got, the balance as it stood) on the right. "You gave" and "You got", the
-/// reminder and the PDF are toolbar buttons; a row's right-click menu opens its invoice or deletes it (⌫ too), and the
-/// delete code is asked as ever.
+/// One person's ledger as a Mac window: a document header (who, what they owe or are owed) and the ledger as one table filling
+/// the window (MacHisaabLedgerView). "You Gave" and "You Got", the reminder and the PDF are the Hisaab menu's and the toolbar's;
+/// a row's right-click menu opens its invoice or deletes it (the delete code is asked, as ever).
 extension HisaabLedgerScreen {
     private func macLedger(_ r: HisaabLedgerPage, name: String, id: String, isCustomer: Bool, onFile: Bool) -> some View {
-        HSplitView {
-            macPerson(r, name: name, isCustomer: isCustomer)
-                .frame(minWidth: 240, idealWidth: 290, maxWidth: 380)
-            macRows(r, onFile: onFile)
-                .frame(minWidth: 520)
-        }
-        .background(Theme.ground)
-        .navigationSubtitle(isCustomer ? "Customer ledger" : "Karigar ledger")
-        .navigationDestination(item: $macGo) { (route: Route) in PlaceScreen(path: route.path) }
+        MacHisaabLedgerView(
+            page: r, name: name, isCustomer: isCustomer, onFile: onFile,
+            base: macBase(name: name, id: id, isCustomer: isCustomer, onFile: onFile),
+            deleteEntry: { (e: HisaabEntry) in askToDelete(e) })
     }
 
-    private func macPerson(_ r: HisaabLedgerPage, name: String, isCustomer: Bool) -> some View {
-        let getGold: String? = r.gold > 0 ? "\(MoneyFormat.grams(r.gold)) \(MoneyWords.metal)" : nil
-        let giveGold: String? = r.gold < 0 ? "\(MoneyFormat.grams(abs(r.gold))) \(MoneyWords.metal)" : nil
-        return ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                VStack(spacing: 8) {
-                    Monogram(name: name.isEmpty ? "?" : name, size: 64)
-                    Text(name.isEmpty ? "Hisaab" : name)
-                        .font(.system(.title2, design: .serif).weight(.semibold))
-                        .multilineTextAlignment(.center)
-                        .textSelection(.enabled)
-                    Text(isCustomer ? "Customer" : "Karigar").font(.subheadline).foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity)
-                FigureTile(label: "You will get", value: Money.pkr(max(0, r.cash)), detail: getGold, tint: Tone.owed.color)
-                FigureTile(label: "You will give", value: Money.pkr(abs(min(0, r.cash))), detail: giveGold, tint: Tone.credit.color)
-            }
-            .padding(20)
+    /// The actions that do not depend on a picked row, declared once for the toolbar and the menu bar.
+    private func macBase(name: String, id: String, isCustomer: Bool, onFile: Bool) -> [[MacAction]] {
+        let gave = MacAction("You Gave\u{2026}", symbol: "arrow.up", shortcut: KeyboardShortcut("g", modifiers: [.shift, .command]),
+                             enabled: onFile, id: "gave") { adding = .gave }
+        let got = MacAction("You Got\u{2026}", symbol: "arrow.down", shortcut: KeyboardShortcut("r", modifiers: [.shift, .command]),
+                            enabled: onFile, id: "got") { adding = .got }
+        var more: [MacAction] = []
+        if isCustomer && id != WALK_IN_ENTITY {
+            // A WhatsApp message of what they owe the shop, opened ready to send.
+            more.append(MacAction("Send a Reminder\u{2026}", symbol: "message", enabled: !reminderBusy, id: "remind") {
+                Task { await askReminder(id, phone: nil) }
+            })
         }
-    }
-
-    private func macRows(_ r: HisaabLedgerPage, onFile: Bool) -> some View {
-        Table(r.lines, selection: $macPick) {
-            TableColumn("Date") { (l: HisaabLedgerLine) in Text(ShopDate.say(l.entry.date)) }.width(min: 80, ideal: 100)
-            TableColumn("Entry") { (l: HisaabLedgerLine) in
-                Text(l.entry.description.isEmpty ? "No description" : l.entry.description)
-            }
-            TableColumn("You gave") { (l: HisaabLedgerLine) in
-                VStack(alignment: .leading, spacing: 1) {
-                    if l.entry.cashDebit > 0 { Text(Money.pkr(l.entry.cashDebit)).foregroundStyle(Tone.owed.color) }
-                    if l.entry.goldDebitGrams > 0 {
-                        Text("\(MoneyFormat.grams(l.entry.goldDebitGrams)) g").font(.caption).foregroundStyle(.secondary)
-                    }
-                }
-                .monospacedDigit()
-            }
-            .width(min: 100, ideal: 120)
-            TableColumn("You got") { (l: HisaabLedgerLine) in
-                VStack(alignment: .leading, spacing: 1) {
-                    if l.entry.cashCredit > 0 { Text(Money.pkr(l.entry.cashCredit)).foregroundStyle(Tone.settled.color) }
-                    if l.entry.goldCreditGrams > 0 {
-                        Text("\(MoneyFormat.grams(l.entry.goldCreditGrams)) g").font(.caption).foregroundStyle(.secondary)
-                    }
-                }
-                .monospacedDigit()
-            }
-            .width(min: 100, ideal: 120)
-            TableColumn("Balance") { (l: HisaabLedgerLine) in
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(Money.pkr(l.cash))
-                    if r.hasGold {
-                        Text("\(MoneyFormat.grams(l.gold)) \(MoneyWords.metal)").font(.caption).foregroundStyle(.secondary)
-                    }
-                }
-                .monospacedDigit()
-            }
-            .width(min: 110, ideal: 140)
-            TableColumn("Invoice") { (l: HisaabLedgerLine) in
-                Text(l.entry.linkedInvoiceId ?? "").monospacedDigit().foregroundStyle(.secondary)
-            }
-            .width(min: 80, ideal: 110)
-        }
-        .contextMenu(forSelectionType: String.self) { ids in
-            if let eid = ids.first, let line = r.lines.first(where: { $0.id == eid }) {
-                if let inv = line.entry.linkedInvoiceId, !inv.isEmpty {
-                    Button("Open invoice") { macGo = Route(path: MoneyPaths.invoice(inv)) }
-                    Button("Open Invoice in New Window") { openPlace?(Route(path: MoneyPaths.invoice(inv))) }
-                    Divider()
-                }
-                Button("Copy entry") { UIPasteboard.general.string = line.entry.description }
-                if onFile {
-                    Divider()
-                    Button(role: .destructive) { askToDelete(line.entry) } label: { Label("Delete", systemImage: "trash") }
-                }
-            }
-        } primaryAction: { ids in
-            if let eid = ids.first, let inv = r.lines.first(where: { $0.id == eid })?.entry.linkedInvoiceId, !inv.isEmpty {
-                openPlace?(Route(path: MoneyPaths.invoice(inv)))
-            }
-        }
-        .onDeleteCommand {
-            if onFile, macPick.count == 1, let eid = macPick.first, let line = r.lines.first(where: { $0.id == eid }) {
-                askToDelete(line.entry)
-            }
-        }
-        .overlay { if r.lines.isEmpty { ContentUnavailableView("No transactions found", systemImage: "book.closed") } }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            // The totals of what is on the page, as a footer a table has.
-            VStack(spacing: 0) {
-                Divider()
-                HStack(spacing: 16) {
-                    Text("\(r.lines.count) transaction\(r.lines.count == 1 ? "" : "s")").foregroundStyle(.secondary)
-                    Spacer(minLength: 0)
-                    Text("Balance \(Money.pkr(r.cash))").monospacedDigit()
-                    if r.hasGold { Text("\(MoneyFormat.grams(r.gold)) \(MoneyWords.metal)").monospacedDigit().foregroundStyle(.secondary) }
-                }
-                .font(.callout)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-            }
-            .background(.bar)
-        }
+        more.append(MacAction("Print the Ledger\u{2026}", symbol: "printer", id: "print") {
+            statement = InvoicePDFTarget(path: MoneyPaths.ledgerPDF(id, isCustomer: isCustomer),
+                                         fileName: "Ledger-\(name)-\(MoneyCalendar.pickedDay(Date())).pdf",
+                                         title: "Ledger statement")
+        })
+        return [[gave, got], more]
     }
 
     @ToolbarContentBuilder
     private func macLedgerToolbar(name: String, id: String, isCustomer: Bool, onFile: Bool) -> some ToolbarContent {
         ToolbarItemGroup(placement: .primaryAction) {
-            if onFile {
-                Button { adding = .gave } label: { Label("You gave", systemImage: "arrow.up") }
-                    .keyboardShortcut("g", modifiers: [.command, .shift])
-                    .help("Write what you gave (\u{21E7}\u{2318}G)")
-                Button { adding = .got } label: { Label("You got", systemImage: "arrow.down") }
-                    .keyboardShortcut("r", modifiers: [.command, .shift])
-                    .help("Write what you got (\u{21E7}\u{2318}R)")
+            ForEach(macBase(name: name, id: id, isCustomer: isCustomer, onFile: onFile).flatMap { (g: [MacAction]) in g }) { (a: MacAction) in
+                MacToolbarAction(action: a)
             }
-            if isCustomer && id != WALK_IN_ENTITY {
-                // A WhatsApp message of what they owe the shop, opened ready to send.
-                Button { Task { await askReminder(id, phone: nil) } } label: {
-                    if reminderBusy { ProgressView().controlSize(.small) } else { Label("Send a reminder", systemImage: "message") }
-                }
-                .disabled(reminderBusy)
-                .help("Write a WhatsApp reminder of what they owe")
-            }
-            Button {
-                statement = InvoicePDFTarget(path: MoneyPaths.ledgerPDF(id, isCustomer: isCustomer),
-                                             fileName: "Ledger-\(name)-\(MoneyCalendar.pickedDay(Date())).pdf",
-                                             title: "Ledger statement")
-            } label: {
-                Label("Print the ledger", systemImage: "printer")
-            }
-            .help("The ledger statement as a PDF")
         }
     }
 }

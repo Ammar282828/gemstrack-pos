@@ -52,6 +52,16 @@ enum ScreenRegistry {
     /// never reaches the limit, so it changes nothing there.
     static func readableWidth(for path: String) -> CGFloat? {
         let bare = ScreenRoute.bare(path)
+        #if os(macOS)
+        // A Mac page lays its own table, columns and inspector out in the window (docs/features/mac-design.md): only a
+        // settings form or a short add/edit form reads in a column.
+        let forms = ["/settings/shop", "/settings/alerts", "/settings/data", "/settings/voice", "/settings/integrations",
+                     "/settings/backups", "/settings/contact-import", "/settings/hisaab-import", "/settings/import-taheri",
+                     "/app/phone", "/app/label-live", "/app/tag-printer", "/customers/add", "/karigars/add"]
+        if forms.contains(bare) || bare.hasPrefix("/app/settings/") { return 720 }
+        if (bare.hasPrefix("/customers/") || bare.hasPrefix("/karigars/")) && bare.hasSuffix("/edit") { return 720 }
+        return nil
+        #endif
         let fills: Set<String> = ["/", "/orders", "/invoices", "/workshop", "/karigars", "/products", "/calendar",
                                   "/my-work", "/given", "/orders/add", "/invoices/new", "/products/add", "/design",
                                   "/products/bulk-add", "/settings/printer", "/app/widgets", "/today"]

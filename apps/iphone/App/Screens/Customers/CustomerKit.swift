@@ -317,3 +317,25 @@ enum CustomerKit {
         }
     }
 }
+
+#if os(macOS)
+extension CustomerKit {
+    /// "Remove Customer…" from the Mac's Customers table: the delete-code sheet's words and the write are the customer
+    /// page's own (CustomerScreen `askToRemove`): it says what stays with them, then hides them (`removeCustomer`, with the
+    /// code the ERP checks). `done` runs once the ERP has taken it.
+    static func macRemoval(of c: Customer, counts: CustomerMergeCounts, owing: Double, done: @escaping () -> Void) -> OwnerDeletion {
+        let name = shown(c)
+        let stays = counts.sentence
+        var detail = stays == "nothing"
+            ? "\(name) will be hidden from the lists."
+            : "\(name) will be hidden from the lists. Their \(stays) stay where they are."
+        if owing >= 1 { detail += " They still owe \(Money.pkr(owing))." }
+        detail += " Settings, then Recently removed, puts them back."
+        let id = c.id
+        return OwnerDeletion(what: "Delete customer \(name)", detail: detail, final: false) { code in
+            _ = try await ERPAPI.shared.write("removeCustomer", ["customerId": id, "deleteCode": code])
+            done()
+        }
+    }
+}
+#endif

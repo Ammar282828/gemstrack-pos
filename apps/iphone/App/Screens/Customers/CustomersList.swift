@@ -14,12 +14,6 @@ struct CustomersList: View {
     @State private var showing: Showing = .everyone
     @State private var merging = false
     @State private var cleaning = false
-    #if os(macOS)
-    @Environment(\.openPlaceWindow) private var openPlace
-    @State private var macSort = [KeyPathComparator(\CustomersMacRow.owed, order: .reverse)]
-    @State private var macPick = Set<String>()
-    @State private var macGo: Route?
-    #endif
 
     init() {}
 
@@ -53,12 +47,12 @@ struct CustomersList: View {
     private var offline: Bool { book.customers.offline || book.invoices.offline }
 
     var body: some View {
+        #if os(macOS)
+        // The Mac's Customers is its own place: a table with the picked customer in the inspector (MacCustomersPlace).
+        MacCustomersPlace(path: "/customers")
+        #else
         ShelfState(loaded: loaded, error: failure, offline: offline) {
-            #if os(macOS)
-            macList
-            #else
             list
-            #endif
         }
         .navigationTitle("Customers")
         .hubTitleDisplay()
@@ -100,6 +94,7 @@ struct CustomersList: View {
             book.orders.need()
             if session.isOwner { book.hisaab.need() }
         }
+        #endif
     }
 
     /// What each customer owes and has bought, reckoned once per change of the books, not per keystroke
@@ -324,103 +319,3 @@ private struct CustRowLabel: View {
         .padding(.vertical, pt(8))
     }
 }
-
-#if os(macOS)
-
-// MARK: - The Mac table
-
-/// One customer as a table row: the figures the hub's grouped list showed under each name, as columns to sort by.
-private struct CustomersMacRow: Identifiable {
-    let customer: Customer
-    let stats: CustomerKit.Stats?
-    var id: String { customer.id }
-    var name: String { CustomerKit.shown(customer) }
-    var phone: String { CustomerKit.filled(customer.phone) ?? "" }
-    var sales: Int { stats?.count ?? 0 }
-    var last: String { stats?.lastAt ?? "" }
-    var spent: Double { stats?.spent ?? 0 }
-    var owed: Double { stats?.owed ?? 0 }
-}
-
-/// The Overview of Customers as a Mac page: the four figures across the top, then everyone as a sortable table (the
-/// Everyone / Owing / Recent filter is in the toolbar), with Call, WhatsApp and Message on the right-click menu and
-/// a double-click that opens the customer in a window of their own.
-extension CustomersList {
-    @ViewBuilder
-    private var macList: some View {
-        let f = figures()
-        let shown = visible(f.groups)
-        let people = shown.owing + shown.active + shown.quiet
-        let rows = people.map { CustomersMacRow(customer: $0, stats: f.stats[$0.id]) }.sorted(using: macSort)
-        return VStack(spacing: 0) {
-            macFigures(f)
-            Table(rows, selection: $macPick, sortOrder: $macSort) {
-                TableColumn("Name", value: \.name) { (r: CustomersMacRow) in
-                    HStack(spacing: 8) {
-                        Monogram(name: r.name, size: 24)
-                        Text(r.name)
-                    }
-                }
-                .width(min: 160, ideal: 240)
-                TableColumn("Phone", value: \.phone) { (r: CustomersMacRow) in Text(r.phone).monospacedDigit() }
-                    .width(min: 110, ideal: 130)
-                TableColumn("Sales", value: \.sales) { (r: CustomersMacRow) in
-                    Text(r.sales == 0 ? "" : "\(r.sales)").monospacedDigit()
-                }
-                .width(min: 50, ideal: 60)
-                TableColumn("Last sale", value: \.last) { (r: CustomersMacRow) in Text(CustomerKit.monthYear(r.stats?.lastAt)) }
-                    .width(min: 80, ideal: 100)
-                TableColumn("Spent", value: \.spent) { (r: CustomersMacRow) in
-                    Text(r.spent > 0 ? Money.pkrLac(r.spent) : "").monospacedDigit()
-                }
-                .width(min: 90, ideal: 110)
-                TableColumn("Owed", value: \.owed) { (r: CustomersMacRow) in
-                    // Only what needs someone is coloured.
-                    Text(r.owed >= 1 ? Money.pkr(r.owed) : "").monospacedDigit().foregroundStyle(Tone.owed.color)
-                }
-                .width(min: 90, ideal: 110)
-            }
-            .contextMenu(forSelectionType: String.self) { ids in
-                if let id = ids.first, let c = people.first(where: { $0.id == id }) {
-                    Button("Open") { macGo = CustomerKit.route(id) }
-                    Button("Open in New Window") { openPlace?(CustomerKit.route(id)) }
-                    Divider()
-                    contactButtons(c)
-                    Divider()
-                    Button("Copy phone number") { UIPasteboard.general.string = CustomerKit.filled(c.phone) ?? "" }
-                        .disabled(CustomerKit.filled(c.phone) == nil)
-                }
-            } primaryAction: { ids in
-                for id in ids.prefix(5) { openPlace?(CustomerKit.route(id)) }
-            }
-            .overlay { if rows.isEmpty { empty(matched: f.matchedCount) } }
-        }
-        .background(Theme.ground)
-        .navigationDestination(item: $macGo) { (r: Route) in PlaceScreen(path: r.path) }
-        .navigationSubtitle("\(f.customerCount) customers")
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                Picker("Show", selection: $showing) {
-                    ForEach(Showing.allCases) { (o: Showing) in Text(o.rawValue).tag(o) }
-                }
-                .pickerStyle(.segmented)
-                .help("Everyone, only those who owe, or those who bought in the last year")
-            }
-        }
-    }
-
-    private func macFigures(_ f: Figures) -> some View {
-        var detail: [String] = []
-        if f.owed.walkIn > 0 { detail.append("walk-ins \(Money.pkr(f.owed.walkIn))") }
-        if f.owed.nameOnly > 0 { detail.append("typed names \(Money.pkr(f.owed.nameOnly))") }
-        if session.isOwner && f.owed.ledger > 0 { detail.append("hisaab \(Money.pkr(f.owed.ledger))") }
-        return HStack(alignment: .top, spacing: 12) {
-            FigureTile(label: "Owed to you", value: Money.pkr(f.owed.total), detail: detail.isEmpty ? nil : detail.joined(separator: " \u{00B7} "), tint: Tone.owed.color)
-            FigureTile(label: "Customers", value: "\(f.customerCount)")
-            FigureTile(label: "Bought in \(CustomerKit.dormantAfterMonths) months", value: "\(f.groups.active.count + f.groups.owing.count)")
-            FigureTile(label: "Lifetime sales", value: Money.pkrLac(f.lifetime))
-        }
-        .padding(14)
-    }
-}
-#endif

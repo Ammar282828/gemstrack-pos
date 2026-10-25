@@ -30,11 +30,16 @@ struct ExpensesScreen: View {
     #if os(macOS)
     @State private var macSort = [KeyPathComparator(\ExpensesMacRow.day, order: .reverse)]
     @State private var macPick = Set<String>()
+    @State private var macMade = Memo<ExpensesMacData>()
     #endif
 
     var body: some View {
         if session.isOwner {
+            #if os(macOS)
+            macOwners
+            #else
             owners
+            #endif
         } else {
             MoneyOwnersOnly(title: "Expenses")
         }
@@ -95,15 +100,15 @@ struct ExpensesScreen: View {
 
     @ViewBuilder
     private var content: some View {
+        #if os(macOS)
+        macContent
+        #else
         let now = Date()
         let range = period.range(customFrom: custom.fromDay, customTo: custom.toDay, now: now)
         let scoped = scopedLines(range)
         let shown = category.isEmpty ? scoped : scoped.filter { $0.item.category == category }
         let groups = MoneyBuckets.group(shown, by: grouping, now: now, amount: { (e: Expense) -> Double in e.amount })
         let summary = ExpenseFigures.summary(shown, groups: groups)
-        #if os(macOS)
-        macTable(shown, summary: summary, range: range)
-        #else
         List { Group {
             if !usedCategories.isEmpty {
                 Section {
@@ -355,20 +360,98 @@ struct ExpensesScreen: View {
 private struct ExpensesMacRow: Identifiable {
     let expense: Expense
     let who: String
+    let day: String
+    let what: String
+    let category: String
+    let amount: Double
     var id: String { expense.id }
-    var day: String { MoneyMonths.day(expense.date) }
-    var what: String { expense.description.isEmpty ? expense.category : expense.description }
-    var category: String { expense.category }
-    var amount: Double { expense.amount }
+
+    init(_ e: Expense, who: String) {
+        expense = e
+        self.who = who
+        day = MoneyMonths.day(e.date)
+        what = e.description.isEmpty ? e.category : e.description
+        category = e.category
+        amount = e.amount
+    }
 }
 
-/// Expenses as a Mac page: every payment in the period as a sortable table (date, what, category, who, amount), the
-/// period, grouping and category in the toolbar beside the Report, and the totals in a footer. ⏎ or a double-click edits
-/// a row, the right-click menu and ⌫ delete it (asking for the delete code), and a partner's drawing points to Shareholders.
+/// What the table draws, worked out once per change of the books, the filters or the sort (`Memo`).
+private struct ExpensesMacData {
+    let rows: [ExpensesMacRow]
+    let summary: ExpenseSummary
+    let range: MoneyDayRange
+}
+
+/// Expenses as a Mac place (docs/features/mac-design.md, "Money"): every payment in the period as a sortable table (date,
+/// what, category, paid to, amount), the period, grouping and category pop-ups in the toolbar beside the report, the totals
+/// in the summary bar. The Expense menu is New Expense… (a sheet), Edit… (Return, or a double-click) and Delete… (asks for
+/// the delete code, as ever); a partner's drawing points to Shareholders.
 extension ExpensesScreen {
-    private func macTable(_ shown: [MoneyLine<Expense>], summary: ExpenseSummary, range: MoneyDayRange) -> some View {
-        let rows = shown.map { ExpensesMacRow(expense: $0.item, who: macWho($0.item)) }.sorted(using: macSort)
-        return VStack(spacing: 0) {
+    @ViewBuilder
+    var macOwners: some View {
+        ShelfState(loaded: book.expenses.loaded, error: book.expenses.error, offline: book.expenses.offline) {
+            macContent
+        }
+        .navigationTitle("Expenses")
+        .macSearchable(text: $search, prompt: "Search Expenses")
+        .toolbar { macToolbar }
+        .macRecordMenu(MacRecordMenu(title: "Expense", groups: macGroups(for: macPick)))
+        .sheet(isPresented: $adding) {
+            AddExpenseSheet(categories: sheetCategories, partnership: session.shop.partnership) { (saved: ExpenseSavedNote) in
+                Note.show(saved, in: $note, reduce: reduceMotion)
+            }
+        }
+        .sheet(item: $editing) { (e: Expense) in
+            ExpenseEditSheet(expense: e, categories: sheetCategories, partnership: session.shop.partnership) { (saved: ExpenseSavedNote) in
+                Note.show(saved, in: $note, reduce: reduceMotion)
+            }
+        }
+        .sheet(item: $deletion) { (d: OwnerDeletion) in
+            OwnerDeleteCodeSheet(deletion: d) {
+                Note.show(ExpenseSavedNote(title: "Expense deleted", detail: "The record has been removed."), in: $note, reduce: reduceMotion)
+            }
+            .presentationSizing(.form)
+        }
+        .navigationDestination(item: $report) { t in
+            PDFDocumentScreen(path: t.path, fileName: t.fileName, title: t.title)
+        }
+        .navigationDestination(isPresented: $openShareholders) {
+            PlaceScreen(path: MoneyPaths.shareholders)
+        }
+        .noteToast($note)
+        .task {
+            book.expenses.need()
+            book.karigars.need()
+            book.karigarBatches.need()
+        }
+    }
+
+    // MARK: Worked out once
+
+    private func macData() -> ExpensesMacData {
+        let key = [book.expenses.revision, book.karigars.revision, search.hashValue, period.hashValue, grouping.hashValue,
+                   category.hashValue, (custom.fromDay ?? "").hashValue, (custom.toDay ?? "").hashValue,
+                   macSort.hashValue, MoneyCalendar.pickedDay(Date()).hashValue]
+        return macMade(key) {
+            let now = Date()
+            let range = period.range(customFrom: custom.fromDay, customTo: custom.toDay, now: now)
+            let scoped = scopedLines(range)
+            let shown = category.isEmpty ? scoped : scoped.filter { (l: MoneyLine<Expense>) in l.item.category == category }
+            let groups = MoneyBuckets.group(shown, by: grouping, now: now, amount: { (e: Expense) -> Double in e.amount })
+            let summary = ExpenseFigures.summary(shown, groups: groups)
+            let rows = shown.map { (l: MoneyLine<Expense>) in ExpensesMacRow(l.item, who: macWho(l.item)) }.sorted(using: macSort)
+            return ExpensesMacData(rows: rows, summary: summary, range: range)
+        }
+    }
+
+    // MARK: The table
+
+    @ViewBuilder
+    var macContent: some View {
+        let data = macData()
+        let rows = data.rows
+        VStack(spacing: 0) {
             if period == .custom {
                 HStack(spacing: 12) {
                     MoneyRangeFields(filter: $custom)
@@ -390,89 +473,115 @@ extension ExpensesScreen {
                     .width(min: 110, ideal: 150)
                 TableColumn("Paid to", value: \.who) { (r: ExpensesMacRow) in Text(r.who).foregroundStyle(.secondary) }
                     .width(min: 110, ideal: 170)
-                TableColumn("Amount", value: \.amount) { (r: ExpensesMacRow) in Text(Money.pkr(r.amount)).monospacedDigit() }
-                    .width(min: 100, ideal: 120)
+                TableColumn("Amount", value: \.amount) { (r: ExpensesMacRow) in
+                    Text(Money.pkr(r.amount))
+                        .monospacedDigit()
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+                .width(min: 100, ideal: 120)
             }
-            .contextMenu(forSelectionType: String.self) { ids in
-                if let id = ids.first, let e = rows.first(where: { $0.id == id })?.expense {
-                    if ExpenseEditing.isDrawing(e, partnership: session.shop.partnership) {
-                        Button { openShareholders = true } label: { Label("Change this on Shareholders", systemImage: "person.2") }
-                    } else {
-                        Button { editing = e } label: { Label("Edit", systemImage: "pencil") }
-                        Button(role: .destructive) { askDelete(e) } label: { Label("Delete", systemImage: "trash") }
-                    }
-                }
-            } primaryAction: { ids in
-                if let id = ids.first, let e = rows.first(where: { $0.id == id })?.expense {
-                    if ExpenseEditing.isDrawing(e, partnership: session.shop.partnership) { openShareholders = true } else { editing = e }
-                }
+            .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
+                MacActionItems(groups: macGroups(for: ids))
+            } primaryAction: { (ids: Set<String>) in
+                if let e = macExpense(ids) { macEdit(e) }
             }
             .onDeleteCommand {
-                if macPick.count == 1, let id = macPick.first, let e = rows.first(where: { $0.id == id })?.expense,
-                   !ExpenseEditing.isDrawing(e, partnership: session.shop.partnership) {
-                    askDelete(e)
-                }
+                if let e = macExpense(macPick), !ExpenseEditing.isDrawing(e, partnership: session.shop.partnership) { askDelete(e) }
             }
-            .overlay { if rows.isEmpty { emptyState } }
-            macFooter(summary)
+            .overlay { if rows.isEmpty { macEmptyState } }
         }
-        .background(Theme.ground)
-        .navigationSubtitle(periodLine(range))
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                Picker("Period", selection: $period) {
-                    ForEach(ExpensePeriod.allCases) { (p: ExpensePeriod) in Text(p.title).tag(p) }
-                }
-                .pickerStyle(.menu)
-                .help("How far back to look")
-            }
-            ToolbarItem(placement: .automatic) {
-                Picker("Group by", selection: $grouping) {
-                    ForEach(ExpenseGrouping.allCases) { (g: ExpenseGrouping) in Text("By \(g.title.lowercased())").tag(g) }
-                }
-                .pickerStyle(.menu)
-                .help("How coarsely the average and the biggest are bucketed")
-            }
-            ToolbarItem(placement: .automatic) {
-                Picker("Category", selection: $category) {
-                    Text("All categories").tag("")
-                    ForEach(usedCategories, id: \.self) { (name: String) in Text(name).tag(name) }
-                }
-                .pickerStyle(.menu)
-                .help("Only one category")
-            }
-            ToolbarItem(placement: .automatic) {
-                Button { report = reportTarget() } label: { Label("Expense report (PDF)", systemImage: "doc.richtext") }
-                    .disabled(book.expenses.items.isEmpty)
-                    .help("The expense report for what is on screen, as a PDF")
-            }
+        .macSummaryBar(macSummary(rows, data.summary))
+        .navigationSubtitle(periodLine(data.range))
+    }
+
+    @ViewBuilder
+    private var macEmptyState: some View {
+        let filtering = !search.isEmpty || !category.isEmpty
+        ContentUnavailableView {
+            Label("No expenses in this period", systemImage: "tray")
+        } description: {
+            Text(filtering ? "Select a wider period, or clear the filters." : "No expenses recorded for \(period.title.lowercased()).")
         }
     }
 
-    /// The page's tiles as a footer a table has: total, payments, the average, the biggest, and the karigars' share.
-    private func macFooter(_ s: ExpenseSummary) -> some View {
+    /// The page's tiles as the one line a list ends in: the payments and their total, the average and the biggest of the
+    /// grouping, and the karigars' share; with rows picked, the picked rows' own sum.
+    private func macSummary(_ rows: [ExpensesMacRow], _ s: ExpenseSummary) -> [String] {
+        if macPick.count > 1 {
+            let picked = rows.filter { (r: ExpensesMacRow) in macPick.contains(r.id) }
+            let sum = picked.reduce(0.0) { (total: Double, r: ExpensesMacRow) in total + r.amount }
+            return ["\(picked.count) selected", Money.pkr(sum)]
+        }
         let per = grouping.title.lowercased()
-        return VStack(spacing: 0) {
-            Divider()
-            HStack(spacing: 22) {
-                macFigure("Total", Money.pkr(s.total), tint: Theme.accent)
-                macFigure("Payments", "\(s.count)")
-                macFigure("Average per \(per)", Money.pkr(s.perBucket))
-                macFigure("Biggest \(per)", Money.pkr(s.biggestTotal), detail: s.biggestLabel)
-                macFigure("Karigar payments", Money.pkr(s.karigarTotal), detail: "\(s.karigarShare)% of total")
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
+        var parts = ["\(s.count) payment\(s.count == 1 ? "" : "s")", "Total \(Money.pkr(s.total))"]
+        if s.count > 0 {
+            parts.append("Average per \(per) \(Money.pkr(s.perBucket))")
+            if s.biggestTotal > 0 { parts.append("Biggest \(per) \(Money.pkr(s.biggestTotal)) (\(s.biggestLabel))") }
         }
-        .background(.bar)
+        if s.karigarTotal > 0 { parts.append("Karigar payments \(Money.pkr(s.karigarTotal)) (\(s.karigarShare)%)") }
+        return parts
     }
 
-    private func macFigure(_ label: String, _ value: String, detail: String? = nil, tint: Color = .primary) -> some View {
-        VStack(alignment: .leading, spacing: 1) {
-            Text(label).font(.caption).foregroundStyle(.secondary)
-            Text(value).font(.callout.weight(.semibold)).foregroundStyle(tint).monospacedDigit()
-            if let detail, !detail.isEmpty, detail != "\u{2014}" { Text(detail).font(.caption2).foregroundStyle(.secondary) }
+    // MARK: The actions, declared once
+
+    private func macExpense(_ ids: Set<String>) -> Expense? {
+        guard ids.count == 1, let id = ids.first else { return nil }
+        return book.expenses.item(id)
+    }
+
+    /// A partner's drawing is the Shareholders page's to change; any other row opens the edit sheet.
+    private func macEdit(_ e: Expense) {
+        if ExpenseEditing.isDrawing(e, partnership: session.shop.partnership) { openShareholders = true } else { editing = e }
+    }
+
+    private func macGroups(for ids: Set<String>) -> [[MacAction]] {
+        let e = macExpense(ids)
+        let drawing = e.map { (x: Expense) in ExpenseEditing.isDrawing(x, partnership: session.shop.partnership) } ?? false
+        let add = MacAction("New Expense\u{2026}", symbol: "plus", shortcut: KeyboardShortcut("n", modifiers: [.control, .command]),
+                            id: "new") { adding = true }
+        let edit = MacAction(drawing ? "Change on Shareholders" : "Edit\u{2026}", symbol: drawing ? "person.2" : "pencil",
+                             shortcut: KeyboardShortcut(.return, modifiers: []), enabled: e != nil, id: "edit") {
+            if let e { macEdit(e) }
+        }
+        let delete = MacAction("Delete\u{2026}", symbol: "trash", shortcut: KeyboardShortcut(.delete, modifiers: .command),
+                               role: .destructive, enabled: e != nil && !drawing, id: "delete") {
+            if let e { askDelete(e) }
+        }
+        return [[add], [edit], [delete]]
+    }
+
+    @ToolbarContentBuilder
+    private var macToolbar: some ToolbarContent {
+        let add = macGroups(for: macPick)[0][0]
+        ToolbarItem(placement: .principal) {
+            Picker("Period", selection: $period) {
+                ForEach(ExpensePeriod.allCases) { (p: ExpensePeriod) in Text(p.title).tag(p) }
+            }
+            .pickerStyle(.menu)
+            .help("How far back to look")
+        }
+        ToolbarItem(placement: .automatic) {
+            Picker("Group by", selection: $grouping) {
+                ForEach(ExpenseGrouping.allCases) { (g: ExpenseGrouping) in Text("By \(g.title.lowercased())").tag(g) }
+            }
+            .pickerStyle(.menu)
+            .help("How coarsely the average and the biggest are bucketed")
+        }
+        ToolbarItem(placement: .automatic) {
+            Picker("Category", selection: $category) {
+                Text("All categories").tag("")
+                ForEach(usedCategories, id: \.self) { (name: String) in Text(name).tag(name) }
+            }
+            .pickerStyle(.menu)
+            .help("Only one category")
+        }
+        ToolbarItem(placement: .automatic) {
+            Button { report = reportTarget() } label: { Label("Expense report (PDF)", systemImage: "doc.richtext") }
+                .disabled(book.expenses.items.isEmpty)
+                .help("The expense report for what is on screen, as a PDF")
+        }
+        ToolbarItem(placement: .primaryAction) {
+            MacToolbarAction(action: add)
         }
     }
 

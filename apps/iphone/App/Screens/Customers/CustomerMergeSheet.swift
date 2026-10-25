@@ -357,15 +357,17 @@ extension CustomerMergeSheet {
         let turned = swapped.contains(pair.id)
         if let keep = byId[turned ? pair.b : pair.a], let duplicate = byId[turned ? pair.a : pair.b] {
             VStack(alignment: .leading, spacing: 16) {
-                LedgerHeading(title: pair.reason)
+                Text(pair.reason).font(.headline)
                 HStack(alignment: .top, spacing: 14) {
-                    person("Keep", keep, tint: Theme.accent)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .ledgerCard()
+                    GroupBox {
+                        person("Keep", keep, tint: Theme.accent)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                     Image(systemName: "arrow.left").foregroundStyle(.secondary).padding(.top, 28)
-                    person("Delete", duplicate, tint: Tone.problem.color, moves: moves(for: duplicate.id))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .ledgerCard()
+                    GroupBox {
+                        person("Delete", duplicate, tint: Tone.problem.color, moves: moves(for: duplicate.id))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                 }
                 Text("Everything under the one deleted moves to the one kept, and what only the duplicate knew (a number, an address) is filled in. The duplicate's record is then deleted for good.")
                     .font(.footnote)

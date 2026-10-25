@@ -83,13 +83,23 @@ struct HisaabScreen: View {
     @State private var summaryPDF: InvoicePDFTarget?
     #if os(macOS)
     @Environment(\.openPlaceWindow) private var openPlace
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var macSort = [KeyPathComparator(\HisaabMacRow.name)]
     @State private var macPick = Set<String>()
+    @State private var macMade = Memo<HisaabMacData>()
+    @State private var macRowsMade = Memo<HisaabMacRows>()
+    @State private var macLedgerMade = Memo<HisaabLedgerPage>()
+    @State private var macEntry: HisaabMacEntry?
+    @State private var macNote: Note?
     #endif
 
     var body: some View {
         if session.isOwner {
+            #if os(macOS)
+            macOwners
+            #else
             owners
+            #endif
         } else {
             MoneyOwnersOnly(title: "Hisaab")
         }
@@ -157,14 +167,14 @@ struct HisaabScreen: View {
 
     @ViewBuilder
     private var content: some View {
+        #if os(macOS)
+        macContent
+        #else
         let customerIds = Set(book.customers.items.map { $0.id })
         let summary = HisaabBook.summary(entries: book.hisaab.items, invoices: book.invoices.items, customerIds: customerIds)
         let onInvoices = owedToYou(book.invoices.items).total
         let scoped = scope(summary.accounts)
         let shown = ordered(scoped.filter { chip.matches($0) })
-        #if os(macOS)
-        macTable(summary, onInvoices: onInvoices, scoped: scoped)
-        #else
         List { Group {
             Section {
                 tiles(summary, onInvoices: onInvoices)
@@ -305,119 +315,413 @@ struct HisaabScreen: View {
 
 #if os(macOS)
 
-// MARK: - The Mac table
+// MARK: - The Mac place
 
 /// One account as a table row, to sort by.
 private struct HisaabMacRow: Identifiable {
     let account: HisaabAccount
+    let name: String
+    let kind: String
+    let invoices: Int
+    let gold: Double
+    let cash: Double
     var id: String { account.id }
-    var name: String { account.name }
-    var kind: String { account.isWalkIn ? "Walk-ins" : (account.isCustomer ? "Customer" : "Karigar") }
-    var invoices: Int { account.unpaid.count }
-    var gold: Double { account.gold }
-    var cash: Double { account.cash }
+
+    init(_ a: HisaabAccount) {
+        account = a
+        name = a.name
+        kind = a.isWalkIn ? "Walk-ins" : (a.isCustomer ? "Customer" : "Karigar")
+        invoices = a.unpaid.count
+        gold = a.gold
+        cash = a.cash
+    }
 }
 
-/// Hisaab as a Mac page: what the shop will get and give across the top, then every account as a sortable table. The side
-/// (all, you will get, you will give) is the segmented control, who (everyone, customers, karigars) a pop-up menu, both
-/// in the toolbar with the Summary PDF. Double-click opens a person's ledger in a window of its own.
+/// The books' hisaab worked out once per change of them (HisaabBook walks every ledger row and invoice).
+private struct HisaabMacData {
+    let summary: HisaabSummary
+    let onInvoices: Double
+    let byId: [String: HisaabAccount]
+}
+
+/// The rows of the table (search, who and side applied, sorted), and how many each side holds for the pop-up.
+private struct HisaabMacRows {
+    let rows: [HisaabMacRow]
+    let all: Int
+    let get: Int
+    let give: Int
+}
+
+/// "You Gave…" or "You Got…" on the picked account: the entry sheet of the ledger page, over the table.
+private struct HisaabMacEntry: Identifiable {
+    let mode: HisaabEntryMode
+    let personId: String
+    let personName: String
+    let isCustomer: Bool
+    var id: String { mode.rawValue + personId }
+}
+
+/// Hisaab as a Mac place (docs/features/mac-design.md, "Money"): every account as a sortable table, what the shop will get and
+/// give in the summary bar, the picked account's ledger in the inspector. The Hisaab menu is New Hisaab Entry… (choose the
+/// account first), You Gave… (⇧⌘G) and You Got… (⇧⌘R) on the picked account, and Open Ledger (Return, or a double-click:
+/// the ledger in a window of its own).
 extension HisaabScreen {
-    private func macTable(_ summary: HisaabSummary, onInvoices: Double, scoped: [HisaabAccount]) -> some View {
-        let shown = scoped.filter { chip.matches($0) }.map(HisaabMacRow.init).sorted(using: macSort)
-        return VStack(spacing: 0) {
-            tiles(summary, onInvoices: onInvoices)
-                .padding(14)
-            Table(shown, selection: $macPick, sortOrder: $macSort) {
-                TableColumn("Name", value: \.name) { (r: HisaabMacRow) in
-                    HStack(spacing: 8) {
-                        Monogram(name: r.name, size: 24)
-                        Text(r.name)
-                    }
-                }
-                .width(min: 160, ideal: 240)
-                TableColumn("Who", value: \.kind) { (r: HisaabMacRow) in Text(r.kind).foregroundStyle(.secondary) }
-                    .width(min: 80, ideal: 100)
-                TableColumn("Invoices owing", value: \.invoices) { (r: HisaabMacRow) in
-                    Text(r.invoices == 0 ? "" : "\(r.invoices)").monospacedDigit()
-                }
-                .width(min: 90, ideal: 110)
-                TableColumn(MoneyWords.metal.capitalized, value: \.gold) { (r: HisaabMacRow) in
-                    Text(r.gold == 0 ? "" : "\(MoneyFormat.grams(abs(r.gold))) g \(r.gold > 0 ? "to receive" : "to pay")")
-                        .monospacedDigit()
-                        .foregroundStyle(.secondary)
-                }
-                .width(min: 120, ideal: 150)
-                TableColumn("Balance", value: \.cash) { (r: HisaabMacRow) in
-                    if r.account.hasCash {
-                        Text("\(Money.pkr(abs(r.cash))) \(r.cash > 0 ? "you will get" : "you will give")")
-                            .monospacedDigit()
-                            .foregroundStyle(r.cash > 0 ? Tone.owed.color : Tone.credit.color)
-                    }
-                }
-                .width(min: 150, ideal: 190)
-            }
-            .contextMenu(forSelectionType: String.self) { ids in
-                if let id = ids.first, let a = shown.first(where: { $0.id == id })?.account {
-                    macMenu(a)
-                }
-            } primaryAction: { ids in
-                for id in ids.prefix(5) {
-                    if let a = shown.first(where: { $0.id == id })?.account { macOpen(a, inWindow: true) }
-                }
-            }
-            .overlay { if shown.isEmpty { emptyState } }
+    @ViewBuilder
+    var macOwners: some View {
+        let data = macData()
+        ShelfState(loaded: ready, error: book.hisaab.error, offline: book.hisaab.offline) {
+            macContent
         }
-        .background(Theme.ground)
-        .navigationSubtitle("\(shown.count) account\(shown.count == 1 ? "" : "s")")
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                Picker("Side", selection: $chip) {
-                    ForEach(HisaabChip.allCases) { (c: HisaabChip) in
-                        Text("\(c.title) (\(scoped.filter { c.matches($0) }.count))").tag(c)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .help("All accounts, only those who owe the shop, or only those the shop owes")
+        .navigationTitle("Hisaab")
+        .macSearchable(text: $search, prompt: "Search Hisaab")
+        .macInspector { macPanel(data) }
+        .toolbar { macToolbar(data) }
+        .macRecordMenu(MacRecordMenu(title: "Hisaab", groups: macGroups(for: macPick, data)))
+        .sheet(isPresented: $picking, onDismiss: {
+            if let next = pending {
+                pending = nil
+                macOpen(next)
             }
-            ToolbarItem(placement: .automatic) {
-                Picker("Show", selection: $kind) {
-                    ForEach(HisaabKind.allCases) { (k: HisaabKind) in Text(k.title).tag(k) }
-                }
-                .pickerStyle(.menu)
-                .help("Customers, karigars or everyone")
+        }) {
+            HisaabAccountPicker { (route: Route) in pending = route }
+                .presentationSizing(.form)
+        }
+        .sheet(item: $macEntry) { (e: HisaabMacEntry) in
+            HisaabEntrySheet(mode: e.mode, personId: e.personId, personName: e.personName, isCustomer: e.isCustomer) { (saved: Note) in
+                Note.show(saved, in: $macNote, reduce: reduceMotion)
             }
-            ToolbarItem(placement: .automatic) {
-                // Everyone outstanding whose name matches the search, as the ERP prints it; the sides are not applied.
-                Button {
-                    summaryPDF = InvoicePDFTarget(path: MoneyPaths.hisaabSummary(search: search),
-                                                  fileName: "Hisaab-Summary-\(MoneyCalendar.pickedDay(Date())).pdf",
-                                                  title: "Hisaab summary")
-                } label: {
-                    Label("Summary PDF", systemImage: "doc.richtext")
+        }
+        .navigationDestination(item: $go) { (r: Route) in
+            HisaabDestination(path: r.path)
+        }
+        .navigationDestination(item: $summaryPDF) { t in
+            PDFDocumentScreen(path: t.path, fileName: t.fileName, title: t.title)
+        }
+        .noteToast($macNote)
+        .task {
+            book.hisaab.need()
+            book.invoices.need()
+            book.customers.need()
+            book.karigars.need()
+            syncOnce()
+        }
+    }
+
+    // MARK: Worked out once
+
+    private func macData() -> HisaabMacData {
+        let key = [book.hisaab.revision, book.invoices.revision, book.customers.revision]
+        return macMade(key) {
+            let customerIds = Set(book.customers.items.map { (c: Customer) in c.id })
+            let summary = HisaabBook.summary(entries: book.hisaab.items, invoices: book.invoices.items, customerIds: customerIds)
+            var byId: [String: HisaabAccount] = [:]
+            for a in summary.accounts { byId[a.id] = a }
+            return HisaabMacData(summary: summary, onInvoices: owedToYou(book.invoices.items).total, byId: byId)
+        }
+    }
+
+    private func macRows(_ data: HisaabMacData) -> HisaabMacRows {
+        let key = [book.hisaab.revision, book.invoices.revision, book.customers.revision, search.hashValue, kind.hashValue,
+                   chip.hashValue, macSort.hashValue]
+        return macRowsMade(key) {
+            let scoped = scope(data.summary.accounts)
+            let shown = scoped.filter { (a: HisaabAccount) in chip.matches(a) }.map { (a: HisaabAccount) in HisaabMacRow(a) }
+            return HisaabMacRows(rows: shown.sorted(using: macSort),
+                                 all: scoped.count,
+                                 get: scoped.filter { (a: HisaabAccount) in HisaabChip.get.matches(a) }.count,
+                                 give: scoped.filter { (a: HisaabAccount) in HisaabChip.give.matches(a) }.count)
+        }
+    }
+
+    // MARK: The table
+
+    @ViewBuilder
+    var macContent: some View {
+        let data = macData()
+        let made = macRows(data)
+        let rows = made.rows
+        Table(rows, selection: $macPick, sortOrder: $macSort) {
+            TableColumn("Name", value: \.name)
+                .width(min: 160, ideal: 240)
+            TableColumn("Who", value: \.kind) { (r: HisaabMacRow) in Text(r.kind).foregroundStyle(.secondary) }
+                .width(min: 80, ideal: 100)
+            TableColumn("Invoices owing", value: \.invoices) { (r: HisaabMacRow) in
+                Text(r.invoices == 0 ? "" : "\(r.invoices)").monospacedDigit()
+            }
+            .width(min: 90, ideal: 110)
+            TableColumn(MoneyWords.metal.capitalized, value: \.gold) { (r: HisaabMacRow) in
+                Text(r.gold == 0 ? "" : "\(MoneyFormat.grams(abs(r.gold))) g \(r.gold > 0 ? "to receive" : "to pay")")
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
+            .width(min: 120, ideal: 150)
+            TableColumn("Balance", value: \.cash) { (r: HisaabMacRow) in
+                if r.account.hasCash {
+                    Text("\(Money.pkr(abs(r.cash))) \(r.cash > 0 ? "you will get" : "you will give")")
+                        .monospacedDigit()
+                        .foregroundStyle(r.cash > 0 ? Tone.owed.color : Tone.credit.color)
                 }
-                .help("The summary of everyone outstanding, as a PDF")
+            }
+            .width(min: 160, ideal: 200)
+        }
+        .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
+            MacActionItems(groups: macGroups(for: ids, data))
+        } primaryAction: { (ids: Set<String>) in
+            for id in ids.prefix(5) {
+                if let a = data.byId[id] { macOpenAccount(a) }
+            }
+        }
+        .overlay { if rows.isEmpty { emptyState } }
+        .macSummaryBar(macSummary(rows, data))
+        .navigationSubtitle("\(rows.count) account\(rows.count == 1 ? "" : "s")")
+    }
+
+    /// What the page's tiles said, as the one line a list ends in; with accounts picked, what the picked ones come to.
+    private func macSummary(_ rows: [HisaabMacRow], _ data: HisaabMacData) -> [String] {
+        if macPick.count > 1 {
+            let picked = rows.filter { (r: HisaabMacRow) in macPick.contains(r.id) }
+            let get = picked.reduce(0.0) { (sum: Double, r: HisaabMacRow) in sum + max(0, r.cash) }
+            let give = picked.reduce(0.0) { (sum: Double, r: HisaabMacRow) in sum + abs(min(0, r.cash)) }
+            var parts = ["\(picked.count) selected"]
+            if get >= 1 { parts.append("You will get \(Money.pkr(get))") }
+            if give >= 1 { parts.append("You will give \(Money.pkr(give))") }
+            return parts
+        }
+        let s = data.summary
+        var parts = ["\(rows.count) account\(rows.count == 1 ? "" : "s")"]
+        var get = "You will get \(Money.pkr(s.receivable))"
+        if s.receivableGold > 0 { get += " + \(MoneyFormat.grams(s.receivableGold)) \(MoneyWords.metal)" }
+        parts.append(get)
+        var give = "You will give \(Money.pkr(s.payable))"
+        if s.payableGold > 0 { give += " + \(MoneyFormat.grams(s.payableGold)) \(MoneyWords.metal)" }
+        parts.append(give)
+        parts.append("On invoices \(Money.pkr(data.onInvoices))")
+        return parts
+    }
+
+    // MARK: The actions, declared once
+
+    private func macAccount(_ ids: Set<String>, _ data: HisaabMacData) -> HisaabAccount? {
+        guard ids.count == 1, let id = ids.first else { return nil }
+        return data.byId[id]
+    }
+
+    /// Whether the person is a live record the ledger can be written on (the ledger page's own test): a removed one, and a
+    /// walk-in, are not.
+    private func macOnFile(_ a: HisaabAccount) -> Bool {
+        if a.isWalkIn { return false }
+        if a.isCustomer { return book.customers.item(a.id).map { (c: Customer) in !CustomerKit.isRemoved(c) } ?? false }
+        return book.karigars.item(a.id).map { (k: Karigar) in (k.deletedAt ?? "").isEmpty } ?? false
+    }
+
+    private func macGroups(for ids: Set<String>, _ data: HisaabMacData) -> [[MacAction]] {
+        let a = macAccount(ids, data)
+        let writes = a.map { (x: HisaabAccount) in macOnFile(x) } ?? false
+        let new = MacAction("New Hisaab Entry\u{2026}", symbol: "plus", shortcut: KeyboardShortcut("n", modifiers: [.control, .command]),
+                            id: "new") { picking = true }
+        let gave = MacAction("You Gave\u{2026}", symbol: "arrow.up", shortcut: KeyboardShortcut("g", modifiers: [.shift, .command]),
+                             enabled: writes, id: "gave") {
+            if let a { macEntry = HisaabMacEntry(mode: .gave, personId: a.id, personName: a.name, isCustomer: a.isCustomer) }
+        }
+        let got = MacAction("You Got\u{2026}", symbol: "arrow.down", shortcut: KeyboardShortcut("r", modifiers: [.shift, .command]),
+                            enabled: writes, id: "got") {
+            if let a { macEntry = HisaabMacEntry(mode: .got, personId: a.id, personName: a.name, isCustomer: a.isCustomer) }
+        }
+        let open = MacAction("Open Ledger", symbol: "book.closed", shortcut: KeyboardShortcut(.return, modifiers: []),
+                             enabled: a != nil, id: "open") {
+            if let a { macOpenAccount(a) }
+        }
+        return [[new], [gave, got], [open]]
+    }
+
+    @ToolbarContentBuilder
+    private func macToolbar(_ data: HisaabMacData) -> some ToolbarContent {
+        let groups = macGroups(for: macPick, data)
+        let counts = macRows(data)
+        ToolbarItem(placement: .principal) {
+            Picker("Side", selection: $chip) {
+                Text("\(HisaabChip.all.title) (\(counts.all))").tag(HisaabChip.all)
+                Text("\(HisaabChip.get.title) (\(counts.get))").tag(HisaabChip.get)
+                Text("\(HisaabChip.give.title) (\(counts.give))").tag(HisaabChip.give)
+            }
+            .pickerStyle(.menu)
+            .help("All accounts, only those who owe the shop, or only those the shop owes")
+        }
+        ToolbarItem(placement: .automatic) {
+            Picker("Show", selection: $kind) {
+                ForEach(HisaabKind.allCases) { (k: HisaabKind) in Text(k.title).tag(k) }
+            }
+            .pickerStyle(.menu)
+            .help("Customers, karigars or everyone")
+        }
+        ToolbarItem(placement: .automatic) {
+            // Everyone outstanding whose name matches the search, as the ERP prints it; the sides are not applied.
+            Button {
+                summaryPDF = InvoicePDFTarget(path: MoneyPaths.hisaabSummary(search: search),
+                                              fileName: "Hisaab-Summary-\(MoneyCalendar.pickedDay(Date())).pdf",
+                                              title: "Hisaab summary")
+            } label: {
+                Label("Summary PDF", systemImage: "doc.richtext")
+            }
+            .help("The summary of everyone outstanding, as a PDF")
+        }
+        ToolbarItemGroup(placement: .primaryAction) {
+            MacToolbarAction(action: groups[1][0])
+            MacToolbarAction(action: groups[1][1])
+            MacToolbarAction(action: groups[0][0])
+        }
+    }
+
+    /// A person's ledger in a window of its own; a walk-in has no ledger, so its first invoice owing opens instead.
+    private func macOpenAccount(_ a: HisaabAccount) {
+        let route = a.isWalkIn
+            ? a.unpaid.first.map { (u: HisaabUnpaid) in Route(path: MoneyPaths.invoice(u.id)) }
+            : Route(path: MoneyPaths.ledger(a.id, isCustomer: a.isCustomer))
+        if let route { macOpen(route) }
+    }
+
+    private func macOpen(_ route: Route) {
+        if let openPlace { openPlace(route) } else { go = route }
+    }
+
+    // MARK: The inspector
+
+    @ViewBuilder
+    private func macPanel(_ data: HisaabMacData) -> some View {
+        if let a = macAccount(macPick, data) {
+            HisaabMacInspector(
+                account: a,
+                page: macLedgerPage(a.id),
+                actions: Array(macGroups(for: macPick, data)[1]),
+                open: { macOpenAccount(a) },
+                openInvoice: { (id: String) in macOpen(Route(path: MoneyPaths.invoice(id))) })
+        } else if macPick.count > 1 {
+            MacInspectorEmpty(title: "\(macPick.count) Accounts Selected")
+        } else {
+            MacInspectorEmpty(title: "No Account Selected")
+        }
+    }
+
+    private func macLedgerPage(_ id: String) -> HisaabLedgerPage {
+        macLedgerMade([book.hisaab.revision, id.hashValue]) {
+            HisaabLedger.page(book.hisaab.items.filter { (e: HisaabEntry) in e.entityId == id })
+        }
+    }
+}
+
+/// The picked account: its name and balance, You Gave and You Got, and the latest rows of its ledger as compact lines.
+private struct HisaabMacInspector: View {
+    let account: HisaabAccount
+    let page: HisaabLedgerPage
+    let actions: [MacAction]
+    let open: () -> Void
+    let openInvoice: (String) -> Void
+
+    private static let shown = 12
+
+    var body: some View {
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 12) {
+                MacInspectorHeader(title: account.name, subtitle: kindLine, status: nil, headline: headline)
+                HStack(spacing: 8) {
+                    MacActionButtons(actions: account.isWalkIn ? [] : actions)
+                    Spacer(minLength: 0)
+                }
+                Button(account.isWalkIn ? "Open Invoice" : "Open Ledger", action: open)
+                    .buttonStyle(.bordered)
+                    .controlSize(.regular)
+            }
+            .padding(16)
+            Divider()
+            Form {
+                if account.isWalkIn { walkInSection } else { ledgerSection }
+            }
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+        }
+    }
+
+    private var kindLine: String {
+        account.isWalkIn ? "Sales with no customer named" : (account.isCustomer ? "Customer" : "Karigar")
+    }
+
+    private var headline: MacHeadline? {
+        guard account.hasCash || account.gold != 0 else { return nil }
+        var value = account.hasCash ? Money.pkr(abs(account.cash)) : ""
+        if account.gold != 0 {
+            let metal = "\(MoneyFormat.grams(abs(account.gold))) g \(MoneyWords.metal)"
+            value = value.isEmpty ? metal : value + " + " + metal
+        }
+        return account.side == .get
+            ? MacHeadline("You will get", value, tone: .owed)
+            : MacHeadline("You will give", value, tone: .credit)
+    }
+
+    @ViewBuilder
+    private var ledgerSection: some View {
+        Section("Latest in the Ledger") {
+            if page.lines.isEmpty {
+                Text("No transactions found.").foregroundStyle(.secondary)
+            }
+            ForEach(Array(page.lines.prefix(Self.shown))) { (line: HisaabLedgerLine) in
+                HisaabMacLine(line: line, openInvoice: openInvoice)
+            }
+            if page.lines.count > Self.shown {
+                Text("\(page.lines.count) in all, in the ledger window.").font(.caption).foregroundStyle(.secondary)
             }
         }
     }
 
     @ViewBuilder
-    private func macMenu(_ a: HisaabAccount) -> some View {
-        if a.isWalkIn {
-            ForEach(a.unpaid) { (inv: HisaabUnpaid) in
-                Button("Open invoice \(inv.id)") { go = Route(path: MoneyPaths.invoice(inv.id)) }
+    private var walkInSection: some View {
+        Section("Invoices Owing") {
+            ForEach(account.unpaid) { (inv: HisaabUnpaid) in
+                Button { openInvoice(inv.id) } label: {
+                    HStack {
+                        Text(inv.id).monospacedDigit()
+                        Spacer(minLength: 8)
+                        Text(Money.pkr(inv.balanceDue)).monospacedDigit().foregroundStyle(Tone.owed.color)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             }
+        }
+    }
+}
+
+/// One ledger row, compact: what was written and when, the cash or metal that moved; a click on an invoice's row opens it.
+private struct HisaabMacLine: View {
+    let line: HisaabLedgerLine
+    let openInvoice: (String) -> Void
+
+    var body: some View {
+        if let invoice = CustomerKit.filled(line.entry.linkedInvoiceId) {
+            Button { openInvoice(invoice) } label: { row }
+                .buttonStyle(.plain)
+                .help("Open invoice \(invoice) in a window")
         } else {
-            Button("Open ledger") { macOpen(a, inWindow: false) }
-            Button("Open Ledger in New Window") { macOpen(a, inWindow: true) }
+            row
         }
     }
 
-    private func macOpen(_ a: HisaabAccount, inWindow: Bool) {
-        let route = a.isWalkIn
-            ? a.unpaid.first.map { Route(path: MoneyPaths.invoice($0.id)) }
-            : Route(path: MoneyPaths.ledger(a.id, isCustomer: a.isCustomer))
-        guard let route else { return }
-        if inWindow { openPlace?(route) } else { go = route }
+    private var row: some View {
+        let e = line.entry
+        return HStack(alignment: .firstTextBaseline, spacing: 8) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(e.description.isEmpty ? "No description" : e.description).lineLimit(1)
+                Text(ShopDate.say(e.date)).font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 8)
+            VStack(alignment: .trailing, spacing: 1) {
+                if e.cashDebit > 0 { Text("Gave \(Money.pkr(e.cashDebit))").foregroundStyle(Tone.owed.color) }
+                if e.cashCredit > 0 { Text("Got \(Money.pkr(e.cashCredit))").foregroundStyle(Tone.settled.color) }
+                if e.goldDebitGrams > 0 { Text("Gave \(MoneyFormat.grams(e.goldDebitGrams)) g").font(.caption).foregroundStyle(.secondary) }
+                if e.goldCreditGrams > 0 { Text("Got \(MoneyFormat.grams(e.goldCreditGrams)) g").font(.caption).foregroundStyle(.secondary) }
+            }
+            .monospacedDigit()
+        }
+        .contentShape(Rectangle())
     }
 }
 #endif

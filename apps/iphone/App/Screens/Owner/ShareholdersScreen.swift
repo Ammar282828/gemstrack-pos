@@ -498,17 +498,17 @@ extension ShareholdersBoard {
     private func macBoard(_ f: ShareholderBoardFigures) -> some View {
         let share = f.totals.revShare - f.totals.expShare
         return VStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .top, spacing: 12) {
-                    FigureTile(label: "Revenue", value: ShareholderMoney.fmt(f.totals.totalRevenue))
-                    FigureTile(label: "Expenses", value: ShareholderMoney.fmt(f.totals.totalExpenses))
-                    FigureTile(label: "Each partner's share", value: ShareholderMoney.signed(share), tint: share >= 0 ? Color.primary : Tone.owed.color)
-                }
-                Text("Divided equally \u{00B7} expenses from \(OwnerText.shortDate(ShareholderFigures.expenseCutoff)) \u{00B7} revenue from Shopify #1103")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(14)
+            MacFigures(figures: [
+                MacFigure("Revenue", ShareholderMoney.fmt(f.totals.totalRevenue)),
+                MacFigure("Expenses", ShareholderMoney.fmt(f.totals.totalExpenses)),
+                MacFigure("Each partner's share", ShareholderMoney.signed(share), tone: share >= 0 ? nil : Tone.owed),
+            ])
+            Text("Divided equally \u{00B7} expenses from \(OwnerText.shortDate(ShareholderFigures.expenseCutoff)) \u{00B7} revenue from Shopify #1103")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 14)
+                .padding(.bottom, 10)
             Divider()
             HSplitView {
                 ForEach(f.positions) { (p: ShareholderFigures.Position) in
@@ -554,7 +554,7 @@ extension ShareholdersBoard {
         return VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .firstTextBaseline) {
-                    Text(p.name).font(.system(.title2, design: .serif).weight(.semibold))
+                    Text(p.name).font(.title2.weight(.semibold))
                     Spacer(minLength: 8)
                     Menu {
                         Button { asking = ShareholderAsk(move: .salary, who: p.id) } label: { Label("Pay salary", systemImage: "banknote") }
@@ -570,7 +570,10 @@ extension ShareholdersBoard {
                 HStack(alignment: .firstTextBaseline) {
                     Text(words).foregroundStyle(.secondary)
                     Spacer(minLength: 8)
-                    HeroAmount(amount: abs(claim.rounded()), tone: tone)
+                    Text(Money.pkr(abs(claim.rounded())))
+                        .font(.title2.weight(.semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(tone)
                 }
                 Divider()
                 LabeledContent("Loan to the business") { RowAmount(amount: abs(p.balance.loanBalance.rounded())) }

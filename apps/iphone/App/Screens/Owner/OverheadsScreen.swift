@@ -374,20 +374,20 @@ extension OverheadsBoard {
     private func macRecord(_ rows: [OverheadMonthRow], _ s: OverheadSummary, target: Double, earned: Double, p: OverheadProgress) -> some View {
         let met = p.shortfall == 0 && target > 0
         return VStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(alignment: .top, spacing: 12) {
-                    FigureTile(label: "Needed this month", value: OwnerText.pkr(target), tint: Theme.accent)
-                    FigureTile(label: "Revenue so far", value: OwnerText.pkr(earned))
-                    FigureTile(label: met ? "Above the benchmark" : "Still to earn",
-                               value: OwnerText.pkr(met ? earned - target : p.shortfall),
-                               detail: daysLine(p, met: met))
-                }
+            MacFigures(figures: [
+                MacFigure("Needed this month", OwnerText.pkr(target), tone: .house),
+                MacFigure("Revenue so far", OwnerText.pkr(earned)),
+                MacFigure(met ? "Above the benchmark" : "Still to earn", OwnerText.pkr(met ? earned - target : p.shortfall),
+                          detail: daysLine(p, met: met)),
+            ])
+            VStack(alignment: .leading, spacing: 8) {
                 ProgressView(value: p.percent, total: 100).tint(Theme.accent)
                 Text("What \(monthName) has to cover before anything is profit. Scored from \(Overheads.monthLabel(Overheads.benchmarkStart)).")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
-            .padding(14)
+            .padding(.horizontal, 14)
+            .padding(.bottom, 12)
             Table(rows) {
                 TableColumn("Month") { (r: OverheadMonthRow) in Text(r.inProgress ? "\(r.label) \u{00B7} so far" : r.label) }
                     .width(min: 120, ideal: 170)

@@ -8,7 +8,12 @@ import SwiftUI
 /// route below never takes it, and "?web=1" on it still opens the ERP's own edit page.
 enum CustomersRoutes {
     static var all: [ScreenRoute] {
+        #if os(macOS)
+        // The Mac's list is its own place: a table, its saved lists by the path's `?list=` (MacCustomersPlace).
+        let list = ScreenRoute(matches: { CustomerKit.isList($0) }, make: { path in AnyView(MacCustomersPlace(path: path)) })
+        #else
         let list = ScreenRoute(matches: { CustomerKit.isList($0) }, make: { _ in AnyView(CustomersList()) })
+        #endif
         let add = ScreenRoute.exact("/customers/add") { AddCustomer() }
         let edit = ScreenRoute(
             matches: { CustomerKit.editId(fromPath: $0) != nil },

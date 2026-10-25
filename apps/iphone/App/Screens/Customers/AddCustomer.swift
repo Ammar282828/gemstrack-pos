@@ -29,6 +29,11 @@ struct AddCustomer: View {
     /// The customer page to push (the one just saved, or the one already on file under this number).
     @State private var opened: String?
     @State private var editing: EditTarget?
+    #if os(macOS)
+    /// Set when the form is a sheet over Customers (`afterSaving`): told the new customer's id once they are saved ("" when
+    /// the server gave none), so the place can close the sheet and open them.
+    private var macAfterSave: ((String) -> Void)?
+    #endif
 
     init() {}
 
@@ -268,11 +273,31 @@ struct AddCustomer: View {
 
 // MARK: - The Mac form
 
-/// A new customer as a Mac form: grouped sections at a reading width, the labelled fields a Mac types into, Return to
-/// save from the footer and ⌘S from the toolbar. The rules (a name left blank, the number already on file) are the page's.
+/// A new customer as a Mac form: grouped sections at a reading width, the labelled fields a Mac types into. Over the
+/// Customers table it is a sheet (`afterSaving`): Return saves from a field, ⌘S from the toolbar, and saving closes it.
+/// Opened as a page it keeps the footer, with Return to save. The rules (a name left blank, the number already on file)
+/// are the page's.
 extension AddCustomer {
+    /// This form as a sheet: `handler` is told the new customer's id once saved, and the saved page is not shown.
+    func afterSaving(_ handler: @escaping (String) -> Void) -> AddCustomer {
+        var copy = self
+        copy.macAfterSave = handler
+        return copy
+    }
+
     @ViewBuilder
     private var macForm: some View {
+        if macAfterSave != nil {
+            macFields
+                .onSubmit { Task { await save() } }
+        } else {
+            macFields
+                .actionBar(primary: ActionBar.Action("Save customer", isBusy: saving, isDisabled: !canSave) { Task { await save() } },
+                           summary: "The second number, sizes, dates and notes are filled in on the edit page.")
+        }
+    }
+
+    private var macFields: some View {
         Form {
             Section {
                 TextField("Full name", text: $name, prompt: Text("Optional"))
@@ -284,7 +309,7 @@ extension AddCustomer {
                 TextField("Phone number", text: $phone, prompt: Text("Optional"))
                 if let match = sameNumber {
                     Button {
-                        opened = match.id
+                        if let macAfterSave { macAfterSave(match.id) } else { opened = match.id }
                     } label: {
                         Label("Already on file: \(CustomerKit.shown(match))", systemImage: "person.fill.checkmark")
                     }
@@ -303,8 +328,8 @@ extension AddCustomer {
                 TextField("Address", text: $address, prompt: Text("Optional"), axis: .vertical)
                     .lineLimit(2...5)
             }
-            Section("Where they came from") {
-                Picker("Referral source", selection: $source) {
+            Section {
+                Picker("Came from", selection: $source) {
                     Text("Not specified").tag("")
                     ForEach(CustomerKit.sources, id: \.rawValue) { s in
                         Text(CustomerKit.sourceLabel(s)).tag(s.rawValue)
@@ -318,11 +343,21 @@ extension AddCustomer {
         .frame(maxWidth: .infinity)
         .background(Theme.ground)
         .disabled(saving)
-        .actionBar(primary: ActionBar.Action("Save customer", isBusy: saving, isDisabled: !canSave) { Task { await save() } },
-                   summary: "The second number, sizes, dates and notes are filled in on the edit page.")
     }
 
+    /// Over the table the saved page never shows: the place is told, and closes the sheet.
+    @ViewBuilder
     private func macSaved(_ s: Saved) -> some View {
+        if let after = macAfterSave {
+            ProgressView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .task { after(s.id) }
+        } else {
+            macSavedPage(s)
+        }
+    }
+
+    private func macSavedPage(_ s: Saved) -> some View {
         VStack(spacing: 18) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 44))

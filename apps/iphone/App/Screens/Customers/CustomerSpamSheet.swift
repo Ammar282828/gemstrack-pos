@@ -466,7 +466,7 @@ extension CustomerSpamSheet {
                     Text(c.reasons.joined(separator: " \u{00B7} ")).foregroundStyle(.secondary)
                 }
                 TableColumn("From") { (c: CustomerSpam.Candidate) in
-                    if CustomerKit.filled(c.customer.shopifyCustomerId) != nil { Pill("Shopify", tone: .working) }
+                    if CustomerKit.filled(c.customer.shopifyCustomerId) != nil { MacStatus("Shopify", tone: .working) }
                 }
                 .width(min: 80, ideal: 90)
             }
