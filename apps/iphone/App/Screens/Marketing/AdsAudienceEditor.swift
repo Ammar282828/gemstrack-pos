@@ -83,7 +83,7 @@ struct AdsAudienceSheet: View {
         }
         #if os(macOS)
         .formStyle(.grouped)
-        .frame(minWidth: 560, idealWidth: 640, minHeight: 560, idealHeight: 700)
+        .frame(minWidth: 540, idealWidth: 640, minHeight: 520, idealHeight: 700)
         #endif
     }
 
@@ -137,7 +137,6 @@ struct AdsAudienceSheet: View {
                 }
                 Button("All Pakistan") { add(AdsPlace.pakistan) }
             }
-            .fixedSize()
             #else
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: pt(8)) {
@@ -313,7 +312,6 @@ struct AdsAudienceSheet: View {
                     Button("More Like These", systemImage: "sparkles") { Task { await suggest() } }
                 }
             }
-            .fixedSize()
             #else
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: pt(8)) {

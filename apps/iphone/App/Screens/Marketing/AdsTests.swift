@@ -346,8 +346,6 @@ extension AdsTestsScreen {
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 MacToolbarAction(action: macNewTest)
-                Button { Task { await loadTests() } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
-                    .help("Read the tests again (⌘R)")
             }
         }
         .sheet(isPresented: $macMaking) { macNewSheet }
@@ -356,25 +354,23 @@ extension AdsTestsScreen {
     private func macTable(_ tests: [AdsTest], _ cur: String) -> some View {
         Table(tests, selection: $macPicked) {
             TableColumn("Test") { (t: AdsTest) in Text(t.name).lineLimit(1) }
-                .width(min: 150, ideal: 260)
+                .width(min: 120, ideal: 240)
             TableColumn("Runs") { (t: AdsTest) in
                 Text("\(ShopDate.say(t.start)) to \(ShopDate.say(t.end))").monospacedDigit().lineLimit(1)
             }
-            .width(min: 140, ideal: 200)
+            .width(min: 130, ideal: 200)
             TableColumn("Status") { (t: AdsTest) in MacStatus(t.running ? "Running" : "Finished", tone: t.running ? .settled : .quiet) }
-                .width(min: 80, ideal: 100)
+                .width(min: 90, ideal: 100)
             TableColumn("Ahead") { (t: AdsTest) in Text(t.ahead ?? "").lineLimit(1) }
                 .width(min: 70, ideal: 110)
-            TableColumn("Spent") { (t: AdsTest) in
-                Text(AdsFormat.money(t.cells.reduce(0.0) { (sum: Double, c: AdsTestCell) in sum + c.spend }, cur))
-                    .monospacedDigit()
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+            TableColumn(AdsMacMoney.header("Spent", cur)) { (t: AdsTest) in
+                AdsMacMoney(t.cells.reduce(0.0) { (sum: Double, c: AdsTestCell) in sum + c.spend })
             }
-            .width(min: 80, ideal: 110)
+            .width(min: 70, ideal: 90)
         }
         .overlay {
             if let data, data.tests.isEmpty {
-                ContentUnavailableView("No Tests Yet", systemImage: "flask", description: Text("New Test… splits two to five ad sets against each other."))
+                ContentUnavailableView("No Tests Yet", systemImage: "flask", description: Text("New Test (\u{2303}\u{2318}N) splits two to five ad sets against each other."))
             } else if data == nil && loadProblem == nil {
                 MarketingReading(text: "Reading the tests…")
             }
@@ -398,10 +394,10 @@ extension AdsTestsScreen {
                                 if t.ahead == c.name { Image(systemName: "trophy.fill").foregroundStyle(Tone.owed.color) }
                             }
                             Text(c.adsets.joined(separator: ", ")).font(.caption).foregroundStyle(.secondary)
-                            MacFigures([MacFigure("Spent", AdsFormat.money(c.spend, cur)),
-                                        MacFigure(c.resultLabel, AdsFormat.count(c.result))])
-                            MacFigures([MacFigure("Each", c.costPerResult.map { (v: Double) in AdsFormat.money(v, cur) } ?? "—"),
-                                        MacFigure("ROAS", AdsResults.roasText(c.roas))])
+                            AdsMacFigureRows(figures: [MacFigure("Spent", AdsFormat.money(c.spend, cur)),
+                                                       MacFigure(c.resultLabel, AdsFormat.count(c.result)),
+                                                       MacFigure("Each", c.costPerResult.map { (v: Double) in AdsFormat.money(v, cur) } ?? "—"),
+                                                       MacFigure("ROAS", AdsResults.roasText(c.roas))])
                         }
                     }
                     if let ahead = t.ahead {
@@ -466,7 +462,7 @@ extension AdsTestsScreen {
                 Task { await make() }
             }
         }
-        .frame(width: 560, height: 640)
+        .frame(width: 540, height: 520)
     }
 
     /// The table's picks as the test's ordered list (A, B, C…), in the order the ad sets are listed.

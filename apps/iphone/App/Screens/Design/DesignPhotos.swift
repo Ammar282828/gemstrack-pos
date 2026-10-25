@@ -42,6 +42,9 @@ struct DesignSitePieces: View {
     #if os(macOS)
     @State private var chosen: String?
     @FocusState private var galleryFocus: Bool
+    /// The gallery's pieces, filtered again only when the pieces, the search or the collection change (a click on a photo
+    /// redraws the page and must not walk and lowercase every piece).
+    @State private var macMade = Memo<[DesignPhotosMacItem]>()
     #endif
 
     private var hasNew: Bool { pieces.contains { $0["newArrival"].bool } }
@@ -263,10 +266,14 @@ extension DesignPhotosView {
         .toolbar {
             if DesignPhotoPart.offered(access).count > 1 {
                 ToolbarItem(placement: .primaryAction) {
-                    Picker("Photos from", selection: $part) {
-                        ForEach(DesignPhotoPart.offered(access)) { (p: DesignPhotoPart) in Text(p.title).tag(p) }
+                    Menu {
+                        Picker("Photos from", selection: $part) {
+                            ForEach(DesignPhotoPart.offered(access)) { (p: DesignPhotoPart) in Text(p.title).tag(p) }
+                        }
+                        .pickerStyle(.inline)
+                    } label: {
+                        Label("Source", systemImage: "photo.stack")
                     }
-                    .pickerStyle(.menu)
                     .help("Where the photographs come from")
                 }
             }
@@ -276,7 +283,15 @@ extension DesignPhotosView {
 
 extension DesignSitePieces {
     private var items: [DesignPhotosMacItem] {
-        filtered.map { (p: MarketingValue) in DesignPhotosMacItem(id: p.s("id").isEmpty ? p.s("name") : p.s("id"), value: p) }
+        var h = Hasher()
+        for p in pieces {
+            h.combine(p.s("id"))
+            h.combine(p.s("name"))
+            h.combine(p.s("collection"))
+        }
+        return macMade([h.finalize(), q.hashValue, showing.hashValue]) {
+            filtered.map { (p: MarketingValue) in DesignPhotosMacItem(id: p.s("id").isEmpty ? p.s("name") : p.s("id"), value: p) }
+        }
     }
     private var chosenItem: DesignPhotosMacItem? { chosen.flatMap { id in items.first { $0.id == id } } }
 
@@ -304,15 +319,18 @@ extension DesignSitePieces {
         .navigationSubtitle("Photos from the website")
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
-                Picker("Collection", selection: Binding<String>(get: { showing }, set: { (v: String) in collection = v })) {
-                    if hasNew { Text("New Arrivals").tag("__new__") }
-                    Text("Everything").tag("")
-                    Divider()
-                    ForEach(collections, id: \.self) { (c: String) in Text(c).tag(c) }
-                }
-                .pickerStyle(.menu)
-                .help("Show one collection")
                 MacToolbarAction(action: designAction)
+                Menu {
+                    Picker("Collection", selection: Binding<String>(get: { showing }, set: { (v: String) in collection = v })) {
+                        if hasNew { Text("New Arrivals").tag("__new__") }
+                        Text("Everything").tag("")
+                        ForEach(collections, id: \.self) { (c: String) in Text(c).tag(c) }
+                    }
+                    .pickerStyle(.inline)
+                } label: {
+                    Label("Filter", systemImage: showing == (hasNew ? "__new__" : "") ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
+                }
+                .help("Show one collection")
             }
         }
         .macRecordMenu(MacRecordMenu(title: "Photo", groups: [[designAction]]))
@@ -380,14 +398,18 @@ extension DesignLibraryPhotos {
         .navigationSubtitle(all ? "Every photo" : "Best for ads")
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
-                Picker("Placement", selection: $placement) {
-                    Text("Feed 4:5").tag("portrait")
-                    Text("Feed 1:1").tag("square")
-                    Text("Stories 9:16").tag("story")
-                }
-                .pickerStyle(.menu)
-                .help("Which shape the scores are for")
                 MacToolbarAction(action: designAction)
+                Menu {
+                    Picker("Placement", selection: $placement) {
+                        Text("Feed 4:5").tag("portrait")
+                        Text("Feed 1:1").tag("square")
+                        Text("Stories 9:16").tag("story")
+                    }
+                    .pickerStyle(.inline)
+                } label: {
+                    Label("Shape", systemImage: "aspectratio")
+                }
+                .help("Which shape the scores are for")
             }
         }
         .macRecordMenu(MacRecordMenu(title: "Photo", groups: [[designAction]]))

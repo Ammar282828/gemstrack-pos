@@ -23,7 +23,7 @@ struct PostComposerScreen: View {
         HStack(spacing: 0) {
             formCore.frame(maxWidth: .infinity)
             Divider()
-            macPreview.frame(width: 400)
+            macPreview.frame(minWidth: 280, idealWidth: 360, maxWidth: 400)
         }
         .actionBar(primary: .init("Publish", isDisabled: !model.problems.isEmpty || model.frozen) { confirmation = "send" },
                    secondary: [.init("Add to queue", isDisabled: !model.problems.isEmpty || model.frozen) { confirmation = "queue" }],
@@ -383,7 +383,7 @@ extension PostComposerScreen {
 
     private func macPreviewCard(_ title: String, response: MarketingValue, kind: String) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            LedgerHeading(title: title)
+            Text(title).font(.headline)
             if let image = NativeArtwork.image(response) {
                 Image(uiImage: image).resizable().scaledToFit()
                     .clipShape(.rect(cornerRadius: Radius.chip, style: .continuous))

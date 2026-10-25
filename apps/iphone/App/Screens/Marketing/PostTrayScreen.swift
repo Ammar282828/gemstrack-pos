@@ -396,7 +396,7 @@ struct PostTrayScreen: View {
         }
         .interactiveDismissDisabled(working != nil)
         #if os(macOS)
-        .frame(minWidth: 520, minHeight: 600)
+        .frame(minWidth: 520, minHeight: 520)
         #endif
     }
 
@@ -680,7 +680,7 @@ extension PostTrayScreen {
                 PostPiecesScreen(tray: model)
                     .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { picking = false } } }
             }
-            .frame(minWidth: 760, minHeight: 600)
+            .frame(minWidth: 560, idealWidth: 760, minHeight: 520, idealHeight: 600)
         }
         .sheet(item: $story) { (s: Story) in storySheet(s) }
         .confirmationDialog(confirmTitle, isPresented: $confirming, titleVisibility: .visible) {

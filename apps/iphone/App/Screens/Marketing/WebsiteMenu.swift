@@ -50,41 +50,32 @@ struct WebsiteMenu: View {
 
 #if os(macOS)
 extension WebsiteMenu {
-    /// The website's tools as wide cards across the window, each also openable in a window of its own.
+    /// The website's tools as plain rows, each also openable in a window of its own (the sidebar lists them too).
     @ViewBuilder
     var macBody: some View {
         let tabs = MarketingKit.tabs(of: "website", role: session.role)
-        return ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                if tabs.isEmpty {
-                    NotAvailableState("This shop doesn't change its website from the ERP", why: "Its website is managed outside the ERP, so there are no website tools here.", symbol: "globe")
-                } else {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 14, alignment: .top)], spacing: 14) {
-                        ForEach(tabs) { (t: NavPlace) in card(t.label, symbol: NavIcon.symbol(for: t.icon), path: t.href) }
-                        card("Posts", symbol: "paperplane.fill", path: "/posts")
+        Group {
+            if tabs.isEmpty {
+                NotAvailableState("This shop doesn't change its website from the ERP", why: "Its website is managed outside the ERP, so there are no website tools here.", symbol: "globe")
+            } else {
+                List {
+                    Section {
+                        ForEach(tabs) { (t: NavPlace) in row(t.label, symbol: NavIcon.symbol(for: t.icon), path: t.href) }
+                        row("Posts", symbol: "paperplane.fill", path: "/posts")
+                    } footer: {
+                        Text("What changes here is on the website within a minute; each change says where it goes first.")
                     }
-                    Text("What changes here is on the website within a minute; each change says where it goes first.")
-                        .font(.footnote).foregroundStyle(.secondary)
                 }
+                .listStyle(.inset)
             }
-            .padding(24)
         }
         .navigationTitle("Website")
     }
 
-    private func card(_ title: String, symbol: String, path: String) -> some View {
+    private func row(_ title: String, symbol: String, path: String) -> some View {
         NavigationLink(value: Route(path: path)) {
-            HStack(spacing: 12) {
-                Image(systemName: symbol).font(.title2).foregroundStyle(Theme.accent).frame(width: 32)
-                Text(title).font(.headline)
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
-            }
-            .ledgerCard()
-            .contentShape(.rect)
+            Label(title, systemImage: symbol)
         }
-        .buttonStyle(.plain)
-        .pointerHover()
         .contextMenu { MacOpenInWindow(path: path) }
     }
 }

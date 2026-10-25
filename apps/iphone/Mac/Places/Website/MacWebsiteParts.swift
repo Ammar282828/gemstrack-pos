@@ -29,6 +29,29 @@ struct MacWebsitePieceRow: Identifiable {
     var rank: Int { piece.hidden ? 0 : (piece.changed ? 1 : 2) }
 }
 
+/// What a table of pieces was made from, as one number, so the rows are made again only when a piece, its change or the
+/// hiding changes (hashing the pieces whole would walk every fact and photo address on each redraw).
+enum MacWebsiteKey {
+    static func pieces(_ list: [WebsiteEditPiece]) -> Int {
+        var h = Hasher()
+        h.combine(list.count)
+        for p in list {
+            h.combine(p.id)
+            h.combine(p.words.name)
+            h.combine(p.collection)
+            h.combine(p.weightGrams)
+            h.combine(p.hidden)
+            h.combine(p.thumb)
+            h.combine(p.facts.count)
+            h.combine(p.change?.at)
+            h.combine(p.change?.photoEdited)
+            h.combine(p.change?.weightGrams)
+            h.combine(p.change?.keys.count)
+        }
+        return h.finalize()
+    }
+}
+
 /// Edit a piece's table and its inspector's form meet here. The form tells the table whether it holds a change worth saving and
 /// how to save it; the table's Save to the Website (⌘S) and its guard against leaving a piece with unsaved words ask it.
 @MainActor @Observable

@@ -197,6 +197,15 @@ struct DesignScreen: View {
 
 #if os(macOS)
 extension DesignScreen {
+    fileprivate func macSymbol(_ s: DesignSection) -> String {
+        switch s {
+        case .make: return "wand.and.stars"
+        case .photos: return "photo.on.rectangle"
+        case .board: return "rectangle.3.group"
+        case .saved: return "folder"
+        }
+    }
+
     /// Design as a Mac app window: the sections (Make, Photos, Board, Saved) are a segmented control in the toolbar, not a row
     /// of chips in the page; the open design's own tools are the workspace's toolbar.
     @ViewBuilder
@@ -217,10 +226,9 @@ extension DesignScreen {
             if access.post {
                 ToolbarItem(placement: .principal) {
                     Picker("Section", selection: Binding(get: { current }, set: { go($0) })) {
-                        ForEach(DesignSection.offered(access)) { Text($0.title).tag($0) }
+                        ForEach(DesignSection.offered(access)) { (s: DesignSection) in Label(s.title, systemImage: macSymbol(s)).tag(s) }
                     }
                     .pickerStyle(.segmented)
-                    .frame(minWidth: 260)
                     .help("Make, Photos, Board or Saved")
                 }
             }

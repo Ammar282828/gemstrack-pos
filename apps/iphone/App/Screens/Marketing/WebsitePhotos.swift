@@ -599,23 +599,28 @@ extension WebsitePhotosScreen {
         }
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
-                Picker("Collection", selection: $folder) {
-                    Text("Choose a collection…").tag("")
-                    ForEach(macShelves) { (shelf: WebsiteCollectionSheet.Shelf) in
-                        Section(shelf.id) {
-                            ForEach(shelf.list) { (c: WebsiteCollection) in Text(c.collection + (c.count > 0 ? " (\(c.count))" : "")).tag(c.folder) }
-                        }
-                    }
-                }
-                .pickerStyle(.menu)
-                .disabled(sending)
-                .help("Where these photographs go on \(site.siteName)")
                 Menu {
                     Button("Choose Files…", systemImage: "folder") { importing = true }
                     Button("From Photos…", systemImage: "photo.on.rectangle") { picking = true }
                 } label: { Label("Add Photographs", systemImage: "plus") }
                 .disabled(folder.isEmpty || sending)
                 .help("Add photographs, or drop them anywhere in this window")
+                // Where they go: the page's one choice (named in the line above the tray), a menu whose label never grows.
+                Menu {
+                    Picker("Collection", selection: $folder) {
+                        Text("No Collection").tag("")
+                        ForEach(macShelves) { (shelf: WebsiteCollectionSheet.Shelf) in
+                            Section(shelf.id) {
+                                ForEach(shelf.list) { (c: WebsiteCollection) in Text(c.collection + (c.count > 0 ? " (\(c.count))" : "")).tag(c.folder) }
+                            }
+                        }
+                    }
+                    .pickerStyle(.inline)
+                } label: {
+                    Label("Collection", systemImage: folder.isEmpty ? "folder.badge.questionmark" : "folder")
+                }
+                .disabled(sending)
+                .help("Where these photographs go on \(site.siteName)")
             }
         }
         .macRecordMenu(MacRecordMenu(title: "Photo", groups: [[macRetouchAction, macOriginalAction], [macRemoveAction]]))
@@ -672,9 +677,9 @@ extension WebsitePhotosScreen {
     private var macTray: some View {
         if isMaison {
             Table(items, selection: $macPicked) {
-                TableColumn("Photograph") { (item: WebsitePhotoItem) in macPhotograph(item) }
-                TableColumn("House") { (item: WebsitePhotoItem) in macHouse(item) }.width(min: 120, ideal: 160)
-                TableColumn("Official name") { (item: WebsitePhotoItem) in macOfficialName(item) }.width(min: 180, ideal: 260)
+                TableColumn("Photograph") { (item: WebsitePhotoItem) in macPhotograph(item) }.width(min: 140, ideal: 220)
+                TableColumn("House") { (item: WebsitePhotoItem) in macHouse(item) }.width(min: 110, ideal: 150)
+                TableColumn("Official name") { (item: WebsitePhotoItem) in macOfficialName(item) }.width(min: 150, ideal: 260)
                 TableColumn("Status") { (item: WebsitePhotoItem) in macItemStatus(item) }.width(min: 110, ideal: 150)
             }
             .contextMenu(forSelectionType: UUID.self) { (ids: Set<UUID>) in macRowMenu(ids) }
@@ -682,7 +687,7 @@ extension WebsitePhotosScreen {
             .overlay { macTrayEmpty }
         } else {
             Table(items, selection: $macPicked) {
-                TableColumn("Photograph") { (item: WebsitePhotoItem) in macPhotograph(item) }
+                TableColumn("Photograph") { (item: WebsitePhotoItem) in macPhotograph(item) }.width(min: 140, ideal: 280)
                 TableColumn("Size") { (item: WebsitePhotoItem) in Text(WebsitePhoto.size(item.data.count)).monospacedDigit().foregroundStyle(.secondary) }
                     .width(min: 70, ideal: 90)
                 TableColumn("Status") { (item: WebsitePhotoItem) in macItemStatus(item) }.width(min: 110, ideal: 150)

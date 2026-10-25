@@ -102,7 +102,7 @@ struct InsightsMacSplitTable: View {
             }
             .width(min: 90, ideal: 110)
             TableColumn("By Surface") { (r: InsightsMacSplitRow) in Text(r.surfaces).foregroundStyle(.secondary).lineLimit(1) }
-                .width(min: 160, ideal: 360)
+                .width(min: 120, ideal: 360)
         }
         .frame(height: adsMacTableHeight(list.count))
     }
@@ -130,15 +130,15 @@ struct InsightsMacPlatformTable: View {
         let list = rows.sorted(using: sort)
         Table(list, sortOrder: $sort) {
             TableColumn("Platform", value: \.name) { (r: InsightsMacPlatformRow) in Text(r.name) }
-                .width(min: 110, ideal: 160)
-            TableColumn("Spent", value: \.spend) { (r: InsightsMacPlatformRow) in
+                .width(min: 100, ideal: 150)
+            TableColumn(AdsMacMoney.header("Spent", currency), value: \.spend) { (r: InsightsMacPlatformRow) in
                 VStack(alignment: .trailing, spacing: 0) {
-                    Text(AdsFormat.money(r.spend, currency)).monospacedDigit()
-                    if !r.change.isEmpty { Text(r.change).font(.caption).foregroundStyle(.secondary) }
+                    AdsMacMoney(r.spend)
+                    if !r.change.isEmpty { Text(r.change).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
                 }
                 .frame(maxWidth: .infinity, alignment: .trailing)
             }
-            .width(min: 100, ideal: 130)
+            .width(min: 90, ideal: 130)
             TableColumn("Reached", value: \.reach) { (r: InsightsMacPlatformRow) in
                 Text(AdsFormat.compact(r.reach)).monospacedDigit().frame(maxWidth: .infinity, alignment: .trailing)
             }
@@ -150,9 +150,9 @@ struct InsightsMacPlatformTable: View {
             TableColumn("Link Clicks", value: \.clicks) { (r: InsightsMacPlatformRow) in
                 Text(AdsFormat.count(r.clicks)).monospacedDigit().frame(maxWidth: .infinity, alignment: .trailing)
             }
-            .width(min: 80, ideal: 100)
+            .width(min: 70, ideal: 100)
             TableColumn("Results") { (r: InsightsMacPlatformRow) in Text(r.results).lineLimit(1) }
-                .width(min: 120, ideal: 260)
+                .width(min: 100, ideal: 260)
         }
         .frame(height: adsMacTableHeight(list.count, row: 36))
     }
@@ -264,7 +264,7 @@ struct InsightsMacPostPanel: View {
                     .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
                     .frame(maxWidth: .infinity)
                 if !post.caption.isEmpty { Text(post.caption).textSelection(.enabled) }
-                ForEach(Array(figures.enumerated()), id: \.offset) { _, cells in MacFigures(cells) }
+                VStack(spacing: 6) { AdsMacFigureRows(figures: figures) }
                 if let link = post.link, let url = URL(string: link) {
                     Button("Open on Instagram") { NSWorkspace.shared.open(url) }
                 }
@@ -273,8 +273,8 @@ struct InsightsMacPostPanel: View {
         }
     }
 
-    /// Every number the phone's row shows, two to a line.
-    private var figures: [[MacFigure]] {
+    /// Every number the phone's row shows, one to a line.
+    private var figures: [MacFigure] {
         var all: [MacFigure] = [
             MacFigure("Views", InsightWords.optional(post.views)), MacFigure("Reach", InsightWords.optional(post.reach)),
             MacFigure("Likes", InsightWords.optional(post.likes)), MacFigure("Comments", InsightWords.optional(post.comments)),
@@ -286,13 +286,7 @@ struct InsightsMacPostPanel: View {
         if let w = post.avgWatchMs { all.append(MacFigure("Average watch", String(format: "%.1fs", w / 1000))) }
         if let fv = post.facebookViews { all.append(MacFigure("On Facebook", AdsFormat.compact(fv))) }
         if let c = post.clicks { all.append(MacFigure("Clicks", AdsFormat.compact(c))) }
-        var out: [[MacFigure]] = []
-        var i = 0
-        while i < all.count {
-            out.append(Array(all[i..<min(i + 2, all.count)]))
-            i += 2
-        }
-        return out
+        return all
     }
 }
 #endif

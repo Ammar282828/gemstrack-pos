@@ -64,4 +64,69 @@ struct AdsMacNote: View {
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
+
+/// A sum in an ad table's cell: the digits only, right-aligned, whole rupees from 100 up and the paise or cents below it
+/// (a click costs "12.5", and a whole-rupee cell would say 13). `unit` is a quiet word after it ("a day"). The column's
+/// header names the figure; an account in another currency says so there (`header`), not in every cell.
+struct AdsMacMoney: View {
+    let amount: Double?
+    var unit: String?
+    var tone: Tone = .quiet
+
+    init(_ amount: Double?, unit: String? = nil, tone: Tone = .quiet) {
+        self.amount = amount
+        self.unit = unit
+        self.tone = tone
+    }
+
+    var body: some View {
+        HStack(spacing: 3) {
+            if let amount {
+                Text(AdsMacMoney.say(amount)).monospacedDigit()
+                if let unit { Text(unit).font(.caption).foregroundStyle(.secondary) }
+            }
+        }
+        .lineLimit(1)
+        .foregroundStyle(tone == .quiet ? Color.primary : tone.color)
+        .frame(maxWidth: .infinity, alignment: .trailing)
+    }
+
+    static func say(_ v: Double) -> String {
+        guard v.isFinite else { return "" }
+        if abs(v) >= 100 { return Money.grouped(v) }
+        if abs(v) < 0.005 { return "0" }
+        var s = String(format: "%.2f", v)
+        while s.contains(".") && s.hasSuffix("0") { s.removeLast() }
+        if s.hasSuffix(".") { s.removeLast() }
+        return s
+    }
+
+    /// "Spent", or "Spent (USD)" where the ad account is not in rupees.
+    static func header(_ title: String, _ currency: String) -> String {
+        let code = currency.uppercased()
+        return code.isEmpty || code == "PKR" ? title : "\(title) (\(code))"
+    }
+}
+
+/// A picked object's figures in an inspector: the label at the left, the value at the right and its change under it, one
+/// to a line (two to a line would not fit 260 points).
+struct AdsMacFigureRows: View {
+    let figures: [MacFigure]
+
+    var body: some View {
+        ForEach(figures) { (f: MacFigure) in
+            LabeledContent {
+                VStack(alignment: .trailing, spacing: 1) {
+                    Text(f.value).monospacedDigit().foregroundStyle(f.tone?.color ?? Color.primary)
+                    if let detail = f.detail, !detail.isEmpty {
+                        Text(detail).font(.caption).foregroundStyle(f.detailTone?.color ?? Color.secondary)
+                    }
+                }
+                .multilineTextAlignment(.trailing)
+            } label: {
+                Text(f.label)
+            }
+        }
+    }
+}
 #endif

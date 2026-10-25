@@ -537,6 +537,7 @@ struct AdsAdvancedSection: View {
                             Toggle(Self.dayNames[d], isOn: Binding(get: { advanced.days.contains(d) }, set: { (on: Bool) in
                                 if on { advanced.days.insert(d) } else { advanced.days.remove(d) }
                             }))
+                            .toggleStyle(.button)
                         }
                     }
                     .controlSize(.small)

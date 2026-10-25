@@ -29,6 +29,9 @@ struct WebsiteEditScreen: View {
     @State private var macSettled = Set<String>()
     @State private var macPending: Set<String>?
     @State private var macAsk = false
+    /// The table's rows and the two counts beside them, made again only when the pieces, the filters or the sort change.
+    @State private var macMade = Memo<[MacWebsitePieceRow]>()
+    @State private var macTally = Memo<[Int]>()
     #endif
 
     private static let pageSize = 60
@@ -296,11 +299,11 @@ extension WebsiteEditScreen {
                 case .idle, .loading:
                     SkeletonLoading("Reading \(store.siteName)…").frame(maxWidth: .infinity, maxHeight: .infinity)
                 case .loaded:
-                    macPieces(filtered)
+                    macTable
                 }
             }
             .navigationTitle("Edit a piece")
-            .navigationSubtitle(store.phase == .loaded ? "\(filtered.count) of \(store.pieces.count) pieces" : "")
+            .navigationSubtitle(store.phase == .loaded ? "\(macRows.count) of \(store.pieces.count) pieces" : "")
             .toolbar { macToolbar }
             .macRecordMenu(macMenu)
             .macRefresh { Task { await store.load(fresh: true) } }
@@ -352,23 +355,11 @@ extension WebsiteEditScreen {
         return MacRecordMenu(title: "Piece", groups: [[macSave], [macOpenWindowAction(p), macOpenSiteAction(p), macCopyNameAction(p)]])
     }
 
+    // The filter and the recent changes; saving is the inspector's foot, ⌘S and the Piece menu (not the toolbar's).
     @ToolbarContentBuilder
     private var macToolbar: some ToolbarContent {
         ToolbarItemGroup(placement: .primaryAction) {
-            Picker("Show", selection: $filter) {
-                Text("Everything").tag(Filter.all)
-                Text("Changed Here (\(store.pieces.filter { (p: WebsiteEditPiece) in p.changed }.count))").tag(Filter.changed)
-                Text("Hidden (\(store.pieces.filter { (p: WebsiteEditPiece) in p.hidden }.count))").tag(Filter.hidden)
-            }
-            .pickerStyle(.menu)
-            .help("Everything, what was changed here, or what is hidden")
-            Picker("Collection", selection: $collection) {
-                Text("Every Collection").tag("")
-                Divider()
-                ForEach(collections, id: \.self) { (c: String) in Text(c).tag(c) }
-            }
-            .pickerStyle(.menu)
-            .help("Show one collection")
+            macFilterMenu
             if !store.recent.isEmpty {
                 Menu {
                     ForEach(store.recent.prefix(15)) { (r: WebsiteEditRecent) in
@@ -377,26 +368,67 @@ extension WebsiteEditScreen {
                 } label: { Label("Recent Changes", systemImage: "clock.arrow.circlepath") }
                 .help("What was changed lately, and by whom")
             }
-            MacToolbarAction(action: macSave)
         }
+    }
+
+    private var macFilterMenu: some View {
+        let tally = macCounts
+        return Menu {
+            Section("Show") {
+                Picker("Show", selection: $filter) {
+                    Text("Everything").tag(Filter.all)
+                    Text("Changed Here (\(tally.changed))").tag(Filter.changed)
+                    Text("Hidden (\(tally.hidden))").tag(Filter.hidden)
+                }
+                .pickerStyle(.inline)
+            }
+            Section("Collection") {
+                Picker("Collection", selection: $collection) {
+                    Text("Every Collection").tag("")
+                    ForEach(collections, id: \.self) { (c: String) in Text(c).tag(c) }
+                }
+                .pickerStyle(.inline)
+            }
+        } label: {
+            Label("Filter", systemImage: filter == .all && collection.isEmpty ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
+        }
+        .help("Everything, what was changed here or what is hidden; one collection")
     }
 
     // MARK: The table
 
-    func macPieces(_ items: [WebsiteEditPiece]) -> some View {
-        let rows = items.map { (p: WebsiteEditPiece) in MacWebsitePieceRow(piece: p) }.sorted(using: macSort)
-        let changed = store.pieces.filter { (p: WebsiteEditPiece) in p.changed }.count
-        let hidden = store.pieces.filter { (p: WebsiteEditPiece) in p.hidden }.count
+    /// The rows in the table's order.
+    private var macRows: [MacWebsitePieceRow] {
+        macMade([MacWebsiteKey.pieces(store.pieces), search.hashValue, filter.hashValue, collection.hashValue, macSort.hashValue]) {
+            filtered.map { (p: WebsiteEditPiece) in MacWebsitePieceRow(piece: p) }.sorted(using: macSort)
+        }
+    }
+
+    /// How many pieces were changed here and how many are hidden.
+    private var macCounts: (changed: Int, hidden: Int) {
+        let both = macTally([MacWebsiteKey.pieces(store.pieces)]) {
+            [store.pieces.filter { (p: WebsiteEditPiece) in p.changed }.count, store.pieces.filter { (p: WebsiteEditPiece) in p.hidden }.count]
+        }
+        return (changed: both[0], hidden: both[1])
+    }
+
+    /// Kept for the grid's shared call; the table is made from the memoized rows.
+    func macPieces(_ items: [WebsiteEditPiece]) -> some View { macTable }
+
+    private var macTable: some View {
+        let rows = macRows
+        let tally = macCounts
         return Table(rows, selection: $macSelection, sortOrder: $macSort) {
             TableColumn("Name", value: \.name) { (r: MacWebsitePieceRow) in macName(r) }
+                .width(min: 120, ideal: 240)
             TableColumn("Collection", value: \.collection) { (r: MacWebsitePieceRow) in Text(r.collection).foregroundStyle(.secondary).lineLimit(1) }
                 .width(min: 90, ideal: 140)
-            TableColumn("Weight", value: \.weight) { (r: MacWebsitePieceRow) in Text(r.weightText).monospacedDigit() }
+            TableColumn("Weight", value: \.weight) { (r: MacWebsitePieceRow) in Text(r.weightText).monospacedDigit().lineLimit(1) }
                 .width(min: 70, ideal: 90)
             TableColumn("Status", value: \.rank) { (r: MacWebsitePieceRow) in
                 if !r.status.isEmpty { MacStatus(r.status, tone: r.tone) }
             }
-            .width(min: 120, ideal: 170)
+            .width(min: 110, ideal: 170)
         }
         .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
             let p = ids.count == 1 ? ids.first.flatMap { id in store.piece(id) } : nil
@@ -410,7 +442,7 @@ extension WebsiteEditScreen {
             }
         }
         .macSearchable(text: $search, prompt: "Name, collection, ruby, Ring 12…")
-        .macSummaryBar(["\(items.count) of \(store.pieces.count) pieces", "\(changed) changed here", "\(hidden) hidden",
+        .macSummaryBar(["\(rows.count) of \(store.pieces.count) pieces", "\(tally.changed) changed here", "\(tally.hidden) hidden",
                         "It shows on \(store.siteName) within a minute; the original photo is kept to put back"])
         .macInspector { macInspectorBody }
         .onChange(of: macSelection) { _, new in macSelectionChanged(new) }

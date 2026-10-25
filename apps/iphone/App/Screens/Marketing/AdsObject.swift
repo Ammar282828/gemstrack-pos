@@ -266,8 +266,6 @@ extension AdsObjectScreen {
                 } label: { Label("More", systemImage: "ellipsis.circle") }
                 .disabled(busy)
                 .help("Archive or delete")
-                Button { Task { await load() } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
-                    .help("Ask Meta again (⌘R)")
             }
         }
     }

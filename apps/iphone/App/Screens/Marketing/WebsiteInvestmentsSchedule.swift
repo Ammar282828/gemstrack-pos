@@ -166,7 +166,7 @@ struct WebsiteGoldScheduleSheet: View {
             }
         }
         #if os(macOS)
-        .frame(minWidth: 560, minHeight: 560)
+        .frame(minWidth: 520, minHeight: 520)
         #endif
         // Changed choices aren't lost to a swipe; Cancel still closes it.
         .interactiveDismissDisabled(busy != nil || !(draft.map { (x: WebsiteGoldSchedule) in gold.schedule.map { (y: WebsiteGoldSchedule) in x.sameChoices(y) } ?? true } ?? true))
@@ -430,7 +430,7 @@ struct WebsiteGoldAddSheet: View {
             }
         }
         #if os(macOS)
-        .frame(minWidth: 600, minHeight: 600)
+        .frame(minWidth: 560, minHeight: 520)
         #endif
         .interactiveDismissDisabled(busy != nil || !post.isEmpty || square != nil || story != nil)
         .websiteBusy(busy)

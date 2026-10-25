@@ -31,6 +31,8 @@ struct AdsAudiencesScreen: View {
     #if os(macOS)
     @State private var macPicked = Set<String>()
     @State private var macOrder = [KeyPathComparator(\AdsAudienceRow.name)]
+    /// The rows in the table's order, made again only when the audiences or the sort change.
+    @State private var macMade = Memo<[AdsAudienceRow]>()
     @State private var macMaking = false
     /// Which kind the New Audience sheet makes: customers, engagers, website, lookalike.
     @State private var macKind = "customers"
@@ -352,7 +354,10 @@ struct AdsAudiencesScreen: View {
 // so nothing asks a second time).
 
 extension AdsAudiencesScreen {
-    private var macRows: [AdsAudienceRow] { (data?.audiences ?? []).sorted(using: macOrder) }
+    private var macRows: [AdsAudienceRow] {
+        let all = data?.audiences ?? []
+        return macMade([all.hashValue, macOrder.hashValue]) { all.sorted(using: macOrder) }
+    }
     private var macPickedRows: [AdsAudienceRow] { macRows.filter { (a: AdsAudienceRow) in macPicked.contains(a.id) } }
 
     private var macNewAudience: MacAction {
@@ -398,8 +403,6 @@ extension AdsAudiencesScreen {
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 MacToolbarAction(action: macNewAudience)
-                Button { Task { await loadAudiences() } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
-                    .help("Read the audiences again (⌘R)")
             }
         }
         .disabled(busy != nil)
@@ -430,7 +433,7 @@ extension AdsAudiencesScreen {
         }
         .overlay {
             if let data, data.audiences.isEmpty {
-                ContentUnavailableView("No Audiences Yet", systemImage: "person.2", description: Text("New Audience… makes one."))
+                ContentUnavailableView("No Audiences Yet", systemImage: "person.2", description: Text("New Audience (\u{2303}\u{2318}N) makes one."))
             } else if data == nil && loadProblem == nil {
                 MarketingReading(text: "Reading the audiences…")
             }

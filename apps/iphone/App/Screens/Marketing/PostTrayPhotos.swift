@@ -294,7 +294,7 @@ struct PostAlbumSitePicker: View {
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
         }
         #if os(macOS)
-        .frame(minWidth: 560, minHeight: 560)
+        .frame(minWidth: 560, minHeight: 520)
         #endif
     }
 

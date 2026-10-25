@@ -497,19 +497,7 @@ extension DesignWorkspaceView {
             Button(action: onClose) { Label("Designs", systemImage: "chevron.left") }
                 .help("Back to all designs")
         }
-        ToolbarItemGroup(placement: .primaryAction) {
-            Menu {
-                let layouts = model.templates
-                ForEach(layouts) { t in Button(t.label) { Task { await model.applyTemplate(t.id) } } }
-                if layouts.isEmpty { Text("Layouts are loading") }
-            } label: { Label("Layout", systemImage: "rectangle.3.group") }
-                .help("Lay this page out again")
-            MacToolbarAction(action: macSizesAction)
-            if zone.top > 0 {
-                Toggle(isOn: $safe) { Label("Safe Zones", systemImage: "rectangle.split.1x2") }
-                    .help("Show the bands Instagram covers")
-            }
-        }
+        // Add, Undo, Redo and More (Layout, Sizes…, Safe Zones, Share) are the layer editor's group, beside this Publish.
         ToolbarItem(placement: .confirmationAction) {
             Button { DesignHooks.shared.publish(model) } label: { Text("Publish…") }
                 .buttonStyle(.borderedProminent)

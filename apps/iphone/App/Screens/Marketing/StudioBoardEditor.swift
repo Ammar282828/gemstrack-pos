@@ -172,7 +172,7 @@ struct StudioBoardEditor: View {
         }
         .presentationSizing(.page)
         #if os(macOS)
-        .frame(minWidth: 1040, idealWidth: 1280, minHeight: 720, idealHeight: 860)
+        .frame(minWidth: 560, idealWidth: 1280, minHeight: 520, idealHeight: 860)
         #endif
         .failureAlert(Binding(get: { panelShown && !regular ? nil : problem }, set: { problem = $0 }), title: "Could not finish")
         .interactiveDismissDisabled(dirty || saving || busy != nil)
@@ -197,7 +197,11 @@ struct StudioBoardEditor: View {
                 HStack(spacing: 0) {
                     canvasArea
                     Divider()
+                    #if os(macOS)
+                    panel.frame(minWidth: 280, idealWidth: 340, maxWidth: 390)
+                    #else
                     panel.frame(width: 390)
+                    #endif
                 }
             } else {
                 // With the tools up, the design shrinks into the room above them so the chosen layer stays in sight.
@@ -715,7 +719,7 @@ struct StudioBoardEditor: View {
         }
         .presentationSizing(.page)
         #if os(macOS)
-        .frame(minWidth: 760, minHeight: 560)
+        .frame(minWidth: 560, idealWidth: 760, minHeight: 520, idealHeight: 560)
         #endif
     }
 
@@ -1454,7 +1458,7 @@ struct StudioBoardPhotoPicker: View {
         }
         .presentationSizing(.page)
         #if os(macOS)
-        .frame(minWidth: 720, minHeight: 560)
+        .frame(minWidth: 560, idealWidth: 720, minHeight: 520, idealHeight: 560)
         #endif
         .task(id: q) {
             if House.isDemo { items = []; problem = "The demo has no photo library."; return }

@@ -80,7 +80,11 @@ struct StudioBoards: View {
         }
         .inspector(isPresented: $inspectorShown) {
             presentations(inspector, active: inspectorIsSheet)
+                #if os(macOS)
+                .inspectorColumnWidth(min: 260, ideal: 300, max: 420)
+                #else
                 .inspectorColumnWidth(min: 300, ideal: 340, max: 420)
+                #endif
                 .presentationDetents([.height(340), .large])
                 .presentationBackgroundInteraction(.enabled(upThrough: .height(340)))
         }
@@ -600,33 +604,20 @@ struct BoardRemoval: Equatable {
 }
 
 extension StudioBoards {
-    /// The board's tools in the window's toolbar: which board, what to add, the zoom, the rest in a menu.
+    /// The board's tools in the window's toolbar: what to add, the zoom, the board (which one, and the rest of what can be done
+    /// to it) in one menu, and the details. Four capsules; the board's name is the window's subtitle.
     @ToolbarContentBuilder
     var macToolbar: some ToolbarContent {
-        ToolbarItem(placement: .navigation) {
-            Menu {
-                ForEach(board.boards.map { $0.s("id") }, id: \.self) { id in
-                    Button { Task { await board.choose(id) } } label: {
-                        let b = board.boards.first { $0.s("id") == id } ?? .null
-                        if id == board.current { Label(b.s("name"), systemImage: "checkmark") } else { Text(b.s("name")) }
-                    }
-                }
-                Divider()
-                Button("New board…", systemImage: "plus") { nameText = "New board"; asking = .create }
-            } label: {
-                Label(board.value.s("name", board.current.isEmpty ? "Choose a board" : "Board"), systemImage: "rectangle.3.group")
-            }
-            .help("Which board")
-        }
         ToolbarItemGroup(placement: .primaryAction) {
-            Button { sheet = .picker } label: { Label("Add a photo", systemImage: "photo.badge.plus") }
-                .keyboardShortcut("a", modifiers: [.command, .shift])
-                .disabled(board.current.isEmpty)
-                .help("Add a photo as a new design")
-            Button { Task { if let id = await board.addNote() { selected = id } } } label: { Label("Add a note", systemImage: "note.text.badge.plus") }
-                .keyboardShortcut("n", modifiers: [.control, .command])
-                .disabled(board.current.isEmpty)
-                .help("Add a sticky note (⌃⌘N)")
+            Menu {
+                Button("Photo…", systemImage: "photo.badge.plus") { sheet = .picker }
+                    .keyboardShortcut("a", modifiers: [.command, .shift])
+                    .disabled(board.current.isEmpty)
+                Button("Note", systemImage: "note.text.badge.plus") { Task { if let id = await board.addNote() { selected = id } } }
+                    .keyboardShortcut("n", modifiers: [.control, .command])
+                    .disabled(board.current.isEmpty)
+            } label: { Label("Add", systemImage: "plus") }
+            .help("Add a photo as a new design (⇧⌘A), or a sticky note (⌃⌘N)")
             ControlGroup {
                 Button { zoom = max(0.08, zoom / 1.25) } label: { Label("Zoom out", systemImage: "minus.magnifyingglass") }
                     .keyboardShortcut("-", modifiers: .command)
@@ -640,15 +631,24 @@ extension StudioBoards {
                     .help("Fit the whole board in the window")
             }
             Menu {
+                Section("Boards") {
+                    ForEach(board.boards.map { $0.s("id") }, id: \.self) { id in
+                        Button { Task { await board.choose(id) } } label: {
+                            let b = board.boards.first { $0.s("id") == id } ?? .null
+                            if id == board.current { Label(b.s("name"), systemImage: "checkmark") } else { Text(b.s("name")) }
+                        }
+                    }
+                    Button("New board…", systemImage: "plus") { nameText = "New board"; asking = .create }
+                }
+                Divider()
                 Button("This week’s board", systemImage: "calendar") { asking = .weekly }
                 Button("Connect an agent", systemImage: "key") { sheet = .agents }
                 Button("Tidy up", systemImage: "square.grid.2x2") { Task { await board.tidy() } }.disabled(board.frames.count < 2)
                 Button("Rename board", systemImage: "pencil") { nameText = board.value.s("name"); asking = .rename }.disabled(board.current.isEmpty)
-                Button("Refresh", systemImage: "arrow.clockwise") { Task { await board.refresh(force: true) } }
                 Divider()
                 Button("Delete board…", systemImage: "trash", role: .destructive) { asking = .delete }.disabled(board.current.isEmpty)
-            } label: { Label("Board tools", systemImage: "ellipsis.circle") }
-            .help("Tidy up, rename, refresh or delete the board")
+            } label: { Label("Board", systemImage: "rectangle.3.group") }
+            .help("Which board, and tidy up, rename or delete it")
             Button { inspectorShown.toggle() } label: { Label("Details", systemImage: "sidebar.trailing") }
                 .help("Show or hide the chosen design's details (⌥⌘I)")
         }

@@ -164,6 +164,7 @@ struct WebsiteInterestScreen: View {
         #if os(macOS)
         .navigationSubtitle(report.map { (r: SiteReport) in spanLine(r) } ?? "")
         .toolbar { macToolbar }
+        .macRefresh { Task { await load() } }
         #endif
         .refreshable { await load() }
         .task(id: query) { await load() }
@@ -578,25 +579,23 @@ struct WebsiteInterestScreen: View {
 
 #if os(macOS)
 extension WebsiteInterestScreen {
-    /// The period as a segmented control in the toolbar, Custom beside it, and Live as a button with the count.
+    /// Live (with the count on the site now) and the period as one menu; View › Refresh (⌘R) reads the report again.
     @ToolbarContentBuilder
     var macToolbar: some ToolbarContent {
-        ToolbarItem(placement: .principal) {
-            Picker("Period", selection: Binding<String>(get: { custom ? "custom" : periodKey },
-                                                         set: { (k: String) in if k == "custom" { picking = true } else { choose(k) } })) {
-                ForEach(periods, id: \.key) { (p: (key: String, label: String)) in Text(p.label).tag(p.key) }
-                Text("Custom").tag("custom")
-            }
-            .pickerStyle(.segmented)
-            .frame(minWidth: 480)
-            .help("The days the report covers")
-        }
         ToolbarItemGroup(placement: .primaryAction) {
             NavigationLink(value: Route(path: "/website/interest/live")) { liveLabel }
                 .help("Who is on the website right now")
-            Button { Task { await load() } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
-                .keyboardShortcut("r", modifiers: .command)
-                .help("Read the report again")
+            Menu {
+                Picker("Days", selection: Binding<String>(get: { custom ? "custom" : periodKey },
+                                                          set: { (k: String) in if k == "custom" { picking = true } else { choose(k) } })) {
+                    ForEach(periods, id: \.key) { (p: (key: String, label: String)) in Text(p.label).tag(p.key) }
+                    Text("Custom…").tag("custom")
+                }
+                .pickerStyle(.inline)
+            } label: {
+                Label("Days", systemImage: "calendar")
+            }
+            .help("The days the report covers")
         }
     }
 }

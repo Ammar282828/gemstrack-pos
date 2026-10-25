@@ -81,6 +81,8 @@ struct DesignSavedView: View {
     @State private var picked: String?
     @State private var pickedDraft: String?
     @FocusState private var macGalleryFocus: Bool
+    /// The designs the gallery shows, made again only when the shelf, the folder or the search change.
+    @State private var macMade = Memo<[DesignRecord]>()
     #endif
 
     private var counts: [String: Int] {
@@ -350,6 +352,7 @@ extension DesignSavedView {
         content
             .sheet(item: $detail) { r in
                 DesignDetailSheet(record: r, shelf: shelf, onOpen: { rec in detail = nil; onOpen(rec) }, onChanged: { Task { await shelf.load() } })
+                    .frame(minWidth: 460, minHeight: 520)
             }
             .alert(renaming == nil ? "New folder" : "Rename folder", isPresented: $asking) {
                 TextField("Name", text: $folderText)
@@ -367,7 +370,22 @@ extension DesignSavedView {
             .failureAlert($problem, title: "Could not finish")
     }
 
-    private var pickedRecord: DesignRecord? { picked.flatMap { id in shown.first { $0.id == id } } }
+    /// What the gallery shows. `shown` walks and lowercases every design; the Mac keeps its answer until the shelf, the folder
+    /// or the search change.
+    private var macShown: [DesignRecord] {
+        var h = Hasher()
+        for i in shelf.items {
+            h.combine(i.id)
+            h.combine(i.name)
+            h.combine(i.folder)
+            h.combine(i.kind)
+            h.combine(i.updated)
+            h.combine(i.fields["headline"])
+        }
+        return macMade([h.finalize(), q.hashValue, view.hashValue]) { shown }
+    }
+
+    private var pickedRecord: DesignRecord? { picked.flatMap { id in macShown.first { $0.id == id } } }
     private var pickedDraftRow: DesignDraftRow? { pickedDraft.flatMap { id in shelf.draftRows.first { $0.id == id } } }
 
     private var macViewTitle: String {
@@ -381,7 +399,7 @@ extension DesignSavedView {
     private var macSummary: [String] {
         if view == Self.device { return ["\(shelf.draftRows.count) draft\(shelf.draftRows.count == 1 ? "" : "s") on this Mac"] }
         if view == Self.account { return [] }
-        let n = shown.count
+        let n = macShown.count
         return ["\(n) design\(n == 1 ? "" : "s")", folder.map { $0.name } ?? ""]
     }
 
@@ -438,34 +456,38 @@ extension DesignSavedView {
                                                         [macDeleteAction(r)]])
     }
 
+    // Open (the picked design or draft) and the one menu: which folder to show, and making, renaming or deleting a folder.
+    // Delete is the Design menu's and the right-click menu's, not the toolbar's.
     @ToolbarContentBuilder
     private var macToolbar: some ToolbarContent {
         ToolbarItemGroup(placement: .primaryAction) {
+            if view == Self.device {
+                MacToolbarAction(action: macOpenDraftAction(pickedDraftRow))
+            } else {
+                MacToolbarAction(action: macOpenAction(pickedRecord))
+            }
+            macFilterMenu
+        }
+    }
+
+    private var macFilterMenu: some View {
+        Menu {
             Picker("Show", selection: Binding<String>(get: { view }, set: { (v: String) in view = v; picked = nil; pickedDraft = nil })) {
                 Text("All Designs").tag(Self.all)
                 if (counts[""] ?? 0) > 0 { Text("Unfiled").tag(Self.unfiled) }
-                if !shelf.folders.isEmpty { Divider() }
                 ForEach(shelf.folders) { (f: DesignFolder) in Text(f.name).tag(f.id) }
-                Divider()
                 Text("On This Mac").tag(Self.device)
                 if adsOk { Text("In the Ad Account").tag(Self.account) }
             }
-            .pickerStyle(.menu)
-            .help("Show a folder, the drafts on this Mac, or the ads in the ad account")
-            Menu {
-                ForEach([macNewFolderAction, macRenameFolderAction, macDeleteFolderAction]) { (a: MacAction) in
-                    Button(a.title, role: a.role) { a.perform() }.disabled(!a.enabled)
-                }
-            } label: { Label("Folder", systemImage: "folder.badge.gearshape") }
-                .help("Make, rename or delete a folder")
-            if view == Self.device {
-                MacToolbarAction(action: macOpenDraftAction(pickedDraftRow))
-                MacToolbarAction(action: macDeleteDraftAction(pickedDraftRow))
-            } else {
-                MacToolbarAction(action: macOpenAction(pickedRecord))
-                MacToolbarAction(action: macDeleteAction(pickedRecord))
+            .pickerStyle(.inline)
+            Divider()
+            ForEach([macNewFolderAction, macRenameFolderAction, macDeleteFolderAction]) { (a: MacAction) in
+                Button(a.title, role: a.role) { a.perform() }.disabled(!a.enabled)
             }
+        } label: {
+            Label("Filter", systemImage: view == Self.all ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
         }
+        .help("Show a folder, the drafts on this Mac or the ads in the ad account; make, rename or delete a folder")
     }
 
     // MARK: The content
@@ -481,7 +503,7 @@ extension DesignSavedView {
             ErrorState(error) { Task { await shelf.load() } }
         } else if !shelf.loaded {
             SkeletonLoading("Opening the shelf").frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if shown.isEmpty {
+        } else if macShown.isEmpty {
             ContentUnavailableView(shelf.items.isEmpty ? "Nothing saved yet" : "Nothing here", systemImage: "folder",
                                    description: Text(shelf.items.isEmpty ? "Save a design from the workspace and it waits here, in any folder you make." : "No design in this folder matches."))
         } else {
@@ -501,6 +523,7 @@ extension DesignSavedView {
                     Text(d.title).lineLimit(1)
                 }
             }
+            .width(min: 140, ideal: 260)
             TableColumn("Kept") { (d: DesignDraftRow) in Text(ShopDate.stamp(d.updated, withTime: true)) }
                 .width(min: 110, ideal: 150)
             TableColumn("From") { (d: DesignDraftRow) in Text(d.old == nil ? "This Mac" : "Earlier Post a piece draft").foregroundStyle(.secondary) }
@@ -524,7 +547,7 @@ extension DesignSavedView {
     private var macGallery: some View {
         ScrollView {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 170, maximum: 240), spacing: 16, alignment: .top)], spacing: 16) {
-                ForEach(shown) { (r: DesignRecord) in macCell(r) }
+                ForEach(macShown) { (r: DesignRecord) in macCell(r) }
             }
             .padding(20)
         }
@@ -541,7 +564,7 @@ extension DesignSavedView {
     }
 
     private func macMove(_ by: Int) -> KeyPress.Result {
-        let all = shown
+        let all = macShown
         guard !all.isEmpty else { return .ignored }
         let at = all.firstIndex(where: { $0.id == picked }) ?? (by > 0 ? -1 : all.count)
         picked = all[min(all.count - 1, max(0, at + by))].id
@@ -556,8 +579,8 @@ extension DesignSavedView {
         let on = picked == r.id
         return VStack(alignment: .leading, spacing: 6) {
             Group {
-                if let image = r.thumbImage { Image(uiImage: image).resizable().scaledToFit() }
-                else { Image(systemName: "photo").font(.largeTitle).foregroundStyle(.secondary) }
+                if let image = MacDesignThumbs.image(r) { Image(uiImage: image).resizable().scaledToFit() }
+                else { Image(systemName: "photo").font(.title2).foregroundStyle(.secondary) }
             }
             .frame(maxWidth: .infinity).frame(height: 150)
             .background(Theme.card)
@@ -585,6 +608,20 @@ extension DesignSavedView {
         }
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(on ? .isSelected : [])
+    }
+}
+
+/// A saved design's picture, decoded once: the shelf keeps it as a data URL, and decoding it on every redraw of the gallery
+/// (a click on a design redraws all of them) is what made picking one slow.
+enum MacDesignThumbs {
+    private static let cache = NSCache<NSString, UIImage>()
+
+    static func image(_ r: DesignRecord) -> UIImage? {
+        let key = NSString(string: r.id + "|" + r.updated)
+        if let hit = cache.object(forKey: key) { return hit }
+        guard let made = r.thumbImage else { return nil }
+        cache.setObject(made, forKey: key)
+        return made
     }
 }
 #endif

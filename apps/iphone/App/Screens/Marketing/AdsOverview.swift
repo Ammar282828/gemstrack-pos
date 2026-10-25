@@ -545,16 +545,19 @@ extension AdsOverviewScreen {
         }
     }
 
+    /// New Ad and the days the numbers cover (View › Refresh, ⌘R, asks Meta again).
     @ViewBuilder
     var macToolbarItems: some View {
-        Picker("Range", selection: $rangeKey) {
-            ForEach(AdsRange.all) { (r: AdsRange.Option) in Text(r.label).tag(r.key) }
-        }
-        .pickerStyle(.menu)
-        .help("The days the numbers cover")
         MacToolbarAction(action: macNewAd)
-        Button { Task { await load(fresh: true) } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
-            .help("Ask Meta again (⌘R)")
+        Menu {
+            Picker("Range", selection: $rangeKey) {
+                ForEach(AdsRange.all) { (r: AdsRange.Option) in Text(r.label).tag(r.key) }
+            }
+            .pickerStyle(.inline)
+        } label: {
+            Label("Range", systemImage: "calendar")
+        }
+        .help("The days the numbers cover")
     }
 
     // MARK: The report

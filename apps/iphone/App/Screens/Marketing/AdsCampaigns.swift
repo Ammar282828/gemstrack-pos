@@ -615,44 +615,40 @@ extension AdsCampaignsScreen {
 
     // MARK: The toolbar
 
-    private var macToolActions: AdsMacActions? { data.map { (d: AdCampaigns) in macActions(macPicked, d) } }
-
-    @ViewBuilder
-    private var macToolButtons: some View {
-        if let a = macToolActions {
-            MacToolbarAction(action: a.pause)
-            MacToolbarAction(action: a.run)
-        }
-        MacToolbarAction(action: macNewAd)
-    }
-
+    // New Ad and the one filter menu; Pause, Run and the rest of what a picked object can do are the inspector's, the Ad
+    // menu's and the right-click menu's (a toolbar of seven capsules overflowed a 13-inch screen), and Refresh is ⌘R.
     @ToolbarContentBuilder
     var macToolbar: some ToolbarContent {
         if mayRead {
             ToolbarItemGroup(placement: .primaryAction) {
-                Picker("Range", selection: $rangeKey) {
-                    ForEach(AdsRange.all) { (r: AdsRange.Option) in Text(r.label).tag(r.key) }
-                }
-                .pickerStyle(.menu)
-                .help("The days the numbers cover")
+                MacToolbarAction(action: macNewAd)
+                macFilterMenu
+            }
+        }
+    }
+
+    private var macFilterMenu: some View {
+        Menu {
+            Section("Show") {
                 Picker("Show", selection: $filter) {
                     ForEach(Filter.allCases) { (f: Filter) in Text(f.rawValue).tag(f) }
                 }
-                .pickerStyle(.menu)
-                .help("Which campaigns to show")
-                macToolButtons
-                Button { Task { await load() } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
-                    .help("Ask Meta again (⌘R)")
-                Menu {
-                    Toggle("Show Archived", isOn: $archived)
-                    Button { Task { await exportCsv() } } label: { Label("Download CSV…", systemImage: "tablecells") }
-                        .disabled(exporting)
-                } label: {
-                    Label("More", systemImage: "ellipsis.circle")
-                }
-                .help("Show archived ads, or download the numbers as a CSV")
+                .pickerStyle(.inline)
             }
+            Section("Days") {
+                Picker("Range", selection: $rangeKey) {
+                    ForEach(AdsRange.all) { (r: AdsRange.Option) in Text(r.label).tag(r.key) }
+                }
+                .pickerStyle(.inline)
+            }
+            Divider()
+            Toggle("Show Archived", isOn: $archived)
+            Button { Task { await exportCsv() } } label: { Label("Download CSV…", systemImage: "tablecells") }
+                .disabled(exporting)
+        } label: {
+            Label("Filter", systemImage: filter == .all && !archived ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
         }
+        .help("Which campaigns, the days the numbers cover, archived ads, and the numbers as a CSV")
     }
 
     // MARK: The page
@@ -678,11 +674,11 @@ extension AdsCampaignsScreen {
     private func macEmpty(_ d: AdCampaigns, _ rows: [AdsMacRow]) -> some View {
         if rows.isEmpty {
             if d.campaigns.isEmpty {
-                EmptyState("No campaigns yet", symbol: "megaphone", message: "Make the first ad with New Ad.")
+                ContentUnavailableView("No Campaigns Yet", systemImage: "megaphone", description: Text("Make the first ad with New Ad (\u{2303}\u{2318}N)."))
             } else if !search.isEmpty {
                 ContentUnavailableView.search(text: search)
             } else {
-                EmptyState("Nothing matches", symbol: "megaphone", message: "Try another filter.")
+                ContentUnavailableView("Nothing Matches", systemImage: "megaphone", description: Text("Try another filter in the toolbar."))
             }
         }
     }
@@ -724,6 +720,7 @@ extension AdsCampaignsScreen {
 
     // MARK: The outline
 
+    // Seven columns, minimums under 620: ROAS, reach and the rest are in the inspector.
     private func macTable(_ rows: [AdsMacRow], _ d: AdCampaigns) -> some View {
         let cur = d.account.currency
         return Table(rows, children: \.children, selection: $macSelection, sortOrder: $macOrder) {
@@ -737,13 +734,13 @@ extension AdsCampaignsScreen {
                     Text(r.name).lineLimit(1)
                 }
             }
-            .width(min: 140, ideal: 240)
+            .width(min: 120, ideal: 220)
             TableColumn("Running") { (r: AdsMacRow) in
                 runSwitch(macTarget(r), status: r.status)
                     .toggleStyle(.switch)
                     .controlSize(.small)
             }
-            .width(min: 50, ideal: 56)
+            .width(min: 56, ideal: 64)
             TableColumn("Status", sortUsing: AdsMacRowOrder(field: .status)) { (r: AdsMacRow) in
                 let words = AdsStatusWords.of(shownStatus[r.id] ?? r.effectiveStatus)
                 HStack(spacing: 6) {
@@ -754,36 +751,27 @@ extension AdsCampaignsScreen {
                     }
                 }
             }
-            .width(min: 80, ideal: 110)
-            TableColumn("Budget", sortUsing: AdsMacRowOrder(field: .budget)) { (r: AdsMacRow) in
-                Text(AdsMacFormat.budget(r, cur)).monospacedDigit().lineLimit(1)
+            .width(min: 90, ideal: 120)
+            TableColumn(AdsMacMoney.header("Budget", cur), sortUsing: AdsMacRowOrder(field: .budget)) { (r: AdsMacRow) in
+                if let perDay = r.daily, perDay > 0 {
+                    AdsMacMoney(perDay, unit: "a day")
+                } else if let total = r.lifetime, total > 0 {
+                    AdsMacMoney(total, unit: "total")
+                }
             }
-            .width(min: 74, ideal: 120)
-            TableColumn("Spent", sortUsing: AdsMacRowOrder(field: .spend)) { (r: AdsMacRow) in
-                Text(AdsFormat.money(r.metrics.spend, cur)).monospacedDigit().lineLimit(1)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+            .width(min: 86, ideal: 110)
+            TableColumn(AdsMacMoney.header("Spent", cur), sortUsing: AdsMacRowOrder(field: .spend)) { (r: AdsMacRow) in
+                AdsMacMoney(r.metrics.spend)
             }
-            .width(min: 66, ideal: 96)
+            .width(min: 70, ideal: 90)
             TableColumn("Results", sortUsing: AdsMacRowOrder(field: .results)) { (r: AdsMacRow) in
                 Text(AdsMacFormat.result(r)).monospacedDigit().lineLimit(1)
             }
-            .width(min: 70, ideal: 130)
-            TableColumn("Each", sortUsing: AdsMacRowOrder(field: .cost)) { (r: AdsMacRow) in
-                Text(r.resultValue > 0 ? AdsFormat.money(r.costEach, cur) : "").monospacedDigit().lineLimit(1)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+            .width(min: 90, ideal: 140)
+            TableColumn(AdsMacMoney.header("Each", cur), sortUsing: AdsMacRowOrder(field: .cost)) { (r: AdsMacRow) in
+                AdsMacMoney(r.resultValue > 0 ? r.costEach : nil)
             }
-            .width(min: 58, ideal: 80)
-            TableColumn("ROAS", sortUsing: AdsMacRowOrder(field: .roas)) { (r: AdsMacRow) in
-                let s = AdsResults.sales(r.metrics)
-                Text(s.value > 0 ? AdsResults.roasText(s.roas) : "").monospacedDigit().lineLimit(1)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-            }
-            .width(min: 44, ideal: 56)
-            TableColumn("Reach", sortUsing: AdsMacRowOrder(field: .reach)) { (r: AdsMacRow) in
-                Text(AdsFormat.compact(r.metrics.reach)).monospacedDigit().lineLimit(1)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-            }
-            .width(min: 48, ideal: 64)
+            .width(min: 70, ideal: 80)
         }
         .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
             macMenu(ids, d)

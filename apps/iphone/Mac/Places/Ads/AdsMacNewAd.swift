@@ -37,7 +37,6 @@ struct AdsMacFooter: View {
                 }
                 .pickerStyle(.menu)
                 .labelsHidden()
-                .fixedSize()
                 .help("Paused: nothing is spent until you switch it on in Campaigns. Live: it starts once Meta approves it.")
                 Button(busy ? "Checking…" : title, action: create)
                     .keyboardShortcut(.defaultAction)
@@ -99,7 +98,7 @@ struct AdsMacAdSketch: View {
         } else {
             RoundedRectangle(cornerRadius: 6, style: .continuous).fill(.quaternary)
                 .aspectRatio(1, contentMode: .fit)
-                .overlay { Image(systemName: "photo").font(.largeTitle).foregroundStyle(.secondary) }
+                .overlay { Image(systemName: "photo").font(.title2).foregroundStyle(.secondary) }
         }
     }
 }

@@ -171,17 +171,17 @@ struct AdsMacTopAdsTable: View {
                     }
                 }
             }
-            .width(min: 180, ideal: 300)
-            TableColumn("Spent", value: \.spend) { (r: AdsMacTopRow) in
-                Text(AdsFormat.money(r.spend, currency)).monospacedDigit().frame(maxWidth: .infinity, alignment: .trailing)
+            .width(min: 120, ideal: 240)
+            TableColumn(AdsMacMoney.header("Spent", currency), value: \.spend) { (r: AdsMacTopRow) in
+                AdsMacMoney(r.spend)
             }
-            .width(min: 80, ideal: 100)
+            .width(min: 70, ideal: 90)
             TableColumn("Results", value: \.results) { (r: AdsMacTopRow) in
                 Text(r.results > 0 ? "\(AdsFormat.count(r.results)) \(r.resultLabel.lowercased())" : "").monospacedDigit().lineLimit(1)
             }
-            .width(min: 90, ideal: 150)
-            TableColumn("Each", value: \.each) { (r: AdsMacTopRow) in
-                Text(r.each > 0 ? AdsFormat.money(r.each, currency) : "").monospacedDigit().frame(maxWidth: .infinity, alignment: .trailing)
+            .width(min: 80, ideal: 130)
+            TableColumn(AdsMacMoney.header("Each", currency), value: \.each) { (r: AdsMacTopRow) in
+                AdsMacMoney(r.each > 0 ? r.each : nil)
             }
             .width(min: 70, ideal: 90)
             TableColumn("ROAS", value: \.roas) { (r: AdsMacTopRow) in
@@ -237,11 +237,11 @@ struct AdsMacSplitTable: View {
         let list = made.sorted(using: sort)
         Table(list, sortOrder: $sort) {
             TableColumn(heading, value: \.label) { (r: AdsMacSplitRow) in Text(r.label).lineLimit(1) }
-                .width(min: 120, ideal: 220)
-            TableColumn("Spent", value: \.spend) { (r: AdsMacSplitRow) in
-                Text(AdsFormat.money(r.spend, currency)).monospacedDigit().frame(maxWidth: .infinity, alignment: .trailing)
+                .width(min: 120, ideal: 200)
+            TableColumn(AdsMacMoney.header("Spent", currency), value: \.spend) { (r: AdsMacSplitRow) in
+                AdsMacMoney(r.spend)
             }
-            .width(min: 80, ideal: 100)
+            .width(min: 70, ideal: 90)
             TableColumn("Share", value: \.share) { (r: AdsMacSplitRow) in
                 Text("\(Int((r.share * 100).rounded()))%").monospacedDigit().frame(maxWidth: .infinity, alignment: .trailing)
             }

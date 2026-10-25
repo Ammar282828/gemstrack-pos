@@ -71,11 +71,9 @@ struct AdsMacInspector: View {
     }
 
     private var resultsSection: some View {
-        let lines = AdsMacFormat.figures(row, currency)
+        let cells = AdsMacFormat.figures(row, currency).flatMap { (line: [MacFigure]) in line }
         return Section("Results") {
-            ForEach(Array(lines.enumerated()), id: \.offset) { _, cells in
-                MacFigures(cells)
-            }
+            AdsMacFigureRows(figures: cells)
         }
     }
 

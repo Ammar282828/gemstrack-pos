@@ -19,23 +19,27 @@ struct MacOpenInWindow: View {
     }
 }
 
-/// A fixed-width pane beside a flexible one, divided by a hairline: the Mac's form of a phone's two stacked sections.
+/// A pane of up to `sideWidth` beside a flexible one, divided by a hairline: the Mac's form of a phone's two stacked
+/// sections. The side gives way before the window grows past a 13-inch screen: it never asks for more than 280 points
+/// to fit and the other pane for more than 300, so a window of the two needs 600 at least.
 struct MacTwoPane<Side: View, Main: View>: View {
     var sideWidth: CGFloat = 380
     var sideOnRight = false
     @ViewBuilder let side: () -> Side
     @ViewBuilder let main: () -> Main
 
+    private var sideMin: CGFloat { min(sideWidth, 280) }
+
     var body: some View {
         HStack(spacing: 0) {
             if sideOnRight {
-                main().frame(maxWidth: .infinity, maxHeight: .infinity)
+                main().frame(minWidth: 300, maxWidth: .infinity, maxHeight: .infinity)
                 Divider()
-                side().frame(width: sideWidth).frame(maxHeight: .infinity)
+                side().frame(minWidth: sideMin, idealWidth: sideWidth, maxWidth: sideWidth).frame(maxHeight: .infinity)
             } else {
-                side().frame(width: sideWidth).frame(maxHeight: .infinity)
+                side().frame(minWidth: sideMin, idealWidth: sideWidth, maxWidth: sideWidth).frame(maxHeight: .infinity)
                 Divider()
-                main().frame(maxWidth: .infinity, maxHeight: .infinity)
+                main().frame(minWidth: 300, maxWidth: .infinity, maxHeight: .infinity)
             }
         }
     }

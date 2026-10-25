@@ -503,7 +503,7 @@ extension ArtworkEditor {
                                     message: "Undo (⌘Z) brings \(selected.count == 1 ? "it" : "them") back.", action: "Remove") { macRemoveSelected() }
         }
         .presentationSizing(.page)
-        .frame(minWidth: 1000, idealWidth: 1180, minHeight: 700, idealHeight: 820)
+        .frame(minWidth: 560, idealWidth: 1180, minHeight: 520, idealHeight: 820)
         .interactiveDismissDisabled(original != nil && original != doc)
     }
 
@@ -562,11 +562,9 @@ extension ArtworkEditor {
                 .disabled(redo.isEmpty)
                 .keyboardShortcut("z", modifiers: [.command, .shift])
                 .help("Redo (⇧⌘Z)")
-            if macEmbed != nil {
-                macShareMenu
-                Button { macInspectorShown.toggle() } label: { Label("Inspector", systemImage: "sidebar.trailing") }
-                    .help("Show or hide the inspector (⌥⌘I)")
-            }
+            // The design window: everything else its toolbar used to carry sits in one More menu (four items and More, and the
+            // inspector's own toggle is `.macInspector`'s).
+            if macEmbed != nil { macMoreMenu }
         }
     }
 
@@ -580,14 +578,28 @@ extension ArtworkEditor {
         }
     }
 
-    private var macShareMenu: some View {
+    /// The design window's Layout, Sizes…, Safe Zones and Share, in one menu.
+    private var macMoreMenu: some View {
         Menu {
+            if let e = macEmbed {
+                Menu("Layout") {
+                    ForEach(e.layouts) { (item: MacArtworkLayout) in Button(item.label) { e.applyLayout(item.id) } }
+                    if e.layouts.isEmpty { Text("Layouts are loading") }
+                }
+                ForEach(e.trailing.filter { (a: MacAction) in !e.shareExtras.contains { (x: MacAction) in x.id == a.id } }) { (a: MacAction) in
+                    Button(a.title) { a.perform() }.disabled(!a.enabled)
+                }
+                if e.safeTop > 0 {
+                    Toggle("Safe Zones", isOn: Binding(get: { e.showSafe }, set: { e.setSafe($0) }))
+                }
+                Divider()
+            }
             Button("Share This Page…") { Task { await export() } }.disabled(busy)
             ForEach(macEmbed?.shareExtras ?? []) { (a: MacAction) in
                 Button(a.title) { a.perform() }.disabled(!a.enabled)
             }
-        } label: { Label("Share", systemImage: "square.and.arrow.up") }
-            .help("Share this page, or export every size")
+        } label: { Label("More", systemImage: "ellipsis.circle") }
+            .help("Layout, sizes, safe zones, and sharing this page or every size")
     }
 
     // MARK: The menu bar
@@ -654,13 +666,18 @@ extension ArtworkEditor {
 
     // MARK: The page
 
+    /// The design window's inspector is the kit's (`.macInspector`: its toggle, its remembered state, its column width); a sheet
+    /// has no window of its own to hold one, so there the pane sits beside the page and gives way before the page does.
     @ViewBuilder
     private var macWorkbench: some View {
-        HStack(spacing: 0) {
+        if macEmbed != nil {
             macCanvasArea
-            if macEmbed == nil || macInspectorShown {
+                .macInspector { macInspectorPane }
+        } else {
+            HStack(spacing: 0) {
+                macCanvasArea
                 Divider()
-                macInspectorPane.frame(width: 320)
+                macInspectorPane.frame(minWidth: 260, idealWidth: 300, maxWidth: 360)
             }
         }
     }

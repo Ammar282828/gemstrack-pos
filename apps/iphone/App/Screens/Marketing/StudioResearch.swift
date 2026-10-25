@@ -131,7 +131,7 @@ extension StudioRivals {
             MacActionItems(groups: macActions(hit))
         }
         .overlay {
-            if rows.isEmpty { ContentUnavailableView("No Competitors Yet", systemImage: "binoculars", description: Text("Add an account, or find some.")) }
+            if rows.isEmpty { ContentUnavailableView("No Competitors Yet", systemImage: "binoculars", description: Text("Add Account (\u{2303}\u{2318}N) puts one here, or Find Competitors looks for some.")) }
         }
         .macInspector { macInspectorPanel(picked) }
         .macRefresh { Task { await load() } }
@@ -412,7 +412,7 @@ extension StudioSaved {
                     ForEach(data["folders"].array, id: \.text) { f in
                         Label(f.s("name"), systemImage: "folder").tag(f.s("id"))
                     }
-                } header: { LedgerHeading(title: "Folders") }
+                } header: { Text("Folders") }
                 Section {
                     TextField("New folder name", text: $folderName)
                     Button("Create folder") { mutate("/api/ads/studio/saved/folders", ["name": folderName]); folderName = "" }.disabled(folderName.isEmpty)
@@ -422,7 +422,7 @@ extension StudioSaved {
                         Button("Delete folder…", role: .destructive) { deleting = MarketingValue(["deleteKind": "folder", "folder": folder.s("id"), "name": folder.s("name")]) }
                         Text("Designs inside a deleted folder stay unfiled.").font(.footnote).foregroundStyle(.secondary)
                     }
-                } header: { LedgerHeading(title: "Manage") }
+                } header: { Text("Manage") }
             }
             .listStyle(.sidebar)
         } main: {
@@ -443,7 +443,8 @@ extension StudioSaved {
                                         Text(item.s("name")).font(.subheadline.weight(.medium)).foregroundStyle(.primary).lineLimit(2)
                                         Text(item.s("format")).font(.caption).foregroundStyle(.secondary)
                                     }
-                                    .ledgerCard(padding: 10)
+                                    .padding(6)
+                                    .contentShape(Rectangle())
                                 }
                                 .buttonStyle(.plain)
                                 .pointerHover()
@@ -471,7 +472,7 @@ extension StudioSaved {
         .navigationSubtitle(view == "account" ? "In the ad account" : "\(items.count) saved")
         .task { if !House.isDemo { await load() } }
         .task(id: view) { if view == "account", !House.isDemo { await loadAccount() } }
-        .sheet(item: $selected) { choice in detail(choice.item).presentationSizing(.page).frame(minWidth: 560, minHeight: 640) }
+        .sheet(item: $selected) { choice in detail(choice.item).presentationSizing(.page).frame(minWidth: 560, minHeight: 520) }
         .sheet(item: $share) { MarketingShareSheet(items: $0.items) }
         .confirmationDialog("Delete “\(deleting?.s("name") ?? "")”?", isPresented: Binding(get: { deleting != nil && selected == nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible) {
             Button("Delete", role: .destructive) { if let item = deleting { if item.s("deleteKind") != "folder" { mutate("/api/ads/studio/saved?id=" + AdsQuery.escape(item.s("id")), method: "DELETE") } else { mutate("/api/ads/studio/saved/folders?id=" + AdsQuery.escape(item.s("folder")), method: "DELETE") }; deleting = nil; selected = nil } }

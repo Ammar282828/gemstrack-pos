@@ -277,7 +277,7 @@ struct WebsiteGoldDaySheet: View {
             }
         }
         #if os(macOS)
-        .frame(minWidth: 640, minHeight: 640)
+        .frame(minWidth: 560, minHeight: 520)
         #endif
         // Edited words aren't thrown away by a swipe: Done (or saving) closes it.
         .interactiveDismissDisabled(busy != nil || (filled && (post != (day?.post ?? "") || teaser != (day?.teaser ?? ""))))
@@ -707,20 +707,14 @@ extension WebsiteInvestmentsScreen {
                                 }
                         }
                     } header: {
-                        LedgerHeading(title: "The fortnight")
+                        Text("The Fortnight")
                     }
                 }
                 .houseRows()
             }
             .listStyle(.inset)
         }
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button { Task { await gold.load() } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
-                    .keyboardShortcut("r", modifiers: .command)
-                    .help("Read the posts again")
-            }
-        }
+        .macRefresh { Task { await gold.load() } }
     }
 }
 #endif

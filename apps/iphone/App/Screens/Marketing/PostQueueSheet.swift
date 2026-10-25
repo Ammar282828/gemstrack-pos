@@ -289,7 +289,7 @@ extension PostQueueSheet {
                     Section {
                         ForEach(places(e)) { (p: Place) in placeRow(p) }
                     } header: {
-                        LedgerHeading(title: "Where it goes")
+                        Text("Where it goes")
                     } footer: {
                         Text(e.toWebsite && !e.websiteNames.isEmpty ? "On the website as " + e.websiteNames.joined(separator: ", ") + "." : "")
                     }
@@ -301,7 +301,7 @@ extension PostQueueSheet {
             List {
                 Group {
                     if !e.caption.isEmpty {
-                        LedgerSection("Caption") {
+                        Section("Caption") {
                             Text(e.caption).textSelection(.enabled).font(.body)
                         }
                     }
@@ -334,7 +334,7 @@ extension PostQueueSheet {
         } message: {
             Text(e.done > 0 ? "What already went stays where it is; the rest will not go." : "Nothing of it has gone. Its photos are deleted with it.")
         }
-        .frame(minWidth: 820, minHeight: 480)
+        .frame(minWidth: 600, minHeight: 480)
     }
 }
 #endif

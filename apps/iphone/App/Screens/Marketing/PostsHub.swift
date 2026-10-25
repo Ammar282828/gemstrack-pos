@@ -40,6 +40,10 @@ struct PostsHub: View {
     @State private var macSending: Opened?
     @State private var macTiming: Opened?
     @State private var macPiece: String?
+    /// The table's rows, made again only when the queue, what went out, the group names or the day change, and their
+    /// order and search, again only when those or the sort change.
+    @State private var macMade = Memo<[MacPostsRow]>()
+    @State private var macShown = Memo<[MacPostsRow]>()
     #endif
 
     // Design and the old Post a piece composer are Posts' tab (Hub · Design · Investments), reached from the title menu, not rows here.
@@ -518,7 +522,6 @@ extension PostsHub {
             }
             .failureAlert($refused, title: "Not now")
             .noteToast($note)
-            .motion(store.queueShown.map(\.id))
     }
 
     // MARK: The window
@@ -563,12 +566,14 @@ extension PostsHub {
         return fresh.isEmpty ? ["\(store.pieces.count) pieces on \(store.siteName)"] : ["\(fresh.count) new on \(store.siteName)", "\(store.pieces.count) pieces in all"]
     }
 
+    // The view switch, then New Post and the queue's own menu. What can be done to the picked post (Send Now, Hold, Send at,
+    // Remove) is the inspector's, the Post menu's and the right-click menu's, never the toolbar's.
     @ToolbarContentBuilder
     private var macToolbar: some ToolbarContent {
         ToolbarItem(placement: .principal) {
             Picker("View", selection: $macMode) {
-                Text("Today and Queue").tag(MacPostsMode.posts)
-                Text("From the Website").tag(MacPostsMode.site)
+                Label("Posts", systemImage: "tray.full").tag(MacPostsMode.posts)
+                Label("Website", systemImage: "globe").tag(MacPostsMode.site)
             }
             .pickerStyle(.segmented)
             .help("What went out and what waits, or the website's pieces to post")
@@ -576,9 +581,6 @@ extension PostsHub {
         ToolbarItemGroup(placement: .primaryAction) {
             MacToolbarAction(action: macNewPost)
             if macMode == .posts {
-                MacToolbarAction(action: macSendNow(macSelectedEntries.first, count: macSelectedEntries.count))
-                MacToolbarAction(action: macHold(macSelectedEntries.first, count: macSelectedEntries.count))
-                MacToolbarAction(action: macSendAt(macSelectedEntries.first, count: macSelectedEntries.count))
                 Menu {
                     Button("Spread Over the Day…", systemImage: "clock") { spreading = true }.disabled(store.waiting.isEmpty)
                     Button(store.waiting.count > 1 ? "Send All \(store.waiting.count) Now…" : "Send It Now…", systemImage: "paperplane") { confirmingAll = true }
@@ -704,25 +706,51 @@ extension PostsHub {
                            status: "Sent", tone: .settled, rank: 6, when: ERPDate.parse(s.at) ?? Date.distantPast, whenText: ShopDate.say(s.at, withTime: true))
     }
 
+    /// What the rows are made from, as one number: the queue (its pieces, states, times and progress), what went out, the
+    /// groups' names and the day. Cheap beside making the rows, which format a date each.
+    private var macRowsKey: Int {
+        var h = Hasher()
+        for e in store.queue {
+            h.combine(e.id)
+            h.combine(e.status)
+            h.combine(e.dueAt)
+            h.combine(e.sentAt)
+            h.combine(e.done)
+            h.combine(e.units)
+            h.combine(e.headline)
+        }
+        for s in store.sent ?? [] {
+            h.combine(s.id)
+            h.combine(s.title)
+        }
+        h.combine(store.audience.groups)
+        h.combine(ERPDate.karachiDay(Date()))
+        return h.finalize()
+    }
+
     /// The queue and what went out today. A piece the queue sent today that the day's log also has is shown once.
     private var macRows: [MacPostsRow] {
-        let today = store.sentToday
-        let went = Set(today.map { (s: PostSent) in s.title }.filter { (t: String) in !t.isEmpty })
-        var out: [MacPostsRow] = []
-        for e in store.queueShown {
-            if e.status == "sent", went.contains(e.headline) { continue }
-            out.append(macEntryRow(e))
+        macMade([macRowsKey]) {
+            let today = store.sentToday
+            let went = Set(today.map { (s: PostSent) in s.title }.filter { (t: String) in !t.isEmpty })
+            var out: [MacPostsRow] = []
+            for e in store.queueShown {
+                if e.status == "sent", went.contains(e.headline) { continue }
+                out.append(macEntryRow(e))
+            }
+            for s in today { out.append(macSentRow(s)) }
+            return out
         }
-        for s in today { out.append(macSentRow(s)) }
-        return out
     }
 
     private var macVisibleRows: [MacPostsRow] {
-        let words = macQuery.lowercased().split(separator: " ").map(String.init)
-        let rows = macRows.filter { (r: MacPostsRow) in
-            words.isEmpty || words.allSatisfy { (w: String) in "\(r.title) \(r.place) \(r.status)".lowercased().contains(w) }
+        macShown([macRowsKey, macQuery.hashValue, macSort.hashValue]) {
+            let words = macQuery.lowercased().split(separator: " ").map(String.init)
+            let rows = macRows.filter { (r: MacPostsRow) in
+                words.isEmpty || words.allSatisfy { (w: String) in "\(r.title) \(r.place) \(r.status)".lowercased().contains(w) }
+            }
+            return rows.sorted(using: macSort)
         }
-        return rows.sorted(using: macSort)
     }
 
     // MARK: The table
@@ -753,10 +781,12 @@ extension PostsHub {
     private var macTable: some View {
         let rows = macVisibleRows
         return Table(rows, selection: $macSelection, sortOrder: $macSort) {
-            TableColumn("When", value: \.when) { (r: MacPostsRow) in Text(r.whenText).monospacedDigit() }
-                .width(min: 120, ideal: 150)
+            TableColumn("When", value: \.when) { (r: MacPostsRow) in Text(r.whenText).monospacedDigit().lineLimit(1) }
+                .width(min: 110, ideal: 150)
             TableColumn("What", value: \.title) { (r: MacPostsRow) in macWhat(r) }
+                .width(min: 140, ideal: 240)
             TableColumn("Where", value: \.place) { (r: MacPostsRow) in Text(r.place).foregroundStyle(.secondary).lineLimit(1) }
+                .width(min: 100, ideal: 200)
             TableColumn("Status", value: \.rank) { (r: MacPostsRow) in MacStatus(r.status, tone: r.tone) }
                 .width(min: 90, ideal: 110)
         }

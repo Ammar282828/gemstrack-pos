@@ -264,7 +264,7 @@ struct AdsLibrarySheet: View {
             .task { if images == nil { await load(nil) } }
         }
         #if os(macOS)
-        .frame(minWidth: 640, minHeight: 520)
+        .frame(minWidth: 560, minHeight: 520)
         #endif
     }
 

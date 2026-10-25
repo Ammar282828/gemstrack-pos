@@ -478,7 +478,7 @@ extension DesignStartView {
                 .padding(20)
                 .frame(maxWidth: 760, alignment: .leading)
             }
-            .frame(minWidth: 460, maxWidth: .infinity)
+            .frame(minWidth: 340, maxWidth: .infinity)
             Divider()
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
@@ -488,7 +488,7 @@ extension DesignStartView {
                 }
                 .padding(20)
             }
-            .frame(minWidth: 320, idealWidth: 380, maxWidth: 460)
+            .frame(minWidth: 280, idealWidth: 380, maxWidth: 460)
             .dropDestination(for: URL.self) { urls, _ in
                 guard let url = urls.first else { return false }
                 Task { await takeFile(url) }
@@ -504,7 +504,7 @@ extension DesignStartView {
                 sitePicker = false
                 start.photo = DesignPhotoSources.site(piece, data: data)
             }
-            .frame(minWidth: 760, minHeight: 600)
+            .frame(minWidth: 560, idealWidth: 760, minHeight: 520, idealHeight: 600)
         }
         .sheet(item: $start.sheet) { $0.shown }
         .failureAlert($problem, title: "Could not use that photograph")
@@ -514,7 +514,8 @@ extension DesignStartView {
         let drafts = Array(shelf.draftRows.prefix(5))
         let recent = Array(shelf.items.prefix(6))
         if !drafts.isEmpty || !recent.isEmpty {
-            SectionCard("Where you left off") {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Where you left off").font(.headline)
                 ForEach(drafts) { d in
                     Button { onOpenDraft(d) } label: { DesignDraftLine(row: d) }.buttonStyle(.plain)
                         .contextMenu { Button("Open", systemImage: "folder") { onOpenDraft(d) } }

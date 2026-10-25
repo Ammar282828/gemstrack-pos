@@ -22,6 +22,8 @@ struct AdsRulesScreen: View {
     #if os(macOS)
     @State private var macPicked = Set<String>()
     @State private var macOrder = [KeyPathComparator(\AdsRuleRow.name)]
+    /// The rows in the table's order, made again only when the rules or the sort change.
+    @State private var macMade = Memo<[AdsRuleRow]>()
     @State private var macMaking = false
     #endif
 
@@ -301,7 +303,10 @@ struct AdsRulesScreen: View {
 // below it, and a new rule made in a short sheet whose button says what it does.
 
 extension AdsRulesScreen {
-    private var macRules: [AdsRuleRow] { (data?.rules ?? []).sorted(using: macOrder) }
+    private var macRules: [AdsRuleRow] {
+        let all = data?.rules ?? []
+        return macMade([all.hashValue, macOrder.hashValue]) { all.sorted(using: macOrder) }
+    }
     private var macPickedRules: [AdsRuleRow] { macRules.filter { (r: AdsRuleRow) in macPicked.contains(r.id) } }
 
     private var macNewRule: MacAction {
@@ -350,8 +355,6 @@ extension AdsRulesScreen {
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 MacToolbarAction(action: macNewRule)
-                Button { Task { await loadRules() } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
-                    .help("Read the rules again (⌘R)")
             }
         }
         .sheet(isPresented: $macMaking) { macNewRuleSheet }
@@ -365,11 +368,11 @@ extension AdsRulesScreen {
     private func macRulesTable(_ rules: [AdsRuleRow]) -> some View {
         Table(rules, selection: $macPicked, sortOrder: $macOrder) {
             TableColumn("Rule", value: \.name) { (r: AdsRuleRow) in Text(r.name).lineLimit(1) }
-                .width(min: 150, ideal: 260)
+                .width(min: 120, ideal: 220)
             TableColumn("What It Does") { (r: AdsRuleRow) in
                 Text(r.summary).foregroundStyle(.secondary).lineLimit(2)
             }
-            .width(min: 200, ideal: 420)
+            .width(min: 160, ideal: 420)
             TableColumn("On") { (r: AdsRuleRow) in
                 if busy == r.id {
                     SkeletonLoading()
@@ -385,7 +388,7 @@ extension AdsRulesScreen {
         }
         .overlay {
             if let data, data.rules.isEmpty {
-                ContentUnavailableView("No Rules Yet", systemImage: "checklist", description: Text("New Rule… makes one. Meta checks it around the clock."))
+                ContentUnavailableView("No Rules Yet", systemImage: "checklist", description: Text("New Rule (\u{2303}\u{2318}N) makes one. Meta checks it around the clock."))
             } else if data == nil && loadProblem == nil {
                 MarketingReading(text: "Reading the rules…")
             }
@@ -396,14 +399,14 @@ extension AdsRulesScreen {
         VStack(alignment: .leading, spacing: 6) {
             Text("Changes Made from the ERP").font(.headline).padding(.horizontal, 12).padding(.top, 8)
             Table(data?.log ?? []) {
-                TableColumn("When") { (r: AdsLogRow) in Text(ShopDate.say(r.at, withTime: true)).monospacedDigit() }
+                TableColumn("When") { (r: AdsLogRow) in Text(ShopDate.say(r.at, withTime: true)).monospacedDigit().lineLimit(1) }
                     .width(min: 110, ideal: 150)
-                TableColumn("Change") { (r: AdsLogRow) in Text(r.words(currency)) }
-                    .width(min: 160, ideal: 260)
+                TableColumn("Change") { (r: AdsLogRow) in Text(r.words(currency)).lineLimit(1) }
+                    .width(min: 140, ideal: 260)
                 TableColumn("What") { (r: AdsLogRow) in Text(r.name ?? r.target ?? "").lineLimit(1) }
-                    .width(min: 120, ideal: 220)
+                    .width(min: 100, ideal: 220)
                 TableColumn("By") { (r: AdsLogRow) in Text(r.by).lineLimit(1) }
-                    .width(min: 80, ideal: 140)
+                    .width(min: 70, ideal: 120)
             }
         }
     }

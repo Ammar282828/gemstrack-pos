@@ -48,22 +48,23 @@ struct PostPiecesScreen: View {
         .navigationSubtitle(store.piecesPhase == .loaded ? "\(filtered.count) of \(store.pieces.count) pieces" : "")
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
-                Picker("Collection", selection: $collection) {
-                    if hasNew { Text("New arrivals").tag(PostPiecesScreen.newKey) }
-                    Text("Everything").tag("")
-                    Divider()
-                    ForEach(collections, id: \.self) { (c: String) in Text(c).tag(c) }
+                Menu {
+                    Section("Collection") {
+                        Picker("Collection", selection: $collection) {
+                            if hasNew { Text("New arrivals").tag(PostPiecesScreen.newKey) }
+                            Text("Everything").tag("")
+                            ForEach(collections, id: \.self) { (c: String) in Text(c).tag(c) }
+                        }
+                        .pickerStyle(.inline)
+                    }
+                    Toggle("Hide Recently Posted", isOn: $freshOnly)
+                } label: {
+                    Label("Filter", systemImage: collection == PostPiecesScreen.newKey && freshOnly ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
                 }
-                .pickerStyle(.menu)
-                .help("Show one collection")
-                Toggle(isOn: $freshOnly) { Label("Hide recently posted", systemImage: "clock.badge.checkmark") }
-                    .toggleStyle(.button)
-                    .help("Hide pieces posted in the last \(PostPiecesScreen.freshDays) days")
-                Button { Task { await store.load() } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
-                    .keyboardShortcut("r", modifiers: .command)
-                    .help("Read the website's pieces again")
+                .help("Show one collection, or hide pieces posted in the last \(PostPiecesScreen.freshDays) days")
             }
         }
+        .macRefresh { Task { await store.load() } }
         #endif
         .task { await store.load() }
         .onChange(of: search) { _, _ in shown = PostPiecesScreen.pageSize }
@@ -339,12 +340,12 @@ extension PostPieceScreen {
                         if p.newArrival { LabeledContent("New arrival", value: "Yes") }
                     }
                     if !p.facts.isEmpty {
-                        LedgerSection("Details") {
+                        Section("Details") {
                             ForEach(p.facts, id: \.self) { (f: String) in Text(f) }
                         }
                     }
                     if !p.about.isEmpty {
-                        LedgerSection("About") { Text(p.about).textSelection(.enabled) }
+                        Section("About") { Text(p.about).textSelection(.enabled) }
                     }
                 }
                 .houseRows()

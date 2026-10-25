@@ -717,7 +717,6 @@ struct AdsNewAdScreen: View {
                 } label: {
                     Label(photos.isEmpty ? "Add Photos" : "Add More", systemImage: "photo.badge.plus")
                 }
-                .fixedSize()
                 #else
                 HStack(spacing: pt(10)) {
                     Button { picking = true } label: {
@@ -1100,10 +1099,10 @@ extension AdsNewAdScreen {
     func macForm(_ s: AdsStatusAnswer, _ l: AdsNewAdLists) -> some View {
         HStack(spacing: 0) {
             macSourceColumn(s, l)
-                .frame(width: 300)
+                .frame(minWidth: 240, idealWidth: 300, maxWidth: 300)
             Divider()
             macFormColumn(s, l)
-                .frame(minWidth: 400, maxWidth: .infinity)
+                .frame(minWidth: 340, maxWidth: .infinity)
         }
         .macInspector { macPaneBody(s, l) }
         .toolbar { macToolbar }
@@ -1308,7 +1307,6 @@ extension AdsNewAdScreen {
                             Button(AdsFormat.money(v, s.currency)) { amount = AdsAmount.field(v) }
                         }
                     }
-                    .fixedSize()
                 }
             }
             Picker("How long", selection: daysChoice) {

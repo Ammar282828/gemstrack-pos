@@ -454,16 +454,19 @@ extension WebsiteWeightsScreen {
             ToolbarItemGroup(placement: .primaryAction) {
                 MacToolbarAction(action: macPrevious)
                 MacToolbarAction(action: macNext(q.count))
-                Picker("Collection", selection: $collection) {
-                    Text("All Collections").tag("")
-                    Divider()
-                    ForEach(collections, id: \.self) { (name: String) in Text(name).tag(name) }
+                Menu {
+                    Section("Collection") {
+                        Picker("Collection", selection: $collection) {
+                            Text("All Collections").tag("")
+                            ForEach(collections, id: \.self) { (name: String) in Text(name).tag(name) }
+                        }
+                        .pickerStyle(.inline)
+                    }
+                    Toggle("Only Photos Without a Weight", isOn: $onlyMissing)
+                } label: {
+                    Label("Filter", systemImage: collection.isEmpty && onlyMissing ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
                 }
-                .pickerStyle(.menu)
-                .help("Weigh one collection")
-                Toggle(isOn: $onlyMissing) { Label("Only photos without a weight", systemImage: "scalemass") }
-                    .toggleStyle(.button)
-                    .help("Only the photos that have no weight yet")
+                .help("Weigh one collection, or only the photos that have no weight yet")
             }
         }
         .savedFeedback(trigger: savedTick)
@@ -499,7 +502,7 @@ extension WebsiteWeightsScreen {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 TextField("0.00", text: $value)
                     .focused($typing)
-                    .font(.title.weight(.semibold))
+                    .font(.title2.weight(.semibold))
                     .monospacedDigit()
                 Text("g").font(.title3).foregroundStyle(.secondary)
             }

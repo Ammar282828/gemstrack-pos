@@ -146,7 +146,8 @@ extension StudioLibrary {
                                     Text(item["adScore"] != .null ? "Ad score · \(Int(item.n("adScore")))" : "Not assessed")
                                         .font(.caption).foregroundStyle(.secondary)
                                 }
-                                .ledgerCard(padding: 10)
+                                .padding(6)
+                                .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
                             .pointerHover()
@@ -167,24 +168,35 @@ extension StudioLibrary {
                 }
             }
         }
-        .searchable(text: $q, prompt: "Name, subject or collection")
+        .macSearchable(text: $q, prompt: "Name, subject or collection")
+        .macRefresh { Task { await load(fresh: true) } }
         .navigationSubtitle(answer.n("total") > 0 ? "\(Int(answer.n("total"))) photos" : "")
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
-                Picker("Photos", selection: $model.part) { Text("Best for ads").tag("picks"); Text("Every photo").tag("library") }
-                    .pickerStyle(.segmented).frame(width: 260)
-                Picker("Placement", selection: $placement) { Text("Feed · 4:5").tag("portrait"); Text("Feed · 1:1").tag("square"); Text("Stories · 9:16").tag("story") }
-                    .pickerStyle(.menu).help("The shape the ad scores are for")
+                // One menu for every way to narrow the library; View › Refresh (⌘R) reads it again.
                 Menu {
-                    Picker("Source", selection: $source) { Text("All sources").tag("all"); Text("Website").tag("site"); Text("Drive").tag("drive"); Text("Uploads").tag("upload") }
-                    Picker("Assessment", selection: $filter) { ForEach(["all", "unassessed", "assessed", "fixable", "risky"], id: \.self) { Text(ArtworkProperties.label($0)).tag($0) } }
-                    Picker("Collection", selection: $collection) { Text("All collections").tag(""); ForEach(answer["collections"].array, id: \.text) { Text($0.s("name") + " · " + String(Int($0.n("count")))).tag($0.s("name")) } }
-                    Picker("Sort", selection: $sort) { Text("Newest first").tag("newest"); Text("Best score first").tag("score") }
-                } label: { Label("Filters", systemImage: "line.3.horizontal.decrease.circle") }
-                .help("Source, assessment, collection and order")
-                Button { Task { await load(fresh: true) } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
-                    .keyboardShortcut("r", modifiers: .command)
-                    .help("Read the library again")
+                    Section("Photos") {
+                        Picker("Photos", selection: $model.part) { Text("Best for ads").tag("picks"); Text("Every photo").tag("library") }.pickerStyle(.inline)
+                    }
+                    Section("Shape") {
+                        Picker("Placement", selection: $placement) { Text("Feed · 4:5").tag("portrait"); Text("Feed · 1:1").tag("square"); Text("Stories · 9:16").tag("story") }.pickerStyle(.inline)
+                    }
+                    Section("Source") {
+                        Picker("Source", selection: $source) { Text("All sources").tag("all"); Text("Website").tag("site"); Text("Drive").tag("drive"); Text("Uploads").tag("upload") }.pickerStyle(.inline)
+                    }
+                    Section("Assessment") {
+                        Picker("Assessment", selection: $filter) { ForEach(["all", "unassessed", "assessed", "fixable", "risky"], id: \.self) { Text(ArtworkProperties.label($0)).tag($0) } }.pickerStyle(.inline)
+                    }
+                    Section("Collection") {
+                        Picker("Collection", selection: $collection) { Text("All collections").tag(""); ForEach(answer["collections"].array, id: \.text) { Text($0.s("name") + " · " + String(Int($0.n("count")))).tag($0.s("name")) } }.pickerStyle(.inline)
+                    }
+                    Section("Order") {
+                        Picker("Sort", selection: $sort) { Text("Newest first").tag("newest"); Text("Best score first").tag("score") }.pickerStyle(.inline)
+                    }
+                } label: {
+                    Label("Filter", systemImage: source == "all" && filter == "all" && collection.isEmpty && sort == "newest" ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
+                }
+                .help("Which photos, the shape the scores are for, source, assessment, collection and order")
             }
         }
         .task(id: queryKey) { if !House.isDemo { do { try await Task.sleep(for: .milliseconds(250)); await load() } catch {} } }
@@ -230,7 +242,7 @@ struct StudioAssetSheet: View {
             }.modifier(HouseGround()).navigationTitle("Photo").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
             #if os(macOS)
-            .frame(minWidth: 560, minHeight: 640)
+            .frame(minWidth: 560, minHeight: 520)
             #endif
             .safeAreaBar(edge: .bottom, spacing: 0) {
                 ActionBar(primary: .init("Make an ad with it", systemImage: "wand.and.stars", isBusy: model.busy != nil) {

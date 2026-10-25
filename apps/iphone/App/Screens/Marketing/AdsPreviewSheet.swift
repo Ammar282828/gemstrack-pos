@@ -55,7 +55,7 @@ struct AdsPreviewSheet: View {
             }
         }
         #if os(macOS)
-        .frame(minWidth: 520, minHeight: 760)
+        .frame(minWidth: 520, idealWidth: 560, minHeight: 520, idealHeight: 760)
         #endif
     }
 }
