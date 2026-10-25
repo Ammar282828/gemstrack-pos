@@ -186,17 +186,17 @@ private fun LabelDesigner() {
     }
 }
 
-private enum class Panel(val title: String) { Field("Field"), Layers("Layers"), Label("Label"), Preview("Preview") }
+internal enum class Panel(val title: String) { Field("Field"), Layers("Layers"), Label("Label"), Preview("Preview") }
 
 /** The designer drawn from a model: what the screen is, whether it has loaded its layout from the books or not (the screenshots draw it from a made-up one). */
 @Composable
-internal fun LabelDesignerContent(state: DesignerState, standard: LabelLayout, saveState: String) {
+internal fun LabelDesignerContent(state: DesignerState, standard: LabelLayout, saveState: String, startPanel: Panel = Panel.Field) {
     val model = state.model
     state.rev
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val note = LocalNoteState.current
-    var panel by remember { mutableStateOf(Panel.Field) }
+    var panel by remember { mutableStateOf(startPanel) }
     var confirmingDelete by remember { mutableStateOf(false) }
     var confirmingStandard by remember { mutableStateOf(false) }
     var pendingImport by remember { mutableStateOf<LabelLayout?>(null) }

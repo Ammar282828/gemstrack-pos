@@ -61,7 +61,11 @@ import kotlinx.coroutines.launch
 // counter, so this phone names that Mac. The `labellive://` link itself is only for a Mac; here it is carried in the message.
 
 @Composable
-fun LabelLiveSettings() {
+fun LabelLiveSettings() = LabelLiveSettings(null)
+
+/** [initial] is the set-up shown before the book has answered (the screenshots draw one). */
+@Composable
+internal fun LabelLiveSettings(initial: LabelLiveConfig?) {
     ScreenTitle("Label LIVE")
     val session = LocalSession.current
     val book = LocalBook.current
@@ -72,7 +76,7 @@ fun LabelLiveSettings() {
     val settings by book.settings.value.collectAsStateWithLifecycle()
     val products = rememberShelfStatus(book.products)
     val saved = settings?.labelLiveConfig
-    var config by remember { mutableStateOf<LabelLiveConfig?>(null) }
+    var config by remember { mutableStateOf(initial) }
     var pasted by remember { mutableStateOf("") }
     var saving by remember { mutableStateOf(false) }
     var testing by remember { mutableStateOf(false) }
