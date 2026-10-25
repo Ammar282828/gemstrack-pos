@@ -458,9 +458,9 @@ extension Dashboard {
     fileprivate func macPage(_ f: DashFigures) -> some View {
         let selling = session.shop.websiteSelling
         let needs = f.needs(onlineWaiting: selling ? inbox.waiting : 0, ratePause: selling ? inbox.ratePause : nil)
+        // No `.motion` here: the lists are Lists, and an animation keyed on their count animated every row change.
         return MacReportsTodayPage(figures: f, needs: needs, isOwner: session.isOwner,
                                    editNote: { noteSheet = true }, setRate: { rateSheet = true })
-            .motion(needs.count)
     }
 
     /// Write the note the team sees on Home: the toolbar's button and the menu bar's item, one action.

@@ -78,8 +78,10 @@ struct TodaysCashScreen: View {
             }
             #endif
         }
+        #if !os(macOS)
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
         .motion(t.lines.count + t.expenseLines.count)
+        #endif
     }
 
     private var wide: Bool { sizeClass.isPadLayout && width >= 820 && !typeSize.isAccessibilitySize }

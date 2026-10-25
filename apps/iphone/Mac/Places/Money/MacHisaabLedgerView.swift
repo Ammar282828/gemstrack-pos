@@ -16,11 +16,14 @@ struct MacHisaabLedgerRow: Identifiable {
     let got: Double
     let balance: Double
     let invoiceId: String
+    /// The date as the shop says it, worked out once with the row rather than per drawing.
+    let said: String
     var id: String { line.entry.id }
 
     init(_ l: HisaabLedgerLine) {
         line = l
         date = l.entry.date
+        said = ShopDate.say(l.entry.date)
         what = l.entry.description.isEmpty ? "No description" : l.entry.description
         gave = l.entry.cashDebit
         got = l.entry.cashCredit
@@ -64,33 +67,32 @@ struct MacHisaabLedgerView: View {
 
     private func table(_ rows: [MacHisaabLedgerRow]) -> some View {
         Table(rows, selection: $selection, sortOrder: $sort) {
-            TableColumn("Date", value: \.date) { (r: MacHisaabLedgerRow) in Text(ShopDate.say(r.date)) }
-                .width(min: 80, ideal: 100)
-            TableColumn("Entry", value: \.what)
-                .width(min: 160, ideal: 320)
+            TableColumn("Date", value: \.date) { (r: MacHisaabLedgerRow) in Text(r.said).lineLimit(1) }
+                .width(min: 70, ideal: 90)
+            TableColumn("Entry", value: \.what) { (r: MacHisaabLedgerRow) in Text(r.what).lineLimit(1) }
+                .width(min: 120, ideal: 260)
             TableColumn("You gave", value: \.gave) { (r: MacHisaabLedgerRow) in
-                moves(cash: r.line.entry.cashDebit, grams: r.line.entry.goldDebitGrams, tone: Tone.owed.color)
+                moves(cash: r.line.entry.cashDebit, grams: r.line.entry.goldDebitGrams, tone: .owed)
             }
-            .width(min: 100, ideal: 120)
+            .width(min: 80, ideal: 100)
             TableColumn("You got", value: \.got) { (r: MacHisaabLedgerRow) in
-                moves(cash: r.line.entry.cashCredit, grams: r.line.entry.goldCreditGrams, tone: Tone.settled.color)
+                moves(cash: r.line.entry.cashCredit, grams: r.line.entry.goldCreditGrams, tone: .settled)
             }
-            .width(min: 100, ideal: 120)
+            .width(min: 80, ideal: 100)
             TableColumn("Balance", value: \.balance) { (r: MacHisaabLedgerRow) in
                 VStack(alignment: .trailing, spacing: 1) {
-                    Text(Money.pkr(r.line.cash))
+                    MacAmount(r.line.cash)
                     if page.hasGold {
                         Text("\(MoneyFormat.grams(r.line.gold)) \(MoneyWords.metal)").font(.caption).foregroundStyle(.secondary)
                     }
                 }
-                .monospacedDigit()
                 .frame(maxWidth: .infinity, alignment: .trailing)
             }
-            .width(min: 120, ideal: 150)
-            TableColumn("Invoice", value: \.invoiceId) { (r: MacHisaabLedgerRow) in
-                Text(r.invoiceId).monospacedDigit().foregroundStyle(.secondary)
-            }
             .width(min: 80, ideal: 110)
+            TableColumn("Invoice", value: \.invoiceId) { (r: MacHisaabLedgerRow) in
+                Text(r.invoiceId).monospacedDigit().lineLimit(1).foregroundStyle(.secondary)
+            }
+            .width(min: 70, ideal: 100)
         }
         .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
             MacActionItems(groups: base + selected(ids))
@@ -104,16 +106,20 @@ struct MacHisaabLedgerView: View {
         .onDeleteCommand {
             if onFile, let e = entry(selection) { deleteEntry(e) }
         }
-        .overlay { if rows.isEmpty { ContentUnavailableView("No transactions found", systemImage: "book.closed") } }
+        .overlay {
+            if rows.isEmpty {
+                ContentUnavailableView("No Transactions", systemImage: "book.closed",
+                                       description: Text(onFile ? "Write one with \u{21E7}\u{2318}G (you gave) or \u{21E7}\u{2318}R (you got)." : "Nothing is written here."))
+            }
+        }
     }
 
     /// Cash (and the metal under it) one way: "You gave" or "You got".
-    private func moves(cash: Double, grams: Double, tone: Color) -> some View {
+    private func moves(cash: Double, grams: Double, tone: Tone) -> some View {
         VStack(alignment: .trailing, spacing: 1) {
-            if cash > 0 { Text(Money.pkr(cash)).foregroundStyle(tone) }
-            if grams > 0 { Text("\(MoneyFormat.grams(grams)) g").font(.caption).foregroundStyle(.secondary) }
+            if cash > 0 { MacAmount(cash, tone: tone) }
+            if grams > 0 { Text("\(MoneyFormat.grams(grams)) g").font(.caption).foregroundStyle(.secondary).monospacedDigit() }
         }
-        .monospacedDigit()
         .frame(maxWidth: .infinity, alignment: .trailing)
     }
 

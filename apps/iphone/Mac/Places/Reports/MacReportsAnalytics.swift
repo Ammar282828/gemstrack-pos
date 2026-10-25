@@ -58,10 +58,10 @@ struct MacReportsAnalyticsPage: View {
         }
         .navigationSubtitle(AnaPeriod.describe(period.range))
         .toolbar {
-            ToolbarItem(placement: .primaryAction) { periodMenu }
-            ToolbarItem(placement: .primaryAction) { compareMenu }
-            if section == .overview && margin != nil {
-                ToolbarItem(placement: .primaryAction) { monthlyMenu }
+            // One menu for the period and what it is compared with (inline pickers inside it), then the monthly PDF.
+            ToolbarItemGroup(placement: .primaryAction) {
+                periodMenu
+                if section == .overview && margin != nil { monthlyMenu }
             }
         }
         .sheet(isPresented: $customSheet) { customPeriod }
@@ -168,19 +168,31 @@ struct MacReportsAnalyticsPage: View {
 
     private var periodMenu: some View {
         Menu {
-            Picker("Period", selection: choiceBinding) {
-                ForEach(MacReportsPeriods.choices) { (c: MacReportsPeriodChoice) in
-                    Text(c.label).tag(c.key)
+            Section("Period") {
+                Picker("Period", selection: choiceBinding) {
+                    ForEach(MacReportsPeriods.choices) { (c: MacReportsPeriodChoice) in
+                        Text(c.label).tag(c.key)
+                    }
+                    extraChoice
                 }
-                extraChoice
+                .pickerStyle(.inline)
+                .labelsHidden()
+                Button("Custom Period\u{2026}") { customSheet = true }
             }
-            .pickerStyle(.inline)
-            Divider()
-            Button("Custom period…") { customSheet = true }
+            Section("Compare with") {
+                Picker("Compare with", selection: compareBinding) {
+                    Text(MacReportsCompare.previous.label).tag(MacReportsCompare.previous.rawValue)
+                    Text(MacReportsCompare.lastYear.label).tag(MacReportsCompare.lastYear.rawValue)
+                    Text(MacReportsCompare.none.label).tag(MacReportsCompare.none.rawValue)
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
+                .disabled(period.range == nil)
+            }
         } label: {
             Label(periodLabel, systemImage: "calendar").labelStyle(.titleAndIcon)
         }
-        .help("The period every Analytics place reads")
+        .help("The period every Analytics place reads, and what its figures are compared with. " + compareHelp)
     }
 
     private var customPeriod: some View {
@@ -196,21 +208,6 @@ struct MacReportsAnalyticsPage: View {
 
     private var compareBinding: Binding<String> {
         Binding<String>(get: { mode.rawValue }, set: { (key: String) in compareKey = key })
-    }
-
-    private var compareMenu: some View {
-        Menu {
-            Picker("Compare with", selection: compareBinding) {
-                Text(MacReportsCompare.previous.label).tag(MacReportsCompare.previous.rawValue)
-                Text(MacReportsCompare.lastYear.label).tag(MacReportsCompare.lastYear.rawValue)
-                Text(MacReportsCompare.none.label).tag(MacReportsCompare.none.rawValue)
-            }
-            .pickerStyle(.inline)
-        } label: {
-            Label("Compare: \(mode.label)", systemImage: "arrow.left.arrow.right").labelStyle(.titleAndIcon)
-        }
-        .disabled(period.range == nil)
-        .help(compareHelp)
     }
 
     /// What the figures are being compared with, in days.
@@ -239,10 +236,11 @@ struct MacReportsAnalyticsPage: View {
         NavigationStack {
             PDFDocumentScreen(path: "/api/reports/monthly?month=" + m.key, fileName: "monthly-report-" + m.key + ".pdf", title: m.title)
                 .toolbar {
-                    ToolbarItem(placement: .cancellationAction) { Button("Done") { pdf = nil } }
+                    ToolbarItem(placement: .confirmationAction) { Button("Done") { pdf = nil } }
                 }
         }
-        .frame(minWidth: 760, minHeight: 680)
+        // A sheet's least size stays small; it opens at the size a page of the report reads at.
+        .frame(minWidth: 560, idealWidth: 720, minHeight: 520, idealHeight: 760)
     }
 }
 #endif

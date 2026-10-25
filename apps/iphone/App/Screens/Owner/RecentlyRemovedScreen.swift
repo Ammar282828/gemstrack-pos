@@ -37,6 +37,7 @@ private struct RecentlyRemovedList: View {
     #if os(macOS)
     @State private var macSort = [KeyPathComparator(\RemovedMacRow.removedAt, order: .reverse)]
     @State private var macPick = Set<String>()
+    @State private var macMade = Memo<RemovedMacData>()
     #endif
 
     private var ready: Bool { book.customers.loaded && book.karigars.loaded && book.hisaab.loaded && book.orders.loaded }
@@ -78,12 +79,12 @@ private struct RecentlyRemovedList: View {
 
     @ViewBuilder
     private var content: some View {
+        #if os(macOS)
+        macTable()
+        #else
         let customers = removedCustomers
         let karigars = removedKarigars
         let h = reckon()
-        #if os(macOS)
-        macTable(customers, karigars, h)
-        #else
         List {
             Group {
                 if !(customers.isEmpty && karigars.isEmpty) {
@@ -245,48 +246,93 @@ private struct RemovedMacRow: Identifiable {
     let contact: String
     let carries: String
     let removedAt: String
+    /// The date as the shop says it, worked out once with the row.
+    let said: String
     var kind: String { isCustomer ? "Customer" : "Karigar" }
 }
 
+/// What the table draws, worked out once per change of the books or of the sort (`Memo`): the shelves are walked for the
+/// removed ones here and nowhere in `body`.
+private struct RemovedMacData {
+    let rows: [RemovedMacRow]
+    let customerIds: [String]
+    let karigarIds: [String]
+}
+
 /// Recently removed as a Mac page: everyone removed as a sortable table (who, what history they carry, when), "Put back" for
-/// the selected rows from the toolbar or the right-click menu (⌘Return), "Put everything back" beside it, and "Empty"
-/// (which asks, then asks for the delete code) apart at the end. Putting back and emptying are the page's own.
+/// the selected rows from the toolbar, the Removed menu or the right-click menu (⌘Return); "Put everything back" and "Empty"
+/// (which asks, then asks for the delete code) are in the toolbar's More menu. Putting back and emptying are the page's own.
 extension RecentlyRemovedList {
-    private func macTable(_ customers: [Customer], _ karigars: [Karigar], _ h: [String: RecentlyRemoved.History]) -> some View {
-        var all: [RemovedMacRow] = []
-        for c in customers {
-            let carries = RecentlyRemoved.carriesText(h[c.id])
-            all.append(RemovedMacRow(id: c.id, name: c.name.isEmpty ? c.id : c.name, isCustomer: true, contact: c.phone ?? "",
-                                     carries: carries.isEmpty ? "no history" : carries, removedAt: c.deletedAt ?? ""))
+    private func macData() -> RemovedMacData {
+        let key = [book.customers.revision, book.karigars.revision, book.hisaab.revision, book.orders.revision, macSort.hashValue]
+        return macMade(key) {
+            let customers = removedCustomers
+            let karigars = removedKarigars
+            let h = reckon()
+            var all: [RemovedMacRow] = []
+            for c in customers {
+                let carries = RecentlyRemoved.carriesText(h[c.id])
+                all.append(RemovedMacRow(id: c.id, name: c.name.isEmpty ? c.id : c.name, isCustomer: true, contact: c.phone ?? "",
+                                         carries: carries.isEmpty ? "no history" : carries, removedAt: c.deletedAt ?? "",
+                                         said: ShopDate.say(c.deletedAt ?? "")))
+            }
+            for k in karigars {
+                let carries = RecentlyRemoved.carriesText(h[k.id])
+                all.append(RemovedMacRow(id: k.id, name: k.name.isEmpty ? k.id : k.name, isCustomer: false, contact: k.contact ?? "",
+                                         carries: carries.isEmpty ? "no history" : carries, removedAt: k.deletedAt ?? "",
+                                         said: ShopDate.say(k.deletedAt ?? "")))
+            }
+            return RemovedMacData(rows: all.sorted(using: macSort), customerIds: customers.map(\.id), karigarIds: karigars.map(\.id))
         }
-        for k in karigars {
-            let carries = RecentlyRemoved.carriesText(h[k.id])
-            all.append(RemovedMacRow(id: k.id, name: k.name.isEmpty ? k.id : k.name, isCustomer: false, contact: k.contact ?? "",
-                                     carries: carries.isEmpty ? "no history" : carries, removedAt: k.deletedAt ?? ""))
+    }
+
+    private func macPutBackAction(_ picked: [RemovedMacRow]) -> MacAction {
+        MacAction(picked.count > 1 ? "Put \(picked.count) Back" : "Put Back", symbol: "arrow.uturn.backward",
+                  shortcut: KeyboardShortcut(.return, modifiers: .command), enabled: !picked.isEmpty && busy == nil,
+                  isDefault: true, id: "back") { macPutBack(picked) }
+    }
+
+    private func macPutAllAction(_ data: RemovedMacData) -> MacAction {
+        MacAction("Put Everything Back", symbol: "arrow.uturn.backward.circle", enabled: busy == nil && !data.rows.isEmpty, id: "all") {
+            Task { await restore(customerIds: data.customerIds, karigarIds: data.karigarIds, key: "all", name: nil) }
         }
-        let rows = all.sorted(using: macSort)
+    }
+
+    private var macEmptyAction: MacAction {
+        MacAction("Empty\u{2026}", symbol: "trash", role: .destructive, enabled: busy == nil, id: "empty") { confirmingEmpty = true }
+    }
+
+    private func macTable() -> some View {
+        let data = macData()
+        let rows = data.rows
         let picked = rows.filter { macPick.contains($0.id) }
+        let putBack = macPutBackAction(picked)
+        let putAll = macPutAllAction(data)
         return Table(rows, selection: $macPick, sortOrder: $macSort) {
             TableColumn("Name", value: \.name) { (r: RemovedMacRow) in
                 HStack(spacing: 8) {
                     Image(systemName: r.isCustomer ? "person.2" : "hammer").foregroundStyle(.secondary)
-                    Text(r.name)
+                    Text(r.name).lineLimit(1)
                 }
             }
-            .width(min: 160, ideal: 220)
+            .width(min: 120, ideal: 200)
             TableColumn("Who", value: \.kind) { (r: RemovedMacRow) in Text(r.kind).foregroundStyle(.secondary) }
                 .width(min: 70, ideal: 90)
-            TableColumn("Contact", value: \.contact) { (r: RemovedMacRow) in Text(r.contact).monospacedDigit().foregroundStyle(.secondary) }
-                .width(min: 100, ideal: 130)
-            TableColumn("History they carry", value: \.carries) { (r: RemovedMacRow) in Text(r.carries).foregroundStyle(.secondary) }
-                .width(min: 160, ideal: 260)
-            TableColumn("Removed", value: \.removedAt) { (r: RemovedMacRow) in Text(ShopDate.say(r.removedAt)) }
-                .width(min: 90, ideal: 110)
+            TableColumn("Contact", value: \.contact) { (r: RemovedMacRow) in
+                Text(r.contact).monospacedDigit().lineLimit(1).foregroundStyle(.secondary)
+            }
+            .width(min: 90, ideal: 120)
+            TableColumn("History they carry", value: \.carries) { (r: RemovedMacRow) in
+                Text(r.carries).lineLimit(1).foregroundStyle(.secondary)
+            }
+            .width(min: 120, ideal: 200)
+            TableColumn("Removed", value: \.removedAt) { (r: RemovedMacRow) in Text(r.said).lineLimit(1) }
+                .width(min: 70, ideal: 90)
         }
         .contextMenu(forSelectionType: String.self) { ids in
             let chosen = rows.filter { ids.contains($0.id) }
             if !chosen.isEmpty {
-                Button(chosen.count == 1 ? "Put back" : "Put \(chosen.count) back") { macPutBack(chosen) }
+                Button(chosen.count == 1 ? "Put Back" : "Put \(chosen.count) Back") { macPutBack(chosen) }
                     .disabled(busy != nil)
             }
         } primaryAction: { ids in
@@ -295,47 +341,24 @@ extension RecentlyRemovedList {
         }
         .overlay {
             if rows.isEmpty {
-                NotAvailableState("Nobody has been removed", why: "Their history is exactly where they left it.",
-                                  symbol: "arrow.uturn.backward")
+                ContentUnavailableView("Nobody Removed", systemImage: "arrow.uturn.backward",
+                                       description: Text("A customer or karigar you remove waits here, with all their history, to be put back."))
             }
         }
         .background(Theme.ground)
         .navigationSubtitle(rows.isEmpty ? "" : "\(rows.count) removed")
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            if !rows.isEmpty {
-                VStack(spacing: 0) {
-                    Divider()
-                    HStack {
-                        Text("Nothing here has been destroyed. Their history is exactly where they left it.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                        Spacer(minLength: 0)
-                    }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                }
-                .background(.bar)
-            }
-        }
+        .macSummaryBar(rows.isEmpty ? [] : ["\(rows.count) removed", "Nothing here has been destroyed; their history is exactly where they left it"])
+        .macRecordMenu(MacRecordMenu(title: "Removed", groups: [[putBack], [putAll], [macEmptyAction]]))
         .toolbar {
             if !rows.isEmpty {
                 ToolbarItemGroup(placement: .primaryAction) {
-                    Button { macPutBack(picked) } label: {
-                        Label(picked.count > 1 ? "Put \(picked.count) back" : "Put back", systemImage: "arrow.uturn.backward")
-                    }
-                    .disabled(picked.isEmpty || busy != nil)
-                    .keyboardShortcut(.return, modifiers: .command)
-                    .help("Put the selected people back in the book (\u{2318}Return)")
-                    Button {
-                        Task { await restore(customerIds: customers.map(\.id), karigarIds: karigars.map(\.id), key: "all", name: nil) }
+                    MacToolbarAction(action: putBack)
+                    Menu {
+                        MacActionItems(groups: [[putAll], [macEmptyAction]])
                     } label: {
-                        Label("Put everything back", systemImage: "arrow.uturn.backward.circle")
+                        Label("More", systemImage: "ellipsis.circle")
                     }
-                    .disabled(busy != nil)
-                    .help("Put everyone listed back")
-                    Button(role: .destructive) { confirmingEmpty = true } label: { Label("Empty", systemImage: "trash") }
-                        .disabled(busy != nil)
-                        .help("Delete everyone listed for good. It asks, then asks for the delete code")
+                    .help("Put everyone back, or delete everyone listed for good (it asks, then asks for the delete code)")
                 }
             }
         }

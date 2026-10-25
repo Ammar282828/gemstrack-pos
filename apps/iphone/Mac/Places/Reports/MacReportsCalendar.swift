@@ -5,6 +5,7 @@ import ERPCore
 // The Mac's Calendar, the chosen day's column: what was sold and ordered that day, and what was promised for it, as one
 // plain list with section headers, selectable rows. Return or a double-click opens the invoice or order in a window of its
 // own; the right-click menu has Open, Open in New Window and Copy Number. The month's grid and figures are CalendarScreen's.
+// It sits in the inspector (260 to 420 points wide), so nothing in it is wider than 240.
 
 struct MacReportsCalendarDay: View {
     /// The day chosen, "yyyy-MM-dd".
@@ -47,7 +48,7 @@ struct MacReportsCalendarDay: View {
                     }
                 }
             } header: {
-                Text("Events for \(ShopCalendar.longDay(day))")
+                Text("Events for \(ShopCalendar.longDay(day))").lineLimit(2)
             }
             if !promised.isEmpty {
                 Section {
@@ -75,44 +76,49 @@ struct MacReportsCalendarDay: View {
         }
     }
 
+    // The rows are made for the inspector's 260 points: two lines, the number and what it came to over who and when, no
+    // column on the right, and the amount as digits.
     private func eventRow(_ e: ShopCalendarEvent) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: e.isInvoice ? "receipt" : "list.clipboard")
-                .foregroundStyle(e.isInvoice ? Tone.settled.color : Tone.working.color)
-                .frame(width: 20)
-            VStack(alignment: .leading, spacing: 1) {
+        VStack(alignment: .leading, spacing: 1) {
+            HStack(spacing: 6) {
+                Image(systemName: e.isInvoice ? "receipt" : "list.clipboard")
+                    .foregroundStyle(e.isInvoice ? Tone.settled.color : Tone.working.color)
+                    .frame(width: 16)
                 Text(e.docId).font(.body.monospaced()).lineLimit(1)
+                MacAmount(e.grandTotal)
+            }
+            HStack(spacing: 6) {
                 Text(e.customerName.isEmpty ? "Walk-in" : e.customerName)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
                     .lineLimit(1)
+                Spacer(minLength: 4)
+                Text(ShopCalendar.clock(iso: e.createdAt)).lineLimit(1)
             }
-            Spacer(minLength: 8)
-            VStack(alignment: .trailing, spacing: 1) {
-                Text(Money.pkr(e.grandTotal)).monospacedDigit()
-                Text(ShopCalendar.clock(iso: e.createdAt)).font(.caption).foregroundStyle(.secondary)
-            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .padding(.leading, 22)
         }
         .padding(.vertical, 2)
     }
 
     private func promisedRow(_ o: Order) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: "calendar.badge.clock")
-                .foregroundStyle(Tone.owed.color)
-                .frame(width: 20)
-            VStack(alignment: .leading, spacing: 1) {
+        VStack(alignment: .leading, spacing: 1) {
+            HStack(spacing: 6) {
+                Image(systemName: "calendar.badge.clock")
+                    .foregroundStyle(Tone.owed.color)
+                    .frame(width: 16)
                 Text(o.id).font(.body.monospaced()).lineLimit(1)
-                Text((o.customerName ?? "").isEmpty ? "Walk-in" : (o.customerName ?? ""))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                Spacer(minLength: 4)
+                // Completed is the expected end: no word for it.
+                if o.status != .completed {
+                    MacStatus(o.status.rawValue.isEmpty ? "No status" : o.status.rawValue, tone: Tone(status: o.status))
+                        .font(.caption)
+                }
             }
-            Spacer(minLength: 8)
-            // Completed is the expected end: no word for it.
-            if o.status != .completed {
-                MacStatus(o.status.rawValue.isEmpty ? "No status" : o.status.rawValue, tone: Tone(status: o.status))
-            }
+            Text((o.customerName ?? "").isEmpty ? "Walk-in" : (o.customerName ?? ""))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .padding(.leading, 22)
         }
         .padding(.vertical, 2)
     }

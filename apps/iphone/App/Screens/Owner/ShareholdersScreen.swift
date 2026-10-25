@@ -72,9 +72,10 @@ private struct ShareholdersBoard: View {
     @State private var floorSaved = 0
     @State private var showHistory = false
     #if os(macOS)
-    /// The distribution calculator sits in the window's inspector; the toolbar button shows and hides it.
-    @State private var macCalc = true
+    /// The distribution calculator sits in the window's inspector (the kit's, with its own toggle).
     @State private var macPick = Set<String>()
+    /// Each partner's table rows, made once per change of the books (a click on a row does not make them again).
+    @State private var macRowsMade = Memo<[String: [PartnerMacRow]]>()
     #endif
 
     private var ready: Bool {
@@ -101,12 +102,6 @@ private struct ShareholdersBoard: View {
                     Label("Add", systemImage: "plus")
                 }
             }
-            #if os(macOS)
-            ToolbarItem(placement: .automatic) {
-                Button { macCalc.toggle() } label: { Label("Distribution calculator", systemImage: "sidebar.right") }
-                    .help("Show or hide the distribution calculator")
-            }
-            #endif
         }
         .sheet(item: $asking) { (a: ShareholderAsk) in
             ShareholderEntrySheet(ask: a, salaryPaid: salaryPaid) { (saved: Note) in
@@ -491,12 +486,17 @@ private struct PartnerMacRow: Identifiable {
 }
 
 /// Shareholders as a Mac window: the totals across the top, the two partners side by side (their position over their
-/// book as a table), and the distribution calculator in the inspector. Right-click or ⌫ deletes an entry (the delete
-/// code is asked); "Pay salary", "Add a contribution" and "Withdraw capital" are on each partner's header and in the
-/// toolbar's Add menu. Every figure is the page's own.
+/// book as a table), and the distribution calculator in the inspector (the kit's, so its toggle is the toolbar's one).
+/// Right-click or ⌫ deletes an entry (the delete code is asked); "Pay salary", "Add a contribution" and "Withdraw capital"
+/// are on each partner's header and in the toolbar's Add menu. Every figure is the page's own.
 extension ShareholdersBoard {
     private func macBoard(_ f: ShareholderBoardFigures) -> some View {
         let share = f.totals.revShare - f.totals.expShare
+        let key = [book.expenses.revision, book.invoices.revision, book.orders.revision, book.revenue.revision,
+                   books.mina.revision, books.ammar.revision]
+        let byPartner = macRowsMade(key) {
+            Dictionary(f.positions.map { (p: ShareholderFigures.Position) in (p.id, macRows(p)) }, uniquingKeysWith: { first, _ in first })
+        }
         return VStack(spacing: 0) {
             MacFigures(figures: [
                 MacFigure("Revenue", ShareholderMoney.fmt(f.totals.totalRevenue)),
@@ -512,20 +512,19 @@ extension ShareholdersBoard {
             Divider()
             HSplitView {
                 ForEach(f.positions) { (p: ShareholderFigures.Position) in
-                    macPartner(p)
-                        .frame(minWidth: 380)
+                    macPartner(p, rows: byPartner[p.id] ?? [])
+                        .frame(minWidth: 300)
                 }
             }
         }
         .background(Theme.ground)
-        .inspector(isPresented: $macCalc) {
+        .macInspector {
             Form {
                 distributionSection(f.positions)
                 notesSection(f)
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
-            .inspectorColumnWidth(min: 300, ideal: 360, max: 460)
         }
     }
 
@@ -545,12 +544,11 @@ extension ShareholdersBoard {
         return out.sorted { $0.day > $1.day }
     }
 
-    private func macPartner(_ p: ShareholderFigures.Position) -> some View {
+    private func macPartner(_ p: ShareholderFigures.Position, rows: [PartnerMacRow]) -> some View {
         let claim = p.balance.totalClaim
         let owed = claim > 0
         let words = owed ? "The business owes \(p.name)" : (claim < 0 ? "\(p.name) owes the business" : "All settled")
         let tone: Color = owed ? Tone.credit.color : (claim < 0 ? Tone.owed.color : Color.primary)
-        let rows = macRows(p)
         return VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .firstTextBaseline) {
@@ -564,7 +562,6 @@ extension ShareholdersBoard {
                         Label("Record", systemImage: "plus")
                     }
                     .menuStyle(.borderlessButton)
-                    .fixedSize()
                     .help("Pay a salary, add a contribution or withdraw capital for \(p.name)")
                 }
                 HStack(alignment: .firstTextBaseline) {
@@ -592,19 +589,21 @@ extension ShareholdersBoard {
             .padding(14)
             Divider()
             Table(rows, selection: $macPick) {
-                TableColumn("Date") { (r: PartnerMacRow) in Text(OwnerText.shortDate(r.day)) }.width(min: 80, ideal: 100)
+                TableColumn("Date") { (r: PartnerMacRow) in Text(OwnerText.shortDate(r.day)).lineLimit(1) }
+                    .width(min: 70, ideal: 90)
                 TableColumn("What") { (r: PartnerMacRow) in
                     VStack(alignment: .leading, spacing: 1) {
-                        Text(r.what)
-                        Text(r.kind).font(.caption).foregroundStyle(.secondary)
+                        Text(r.what).lineLimit(1)
+                        Text(r.kind).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                     }
                 }
+                .width(min: 120, ideal: 220)
+                // In is green, out is amber, a salary (a business cost) is plain; the header says it is rupees.
                 TableColumn("Amount") { (r: PartnerMacRow) in
-                    Text(r.salary != nil ? ShareholderMoney.fmt(r.amount) : "\(r.isIn ? "+" : "\u{2212}")\(ShareholderMoney.fmt(r.amount))")
-                        .monospacedDigit()
-                        .foregroundStyle(r.salary != nil ? Color.primary : (r.isIn ? Tone.settled.color : Tone.owed.color))
+                    MacAmount(r.salary != nil || r.isIn ? abs(r.amount) : -abs(r.amount),
+                              tone: r.salary != nil ? Tone.quiet : (r.isIn ? Tone.settled : Tone.owed))
                 }
-                .width(min: 100, ideal: 120)
+                .width(min: 70, ideal: 90)
             }
             .contextMenu(forSelectionType: String.self) { ids in
                 if let id = ids.first, let r = rows.first(where: { $0.id == id }) {
@@ -614,7 +613,12 @@ extension ShareholdersBoard {
             .onDeleteCommand {
                 if macPick.count == 1, let id = macPick.first, let r = rows.first(where: { $0.id == id }) { macDelete(r, of: p) }
             }
-            .overlay { if rows.isEmpty { ContentUnavailableView("No entries recorded", systemImage: "tray") } }
+            .overlay {
+                if rows.isEmpty {
+                    ContentUnavailableView("No Entries", systemImage: "tray",
+                                           description: Text("Record a salary, a contribution or a withdrawal with the + above."))
+                }
+            }
         }
     }
 

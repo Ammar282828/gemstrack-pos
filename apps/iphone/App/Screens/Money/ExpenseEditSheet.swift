@@ -125,7 +125,7 @@ struct ExpenseEditSheet: View {
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
             .background(Theme.ground)
-            .frame(minWidth: 520, idealWidth: 580, minHeight: 560)
+            .frame(minWidth: 520, idealWidth: 580, minHeight: 480, idealHeight: 580)
             #endif
             .navigationTitle("Edit expense")
             .navigationBarTitleDisplayMode(.inline)

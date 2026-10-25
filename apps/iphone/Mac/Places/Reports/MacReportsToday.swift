@@ -25,12 +25,26 @@ struct MacReportsTodayPage: View {
             MacReportsNoteStrip(text: TeamNoteEditor.current(book), isOwner: isOwner, edit: editNote)
             head
             Divider()
-            HStack(spacing: 0) {
-                needsList
-                Divider()
-                dueList
-                Divider()
-                salesList
+            // Three columns from about 780 points; narrower, the lists stand one under another and the page scrolls
+            // (each column would be under 260 points, too narrow for a row's two lines).
+            MacReportsWidth(780) {
+                HStack(spacing: 0) {
+                    needsList
+                    Divider()
+                    dueList
+                    Divider()
+                    salesList
+                }
+            } narrow: {
+                ScrollView {
+                    VStack(spacing: 0) {
+                        needsList.frame(height: 260)
+                        Divider()
+                        dueList.frame(height: 260)
+                        Divider()
+                        salesList.frame(height: 260)
+                    }
+                }
             }
         }
     }
@@ -114,12 +128,12 @@ struct MacReportsTodayPage: View {
     @ViewBuilder
     private var sparkline: some View {
         if figures.week.contains(where: { $0.amount > 0 }) {
-            GeometryReader { geo in
+            HStack(spacing: 0) {
                 MacReportsSparkline(days: figures.week)
-                    .frame(width: max(60, (geo.size.width - 4) / 5 - 28), height: 24)
-                    .padding(.leading, 14)
+                    .frame(width: 120, height: 24)
+                Spacer(minLength: 0)
             }
-            .frame(height: 28)
+            .padding(.horizontal, 14)
             .padding(.bottom, 8)
         }
     }

@@ -279,12 +279,16 @@ private struct MacBankAccountsTable: View {
     var body: some View {
         VStack(spacing: 0) {
             Table(accounts, selection: $selection) {
-                TableColumn("Bank") { (a: BankAccountDraft) in Text(a.bankName).fontWeight(.medium) }
-                TableColumn("Account name") { (a: BankAccountDraft) in Text(a.accountName) }
-                TableColumn("Account number") { (a: BankAccountDraft) in Text(a.accountNumber).monospacedDigit() }
+                TableColumn("Bank") { (a: BankAccountDraft) in Text(a.bankName).fontWeight(.medium).lineLimit(1) }
+                    .width(min: 120, ideal: 200)
+                TableColumn("Account name") { (a: BankAccountDraft) in Text(a.accountName).lineLimit(1) }
+                    .width(min: 100, ideal: 160)
+                TableColumn("Account number") { (a: BankAccountDraft) in Text(a.accountNumber).monospacedDigit().lineLimit(1) }
+                    .width(min: 100, ideal: 140)
                 TableColumn("IBAN") { (a: BankAccountDraft) in
-                    Text(a.iban).monospacedDigit().foregroundStyle(.secondary)
+                    Text(a.iban).monospacedDigit().lineLimit(1).foregroundStyle(.secondary)
                 }
+                .width(min: 120, ideal: 200)
             }
             .contextMenu(forSelectionType: String.self) { ids in
                 if ids.count == 1, let id = ids.first {
@@ -312,16 +316,10 @@ private struct MacBankAccountsTable: View {
         }
         .background(Theme.ground)
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            // Add and Remove; changing an account is a double-click or the right-click menu (a Settings pane's toolbar is short).
+            ToolbarItemGroup(placement: .primaryAction) {
                 Button(action: onAdd) { Label("Add account", systemImage: "plus") }
                     .help("Add a bank account")
-            }
-            ToolbarItem(placement: .automatic) {
-                Button { onEdit(selection.first ?? "") } label: { Label("Edit", systemImage: "pencil") }
-                    .disabled(selection.count != 1)
-                    .help("Change the selected account")
-            }
-            ToolbarItem(placement: .automatic) {
                 Button { onRemove(selection) } label: { Label("Remove", systemImage: "trash") }
                     .disabled(selection.isEmpty)
                     .help("Remove the selected account")

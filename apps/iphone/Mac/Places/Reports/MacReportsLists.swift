@@ -112,21 +112,22 @@ struct MacReportsProducts: View {
 
     private func table(_ list: [MacReportsProductRow]) -> some View {
         Table(list, selection: $selection, sortOrder: $sort) {
-            TableColumn("Piece", value: \.name)
+            TableColumn("Piece", value: \.name) { (r: MacReportsProductRow) in Text(r.name).lineLimit(1) }
+                .width(min: 120, ideal: 200)
             TableColumn("SKU", value: \.sku) { (r: MacReportsProductRow) in
-                Text(r.sku).monospacedDigit().foregroundStyle(r.stock ? Color.primary : Color.secondary)
+                Text(r.sku).monospacedDigit().lineLimit(1).foregroundStyle(r.stock ? Color.primary : Color.secondary)
             }
-            .width(min: 90, ideal: 120)
+            .width(min: 70, ideal: 100)
             TableColumn("Quantity", value: \.quantity) { (r: MacReportsProductRow) in MacReportsNumber(AnaFormat.count(r.quantity)) }
-                .width(min: 60, ideal: 80)
+                .width(min: 56, ideal: 70)
             TableColumn("Sales", value: \.sales) { (r: MacReportsProductRow) in MacReportsNumber(String(r.sales)) }
-                .width(min: 50, ideal: 60)
-            TableColumn("Revenue", value: \.revenue) { (r: MacReportsProductRow) in MacReportsNumber(Money.pkrLac(r.revenue)) }
-                .width(min: 90, ideal: 110)
+                .width(min: 40, ideal: 56)
+            TableColumn("Revenue", value: \.revenue) { (r: MacReportsProductRow) in MacAmount(r.revenue) }
+                .width(min: 70, ideal: 90)
             TableColumn("Share", value: \.share) { (r: MacReportsProductRow) in
                 MacReportsNumber(AnaFormat.fixed(r.share * 100, 1) + "%")
             }
-            .width(min: 56, ideal: 64)
+            .width(min: 50, ideal: 60)
         }
         .macOpenSelection { (id: String) -> String? in
             // A piece described for one bill has no page; a stock piece opens in its own window.
@@ -158,6 +159,7 @@ struct MacReportsCustomers: View {
     @State private var selection = Set<String>()
     @State private var sort = [KeyPathComparator(\MacReportsCustomerRow.spent, order: .reverse)]
     @State private var sourceSort = [KeyPathComparator(\MacReportsSourceRow.revenue, order: .reverse)]
+    @State private var sourceMade = Memo<[MacReportsSourceRow]>()
     @State private var base = Memo<[MacReportsCustomerRow]>()
     @State private var before = Memo<[MacReportsCustomerRow]>()
     @State private var made = Memo<[MacReportsCustomerRow]>()
@@ -253,15 +255,16 @@ struct MacReportsCustomers: View {
 
     private func table(_ list: [MacReportsCustomerRow]) -> some View {
         Table(list, selection: $selection, sortOrder: $sort) {
-            TableColumn("Customer", value: \.name)
+            TableColumn("Customer", value: \.name) { (r: MacReportsCustomerRow) in Text(r.name).lineLimit(1) }
+                .width(min: 120, ideal: 200)
             TableColumn("Sales", value: \.sales) { (r: MacReportsCustomerRow) in MacReportsNumber(String(r.sales)) }
-                .width(min: 50, ideal: 60)
+                .width(min: 40, ideal: 56)
             TableColumn("Pieces", value: \.pieces) { (r: MacReportsCustomerRow) in MacReportsNumber(AnaFormat.count(r.pieces)) }
-                .width(min: 50, ideal: 60)
-            TableColumn("Average sale", value: \.average) { (r: MacReportsCustomerRow) in MacReportsNumber(Money.pkrLac(r.average)) }
-                .width(min: 90, ideal: 110)
-            TableColumn("Spent", value: \.spent) { (r: MacReportsCustomerRow) in MacReportsNumber(Money.pkrLac(r.spent)) }
-                .width(min: 90, ideal: 110)
+                .width(min: 40, ideal: 56)
+            TableColumn("Average sale", value: \.average) { (r: MacReportsCustomerRow) in MacAmount(r.average) }
+                .width(min: 70, ideal: 90)
+            TableColumn("Spent", value: \.spent) { (r: MacReportsCustomerRow) in MacAmount(r.spent) }
+                .width(min: 70, ideal: 90)
         }
         .macOpenSelection { (key: String) -> String? in
             // Someone in the book opens in a window; a walk-in or a name alone has no page.
@@ -275,21 +278,23 @@ struct MacReportsCustomers: View {
     // MARK: Acquisition source
 
     private var sourceRows: [MacReportsSourceRow] {
-        let sources = c.figures.sourceBreakdown
-        // Share is of the source-attributed revenue, so the column adds up to 100%.
-        let total = sources.reduce(0.0) { (sum: Double, s: AnaSourceRow) -> Double in sum + s.revenue }
-        return sources
-            .map { (s: AnaSourceRow) -> MacReportsSourceRow in
-                MacReportsSourceRow(id: s.key, label: s.label, sales: s.orderCount, share: total > 0 ? s.revenue / total : 0,
-                                    average: s.avgOrderValue, revenue: s.revenue)
-            }
-            .sorted(using: sourceSort)
+        sourceMade(c.key + [sourceSort.hashValue]) {
+            let sources = c.figures.sourceBreakdown
+            // Share is of the source-attributed revenue, so the column adds up to 100%.
+            let total = sources.reduce(0.0) { (sum: Double, s: AnaSourceRow) -> Double in sum + s.revenue }
+            return sources
+                .map { (s: AnaSourceRow) -> MacReportsSourceRow in
+                    MacReportsSourceRow(id: s.key, label: s.label, sales: s.orderCount, share: total > 0 ? s.revenue / total : 0,
+                                        average: s.avgOrderValue, revenue: s.revenue)
+                }
+                .sorted(using: sourceSort)
+        }
     }
 
     private var sources: some View {
         let rows = sourceRows
         return VStack(alignment: .leading, spacing: 0) {
-            MacReportsHeader(title: "Acquisition source insights", detail: "A sale’s source comes from the sale, then the customer")
+            MacReportsHeader(title: "Acquisition source insights", detail: "A sale\u{2019}s source comes from the sale, then the customer")
             if rows.isEmpty {
                 Text("No acquisition-source data available for the selected period.")
                     .foregroundStyle(.secondary)
@@ -297,27 +302,44 @@ struct MacReportsCustomers: View {
                     .padding(.vertical, 6)
                 Spacer(minLength: 0)
             } else {
-                HStack(alignment: .top, spacing: 0) {
-                    AnaSourceTrendChart(points: c.figures.sourceTrend)
-                        .padding(.horizontal, 12)
-                        .frame(minWidth: 320, maxWidth: .infinity)
-                    Divider()
-                    Table(rows, sortOrder: $sourceSort) {
-                        TableColumn("Source", value: \.label)
-                        TableColumn("Sales", value: \.sales) { (r: MacReportsSourceRow) in MacReportsNumber(String(r.sales)) }
-                            .width(min: 44, ideal: 54)
-                        TableColumn("Share", value: \.share) { (r: MacReportsSourceRow) in
-                            MacReportsNumber(AnaFormat.fixed(r.share * 100, 1) + "%")
-                        }
-                        .width(min: 54, ideal: 62)
-                        TableColumn("Average", value: \.average) { (r: MacReportsSourceRow) in MacReportsNumber(Money.lacCrore(r.average)) }
-                            .width(min: 60, ideal: 76)
-                        TableColumn("Revenue", value: \.revenue) { (r: MacReportsSourceRow) in MacReportsNumber(Money.pkrLac(r.revenue)) }
-                            .width(min: 80, ideal: 96)
+                // The chart beside its table from about 760 points; narrower, the chart above it and the panel scrolls.
+                MacReportsWidth(760) {
+                    HStack(alignment: .top, spacing: 0) {
+                        AnaSourceTrendChart(points: c.figures.sourceTrend)
+                            .padding(.horizontal, 12)
+                            .frame(minWidth: 260, maxWidth: .infinity)
+                        Divider()
+                        sourceTable(rows)
                     }
-                    .frame(minWidth: 380)
+                } narrow: {
+                    ScrollView {
+                        VStack(spacing: 0) {
+                            AnaSourceTrendChart(points: c.figures.sourceTrend)
+                                .padding(.horizontal, 12)
+                            Divider()
+                            sourceTable(rows)
+                                .frame(height: 36 + 26 * CGFloat(max(rows.count, 1)))
+                        }
+                    }
                 }
             }
+        }
+    }
+
+    private func sourceTable(_ rows: [MacReportsSourceRow]) -> some View {
+        Table(rows, sortOrder: $sourceSort) {
+            TableColumn("Source", value: \.label) { (r: MacReportsSourceRow) in Text(r.label).lineLimit(1) }
+                .width(min: 90, ideal: 130)
+            TableColumn("Sales", value: \.sales) { (r: MacReportsSourceRow) in MacReportsNumber(String(r.sales)) }
+                .width(min: 40, ideal: 54)
+            TableColumn("Share", value: \.share) { (r: MacReportsSourceRow) in
+                MacReportsNumber(AnaFormat.fixed(r.share * 100, 1) + "%")
+            }
+            .width(min: 50, ideal: 60)
+            TableColumn("Average", value: \.average) { (r: MacReportsSourceRow) in MacAmount(r.average) }
+                .width(min: 70, ideal: 90)
+            TableColumn("Revenue", value: \.revenue) { (r: MacReportsSourceRow) in MacAmount(r.revenue) }
+                .width(min: 70, ideal: 90)
         }
     }
 }
@@ -350,6 +372,7 @@ struct MacReportsCategories: View {
     @State private var sort = [KeyPathComparator(\MacReportsCategoryRow.revenue, order: .reverse)]
     @State private var base = Memo<[AnaBreakdown.CategoryRow]>()
     @State private var before = Memo<[AnaBreakdown.CategoryRow]>()
+    @State private var tableMade = Memo<[MacReportsCategoryRow]>()
 
     private var allRows: [AnaBreakdown.CategoryRow] {
         base(c.key) { AnaBreakdown.categories(c.books, range: c.range) }
@@ -371,19 +394,34 @@ struct MacReportsCategories: View {
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                HStack(spacing: 0) {
-                    VStack(alignment: .leading, spacing: 0) {
-                        MacReportsHeader(title: "Share of revenue", detail: nil)
-                        ScrollView { AnaShareChart(rows: all).padding(.horizontal, 12).padding(.bottom, 12) }
+                // The share chart beside the table from about 760 points; narrower, the chart above it and the page scrolls.
+                MacReportsWidth(760) {
+                    HStack(spacing: 0) {
+                        VStack(alignment: .leading, spacing: 0) {
+                            MacReportsHeader(title: "Share of revenue", detail: nil)
+                            ScrollView { AnaShareChart(rows: all).padding(.horizontal, 12).padding(.bottom, 12) }
+                        }
+                        .frame(minWidth: 260, idealWidth: 380)
+                        Divider()
+                        VStack(alignment: .leading, spacing: 0) {
+                            MacReportsHeader(title: "By category", detail: nil)
+                            table(rows)
+                            MacReportsNote(text: "Revenue is before invoice discounts and trade-ins, so it can be higher than Overview.")
+                        }
+                        .frame(minWidth: 360)
                     }
-                    .frame(minWidth: 320, idealWidth: 380)
-                    Divider()
-                    VStack(alignment: .leading, spacing: 0) {
-                        MacReportsHeader(title: "By category", detail: nil)
-                        table(rows)
-                        MacReportsNote(text: "Revenue is before invoice discounts and trade-ins, so it can be higher than Overview.")
+                } narrow: {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 0) {
+                            MacReportsHeader(title: "Share of revenue", detail: nil)
+                            AnaShareChart(rows: all).padding(.horizontal, 12).padding(.bottom, 12)
+                            Divider()
+                            MacReportsHeader(title: "By category", detail: nil)
+                            table(rows)
+                                .frame(height: 36 + 26 * CGFloat(max(rows.count, 1)))
+                            MacReportsNote(text: "Revenue is before invoice discounts and trade-ins, so it can be higher than Overview.")
+                        }
                     }
-                    .frame(minWidth: 380)
                 }
             }
         }
@@ -391,13 +429,15 @@ struct MacReportsCategories: View {
     }
 
     private func tableRows(_ all: [AnaBreakdown.CategoryRow]) -> [MacReportsCategoryRow] {
-        let total = all.reduce(0.0) { (sum: Double, r: AnaBreakdown.CategoryRow) -> Double in sum + r.revenue }
-        return all
-            .map { (r: AnaBreakdown.CategoryRow) -> MacReportsCategoryRow in
-                MacReportsCategoryRow(id: r.id, name: r.name, pieces: r.itemsSold, sales: r.orders, share: total > 0 ? r.revenue / total : 0,
-                                      revenue: r.revenue)
-            }
-            .sorted(using: sort)
+        tableMade(c.key + [sort.hashValue]) {
+            let total = all.reduce(0.0) { (sum: Double, r: AnaBreakdown.CategoryRow) -> Double in sum + r.revenue }
+            return all
+                .map { (r: AnaBreakdown.CategoryRow) -> MacReportsCategoryRow in
+                    MacReportsCategoryRow(id: r.id, name: r.name, pieces: r.itemsSold, sales: r.orders, share: total > 0 ? r.revenue / total : 0,
+                                          revenue: r.revenue)
+                }
+                .sorted(using: sort)
+        }
     }
 
     private static func revenue(_ rows: [AnaBreakdown.CategoryRow]) -> Double {
@@ -432,17 +472,18 @@ struct MacReportsCategories: View {
 
     private func table(_ rows: [MacReportsCategoryRow]) -> some View {
         Table(rows, selection: $selection, sortOrder: $sort) {
-            TableColumn("Category", value: \.name)
+            TableColumn("Category", value: \.name) { (r: MacReportsCategoryRow) in Text(r.name).lineLimit(1) }
+                .width(min: 120, ideal: 200)
             TableColumn("Pieces", value: \.pieces) { (r: MacReportsCategoryRow) in MacReportsNumber(AnaFormat.count(r.pieces)) }
-                .width(min: 56, ideal: 66)
+                .width(min: 48, ideal: 60)
             TableColumn("Sales", value: \.sales) { (r: MacReportsCategoryRow) in MacReportsNumber(String(r.sales)) }
-                .width(min: 50, ideal: 60)
+                .width(min: 40, ideal: 56)
             TableColumn("Share", value: \.share) { (r: MacReportsCategoryRow) in
                 MacReportsNumber(AnaFormat.fixed(r.share * 100, 1) + "%")
             }
-            .width(min: 56, ideal: 64)
-            TableColumn("Revenue", value: \.revenue) { (r: MacReportsCategoryRow) in MacReportsNumber(Money.pkrLac(r.revenue)) }
-                .width(min: 90, ideal: 110)
+            .width(min: 50, ideal: 60)
+            TableColumn("Revenue", value: \.revenue) { (r: MacReportsCategoryRow) in MacAmount(r.revenue) }
+                .width(min: 70, ideal: 90)
         }
     }
 }

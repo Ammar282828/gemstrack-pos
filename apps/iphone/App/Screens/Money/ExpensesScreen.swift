@@ -31,6 +31,7 @@ struct ExpensesScreen: View {
     @State private var macSort = [KeyPathComparator(\ExpensesMacRow.day, order: .reverse)]
     @State private var macPick = Set<String>()
     @State private var macMade = Memo<ExpensesMacData>()
+    @State private var macCategoriesMade = Memo<[String]>()
     #endif
 
     var body: some View {
@@ -364,11 +365,14 @@ private struct ExpensesMacRow: Identifiable {
     let what: String
     let category: String
     let amount: Double
+    /// The date as the shop says it, worked out once with the row rather than per drawing.
+    let said: String
     var id: String { expense.id }
 
     init(_ e: Expense, who: String) {
         expense = e
         self.who = who
+        said = ShopDate.say(e.date)
         day = MoneyMonths.day(e.date)
         what = e.description.isEmpty ? e.category : e.description
         category = e.category
@@ -384,9 +388,9 @@ private struct ExpensesMacData {
 }
 
 /// Expenses as a Mac place (docs/features/mac-design.md, "Money"): every payment in the period as a sortable table (date,
-/// what, category, paid to, amount), the period, grouping and category pop-ups in the toolbar beside the report, the totals
-/// in the summary bar. The Expense menu is New Expense… (a sheet), Edit… (Return, or a double-click) and Delete… (asks for
-/// the delete code, as ever); a partner's drawing points to Shareholders.
+/// what, category, paid to, amount), the period, grouping and category as one Filter menu in the toolbar beside New, the
+/// totals in the summary bar. The Expense menu is New Expense… (a sheet), Edit… (Return, or a double-click), the report as
+/// a PDF and Delete… (asks for the delete code, as ever); a partner's drawing points to Shareholders.
 extension ExpensesScreen {
     @ViewBuilder
     var macOwners: some View {
@@ -465,20 +469,20 @@ extension ExpensesScreen {
                 Divider()
             }
             Table(rows, selection: $macPick, sortOrder: $macSort) {
-                TableColumn("Date", value: \.day) { (r: ExpensesMacRow) in Text(ShopDate.say(r.expense.date)) }
-                    .width(min: 90, ideal: 110)
-                TableColumn("What", value: \.what)
-                    .width(min: 160, ideal: 280)
-                TableColumn("Category", value: \.category) { (r: ExpensesMacRow) in Text(r.category).foregroundStyle(.secondary) }
-                    .width(min: 110, ideal: 150)
-                TableColumn("Paid to", value: \.who) { (r: ExpensesMacRow) in Text(r.who).foregroundStyle(.secondary) }
-                    .width(min: 110, ideal: 170)
-                TableColumn("Amount", value: \.amount) { (r: ExpensesMacRow) in
-                    Text(Money.pkr(r.amount))
-                        .monospacedDigit()
-                        .frame(maxWidth: .infinity, alignment: .trailing)
+                TableColumn("Date", value: \.day) { (r: ExpensesMacRow) in Text(r.said).lineLimit(1) }
+                    .width(min: 70, ideal: 100)
+                TableColumn("What", value: \.what) { (r: ExpensesMacRow) in Text(r.what).lineLimit(1) }
+                    .width(min: 120, ideal: 240)
+                TableColumn("Category", value: \.category) { (r: ExpensesMacRow) in
+                    Text(r.category).lineLimit(1).foregroundStyle(.secondary)
                 }
-                .width(min: 100, ideal: 120)
+                .width(min: 90, ideal: 130)
+                TableColumn("Paid to", value: \.who) { (r: ExpensesMacRow) in
+                    Text(r.who).lineLimit(1).foregroundStyle(.secondary)
+                }
+                .width(min: 90, ideal: 150)
+                TableColumn("Amount", value: \.amount) { (r: ExpensesMacRow) in MacAmount(r.amount) }
+                    .width(min: 70, ideal: 90)
             }
             .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
                 MacActionItems(groups: macGroups(for: ids))
@@ -500,7 +504,8 @@ extension ExpensesScreen {
         ContentUnavailableView {
             Label("No expenses in this period", systemImage: "tray")
         } description: {
-            Text(filtering ? "Select a wider period, or clear the filters." : "No expenses recorded for \(period.title.lowercased()).")
+            Text(filtering ? "Select a wider period, or clear the filters."
+                           : "No expenses recorded for \(period.title.lowercased()). Add one with \u{2303}\u{2318}N.")
         }
     }
 
@@ -515,10 +520,10 @@ extension ExpensesScreen {
         let per = grouping.title.lowercased()
         var parts = ["\(s.count) payment\(s.count == 1 ? "" : "s")", "Total \(Money.pkr(s.total))"]
         if s.count > 0 {
-            parts.append("Average per \(per) \(Money.pkr(s.perBucket))")
-            if s.biggestTotal > 0 { parts.append("Biggest \(per) \(Money.pkr(s.biggestTotal)) (\(s.biggestLabel))") }
+            parts.append("Average per \(per) \(Money.pkrLac(s.perBucket))")
+            if s.biggestTotal > 0 { parts.append("Biggest \(per) \(Money.pkrLac(s.biggestTotal)) (\(s.biggestLabel))") }
         }
-        if s.karigarTotal > 0 { parts.append("Karigar payments \(Money.pkr(s.karigarTotal)) (\(s.karigarShare)%)") }
+        if s.karigarTotal > 0 { parts.append("Karigar payments \(Money.pkrLac(s.karigarTotal)) (\(s.karigarShare)%)") }
         return parts
     }
 
@@ -547,42 +552,58 @@ extension ExpensesScreen {
                                role: .destructive, enabled: e != nil && !drawing, id: "delete") {
             if let e { askDelete(e) }
         }
-        return [[add], [edit], [delete]]
+        // The page's own report, drawn by the ERP for the period, grouping and category on screen.
+        let pdf = MacAction("Expense Report (PDF)\u{2026}", symbol: "doc.richtext", enabled: !book.expenses.items.isEmpty, id: "report") {
+            report = reportTarget()
+        }
+        return [[add], [edit], [pdf], [delete]]
     }
 
+    /// New, and the one Filter menu (period, grouping and category inline in it): a Tahoe toolbar of five capsules overflowed.
     @ToolbarContentBuilder
     private var macToolbar: some ToolbarContent {
         let add = macGroups(for: macPick)[0][0]
-        ToolbarItem(placement: .principal) {
-            Picker("Period", selection: $period) {
-                ForEach(ExpensePeriod.allCases) { (p: ExpensePeriod) in Text(p.title).tag(p) }
-            }
-            .pickerStyle(.menu)
-            .help("How far back to look")
-        }
-        ToolbarItem(placement: .automatic) {
-            Picker("Group by", selection: $grouping) {
-                ForEach(ExpenseGrouping.allCases) { (g: ExpenseGrouping) in Text("By \(g.title.lowercased())").tag(g) }
-            }
-            .pickerStyle(.menu)
-            .help("How coarsely the average and the biggest are bucketed")
-        }
-        ToolbarItem(placement: .automatic) {
-            Picker("Category", selection: $category) {
-                Text("All categories").tag("")
-                ForEach(usedCategories, id: \.self) { (name: String) in Text(name).tag(name) }
-            }
-            .pickerStyle(.menu)
-            .help("Only one category")
-        }
-        ToolbarItem(placement: .automatic) {
-            Button { report = reportTarget() } label: { Label("Expense report (PDF)", systemImage: "doc.richtext") }
-                .disabled(book.expenses.items.isEmpty)
-                .help("The expense report for what is on screen, as a PDF")
-        }
-        ToolbarItem(placement: .primaryAction) {
+        ToolbarItemGroup(placement: .primaryAction) {
             MacToolbarAction(action: add)
+            macFilterMenu
         }
+    }
+
+    /// The filter's categories, worked out once per change of the expenses (the toolbar is drawn on every click on a row).
+    private var macCategories: [String] {
+        macCategoriesMade([book.expenses.revision, session.shop.expenseCategories.hashValue]) { usedCategories }
+    }
+
+    private var macFiltering: Bool { period != .thisMonth || grouping != .day || !category.isEmpty }
+
+    private var macFilterMenu: some View {
+        Menu {
+            Section("Period") {
+                Picker("Period", selection: $period) {
+                    ForEach(ExpensePeriod.allCases) { (p: ExpensePeriod) in Text(p.title).tag(p) }
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
+            }
+            Section("Group by") {
+                Picker("Group by", selection: $grouping) {
+                    ForEach(ExpenseGrouping.allCases) { (g: ExpenseGrouping) in Text("By \(g.title.lowercased())").tag(g) }
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
+            }
+            Section("Category") {
+                Picker("Category", selection: $category) {
+                    Text("All categories").tag("")
+                    ForEach(macCategories, id: \.self) { (name: String) in Text(name).tag(name) }
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
+            }
+        } label: {
+            Label("Filter", systemImage: macFiltering ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+        }
+        .help("How far back to look, how coarsely to group, and one category")
     }
 
     /// The karigar or partner it went to, and a partner who fronted the cash (the iPhone's row words).

@@ -312,7 +312,11 @@ struct LabelDesigner: View {
                     Button("Fit to window") { m.zoomFit() }.keyboardShortcut("0", modifiers: .command)
                     ForEach([50, 100, 200, 400, 800], id: \.self) { (p: Int) in Button("\(p)%") { m.zoomPercent(p) } }
                 }
+                #if os(macOS)
+                .menuIndicator(.hidden)
+                #else
                 .menuIndicator(.hidden).fixedSize()
+                #endif
                 Button { m.zoomIn() } label: { Image(systemName: "plus.magnifyingglass") }
                     .keyboardShortcut("=", modifiers: .command).help("Zoom in").accessibilityLabel("Zoom in")
                 Divider().frame(height: 18)
@@ -322,7 +326,11 @@ struct LabelDesigner: View {
                     Menu("\(m.gridDots) dots") {
                         ForEach([2, 4, 8, 16, 24], id: \.self) { (g: Int) in Button("\(g) dots") { m.gridDots = g } }
                     }
+                    #if os(macOS)
+                    .menuIndicator(.hidden)
+                    #else
                     .menuIndicator(.hidden).fixedSize()
+                    #endif
                 }
                 Toggle(isOn: Binding(get: { m.showRulers }, set: { m.showRulers = $0 })) { Image(systemName: "ruler") }
                     .toggleStyle(.button).help("Rulers in millimetres").accessibilityLabel("Rulers")
@@ -481,9 +489,9 @@ extension LabelDesigner {
                 .padding(.horizontal, 14).padding(.vertical, 10)
                 LabelLayersList(model: m)
             }
-            .frame(minWidth: 190, idealWidth: 230, maxWidth: 320)
+            .frame(minWidth: 150, idealWidth: 210, maxWidth: 280)
             VStack(spacing: 0) {
-                canvas(m).frame(minWidth: 380, minHeight: 280)
+                canvas(m).frame(minWidth: 300, minHeight: 240)
                 Divider()
                 controlBar(m)
             }

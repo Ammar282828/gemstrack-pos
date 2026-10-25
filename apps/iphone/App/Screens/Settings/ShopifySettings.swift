@@ -628,14 +628,16 @@ extension ShopifyInnerForm {
                     TextField("Filter by order number or customer", text: $query)
                         .autocorrectionDisabled()
                     Table(visible, selection: $picked) {
-                        TableColumn("Order") { (o: PullOrder) in Text(o.title).font(.body.monospaced().weight(.medium)) }
+                        TableColumn("Order") { (o: PullOrder) in Text(o.title).font(.body.monospaced().weight(.medium)).lineLimit(1) }
+                            .width(min: 70, ideal: 100)
                         TableColumn("Customer") { (o: PullOrder) in Text(o.subtitle).foregroundStyle(.secondary).lineLimit(1) }
+                            .width(min: 120, ideal: 200)
                         TableColumn("Date") { (o: PullOrder) in
-                            Text(o.date.isEmpty ? "" : ShopDate.say(o.date, withTime: false)).foregroundStyle(.secondary)
+                            Text(o.date.isEmpty ? "" : ShopDate.say(o.date, withTime: false)).lineLimit(1).foregroundStyle(.secondary)
                         }
-                        TableColumn("Amount") { (o: PullOrder) in
-                            Text(o.amount > 0 ? money(o.amount) : "").monospacedDigit()
-                        }
+                        .width(min: 70, ideal: 90)
+                        TableColumn("Amount") { (o: PullOrder) in MacAmount(o.amount > 0 ? o.amount : nil) }
+                            .width(min: 70, ideal: 90)
                     }
                     .frame(minHeight: 280)
                     .disabled(writing)

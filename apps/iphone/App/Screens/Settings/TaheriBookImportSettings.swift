@@ -152,11 +152,17 @@ private struct TaheriBookImportPage: View {
     private func tallies(_ title: String, symbol: String, new: Int, here: Int, half: Int) -> some View {
         VStack(alignment: .leading, spacing: pt(8)) {
             Label(title, systemImage: symbol).font(.subheadline.weight(.medium))
+            #if os(macOS)
+            MacFigures([MacFigure("New", "\(new)"),
+                        MacFigure("Already here", "\(here)"),
+                        MacFigure("Half-matches", "\(half)", tone: half > 0 ? Tone.owed : nil)])
+            #else
             FigureRow(spacing: pt(10)) {
                 FigureTile(label: "New", value: "\(new)")
                 FigureTile(label: "Already here", value: "\(here)")
                 FigureTile(label: "Half-matches", value: "\(half)", tint: half > 0 ? Tone.owed.color : .primary)
             }
+            #endif
         }
         .listRowBackground(Color.clear)
         .listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0))

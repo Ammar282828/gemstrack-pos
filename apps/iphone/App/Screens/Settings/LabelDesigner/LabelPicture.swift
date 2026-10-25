@@ -193,7 +193,11 @@ struct LabelPictureSheet: View {
                 if let data = try? Data(contentsOf: url) { load(data) } else { problem = "That file could not be read." }
             }
         }
+        #if os(macOS)
+        .macSheetSize(minWidth: 520, minHeight: 520)
+        #else
         .macSheetSize(minWidth: 520, minHeight: 560)
+        #endif
     }
 
     private func load(_ data: Data) {

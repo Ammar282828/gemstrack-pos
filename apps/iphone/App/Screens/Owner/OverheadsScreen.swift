@@ -79,24 +79,23 @@ private struct OverheadsBoard: View {
             content
         }
         .navigationTitle("Overheads")
+        #if os(macOS)
+        // The toolbar has the one thing the page adds; Save is the footer's (it appears with the first change) and ⌘S is
+        // the Overheads menu's, so the toolbar does not carry it twice.
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                MacToolbarAction(action: macAddAction)
+            }
+        }
+        .macRecordMenu(MacRecordMenu(title: "Overheads", groups: [[macAddAction], [macSaveAction]]))
+        #else
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button { add() } label: { Label("Add a line", systemImage: "plus") }
                     .disabled(answer == nil)
-                    #if os(macOS)
-                    .keyboardShortcut("l", modifiers: [.command, .shift])
-                    .help("Add a line to the sheet (\u{21E7}\u{2318}L)")
-                    #endif
             }
-            #if os(macOS)
-            ToolbarItem(placement: .confirmationAction) {
-                Button("Save from \(monthName)") { Task { await save() } }
-                    .disabled(!dirty || saving)
-                    .keyboardShortcut("s", modifiers: .command)
-                    .help("Save the sheet from this month on (\u{2318}S)")
-            }
-            #endif
         }
+        #endif
         #if os(macOS)
         .safeAreaInset(edge: .bottom, spacing: 0) {
             if dirty {
@@ -360,12 +359,24 @@ private struct OverheadsBoard: View {
 /// sheet that makes the target (a form of lines you type into, with the total) on the right. Saving is ⌘S or the footer;
 /// the record, the target and the save are the page's own.
 extension OverheadsBoard {
+    /// Add a line to the sheet: the toolbar's button and the Overheads menu's item, one action.
+    private var macAddAction: MacAction {
+        MacAction("Add a Line", symbol: "plus", shortcut: KeyboardShortcut("l", modifiers: [.command, .shift]),
+                  enabled: answer != nil, id: "add") { add() }
+    }
+
+    /// Save the sheet from this month on (⌘S): the footer's button, and the menu bar's.
+    private var macSaveAction: MacAction {
+        MacAction("Save from \(monthName)", symbol: "checkmark", shortcut: KeyboardShortcut("s", modifiers: .command),
+                  enabled: dirty && !saving, id: "save") { Task { await save() } }
+    }
+
     private func macBoard(rows: [OverheadMonthRow], summary: OverheadSummary, target: Double, earned: Double, p: OverheadProgress) -> some View {
         HSplitView {
             macRecord(rows, summary, target: target, earned: earned, p: p)
-                .frame(minWidth: 420)
+                .frame(minWidth: 360)
             macSheet(target)
-                .frame(minWidth: 340, idealWidth: 420, maxWidth: 560)
+                .frame(minWidth: 280, idealWidth: 380, maxWidth: 520)
         }
         .background(Theme.ground)
         .navigationSubtitle(monthName)
@@ -389,23 +400,21 @@ extension OverheadsBoard {
             .padding(.horizontal, 14)
             .padding(.bottom, 12)
             Table(rows) {
-                TableColumn("Month") { (r: OverheadMonthRow) in Text(r.inProgress ? "\(r.label) \u{00B7} so far" : r.label) }
-                    .width(min: 120, ideal: 170)
-                TableColumn("Needed") { (r: OverheadMonthRow) in Text(OwnerText.pkr(r.target)).monospacedDigit() }
-                    .width(min: 90, ideal: 110)
-                TableColumn("Revenue") { (r: OverheadMonthRow) in Text(OwnerText.pkr(r.earned)).monospacedDigit() }
-                    .width(min: 90, ideal: 110)
+                TableColumn("Month") { (r: OverheadMonthRow) in Text(r.inProgress ? "\(r.label) \u{00B7} so far" : r.label).lineLimit(1) }
+                    .width(min: 110, ideal: 170)
+                TableColumn("Needed") { (r: OverheadMonthRow) in MacAmount(r.target) }
+                    .width(min: 70, ideal: 90)
+                TableColumn("Revenue") { (r: OverheadMonthRow) in MacAmount(r.earned) }
+                    .width(min: 70, ideal: 90)
                 TableColumn("Over / short") { (r: OverheadMonthRow) in
                     // A month that met its target is the expected end: no colour; one that fell short is amber.
-                    Text(OwnerText.signed(r.surplus))
-                        .monospacedDigit()
-                        .foregroundStyle(r.inProgress || r.surplus >= 0 ? Color.primary : Tone.owed.color)
+                    MacAmount(r.surplus, tone: r.inProgress || r.surplus >= 0 ? Tone.quiet : Tone.owed)
                 }
-                .width(min: 100, ideal: 120)
+                .width(min: 70, ideal: 90)
                 TableColumn("") { (r: OverheadMonthRow) in
                     if !r.inProgress { Image(systemName: r.met ? "checkmark.circle.fill" : "arrow.down.right.circle.fill").foregroundStyle(r.met ? Color.secondary : Tone.owed.color) }
                 }
-                .width(30)
+                .width(24)
             }
             VStack(spacing: 0) {
                 Divider()
@@ -437,7 +446,7 @@ extension OverheadsBoard {
                         TextField("Amount", text: $line.amountText.wholeRupees)
                             .multilineTextAlignment(.trailing)
                             .monospacedDigit()
-                            .frame(width: 130)
+                            .frame(width: 110)
                         Button(role: .destructive) { remove(line.id) } label: { Image(systemName: "minus.circle") }
                             .buttonStyle(.borderless)
                             .help("Remove this line")

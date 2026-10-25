@@ -11,6 +11,8 @@ struct MacReportsOverview: View {
 
     @State private var expenseSort = [KeyPathComparator(\MacReportsExpenseRow.amount, order: .reverse)]
     @State private var karatSort = [KeyPathComparator(\MacReportsKaratRow.grams, order: .reverse)]
+    @State private var expenseMade = Memo<[MacReportsExpenseRow]>()
+    @State private var karatMade = Memo<[MacReportsKaratRow]>()
 
     private var f: AnaFigures { c.figures }
 
@@ -22,14 +24,27 @@ struct MacReportsOverview: View {
                 macReportsFigures(flowFigures)
                 Divider()
                 trend
-                HStack(alignment: .top, spacing: 0) {
-                    facts.frame(maxWidth: .infinity, alignment: .topLeading)
-                    if c.showCosts {
+                // Three columns from about 780 points; narrower, one under another (each would be under 260 points).
+                MacReportsWidth(780) {
+                    HStack(alignment: .top, spacing: 0) {
+                        facts.frame(maxWidth: .infinity, alignment: .topLeading)
+                        if c.showCosts {
+                            Divider()
+                            expenses.frame(maxWidth: .infinity, alignment: .topLeading)
+                        }
                         Divider()
-                        expenses.frame(maxWidth: .infinity, alignment: .topLeading)
+                        gold.frame(maxWidth: .infinity, alignment: .topLeading)
                     }
-                    Divider()
-                    gold.frame(maxWidth: .infinity, alignment: .topLeading)
+                } narrow: {
+                    VStack(alignment: .leading, spacing: 0) {
+                        facts.frame(maxWidth: .infinity, alignment: .topLeading)
+                        if c.showCosts {
+                            Divider()
+                            expenses.frame(maxWidth: .infinity, alignment: .topLeading)
+                        }
+                        Divider()
+                        gold.frame(maxWidth: .infinity, alignment: .topLeading)
+                    }
                 }
                 Divider()
                 notes
@@ -144,12 +159,14 @@ struct MacReportsOverview: View {
     // MARK: Expenses
 
     private var expenseRows: [MacReportsExpenseRow] {
-        let total = f.expensesByCategory.reduce(0.0) { (sum: Double, e: AnaExpenseCategory) -> Double in sum + e.amount }
-        return f.expensesByCategory
-            .map { (e: AnaExpenseCategory) -> MacReportsExpenseRow in
-                MacReportsExpenseRow(id: e.category, category: e.category, amount: e.amount, share: total > 0 ? e.amount / total : 0)
-            }
-            .sorted(using: expenseSort)
+        expenseMade(c.key + [expenseSort.hashValue]) {
+            let total = f.expensesByCategory.reduce(0.0) { (sum: Double, e: AnaExpenseCategory) -> Double in sum + e.amount }
+            return f.expensesByCategory
+                .map { (e: AnaExpenseCategory) -> MacReportsExpenseRow in
+                    MacReportsExpenseRow(id: e.category, category: e.category, amount: e.amount, share: total > 0 ? e.amount / total : 0)
+                }
+                .sorted(using: expenseSort)
+        }
     }
 
     private var expenses: some View {
@@ -164,12 +181,13 @@ struct MacReportsOverview: View {
             } else {
                 Table(rows, sortOrder: $expenseSort) {
                     TableColumn("Category", value: \.category)
-                    TableColumn("Amount", value: \.amount) { (r: MacReportsExpenseRow) in MacReportsNumber(Money.pkr(r.amount)) }
-                        .width(min: 90, ideal: 110)
+                        .width(min: 90, ideal: 140)
+                    TableColumn("Amount", value: \.amount) { (r: MacReportsExpenseRow) in MacAmount(r.amount) }
+                        .width(min: 70, ideal: 90)
                     TableColumn("Share", value: \.share) { (r: MacReportsExpenseRow) in
                         MacReportsNumber(AnaFormat.fixed(r.share * 100, 1) + "%")
                     }
-                    .width(min: 56, ideal: 64)
+                    .width(min: 50, ideal: 60)
                 }
                 .scrollDisabled(true)
                 .frame(height: 36 + 26 * CGFloat(rows.count))
@@ -180,11 +198,13 @@ struct MacReportsOverview: View {
     // MARK: Gold and coins
 
     private var karatRows: [MacReportsKaratRow] {
-        f.goldByKarat
-            .map { (k: AnaKarat) -> MacReportsKaratRow in
-                MacReportsKaratRow(id: k.karat, karat: k.karat.uppercased(), tola: AnaFormat.tola(k.grams), grams: k.grams, pieces: k.pieces)
-            }
-            .sorted(using: karatSort)
+        karatMade(c.key + [karatSort.hashValue]) {
+            f.goldByKarat
+                .map { (k: AnaKarat) -> MacReportsKaratRow in
+                    MacReportsKaratRow(id: k.karat, karat: k.karat.uppercased(), tola: AnaFormat.tola(k.grams), grams: k.grams, pieces: k.pieces)
+                }
+                .sorted(using: karatSort)
+        }
     }
 
     private var gold: some View {

@@ -325,6 +325,11 @@ private struct HisaabMacRow: Identifiable {
     let invoices: Int
     let gold: Double
     let cash: Double
+    /// What the shop will get and will give, as two sortable columns of digits.
+    let youGet: Double
+    let youGive: Double
+    /// The metal owed either way, in words ("12.5 g to receive"), made once with the row.
+    let metal: String
     var id: String { account.id }
 
     init(_ a: HisaabAccount) {
@@ -334,6 +339,9 @@ private struct HisaabMacRow: Identifiable {
         invoices = a.unpaid.count
         gold = a.gold
         cash = a.cash
+        youGet = a.hasCash ? max(0, a.cash) : 0
+        youGive = a.hasCash ? max(0, -a.cash) : 0
+        metal = a.gold == 0 ? "" : "\(MoneyFormat.grams(abs(a.gold))) g \(a.gold > 0 ? "to receive" : "to pay")"
     }
 }
 
@@ -441,28 +449,27 @@ extension HisaabScreen {
         let made = macRows(data)
         let rows = made.rows
         Table(rows, selection: $macPick, sortOrder: $macSort) {
-            TableColumn("Name", value: \.name)
-                .width(min: 160, ideal: 240)
+            TableColumn("Name", value: \.name) { (r: HisaabMacRow) in Text(r.name).lineLimit(1) }
+                .width(min: 120, ideal: 200)
             TableColumn("Who", value: \.kind) { (r: HisaabMacRow) in Text(r.kind).foregroundStyle(.secondary) }
-                .width(min: 80, ideal: 100)
-            TableColumn("Invoices owing", value: \.invoices) { (r: HisaabMacRow) in
+                .width(min: 70, ideal: 90)
+            TableColumn("Invoices", value: \.invoices) { (r: HisaabMacRow) in
                 Text(r.invoices == 0 ? "" : "\(r.invoices)").monospacedDigit()
+                    .frame(maxWidth: .infinity, alignment: .trailing)
             }
-            .width(min: 90, ideal: 110)
+            .width(min: 56, ideal: 64)
             TableColumn(MoneyWords.metal.capitalized, value: \.gold) { (r: HisaabMacRow) in
-                Text(r.gold == 0 ? "" : "\(MoneyFormat.grams(abs(r.gold))) g \(r.gold > 0 ? "to receive" : "to pay")")
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
+                Text(r.metal).monospacedDigit().lineLimit(1).foregroundStyle(.secondary)
             }
-            .width(min: 120, ideal: 150)
-            TableColumn("Balance", value: \.cash) { (r: HisaabMacRow) in
-                if r.account.hasCash {
-                    Text("\(Money.pkr(abs(r.cash))) \(r.cash > 0 ? "you will get" : "you will give")")
-                        .monospacedDigit()
-                        .foregroundStyle(r.cash > 0 ? Tone.owed.color : Tone.credit.color)
-                }
+            .width(min: 100, ideal: 130)
+            TableColumn("You will get", value: \.youGet) { (r: HisaabMacRow) in
+                MacAmount(r.youGet >= 1 ? r.youGet : nil, tone: .owed)
             }
-            .width(min: 160, ideal: 200)
+            .width(min: 80, ideal: 100)
+            TableColumn("You will give", value: \.youGive) { (r: HisaabMacRow) in
+                MacAmount(r.youGive >= 1 ? r.youGive : nil, tone: .credit)
+            }
+            .width(min: 80, ideal: 100)
         }
         .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
             MacActionItems(groups: macGroups(for: ids, data))
@@ -471,9 +478,19 @@ extension HisaabScreen {
                 if let a = data.byId[id] { macOpenAccount(a) }
             }
         }
-        .overlay { if rows.isEmpty { emptyState } }
+        .overlay { if rows.isEmpty { macEmptyState } }
         .macSummaryBar(macSummary(rows, data))
         .navigationSubtitle("\(rows.count) account\(rows.count == 1 ? "" : "s")")
+    }
+
+    @ViewBuilder
+    private var macEmptyState: some View {
+        if search.isEmpty && book.hisaab.items.isEmpty {
+            ContentUnavailableView("No Accounts Yet", systemImage: "book.closed",
+                                   description: Text("Write the first entry with \u{2303}\u{2318}N."))
+        } else {
+            emptyState
+        }
     }
 
     /// What the page's tiles said, as the one line a list ends in; with accounts picked, what the picked ones come to.
@@ -531,45 +548,49 @@ extension HisaabScreen {
                              enabled: a != nil, id: "open") {
             if let a { macOpenAccount(a) }
         }
-        return [[new], [gave, got], [open]]
+        // The summary of everyone outstanding whose name matches the search, as the ERP prints it; the sides are not applied.
+        let pdf = MacAction("Summary PDF\u{2026}", symbol: "doc.richtext", id: "summary") {
+            summaryPDF = InvoicePDFTarget(path: MoneyPaths.hisaabSummary(search: search),
+                                          fileName: "Hisaab-Summary-\(MoneyCalendar.pickedDay(Date())).pdf",
+                                          title: "Hisaab summary")
+        }
+        return [[new], [gave, got], [open], [pdf]]
     }
 
+    /// New, and the one Filter menu (the side and the kind of person, inline in it). You Gave and You Got are the inspector's
+    /// buttons, the Hisaab menu's and the right-click menu's, not the toolbar's.
     @ToolbarContentBuilder
     private func macToolbar(_ data: HisaabMacData) -> some ToolbarContent {
         let groups = macGroups(for: macPick, data)
         let counts = macRows(data)
-        ToolbarItem(placement: .principal) {
-            Picker("Side", selection: $chip) {
-                Text("\(HisaabChip.all.title) (\(counts.all))").tag(HisaabChip.all)
-                Text("\(HisaabChip.get.title) (\(counts.get))").tag(HisaabChip.get)
-                Text("\(HisaabChip.give.title) (\(counts.give))").tag(HisaabChip.give)
-            }
-            .pickerStyle(.menu)
-            .help("All accounts, only those who owe the shop, or only those the shop owes")
-        }
-        ToolbarItem(placement: .automatic) {
-            Picker("Show", selection: $kind) {
-                ForEach(HisaabKind.allCases) { (k: HisaabKind) in Text(k.title).tag(k) }
-            }
-            .pickerStyle(.menu)
-            .help("Customers, karigars or everyone")
-        }
-        ToolbarItem(placement: .automatic) {
-            // Everyone outstanding whose name matches the search, as the ERP prints it; the sides are not applied.
-            Button {
-                summaryPDF = InvoicePDFTarget(path: MoneyPaths.hisaabSummary(search: search),
-                                              fileName: "Hisaab-Summary-\(MoneyCalendar.pickedDay(Date())).pdf",
-                                              title: "Hisaab summary")
-            } label: {
-                Label("Summary PDF", systemImage: "doc.richtext")
-            }
-            .help("The summary of everyone outstanding, as a PDF")
-        }
         ToolbarItemGroup(placement: .primaryAction) {
-            MacToolbarAction(action: groups[1][0])
-            MacToolbarAction(action: groups[1][1])
             MacToolbarAction(action: groups[0][0])
+            macFilterMenu(counts)
         }
+    }
+
+    private func macFilterMenu(_ counts: HisaabMacRows) -> some View {
+        Menu {
+            Section("Side") {
+                Picker("Side", selection: $chip) {
+                    Text("\(HisaabChip.all.title) (\(counts.all))").tag(HisaabChip.all)
+                    Text("\(HisaabChip.get.title) (\(counts.get))").tag(HisaabChip.get)
+                    Text("\(HisaabChip.give.title) (\(counts.give))").tag(HisaabChip.give)
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
+            }
+            Section("Show") {
+                Picker("Show", selection: $kind) {
+                    ForEach(HisaabKind.allCases) { (k: HisaabKind) in Text(k.title).tag(k) }
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
+            }
+        } label: {
+            Label("Filter", systemImage: chip != .all || kind != .everyone ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+        }
+        .help("All accounts, only those who owe the shop or only those the shop owes; customers, karigars or everyone")
     }
 
     /// A person's ledger in a window of its own; a walk-in has no ledger, so its first invoice owing opens instead.

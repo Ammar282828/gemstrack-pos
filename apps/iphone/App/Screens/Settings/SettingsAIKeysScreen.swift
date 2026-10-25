@@ -443,27 +443,35 @@ extension AIKeysPage {
             Table(keys ?? [], selection: $selection) {
                 TableColumn("Name") { (k: AIKey) in
                     HStack(spacing: 6) {
-                        Text(k.label).fontWeight(.medium)
-                        Text("··\(k.tail)").foregroundStyle(.secondary).monospaced()
+                        Text(k.label).fontWeight(.medium).lineLimit(1)
+                        Text("\u{00B7}\u{00B7}\(k.tail)").foregroundStyle(.secondary).monospaced()
                         if k.expired { Pill("Expired", tone: .late) }
                     }
                 }
+                .width(min: 120, ideal: 200)
                 TableColumn("May") { (k: AIKey) in
                     Text(k.scopes.map(scopeLabel).joined(separator: ", ")).foregroundStyle(.secondary).lineLimit(2)
                 }
-                TableColumn("Made") { (k: AIKey) in Text(made(k)).foregroundStyle(.secondary) }
+                .width(min: 100, ideal: 180)
+                TableColumn("Made") { (k: AIKey) in Text(made(k)).lineLimit(1).foregroundStyle(.secondary) }
+                    .width(min: 70, ideal: 90)
                 TableColumn("Stops") { (k: AIKey) in
-                    Text(k.expiresAt.map { ShopDate.say($0, withTime: false) } ?? "When revoked").foregroundStyle(.secondary)
+                    Text(k.expiresAt.map { ShopDate.say($0, withTime: false) } ?? "When revoked").lineLimit(1).foregroundStyle(.secondary)
                 }
+                .width(min: 70, ideal: 90)
                 TableColumn("Last used") { (k: AIKey) in
-                    Text(k.lastUsedAt.map { ShopDate.say($0, withTime: true) } ?? "Not yet").foregroundStyle(.secondary)
+                    Text(k.lastUsedAt.map { ShopDate.say($0, withTime: true) } ?? "Not yet").lineLimit(1).foregroundStyle(.secondary)
                 }
+                .width(min: 90, ideal: 120)
                 TableColumn("Calls") { (k: AIKey) in
                     Text("\(k.calls)").monospacedDigit().foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
                 }
+                .width(min: 36, ideal: 48)
                 TableColumn("Connectors") { (k: AIKey) in
-                    Text(k.connectors == 0 ? "" : "\(k.connectors) signed in").foregroundStyle(.secondary)
+                    Text(k.connectors == 0 ? "" : "\(k.connectors) signed in").lineLimit(1).foregroundStyle(.secondary)
                 }
+                .width(min: 70, ideal: 100)
             }
             .contextMenu(forSelectionType: String.self) { ids in
                 if !ids.isEmpty {
@@ -486,7 +494,7 @@ extension AIKeysPage {
                 }
             }
             Divider()
-            Text("What each AI did is in Settings → Activity, under its name. Posts it queues wait in Posts for your OK.")
+            Text("What each AI did is in Settings → Activity, under its name. Posts it queues wait in Posts for your OK. Pick a key and press \u{232B} to revoke it.")
                 .font(.footnote).foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 20).padding(.vertical, 8)
@@ -495,19 +503,12 @@ extension AIKeysPage {
         .navigationTitle("Connect an AI")
         .navigationSubtitle("Let ChatGPT, Claude, Gemini or Cursor work in the ERP, only as far as you allow")
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .primaryAction) {
                 Button { showingMake = true } label: { Label("Make a key", systemImage: "plus") }
                     .keyboardShortcut("n", modifiers: [.command, .option])
-                    .help("Make a key for an AI")
-            }
-            ToolbarItem(placement: .automatic) {
+                    .help("Make a key for an AI (\u{2325}\u{2318}N)")
                 Button { showingHow = true } label: { Label("How to connect", systemImage: "questionmark.circle") }
                     .help("What to paste into each AI")
-            }
-            ToolbarItem(placement: .automatic) {
-                Button { revoking = (keys ?? []).first { selection.contains($0.id) } } label: { Label("Revoke", systemImage: "trash") }
-                    .disabled(selection.isEmpty)
-                    .help("Revoke the selected key")
             }
         }
         .noteToast($note)
@@ -578,7 +579,7 @@ extension AIKeysPage {
             .formStyle(.grouped)
             MacSheetFooter(confirm: "Done", cancel: "Close", onCancel: { fresh = nil }, onConfirm: { fresh = nil })
         }
-        .frame(minWidth: 620, idealWidth: 660, minHeight: 560)
+        .frame(minWidth: 560, idealWidth: 640, minHeight: 520, idealHeight: 560)
     }
 
     private var howSheet: some View {
@@ -595,7 +596,7 @@ extension AIKeysPage {
             .formStyle(.grouped)
             MacSheetFooter(confirm: "Done", cancel: "Close", onCancel: { showingHow = false }, onConfirm: { showingHow = false })
         }
-        .frame(minWidth: 620, idealWidth: 660, minHeight: 480)
+        .frame(minWidth: 560, idealWidth: 640, minHeight: 480)
     }
 }
 #endif

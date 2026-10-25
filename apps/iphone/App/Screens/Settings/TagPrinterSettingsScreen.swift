@@ -325,6 +325,9 @@ struct TagPrinterSettingsScreen: View {
 
     @ViewBuilder
     private func number(_ title: String, _ key: WritableKeyPath<LabelPrinterSettings, Int?>, _ range: ClosedRange<Int>, _ start: Int, _ p: LabelPrinterSettings) -> some View {
+        #if os(macOS)
+        macNumber(title, key, range, start, p)
+        #else
         if let value = p[keyPath: key] {
             HStack {
                 Stepper(value: Binding(get: { value }, set: { v in edit { $0[keyPath: key] = v } }), in: range) {
@@ -341,6 +344,7 @@ struct TagPrinterSettingsScreen: View {
                 else { Text("The printer's own").foregroundStyle(.secondary) }
             }
         }
+        #endif
     }
 
     private func edit(_ change: (inout LabelPrinterSettings) -> Void) {
@@ -360,3 +364,41 @@ struct TagPrinterSettingsScreen: View {
         Note.show(Note(title: "Printer settings saved"), in: $note, reduce: reduce)
     }
 }
+
+#if os(macOS)
+extension TagPrinterSettingsScreen {
+    /// A printer option as a number field with its stepper beside it, as System Settings sets a number; "Printer's own" hands
+    /// the option back to the Zebra.
+    @ViewBuilder
+    fileprivate func macNumber(_ title: String, _ key: WritableKeyPath<LabelPrinterSettings, Int?>, _ range: ClosedRange<Int>, _ start: Int, _ p: LabelPrinterSettings) -> some View {
+        if let value = p[keyPath: key] {
+            let binding = Binding<Int>(get: { value },
+                                       set: { (v: Int) in edit { $0[keyPath: key] = min(max(v, range.lowerBound), range.upperBound) } })
+            LabeledContent(title) {
+                HStack(spacing: 8) {
+                    TextField(title, value: binding, format: .number.grouping(.never))
+                        .labelsHidden()
+                        .multilineTextAlignment(.trailing)
+                        .monospacedDigit()
+                        .frame(width: 72)
+                        .disabled(!canEdit)
+                    Stepper(title, value: binding, in: range)
+                        .labelsHidden()
+                        .disabled(!canEdit)
+                    if canEdit {
+                        Button("Printer\u{2019}s Own") { edit { $0[keyPath: key] = nil } }
+                            .buttonStyle(.borderless)
+                            .font(.footnote)
+                            .help("Leave this option to the printer")
+                    }
+                }
+            }
+        } else {
+            LabeledContent(title) {
+                if canEdit { Button("Set") { edit { $0[keyPath: key] = start } }.buttonStyle(.borderless) }
+                else { Text("The printer\u{2019}s own").foregroundStyle(.secondary) }
+            }
+        }
+    }
+}
+#endif

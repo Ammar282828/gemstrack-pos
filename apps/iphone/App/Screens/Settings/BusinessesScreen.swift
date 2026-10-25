@@ -305,8 +305,11 @@ extension BusinessesScreen {
                         if b.id == store.current.id { Pill("Open now", tone: .settled) }
                     }
                 }
-                TableColumn("Address") { (b: Business) in Text(b.host).foregroundStyle(.secondary) }
+                .width(min: 150, ideal: 240)
+                TableColumn("Address") { (b: Business) in Text(b.host).lineLimit(1).foregroundStyle(.secondary) }
+                    .width(min: 120, ideal: 180)
                 TableColumn("Signed in as") { (b: Business) in macStatus(b) }
+                    .width(min: 120, ideal: 180)
             }
             .contextMenu(forSelectionType: String.self) { ids in
                 if let id = ids.first, let b = store.list.first(where: { $0.id == id }) {
@@ -339,17 +342,11 @@ extension BusinessesScreen {
                     Button("Close") { store.switcherOpen = false }
                 }
             }
-            ToolbarItem(placement: .primaryAction) {
+            // Add and Remove; opening a business is a double-click or the right-click menu.
+            ToolbarItemGroup(placement: .primaryAction) {
                 Button { macAdding = true } label: { Label("Add business", systemImage: "plus") }
                     .help("Add a business by its ERP's address")
                     .disabled(House.isDemo)
-            }
-            ToolbarItem(placement: .automatic) {
-                Button { if let b = selected { choose(b) } } label: { Label("Open", systemImage: "arrow.right.circle") }
-                    .disabled(selected == nil || selected?.id == store.current.id)
-                    .help("Open the selected business")
-            }
-            ToolbarItem(placement: .automatic) {
                 Button { removing = selected } label: { Label("Remove", systemImage: "trash") }
                     .disabled(selected == nil || store.list.count <= 1)
                     .help("Remove the selected business from this Mac")

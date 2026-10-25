@@ -205,10 +205,13 @@ private struct ExtraRevenueMacRow: Identifiable {
     let what: String
     let amount: Double
     let onRepair: Bool
+    /// The date as the shop says it, worked out once with the row rather than per drawing.
+    let said: String
     var id: String { revenue.id }
 
     init(_ r: AdditionalRevenue) {
         revenue = r
+        said = ShopDate.say(r.date)
         day = MoneyMonths.day(r.date)
         what = r.description
         amount = r.amount
@@ -265,20 +268,16 @@ extension ExtraRevenueScreen {
             .padding(.vertical, 8)
             Divider()
             Table(rows, selection: $macPick, sortOrder: $macSort) {
-                TableColumn("Date", value: \.day) { (r: ExtraRevenueMacRow) in Text(ShopDate.say(r.revenue.date)) }
-                    .width(min: 90, ideal: 110)
-                TableColumn("What", value: \.what)
-                    .width(min: 200, ideal: 360)
+                TableColumn("Date", value: \.day) { (r: ExtraRevenueMacRow) in Text(r.said).lineLimit(1) }
+                    .width(min: 70, ideal: 100)
+                TableColumn("What", value: \.what) { (r: ExtraRevenueMacRow) in Text(r.what).lineLimit(1) }
+                    .width(min: 120, ideal: 280)
                 TableColumn("Source") { (r: ExtraRevenueMacRow) in
                     Text(r.onRepair ? "A repair" : "").foregroundStyle(.secondary)
                 }
-                .width(min: 80, ideal: 100)
-                TableColumn("Amount", value: \.amount) { (r: ExtraRevenueMacRow) in
-                    Text(Money.pkr(r.amount))
-                        .monospacedDigit()
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                }
-                .width(min: 100, ideal: 120)
+                .width(min: 70, ideal: 90)
+                TableColumn("Amount", value: \.amount) { (r: ExtraRevenueMacRow) in MacAmount(r.amount) }
+                    .width(min: 70, ideal: 90)
             }
             .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
                 MacActionItems(groups: macGroups(for: ids))
@@ -295,7 +294,7 @@ extension ExtraRevenueScreen {
             .overlay {
                 if rows.isEmpty {
                     ContentUnavailableView("No revenue entries found", systemImage: "chart.line.uptrend.xyaxis",
-                                           description: Text(search.isEmpty && !dates.useFrom ? "Add a revenue entry to begin." : "Try adjusting your search or filters."))
+                                           description: Text(search.isEmpty && !dates.useFrom ? "Add one with \u{2303}\u{2318}N." : "Try adjusting your search or the dates."))
                 }
             }
         }

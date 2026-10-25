@@ -271,12 +271,19 @@ private struct ContactImportPage: View {
 
     private func summarySection(_ p: SettingsContactPlan) -> some View {
         Section {
+            #if os(macOS)
+            MacFigures([MacFigure("Already saved", "\(p.summary.settled)"),
+                        MacFigure("New", "\(willAdd)"),
+                        MacFigure("Needs you", "\(p.summary.conflicts)")])
+                .listRowBackground(Color.clear)
+            #else
             FigureRow(spacing: pt(10)) {
                 FigureTile(label: "Already saved", value: "\(p.summary.settled)")
                 FigureTile(label: "New", value: "\(willAdd)")
                 FigureTile(label: "Needs you", value: "\(p.summary.conflicts)")
             }
             .listRowBackground(Color.clear)
+            #endif
             .listRowInsets(EdgeInsets())
         } header: {
             LedgerHeading(title: "What would happen")

@@ -13,6 +13,7 @@ struct MacReportsSales: View {
 
     @State private var history = Memo<AnaHistory>()
     @State private var dayRows = Memo<[MacReportsDayRow]>()
+    @State private var yearMade = Memo<[MacReportsYearRow]>()
     @State private var day: AnaDay?
     @State private var daySort = [KeyPathComparator(\MacReportsDayRow.date, order: .reverse)]
     @State private var yearSort = [KeyPathComparator(\MacReportsYearRow.year, order: .reverse)]
@@ -28,20 +29,35 @@ struct MacReportsSales: View {
 
     var body: some View {
         let h = hist
+        let days = dayRowList()
+        let years = yearRows(h)
         VStack(spacing: 0) {
             macReportsFigures(figureList(h))
             Divider()
-            HStack(spacing: 0) {
-                charts(h)
-                    .frame(minWidth: 380, idealWidth: 520)
-                Divider()
-                VSplitView {
-                    daily
-                        .frame(minHeight: 160)
-                    yearly(h)
-                        .frame(minHeight: 120, idealHeight: 200)
+            // Charts beside the two tables on a wide window; narrow, the page scrolls and each stands under the last.
+            MacReportsWidth(960) {
+                HStack(spacing: 0) {
+                    ScrollView { chartsContent(h) }
+                        .frame(minWidth: 380, idealWidth: 520)
+                    Divider()
+                    VSplitView {
+                        daily(days)
+                            .frame(minHeight: 160)
+                        yearly(years)
+                            .frame(minHeight: 120, idealHeight: 200)
+                    }
+                    .frame(minWidth: 460, idealWidth: 480)
                 }
-                .frame(minWidth: 380, idealWidth: 480)
+            } narrow: {
+                ScrollView {
+                    VStack(spacing: 0) {
+                        chartsContent(h)
+                        Divider()
+                        daily(days).frame(height: 320)
+                        Divider()
+                        yearly(years).frame(height: 84 + 26 * CGFloat(min(max(years.count, 1), 10)))
+                    }
+                }
             }
         }
         .sheet(item: $day) { (d: AnaDay) in
@@ -71,27 +87,25 @@ struct MacReportsSales: View {
 
     // MARK: The charts
 
-    private func charts(_ h: AnaHistory) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                MacReportsHeader(title: "Sales over time", detail: nil)
-                if f.salesOverTime.isEmpty {
-                    Text("No sales in this period.")
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                } else {
-                    AnaSalesChart(days: f.salesOverTime).padding(.horizontal, 12)
-                    MacReportsHeader(title: "Number of sales", detail: nil)
-                    AnaOrdersChart(days: f.salesOverTime).padding(.horizontal, 12)
-                }
-                if !h.months.isEmpty {
-                    MacReportsHeader(title: "Revenue by month", detail: "Every month on record")
-                    AnaMonthlyChart(months: h.months, average: h.monthlyAverage, best: h.bestMonth).padding(.horizontal, 12)
-                }
+    private func chartsContent(_ h: AnaHistory) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            MacReportsHeader(title: "Sales over time", detail: nil)
+            if f.salesOverTime.isEmpty {
+                Text("No sales in this period.")
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+            } else {
+                AnaSalesChart(days: f.salesOverTime).padding(.horizontal, 12)
+                MacReportsHeader(title: "Number of sales", detail: nil)
+                AnaOrdersChart(days: f.salesOverTime).padding(.horizontal, 12)
             }
-            .padding(.bottom, 12)
+            if !h.months.isEmpty {
+                MacReportsHeader(title: "Revenue by month", detail: "Every month on record")
+                AnaMonthlyChart(months: h.months, average: h.monthlyAverage, best: h.bestMonth).padding(.horizontal, 12)
+            }
         }
+        .padding(.bottom, 12)
     }
 
     // MARK: The days
@@ -108,23 +122,22 @@ struct MacReportsSales: View {
         }
     }
 
-    private var daily: some View {
-        let rows = dayRowList()
-        return VStack(alignment: .leading, spacing: 0) {
-            MacReportsHeader(title: "Daily summary", detail: rows.isEmpty ? nil : "\(rows.count) day\(rows.count == 1 ? "" : "s") · double-click for a day’s report")
+    private func daily(_ rows: [MacReportsDayRow]) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            MacReportsHeader(title: "Daily summary", detail: rows.isEmpty ? nil : "\(rows.count) day\(rows.count == 1 ? "" : "s") \u{00B7} double-click for a day\u{2019}s report")
             Table(rows, selection: $daySelection, sortOrder: $daySort) {
-                TableColumn("Day", value: \.date) { (r: MacReportsDayRow) in Text(r.label) }
-                    .width(min: 100, ideal: 130)
-                TableColumn("Sales", value: \.sales) { (r: MacReportsDayRow) in MacReportsNumber(Money.pkrLac(r.sales)) }
-                    .width(min: 90, ideal: 110)
+                TableColumn("Day", value: \.date) { (r: MacReportsDayRow) in Text(r.label).lineLimit(1) }
+                    .width(min: 100, ideal: 140)
+                TableColumn("Sales", value: \.sales) { (r: MacReportsDayRow) in MacAmount(r.sales) }
+                    .width(min: 70, ideal: 90)
                 TableColumn("Orders", value: \.orders) { (r: MacReportsDayRow) in MacReportsNumber(String(r.orders)) }
-                    .width(min: 50, ideal: 60)
+                    .width(min: 36, ideal: 48)
                 TableColumn("Pieces", value: \.items) { (r: MacReportsDayRow) in MacReportsNumber(AnaFormat.count(r.items)) }
-                    .width(min: 50, ideal: 60)
+                    .width(min: 36, ideal: 48)
             }
             .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
                 if let row = rows.first(where: { ids.contains($0.id) }) {
-                    Button("Open Day’s Report") { day = row.day }
+                    Button("Open Day\u{2019}s Report") { day = row.day }
                 }
             } primaryAction: { (ids: Set<String>) in
                 if let row = rows.first(where: { ids.contains($0.id) }) { day = row.day }
@@ -138,39 +151,40 @@ struct MacReportsSales: View {
     // MARK: The years
 
     private func yearRows(_ h: AnaHistory) -> [MacReportsYearRow] {
-        h.yearly
-            .map { (y: AnaYear) -> MacReportsYearRow in
-                MacReportsYearRow(id: String(y.year), year: y.year, revenue: y.revenue, unpaid: y.unpaid, expenses: y.expenses,
-                                  profit: y.profit, net: y.netProfit, margin: y.revenue > 0 ? y.netProfit / y.revenue * 100 : 0)
-            }
-            .sorted(using: yearSort)
+        yearMade(c.booksKey + [yearSort.hashValue]) {
+            h.yearly
+                .map { (y: AnaYear) -> MacReportsYearRow in
+                    MacReportsYearRow(id: String(y.year), year: y.year, revenue: y.revenue, unpaid: y.unpaid, expenses: y.expenses,
+                                      profit: y.profit, net: y.netProfit, margin: y.revenue > 0 ? y.netProfit / y.revenue * 100 : 0)
+                }
+                .sorted(using: yearSort)
+        }
     }
 
-    private func yearly(_ h: AnaHistory) -> some View {
-        let rows = yearRows(h)
-        return VStack(alignment: .leading, spacing: 0) {
+    private func yearly(_ rows: [MacReportsYearRow]) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
             MacReportsHeader(title: "Yearly performance", detail: rows.isEmpty ? nil : "Double-click a year to filter Analytics to it")
             Table(rows, selection: $yearSelection, sortOrder: $yearSort) {
                 TableColumn("Year", value: \.year) { (r: MacReportsYearRow) in Text(String(r.year)).monospacedDigit() }
                     .width(min: 50, ideal: 60)
-                TableColumn("Revenue", value: \.revenue) { (r: MacReportsYearRow) in MacReportsNumber(Money.pkrLac(r.revenue)) }
-                    .width(min: 80, ideal: 100)
+                TableColumn("Revenue", value: \.revenue) { (r: MacReportsYearRow) in MacAmount(r.revenue) }
+                    .width(min: 70, ideal: 90)
                 TableColumn("Unpaid", value: \.unpaid) { (r: MacReportsYearRow) in
-                    MacReportsNumber(r.unpaid > 0 ? Money.pkrLac(r.unpaid) : "Nothing", tone: r.unpaid > 0 ? Tone.owed : nil)
+                    MacAmount(r.unpaid >= 1 ? r.unpaid : nil, tone: .owed)
                 }
-                .width(min: 80, ideal: 100)
-                TableColumn("Expenses", value: \.expenses) { (r: MacReportsYearRow) in MacReportsNumber(Money.pkrLac(r.expenses)) }
-                    .width(min: 80, ideal: 100)
-                TableColumn("Est. profit", value: \.profit) { (r: MacReportsYearRow) in MacReportsNumber(Money.pkrLac(r.profit)) }
-                    .width(min: 80, ideal: 100)
+                .width(min: 70, ideal: 90)
+                TableColumn("Expenses", value: \.expenses) { (r: MacReportsYearRow) in MacAmount(r.expenses) }
+                    .width(min: 70, ideal: 90)
+                TableColumn("Est. profit", value: \.profit) { (r: MacReportsYearRow) in MacAmount(r.profit) }
+                    .width(min: 70, ideal: 90)
                 TableColumn("Net profit", value: \.net) { (r: MacReportsYearRow) in
-                    MacReportsNumber(Money.pkrLac(r.net), tone: r.net < 0 ? Tone.late : nil)
+                    MacAmount(r.net, tone: r.net < 0 ? Tone.late : .quiet)
                 }
-                .width(min: 80, ideal: 100)
+                .width(min: 70, ideal: 90)
                 TableColumn("Margin", value: \.margin) { (r: MacReportsYearRow) in
-                    MacReportsNumber(r.revenue > 0 ? AnaFormat.fixed(r.margin, 1) + "%" : "—")
+                    MacReportsNumber(r.revenue > 0 ? AnaFormat.fixed(r.margin, 1) + "%" : "\u{2014}")
                 }
-                .width(min: 56, ideal: 64)
+                .width(min: 50, ideal: 60)
             }
             .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
                 if let row = rows.first(where: { ids.contains($0.id) }) {
