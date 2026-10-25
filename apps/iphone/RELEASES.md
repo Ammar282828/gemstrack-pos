@@ -55,3 +55,4 @@ cloud session cannot press that button, but it can push. One line per build, new
 - 2026-10-24: Settings → Labels: the interactive tag designer (Label LIVE's elements, import a Label LIVE design), print the shop's tag straight to a Zebra on the network with every printer mode and number, Label LIVE through the counter Mac, Connect an AI native.
 - 2026-10-25: change the rate when finalizing an order (booked or today's, per metal), Change rate on the order and invoice, and a silver order's own rate.
 - 2026-10-25: + spreads into New sale, New order and Scan (one tap each); voice like Siri (instant, on-device words, ends by itself, keeps listening for changes and yes/no, Talk to ERP from Siri, the Action button and Control Center); drafts saved at every keystroke and never opened by themselves (a new form is blank; the unfinished one waits in Drafts).
+- 2026-10-25: the same build, compiling (drafts' card read the books without importing them).

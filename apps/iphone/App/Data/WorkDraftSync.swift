@@ -1,4 +1,5 @@
 import Foundation
+import ERPCore
 #if canImport(UIKit)
 import UIKit
 #endif
