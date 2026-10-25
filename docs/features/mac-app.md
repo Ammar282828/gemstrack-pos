@@ -52,6 +52,11 @@ small changes slotted in without a re-sort, figures in `Memo`). What caught was 
   business last open (`LaunchPicker.askByDefault`, Settings → Businesses can ask again), and a window reopens on its place.
 - ⌘K, Quick Open (`Mac/MacQuickOpen.swift`): any place, customer, invoice, order, piece or repair as you type, over the page.
 
+**Designed as a Mac app (2026-10-25).** Owner: "audit the ui and ux, design from scratch for mac". The design is
+`docs/features/mac-design.md`; the parts are `Mac/Kit/`, each place's Mac views are `Mac/Places/<area>/` beside the screens'
+own `#if os(macOS)` bodies, the sidebar is `Mac/MacSidebar.swift`, the menus `Mac/MacCommands.swift`, Settings
+`Mac/MacSettingsWindow.swift`.
+
 ## Label LIVE on the Mac and the iPhone
 
 The tag logic is ERPCore's (`LabelLive.swift`, `LabelCSV.swift`: `src/lib/label-live.ts`, `label-live-values.ts`,
