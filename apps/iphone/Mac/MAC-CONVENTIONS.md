@@ -128,7 +128,8 @@ What the owner's screenshot (13-inch MacBook Air, 1470 points) showed, and the r
   (.disabled)` at the windows' roots).
 - **See it before guessing.** Help › Send Page Snapshots… (owners) walks every sidebar place and sends a picture of each
   to the ERP's Firestore `app_snapshots` (one JPEG per document, `run` groups a walk); a cloud session reads them with
-  the Firestore REST API (`datastore.user`) and looks before it changes a page.
+  the Firestore REST API (`datastore.user`; `python3 apps/iphone/scripts/mac-snapshots.py <dir>` writes the newest run
+  as JPEGs) and looks before it changes a page.
   A picked record's actions are the inspector's head, the menu bar's record menu and the right-click menu — never also
   the toolbar's. A record window may carry four actions and a More menu.
 - **Money in a table is digits.** `MacAmount(value)` (grouped, right-aligned, blank for nil); the header names the
