@@ -113,7 +113,7 @@ private val FilterSaver = listSaver<WorkshopFilter, String>(
  * Shopify sale is an invoice, and any invoice line handed to a karigar). What an owner does to a piece is a write
  * through the ERP: pick the karigar, tick it Given, tick it Done (an order's piece or a sold one); and stock work is
  * assigned (+), its status set, its making details changed and deleted (the delete code), as on the web's page. An
- * order's or a sold piece's making details stay the ERP's page.
+ * order's or a sold piece's making details are its Details sheet (the web's Details dialog).
  *
  * "/workshop?karigar=<id>" (the karigar page's "On his bench") opens on his whole bench; "/workshop?order=<id>" (an
  * order's Give out) shows that order's pieces alone.
@@ -147,6 +147,7 @@ fun WorkshopBoard(path: String) {
     var failure by remember { mutableStateOf<String?>(null) }
     var assigning by remember { mutableStateOf<String?>(null) }
     var editing by remember { mutableStateOf<KarigarJob?>(null) }
+    var editingPiece by remember { mutableStateOf<WorkshopPieceAsk?>(null) }
     var deletion by remember { mutableStateOf<WorkshopDeletion?>(null) }
     var deleted by remember { mutableStateOf(false) }
 
@@ -203,11 +204,20 @@ fun WorkshopBoard(path: String) {
                 )
             },
             details = { job ->
-                // The job as it is on file: the sheet edits its own fields (the board's line merges the instructions).
-                val t = WorkshopLogic.writeTarget(job) as? WorkshopLogic.WriteTarget.Stock
-                if (t != null) {
-                    val held = book.karigarJobs.item(t.id)
-                    if (held != null) editing = held else failure = "This job is no longer on file."
+                // A stock job as it is on file: its sheet edits its own fields (the board's line merges the instructions).
+                // An order's piece or a sold piece opens the Details sheet, the order piece with its sample picture.
+                when (val t = WorkshopLogic.writeTarget(job)) {
+                    is WorkshopLogic.WriteTarget.Stock -> {
+                        val held = book.karigarJobs.item(t.id)
+                        if (held != null) editing = held else failure = "This job is no longer on file."
+                    }
+                    is WorkshopLogic.WriteTarget.Order -> {
+                        val item = book.orders.item(t.id)?.items?.getOrNull(t.index)
+                        if (item == null) failure = "This piece is no longer on the order."
+                        else editingPiece = WorkshopPieceAsk(job, WorkshopPieceAsk.Target.Order(t.id, t.index), item.samplePhotoId, item.sampleImageDataUri)
+                    }
+                    is WorkshopLogic.WriteTarget.Invoice -> editingPiece = WorkshopPieceAsk(job, WorkshopPieceAsk.Target.Invoice(t.id, t.index))
+                    null -> Unit
                 }
             },
             delete = { job ->
@@ -308,6 +318,7 @@ fun WorkshopBoard(path: String) {
     FailureAlert(failure, onDismiss = { failure = null }, title = "Not changed")
     assigning?.let { preset -> WorkshopStockJobSheet(live, preset) { assigning = null } }
     editing?.let { job -> WorkshopJobDetailsSheet(job) { editing = null } }
+    editingPiece?.let { ask -> WorkshopPieceDetailsSheet(ask) { editingPiece = null } }
     deletion?.let { d ->
         WorkshopDeleteCodeSheet(d, onDismiss = { deletion = null }, onDone = { note.show(Note("Job deleted")) })
     }

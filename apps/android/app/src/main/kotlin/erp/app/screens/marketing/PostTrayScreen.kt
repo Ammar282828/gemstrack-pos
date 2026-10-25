@@ -544,7 +544,7 @@ private fun MoreSection(card: PostTrayCard, model: PostTrayModel, siteName: Stri
         ActionRow(
             if (ig["connected"].bool && user.isNotEmpty()) "Instagram story · @$user" else "Instagram story", onStory, Icons.Filled.CameraAlt, enabled = !locked,
         )
-        if (access.design) MarketingLink("Design", Icons.Filled.AutoFixHigh, "/design?v=make&site=" + MarketingKit.escape(p.id))
+        if (access.design) MarketingLink("Design", Icons.Filled.AutoFixHigh, WebsiteEditLogic.designPath(p.id))
         if (access.edit) MarketingLink("Edit on $siteName", Icons.Filled.Edit, "/website/edit?id=" + MarketingKit.escape(p.id))
         if (access.promote) MarketingLink("Promote", Icons.Filled.Campaign, "/ads/new?piece=" + MarketingKit.escape(p.id))
         ActionRow("Another piece", { model.another(card)?.let { onSay(listOf(Note(it, failed = true))) } }, Icons.Filled.Shuffle, enabled = !locked)

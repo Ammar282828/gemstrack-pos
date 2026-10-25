@@ -58,6 +58,9 @@ export async function GET(req: NextRequest) {
     flags: shopFlags(),
     // The oldest app build this ERP takes (APP_MIN_BUILD, a CFBundleVersion number); 0: any. The app says "Update from TestFlight" below it.
     minBuild: Math.max(0, Math.floor(Number(process.env.APP_MIN_BUILD) || 0)),
+    // The same for the Android app (APP_MIN_ANDROID_BUILD, a versionCode): the two stores number their builds apart, so one floor
+    // could not serve both. 0: any.
+    minAndroidBuild: Math.max(0, Math.floor(Number(process.env.APP_MIN_ANDROID_BUILD) || 0)),
   };
   return NextResponse.json(body, { headers: { 'Cache-Control': 'public, max-age=300' } });
 }

@@ -164,10 +164,10 @@ fun TextRow(label: String, text: String, onChange: (String) -> Unit, prompt: Str
 
 /** A switch, with a line under its name when there is something to know. */
 @Composable
-fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit, sub: String? = null) {
+fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit, sub: String? = null, enabled: Boolean = true) {
     Row(
         Modifier.fillMaxWidth().defaultMinSize(minHeight = 56.dp)
-            .toggleable(value = checked, role = Role.Switch, onValueChange = onChange)
+            .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onChange)
             .padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -176,7 +176,7 @@ fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit, sub:
             Text(label, style = MaterialTheme.typography.bodyLarge)
             if (sub != null) Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Switch(checked = checked, onCheckedChange = null)
+        Switch(checked = checked, onCheckedChange = null, enabled = enabled)
     }
 }
 

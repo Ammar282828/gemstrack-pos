@@ -27,8 +27,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 /**
- * Settings → Integrations (src/app/settings/integrations): the website, Shopify and Meta. Connecting any of them is a
- * sign-in on the other service's own page, so this shows where each stands and opens the ERP's page for the rest.
+ * Settings → Integrations (src/app/settings/integrations): the website, Shopify and Meta. The website's selling settings
+ * and Shopify are native; Meta's connection is Ads › Setup, and connecting any of them is a sign-in on the other
+ * service's own page.
  */
 @Composable
 fun IntegrationSettings() {
@@ -58,7 +59,7 @@ private fun IntegrationsForm(settings: Settings) {
     SettingsPage {
         if (session.shop.websiteSelling) {
             SettingsSection(footer = "Whether the site takes orders, and at what rate.") {
-                SettingsNavRow("Selling on the website", Icons.Filled.Language, "/settings/integrations?web=1")
+                SettingsNavRow("Selling on the website", Icons.Filled.Language, "/app/settings/website")
             }
         }
 

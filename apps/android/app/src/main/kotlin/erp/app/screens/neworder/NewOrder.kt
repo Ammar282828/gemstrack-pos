@@ -536,17 +536,21 @@ private fun RestoredBanner(fromSale: Boolean, photosLeftOut: Boolean) {
 /** THE action of the screen: one button, with the balance beside it. */
 @Composable
 private fun SaveBar(balance: Double, saving: Boolean, editing: Boolean, onSave: () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text("Balance due", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium), color = MaterialTheme.colorScheme.onSurfaceVariant)
-            MoneyText(balance, exact = true, style = MaterialTheme.typography.titleMedium)
-        }
-        Button(onClick = onSave, enabled = !saving, modifier = Modifier.defaultMinSize(minWidth = 120.dp, minHeight = MinTouchTarget)) {
-            if (saving) SkeletonLoading(compact = true) else Text(if (editing) "Save changes" else "Save order")
+    val blocked = erp.app.ui.rememberUpdateBlocked()
+    Column(Modifier.fillMaxWidth()) {
+        erp.app.ui.UpdateBanner()
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("Balance due", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                MoneyText(balance, exact = true, style = MaterialTheme.typography.titleMedium)
+            }
+            Button(onClick = onSave, enabled = !saving && !blocked, modifier = Modifier.defaultMinSize(minWidth = 120.dp, minHeight = MinTouchTarget)) {
+                if (saving) SkeletonLoading(compact = true) else Text(if (editing) "Save changes" else "Save order")
+            }
         }
     }
 }

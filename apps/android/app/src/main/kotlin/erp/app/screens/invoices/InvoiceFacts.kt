@@ -156,6 +156,7 @@ object InvoiceFacts {
 
     /** Take a payment, as the invoice page and the list's "Take payment" do. */
     suspend fun record(inv: Invoice, amount: Double, method: String, reference: String): Map<String, Any?> {
+        erp.app.config.UpdateGate.refuse()
         paymentRefusal(inv, amount)?.let { throw ErpApi.Failure(400, it) }
         return ErpApi.shared.write("recordPayment", paymentFields(inv, amount, method, reference))
     }
@@ -166,6 +167,7 @@ object InvoiceFacts {
      * payment taken without its discount. Owners only, as the discount is (/api/app/write).
      */
     suspend fun settle(inv: Invoice, amount: Double, method: String, reference: String, remainder: Double) {
+        erp.app.config.UpdateGate.refuse()
         val fields = linkedMapOf<String, Any?>("invoiceId" to inv.id, "amount" to amount, "extra" to remainder, "method" to method)
         val ref = reference.trim()
         if (method != "Cash" && ref.isNotEmpty()) fields["reference"] = ref

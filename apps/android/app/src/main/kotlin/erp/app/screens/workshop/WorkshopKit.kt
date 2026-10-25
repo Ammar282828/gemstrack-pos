@@ -91,8 +91,6 @@ import kotlinx.coroutines.launch
 // TODO(shared): FullScreenPage, formRow and the customers' FormSection/TextRow stand in for the kit's form rows and
 // FullScreenSheet; the delete-code sheet below for the shared owner delete-code sheet. Replace when merged.
 
-/** The ERP's page where an order's or a sold piece's making details (name, size, sample picture, instructions) are changed. */
-const val WorkshopDetailsPath = "/workshop?web=1"
 
 fun workshopOrderPath(id: String) = "/orders/" + WorkshopLogic.piece(id)
 fun workshopInvoicePath(id: String) = "/invoices/" + WorkshopLogic.piece(id)

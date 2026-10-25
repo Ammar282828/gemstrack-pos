@@ -31,8 +31,10 @@ data class Business(
     /** The Android sign-in; null while this business has not registered the app in its Firebase project. */
     val android: AndroidApp?,
     val flags: Flags?,
-    /** The oldest build (versionCode) the ERP still takes (APP_MIN_BUILD); 0 or absent: any. */
+    /** The iPhone's floor (APP_MIN_BUILD, a CFBundleVersion): kept so the descriptor round-trips, never compared with an Android build. */
     val minBuild: Int?,
+    /** The oldest Android build (versionCode) the ERP still takes (APP_MIN_ANDROID_BUILD); 0 or absent: any. */
+    val minAndroidBuild: Int? = null,
 ) {
     /** lib/margin.ts: Taheri costs a sale at 24K less so many ratti; a house with no costing has a percent. */
     sealed interface Margin {
@@ -99,8 +101,8 @@ data class Business(
     /** Whether this business can sign in on Android: its app is registered in its Firebase project. */
     val androidReady: Boolean get() = android != null && android.firebase.appId.contains(":android:")
 
-    /** This app is older than the ERP allows: money screens stay shut and the page says to update. */
-    fun needsUpdate(build: Int): Boolean = (minBuild ?: 0).let { it > 0 && build < it }
+    /** This app is older than the ERP allows: money screens stay shut and the page says to update (the Android floor, not the iPhone's). */
+    fun needsUpdate(build: Int): Boolean = (minAndroidBuild ?: 0).let { it > 0 && build < it }
 
     /**
      * Why this descriptor cannot be used, or null. Adding refuses on it: the checks are what the app would otherwise
@@ -160,6 +162,7 @@ data class Business(
             )
         }
         minBuild?.let { put("minBuild", it) }
+        minAndroidBuild?.let { put("minAndroidBuild", it) }
     }
 
     fun toJson(): String = JsonText.of(toMap(), sorted = true) ?: "{}"
@@ -211,6 +214,7 @@ data class Business(
                     )
                 },
                 minBuild = (m["minBuild"] as? Number)?.toInt(),
+                minAndroidBuild = (m["minAndroidBuild"] as? Number)?.toInt(),
             )
         }
 

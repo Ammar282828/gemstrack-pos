@@ -24,7 +24,6 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Handyman
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.PanoramaFishEye
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.PersonRemove
@@ -72,7 +71,7 @@ import erp.core.models.KarigarJobStatus
  * sold piece (an invoice's line): pick a karigar, tick it Given, tick it Done. A stock job (written up by hand, for
  * the shop's own stock, a repair or a sample) keeps the karigar it was written for: tick it Given, set its status,
  * change its making details, delete it (the delete code). Assigning, handing over and finishing are three different
- * moments, and a name picked is not gold gone. An order's or a sold piece's making details are the ERP's page.
+ * moments, and a name picked is not gold gone. Any piece's making details are changed in its Details sheet.
  */
 @Composable
 fun WorkshopJobRow(
@@ -95,9 +94,9 @@ fun WorkshopJobRow(
         WorkshopJob.Status.inProgress -> KarigarJobStatus.inProgress
         WorkshopJob.Status.completed -> KarigarJobStatus.completed
     }
-    // An order's or a sold piece's making details (name, size, weight, instructions, sample picture) are edited on
-    // the ERP's Workshop page; a stock job's are the Details sheet.
-    val showsDetails = isOwner && !isStock
+    // An order's or a sold piece's making details (name, size, weight, instructions, sample picture), from the menu; a
+    // stock job's Details sit on the card too.
+    val showsDetails = canWrite && !isStock
     val referencePath = job.invoiceId?.let { workshopInvoicePath(it) } ?: job.orderId?.let { workshopOrderPath(it) }
     val referenceId = job.invoiceId ?: job.orderId ?: ""
 
@@ -121,8 +120,8 @@ fun WorkshopJobRow(
                     if (!job.isUnassigned) {
                         MenuItem("Open " + job.karigarName, Icons.Filled.Handyman) { menuOpen = false; actions.open(WorkshopLogic.karigarPath(job.karigarId)) }
                     }
-                    if (showsDetails) {
-                        MenuItem("Details in the ERP", Icons.AutoMirrored.Filled.OpenInNew) { menuOpen = false; actions.open(WorkshopDetailsPath) }
+                    if (showsDetails && !busy) {
+                        MenuItem("Details", Icons.Filled.Edit) { menuOpen = false; actions.details(job) }
                     }
                     if (canWrite && !busy) {
                         MenuItem(

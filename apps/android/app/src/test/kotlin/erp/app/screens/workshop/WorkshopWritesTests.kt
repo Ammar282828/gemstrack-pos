@@ -85,6 +85,31 @@ class WorkshopWritesTests {
         assertEquals(2.5, (WorkshopWrites.jobDetails("J1", "n", "7", "2.5", "x").fields["patch"] as Map<*, *>)["weightG"])
     }
 
+    @Test fun pieceDetailsOfAnOrderPieceCarryReferenceWeightAndPhoto() {
+        val order = WorkshopPieceAsk.Target.Order("O1", 2)
+        val w = WorkshopWrites.pieceDetails(order, "  Demo kara ", "12", "4.25", "ref-1", "Polish", null, false)
+        assertEquals("updateOrderPieceDetails", w.op)
+        assertEquals(mapOf("orderId" to "O1", "itemIndex" to 2), w.fields.filterKeys { it != "patch" })
+        // The name is trimmed; size, instructions and reference go as typed.
+        assertEquals(
+            mapOf("name" to "Demo kara", "size" to "12", "instructions" to "Polish", "referenceSku" to "ref-1", "estimatedWeightG" to 4.25),
+            w.fields["patch"],
+        )
+        // An empty weight box leaves the weight as it is; a new picture is sent as a JPEG data URI, once.
+        val photo = WorkshopWrites.pieceDetails(order, "n", "", "", "", "", byteArrayOf(1, 2, 3), false).fields["patch"] as Map<*, *>
+        assertFalse(photo.containsKey("estimatedWeightG"))
+        assertEquals("data:image/jpeg;base64,AQID", photo["sampleImageDataUri"])
+        // Removing the one on file sends an empty address; leaving it sends nothing.
+        assertEquals("", (WorkshopWrites.pieceDetails(order, "n", "", "", "", "", null, true).fields["patch"] as Map<*, *>)["sampleImageDataUri"])
+        assertFalse((WorkshopWrites.pieceDetails(order, "n", "", "", "", "", null, false).fields["patch"] as Map<*, *>).containsKey("sampleImageDataUri"))
+    }
+
+    @Test fun pieceDetailsOfASoldPieceSendNoWeightReferenceOrPhoto() {
+        val w = WorkshopWrites.pieceDetails(WorkshopPieceAsk.Target.Invoice("I1", 0), "Demo ring", "", "9", "ref", "", byteArrayOf(1), true)
+        assertEquals("updateInvoicePieceDetails", w.op)
+        assertEquals(mapOf("invoiceId" to "I1", "itemIndex" to 0, "patch" to mapOf("name" to "Demo ring", "size" to "", "instructions" to "")), w.fields)
+    }
+
     @Test fun theDeletesCarryTheirCode() {
         assertEquals("deleteStockJob" to mapOf("jobId" to "J1", "deleteCode" to "1234"), WorkshopWrites.deleteStockJob("J1", "1234").let { it.op to it.fields })
         assertEquals("deleteSilverEntry" to mapOf("id" to "S1", "deleteCode" to "1234"), WorkshopWrites.deleteSilver("S1", "1234").let { it.op to it.fields })

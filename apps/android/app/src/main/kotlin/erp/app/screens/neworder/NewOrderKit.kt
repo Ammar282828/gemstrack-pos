@@ -141,9 +141,11 @@ internal fun QuietField(
     end: Boolean = false,
     label: String? = null,
     onFocus: ((Boolean) -> Unit)? = null,
+    /** False shows the figure in the quiet ink and takes no typing (a weight the bill was priced from). */
+    enabled: Boolean = true,
 ) {
     val focus = LocalFocusManager.current
-    val ink = MaterialTheme.colorScheme.onSurface
+    val ink = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
     val style: TextStyle = MaterialTheme.typography.bodyLarge.copy(
         color = ink,
         textAlign = if (end) TextAlign.End else TextAlign.Start,
@@ -151,6 +153,7 @@ internal fun QuietField(
     BasicTextField(
         value = value,
         onValueChange = onChange,
+        enabled = enabled,
         modifier = modifier
             .let { m -> if (label != null) m.semantics { contentDescription = label } else m }
             .let { m -> if (onFocus != null) m.onFocusChanged { onFocus(it.isFocused) } else m },
@@ -196,11 +199,12 @@ internal fun FieldRow(
     keyboardType: KeyboardType = if (number) KeyboardType.Decimal else KeyboardType.Text,
     onFocus: ((Boolean) -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
+    enabled: Boolean = true,
 ) {
     val field: @Composable (Modifier) -> Unit = { m ->
         QuietField(
             value, onChange, m, placeholder = prompt, keyboardType = keyboardType, capitalization = capitalization,
-            autoCorrect = !number, end = !isLargeText(), label = title, onFocus = onFocus,
+            autoCorrect = !number, end = !isLargeText(), label = title, onFocus = onFocus, enabled = enabled,
         )
     }
     if (isLargeText()) {

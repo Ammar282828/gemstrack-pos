@@ -2,6 +2,7 @@ package erp.app.screens.home
 
 import erp.app.ui.AppClock
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -49,6 +50,7 @@ import erp.app.nav.ScreenActions
 import erp.app.nav.ScreenTitle
 import erp.app.screens.rates.RateSheet
 import erp.app.ui.ShelfState
+import erp.app.ui.UpdateBanner
 import erp.app.ui.Tone
 import erp.app.ui.color
 import erp.app.ui.isLargeText
@@ -155,21 +157,26 @@ fun Dashboard() {
         }
     }
 
-    ShelfState(
-        loaded = ready && figures != null,
-        error = orders.error ?: invoices.error,
-        offline = orders.offline,
-        connectionLost = connectionLost,
-    ) {
-        figures?.let { f ->
-            val needs = f.needs(if (selling) waiting else 0, if (selling) ratePause else null)
-            DashboardPage(
-                f, needs, owner,
-                open = navigator::open,
-                onRates = if (owner) ({ rateSheet = true }) else null,
-                allNeeds = allNeeds, allDue = allDue, allSales = allSales,
-                toggleNeeds = { allNeeds = !allNeeds }, toggleDue = { allDue = !allDue }, toggleSales = { allSales = !allSales },
-            )
+    Column(Modifier.fillMaxSize()) {
+        UpdateBanner()
+        Box(Modifier.weight(1f)) {
+            ShelfState(
+                loaded = ready && figures != null,
+                error = orders.error ?: invoices.error,
+                offline = orders.offline,
+                connectionLost = connectionLost,
+            ) {
+                figures?.let { f ->
+                    val needs = f.needs(if (selling) waiting else 0, if (selling) ratePause else null)
+                    DashboardPage(
+                        f, needs, owner,
+                        open = navigator::open,
+                        onRates = if (owner) ({ rateSheet = true }) else null,
+                        allNeeds = allNeeds, allDue = allDue, allSales = allSales,
+                        toggleNeeds = { allNeeds = !allNeeds }, toggleDue = { allDue = !allDue }, toggleSales = { allSales = !allSales },
+                    )
+                }
+            }
         }
     }
     if (rateSheet) RateSheet(onDismiss = { rateSheet = false })

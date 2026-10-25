@@ -4,6 +4,7 @@ import erp.app.ErpApp
 import erp.app.config.Business
 import erp.app.config.Businesses
 import erp.app.config.House
+import erp.app.config.UpdateGate
 import erp.core.Json
 import java.io.IOException
 import java.util.concurrent.TimeUnit
@@ -156,6 +157,8 @@ class ErpApi private constructor(private val initial: Business) {
      * background): the person may have left the sheet, and the write is already on its way.
      */
     suspend fun write(op: String, fields: Map<String, Any?>, requestId: String? = null): Map<String, Any?> {
+        // A build older than this ERP's minimum writes nothing (its rules for money may be out of date).
+        if (UpdateGate.blocked(biz)) throw Failure(426, UpdateGate.words)
         val body = LinkedHashMap(fields)
         body["op"] = op
         val intents = WriteIntents.forBusiness(id)

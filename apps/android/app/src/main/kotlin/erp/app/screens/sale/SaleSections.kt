@@ -728,6 +728,7 @@ internal fun OrderSection(s: SaleFormState) {
 @Composable
 internal fun SaveBar(s: SaleFormState, f: SaleFigures, openPath: (String) -> Unit) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        erp.app.ui.UpdateBanner()
         val failure = s.failure
         val reason = f.blockedReason
         if (failure != null) {
@@ -760,7 +761,7 @@ internal fun SaveBar(s: SaleFormState, f: SaleFigures, openPath: (String) -> Uni
         }
         Button(
             onClick = { s.save(f) },
-            enabled = f.canSave && !s.saving,
+            enabled = f.canSave && !s.saving && !erp.app.ui.rememberUpdateBlocked(),
             modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 52.dp),
         ) {
             if (s.saving) androidx.compose.material3.CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = ErpColors.onAccent)

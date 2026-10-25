@@ -81,6 +81,32 @@ object WorkshopWrites {
         return WorkshopWrite("updateStockJobDetails", mapOf("jobId" to jobId, "patch" to patch))
     }
 
+    /**
+     * `updateOrderPieceDetails` / `updateInvoicePieceDetails` (WorkshopPieceDetailsSheet). Only what the karigar sees: an
+     * empty weight box leaves the weight as it is, the reference and picture belong to an order's piece, and the picture
+     * goes only when changed ("" takes it off) so an unchanged one is not uploaded again.
+     */
+    fun pieceDetails(
+        target: WorkshopPieceAsk.Target, name: String, size: String, weightText: String, reference: String,
+        instructions: String, photoJpeg: ByteArray?, removePhoto: Boolean,
+    ): WorkshopWrite {
+        val patch = LinkedHashMap<String, Any?>()
+        patch["name"] = name.trim()
+        patch["size"] = size
+        patch["instructions"] = instructions
+        return when (target) {
+            is WorkshopPieceAsk.Target.Order -> {
+                patch["referenceSku"] = reference
+                WorkshopFigure.read(weightText)?.let { patch["estimatedWeightG"] = it }
+                if (photoJpeg != null) patch["sampleImageDataUri"] = "data:image/jpeg;base64," + java.util.Base64.getEncoder().encodeToString(photoJpeg)
+                else if (removePhoto) patch["sampleImageDataUri"] = ""
+                WorkshopWrite("updateOrderPieceDetails", linkedMapOf("orderId" to target.id, "itemIndex" to target.index, "patch" to patch))
+            }
+            is WorkshopPieceAsk.Target.Invoice ->
+                WorkshopWrite("updateInvoicePieceDetails", linkedMapOf("invoiceId" to target.id, "itemIndex" to target.index, "patch" to patch))
+        }
+    }
+
     // MARK: The karigar form
 
     fun karigarWrite(karigar: Karigar?, patch: Map<String, String>): WorkshopWrite =
