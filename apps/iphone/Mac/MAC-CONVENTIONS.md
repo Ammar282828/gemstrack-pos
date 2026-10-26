@@ -148,6 +148,16 @@ built for mac." This replaces the classic-Mac look of 2026-10-25 (system greys, 
   sections as cards. Report heads are figure cards. Cards, LedgerHeading, FigureTile, HeroAmount are wanted.
 - The Mac's structure stays: sidebar, toolbar (`.automatic`, never `.primaryAction`), inspector, windows, menus, keys.
 
+## Windows, menus and the lock (2026-10-27, from the end-to-end review)
+
+- **Menus answer from any window.** `MacCommands` reads the business in front (`Sessions.shared.current`), never only the
+  main window's focused values: a New Sale window or Settings has no sidebar, and ⌘N, Lock Now and Sign Out still work there.
+- **Behind the lock nothing of the books answers**: every book command is `.disabled(!ready)`; the shell closes ⌘K and voice.
+- **Every New is its own window**: `MacWindows.fresh(route)` (a `w=` mark no screen reads). Plain routes reuse their window.
+- **A window belongs to the business it opened on**: `MacPlaceWindow` closes when another business opens.
+- **Back/Forward are a browser's**: a page opened by a link or ⌘K drops Forward; a role change forgets places it lost.
+- Every one of these has a test in `MacTests` or `MacUITests`; a new rule here comes with its test.
+
 ## Done means
 
 Each screen of the group: a Mac layout that uses the window (no stretched phone column), right-click on rows, the
