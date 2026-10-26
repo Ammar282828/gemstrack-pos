@@ -35,7 +35,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
@@ -51,7 +50,7 @@ import erp.app.ui.theme.ErpType
 
 /**
  * Content on the scheme's card tone: the padding and corner every ledger card shares. [lit] is "yours" (the person's own
- * order or sale): the card takes a wash of the primary container instead of an outline.
+ * order or sale): a short bar of the primary at the leading edge, as a list row has it (`mineRow`), never an outline or a wash.
  */
 @Composable
 fun Modifier.ledgerCard(padding: Dp = 16.dp, lit: Boolean = false): Modifier =
@@ -60,7 +59,7 @@ fun Modifier.ledgerCard(padding: Dp = 16.dp, lit: Boolean = false): Modifier =
 /** The card's surface: the extraLarge shape on `surfaceContainer`. Flat: lifted by tone, not by a shadow. */
 @Composable
 fun Modifier.houseCardSurface(lit: Boolean = false): Modifier =
-    clip(Radius.cardShape).background(if (lit) lerp(ErpColors.card, MaterialTheme.colorScheme.primaryContainer, 0.55f) else ErpColors.card)
+    clip(Radius.cardShape).background(ErpColors.card).then(if (lit) Modifier.mineBar() else Modifier)
 
 /**
  * A titled card: [LedgerHeading] over the content, on the scheme's card tone. Use it for a block of figures or free

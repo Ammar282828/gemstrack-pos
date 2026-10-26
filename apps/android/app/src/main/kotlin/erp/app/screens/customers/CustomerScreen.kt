@@ -1,5 +1,6 @@
 package erp.app.screens.customers
 
+import erp.app.ui.SegmentedColumn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -236,7 +237,7 @@ private fun Page(f: Facts, owner: Boolean, onGiveBack: (Invoice) -> Unit, onRemo
         if (owner) {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Column(Modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card)) {
+                    SegmentedColumn {
                         Row(
                             Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onRemove).ledgerRow(),
                             verticalAlignment = Alignment.CenterVertically,
@@ -248,7 +249,7 @@ private fun Page(f: Facts, owner: Boolean, onGiveBack: (Invoice) -> Unit, onRemo
                     }
                     Text(
                         "Removing hides them; their invoices, orders and hisaab stay, and Settings, then Recently removed, puts them back. It asks for the delete code.",
-                        Modifier.padding(horizontal = 4.dp),
+                        Modifier.padding(horizontal = 16.dp),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

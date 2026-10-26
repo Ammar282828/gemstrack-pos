@@ -1,5 +1,6 @@
 package erp.app.screens.money
 
+import erp.app.ui.SegmentedColumn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -170,8 +171,8 @@ private fun ExpensesBoard() {
                 }
                 if (period == ExpensePeriod.custom) item(key = "custom") {
                     Column(Modifier.padding(horizontal = 16.dp).readableColumn(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        LedgerHeading("Custom range", Modifier.padding(horizontal = 4.dp))
-                        Column(Modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card)) {
+                        LedgerHeading("Custom range", Modifier.padding(horizontal = 16.dp))
+                        SegmentedColumn {
                             MoneyRangeFields(custom, { custom = it })
                         }
                         Footnote(if (custom.useFrom) "Without an end date it runs to the end of today." else "Until a start date is chosen, every expense is shown.")
@@ -216,7 +217,7 @@ private fun ExpensesBoard() {
                 }
                 item(key = "report") {
                     Column(Modifier.padding(horizontal = 16.dp).readableColumn(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Column(Modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card)) {
+                        SegmentedColumn {
                             Row(
                                 Modifier.fillMaxWidth().clickable(role = Role.Button) { navigator.open(MoneyPaths.expensesWeb) }.ledgerRow(),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
@@ -344,7 +345,7 @@ private fun Figures(s: ExpenseSummary, grouping: ExpenseGrouping, category: Stri
             FigureTile("Total expenses", Money.pkr(s.total), Modifier.share(), tint = ErpColors.accent, number = s.total)
             FigureTile("Payments", "${s.count}", Modifier.share(), detail = category.ifEmpty { null })
         }
-        Column(Modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card)) {
+        SegmentedColumn {
             Row(
                 Modifier.fillMaxWidth().clickable(role = Role.Button) { open = !open }.semantics { stateDescription = if (open) "Expanded" else "Collapsed" }.ledgerRow(),
                 verticalAlignment = Alignment.CenterVertically,

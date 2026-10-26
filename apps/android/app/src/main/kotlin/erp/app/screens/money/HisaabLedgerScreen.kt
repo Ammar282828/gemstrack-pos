@@ -1,5 +1,6 @@
 package erp.app.screens.money
 
+import erp.app.ui.SegmentedColumn
 import erp.app.ui.zoomDestination
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -188,7 +189,7 @@ private fun LedgerBoard(path: String) {
                     if (onFile) {
                         item(key = "add") {
                             Column(Modifier.padding(horizontal = 16.dp).readableColumn(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Column(Modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card)) {
+                                SegmentedColumn {
                                     ActionRow("You gave", Icons.Filled.ArrowUpward) { adding = HisaabEntryMode.gave }
                                     LedgerDivider()
                                     ActionRow("You got", Icons.Filled.ArrowDownward) { adding = HisaabEntryMode.got }
@@ -199,7 +200,7 @@ private fun LedgerBoard(path: String) {
                     }
                     item(key = "print") {
                         Column(Modifier.padding(horizontal = 16.dp).readableColumn(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Column(Modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card)) {
+                            SegmentedColumn {
                                 ActionRow("Print the ledger or send a reminder", Icons.Filled.Print) { navigator.open(printPath) }
                             }
                             Footnote("The ledger PDF and the WhatsApp reminder are made on the ERP’s own page.")

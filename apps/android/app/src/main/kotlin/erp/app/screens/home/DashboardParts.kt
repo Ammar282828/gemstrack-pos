@@ -293,7 +293,7 @@ fun DashMonthChange(ratio: Double?, now: Instant) {
 /** A section's heading: its name and count, and the web's "All" when there is a list to open. */
 @Composable
 fun DashHeader(title: String, count: Int? = null, allLabel: String? = null, onAll: (() -> Unit)? = null) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         LedgerHeading(title, Modifier.weight(1f), count = count)
         if (onAll != null) {
             Row(

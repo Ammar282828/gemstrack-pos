@@ -466,7 +466,7 @@ private fun FreeSection(idle: List<erp.core.models.Karigar>, open: Boolean, setO
             }
         }
         if (!open) {
-            Text(idle.joinToString(", ") { it.name }, Modifier.padding(horizontal = 4.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(idle.joinToString(", ") { it.name }, Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

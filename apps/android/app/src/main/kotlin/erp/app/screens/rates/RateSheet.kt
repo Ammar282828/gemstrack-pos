@@ -299,7 +299,7 @@ fun RateSheet(onDismiss: () -> Unit) {
                     })
                 }
             }
-            error?.let { Text(it, color = Tone.problem.color(), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(horizontal = 4.dp)) }
+            error?.let { Text(it, color = Tone.problem.color(), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(horizontal = 16.dp)) }
         }
     }
 }

@@ -1,5 +1,6 @@
 package erp.app.screens.sale
 
+import erp.app.ui.SegmentedColumn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -188,7 +189,7 @@ internal fun SaleCustomerPicker(pick: (Customer?) -> Unit, onDismiss: () -> Unit
                 }
             }
             if (people.isNotEmpty()) {
-                Column(Modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card)) {
+                SegmentedColumn {
                     people.forEachIndexed { i, c ->
                         if (i > 0) LedgerDivider()
                         Row(

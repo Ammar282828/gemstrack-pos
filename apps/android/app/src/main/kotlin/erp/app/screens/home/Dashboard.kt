@@ -244,7 +244,7 @@ private fun DashboardPage(
 private fun DateLine(f: DashFigures) {
     Text(
         DashDate.dayLabel(f.now).uppercase(),
-        Modifier.padding(horizontal = 4.dp).clearAndSetSemantics { contentDescription = DashDate.longDay(f.now) },
+        Modifier.padding(horizontal = 16.dp).clearAndSetSemantics { contentDescription = DashDate.longDay(f.now) },
         style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold, letterSpacing = 0.8.sp),
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )

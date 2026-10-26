@@ -378,7 +378,7 @@ private fun Section(
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         if (title != null) LedgerHeading(title, trailing = trailing)
         Column(Modifier.ledgerCard(), verticalArrangement = Arrangement.spacedBy(10.dp)) { content() }
-        if (footer != null) Text(footer, Modifier.padding(horizontal = 4.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (footer != null) Text(footer, Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

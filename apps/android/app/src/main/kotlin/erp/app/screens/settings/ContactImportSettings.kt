@@ -185,13 +185,13 @@ internal fun ContactImportPage(initialAnswer: ContactPlanAnswer? = null) {
             if (plan != null) {
                 // What would happen.
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    erp.app.ui.LedgerHeading("What would happen", Modifier.padding(horizontal = 4.dp))
+                    erp.app.ui.LedgerHeading("What would happen", Modifier.padding(horizontal = 16.dp))
                     FigureRow(spacing = 10.dp) {
                         FigureTile("Already saved", "${plan.summary.settled}", Modifier.share())
                         FigureTile("New", "$willAdd", Modifier.share())
                         FigureTile("Needs you", "${plan.summary.conflicts}", Modifier.share())
                     }
-                    Text(ContactImportLogic.summaryLine(plan.summary), Modifier.padding(horizontal = 4.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(ContactImportLogic.summaryLine(plan.summary), Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
 
                 if (plan.conflicts.isNotEmpty()) {

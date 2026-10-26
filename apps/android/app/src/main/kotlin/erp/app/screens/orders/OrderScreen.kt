@@ -617,7 +617,7 @@ private fun InvoiceCard(order: Order, invoice: Invoice?, owed: Double, isOwner: 
         }
         Text(
             if (OrderActions.canUndoInvoice(order, isOwner)) "To change it, use Unlock & edit." else "The order is locked to its invoice.",
-            Modifier.padding(horizontal = 4.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -645,7 +645,7 @@ private fun Details(order: Order, isOwner: Boolean) {
             order.source?.let { OrdersLabeled("Found us via", OrdersLogic.sourceLabel(it)) }
             if (shipTo.isNotEmpty()) OrdersLabeled("Deliver to", shipTo.joinToString("\n"))
         }
-        if (blocked != null) Text(blocked, Modifier.padding(horizontal = 4.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (blocked != null) Text(blocked, Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

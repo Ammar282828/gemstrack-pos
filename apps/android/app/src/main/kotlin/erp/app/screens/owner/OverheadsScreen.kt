@@ -322,7 +322,7 @@ internal fun daysLine(p: OverheadProgress, met: Boolean): String {
 @Composable
 private fun Record(rows: List<OverheadMonthRow>, s: OverheadSummary) {
     Column(Modifier.padding(horizontal = 16.dp).readableColumn(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        LedgerHeading("Month by month", Modifier.padding(horizontal = 4.dp))
+        LedgerHeading("Month by month", Modifier.padding(horizontal = 16.dp))
         Column(Modifier.fillMaxWidth().cardEdges(first = true, last = true)) {
             rows.forEachIndexed { i, r ->
                 if (i > 0) erp.app.ui.LedgerDivider()
@@ -375,7 +375,7 @@ private fun Sheet(
     onRemove: (String) -> Unit,
 ) {
     Column(Modifier.padding(horizontal = 16.dp).readableColumn(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        LedgerHeading("The sheet", Modifier.padding(horizontal = 4.dp))
+        LedgerHeading("The sheet", Modifier.padding(horizontal = 16.dp))
         Column(Modifier.fillMaxWidth().cardEdges(first = true, last = true).padding(vertical = 4.dp)) {
             for (line in lines) {
                 Row(

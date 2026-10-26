@@ -1,5 +1,6 @@
 package erp.app.screens.neworder
 
+import erp.app.ui.SegmentedColumn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -96,12 +97,12 @@ internal fun FormCard(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (title != null) LedgerHeading(title, Modifier.padding(horizontal = 4.dp))
-        Column(Modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card), content = content)
+        if (title != null) LedgerHeading(title, Modifier.padding(horizontal = 16.dp))
+        SegmentedColumn(content = content)
         if (!footer.isNullOrEmpty()) {
             Text(
                 footer,
-                Modifier.padding(horizontal = 4.dp),
+                Modifier.padding(horizontal = 16.dp),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

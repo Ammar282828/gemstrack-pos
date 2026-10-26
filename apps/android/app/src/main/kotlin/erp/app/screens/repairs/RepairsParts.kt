@@ -137,11 +137,11 @@ fun RepairsSection(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        if (title != null) LedgerHeading(title, Modifier.padding(horizontal = 4.dp))
+        if (title != null) LedgerHeading(title, Modifier.padding(horizontal = 16.dp))
         Column(Modifier.ledgerCard(), verticalArrangement = Arrangement.spacedBy(10.dp), content = content)
         if (!footer.isNullOrEmpty()) {
             Text(
-                footer, Modifier.padding(horizontal = 4.dp), style = MaterialTheme.typography.bodySmall,
+                footer, Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall,
                 color = if (footerTone == Tone.quiet) MaterialTheme.colorScheme.onSurfaceVariant else footerTone.color(),
             )
         }

@@ -246,7 +246,7 @@ fun OrdersFormSection(
         if (title != null) LedgerHeading(title)
         Column(Modifier.ledgerCard(), verticalArrangement = Arrangement.spacedBy(10.dp)) { content() }
         if (footer != null) {
-            Text(footer, Modifier.padding(horizontal = 4.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(footer, Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

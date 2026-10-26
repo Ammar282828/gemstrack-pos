@@ -1,5 +1,6 @@
 package erp.app.screens.sale
 
+import erp.app.ui.SegmentedColumn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -87,8 +88,8 @@ fun NewChooser() {
 
         // One line each, as the system's own "New" menus put it.
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            LedgerHeading("What is it?", Modifier.padding(horizontal = 4.dp))
-            Column(Modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card)) {
+            LedgerHeading("What is it?", Modifier.padding(horizontal = 16.dp))
+            SegmentedColumn {
                 Choice("Sale", "Buying now: pieces, payment, the invoice", Icons.Filled.Description, ErpColors.accent, ErpColors.onAccent) { navigator.open("/invoices/new") }
                 Choice("Order", "To be made: sizes, an advance, the workshop", Icons.AutoMirrored.Filled.Assignment, Indigo, Color.White) { navigator.open("/orders/add") }
                 Choice("Repair", "Brought in to be fixed: pieces, price, ready-by", Icons.Filled.Build, Teal, Color.White) { navigator.open("/repairs?new=1") }
@@ -112,7 +113,7 @@ fun NewChooser() {
 @Composable
 private fun Untitled(footer: String, content: @Composable () -> Unit) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Column(Modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card)) { content() }
+        SegmentedColumn { content() }
         Text(footer, Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

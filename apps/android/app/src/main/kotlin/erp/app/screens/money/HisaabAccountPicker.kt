@@ -1,5 +1,6 @@
 package erp.app.screens.money
 
+import erp.app.ui.SegmentedColumn
 import erp.app.ui.Loading
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -172,7 +173,7 @@ fun HisaabAccountPicker(onDismiss: () -> Unit, go: (String) -> Unit) {
                         }
                         item(key = "links") {
                             Column(Modifier.padding(horizontal = 16.dp, vertical = 16.dp).readableColumn()) {
-                                Column(Modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card)) {
+                                SegmentedColumn {
                                     LinkRow("New customer", Icons.Filled.PersonAdd, enabled = !creating) { finish("/customers/add") }
                                     LedgerDivider()
                                     LinkRow("New karigar", Icons.Filled.WorkOutline, enabled = !creating) { finish("/karigars/add") }

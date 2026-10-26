@@ -1,5 +1,6 @@
 package erp.app.screens.customers
 
+import erp.app.ui.SegmentedColumn
 import erp.app.ui.SearchBarField
 import erp.app.ui.appearOnce
 import androidx.compose.foundation.background
@@ -186,7 +187,7 @@ fun CustomersList() {
             if (owner) {
                 item(key = "clean") {
                     Column(Modifier.padding(top = GAP), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Column(Modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card)) {
+                        SegmentedColumn {
                             ActionLine("Merge duplicates", Icons.Filled.Group) { merging = true }
                             LedgerDivider()
                             // The spam finder (gibberish names and addresses with no number, history or address) stays the ERP's.
@@ -194,7 +195,7 @@ fun CustomersList() {
                         }
                         Text(
                             "Merging moves one customer's invoices, orders and hisaab to another, and asks for the delete code. Cleaning up spam opens on the ERP's own page.",
-                            Modifier.padding(horizontal = 4.dp),
+                            Modifier.padding(horizontal = 16.dp),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

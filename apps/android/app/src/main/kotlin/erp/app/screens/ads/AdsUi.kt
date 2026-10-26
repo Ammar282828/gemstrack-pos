@@ -1,5 +1,6 @@
 package erp.app.screens.ads
 
+import erp.app.ui.SegmentedColumn
 import erp.app.ui.SearchBarField
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -128,14 +129,13 @@ fun AdsSection(
     content: @Composable () -> Unit,
 ) {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (header != null) Box(Modifier.padding(horizontal = 4.dp)) { header() }
-        else if (title != null) LedgerHeading(title, Modifier.padding(horizontal = 4.dp), count = count)
-        Column(Modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card)) {
-            if (divided) DividedColumn(content = content) else content()
-        }
+        if (header != null) Box(Modifier.padding(horizontal = 16.dp)) { header() }
+        else if (title != null) LedgerHeading(title, Modifier.padding(horizontal = 16.dp), count = count)
+        if (divided) SegmentedColumn { content() }
+        else Column(Modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card)) { content() }
         if (footer != null) {
             CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant) {
-                ProvideTextStyle(MaterialTheme.typography.bodySmall) { Column(Modifier.padding(horizontal = 4.dp)) { footer() } }
+                ProvideTextStyle(MaterialTheme.typography.bodySmall) { Column(Modifier.padding(horizontal = 16.dp)) { footer() } }
             }
         }
     }

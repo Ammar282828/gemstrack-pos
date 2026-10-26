@@ -254,7 +254,7 @@ fun WorkshopFormError(message: String?) {
 @Composable
 fun WorkshopFootnote(text: String, tone: Tone = Tone.quiet) {
     Text(
-        text, Modifier.padding(horizontal = 4.dp), style = MaterialTheme.typography.bodySmall,
+        text, Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall,
         color = if (tone == Tone.quiet) MaterialTheme.colorScheme.onSurfaceVariant else tone.color(),
     )
 }

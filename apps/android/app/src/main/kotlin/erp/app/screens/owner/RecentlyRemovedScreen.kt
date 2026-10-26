@@ -180,7 +180,7 @@ private fun RecentlyRemovedList() {
 @Composable
 private fun Section(title: String, content: @Composable () -> Unit) {
     Column(Modifier.padding(horizontal = 16.dp).readableColumn(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        LedgerHeading(title, Modifier.padding(horizontal = 4.dp))
+        LedgerHeading(title, Modifier.padding(horizontal = 16.dp))
         Column(Modifier.fillMaxWidth().cardEdges(first = true, last = true)) { content() }
     }
 }
@@ -195,7 +195,7 @@ private fun Summary(
 ) {
     val total = customers.size + karigars.size
     Column(Modifier.padding(horizontal = 16.dp).readableColumn(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        LedgerHeading("$total removed", Modifier.padding(horizontal = 4.dp))
+        LedgerHeading("$total removed", Modifier.padding(horizontal = 16.dp))
         Column(Modifier.fillMaxWidth().cardEdges(first = true, last = true).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = putAllBack, enabled = busy == null, modifier = Modifier.fillMaxWidth()) {
                 if (busy == "all") Loading(Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)

@@ -1,5 +1,6 @@
 package erp.app.screens.work
 
+import erp.app.ui.SegmentedColumn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -183,7 +184,7 @@ private fun DraftsPage() {
                 DraftSection("Sales", sales, "No unfinished sales.", "New sale", { nav.open("/invoices/new") }, { discarding = it }, nav::open, now)
             }
             item(key = "footer") {
-                Column(Modifier.padding(horizontal = 4.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     val small = MaterialTheme.typography.bodySmall
                     val quiet = MaterialTheme.colorScheme.onSurfaceVariant
                     Text(
@@ -226,8 +227,8 @@ private fun DraftSection(
     now: java.time.Instant,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        LedgerHeading(title, Modifier.padding(horizontal = 4.dp), count = rows.size)
-        Column(Modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card)) {
+        LedgerHeading(title, Modifier.padding(horizontal = 16.dp), count = rows.size)
+        SegmentedColumn {
             DividedColumn {
                 if (rows.isEmpty()) {
                     Text(empty, Modifier.fillMaxWidth().ledgerRow(), color = MaterialTheme.colorScheme.onSurfaceVariant)

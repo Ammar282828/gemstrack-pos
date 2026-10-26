@@ -336,7 +336,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.group(
     if (jobs.isEmpty()) return
     item(key = "h-$title") {
         Row(
-            Modifier.readableColumn(820.dp).padding(horizontal = 4.dp),
+            Modifier.readableColumn(820.dp).padding(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically,
         ) {
             if (icon != null) Icon(icon, null, Modifier.size(18.dp), tint = tone)
@@ -501,7 +501,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.account(a: KarigarPor
 
 @Composable
 private fun SectionLabel(icon: ImageVector, title: String) {
-    Row(Modifier.padding(horizontal = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
         Icon(icon, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }

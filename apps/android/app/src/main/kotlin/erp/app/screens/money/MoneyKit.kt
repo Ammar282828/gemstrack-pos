@@ -146,7 +146,7 @@ fun <T> LazyListScope.cardRows(keyPrefix: String, rows: List<T>, key: (T) -> Str
 fun Footnote(text: String, modifier: Modifier = Modifier, tone: Tone = Tone.quiet) {
     Text(
         text,
-        modifier.padding(horizontal = 4.dp),
+        modifier.padding(horizontal = 16.dp),
         style = MaterialTheme.typography.bodySmall,
         color = if (tone == Tone.quiet) MaterialTheme.colorScheme.onSurfaceVariant else tone.color(),
     )

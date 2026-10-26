@@ -363,7 +363,7 @@ private fun PartnerCard(p: ShareholderFigures.Position, onAsk: (ShareholderAsk) 
     val words = if (owed) "The business owes ${p.name}" else if (claim < 0) "${p.name} owes the business" else "All settled"
     val tone: Color = if (owed) Tone.credit.color() else if (claim < 0) Tone.owed.color() else MaterialTheme.colorScheme.onSurface
     Column(Modifier.padding(horizontal = 16.dp).readableColumn(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        LedgerHeading(p.name, Modifier.padding(horizontal = 4.dp))
+        LedgerHeading(p.name, Modifier.padding(horizontal = 16.dp))
         Column(Modifier.fillMaxWidth().cardEdges(true, true).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(words, Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -514,7 +514,7 @@ private fun Distribution(
         partners = positions.map { p -> PartnerDistributionInput(p.name, p.balance.loanBalance, p.balance.equityBalance, p.balance.netPnL) },
     )
     Column(Modifier.padding(horizontal = 16.dp).readableColumn(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        LedgerHeading("Distribution calculator", Modifier.padding(horizontal = 4.dp))
+        LedgerHeading("Distribution calculator", Modifier.padding(horizontal = 16.dp))
         Column(Modifier.fillMaxWidth().cardEdges(true, true).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (Partnership.isFloorStale(s) && Partnership.isMonthStart()) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {

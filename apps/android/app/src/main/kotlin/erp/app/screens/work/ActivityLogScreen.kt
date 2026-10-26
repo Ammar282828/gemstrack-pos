@@ -1,5 +1,6 @@
 package erp.app.screens.work
 
+import erp.app.ui.SegmentedColumn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -174,12 +175,12 @@ private fun ActivityLogPage() {
             }
             item(key = "web") {
                 Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Column(Modifier.clip(Radius.cardShape).background(ErpColors.card)) {
+                    SegmentedColumn {
                         ActionRow("Sign-ins and the emergency lock", { nav.open(WEB_PAGE) }, icon = Icons.Filled.Shield)
                     }
                     Text(
                         "Reverting an invoice, an order or an expense asks for the delete code, so it stays on the ERP's page (swipe the line). The last 30 sign-ins and the emergency lock are there too.",
-                        Modifier.padding(horizontal = 4.dp),
+                        Modifier.padding(horizontal = 16.dp),
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }

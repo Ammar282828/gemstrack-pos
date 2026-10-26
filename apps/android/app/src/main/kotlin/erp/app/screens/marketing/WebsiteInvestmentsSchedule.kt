@@ -165,7 +165,7 @@ fun WebsiteGoldScheduleSheet(onClose: () -> Unit) {
                         }
                         Text(
                             if (wasOn) "It's on: what you save here is what goes out." else "Off: nothing goes out unless someone presses Send.",
-                            Modifier.padding(horizontal = 4.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }

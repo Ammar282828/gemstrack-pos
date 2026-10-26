@@ -501,7 +501,7 @@ private fun PiecesCard(inv: Invoice, owner: Boolean, all: Boolean, showAll: () -
     val items = inv.items
     val shown = if (all) items else items.take(FIRST_PIECES)
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        LedgerHeading("Pieces", Modifier.padding(horizontal = 4.dp), count = items.size)
+        LedgerHeading("Pieces", Modifier.padding(horizontal = 16.dp), count = items.size)
         Column(Modifier.ledgerCard().animateContentSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (items.isEmpty()) Text("No pieces on this invoice.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             shown.forEach { PieceRow(it, owner) }
@@ -591,7 +591,7 @@ private fun PaymentsCard(
     val line = balanceLine(inv.balanceDue)
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         LedgerHeading(
-            "Payments", Modifier.padding(horizontal = 4.dp),
+            "Payments", Modifier.padding(horizontal = 16.dp),
             count = if (inv.paymentHistory.size > 1) inv.paymentHistory.size else null,
             trailing = Money.pkr(inv.amountPaid),
         )
@@ -689,7 +689,7 @@ private fun DetailsCard(inv: Invoice, customers: List<erp.core.models.Customer>,
     val customerId = if (key == WALK_IN_ENTITY || key.startsWith("name:")) null else key
     if (customerId == null && order.isEmpty() && ship.isEmpty() && by.isEmpty() && source == null) return
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        LedgerHeading("Details", Modifier.padding(horizontal = 4.dp))
+        LedgerHeading("Details", Modifier.padding(horizontal = 16.dp))
         Column(Modifier.ledgerCard(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (customerId != null) LinkRow("Customer", InvoiceFacts.customerName(inv, walkIn = "Walk-in")) { open("/customers/" + InvoiceFacts.encode(customerId)) }
             if (order.isNotEmpty()) LinkRow("From order", order) { open("/orders/" + InvoiceFacts.encode(order)) }
@@ -732,7 +732,7 @@ private fun ShopCard(inv: Invoice, role: String) {
     val shopNote = (inv.internalNote ?: "").trim()
     if (shopNote.isEmpty() && !showsMargin) return
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(Modifier.padding(horizontal = 4.dp).semantics(mergeDescendants = true) {}, horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(horizontal = 16.dp).semantics(mergeDescendants = true) {}, horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Filled.Lock, contentDescription = null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
             Text("For the shop (never printed)", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold), color = MaterialTheme.colorScheme.onSurfaceVariant)
         }

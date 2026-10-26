@@ -19,6 +19,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.LocalView
@@ -137,6 +138,9 @@ fun ErpTheme(themeOverride: String? = null, wallpaperColors: Boolean = false, co
             val controller = WindowCompat.getInsetsController(window, view)
             controller.isAppearanceLightStatusBars = !dark
             controller.isAppearanceLightNavigationBars = !dark
+            // The window behind Compose wears the scheme's surface too (the resource ground is only the launch's), so the bars and
+            // an overscroll or a resize never show another colour.
+            window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(scheme.surface.toArgb()))
         }
     }
 

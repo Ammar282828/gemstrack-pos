@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.SegmentedColumn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -331,7 +332,7 @@ fun WebsiteSetOfTheDay(withNote: Boolean = true) {
 @Composable
 fun WebsiteCard(modifier: Modifier = Modifier, footer: (@Composable () -> Unit)? = null, content: @Composable () -> Unit) {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Column(Modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card)) { DividedColumn(content = content) }
+        SegmentedColumn { DividedColumn(content = content) }
         if (footer != null) {
             androidx.compose.material3.ProvideTextStyle(MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)) {
                 Column(Modifier.padding(horizontal = 16.dp)) { footer() }
