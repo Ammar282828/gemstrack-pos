@@ -1,6 +1,7 @@
 #if os(macOS)
 import SwiftUI
 import AppKit
+import ScreenCaptureKit
 
 /// Help › Send Page Snapshots… (owners): the main window visits every place in its sidebar in turn, takes a picture of
 /// itself at each, and sends the pictures to this business's ERP (/api/app/snapshots, Firestore `app_snapshots`). Whoever
@@ -36,10 +37,14 @@ enum MacSnapshots {
         let window = NSApp.keyWindow ?? mainWindow()
         let alert = NSAlert()
         alert.messageText = "Send a snapshot of every page?"
-        alert.informativeText = "This window opens each of its \(stops.count) pages in turn, about \(stops.count * 2) seconds, and sends a picture of each to \(House.storeName)'s own ERP for whoever is building the Mac app. Leave the window alone until it says it is done."
+        let sees = CGPreflightScreenCaptureAccess()
+        alert.informativeText = "This window opens each of its \(stops.count) pages in turn, about \(stops.count * 3) seconds, and sends a picture of each to \(House.storeName)'s own ERP for whoever is building the Mac app. Leave the window alone until it says it is done."
+            + (sees ? "" : "\n\nFor true pictures (the sidebar and its glass included), allow ERP under System Settings \u{203A} Privacy & Security \u{203A} Screen & System Audio Recording, then reopen ERP. Without it the pictures leave the sidebar blank.")
         alert.addButton(withTitle: "Send Snapshots")
         alert.addButton(withTitle: "Cancel")
         guard alert.runModal() == .alertFirstButtonReturn else { return }
+        // Asked once; the Mac remembers the answer. The pictures fall back to drawing the window themselves until it is given.
+        if !sees { CGRequestScreenCaptureAccess() }
         walk(shell: shell, stops: stops, window: window, business: business)
     }
 
@@ -56,9 +61,10 @@ enum MacSnapshots {
                 guard Businesses.shared.current.id == business, window?.isVisible == true, !AppLock.shared.locked else { break }
                 shell.go(stop.path)
                 // The page draws from the shelves already in memory; the wait is for its first layout and any fetch.
-                try? await Task.sleep(for: .milliseconds(1800))
-                guard Businesses.shared.current.id == business, !AppLock.shared.locked,
-                      let window, let shot = picture(of: window) else { continue }
+                // 3 seconds: at 1.8 the marketing pages were still showing their loading shapes.
+                try? await Task.sleep(for: .milliseconds(3000))
+                guard Businesses.shared.current.id == business, !AppLock.shared.locked, let window else { continue }
+                guard let shot = await screenPicture(of: window) ?? picture(of: window) else { continue }
                 let body: [String: Any] = [
                     "run": run, "n": i, "path": stop.path, "title": stop.title, "build": build,
                     "width": shot.width, "height": shot.height, "image": shot.base64,
@@ -72,6 +78,27 @@ enum MacSnapshots {
             done.informativeText = "Snapshot run \(run)."
             done.addButton(withTitle: "Done")
             done.runModal()
+        }
+    }
+
+    /// The window as the screen shows it (ScreenCaptureKit, with the person's leave to record the screen): the sidebar's
+    /// glass, the toolbar and every vibrant label as they are. `cacheDisplay` draws the views again by itself and leaves
+    /// the sidebar white and vibrant text dark, which read as bugs that were not there.
+    private static func screenPicture(of window: NSWindow) async -> (base64: String, width: Int, height: Int)? {
+        guard CGPreflightScreenCaptureAccess() else { return nil }
+        do {
+            let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+            guard let w = content.windows.first(where: { $0.windowID == CGWindowID(window.windowNumber) }) else { return nil }
+            let config = SCStreamConfiguration()
+            config.width = Int(window.frame.width)
+            config.height = Int(window.frame.height)
+            config.showsCursor = false
+            config.ignoreShadowsSingleWindow = true
+            let image = try await SCScreenshotManager.captureImage(contentFilter: SCContentFilter(desktopIndependentWindow: w),
+                                                                  configuration: config)
+            return jpeg(NSBitmapImageRep(cgImage: image), width: config.width, height: config.height)
+        } catch {
+            return nil
         }
     }
 
@@ -90,6 +117,10 @@ enum MacSnapshots {
         NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: small)
         full.draw(in: NSRect(x: 0, y: 0, width: w, height: h))
         NSGraphicsContext.restoreGraphicsState()
+        return jpeg(small, width: w, height: h)
+    }
+
+    private static func jpeg(_ small: NSBitmapImageRep, width w: Int, height h: Int) -> (base64: String, width: Int, height: Int)? {
         var quality = 0.75
         var data = small.representation(using: .jpeg, properties: [.compressionFactor: quality])
         while let d = data, d.count > 680_000, quality > 0.3 {

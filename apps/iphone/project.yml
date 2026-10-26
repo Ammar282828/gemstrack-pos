@@ -135,6 +135,9 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         TEST_HOST: $(BUILT_PRODUCTS_DIR)/ERP.app/Contents/MacOS/ERP
         BUNDLE_LOADER: $(TEST_HOST)
+        # `@testable import ERP` reads the app's module, which imports CCUPS (Mac/CUPS/module.modulemap): without its
+        # path the test target's build stops at "Unable to resolve module dependency: 'CCUPS'" (the first Mac check).
+        SWIFT_INCLUDE_PATHS: $(SRCROOT)/Mac/CUPS
     dependencies:
       - target: ERPMac
   # The Mac app driven as a person would, in the demo (MacUITests/): every place, Back and Forward, ⌘K, the counter's

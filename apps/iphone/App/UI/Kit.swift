@@ -106,6 +106,11 @@ struct FigureTile: View {
     var tint: Color = .primary
 
     var body: some View {
+        #if os(macOS)
+        // The Mac's one figure card (Mac/Kit/MacParts.swift), so a page built on the iPhone's tiles (the Calendar,
+        // Expenses, the website's reports) sets its figures as every Mac page does.
+        MacFigureCard(figure: macFigure)
+        #else
         VStack(alignment: .leading, spacing: pt(8)) {
             Text(label).font(.subheadline).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -124,7 +129,16 @@ struct FigureTile: View {
         // A tile grows with its words rather than clipping the detail or shrinking the amount.
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .ledgerCard()
+        #endif
     }
+
+    #if os(macOS)
+    private var macFigure: MacFigure {
+        var f = MacFigure(label, value, detail: detail)
+        if tint != .primary { f.valueTint = tint }
+        return f
+    }
+    #endif
 }
 
 /// Figures stay side by side at ordinary sizes and read top to bottom at accessibility sizes.
@@ -135,10 +149,17 @@ struct FigureRow<Content: View>: View {
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
+        #if os(macOS)
+        // Side by side, every tile as tall as the tallest (a Mac figure card fills its height): a row of tiles stood at
+        // as many heights as their details had lines. A row of controls (a menu and a button) is unchanged by it.
+        HStack(alignment: alignment, spacing: spacing) { content() }
+            .fixedSize(horizontal: false, vertical: true)
+        #else
         let layout = typeSize.isAccessibilitySize
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: spacing))
             : AnyLayout(HStackLayout(alignment: alignment, spacing: spacing))
         layout { content() }
+        #endif
     }
 }
 
@@ -158,11 +179,15 @@ struct FigureGrid<Content: View>: View {
     }
 
     var body: some View {
+        #if os(macOS)
+        MacEvenLayout(minimum: 200, spacing: spacing) { content() }
+        #else
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: spacing),
                                  count: columns), spacing: spacing) {
             content()
         }
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { availableWidth = $0 }
+        #endif
     }
 }
 

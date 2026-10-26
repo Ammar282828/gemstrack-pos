@@ -20,6 +20,7 @@ struct MacReportsTodayPage: View {
 
     @Environment(Book.self) private var book
     @Environment(\.openPlaceWindow) private var openPlace
+    @Environment(\.macGo) private var macGo
 
     var body: some View {
         ScrollView {
@@ -29,22 +30,31 @@ struct MacReportsTodayPage: View {
                 if !note.isEmpty {
                     MacDashNote(text: note, isOwner: isOwner, edit: editNote)
                 }
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 220, maximum: 400), spacing: 16)], spacing: 16) {
-                    takenCard
-                    owedCard
-                    monthCard
-                    benchCard
+                // Four even columns (two and two on a narrow window), every card as tall as the tallest.
+                MacEvenGrid(count: 4, minimum: 220, spacing: 16) { (i: Int) in
+                    switch i {
+                    case 0: takenCard
+                    case 1: owedCard
+                    case 2: monthCard
+                    default: benchCard
+                    }
                 }
                 MacReportsWidth(900) {
+                    // Side by side, the two cards as tall as each other: the chart grows to the list's height.
                     HStack(alignment: .top, spacing: 16) {
-                        chartCard.frame(maxWidth: .infinity)
-                        needsCard.frame(width: 340)
+                        chartCard.frame(maxWidth: .infinity, maxHeight: .infinity)
+                        needsCard.frame(width: 340).frame(maxHeight: .infinity)
                     }
+                    .fixedSize(horizontal: false, vertical: true)
                 } narrow: {
                     VStack(spacing: 16) { chartCard; needsCard }
                 }
                 MacReportsWidth(760) {
-                    HStack(alignment: .top, spacing: 16) { dueCard; salesCard }
+                    HStack(alignment: .top, spacing: 16) {
+                        dueCard.frame(maxHeight: .infinity)
+                        salesCard.frame(maxHeight: .infinity)
+                    }
+                    .fixedSize(horizontal: false, vertical: true)
                 } narrow: {
                     VStack(spacing: 16) { dueCard; salesCard }
                 }
@@ -56,7 +66,10 @@ struct MacReportsTodayPage: View {
         .background(Theme.ground)
     }
 
-    private func go(_ path: String) { openPlace?(Route(path: path)) }
+    /// A card or a row goes there in this window, as a link does (a separate window has no sidebar: there it opens one).
+    private func go(_ path: String) {
+        if let macGo { macGo(path) } else { openPlace?(Route(path: path)) }
+    }
 
     // MARK: The greeting
 
@@ -66,7 +79,7 @@ struct MacReportsTodayPage: View {
         return VStack(alignment: .leading, spacing: 2) {
             Text(DashDate.longDay(figures.now).uppercased())
                 .font(.caption.weight(.semibold)).foregroundStyle(.secondary).tracking(0.6)
-            Text(hello).font(.system(size: 28, weight: .bold, design: .rounded))
+            Text(hello).font(.system(size: 30, weight: .semibold, design: .serif))
         }
     }
 
@@ -145,7 +158,7 @@ struct MacReportsTodayPage: View {
         if isOwner { opens = { go("/analytics") } }
         return MacDashCard(title: "Takings this month", trailing: Money.pkrLac(figures.revenueMonth), open: opens) {
             if figures.monthDays.contains(where: { $0.amount > 0 }) {
-                MacDashMonthChart(days: figures.monthDays).frame(height: 190)
+                MacDashMonthChart(days: figures.monthDays).frame(minHeight: 190, maxHeight: .infinity)
             } else {
                 Text("No takings yet this month.").foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, minHeight: 190)
@@ -197,82 +210,29 @@ struct MacReportsTodayPage: View {
 // MARK: - The card kit
 
 /// A card: a rounded surface on the window's ground, a hairline and a soft shadow, lifted a little under the pointer
-/// when it opens something.
+/// when it opens something (the kit's `MacCardSurface`).
 struct MacDashSurface: ViewModifier {
     var hovering = false
 
     func body(content: Content) -> some View {
-        content
-            .background(Theme.card, in: .rect(cornerRadius: Radius.card, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(Color.primary.opacity(0.07), lineWidth: 0.5))
-            .shadow(color: .black.opacity(hovering ? 0.14 : 0.06), radius: hovering ? 14 : 6, y: hovering ? 6 : 2)
+        content.modifier(MacCardSurface(hovering: hovering))
     }
 }
 
-/// A figure card: a tinted symbol, the figure's name, the figure large, a line under it and anything below (a chart, a
-/// bar). A click opens its place.
+/// A figure card with something under its line (a chart, a bar): the kit's `MacFigureCard` with its symbol.
 struct MacDashFigureCard<Extra: View>: View {
-    let title: String
-    let symbol: String
-    let tint: Color
-    let value: String
-    let detail: String
-    var detailTone: Tone?
-    let open: (() -> Void)?
-    @ViewBuilder let extra: () -> Extra
-    @State private var hovering = false
+    let figure: MacFigure
+    let extra: () -> Extra
 
     init(title: String, symbol: String, tint: Color, value: String, detail: String, detailTone: Tone? = nil,
          open: (() -> Void)?, @ViewBuilder extra: @escaping () -> Extra) {
-        self.title = title
-        self.symbol = symbol
-        self.tint = tint
-        self.value = value
-        self.detail = detail
-        self.detailTone = detailTone
-        self.open = open
+        figure = MacFigure(title, value, detail: detail, detailTone: detailTone, open: open, symbol: symbol, symbolTint: tint)
         self.extra = extra
     }
 
     var body: some View {
-        Button { open?() } label: {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 8) {
-                    Image(systemName: symbol)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(tint)
-                        .frame(width: 28, height: 28)
-                        .background(tint.opacity(0.15), in: .rect(cornerRadius: 8, style: .continuous))
-                    Text(title).font(.callout.weight(.medium)).foregroundStyle(.secondary)
-                    Spacer(minLength: 0)
-                    if open != nil {
-                        Image(systemName: "arrow.up.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
-                            .opacity(hovering ? 1 : 0)
-                    }
-                }
-                Text(value)
-                    .font(.system(size: 26, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                Text(detail)
-                    .font(.callout)
-                    .foregroundStyle(detailTone?.color ?? Color.secondary)
-                    .lineLimit(2, reservesSpace: true)
-                // The same room under every figure, a chart or a bar or nothing, so the four cards stand level.
-                extra()
-                    .frame(maxWidth: .infinity, minHeight: 34, maxHeight: 34, alignment: .bottomLeading)
-            }
-            .padding(16)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
-            .contentShape(Rectangle())
-            .modifier(MacDashSurface(hovering: hovering && open != nil))
-        }
-        .buttonStyle(.plain)
-        .disabled(open == nil)
-        .onHover { hovering = $0 }
-        .animation(.easeOut(duration: 0.15), value: hovering)
-        .help(open == nil ? title : "Open \(title)")
+        // Room for the chart or bar when there is one; a card with nothing under its line is as tall as its row anyway.
+        MacFigureCard(figure: figure, extraHeight: Extra.self == EmptyView.self ? 0 : 34, extra: extra)
     }
 }
 
@@ -309,15 +269,18 @@ struct MacDashCard<Content: View>: View {
                     Text(trailing).font(.headline).monospacedDigit().foregroundStyle(.secondary)
                 }
                 if let action = more ?? open {
+                    // In the house's accent, as every other link on the page (a `.link` button is the system's blue).
                     Button(more != nil ? "Show All" : "Open", action: action)
-                        .buttonStyle(.link)
-                        .font(.callout)
+                        .buttonStyle(.plain)
+                        .foregroundStyle(Theme.accent)
+                        .font(.callout.weight(.medium))
+                        .pointerHover()
                 }
             }
             content()
         }
         .padding(16)
-        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .modifier(MacDashSurface())
     }
 }
