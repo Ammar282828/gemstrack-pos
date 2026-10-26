@@ -1,5 +1,6 @@
 package erp.app.screens.orders
 
+import erp.app.ui.Loading
 import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -28,15 +29,14 @@ import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.Button
+import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import erp.app.ui.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import erp.app.ui.ErpPullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -236,7 +236,7 @@ private fun WaitingCard(r: OnlineOrderRow, onConfirm: (OnlineOrderRow) -> Unit, 
         if (r.state == "confirming") {
             // Someone pressed Confirm a moment ago; the server holds it for them for two minutes.
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                Loading(Modifier.size(24.dp))
                 Text(
                     "Being confirmed" + (OnlineOrdersLogic.who(r.claimedBy)?.let { " by $it" } ?: "") + "…",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,

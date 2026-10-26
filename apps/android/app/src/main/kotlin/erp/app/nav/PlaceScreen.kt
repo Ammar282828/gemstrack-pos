@@ -24,13 +24,18 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.window.core.layout.WindowSizeClass
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import erp.app.ui.SegmentedButton
+import erp.app.ui.SegmentedButtonDefaults
+import erp.app.ui.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -66,7 +71,7 @@ val LocalChipInRail = compositionLocalOf { false }
  * One ERP place: its tabs (the ERP's "one tab row per screen") as the title's menu, and the screen for the
  * chosen tab, native or the ERP page. `onClose` is set on a sheet's first screen (the create sheet).
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun PlaceScreen(
     path: String,
@@ -108,31 +113,57 @@ fun PlaceScreen(
     val teamNote = tabRoot
 
     val insets = if (LocalBottomBar.current) WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top) else WindowInsets.safeDrawing
+    // Material You's bars: a pushed page (or a form's first screen) on a phone has the large flexible bar that collapses as
+    // the page scrolls; a tab's first screen and every wide window keep the small bar, which takes the container tone once content scrolls under it.
+    val wide = currentWindowAdaptiveInfoV2().windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND)
+    val large = !wide && (!isRoot || onClose != null)
+    val behavior = if (large) TopAppBarDefaults.exitUntilCollapsedScrollBehavior() else TopAppBarDefaults.pinnedScrollBehavior()
+    val barTitle: @Composable () -> Unit = {
+        TitleWithTabs(title, menuTabs, section = if (sections.size > 1) openSection else null, current = currentBare, onChoose = { chosen = it })
+    }
+    val barNavigation: @Composable () -> Unit = {
+        when {
+            navigator.canGoBack -> IconButton(onClick = navigator::back) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back") }
+            onClose != null -> IconButton(onClick = onClose) { Icon(Icons.Rounded.Close, "Close") }
+            rateChip -> RateChip()
+        }
+    }
+    val barActions: @Composable RowScope.() -> Unit = {
+        // The open business, at the head of every tab's first screen: tap for the Businesses sheet, hold to switch.
+        if (isRoot && onClose == null && !LocalChipInRail.current) erp.app.screens.businesses.BusinessChip()
+        // On a tablet the create menu sits here, beside the page's own actions, so nothing floats over a form or the last row.
+        LocalCreateInBar.current?.let { if (isRoot) CreateMenuButton(it) }
+        chrome.actions?.invoke(this)
+        trailing?.invoke(this)
+        // The account, top right of Home as the system's own apps keep it: Settings (owners; anyone else signs out from Search).
+        if (isRoot && bare == "/" && session.isOwner) AccountButton(session.shop.person ?: me?.email ?: "") { navigator.open("/settings") }
+    }
+    val barColors = TopAppBarDefaults.topAppBarColors(
+        containerColor = MaterialTheme.colorScheme.surface,
+        scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+    )
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        modifier = Modifier.nestedScroll(behavior.nestedScrollConnection),
+        containerColor = MaterialTheme.colorScheme.surface,
         contentWindowInsets = insets,
         topBar = {
-            TopAppBar(
-                title = { TitleWithTabs(title, menuTabs, section = if (sections.size > 1) openSection else null, current = currentBare, onChoose = { chosen = it }) },
-                navigationIcon = {
-                    when {
-                        navigator.canGoBack -> IconButton(onClick = navigator::back) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back") }
-                        onClose != null -> IconButton(onClick = onClose) { Icon(Icons.Rounded.Close, "Close") }
-                        rateChip -> RateChip()
-                    }
-                },
-                actions = {
-                    // The open business, at the head of every tab's first screen: tap for the Businesses sheet, hold to switch.
-                    if (isRoot && onClose == null && !LocalChipInRail.current) erp.app.screens.businesses.BusinessChip()
-                    // On a tablet the create menu sits here, beside the page's own actions, so nothing floats over a form or the last row.
-                    LocalCreateInBar.current?.let { if (isRoot) CreateMenuButton(it) }
-                    chrome.actions?.invoke(this)
-                    trailing?.invoke(this)
-                    // The account, top right of Home as the system's own apps keep it: Settings (owners; anyone else signs out from Search).
-                    if (isRoot && bare == "/" && session.isOwner) AccountButton(session.shop.person ?: me?.email ?: "") { navigator.open("/settings") }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
-            )
+            if (large) {
+                LargeFlexibleTopAppBar(
+                    title = { Box(Modifier.fillMaxWidth().padding(end = 8.dp)) { barTitle() } },
+                    navigationIcon = barNavigation,
+                    actions = barActions,
+                    colors = barColors,
+                    scrollBehavior = behavior,
+                )
+            } else {
+                TopAppBar(
+                    title = barTitle,
+                    navigationIcon = barNavigation,
+                    actions = barActions,
+                    colors = barColors,
+                    scrollBehavior = behavior,
+                )
+            }
         },
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {

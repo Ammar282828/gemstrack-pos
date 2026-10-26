@@ -1,5 +1,6 @@
 package erp.app.screens.orders
 
+import erp.app.ui.Loading
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -19,9 +20,8 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Hardware
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -239,7 +239,7 @@ private fun Line(label: String, amount: Double, always: Boolean = false) {
 @Composable
 private fun Tick(item: OrderItem, canTick: Boolean, busy: Boolean, onTick: (Boolean) -> Unit) {
     when {
-        busy -> Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) }
+        busy -> Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) { Loading(Modifier.size(26.dp)) }
         canTick -> IconButton(
             onClick = { onTick(!item.isCompleted) },
             modifier = Modifier.semantics { contentDescription = if (item.isCompleted) "Done. Tap to mark not done." else "Mark as complete" },

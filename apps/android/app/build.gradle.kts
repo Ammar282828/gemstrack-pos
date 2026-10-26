@@ -130,8 +130,8 @@ android {
     defaultConfig {
         minSdk = 26
         targetSdk = 37
-        versionCode = 6 // above the interim web app (apps/android-twa, 1), so this installs over it
-        versionName = "0.3.1"
+        versionCode = 7 // above the interim web app (apps/android-twa, 1), so this installs over it
+        versionName = "0.4.0"
     }
 
     buildFeatures {
@@ -284,6 +284,7 @@ dependencies {
     implementation(libs.compose.material3.window.size)
     implementation(libs.compose.material3.adaptive.navigation.suite)
     implementation(libs.compose.material.icons.extended)
+    implementation(libs.material.color.utilities) // the business's colour as a whole Material 3 scheme (ui/theme/Scheme.kt)
     implementation(libs.compose.adaptive)
     implementation(libs.compose.adaptive.layout)
     implementation(libs.compose.adaptive.navigation)

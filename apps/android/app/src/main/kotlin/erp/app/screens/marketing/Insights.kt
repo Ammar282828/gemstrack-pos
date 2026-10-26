@@ -32,13 +32,13 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import erp.app.ui.SegmentedButton
+import erp.app.ui.SegmentedButtonDefaults
+import erp.app.ui.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -257,7 +257,7 @@ private fun InstagramFigures(ig: InstagramInsight) {
     val follows = ig.follows?.let { InsightsLogic.followsLine(it) }
     val newPeople = ig.nonFollowerReach?.let { "${InsightsLogic.percentOf(it)}% not following" }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        LedgerHeading("Instagram", Modifier.padding(horizontal = 4.dp), trailing = "@${ig.username}")
+        LedgerHeading("Instagram", Modifier.padding(horizontal = 16.dp), trailing = "@${ig.username}")
         FigureRow(spacing = 10.dp) {
             FigureTile("Followers", AdsFormat.count(ig.followers), Modifier.share(), detail = follows, number = ig.followers)
             FigureTile("Accounts reached", AdsFormat.compact(v("reach")), Modifier.share(), detail = AdsFormat.change(v("reach"), p["reach"]) ?: newPeople, number = v("reach"))
@@ -374,7 +374,7 @@ private fun FacebookSection(fb: FacebookInsight) {
     fun v(k: String) = t[k] ?: 0.0
     val points = insightDayPoints(fb.daily)
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        LedgerHeading("Facebook", Modifier.padding(horizontal = 4.dp), trailing = fb.name)
+        LedgerHeading("Facebook", Modifier.padding(horizontal = 16.dp), trailing = fb.name)
         FigureRow(spacing = 10.dp) {
             FigureTile("Followers", AdsFormat.count(fb.followers), Modifier.share(), detail = "+${AdsFormat.count(v("page_daily_follows_unique"))} · −${AdsFormat.count(v("page_daily_unfollows_unique"))}", number = fb.followers)
             FigureTile("Views", AdsFormat.compact(v("page_media_view")), Modifier.share(), detail = AdsFormat.change(v("page_media_view"), p["page_media_view"]) ?: "${AdsFormat.compact(v("page_total_media_view_unique"))} people", number = v("page_media_view"))
@@ -597,7 +597,7 @@ fun InsightsAudienceContent(a: InsightsAudience, group: String, onGroup: (String
                     }
                     Text(
                         if (group == "followers") "Everyone following now. Meta gives these only as they are now, with no history." else "This month. Meta gives these only as they are now, with no history.",
-                        Modifier.padding(horizontal = 4.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 if (dims != null) {

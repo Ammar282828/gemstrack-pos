@@ -19,9 +19,9 @@ import androidx.compose.material.icons.filled.Engineering
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.NoteAdd
 import androidx.compose.material.icons.filled.People
-import androidx.compose.material3.Button
+import erp.app.ui.Button
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -185,13 +185,13 @@ internal fun ContactImportPage(initialAnswer: ContactPlanAnswer? = null) {
             if (plan != null) {
                 // What would happen.
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    erp.app.ui.LedgerHeading("What would happen", Modifier.padding(horizontal = 4.dp))
+                    erp.app.ui.LedgerHeading("What would happen", Modifier.padding(horizontal = 16.dp))
                     FigureRow(spacing = 10.dp) {
                         FigureTile("Already saved", "${plan.summary.settled}", Modifier.share())
                         FigureTile("New", "$willAdd", Modifier.share())
                         FigureTile("Needs you", "${plan.summary.conflicts}", Modifier.share())
                     }
-                    Text(ContactImportLogic.summaryLine(plan.summary), Modifier.padding(horizontal = 4.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(ContactImportLogic.summaryLine(plan.summary), Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
 
                 if (plan.conflicts.isNotEmpty()) {

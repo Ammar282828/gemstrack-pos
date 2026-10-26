@@ -1,7 +1,7 @@
 package erp.app.screens.invoices
 
+import erp.app.ui.SearchBarField
 import erp.app.ui.appearOnce
-import erp.app.ui.pressScale
 import erp.app.ui.AppClock
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
@@ -39,7 +39,7 @@ import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Button
+import erp.app.ui.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenu
@@ -47,13 +47,13 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
+import erp.app.ui.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -247,10 +247,10 @@ fun InvoicesList() {
                                 val first = i == 0
                                 val last = i == group.rows.lastIndex
                                 val shape = RoundedCornerShape(
-                                    topStart = if (first) Radius.card else 0.dp, topEnd = if (first) Radius.card else 0.dp,
-                                    bottomStart = if (last) Radius.card else 0.dp, bottomEnd = if (last) Radius.card else 0.dp,
+                                    topStart = if (first) Radius.card else Radius.joint, topEnd = if (first) Radius.card else Radius.joint,
+                                    bottomStart = if (last) Radius.card else Radius.joint, bottomEnd = if (last) Radius.card else Radius.joint,
                                 )
-                                Column(Modifier.appearOnce(if (group === groups.first()) i else Int.MAX_VALUE).padding(horizontal = 16.dp).readableColumn().clip(shape)) {
+                                Column(Modifier.appearOnce(if (group === groups.first()) i else Int.MAX_VALUE).padding(horizontal = 16.dp).readableColumn().padding(bottom = if (last) 0.dp else 2.dp).clip(shape)) {
                                     SwipeActions(
                                         // The bill to the customer: the commonest thing after a sale, the same send as the invoice page's.
                                         start = RowAction("Send on WhatsApp", Icons.AutoMirrored.Filled.Message, Tone.credit) { sending = inv },
@@ -260,7 +260,6 @@ fun InvoicesList() {
                                     ) {
                                         InvoiceListRow(inv, mine = mine(inv), dated = grouping != InvoiceGrouping.day, modifier = Modifier.zoomSource(InvoiceFacts.path(inv.id), Radius.tile))
                                     }
-                                    if (!last) LedgerDivider()
                                 }
                             }
                         }
@@ -319,7 +318,7 @@ private fun LazyGridScope.head(
     onPick: (InvoiceSummary.Figure) -> Unit,
 ) {
     item(key = "search", span = FULL_WIDTH) {
-        OutlinedTextField(
+        SearchBarField(
             value = search,
             onValueChange = onSearch,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).readableColumn(),
@@ -534,13 +533,10 @@ private fun InvoiceCard(
     Column(
         Modifier
             .zoomSource(InvoiceFacts.path(inv.id))
-            // The hairline is the card's own edge: on before the padding (after it, it drew a second card inside).
-            .ledgerCard(padding = 0.dp)
-            .border(BorderStroke(1.dp, ErpColors.accent.copy(alpha = if (mine) 0.22f else 0.08f)), Radius.cardShape)
-            .padding(20.dp),
+            .ledgerCard(padding = 20.dp, lit = mine),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Box(Modifier.pressScale().clickable(role = Role.Button, onClick = open)) {
+        Box(Modifier.clickable(role = Role.Button, onClick = open)) {
             Row(Modifier.fillMaxWidth().semantics(mergeDescendants = true) {}, horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
                 RowIdentity(inv, mine, dated, Modifier.weight(1f))
                 Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {

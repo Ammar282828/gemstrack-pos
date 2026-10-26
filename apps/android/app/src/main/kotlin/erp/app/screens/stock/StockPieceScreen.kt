@@ -1,5 +1,6 @@
 package erp.app.screens.stock
 
+import erp.app.ui.SegmentedColumn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -22,11 +23,11 @@ import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Verified
-import androidx.compose.material3.Button
+import erp.app.ui.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -288,20 +289,20 @@ private fun TextBlock(title: String, text: String) {
 @Composable
 private fun ErpSection(p: Product, open: (String) -> Unit, onTag: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-        Column(Modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card)) {
+        SegmentedColumn {
             LinkRow("Edit", Icons.Filled.Edit, ErpColors.accent) { open(StockKit.editPath(p.sku)) }
             LedgerDivider()
             LinkRow("Print tag", Icons.Filled.Print, ErpColors.accent, onTag)
         }
         LedgerSection("Photo") { StockPiecePhotoField(p.sku, p.name, p.imageUrl) }
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            LedgerHeading("On the ERP's page", Modifier.padding(horizontal = 4.dp))
-            Column(Modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card)) {
+            LedgerHeading("On the ERP's page", Modifier.padding(horizontal = 16.dp))
+            SegmentedColumn {
                 LinkRow("Delete", Icons.Filled.Delete, Tone.problem.color()) { open(StockKit.piecePath(p.sku, web = true)) }
             }
             Text(
                 "This opens the ERP's own page. Delete asks for the delete code there.",
-                Modifier.padding(horizontal = 4.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

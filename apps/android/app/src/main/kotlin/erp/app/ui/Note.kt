@@ -133,9 +133,10 @@ fun NoteBanner(note: Note, modifier: Modifier = Modifier) {
             liveRegion = LiveRegionMode.Polite
             contentDescription = note.spoken
         },
-        shape = Radius.cardShape,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        shadowElevation = 6.dp,
+        // Material's snackbar: the inverse surface, so it reads over any page in either mode, with no shadow to lift it.
+        shape = Radius.chipShape,
+        color = MaterialTheme.colorScheme.inverseSurface,
+        contentColor = MaterialTheme.colorScheme.inverseOnSurface,
     ) {
         Row(
             Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
@@ -145,12 +146,12 @@ fun NoteBanner(note: Note, modifier: Modifier = Modifier) {
             Icon(
                 if (note.failed) Icons.Filled.Warning else Icons.Filled.CheckCircle,
                 contentDescription = null,
-                tint = if (note.failed) Tone.owed.color() else Tone.settled.color(),
+                tint = if (note.failed) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.inversePrimary,
             )
             Column(Modifier.weight(1f)) {
                 Text(note.title, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
                 if (note.detail.isNotEmpty()) {
-                    Text(note.detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(note.detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.inverseOnSurface.copy(alpha = 0.8f))
                 }
             }
         }

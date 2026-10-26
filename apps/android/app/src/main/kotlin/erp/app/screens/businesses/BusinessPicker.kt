@@ -22,7 +22,7 @@ import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -44,7 +44,7 @@ import erp.app.device.LaunchClock
 import erp.app.ui.theme.ErpType
 import erp.app.ui.appearOnce
 import erp.app.ui.ledgerCard
-import erp.app.ui.pressScale
+import erp.app.ui.morphCard
 import erp.app.ui.rememberHaptics
 
 /**
@@ -135,8 +135,8 @@ internal fun BusinessPicker(list: List<Business>, last: Business) {
             Text("Open", Modifier.padding(top = 32.dp, bottom = 10.dp).semantics { contentDescription = "Open which business" }, style = ErpType.heroNumber)
             for ((i, b) in list.withIndex()) {
                 Row(
-                    Modifier.fillMaxWidth().appearOnce(i).pressScale().ledgerCard(padding = 22.dp).heightIn(min = 72.dp)
-                        .clickable(role = Role.Button, onClickLabel = "Open ${b.displayName}") {
+                    Modifier.fillMaxWidth().appearOnce(i)
+                        .morphCard(onClickLabel = "Open ${b.displayName}", onClick = {
                             haptics.selection()
                             LaunchClock.mark("picked", b.id)
                             // A launch whose books were still on their way when the person chose ends here ("picker"): the wait was theirs.
@@ -144,7 +144,8 @@ internal fun BusinessPicker(list: List<Business>, last: Business) {
                             // One switch, then the picker leaves in the same change: the Activities are rebuilt on the new business, and this state lives above them.
                             LaunchPicker.dismiss()
                             if (b.id != last.id) Businesses.switchTo(b.id)
-                        },
+                        })
+                        .padding(22.dp).heightIn(min = 72.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {

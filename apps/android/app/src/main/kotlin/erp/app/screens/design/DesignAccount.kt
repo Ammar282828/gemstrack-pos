@@ -1,5 +1,6 @@
 package erp.app.screens.design
 
+import erp.app.ui.Loading
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,9 +15,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -118,7 +118,7 @@ fun DesignAccountAds(folders: List<DesignFolder>, onKept: () -> Unit) {
                                 },
                                 enabled = busy == null, modifier = Modifier.semantics { contentDescription = "Keep in a folder" },
                             ) {
-                                if (busy == a.id) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) else Icon(Icons.Filled.Download, null)
+                                if (busy == a.id) Loading(Modifier.size(26.dp)) else Icon(Icons.Filled.Download, null)
                             }
                         }
                     }

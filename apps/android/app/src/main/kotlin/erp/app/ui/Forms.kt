@@ -30,15 +30,12 @@ import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
+import erp.app.ui.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -259,11 +256,13 @@ fun FieldRow(
 }
 
 /**
- * A card's rows with a hairline between them, wherever the rows come from (an `if` that shows none leaves no line).
- * The lines are real children, so they draw with the rows and move with them.
+ * Rows with a hairline between them, wherever the rows come from (an `if` that shows none leaves no line). The lines
+ * are real children, so they draw with the rows and move with them. Inside a segmented group (a [LedgerSection]) the
+ * rows are the group's own tiles already, so they are passed through as they are.
  */
 @Composable
 fun DividedColumn(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    if (LocalInSegments.current) { content(); return }
     SubcomposeLayout(modifier.fillMaxWidth()) { constraints ->
         val loose = constraints.copy(minHeight = 0)
         val rows = subcompose("rows", content).map { it.measure(loose) }

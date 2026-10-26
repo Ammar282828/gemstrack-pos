@@ -1,5 +1,6 @@
 package erp.app.screens.design
 
+import erp.app.ui.Loading
 import android.graphics.Bitmap
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -22,12 +23,11 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.OpenInFull
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import erp.app.ui.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
+import erp.app.ui.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -421,7 +421,7 @@ private fun ResultCard(r: DesignResizeModel, id: String) {
         if (res["needsExtend"].bool && r.extras[id] == null) {
             Text("The piece doesn’t fill this shape; the photo is shown whole.", style = MaterialTheme.typography.labelSmall, color = Tone.owed.color())
             OutlinedButton(onClick = { scope.launch { r.extend(id) } }, enabled = r.extending == null && r.busy == null) {
-                if (r.extending == id) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp) else Icon(Icons.Filled.AutoAwesome, null, Modifier.size(16.dp))
+                if (r.extending == id) Loading(Modifier.size(22.dp)) else Icon(Icons.Filled.AutoAwesome, null, Modifier.size(16.dp))
                 Text("Extend the photo", Modifier.padding(start = 6.dp), style = MaterialTheme.typography.labelMedium)
             }
         }

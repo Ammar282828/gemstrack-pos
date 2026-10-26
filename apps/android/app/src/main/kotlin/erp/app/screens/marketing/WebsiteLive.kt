@@ -113,7 +113,7 @@ fun LiveContent(l: SiteLive) {
         } else {
             Text(
                 "No one on the site at the moment. Visits are counted from 23 October 2026.",
-                Modifier.padding(horizontal = 4.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -144,7 +144,7 @@ private fun Hero(l: SiteLive) {
 @Composable
 private fun Today(t: SiteLiveToday) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        LedgerHeading("Today so far", Modifier.padding(horizontal = 4.dp))
+        LedgerHeading("Today so far", Modifier.padding(horizontal = 16.dp))
         FigureGrid {
             FigureTile("Sessions", SiteWords.number(t.sessions), detail = SiteWords.number(t.visitors) + " people", number = t.sessions.toDouble())
             FigureTile("Page views", SiteWords.number(t.pageviews), detail = SiteWords.duration(t.avgSessionMs) + " a session", number = t.pageviews.toDouble())

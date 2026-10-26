@@ -24,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -60,15 +61,16 @@ import java.util.Locale
  */
 @Composable
 fun Pill(text: String, modifier: Modifier = Modifier, tone: Tone = Tone.quiet, icon: ImageVector? = null) {
-    PillBody(text, tone.color(), tone.fill(), modifier, icon)
+    PillBody(text, tone.onContainer(), tone.container(), modifier, icon)
 }
 
 /** A colour no tone has (older [StatusBadge] call sites); new code passes a [Tone]. */
 @Composable
 fun Pill(text: String, color: Color, modifier: Modifier = Modifier, icon: ImageVector? = null) {
-    PillBody(text, color, color, modifier, icon)
+    PillBody(text, color, color.copy(alpha = 0.16f).compositeOver(MaterialTheme.colorScheme.surfaceContainer), modifier, icon)
 }
 
+/** A tonal container with its on-container words (Material's own roles), as a small capsule. */
 @Composable
 private fun PillBody(text: String, inkTo: Color, washTo: Color, modifier: Modifier, icon: ImageVector?) {
     // A status that changes cross-fades its colour (150 ms) instead of blinking.
@@ -78,8 +80,8 @@ private fun PillBody(text: String, inkTo: Color, washTo: Color, modifier: Modifi
     Row(
         modifier
             .clip(CircleShape)
-            .background(wash.copy(alpha = 0.13f))
-            .padding(horizontal = 8.dp, vertical = 3.dp),
+            .background(wash)
+            .padding(horizontal = 10.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -132,19 +134,20 @@ fun monogramLetters(name: String): String {
 @Composable
 fun Monogram(name: String, modifier: Modifier = Modifier, size: Dp = 40.dp) {
     val letters = monogramLetters(name)
-    val accent = ErpColors.accent
+    // Material's contact avatar: the secondary container with its on-container letters (a hero card is the primary container, so it stays apart from it).
+    val accent = MaterialTheme.colorScheme.onSecondaryContainer
     // Sized in dp whatever the font scale: the circle is a fixed mark, the words beside it are what scale.
     val textSize = with(LocalDensity.current) { (size * 0.38f).toSp() }
     Box(
         modifier
             .size(size)
             .clip(CircleShape)
-            .background(accent.copy(alpha = 0.13f))
+            .background(MaterialTheme.colorScheme.secondaryContainer)
             .clearAndSetSemantics {},
         contentAlignment = Alignment.Center,
     ) {
         if (letters.isEmpty()) {
-            Icon(Icons.Filled.Person, contentDescription = null, Modifier.size(size * 0.5f), tint = accent.copy(alpha = 0.8f))
+            Icon(Icons.Filled.Person, contentDescription = null, Modifier.size(size * 0.5f), tint = accent)
         } else {
             Text(
                 letters,
@@ -178,7 +181,7 @@ fun DateLeaf(date: Instant?, modifier: Modifier = Modifier, tone: Tone = Tone.qu
         modifier
             .defaultMinSize(minWidth = size, minHeight = size + 6.dp)
             .clip(Radius.thumbShape)
-            .background((if (tone == Tone.quiet) quiet else tone.fill()).copy(alpha = 0.1f))
+            .background(if (tone == Tone.quiet) MaterialTheme.colorScheme.surfaceContainerHighest else tone.container())
             .padding(horizontal = 2.dp)
             .clearAndSetSemantics {},
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -242,7 +245,7 @@ fun StageTrack(stage: OrderStage, modifier: Modifier = Modifier, labels: Boolean
     val at = StageSteps.index(stage)
     val reduce = reduceMotion()
     // Inactive bars a little firmer in dark, where 0.18 of grey nearly vanishes on the card.
-    val idle = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (ErpColors.dark) 0.28f else 0.18f)
+    val idle = MaterialTheme.colorScheme.outlineVariant
     val accent = ErpColors.accent
     val spoken = if (at < 0) "Closed" else "Stage: " + StageSteps.names[minOf(at, StageSteps.names.size - 1)]
     Row(
@@ -270,7 +273,7 @@ fun StageTrack(stage: OrderStage, modifier: Modifier = Modifier, labels: Boolean
 
 // MARK: Headings
 
-/** A section's heading: its name in the serif, a count, and what it comes to on the right. */
+/** A section's heading: its name in the primary, a count, and what it comes to on the right. */
 @Composable
 fun LedgerHeading(
     title: String,
@@ -283,8 +286,9 @@ fun LedgerHeading(
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.Bottom) {
             Text(
                 title,
-                style = ErpType.heading,
-                color = if (tone == Tone.late) tone.color() else MaterialTheme.colorScheme.onSurface,
+                // Android Settings' group header: sentence case, small, in the primary.
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                color = if (tone == Tone.late) tone.color() else MaterialTheme.colorScheme.primary,
             )
             if (count != null && count > 0) {
                 Text(

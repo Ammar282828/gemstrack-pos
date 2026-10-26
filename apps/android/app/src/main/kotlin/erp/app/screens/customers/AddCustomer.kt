@@ -1,5 +1,7 @@
 package erp.app.screens.customers
 
+import erp.app.ui.ContainedLoading
+import erp.app.ui.Loading
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -17,12 +19,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material.icons.filled.VerifiedUser
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import erp.app.ui.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -176,7 +177,7 @@ fun AddCustomer() {
                     SourcePicker(source) { source = it }
                 }
                 error?.let { Text(it, color = Tone.problem.color(), style = MaterialTheme.typography.bodyMedium) }
-                if (saving) Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                if (saving) Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { ContainedLoading() }
             }
         }
     }

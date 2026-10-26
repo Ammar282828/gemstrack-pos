@@ -1,5 +1,6 @@
 package erp.app.screens.repairs
 
+import erp.app.ui.SearchBarField
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -29,16 +30,16 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SelectableDates
-import androidx.compose.material3.Switch
+import erp.app.ui.Switch
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberSwipeToDismissBoxState
@@ -136,11 +137,11 @@ fun RepairsSection(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        if (title != null) LedgerHeading(title, Modifier.padding(horizontal = 4.dp))
+        if (title != null) LedgerHeading(title, Modifier.padding(horizontal = 16.dp))
         Column(Modifier.ledgerCard(), verticalArrangement = Arrangement.spacedBy(10.dp), content = content)
         if (!footer.isNullOrEmpty()) {
             Text(
-                footer, Modifier.padding(horizontal = 4.dp), style = MaterialTheme.typography.bodySmall,
+                footer, Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall,
                 color = if (footerTone == Tone.quiet) MaterialTheme.colorScheme.onSurfaceVariant else footerTone.color(),
             )
         }
@@ -190,7 +191,7 @@ fun RepairsField(
 /** A search box that sits at the top of the list (the iPhone's `.searchable`). */
 @Composable
 fun RepairsSearchField(value: String, onChange: (String) -> Unit, prompt: String, modifier: Modifier = Modifier) {
-    OutlinedTextField(
+    SearchBarField(
         value = value,
         onValueChange = onChange,
         modifier = modifier.fillMaxWidth(),
