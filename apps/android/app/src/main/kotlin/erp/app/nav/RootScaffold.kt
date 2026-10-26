@@ -234,10 +234,14 @@ private fun CreateButton(spec: CreateSpec, modifier: Modifier) {
     }
 }
 
+/** The sale form itself; the nav map's `newSale` is "/new", the chooser. */
+const val NEW_SALE_PATH = "/invoices/new"
+
 class CreateItem(val label: String, val path: String, val icon: androidx.compose.ui.graphics.vector.ImageVector)
 
 fun createItems(spec: CreateSpec): List<CreateItem> = buildList {
-    spec.sale?.let { add(CreateItem("New sale", it, Icons.Rounded.Payments)) }
+    // Straight to the sale, not the New chooser (which asks Sale / Order / Repair again, though the person just said which).
+    if (spec.sale != null) add(CreateItem("New sale", NEW_SALE_PATH, Icons.Rounded.Payments))
     add(CreateItem("New order", "/orders/add", Icons.AutoMirrored.Rounded.Assignment))
     add(CreateItem("Scan", "/scan", Icons.Rounded.QrCodeScanner))
     if (spec.voice) add(CreateItem("Voice", "/voice", Icons.Rounded.Mic))

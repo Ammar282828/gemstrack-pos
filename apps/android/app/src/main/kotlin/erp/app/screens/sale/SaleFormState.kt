@@ -7,6 +7,10 @@ import erp.app.ErpApp
 import erp.app.data.Book
 import erp.app.data.ErpApi
 import erp.app.data.WorkDraftSync
+import erp.app.screens.neworder.NewOrderPhoneStore
+import erp.app.screens.work.DraftOpen
+import erp.app.screens.work.DraftOpening
+import erp.app.screens.work.DraftsCount
 import erp.app.ui.EntryStep
 import erp.core.entry.EntryHouse
 import erp.core.entry.SaleDraft
@@ -29,8 +33,10 @@ import kotlinx.coroutines.launch
 /**
  * New sale's state and what it does (the `@State` and the methods of the iPhone's `SaleForm`): the draft, the
  * step, the sheets, and Save. A sale is rules (core's SaleDraft / SaleFigures) and this is only the screen's side
- * of it. An unfinished sale is kept on this phone (SaleStore) and in the ERP's Drafts (WorkDraftSync, SaleWebDraft)
- * in the sale page's own shape, so the counter can finish it; "Start over" empties both.
+ * of it. An unfinished sale is kept at every change, on this phone (SaleStore) and in the ERP's Drafts (WorkDraftSync,
+ * SaleWebDraft) in the sale page's own shape, so the counter can finish it; "Start over" empties both. A New sale always
+ * opens blank: the one kept before is in Drafts, continued from there or from a screen that puts a piece on it and opens
+ * this with `?resume=1` (Scan, Stock).
  *
  * [edit] is Edit invoice (SaleEdit): the invoice on file in this form. Nothing is kept on the phone or in Drafts,
  * there is no starting over, and Save writes the invoice under its own number.
@@ -42,6 +48,8 @@ class SaleFormState(
     private val defaultTaker: String,
     /** The AI bill reader opens over the form when it first shows (NewSale.readsBill). */
     private val startsReading: Boolean,
+    /** Opened to continue the sale kept on this phone (`?resume=1`); otherwise the form is blank. */
+    private val resumes: Boolean = false,
     /** The ERP page for a path ("/orders/add"). */
     private val open: (String) -> Unit,
     /** Leave this screen (an edit that saved). */
@@ -90,12 +98,28 @@ class SaleFormState(
     private var editLoaded = false
     private var takenByStarted = false
 
-    /** Changes the draft and keeps it: on the phone, and in Drafts a moment later. An edit is never kept. */
+    /** The first appearance has decided what the form opens on; later ones only read the phone's copy again. */
+    private var begun = false
+
+    /** The business this form was opened in: every draft and the save go to it, whatever is open when they run. */
+    private val biz = erp.app.config.House.id
+
+    /** The draft this form was opened on, as text, until the first change: opening a draft is not a change to it. */
+    private var baseline: String? = null
+
+    /** Changes the draft and keeps it: on the phone at once, and in Drafts within a third of a second. An edit is never kept. */
     fun replaceDraft(d: SaleDraft) {
         draft = d
+        changed(d)
+    }
+
+    /** A customer's name alone is worth keeping (SaleDraft.isBlank). */
+    private fun changed(d: SaleDraft) {
         // An edit is never kept on the phone or in Drafts: the invoice on file is the copy.
-        if (edit != null) return
-        SaleStore.save(d)
+        if (edit != null || !takenByStarted || made != null) return
+        // The draft just opened is not a change to it.
+        baseline?.let { if (SaleDraftStore.encode(d) == it) return; baseline = null }
+        SaleStore.save(d, biz)
         sync(d)
     }
 
@@ -106,27 +130,37 @@ class SaleFormState(
         replaceDraft(d)
     }
 
-    /** Every time the screen shows: this phone's unfinished sale is read, and a brand-new one starts Taken by on the signed-in person, once. */
+    /**
+     * Every time the screen shows. The first time decides what the form opens on ([begin]): blank, or the sale kept on
+     * this phone when it is continued on purpose. After that this phone's copy is read again (a scan can add a piece to it
+     * while this one waits underneath); a sale cleared elsewhere starts afresh. A brand-new sale starts Taken by on the
+     * signed-in person, once.
+     */
     fun appeared() {
         if (edit != null) {
             if (!editLoaded) {
-                replaceDraft(edit.draft)
+                draft = edit.draft
                 editLoaded = true
             }
             return
         }
-        val stored = SaleStore.load()
-        if (stored != null) {
-            // A sale begun from Scan a tag has no Taken by yet: it starts on the signed-in person, as every new one.
-            if (stored.takenBy.isEmpty() && !takenByStarted) stored.takenBy = defaultTaker
-            if (SaleDraftStore.encode(stored) != SaleDraftStore.encode(draft)) replaceDraft(stored)
-            if (!stored.isBlank) ErpApp.scope.launch { stillOurs() }
-        } else if (!draft.isBlank) {
-            val fresh = SaleDraft()
-            fresh.takenBy = defaultTaker
-            replaceDraft(fresh)
-        } else if (!takenByStarted) {
-            update { it.takenBy = defaultTaker }
+        if (!begun) {
+            begun = true
+            begin()
+        } else {
+            val stored = SaleStore.load(biz)
+            if (stored != null) {
+                // A sale begun from Scan a tag has no Taken by yet: it starts on the signed-in person, as every new one.
+                if (stored.takenBy.isEmpty() && !takenByStarted) stored.takenBy = defaultTaker
+                if (SaleDraftStore.encode(stored) != SaleDraftStore.encode(draft)) replaceDraft(stored)
+                if (!stored.isBlank) ErpApp.scope.launch { stillOurs() }
+            } else if (!draft.isBlank) {
+                val fresh = SaleDraft()
+                fresh.takenBy = defaultTaker
+                replaceDraft(fresh)
+            } else if (!takenByStarted) {
+                update { it.takenBy = defaultTaker }
+            }
         }
         takenByStarted = true
         if (startsReading && !readerOpened) {
@@ -136,21 +170,61 @@ class SaleFormState(
     }
 
     /**
-     * The sale in Drafts as the web's sale page holds it, a moment after the last change (`now` as the screen goes), so
-     * it can be finished at the counter (WorkDraftSync).
+     * What the form opens on, once (the owner, 2026-10-25: "don't auto open the draft"): blank, with the sale this phone
+     * was holding made sure of in Drafts; or that very sale, when it is continued on purpose (`?resume=1`: a piece put on
+     * it by Scan or Stock). Where the work has no other place to be found the phone's copy is continued as it always was:
+     * drafts turned off, and the demo.
+     */
+    private fun begin() {
+        ErpApp.scope.launch { DraftsCount.refresh() }
+        val settings = book.settings.value.value
+        val enabled = draftsKept
+        val stored = SaleStore.load(biz)
+        if (stored != null) {
+            if (DraftOpening.decide(true, resumes, enabled) == DraftOpen.Continue) {
+                if (stored.takenBy.isEmpty()) stored.takenBy = defaultTaker
+                draft = stored
+                baseline = SaleDraftStore.encode(stored)
+                takenByStarted = true
+                // Work put on the phone's draft by another screen is in Drafts from now, not from its next key.
+                if (WorkDraftSync.sale.id == null) sync(stored)
+                if (!stored.isBlank) ErpApp.scope.launch { stillOurs() }
+                return
+            }
+            val customers = book.customers.items.value
+            WorkDraftSync.sale.release(biz, enabled) { WorkDraftSync.snapshot(stored, settings, customers) }
+            SaleStore.clear(biz)
+        } else {
+            // Nothing kept here: an id left from it is no draft of this form's.
+            WorkDraftSync.sale.forget(biz)
+        }
+        val fresh = SaleDraft()
+        fresh.takenBy = defaultTaker
+        draft = fresh
+        WorkDraftSync.sale.resume()
+    }
+
+    /** Whether an unfinished form is kept in Drafts (not turned off, not the demo). */
+    val draftsKept: Boolean get() = DraftOpening.kept(book.settings.value.value?.autoDraftForms, erp.app.config.House.isDemo)
+
+    /**
+     * The sale in Drafts as the web's sale page holds it, within a third of a second of the last change (`now` as the
+     * screen goes), so it can be finished at the counter (WorkDraftSync).
      */
     fun sync(d: SaleDraft, now: Boolean = false) {
         val settings = book.settings.value.value
         val customers = book.customers.items.value
-        WorkDraftSync.sale.push(blank = d.isBlank, enabled = settings?.autoDraftForms ?: true, now = now) {
-            val subtotal = SaleFigures(d, settings, customers, EntryHouse.margin).subtotal
-            WorkDraftSync.Snapshot(d.webValues(subtotal), subtotal, d.customerName)
+        WorkDraftSync.sale.push(blank = d.isBlank, enabled = settings?.autoDraftForms ?: true, now = now, business = biz) {
+            WorkDraftSync.snapshot(d, settings, customers)
         }
     }
 
     /** The screen is going: a change still waiting to be sent goes now. */
     fun disappeared() {
-        if (made == null && edit == null) sync(draft, now = true)
+        if (made != null || edit != null) return
+        // A draft opened and left as it was has nothing new to keep.
+        baseline?.let { if (SaleDraftStore.encode(draft) == it) return }
+        sync(draft, now = true)
     }
 
     /**
@@ -158,9 +232,9 @@ class SaleFormState(
      * to bill a second time, so it goes from here as well.
      */
     private suspend fun stillOurs() {
-        if (WorkDraftSync.sale.stillThere() != false || made != null) return
-        SaleStore.clear()
-        WorkDraftSync.sale.forget()
+        if (WorkDraftSync.sale.stillThere(biz) != false || made != null) return
+        SaleStore.clear(biz)
+        WorkDraftSync.sale.forget(biz)
         startOver()
         failure = "The sale kept on this phone was invoiced or discarded from Drafts on another device, so it is cleared here. Look for it under Invoices."
     }
@@ -240,8 +314,9 @@ class SaleFormState(
     }
 
     fun startOver() {
-        SaleStore.clear()
-        WorkDraftSync.sale.drop()
+        SaleStore.clear(biz)
+        WorkDraftSync.sale.drop(biz)
+        baseline = null
         val d = SaleDraft()
         d.takenBy = defaultTaker
         replaceDraft(d)
@@ -272,13 +347,20 @@ class SaleFormState(
      * the order form opens on them, and the sale is cleared when the order saves.
      */
     fun createOrder() {
+        // The order in progress goes to Drafts under its own id (durably); the order made from these pieces is a new draft.
+        if (draftsKept) {
+            NewOrderPhoneStore.load(biz)?.let { held ->
+                val settings = book.settings.value.value
+                WorkDraftSync.order.release(biz, true) { WorkDraftSync.snapshot(held, settings) }
+            }
+        }
         SaleStore.startOrderFrom(draft)
-        open("/orders/add")
+        open("/orders/add?resume=1")
     }
 
-    /** An order half typed on this phone is not thrown away without asking. */
+    /** An order half typed is kept in Drafts, so nothing is thrown away; with drafts off it is asked about. */
     fun askOrder() {
-        if (SaleStore.orderInProgress()) confirmingOrder = true else createOrder()
+        if (SaleStore.orderInProgress() && !draftsKept) confirmingOrder = true else createOrder()
     }
 
     /**
@@ -350,8 +432,8 @@ class SaleFormState(
             val out = ErpApi.shared.write("createInvoice", sent.payload(f, qr))
             val id = ((out["invoice"] as? Map<*, *>)?.get("id") as? String).orEmpty()
             if (kept != null) keepRates(kept)
-            SaleStore.clear()
-            WorkDraftSync.sale.drop()
+            SaleStore.clear(biz)
+            WorkDraftSync.sale.drop(biz)
             replaceDraft(SaleDraft())
             if (id.isEmpty()) {
                 failure = "The sale was saved, but the ERP did not say its number. Look for it under Invoices."

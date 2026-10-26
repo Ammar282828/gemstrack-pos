@@ -29,10 +29,11 @@ import androidx.compose.material.icons.filled.FolderOff
  * itself has no page there. "/orders/<id>/finalize" is the Orders group's. (NewOrderRoutes.swift.)
  */
 val NewOrderRoutes: List<ScreenRoute> = listOf(
-    // "?scan=parchi" (the New chooser's Scan a parchi) opens the slip reader over the new order.
+    // "?scan=parchi" (the New chooser's Scan a parchi) opens the slip reader over the new order. "?resume=1" opens the order
+    // kept on this phone (Drafts' Continue, a sale's Create order, the voice assistant); otherwise the form is blank.
     ScreenRoute(
         matches = { ScreenRoute.bare(it) == "/orders/add" },
-        make = { path -> NewOrder(readsSlip = NewOrderLogic.asks(path, scan = "parchi")) },
+        make = { path -> NewOrder(readsSlip = NewOrderLogic.asks(path, scan = "parchi"), resumes = NewOrderLogic.asks(path, "resume", "1")) },
     ),
     ScreenRoute(
         matches = { NewOrderLogic.editId(it) != null },

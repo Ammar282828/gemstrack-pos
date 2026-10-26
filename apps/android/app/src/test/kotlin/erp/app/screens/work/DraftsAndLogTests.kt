@@ -72,7 +72,7 @@ class DraftsAndLogTests {
         assertTrue(r.phoneOnly && r.native)
         assertEquals("phone-order", r.id)
         assertEquals("Sana Demo", r.draft.title)
-        assertEquals("/orders/add", DraftsLogic.path(r))
+        assertEquals("/orders/add?resume=1", DraftsLogic.path(r))
         assertEquals("On this phone", DraftsLogic.lastTyped(r, now))
         assertEquals(1, r.draft.items)
         assertTrue(r.draft.detail.startsWith("Plain band"))
@@ -89,7 +89,7 @@ class DraftsAndLogTests {
         val rows = DraftsLogic.rows(listOf(live), order, null, live.id, null, true, null)
         assertEquals(1, rows.size)
         assertTrue(rows[0].native && !rows[0].phoneOnly)
-        assertEquals("/orders/add", DraftsLogic.path(rows[0]))
+        assertEquals("/orders/add?resume=1", DraftsLogic.path(rows[0]))
     }
 
     // MARK: The range of days

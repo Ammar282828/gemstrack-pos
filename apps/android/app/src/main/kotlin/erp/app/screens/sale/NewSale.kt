@@ -48,6 +48,7 @@ import erp.app.nav.LocalNavigator
 import erp.app.nav.ScreenActions
 import erp.app.nav.ScreenRegistry
 import erp.app.nav.ScreenTitle
+import erp.app.screens.work.DraftsNote
 import erp.app.ui.EntryContinue
 import erp.app.ui.EntrySteps
 import erp.app.ui.EntryStep
@@ -91,15 +92,15 @@ import erp.app.ui.FullScreenSheet
  *
  * What stays the ERP's page: adding a piece to stock. Owners only, as the ERP's write is.
  *
- * An unfinished sale is kept on this phone (SaleStore) and in the ERP's Drafts, in the sale page's own shape, so the
+ * An unfinished sale is kept at every change, on this phone (SaleStore) and in the ERP's Drafts, in the sale page's own shape, so the
  * counter can finish it (WorkDraftSync, SaleWebDraft). "Start over" empties both.
  *
  * [readsBill]: opened from the New chooser's Read a written bill, the reader comes up over the form, once.
  */
 @Composable
-fun NewSale(readsBill: Boolean = false) {
+fun NewSale(readsBill: Boolean = false, resumes: Boolean = false) {
     if (LocalSession.current.isOwner) {
-        SaleForm(startsReading = readsBill)
+        SaleForm(startsReading = readsBill, resumes = resumes)
     } else {
         OwnersOnly()
     }
@@ -124,13 +125,13 @@ private fun OwnersOnly() {
 
 /** The sale form: [edit] is Edit invoice (SaleEdit), opened on the invoice on file. */
 @Composable
-fun SaleForm(edit: SaleEdit? = null, startsReading: Boolean = false, ratesFirst: Boolean = false) {
+fun SaleForm(edit: SaleEdit? = null, startsReading: Boolean = false, ratesFirst: Boolean = false, resumes: Boolean = false) {
     val book = LocalBook.current
     val session = LocalSession.current
     val navigator = LocalNavigator.current
     val settingsLoaded by book.settings.loaded.collectAsStateWithLifecycle()
     val s = remember {
-        SaleFormState(book, edit, session.shop.person ?: "", startsReading, { navigator.open(it) }, { navigator.back() }).also {
+        SaleFormState(book, edit, session.shop.person ?: "", startsReading, resumes, { navigator.open(it) }, { navigator.back() }).also {
             // Change rate opens an invoice on file at the Pieces step, its rates on top (the owner, 2026-10-24).
             if (ratesFirst && edit != null) { it.ratesFirst = true; it.step = EntryStep.pieces }
         }
@@ -231,7 +232,10 @@ private fun Page(s: SaleFormState) {
                     ) {
                         if (edit != null) EditBanner(edit)
                         when (step) {
-                            EntryStep.customer -> CustomerSection(s, f, data)
+                            EntryStep.customer -> {
+                                if (edit == null && s.draft.isBlank) DraftsNote()
+                                CustomerSection(s, f, data)
+                            }
                             EntryStep.pieces -> {
                                 if (s.ratesFirst) RatesSection(s, f, data)
                                 PiecesSection(s, f, data)

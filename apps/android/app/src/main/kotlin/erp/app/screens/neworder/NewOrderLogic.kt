@@ -80,16 +80,53 @@ class DraftHolder(initial: NewOrderDraft) {
     val stamp: Int get() = revision
 }
 
-/** The order kept on this phone (`NewOrderDraftStore` on the iPhone): the core encodes it, Prefs holds the text. */
+/**
+ * The order kept on this phone (`NewOrderDraftStore` on the iPhone): the core encodes it, Prefs holds the text.
+ *
+ * Written at every change, off the main thread, and only the newest of a burst (the encode can be heavy, and the form
+ * saves at every key): a draft handed to [save] must not be changed afterwards, so the screen hands over a copy.
+ * `business` is the one a screen was opened in, so leaving after a switch never writes into the next one.
+ */
 object NewOrderPhoneStore {
-    fun load(): NewOrderDraft? = Prefs.string(NewOrderDraftStore.key)?.let { NewOrderDraftStore.decode(it) }
+    private val executor = java.util.concurrent.Executors.newSingleThreadExecutor { r -> Thread(r, "erp-order-draft").apply { isDaemon = true } }
+    private val lock = Any()
 
-    fun save(draft: NewOrderDraft) {
-        val text = NewOrderDraftStore.encode(draft)
-        Prefs.putString(NewOrderDraftStore.key, text)
+    /** The newest draft waiting for the thread, per business. */
+    private val waiting = HashMap<String, NewOrderDraft>()
+
+    private fun slot(business: String?): String = business ?: Prefs.scope()
+
+    /** Everything asked for so far has been written (the same thread). */
+    private fun settle() { executor.submit {}.get() }
+
+    private fun write(draft: NewOrderDraft, business: String?) {
+        Prefs.putString(NewOrderDraftStore.key, NewOrderDraftStore.encode(draft), business)
     }
 
-    fun clear() = Prefs.remove(NewOrderDraftStore.key)
+    fun load(business: String? = null): NewOrderDraft? {
+        settle()
+        return Prefs.string(NewOrderDraftStore.key, business)?.let { NewOrderDraftStore.decode(it) }
+    }
+
+    /** `now` is for the moment the screen or the app is going away: written before this returns. */
+    fun save(draft: NewOrderDraft, now: Boolean = false, business: String? = null) {
+        val k = slot(business)
+        if (now) {
+            synchronized(lock) { waiting.remove(k) }
+            executor.submit { write(draft, business) }.get()
+            return
+        }
+        synchronized(lock) { waiting[k] = draft }
+        executor.execute {
+            val next = synchronized(lock) { waiting.remove(k) }
+            if (next != null) write(next, business)
+        }
+    }
+
+    fun clear(business: String? = null) {
+        synchronized(lock) { waiting.remove(slot(business)) }
+        executor.submit { Prefs.remove(NewOrderDraftStore.key, business) }.get()
+    }
 }
 
 object NewOrderLogic {

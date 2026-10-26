@@ -31,8 +31,9 @@ import erp.core.entry.SaleEdit
  */
 val SaleRoutes: List<ScreenRoute> = listOf(
     ScreenRoute.exact("/new") { NewChooser() },
-    // "?scan=bill" (the New chooser's Read a written bill) opens the bill reader over the new sale.
-    ScreenRoute(matches = { ScreenRoute.bare(it) == "/invoices/new" }, make = { p -> NewSale(readsBill = SaleRouting.asks(p, "bill")) }),
+    // "?scan=bill" (the New chooser's Read a written bill) opens the bill reader over the new sale. "?resume=1" continues the sale
+    // kept on this phone (a piece put on it by Scan or Stock, Drafts' Continue); otherwise the form is blank.
+    ScreenRoute(matches = { ScreenRoute.bare(it) == "/invoices/new" }, make = { p -> NewSale(readsBill = SaleRouting.asks(p, "bill"), resumes = SaleRouting.asks(p, "resume", "1")) }),
     ScreenRoute.exact("/scan") { ScanTag() },
     ScreenRoute(matches = { SaleRouting.editId(it) != null }, // "?rates=1" (the invoice page's Change rate) opens the form on its rates.
     make = { p -> SaleEditLoader(SaleRouting.editId(p).orEmpty(), ratesFirst = SaleRouting.asks(p, "rates", "1")) }),

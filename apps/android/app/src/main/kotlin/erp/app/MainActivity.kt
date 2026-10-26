@@ -113,7 +113,7 @@ class MainActivity : FragmentActivity() {
         super.onResume()
         AppLock.resumed(this, signedIn)
         // Back in front: the server is warmed for the first tap, and saves a kill or a dead line left are sent again.
-        if (signedIn && !House.isDemo) { Outbox.warm(); Outbox.resume() }
+        if (signedIn && !House.isDemo) { Outbox.warm(); Outbox.resume(); erp.app.data.WorkDraftSync.resumeAll() }
         // The widget's figures are as fresh as the app coming to the front.
         if (signedIn && session.isOwner && !House.isDemo) {
             WidgetSync.refreshSoon(this)

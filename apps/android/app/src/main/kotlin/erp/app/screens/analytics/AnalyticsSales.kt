@@ -36,6 +36,7 @@ import erp.app.ui.ledgerRow
 import erp.app.ui.readableColumn
 import erp.app.ui.theme.TabularDigits
 import erp.core.logic.Money
+import erp.core.logic.NetProfit
 import erp.core.logic.invoiceSaleValue
 import erp.core.models.Invoice
 import erp.core.models.InvoiceItem
@@ -142,7 +143,7 @@ private fun YearRow(y: AnaYear, showCosts: Boolean, onClick: () -> Unit) {
                     color = if (y.netProfit >= 0) Tone.settled.color() else Tone.owed.color(),
                 )
                 Text(
-                    if (y.revenue > 0) "${AnaFormat.fixed(y.netProfit / y.revenue * 100, 1)}% margin" else "—",
+                    if (y.revenue > 0) "${AnaFormat.fixed(NetProfit.marginPercent(y.netProfit, y.revenue), 1)}% margin" else "—",
                     style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = TabularDigits),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
