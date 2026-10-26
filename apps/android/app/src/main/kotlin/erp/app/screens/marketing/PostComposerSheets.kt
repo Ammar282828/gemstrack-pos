@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.SearchBarField
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -20,13 +21,13 @@ import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
+import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -193,7 +194,7 @@ fun SitePhotoPicker(picked: suspend (MarketingValue, ByteArray) -> Unit, onClose
     FullScreenSheet(title = "From the website", onCancel = onClose, cancelText = "Done") {
         Box(Modifier.fillMaxSize().readableColumn(720.dp)) {
             Column(Modifier.fillMaxSize()) {
-                OutlinedTextField(
+                SearchBarField(
                     q, { q = it }, Modifier.fillMaxWidth().padding(16.dp), singleLine = true, placeholder = { Text("Search") },
                     leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                 )

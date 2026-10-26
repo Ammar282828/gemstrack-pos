@@ -15,7 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
@@ -47,7 +47,7 @@ import erp.app.data.Outbox
 import erp.app.data.OutboxEngine
 import erp.app.nav.LocalNavigator
 import erp.app.nav.ScreenTitle
-import erp.app.ui.DividedColumn
+import erp.app.ui.SegmentedColumn
 import erp.app.ui.LedgerHeading
 import erp.app.ui.NotAvailableState
 import erp.app.ui.ShelfState
@@ -192,27 +192,29 @@ fun SettingsSection(title: String? = null, footer: String? = null, content: @Com
 @Composable
 fun SettingsSectionWith(title: String? = null, footer: (@Composable () -> Unit)? = null, content: @Composable () -> Unit) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (title != null) LedgerHeading(title, Modifier.padding(horizontal = 4.dp))
-        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(erp.app.ui.Radius.card)).background(ErpColors.card)) {
-            DividedColumn(content = content)
-        }
+        if (title != null) LedgerHeading(title, Modifier.padding(horizontal = 16.dp))
+        // Android 16's Settings: every row its own tile, the group's outer corners large and the joints small.
+        SegmentedColumn { content() }
         if (footer != null) {
             androidx.compose.runtime.CompositionLocalProvider(
                 androidx.compose.material3.LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant,
             ) {
                 androidx.compose.material3.ProvideTextStyle(MaterialTheme.typography.bodySmall) {
-                    Column(Modifier.padding(horizontal = 4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) { footer() }
+                    Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) { footer() }
                 }
             }
         }
     }
 }
 
-/** A row's icon the way the iPhone's Settings draws it: a white symbol on a small coloured square. */
+/**
+ * A row's icon the way Android's Settings draws it: a glyph in the primary on a tonal circle. [color] is the iPhone's
+ * per-row colour and is not used: Material You keeps one tonal icon, whatever the row.
+ */
 @Composable
 fun SettingsIcon(icon: ImageVector, color: Color, modifier: Modifier = Modifier) {
-    Box(modifier.size(30.dp).clip(RoundedCornerShape(7.dp)).background(color), contentAlignment = Alignment.Center) {
-        Icon(icon, contentDescription = null, Modifier.size(18.dp), tint = Color.White)
+    Box(modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
+        Icon(icon, contentDescription = null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
     }
 }
 

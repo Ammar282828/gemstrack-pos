@@ -78,6 +78,7 @@ fun PhoneSettings() {
     val registrationError by push.registrationError.collectAsStateWithLifecycle()
     val linked by push.registeredOnServer.collectAsStateWithLifecycle()
     val deviceTheme by ThemeChoice.device.collectAsStateWithLifecycle()
+    val wallpaperColors by ThemeChoice.wallpaper.collectAsStateWithLifecycle()
 
     var widgetLinked by remember { mutableStateOf(runCatching { WidgetLinker.isLinked() }.getOrDefault(false)) }
     var linking by remember { mutableStateOf(false) }
@@ -187,6 +188,16 @@ fun PhoneSettings() {
                 "Appearance", deviceTheme,
                 listOf("" to "Follow the shop", "default" to "Light", "taheri" to "Dark"),
             ) { ThemeChoice.setDevice(it) }
+        }
+
+        // Android 12+ only: the wallpaper's colours are the system's to give. Off, because the business's own colour is how
+        // staff tell Taheri (gold) from House of Mina (pink) when one app holds both.
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            SettingsSection(
+                footer = "Uses your phone's wallpaper colours instead of the business's own. Off by default: the business's colour (Taheri's gold, House of Mina's pink) is how you tell the two apart.",
+            ) {
+                ToggleRow("Wallpaper colours", wallpaperColors, { ThemeChoice.setWallpaper(it) })
+            }
         }
 
         SettingsSection(

@@ -1,6 +1,6 @@
 package erp.app.screens.home
 
-import erp.app.ui.pressScale
+import erp.app.ui.morphCard
 import erp.app.ui.zoomSource
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
@@ -78,6 +78,7 @@ import erp.app.ui.HeroAmount
 import erp.app.ui.Tone
 import erp.app.ui.color
 import erp.app.ui.fill
+import erp.app.ui.SegmentedColumn
 import erp.app.ui.heroSheen
 import erp.app.ui.ledgerCard
 import erp.app.ui.reduceMotion
@@ -212,9 +213,9 @@ fun DashWeekBars(days: List<DashDay>, modifier: Modifier = Modifier) {
 @Composable
 fun DashStat(label: String, onClick: (() -> Unit)?, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     val link = onClick != null
-    val base = modifier.fillMaxHeight().ledgerCard(padding = 12.dp)
+    val tile = modifier.fillMaxHeight()
     Column(
-        (if (link) base.pressScale().clickable(role = Role.Button, onClick = onClick) else base).semantics(mergeDescendants = true) {},
+        (if (link && onClick != null) tile.morphCard(onClick = onClick).padding(12.dp) else tile.ledgerCard(padding = 12.dp)).semantics(mergeDescendants = true) {},
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -309,15 +310,13 @@ fun DashHeader(title: String, count: Int? = null, allLabel: String? = null, onAl
     }
 }
 
-/** A list's rows on one ledger card, a hairline between them set in past what each row leads with. */
+/** A list's rows, each its own tile in one segmented group. */
 @Composable
 fun <T> DashRowsCard(items: List<T>, inset: Dp, modifier: Modifier = Modifier, row: @Composable (T) -> Unit) {
     val reduce = reduceMotion()
-    Column(modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card).animateContentSize(Motion.enter(reduce)).padding(horizontal = 14.dp)) {
-        items.forEachIndexed { i, item ->
-            if (i > 0) HorizontalDivider(Modifier.padding(start = inset), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
-            row(item)
-        }
+    // Each row its own tile (Android 16's grouped list); the hairline and its inset are gone, the gap is the line.
+    SegmentedColumn(modifier.animateContentSize(Motion.enter(reduce))) {
+        items.forEach { item -> Box(Modifier.padding(horizontal = 14.dp)) { row(item) } }
     }
 }
 

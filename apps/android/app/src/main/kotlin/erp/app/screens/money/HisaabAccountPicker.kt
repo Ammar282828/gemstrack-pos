@@ -1,5 +1,6 @@
 package erp.app.screens.money
 
+import erp.app.ui.Loading
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -22,13 +23,12 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Work
 import androidx.compose.material.icons.filled.WorkOutline
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -158,7 +158,7 @@ fun HisaabAccountPicker(onDismiss: () -> Unit, go: (String) -> Unit) {
                                     Modifier.fillMaxWidth().clickable(enabled = !creating, role = Role.Button) { createKarigar() }.ledgerRow(),
                                     horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
                                 ) {
-                                    if (creating) CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
+                                    if (creating) Loading(Modifier.size(30.dp))
                                     else Icon(Icons.Filled.AddCircleOutline, contentDescription = null, tint = ErpColors.accent)
                                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                         Text(

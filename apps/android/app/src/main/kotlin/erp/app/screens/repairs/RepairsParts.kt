@@ -1,5 +1,6 @@
 package erp.app.screens.repairs
 
+import erp.app.ui.SearchBarField
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -29,16 +30,16 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SelectableDates
-import androidx.compose.material3.Switch
+import erp.app.ui.Switch
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberSwipeToDismissBoxState
@@ -190,7 +191,7 @@ fun RepairsField(
 /** A search box that sits at the top of the list (the iPhone's `.searchable`). */
 @Composable
 fun RepairsSearchField(value: String, onChange: (String) -> Unit, prompt: String, modifier: Modifier = Modifier) {
-    OutlinedTextField(
+    SearchBarField(
         value = value,
         onValueChange = onChange,
         modifier = modifier.fillMaxWidth(),

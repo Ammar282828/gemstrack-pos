@@ -1,5 +1,6 @@
 package erp.app.screens.design
 
+import erp.app.ui.SearchBarField
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -20,11 +21,11 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
+import erp.app.ui.SingleChoiceSegmentedButtonRow
+import erp.app.ui.SegmentedButton
+import erp.app.ui.SegmentedButtonDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -112,7 +113,7 @@ fun DesignSitePieces(onPick: (DesignStartPhoto) -> Unit) {
             FilterChip("Everything", showing.isEmpty(), { collection = ""; shown = 60 })
             for (c in collections) FilterChip(c, showing == c, { collection = c; shown = 60 })
         }
-        OutlinedTextField(
+        SearchBarField(
             q, { q = it; shown = 60 }, Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), singleLine = true,
             placeholder = { Text("Ruby, kara, jhumka") }, leadingIcon = { Icon(Icons.Filled.Search, null) },
         )
@@ -185,7 +186,7 @@ fun DesignLibraryPhotos(all: Boolean, onPick: (DesignStartPhoto) -> Unit) {
     LaunchedEffect(all, q, placement) { delay(250); load(false) }
 
     Column(Modifier.fillMaxSize()) {
-        OutlinedTextField(
+        SearchBarField(
             q, { q = it }, Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), singleLine = true,
             placeholder = { Text("Name, subject or collection") }, leadingIcon = { Icon(Icons.Filled.Search, null) },
         )

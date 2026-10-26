@@ -155,13 +155,12 @@ private fun ActivityLogPage() {
                 items(visible.size, key = { visible[it].id.ifEmpty { "i$it" } }) { i ->
                     val first = i == 0
                     val last = i == visible.lastIndex && list.size <= shown
-                    val top = if (first) Radius.card else 0.dp
-                    val bottom = if (last) Radius.card else 0.dp
+                    val top = if (first) Radius.card else Radius.joint
+                    val bottom = if (last) Radius.card else Radius.joint
                     Column(
-                        Modifier.padding(bottom = if (i == visible.lastIndex) 12.dp else 0.dp)
+                        Modifier.padding(bottom = if (i == visible.lastIndex) 12.dp else 2.dp)
                             .clip(androidx.compose.foundation.shape.RoundedCornerShape(top, top, bottom, bottom)).background(ErpColors.card),
                     ) {
-                        if (!first) erp.app.ui.LedgerDivider()
                         LogRow(visible[i]) { nav.open(WEB_PAGE) }
                     }
                 }

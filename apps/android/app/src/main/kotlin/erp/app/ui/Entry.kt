@@ -23,11 +23,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.FactCheck
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
@@ -82,8 +80,8 @@ fun EntrySteps(
         Box(
             m
                 .defaultMinSize(minHeight = MinTouchTarget)
-                .clip(Radius.tileShape)
-                .background(if (chosen) ErpColors.accent.copy(alpha = 0.1f) else androidx.compose.ui.graphics.Color.Transparent)
+                .clip(CircleShape)
+                .background(if (chosen) MaterialTheme.colorScheme.secondaryContainer else androidx.compose.ui.graphics.Color.Transparent)
                 .selectable(selected = chosen, role = Role.Tab) {
                     focus.clearFocus()
                     onSelect(step)
@@ -92,11 +90,11 @@ fun EntrySteps(
             contentAlignment = Alignment.Center,
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (state == EntryStepState.done) Icon(Icons.Filled.Check, contentDescription = null, Modifier.size(14.dp), tint = if (chosen) ErpColors.accent else MaterialTheme.colorScheme.onSurfaceVariant)
+                if (state == EntryStepState.done) Icon(Icons.Filled.Check, contentDescription = null, Modifier.size(14.dp), tint = if (chosen) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(
                     step.title,
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = if (chosen) FontWeight.SemiBold else FontWeight.Normal),
-                    color = if (chosen) ErpColors.accent else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (chosen) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                 )
                 if (state == EntryStepState.attention) {

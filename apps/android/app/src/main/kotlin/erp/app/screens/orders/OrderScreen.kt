@@ -1,5 +1,6 @@
 package erp.app.screens.orders
 
+import erp.app.ui.Loading
 import erp.app.ui.AppClock
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -37,19 +38,18 @@ import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.StickyNote2
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
+import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import erp.app.ui.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import erp.app.ui.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.CompositionLocalProvider
@@ -678,7 +678,7 @@ private fun ActionBar(
                 modifier = m.defaultMinSize(minHeight = 52.dp), colors = prominent,
             ) {
                 if (updatingStatus && step == OrderNextStep.MarkReady) {
-                    CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = ErpColors.onAccent)
+                    Loading(Modifier.size(26.dp), color = ErpColors.onAccent)
                 } else {
                     Icon(stepIcon(step), null, Modifier.size(18.dp))
                     Text(step.title, Modifier.padding(start = 8.dp))

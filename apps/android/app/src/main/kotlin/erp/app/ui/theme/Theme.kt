@@ -1,27 +1,24 @@
 package erp.app.ui.theme
 
 import android.app.Activity
-import android.content.res.Configuration
+import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialExpressiveTheme
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.LocalView
@@ -34,98 +31,102 @@ import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import erp.app.R
 import erp.app.ui.LocalReduceMotion
-import erp.app.ui.Radius
 import erp.app.ui.rememberSystemReduceMotion
 
 /**
- * The house's four colours (Theme.swift): the accent for what can be pressed and what is chosen, the ground
- * screens sit on, the card that cards and tiles sit on, and the words on the accent (a filled button's label).
- * [dark] says which set they are, so a tone can pick its own light/dark value.
+ * The business's palette as the rest of the kit says it, now read off the Material 3 scheme (Material You, 2026-10-26):
+ * the accent is the scheme's primary, the ground its surface, the card the container tiles sit on, the elevated one a
+ * step higher (sheets, menus). Screens that name these keep compiling; new code says `MaterialTheme.colorScheme.*`.
  */
-@Immutable
-class HouseColors(
-    val accent: Color,
-    val ground: Color,
-    val card: Color,
-    val onAccent: Color,
-    val dark: Boolean,
-    /** A step above the card (sheets, popovers, grouped rows inside a card): the lifted surface in dark, white in light. */
-    val elevated: Color = card,
-)
-
-/** Outside [ErpTheme] (a bare preview) these keep the kit drawable: Taheri's light set. */
-private val FallbackHouseColors = HouseColors(
-    accent = Color(0xFF8A6B42), ground = Color(0xFFECE8E1), card = Color.White, onAccent = Color.White, dark = false,
-)
-
-val LocalHouseColors = staticCompositionLocalOf { FallbackHouseColors }
-
-/** `ErpColors.accent` etc.: the house's palette, as the iPhone's `Theme.accent`, `Theme.card`. */
 object ErpColors {
-    val accent: Color @Composable @ReadOnlyComposable get() = LocalHouseColors.current.accent
-    val ground: Color @Composable @ReadOnlyComposable get() = LocalHouseColors.current.ground
-    val card: Color @Composable @ReadOnlyComposable get() = LocalHouseColors.current.card
-    val onAccent: Color @Composable @ReadOnlyComposable get() = LocalHouseColors.current.onAccent
-    val elevated: Color @Composable @ReadOnlyComposable get() = LocalHouseColors.current.elevated
-    val dark: Boolean @Composable @ReadOnlyComposable get() = LocalHouseColors.current.dark
+    val accent: Color @Composable @ReadOnlyComposable get() = MaterialTheme.colorScheme.primary
+    val ground: Color @Composable @ReadOnlyComposable get() = MaterialTheme.colorScheme.surface
+    val card: Color @Composable @ReadOnlyComposable get() = MaterialTheme.colorScheme.surfaceContainer
+    val onAccent: Color @Composable @ReadOnlyComposable get() = MaterialTheme.colorScheme.onPrimary
+    val elevated: Color @Composable @ReadOnlyComposable get() = MaterialTheme.colorScheme.surfaceContainerHigh
+    val dark: Boolean @Composable @ReadOnlyComposable get() = LocalErpDark.current
 }
 
+/** Whether the theme is the dark one (the device's choice or the shop's). */
+val LocalErpDark = staticCompositionLocalOf { false }
+
+/** The meaning-colours on the current scheme ([erp.app.ui.Tone]). */
+val LocalToneColors = staticCompositionLocalOf<ToneColors> { error("ErpTheme not provided") }
+
 /**
- * The system font everywhere, as on the iPhone; the serif (the iPhone's New York) is for figures and headings
- * only ([ErpType]). FuturaLT-Light is the website-weight overlay's face and nothing else.
+ * The system sans everywhere (Google Sans on a Pixel, Roboto elsewhere): Material You has no serif. FuturaLT-Light is
+ * the website-weight overlay's face and nothing else.
  */
 object ErpFonts {
     val futuraLight: FontFamily = FontFamily(Font(R.font.futura_lt_light))
 }
 
-/** Tabular digits, so a sum never jumps sideways as it changes (the iPhone's `.monospacedDigit()`). */
+/** Tabular digits, so a sum never jumps sideways as it changes. */
 const val TabularDigits = "tnum"
 
+/**
+ * The kit's four figure styles on the Material 3 type scale, emphasized as Material 3 Expressive does it (a heavier
+ * weight at the same size), digits tabular: the hero number is displaySmall, a tile's value titleLarge.
+ */
 object ErpType {
-    /** A screen's one big sum (`.largeTitle` serif, semibold). */
-    val heroNumber = TextStyle(fontFamily = FontFamily.Serif, fontWeight = FontWeight.SemiBold, fontSize = 34.sp, lineHeight = 40.sp, fontFeatureSettings = TabularDigits)
+    /** A screen's one big sum (displaySmall, emphasized). */
+    val heroNumber = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 36.sp, lineHeight = 44.sp, letterSpacing = 0.sp, fontFeatureSettings = TabularDigits)
 
-    /** "PKR" beside it (`.title3` serif, medium). */
-    val heroUnit = TextStyle(fontFamily = FontFamily.Serif, fontWeight = FontWeight.Medium, fontSize = 20.sp, lineHeight = 26.sp)
+    /** "PKR" beside it (titleLarge). */
+    val heroUnit = TextStyle(fontWeight = FontWeight.Medium, fontSize = 22.sp, lineHeight = 28.sp, letterSpacing = 0.sp)
 
-    /** A section's name (`.title3` serif, semibold). */
-    val heading = TextStyle(fontFamily = FontFamily.Serif, fontWeight = FontWeight.SemiBold, fontSize = 20.sp, lineHeight = 26.sp)
+    /** A section's name or a short title (titleMedium, emphasized). */
+    val heading = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 16.sp, lineHeight = 24.sp, letterSpacing = 0.15.sp)
 
-    /** A figure tile's value (`.title2` serif, semibold). */
-    val tileValue = TextStyle(fontFamily = FontFamily.Serif, fontWeight = FontWeight.SemiBold, fontSize = 22.sp, lineHeight = 28.sp, fontFeatureSettings = TabularDigits)
+    /** A figure tile's value (titleLarge, emphasized). */
+    val tileValue = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 22.sp, lineHeight = 28.sp, letterSpacing = 0.sp, fontFeatureSettings = TabularDigits)
 }
 
-/** The stock type scale in the system font. */
+/** The stock Material 3 type scale in the system font, with its Expressive emphasized styles. */
 private val ErpTypography = Typography()
 
-/** Corners from [Radius]: the slots the stock Material components pick map onto the kit's four radii. */
+/** Material 3 Expressive's shape scale; [erp.app.ui.Radius] names the ones the kit draws with. */
 private val ErpShapes = Shapes(
-    extraSmall = RoundedCornerShape(Radius.thumb),
-    small = RoundedCornerShape(Radius.tile),
-    medium = RoundedCornerShape(Radius.chip),
-    large = RoundedCornerShape(Radius.card),
+    extraSmall = RoundedCornerShape(4.dp),
+    small = RoundedCornerShape(8.dp),
+    medium = RoundedCornerShape(12.dp),
+    large = RoundedCornerShape(16.dp),
+    largeIncreased = RoundedCornerShape(20.dp),
     extraLarge = RoundedCornerShape(28.dp),
+    extraLargeIncreased = RoundedCornerShape(32.dp),
+    extraExtraLarge = RoundedCornerShape(48.dp),
 )
 
 /**
- * The house's palette (generated from the iPhone's colorsets) on Material 3 expressive.
+ * Material You on Material 3 Expressive: the whole colour scheme grown from the open business's accent ([ErpScheme]),
+ * or the phone's own wallpaper colours when [wallpaperColors] is on (Android 12+; the business's colour is how staff
+ * tell the businesses apart, so it is off unless chosen).
  *
  * [themeOverride] is the shop's or the phone's theme (RootGate.preferredScheme): "default" is light,
- * "taheri" and "slate" are dark, anything else (or null) follows the device. The colours are resources
- * (values / values-night), so a scheme the device is not in is read through a context whose configuration
- * says night or day (`createConfigurationContext`), not guessed.
+ * "taheri" and "slate" are dark, anything else (or null) follows the device.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun ErpTheme(themeOverride: String? = null, content: @Composable () -> Unit) {
+fun ErpTheme(themeOverride: String? = null, wallpaperColors: Boolean = false, content: @Composable () -> Unit) {
     val system = isSystemInDarkTheme()
     val dark = when (themeOverride) {
         "default" -> false
         "taheri", "slate" -> true
         else -> system
     }
-    val house = rememberHouseColors(dark)
-    val scheme = remember(house) { houseColorScheme(dark, house.accent, house.onAccent, house.ground, house.card, house.elevated) }
+    val context = LocalContext.current
+    val inspecting = LocalInspectionMode.current
+    // The open business's own palette (its descriptor's hex colours): one app holds many businesses. A bare preview wears Taheri's gold.
+    val business = if (inspecting) null else erp.app.config.Businesses.current
+    val wallpaper = wallpaperColors && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val scheme = remember(business, dark, wallpaper, context) {
+        if (wallpaper) {
+            if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+        } else {
+            ErpScheme.colors(ErpScheme.seedOf(business?.palette), dark)
+        }
+    }
+    val tones = remember(scheme, dark) { ToneColors.of(scheme, dark) }
     val reduce = rememberSystemReduceMotion()
 
     // A forced scheme needs the bars' icons to follow it, not the device.
@@ -139,99 +140,13 @@ fun ErpTheme(themeOverride: String? = null, content: @Composable () -> Unit) {
         }
     }
 
-    CompositionLocalProvider(LocalHouseColors provides house, LocalReduceMotion provides reduce) {
+    CompositionLocalProvider(LocalErpDark provides dark, LocalToneColors provides tones, LocalReduceMotion provides reduce) {
         MaterialExpressiveTheme(
             colorScheme = scheme,
             motionScheme = MotionScheme.expressive(),
             shapes = ErpShapes,
             typography = ErpTypography,
             content = content,
-        )
-    }
-}
-
-@Composable
-private fun rememberHouseColors(dark: Boolean): HouseColors {
-    val context = LocalContext.current
-    val configuration = LocalConfiguration.current
-    val inspecting = LocalInspectionMode.current
-    // The open business's own palette (its descriptor's hex colours, light and dark): one app holds many businesses, so the colours
-    // are not the flavor's resources. The resources below are only the stand-in if a colour cannot be read.
-    val business = if (inspecting) null else erp.app.config.Businesses.current
-    return remember(context, configuration, dark, inspecting, business) {
-        business?.let { b ->
-            val side = if (dark) b.palette.dark else b.palette.light
-            val accent = erp.app.config.parseHexColor(side.accent)
-            val ground = erp.app.config.parseHexColor(side.ground)
-            val card = erp.app.config.parseHexColor(side.card)
-            val onAccent = erp.app.config.parseHexColor(side.onAccent)
-            val elevated = side.elevated?.let { erp.app.config.parseHexColor(it) } ?: card
-            if (accent != null && ground != null && card != null && onAccent != null) {
-                return@remember HouseColors(Color(accent), Color(ground), Color(card), Color(onAccent), dark, Color(elevated ?: card))
-            }
-        }
-        val night = if (dark) Configuration.UI_MODE_NIGHT_YES else Configuration.UI_MODE_NIGHT_NO
-        val forced = Configuration(configuration).apply {
-            uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or night
-        }
-        // The IDE's preview already runs in the scheme it was asked for; a derived context can lack the app's resources there.
-        val source = if (inspecting) context else context.createConfigurationContext(forced)
-        HouseColors(
-            accent = Color(source.getColor(R.color.house_accent)),
-            ground = Color(source.getColor(R.color.house_ground)),
-            card = Color(source.getColor(R.color.house_card)),
-            onAccent = Color(source.getColor(R.color.house_on_accent)),
-            dark = dark,
-            elevated = Color(source.getColor(R.color.house_elevated)),
-        )
-    }
-}
-
-fun houseColorScheme(dark: Boolean, accent: Color, onAccent: Color, ground: Color, card: Color, elevated: Color = card): ColorScheme {
-    // text is near-black on a light ground and near-white on a dark one, tinted toward the ground
-    val ink = lerp(ground, if (dark) Color.White else Color.Black, 0.88f)
-    val inkSoft = lerp(ground, ink, 0.66f)
-    val line = lerp(ground, ink, 0.18f)
-    val high = lerp(card, ink, 0.06f)
-    val highest = lerp(card, ink, 0.10f)
-    val container = lerp(ground, accent, if (dark) 0.22f else 0.14f)
-
-    return if (dark) {
-        darkColorScheme(
-            primary = accent, onPrimary = onAccent,
-            primaryContainer = container, onPrimaryContainer = lerp(accent, Color.White, 0.55f),
-            secondary = accent, onSecondary = onAccent,
-            secondaryContainer = container, onSecondaryContainer = lerp(accent, Color.White, 0.55f),
-            tertiary = accent, onTertiary = onAccent,
-            background = ground, onBackground = ink,
-            surface = ground, onSurface = ink,
-            surfaceVariant = high, onSurfaceVariant = inkSoft,
-            surfaceTint = accent,
-            surfaceContainerLowest = lerp(ground, Color.Black, 0.3f),
-            surfaceContainerLow = lerp(ground, card, 0.5f),
-            surfaceContainer = card,
-            // Dialogs, pickers and menus sit on the elevated surface (2026-10-25: cards lifted off a near-black ground).
-            surfaceContainerHigh = elevated,
-            surfaceContainerHighest = lerp(elevated, ink, 0.06f),
-            outline = inkSoft, outlineVariant = line,
-        )
-    } else {
-        lightColorScheme(
-            primary = accent, onPrimary = onAccent,
-            primaryContainer = container, onPrimaryContainer = lerp(accent, Color.Black, 0.45f),
-            secondary = accent, onSecondary = onAccent,
-            secondaryContainer = container, onSecondaryContainer = lerp(accent, Color.Black, 0.45f),
-            tertiary = accent, onTertiary = onAccent,
-            background = ground, onBackground = ink,
-            surface = ground, onSurface = ink,
-            surfaceVariant = high, onSurfaceVariant = inkSoft,
-            surfaceTint = accent,
-            surfaceContainerLowest = card,
-            surfaceContainerLow = lerp(ground, card, 0.5f),
-            surfaceContainer = card,
-            surfaceContainerHigh = high,
-            surfaceContainerHighest = highest,
-            outline = inkSoft, outlineVariant = line,
         )
     }
 }

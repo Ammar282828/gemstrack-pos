@@ -1,5 +1,6 @@
 package erp.app.screens.workshop
 
+import erp.app.ui.SearchBarField
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -40,11 +41,11 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -256,7 +257,7 @@ fun WorkshopBoard(path: String) {
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 96.dp)) {
                 if (orderId == null) {
                     item(key = "search") {
-                        OutlinedTextField(
+                        SearchBarField(
                             value = filter.query,
                             onValueChange = { filter = filter.copy(query = it) },
                             modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),

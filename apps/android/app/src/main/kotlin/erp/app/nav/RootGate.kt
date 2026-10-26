@@ -20,7 +20,7 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -62,17 +62,25 @@ import kotlinx.coroutines.flow.asStateFlow
 object ThemeChoice {
     private const val DEVICE_KEY = "deviceTheme"
     private const val SHOP_KEY = "erp.lastShopTheme"
+    private const val WALLPAPER_KEY = "erp.phone.wallpaperColors"
 
     private val _device = MutableStateFlow("")
     val device: StateFlow<String> = _device.asStateFlow()
     private val _lastShop = MutableStateFlow("")
     val lastShop: StateFlow<String> = _lastShop.asStateFlow()
 
+    /** Android 12+ wallpaper colours instead of the business's own: the phone's choice, off until chosen. */
+    private val _wallpaper = MutableStateFlow(false)
+    val wallpaper: StateFlow<Boolean> = _wallpaper.asStateFlow()
+
     /** Read once the preferences exist. */
     fun load() {
         _device.value = Prefs.string(DEVICE_KEY).orEmpty()
         _lastShop.value = Prefs.string(SHOP_KEY).orEmpty()
+        _wallpaper.value = Prefs.bool(WALLPAPER_KEY) == true
     }
+
+    fun setWallpaper(on: Boolean) { Prefs.putBool(WALLPAPER_KEY, if (on) true else null); _wallpaper.value = on }
 
     /** "" follows the shop. */
     fun setDevice(theme: String) { Prefs.putString(DEVICE_KEY, theme.ifEmpty { null }); _device.value = theme }
@@ -118,13 +126,14 @@ fun AppShell(session: Session, content: @Composable BoxScope.() -> Unit) {
     val settings by book.settings.value.collectAsStateWithLifecycle()
     val device by ThemeChoice.device.collectAsStateWithLifecycle()
     val lastShop by ThemeChoice.lastShop.collectAsStateWithLifecycle()
+    val wallpaper by ThemeChoice.wallpaper.collectAsStateWithLifecycle()
     val shopTheme = settings?.theme
     LaunchedEffect(shopTheme) { if (shopTheme != null) ThemeChoice.rememberShop(shopTheme) }
 
     val forced = ThemeChoice.preferredDark(device, shopTheme, lastShop)
     val dark = forced ?: isSystemInDarkTheme()
     ForcedNightMode(forced) {
-        ErpTheme(themeOverride = when (forced) { true -> "taheri"; false -> "default"; null -> null }) {
+        ErpTheme(themeOverride = when (forced) { true -> "taheri"; false -> "default"; null -> null }, wallpaperColors = wallpaper) {
             SystemBars(dark)
             // One toast per Activity: the banner sits over every screen, so `LocalNoteState.current.show(Note(...))`
             // works wherever it is called (a page on top of the tabs shows it on the page).
@@ -214,8 +223,8 @@ fun RootGate() {
 private fun StartingSkeleton() {
     val bar = MaterialTheme.colorScheme.surfaceContainerHigh
     Column(Modifier.fillMaxSize().safeDrawingPadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Column(Modifier.fillMaxWidth().height(28.dp).background(bar, RoundedCornerShape(10.dp))) {}
-        repeat(4) { Column(Modifier.fillMaxWidth().height(88.dp).background(bar, RoundedCornerShape(22.dp))) {} }
+        Column(Modifier.fillMaxWidth().height(28.dp).background(bar, RoundedCornerShape(erp.app.ui.Radius.thumb))) {}
+        repeat(4) { Column(Modifier.fillMaxWidth().height(88.dp).background(bar, RoundedCornerShape(erp.app.ui.Radius.card))) {} }
     }
 }
 

@@ -23,11 +23,13 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import erp.app.ui.SearchBarField
+import erp.app.ui.LedgerDivider
+import erp.app.ui.SegmentedColumn
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -101,15 +103,14 @@ fun SearchScreen() {
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         item(key = "field") {
-            OutlinedTextField(
+            // Material 3's search bar: a full-round field on the container tone, the search glyph first, no outline.
+            SearchBarField(
                 value = text,
                 onValueChange = { text = it },
                 modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                placeholder = { Text("Customers, invoices, orders, stock, places") },
+                placeholder = { Text("Customers, invoices, orders, stock, places", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 leadingIcon = { Icon(Icons.Rounded.Search, null) },
                 trailingIcon = { if (text.isNotEmpty()) IconButton({ text = "" }) { Icon(Icons.Rounded.Clear, "Clear") } },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
             )
         }
         if (typed.isEmpty()) {
@@ -249,13 +250,14 @@ private fun <T> androidx.compose.foundation.lazy.LazyListScope.results(
 @Composable
 private fun Group(title: String, content: @Composable () -> Unit) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        erp.app.ui.LedgerHeading(title, Modifier.padding(start = 4.dp, top = 8.dp))
-        Column(Modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card)) { content() }
+        erp.app.ui.LedgerHeading(title, Modifier.padding(start = 16.dp, top = 8.dp))
+        SegmentedColumn { content() }
     }
 }
 
+/** Between two rows of a group: only a marker, the gap between the tiles is the line. */
 @Composable
-private fun Hairline() = HorizontalDivider(Modifier.padding(start = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+private fun Hairline() = LedgerDivider()
 
 /**
  * One line: an icon (in the house's accent) or a lead, a name, and under it a second line (the row a place sits in,

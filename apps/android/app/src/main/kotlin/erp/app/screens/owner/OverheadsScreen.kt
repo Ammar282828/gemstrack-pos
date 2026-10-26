@@ -1,5 +1,7 @@
 package erp.app.screens.owner
 
+import erp.app.ui.ContainedLoading
+import erp.app.ui.Loading
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,17 +27,16 @@ import androidx.compose.material.icons.filled.RemoveCircle
 import androidx.compose.material.icons.filled.TrendingDown
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.filled.Undo
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import erp.app.ui.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import erp.app.ui.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import erp.app.ui.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import erp.app.ui.ErpPullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -212,7 +213,7 @@ private fun OverheadsBoard() {
             }
             val byMonth = revenue
             if (byMonth == null) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { ContainedLoading() }
             } else {
                 val rows = remember(plans, byMonth, now) { Overheads.monthlyRows(plans, byMonth, now) }
                 val summary = remember(rows) { Overheads.benchmarkSummary(rows) }
@@ -431,7 +432,7 @@ private fun SaveBar(saveError: String?, saving: Boolean, monthName: String, onDi
                 Text("  Discard")
             }
             Button(onClick = onSave, enabled = !saving, modifier = Modifier.weight(1f)) {
-                if (saving) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = ErpColors.onAccent)
+                if (saving) Loading(Modifier.size(24.dp), color = ErpColors.onAccent)
                 Text("Save from $monthName")
             }
         }

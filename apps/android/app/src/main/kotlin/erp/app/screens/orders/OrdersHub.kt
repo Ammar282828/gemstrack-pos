@@ -1,5 +1,6 @@
 package erp.app.screens.orders
 
+import erp.app.ui.SearchBarField
 import erp.app.ui.appearOnce
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import erp.app.ui.AppClock
@@ -34,19 +35,19 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.Button
+import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import erp.app.ui.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import erp.app.ui.SegmentedButton
+import erp.app.ui.SegmentedButtonDefaults
+import erp.app.ui.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -245,7 +246,7 @@ fun OrdersHub() {
             ) {
                 item(key = "controls", span = { GridItemSpan(maxLineSpan) }) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        OutlinedTextField(
+                        SearchBarField(
                             value = query, onValueChange = { query = it }, modifier = Modifier.fillMaxWidth(), singleLine = true,
                             placeholder = { Text("Order, customer, phone or piece") },
                             leadingIcon = { Icon(Icons.Filled.Search, null) },

@@ -1,5 +1,6 @@
 package erp.app.screens.owner
 
+import erp.app.ui.Loading
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,12 +26,11 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import erp.app.ui.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -613,7 +613,7 @@ private fun FloorRow(s: PartnershipSettings, floorText: String?, onFloorText: (S
         )
         if (changed) {
             Button(onClick = { saveFloor(parsed) }, enabled = !saving) {
-                if (saving) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = ErpColors.onAccent) else Text("Save")
+                if (saving) Loading(Modifier.size(24.dp), color = ErpColors.onAccent) else Text("Save")
             }
         } else {
             Icon(Icons.Filled.CheckCircle, contentDescription = "Saved", tint = Tone.settled.color())

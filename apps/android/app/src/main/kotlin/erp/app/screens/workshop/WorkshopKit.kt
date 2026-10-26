@@ -1,5 +1,6 @@
 package erp.app.screens.workshop
 
+import erp.app.ui.Loading
 import erp.app.ui.zoomSource
 import android.content.ActivityNotFoundException
 import android.content.Context
@@ -27,21 +28,20 @@ import androidx.compose.material.icons.filled.PanoramaFishEye
 import androidx.compose.material.icons.filled.Pending
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
+import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
+import erp.app.ui.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SelectableDates
-import androidx.compose.material3.Switch
+import erp.app.ui.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -458,7 +458,7 @@ fun WorkshopDeleteCodeSheet(deletion: WorkshopDeletion, onDismiss: () -> Unit, o
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = Tone.problem.color(), contentColor = Color.White),
             ) {
-                if (busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = Color.White)
+                if (busy) Loading(Modifier.size(24.dp), color = Color.White)
                 Text("Delete")
             }
         }

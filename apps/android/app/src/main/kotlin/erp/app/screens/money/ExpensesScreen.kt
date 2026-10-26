@@ -22,7 +22,7 @@ import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable

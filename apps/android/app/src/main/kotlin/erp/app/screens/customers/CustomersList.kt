@@ -1,5 +1,6 @@
 package erp.app.screens.customers
 
+import erp.app.ui.SearchBarField
 import erp.app.ui.appearOnce
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -28,7 +29,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -144,7 +145,7 @@ fun CustomersList() {
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 96.dp),
         ) {
             item(key = "search") {
-                OutlinedTextField(
+                SearchBarField(
                     value = search,
                     onValueChange = { search = it },
                     modifier = Modifier.fillMaxWidth().padding(bottom = GAP),
@@ -236,13 +237,12 @@ private fun LazyListScope.group(
         val first = i == 0
         val last = i == people.lastIndex
         val shape = RoundedCornerShape(
-            topStart = if (first) Radius.card else 0.dp, topEnd = if (first) Radius.card else 0.dp,
-            bottomStart = if (last) Radius.card else 0.dp, bottomEnd = if (last) Radius.card else 0.dp,
+            topStart = if (first) Radius.card else Radius.joint, topEnd = if (first) Radius.card else Radius.joint,
+            bottomStart = if (last) Radius.card else Radius.joint, bottomEnd = if (last) Radius.card else Radius.joint,
         )
         // The rows of a group are one card; the last leaves the gap to the next group.
-        Column(Modifier.appearOnce(i).padding(bottom = if (last) GAP else 0.dp).clip(shape)) {
+        Column(Modifier.appearOnce(i).padding(bottom = if (last) GAP else 2.dp).clip(shape)) {
             CustomerRow(c, stats[c.id], onClick = { open(c.id) })
-            if (!last) LedgerDivider()
         }
     }
 }
