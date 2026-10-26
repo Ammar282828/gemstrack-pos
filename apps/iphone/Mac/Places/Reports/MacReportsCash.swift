@@ -19,10 +19,7 @@ struct MacReportsCashPage: View {
     @State private var cameMade = Memo<[MacReportsCameInRow]>()
     @State private var methodMade = Memo<[MacReportsMethodRow]>()
     @State private var outMade = Memo<[MacReportsPaidOutRow]>()
-    @State private var cameSort = [KeyPathComparator(\MacReportsCameInRow.at)]
-    @State private var methodSort = [KeyPathComparator(\MacReportsMethodRow.amount, order: .reverse)]
-    @State private var outSort = [KeyPathComparator(\MacReportsPaidOutRow.amount, order: .reverse)]
-    @State private var cameSelection = Set<String>()
+    @Environment(\.openPlaceWindow) private var openPlace
 
     private var isToday: Bool { picked == nil }
 
@@ -52,36 +49,38 @@ struct MacReportsCashPage: View {
         let came = cameInRows(t, key: key)
         let methods = methodRows(t, key: key)
         let out = paidOutRows(t, key: key)
-        VStack(spacing: 0) {
-            macReportsFigures(figureList(t))
-            Divider()
-            // Beside each other on a wide window; on a narrow one what came in above, the two small tables under it.
-            MacReportsWidth(880) {
-                HStack(spacing: 0) {
-                    cameIn(came)
-                    Divider()
-                    VStack(spacing: 0) {
-                        methodsTable(methods)
-                            .frame(height: 70 + 24 * CGFloat(max(methods.count, 1)))
-                        Divider()
-                        paidOutTable(out)
-                    }
-                    .frame(minWidth: 320, idealWidth: 380, maxWidth: 460)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 200, maximum: 400), spacing: 16)], spacing: 16) {
+                    MacDashFigureCard(title: "In the drawer", symbol: "banknote", tint: t.netCash < 0 ? Tone.owed.color : Theme.accent,
+                                      value: Money.pkr(t.netCash), detail: "Cash in, less paid out",
+                                      detailTone: t.netCash < 0 ? Tone.owed : nil, open: nil) { EmptyView() }
+                    MacDashFigureCard(title: "Money in", symbol: "arrow.down.circle", tint: Tone.settled.color,
+                                      value: Money.pkr(t.totalIn), detail: "\(came.count) line\(came.count == 1 ? "" : "s")",
+                                      open: nil) { EmptyView() }
+                    let n = t.expenseLines.count
+                    MacDashFigureCard(title: "Paid out", symbol: "arrow.up.circle", tint: Color.orange,
+                                      value: Money.pkr(t.expenses), detail: "\(n) expense\(n == 1 ? "" : "s")",
+                                      open: nil) { EmptyView() }
+                    MacDashFigureCard(title: "Exchange", symbol: "arrow.left.arrow.right", tint: Color.indigo,
+                                      value: Money.pkr(t.exchange), detail: "In exchange, not cash",
+                                      open: nil) { EmptyView() }
                 }
-            } narrow: {
-                VStack(spacing: 0) {
-                    cameIn(came)
-                    Divider()
-                    HStack(spacing: 0) {
-                        methodsTable(methods)
-                            .frame(minWidth: 190, idealWidth: 220, maxWidth: 280)
-                        Divider()
-                        paidOutTable(out)
+                MacReportsWidth(880) {
+                    HStack(alignment: .top, spacing: 16) {
+                        cameIn(came).frame(maxWidth: .infinity)
+                        VStack(spacing: 16) { methodsCard(methods); paidOutCard(out) }
+                            .frame(minWidth: 320, idealWidth: 380, maxWidth: 460)
                     }
-                    .frame(height: 230)
+                } narrow: {
+                    VStack(spacing: 16) { cameIn(came); methodsCard(methods); paidOutCard(out) }
                 }
             }
+            .padding(24)
+            .frame(maxWidth: 1400, alignment: .leading)
+            .frame(maxWidth: .infinity)
         }
+        .background(Theme.ground)
         .navigationSubtitle(DashDate.longDay(instant))
         .toolbar {
             ToolbarItemGroup(placement: .automatic) {
@@ -125,18 +124,6 @@ struct MacReportsCashPage: View {
             .help("Any day's cash")
     }
 
-    // MARK: The figures
-
-    private func figureList(_ t: TodaysCash) -> [MacFigure] {
-        let n = t.expenseLines.count
-        return [
-            MacFigure("In the drawer", Money.pkr(t.netCash), detail: "Cash in, less paid out", tone: t.netCash < 0 ? Tone.owed : nil),
-            MacFigure("Money in", Money.pkr(t.totalIn)),
-            MacFigure("Paid out", Money.pkr(t.expenses), detail: "\(n) expense\(n == 1 ? "" : "s")"),
-            MacFigure("Exchange", Money.pkr(t.exchange), detail: "In exchange, not cash"),
-        ]
-    }
-
     // MARK: Came in
 
     private func sourceWord(_ s: CashSource) -> String {
@@ -159,7 +146,7 @@ struct MacReportsCashPage: View {
 
     /// The lines as rows, sorted. Two alike lines (the same ref, minute and sum) are told apart by their order among their twins.
     private func cameInRows(_ t: TodaysCash, key: [Int]) -> [MacReportsCameInRow] {
-        cameMade(key + [cameSort.hashValue]) {
+        cameMade(key) {
             var seen: [String: Int] = [:]
             var rows: [MacReportsCameInRow] = []
             for l in t.lines {
@@ -169,63 +156,59 @@ struct MacReportsCashPage: View {
                 rows.append(MacReportsCameInRow(id: "\(base)|\(n)", at: l.at, time: DashDate.clock(iso: l.at), ref: l.ref, who: l.who,
                                                 source: sourceWord(l.source), method: l.method.rawValue, amount: l.amount, path: path(for: l)))
             }
-            return rows.sorted(using: cameSort)
+            return rows.sorted { $0.at < $1.at }
         }
     }
 
     private func cameIn(_ rows: [MacReportsCameInRow]) -> some View {
-        let paths = Dictionary(rows.map { ($0.id, $0.path) }, uniquingKeysWith: { first, _ in first })
-        return VStack(alignment: .leading, spacing: 0) {
-            MacReportsHeader(title: "Came in", detail: rows.isEmpty ? nil : "\(rows.count) line\(rows.count == 1 ? "" : "s")")
-            Table(rows, selection: $cameSelection, sortOrder: $cameSort) {
-                TableColumn("Time", value: \.at) { (r: MacReportsCameInRow) in Text(r.time).monospacedDigit() }
-                    .width(min: 70, ideal: 80)
-                TableColumn("Reference", value: \.ref) { (r: MacReportsCameInRow) in Text(r.ref).monospacedDigit().lineLimit(1) }
-                    .width(min: 90, ideal: 120)
-                TableColumn("For", value: \.who) { (r: MacReportsCameInRow) in Text(r.who).lineLimit(1) }
-                    .width(min: 120, ideal: 180)
-                TableColumn("Source", value: \.source)
-                    .width(min: 90, ideal: 110)
-                TableColumn("Paid by", value: \.method)
-                    .width(min: 80, ideal: 100)
-                TableColumn("Amount", value: \.amount) { (r: MacReportsCameInRow) in MacAmount(r.amount) }
-                    .width(min: 70, ideal: 90)
-            }
-            .macOpenSelection { (id: String) -> String? in paths[id] }
-            .overlay {
-                if rows.isEmpty {
-                    ContentUnavailableView(isToday ? "Nothing Yet Today" : "Nothing Came In",
-                                           systemImage: "banknote",
-                                           description: Text(isToday ? "Payments appear here as they are taken. \u{2318}N starts a sale."
-                                                                     : "No payment was taken on this day."))
+        MacDashCard(title: "Came in", count: rows.count) {
+            if rows.isEmpty {
+                MacDashEmpty(symbol: "banknote", text: isToday ? "Nothing yet today. \u{2318}N starts a sale." : "No payment was taken on this day.")
+            } else {
+                MacDashRows(items: rows, pick: { (r: MacReportsCameInRow) in openPlace?(Route(path: r.path)) }) { (r: MacReportsCameInRow) in
+                    HStack(spacing: 12) {
+                        Monogram(name: r.source == "Extra revenue" ? "" : r.who, size: Monogram.Size.row)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(r.source == "Extra revenue" || r.who.isEmpty ? r.ref : "\(r.ref) \u{00B7} \(r.who)")
+                                .font(.body).lineLimit(1)
+                            Text("\(r.source) \u{00B7} \(r.method) \u{00B7} \(r.time)")
+                                .font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                        }
+                        Spacer(minLength: 8)
+                        RowAmount(amount: r.amount)
+                    }
                 }
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: By how it was paid
 
     private func methodRows(_ t: TodaysCash, key: [Int]) -> [MacReportsMethodRow] {
-        methodMade(key + [methodSort.hashValue]) {
+        methodMade(key) {
             // A method nothing came in by is not a row of zeros.
             METHODS.filter { (t.byMethod[$0] ?? 0) != 0 }
                 .map { MacReportsMethodRow(id: $0.rawValue, method: $0.rawValue, amount: t.byMethod[$0] ?? 0) }
-                .sorted(using: methodSort)
+                .sorted { $0.amount > $1.amount }
         }
     }
 
-    private func methodsTable(_ rows: [MacReportsMethodRow]) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            MacReportsHeader(title: "By how it was paid", detail: nil)
-            Table(rows, sortOrder: $methodSort) {
-                TableColumn("Paid by", value: \.method)
-                    .width(min: 80, ideal: 120)
-                TableColumn("Amount", value: \.amount) { (r: MacReportsMethodRow) in MacAmount(r.amount) }
-                    .width(min: 70, ideal: 90)
-            }
-            .overlay {
-                if rows.isEmpty { Text("Nothing paid in.").foregroundStyle(.secondary) }
+    private func methodsCard(_ rows: [MacReportsMethodRow]) -> some View {
+        MacDashCard(title: "By how it was paid") {
+            if rows.isEmpty {
+                Text("Nothing paid in.").foregroundStyle(.secondary)
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(Array(rows.enumerated()), id: \.element.id) { (i: Int, r: MacReportsMethodRow) in
+                        if i > 0 { Divider() }
+                        HStack {
+                            Text(r.method).font(.body)
+                            Spacer(minLength: 8)
+                            RowAmount(amount: r.amount)
+                        }
+                        .padding(.vertical, 6)
+                    }
+                }
             }
         }
     }
@@ -233,7 +216,7 @@ struct MacReportsCashPage: View {
     // MARK: Paid out
 
     private func paidOutRows(_ t: TodaysCash, key: [Int]) -> [MacReportsPaidOutRow] {
-        outMade(key + [outSort.hashValue]) {
+        outMade(key) {
             var seen: [String: Int] = [:]
             var rows: [MacReportsPaidOutRow] = []
             for e in t.expenseLines {
@@ -242,32 +225,34 @@ struct MacReportsCashPage: View {
                 seen[base] = n + 1
                 rows.append(MacReportsPaidOutRow(id: "\(base)|\(n)", what: e.description, category: e.category, amount: e.amount))
             }
-            return rows.sorted(using: outSort)
+            return rows.sorted { $0.amount > $1.amount }
         }
     }
 
-    private func paidOutTable(_ rows: [MacReportsPaidOutRow]) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            MacReportsHeader(title: "Paid out", detail: rows.isEmpty ? nil : "\(rows.count) expense\(rows.count == 1 ? "" : "s")")
-            Table(rows, sortOrder: $outSort) {
-                TableColumn("What", value: \.what) { (r: MacReportsPaidOutRow) in Text(r.what).lineLimit(1) }
-                    .width(min: 100, ideal: 160)
-                TableColumn("Category", value: \.category)
-                    .width(min: 80, ideal: 110)
-                TableColumn("Amount", value: \.amount) { (r: MacReportsPaidOutRow) in MacAmount(r.amount) }
-                    .width(min: 70, ideal: 90)
-            }
-            .overlay {
-                if rows.isEmpty { Text("Nothing paid out.").foregroundStyle(.secondary) }
+    private func paidOutCard(_ rows: [MacReportsPaidOutRow]) -> some View {
+        MacDashCard(title: "Paid out", count: rows.count) {
+            if rows.isEmpty {
+                Text("Nothing paid out.").foregroundStyle(.secondary)
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(Array(rows.enumerated()), id: \.element.id) { (i: Int, r: MacReportsPaidOutRow) in
+                        if i > 0 { Divider() }
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(r.what).font(.body).lineLimit(1)
+                                Text(r.category).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                            }
+                            Spacer(minLength: 8)
+                            RowAmount(amount: r.amount)
+                        }
+                        .padding(.vertical, 6)
+                    }
+                }
             }
             Text("Expenses carry no method, so every one the business paid counts as leaving the drawer; one a partner paid out of pocket does not.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-                .lineLimit(2)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

@@ -91,43 +91,89 @@ struct MacRepairsTicket: View {
     private func ticket(_ r: Repair) -> some View {
         let status = model.desk.status(r)
         let owing = status == .cancelled ? 0 : RepairsKit.repairBalance(r)
-        if wide {
-            VStack(spacing: 0) {
-                MacDocumentHeader(title: RepairsKit.repairSummary(r), subtitle: subtitle(r),
-                                  status: MacStatus(RepairsKit.label(status), tone: RepairsKit.tone(status)),
-                                  headline: owing >= 1 ? MacHeadline("Owed", Money.pkr(owing), tone: .owed) : nil)
-                promise(r, status: status).padding(.horizontal, 20).padding(.bottom, 8)
-                Divider()
-                HStack(alignment: .top, spacing: 0) {
-                    Form {
-                        piecesSection(r)
-                        moneySection(r, owing: owing)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                head(r, status: status, owing: owing)
+                if wide {
+                    HStack(alignment: .top, spacing: 14) {
+                        VStack(spacing: 14) {
+                            piecesCard(r)
+                            moneyCard(r, owing: owing)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .top)
+                        VStack(spacing: 14) {
+                            customerCard(r)
+                            detailsCard(r, status: status)
+                        }
+                        .frame(width: 320, alignment: .top)
                     }
-                    .formStyle(.grouped)
-                    Divider()
-                    Form {
-                        customerSection(r)
-                        detailsSection(r, status: status)
-                    }
-                    .formStyle(.grouped)
-                    .frame(width: 320)
+                } else {
+                    customerCard(r)
+                    piecesCard(r)
+                    moneyCard(r, owing: owing)
+                    detailsCard(r, status: status)
                 }
             }
-        } else {
-            VStack(spacing: 0) {
-                MacInspectorHeader(title: RepairsKit.repairSummary(r), subtitle: subtitle(r),
-                                   status: MacStatus(RepairsKit.label(status), tone: RepairsKit.tone(status)),
-                                   headline: owing >= 1 ? MacHeadline("Owed", Money.pkr(owing), tone: .owed) : nil,
-                                   actions: headActions(r))
-                    .padding(16)
-                promise(r, status: status).padding(.horizontal, 16).padding(.bottom, 8)
-                Form {
-                    customerSection(r)
-                    piecesSection(r)
-                    moneySection(r, owing: owing)
-                    detailsSection(r, status: status)
+            .padding(wide ? 20 : 14)
+        }
+        .background(Theme.ground)
+    }
+
+    /// The iPhone's record head as a card: the monogram, the piece, who and which, the status pill, what is owed as the one
+    /// figure, how much of it is paid, the promise, then the next step as the default button.
+    private func head(_ r: Repair, status: RepairStatus, owing: Double) -> some View {
+        let total = RepairsKit.repairTotal(r)
+        let paid = RepairsKit.repairPaid(r)
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 10) {
+                Monogram(name: RepairsKit.customer(r), size: Monogram.Size.hero)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(RepairsKit.repairSummary(r))
+                        .font(.system(wide ? .title : .title3, design: .serif).weight(.semibold))
+                        .lineLimit(2).textSelection(.enabled)
+                    Text(subtitle(r)).font(.callout).foregroundStyle(.secondary).lineLimit(2).textSelection(.enabled)
                 }
-                .formStyle(.grouped)
+                Spacer(minLength: 0)
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Pill(RepairsKit.label(status), tone: RepairsKit.tone(status))
+                promise(r, status: status)
+                Spacer(minLength: 0)
+            }
+            if owing >= 1 {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("Owed").font(.caption).foregroundStyle(.secondary)
+                    HStack(alignment: .firstTextBaseline, spacing: 5) {
+                        Text("PKR").font(.system(.callout, design: .serif).weight(.medium)).foregroundStyle(.secondary)
+                        Text(HeroAmount.figure(owing, lac: false))
+                            .font(.system(wide ? .largeTitle : .title, design: .serif).weight(.semibold))
+                            .foregroundStyle(Tone.owed.color).monospacedDigit().lineLimit(1).minimumScaleFactor(0.6)
+                    }
+                }
+            }
+            if status != .cancelled && total >= 1 {
+                PaidBar(paid: paid, total: total)
+            }
+            let actions = headActions(r)
+            if !actions.isEmpty { MacActionButtons(actions: actions) }
+            reach(r)
+        }
+        .padding(Metrics.cardPadding + (wide ? 4 : 0))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .houseCard()
+    }
+
+    /// Call and WhatsApp: the iPhone's quick actions as a row of buttons.
+    @ViewBuilder
+    private func reach(_ r: Repair) -> some View {
+        if let phone = RepairsKit.filled(r.customerContact) {
+            HStack(spacing: 8) {
+                if let url = RepairsKit.callURL(phone) {
+                    QuickAction(title: "Call", symbol: "phone.fill") { openURL(url) }
+                }
+                if let url = CustomerKit.whatsAppURL(phone) {
+                    QuickAction(title: "WhatsApp", symbol: "message.fill") { openURL(url) }
+                }
             }
         }
     }
@@ -140,7 +186,7 @@ struct MacRepairsTicket: View {
     @ViewBuilder
     private func promise(_ r: Repair, status: RepairStatus) -> some View {
         if status == .received {
-            HStack { RepairsPromiseText(repair: r, now: Date(), font: .callout); Spacer(minLength: 0) }
+            RepairsPromiseText(repair: r, now: Date(), font: .callout)
         }
     }
 
@@ -150,14 +196,34 @@ struct MacRepairsTicket: View {
         return all.filter { ($0.id == "ready" || $0.id == "collected" || $0.id == "pay") && $0.enabled }
     }
 
-    // MARK: Sections
+    // MARK: Cards
 
-    @ViewBuilder
-    private func customerSection(_ r: Repair) -> some View {
-        Section("Customer") {
+    /// A card: its heading in the serif (a figure beside it), then its rows, on the house's card.
+    private func card<C: View>(_ title: String, trailing: String? = nil, @ViewBuilder _ content: () -> C) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            LedgerHeading(title: title, trailing: trailing)
+            content()
+        }
+        .padding(Metrics.cardPadding)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .houseCard()
+    }
+
+    /// A label and its value on one line.
+    private func line<V: View>(_ label: String, @ViewBuilder _ value: () -> V) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(label).foregroundStyle(.secondary)
+            Spacer(minLength: 8)
+            value().multilineTextAlignment(.trailing)
+        }
+        .font(.callout)
+    }
+
+    private func customerCard(_ r: Repair) -> some View {
+        card("Customer") {
             customerRow(r)
             if let phone = RepairsKit.filled(r.customerContact) {
-                LabeledContent("Phone") {
+                line("Phone") {
                     if let url = RepairsKit.callURL(phone) {
                         Link(phone, destination: url)
                     } else {
@@ -188,17 +254,18 @@ struct MacRepairsTicket: View {
         let name = RepairsKit.customer(r)
         if let cid = r.customerId, !cid.isEmpty, !isWalkInName(r.customerName) {
             // The customer opens in a window of their own, as a record does from a list.
-            LabeledContent("Customer") {
+            line("Customer") {
                 Button(name) { openPlace?(Route(path: "/customers/\(cid)")) }.buttonStyle(.link)
             }
         } else {
-            LabeledContent("Customer", value: name)
+            line("Customer") { Text(name) }
         }
     }
 
-    private func piecesSection(_ r: Repair) -> some View {
-        Section("Pieces") {
-            ForEach(r.pieces.indices, id: \.self) { i in
+    private func piecesCard(_ r: Repair) -> some View {
+        card("Pieces", trailing: r.pieces.count > 1 ? "\(r.pieces.count)" : nil) {
+            ForEach(r.pieces.indices, id: \.self) { (i: Int) in
+                if i > 0 { Divider() }
                 pieceRow(r.pieces[i])
             }
         }
@@ -222,21 +289,21 @@ struct MacRepairsTicket: View {
         }
     }
 
-    private func moneySection(_ r: Repair, owing: Double) -> some View {
+    private func moneyCard(_ r: Repair, owing: Double) -> some View {
         let total = RepairsKit.repairTotal(r)
         let paid = RepairsKit.repairPaid(r)
-        return Section("Money") {
-            LabeledContent("Total") { Text(Money.pkr(total)).monospacedDigit() }
+        return card("Money") {
+            line("Total") { Text(Money.pkr(total)).monospacedDigit() }
             if paid > 0 {
-                LabeledContent("Paid") { Text(Money.pkr(paid)).monospacedDigit() }
+                line("Paid") { Text(Money.pkr(paid)).monospacedDigit() }
             }
             // Nothing owed is the expected state: no zero.
             if owing >= 1 {
-                LabeledContent("Balance due") {
+                line("Balance due") {
                     Text(Money.pkr(owing)).monospacedDigit().fontWeight(.semibold).foregroundStyle(Tone.owed.color)
                 }
             }
-            ForEach(r.payments.indices, id: \.self) { i in
+            ForEach(r.payments.indices, id: \.self) { (i: Int) in
                 paymentLine(r.payments[i])
             }
         }
@@ -253,24 +320,24 @@ struct MacRepairsTicket: View {
         .foregroundStyle(.secondary)
     }
 
-    private func detailsSection(_ r: Repair, status: RepairStatus) -> some View {
-        Section("Details") {
-            LabeledContent("Taken in", value: ShopDate.say(r.receivedAt, withTime: true))
+    private func detailsCard(_ r: Repair, status: RepairStatus) -> some View {
+        card("Details") {
+            line("Taken in") { Text(ShopDate.say(r.receivedAt, withTime: true)) }
             // The promise is said under the title while the ticket is in the shop; here once it has moved on.
             if status != .received, let d = RepairsKit.filled(r.promisedDate) {
-                LabeledContent("Ready by", value: ShopDate.say(d))
+                line("Ready by") { Text(ShopDate.say(d)) }
             }
             if let d = RepairsKit.filled(r.readyAt) {
-                LabeledContent("Marked ready", value: ShopDate.say(d, withTime: true))
+                line("Marked ready") { Text(ShopDate.say(d, withTime: true)) }
             }
             if let d = RepairsKit.filled(r.collectedAt) {
-                LabeledContent("Collected", value: ShopDate.say(d, withTime: true))
+                line("Collected") { Text(ShopDate.say(d, withTime: true)) }
             }
             if let k = RepairsKit.filled(r.karigarName) {
-                LabeledContent("Karigar", value: k)
+                line("Karigar") { Text(k) }
             }
             if let by = RepairsKit.filled(r.takenBy) {
-                LabeledContent("Taken by", value: by)
+                line("Taken by") { Text(by) }
             }
             // For the shop only: never printed, never sent, and an owner's to read.
             if session.isOwner, let note = RepairsKit.filled(r.internalNote) {

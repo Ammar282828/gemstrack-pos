@@ -4,13 +4,15 @@ import SwiftUI
 /// at a width a form reads at, centred in the window. The iPhone's pages are not touched: off the Mac every call here
 /// returns the view as it was.
 extension View {
-    /// A settings page on the Mac: `.formStyle(.grouped)` and a reading width of 760 pt, centred.
+    /// A settings page on the Mac: `.formStyle(.grouped)` on the house's ground, at a reading width of 760 pt, centred.
     @ViewBuilder
     func macSettingsPage() -> some View {
         #if os(macOS)
         self.formStyle(.grouped)
+            .scrollContentBackground(.hidden)
             .frame(maxWidth: 760)
             .frame(maxWidth: .infinity)
+            .background(Theme.ground)
         #else
         self
         #endif

@@ -31,35 +31,33 @@ struct MacReportsSales: View {
         let h = hist
         let days = dayRowList()
         let years = yearRows(h)
-        VStack(spacing: 0) {
-            macReportsFigures(figureList(h))
-            Divider()
-            // Charts beside the two tables on a wide window; narrow, the page scrolls and each stands under the last.
-            MacReportsWidth(960) {
-                HStack(spacing: 0) {
-                    ScrollView { chartsContent(h) }
-                        .frame(minWidth: 380, idealWidth: 520)
-                    Divider()
-                    VSplitView {
-                        daily(days)
-                            .frame(minHeight: 160)
-                        yearly(years)
-                            .frame(minHeight: 120, idealHeight: 200)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                macReportsFigures(figureList(h))
+                // Charts beside the two tables on a wide window; narrow, each stands under the last.
+                MacReportsWidth(960) {
+                    HStack(alignment: .top, spacing: 16) {
+                        MacReportsCard { chartsContent(h) }
+                            .frame(minWidth: 380, idealWidth: 520)
+                        VStack(spacing: 16) {
+                            MacReportsCard { daily(days) }
+                            MacReportsCard { yearly(years) }
+                        }
+                        .frame(minWidth: 460, idealWidth: 480)
                     }
-                    .frame(minWidth: 460, idealWidth: 480)
-                }
-            } narrow: {
-                ScrollView {
-                    VStack(spacing: 0) {
-                        chartsContent(h)
-                        Divider()
-                        daily(days).frame(height: 320)
-                        Divider()
-                        yearly(years).frame(height: 84 + 26 * CGFloat(min(max(years.count, 1), 10)))
+                } narrow: {
+                    VStack(spacing: 16) {
+                        MacReportsCard { chartsContent(h) }
+                        MacReportsCard { daily(days) }
+                        MacReportsCard { yearly(years) }
                     }
                 }
             }
+            .padding(20)
+            .frame(maxWidth: 1400, alignment: .leading)
+            .frame(maxWidth: .infinity)
         }
+        .background(Theme.ground)
         .sheet(item: $day) { (d: AnaDay) in
             AnaDaySheet(day: d, invoices: f.invoicesByDay[d.date] ?? [])
         }
@@ -93,19 +91,19 @@ struct MacReportsSales: View {
             if f.salesOverTime.isEmpty {
                 Text("No sales in this period.")
                     .foregroundStyle(.secondary)
-                    .padding(.horizontal, 12)
+                    .padding(.horizontal, 16)
                     .padding(.vertical, 6)
             } else {
-                AnaSalesChart(days: f.salesOverTime).padding(.horizontal, 12)
+                AnaSalesChart(days: f.salesOverTime).padding(.horizontal, 16)
                 MacReportsHeader(title: "Number of sales", detail: nil)
-                AnaOrdersChart(days: f.salesOverTime).padding(.horizontal, 12)
+                AnaOrdersChart(days: f.salesOverTime).padding(.horizontal, 16)
             }
             if !h.months.isEmpty {
                 MacReportsHeader(title: "Revenue by month", detail: "Every month on record")
-                AnaMonthlyChart(months: h.months, average: h.monthlyAverage, best: h.bestMonth).padding(.horizontal, 12)
+                AnaMonthlyChart(months: h.months, average: h.monthlyAverage, best: h.bestMonth).padding(.horizontal, 16)
             }
         }
-        .padding(.bottom, 12)
+        .padding(.bottom, 14)
     }
 
     // MARK: The days
@@ -142,6 +140,8 @@ struct MacReportsSales: View {
             } primaryAction: { (ids: Set<String>) in
                 if let row = rows.first(where: { ids.contains($0.id) }) { day = row.day }
             }
+            .scrollContentBackground(.hidden)
+            .frame(height: min(440, 60 + 28 * CGFloat(max(rows.count, 2))))
             .overlay {
                 if rows.isEmpty { Text("No days in this period.").foregroundStyle(.secondary) }
             }
@@ -193,6 +193,8 @@ struct MacReportsSales: View {
             } primaryAction: { (ids: Set<String>) in
                 if let row = rows.first(where: { ids.contains($0.id) }) { pickYear(row.year) }
             }
+            .scrollContentBackground(.hidden)
+            .frame(height: min(440, 60 + 28 * CGFloat(max(rows.count, 2))))
             .overlay {
                 if rows.isEmpty { Text("No sales on record yet.").foregroundStyle(.secondary) }
             }

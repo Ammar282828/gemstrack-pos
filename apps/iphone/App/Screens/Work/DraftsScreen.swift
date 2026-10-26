@@ -423,30 +423,23 @@ extension DraftsScreen {
         let all = data.all
         let ordered = macSortedMemo(key + [macSort.hashValue]) { all.sorted(using: macSort) }
         let groups = macActions(macSelection, all)
-        Table(ordered, selection: $macSelection, sortOrder: $macSort) {
-            TableColumn("Kind", value: \.kindWord) { (r: DraftRow) in
-                Label(r.kindWord, systemImage: r.draft.isOrder ? "list.clipboard" : "receipt").lineLimit(1)
+        let orders = ordered.filter { (r: DraftRow) in r.draft.isOrder }
+        let sales = ordered.filter { (r: DraftRow) in !r.draft.isOrder }
+        List(selection: $macSelection) {
+            if !orders.isEmpty {
+                Section {
+                    ForEach(orders) { (r: DraftRow) in macDraftRow(r) }
+                } header: { LedgerHeading(title: "Orders", count: orders.count) }
             }
-            .width(min: 70, ideal: 84)
-            TableColumn("For", value: \.title) { (r: DraftRow) in Text(r.draft.title).fontWeight(.medium).lineLimit(1) }
-                .width(min: 110, ideal: 200)
-            TableColumn("What is in it") { (r: DraftRow) in
-                Text(r.draft.detail).foregroundStyle(.secondary).lineLimit(1)
+            if !sales.isEmpty {
+                Section {
+                    ForEach(sales) { (r: DraftRow) in macDraftRow(r) }
+                } header: { LedgerHeading(title: "Sales", count: sales.count) }
             }
-            .width(min: 110, ideal: 240)
-            TableColumn("Pieces") { (r: DraftRow) in
-                Text("\(r.draft.items)").monospacedDigit().frame(maxWidth: .infinity, alignment: .trailing)
-            }
-            .width(min: 48, ideal: 56)
-            TableColumn("Total", value: \.total) { (r: DraftRow) in
-                MacAmount(r.total > 0 ? r.total : nil)
-            }
-            .width(min: 70, ideal: 90)
-            TableColumn("Last typed", value: \.updatedAt) { (r: DraftRow) in
-                Text(macLastTyped(r)).foregroundStyle(.secondary).lineLimit(1).help(lastTyped(r))
-            }
-            .width(min: 110, ideal: 170)
         }
+        .listStyle(.inset)
+        .scrollContentBackground(.hidden)
+        .background(Theme.ground)
         .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
             if !ids.isEmpty { MacActionItems(groups: macActions(ids, all)) }
         } primaryAction: { (ids: Set<String>) in
@@ -468,6 +461,27 @@ extension DraftsScreen {
         }
         .macRecordMenu(MacRecordMenu(title: "Draft", groups: groups))
         .task(id: data.expired.map(\.id)) { await removeExpired(data.expired) }
+    }
+
+    /// The iPhone's draft card as a row: who it is for, what is in it, when it was last typed; the total at the right.
+    private func macDraftRow(_ r: DraftRow) -> some View {
+        let d = r.draft
+        return HStack(spacing: 10) {
+            Monogram(name: d.title, size: Monogram.Size.row)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(d.title).font(.body).lineLimit(1)
+                Text(d.detail.isEmpty ? macLastTyped(r) : d.detail + " \u{00B7} " + macLastTyped(r))
+                    .font(.callout).foregroundStyle(.secondary).lineLimit(1)
+            }
+            Spacer(minLength: 8)
+            if continuing == d.id { ProgressView().controlSize(.small) }
+            if d.total > 0 { RowAmount(amount: d.total) }
+            Pill(r.kindWord, tone: .quiet, symbol: d.isOrder ? "list.clipboard" : "receipt")
+        }
+        .padding(.vertical, 3)
+        .tag(r.id)
+        .houseRows()
+        .help(lastTyped(r))
     }
 
     /// What the rows were made from: a change of any makes them again.

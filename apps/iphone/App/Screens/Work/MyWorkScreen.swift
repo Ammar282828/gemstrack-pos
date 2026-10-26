@@ -572,64 +572,82 @@ extension MyWorkScreen {
     private func macPieces(_ p: KarigarPortal, readOnly: Bool) -> some View {
         // Sorted and sectioned once per reading of the portal (every minute) and per sort, never per click.
         let key: [Int] = [updatedAt.map { Int($0.timeIntervalSince1970 * 1000) } ?? 0, macSort.hashValue, p.jobs.count]
-        let rows: [KarigarPortalJob] = macRowsMemo(key) {
+        let sections = macRowsMemo(key) { () -> [KarigarPortalJob] in
             let s = KarigarPortalRules.sections(p.jobs)
-            let base = s.critical + s.late + s.onTrack + s.done
-            return macSort.isEmpty ? base : base.sorted(using: macSort)
+            return s.critical + s.late + s.onTrack + s.done
         }
-        return Table(rows, selection: $macPick, sortOrder: $macSort) {
-            TableColumn("Done") { (j: KarigarPortalJob) in
-                if busy == j.id {
-                    ProgressView().controlSize(.small)
-                } else {
-                    Button { toggle(j) } label: {
-                        Image(systemName: j.isDone ? "checkmark.circle.fill" : "circle")
-                            .foregroundStyle(j.isDone ? Tone.settled.color : Color.secondary)
+        let groups: [(String, [KarigarPortalJob])] = [
+            ("Urgent", sections.filter { !$0.isDone && $0.urgency == "critical" }),
+            ("Late", sections.filter { !$0.isDone && $0.urgency != "critical" && $0.urgency != "ok" }),
+            ("To do", sections.filter { !$0.isDone && $0.urgency == "ok" }),
+            ("Done", sections.filter { $0.isDone }),
+        ]
+        return List(selection: $macPick) {
+            ForEach(groups, id: \.0) { (g: (String, [KarigarPortalJob])) in
+                if !g.1.isEmpty {
+                    Section {
+                        ForEach(g.1) { (j: KarigarPortalJob) in macPieceRow(j, readOnly: readOnly) }
+                    } header: {
+                        LedgerHeading(title: g.0, count: g.1.count, tone: g.0 == "Urgent" ? .late : .quiet)
                     }
-                    .buttonStyle(.borderless)
-                    .disabled(readOnly)
-                    .help(j.isDone ? "Done. Click to reopen." : "Mark as done")
                 }
             }
-            .width(44)
-            TableColumn("Order") { (j: KarigarPortalJob) in
-                Text(j.orderId ?? "Stock piece").monospacedDigit().lineLimit(1)
-            }
-            .width(min: 70, ideal: 100)
-            TableColumn("Piece", value: \.description) { (j: KarigarPortalJob) in
-                Text(j.description).strikethrough(j.isDone).lineLimit(1)
-            }
-            .width(min: 120, ideal: 260)
-            TableColumn("Size") { (j: KarigarPortalJob) in Text(j.size ?? "").lineLimit(1) }
-                .width(min: 40, ideal: 56)
-            TableColumn("Weight") { (j: KarigarPortalJob) in
-                Text(j.weightG.map { KarigarPortalRules.grams($0) } ?? "").monospacedDigit().lineLimit(1)
-            }
-            .width(min: 60, ideal: 80)
-            TableColumn("Karat") { (j: KarigarPortalJob) in
-                Text([j.karat ?? "", j.plating ?? ""].filter { !$0.isEmpty }.joined(separator: " ")).foregroundStyle(.secondary).lineLimit(1)
-            }
-            .width(min: 60, ideal: 90)
-            TableColumn("Given", value: \.ageDays) { (j: KarigarPortalJob) in
-                HStack(spacing: 6) {
-                    Text("\(j.ageDays) day\(j.ageDays == 1 ? "" : "s")").monospacedDigit().lineLimit(1)
-                    // Rule 15: only a piece that needs someone says so.
-                    if !j.isDone && j.urgency != "ok" { MacStatus(j.urgency == "critical" ? "Urgent" : "Late", tone: j.urgency == "critical" ? .late : .owed) }
-                }
-            }
-            .width(min: 110, ideal: 150)
         }
+        .listStyle(.inset)
+        .scrollContentBackground(.hidden)
+        .background(Theme.ground)
         .contextMenu(forSelectionType: String.self) { ids in
             if let id = ids.first, let j = p.jobs.first(where: { $0.id == id }) {
                 MacActionItems(groups: macGroups(j, readOnly: readOnly))
             }
         }
         .overlay {
-            if rows.isEmpty {
+            if sections.isEmpty {
                 ContentUnavailableView("No Pending Work", systemImage: "checkmark.circle",
                                        description: Text("Nothing is waiting for you at the bench."))
             }
         }
+    }
+
+    /// The iPhone's piece row: a tick, the piece over its order and making, and how old it is.
+    private func macPieceRow(_ j: KarigarPortalJob, readOnly: Bool) -> some View {
+        HStack(spacing: 10) {
+            if busy == j.id {
+                ProgressView().controlSize(.small)
+            } else {
+                Button { toggle(j) } label: {
+                    Image(systemName: j.isDone ? "checkmark.circle.fill" : "circle")
+                        .font(.title3)
+                        .foregroundStyle(j.isDone ? Tone.settled.color : Color.secondary)
+                }
+                .buttonStyle(.borderless)
+                .disabled(readOnly)
+                .help(j.isDone ? "Done. Click to reopen." : "Mark as done")
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(j.description).font(.body).strikethrough(j.isDone).lineLimit(1)
+                Text(macPieceLine(j)).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+            }
+            Spacer(minLength: 8)
+            // Rule 15: only a piece that needs someone says so.
+            if !j.isDone && j.urgency != "ok" {
+                Pill(j.urgency == "critical" ? "Urgent" : "Late", tone: j.urgency == "critical" ? .late : .owed)
+            }
+            Text("\(j.ageDays) day\(j.ageDays == 1 ? "" : "s")").font(.caption).monospacedDigit().foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 3)
+        .tag(j.id)
+        .houseRows()
+    }
+
+    /// "ORD-12 \u{00B7} Size 7 \u{00B7} 3.4g \u{00B7} 21K".
+    private func macPieceLine(_ j: KarigarPortalJob) -> String {
+        var parts: [String] = [j.orderId ?? "Stock piece"]
+        if let size = j.size, !size.isEmpty { parts.append("Size " + size) }
+        if let w = j.weightG { parts.append(KarigarPortalRules.grams(w)) }
+        let finish = [j.karat ?? "", j.plating ?? ""].filter { !$0.isEmpty }.joined(separator: " ")
+        if !finish.isEmpty { parts.append(finish) }
+        return parts.joined(separator: " \u{00B7} ")
     }
 
     /// Where the piece stands, in a word and a dot.
@@ -643,39 +661,34 @@ extension MyWorkScreen {
     /// The picked piece: its head with Mark as Done, its specs, sample picture and instructions.
     private func macDetail(_ j: KarigarPortalJob, readOnly: Bool) -> some View {
         let list = KarigarPortalRules.specs(j)
-        return Form {
-            Section {
-                MacInspectorHeader(
-                    title: j.description,
-                    subtitle: j.orderId ?? "Stock piece",
-                    status: macPieceStatus(j),
-                    actions: readOnly ? [] : [macDoneAction(j, readOnly: readOnly)]
-                )
+        let status = macPieceStatus(j)
+        return MacWorkPage {
+            MacWorkHead(title: j.description, subtitle: j.orderId ?? "Stock piece", pill: status.text, pillTone: status.tone) {
+                EmptyView()
             }
+            if !readOnly { MacActionButtons(actions: [macDoneAction(j, readOnly: readOnly)]) }
             if !list.isEmpty || j.sampleGiven {
-                Section("Making") {
+                MacWorkCard("Making") {
                     ForEach(list, id: \.self) { (spec: KarigarPortalRules.Spec) in
-                        LabeledContent(spec.label, value: spec.value)
+                        MacWorkFact(spec.label, spec.value)
                     }
-                    if j.sampleGiven { LabeledContent("Sample", value: "Provided") }
+                    if j.sampleGiven { MacWorkFact("Sample", "Provided") }
                 }
             }
             if let picture = j.sampleImage, !picture.isEmpty {
-                Section("Sample") { WorkSamplePhoto(uri: picture, key: j.id) }
+                MacWorkCard("Sample") { WorkSamplePhoto(uri: picture, key: j.id) }
             }
             if let notes = j.notes, !notes.isEmpty {
-                Section("Instructions") { Text(notes).textSelection(.enabled) }
+                MacWorkCard("Instructions") { Text(notes).textSelection(.enabled) }
             }
         }
-        .formStyle(.grouped)
     }
 
     // MARK: My account
 
     private func macAccount(_ a: KarigarPortalAccount) -> some View {
         HStack(alignment: .top, spacing: 16) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Gold").font(.headline)
+            MacWorkCard("Gold") {
                 Table(Self.keyed(a.ledger) { "\($0.date)|\($0.description)|\($0.goldOut)|\($0.goldIn)" }) {
                     TableColumn("Date") { (r: Keyed<KarigarPortalGoldLine>) in Text(KarigarPortalRules.date(r.item.date, shortYear: true)).lineLimit(1) }
                         .width(min: 70, ideal: 90)
@@ -689,9 +702,9 @@ extension MyWorkScreen {
                     }
                     .width(min: 80, ideal: 100)
                 }
+                .frame(minHeight: 260)
             }
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Payments Received").font(.headline)
+            MacWorkCard("Payments received") {
                 Table(Self.keyed(a.payments) { "\($0.date)|\($0.description)|\($0.amount)" }) {
                     TableColumn("Date") { (r: Keyed<KarigarPortalPayment>) in Text(KarigarPortalRules.date(r.item.date, shortYear: true)).lineLimit(1) }
                         .width(min: 70, ideal: 90)
@@ -700,9 +713,11 @@ extension MyWorkScreen {
                     TableColumn("Amount") { (r: Keyed<KarigarPortalPayment>) in MacAmount(r.item.amount) }
                         .width(min: 70, ideal: 100)
                 }
+                .frame(minHeight: 260)
             }
         }
         .padding(16)
+        .background(Theme.ground)
     }
 }
 #endif

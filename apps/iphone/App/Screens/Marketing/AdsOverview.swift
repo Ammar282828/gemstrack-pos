@@ -568,7 +568,7 @@ extension AdsOverviewScreen {
         return ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 macAccountLine(d)
-                MacFigures(AdsMacResultsFigures.head(d))
+                AdsMacFigureGrid(AdsMacResultsFigures.head(d))
                 macMonth(d)
                 macAttention(d)
                 macDays(d, cur)
@@ -581,6 +581,7 @@ extension AdsOverviewScreen {
             .frame(maxWidth: 1100, alignment: .leading)
             .frame(maxWidth: .infinity)
         }
+        .background(Theme.ground)
         .macRefresh { Task { await load(fresh: true) } }
         .macRecordMenu(MacRecordMenu(title: "Ad", groups: [[macNewAd]]))
         .navigationSubtitle(periodLine(d))
@@ -591,7 +592,7 @@ extension AdsOverviewScreen {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(d.account.name).font(.title3.weight(.semibold))
+                    Text(d.account.name).font(.system(.title3, design: .serif).weight(.semibold))
                     if let funding = d.account.funding, !funding.isEmpty {
                         Text(funding).foregroundStyle(.secondary).lineLimit(1)
                     }
@@ -607,7 +608,10 @@ extension AdsOverviewScreen {
     private func macMonth(_ d: AdOverview) -> some View {
         let figures = AdsMacResultsFigures.month(d)
         if !figures.isEmpty {
-            AdsMacSection(title: "This Month") { MacFigures(figures) }
+            VStack(alignment: .leading, spacing: 10) {
+                LedgerHeading(title: "This Month")
+                AdsMacFigureGrid(figures)
+            }
         }
     }
 

@@ -20,6 +20,8 @@ struct MacCustomersRow: Identifiable {
     let owed: Double
     let source: String
     let ring: String
+    /// How many sales they have had, for the row's second line.
+    let sales: Int
     var id: String { customer.id }
 
     init(_ c: Customer, stats: CustomerKit.Stats?) {
@@ -32,7 +34,31 @@ struct MacCustomersRow: Identifiable {
         owed = stats?.owed ?? 0
         source = c.source.map { (s: CustomerSource) -> String in CustomerKit.sourceLabel(s) } ?? ""
         ring = CustomerKit.filled(c.ringSize) ?? ""
+        sales = stats?.count ?? 0
     }
+}
+
+/// How the list is ordered: the iPhone's groups (Owing money, Recent, Quiet) to start, or one flat run by a column.
+enum MacCustomersSort: String, CaseIterable, Identifiable {
+    case group, name, spent, owed, lastSale
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .group: return "Owing, Recent, Quiet"
+        case .name: return "Name"
+        case .spent: return "Spent"
+        case .owed: return "Amount Owed"
+        case .lastSale: return "Last Sale"
+        }
+    }
+}
+
+/// One section of the list, with its heading and a hint ("no sale in a year").
+struct MacCustomersGroup: Identifiable {
+    let id: String
+    let title: String
+    let hint: String?
+    let rows: [MacCustomersRow]
 }
 
 /// What every customer owes and has bought, worked out once per change of the books.
@@ -64,11 +90,11 @@ struct MacCustomersPlace: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var query = ""
-    @State private var sort: [KeyPathComparator<MacCustomersRow>]
+    @State private var sort: MacCustomersSort
     @State private var selection = Set<String>()
     @State private var reckoned = Memo<MacCustomersBooks>()
     @State private var made = Memo<[MacCustomersRow]>()
-    @State private var ordered = Memo<[MacCustomersRow]>()
+    @State private var ordered = Memo<[MacCustomersGroup]>()
     @State private var nearby = Memo<MacCustomersRecent>()
     @State private var adding = false
     @State private var editing: MacCustomersEdit?
@@ -81,10 +107,7 @@ struct MacCustomersPlace: View {
     init(path: String) {
         self.path = path
         let owing = MacLists.list(in: path) == "owe"
-        let first: [KeyPathComparator<MacCustomersRow>] = owing
-            ? [KeyPathComparator(\MacCustomersRow.owed, order: .reverse)]
-            : [KeyPathComparator(\MacCustomersRow.name)]
-        _sort = State(initialValue: first)
+        _sort = State(initialValue: owing ? MacCustomersSort.owed : MacCustomersSort.group)
     }
 
     private var listId: String? { MacLists.list(in: path) }
@@ -104,9 +127,10 @@ struct MacCustomersPlace: View {
 
     var body: some View {
         let b = reckon()
-        let rows = tableRows(b)
+        let groups = tableRows(b)
+        let rows = groups.flatMap { (g: MacCustomersGroup) in g.rows }
         ShelfState(loaded: loaded, error: failure, offline: book.customers.offline || book.invoices.offline) {
-            table(rows, b)
+            table(groups, rows, b)
         }
         .navigationTitle(title)
         .navigationSubtitle(loaded ? "\(rows.count) customer\(rows.count == 1 ? "" : "s")" : "")
@@ -144,7 +168,7 @@ struct MacCustomersPlace: View {
         }
     }
 
-    private func tableRows(_ b: MacCustomersBooks) -> [MacCustomersRow] {
+    private func tableRows(_ b: MacCustomersBooks) -> [MacCustomersGroup] {
         let list = listId
         let key = [book.customers.revision, book.invoices.revision, book.orders.revision, book.hisaab.revision,
                    session.isOwner ? 1 : 0, query.hashValue, (list ?? "").hashValue]
@@ -158,7 +182,44 @@ struct MacCustomersPlace: View {
             return out
         }
         // The sort alone only puts the same rows in another order.
-        return ordered(key + [sort.hashValue]) { rows.sorted(using: sort) }
+        return ordered(key + [sort.hashValue, Int(Date().timeIntervalSince1970 / 3_600)]) { groups(rows) }
+    }
+
+    /// The rows in the chosen order: grouped as the iPhone's list is (most owed first, then the latest buyers, then A to Z),
+    /// or one flat run by a column.
+    private func groups(_ rows: [MacCustomersRow]) -> [MacCustomersGroup] {
+        switch sort {
+        case .group:
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = ERPDate.karachi
+            let now = Date()
+            let cutoff = ERPDate.iso(calendar.date(byAdding: .month, value: -CustomerKit.dormantAfterMonths, to: now) ?? now)
+            var owing: [MacCustomersRow] = []
+            var active: [MacCustomersRow] = []
+            var quiet: [MacCustomersRow] = []
+            for r in rows {
+                if r.owed >= 1 { owing.append(r) } else if !r.lastAt.isEmpty && r.lastAt >= cutoff { active.append(r) } else { quiet.append(r) }
+            }
+            owing.sort { $0.owed > $1.owed }
+            active.sort { $0.lastAt > $1.lastAt }
+            quiet.sort { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+            return [MacCustomersGroup(id: "owing", title: "Owing money", hint: nil, rows: owing),
+                    MacCustomersGroup(id: "recent", title: "Recent", hint: nil, rows: active),
+                    MacCustomersGroup(id: "quiet", title: "Quiet", hint: "no sale in a year", rows: quiet)]
+                .filter { !$0.rows.isEmpty }
+        case .name:
+            return [flat(rows.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending })]
+        case .spent:
+            return [flat(rows.sorted { $0.spent > $1.spent })]
+        case .owed:
+            return [flat(rows.sorted { $0.owed > $1.owed })]
+        case .lastSale:
+            return [flat(rows.sorted { $0.lastAt > $1.lastAt })]
+        }
+    }
+
+    private func flat(_ rows: [MacCustomersRow]) -> MacCustomersGroup {
+        MacCustomersGroup(id: "all", title: "", hint: nil, rows: rows)
     }
 
     private func recent(for id: String) -> MacCustomersRecent {
@@ -173,30 +234,23 @@ struct MacCustomersPlace: View {
 
     // MARK: The table
 
-    private func table(_ rows: [MacCustomersRow], _ b: MacCustomersBooks) -> some View {
-        Table(rows, selection: $selection, sortOrder: $sort) {
-            TableColumn("Name", value: \.name) { (r: MacCustomersRow) in Text(r.name).lineLimit(1) }
-                .width(min: 120, ideal: 200)
-            TableColumn("Phone", value: \.phone) { (r: MacCustomersRow) in Text(r.phone).monospacedDigit().lineLimit(1) }
-                .width(min: 100, ideal: 120)
-            TableColumn("City", value: \.city) { (r: MacCustomersRow) in Text(r.city).lineLimit(1) }
-                .width(min: 70, ideal: 100)
-            TableColumn("Last Sale", value: \.lastAt) { (r: MacCustomersRow) in
-                Text(CustomerKit.monthYear(r.lastAt)).lineLimit(1)
+    private func table(_ groups: [MacCustomersGroup], _ rows: [MacCustomersRow], _ b: MacCustomersBooks) -> some View {
+        List(selection: $selection) {
+            ForEach(groups) { (g: MacCustomersGroup) in
+                Section {
+                    ForEach(g.rows) { (r: MacCustomersRow) in
+                        MacCustomersListRow(row: r).tag(r.id)
+                    }
+                } header: {
+                    if sort == .group {
+                        LedgerHeading(title: g.title, count: g.rows.count, trailing: g.hint)
+                    }
+                }
+                .houseRows()
             }
-            .width(min: 70, ideal: 90)
-            TableColumn("Spent", value: \.spent) { (r: MacCustomersRow) in
-                MacAmount(r.spent > 0 ? r.spent : nil)
-            }
-            .width(min: 70, ideal: 90)
-            TableColumn("Owed", value: \.owed) { (r: MacCustomersRow) in
-                // Only what needs someone is coloured.
-                MacAmount(r.owed >= 1 ? r.owed : nil, tone: .owed)
-            }
-            .width(min: 70, ideal: 90)
-            TableColumn("Came From", value: \.source) { (r: MacCustomersRow) in Text(r.source).lineLimit(1) }
-                .width(min: 80, ideal: 100)
         }
+        .listStyle(.inset)
+        .modifier(HouseGround())
         .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
             contextItems(ids)
         } primaryAction: { (ids: Set<String>) in
@@ -358,6 +412,7 @@ struct MacCustomersPlace: View {
         ToolbarItemGroup(placement: .automatic) {
             Button { adding = true } label: { Label("New Customer", systemImage: "plus") }
                 .help("New customer (\u{2303}\u{2318}N)")
+            sortMenu
             if session.isOwner {
                 Menu {
                     MacActionMenuItem(action: mergeAction)
@@ -368,6 +423,19 @@ struct MacCustomersPlace: View {
                 .help("Merge duplicates or clean up spam")
             }
         }
+    }
+
+    /// The one Filter menu of the place: how the list is ordered.
+    private var sortMenu: some View {
+        Menu {
+            Picker("Sort By", selection: $sort) {
+                ForEach(MacCustomersSort.allCases) { (o: MacCustomersSort) in Text(o.title).tag(o) }
+            }
+            .pickerStyle(.inline)
+        } label: {
+            Label("Filter", systemImage: "line.3.horizontal.decrease.circle")
+        }
+        .help("Order the list")
     }
 
     private func editSheet(_ id: String) -> some View {
@@ -403,8 +471,8 @@ struct MacCustomersPlace: View {
 
 // MARK: - The inspector's panel
 
-/// The picked customer: a plain head (name, number, what they owe), Call, WhatsApp, Message and Hisaab, then their contact
-/// details, sizes, and their latest invoices and orders as compact rows that open in a window of their own.
+/// The picked customer as the iPhone's page has them: the monogram and name over the number, what they owe as the big figure,
+/// Call, WhatsApp, Message and Hisaab as rounded buttons, then their details, sizes and latest records as cards.
 private struct MacCustomersInspector: View {
     let customer: Customer
     let owed: Double
@@ -413,34 +481,50 @@ private struct MacCustomersInspector: View {
     let open: (Route) -> Void
 
     var body: some View {
-        VStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 12) {
-                MacInspectorHeader(title: CustomerKit.shown(customer), subtitle: CustomerKit.filled(customer.phone), headline: headline)
-                buttons
-            }
-            .padding(16)
-            Divider()
-            Form {
+        ScrollView {
+            VStack(spacing: 12) {
+                head
                 contactSection
                 sizesSection
                 invoicesSection
                 ordersSection
             }
-            .formStyle(.grouped)
-            .scrollContentBackground(.hidden)
+            .padding(12)
         }
+        .background(Theme.ground)
     }
 
-    private var headline: MacHeadline? {
-        owed >= 1 ? MacHeadline("Owed", Money.pkr(owed), tone: .owed) : nil
+    private var head: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 12) {
+                Monogram(name: CustomerKit.shown(customer), size: Monogram.Size.hero)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(CustomerKit.shown(customer))
+                        .font(.system(.title3, design: .serif).weight(.semibold)).lineLimit(2).textSelection(.enabled)
+                    if let phone = CustomerKit.filled(customer.phone) {
+                        Text(phone).font(.callout).foregroundStyle(.secondary).monospacedDigit().textSelection(.enabled)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+            if owed >= 1 {
+                Divider()
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Owed to you").font(.callout).foregroundStyle(.secondary)
+                    HeroAmount(amount: owed, tone: Tone.owed.color)
+                }
+            }
+            buttons
+        }
+        .ledgerCard()
     }
 
     private var buttons: some View {
-        ViewThatFits(in: .horizontal) {
-            MacActionButtons(actions: actions)
-            VStack(alignment: .leading, spacing: 6) {
-                MacActionButtons(actions: Array(actions.prefix(2)))
-                MacActionButtons(actions: Array(actions.dropFirst(2)))
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 104), spacing: 8, alignment: .leading)], alignment: .leading, spacing: 8) {
+            ForEach(actions) { (a: MacAction) in
+                QuickAction(title: a.title, symbol: a.symbol ?? "circle", action: a.perform)
+                    .disabled(!a.enabled)
+                    .help(a.help)
             }
         }
     }
@@ -449,12 +533,16 @@ private struct MacCustomersInspector: View {
     private var contactSection: some View {
         let c = customer
         let address = [c.address, c.city, c.country].compactMap { (s: String?) -> String? in CustomerKit.filled(s) }.joined(separator: ", ")
-        Section("Contact") {
-            if let v = CustomerKit.filled(c.phone) { LabeledContent("Phone", value: v) }
-            if let v = CustomerKit.filled(c.altPhone) { LabeledContent("Second number", value: v) }
-            if let v = CustomerKit.filled(c.email) { LabeledContent("Email", value: v) }
-            if !address.isEmpty { LabeledContent("Address", value: address) }
-            if let s = c.source { LabeledContent("Came from", value: CustomerKit.sourceLabel(s)) }
+        let any = CustomerKit.filled(c.phone) != nil || CustomerKit.filled(c.altPhone) != nil || CustomerKit.filled(c.email) != nil
+            || !address.isEmpty || c.source != nil
+        if any {
+            MacInspectorCard(title: "Contact") {
+                if let v = CustomerKit.filled(c.phone) { LabeledContent("Phone", value: v) }
+                if let v = CustomerKit.filled(c.altPhone) { LabeledContent("Second number", value: v) }
+                if let v = CustomerKit.filled(c.email) { LabeledContent("Email", value: v) }
+                if !address.isEmpty { LabeledContent("Address", value: address) }
+                if let s = c.source { LabeledContent("Came from", value: CustomerKit.sourceLabel(s)) }
+            }
         }
     }
 
@@ -465,7 +553,7 @@ private struct MacCustomersInspector: View {
         let bracelet = CustomerKit.filled(customer.braceletSize)
         let chain = CustomerKit.filled(customer.chainLength)
         if ring != nil || bangle != nil || bracelet != nil || chain != nil {
-            Section("Sizes") {
+            MacInspectorCard(title: "Sizes") {
                 if let ring { LabeledContent("Ring", value: ring) }
                 if let bangle { LabeledContent("Bangle", value: bangle) }
                 if let bracelet { LabeledContent("Bracelet", value: bracelet) }
@@ -477,10 +565,12 @@ private struct MacCustomersInspector: View {
     @ViewBuilder
     private var invoicesSection: some View {
         if !recent.invoices.isEmpty {
-            Section("Recent Invoices") {
-                ForEach(recent.invoices) { (inv: Invoice) in
+            MacInspectorCard(title: "Recent Invoices", count: recent.invoiceCount) {
+                ForEach(Array(recent.invoices.enumerated()), id: \.element.id) { pair in
+                    let inv = pair.element
+                    if pair.offset > 0 { Divider() }
                     MacCustomersMiniRow(title: inv.id, subtitle: ShopDate.say(inv.createdAt),
-                                        trailing: Money.pkr(invoiceSaleValue(inv)), flag: invoiceFlag(inv)) {
+                                        amount: invoiceSaleValue(inv), flag: invoiceFlag(inv)) {
                         open(CustomerKit.place("/invoices/", inv.id))
                     }
                 }
@@ -494,10 +584,11 @@ private struct MacCustomersInspector: View {
     @ViewBuilder
     private var ordersSection: some View {
         if !recent.orders.isEmpty {
-            Section("Recent Orders") {
-                ForEach(recent.orders) { (o: Order) in
-                    MacCustomersMiniRow(title: o.id, subtitle: ShopDate.say(o.createdAt),
-                                        trailing: Money.pkr(o.grandTotal), flag: nil) {
+            MacInspectorCard(title: "Recent Orders", count: recent.orderCount) {
+                ForEach(Array(recent.orders.enumerated()), id: \.element.id) { pair in
+                    let o = pair.element
+                    if pair.offset > 0 { Divider() }
+                    MacCustomersMiniRow(title: o.id, subtitle: ShopDate.say(o.createdAt), amount: o.grandTotal, flag: nil) {
                         open(CustomerKit.place("/orders/", o.id))
                     }
                 }
@@ -508,39 +599,87 @@ private struct MacCustomersInspector: View {
         }
     }
 
-    /// "owes PKR 5,000" on an invoice still owing; nothing for a settled one.
+    /// "PKR 5,000 due" on an invoice still owing; nothing for a settled one.
     private func invoiceFlag(_ inv: Invoice) -> String? {
         let line = balanceLine(inv.balanceDue)
-        if inv.status == .refunded { return "refunded" }
-        return line.state == .due ? "owes \(Money.pkr(line.amount))" : nil
+        if inv.status == .refunded { return "Refunded" }
+        return line.state == .due ? "\(Money.pkr(line.amount)) due" : nil
     }
 }
 
-/// A record in the inspector in one compact row: its number and date, its amount, a word when it needs someone.
+/// A record in the inspector in one compact row: its number and date, its amount, a pill when it needs someone.
 private struct MacCustomersMiniRow: View {
     let title: String
     let subtitle: String
-    let trailing: String
+    let amount: Double
     let flag: String?
     let open: () -> Void
 
     var body: some View {
         Button(action: open) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(title).monospacedDigit().lineLimit(1)
+            HStack(alignment: .center, spacing: 8) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).font(.body).monospacedDigit().lineLimit(1)
                     Text(subtitle.isEmpty ? " " : subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 }
                 Spacer(minLength: 8)
-                VStack(alignment: .trailing, spacing: 1) {
-                    Text(trailing).monospacedDigit()
-                    if let flag { Text(flag).font(.caption).foregroundStyle(Tone.owed.color) }
+                VStack(alignment: .trailing, spacing: 3) {
+                    RowAmount(amount: amount)
+                    if let flag { Pill(flag, tone: .owed) }
                 }
             }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .help("Open in a window")
+    }
+}
+
+/// One customer as the iPhone's list sets them: monogram, name over number and sales, what they owe (or have spent) at the right.
+struct MacCustomersListRow: View {
+    let row: MacCustomersRow
+
+    private var subtitle: String {
+        var parts: [String] = []
+        if !row.phone.isEmpty { parts.append(row.phone) }
+        if row.sales > 0 {
+            var sales = "\(row.sales) sale\(row.sales == 1 ? "" : "s")"
+            let last = CustomerKit.monthYear(row.lastAt)
+            if !last.isEmpty { sales += " \u{00B7} last \(last)" }
+            parts.append(sales)
+        }
+        return parts.joined(separator: "  \u{00B7}  ")
+    }
+
+    var body: some View {
+        HStack(alignment: .center, spacing: pt(12)) {
+            Monogram(name: row.name, size: Monogram.Size.row)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(row.name).font(.body).lineLimit(1)
+                if !subtitle.isEmpty {
+                    Text(subtitle).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                }
+            }
+            Spacer(minLength: 8)
+            trailing
+        }
+        .padding(.vertical, 3)
+        .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder
+    private var trailing: some View {
+        if row.owed >= 1 {
+            VStack(alignment: .trailing, spacing: 2) {
+                RowAmount(amount: row.owed, tone: Tone.owed.color)
+                Text("Owed").font(.caption).foregroundStyle(.secondary)
+            }
+        } else if row.spent > 0 {
+            VStack(alignment: .trailing, spacing: 2) {
+                RowAmount(amount: row.spent, lac: true)
+                Text("Lifetime").font(.caption).foregroundStyle(.secondary)
+            }
+        }
     }
 }
 

@@ -473,13 +473,12 @@ extension DesignStartView {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     anything
-                    making
+                    macMaking
                 }
                 .padding(20)
                 .frame(maxWidth: 760, alignment: .leading)
             }
             .frame(minWidth: 340, maxWidth: .infinity)
-            Divider()
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     photograph
@@ -495,6 +494,7 @@ extension DesignStartView {
                 return true
             }
         }
+        .background(Theme.ground)
         .actionBar(primary: .init("Continue", isBusy: starting, action: onBegin))
         .task { await shelf.load(); await shelf.loadDrafts() }
         .onAppear { start.adsAllowed = access.ads }
@@ -510,12 +510,75 @@ extension DesignStartView {
         .failureAlert($problem, title: "Could not use that photograph")
     }
 
+    /// What are you making: the kinds as cards (the chosen one edged in the accent), then the sizes.
+    private var macMaking: some View {
+        SectionCard("What are you making?") {
+            if let play = start.play, start.kind == "ad" {
+                HStack(spacing: 8) {
+                    Text("Making ").font(.subheadline) + Text(play.s("title")).font(.subheadline.weight(.semibold)) + Text(" — “\(play.s("cta"))” · \(play.s("where"))").font(.subheadline)
+                    Spacer(minLength: 0)
+                    Button("Not this play") { start.play = nil }.font(.footnote)
+                }
+                .padding(10).background(Theme.accent.opacity(0.12), in: .rect(cornerRadius: Radius.tile, style: .continuous))
+            }
+            LazyVGrid(columns: columns, spacing: 10) {
+                ForEach(cards) { c in macKindCard(c) }
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                HStack { Text("Sizes").font(.subheadline.weight(.medium)); Text(start.summary).font(.subheadline).foregroundStyle(.secondary) }
+                ForEach(DesignSizes.groups) { g in
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(g.title).font(.caption).foregroundStyle(.secondary)
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 64), spacing: 8)], alignment: .leading, spacing: 8) {
+                            ForEach(g.sizes) { s in FilterChip(title: s.ratio, chosen: start.sizes.contains(s.id)) { start.toggle(s.id) } }
+                        }
+                    }
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Your own").font(.caption).foregroundStyle(.secondary)
+                    HStack(spacing: 8) {
+                        FilterChip(title: "W:H", chosen: start.sizes.contains("custom")) { start.toggle("custom") }
+                        if start.sizes.contains("custom") {
+                            TextField("W", value: $start.customW, format: .number).multilineTextAlignment(.center)
+                                .frame(width: 56).textFieldStyle(.roundedBorder).accessibilityLabel("Width")
+                            Text(":")
+                            TextField("H", value: $start.customH, format: .number).multilineTextAlignment(.center)
+                                .frame(width: 56).textFieldStyle(.roundedBorder).accessibilityLabel("Height")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func macKindCard(_ c: DesignKindCard) -> some View {
+        let on = start.kind == c.kind
+        return Button { start.choose(c.kind) } label: {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack {
+                    Text(c.title).font(.system(.headline, design: .serif))
+                    Spacer(minLength: 0)
+                    if on { Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.accent) }
+                }
+                Text(c.note).font(.callout).foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(12)
+            .background(on ? Theme.accent.opacity(0.12) : Theme.ground, in: .rect(cornerRadius: Radius.tile, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous).strokeBorder(Theme.accent, lineWidth: on ? 1.5 : 0))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .pointerHover()
+        .accessibilityAddTraits(on ? .isSelected : [])
+    }
+
+    /// Where you left off: the unfinished drafts and the last saved designs, on one card, a row each.
     @ViewBuilder private var macLeftOff: some View {
         let drafts = Array(shelf.draftRows.prefix(5))
         let recent = Array(shelf.items.prefix(6))
         if !drafts.isEmpty || !recent.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Where you left off").font(.headline)
+            SectionCard("Where you left off") {
                 ForEach(drafts) { d in
                     Button { onOpenDraft(d) } label: { DesignDraftLine(row: d) }.buttonStyle(.plain)
                         .contextMenu { Button("Open", systemImage: "folder") { onOpenDraft(d) } }

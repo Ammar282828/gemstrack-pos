@@ -53,43 +53,20 @@ struct MacNewOrderPieces: View {
             table
             Divider()
             bar
+                .background(Theme.ground)
             MacNewOrderTotals(totals: totals, pieces: rows.count)
         }
     }
 
-    /// Five columns, 344 points at the least: the size and the karigar ride beside the piece's name (the panel at the right
-    /// has them in full), so the table and the panel fit a narrow window together.
+    /// The pieces as the phone's rows: a numbered disc, the name over "metal \u{00B7} weight \u{00B7} size \u{00B7} karigar", the price at
+    /// the right. The panel at the right has the piece in full.
     private var table: some View {
-        Table(rows, selection: $selection) {
-            TableColumn("#") { (r: MacNewOrderRow) in
-                Text("\(r.number)").monospacedDigit().foregroundStyle(.secondary)
-            }
-            .width(28)
-            TableColumn("Piece") { (r: MacNewOrderRow) in
-                HStack(spacing: 6) {
-                    Text(r.title.isEmpty ? "Untitled piece" : r.title)
-                        .foregroundStyle(r.title.isEmpty ? Color.secondary : Color.primary)
-                        .lineLimit(1)
-                        .layoutPriority(1)
-                    if !r.detail.isEmpty {
-                        Text(r.detail).foregroundStyle(.secondary).lineLimit(1)
-                    }
-                }
-            }
-            .width(min: 120, ideal: 200)
-            TableColumn("Metal") { (r: MacNewOrderRow) in
-                Text(r.metal).lineLimit(1)
-            }
-            .width(min: 70, ideal: 110)
-            TableColumn("Weight") { (r: MacNewOrderRow) in
-                Text(r.weight).monospacedDigit().lineLimit(1)
-            }
-            .width(min: 56, ideal: 80)
-            TableColumn("Price") { (r: MacNewOrderRow) in
-                MacAmount(r.price > 0 ? r.price : nil)
-            }
-            .width(min: 70, ideal: 90)
+        List(rows, selection: $selection) { (r: MacNewOrderRow) in
+            row(r)
         }
+        .listStyle(.inset)
+        .scrollContentBackground(.hidden)
+        .background(Theme.ground)
         .contextMenu(forSelectionType: UUID.self) { ids in
             if !ids.isEmpty {
                 Button { duplicate(ids) } label: { Label("Duplicate Piece", systemImage: "plus.square.on.square") }
@@ -105,6 +82,31 @@ struct MacNewOrderPieces: View {
                                        description: Text("Add a piece with \u{2318}L to see the price."))
             }
         }
+    }
+
+    private func row(_ r: MacNewOrderRow) -> some View {
+        HStack(spacing: 12) {
+            Text("\(r.number)")
+                .font(.system(size: Monogram.Size.row * 0.4, weight: .semibold, design: .serif))
+                .monospacedDigit()
+                .foregroundStyle(Theme.accent)
+                .frame(width: Monogram.Size.row, height: Monogram.Size.row)
+                .background(Theme.accent.opacity(0.13), in: Circle())
+            VStack(alignment: .leading, spacing: 2) {
+                Text(r.title.isEmpty ? "Untitled piece" : r.title)
+                    .font(.body)
+                    .foregroundStyle(r.title.isEmpty ? Color.secondary : Color.primary)
+                    .lineLimit(1)
+                Text(secondLine(r)).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+            }
+            Spacer(minLength: 8)
+            if r.price > 0 { RowAmount(amount: r.price) }
+        }
+        .padding(.vertical, 3)
+    }
+
+    private func secondLine(_ r: MacNewOrderRow) -> String {
+        [r.metal, r.weight, r.detail].filter { !$0.isEmpty }.joined(separator: " \u{00B7} ")
     }
 
     /// + Add a Piece, + From Stock..., - Remove: a small bar, as Finder's and Mail's lists have under them.
@@ -142,10 +144,11 @@ struct MacNewOrderTotals: View {
             if totals.exchange > 0 { line("Taken in exchange", "\u{2212}" + Money.pkr(totals.exchange)) }
             line(totals.balance <= -1 ? "Credit to customer" : "Balance due", Money.pkr(abs(totals.balance)), tone: balanceTone, bold: true)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
+        .padding(Metrics.cardPadding)
         .frame(maxWidth: .infinity, alignment: .trailing)
-        .background(.bar)
+        .houseCard()
+        .padding(10)
+        .background(Theme.ground)
     }
 
     private func line(_ label: String, _ value: String, tone: Tone? = nil, bold: Bool = false) -> some View {

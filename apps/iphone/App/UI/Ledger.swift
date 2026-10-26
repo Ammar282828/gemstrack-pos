@@ -67,11 +67,11 @@ enum Tone {
 /// The corner radii every surface uses (all `.continuous`). Nothing else picks a corner.
 enum Radius {
     #if os(macOS)
-    // A Mac's surfaces are tighter-cornered: System Settings' groups and Finder's sidebar are 8-10, not a phone's 22.
-    static let card: CGFloat = 10
-    static let chip: CGFloat = 7
-    static let tile: CGFloat = 6
-    static let thumb: CGFloat = 5
+    // The iPhone's rounded cards at the Mac's scale (owner, 2026-10-27: the iPhone's look, built for the Mac).
+    static let card: CGFloat = 16
+    static let chip: CGFloat = 10
+    static let tile: CGFloat = 9
+    static let thumb: CGFloat = 7
     #else
     /// A card of content: `ledgerCard`, hero and section cards.
     static let card: CGFloat = 22
@@ -103,7 +103,7 @@ enum Metrics {
     /// The least a clickable thing is tall or wide: a Mac's regular control.
     static let tap: CGFloat = 24
     /// A card's inner margin.
-    static let cardPadding: CGFloat = 12
+    static let cardPadding: CGFloat = 14
     /// A promised day's calendar leaf.
     static let leaf: CGFloat = 34
     #else

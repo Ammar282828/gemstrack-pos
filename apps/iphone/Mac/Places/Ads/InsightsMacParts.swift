@@ -104,6 +104,7 @@ struct InsightsMacSplitTable: View {
             TableColumn("By Surface") { (r: InsightsMacSplitRow) in Text(r.surfaces).foregroundStyle(.secondary).lineLimit(1) }
                 .width(min: 120, ideal: 360)
         }
+        .scrollContentBackground(.hidden)
         .frame(height: adsMacTableHeight(list.count))
     }
 }
@@ -154,6 +155,7 @@ struct InsightsMacPlatformTable: View {
             TableColumn("Results") { (r: InsightsMacPlatformRow) in Text(r.results).lineLimit(1) }
                 .width(min: 100, ideal: 260)
         }
+        .scrollContentBackground(.hidden)
         .frame(height: adsMacTableHeight(list.count, row: 36))
     }
 }
@@ -190,6 +192,7 @@ struct InsightsMacShareTable: View {
             }
             .width(min: 120, ideal: 220)
         }
+        .scrollContentBackground(.hidden)
         .frame(height: adsMacTableHeight(list.count))
     }
 }
@@ -255,22 +258,36 @@ struct InsightsMacPostPanel: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                MacInspectorHeader(title: InsightWords.kind[post.kind] ?? post.kind, subtitle: ShopDate.say(post.at),
-                                   status: live ? MacStatus("Up now", tone: .settled) : (post.older ? MacStatus("Before this range", tone: .quiet) : nil),
-                                   actions: [])
                 StockImage(imageUrl: post.thumb, name: post.caption, key: post.id)
                     .aspectRatio(post.kind == "story" || post.kind == "reel" ? 9.0 / 16.0 : 1, contentMode: .fit)
                     .frame(maxHeight: 260)
-                    .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
+                    .clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))
                     .frame(maxWidth: .infinity)
-                if !post.caption.isEmpty { Text(post.caption).textSelection(.enabled) }
-                VStack(spacing: 6) { AdsMacFigureRows(figures: figures) }
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(InsightWords.kind[post.kind] ?? post.kind).font(.system(.title3, design: .serif).weight(.semibold))
+                    Text(ShopDate.say(post.at)).font(.callout).foregroundStyle(.secondary)
+                    if live { Pill("Up now", tone: .settled) } else if post.older { Pill("Before this range", tone: .quiet) }
+                }
+                if !post.caption.isEmpty {
+                    Text(post.caption).textSelection(.enabled)
+                        .padding(14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .houseCard()
+                }
+                VStack(alignment: .leading, spacing: 8) {
+                    LedgerHeading(title: "The Numbers")
+                    VStack(spacing: 6) { AdsMacFigureRows(figures: figures) }
+                }
+                .padding(14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .houseCard()
                 if let link = post.link, let url = URL(string: link) {
-                    Button("Open on Instagram") { NSWorkspace.shared.open(url) }
+                    Button("Open on Instagram") { NSWorkspace.shared.open(url) }.buttonStyle(.bordered)
                 }
             }
             .padding(16)
         }
+        .background(Theme.ground)
     }
 
     /// Every number the phone's row shows, one to a line.

@@ -24,28 +24,12 @@ import AppKit
 /// is rebuilt on it.
 enum Theme {
     static var accent: Color { color("Accent") { $0.accent } }
-    #if os(macOS)
-    // A classic Mac application (owner, 2026-10-25: "operate as a classic native mac os application"): the window's own
-    // background and the system's content colour, light or dark as the Mac is; the house is in the accent, as Mail
-    // and Finder carry the system's.
-    static var ground: Color { Color(nsColor: .windowBackgroundColor) }
-    static var card: Color { Color(nsColor: macCard) }
-    /// A step above the card: a sheet, a popover, a grouped row inside a card.
-    static var elevated: Color { Color(nsColor: macElevated) }
-    private static let macCard = NSColor(name: nil) { appearance in
-        appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-            ? NSColor.white.withAlphaComponent(0.06) : NSColor.controlBackgroundColor
-    }
-    private static let macElevated = NSColor(name: nil) { appearance in
-        appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-            ? NSColor.white.withAlphaComponent(0.10) : NSColor.controlBackgroundColor
-    }
-    #else
+    // The house's own colours on the Mac too (owner, 2026-10-27: "matching the ui features of ios app as much as possible,
+    // but built for mac"): the warm ground, the house's card and the step above it, as the iPhone has them.
     static var ground: Color { color("Ground") { $0.ground } }
     static var card: Color { color("Card") { $0.card } }
     /// A step above the card: a sheet, a popover, a grouped row inside a card.
     static var elevated: Color { color("Elevated") { $0.elevated ?? $0.card } }
-    #endif
     /// Words on the accent (a filled button): white on the deep light-mode accents, and the house's dark
     /// ground on its light dark-mode gold and rose, as the web's --primary-foreground (white there reads
     /// at under 2.5:1).
@@ -173,17 +157,6 @@ struct HouseCardSurface: ViewModifier {
 
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
-        #if os(macOS)
-        // A Mac's group box, as System Settings draws its groups: the content colour and a hairline edge, no shadow.
-        content.background {
-            shape.fill(Theme.card)
-                .overlay {
-                    if hairline {
-                        shape.strokeBorder(Color(nsColor: .separatorColor), lineWidth: 0.5).allowsHitTesting(false)
-                    }
-                }
-        }
-        #else
         content.background {
             shape.fill(Theme.card)
                 .shadow(color: scheme == .light ? .black.opacity(0.05) : .clear, radius: 1.5, x: 0, y: 1)
@@ -193,7 +166,6 @@ struct HouseCardSurface: ViewModifier {
                     }
                 }
         }
-        #endif
     }
 }
 
@@ -207,12 +179,7 @@ extension View {
 /// A list's rows on the house's card colour (apply to each Section, or to the List's content).
 struct HouseRows: ViewModifier {
     func body(content: Content) -> some View {
-        #if os(macOS)
-        // A Mac's list draws its own rows (and their selection); a colour behind each row would hide both.
-        content
-        #else
         content.listRowBackground(Theme.card)
-        #endif
     }
 }
 
@@ -229,6 +196,7 @@ extension View {
         // A Mac's grouped form (System Settings' look, its own background), at a width a form reads at, and a sheet at
         // least that size.
         self.formStyle(.grouped)
+            .scrollContentBackground(.hidden).background(Theme.ground)
             .frame(minWidth: 520, idealWidth: 640, minHeight: 420, idealHeight: 620)
         #else
         self.scrollContentBackground(.hidden).background(Theme.ground)
@@ -239,16 +207,17 @@ extension View {
 /// A screen on the house's ground: the list's own background hidden so the ground shows behind its cards.
 struct HouseGround: ViewModifier {
     #if os(macOS)
-    /// A Mac's list row (Mail's, Finder's): the row's words decide, not a finger.
-    private static let rowHeight: CGFloat = 28
+    /// A Mac's list row: the iPhone's, at a pointer's size.
+    private static let rowHeight: CGFloat = 44
     #else
     private static let rowHeight: CGFloat = 56
     #endif
     func body(content: Content) -> some View {
         #if os(macOS)
-        // A Mac's list or form keeps the system's own background.
         content
+            .scrollContentBackground(.hidden)
             .environment(\.defaultMinListRowHeight, Self.rowHeight)
+            .background(Theme.ground.ignoresSafeArea())
         #else
         content
             .scrollContentBackground(.hidden)

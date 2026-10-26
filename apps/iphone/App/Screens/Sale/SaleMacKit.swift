@@ -145,9 +145,34 @@ struct SaleMacStock: View {
                 Button { newItem() } label: { Label("New Item", systemImage: "plus.circle") }
                     .help("A piece that is not in stock, described for this bill only")
                 Spacer(minLength: 0)
+                sortMenu
             }
         }
         .padding(12)
+    }
+
+    /// How the stock is ordered: as the shelf holds it, or by name, price or weight.
+    private var sortMenu: some View {
+        Menu {
+            Button { sort = [] } label: { sortLabel("Shelf Order", on: sort.isEmpty) }
+            Button { sort = [KeyPathComparator(\SaleMacStockRow.name)] } label: { sortLabel("Name", on: sortIs(\SaleMacStockRow.name)) }
+            Button { sort = [KeyPathComparator(\SaleMacStockRow.price)] } label: { sortLabel("Price", on: sortIs(\SaleMacStockRow.price)) }
+            Button { sort = [KeyPathComparator(\SaleMacStockRow.weight)] } label: { sortLabel("Weight", on: sortIs(\SaleMacStockRow.weight)) }
+        } label: {
+            Label("Sort By", systemImage: "arrow.up.arrow.down")
+        }
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help("Order the stock")
+    }
+
+    private func sortIs(_ path: PartialKeyPath<SaleMacStockRow>) -> Bool {
+        sort.first.map { (c: KeyPathComparator<SaleMacStockRow>) in c.keyPath == path } ?? false
+    }
+
+    @ViewBuilder
+    private func sortLabel(_ title: String, on: Bool) -> some View {
+        if on { Label(title, systemImage: "checkmark") } else { Text(title) }
     }
 
     /// Return in the box: with something typed it adds the piece; with the box empty it saves the sale, unless a piece
@@ -166,18 +191,13 @@ struct SaleMacStock: View {
     // MARK: The table
 
     private func table(_ rows: [SaleMacStockRow]) -> some View {
-        Table(rows, selection: $selection, sortOrder: $sort) {
-            TableColumn("Piece", value: \.name) { (row: SaleMacStockRow) in pieceCell(row) }
-                .width(min: 120, ideal: 170)
-            TableColumn("Weight", value: \.weight) { (row: SaleMacStockRow) in
-                Text(row.weight > 0 ? SaleNumber.grams(row.weight) + " g" : "").monospacedDigit().lineLimit(1)
+        List(selection: $selection) {
+            ForEach(rows) { (row: SaleMacStockRow) in
+                stockRow(row).tag(row.sku)
             }
-            .width(min: 48, ideal: 62)
-            TableColumn("Price", value: \.price) { (row: SaleMacStockRow) in
-                MacAmount(row.price > 0 ? row.price : nil)
-            }
-            .width(min: 70, ideal: 90)
         }
+        .listStyle(.inset)
+        .modifier(HouseGround())
         .contextMenu(forSelectionType: String.self) { skus in
             if !skus.isEmpty { MacActionItems(groups: menuGroups(for: skus)) }
         } primaryAction: { skus in addAll(skus) }
@@ -195,12 +215,23 @@ struct SaleMacStock: View {
         }
     }
 
-    private func pieceCell(_ row: SaleMacStockRow) -> some View {
-        VStack(alignment: .leading, spacing: 1) {
-            Text(row.name).lineLimit(1)
-            Text(row.metal.isEmpty ? row.sku : row.sku + " \u{00B7} " + row.metal)
-                .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+    /// A piece as the iPhone's stock row has it: name over its number and metal, its price at the right over its weight.
+    private func stockRow(_ row: SaleMacStockRow) -> some View {
+        HStack(alignment: .center, spacing: 8) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(row.name).font(.body).lineLimit(1)
+                Text(row.metal.isEmpty ? row.sku : row.sku + " \u{00B7} " + row.metal)
+                    .font(.callout).foregroundStyle(.secondary).lineLimit(1)
+            }
+            Spacer(minLength: 8)
+            VStack(alignment: .trailing, spacing: 2) {
+                if row.price > 0 { RowAmount(amount: row.price) }
+                if row.weight > 0 {
+                    Text(SaleNumber.grams(row.weight) + " g").font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                }
+            }
         }
+        .padding(.vertical, 3)
     }
 
     /// The right-click menu of the picked pieces, as actions.
@@ -260,18 +291,13 @@ struct SaleMacBill: View {
     }
 
     private var table: some View {
-        Table(lines, selection: $picked) {
-            TableColumn("Piece") { (line: SaleLine) in pieceCell(line) }
-                .width(min: 120, ideal: 220)
-            TableColumn("Details") { (line: SaleLine) in
-                Text(spec(line)).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+        List(selection: $picked) {
+            ForEach(lines) { (line: SaleLine) in
+                billRow(line).tag(line.sku)
             }
-            .width(min: 80, ideal: 160)
-            TableColumn("Price") { (line: SaleLine) in
-                MacAmount(figures.hasEstimate ? figures.price(of: line.sku) : nil)
-            }
-            .width(min: 70, ideal: 110)
         }
+        .listStyle(.inset)
+        .modifier(HouseGround())
         .contextMenu(forSelectionType: String.self) { skus in
             if !skus.isEmpty { MacActionItems(groups: menuGroups(for: skus)) }
         } primaryAction: { skus in
@@ -286,17 +312,24 @@ struct SaleMacBill: View {
         }
     }
 
-    private func pieceCell(_ line: SaleLine) -> some View {
-        VStack(alignment: .leading, spacing: 1) {
-            Text(line.name.isEmpty ? (line.stockSku ?? "New piece") : line.name).fontWeight(.medium).lineLimit(1)
-            if isGone(line) {
-                Label("No longer in stock", systemImage: "exclamationmark.triangle.fill")
-                    .font(.caption)
-                    .foregroundStyle(Tone.problem.color)
-            } else if line.isCustomPrice {
-                Text("Fixed price").font(.caption).foregroundStyle(Tone.owed.color)
+    /// A piece on the bill: its name over what is set into it, its price at the right (a fixed price says so).
+    private func billRow(_ line: SaleLine) -> some View {
+        HStack(alignment: .center, spacing: 8) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(line.name.isEmpty ? (line.stockSku ?? "New piece") : line.name).font(.body).lineLimit(1)
+                Text(spec(line)).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+            }
+            Spacer(minLength: 8)
+            VStack(alignment: .trailing, spacing: 3) {
+                if figures.hasEstimate { RowAmount(amount: figures.price(of: line.sku)) }
+                if isGone(line) {
+                    Pill("No longer in stock", tone: .problem, symbol: "exclamationmark.triangle.fill")
+                } else if line.isCustomPrice {
+                    Pill("Fixed price", tone: .owed)
+                }
             }
         }
+        .padding(.vertical, 3)
     }
 
     /// The right-click menu of the picked pieces, as actions.
@@ -341,19 +374,16 @@ struct SaleMacTotals: View {
     let pieces: Int
 
     var body: some View {
-        VStack(spacing: 0) {
-            Divider()
-            HStack(alignment: .top, spacing: 16) {
-                Text(pieces == 1 ? "1 piece" : "\(pieces) pieces")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                Spacer(minLength: 0)
-                rows.frame(minWidth: 220, idealWidth: 300, maxWidth: 300)
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 10)
+        HStack(alignment: .top, spacing: 16) {
+            Text(pieces == 1 ? "1 piece" : "\(pieces) pieces")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 0)
+            rows.frame(minWidth: 220, idealWidth: 300, maxWidth: 300)
         }
-        .background(.bar)
+        .ledgerCard()
+        .padding(12)
+        .background(Theme.ground)
     }
 
     private var rows: some View {

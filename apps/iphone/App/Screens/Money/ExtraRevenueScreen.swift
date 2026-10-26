@@ -20,10 +20,10 @@ struct ExtraRevenueScreen: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     #if os(macOS)
     @Environment(\.openPlaceWindow) private var openPlace
-    @State private var macSort = [KeyPathComparator(\ExtraRevenueMacRow.day, order: .reverse)]
+    @State private var macOrder: ExtraRevenueMacOrder = .date
     @State private var macPick = Set<String>()
     @State private var macGo: Route?
-    @State private var macMade = Memo<[ExtraRevenueMacRow]>()
+    @State private var macMade = Memo<ExtraRevenueMacData>()
     #endif
 
     var body: some View {
@@ -219,6 +219,19 @@ private struct ExtraRevenueMacRow: Identifiable {
     }
 }
 
+/// How the rows of each month are ordered: the iPhone's (by date) or the biggest first.
+private enum ExtraRevenueMacOrder: String, CaseIterable, Identifiable {
+    case date, biggest
+    var id: String { rawValue }
+    var title: String { self == .date ? "Date" : "Biggest first" }
+}
+
+/// What the list draws: the rows (for the summary) and the months with their lines.
+private struct ExtraRevenueMacData {
+    let rows: [ExtraRevenueMacRow]
+    let months: [MoneyMonth<AdditionalRevenue>]
+}
+
 /// Extra revenue as a Mac place (docs/features/mac-design.md, "Money"): every entry as a sortable table, the date range as a
 /// bar over it, the total in the summary bar. The Revenue menu is New Revenue… (a sheet), Edit… (Return, or a double-click)
 /// and Delete… (asks for the delete code); money taken on a repair opens that repair in a window instead.
@@ -231,8 +244,9 @@ extension ExtraRevenueScreen {
         .navigationTitle("Extra revenue")
         .macSearchable(text: $search, prompt: "Search Extra Revenue")
         .toolbar {
-            ToolbarItem(placement: .automatic) {
+            ToolbarItemGroup(placement: .automatic) {
                 MacToolbarAction(action: macGroups(for: macPick)[0][0])
+                macSortMenu
             }
         }
         .macRecordMenu(MacRecordMenu(title: "Revenue", groups: macGroups(for: macPick)))
@@ -253,9 +267,25 @@ extension ExtraRevenueScreen {
         .task { book.revenue.need() }
     }
 
+    private var macSortMenu: some View {
+        Menu {
+            Section("Sort by") {
+                Picker("Sort by", selection: $macOrder) {
+                    ForEach(ExtraRevenueMacOrder.allCases) { (o: ExtraRevenueMacOrder) in Text(o.title).tag(o) }
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
+            }
+        } label: {
+            Label("Filter", systemImage: macOrder != .date ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+        }
+        .help("How the entries of each month are ordered")
+    }
+
     @ViewBuilder
     var macContent: some View {
-        let rows = macRows()
+        let data = macData()
+        let rows = data.rows
         VStack(spacing: 0) {
             HStack(spacing: 12) {
                 MoneyRangeFields(filter: $dates)
@@ -267,18 +297,26 @@ extension ExtraRevenueScreen {
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
             Divider()
-            Table(rows, selection: $macPick, sortOrder: $macSort) {
-                TableColumn("Date", value: \.day) { (r: ExtraRevenueMacRow) in Text(r.said).lineLimit(1) }
-                    .width(min: 70, ideal: 100)
-                TableColumn("What", value: \.what) { (r: ExtraRevenueMacRow) in Text(r.what).lineLimit(1) }
-                    .width(min: 120, ideal: 280)
-                TableColumn("Source") { (r: ExtraRevenueMacRow) in
-                    Text(r.onRepair ? "A repair" : "").foregroundStyle(.secondary)
+            List(selection: $macPick) {
+                Section {
+                    figures(data.months.flatMap { (m: MoneyMonth<AdditionalRevenue>) in m.rows })
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
                 }
-                .width(min: 70, ideal: 90)
-                TableColumn("Amount", value: \.amount) { (r: ExtraRevenueMacRow) in MacAmount(r.amount) }
-                    .width(min: 70, ideal: 90)
+                ForEach(data.months) { (month: MoneyMonth<AdditionalRevenue>) in
+                    Section {
+                        ForEach(month.rows) { (line: MoneyLine<AdditionalRevenue>) in
+                            TwoLine(title: line.item.description, subtitle: macSubtitle(line.item), trailing: Money.pkr(line.item.amount))
+                                .tag(line.id)
+                        }
+                    } header: {
+                        monthHeader(month)
+                    }
+                }
             }
+            .listStyle(.inset)
+            .scrollContentBackground(.hidden)
+            .background(Theme.ground)
             .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
                 MacActionItems(groups: macGroups(for: ids))
                 if let r = macEntry(ids), let repairId = r.repairId, !repairId.isEmpty {
@@ -303,12 +341,27 @@ extension ExtraRevenueScreen {
 
     // MARK: Worked out once
 
-    private func macRows() -> [ExtraRevenueMacRow] {
+    private func macData() -> ExtraRevenueMacData {
         let key = [book.revenue.revision, search.hashValue, (dates.fromDay ?? "").hashValue, (dates.toDay ?? "").hashValue,
-                   macSort.hashValue, MoneyCalendar.pickedDay(Date()).hashValue]
+                   macOrder.hashValue, MoneyCalendar.pickedDay(Date()).hashValue]
         return macMade(key) {
-            lines().map { (l: MoneyLine<AdditionalRevenue>) in ExtraRevenueMacRow(l.item) }.sorted(using: macSort)
+            let shown = lines()
+            var months = MoneyMonths.group(shown, amount: { (r: AdditionalRevenue) -> Double in r.amount })
+            if macOrder == .biggest {
+                months = months.map { (m: MoneyMonth<AdditionalRevenue>) in
+                    MoneyMonth<AdditionalRevenue>(key: m.key, title: m.title, hint: m.hint,
+                                                  rows: m.rows.sorted { (a: MoneyLine<AdditionalRevenue>, b: MoneyLine<AdditionalRevenue>) in a.item.amount > b.item.amount },
+                                                  total: m.total)
+                }
+            }
+            return ExtraRevenueMacData(rows: shown.map { (l: MoneyLine<AdditionalRevenue>) in ExtraRevenueMacRow(l.item) }, months: months)
         }
+    }
+
+    /// The date, and where it came from when it is not a loose entry.
+    private func macSubtitle(_ r: AdditionalRevenue) -> String {
+        let when = ShopDate.say(r.date)
+        return (r.repairId ?? "").isEmpty ? when : (when.isEmpty ? "A repair" : "\(when) \u{00B7} A repair")
     }
 
     private func macSummary(_ rows: [ExtraRevenueMacRow]) -> [String] {

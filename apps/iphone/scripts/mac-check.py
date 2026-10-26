@@ -38,7 +38,7 @@ def iphone_view(text):
         if active:
             # `.trailingAction` is `.primaryAction` on the iPhone (App/Platform/ToolbarPlacements.swift).
             s = re.sub(r"\s+", " ", t).replace("placement: .trailingAction", "placement: .primaryAction")
-            if s: out.append(s)
+            if s and not s.startswith("//"): out.append(s)
     return out
 
 

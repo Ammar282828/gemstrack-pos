@@ -35,7 +35,7 @@ private struct RecentlyRemovedList: View {
     @State private var deletion: OwnerDeletion?
     @State private var history = Memo<[String: RecentlyRemoved.History]>()
     #if os(macOS)
-    @State private var macSort = [KeyPathComparator(\RemovedMacRow.removedAt, order: .reverse)]
+    @State private var macOrder: RemovedMacOrder = .newest
     @State private var macPick = Set<String>()
     @State private var macMade = Memo<RemovedMacData>()
     #endif
@@ -251,7 +251,14 @@ private struct RemovedMacRow: Identifiable {
     var kind: String { isCustomer ? "Customer" : "Karigar" }
 }
 
-/// What the table draws, worked out once per change of the books or of the sort (`Memo`): the shelves are walked for the
+/// How the list is ordered: the one removed last first, or by name.
+private enum RemovedMacOrder: String, CaseIterable, Identifiable {
+    case newest, name
+    var id: String { rawValue }
+    var title: String { self == .newest ? "Removed last first" : "Name" }
+}
+
+/// What the list draws, worked out once per change of the books or of the sort (`Memo`): the shelves are walked for the
 /// removed ones here and nowhere in `body`.
 private struct RemovedMacData {
     let rows: [RemovedMacRow]
@@ -264,7 +271,7 @@ private struct RemovedMacData {
 /// (which asks, then asks for the delete code) are in the toolbar's More menu. Putting back and emptying are the page's own.
 extension RecentlyRemovedList {
     private func macData() -> RemovedMacData {
-        let key = [book.customers.revision, book.karigars.revision, book.hisaab.revision, book.orders.revision, macSort.hashValue]
+        let key = [book.customers.revision, book.karigars.revision, book.hisaab.revision, book.orders.revision, macOrder.hashValue]
         return macMade(key) {
             let customers = removedCustomers
             let karigars = removedKarigars
@@ -282,7 +289,10 @@ extension RecentlyRemovedList {
                                          carries: carries.isEmpty ? "no history" : carries, removedAt: k.deletedAt ?? "",
                                          said: ShopDate.say(k.deletedAt ?? "")))
             }
-            return RemovedMacData(rows: all.sorted(using: macSort), customerIds: customers.map(\.id), karigarIds: karigars.map(\.id))
+            let sorted = macOrder == .name
+                ? all.sorted { (a: RemovedMacRow, b: RemovedMacRow) in a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending }
+                : all.sorted { (a: RemovedMacRow, b: RemovedMacRow) in a.removedAt > b.removedAt }
+            return RemovedMacData(rows: sorted, customerIds: customers.map(\.id), karigarIds: karigars.map(\.id))
         }
     }
 
@@ -308,27 +318,24 @@ extension RecentlyRemovedList {
         let picked = rows.filter { macPick.contains($0.id) }
         let putBack = macPutBackAction(picked)
         let putAll = macPutAllAction(data)
-        return Table(rows, selection: $macPick, sortOrder: $macSort) {
-            TableColumn("Name", value: \.name) { (r: RemovedMacRow) in
-                HStack(spacing: 8) {
-                    Image(systemName: r.isCustomer ? "person.2" : "hammer").foregroundStyle(.secondary)
-                    Text(r.name).lineLimit(1)
+        return List(selection: $macPick) {
+            ForEach(rows) { (r: RemovedMacRow) in
+                HStack(spacing: 12) {
+                    Monogram(name: r.name, size: Monogram.Size.row)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(r.name).font(.body.weight(.medium)).lineLimit(1)
+                        Text([r.kind, r.contact, r.carries].filter { !$0.isEmpty }.joined(separator: " \u{00B7} "))
+                            .font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                    Spacer(minLength: 8)
+                    Text(r.said).font(.callout).foregroundStyle(.secondary).lineLimit(1)
                 }
+                .padding(.vertical, 2)
+                .tag(r.id)
             }
-            .width(min: 120, ideal: 200)
-            TableColumn("Who", value: \.kind) { (r: RemovedMacRow) in Text(r.kind).foregroundStyle(.secondary) }
-                .width(min: 70, ideal: 90)
-            TableColumn("Contact", value: \.contact) { (r: RemovedMacRow) in
-                Text(r.contact).monospacedDigit().lineLimit(1).foregroundStyle(.secondary)
-            }
-            .width(min: 90, ideal: 120)
-            TableColumn("History they carry", value: \.carries) { (r: RemovedMacRow) in
-                Text(r.carries).lineLimit(1).foregroundStyle(.secondary)
-            }
-            .width(min: 120, ideal: 200)
-            TableColumn("Removed", value: \.removedAt) { (r: RemovedMacRow) in Text(r.said).lineLimit(1) }
-                .width(min: 70, ideal: 90)
         }
+        .listStyle(.inset)
+        .scrollContentBackground(.hidden)
         .contextMenu(forSelectionType: String.self) { ids in
             let chosen = rows.filter { ids.contains($0.id) }
             if !chosen.isEmpty {
@@ -354,6 +361,11 @@ extension RecentlyRemovedList {
                 ToolbarItemGroup(placement: .automatic) {
                     MacToolbarAction(action: putBack)
                     Menu {
+                        Picker("Sort by", selection: $macOrder) {
+                            ForEach(RemovedMacOrder.allCases) { (o: RemovedMacOrder) in Text(o.title).tag(o) }
+                        }
+                        .pickerStyle(.inline)
+                        Divider()
                         MacActionItems(groups: [[putAll], [macEmptyAction]])
                     } label: {
                         Label("More", systemImage: "ellipsis.circle")

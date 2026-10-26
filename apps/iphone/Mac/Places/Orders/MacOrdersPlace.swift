@@ -15,8 +15,8 @@ import ERPCore
 enum MacOrdersView: String, CaseIterable, Identifiable {
     case table, board
     var id: String { rawValue }
-    var title: String { self == .table ? "Table" : "Board" }
-    var symbol: String { self == .table ? "tablecells" : "rectangle.split.3x1" }
+    var title: String { self == .table ? "List" : "Board" }
+    var symbol: String { self == .table ? "list.bullet" : "rectangle.split.3x1" }
 }
 
 struct MacOrdersPlace: View {
@@ -33,6 +33,7 @@ struct MacOrdersPlace: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @AppStorage(MacOrdersPlace.viewKey) private var viewRaw = MacOrdersView.table.rawValue
+    @AppStorage("mac.orders.sort") private var sortRaw = MacOrdersSort.stage.rawValue
     @State private var selection = Set<String>()
     @State private var query = ""
     @State private var takenBy = ""
@@ -46,6 +47,7 @@ struct MacOrdersPlace: View {
     @State private var note: Note?
 
     private var view: MacOrdersView { MacOrdersView(rawValue: viewRaw) ?? .table }
+    private var sort: MacOrdersSort { MacOrdersSort(rawValue: sortRaw) ?? .stage }
     private var list: String? { MacLists.list(in: path) }
 
     var body: some View {
@@ -106,7 +108,8 @@ struct MacOrdersPlace: View {
     private func content(_ base: MacOrdersBase, key: [Int]) -> some View {
         Group {
             if view == .table {
-                MacOrdersTableView(rows: base.rows, version: key, selection: $selection, open: openPicked) { ids in
+                MacOrdersListView(rows: base.rows, version: key, sort: sort, searching: !query.trimmingCharacters(in: .whitespaces).isEmpty,
+                                  selection: $selection, open: openPicked) { ids in
                     rowMenu(ids)
                 }
             } else {
@@ -156,7 +159,7 @@ struct MacOrdersPlace: View {
                 }
             }
             .pickerStyle(.segmented)
-            .help("The orders as a table or by stage (\u{2303}\u{2318}1, \u{2303}\u{2318}2)")
+            .help("The orders as a list or by stage (\u{2303}\u{2318}1, \u{2303}\u{2318}2)")
         }
         // New and the one filter; the picked order's actions are the inspector's, the Order menu's and the right-click
         // menu's, never the toolbar's (a Tahoe toolbar of nine capsules overflowed a 13-inch screen).
@@ -175,10 +178,14 @@ struct MacOrdersPlace: View {
                 ForEach(people, id: \.self) { (p: String) in Text(p).tag(p) }
             }
             .pickerStyle(.inline)
+            Picker("Sort by", selection: $sortRaw) {
+                ForEach(MacOrdersSort.allCases) { (o: MacOrdersSort) in Text(o.title).tag(o.rawValue) }
+            }
+            .pickerStyle(.inline)
         } label: {
             Label("Filter", systemImage: takenBy.isEmpty ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
         }
-        .help("Show one person's orders")
+        .help("Show one person's orders, or change the order of the list")
     }
 
     // MARK: The inspector

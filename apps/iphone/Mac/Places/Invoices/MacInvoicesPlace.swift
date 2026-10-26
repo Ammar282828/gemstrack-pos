@@ -26,6 +26,32 @@ struct MacInvoicesPlaceRow: Identifiable {
     let tone: Tone
     let takenBy: String
     let source: String
+    /// What was sold ("Drop earrings +2 more"), the time of day and the day's own heading, for the iPhone's row.
+    let sold: String
+    let timeText: String
+    let heading: String
+}
+
+/// How the list is ordered: by day as the iPhone's is (newest first, under each day's heading), or flat by a column's old sort.
+enum MacInvoicesSort: String, CaseIterable, Identifiable {
+    case date, total, owed, customer
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .date: return "Date"
+        case .total: return "Total"
+        case .owed: return "Amount Owed"
+        case .customer: return "Customer"
+        }
+    }
+}
+
+/// One section of the list: a day's invoices with what they billed.
+struct MacInvoicesPlaceGroup: Identifiable {
+    let id: String
+    let title: String
+    let rows: [MacInvoicesPlaceRow]
+    let billed: Double
 }
 
 /// What a search reads of an invoice, made once per change of the books (not once per keystroke): all its words in lower
@@ -57,9 +83,9 @@ struct MacInvoicesPlace: View {
     @State private var takenBy = ""
     /// "" is every source.
     @State private var source = ""
-    @State private var sort = [KeyPathComparator(\MacInvoicesPlaceRow.createdAt, order: .reverse)]
+    @State private var sort = MacInvoicesSort.date
     @State private var made = Memo<MacInvoicesPlaceTable>()
-    @State private var ordered = Memo<[MacInvoicesPlaceRow]>()
+    @State private var ordered = Memo<[MacInvoicesPlaceGroup]>()
     @State private var people = Memo<[String]>()
     @State private var channels = Memo<[String]>()
     @State private var hays = Memo<[String: MacInvoicesPlaceHay]>()
@@ -70,7 +96,7 @@ struct MacInvoicesPlace: View {
         let key = rowsKey(list)
         let shown = made(key) { build(list) }
         // The sort alone only puts the same rows in another order.
-        let sorted = ordered(key + [sort.hashValue]) { shown.rows.sorted(using: sort) }
+        let sorted = ordered(key + [sort.hashValue]) { groups(shown.rows) }
         let picked = pickedInvoice()
         let cx = context()
         ShelfState(loaded: book.invoices.loaded, error: book.invoices.error, offline: book.invoices.offline) {
@@ -92,39 +118,26 @@ struct MacInvoicesPlace: View {
 
     // MARK: The table
 
-    private func table(_ rows: [MacInvoicesPlaceRow], _ shown: MacInvoicesPlaceTable, _ list: String?,
+    private func table(_ groups: [MacInvoicesPlaceGroup], _ shown: MacInvoicesPlaceTable, _ list: String?,
                         _ cx: MacInvoiceContext) -> some View {
-        Table(rows, selection: $selection, sortOrder: $sort) {
-            TableColumn("Number", value: \.id) { (r: MacInvoicesPlaceRow) in
-                Text(r.id).monospacedDigit().lineLimit(1)
+        let person = session.shop.person ?? ""
+        return List(selection: $selection) {
+            ForEach(groups) { (g: MacInvoicesPlaceGroup) in
+                Section {
+                    ForEach(g.rows) { (r: MacInvoicesPlaceRow) in
+                        MacInvoiceListRow(row: r, mine: !person.isEmpty && r.takenBy == person, dated: sort != .date)
+                            .tag(r.id)
+                    }
+                } header: {
+                    if sort == .date {
+                        LedgerHeading(title: g.title, count: g.rows.count, trailing: Money.pkr(g.billed))
+                    }
+                }
+                .houseRows()
             }
-            .width(min: 70, ideal: 96)
-            TableColumn("Customer", value: \.customer) { (r: MacInvoicesPlaceRow) in
-                Text(r.customer).lineLimit(1)
-            }
-            .width(min: 120, ideal: 180)
-            TableColumn("Date", value: \.createdAt) { (r: MacInvoicesPlaceRow) in
-                Text(r.dateText).lineLimit(1)
-            }
-            .width(min: 70, ideal: 90)
-            TableColumn("Total", value: \.total) { (r: MacInvoicesPlaceRow) in
-                MacAmount(r.total)
-            }
-            .width(min: 70, ideal: 90)
-            TableColumn("Paid", value: \.paid) { (r: MacInvoicesPlaceRow) in
-                MacAmount(r.paid > 0 ? r.paid : nil)
-            }
-            .width(min: 70, ideal: 90)
-            TableColumn("Owed", value: \.due) { (r: MacInvoicesPlaceRow) in
-                // Only what needs someone is coloured; a settled bill shows nothing here.
-                MacAmount(r.due >= 1 ? r.due : nil, tone: r.tone)
-            }
-            .width(min: 70, ideal: 90)
-            TableColumn("Status", value: \.statusRank) { (r: MacInvoicesPlaceRow) in
-                MacStatus(r.statusText, tone: r.tone)
-            }
-            .width(min: 90, ideal: 110)
         }
+        .listStyle(.inset)
+        .modifier(HouseGround())
         .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
             rowMenu(ids, cx)
         } primaryAction: { (ids: Set<String>) in
@@ -204,6 +217,10 @@ struct MacInvoicesPlace: View {
             Array(Set(book.invoices.items.compactMap { MacInvoiceWords.source($0) })).sorted()
         }
         return Menu {
+            Picker("Sort By", selection: $sort) {
+                ForEach(MacInvoicesSort.allCases) { (o: MacInvoicesSort) in Text(o.title).tag(o) }
+            }
+            .pickerStyle(.inline)
             Picker("Taken By", selection: $takenBy) {
                 Text("Anyone").tag("")
                 ForEach(who, id: \.self) { (p: String) in Text(p).tag(p) }
@@ -293,6 +310,7 @@ struct MacInvoicesPlace: View {
         var rows: [MacInvoicesPlaceRow] = []
         var billed = 0.0
         var owed = 0.0
+        let now = Date()
         for inv in MacLists.invoices(book.invoices.items, list: list) {
             if !takenBy.isEmpty && (inv.takenBy ?? "") != takenBy { continue }
             let channel = MacInvoiceWords.source(inv) ?? ""
@@ -306,7 +324,8 @@ struct MacInvoicesPlace: View {
                 id: inv.id, customer: InvoiceFacts.customerName(inv), createdAt: inv.createdAt,
                 dateText: ShopDate.say(inv.createdAt), pieces: inv.items.count, total: invoiceSaleValue(inv), paid: inv.amountPaid,
                 due: due, statusText: status.text, statusRank: status.rank, tone: status.tone,
-                takenBy: inv.takenBy ?? "", source: channel))
+                takenBy: inv.takenBy ?? "", source: channel, sold: InvoiceFacts.whatSold(inv) ?? "",
+                timeText: InvoiceFacts.time(inv.createdAt), heading: dayHeading(inv.createdAt, now: now)))
         }
         var out = MacInvoicesPlaceTable()
         out.rows = rows
@@ -314,6 +333,39 @@ struct MacInvoicesPlace: View {
         out.billed = billed
         out.owed = owed
         return out
+    }
+
+    private func dayHeading(_ iso: String, now: Date) -> String {
+        guard let d = ERPDate.parse(iso) else { return "No date" }
+        return InvoiceCalendar.heading(d, by: .day, now: now)
+    }
+
+    /// The rows in the chosen order: by date, a section for each day (the iPhone's list); any other order is one flat run.
+    private func groups(_ rows: [MacInvoicesPlaceRow]) -> [MacInvoicesPlaceGroup] {
+        switch sort {
+        case .date:
+            let newest = rows.sorted { $0.createdAt > $1.createdAt }
+            var order: [String] = []
+            var members: [String: [MacInvoicesPlaceRow]] = [:]
+            for r in newest {
+                if members[r.heading] == nil { order.append(r.heading) }
+                members[r.heading, default: []].append(r)
+            }
+            return order.map { (t: String) in
+                let mine = members[t] ?? []
+                return MacInvoicesPlaceGroup(id: t, title: t, rows: mine, billed: mine.reduce(0) { $0 + $1.total })
+            }
+        case .total:
+            return [flat(rows.sorted { $0.total > $1.total })]
+        case .owed:
+            return [flat(rows.sorted { $0.due > $1.due })]
+        case .customer:
+            return [flat(rows.sorted { $0.customer.localizedCaseInsensitiveCompare($1.customer) == .orderedAscending })]
+        }
+    }
+
+    private func flat(_ rows: [MacInvoicesPlaceRow]) -> MacInvoicesPlaceGroup {
+        MacInvoicesPlaceGroup(id: "all", title: "", rows: rows, billed: rows.reduce(0) { $0 + $1.total })
     }
 
     /// Everything somewhere in the invoice a word can be found by: its number, the customer's name and number, a piece's name
@@ -340,6 +392,51 @@ struct MacInvoicesPlace: View {
             if hay.text.contains(word) { return true }
             let typed = CustomerSearch.digitsTyped(word)
             return typed.count >= 3 && word.allSatisfy { $0.isNumber || $0 == "+" } && hay.digits.contains(typed)
+        }
+    }
+}
+
+/// One invoice as the iPhone's list sets it, at a pointer's size: who it was for over what was sold and its number, the
+/// worth at the right over the one pill of where its balance stands.
+struct MacInvoiceListRow: View {
+    let row: MacInvoicesPlaceRow
+    let mine: Bool
+    /// Not under a day's heading: say the day, not only the time.
+    let dated: Bool
+
+    var body: some View {
+        HStack(alignment: .center, spacing: pt(12)) {
+            Monogram(name: row.customer, size: Monogram.Size.row)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(row.customer).font(.body).lineLimit(1)
+                if !row.sold.isEmpty {
+                    Text(row.sold).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                }
+                HStack(spacing: pt(6)) {
+                    Text([row.id, dated ? row.dateText : row.timeText].filter { !$0.isEmpty }.joined(separator: " \u{00B7} "))
+                        .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    if mine { MineTag() }
+                }
+            }
+            Spacer(minLength: 8)
+            VStack(alignment: .trailing, spacing: 3) {
+                RowAmount(amount: row.total)
+                balance
+            }
+            .fixedSize(horizontal: true, vertical: false)
+        }
+        .padding(.vertical, 3)
+        .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder
+    private var balance: some View {
+        if row.statusText == "Refunded" {
+            Pill("Refunded", tone: .quiet)
+        } else if row.statusText == "In credit" {
+            Pill("In credit", tone: .credit)
+        } else if row.due >= 1 {
+            Pill("\(Money.pkr(row.due)) due", tone: row.tone)
         }
     }
 }

@@ -497,25 +497,35 @@ extension ShareholdersBoard {
         let byPartner = macRowsMade(key) {
             Dictionary(f.positions.map { (p: ShareholderFigures.Position) in (p.id, macRows(p)) }, uniquingKeysWith: { first, _ in first })
         }
-        return VStack(spacing: 0) {
-            MacFigures(figures: [
-                MacFigure("Revenue", ShareholderMoney.fmt(f.totals.totalRevenue)),
-                MacFigure("Expenses", ShareholderMoney.fmt(f.totals.totalExpenses)),
-                MacFigure("Each partner's share", ShareholderMoney.signed(share), tone: share >= 0 ? nil : Tone.owed),
-            ])
-            Text("Divided equally \u{00B7} expenses from \(OwnerText.shortDate(ShareholderFigures.expenseCutoff)) \u{00B7} revenue from Shopify #1103")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 14)
-                .padding(.bottom, 10)
-            Divider()
-            HSplitView {
-                ForEach(f.positions) { (p: ShareholderFigures.Position) in
-                    macPartner(p, rows: byPartner[p.id] ?? [])
-                        .frame(minWidth: 300)
+        return ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 200, maximum: 400), spacing: 16)], spacing: 16) {
+                    MacDashFigureCard(title: "Revenue", symbol: "banknote", tint: Theme.accent,
+                                      value: ShareholderMoney.fmt(f.totals.totalRevenue), detail: "The partnership's", open: nil) { EmptyView() }
+                    MacDashFigureCard(title: "Expenses", symbol: "arrow.up.circle", tint: Color.orange,
+                                      value: ShareholderMoney.fmt(f.totals.totalExpenses), detail: "The partnership's", open: nil) { EmptyView() }
+                    MacDashFigureCard(title: "Each partner's share", symbol: "person.2", tint: share >= 0 ? Tone.settled.color : Tone.owed.color,
+                                      value: ShareholderMoney.signed(share), detail: "Revenue less expenses, halved",
+                                      detailTone: share >= 0 ? nil : Tone.owed, open: nil) { EmptyView() }
+                }
+                Text("Divided equally \u{00B7} expenses from \(OwnerText.shortDate(ShareholderFigures.expenseCutoff)) \u{00B7} revenue from Shopify #1103")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                MacReportsWidth(760) {
+                    HStack(alignment: .top, spacing: 16) {
+                        ForEach(f.positions) { (p: ShareholderFigures.Position) in
+                            macPartner(p, rows: byPartner[p.id] ?? []).frame(maxWidth: .infinity)
+                        }
+                    }
+                } narrow: {
+                    VStack(spacing: 16) {
+                        ForEach(f.positions) { (p: ShareholderFigures.Position) in
+                            macPartner(p, rows: byPartner[p.id] ?? [])
+                        }
+                    }
                 }
             }
+            .padding(20)
         }
         .background(Theme.ground)
         .macInspector {
@@ -525,6 +535,8 @@ extension ShareholdersBoard {
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
+            .background(Theme.ground)
+            .houseRows()
         }
     }
 
@@ -551,8 +563,9 @@ extension ShareholdersBoard {
         let tone: Color = owed ? Tone.credit.color : (claim < 0 ? Tone.owed.color : Color.primary)
         return VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(p.name).font(.title2.weight(.semibold))
+                HStack(alignment: .center, spacing: 12) {
+                    Monogram(name: p.name, size: Monogram.Size.hero)
+                    Text(p.name).font(.system(.title2, design: .serif).weight(.semibold))
                     Spacer(minLength: 8)
                     Menu {
                         Button { asking = ShareholderAsk(move: .salary, who: p.id) } label: { Label("Pay salary", systemImage: "banknote") }
@@ -567,10 +580,7 @@ extension ShareholdersBoard {
                 HStack(alignment: .firstTextBaseline) {
                     Text(words).foregroundStyle(.secondary)
                     Spacer(minLength: 8)
-                    Text(Money.pkr(abs(claim.rounded())))
-                        .font(.title2.weight(.semibold))
-                        .monospacedDigit()
-                        .foregroundStyle(tone)
+                    HeroAmount(amount: abs(claim.rounded()), tone: tone)
                 }
                 Divider()
                 LabeledContent("Loan to the business") { RowAmount(amount: abs(p.balance.loanBalance.rounded())) }
@@ -586,7 +596,7 @@ extension ShareholdersBoard {
                     smallFigure("Capital drawn", p.withdrawn, symbol: "arrow.up.right")
                 }
             }
-            .padding(14)
+            .padding(16)
             Divider()
             Table(rows, selection: $macPick) {
                 TableColumn("Date") { (r: PartnerMacRow) in Text(OwnerText.shortDate(r.day)).lineLimit(1) }
@@ -613,6 +623,8 @@ extension ShareholdersBoard {
             .onDeleteCommand {
                 if macPick.count == 1, let id = macPick.first, let r = rows.first(where: { $0.id == id }) { macDelete(r, of: p) }
             }
+            .scrollContentBackground(.hidden)
+            .frame(minHeight: rows.isEmpty ? 200 : min(420, 90 + 44 * CGFloat(rows.count)))
             .overlay {
                 if rows.isEmpty {
                     ContentUnavailableView("No Entries", systemImage: "tray",
@@ -620,6 +632,8 @@ extension ShareholdersBoard {
                 }
             }
         }
+        .houseCard()
+        .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
     }
 
     private func macDelete(_ r: PartnerMacRow, of p: ShareholderFigures.Position) {

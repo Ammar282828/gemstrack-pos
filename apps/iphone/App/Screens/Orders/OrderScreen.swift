@@ -883,12 +883,13 @@ extension OrderScreen {
         let stage = localStage(order, owedOnInvoice: owed)
         let groups = macGroups(order, stage: stage, owed: owed)
         return ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 16) {
                 macHeader(order, stage: stage, owed: owed, invoice: invoice)
-                Divider()
                 macColumns(order, stage: stage, owed: owed, invoice: invoice)
             }
+            .padding(20)
         }
+        .background(Theme.ground)
         .onGeometryChange(for: Bool.self) { $0.size.width >= 1000 } action: { macWide = $0 }
         .navigationSubtitle(OrdersLogic.customerName(order))
         .toolbar { macToolbar(groups) }
@@ -903,15 +904,63 @@ extension OrderScreen {
 
     // MARK: Head
 
+    /// The iPhone's order page head as a card: the monogram, the name, where it stands (pill, the four steps), the one big
+    /// figure, how much of it is paid, and the customer's quick actions.
     private func macHeader(_ order: Order, stage: OrderStage, owed: Double, invoice: Invoice?) -> some View {
         let phone = (order.customerContact ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         let subtitle = phone.isEmpty ? caption(order) : caption(order) + " \u{00B7} " + OrdersLogic.phoneWords(phone)
-        return MacDocumentHeader(
-            title: OrdersLogic.customerName(order),
-            subtitle: subtitle,
-            status: MacStatus(macStageWords(order, stage: stage), tone: MacOrdersLogic.tone(stage)),
-            headline: macHeadline(order, stage: stage, owed: owed, invoice: invoice)
-        )
+        let headline = macHeadline(order, stage: stage, owed: owed, invoice: invoice)
+        let worth = MacOrdersLogic.worth(order, invoice: invoice)
+        let paid = invoice.map { $0.amountPaid } ?? MacOrdersLogic.paid(order)
+        return VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 14) {
+                Monogram(name: OrdersLogic.customerName(order), size: Monogram.Size.hero)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(OrdersLogic.customerName(order))
+                        .font(.system(.title, design: .serif).weight(.semibold))
+                        .lineLimit(2).textSelection(.enabled)
+                    Text(subtitle).font(.callout).foregroundStyle(.secondary).textSelection(.enabled)
+                    Pill(macStageWords(order, stage: stage), tone: MacOrdersLogic.tone(stage))
+                        .padding(.top, 2)
+                }
+                Spacer(minLength: 12)
+                if let headline {
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text(headline.label).font(.callout).foregroundStyle(.secondary)
+                        HeroAmount(amount: macHeadlineAmount(order, stage: stage, owed: owed, invoice: invoice),
+                                   tone: headline.tone == .quiet ? Color.primary : headline.tone.color)
+                    }
+                }
+            }
+            if stage != .closed {
+                StageTrack(stage: stage, labels: true)
+                PaidBar(paid: paid, total: worth)
+            }
+            ContactActions(phone: phone)
+                .frame(maxWidth: 360, alignment: .leading)
+        }
+        .padding(Metrics.cardPadding + 4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .houseCard()
+    }
+
+    /// The figure the head's hero shows (macHeadline's words, as a number).
+    private func macHeadlineAmount(_ order: Order, stage: OrderStage, owed: Double, invoice: Invoice?) -> Double {
+        let due = OrdersLogic.hasInvoice(order) ? (invoice?.balanceDue ?? owed) : OrdersLogic.balance(order)
+        if due >= 1 { return due }
+        if isCredit(due) { return -due }
+        return MacOrdersLogic.worth(order, invoice: invoice)
+    }
+
+    /// A card of the window: the serif heading (a figure beside it), then its content, on the house's card.
+    private func macCard<C: View>(_ title: String, trailing: String? = nil, @ViewBuilder _ content: () -> C) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            LedgerHeading(title: title, trailing: trailing)
+            content()
+        }
+        .padding(Metrics.cardPadding + 2)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .houseCard()
     }
 
     /// The stage's words, and how far the pieces have come while they are being made.
@@ -940,30 +989,24 @@ extension OrderScreen {
     @ViewBuilder
     private func macColumns(_ order: Order, stage: OrderStage, owed: Double, invoice: Invoice?) -> some View {
         if macWide {
-            HStack(alignment: .top, spacing: 0) {
+            HStack(alignment: .top, spacing: 16) {
                 macMain(order, owed: owed, invoice: invoice)
-                    .padding(20)
                     .frame(maxWidth: .infinity, alignment: .topLeading)
-                Divider()
                 macSide(order, stage: stage)
-                    .padding(20)
                     .frame(width: 320, alignment: .topLeading)
             }
         } else {
-            VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 16) {
                 macMain(order, owed: owed, invoice: invoice)
-                    .padding(20)
                     .frame(maxWidth: .infinity, alignment: .topLeading)
-                Divider()
                 macSide(order, stage: stage)
-                    .padding(20)
                     .frame(maxWidth: .infinity, alignment: .topLeading)
             }
         }
     }
 
     private func macMain(_ order: Order, owed: Double, invoice: Invoice?) -> some View {
-        VStack(alignment: .leading, spacing: 24) {
+        VStack(alignment: .leading, spacing: 16) {
             macPieces(order)
             macAdvances(order)
             macMoney(order, owed: owed, invoice: invoice)
@@ -971,7 +1014,7 @@ extension OrderScreen {
     }
 
     private func macSide(_ order: Order, stage: OrderStage) -> some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 16) {
             macPieceDetail(order)
             macDetails(order, stage: stage)
             macOnline(order)
@@ -991,14 +1034,7 @@ extension OrderScreen {
         }
         // Open pieces first; the finished ones follow.
         let ordered: [OrderPieceTableRow] = rows.filter { !$0.done } + rows.filter { $0.done }
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("Pieces").font(.headline)
-                Spacer(minLength: 8)
-                if !order.items.isEmpty {
-                    Text("\(doneCount) of \(order.items.count) done").foregroundStyle(.secondary).monospacedDigit()
-                }
-            }
+        macCard("Pieces", trailing: order.items.isEmpty ? nil : "\(doneCount) of \(order.items.count) done") {
             if order.items.isEmpty {
                 Text("No pieces on this order.").foregroundStyle(.secondary)
             } else {
@@ -1035,6 +1071,9 @@ extension OrderScreen {
         if let i = macPickedIndex(order) {
             MacOrdersPieceDetail(index: i, item: order.items[i], showBreakdown: session.isOwner)
                 .id(i)
+                .padding(Metrics.cardPadding + 2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .houseCard()
         }
     }
 
@@ -1042,8 +1081,7 @@ extension OrderScreen {
     private func macAdvances(_ order: Order) -> some View {
         let lines = OrdersLogic.advanceLines(order)
         if !lines.isEmpty && !OrdersLogic.hasInvoice(order) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Advances").font(.headline)
+            macCard("Advances") {
                 MacOrdersAdvancesGrid(lines: lines, canDelete: OrderActions.canDeleteAdvance(order, isOwner: session.isOwner)) { l in
                     undo = OrderUndo.deleteAdvance(order, line: l)
                 }
@@ -1056,16 +1094,15 @@ extension OrderScreen {
     /// Total, Paid and Due, then what they are made of: the order's own sums until it is invoiced, the invoice's after.
     @ViewBuilder
     private func macMoney(_ order: Order, owed: Double, invoice: Invoice?) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Money").font(.headline)
-            if OrdersLogic.hasInvoice(order) {
-                macInvoiceMoney(order, invoice: invoice)
-            } else {
-                macOrderMoney(order)
+        macCard("Money") {
+            VStack(alignment: .leading, spacing: 6) {
+                if OrdersLogic.hasInvoice(order) {
+                    macInvoiceMoney(order, invoice: invoice)
+                } else {
+                    macOrderMoney(order)
+                }
             }
         }
-        .frame(maxWidth: 380, alignment: .leading)
-        .frame(maxWidth: .infinity, alignment: .trailing)
     }
 
     @ViewBuilder
@@ -1129,8 +1166,7 @@ extension OrderScreen {
         let note = noteText(order) ?? ""
         let blocked: String? = session.isOwner ? OrderActions.deleteBlocked(order) : nil
         let p = OrdersLogic.promise(order, now: Date())
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Details").font(.headline)
+        macCard("Details") {
             if OrdersLogic.isOpen(order) || !p.undated {
                 MacOrdersFact(label: "Promised") {
                     Text(OrdersLogic.promiseLine(order, now: Date()))

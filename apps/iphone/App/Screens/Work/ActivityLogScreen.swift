@@ -404,12 +404,14 @@ extension ActivityLogScreen {
             case .log: macLog(list)
             case .signIns: macSignIns
             case .lock:
-                Form { lockSection }
+                Form { lockSection.houseRows() }
                     .formStyle(.grouped)
+                    .scrollContentBackground(.hidden)
                     .frame(maxWidth: 620)
                     .frame(maxWidth: .infinity)
             }
         }
+        .background(Theme.ground)
         .navigationSubtitle(macPane == .log ? "\(list.count) lines" : "")
         .toolbar {
             ToolbarItem(placement: .principal) {
@@ -447,6 +449,13 @@ extension ActivityLogScreen {
             }
             .pickerStyle(.inline)
             Divider()
+            Picker("Sort by", selection: macSortChoice) {
+                Text("Newest First").tag(0)
+                Text("Oldest First").tag(1)
+                Text("Kind").tag(2)
+            }
+            .pickerStyle(.inline)
+            Divider()
             Button { macDatesOpen = true } label: {
                 Label("Days\u{2026}", systemImage: range.useFrom ? "calendar.badge.checkmark" : "calendar")
             }
@@ -466,6 +475,24 @@ extension ActivityLogScreen {
             .frame(width: 320)
             .padding(.vertical, 6)
         }
+    }
+
+    /// The Sort by pick: newest first, the iPhone's order, unless chosen.
+    private var macSortChoice: Binding<Int> {
+        Binding(
+            get: {
+                guard let first = macSort.first else { return 0 }
+                if (first.keyPath as AnyKeyPath) == (\ActivityLogEntry.eventType as AnyKeyPath) { return 2 }
+                return first.order == .forward ? 1 : 0
+            },
+            set: { (n: Int) in
+                switch n {
+                case 1: macSort = [KeyPathComparator(\ActivityLogEntry.timestamp)]
+                case 2: macSort = [KeyPathComparator(\ActivityLogEntry.eventType), KeyPathComparator(\ActivityLogEntry.timestamp, order: .reverse)]
+                default: macSort = [KeyPathComparator(\ActivityLogEntry.timestamp, order: .reverse)]
+                }
+            }
+        )
     }
 
     /// The picked line, when exactly one is picked and it can be undone.
@@ -498,29 +525,30 @@ extension ActivityLogScreen {
         ]
         let rows: [ActivityLogEntry] = macRowsMemo(key) { Array(list.sorted(using: macSort).prefix(shown)) }
         return VStack(spacing: 0) {
-            Table(rows, selection: $macSelection, sortOrder: $macSort) {
-                TableColumn("Event", value: \.description) { (e: ActivityLogEntry) in
-                    HStack(spacing: 8) {
+            List(selection: $macSelection) {
+                ForEach(rows) { (e: ActivityLogEntry) in
+                    let tint = tone(ActivityLogRules.tone(e.eventType)).color
+                    HStack(spacing: 10) {
                         Image(systemName: symbol(e.eventType))
-                            .foregroundStyle(tone(ActivityLogRules.tone(e.eventType)).color)
-                            .frame(width: 20)
-                        Text(e.description).lineLimit(1)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(tint)
+                            .frame(width: Monogram.Size.row, height: Monogram.Size.row)
+                            .background(tint.opacity(0.13), in: .circle)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(e.description).font(.body).lineLimit(1)
+                            Text(e.details.isEmpty ? ActivityLogRules.title(e.eventType) : e.details)
+                                .font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                        }
+                        Spacer(minLength: 8)
+                        Text(ShopDate.say(e.timestamp, withTime: true)).font(.caption).monospacedDigit().foregroundStyle(.secondary)
                     }
+                    .padding(.vertical, 3)
+                    .tag(e.id)
+                    .houseRows()
                 }
-                .width(min: 140, ideal: 320)
-                TableColumn("Details", value: \.details) { (e: ActivityLogEntry) in
-                    Text(e.details).foregroundStyle(.secondary).lineLimit(1)
-                }
-                .width(min: 100, ideal: 240)
-                TableColumn("Kind", value: \.eventType) { (e: ActivityLogEntry) in
-                    Text(ActivityLogRules.title(e.eventType)).foregroundStyle(.secondary).lineLimit(1)
-                }
-                .width(min: 80, ideal: 120)
-                TableColumn("When", value: \.timestamp) { (e: ActivityLogEntry) in
-                    Text(ShopDate.say(e.timestamp, withTime: true)).monospacedDigit().lineLimit(1)
-                }
-                .width(min: 110, ideal: 150)
             }
+            .listStyle(.inset)
+            .scrollContentBackground(.hidden)
             .contextMenu(forSelectionType: String.self) { ids in
                 if ids.count == 1, let id = ids.first, let e = list.first(where: { $0.id == id }) {
                     if let path = macPath(e) {
@@ -564,22 +592,27 @@ extension ActivityLogScreen {
     @ViewBuilder
     private var macSignIns: some View {
         if let signIns {
-            Table(signIns) {
-                TableColumn("Who") { (s: ActivitySignIn) in
-                    Text(s.displayName.isEmpty ? (s.email.isEmpty ? "\u{2014}" : s.email) : s.displayName).lineLimit(1)
+            List {
+                ForEach(Array(signIns.enumerated()), id: \.offset) { _, s in
+                    let who = s.displayName.isEmpty ? (s.email.isEmpty ? "\u{2014}" : s.email) : s.displayName
+                    HStack(spacing: 10) {
+                        Monogram(name: who, size: Monogram.Size.row)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(who).font(.body).lineLimit(1)
+                            Text([s.email, s.os, s.browser].filter { !$0.isEmpty && $0 != who }.joined(separator: " \u{00B7} "))
+                                .font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                        }
+                        Spacer(minLength: 8)
+                        Text(s.timestamp.isEmpty ? "\u{2014}" : ShopDate.say(s.timestamp, withTime: true))
+                            .font(.caption).monospacedDigit().foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 3)
+                    .houseRows()
                 }
-                .width(min: 100, ideal: 160)
-                TableColumn("Email") { (s: ActivitySignIn) in Text(s.email).foregroundStyle(.secondary).lineLimit(1) }
-                    .width(min: 120, ideal: 200)
-                TableColumn("Device") { (s: ActivitySignIn) in
-                    Text([s.os, s.browser].filter { !$0.isEmpty }.joined(separator: " \u{00B7} ")).foregroundStyle(.secondary).lineLimit(1)
-                }
-                .width(min: 100, ideal: 150)
-                TableColumn("When") { (s: ActivitySignIn) in
-                    Text(s.timestamp.isEmpty ? "\u{2014}" : ShopDate.say(s.timestamp, withTime: true)).monospacedDigit().lineLimit(1)
-                }
-                .width(min: 110, ideal: 150)
             }
+            .listStyle(.inset)
+            .scrollContentBackground(.hidden)
+            .background(Theme.ground)
             .overlay {
                 if signIns.isEmpty {
                     ContentUnavailableView("No sign-in activity recorded yet", systemImage: "person.badge.key")

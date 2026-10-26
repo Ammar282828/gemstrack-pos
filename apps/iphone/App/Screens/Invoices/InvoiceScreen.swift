@@ -1006,19 +1006,13 @@ extension InvoiceScreen {
 
     private func macDocument(_ inv: Invoice) -> some View {
         let cx = macContext()
-        let status = MacInvoiceWords.status(inv)
         let who = InvoiceFacts.customerName(inv, walkIn: "Walk-in")
-        return VStack(spacing: 0) {
-            MacDocumentHeader(title: who, subtitle: MacInvoiceWords.subtitle(inv),
-                              status: MacStatus(status.text, tone: status.tone),
-                              headline: MacInvoiceWords.headline(inv))
+        return HStack(alignment: .top, spacing: 0) {
+            ScrollView { macMain(inv, cx) }
             Divider()
-            HStack(alignment: .top, spacing: 0) {
-                ScrollView { macMain(inv, cx) }
-                Divider()
-                macDetails(inv, cx).frame(minWidth: 220, idealWidth: 280, maxWidth: 300)
-            }
+            macDetails(inv, cx).frame(minWidth: 240, idealWidth: 290, maxWidth: 320)
         }
+        .background(Theme.ground)
         .navigationSubtitle(who)
         .toolbar { macToolbar(inv, cx) }
         .macRecordMenu(MacRecordMenu(title: "Invoice", groups: MacInvoiceMenu.groups(inv, cx)))
@@ -1057,13 +1051,15 @@ extension InvoiceScreen {
     // MARK: The pieces, the totals and the payments
 
     private func macMain(_ inv: Invoice, _ cx: MacInvoiceContext) -> some View {
-        VStack(alignment: .leading, spacing: 22) {
+        VStack(alignment: .leading, spacing: 16) {
+            MacInvoiceHead(invoice: inv, cx: cx, customerTitleFont: .system(.title2, design: .serif).weight(.semibold),
+                           withContact: true)
             MacInvoicePiecesTable(invoice: inv, isOwner: session.isOwner)
             MacInvoiceTotalsBlock(invoice: inv, rates: appliedRates(inv))
             MacInvoicePaymentsTable(invoice: inv, isOwner: session.isOwner, credit: macCredit(inv, cx),
                                     onDeletePayment: { index, payment in macAskDelete(inv, index: index, payment: payment) })
         }
-        .padding(20)
+        .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
@@ -1096,8 +1092,9 @@ extension InvoiceScreen {
         let by = inv.takenBy ?? ""
         let source = MacInvoiceWords.source(inv)
         let shopNote = (inv.internalNote ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        return Form {
-            Section("Details") {
+        return ScrollView {
+          VStack(spacing: 12) {
+            MacInspectorCard(title: "Details") {
                 macCustomerRow(inv, cx)
                 if !order.isEmpty {
                     LabeledContent("From Order") {
@@ -1122,13 +1119,15 @@ extension InvoiceScreen {
                 }
             }
             if showsMargin || !shopNote.isEmpty {
-                Section("For the Shop (Never Printed)") {
+                MacInspectorCard(title: "For the Shop (Never Printed)") {
                     if showsMargin { MacInvoiceMarginRow(invoice: inv) }
                     if !shopNote.isEmpty { Text(shopNote) }
                 }
             }
+          }
+          .padding(12)
         }
-        .formStyle(.grouped)
+        .background(Theme.ground)
     }
 
     /// The customer: their page when they are a real customer, else the way to name them.
@@ -1185,8 +1184,8 @@ private struct MacInvoicePiecesTable: View {
 
     var body: some View {
         let shown = rows
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Pieces").font(.headline)
+        VStack(alignment: .leading, spacing: 10) {
+            LedgerHeading(title: "Pieces", count: shown.count)
             Table(shown, selection: $selection) {
                 TableColumn("Piece") { (r: Row) in
                     HStack(spacing: 6) {
@@ -1202,6 +1201,7 @@ private struct MacInvoicePiecesTable: View {
                     .width(min: 70, ideal: 100)
             }
             .frame(height: MacInvoiceTableSize.height(shown.count))
+            .scrollContentBackground(.hidden)
             .contextMenu(forSelectionType: Int.self) { ids in
                 if let i = ids.first, let row = shown.first(where: { $0.id == i }) {
                     if let sku = row.stock {
@@ -1218,6 +1218,7 @@ private struct MacInvoicePiecesTable: View {
             .overlay { if shown.isEmpty { Text("No pieces on this invoice.").foregroundStyle(.secondary) } }
             pieceDetail(shown)
         }
+        .ledgerCard()
     }
 
     /// The picked piece's own facts: what is set into it and, for owners, the price broken into its parts.
@@ -1286,6 +1287,7 @@ private struct MacInvoiceTotalsBlock: View {
             }
             .frame(minWidth: 220, idealWidth: 300, maxWidth: 300)
         }
+        .ledgerCard()
     }
 
     private func line(_ label: String, _ value: String, bold: Bool = false, tone: Tone = .quiet) -> some View {
@@ -1358,8 +1360,8 @@ private struct MacInvoicePaymentsTable: View {
 
     var body: some View {
         let shown = rows
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Payments").font(.headline)
+        VStack(alignment: .leading, spacing: 10) {
+            LedgerHeading(title: "Payments", count: shown.count > 1 ? shown.count : nil)
             Table(shown, selection: $selection) {
                 TableColumn("When") { (r: Row) in Text(r.when).monospacedDigit().lineLimit(1) }
                     .width(min: 110, ideal: 160)
@@ -1374,6 +1376,7 @@ private struct MacInvoicePaymentsTable: View {
                 .width(min: 70, ideal: 100)
             }
             .frame(height: MacInvoiceTableSize.height(shown.count))
+            .scrollContentBackground(.hidden)
             .contextMenu(forSelectionType: Int.self) { ids in
                 if let i = ids.first, let row = shown.first(where: { $0.id == i }) {
                     Button("Copy Amount") { UIPasteboard.general.string = String(Int(row.payment.amount.rounded())) }
@@ -1395,6 +1398,7 @@ private struct MacInvoicePaymentsTable: View {
                 }
             }
         }
+        .ledgerCard()
     }
 }
 

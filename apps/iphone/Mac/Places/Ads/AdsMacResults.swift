@@ -7,20 +7,14 @@ import ERPCore
 // days, what needs a look, the ads that spent most, and who saw them, where and in which region as sortable tables.
 // The screen (AdsOverview.swift) keeps the loading and the Pause / Run writes; these are the parts it is made of.
 
-/// A titled block of the report: a plain heading (and its quiet line), then the block.
+/// A block of the report: its heading in the serif (and its quiet line), then the block, on a card.
 struct AdsMacSection<Content: View>: View {
     let title: String
     var detail: String?
     @ViewBuilder let content: () -> Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(title).font(.headline)
-                if let detail, !detail.isEmpty { Text(detail).font(.callout).foregroundStyle(.secondary) }
-            }
-            content()
-        }
+        AdsMacCard(title: title, detail: detail, content: content)
     }
 }
 
@@ -89,32 +83,34 @@ struct AdsMacAttentionTable: View {
         if items.isEmpty {
             Label("Nothing needs attention.", systemImage: "checkmark.circle").foregroundStyle(Tone.settled.color)
         } else {
-            Table(items) {
-                TableColumn("") { (a: AdAttention) in
-                    Image(systemName: a.severity == "tip" ? "lightbulb" : "exclamationmark.triangle.fill")
-                        .foregroundStyle(a.severity == "bad" ? Tone.problem.color : (a.severity == "warn" ? Tone.owed.color : Color.secondary))
+            VStack(spacing: 0) {
+                ForEach(Array(items.enumerated()), id: \.element.id) { i, a in
+                    if i > 0 { Divider() }
+                    row(a)
                 }
-                .width(24)
-                TableColumn("What") { (a: AdAttention) in
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(a.title).fontWeight(.medium).lineLimit(1)
-                        Text(a.why).font(.caption).foregroundStyle(.secondary).lineLimit(2)
-                    }
-                }
-                .width(min: 220, ideal: 480)
-                TableColumn("") { (a: AdAttention) in
-                    if a.doing == "pause" {
-                        Button("Pause") { pause(a) }.controlSize(.small).disabled(acting != nil)
-                    } else if a.doing == "resume" {
-                        Button("Run Again…") { resume(a) }.controlSize(.small).disabled(acting != nil)
-                    } else if a.doing == "open", !a.href.isEmpty {
-                        Button("Open") { open(a) }.controlSize(.small)
-                    }
-                }
-                .width(min: 90, ideal: 110)
             }
-            .frame(height: adsMacTableHeight(items.count, row: 40))
         }
+    }
+
+    private func row(_ a: AdAttention) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: a.severity == "tip" ? "lightbulb" : "exclamationmark.triangle.fill")
+                .foregroundStyle(a.severity == "bad" ? Tone.problem.color : (a.severity == "warn" ? Tone.owed.color : Color.secondary))
+                .frame(width: 22)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(a.title).font(.body.weight(.medium))
+                Text(a.why).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 8)
+            if a.doing == "pause" {
+                Button("Pause") { pause(a) }.disabled(acting != nil)
+            } else if a.doing == "resume" {
+                Button("Run Again…") { resume(a) }.disabled(acting != nil)
+            } else if a.doing == "open", !a.href.isEmpty {
+                Button("Open") { open(a) }
+            }
+        }
+        .padding(.vertical, 8)
     }
 }
 
@@ -149,59 +145,46 @@ struct AdsMacTopRow: Identifiable {
     }
 }
 
-/// The top ads as a sortable table: a click picks one, Return or a double-click opens it (one step, not two).
+/// The top ads as the iPhone's rows on a card: the picture, the ad over its campaign, what it spent over what it brought.
+/// A click or Return opens the ad (one step, not two); right-click offers it too.
 struct AdsMacTopAdsTable: View {
     let ads: [AdTop]
     let currency: String
     let open: (String) -> Void
-    @State private var sort = [KeyPathComparator(\AdsMacTopRow.spend, order: .reverse)]
-    @State private var picked = Set<String>()
 
     var body: some View {
-        let rows = ads.map(AdsMacTopRow.init).sorted(using: sort)
-        Table(rows, selection: $picked, sortOrder: $sort) {
-            TableColumn("Ad", value: \.name) { (r: AdsMacTopRow) in
-                HStack(spacing: 8) {
-                    StockImage(imageUrl: r.thumb, name: r.name, key: r.id)
-                        .frame(width: 28, height: 28)
-                        .clipShape(.rect(cornerRadius: 4, style: .continuous))
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text(r.name).lineLimit(1)
-                        Text(r.campaign).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                    }
-                }
+        VStack(spacing: 0) {
+            ForEach(Array(ads.enumerated()), id: \.element.id) { i, a in
+                if i > 0 { Divider().padding(.leading, 60) }
+                MacDashRow { open(a.id) } label: { row(a) }
+                    .contextMenu { Button("Open Ad", systemImage: "arrow.up.forward.square") { open(a.id) } }
             }
-            .width(min: 120, ideal: 240)
-            TableColumn(AdsMacMoney.header("Spent", currency), value: \.spend) { (r: AdsMacTopRow) in
-                AdsMacMoney(r.spend)
-            }
-            .width(min: 70, ideal: 90)
-            TableColumn("Results", value: \.results) { (r: AdsMacTopRow) in
-                Text(r.results > 0 ? "\(AdsFormat.count(r.results)) \(r.resultLabel.lowercased())" : "").monospacedDigit().lineLimit(1)
-            }
-            .width(min: 80, ideal: 130)
-            TableColumn(AdsMacMoney.header("Each", currency), value: \.each) { (r: AdsMacTopRow) in
-                AdsMacMoney(r.each > 0 ? r.each : nil)
-            }
-            .width(min: 70, ideal: 90)
-            TableColumn("ROAS", value: \.roas) { (r: AdsMacTopRow) in
-                Text(r.sales > 0 ? AdsResults.roasText(r.roas) : "")
-                    .monospacedDigit().frame(maxWidth: .infinity, alignment: .trailing)
-            }
-            .width(min: 50, ideal: 64)
-            TableColumn("Reach", value: \.reach) { (r: AdsMacTopRow) in
-                Text(AdsFormat.compact(r.reach)).monospacedDigit().frame(maxWidth: .infinity, alignment: .trailing)
-            }
-            .width(min: 56, ideal: 72)
         }
-        .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
-            if ids.count == 1, let id = ids.first {
-                Button("Open Ad", systemImage: "arrow.up.forward.square") { open(id) }
+    }
+
+    private func row(_ a: AdTop) -> some View {
+        HStack(spacing: 12) {
+            StockImage(imageUrl: a.thumbnail, name: a.name, key: a.id)
+                .frame(width: 44, height: 44)
+                .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(a.name).font(.body).lineLimit(1)
+                Text(a.campaign).font(.callout).foregroundStyle(.secondary).lineLimit(1)
             }
-        } primaryAction: { (ids: Set<String>) in
-            if let id = ids.first { open(id) }
+            Spacer(minLength: 8)
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(AdsFormat.money(a.metrics.spend, currency)).font(.body.weight(.semibold)).monospacedDigit()
+                Text(resultLine(a)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            }
         }
-        .frame(height: adsMacTableHeight(rows.count, row: 36))
+    }
+
+    private func resultLine(_ a: AdTop) -> String {
+        let s = AdsResults.sales(a.metrics)
+        let roas = s.value > 0 ? " · \(AdsResults.roasText(s.roas)) ROAS" : ""
+        guard let r = AdsResults.of(a.metrics, goal: a.goal) else { return "\(AdsFormat.compact(a.metrics.reach)) reached\(roas)" }
+        let each = r.value > 0 ? " · \(AdsFormat.money(a.metrics.spend / r.value, currency)) each" : ""
+        return "\(AdsFormat.count(r.value)) \(r.label.lowercased())\(each)\(roas)"
     }
 }
 
@@ -255,6 +238,7 @@ struct AdsMacSplitTable: View {
             }
             .width(min: 60, ideal: 80)
         }
+        .scrollContentBackground(.hidden)
         .frame(height: adsMacTableHeight(list.count))
     }
 }
@@ -263,19 +247,19 @@ struct AdsMacSplitTable: View {
 
 struct AdsMacBroughtTable: View {
     let lines: [AdsResults.Line]
-    @State private var sort = [KeyPathComparator(\AdsResults.Line.value, order: .reverse)]
 
     var body: some View {
-        let list = lines.sorted(using: sort)
-        Table(list, sortOrder: $sort) {
-            TableColumn("Result", value: \.label) { (l: AdsResults.Line) in Text(l.label) }
-                .width(min: 140, ideal: 260)
-            TableColumn("Count", value: \.value) { (l: AdsResults.Line) in
-                Text(AdsFormat.count(l.value)).monospacedDigit().frame(maxWidth: .infinity, alignment: .trailing)
+        VStack(spacing: 0) {
+            ForEach(Array(lines.sorted { (x: AdsResults.Line, y: AdsResults.Line) in x.value > y.value }.enumerated()), id: \.element.id) { i, l in
+                if i > 0 { Divider() }
+                HStack {
+                    Text(l.label)
+                    Spacer(minLength: 8)
+                    Text(AdsFormat.count(l.value)).monospacedDigit()
+                }
+                .padding(.vertical, 7)
             }
-            .width(min: 70, ideal: 100)
         }
-        .frame(height: adsMacTableHeight(list.count))
     }
 }
 #endif

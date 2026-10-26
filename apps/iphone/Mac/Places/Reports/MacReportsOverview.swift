@@ -18,38 +18,31 @@ struct MacReportsOverview: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 16) {
                 macReportsFigures(moneyFigures)
-                Divider()
                 macReportsFigures(flowFigures)
-                Divider()
                 trend
-                // Three columns from about 780 points; narrower, one under another (each would be under 260 points).
+                // Three cards from about 780 points; narrower, one under another (each would be under 260 points).
                 MacReportsWidth(780) {
-                    HStack(alignment: .top, spacing: 0) {
-                        facts.frame(maxWidth: .infinity, alignment: .topLeading)
-                        if c.showCosts {
-                            Divider()
-                            expenses.frame(maxWidth: .infinity, alignment: .topLeading)
-                        }
-                        Divider()
-                        gold.frame(maxWidth: .infinity, alignment: .topLeading)
+                    HStack(alignment: .top, spacing: 16) {
+                        MacReportsCard { facts }
+                        if c.showCosts { MacReportsCard { expenses } }
+                        MacReportsCard { gold }
                     }
                 } narrow: {
-                    VStack(alignment: .leading, spacing: 0) {
-                        facts.frame(maxWidth: .infinity, alignment: .topLeading)
-                        if c.showCosts {
-                            Divider()
-                            expenses.frame(maxWidth: .infinity, alignment: .topLeading)
-                        }
-                        Divider()
-                        gold.frame(maxWidth: .infinity, alignment: .topLeading)
+                    VStack(alignment: .leading, spacing: 16) {
+                        MacReportsCard { facts }
+                        if c.showCosts { MacReportsCard { expenses } }
+                        MacReportsCard { gold }
                     }
                 }
-                Divider()
                 notes
             }
+            .padding(20)
+            .frame(maxWidth: 1400, alignment: .leading)
+            .frame(maxWidth: .infinity)
         }
+        .background(Theme.ground)
     }
 
     // MARK: The figures
@@ -117,11 +110,12 @@ struct MacReportsOverview: View {
     @ViewBuilder
     private var trend: some View {
         if !f.salesOverTime.isEmpty {
-            MacReportsHeader(title: "Revenue over time", detail: nil)
-            AnaRevenueBars(days: f.salesOverTime)
-                .padding(.horizontal, 12)
-                .padding(.bottom, 10)
-            Divider()
+            MacReportsCard {
+                MacReportsHeader(title: "Revenue over time", detail: nil)
+                AnaRevenueBars(days: f.salesOverTime)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 14)
+            }
         }
     }
 
@@ -132,7 +126,6 @@ struct MacReportsOverview: View {
             MacReportsFacts(title: "Revenue and pieces", detail: nil, rows: revenueFacts)
             MacReportsFacts(title: "Cash in made of", detail: Money.pkrLac(f.cashIn), rows: cashFacts)
         }
-        .padding(.bottom, 8)
     }
 
     private var revenueFacts: [MacReportsFact] {
@@ -176,8 +169,8 @@ struct MacReportsOverview: View {
             if rows.isEmpty {
                 Text("No expenses recorded for the selected period.")
                     .foregroundStyle(.secondary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 14)
             } else {
                 Table(rows, sortOrder: $expenseSort) {
                     TableColumn("Category", value: \.category)
@@ -190,6 +183,7 @@ struct MacReportsOverview: View {
                     .width(min: 50, ideal: 60)
                 }
                 .scrollDisabled(true)
+                .scrollContentBackground(.hidden)
                 .frame(height: 36 + 26 * CGFloat(rows.count))
             }
         }
@@ -214,8 +208,8 @@ struct MacReportsOverview: View {
             if rows.isEmpty {
                 Text("No gold sold in this period.")
                     .foregroundStyle(.secondary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 14)
             } else {
                 Table(rows, sortOrder: $karatSort) {
                     TableColumn("Karat", value: \.karat)
@@ -232,6 +226,7 @@ struct MacReportsOverview: View {
                         .width(min: 50, ideal: 60)
                 }
                 .scrollDisabled(true)
+                .scrollContentBackground(.hidden)
                 .frame(height: 36 + 26 * CGFloat(rows.count))
             }
             coins
@@ -247,8 +242,8 @@ struct MacReportsOverview: View {
             Text("Coin figures are separate from jewellery revenue and profit.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-                .padding(.horizontal, 12)
-                .padding(.bottom, 8)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 12)
         }
     }
 
@@ -282,8 +277,7 @@ struct MacReportsOverview: View {
         }
         .font(.caption)
         .foregroundStyle(.secondary)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
+        .padding(.horizontal, 4)
     }
 }
 

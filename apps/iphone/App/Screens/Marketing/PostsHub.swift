@@ -34,7 +34,7 @@ struct PostsHub: View {
     /// The table: what is picked, how it is sorted, the search; which of the hub's two views shows; the piece waiting for the yes
     /// that sends it, the piece being given a time, and the website piece picked in the gallery.
     @State private var macSelection = Set<String>()
-    @State private var macSort = [KeyPathComparator(\MacPostsRow.rank), KeyPathComparator(\MacPostsRow.when)]
+    @State private var macByTime = false
     @State private var macQuery = ""
     @State private var macMode = MacPostsMode.posts
     @State private var macSending: Opened?
@@ -589,8 +589,14 @@ extension PostsHub {
                     Button("Spread Over the Day…", systemImage: "clock") { spreading = true }.disabled(store.waiting.isEmpty)
                     Button(store.waiting.count > 1 ? "Send All \(store.waiting.count) Now…" : "Send It Now…", systemImage: "paperplane") { confirmingAll = true }
                         .disabled(store.waiting.isEmpty || sendingAll)
+                    Divider()
+                    Picker("Sort by", selection: $macByTime) {
+                        Text("Status").tag(false)
+                        Text("Time").tag(true)
+                    }
+                    .pickerStyle(.inline)
                 } label: { Label("Queue", systemImage: "tray.full") }
-                .help("Send what waits in the queue, or spread it over the day")
+                .help("Send what waits in the queue, or spread it over the day; sort the list")
             }
         }
     }
@@ -748,12 +754,13 @@ extension PostsHub {
     }
 
     private var macVisibleRows: [MacPostsRow] {
-        macShown([macRowsKey, macQuery.hashValue, macSort.hashValue]) {
+        macShown([macRowsKey, macQuery.hashValue, macByTime ? 1 : 0]) {
             let words = macQuery.lowercased().split(separator: " ").map(String.init)
             let rows = macRows.filter { (r: MacPostsRow) in
                 words.isEmpty || words.allSatisfy { (w: String) in "\(r.title) \(r.place) \(r.status)".lowercased().contains(w) }
             }
-            return rows.sorted(using: macSort)
+            let order = macByTime ? [KeyPathComparator(\MacPostsRow.when, order: .reverse)] : [KeyPathComparator(\MacPostsRow.rank), KeyPathComparator(\MacPostsRow.when)]
+            return rows.sorted(using: order)
         }
     }
 
@@ -776,24 +783,36 @@ extension PostsHub {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            Divider()
+            .padding(12)
+            .background(Tone.owed.color.opacity(0.12), in: .rect(cornerRadius: Radius.card, style: .continuous))
+            .padding(.horizontal, 12)
+            .padding(.top, 10)
         }
     }
 
     private var macTable: some View {
         let rows = macVisibleRows
-        return Table(rows, selection: $macSelection, sortOrder: $macSort) {
-            TableColumn("When", value: \.when) { (r: MacPostsRow) in Text(r.whenText).monospacedDigit().lineLimit(1) }
-                .width(min: 110, ideal: 150)
-            TableColumn("What", value: \.title) { (r: MacPostsRow) in macWhat(r) }
-                .width(min: 140, ideal: 240)
-            TableColumn("Where", value: \.place) { (r: MacPostsRow) in Text(r.place).foregroundStyle(.secondary).lineLimit(1) }
-                .width(min: 100, ideal: 200)
-            TableColumn("Status", value: \.rank) { (r: MacPostsRow) in MacStatus(r.status, tone: r.tone) }
-                .width(min: 90, ideal: 110)
+        let queued = rows.filter { (r: MacPostsRow) in r.rank < 6 }
+        let out = rows.filter { (r: MacPostsRow) in r.rank >= 6 }
+        return List(selection: $macSelection) {
+            if !queued.isEmpty {
+                Section {
+                    ForEach(queued) { (r: MacPostsRow) in macRow(r) }
+                } header: {
+                    LedgerHeading(title: "In the queue", count: queued.count)
+                }
+            }
+            if !out.isEmpty {
+                Section {
+                    ForEach(out) { (r: MacPostsRow) in macRow(r) }
+                } header: {
+                    LedgerHeading(title: "Out today", count: out.count)
+                }
+            }
         }
+        .listStyle(.inset)
+        .scrollContentBackground(.hidden)
+        .background(Theme.ground)
         .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
             let entries = macRows.filter { (r: MacPostsRow) in ids.contains(r.id) }.compactMap { (r: MacPostsRow) in r.entry }
             MacActionItems(groups: macGroups(entries))
@@ -812,21 +831,33 @@ extension PostsHub {
         }
     }
 
+    /// The iPhone's queue row: the piece's picture, its name over where it goes, the status pill and when.
+    private func macRow(_ r: MacPostsRow) -> some View {
+        HStack(spacing: 12) {
+            macThumb(r)
+                .frame(width: 40, height: 40)
+                .background(.quaternary, in: .rect(cornerRadius: Radius.thumb, style: .continuous))
+                .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(r.title).font(.body).lineLimit(1)
+                Text(r.place).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+            }
+            Spacer(minLength: 8)
+            VStack(alignment: .trailing, spacing: 3) {
+                if r.rank < 6 { Pill(r.status, tone: r.tone) }
+                Text(r.whenText).font(.caption).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
+            }
+        }
+        .padding(.vertical, 3)
+        .tag(r.id)
+    }
+
     private var macQuiet: String {
         if let earlier = store.lastEarlier {
             let what = earlier.title.isEmpty ? "a post" : earlier.title
             return "The last was \(what), \(MarketingTime.weekday(earlier.at)) at \(MarketingTime.clock(earlier.at))."
         }
         return "Nothing in the last two days."
-    }
-
-    private func macWhat(_ r: MacPostsRow) -> some View {
-        HStack(spacing: 8) {
-            macThumb(r)
-                .frame(width: 26, height: 26)
-                .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
-            Text(r.title).lineLimit(1)
-        }
     }
 
     @ViewBuilder
@@ -868,37 +899,60 @@ extension PostsHub {
 
     private func macInspect(_ r: MacPostsRow) -> some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 12) {
                 macPicture(r)
-                MacInspectorHeader(title: r.title, subtitle: macStatusLine(r), status: MacStatus(r.status, tone: r.tone))
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(r.title).font(.system(.title3, design: .serif).weight(.semibold)).lineLimit(3).textSelection(.enabled)
+                    Text(macStatusLine(r)).font(.callout).foregroundStyle(.secondary)
+                    Pill(r.status, tone: r.tone)
+                }
                 if let e = r.entry {
                     MacActionButtons(actions: [macSendNow(e, count: 1), macHold(e, count: 1)])
                     MacActionButtons(actions: [macSendAt(e, count: 1), macRemove(e, count: 1)])
                     if e.units > 0 {
-                        ProgressView(value: Double(e.done), total: Double(e.units))
-                        Text("\(e.done) of \(e.units) gone").font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                        VStack(alignment: .leading, spacing: 6) {
+                            ProgressView(value: Double(e.done), total: Double(e.units)).tint(Theme.accent)
+                            Text("\(e.done) of \(e.units) gone").font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                        }
+                        .padding(14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .houseCard()
                     }
                     macPlaces(e)
+                        .padding(14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .houseCard()
                     if !e.caption.isEmpty {
-                        Text("Caption").font(.headline)
-                        Text(e.caption).textSelection(.enabled)
-                    }
-                    if e.toWebsite && !e.websiteNames.isEmpty {
-                        Text("On the website as " + e.websiteNames.joined(separator: ", ") + ".").font(.callout).foregroundStyle(.secondary)
+                        VStack(alignment: .leading, spacing: 8) {
+                            LedgerHeading(title: "Caption")
+                            Text(e.caption).textSelection(.enabled)
+                            if e.toWebsite && !e.websiteNames.isEmpty {
+                                Text("On the website as " + e.websiteNames.joined(separator: ", ") + ".").font(.callout).foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .houseCard()
                     }
                 } else if let s = r.sent {
-                    Text("Where it went").font(.headline)
-                    ForEach(s.destinations, id: \.self) { (d: String) in
-                        Label(store.placeName(d), systemImage: d.hasPrefix("instagram") ? "camera" : "bubble.left.and.bubble.right")
+                    VStack(alignment: .leading, spacing: 8) {
+                        LedgerHeading(title: "Where it went")
+                        ForEach(s.destinations, id: \.self) { (d: String) in
+                            Label(store.placeName(d), systemImage: d.hasPrefix("instagram") ? "camera" : "bubble.left.and.bubble.right")
+                        }
+                        if let piece = s.sitePiece, !piece.isEmpty {
+                            Button("Open the Piece") { macOpenWindow(MarketingKit.piecePath(piece)) }.buttonStyle(.bordered)
+                        }
                     }
-                    if let piece = s.sitePiece, !piece.isEmpty {
-                        Button("Open the Piece") { macOpenWindow(MarketingKit.piecePath(piece)) }
-                    }
+                    .padding(14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .houseCard()
                 }
             }
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .background(Theme.ground)
     }
 
     @ViewBuilder
@@ -921,7 +975,7 @@ extension PostsHub {
 
     private func macPlaces(_ e: PostQueueEntry) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Where it goes").font(.headline)
+            LedgerHeading(title: "Where it goes")
             ForEach(PostQueueSheet(id: e.id).places(e)) { (p: PostQueueSheet.Place) in
                 let gone = p.units.filter { (u: String) in e.doneKeys.contains(u) }.count
                 let problem = p.units.compactMap { (u: String) in e.unitErrors[u] }.first
@@ -969,7 +1023,7 @@ extension PostsHub {
         return ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
-                    Text(fresh.isEmpty ? "From \(store.siteName)" : "New on \(store.siteName)").font(.headline)
+                    LedgerHeading(title: fresh.isEmpty ? "From \(store.siteName)" : "New on \(store.siteName)")
                     Spacer()
                     Button("All \(store.pieces.count) Pieces") { macOpenWindow(MarketingKit.piecesPath) }.buttonStyle(.link)
                 }
@@ -979,6 +1033,7 @@ extension PostsHub {
             }
             .padding(20)
         }
+        .background(Theme.ground)
         .focusable()
         .focusEffectDisabled()
         .onKeyPress(.return) {
@@ -991,8 +1046,10 @@ extension PostsHub {
     private func macPieceCell(_ p: PostPiece) -> some View {
         let on = macPiece == p.id
         return PostPieceTile(piece: p, posted: store.posted[p.id])
-            .padding(6)
-            .background(on ? Theme.accent.opacity(0.16) : Color.clear, in: RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
+            .padding(8)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .houseCard()
+            .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(Theme.accent, lineWidth: on ? 2 : 0))
             .contentShape(Rectangle())
             .onTapGesture { macPiece = p.id }
             .simultaneousGesture(TapGesture(count: 2).onEnded { macOpenWindow(MarketingKit.piecePath(p.id)) })

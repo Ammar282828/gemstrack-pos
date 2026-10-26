@@ -87,23 +87,29 @@ struct MacWorkshopBoardView: View {
             .padding(14)
             .frame(maxHeight: .infinity, alignment: .top)
         }
+        .background(Theme.ground)
     }
 
     // MARK: A column
 
+    /// A column is a card on the ground: the karigar's monogram and name over his load, his pieces as cards inside.
     private func column(_ col: MacWorkshopColumn) -> some View {
         VStack(spacing: 0) {
             header(col)
-            Divider()
             ScrollView {
-                LazyVStack(spacing: 2) { rows(col) }
-                    .padding(6)
+                LazyVStack(spacing: 8) { rows(col) }
+                    .padding(.horizontal, 10)
+                    .padding(.bottom, 10)
             }
         }
-        .frame(width: 270)
+        .frame(width: 280)
         .frame(maxHeight: .infinity, alignment: .top)
-        .background(targeted == col.id ? Theme.accent.opacity(0.12) : Color.secondary.opacity(0.07),
-                    in: .rect(cornerRadius: Radius.card, style: .continuous))
+        .houseCard()
+        .overlay {
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                .strokeBorder(Theme.accent.opacity(targeted == col.id ? 0.7 : 0), lineWidth: 2)
+                .allowsHitTesting(false)
+        }
         .dropDestination(for: String.self) { (ids: [String], _: CGPoint) -> Bool in
             col.kind == .free ? false : drop(ids, col.kind, col.karigarId)
         } isTargeted: { (on: Bool) in
@@ -112,26 +118,52 @@ struct MacWorkshopBoardView: View {
     }
 
     private func header(_ col: MacWorkshopColumn) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: 6) {
-                Text(col.title).font(.headline).lineLimit(1)
-                Text("\(col.kind == .free ? col.free.count : col.jobs.count)")
-                    .foregroundStyle(.secondary).monospacedDigit()
-                Spacer(minLength: 4)
-                if col.critical > 0 { Text("\(col.critical) critical").font(.caption).foregroundStyle(Tone.late.color) }
-                if col.late > 0 { Text("\(col.late) late").font(.caption).foregroundStyle(Tone.owed.color) }
-                if col.kind == .karigar, let id = col.karigarId {
-                    Button { openKarigar(id) } label: { Image(systemName: "person.crop.circle") }
-                        .buttonStyle(.borderless)
-                        .help("Open " + col.title)
+        HStack(alignment: .top, spacing: 8) {
+            columnMark(col)
+            VStack(alignment: .leading, spacing: 2) {
+                LedgerHeading(title: col.title, count: col.kind == .free ? col.free.count : col.jobs.count)
+                if !col.subtitle.isEmpty {
+                    Text(col.subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                }
+                if col.critical > 0 || col.late > 0 {
+                    HStack(spacing: 4) {
+                        if col.critical > 0 { Pill("\(col.critical) critical", tone: .late) }
+                        if col.late > 0 { Pill("\(col.late) late", tone: .owed) }
+                    }
+                    .padding(.top, 2)
                 }
             }
-            if !col.subtitle.isEmpty {
-                Text(col.subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+            if col.kind == .karigar, let id = col.karigarId {
+                Button { openKarigar(id) } label: { Image(systemName: "chevron.right.circle") }
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(.secondary)
+                    .help("Open " + col.title)
             }
         }
-        .padding(.horizontal, 10).padding(.vertical, 8)
+        .padding(.horizontal, 12).padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private func columnMark(_ col: MacWorkshopColumn) -> some View {
+        switch col.kind {
+        case .karigar:
+            Monogram(name: col.title, size: Monogram.Size.card)
+        case .needs:
+            markSymbol("person.badge.plus", Tone.owed.color)
+        case .free:
+            markSymbol("hammer", Color.secondary)
+        case .done:
+            markSymbol("checkmark.circle", Tone.settled.color)
+        }
+    }
+
+    private func markSymbol(_ name: String, _ tint: Color) -> some View {
+        Image(systemName: name)
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(tint)
+            .frame(width: Monogram.Size.card, height: Monogram.Size.card)
+            .background(tint.opacity(0.13), in: .circle)
     }
 
     @ViewBuilder
@@ -139,11 +171,11 @@ struct MacWorkshopBoardView: View {
         if col.kind == .free {
             ForEach(col.free) { (k: Karigar) in freeRow(k) }
             if col.free.isEmpty {
-                Text("Everyone has work").font(.callout).foregroundStyle(.secondary).padding(.top, 10)
+                Text("Everyone has work").font(.callout).foregroundStyle(.secondary).padding(.top, 6)
             }
         } else if col.jobs.isEmpty {
             Text(col.kind == .done ? "Drop a piece here to mark it done" : "Nothing here")
-                .font(.callout).foregroundStyle(.secondary).padding(.top, 10)
+                .font(.callout).foregroundStyle(.secondary).padding(.top, 6)
         } else {
             ForEach(col.jobs) { (job: WorkshopJob) in jobRow(job) }
         }
@@ -151,24 +183,41 @@ struct MacWorkshopBoardView: View {
 
     // MARK: A piece
 
+    /// The iPhone's job card at a pointer's size: the piece, its stage and age, the order it came off and who ordered it.
     private func jobRow(_ job: WorkshopJob) -> some View {
         let isPicked = picked.contains(job.id)
-        return HStack(alignment: .firstTextBaseline, spacing: 6) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(job.description).font(.callout.weight(.medium)).lineLimit(2)
-                Text(reference(job)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(job.description).font(.body.weight(.semibold)).lineLimit(2)
+                Spacer(minLength: 4)
+                WorkshopAgeBadge(job: job)
+                if !job.isDone && job.urgency == .ok {
+                    Text("\(job.ageDays)d").font(.caption).monospacedDigit().foregroundStyle(.secondary)
+                }
             }
-            Spacer(minLength: 4)
-            if !job.isDone && !job.isUnassigned && !job.hasGiven {
-                Image(systemName: "shippingbox").font(.caption).foregroundStyle(Tone.owed.color)
-                    .help("Not given to the karigar yet")
-            }
-            if !job.isDone {
-                Text("\(job.ageDays)d").font(.caption).monospacedDigit().foregroundStyle(ageTone(job))
+            Text(reference(job)).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+            HStack(spacing: 8) {
+                Label(stageWords(job), systemImage: stageSymbol(job))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(stageTone(job))
+                    .lineLimit(1)
+                if job.isOnline {
+                    Image(systemName: "bag").font(.caption).foregroundStyle(.secondary).help("Online sale")
+                }
+                Spacer(minLength: 0)
+                if (job.weightG ?? 0) > 0 {
+                    Text(WorkshopLogic.number(job.weightG ?? 0, digits: 1) + "g")
+                        .font(.caption).monospacedDigit().foregroundStyle(.secondary)
+                }
             }
         }
-        .padding(.horizontal, 8).padding(.vertical, 5)
-        .background(isPicked ? Theme.accent.opacity(0.2) : Color.clear, in: .rect(cornerRadius: Radius.thumb, style: .continuous))
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.elevated, in: .rect(cornerRadius: Radius.card - 4, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: Radius.card - 4, style: .continuous)
+                .strokeBorder(isPicked ? Theme.accent : Color.primary.opacity(0.07), lineWidth: isPicked ? 2 : 0.5)
+        }
         .contentShape(Rectangle())
         // The click picks at once; the second click of a double-click opens.
         .onTapGesture { click(job) }
@@ -177,20 +226,30 @@ struct MacWorkshopBoardView: View {
         .contextMenu { MacWorkshopJobMenu(give: { give(job) }, groups: { groups(job) }) }
     }
 
+    private func stageWords(_ job: WorkshopJob) -> String {
+        if job.isDone { return "Completed" }
+        if job.isUnassigned { return "Needs a karigar" }
+        return job.hasGiven ? "On the bench" : "Ready to give"
+    }
+
+    private func stageSymbol(_ job: WorkshopJob) -> String {
+        if job.isDone { return "checkmark.circle" }
+        if job.isUnassigned { return "person.badge.plus" }
+        return job.hasGiven ? "hammer" : "shippingbox"
+    }
+
+    private func stageTone(_ job: WorkshopJob) -> Color {
+        if job.isDone { return Color.secondary }
+        if job.isUnassigned { return Tone.owed.color }
+        return job.hasGiven ? Theme.accent : Tone.owed.color
+    }
+
     /// "ORD-12 · Sana Demo", or "Stock work".
     private func reference(_ job: WorkshopJob) -> String {
         let place = job.invoiceId ?? job.orderId
         guard let place else { return "Stock work" }
         let who = (job.customerName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         return who.isEmpty ? place : place + " \u{00B7} " + who
-    }
-
-    private func ageTone(_ job: WorkshopJob) -> Color {
-        switch job.urgency {
-        case .critical: return Tone.late.color
-        case .warning: return Tone.owed.color
-        case .ok: return Color.secondary
-        }
     }
 
     /// A click picks the piece; ⌘ adds it to or takes it from the pieces picked.
@@ -204,10 +263,13 @@ struct MacWorkshopBoardView: View {
 
     private func freeRow(_ k: Karigar) -> some View {
         let key = "free:" + k.id
-        return Label(k.name, systemImage: "hammer")
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 8).padding(.vertical, 5)
-            .background(targeted == key ? Theme.accent.opacity(0.25) : Color.clear, in: .rect(cornerRadius: Radius.thumb, style: .continuous))
+        return HStack(spacing: 8) {
+            Monogram(name: k.name, size: Monogram.Size.row)
+            Text(k.name).font(.body)
+            Spacer(minLength: 0)
+        }
+            .padding(8)
+            .background(targeted == key ? Theme.accent.opacity(0.25) : Theme.elevated, in: .rect(cornerRadius: Radius.card - 4, style: .continuous))
             .contentShape(Rectangle())
             .onTapGesture(count: 2) { openKarigar(k.id) }
             .dropDestination(for: String.self) { (ids: [String], _: CGPoint) -> Bool in

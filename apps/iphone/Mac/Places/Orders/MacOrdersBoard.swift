@@ -47,6 +47,7 @@ struct MacOrdersBoard<RowMenu: View>: View {
                 }
             }
         }
+        .background(Theme.ground)
     }
 
     private func columnWidth(_ total: CGFloat, count: Int) -> CGFloat {
@@ -62,7 +63,7 @@ struct MacOrdersBoard<RowMenu: View>: View {
             header(c)
             Divider()
             ScrollView {
-                LazyVStack(spacing: 2) {
+                LazyVStack(spacing: 8) {
                     ForEach(c.rows) { (r: MacOrdersListRow) in
                         row(r)
                     }
@@ -73,10 +74,10 @@ struct MacOrdersBoard<RowMenu: View>: View {
                             .padding(.top, 24)
                     }
                 }
-                .padding(6)
+                .padding(8)
             }
         }
-        .background(accepts && targeted == c.stage ? Color.accentColor.opacity(0.08) : Color.clear)
+        .background(accepts && targeted == c.stage ? Theme.accent.opacity(0.08) : Color.clear)
         .dropDestination(for: String.self) { (ids: [String], _: CGPoint) -> Bool in
             drop(ids, c.stage)
         } isTargeted: { (over: Bool) in
@@ -87,7 +88,7 @@ struct MacOrdersBoard<RowMenu: View>: View {
     private func header(_ c: MacOrdersBoardColumn) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             Text(c.title).font(.headline).lineLimit(1)
-            Text("\(c.rows.count)").foregroundStyle(.secondary).monospacedDigit()
+            Text("\(c.rows.count)").font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
             Spacer(minLength: 4)
             if c.worth > 0 {
                 Text(Money.pkrLac(c.worth)).font(.callout).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
@@ -97,31 +98,43 @@ struct MacOrdersBoard<RowMenu: View>: View {
         .padding(.vertical, 8)
     }
 
-    // MARK: A row: customer · number, then what · promised
+    // MARK: A card: monogram and customer over number and piece, the promise and what is owed
 
     private func row(_ r: MacOrdersListRow) -> some View {
         let picked = selection.contains(r.id)
-        return VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: 4) {
-                Text(r.customer).fontWeight(.medium).lineLimit(1)
-                Text("\u{00B7} " + r.id).foregroundStyle(.secondary).monospacedDigit().lineLimit(1).layoutPriority(1)
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Monogram(name: r.customer, size: Monogram.Size.row)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(r.customer).font(.body).lineLimit(1)
+                    Text(r.id).font(.caption).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
+                }
+                Spacer(minLength: 4)
+                money(r)
             }
-            HStack(spacing: 4) {
-                Text(r.what).foregroundStyle(.secondary).lineLimit(1)
-                if !r.promisedWords.isEmpty {
-                    Text("\u{00B7}").foregroundStyle(.secondary)
-                    Text(r.promisedWords)
-                        .foregroundStyle(r.promisedTone == .quiet ? Color.secondary : r.promisedTone.color)
+            if !r.what.isEmpty {
+                Text(r.what).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+            }
+            HStack(spacing: 8) {
+                StageTrack(stage: r.stage).frame(width: 64)
+                Spacer(minLength: 4)
+                if !r.promisedDay.isEmpty && r.stage != .done && r.stage != .closed {
+                    let urgent = !r.promisedWords.isEmpty
+                    Text(urgent ? r.promisedWords : "Due " + r.promisedDay)
+                        .font(.caption.weight(urgent ? .semibold : .regular))
+                        .foregroundStyle(urgent ? r.promisedTone.color : Color.secondary)
                         .lineLimit(1)
-                        .layoutPriority(1)
                 }
             }
-            .font(.callout)
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 5)
+        .padding(Metrics.cardPadding - 2)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(picked ? Color.accentColor.opacity(0.22) : Color.clear, in: .rect(cornerRadius: 6, style: .continuous))
+        .houseCard()
+        .overlay {
+            if picked {
+                RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(Theme.accent, lineWidth: 2)
+            }
+        }
         .contentShape(Rectangle())
         .onTapGesture(count: 2) { open(r.id) }
         .onTapGesture { pick(r.id) }
@@ -130,6 +143,17 @@ struct MacOrdersBoard<RowMenu: View>: View {
             menu(r.id)
         }
         .help(r.promisedHelp)
+    }
+
+    @ViewBuilder
+    private func money(_ r: MacOrdersListRow) -> some View {
+        if r.stage == .closed {
+            EmptyView()
+        } else if abs(r.owed) >= 1 {
+            RowAmount(amount: abs(r.owed), tone: r.owed < 0 ? Tone.credit.color : Tone.owed.color)
+        } else {
+            Pill("Paid", tone: .settled)
+        }
     }
 
     /// A click picks the one; a click with Command held adds it to, or takes it from, the picked.

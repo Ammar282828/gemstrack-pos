@@ -21,16 +21,57 @@ struct AdsMacInspector: View {
     let fail: (String) -> Void
 
     var body: some View {
+        Form {
+            Group {
+                Section { head.listRowInsets(EdgeInsets()) }
+                sections
+            }
+            .houseRows()
+        }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .background(Theme.ground)
+    }
+
+    /// The iPhone's record head: the picture or symbol, the name in the serif over its line, a status pill, what it spent, then its actions.
+    private var head: some View {
         let words = AdsStatusWords.of(shownStatus)
-        VStack(spacing: 0) {
-            MacInspectorHeader(title: row.name, subtitle: subtitle,
-                               status: MacStatus(words.label, tone: AdsStatusWords.tone(words.tone)),
-                               headline: MacHeadline("Spent", AdsFormat.money(row.metrics.spend, currency)),
-                               actions: main)
-                .padding(16)
-            Divider()
-            Form { sections }
-                .formStyle(.grouped)
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 12) {
+                lead
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(row.name).font(.system(.title3, design: .serif).weight(.semibold)).lineLimit(3).textSelection(.enabled)
+                    Text(subtitle).font(.callout).foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+            }
+            HStack(alignment: .firstTextBaseline) {
+                Pill(words.label, tone: AdsStatusWords.tone(words.tone))
+                Spacer(minLength: 8)
+                VStack(alignment: .trailing, spacing: 1) {
+                    Text("Spent").font(.caption).foregroundStyle(.secondary)
+                    Text(AdsFormat.money(row.metrics.spend, currency))
+                        .font(.system(.title2, design: .serif).weight(.semibold)).monospacedDigit()
+                }
+            }
+            MacActionButtons(actions: main)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private var lead: some View {
+        if row.level == .ad {
+            StockImage(imageUrl: row.image, name: row.name, key: row.id)
+                .frame(width: 56, height: 56)
+                .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
+        } else {
+            Image(systemName: row.level == .campaign ? "megaphone.fill" : "square.stack.3d.up.fill")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(Theme.accent)
+                .frame(width: 56, height: 56)
+                .background(Theme.accent.opacity(0.13), in: Circle())
         }
     }
 
@@ -47,15 +88,6 @@ struct AdsMacInspector: View {
 
     @ViewBuilder
     private var sections: some View {
-        if row.level == .ad {
-            Section {
-                StockImage(imageUrl: row.image, name: row.name, key: row.id)
-                    .aspectRatio(1, contentMode: .fit)
-                    .frame(maxWidth: 220, maxHeight: 220)
-                    .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
-                    .frame(maxWidth: .infinity)
-            }
-        }
         resultsSection
         if !row.issues.isEmpty || row.learning != nil {
             Section("Meta Says") {

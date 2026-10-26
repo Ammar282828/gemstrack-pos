@@ -53,11 +53,22 @@ struct MacHisaabLedgerView: View {
         let rows = made([book.hisaab.revision, page.lines.count, sort.hashValue]) {
             page.lines.map { (l: HisaabLedgerLine) in MacHisaabLedgerRow(l) }.sorted(using: sort)
         }
-        VStack(spacing: 0) {
-            MacDocumentHeader(title: name.isEmpty ? "Hisaab" : name, subtitle: isCustomer ? "Customer ledger" : "Karigar ledger", headline: headline)
-            Divider()
-            table(rows)
+        VStack(alignment: .leading, spacing: 16) {
+            head
+            figureCards
+            VStack(alignment: .leading, spacing: 0) {
+                LedgerHeading(title: "Ledger", count: rows.count)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 14)
+                    .padding(.bottom, 6)
+                table(rows)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .houseCard()
+            .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         }
+        .padding(20)
+        .background(Theme.ground)
         .macSummaryBar(summary)
         .macRecordMenu(MacRecordMenu(title: "Hisaab", groups: base + selected(selection)))
         .navigationDestination(item: $pushed) { (r: Route) in PlaceScreen(path: r.path) }
@@ -106,6 +117,7 @@ struct MacHisaabLedgerView: View {
         .onDeleteCommand {
             if onFile, let e = entry(selection) { deleteEntry(e) }
         }
+        .scrollContentBackground(.hidden)
         .overlay {
             if rows.isEmpty {
                 ContentUnavailableView("No Transactions", systemImage: "book.closed",
@@ -125,16 +137,38 @@ struct MacHisaabLedgerView: View {
 
     // MARK: Head and foot
 
-    /// You will get (a positive balance: they owe the shop) or you will give, the metal beside the cash.
-    private var headline: MacHeadline? {
-        guard abs(page.cash) >= 1 || abs(page.gold) > 0.0005 else { return nil }
-        var value = abs(page.cash) >= 1 ? Money.pkr(abs(page.cash)) : ""
-        if abs(page.gold) > 0.0005 {
-            let metal = "\(MoneyFormat.grams(abs(page.gold))) \(MoneyWords.metal)"
-            value = value.isEmpty ? metal : value + " + " + metal
+    /// The iPhone's record head: the monogram, the name, what kind of ledger it is.
+    private var head: some View {
+        HStack(spacing: 14) {
+            Monogram(name: name, size: Monogram.Size.hero)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name.isEmpty ? "Hisaab" : name).font(.system(.title2, design: .serif).weight(.semibold)).lineLimit(2)
+                Text(isCustomer ? "Customer ledger" : "Karigar ledger").font(.callout).foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
         }
+    }
+
+    /// You will get (a positive balance: they owe the shop) or you will give, then what was given and got in all.
+    private var figureCards: some View {
         let gets = page.cash >= 1 || (abs(page.cash) < 1 && page.gold > 0)
-        return gets ? MacHeadline("You will get", value, tone: .owed) : MacHeadline("You will give", value, tone: .credit)
+        let settled = abs(page.cash) < 1 && abs(page.gold) <= 0.0005
+        let gave = page.lines.reduce(0.0) { (sum: Double, l: HisaabLedgerLine) in sum + l.entry.cashDebit }
+        let got = page.lines.reduce(0.0) { (sum: Double, l: HisaabLedgerLine) in sum + l.entry.cashCredit }
+        var detail = ""
+        if abs(page.gold) > 0.0005 {
+            detail = "\(MoneyFormat.grams(abs(page.gold))) \(MoneyWords.metal) \(page.gold > 0 ? "to receive" : "to pay")"
+        }
+        return LazyVGrid(columns: [GridItem(.adaptive(minimum: 200, maximum: 400), spacing: 16)], spacing: 16) {
+            MacDashFigureCard(title: settled ? "Balance" : (gets ? "You will get" : "You will give"),
+                              symbol: "book.closed", tint: settled ? Tone.settled.color : (gets ? Tone.owed.color : Tone.credit.color),
+                              value: Money.pkr(abs(page.cash)), detail: settled ? "Settled" : (detail.isEmpty ? "In cash" : detail),
+                              open: nil) { EmptyView() }
+            MacDashFigureCard(title: "You gave", symbol: "arrow.up.circle", tint: Tone.owed.color,
+                              value: Money.pkr(gave), detail: "In cash, all entries", open: nil) { EmptyView() }
+            MacDashFigureCard(title: "You got", symbol: "arrow.down.circle", tint: Tone.settled.color,
+                              value: Money.pkr(got), detail: "In cash, all entries", open: nil) { EmptyView() }
+        }
     }
 
     private var summary: [String] {

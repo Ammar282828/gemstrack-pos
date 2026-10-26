@@ -137,6 +137,17 @@ What the owner's screenshot (13-inch MacBook Air, 1470 points) showed, and the r
 - **Snappy:** a shelf walked, sorted or filtered in `body` is behind a `Memo` keyed on the shelves' `revision`; no
   `.animation` on a table or list; never `.id()` a table by its selection; `need()` on appear, never a reload.
 
+## The iPhone's look, built for the Mac (2026-10-27)
+
+Owner, after the page snapshots: "i want a clean layout, matching the ui features of ios app as much as possible, but
+built for mac." This replaces the classic-Mac look of 2026-10-25 (system greys, group boxes, no cards):
+- Every page on `Theme.ground`; `Theme.card`/`.houseCard()` are the house's, as on the iPhone (Radius.card 16 on the Mac).
+- Records are the iPhone's rows in a `List(selection:)` (Monogram, name over a line, amount, Pill), not `Table`s;
+  sorting is a "Sort by" picker in the Filter menu. Numeric reports may stay `Table`s, inside a card.
+- Inspectors and record windows are the iPhone's record page: hero figure, pills, StageTrack/PaidBar, quick actions,
+  sections as cards. Report heads are figure cards. Cards, LedgerHeading, FigureTile, HeroAmount are wanted.
+- The Mac's structure stays: sidebar, toolbar (`.automatic`, never `.primaryAction`), inspector, windows, menus, keys.
+
 ## Done means
 
 Each screen of the group: a Mac layout that uses the window (no stretched phone column), right-click on rows, the

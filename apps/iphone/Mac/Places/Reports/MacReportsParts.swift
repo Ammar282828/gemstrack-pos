@@ -5,23 +5,67 @@ import ERPCore
 // The few plain parts the reports (Today's cash, Analytics) share: a section's header, a block of label and value rows, and
 // the sort-ready numeric cell. Nothing here reads or writes the books.
 
-/// A report's row of figures. Reports build the kit's `MacFigures` here and nowhere else, so its initializer is named once.
-/// Each figure needs about 150 points; a row too narrow for them all (five or more on a small window) breaks into two rows
-/// of plain figures rather than cutting every value short.
+/// A report's figures as cards (the iPhone's figure tiles at a pointer's scale): a grid that uses the width, each figure a
+/// card with its label, the value large, and the line under it (a change against the period compared, a count). Reports
+/// build the kit's `MacFigure`s and hand them here, so the initializer is named once.
 @ViewBuilder
 func macReportsFigures(_ figures: [MacFigure]) -> some View {
-    if figures.count <= 4 {
-        MacFigures(figures: figures)
-    } else {
-        MacReportsWidth(CGFloat(figures.count) * 150) {
-            MacFigures(figures: figures)
-        } narrow: {
-            VStack(spacing: 0) {
-                MacFigures(figures: Array(figures.prefix((figures.count + 1) / 2)))
-                Divider()
-                MacFigures(figures: Array(figures.dropFirst((figures.count + 1) / 2)))
-            }
+    LazyVGrid(columns: [GridItem(.adaptive(minimum: 170, maximum: 360), spacing: 12)], spacing: 12) {
+        ForEach(figures) { (f: MacFigure) in
+            MacReportsFigureCard(figure: f)
         }
+    }
+}
+
+/// One figure as a card: a click opens its place when it has one.
+struct MacReportsFigureCard: View {
+    let figure: MacFigure
+    @State private var hovering = false
+
+    var body: some View {
+        if let open = figure.open {
+            Button(action: open) { card }
+                .buttonStyle(.plain)
+                .onHover { hovering = $0 }
+                .help("Open \(figure.label)")
+        } else {
+            card
+        }
+    }
+
+    private var card: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(figure.label).font(.callout.weight(.medium)).foregroundStyle(.secondary).lineLimit(1)
+            Text(figure.value)
+                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(figure.tone?.color ?? Color.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Text(figure.detail ?? " ")
+                .font(.caption)
+                .foregroundStyle(figure.detailTone?.color ?? Color.secondary)
+                .lineLimit(2)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .contentShape(Rectangle())
+        .modifier(MacDashSurface(hovering: hovering && figure.open != nil))
+    }
+}
+
+/// A report's card: what is inside (a chart, a block of rows, a table) on the card colour with the house's hairline and
+/// lift. A table inside is clipped to the card's corners.
+struct MacReportsCard<Content: View>: View {
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            content()
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .modifier(MacDashSurface())
+        .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
     }
 }
 
@@ -64,9 +108,9 @@ struct MacReportsHeader: View {
                 Text(detail).font(.callout).foregroundStyle(.secondary).monospacedDigit()
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.top, 10)
-        .padding(.bottom, 6)
+        .padding(.horizontal, 16)
+        .padding(.top, 14)
+        .padding(.bottom, 8)
     }
 }
 
@@ -103,10 +147,11 @@ struct MacReportsFacts: View {
                     Spacer(minLength: 12)
                     Text(r.value).monospacedDigit().foregroundStyle(r.tone?.color ?? Color.primary)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 3)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 5)
             }
         }
+        .padding(.bottom, 8)
     }
 }
 

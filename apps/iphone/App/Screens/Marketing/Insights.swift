@@ -1230,6 +1230,7 @@ extension InsightsOverviewScreen {
             .frame(maxWidth: 1100, alignment: .leading)
             .frame(maxWidth: .infinity)
         }
+        .background(Theme.ground)
         .macRefresh { Task { await load(fresh: true) } }
         .navigationSubtitle(InsightRange.label(rangeKey))
     }
@@ -1256,11 +1257,10 @@ extension InsightsOverviewScreen {
 
     private func macInstagram(_ d: InsightsOverview, _ ig: InstagramInsight) -> some View {
         VStack(alignment: .leading, spacing: 24) {
-            AdsMacSection(title: "Instagram", detail: "@" + ig.username) {
-                VStack(spacing: 0) {
-                    ForEach(Array(InsightsMacFigures.instagram(ig).enumerated()), id: \.offset) { _, cells in
-                        MacFigures(cells)
-                    }
+            VStack(alignment: .leading, spacing: 10) {
+                LedgerHeading(title: "Instagram", trailing: "@" + ig.username)
+                ForEach(Array(InsightsMacFigures.instagram(ig).enumerated()), id: \.offset) { _, cells in
+                    AdsMacFigureGrid(cells)
                 }
             }
             HStack(alignment: .top, spacing: 20) {
@@ -1353,19 +1353,20 @@ extension InsightsOverviewScreen {
             guard let date = AdsDay.plot(d.date) else { return nil }
             return Point(id: d.date, date: date, value: d.views)
         }
-        return AdsMacSection(title: "Facebook", detail: fb.name) {
-            VStack(alignment: .leading, spacing: 8) {
-                MacFigures(InsightsMacFigures.facebook(fb))
-                if points.count > 1 && points.contains(where: { (x: Point) in x.value > 0 }) {
-                    Chart(points) { (x: Point) in
-                        BarMark(x: .value("Day", x.date, unit: .day), y: .value("Views", x.value)).foregroundStyle(Theme.accent)
+        return VStack(alignment: .leading, spacing: 10) {
+            LedgerHeading(title: "Facebook", trailing: fb.name)
+            AdsMacFigureGrid(InsightsMacFigures.facebook(fb))
+            if points.count > 1 && points.contains(where: { (x: Point) in x.value > 0 }) {
+                    AdsMacCard(title: "Page Views, Day by Day") {
+                        Chart(points) { (x: Point) in
+                            BarMark(x: .value("Day", x.date, unit: .day), y: .value("Views", x.value)).foregroundStyle(Theme.accent)
+                        }
+                        .macDayHover(points.map { (p: Point) in MacHoverPoint(id: p.id, date: p.date, value: p.value) }) { (v: Double) in "\(AdsFormat.compact(v)) views" }
+                        .frame(height: 160)
+                        .accessibilityLabel("Page views each day")
+                        .accessibilityValue(ChartSummary.say(points.map { (label: ChartSummary.day($0.date), value: $0.value) }, money: false))
                     }
-                    .macDayHover(points.map { (p: Point) in MacHoverPoint(id: p.id, date: p.date, value: p.value) }) { (v: Double) in "\(AdsFormat.compact(v)) views" }
-                    .frame(height: 160)
-                    .accessibilityLabel("Page views each day")
-                    .accessibilityValue(ChartSummary.say(points.map { (label: ChartSummary.day($0.date), value: $0.value) }, money: false))
                 }
-            }
         }
     }
 
@@ -1444,6 +1445,18 @@ extension InsightsPostsScreen {
                 }
                 .pickerStyle(.inline)
             }
+            Section("Sort by") {
+                Picker("Sort by", selection: macSortField) {
+                    Text("Newest").tag(InsightPostOrder.Field.at)
+                    Text("Views").tag(InsightPostOrder.Field.views)
+                    Text("Reach").tag(InsightPostOrder.Field.reach)
+                    Text("Interactions").tag(InsightPostOrder.Field.interactions)
+                    Text("Engagement Rate").tag(InsightPostOrder.Field.rate)
+                    Text("Shares").tag(InsightPostOrder.Field.shares)
+                    Text("Saves").tag(InsightPostOrder.Field.saves)
+                }
+                .pickerStyle(.inline)
+            }
             Section("Days") {
                 Picker("Range", selection: $rangeKey) {
                     ForEach(InsightRange.all) { (r: AdsRange.Option) in Text(r.label).tag(r.key) }
@@ -1454,6 +1467,11 @@ extension InsightsPostsScreen {
             Label("Filter", systemImage: filter == "all" ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
         }
         .help("Which posts, which numbers beside them, and the days they cover")
+    }
+
+    private var macSortField: Binding<InsightPostOrder.Field> {
+        Binding(get: { macOrder.first?.field ?? .at },
+                set: { (f: InsightPostOrder.Field) in macOrder = [InsightPostOrder(field: f, order: .reverse)] })
     }
 
     private func macNumber(_ v: Double?) -> some View {
@@ -1523,78 +1541,47 @@ extension InsightsPostsScreen {
         return [[macOpenAction(p)], [copyLink, copyCaption]]
     }
 
-    @ViewBuilder
+    /// The iPhone's post row, one to a line: the picture, the caption over its kind and day, the views over the numbers the
+    /// toolbar's Numbers choice asks for (engagement, video, or Facebook and clicks).
     private func macTable(_ d: InsightsPosts, _ sorted: [InsightPost]) -> some View {
+        List(sorted, selection: $macPicked) { (p: InsightPost) in
+            macPostRow(p, d)
+        }
+        .listStyle(.inset)
+        .scrollContentBackground(.hidden)
+        .background(Theme.ground)
+    }
+
+    private func macPostRow(_ p: InsightPost, _ d: InsightsPosts) -> some View {
+        HStack(spacing: 12) {
+            StockImage(imageUrl: p.thumb, name: p.caption, key: p.id)
+                .frame(width: 44, height: 44)
+                .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(p.caption.isEmpty ? (InsightWords.kind[p.kind] ?? p.kind) : p.caption).font(.body).lineLimit(1)
+                Text((InsightWords.kind[p.kind] ?? p.kind) + " · " + ShopDate.say(p.at)).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+            }
+            Spacer(minLength: 8)
+            if d.live.contains(p.id) { Pill("Up now", tone: .settled) }
+            else if p.older { Pill("Before this range", tone: .quiet) }
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(InsightWords.optional(p.views) + " views").font(.body.weight(.semibold)).monospacedDigit().lineLimit(1)
+                Text(macDetail(p)).font(.caption).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
+            }
+            .frame(minWidth: 150, alignment: .trailing)
+        }
+        .padding(.vertical, 3)
+    }
+
+    private func macDetail(_ p: InsightPost) -> String {
         switch macColumns {
-        case "video": macVideoTable(d, sorted)
-        case "facebook": macFacebookTable(d, sorted)
-        default: macEngagementTable(d, sorted)
-        }
-    }
-
-    // Seven columns at most and their minimums under 620 (Mac/MAC-CONVENTIONS.md): the inspector has every number, so
-    // each view of the table keeps the post, its day and the few numbers that view is about.
-    private func macEngagementTable(_ d: InsightsPosts, _ sorted: [InsightPost]) -> some View {
-        Table(sorted, selection: $macPicked, sortOrder: $macOrder) {
-            TableColumn("Post", sortUsing: InsightPostOrder(field: .caption)) { (p: InsightPost) in macPostCell(p, d) }
-                .width(min: 120, ideal: 280)
-            TableColumn("Date", sortUsing: InsightPostOrder(field: .at)) { (p: InsightPost) in Text(ShopDate.say(p.at)).lineLimit(1) }
-                .width(min: 70, ideal: 100)
-            TableColumn("Views", sortUsing: InsightPostOrder(field: .views)) { (p: InsightPost) in macNumber(p.views) }
-                .width(min: 52, ideal: 64)
-            TableColumn("Reach", sortUsing: InsightPostOrder(field: .reach)) { (p: InsightPost) in macNumber(p.reach) }
-                .width(min: 52, ideal: 64)
-            TableColumn("Shares", sortUsing: InsightPostOrder(field: .shares)) { (p: InsightPost) in macNumber(p.shares) }
-                .width(min: 52, ideal: 62)
-            TableColumn("Saves", sortUsing: InsightPostOrder(field: .saves)) { (p: InsightPost) in macNumber(p.saves) }
-                .width(min: 52, ideal: 58)
-            TableColumn("Rate", sortUsing: InsightPostOrder(field: .rate)) { (p: InsightPost) in
-                Text(InsightWords.percent(p.rate)).monospacedDigit().lineLimit(1).frame(maxWidth: .infinity, alignment: .trailing)
-            }
-            .width(min: 52, ideal: 60)
-        }
-    }
-
-    private func macVideoTable(_ d: InsightsPosts, _ sorted: [InsightPost]) -> some View {
-        Table(sorted, selection: $macPicked, sortOrder: $macOrder) {
-            TableColumn("Post", sortUsing: InsightPostOrder(field: .caption)) { (p: InsightPost) in macPostCell(p, d) }
-                .width(min: 120, ideal: 280)
-            TableColumn("Date", sortUsing: InsightPostOrder(field: .at)) { (p: InsightPost) in Text(ShopDate.say(p.at)).lineLimit(1) }
-                .width(min: 70, ideal: 100)
-            TableColumn("Views", sortUsing: InsightPostOrder(field: .views)) { (p: InsightPost) in macNumber(p.views) }
-                .width(min: 52, ideal: 64)
-            TableColumn("Interactions", sortUsing: InsightPostOrder(field: .interactions)) { (p: InsightPost) in macNumber(p.interactions) }
-                .width(min: 84, ideal: 90)
-            TableColumn("Visits", sortUsing: InsightPostOrder(field: .profileVisits)) { (p: InsightPost) in macNumber(p.profileVisits) }
-                .width(min: 52, ideal: 64)
-            TableColumn("Follows", sortUsing: InsightPostOrder(field: .follows)) { (p: InsightPost) in macNumber(p.follows) }
-                .width(min: 56, ideal: 66)
-            TableColumn("Avg Watch", sortUsing: InsightPostOrder(field: .avgWatch)) { (p: InsightPost) in
-                Text(p.avgWatchMs.map { (w: Double) in String(format: "%.1fs", w / 1000) } ?? "—").monospacedDigit().lineLimit(1)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-            }
-            .width(min: 72, ideal: 84)
-        }
-    }
-
-    private func macFacebookTable(_ d: InsightsPosts, _ sorted: [InsightPost]) -> some View {
-        Table(sorted, selection: $macPicked, sortOrder: $macOrder) {
-            TableColumn("Post", sortUsing: InsightPostOrder(field: .caption)) { (p: InsightPost) in macPostCell(p, d) }
-                .width(min: 120, ideal: 280)
-            TableColumn("Date", sortUsing: InsightPostOrder(field: .at)) { (p: InsightPost) in Text(ShopDate.say(p.at)).lineLimit(1) }
-                .width(min: 70, ideal: 100)
-            TableColumn("Views", sortUsing: InsightPostOrder(field: .views)) { (p: InsightPost) in macNumber(p.views) }
-                .width(min: 52, ideal: 64)
-            TableColumn("Reach", sortUsing: InsightPostOrder(field: .reach)) { (p: InsightPost) in macNumber(p.reach) }
-                .width(min: 52, ideal: 64)
-            TableColumn("Facebook", sortUsing: InsightPostOrder(field: .facebookViews)) { (p: InsightPost) in macNumber(p.facebookViews) }
-                .width(min: 66, ideal: 80)
-            TableColumn("Clicks", sortUsing: InsightPostOrder(field: .clicks)) { (p: InsightPost) in macNumber(p.clicks) }
-                .width(min: 52, ideal: 64)
-            TableColumn("Rate", sortUsing: InsightPostOrder(field: .rate)) { (p: InsightPost) in
-                Text(InsightWords.percent(p.rate)).monospacedDigit().lineLimit(1).frame(maxWidth: .infinity, alignment: .trailing)
-            }
-            .width(min: 52, ideal: 60)
+        case "video":
+            let watch = p.avgWatchMs.map { (w: Double) in String(format: "%.1fs watch", w / 1000) } ?? "no watch time"
+            return "\(InsightWords.optional(p.interactions)) interactions · \(InsightWords.optional(p.profileVisits)) visits · \(watch)"
+        case "facebook":
+            return "\(InsightWords.optional(p.reach)) reached · \(InsightWords.optional(p.facebookViews)) on Facebook · \(InsightWords.optional(p.clicks)) clicks"
+        default:
+            return "\(InsightWords.optional(p.reach)) reached · \(InsightWords.optional(p.shares)) shares · \(InsightWords.optional(p.saves)) saves · \(InsightWords.percent(p.rate))"
         }
     }
 }
@@ -1626,6 +1613,7 @@ extension InsightsAudienceScreen {
             .frame(maxWidth: 1100, alignment: .leading)
             .frame(maxWidth: .infinity)
         }
+        .background(Theme.ground)
         .macRefresh { Task { await load(fresh: true) } }
         .navigationSubtitle(group == "followers" ? "Followers" : (group == "reached" ? "Reached this month" : "Engaged this month"))
     }

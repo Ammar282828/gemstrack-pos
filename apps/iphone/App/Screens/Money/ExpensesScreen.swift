@@ -28,7 +28,7 @@ struct ExpensesScreen: View {
     @State private var note: ExpenseSavedNote?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     #if os(macOS)
-    @State private var macSort = [KeyPathComparator(\ExpensesMacRow.day, order: .reverse)]
+    @State private var macOrder: ExpensesMacOrder = .date
     @State private var macPick = Set<String>()
     @State private var macMade = Memo<ExpensesMacData>()
     @State private var macCategoriesMade = Memo<[String]>()
@@ -380,9 +380,17 @@ private struct ExpensesMacRow: Identifiable {
     }
 }
 
-/// What the table draws, worked out once per change of the books, the filters or the sort (`Memo`).
+/// How the rows of each day (or week, or month) are ordered: the iPhone's (by date) or the biggest first.
+private enum ExpensesMacOrder: String, CaseIterable, Identifiable {
+    case date, biggest
+    var id: String { rawValue }
+    var title: String { self == .date ? "Date" : "Biggest first" }
+}
+
+/// What the list draws, worked out once per change of the books, the filters or the sort (`Memo`).
 private struct ExpensesMacData {
     let rows: [ExpensesMacRow]
+    let groups: [MoneyGroup<Expense>]
     let summary: ExpenseSummary
     let range: MoneyDayRange
 }
@@ -436,7 +444,7 @@ extension ExpensesScreen {
     private func macData() -> ExpensesMacData {
         let key = [book.expenses.revision, book.karigars.revision, search.hashValue, period.hashValue, grouping.hashValue,
                    category.hashValue, (custom.fromDay ?? "").hashValue, (custom.toDay ?? "").hashValue,
-                   macSort.hashValue, MoneyCalendar.pickedDay(Date()).hashValue]
+                   macOrder.hashValue, MoneyCalendar.pickedDay(Date()).hashValue]
         return macMade(key) {
             let now = Date()
             let range = period.range(customFrom: custom.fromDay, customTo: custom.toDay, now: now)
@@ -444,8 +452,16 @@ extension ExpensesScreen {
             let shown = category.isEmpty ? scoped : scoped.filter { (l: MoneyLine<Expense>) in l.item.category == category }
             let groups = MoneyBuckets.group(shown, by: grouping, now: now, amount: { (e: Expense) -> Double in e.amount })
             let summary = ExpenseFigures.summary(shown, groups: groups)
-            let rows = shown.map { (l: MoneyLine<Expense>) in ExpensesMacRow(l.item, who: macWho(l.item)) }.sorted(using: macSort)
-            return ExpensesMacData(rows: rows, summary: summary, range: range)
+            let rows = shown.map { (l: MoneyLine<Expense>) in ExpensesMacRow(l.item, who: macWho(l.item)) }
+            var ordered = groups
+            if macOrder == .biggest {
+                ordered = groups.map { (g: MoneyGroup<Expense>) in
+                    MoneyGroup<Expense>(key: g.key, label: g.label, sub: g.sub,
+                                        rows: g.rows.sorted { (a: MoneyLine<Expense>, b: MoneyLine<Expense>) in a.item.amount > b.item.amount },
+                                        total: g.total)
+                }
+            }
+            return ExpensesMacData(rows: rows, groups: ordered, summary: summary, range: range)
         }
     }
 
@@ -468,22 +484,29 @@ extension ExpensesScreen {
                 .padding(.vertical, 8)
                 Divider()
             }
-            Table(rows, selection: $macPick, sortOrder: $macSort) {
-                TableColumn("Date", value: \.day) { (r: ExpensesMacRow) in Text(r.said).lineLimit(1) }
-                    .width(min: 70, ideal: 100)
-                TableColumn("What", value: \.what) { (r: ExpensesMacRow) in Text(r.what).lineLimit(1) }
-                    .width(min: 120, ideal: 240)
-                TableColumn("Category", value: \.category) { (r: ExpensesMacRow) in
-                    Text(r.category).lineLimit(1).foregroundStyle(.secondary)
+            List(selection: $macPick) {
+                Section {
+                    figures(data.summary)
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
+                } header: {
+                    LedgerHeading(title: periodLine(data.range))
                 }
-                .width(min: 90, ideal: 130)
-                TableColumn("Paid to", value: \.who) { (r: ExpensesMacRow) in
-                    Text(r.who).lineLimit(1).foregroundStyle(.secondary)
+                ForEach(data.groups) { (group: MoneyGroup<Expense>) in
+                    Section {
+                        ForEach(group.rows) { (line: MoneyLine<Expense>) in
+                            TwoLine(title: line.item.description.isEmpty ? line.item.category : line.item.description,
+                                    subtitle: subtitle(line.item), trailing: Money.pkr(line.item.amount))
+                                .tag(line.id)
+                        }
+                    } header: {
+                        groupHeader(group)
+                    }
                 }
-                .width(min: 90, ideal: 150)
-                TableColumn("Amount", value: \.amount) { (r: ExpensesMacRow) in MacAmount(r.amount) }
-                    .width(min: 70, ideal: 90)
             }
+            .listStyle(.inset)
+            .scrollContentBackground(.hidden)
+            .background(Theme.ground)
             .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
                 MacActionItems(groups: macGroups(for: ids))
             } primaryAction: { (ids: Set<String>) in
@@ -574,7 +597,7 @@ extension ExpensesScreen {
         macCategoriesMade([book.expenses.revision, session.shop.expenseCategories.hashValue]) { usedCategories }
     }
 
-    private var macFiltering: Bool { period != .thisMonth || grouping != .day || !category.isEmpty }
+    private var macFiltering: Bool { period != .thisMonth || grouping != .day || !category.isEmpty || macOrder != .date }
 
     private var macFilterMenu: some View {
         Menu {
@@ -588,6 +611,13 @@ extension ExpensesScreen {
             Section("Group by") {
                 Picker("Group by", selection: $grouping) {
                     ForEach(ExpenseGrouping.allCases) { (g: ExpenseGrouping) in Text("By \(g.title.lowercased())").tag(g) }
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
+            }
+            Section("Sort by") {
+                Picker("Sort by", selection: $macOrder) {
+                    ForEach(ExpensesMacOrder.allCases) { (o: ExpensesMacOrder) in Text(o.title).tag(o) }
                 }
                 .pickerStyle(.inline)
                 .labelsHidden()

@@ -5,6 +5,7 @@ import UIKit
 #endif
 import ERPCore
 #if os(macOS)
+import AppKit
 import UniformTypeIdentifiers
 #endif
 
@@ -660,42 +661,69 @@ extension WebsitePhotosScreen {
                     .foregroundStyle(Tone.owed.color)
             }
             if let c = chosen {
-                Text("\(c.category) → \(c.collection) · " + (c.count > 0 ? "it has \(c.count) pieces today" : "nothing in it yet")).font(.headline)
+                Text("\(c.category) → \(c.collection) · " + (c.count > 0 ? "it has \(c.count) pieces today" : "nothing in it yet")).font(.system(.headline, design: .serif))
             }
             if let note { Text(note).font(.callout).foregroundStyle(.secondary) }
             if reading { MarketingReading(text: "Reading the photographs…") }
         }
+        .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        Divider()
+        .houseCard()
+        .padding(.horizontal, 20)
+        .padding(.top, 16)
+        .background(Theme.ground)
     }
 
     // MARK: The tray
 
+    /// The tray as a grid of photo cards (the iPhone's tiles): the photograph, its state, its name, and for a house's pieces
+    /// the house and the official name under it. A click picks (⌘-click adds), Delete removes, right-click gives the rest.
     @ViewBuilder
     private var macTray: some View {
-        if isMaison {
-            Table(items, selection: $macPicked) {
-                TableColumn("Photograph") { (item: WebsitePhotoItem) in macPhotograph(item) }.width(min: 140, ideal: 220)
-                TableColumn("House") { (item: WebsitePhotoItem) in macHouse(item) }.width(min: 110, ideal: 150)
-                TableColumn("Official name") { (item: WebsitePhotoItem) in macOfficialName(item) }.width(min: 150, ideal: 260)
-                TableColumn("Status") { (item: WebsitePhotoItem) in macItemStatus(item) }.width(min: 110, ideal: 150)
+        ScrollView {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: isMaison ? 230 : 170), spacing: 14, alignment: .top)], spacing: 14) {
+                ForEach(items) { (item: WebsitePhotoItem) in macPhotoCard(item) }
             }
-            .contextMenu(forSelectionType: UUID.self) { (ids: Set<UUID>) in macRowMenu(ids) }
-            .onDeleteCommand { macRemovePicked() }
-            .overlay { macTrayEmpty }
-        } else {
-            Table(items, selection: $macPicked) {
-                TableColumn("Photograph") { (item: WebsitePhotoItem) in macPhotograph(item) }.width(min: 140, ideal: 280)
-                TableColumn("Size") { (item: WebsitePhotoItem) in Text(WebsitePhoto.size(item.data.count)).monospacedDigit().foregroundStyle(.secondary) }
-                    .width(min: 70, ideal: 90)
-                TableColumn("Status") { (item: WebsitePhotoItem) in macItemStatus(item) }.width(min: 110, ideal: 150)
-            }
-            .contextMenu(forSelectionType: UUID.self) { (ids: Set<UUID>) in macRowMenu(ids) }
-            .onDeleteCommand { macRemovePicked() }
-            .overlay { macTrayEmpty }
+            .padding(20)
         }
+        .background(Theme.ground)
+        .onDeleteCommand { macRemovePicked() }
+        .overlay { macTrayEmpty }
+    }
+
+    private func macPhotoCard(_ item: WebsitePhotoItem) -> some View {
+        let on = macPicked.contains(item.id)
+        return VStack(alignment: .leading, spacing: 8) {
+            ZStack {
+                Rectangle().fill(.quaternary)
+                if let thumb = item.thumb { Image(uiImage: thumb).resizable().scaledToFill() } else { Image(systemName: "photo").foregroundStyle(.secondary) }
+            }
+            .aspectRatio(1, contentMode: .fit)
+            .clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))
+            .opacity(item.status == .done ? 0.7 : 1)
+            .overlay(alignment: .topLeading) { macItemStatus(item).padding(6) }
+            Text(displayName(item)).font(.subheadline.weight(.medium)).lineLimit(2)
+            if isMaison {
+                macHouse(item)
+                macOfficialName(item)
+            } else {
+                Text(WebsitePhoto.size(item.data.count)).font(.caption).monospacedDigit().foregroundStyle(.secondary)
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .houseCard()
+        .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(Theme.accent, lineWidth: on ? 2 : 0))
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if NSEvent.modifierFlags.contains(.command) {
+                if on { macPicked.remove(item.id) } else { macPicked.insert(item.id) }
+            } else {
+                macPicked = [item.id]
+            }
+        }
+        .pointerHover()
+        .contextMenu { macItemMenu(item) }
     }
 
     @ViewBuilder
@@ -745,15 +773,15 @@ extension WebsitePhotosScreen {
     @ViewBuilder
     private func macItemStatus(_ item: WebsitePhotoItem) -> some View {
         if item.retouching {
-            MacStatus("Retouching…", tone: .working)
+            Pill("Retouching…", tone: .working)
         } else if let check = item.check, !check.passes, item.status == .queued {
-            MacStatus("Check the retouch", tone: .owed).help(check.differences.first ?? "Not checked: compare it with the original.")
+            Pill("Check the retouch", tone: .owed).help(check.differences.first ?? "Not checked: compare it with the original.")
         } else {
             switch item.status {
-            case .queued: MacStatus(item.original == nil ? "Ready" : "Retouched", tone: .quiet)
-            case .uploading: MacStatus("Sending…", tone: .working)
-            case .done: MacStatus("On the website", tone: .settled)
-            case .failed: MacStatus("Failed", tone: .problem).help(item.error ?? "Failed")
+            case .queued: Pill(item.original == nil ? "Ready" : "Retouched", tone: .quiet)
+            case .uploading: Pill("Sending…", tone: .working)
+            case .done: Pill("On the website", tone: .settled)
+            case .failed: Pill("Failed", tone: .problem).help(item.error ?? "Failed")
             }
         }
     }
@@ -807,6 +835,7 @@ extension WebsitePhotosScreen {
                 afterSection
             }
             .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
             .frame(maxHeight: 220)
         }
     }

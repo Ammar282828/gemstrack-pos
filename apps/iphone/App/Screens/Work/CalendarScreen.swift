@@ -375,7 +375,6 @@ extension CalendarScreen {
         let figures = shopCalendarMonth(books.days, year: year, month: month)
         VStack(spacing: 0) {
             macFigures(figures)
-            Divider()
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     macGrid(books)
@@ -385,6 +384,7 @@ extension CalendarScreen {
             }
             .frame(minWidth: 360)
         }
+        .background(Theme.ground)
         .navigationSubtitle(ShopCalendar.title(year: year, month: month))
         .toolbar {
             ToolbarItem(placement: .principal) {
@@ -410,23 +410,22 @@ extension CalendarScreen {
         }
     }
 
-    /// The month on screen as plain figures: its money, its sales and orders, and the average day that took anything. In a
-    /// narrow window they stand two and two.
+    /// The month on screen as the iPhone's figure tiles: its money, its sales and orders, and the average day that took anything.
+    /// In a narrow window they stand two and two.
     private func macFigures(_ m: ShopCalendarMonth) -> some View {
-        let figures: [MacFigure] = [
-            MacFigure(ShopCalendar.title(year: year, month: month), Money.pkrLac(m.total)),
-            MacFigure("Sales", "\(m.sales)"),
-            MacFigure("Orders", "\(m.orders)"),
-            MacFigure("Average trading day", m.perTradingDay > 0 ? Money.pkrLac(m.perTradingDay) : "\u{2014}"),
-        ]
+        let money = FigureTile(label: ShopCalendar.title(year: year, month: month), value: Money.pkrLac(m.total))
+        let sales = FigureTile(label: "Sales", value: "\(m.sales)")
+        let orders = FigureTile(label: "Orders", value: "\(m.orders)")
+        let average = FigureTile(label: "Average trading day", value: m.perTradingDay > 0 ? Money.pkrLac(m.perTradingDay) : "\u{2014}")
         return ViewThatFits(in: .horizontal) {
-            MacFigures(figures)
-            VStack(spacing: 0) {
-                MacFigures(Array(figures.prefix(2)))
-                Divider()
-                MacFigures(Array(figures.dropFirst(2)))
+            HStack(alignment: .top, spacing: 12) { money; sales; orders; average }
+            VStack(spacing: 12) {
+                HStack(alignment: .top, spacing: 12) { money; sales }
+                HStack(alignment: .top, spacing: 12) { orders; average }
             }
         }
+        .padding([.horizontal, .top], 20)
+        .padding(.bottom, 4)
     }
 
     private func macGrid(_ books: Reckoned) -> some View {
@@ -487,14 +486,20 @@ extension CalendarScreen {
             }
             .padding(8)
             .frame(maxWidth: .infinity, minHeight: 92, maxHeight: 92, alignment: .topLeading)
-            .background(isSelected ? Theme.accent.opacity(0.16) : Theme.card, in: .rect(cornerRadius: Radius.thumb, style: .continuous))
+            .houseCard(radius: Radius.chip)
             .overlay {
-                if isToday { RoundedRectangle(cornerRadius: Radius.thumb, style: .continuous).strokeBorder(Theme.accent, lineWidth: 1.5) }
+                if isSelected {
+                    RoundedRectangle(cornerRadius: Radius.chip, style: .continuous).fill(Theme.accent.opacity(0.14))
+                }
+                if isToday || isSelected {
+                    RoundedRectangle(cornerRadius: Radius.chip, style: .continuous)
+                        .strokeBorder(Theme.accent, lineWidth: isSelected ? 2 : 1.5)
+                }
             }
-            .contentShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
+            .contentShape(.rect(cornerRadius: Radius.chip, style: .continuous))
         }
         .buttonStyle(.plain)
-        .pointerHover(.rect(cornerRadius: Radius.thumb, style: .continuous), highlight: true)
+        .pointerHover(.rect(cornerRadius: Radius.chip, style: .continuous), highlight: true)
         .accessibilityLabel(spoken(key, data, due))
     }
 

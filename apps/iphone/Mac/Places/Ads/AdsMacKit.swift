@@ -129,4 +129,67 @@ struct AdsMacFigureRows: View {
         }
     }
 }
+/// A report's figures as the iPhone's tiles: each on a card of its own, the label small, the figure large in the serif and its
+/// line under it (in the tone of its change), laid across the window's width.
+struct AdsMacFigureGrid: View {
+    let figures: [MacFigure]
+    var minimum: CGFloat = 190
+
+    init(_ figures: [MacFigure], minimum: CGFloat = 190) {
+        self.figures = figures
+        self.minimum = minimum
+    }
+
+    var body: some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: minimum), spacing: 12, alignment: .top)], spacing: 12) {
+            ForEach(figures) { (f: MacFigure) in tile(f) }
+        }
+    }
+
+    @ViewBuilder
+    private func tile(_ f: MacFigure) -> some View {
+        let words = VStack(alignment: .leading, spacing: 6) {
+            Text(f.label).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+            Text(f.value)
+                .font(.system(.title2, design: .serif).weight(.semibold))
+                .monospacedDigit()
+                .foregroundStyle(f.tone?.color ?? Color.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Text(f.detail ?? " ")
+                .font(.caption)
+                .foregroundStyle(f.detailTone?.color ?? Color.secondary)
+                .lineLimit(2)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .houseCard()
+        if let open = f.open {
+            Button(action: open) { words.contentShape(Rectangle()) }
+                .buttonStyle(.plain)
+                .pointerHover()
+                .help("Open \(f.label)")
+        } else {
+            words
+        }
+    }
+}
+
+/// A card for a block of a report: its heading in the serif (and a quiet line beside it), then the block on the card colour.
+struct AdsMacCard<Content: View>: View {
+    let title: String
+    var detail: String?
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            LedgerHeading(title: title)
+            if let detail, !detail.isEmpty { Text(detail).font(.callout).foregroundStyle(.secondary) }
+            content()
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .houseCard()
+    }
+}
 #endif

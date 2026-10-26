@@ -24,7 +24,7 @@ struct WebsiteEditScreen: View {
     /// The table: what is picked and how it is sorted; the form in the inspector and what it tells the table; the piece the pick
     /// last settled on and the one it was asked to go to while words were unsaved.
     @State private var macSelection = Set<String>()
-    @State private var macSort = [KeyPathComparator(\MacWebsitePieceRow.rank), KeyPathComparator(\MacWebsitePieceRow.name)]
+    @State private var macOrder = MacWebsiteOrder.status
     @State private var macBridge = MacWebsiteEditBridge()
     @State private var macSettled = Set<String>()
     @State private var macPending: Set<String>?
@@ -389,6 +389,12 @@ extension WebsiteEditScreen {
                 }
                 .pickerStyle(.inline)
             }
+            Section("Sort by") {
+                Picker("Sort by", selection: $macOrder) {
+                    ForEach(MacWebsiteOrder.allCases) { (o: MacWebsiteOrder) in Text(o.title).tag(o) }
+                }
+                .pickerStyle(.inline)
+            }
         } label: {
             Label("Filter", systemImage: filter == .all && collection.isEmpty ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
         }
@@ -399,8 +405,8 @@ extension WebsiteEditScreen {
 
     /// The rows in the table's order.
     private var macRows: [MacWebsitePieceRow] {
-        macMade([MacWebsiteKey.pieces(store.pieces), search.hashValue, filter.hashValue, collection.hashValue, macSort.hashValue]) {
-            filtered.map { (p: WebsiteEditPiece) in MacWebsitePieceRow(piece: p) }.sorted(using: macSort)
+        macMade([MacWebsiteKey.pieces(store.pieces), search.hashValue, filter.hashValue, collection.hashValue, macOrder.hashValue]) {
+            filtered.map { (p: WebsiteEditPiece) in MacWebsitePieceRow(piece: p) }.sorted(using: macOrder.comparators)
         }
     }
 
@@ -418,23 +424,19 @@ extension WebsiteEditScreen {
     private var macTable: some View {
         let rows = macRows
         let tally = macCounts
-        return Table(rows, selection: $macSelection, sortOrder: $macSort) {
-            TableColumn("Name", value: \.name) { (r: MacWebsitePieceRow) in macName(r) }
-                .width(min: 120, ideal: 240)
-            TableColumn("Collection", value: \.collection) { (r: MacWebsitePieceRow) in Text(r.collection).foregroundStyle(.secondary).lineLimit(1) }
-                .width(min: 90, ideal: 140)
-            TableColumn("Weight", value: \.weight) { (r: MacWebsitePieceRow) in Text(r.weightText).monospacedDigit().lineLimit(1) }
-                .width(min: 70, ideal: 90)
-            TableColumn("Status", value: \.rank) { (r: MacWebsitePieceRow) in
-                if !r.status.isEmpty { MacStatus(r.status, tone: r.tone) }
+        return ScrollView {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 14, alignment: .top)], spacing: 14) {
+                ForEach(rows) { (r: MacWebsitePieceRow) in macCard(r) }
             }
-            .width(min: 110, ideal: 170)
+            .padding(20)
         }
-        .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
-            let p = ids.count == 1 ? ids.first.flatMap { id in store.piece(id) } : nil
-            MacActionItems(groups: [[macOpenWindowAction(p), macOpenSiteAction(p)], [macCopyNameAction(p)]])
-        } primaryAction: { (ids: Set<String>) in
-            for id in ids.prefix(3) { openPlace?(Route(path: WebsiteEditScreen.piecePath(id))) }
+        .background(Theme.ground)
+        .focusable()
+        .focusEffectDisabled()
+        .onKeyPress(.return) {
+            guard !macSelection.isEmpty else { return .ignored }
+            for id in macSelection.prefix(3) { openPlace?(Route(path: WebsiteEditScreen.piecePath(id))) }
+            return .handled
         }
         .overlay {
             if rows.isEmpty {
@@ -448,14 +450,27 @@ extension WebsiteEditScreen {
         .onChange(of: macSelection) { _, new in macSelectionChanged(new) }
     }
 
-    private func macName(_ r: MacWebsitePieceRow) -> some View {
-        HStack(spacing: 8) {
-            StockImage(imageUrl: r.piece.thumb, name: r.piece.words.name, key: r.piece.id)
-                .frame(width: 26, height: 26)
-                .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
-                .opacity(r.piece.hidden ? 0.45 : 1)
-            Text(r.name).lineLimit(1)
-        }
+    /// The iPhone's tile on a card: a click picks it (⌘-click adds), a double-click opens it in a window, right-click gives the rest.
+    private func macCard(_ r: MacWebsitePieceRow) -> some View {
+        let on = macSelection.contains(r.id)
+        return WebsiteEditTile(piece: r.piece)
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .houseCard()
+            .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(Theme.accent, lineWidth: on ? 2 : 0))
+            .contentShape(Rectangle())
+            .onTapGesture {
+                if NSEvent.modifierFlags.contains(.command) {
+                    if on { macSelection.remove(r.id) } else { macSelection.insert(r.id) }
+                } else {
+                    macSelection = [r.id]
+                }
+            }
+            .simultaneousGesture(TapGesture(count: 2).onEnded { openPlace?(Route(path: WebsiteEditScreen.piecePath(r.id))) })
+            .pointerHover()
+            .contextMenu {
+                MacActionItems(groups: [[macOpenWindowAction(r.piece), macOpenSiteAction(r.piece)], [macCopyNameAction(r.piece)]])
+            }
     }
 
     /// Going to another piece while this one has words not saved asks first, as a document does on closing; the pick stays until it is answered.

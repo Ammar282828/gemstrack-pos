@@ -857,6 +857,8 @@ extension NewOrder {
             MacNewOrderPromisedSection(draft: $draft)
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .background(Theme.ground)
     }
 
     /// The live karigars, worked out once per change of the shelf.

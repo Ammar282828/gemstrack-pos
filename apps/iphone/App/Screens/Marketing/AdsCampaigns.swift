@@ -627,6 +627,11 @@ extension AdsCampaignsScreen {
         }
     }
 
+    private var macSortField: Binding<AdsMacRowOrder.Field> {
+        Binding(get: { macOrder.first?.field ?? .spend },
+                set: { (f: AdsMacRowOrder.Field) in macOrder = [AdsMacRowOrder(field: f, order: f == .name || f == .status || f == .cost ? .forward : .reverse)] })
+    }
+
     private var macFilterMenu: some View {
         Menu {
             Section("Show") {
@@ -638,6 +643,19 @@ extension AdsCampaignsScreen {
             Section("Days") {
                 Picker("Range", selection: $rangeKey) {
                     ForEach(AdsRange.all) { (r: AdsRange.Option) in Text(r.label).tag(r.key) }
+                }
+                .pickerStyle(.inline)
+            }
+            Section("Sort by") {
+                Picker("Sort by", selection: macSortField) {
+                    Text("Spent").tag(AdsMacRowOrder.Field.spend)
+                    Text("Results").tag(AdsMacRowOrder.Field.results)
+                    Text("Cheapest Result").tag(AdsMacRowOrder.Field.cost)
+                    Text("ROAS").tag(AdsMacRowOrder.Field.roas)
+                    Text("Reach").tag(AdsMacRowOrder.Field.reach)
+                    Text("Budget").tag(AdsMacRowOrder.Field.budget)
+                    Text("Status").tag(AdsMacRowOrder.Field.status)
+                    Text("Name").tag(AdsMacRowOrder.Field.name)
                 }
                 .pickerStyle(.inline)
             }
@@ -720,64 +738,78 @@ extension AdsCampaignsScreen {
 
     // MARK: The outline
 
-    // Seven columns, minimums under 620: ROAS, reach and the rest are in the inspector.
+    // The iPhone's campaign row, one line of the outline: the picture or symbol, the name over its objective and budget, the status
+    // pill, what it spent over what it brought, and the run switch. Ad sets and ads fold under their campaign.
     private func macTable(_ rows: [AdsMacRow], _ d: AdCampaigns) -> some View {
         let cur = d.account.currency
-        return Table(rows, children: \.children, selection: $macSelection, sortOrder: $macOrder) {
-            TableColumn("Name", sortUsing: AdsMacRowOrder(field: .name)) { (r: AdsMacRow) in
-                HStack(spacing: 6) {
-                    if r.level == .ad {
-                        StockImage(imageUrl: r.image, name: r.name, key: r.id)
-                            .frame(width: 18, height: 18)
-                            .clipShape(.rect(cornerRadius: 3, style: .continuous))
-                    }
-                    Text(r.name).lineLimit(1)
-                }
-            }
-            .width(min: 120, ideal: 220)
-            TableColumn("Running") { (r: AdsMacRow) in
-                runSwitch(macTarget(r), status: r.status)
-                    .toggleStyle(.switch)
-                    .controlSize(.small)
-            }
-            .width(min: 56, ideal: 64)
-            TableColumn("Status", sortUsing: AdsMacRowOrder(field: .status)) { (r: AdsMacRow) in
-                let words = AdsStatusWords.of(shownStatus[r.id] ?? r.effectiveStatus)
-                HStack(spacing: 6) {
-                    MacStatus(words.label, tone: AdsStatusWords.tone(words.tone))
-                    if !r.issues.isEmpty {
-                        Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Tone.owed.color)
-                            .help(r.issues.joined(separator: "\n"))
-                    }
-                }
-            }
-            .width(min: 90, ideal: 120)
-            TableColumn(AdsMacMoney.header("Budget", cur), sortUsing: AdsMacRowOrder(field: .budget)) { (r: AdsMacRow) in
-                if let perDay = r.daily, perDay > 0 {
-                    AdsMacMoney(perDay, unit: "a day")
-                } else if let total = r.lifetime, total > 0 {
-                    AdsMacMoney(total, unit: "total")
-                }
-            }
-            .width(min: 86, ideal: 110)
-            TableColumn(AdsMacMoney.header("Spent", cur), sortUsing: AdsMacRowOrder(field: .spend)) { (r: AdsMacRow) in
-                AdsMacMoney(r.metrics.spend)
-            }
-            .width(min: 70, ideal: 90)
-            TableColumn("Results", sortUsing: AdsMacRowOrder(field: .results)) { (r: AdsMacRow) in
-                Text(AdsMacFormat.result(r)).monospacedDigit().lineLimit(1)
-            }
-            .width(min: 90, ideal: 140)
-            TableColumn(AdsMacMoney.header("Each", cur), sortUsing: AdsMacRowOrder(field: .cost)) { (r: AdsMacRow) in
-                AdsMacMoney(r.resultValue > 0 ? r.costEach : nil)
-            }
-            .width(min: 70, ideal: 80)
+        return List(rows, children: \.children, selection: $macSelection) { (r: AdsMacRow) in
+            macOutlineRow(r, cur)
         }
+        .listStyle(.inset)
+        .scrollContentBackground(.hidden)
+        .background(Theme.ground)
         .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
             macMenu(ids, d)
         } primaryAction: { (ids: Set<String>) in
             macOpen(ids, d)
         }
+    }
+
+    private func macOutlineRow(_ r: AdsMacRow, _ cur: String) -> some View {
+        let words = AdsStatusWords.of(shownStatus[r.id] ?? r.effectiveStatus)
+        return HStack(spacing: 12) {
+            macLead(r)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(r.name).font(.body).lineLimit(1)
+                Text(macSecondLine(r, cur)).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+            }
+            Spacer(minLength: 8)
+            if !r.issues.isEmpty {
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Tone.owed.color).help(r.issues.joined(separator: "\n"))
+            }
+            Pill(words.label, tone: AdsStatusWords.tone(words.tone))
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(AdsFormat.money(r.metrics.spend, cur)).font(.body.weight(.semibold)).monospacedDigit().lineLimit(1)
+                Text(macResultLine(r, cur)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            }
+            .frame(minWidth: 110, alignment: .trailing)
+            runSwitch(macTarget(r), status: r.status)
+                .toggleStyle(.switch)
+                .controlSize(.small)
+        }
+        .padding(.vertical, 3)
+    }
+
+    @ViewBuilder
+    private func macLead(_ r: AdsMacRow) -> some View {
+        if r.level == .ad {
+            StockImage(imageUrl: r.image, name: r.name, key: r.id)
+                .frame(width: 36, height: 36)
+                .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
+        } else {
+            Image(systemName: r.level == .campaign ? "megaphone.fill" : "square.stack.3d.up.fill")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(Theme.accent)
+                .frame(width: 36, height: 36)
+                .background(Theme.accent.opacity(0.13), in: Circle())
+        }
+    }
+
+    /// "Messages · PKR 1,500 a day · ends 3 Nov", or "Ad set · …", "Ad".
+    private func macSecondLine(_ r: AdsMacRow, _ cur: String) -> String {
+        var parts: [String] = []
+        if r.level == .campaign, let o = r.objective, !o.isEmpty { parts.append(AdsObjective.label(o)) } else { parts.append(r.level.word) }
+        let b = AdsMacFormat.budget(r, cur)
+        if !b.isEmpty { parts.append(b) }
+        if let end = r.end, !end.isEmpty { parts.append("ends \(ShopDate.say(end))") }
+        return parts.joined(separator: " · ")
+    }
+
+    /// "45 chats started · PKR 266 each".
+    private func macResultLine(_ r: AdsMacRow, _ cur: String) -> String {
+        let said = AdsMacFormat.result(r)
+        if said.isEmpty { return "\(AdsFormat.compact(r.metrics.reach)) reached" }
+        return r.resultValue > 0 ? said + " · " + AdsFormat.money(r.costEach, cur) + " each" : said
     }
 
     /// Return or a double-click: the object's own page, in a window of its own.

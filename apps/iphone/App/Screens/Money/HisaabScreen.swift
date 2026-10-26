@@ -84,7 +84,6 @@ struct HisaabScreen: View {
     #if os(macOS)
     @Environment(\.openPlaceWindow) private var openPlace
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var macSort = [KeyPathComparator(\HisaabMacRow.name)]
     @State private var macPick = Set<String>()
     @State private var macMade = Memo<HisaabMacData>()
     @State private var macRowsMade = Memo<HisaabMacRows>()
@@ -430,11 +429,11 @@ extension HisaabScreen {
 
     private func macRows(_ data: HisaabMacData) -> HisaabMacRows {
         let key = [book.hisaab.revision, book.invoices.revision, book.customers.revision, search.hashValue, kind.hashValue,
-                   chip.hashValue, macSort.hashValue]
+                   chip.hashValue, order.hashValue]
         return macRowsMade(key) {
             let scoped = scope(data.summary.accounts)
-            let shown = scoped.filter { (a: HisaabAccount) in chip.matches(a) }.map { (a: HisaabAccount) in HisaabMacRow(a) }
-            return HisaabMacRows(rows: shown.sorted(using: macSort),
+            let shown = ordered(scoped.filter { (a: HisaabAccount) in chip.matches(a) }).map { (a: HisaabAccount) in HisaabMacRow(a) }
+            return HisaabMacRows(rows: shown,
                                  all: scoped.count,
                                  get: scoped.filter { (a: HisaabAccount) in HisaabChip.get.matches(a) }.count,
                                  give: scoped.filter { (a: HisaabAccount) in HisaabChip.give.matches(a) }.count)
@@ -448,29 +447,16 @@ extension HisaabScreen {
         let data = macData()
         let made = macRows(data)
         let rows = made.rows
-        Table(rows, selection: $macPick, sortOrder: $macSort) {
-            TableColumn("Name", value: \.name) { (r: HisaabMacRow) in Text(r.name).lineLimit(1) }
-                .width(min: 120, ideal: 200)
-            TableColumn("Who", value: \.kind) { (r: HisaabMacRow) in Text(r.kind).foregroundStyle(.secondary) }
-                .width(min: 70, ideal: 90)
-            TableColumn("Invoices", value: \.invoices) { (r: HisaabMacRow) in
-                Text(r.invoices == 0 ? "" : "\(r.invoices)").monospacedDigit()
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+        List(selection: $macPick) {
+            ForEach(rows) { (r: HisaabMacRow) in
+                HisaabAccountRow(account: r.account, listInvoices: true)
+                    .padding(.vertical, 2)
+                    .tag(r.id)
             }
-            .width(min: 56, ideal: 64)
-            TableColumn(MoneyWords.metal.capitalized, value: \.gold) { (r: HisaabMacRow) in
-                Text(r.metal).monospacedDigit().lineLimit(1).foregroundStyle(.secondary)
-            }
-            .width(min: 100, ideal: 130)
-            TableColumn("You will get", value: \.youGet) { (r: HisaabMacRow) in
-                MacAmount(r.youGet >= 1 ? r.youGet : nil, tone: .owed)
-            }
-            .width(min: 80, ideal: 100)
-            TableColumn("You will give", value: \.youGive) { (r: HisaabMacRow) in
-                MacAmount(r.youGive >= 1 ? r.youGive : nil, tone: .credit)
-            }
-            .width(min: 80, ideal: 100)
         }
+        .listStyle(.inset)
+        .scrollContentBackground(.hidden)
+        .background(Theme.ground)
         .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
             MacActionItems(groups: macGroups(for: ids, data))
         } primaryAction: { (ids: Set<String>) in
@@ -587,8 +573,15 @@ extension HisaabScreen {
                 .pickerStyle(.inline)
                 .labelsHidden()
             }
+            Section("Sort by") {
+                Picker("Sort by", selection: $order) {
+                    ForEach(HisaabOrder.allCases) { (o: HisaabOrder) in Text(o.title).tag(o) }
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
+            }
         } label: {
-            Label("Filter", systemImage: chip != .all || kind != .everyone ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+            Label("Filter", systemImage: chip != .all || kind != .everyone || order != .name ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
         }
         .help("All accounts, only those who owe the shop or only those the shop owes; customers, karigars or everyone")
     }
@@ -641,9 +634,9 @@ private struct HisaabMacInspector: View {
     private static let shown = 12
 
     var body: some View {
-        VStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 12) {
-                MacInspectorHeader(title: account.name, subtitle: kindLine, status: nil, headline: headline)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                head
                 HStack(spacing: 8) {
                     MacActionButtons(actions: account.isWalkIn ? [] : actions)
                     Spacer(minLength: 0)
@@ -651,14 +644,33 @@ private struct HisaabMacInspector: View {
                 Button(account.isWalkIn ? "Open Invoice" : "Open Ledger", action: open)
                     .buttonStyle(.bordered)
                     .controlSize(.regular)
-            }
-            .padding(16)
-            Divider()
-            Form {
                 if account.isWalkIn { walkInSection } else { ledgerSection }
             }
-            .formStyle(.grouped)
-            .scrollContentBackground(.hidden)
+            .padding(16)
+        }
+        .background(Theme.ground)
+    }
+
+    /// The iPhone's record head: the monogram, the name, and the one big sum in the serif.
+    private var head: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 12) {
+                Monogram(name: account.name, size: Monogram.Size.hero)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(account.name).font(.system(.title3, design: .serif).weight(.semibold)).lineLimit(2).textSelection(.enabled)
+                    Text(kindLine).font(.callout).foregroundStyle(.secondary)
+                }
+            }
+            if account.hasCash {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(account.side == .get ? "You will get" : "You will give").font(.callout).foregroundStyle(.secondary)
+                    HeroAmount(amount: abs(account.cash), tone: account.side == .get ? Tone.owed.color : Tone.credit.color)
+                }
+            }
+            if account.gold != 0 {
+                Text("\(MoneyFormat.grams(abs(account.gold))) g \(MoneyWords.metal) \(account.gold > 0 ? "to receive" : "to pay")")
+                    .font(.callout).monospacedDigit().foregroundStyle(.secondary)
+            }
         }
     }
 
@@ -666,47 +678,45 @@ private struct HisaabMacInspector: View {
         account.isWalkIn ? "Sales with no customer named" : (account.isCustomer ? "Customer" : "Karigar")
     }
 
-    private var headline: MacHeadline? {
-        guard account.hasCash || account.gold != 0 else { return nil }
-        var value = account.hasCash ? Money.pkr(abs(account.cash)) : ""
-        if account.gold != 0 {
-            let metal = "\(MoneyFormat.grams(abs(account.gold))) g \(MoneyWords.metal)"
-            value = value.isEmpty ? metal : value + " + " + metal
-        }
-        return account.side == .get
-            ? MacHeadline("You will get", value, tone: .owed)
-            : MacHeadline("You will give", value, tone: .credit)
-    }
-
-    @ViewBuilder
     private var ledgerSection: some View {
-        Section("Latest in the Ledger") {
-            if page.lines.isEmpty {
-                Text("No transactions found.").foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 8) {
+            LedgerHeading(title: "Latest in the ledger", count: page.lines.isEmpty ? nil : page.lines.count)
+            VStack(alignment: .leading, spacing: 10) {
+                if page.lines.isEmpty {
+                    Text("No transactions found.").foregroundStyle(.secondary)
+                }
+                ForEach(Array(page.lines.prefix(Self.shown))) { (line: HisaabLedgerLine) in
+                    HisaabMacLine(line: line, openInvoice: openInvoice)
+                }
+                if page.lines.count > Self.shown {
+                    Text("\(page.lines.count) in all, in the ledger window.").font(.caption).foregroundStyle(.secondary)
+                }
             }
-            ForEach(Array(page.lines.prefix(Self.shown))) { (line: HisaabLedgerLine) in
-                HisaabMacLine(line: line, openInvoice: openInvoice)
-            }
-            if page.lines.count > Self.shown {
-                Text("\(page.lines.count) in all, in the ledger window.").font(.caption).foregroundStyle(.secondary)
-            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .houseCard()
         }
     }
 
-    @ViewBuilder
     private var walkInSection: some View {
-        Section("Invoices Owing") {
-            ForEach(account.unpaid) { (inv: HisaabUnpaid) in
-                Button { openInvoice(inv.id) } label: {
-                    HStack {
-                        Text(inv.id).monospacedDigit()
-                        Spacer(minLength: 8)
-                        Text(Money.pkr(inv.balanceDue)).monospacedDigit().foregroundStyle(Tone.owed.color)
+        VStack(alignment: .leading, spacing: 8) {
+            LedgerHeading(title: "Invoices owing")
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(account.unpaid) { (inv: HisaabUnpaid) in
+                    Button { openInvoice(inv.id) } label: {
+                        HStack {
+                            Text(inv.id).monospacedDigit()
+                            Spacer(minLength: 8)
+                            Text(Money.pkr(inv.balanceDue)).monospacedDigit().foregroundStyle(Tone.owed.color)
+                        }
+                        .contentShape(Rectangle())
                     }
-                    .contentShape(Rectangle())
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .houseCard()
         }
     }
 }

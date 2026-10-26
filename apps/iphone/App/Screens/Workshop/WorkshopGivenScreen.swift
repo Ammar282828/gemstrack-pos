@@ -386,23 +386,31 @@ extension WorkshopGivenScreen {
 
     // MARK: The table
 
-    /// Five columns (the note and the rest are the inspector's).
+    /// The iPhone's rows: a recipient's mark, the item over when and to whom, where it stands at the right.
     private func macTable(_ data: MacGivenRows) -> some View {
-        Table(data.shown, selection: $macPick, sortOrder: $macSort) {
-            TableColumn("What", value: \.description) { (g: GivenItem) in Text(g.description).fontWeight(.medium).lineLimit(1) }
-                .width(min: 120, ideal: 240)
-            TableColumn("Given to", value: \.recipientName) { (g: GivenItem) in
-                Label(g.recipientName.isEmpty ? "\u{2014}" : g.recipientName, systemImage: icon(g.recipientType))
-                    .lineLimit(1)
+        List(selection: $macPick) {
+            ForEach(data.shown) { (g: GivenItem) in
+                HStack(spacing: 10) {
+                    Image(systemName: icon(g.recipientType))
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Theme.accent)
+                        .frame(width: Monogram.Size.row, height: Monogram.Size.row)
+                        .background(Theme.accent.opacity(0.13), in: .circle)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(g.description).font(.body).lineLimit(1)
+                        Text(recipientWords(g)).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                    Spacer(minLength: 8)
+                    macStanding(g)
+                }
+                .padding(.vertical, 3)
+                .tag(g.id)
+                .houseRows()
             }
-            .width(min: 100, ideal: 160)
-            TableColumn("Given", value: \.date) { (g: GivenItem) in Text(g.date.isEmpty ? "" : ShopDate.say(g.date)).lineLimit(1) }
-                .width(min: 70, ideal: 90)
-            TableColumn("Where it stands") { (g: GivenItem) in macStanding(g) }
-                .width(min: 90, ideal: 130)
-            TableColumn("Given by") { (g: GivenItem) in Text(g.givenBy ?? "").foregroundStyle(.secondary).lineLimit(1) }
-                .width(min: 70, ideal: 100)
         }
+        .listStyle(.inset)
+        .scrollContentBackground(.hidden)
+        .background(Theme.ground)
         .contextMenu(forSelectionType: String.self) { ids in
             let items = ids.compactMap { data.byId[$0] }
             if !items.isEmpty { MacActionItems(groups: macGroups(items)) }
@@ -427,21 +435,42 @@ extension WorkshopGivenScreen {
         }
     }
 
-    /// Out is the expected state: a coloured word only once it has been out a week; back says when.
+    /// Out is the expected state: a pill only once it has been out a week; back says when.
     @ViewBuilder
     private func macStanding(_ g: GivenItem) -> some View {
         if isOut(g) {
             let days = daysOut(g)
             if days >= 7 {
-                MacStatus("Out \(days) days", tone: .owed)
+                Pill("Out \(days) days", tone: .owed)
             } else {
-                Text("Still out").foregroundStyle(.secondary)
+                Text("Still out").font(.callout).foregroundStyle(.secondary)
             }
         } else if let back = g.returnedDate, !back.isEmpty {
-            Text("Back " + ShopDate.say(back)).foregroundStyle(.secondary)
+            Text("Back " + ShopDate.say(back)).font(.callout).foregroundStyle(.secondary)
         } else {
-            Text("Back").foregroundStyle(.secondary)
+            Text("Back").font(.callout).foregroundStyle(.secondary)
         }
+    }
+
+    /// The Sort by pick (in the Filter menu): newest first, the iPhone's order, unless chosen.
+    private var macSortChoice: Binding<Int> {
+        Binding(
+            get: {
+                guard let first = macSort.first else { return 0 }
+                let k: AnyKeyPath = first.keyPath
+                if k == (\GivenItem.description as AnyKeyPath) { return 2 }
+                if k == (\GivenItem.recipientName as AnyKeyPath) { return 3 }
+                return first.order == .forward ? 1 : 0
+            },
+            set: { (n: Int) in
+                switch n {
+                case 1: macSort = [KeyPathComparator(\GivenItem.date)]
+                case 2: macSort = [KeyPathComparator(\GivenItem.description)]
+                case 3: macSort = [KeyPathComparator(\GivenItem.recipientName)]
+                default: macSort = [KeyPathComparator(\GivenItem.date, order: .reverse)]
+                }
+            }
+        )
     }
 
     // MARK: The toolbar and the actions
@@ -454,6 +483,14 @@ extension WorkshopGivenScreen {
             Menu {
                 Picker("Show", selection: $filter) {
                     ForEach(Filter.allCases) { (f: Filter) in Text(f.title).tag(f) }
+                }
+                .pickerStyle(.inline)
+                Divider()
+                Picker("Sort by", selection: macSortChoice) {
+                    Text("Newest First").tag(0)
+                    Text("Oldest First").tag(1)
+                    Text("What").tag(2)
+                    Text("Given To").tag(3)
                 }
                 .pickerStyle(.inline)
             } label: {
@@ -524,34 +561,32 @@ extension WorkshopGivenScreen {
             tone = days >= 7 ? .owed : .working
         }
         let status = MacStatus(words, tone: tone)
-        return Form {
-            Section {
-                MacInspectorHeader(
-                    title: item.description,
-                    subtitle: recipientWords(item),
-                    status: status,
-                    actions: [macBackAction([item]), macEditAction([item])]
-                )
+        return MacWorkPage {
+            MacWorkHead(title: item.description, subtitle: recipientWords(item), pill: status.text, pillTone: status.tone) {
+                Image(systemName: icon(item.recipientType))
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(Theme.accent)
+                    .frame(width: Monogram.Size.hero, height: Monogram.Size.hero)
+                    .background(Theme.accent.opacity(0.13), in: .circle)
             }
-            Section("Details") {
-                LabeledContent("Given to", value: item.recipientName.isEmpty ? "\u{2014}" : item.recipientName)
-                LabeledContent("Given", value: item.date.isEmpty ? "\u{2014}" : ShopDate.say(item.date))
-                if let back = item.returnedDate, !back.isEmpty { LabeledContent("Came back", value: ShopDate.say(back)) }
-                if let by = item.givenBy, !by.isEmpty { LabeledContent("Given by", value: by) }
+            MacActionButtons(actions: [macBackAction([item]), macEditAction([item])])
+            MacWorkCard("Details") {
+                MacWorkFact("Given to", item.recipientName.isEmpty ? "\u{2014}" : item.recipientName)
+                MacWorkFact("Given", item.date.isEmpty ? "\u{2014}" : ShopDate.say(item.date))
+                if let back = item.returnedDate, !back.isEmpty { MacWorkFact("Came back", ShopDate.say(back)) }
+                if let by = item.givenBy, !by.isEmpty { MacWorkFact("Given by", by) }
                 if let notes = item.notes, !notes.isEmpty {
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: 4) {
                         Text("Note").font(.callout).foregroundStyle(.secondary)
                         Text(notes).textSelection(.enabled)
                     }
                 }
             }
             if let place = recipientPlace(item) {
-                Section {
-                    Button("Open " + item.recipientName) { macOpen(place) }
-                }
+                Button("Open " + item.recipientName) { macOpen(place) }
+                    .buttonStyle(.bordered)
             }
         }
-        .formStyle(.grouped)
     }
 }
 #endif

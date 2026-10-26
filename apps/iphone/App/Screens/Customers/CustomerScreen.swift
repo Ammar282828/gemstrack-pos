@@ -488,12 +488,17 @@ private enum CustomerMacTab: String, CaseIterable, Identifiable {
 extension CustomerScreen {
     private func macPage(_ f: Facts) -> some View {
         let c = f.customer
-        return VStack(spacing: 0) {
-            MacDocumentHeader(title: CustomerKit.shown(c), subtitle: macLine(c), headline: macHeadline(f.owing))
-            Divider()
+        return VStack(spacing: 12) {
+            macHead(f)
             macTable(f)
-                .macSummaryBar(macSummary(f))
+                .scrollContentBackground(.hidden)
+                .clipShape(.rect(cornerRadius: Radius.card, style: .continuous))
+                .houseCard()
+                .padding(.horizontal, 16)
+                .padding(.bottom, 12)
         }
+        .background(Theme.ground)
+        .macSummaryBar(macSummary(f))
         .macInspector { macDetails(f) }
         .toolbar { macToolbar(f) }
         .macRecordMenu(MacRecordMenu(title: "Customer", groups: macActionGroups(f)))
@@ -511,6 +516,32 @@ extension CustomerScreen {
         [CustomerKit.filled(c.phone), CustomerKit.filled(c.city)]
             .compactMap { (s: String?) -> String? in s }
             .joined(separator: " \u{00B7} ")
+    }
+
+    /// The iPhone's customer head on a card: monogram, name over number and city, what they owe as the big figure.
+    private func macHead(_ f: Facts) -> some View {
+        let c = f.customer
+        let headline = macHeadline(f.owing)
+        return HStack(alignment: .center, spacing: 14) {
+            Monogram(name: CustomerKit.shown(c), size: Monogram.Size.hero)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(CustomerKit.shown(c)).font(.system(.title2, design: .serif).weight(.semibold))
+                    .lineLimit(2).textSelection(.enabled)
+                let line = macLine(c)
+                if !line.isEmpty { Text(line).foregroundStyle(.secondary).textSelection(.enabled) }
+            }
+            Spacer(minLength: 16)
+            if let headline {
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(headline.label).font(.callout).foregroundStyle(.secondary)
+                    Text(headline.value).font(.system(.title, design: .serif).weight(.semibold)).monospacedDigit()
+                        .foregroundStyle(headline.tone.color)
+                }
+            }
+        }
+        .ledgerCard()
+        .padding(.horizontal, 16)
+        .padding(.top, 12)
     }
 
     private func macHeadline(_ o: CustomerKit.Owing) -> MacHeadline? {
@@ -693,30 +724,29 @@ extension CustomerScreen {
 
     private func macDetails(_ f: Facts) -> some View {
         let c = f.customer
-        return VStack(spacing: 0) {
-            if session.isOwner {
-                HStack {
-                    MacActionButtons(actions: [macEditAction, macHisaabAction(c)])
-                    Spacer(minLength: 0)
+        return ScrollView {
+            VStack(spacing: 12) {
+                if session.isOwner {
+                    HStack(spacing: 8) {
+                        QuickAction(title: "Edit", symbol: "pencil", action: macEditAction.perform)
+                        QuickAction(title: "Hisaab", symbol: "book.closed", action: macHisaabAction(c).perform)
+                        Spacer(minLength: 0)
+                    }
                 }
-                .padding(16)
-                Divider()
-            }
-            Form {
                 macContact(c)
                 macSizes(c)
                 macDates(c)
                 macNotes(c)
             }
-            .formStyle(.grouped)
-            .scrollContentBackground(.hidden)
+            .padding(12)
         }
+        .background(Theme.ground)
     }
 
     @ViewBuilder
     private func macContact(_ c: Customer) -> some View {
         let address = [c.address, c.city, c.country].compactMap { (s: String?) -> String? in CustomerKit.filled(s) }.joined(separator: ", ")
-        Section("Contact") {
+        MacInspectorCard(title: "Contact") {
             if let phone = CustomerKit.filled(c.phone) { LabeledContent("Phone", value: phone) }
             if let alt = CustomerKit.filled(c.altPhone) { LabeledContent("Second number", value: alt) }
             if let email = CustomerKit.filled(c.email) { LabeledContent("Email", value: email) }
@@ -732,7 +762,7 @@ extension CustomerScreen {
         let bracelet = CustomerKit.filled(c.braceletSize)
         let chain = CustomerKit.filled(c.chainLength)
         if ring != nil || bangle != nil || bracelet != nil || chain != nil {
-            Section("Sizes") {
+            MacInspectorCard(title: "Sizes") {
                 if let ring { LabeledContent("Ring", value: ring) }
                 if let bangle { LabeledContent("Bangle", value: bangle) }
                 if let bracelet { LabeledContent("Bracelet", value: bracelet) }
@@ -746,7 +776,7 @@ extension CustomerScreen {
         let birthday = CustomerKit.filled(c.birthday)
         let anniversary = CustomerKit.filled(c.anniversary)
         if birthday != nil || anniversary != nil {
-            Section("Dates") {
+            MacInspectorCard(title: "Dates") {
                 if let birthday { LabeledContent("Birthday", value: CustomerKit.day(birthday)) }
                 if let anniversary { LabeledContent("Anniversary", value: CustomerKit.day(anniversary)) }
             }
@@ -758,7 +788,7 @@ extension CustomerScreen {
         let preference = CustomerKit.filled(c.preference)
         let notes = CustomerKit.filled(c.notes)
         if preference != nil || notes != nil {
-            Section("Notes") {
+            MacInspectorCard(title: "Notes") {
                 if let preference {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Prefers").font(.caption).foregroundStyle(.secondary)

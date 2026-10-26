@@ -53,7 +53,7 @@ struct MacReportsTodayPage: View {
             .frame(maxWidth: 1400, alignment: .leading)
             .frame(maxWidth: .infinity)
         }
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(Theme.ground)
     }
 
     private func go(_ path: String) { openPlace?(Route(path: path)) }
@@ -83,7 +83,7 @@ struct MacReportsTodayPage: View {
         return MacDashFigureCard(title: "Taken today", symbol: "banknote", tint: Theme.accent,
                                  value: Money.pkrLac(f.todayRevenue), detail: detail, open: { go("/invoices") }) {
             if f.week.contains(where: { $0.amount > 0 }) {
-                MacReportsSparkline(days: f.week).frame(height: 34)
+                MacReportsSparkline(days: f.week)
             }
         }
     }
@@ -203,8 +203,8 @@ struct MacDashSurface: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .background(Color(nsColor: .controlBackgroundColor), in: .rect(cornerRadius: 16, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5))
+            .background(Theme.card, in: .rect(cornerRadius: Radius.card, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(Color.primary.opacity(0.07), lineWidth: 0.5))
             .shadow(color: .black.opacity(hovering ? 0.14 : 0.06), radius: hovering ? 14 : 6, y: hovering ? 6 : 2)
     }
 }
@@ -258,11 +258,13 @@ struct MacDashFigureCard<Extra: View>: View {
                 Text(detail)
                     .font(.callout)
                     .foregroundStyle(detailTone?.color ?? Color.secondary)
-                    .lineLimit(2)
+                    .lineLimit(2, reservesSpace: true)
+                // The same room under every figure, a chart or a bar or nothing, so the four cards stand level.
                 extra()
+                    .frame(maxWidth: .infinity, minHeight: 34, maxHeight: 34, alignment: .bottomLeading)
             }
             .padding(16)
-            .frame(maxWidth: .infinity, minHeight: 150, alignment: .topLeading)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
             .contentShape(Rectangle())
             .modifier(MacDashSurface(hovering: hovering && open != nil))
         }

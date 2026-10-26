@@ -358,28 +358,25 @@ extension StockPieceScreen {
     /// toolbar, the Piece menu and the photo's right-click menu share them.
     func macDetail(_ p: Product) -> some View {
         let settings: Settings? = book.settings.value
-        return VStack(spacing: 0) {
-            MacDocumentHeader(
-                title: p.name.isEmpty ? p.sku : p.name,
-                subtitle: p.sku + " \u{00B7} " + StockKit.categoryTitle(p.categoryId),
-                headline: MacHeadline("At today's rates", MacStockPricing.words(MacStockPricing.total(p, settings)))
-            )
-            Divider()
-            HStack(alignment: .top, spacing: 0) {
-                Form {
-                    Section { macPhoto(p) }
-                    MacStockDetailSections(product: p)
+        return HStack(alignment: .top, spacing: 0) {
+            MacWorkPage {
+                MacWorkHead(
+                    title: p.name.isEmpty ? p.sku : p.name,
+                    subtitle: p.sku + " \u{00B7} " + StockKit.categoryTitle(p.categoryId),
+                    figure: MacHeadline("At today's rates", MacStockPricing.words(MacStockPricing.total(p, settings)))
+                ) {
+                    EmptyView()
                 }
-                .formStyle(.grouped)
-                .frame(minWidth: 300, maxWidth: .infinity)
-                Divider()
-                Form {
-                    MacStockPriceSection(product: p, settings: settings)
-                }
-                .formStyle(.grouped)
-                .frame(minWidth: 260, idealWidth: 320, maxWidth: 360)
+                macPhoto(p)
+                MacStockDetailSections(product: p)
             }
+            .frame(minWidth: 300, maxWidth: .infinity)
+            MacWorkPage {
+                MacStockPriceSection(product: p, settings: settings)
+            }
+            .frame(minWidth: 260, idealWidth: 320, maxWidth: 360)
         }
+        .background(Theme.ground)
         .toolbar {
             // A record window: Sell, Edit and Print Tag, then the rest in More (Delete is never a toolbar button of its own).
             ToolbarItemGroup(placement: .automatic) {
@@ -408,6 +405,8 @@ extension StockPieceScreen {
             .clipShape(.rect(cornerRadius: Radius.chip, style: .continuous))
             .frame(maxWidth: 360)
             .frame(maxWidth: .infinity)
+            .padding(Metrics.cardPadding)
+            .houseCard()
         if session.isOwner {
             image
                 .modifier(StockPhotoDrop(sku: p.sku, choosing: $replacing))
@@ -474,18 +473,16 @@ extension StockPieceScreen {
 extension StockSoldView {
     /// A piece that is gone: a document head saying so, and the invoices it went out on.
     func macSold(_ sales: [Invoice]) -> some View {
-        VStack(spacing: 0) {
-            MacDocumentHeader(title: sku, subtitle: sales.count == 1 ? "Sold on 1 invoice" : "Sold on \(sales.count) invoices",
-                              status: MacStatus("Sold", tone: .settled))
-            Divider()
-            Form {
-                Section(sales.count == 1 ? "Sold on" : "Sold on These Invoices") {
-                    ForEach(sales) { (inv: Invoice) in
-                        macSaleLink(inv)
-                    }
+        MacWorkPage {
+            MacWorkHead(title: sku, subtitle: sales.count == 1 ? "Sold on 1 invoice" : "Sold on \(sales.count) invoices",
+                        pill: "Sold", pillTone: .settled) {
+                Image(systemName: "checkmark.seal").font(.title2).foregroundStyle(Tone.settled.color)
+            }
+            MacWorkCard(sales.count == 1 ? "Sold on" : "Sold on these invoices") {
+                ForEach(sales) { (inv: Invoice) in
+                    macSaleLink(inv)
                 }
             }
-            .formStyle(.grouped)
         }
     }
 

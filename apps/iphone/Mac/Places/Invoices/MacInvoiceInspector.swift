@@ -34,50 +34,125 @@ struct MacInvoiceInspector: View {
     }
 }
 
+/// The head of an invoice on the house's card, as the iPhone's page has it: the monogram, who and when, what is due as the
+/// big figure over the bar of what is paid, then the actions as a row of rounded buttons. The inspector and the invoice's
+/// window both use it.
+struct MacInvoiceHead: View {
+    let invoice: Invoice
+    let cx: MacInvoiceContext
+    var customerTitleFont: Font = .system(.title3, design: .serif).weight(.semibold)
+    /// Call and Message beside the rest: a window has the width, the inspector at its narrowest does not.
+    var withContact = false
+
+    @Environment(Book.self) private var book
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 12) {
+                Monogram(name: invoice.customerName, size: Monogram.Size.hero)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(InvoiceFacts.customerName(invoice, walkIn: "Walk-in"))
+                        .font(customerTitleFont).lineLimit(2).textSelection(.enabled)
+                    Text(MacInvoiceWords.subtitle(invoice, withTaker: false))
+                        .font(.callout).foregroundStyle(.secondary).lineLimit(2).textSelection(.enabled)
+                }
+                Spacer(minLength: 0)
+            }
+            Divider()
+            lead
+            if invoice.status != .refunded {
+                PaidBar(paid: invoice.amountPaid, total: invoice.grandTotal)
+            }
+            actions
+        }
+        .ledgerCard()
+    }
+
+    /// Due while owing (amber, red once old), In credit, or Paid in full; a refunded invoice says Refunded instead.
+    @ViewBuilder
+    private var lead: some View {
+        let line = balanceLine(invoice.balanceDue)
+        if invoice.status == .refunded {
+            Pill("Refunded", tone: .quiet, symbol: "arrow.uturn.backward")
+        } else {
+            VStack(alignment: .leading, spacing: 4) {
+                switch line.state {
+                case .due:
+                    Text("Due").font(.callout).foregroundStyle(.secondary)
+                    HeroAmount(amount: line.amount, tone: InvoiceFacts.balanceTone(invoice).color)
+                case .credit:
+                    Text("In credit").font(.callout).foregroundStyle(.secondary)
+                    HeroAmount(amount: line.amount, tone: Tone.credit.color)
+                case .paid:
+                    Text("Paid in full")
+                        .font(.system(.title, design: .serif).weight(.semibold))
+                        .lineLimit(1)
+                }
+                Text("Total \(Money.pkr(invoice.grandTotal)) \u{00B7} Paid \(Money.pkr(invoice.amountPaid))")
+                    .font(.callout).foregroundStyle(.secondary).monospacedDigit().lineLimit(1).minimumScaleFactor(0.8)
+            }
+        }
+    }
+
+    /// Take Payment, WhatsApp and PDF, then ring or write the customer: rounded buttons that wrap at the narrowest.
+    private var actions: some View {
+        let list = MacInvoiceMenu.buttons(invoice, cx)
+        let phone = reachablePhone
+        return VStack(alignment: .leading, spacing: 8) {
+            ViewThatFits(in: .horizontal) {
+                row(list)
+                VStack(alignment: .leading, spacing: 8) {
+                    row(Array(list.prefix(1)))
+                    row(Array(list.dropFirst(1)))
+                }
+            }
+            if withContact, let phone { ContactActions(phone: phone) }
+        }
+    }
+
+    private func row(_ list: [MacAction]) -> some View {
+        HStack(spacing: 8) {
+            ForEach(list) { (a: MacAction) in
+                QuickAction(title: a.title, symbol: a.symbol ?? "circle", prominent: a.isDefault, action: a.perform)
+                    .disabled(!a.enabled)
+                    .help(a.help)
+            }
+        }
+    }
+
+    /// The number the bill went to, else the customer's own; nil when there is none to dial.
+    private var reachablePhone: String? {
+        let own = invoice.customerContact ?? ""
+        let theirs = invoice.customerId.flatMap { book.customers.item($0)?.phone } ?? ""
+        let phone = own.isEmpty ? theirs : own
+        return CustomerKit.dialable(phone).isEmpty ? nil : phone
+    }
+}
+
 private struct MacInvoiceInspectorBody: View {
     let invoice: Invoice
     let cx: MacInvoiceContext
     let customer: String?
 
     var body: some View {
-        let status = MacInvoiceWords.status(invoice)
-        VStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 12) {
-                MacInspectorHeader(title: InvoiceFacts.customerName(invoice, walkIn: "Walk-in"),
-                                   subtitle: MacInvoiceWords.subtitle(invoice, withTaker: false),
-                                   status: MacStatus(status.text, tone: status.tone),
-                                   headline: MacInvoiceWords.headline(invoice))
-                buttons
-            }
-            .padding(16)
-            Divider()
-            Form {
+        ScrollView {
+            VStack(spacing: 12) {
+                MacInvoiceHead(invoice: invoice, cx: cx)
                 piecesSection
                 paymentsSection
                 detailsSection
             }
-            .formStyle(.grouped)
+            .padding(12)
         }
-    }
-
-    /// Take Payment, WhatsApp and PDF in a row, or in two when the inspector is at its narrowest.
-    private var buttons: some View {
-        let actions = MacInvoiceMenu.buttons(invoice, cx)
-        return ViewThatFits(in: .horizontal) {
-            MacActionButtons(actions: actions)
-            VStack(alignment: .leading, spacing: 6) {
-                MacActionButtons(actions: Array(actions.prefix(1)))
-                MacActionButtons(actions: Array(actions.dropFirst(1)))
-            }
-        }
+        .background(Theme.ground)
     }
 
     // MARK: Pieces
 
     private var piecesSection: some View {
-        Section("Pieces") {
+        MacInspectorCard(title: "Pieces", count: invoice.items.count) {
             if invoice.items.isEmpty {
-                Text("No pieces on this invoice.").foregroundStyle(.secondary)
+                Text("No pieces on this invoice.").font(.callout).foregroundStyle(.secondary)
             }
             ForEach(Array(invoice.items.enumerated()), id: \.offset) { pair in
                 pieceRow(pair.element)
@@ -101,7 +176,7 @@ private struct MacInvoiceInspectorBody: View {
                 }
             }
             Spacer(minLength: 8)
-            Text(Money.pkr(item.itemTotal)).monospacedDigit()
+            RowAmount(amount: item.itemTotal)
         }
     }
 
@@ -109,7 +184,7 @@ private struct MacInvoiceInspectorBody: View {
 
     private var paymentsSection: some View {
         let held = InvoiceCredit.held(invoice)
-        return Section("Payments") {
+        return MacInspectorCard(title: "Payments", count: invoice.paymentHistory.count > 1 ? invoice.paymentHistory.count : nil) {
             if invoice.paymentHistory.isEmpty {
                 Text("No payments yet").foregroundStyle(.secondary)
             }
@@ -159,7 +234,7 @@ private struct MacInvoiceInspectorBody: View {
         let ship = describeDelivery(invoice.delivery)
         let by = invoice.takenBy ?? ""
         let source = MacInvoiceWords.source(invoice)
-        return Section("Details") {
+        return MacInspectorCard(title: "Details") {
             if let customer {
                 LabeledContent("Customer") {
                     MacInvoiceLink(title: InvoiceFacts.customerName(invoice, walkIn: "Walk-in"),
@@ -188,6 +263,21 @@ private struct MacInvoiceInspectorBody: View {
                 }
             }
         }
+    }
+}
+
+/// A section of the inspector as the iPhone's page sets it: the serif heading and a count over rows on the house's card.
+struct MacInspectorCard<Content: View>: View {
+    let title: String
+    var count: Int?
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            LedgerHeading(title: title, count: count)
+            content()
+        }
+        .ledgerCard()
     }
 }
 #endif

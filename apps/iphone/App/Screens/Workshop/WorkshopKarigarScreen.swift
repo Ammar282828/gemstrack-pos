@@ -800,27 +800,34 @@ extension WorkshopKarigarScreen {
     func macPage(_ karigar: Karigar) -> some View {
         let data = macPageData(karigar)
         return VStack(spacing: 0) {
-            MacDocumentHeader(
-                title: karigar.name,
-                subtitle: [karigar.contact ?? "", karigar.specialty ?? ""].filter { !$0.isEmpty }.joined(separator: " \u{00B7} "),
-                headline: session.isOwner ? MacKarigarFigures.headline(cash: data.position.cashBalance) : nil
-            )
-            Divider()
-            HStack(spacing: 0) {
+            HStack(alignment: .top, spacing: 12) {
+                MacWorkHead(
+                    title: karigar.name,
+                    subtitle: [karigar.contact ?? "", karigar.specialty ?? ""].filter { !$0.isEmpty }.joined(separator: " \u{00B7} "),
+                    pill: (data.load?.active ?? 0) > 0 ? WorkshopLogic.pieces(data.load?.active ?? 0) + " out" : "Free",
+                    pillTone: (data.load?.critical ?? 0) > 0 ? .late : ((data.load?.active ?? 0) > 0 ? .working : .quiet),
+                    figure: session.isOwner ? MacKarigarFigures.headline(cash: data.position.cashBalance) : nil
+                ) {
+                    Monogram(name: karigar.name, size: Monogram.Size.hero)
+                }
+                ContactActions(phone: karigar.contact)
+                    .padding(.top, 6)
+            }
+            .padding([.horizontal, .top], 12)
+            HStack(alignment: .top, spacing: 0) {
                 Group {
                     if showingAccounts && session.isOwner { macPaymentsTable(data) } else { macWorkTable(karigar, data) }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                Divider()
-                Form {
-                    Section("Now") { macNowRows(data) }
-                    Section("Details") { MacKarigarDetailRows(karigar: karigar) }
+                MacWorkPage {
+                    MacWorkCard("Now") { macNowRows(data) }
+                    MacWorkCard("Details") { MacKarigarDetailRows(karigar: karigar) }
                 }
-                .formStyle(.grouped)
-                .frame(minWidth: 240, idealWidth: 300, maxWidth: 340)
+                .frame(minWidth: 250, idealWidth: 300, maxWidth: 340)
             }
             .macSummaryBar(macSummary(data))
         }
+        .background(Theme.ground)
         .navigationDestination(item: $macOpened) { (r: Route) in PlaceScreen(path: r.path) }
         .accessibilityIdentifier("workshop.karigar")
         .toolbar { macToolbar(karigar, data) }
@@ -940,33 +947,36 @@ extension WorkshopKarigarScreen {
 
     // MARK: The tables
 
-    /// Five columns (the weight rides beside the piece, the order beside whom it is for): with his column at the right the
-    /// window stays narrow enough for a 13-inch screen.
+    /// His pieces as the iPhone's rows: the piece over whom it is for, what it is and how old at the right.
     private func macWorkTable(_ karigar: Karigar, _ data: MacKarigarPageData) -> some View {
-        Table(data.work, selection: $macWorkPick, sortOrder: $macWorkSort) {
-            TableColumn("Piece", value: \.title) { (r: MacKarigarWorkRow) in
-                HStack(spacing: 6) {
-                    Text(r.title).fontWeight(.medium).lineLimit(1)
-                    if r.weight > 0 {
-                        Text(WorkshopLogic.grams3(r.weight)).monospacedDigit().lineLimit(1).foregroundStyle(.secondary).layoutPriority(1)
+        List(selection: $macWorkPick) {
+            ForEach(data.work) { (r: MacKarigarWorkRow) in
+                HStack(spacing: 10) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 6) {
+                            Text(r.title).font(.body).lineLimit(1)
+                            if r.weight > 0 {
+                                Text(WorkshopLogic.grams3(r.weight)).font(.callout).monospacedDigit().foregroundStyle(.secondary).layoutPriority(1)
+                            }
+                        }
+                        Text(macWorkLine(r)).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                    Spacer(minLength: 8)
+                    Text(r.status).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                    switch r.urgency {
+                    case .critical: Pill("\(r.ageDays)d", tone: .late)
+                    case .warning: Pill("\(r.ageDays)d", tone: .owed)
+                    case .ok: Text("\(r.ageDays)d").font(.caption).monospacedDigit().foregroundStyle(.secondary)
                     }
                 }
+                .padding(.vertical, 3)
+                .tag(r.id)
+                .houseRows()
             }
-            .width(min: 100, ideal: 220)
-            TableColumn("For", value: \.forWhom) { (r: MacKarigarWorkRow) in
-                Text(r.order.isEmpty ? r.forWhom : (r.forWhom.isEmpty ? r.order : r.forWhom + " \u{00B7} " + r.order))
-                    .foregroundStyle(.secondary).lineLimit(1)
-            }
-            .width(min: 80, ideal: 150)
-            TableColumn("What", value: \.kind) { (r: MacKarigarWorkRow) in Text(r.kind).foregroundStyle(.secondary).lineLimit(1) }
-                .width(min: 70, ideal: 110)
-            TableColumn("Age", value: \.ageDays) { (r: MacKarigarWorkRow) in
-                Text("\(r.ageDays)d").monospacedDigit().lineLimit(1).foregroundStyle(macAgeColor(r.urgency)).frame(maxWidth: .infinity, alignment: .trailing)
-            }
-            .width(min: 36, ideal: 48)
-            TableColumn("Status") { (r: MacKarigarWorkRow) in Text(r.status).foregroundStyle(.secondary).lineLimit(1) }
-                .width(min: 80, ideal: 130)
         }
+        .listStyle(.inset)
+        .scrollContentBackground(.hidden)
+        .background(Theme.ground)
         .contextMenu(forSelectionType: String.self) { ids in
             if ids.count == 1, let id = ids.first, let r = data.work.first(where: { $0.id == id }) {
                 Button("Open") { macOpenPath(r.path) }
@@ -983,27 +993,38 @@ extension WorkshopKarigarScreen {
         }
     }
 
+    /// "On the bench \u{00B7} Sana Demo \u{00B7} ORD-12".
+    private func macWorkLine(_ r: MacKarigarWorkRow) -> String {
+        var parts = [r.kind]
+        if !r.forWhom.isEmpty { parts.append(r.forWhom) }
+        if !r.order.isEmpty { parts.append(r.order) }
+        return parts.joined(separator: " \u{00B7} ")
+    }
+
     /// Four columns; the category rides beside what the payment was for.
     private func macPaymentsTable(_ data: MacKarigarPageData) -> some View {
-        Table(data.payments, selection: $macPayPick, sortOrder: $macPaySort) {
-            TableColumn("Date", value: \.date) { (r: MacKarigarPayRow) in Text(ShopDate.say(r.date)).lineLimit(1) }
-                .width(min: 70, ideal: 90)
-            TableColumn("What", value: \.what) { (r: MacKarigarPayRow) in
-                HStack(spacing: 6) {
-                    Text(r.what).lineLimit(1)
-                    if !r.category.isEmpty && r.category != r.what {
-                        Text(r.category).foregroundStyle(.secondary).lineLimit(1).layoutPriority(-1)
+        List(selection: $macPayPick) {
+            ForEach(data.payments) { (r: MacKarigarPayRow) in
+                HStack(spacing: 10) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(r.what).font(.body).lineLimit(1)
+                        Text(ShopDate.say(r.date) + (r.group.isEmpty ? "" : " \u{00B7} " + r.group))
+                            .font(.callout).foregroundStyle(.secondary).lineLimit(1)
                     }
+                    Spacer(minLength: 8)
+                    if !r.category.isEmpty && r.category != r.what {
+                        Text(r.category).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                    RowAmount(amount: r.amount)
                 }
+                .padding(.vertical, 3)
+                .tag(r.id)
+                .houseRows()
             }
-            .width(min: 110, ideal: 280)
-            TableColumn("Batch", value: \.group) { (r: MacKarigarPayRow) in Text(r.group).foregroundStyle(.secondary).lineLimit(1) }
-                .width(min: 80, ideal: 150)
-            TableColumn("Amount", value: \.amount) { (r: MacKarigarPayRow) in
-                MacAmount(r.amount)
-            }
-            .width(min: 70, ideal: 100)
         }
+        .listStyle(.inset)
+        .scrollContentBackground(.hidden)
+        .background(Theme.ground)
         .contextMenu(forSelectionType: String.self) { ids in
             if ids.count == 1, let id = ids.first, let r = data.payments.first(where: { $0.id == id }) {
                 macPayRowMenu(r, data)
@@ -1041,24 +1062,16 @@ extension WorkshopKarigarScreen {
     @ViewBuilder
     private func macNowRows(_ data: MacKarigarPageData) -> some View {
         let p = data.position
-        LabeledContent("On his bench") {
-            Text(p.bench.isEmpty ? "nothing open" : WorkshopLogic.pieces(p.bench.count) + " \u{00B7} oldest \(p.bench[0].ageDays) d").monospacedDigit()
-        }
-        LabeledContent("Pieces weigh (est.)") {
-            Text(p.metals.isEmpty ? "\u{2014}" : p.metals.map { WorkshopLogic.grams3($0.grams) }.joined(separator: " \u{00B7} ")).monospacedDigit()
-        }
+        MacWorkFact("On his bench", p.bench.isEmpty ? "nothing open" : WorkshopLogic.pieces(p.bench.count) + " \u{00B7} oldest \(p.bench[0].ageDays) d")
+        MacWorkFact("Pieces weigh (est.)", p.metals.isEmpty ? "\u{2014}" : p.metals.map { WorkshopLogic.grams3($0.grams) }.joined(separator: " \u{00B7} "))
         if session.isOwner {
-            LabeledContent("Gold khata") {
-                Text(WorkshopLogic.grams3(p.khataNet)).monospacedDigit().foregroundStyle(p.khataNet > 0.0005 ? Tone.owed.color : Color.primary)
-            }
+            MacWorkFact("Gold khata", WorkshopLogic.grams3(p.khataNet), tone: p.khataNet > 0.0005 ? .owed : .quiet)
             if let pay = data.pay {
-                LabeledContent("Active pay batch") {
-                    if let open = pay.open, !open.batch.label.isEmpty { Text(open.batch.label) } else { Text("None").foregroundStyle(.secondary) }
-                }
-                LabeledContent("Total paid (all time)") { Text(Money.pkr(pay.totalPaid)).monospacedDigit() }
+                MacWorkFact("Active pay batch", (pay.open?.batch.label).flatMap { $0.isEmpty ? nil : $0 } ?? "None")
+                MacWorkFact("Total paid (all time)", Money.pkr(pay.totalPaid))
             }
         } else if let silver = data.silver, !silver.rows.isEmpty {
-            LabeledContent("Silver received", value: WorkshopLogic.grams3(silver.grams) + " \u{00B7} " + Money.pkr(silver.surcharge) + " surcharge")
+            MacWorkFact("Silver received", WorkshopLogic.grams3(silver.grams) + " \u{00B7} " + Money.pkr(silver.surcharge) + " surcharge")
         }
     }
 

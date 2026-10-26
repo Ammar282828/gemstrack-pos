@@ -951,28 +951,16 @@ extension WorkshopBoard {
 
     // MARK: The table
 
-    /// Seven columns (the weight rides beside the piece; the inspector has the rest of the making).
+    /// The pieces as the iPhone's rows: Done, the piece over its order and customer, the karigar, the stage and the age.
     private func macTableView(_ data: MacWorkshopData) -> some View {
-        Table(data.sorted, selection: $macPicked, sortOrder: $macSort) {
-            TableColumn("Done") { (j: WorkshopJob) in macDoneCell(j) }
-                .width(46)
-            TableColumn("Piece", value: \.description) { (j: WorkshopJob) in macPieceCell(j) }
-                .width(min: 120, ideal: 220)
-            TableColumn("Order") { (j: WorkshopJob) in
-                Text(j.invoiceId ?? j.orderId ?? "Stock work").monospacedDigit().lineLimit(1).foregroundStyle(.secondary)
+        List(selection: $macPicked) {
+            ForEach(data.sorted) { (j: WorkshopJob) in
+                macJobListRow(j, data.live)
             }
-            .width(min: 70, ideal: 100)
-            TableColumn("Customer") { (j: WorkshopJob) in Text(j.customerName ?? "").foregroundStyle(.secondary).lineLimit(1) }
-                .width(min: 90, ideal: 140)
-            TableColumn("Karigar", value: \.karigarName) { (j: WorkshopJob) in macKarigarCell(j, data.live) }
-                .width(min: 110, ideal: 150)
-            TableColumn("Stage") { (j: WorkshopJob) in MacStatus(macStageWords(j), tone: macStageTone(j)) }
-                .width(min: 90, ideal: 120)
-            TableColumn("Age", value: \.ageDays) { (j: WorkshopJob) in
-                Text(j.isDone ? "" : "\(j.ageDays)d").monospacedDigit().lineLimit(1).foregroundStyle(macAgeColor(j))
-            }
-            .width(min: 40, ideal: 52)
         }
+        .listStyle(.inset)
+        .scrollContentBackground(.hidden)
+        .background(Theme.ground)
         .contextMenu(forSelectionType: String.self) { ids in
             let jobs = ids.compactMap { data.byId[$0] }
             if !jobs.isEmpty {
@@ -984,7 +972,45 @@ extension WorkshopBoard {
         }
     }
 
+    private func macJobListRow(_ j: WorkshopJob, _ live: [Karigar]) -> some View {
+        HStack(spacing: 10) {
+            macDoneCell(j)
+            VStack(alignment: .leading, spacing: 2) {
+                macPieceCell(j)
+                Text(macReference(j)).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+            }
+            Spacer(minLength: 8)
+            macKarigarCell(j, live).frame(maxWidth: 170, alignment: .trailing)
+            Pill(macStageWords(j), tone: macStageTone(j))
+            WorkshopAgeBadge(job: j)
+        }
+        .padding(.vertical, 3)
+        .tag(j.id)
+        .houseRows()
+    }
+
     /// The piece, with its weight in grey beside it.
+    /// The Sort by pick: the iPhone's order (the board's own) when none is set.
+    private var macSortChoice: Binding<Int> {
+        Binding(
+            get: {
+                guard let first = macSort.first else { return 0 }
+                let k: AnyKeyPath = first.keyPath
+                if k == (\WorkshopJob.description as AnyKeyPath) { return 1 }
+                if k == (\WorkshopJob.karigarName as AnyKeyPath) { return 2 }
+                return 3
+            },
+            set: { (n: Int) in
+                switch n {
+                case 1: macSort = [KeyPathComparator(\WorkshopJob.description)]
+                case 2: macSort = [KeyPathComparator(\WorkshopJob.karigarName)]
+                case 3: macSort = [KeyPathComparator(\WorkshopJob.ageDays, order: .reverse)]
+                default: macSort = []
+                }
+            }
+        )
+    }
+
     private func macPieceCell(_ j: WorkshopJob) -> some View {
         HStack(spacing: 6) {
             Text(j.description).fontWeight(.medium).lineLimit(1)
@@ -1114,6 +1140,18 @@ extension WorkshopBoard {
                 }
                 .pickerStyle(.inline)
                 .labelsHidden()
+            }
+            if macTable {
+                Section("Sort by") {
+                    Picker("Sort by", selection: macSortChoice) {
+                        Text("As the board has it").tag(0)
+                        Text("Piece").tag(1)
+                        Text("Karigar").tag(2)
+                        Text("Age").tag(3)
+                    }
+                    .pickerStyle(.inline)
+                    .labelsHidden()
+                }
             }
             Section("Status") {
                 Picker("Status", selection: $filter.status) {
@@ -1279,17 +1317,18 @@ extension WorkshopBoard {
     private func macJobInspector(_ job: WorkshopJob, _ data: MacWorkshopData) -> some View {
         let jobs = [job]
         let writable = macCanWrite(job)
-        return Form {
-            Section {
-                MacInspectorHeader(
-                    title: job.description,
-                    subtitle: macReference(job),
-                    status: MacStatus(macStageWords(job), tone: macStageTone(job)),
-                    headline: job.isDone ? nil : MacHeadline("With the shop for", job.ageDays == 1 ? "1 day" : "\(job.ageDays) days", tone: macAgeTone(job)),
-                    actions: [macDoneAction(jobs)]
-                )
+        return MacWorkPage {
+            MacWorkHead(
+                title: job.description,
+                subtitle: macReference(job),
+                pill: macStageWords(job),
+                pillTone: macStageTone(job),
+                figure: job.isDone ? nil : MacHeadline("With the shop for", job.ageDays == 1 ? "1 day" : "\(job.ageDays) days", tone: macAgeTone(job))
+            ) {
+                Monogram(name: job.customerName ?? "", size: Monogram.Size.hero)
             }
-            Section("Who Has It") {
+            MacActionButtons(actions: [macDoneAction(jobs)])
+            MacWorkCard("Who has it") {
                 macKarigarRow(job, data.live)
                 if writable && !job.isDone && !job.isUnassigned {
                     Toggle(job.hasGiven ? "Given " + ShopDate.say(job.givenAt) : "Given to the karigar", isOn: Binding(
@@ -1299,36 +1338,37 @@ extension WorkshopBoard {
                     .disabled(busy.contains(job.id))
                 }
             }
-            Section("Making") { macMakingRows(job) }
+            MacWorkCard("Making") { macMakingRows(job) }
             if writable {
-                Section {
-                    Button("Making Details\u{2026}") { openDetails(job) }
-                    if job.source == .manual {
-                        Button("Delete Job\u{2026}", role: .destructive) { askDelete(job) }
+                MacWorkCard("") {
+                    HStack(spacing: 8) {
+                        Button("Making Details\u{2026}") { openDetails(job) }
+                        if job.source == .manual {
+                            Button("Delete Job\u{2026}", role: .destructive) { askDelete(job) }
+                        }
                     }
+                    .buttonStyle(.bordered)
                 }
             }
         }
-        .formStyle(.grouped)
     }
 
     private func macManyInspector(_ jobs: [WorkshopJob], _ data: MacWorkshopData) -> some View {
         let grams = jobs.reduce(0.0) { $0 + ($1.weightG ?? 0) }
-        return Form {
-            Section {
-                MacInspectorHeader(
-                    title: "\(jobs.count) Pieces",
-                    subtitle: grams > 0 ? WorkshopLogic.number(grams, digits: 1) + "g in all" : nil,
-                    actions: [macDoneAction(jobs)]
-                )
+        return MacWorkPage {
+            MacWorkHead(
+                title: "\(jobs.count) Pieces",
+                subtitle: grams > 0 ? WorkshopLogic.number(grams, digits: 1) + "g in all" : nil
+            ) {
+                Image(systemName: "square.stack.3d.up").font(.title2).foregroundStyle(Theme.accent)
             }
-            Section("Pieces") {
+            MacActionButtons(actions: [macDoneAction(jobs)])
+            MacWorkCard("Pieces", count: jobs.count) {
                 ForEach(jobs.prefix(40)) { (j: WorkshopJob) in
-                    LabeledContent(j.description) { Text(j.isUnassigned ? "Needs a karigar" : j.karigarName).foregroundStyle(.secondary) }
+                    MacWorkFact(j.description, j.isUnassigned ? "Needs a karigar" : j.karigarName)
                 }
             }
         }
-        .formStyle(.grouped)
     }
 
     private func macReference(_ job: WorkshopJob) -> String {
@@ -1363,22 +1403,22 @@ extension WorkshopBoard {
             .pickerStyle(.menu)
             .disabled(busy.contains(job.id))
         } else {
-            LabeledContent("Karigar", value: job.isUnassigned ? "Needs a karigar" : job.karigarName)
+            MacWorkFact("Karigar", job.isUnassigned ? "Needs a karigar" : job.karigarName, tone: job.isUnassigned ? .owed : .quiet)
         }
     }
 
     /// The making details the karigar sees: what it is, its size, weight, finish, and the instructions.
     @ViewBuilder
     private func macMakingRows(_ job: WorkshopJob) -> some View {
-        if let c = job.category, !c.isEmpty { LabeledContent("Kind", value: c) }
-        if let s = job.size, !s.isEmpty { LabeledContent("Size", value: s) }
-        if let w = job.weightG, w > 0 { LabeledContent("Weight", value: WorkshopLogic.grams(w)) }
-        if let k = job.karat, !k.isEmpty { LabeledContent("Karat", value: k.uppercased()) }
-        if let p = job.plating, !p.isEmpty { LabeledContent("Finish", value: p) }
-        if let r = job.referenceSku, !r.isEmpty { LabeledContent("Reference", value: r) }
-        if let by = job.takenBy, !by.isEmpty { LabeledContent("Taken by", value: by) }
+        if let c = job.category, !c.isEmpty { MacWorkFact("Kind", c) }
+        if let s = job.size, !s.isEmpty { MacWorkFact("Size", s) }
+        if let w = job.weightG, w > 0 { MacWorkFact("Weight", WorkshopLogic.grams(w)) }
+        if let k = job.karat, !k.isEmpty { MacWorkFact("Karat", k.uppercased()) }
+        if let p = job.plating, !p.isEmpty { MacWorkFact("Finish", p) }
+        if let r = job.referenceSku, !r.isEmpty { MacWorkFact("Reference", r) }
+        if let by = job.takenBy, !by.isEmpty { MacWorkFact("Taken by", by) }
         if let notes = job.notes, !notes.isEmpty {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text("Instructions").font(.callout).foregroundStyle(.secondary)
                 Text(notes).textSelection(.enabled)
             }

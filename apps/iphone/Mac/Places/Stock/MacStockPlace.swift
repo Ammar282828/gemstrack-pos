@@ -61,7 +61,8 @@ struct MacStockPlace: View {
     @State private var selection = Set<String>()
     /// Where a shift-click in the gallery starts from.
     @State private var anchor: String?
-    @State private var sort = [KeyPathComparator(\MacStockPlaceRow.sku)]
+    /// The shelf's own order (the iPhone's) unless the Filter menu says otherwise.
+    @State private var sort: [KeyPathComparator<MacStockPlaceRow>] = []
     @State private var made = Memo<MacStockPlaceRows>()
     /// The rows in the table's order: a change of sort sorts again, it never prices the pieces again.
     @State private var ordered = Memo<[MacStockPlaceRow]>()
@@ -187,29 +188,16 @@ struct MacStockPlace: View {
         }
     }
 
+    /// The iPhone's rows: the photo, the name over its SKU and what it is made of, today's price at the right.
     private func table(_ data: MacStockPlaceRows) -> some View {
-        Table(data.rows, selection: $selection, sortOrder: $sort) {
-            TableColumn("SKU", value: \.sku) { (r: MacStockPlaceRow) in Text(r.sku).monospacedDigit().lineLimit(1) }
-                .width(min: 70, ideal: 96)
-            TableColumn("Name", value: \.name) { (r: MacStockPlaceRow) in Text(r.name).lineLimit(1) }
-                .width(min: 120, ideal: 200)
-            TableColumn("Category", value: \.category) { (r: MacStockPlaceRow) in
-                Text(r.category).lineLimit(1).foregroundStyle(.secondary)
+        List(selection: $selection) {
+            ForEach(data.rows) { (r: MacStockPlaceRow) in
+                listRow(r)
             }
-            .width(min: 80, ideal: 120)
-            TableColumn("Metal", value: \.metal) { (r: MacStockPlaceRow) in
-                Text(r.metal).lineLimit(1).foregroundStyle(.secondary)
-            }
-            .width(min: 70, ideal: 100)
-            TableColumn("Weight", value: \.weight) { (r: MacStockPlaceRow) in
-                Text(StockKit.grams(r.weight)).monospacedDigit().lineLimit(1).frame(maxWidth: .infinity, alignment: .trailing)
-            }
-            .width(min: 60, ideal: 80)
-            TableColumn("Price today", value: \.price) { (r: MacStockPlaceRow) in
-                MacAmount(r.price > 0 ? r.price : nil)
-            }
-            .width(min: 70, ideal: 100)
         }
+        .listStyle(.inset)
+        .scrollContentBackground(.hidden)
+        .background(Theme.ground)
         .contextMenu(forSelectionType: String.self) { ids in
             if !ids.isEmpty { MacActionItems(groups: actionGroups(Array(ids))) }
         } primaryAction: { ids in
@@ -217,11 +205,68 @@ struct MacStockPlace: View {
         }
     }
 
+    private func listRow(_ r: MacStockPlaceRow) -> some View {
+        HStack(spacing: 10) {
+            StockImage(imageUrl: r.product.imageUrl, name: r.product.name, key: r.sku)
+                .frame(width: 40, height: 40)
+                .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(r.name.isEmpty ? r.sku : r.name).font(.body.weight(.medium)).lineLimit(1)
+                Text(r.sku + " \u{00B7} " + detail(r)).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+            }
+            Spacer(minLength: 8)
+            price(r)
+        }
+        .padding(.vertical, 2)
+        .tag(r.id)
+        .houseRows()
+    }
+
+    /// "Gold 21K \u{00B7} 3.4g \u{00B7} Rings".
+    private func detail(_ r: MacStockPlaceRow) -> String {
+        [r.metal, StockKit.grams(r.weight), r.category].filter { !$0.isEmpty }.joined(separator: " \u{00B7} ")
+    }
+
+    /// A price, or why there is none: "Price N/A" for a piece that prices at nothing, a dash while the rates have not come.
+    @ViewBuilder
+    private func price(_ r: MacStockPlaceRow) -> some View {
+        if r.price > 0 {
+            RowAmount(amount: r.price)
+        } else {
+            Text(rates == nil ? "\u{2014}" : "Price N/A").font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    private var rates: PricingRates? { StockKit.rates(book.settings.value) }
+
+    /// The Sort by pick: 0 is the shelf's order.
+    private var sortChoice: Binding<Int> {
+        Binding(
+            get: {
+                guard let first = sort.first else { return 0 }
+                let k: AnyKeyPath = first.keyPath
+                if k == (\MacStockPlaceRow.sku as AnyKeyPath) { return 1 }
+                if k == (\MacStockPlaceRow.name as AnyKeyPath) { return 2 }
+                if k == (\MacStockPlaceRow.price as AnyKeyPath) { return 3 }
+                return 4
+            },
+            set: { (n: Int) in
+                switch n {
+                case 1: sort = [KeyPathComparator(\MacStockPlaceRow.sku)]
+                case 2: sort = [KeyPathComparator(\MacStockPlaceRow.name)]
+                case 3: sort = [KeyPathComparator(\MacStockPlaceRow.price, order: .reverse)]
+                case 4: sort = [KeyPathComparator(\MacStockPlaceRow.weight, order: .reverse)]
+                default: sort = []
+                }
+            }
+        )
+    }
+
     // MARK: The gallery
 
     private func gallery(_ data: MacStockPlaceRows) -> some View {
         ScrollView {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 130, maximum: 190), spacing: 14, alignment: .top)], spacing: 14) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 170, maximum: 240), spacing: 14, alignment: .top)], spacing: 14) {
                 ForEach(data.rows) { (r: MacStockPlaceRow) in
                     galleryCell(r, data)
                 }
@@ -230,6 +275,7 @@ struct MacStockPlace: View {
             .frame(maxWidth: .infinity)
             .background(Color.clear.contentShape(Rectangle()).onTapGesture { selection = [] })
         }
+        .background(Theme.ground)
         .focusable()
         .focusEffectDisabled()
         .onKeyPress(.return) {
@@ -240,19 +286,23 @@ struct MacStockPlace: View {
 
     private func galleryCell(_ r: MacStockPlaceRow, _ data: MacStockPlaceRows) -> some View {
         let picked = selection.contains(r.id)
-        return VStack(spacing: 4) {
+        return VStack(alignment: .leading, spacing: 6) {
             StockImage(imageUrl: r.product.imageUrl, name: r.product.name, key: r.sku)
                 .aspectRatio(1, contentMode: .fit)
-                .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: Radius.thumb, style: .continuous)
-                        .strokeBorder(Theme.accent, lineWidth: picked ? 3 : 0)
-                }
-            Text(r.sku).font(.caption.monospaced()).lineLimit(1)
-            Text(r.name).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                .clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))
+            Text(r.name.isEmpty ? r.sku : r.name).font(.body.weight(.semibold)).lineLimit(2).multilineTextAlignment(.leading)
+            Text(r.sku).font(.caption.monospaced()).foregroundStyle(.secondary).lineLimit(1)
+            Text(r.metal + " \u{00B7} " + StockKit.grams(r.weight)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            price(r)
         }
-        .padding(6)
-        .background(picked ? Theme.accent.opacity(0.14) : Color.clear, in: .rect(cornerRadius: Radius.chip, style: .continuous))
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .houseCard()
+        .overlay {
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                .strokeBorder(Theme.accent, lineWidth: picked ? 2.5 : 0)
+                .allowsHitTesting(false)
+        }
         .contentShape(Rectangle())
         // The click picks at once; the second click of a double-click opens (two exclusive gestures would hold the pick back
         // by the double-click interval).
@@ -319,6 +369,15 @@ struct MacStockPlace: View {
                 ForEach(categoryOptions()) { (c: StockKit.Category) in
                     Text(c.title).tag(Optional(c.id))
                 }
+            }
+            .pickerStyle(.inline)
+            Divider()
+            Picker("Sort by", selection: sortChoice) {
+                Text("As the Shelf Has Them").tag(0)
+                Text("SKU").tag(1)
+                Text("Name").tag(2)
+                Text("Price, Highest First").tag(3)
+                Text("Weight, Heaviest First").tag(4)
             }
             .pickerStyle(.inline)
         } label: {
@@ -427,20 +486,19 @@ struct MacStockPlace: View {
     private func pieceInspector(_ p: Product) -> some View {
         let settings = book.settings.value
         let skus = [p.sku]
-        return Form {
-            Section {
-                MacInspectorHeader(
-                    title: p.name.isEmpty ? p.sku : p.name,
-                    subtitle: p.sku + " \u{00B7} " + StockKit.categoryTitle(p.categoryId),
-                    headline: MacHeadline("At today's rates", MacStockPricing.words(MacStockPricing.total(p, settings))),
-                    actions: [sellAction(skus), printAction(skus, now: false)]
-                )
-                photo(p)
+        return MacWorkPage {
+            photo(p)
+            MacWorkHead(
+                title: p.name.isEmpty ? p.sku : p.name,
+                subtitle: p.sku + " \u{00B7} " + StockKit.categoryTitle(p.categoryId),
+                figure: MacHeadline("At today's rates", MacStockPricing.words(MacStockPricing.total(p, settings)))
+            ) {
+                EmptyView()
             }
+            MacActionButtons(actions: [sellAction(skus), printAction(skus, now: false)])
             MacStockDetailSections(product: p)
             MacStockPriceSection(product: p, settings: settings)
         }
-        .formStyle(.grouped)
     }
 
     /// The photo: a picture file dropped on it replaces it (the form's own upload, saved at once).
@@ -451,6 +509,8 @@ struct MacStockPlace: View {
             .clipShape(.rect(cornerRadius: Radius.chip, style: .continuous))
             .frame(maxWidth: 240)
             .frame(maxWidth: .infinity)
+            .padding(Metrics.cardPadding)
+            .houseCard()
         if session.isOwner {
             image
                 .modifier(StockPhotoDrop(sku: p.sku, choosing: $replacing))
@@ -464,24 +524,20 @@ struct MacStockPlace: View {
     private func manyInspector(_ picked: [MacStockPlaceRow]) -> some View {
         let skus = picked.map { $0.id }
         let grams = picked.reduce(0) { $0 + $1.weight }
-        return Form {
-            Section {
-                MacInspectorHeader(
-                    title: "\(picked.count) Pieces",
-                    subtitle: StockKit.grams(grams) + " in all",
-                    actions: [sellAction(skus), printAction(skus, now: false)]
-                )
+        return MacWorkPage {
+            MacWorkHead(title: "\(picked.count) Pieces", subtitle: StockKit.grams(grams) + " in all") {
+                Image(systemName: "square.stack.3d.up").font(.title2).foregroundStyle(Theme.accent)
             }
-            Section("Pieces") {
+            MacActionButtons(actions: [sellAction(skus), printAction(skus, now: false)])
+            MacWorkCard("Pieces", count: picked.count) {
                 ForEach(picked.prefix(40)) { (r: MacStockPlaceRow) in
-                    LabeledContent(r.sku) { Text(r.name).lineLimit(1).foregroundStyle(.secondary) }
+                    MacWorkFact(r.sku, r.name)
                 }
                 if picked.count > 40 {
                     Text("and \(picked.count - 40) more").foregroundStyle(.secondary)
                 }
             }
         }
-        .formStyle(.grouped)
     }
 }
 #endif

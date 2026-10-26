@@ -29,6 +29,8 @@ struct MacNewOrderOrderForm: View {
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .background(Theme.ground)
     }
 }
 

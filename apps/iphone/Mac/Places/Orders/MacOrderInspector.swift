@@ -18,6 +18,7 @@ struct MacOrderInspector: View {
 
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
+    @Environment(\.openURL) private var openURL
     /// What the person just did, shown before the shelf's copy catches up (dropped once the shelf agrees).
     @State private var localDone: [Int: Bool] = [:]
     @State private var localKarigar: [Int: String] = [:]
@@ -48,49 +49,134 @@ struct MacOrderInspector: View {
         let owed = MacOrdersLogic.owed(order, stage: stage, invoiceOwed: invoiceOwed)
         let worth = MacOrdersLogic.worth(order, invoice: invoice)
         let buttons = MacOrdersMenu.pick(actions(order, stage, invoiceOwed), ["next", "advance"]).filter { $0.enabled }.map(shortened)
-        return VStack(spacing: 0) {
-            MacInspectorHeader(
-                title: OrdersLogic.customerName(order),
-                subtitle: caption(order),
-                status: MacStatus(MacOrdersLogic.words(order, stage: stage), tone: MacOrdersLogic.tone(stage)),
-                headline: headline(owed: owed, worth: worth, stage: stage),
-                actions: buttons
-            )
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-            Divider()
-            form(order, invoice: invoice, stage: stage, worth: worth)
+        return ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                head(order, invoice: invoice, stage: stage, owed: owed, worth: worth, buttons: buttons)
+                cards(order, invoice: invoice, stage: stage, worth: worth)
+            }
+            .padding(14)
         }
+        .background(Theme.ground)
         .onChange(of: signature(order)) { _, _ in reconcile(order) }
     }
 
-    private func form(_ order: Order, invoice: Invoice?, stage: OrderStage, worth: Double) -> some View {
+    // MARK: The head: the iPhone's order page head at an inspector's width
+
+    private func head(_ order: Order, invoice: Invoice?, stage: OrderStage, owed: Double, worth: Double, buttons: [MacAction]) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 10) {
+                Monogram(name: OrdersLogic.customerName(order), size: Monogram.Size.hero)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(OrdersLogic.customerName(order))
+                        .font(.system(.title3, design: .serif).weight(.semibold))
+                        .lineLimit(2).textSelection(.enabled)
+                    Text(caption(order)).font(.callout).foregroundStyle(.secondary).lineLimit(2).textSelection(.enabled)
+                }
+                Spacer(minLength: 0)
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Pill(MacOrdersLogic.words(order, stage: stage), tone: MacOrdersLogic.tone(stage))
+                Spacer(minLength: 0)
+            }
+            if stage != .closed {
+                hero(owed: owed, worth: worth)
+                StageTrack(stage: stage, labels: true)
+                PaidBar(paid: paidSoFar(order, invoice: invoice), total: worth)
+            }
+            if !buttons.isEmpty { MacActionButtons(actions: buttons) }
+            reach(order)
+        }
+        .padding(Metrics.cardPadding)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .houseCard()
+    }
+
+    /// The one big figure: what is owed, what is in credit, or the total once paid.
+    private func hero(owed: Double, worth: Double) -> some View {
+        let label = owed >= 1 ? "Owed" : (isCredit(owed) ? "In credit" : "Paid")
+        let amount = owed >= 1 ? owed : (isCredit(owed) ? -owed : worth)
+        let tone: Color = owed >= 1 ? Tone.owed.color : (isCredit(owed) ? Tone.credit.color : Tone.settled.color)
+        return VStack(alignment: .leading, spacing: 0) {
+            Text(label).font(.caption).foregroundStyle(.secondary)
+            HStack(alignment: .firstTextBaseline, spacing: 5) {
+                Text("PKR").font(.system(.callout, design: .serif).weight(.medium)).foregroundStyle(.secondary)
+                Text(HeroAmount.figure(amount, lac: false))
+                    .font(.system(.title, design: .serif).weight(.semibold))
+                    .foregroundStyle(tone).monospacedDigit().lineLimit(1).minimumScaleFactor(0.6)
+            }
+        }
+    }
+
+    private func paidSoFar(_ order: Order, invoice: Invoice?) -> Double {
+        invoice.map { $0.amountPaid } ?? MacOrdersLogic.paid(order)
+    }
+
+    /// Call and WhatsApp, the iPhone's quick actions as a row of buttons.
+    @ViewBuilder
+    private func reach(_ order: Order) -> some View {
+        if !CustomerKit.dialable(order.customerContact).isEmpty {
+            HStack(spacing: 8) {
+                QuickAction(title: "Call", symbol: "phone.fill") { go(CustomerKit.callURL(order.customerContact)) }
+                QuickAction(title: "WhatsApp", symbol: "message.fill") { go(CustomerKit.whatsAppURL(order.customerContact)) }
+            }
+        }
+    }
+
+    private func go(_ url: URL?) {
+        if let url { openURL(url) }
+    }
+
+    // MARK: The cards
+
+    private func cards(_ order: Order, invoice: Invoice?, stage: OrderStage, worth: Double) -> some View {
         let invoiced = OrdersLogic.hasInvoice(order)
         let counts = pieceCounts(order.items)
         let live = liveKarigars([book.karigars.revision]) { workshopLive(book.karigars.items) }
         let karigars: [Karigar] = session.isOwner && !invoiced ? live : []
         let lines = OrdersLogic.advanceLines(order)
-        return Form {
+        return VStack(alignment: .leading, spacing: 14) {
             promiseSection(order)
-            Section {
+            card("Pieces", trailing: counts.total > 0 ? "\(doneCount(order)) of \(counts.total) done" : nil) {
                 if order.items.isEmpty {
                     Text("No pieces on this order.").foregroundStyle(.secondary)
                 }
                 ForEach(order.items.indices, id: \.self) { (i: Int) in
+                    if i > 0 { Divider() }
                     pieceRow(order, i, invoiced: invoiced, karigars: karigars)
                 }
-            } header: {
-                Text(counts.total > 0 ? "Pieces \u{00B7} \(doneCount(order)) of \(counts.total) done" : "Pieces")
             }
             if !lines.isEmpty && !invoiced {
-                Section("Advances") {
-                    ForEach(lines) { (l: OrdersLogic.AdvanceLine) in advanceRow(l) }
+                card("Advances") {
+                    ForEach(lines) { (l: OrdersLogic.AdvanceLine) in
+                        if l.id != lines.first?.id { Divider() }
+                        advanceRow(l)
+                    }
                 }
             }
             moneySection(order, worth: worth, invoice: invoice, stage: stage)
             detailsSection(order, invoice: invoice)
         }
-        .formStyle(.grouped)
+    }
+
+    /// A card: its heading in the serif with a figure beside it, then its rows.
+    private func card<C: View>(_ title: String, trailing: String? = nil, @ViewBuilder _ content: () -> C) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            LedgerHeading(title: title, trailing: trailing)
+            content()
+        }
+        .padding(Metrics.cardPadding)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .houseCard()
+    }
+
+    /// A label and its value on one line.
+    private func line<V: View>(_ label: String, @ViewBuilder _ value: () -> V) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(label).foregroundStyle(.secondary)
+            Spacer(minLength: 8)
+            value().multilineTextAlignment(.trailing)
+        }
+        .font(.callout)
     }
 
     /// "Next Step: Make invoice" is too long for two buttons side by side in the inspector's column: the step's own words.
@@ -130,14 +216,12 @@ struct MacOrderInspector: View {
     private func promiseSection(_ order: Order) -> some View {
         let p = OrdersLogic.promise(order, now: Date())
         if OrdersLogic.isOpen(order) || !p.undated {
-            Section {
-                LabeledContent("Promised") {
-                    Text(OrdersLogic.promiseLine(order, now: Date()))
-                        .foregroundStyle(p.tone == .quiet ? Color.primary : p.tone.color)
-                        .multilineTextAlignment(.trailing)
-                }
+            card("Promised") {
+                Text(OrdersLogic.promiseLine(order, now: Date()))
+                    .font(.callout)
+                    .foregroundStyle(p.tone == .quiet ? Color.primary : p.tone.color)
                 if p.urgent && p.state != .late {
-                    LabeledContent("Urgent", value: "Inside the bench week")
+                    Text("Inside the bench week").font(.caption).foregroundStyle(.secondary)
                 }
             }
         }
@@ -257,16 +341,12 @@ struct MacOrderInspector: View {
     @ViewBuilder
     private func moneySection(_ order: Order, worth: Double, invoice: Invoice?, stage: OrderStage) -> some View {
         if stage != .closed {
-            Section("Money") {
-                LabeledContent("Total", value: Money.pkr(worth))
-                if let inv = invoice {
-                    LabeledContent("Paid", value: Money.pkr(inv.amountPaid))
-                } else {
-                    if OrdersLogic.discount(order) > 0 {
-                        LabeledContent("Discount", value: "\u{2212} " + Money.pkr(OrdersLogic.discount(order)))
-                    }
-                    LabeledContent("Paid", value: Money.pkr(MacOrdersLogic.paid(order)))
+            card("Money") {
+                line("Total") { Text(Money.pkr(worth)).monospacedDigit() }
+                if invoice == nil && OrdersLogic.discount(order) > 0 {
+                    line("Discount") { Text("\u{2212} " + Money.pkr(OrdersLogic.discount(order))).monospacedDigit() }
                 }
+                line("Paid") { Text(Money.pkr(paidSoFar(order, invoice: invoice))).monospacedDigit() }
             }
         }
     }
@@ -280,30 +360,23 @@ struct MacOrderInspector: View {
         let by = order.takenBy ?? ""
         let shipTo = describeDelivery(order.delivery)
         let note = (order.notes ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        Section("Details") {
+        card("Details") {
             if !cid.isEmpty {
-                LabeledContent("Customer") {
-                    Button(OrdersLogic.customerName(order)) { openRoute("/customers/\(cid)") }
-                        .buttonStyle(.link)
+                line("Customer") {
+                    Button(OrdersLogic.customerName(order)) { openRoute("/customers/\(cid)") }.buttonStyle(.link)
                 }
             }
-            if !phone.isEmpty { LabeledContent("Phone", value: OrdersLogic.phoneWords(phone)) }
-            if !by.isEmpty { LabeledContent("Taken by", value: by) }
-            if let source = order.source { LabeledContent("Found us via", value: OrdersLogic.sourceLabel(source)) }
+            if !phone.isEmpty { line("Phone") { Text(OrdersLogic.phoneWords(phone)) } }
+            if !by.isEmpty { line("Taken by") { Text(by) } }
+            if let source = order.source { line("Found us via") { Text(OrdersLogic.sourceLabel(source)) } }
             if !shipTo.isEmpty {
-                LabeledContent("Deliver to") {
-                    Text(shipTo.joined(separator: "\n")).multilineTextAlignment(.trailing)
-                }
+                line("Deliver to") { Text(shipTo.joined(separator: "\n")) }
             }
             if let id = order.invoiceId, !id.isEmpty {
-                LabeledContent("Invoice") {
-                    Button(id) { openRoute("/invoices/\(id)") }.buttonStyle(.link)
-                }
+                line("Invoice") { Button(id) { openRoute("/invoices/\(id)") }.buttonStyle(.link) }
             }
             if !note.isEmpty {
-                LabeledContent("Note") {
-                    Text(note).multilineTextAlignment(.trailing).textSelection(.enabled)
-                }
+                line("Note") { Text(note).textSelection(.enabled) }
             }
         }
     }

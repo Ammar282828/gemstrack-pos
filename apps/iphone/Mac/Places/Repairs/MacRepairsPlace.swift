@@ -2,7 +2,7 @@
 import SwiftUI
 import ERPCore
 
-// The Repairs place (docs/features/mac-design.md, "Repairs"): a sortable, multi-select table of the tickets, the picked one in
+// The Repairs place (docs/features/mac-design.md, "Repairs"): a multi-select list of the tickets, grouped by status, the picked one in
 // the inspector beside it, a summary bar at the foot. The sidebar's saved lists (In the Shop, Ready, Collected) are this
 // place's path with `?list=`. Every action is a `MacAction`, declared once in `MacRepairsModel` and drawn in the toolbar, the
 // menu bar's Repair menu, the right-click menu and the inspector. Return or a double-click opens the ticket in a window of its
@@ -69,11 +69,13 @@ struct MacRepairsPlace: View {
     @State private var model = MacRepairsModel()
     @State private var query = ""
     @State private var selection = Set<String>()
-    @State private var sort = [KeyPathComparator(\MacRepairsRow.promised)]
+    @AppStorage("mac.repairs.sort") private var sortRaw = MacRepairsSort.status.rawValue
     @State private var made = Memo<[MacRepairsRow]>()
     @State private var summed = Memo<[String]>()
     /// New Repair where there is no window to open it in (the place shown in a sheet or a pushed page).
     @State private var newSheet = false
+
+    private var sort: MacRepairsSort { MacRepairsSort(rawValue: sortRaw) ?? .status }
 
     var body: some View {
         let list = MacLists.list(in: path)
@@ -81,7 +83,7 @@ struct MacRepairsPlace: View {
         let groups = actions()
         let line = summed(rowsKey(list) + [selection.hashValue]) { summary(rows) }
         ShelfState(loaded: book.repairs.loaded, error: book.repairs.error, offline: book.repairs.offline) {
-            table(rows)
+            listView(rows, list: list)
         }
         .navigationTitle(title(list))
         .navigationSubtitle(count(rows.count))
@@ -125,7 +127,7 @@ struct MacRepairsPlace: View {
             }
             let found = q.isEmpty ? base : base.filter { RepairsKit.matches($0, q) }
             let rows = found.map { MacRepairsRow($0, status: model.desk.status($0), now: now) }
-            return rows.sorted(using: sort)
+            return rows
         }
     }
 
@@ -133,7 +135,7 @@ struct MacRepairsPlace: View {
     private func rowsKey(_ list: String?) -> [Int] {
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let hour = Int(Date().timeIntervalSince1970 / 3600)
-        return [book.repairs.revision, q.hashValue, sort.hashValue, (list ?? "").hashValue, model.desk.moves, hour]
+        return [book.repairs.revision, q.hashValue, sortRaw.hashValue, (list ?? "").hashValue, model.desk.moves, hour]
     }
 
     private func summary(_ rows: [MacRepairsRow]) -> [String] {
@@ -145,45 +147,13 @@ struct MacRepairsPlace: View {
         return parts
     }
 
-    // MARK: The table
+    // MARK: The list
 
-    private func table(_ rows: [MacRepairsRow]) -> some View {
-        Table(rows, selection: $selection, sortOrder: $sort) {
-            TableColumn("Number", value: \.number) { (r: MacRepairsRow) in
-                Text(r.number).monospacedDigit().lineLimit(1)
-            }
-            .width(min: 76, ideal: 100)
-            TableColumn("Piece", value: \.summary) { (r: MacRepairsRow) in
-                Text(r.summary)
-                    .foregroundStyle(r.status == .collected || r.status == .cancelled ? Color.secondary : Color.primary)
-                    .lineLimit(1)
-            }
-            .width(min: 120, ideal: 180)
-            TableColumn("Customer", value: \.customer) { (r: MacRepairsRow) in
-                Text(r.customer).lineLimit(1)
-            }
-            .width(min: 100, ideal: 140)
-            TableColumn("Status", value: \.statusLabel) { (r: MacRepairsRow) in
-                MacStatus(r.statusLabel, tone: r.statusTone)
-            }
-            .width(min: 90, ideal: 120)
-            TableColumn("Ready by", value: \.promised) { (r: MacRepairsRow) in
-                Text(r.readyBy).foregroundStyle(r.readyByTone == .quiet ? Color.primary : r.readyByTone.color).lineLimit(1)
-            }
-            .width(min: 80, ideal: 130)
-            TableColumn("Owed", value: \.owed) { (r: MacRepairsRow) in
-                MacAmount(r.owed >= 1 ? r.owed : nil, tone: .owed)
-            }
-            .width(min: 70, ideal: 90)
-            TableColumn("Karigar", value: \.karigar) { (r: MacRepairsRow) in
-                Text(r.karigar).lineLimit(1).foregroundStyle(.secondary)
-            }
-            .width(min: 70, ideal: 100)
-        }
-        .contextMenu(forSelectionType: String.self) { ids in
+    private func listView(_ rows: [MacRepairsRow], list: String?) -> some View {
+        let searching = !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        return MacRepairsListView(rows: rows, version: rowsKey(list), sort: sort, searching: searching, selection: $selection,
+                                  open: { (ids: Set<String>) in for id in ids.sorted().prefix(5) { openTicket(id) } }) { (ids: Set<String>) in
             menu(ids)
-        } primaryAction: { ids in
-            for id in ids.sorted().prefix(5) { openTicket(id) }
         }
         .overlay { if rows.isEmpty { empty } }
     }
@@ -243,11 +213,20 @@ struct MacRepairsPlace: View {
     /// right-click menu's (a Tahoe toolbar of capsules overflowed a 13-inch screen).
     @ToolbarContentBuilder
     private func placeToolbar() -> some ToolbarContent {
-        if session.isOwner {
-            ToolbarItemGroup(placement: .automatic) {
+        ToolbarItemGroup(placement: .automatic) {
+            if session.isOwner {
                 Button { newRepair() } label: { Label("New Repair", systemImage: "plus") }
                     .help("Take a repair in (\u{2325}\u{2318}N)")
             }
+            Menu {
+                Picker("Sort by", selection: $sortRaw) {
+                    ForEach(MacRepairsSort.allCases) { (o: MacRepairsSort) in Text(o.title).tag(o.rawValue) }
+                }
+                .pickerStyle(.inline)
+            } label: {
+                Label("Filter", systemImage: "line.3.horizontal.decrease.circle")
+            }
+            .help("Change the order of the list")
         }
     }
 
@@ -262,7 +241,7 @@ struct MacRepairsPlace: View {
             MacInspectorEmpty(title: "\(selection.count) Repairs Picked",
                               detail: owing >= 1 ? "\(Money.pkr(owing)) due on them. Pick one to read it." : "Pick one to read it.")
         } else {
-            MacInspectorEmpty(title: "No Repair Picked", detail: "Pick a repair in the table to read it here.")
+            MacInspectorEmpty(title: "No Repair Picked", detail: "Pick a repair to read it here.")
         }
     }
 }

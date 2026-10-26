@@ -105,6 +105,8 @@ extension SaleForm {
             macMoreSection(f, ui)
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .background(Theme.ground)
     }
 
     /// Edit invoice: what stays and what is added.
@@ -118,6 +120,7 @@ extension SaleForm {
                       systemImage: "pencil.and.list.clipboard")
                     .font(.callout)
             }
+            .houseRows()
         }
     }
 
@@ -138,6 +141,7 @@ extension SaleForm {
         } footer: {
             Text(customerNote(f))
         }
+        .houseRows()
     }
 
     // MARK: Payment
@@ -164,6 +168,7 @@ extension SaleForm {
         } footer: {
             Text("Taken as the invoice is written and filed in its payment history. Leave it empty if nothing is paid yet: a payment can still be recorded after.")
         }
+        .houseRows()
     }
 
     @ViewBuilder
@@ -221,6 +226,7 @@ extension SaleForm {
         } footer: {
             if let problem = f.discountProblem { Text(problem).foregroundStyle(Tone.problem.color) }
         }
+        .houseRows()
     }
 
     // MARK: Exchange
@@ -271,6 +277,7 @@ extension SaleForm {
         } header: {
             Text("Exchange / trade-in")
         }
+        .houseRows()
     }
 
     @ViewBuilder
@@ -367,6 +374,7 @@ extension SaleForm {
                     }
                 }
             }
+            .houseRows()
         }
     }
 
@@ -382,6 +390,7 @@ extension SaleForm {
                 macShopRows(f)
             }
         }
+        .houseRows()
     }
 
     @ViewBuilder

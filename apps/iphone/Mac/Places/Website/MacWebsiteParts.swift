@@ -29,6 +29,28 @@ struct MacWebsitePieceRow: Identifiable {
     var rank: Int { piece.hidden ? 0 : (piece.changed ? 1 : 2) }
 }
 
+/// How Edit a piece's cards are ordered (the Filter menu's "Sort by"): what was changed first, or by name, collection or weight.
+enum MacWebsiteOrder: String, CaseIterable, Identifiable {
+    case status, name, collection, weight
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .status: return "Changed First"
+        case .name: return "Name"
+        case .collection: return "Collection"
+        case .weight: return "Weight"
+        }
+    }
+    var comparators: [KeyPathComparator<MacWebsitePieceRow>] {
+        switch self {
+        case .status: return [KeyPathComparator(\.rank), KeyPathComparator(\.name)]
+        case .name: return [KeyPathComparator(\.name)]
+        case .collection: return [KeyPathComparator(\.collection), KeyPathComparator(\.name)]
+        case .weight: return [KeyPathComparator(\.weight, order: .reverse), KeyPathComparator(\.name)]
+        }
+    }
+}
+
 /// What a table of pieces was made from, as one number, so the rows are made again only when a piece, its change or the
 /// hiding changes (hashing the pieces whole would walk every fact and photo address on each redraw).
 enum MacWebsiteKey {

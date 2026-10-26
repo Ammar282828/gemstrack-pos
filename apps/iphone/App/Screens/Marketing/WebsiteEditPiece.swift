@@ -541,23 +541,20 @@ extension WebsiteEditPieceScreen {
 
     private func macInspectorPage(_ p: WebsiteEditPiece) -> some View {
         VStack(spacing: 0) {
-            macHead(p)
-            Picker("Section", selection: $macTab) {
-                Text("Details").tag(0)
-                Text("Photo").tag(1)
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .padding(.horizontal, 12)
-            .padding(.bottom, 8)
-            Divider()
             Form {
-                if let said {
-                    Section { Label(said, systemImage: "checkmark.circle.fill").foregroundStyle(Tone.settled.color) }
+                Group {
+                    Section { macHead(p).listRowInsets(EdgeInsets()) }
+                    if let said {
+                        Section { Label(said, systemImage: "checkmark.circle.fill").foregroundStyle(Tone.settled.color) }
+                    }
+                    macDetails(p)
+                    macPhotoTab(p)
                 }
-                if macTab == 0 { macDetails(p) } else { macPhotoTab(p) }
+                .houseRows()
             }
             .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+            .background(Theme.ground)
             macFoot(p)
         }
         .onAppear {
@@ -569,15 +566,19 @@ extension WebsiteEditPieceScreen {
         .onDisappear { macBridge?.clear(id) }
     }
 
+    /// The iPhone's record head: the photograph, the name in the serif, its line and a pill for what was changed here.
     private func macHead(_ p: WebsiteEditPiece) -> some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .top, spacing: 12) {
             StockImage(imageUrl: p.thumb, name: p.words.name, key: p.id + (p.change?.at ?? ""))
-                .frame(width: 64, height: 64)
+                .frame(width: 72, height: 72)
                 .clipShape(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
                 .opacity(p.hidden ? 0.5 : 1)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(p.words.name.isEmpty ? "A piece" : p.words.name).font(.title3.weight(.semibold)).lineLimit(2)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(p.words.name.isEmpty ? "A piece" : p.words.name)
+                    .font(.system(.title3, design: .serif).weight(.semibold)).lineLimit(2)
                 Text(headerWords(p)).font(.callout).foregroundStyle(.secondary).lineLimit(2)
+                if p.hidden { Pill("Hidden", tone: .quiet, symbol: "eye.slash") }
+                else if p.changed { Pill("Changed here", tone: .working) }
             }
             Spacer(minLength: 0)
         }
@@ -710,6 +711,8 @@ extension WebsiteEditPieceScreen {
                 Group { photoSection(p) }.houseRows()
             }
             .listStyle(.inset)
+            .scrollContentBackground(.hidden)
+            .background(Theme.ground)
         } main: {
             List {
                 Group {
@@ -732,6 +735,8 @@ extension WebsiteEditPieceScreen {
                 .houseRows()
             }
             .listStyle(.inset)
+            .scrollContentBackground(.hidden)
+            .background(Theme.ground)
         }
         .navigationSubtitle(p.collection)
         .macRecordMenu(MacRecordMenu(title: "Piece", groups: [[macSaveAction(p)], [macUndoAction(p)]]))

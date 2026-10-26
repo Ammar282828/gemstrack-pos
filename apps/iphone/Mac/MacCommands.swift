@@ -157,7 +157,7 @@ struct MacCommands: Commands {
                 d.set(!(d.object(forKey: MacInspector.key) as? Bool ?? true), forKey: MacInspector.key)
             }
             .keyboardShortcut("i", modifiers: [.command, .option])
-            Button("as Table") { setView(table: true) }
+            Button(viewKey?.first == "list" ? "as List" : "as Table") { setView(table: true) }
                 .keyboardShortcut("1", modifiers: [.command, .control])
                 .disabled(viewKey == nil)
             Button(viewKey?.other == "gallery" ? "as Gallery" : "as Board") { setView(table: false) }
@@ -177,11 +177,12 @@ struct MacCommands: Commands {
     }
 
     /// The place in front that shows its records two ways (its key, and the word for the other way).
-    private var viewKey: (key: String, other: String)? {
+    private var viewKey: (key: String, other: String, first: String)? {
         switch ScreenRoute.bare(shell?.selection ?? "") {
-        case "/orders": return ("mac.orders.view", "board")
-        case "/products": return ("mac.stock.view", "gallery")
-        case "/workshop": return ("mac.workshop.view", "board")
+        // The first view is stored as "table" whatever it is drawn as (Orders' is a list since 2026-10-27).
+        case "/orders": return ("mac.orders.view", "board", "list")
+        case "/products": return ("mac.stock.view", "gallery", "table")
+        case "/workshop": return ("mac.workshop.view", "board", "table")
         default: return nil
         }
     }

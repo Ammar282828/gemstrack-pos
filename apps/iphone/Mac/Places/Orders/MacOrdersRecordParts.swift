@@ -98,7 +98,7 @@ struct MacOrdersPiecesGrid: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
-        .background(isPicked ? Color.accentColor.opacity(0.18) : Color.clear, in: .rect(cornerRadius: 6, style: .continuous))
+        .background(isPicked ? Theme.accent.opacity(0.14) : Color.clear, in: .rect(cornerRadius: 6, style: .continuous))
         .contentShape(Rectangle())
         .onTapGesture { picked = r.id }
         .contextMenu { menu(r) }
