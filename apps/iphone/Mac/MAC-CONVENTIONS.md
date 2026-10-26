@@ -159,7 +159,9 @@ From the owner's snapshots of all 56 pages. Each rule fixes something that was v
 - **Widths**: reports and dashboards `padding(24)`, `maxWidth: 1400`, centred; lists fill.
 - **Cards side by side stand level** (`frame(maxHeight: .infinity)` inside, `fixedSize(horizontal: false, vertical: true)` on the row).
 - **Tables in cards never clip** a row or a column.
-- **Bars at the foot**: `.macSummaryBar` (opaque, on the ground); a page's own action bar the same look.
+- **Bars at the foot**: `.macSummaryBar` (opaque, on the ground); a page's own action bar the same look
+  (`.macPageActionBar` / `MacPageFooter` in App/Screens/Marketing/MarketingMacKit.swift). A notice over a page is a
+  `MacBanner`; chips that wrap are a `MacChipFlow`; short tables in a report are `MacReportsGrid` rows (never clipped).
 - **Inspectors**: on the ground; empty is `MacInspectorEmpty("No X Selected", detail:)`.
 - **The ground under the toolbar** is the shell's (`MacPageGround`), so no page shows the window's grey there.
 - **A dashboard's card goes there in the window** (`macGo`); a list's row opens a window (double-click, Return).
