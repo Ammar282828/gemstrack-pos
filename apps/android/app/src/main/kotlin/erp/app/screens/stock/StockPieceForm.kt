@@ -1,5 +1,7 @@
 package erp.app.screens.stock
 
+import erp.app.ui.ContainedLoading
+import erp.app.ui.Loading
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -18,15 +20,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.PhotoLibrary
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import erp.app.ui.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import erp.app.ui.SegmentedButton
+import erp.app.ui.SegmentedButtonDefaults
+import erp.app.ui.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -262,7 +263,7 @@ private fun StockPieceEditor(original: Product?, onCreated: ((Product) -> Unit)?
                     verticalArrangement = Arrangement.spacedBy(20.dp),
                 ) {
                     Form(f, { f = it }, original, todaysPrice, rates != null)
-                    if (saving) Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                    if (saving) Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { ContainedLoading() }
                 }
             }
         },

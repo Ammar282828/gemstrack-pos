@@ -1,6 +1,6 @@
 package erp.app.screens.orders
 
-import erp.app.ui.pressScale
+import erp.app.ui.Loading
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -25,15 +25,14 @@ import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Sync
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -134,17 +133,14 @@ fun OrderCard(
         more = listOfNotNull(whatsApp.takeIf { hasPhone }) + right.drop(1),
     ) {
     Column(
-        // The hairline is the card's own edge, so it goes on before the padding (after it, it drew a second card inside).
         Modifier
             .zoomSource(path)
-            .ledgerCard(padding = 0.dp)
-            .border(1.dp, accent.copy(alpha = if (mine) 0.22f else 0.08f), Radius.cardShape)
-            .padding(20.dp),
+            .ledgerCard(padding = 20.dp, lit = mine),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Box {
             Box(
-                Modifier.pressScale().combinedClickable(
+                Modifier.combinedClickable(
                     onClickLabel = "Open ${order.id}",
                     onClick = { actions.open(path) },
                     onLongClickLabel = "Actions for ${order.id}",
@@ -333,7 +329,7 @@ fun OrderNextStepRow(order: Order, step: OrderNextStep, busy: Boolean, actions: 
             Text("Invoice ${step.id}", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium), color = ErpColors.accent)
         }
     } else if (busy) {
-        Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) }
+        Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) { Loading(Modifier.size(26.dp)) }
     } else {
         TextButton(
             onClick = {

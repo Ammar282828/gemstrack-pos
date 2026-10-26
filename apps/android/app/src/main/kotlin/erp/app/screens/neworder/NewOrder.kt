@@ -19,10 +19,10 @@ import androidx.compose.material.icons.filled.DocumentScanner
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
+import erp.app.ui.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -629,7 +629,7 @@ private fun PinnedSummary(totals: NewOrderMath.Totals) {
     ) {
         Column(Modifier.weight(1f)) {
             Text("Order total", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium), color = MaterialTheme.colorScheme.onSurfaceVariant)
-            MoneyText(totals.subtotal, exact = true, style = MaterialTheme.typography.titleLarge.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Serif, fontWeight = FontWeight.SemiBold))
+            MoneyText(totals.subtotal, exact = true, style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold))
         }
         Column(horizontalAlignment = Alignment.End) {
             Text(NewOrderLogic.dueLabel(totals.balance), style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium), color = MaterialTheme.colorScheme.onSurfaceVariant)

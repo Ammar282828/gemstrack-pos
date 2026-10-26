@@ -1,5 +1,6 @@
 package erp.app.screens.design
 
+import erp.app.ui.SearchBarField
 import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -34,7 +35,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -188,7 +189,7 @@ fun DesignSavedView(
             if (adsOk) FilterChip("In the ad account", view == ACCOUNT, { view = ACCOUNT })
             FilterChip("New folder", false, { renaming = null; folderText = ""; asking = true })
         }
-        OutlinedTextField(
+        SearchBarField(
             q, { q = it }, Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), singleLine = true, placeholder = { Text("Find a design") },
             leadingIcon = { Icon(Icons.Filled.Search, null) },
         )

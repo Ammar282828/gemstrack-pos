@@ -32,8 +32,11 @@ junit = "4.13.2"
 # Screenshot tests on the JVM: Roborazzi records and verifies, Robolectric hosts the Compose UI (4.17 ships Android 17 / SDK 37)
 roborazzi = "1.76.0"
 robolectric = "4.17"
+# Google's Material Color Utilities (HCT, TonalSpot) as pure Kotlin: no Compose in it, so it cannot clash with androidx material3
+materialColorUtilities = "5.0.1"
 
 [libraries]
+material-color-utilities = { module = "com.materialkolor:material-color-utilities", version.ref = "materialColorUtilities" }
 # Compose: the BOM pins ui, foundation and the adaptive libraries; material3 is set apart (see above)
 compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
 compose-ui = { module = "androidx.compose.ui:ui" }

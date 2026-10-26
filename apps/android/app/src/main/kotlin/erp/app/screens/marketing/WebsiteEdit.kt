@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.SearchBarField
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -29,7 +30,7 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.Button
+import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -185,7 +186,7 @@ fun WebsiteEditScreen() {
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
                     item(span = { GridItemSpan(maxLineSpan) }) {
-                        OutlinedTextField(
+                        SearchBarField(
                             value = search, onValueChange = { search = it }, singleLine = true, modifier = Modifier.fillMaxWidth(),
                             placeholder = { Text("Name, collection, ruby, Ring 12…") },
                             leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },

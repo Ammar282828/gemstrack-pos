@@ -178,14 +178,14 @@ fun InterestContent(
             }
             Text(
                 SiteWords.span(r.from, r.to) + " · compared with " + SiteWords.span(r.previous.from, r.previous.to),
-                Modifier.padding(horizontal = 4.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         LiveLink(liveNow)
         if (n.sessions == 0 && r.before.sessions == 0) {
             Text(
                 "Nothing counted in this period yet. Visits are counted from 23 October 2026; piece interest from 22 October. It fills as people use the website.",
-                Modifier.padding(horizontal = 4.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         Tiles(r)
@@ -258,7 +258,7 @@ private fun Tiles(r: SiteReport) {
 internal fun InterestPieces(pieces: List<WebsiteInterestPiece>?, list: WebsiteInterestList, onList: (WebsiteInterestList) -> Unit) {
     val rows = list.ranked(pieces ?: emptyList())
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        erp.app.ui.LedgerHeading("Pieces", Modifier.padding(horizontal = 4.dp))
+        erp.app.ui.LedgerHeading("Pieces", Modifier.padding(horizontal = 16.dp))
         // Four names that should not be clipped at large text: chips that scroll, not a segmented bar.
         ChipRow(Modifier.fullBleed()) {
             for (l in WebsiteInterestList.entries) FilterChip(l.title, chosen = l == list, onClick = { onList(l) })

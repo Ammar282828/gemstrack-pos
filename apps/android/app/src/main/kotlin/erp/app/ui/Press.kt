@@ -1,58 +1,56 @@
 package erp.app.ui
 
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.pointerInput
-import kotlinx.coroutines.withTimeoutOrNull
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.Dp
+import erp.app.ui.theme.ErpColors
 
 /**
- * A card that gives under the thumb: 0.98 while pressed, a spring back on release. One modifier for every tappable
- * card and row, so the whole app answers a touch the same way. It watches without consuming (the click still goes
- * to the card), waits 90 ms before pressing so a scroll that starts on a card does not flicker it, and does nothing
- * with animations off. The scale is read in the layer, so a press never recomposes.
+ * A card that is itself the button: its corners morph from extraLarge to large while it is pressed and spring back
+ * (Material 3 Expressive's press, in place of the old 0.98 scale), with the ripple on top. The card's tone, its clip and its
+ * click are one modifier so the shape that is clipped is the shape that morphs. Nothing moves with animations off. Put the
+ * padding after it.
  */
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun Modifier.pressScale(to: Float = 0.98f): Modifier {
-    if (reduceMotion()) return this
-    var pressed by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        if (pressed) to else 1f,
-        spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
-        label = "press",
-    )
+fun Modifier.morphCard(
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
+    onClickLabel: String? = null,
+    onLongClickLabel: String? = null,
+    color: Color = ErpColors.card,
+    rest: Dp = Radius.card,
+    pressed: Dp = Radius.chip,
+): Modifier {
+    val source = remember { MutableInteractionSource() }
+    val down by source.collectIsPressedAsState()
+    val reduce = reduceMotion()
+    val corner by animateDpAsState(if (down && !reduce) pressed else rest, MaterialTheme.motionScheme.fastSpatialSpec(), label = "cardMorph")
     return this
-        .pointerInput(Unit) {
-            awaitEachGesture {
-                awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-                var ended = false
-                withTimeoutOrNull(90) {
-                    waitForUpOrCancellation(PointerEventPass.Initial)
-                    ended = true
-                }
-                if (!ended) {
-                    pressed = true
-                    try {
-                        waitForUpOrCancellation(PointerEventPass.Initial)
-                    } finally {
-                        pressed = false
-                    }
-                }
-            }
-        }
-        .graphicsLayer {
-            scaleX = scale
-            scaleY = scale
-        }
+        .clip(RoundedCornerShape(corner))
+        .background(color)
+        .combinedClickable(
+            interactionSource = source,
+            indication = LocalIndication.current,
+            role = Role.Button,
+            onClickLabel = onClickLabel,
+            onLongClickLabel = onLongClickLabel,
+            onLongClick = onLongClick,
+            onClick = onClick,
+        )
 }
