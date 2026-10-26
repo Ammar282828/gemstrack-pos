@@ -1148,7 +1148,8 @@ extension OrderScreen {
         Button { macOpenRoute("/invoices/\(invoiceId)") } label: {
             Label("Invoiced \u{00B7} \(invoiceId)", systemImage: "doc.text")
         }
-        .buttonStyle(.link)
+        .buttonStyle(.plain)
+        .foregroundStyle(Theme.accent)
         Text(OrderActions.canUndoInvoice(order, isOwner: session.isOwner)
              ? "To change it, use Unlock & Edit."
              : "The order is locked to its invoice.")
@@ -1176,7 +1177,8 @@ extension OrderScreen {
             if !cid.isEmpty {
                 MacOrdersFact(label: "Customer") {
                     Button(OrdersLogic.customerName(order)) { macOpenRoute("/customers/\(cid)") }
-                        .buttonStyle(.link)
+                        .buttonStyle(.plain)
+                        .foregroundStyle(Theme.accent)
                 }
             }
             if !by.isEmpty { MacOrdersFact(label: "Taken by") { Text(by) } }

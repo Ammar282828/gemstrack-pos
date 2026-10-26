@@ -363,7 +363,7 @@ struct MacOrderInspector: View {
         card("Details") {
             if !cid.isEmpty {
                 line("Customer") {
-                    Button(OrdersLogic.customerName(order)) { openRoute("/customers/\(cid)") }.buttonStyle(.link)
+                    Button(OrdersLogic.customerName(order)) { openRoute("/customers/\(cid)") }.buttonStyle(.plain).foregroundStyle(Theme.accent)
                 }
             }
             if !phone.isEmpty { line("Phone") { Text(OrdersLogic.phoneWords(phone)) } }
@@ -373,7 +373,7 @@ struct MacOrderInspector: View {
                 line("Deliver to") { Text(shipTo.joined(separator: "\n")) }
             }
             if let id = order.invoiceId, !id.isEmpty {
-                line("Invoice") { Button(id) { openRoute("/invoices/\(id)") }.buttonStyle(.link) }
+                line("Invoice") { Button(id) { openRoute("/invoices/\(id)") }.buttonStyle(.plain).foregroundStyle(Theme.accent) }
             }
             if !note.isEmpty {
                 line("Note") { Text(note).textSelection(.enabled) }

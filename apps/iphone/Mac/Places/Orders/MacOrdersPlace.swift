@@ -109,7 +109,7 @@ struct MacOrdersPlace: View {
         Group {
             if view == .table {
                 MacOrdersListView(rows: base.rows, version: key, sort: sort, searching: !query.trimmingCharacters(in: .whitespaces).isEmpty,
-                                  selection: $selection, open: openPicked) { ids in
+                                  listTitle: list == nil ? nil : title, selection: $selection, open: openPicked) { ids in
                     rowMenu(ids)
                 }
             } else {
@@ -140,12 +140,12 @@ struct MacOrdersPlace: View {
     private func summary(_ base: MacOrdersBase) -> [String] {
         if selection.isEmpty {
             return [base.rows.count == 1 ? "1 order" : "\(base.rows.count) orders",
-                    "\(Money.pkrLac(base.worth)) worth", "\(Money.pkrLac(base.owed)) owed"]
+                    "\(Money.pkrLac(base.worth, digits: 1)) worth", "\(Money.pkrLac(base.owed, digits: 1)) owed"]
         }
         let picked = base.rows.filter { selection.contains($0.id) && $0.stage != .closed }
         let worth = picked.reduce(0) { $0 + $1.worth }
         let owed = picked.reduce(0) { $0 + max($1.owed, 0) }
-        return ["\(selection.count) of \(base.rows.count) picked", "\(Money.pkrLac(worth)) worth", "\(Money.pkrLac(owed)) owed"]
+        return ["\(selection.count) of \(base.rows.count) picked", "\(Money.pkrLac(worth, digits: 1)) worth", "\(Money.pkrLac(owed, digits: 1)) owed"]
     }
 
     // MARK: Toolbar
@@ -198,9 +198,9 @@ struct MacOrdersPlace: View {
                               openRoute: { (p: String) in openRoute(p) })
                 .id(id)
         } else if selection.count > 1 {
-            MacInspectorEmpty(title: "\(selection.count) Orders Picked", detail: "Pick one to see its pieces and next step.")
+            MacInspectorEmpty(title: "\(selection.count) Orders Selected", detail: "Pick one to see its pieces and next step.")
         } else {
-            MacInspectorEmpty(title: "No Order Picked", detail: "Click an order to see its pieces, advances and next step.")
+            MacInspectorEmpty(title: "No Order Selected", detail: "Pick an order to see its pieces, advances and next step.")
         }
     }
 

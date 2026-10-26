@@ -374,7 +374,8 @@ extension OrderFinalizeScreen {
                         Button("Use Today's Rates") {
                             rateTexts.merge(OrderFinalizeMath.todayTexts(order, settings)) { _, today in today }
                         }
-                        .buttonStyle(.link)
+                        .buttonStyle(.plain)
+                        .foregroundStyle(Theme.accent)
                     }
                 }
                 Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {

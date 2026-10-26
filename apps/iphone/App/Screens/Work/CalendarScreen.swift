@@ -361,8 +361,8 @@ private struct LegendLabel: LabelStyle {
 
 #if os(macOS)
 // The Mac's calendar: the month as a real grid that fills the window (days as tall cells with the money, the sales and orders
-// and what was promised), the month's figures above it, and the chosen day's events and promises in the inspector.
-// ‹ › are in the toolbar (⌘← ⌘→) and Today beside the inspector's toggle; the arrow keys move the chosen day, a click chooses one.
+// and what was promised), the month's figures above it as the kit's figure cards, and the chosen day's events and promises in
+// the inspector. ‹ › are in the toolbar (⌘← ⌘→) and Today beside the inspector's toggle; the arrow keys move the chosen day, a click chooses one.
 extension CalendarScreen {
     @ViewBuilder
     var macPage: some View {
@@ -373,16 +373,20 @@ extension CalendarScreen {
             )
         }
         let figures = shopCalendarMonth(books.days, year: year, month: month)
-        VStack(spacing: 0) {
-            macFigures(figures)
+        // A dashboard page as Today is: centred, the same gutters. The weeks share the height the window has left (each at
+        // least as tall as before), so the grid fills the page; a short window scrolls.
+        GeometryReader { (geo: GeometryProxy) in
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 20) {
+                    macFigures(figures)
                     macGrid(books)
                     legend
                 }
-                .padding(20)
+                .padding(24)
+                .frame(maxWidth: 1400, alignment: .leading)
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: geo.size.height, alignment: .top)
             }
-            .frame(minWidth: 360)
         }
         .background(Theme.ground)
         .navigationSubtitle(ShopCalendar.title(year: year, month: month))
@@ -391,13 +395,13 @@ extension CalendarScreen {
                 HStack(spacing: 6) {
                     Button { step(-1) } label: { Image(systemName: "chevron.left") }
                         .keyboardShortcut(.leftArrow, modifiers: .command)
-                        .help("Previous month (\u{2318}\u{2190})")
+                        .help("Previous month (⌘←)")
                     Text(ShopCalendar.title(year: year, month: month))
                         .font(.headline).frame(minWidth: 150)
                         .contentTransition(.numericText())
                     Button { step(1) } label: { Image(systemName: "chevron.right") }
                         .keyboardShortcut(.rightArrow, modifiers: .command)
-                        .help("Next month (\u{2318}\u{2192})")
+                        .help("Next month (⌘→)")
                 }
             }
         }
@@ -410,40 +414,55 @@ extension CalendarScreen {
         }
     }
 
-    /// The month on screen as the iPhone's figure tiles: its money, its sales and orders, and the average day that took anything.
-    /// In a narrow window they stand two and two.
+    /// The month on screen as the kit's figure cards, in the one grid every page uses: the money taken, the sales and orders,
+    /// and the average day that took anything. (The month is the window's subtitle: not said again here.)
     private func macFigures(_ m: ShopCalendarMonth) -> some View {
-        let money = FigureTile(label: ShopCalendar.title(year: year, month: month), value: Money.pkrLac(m.total))
-        let sales = FigureTile(label: "Sales", value: "\(m.sales)")
-        let orders = FigureTile(label: "Orders", value: "\(m.orders)")
-        let average = FigureTile(label: "Average trading day", value: m.perTradingDay > 0 ? Money.pkrLac(m.perTradingDay) : "\u{2014}")
-        return ViewThatFits(in: .horizontal) {
-            HStack(alignment: .top, spacing: 12) { money; sales; orders; average }
-            VStack(spacing: 12) {
-                HStack(alignment: .top, spacing: 12) { money; sales }
-                HStack(alignment: .top, spacing: 12) { orders; average }
-            }
+        MacFigureGrid([
+            MacFigure("Money taken", Money.pkrLac(m.total)),
+            MacFigure("Sales", "\(m.sales)"),
+            MacFigure("Orders", "\(m.orders)"),
+            MacFigure("Average trading day", m.perTradingDay > 0 ? Money.pkrLac(m.perTradingDay) : "\u{2014}"),
+        ])
+    }
+
+    /// The month's cells in weeks of seven, the last one filled out with blanks.
+    private func macWeeks(_ cells: [Int?]) -> [[Int?]] {
+        var weeks: [[Int?]] = []
+        var i = 0
+        while i < cells.count {
+            var week: [Int?] = Array(cells[i..<min(i + 7, cells.count)])
+            while week.count < 7 { week.append(nil) }
+            weeks.append(week)
+            i += 7
         }
-        .padding([.horizontal, .top], 20)
-        .padding(.bottom, 4)
+        return weeks
     }
 
     private func macGrid(_ books: Reckoned) -> some View {
-        let cells = ShopCalendar.cells(year: year, month: month)
+        let weeks = macWeeks(ShopCalendar.cells(year: year, month: month))
         let today = CalendarScreen.todayKey()
-        let columns = Array(repeating: GridItem(.flexible(), spacing: 6), count: 7)
-        return LazyVGrid(columns: columns, spacing: 6) {
-            ForEach(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], id: \.self) { (name: String) in
-                Text(name).font(.caption.weight(.medium)).foregroundStyle(.secondary)
-            }
-            ForEach(cells.enumerated().map { (e: EnumeratedSequence<[Int?]>.Element) in CalendarCell(id: e.element.map { "d\($0)" } ?? "b\(e.offset)", day: e.element) }) { (cell: CalendarCell) in
-                if let day = cell.day {
-                    macDayCell(day, books: books, today: today)
-                } else {
-                    Color.clear.frame(height: 92)
+        let names = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+        return VStack(spacing: 6) {
+            HStack(spacing: 6) {
+                ForEach(names, id: \.self) { (name: String) in
+                    Text(name).font(.caption.weight(.medium)).foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
                 }
             }
+            ForEach(0..<weeks.count, id: \.self) { (w: Int) in
+                HStack(spacing: 6) {
+                    ForEach(0..<7, id: \.self) { (d: Int) in
+                        if let day = weeks[w][d] {
+                            macDayCell(day, books: books, today: today)
+                        } else {
+                            Color.clear.frame(maxWidth: .infinity, maxHeight: .infinity)
+                        }
+                    }
+                }
+                .frame(minHeight: 92, maxHeight: .infinity)
+            }
         }
+        .frame(maxHeight: .infinity)
         .focusable()
         .focusEffectDisabled()
         .onKeyPress(.leftArrow) { macMove(days: -1); return .handled }
@@ -485,7 +504,7 @@ extension CalendarScreen {
                 }
             }
             .padding(8)
-            .frame(maxWidth: .infinity, minHeight: 92, maxHeight: 92, alignment: .topLeading)
+            .frame(maxWidth: .infinity, minHeight: 92, maxHeight: .infinity, alignment: .topLeading)
             .houseCard(radius: Radius.chip)
             .overlay {
                 if isSelected {

@@ -81,7 +81,8 @@ struct MacNewOrderCustomerBox: View {
                 Button { pick(hit.customer) } label: {
                     Label("\(hit.customer.name) has this number", systemImage: "person.crop.circle.badge.checkmark")
                 }
-                .buttonStyle(.link)
+                .buttonStyle(.plain)
+                .foregroundStyle(Theme.accent)
             }
         }
         // The number kept as the ERP keeps it (+92...), as the web's phone box does, once the counter moves on.

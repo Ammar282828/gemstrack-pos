@@ -36,13 +36,13 @@ struct MacOrdersBoard<RowMenu: View>: View {
             VStack(spacing: 0) {
                 if showsFold { foldBar }
                 ScrollView(.horizontal) {
-                    HStack(alignment: .top, spacing: 0) {
+                    HStack(alignment: .top, spacing: Self.gap) {
                         ForEach(columns) { (c: MacOrdersBoardColumn) in
                             column(c)
                                 .frame(width: width)
-                            Divider()
                         }
                     }
+                    .padding(Self.gutter)
                     .frame(height: max(height, 0), alignment: .top)
                 }
             }
@@ -50,9 +50,14 @@ struct MacOrdersBoard<RowMenu: View>: View {
         .background(Theme.ground)
     }
 
+    /// The same board as the Workshop's: a card for each column on the ground, twelve points apart.
+    private static var gap: CGFloat { 12 }
+    private static var gutter: CGFloat { 14 }
+
     private func columnWidth(_ total: CGFloat, count: Int) -> CGFloat {
-        let fit = total / CGFloat(max(count, 1))
-        return min(max(fit, 210), 380)
+        let n = CGFloat(max(count, 1))
+        let fit = (total - 2 * Self.gutter - Self.gap * (n - 1)) / n
+        return min(max(fit, 230), 380)
     }
 
     // MARK: A column
@@ -61,23 +66,30 @@ struct MacOrdersBoard<RowMenu: View>: View {
         let accepts = c.stage == .ready || c.stage == .karigar
         return VStack(alignment: .leading, spacing: 0) {
             header(c)
-            Divider()
             ScrollView {
                 LazyVStack(spacing: 8) {
                     ForEach(c.rows) { (r: MacOrdersListRow) in
                         row(r)
                     }
                     if c.rows.isEmpty {
-                        Text("None")
-                            .foregroundStyle(.tertiary)
+                        Text("Nothing here")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity)
-                            .padding(.top, 24)
+                            .padding(.top, 6)
                     }
                 }
-                .padding(8)
+                .padding(.horizontal, 10)
+                .padding(.bottom, 10)
             }
         }
-        .background(accepts && targeted == c.stage ? Theme.accent.opacity(0.08) : Color.clear)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .houseCard()
+        .overlay {
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                .strokeBorder(Theme.accent.opacity(accepts && targeted == c.stage ? 0.7 : 0), lineWidth: 2)
+                .allowsHitTesting(false)
+        }
         .dropDestination(for: String.self) { (ids: [String], _: CGPoint) -> Bool in
             drop(ids, c.stage)
         } isTargeted: { (over: Bool) in
@@ -86,16 +98,16 @@ struct MacOrdersBoard<RowMenu: View>: View {
     }
 
     private func header(_ c: MacOrdersBoardColumn) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Text(c.title).font(.headline).lineLimit(1)
-            Text("\(c.rows.count)").font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
-            Spacer(minLength: 4)
+        VStack(alignment: .leading, spacing: 2) {
+            LedgerHeading(title: c.title, count: c.rows.count)
             if c.worth > 0 {
-                Text(Money.pkrLac(c.worth)).font(.callout).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
+                Text("worth " + Money.pkrLac(c.worth, digits: 1)).font(.caption).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
             }
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.vertical, 12)
+        // Level heads: a column with nothing worth saying under its name is as tall as one that has.
+        .frame(maxWidth: .infinity, minHeight: 64, alignment: .topLeading)
     }
 
     // MARK: A card: monogram and customer over number and piece, the promise and what is owed
@@ -129,11 +141,11 @@ struct MacOrdersBoard<RowMenu: View>: View {
         }
         .padding(Metrics.cardPadding - 2)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .houseCard()
+        // The piece cards are a step up from the column's own card (as the Workshop's are), so they stand out of it.
+        .background(Theme.elevated, in: .rect(cornerRadius: Radius.card - 4, style: .continuous))
         .overlay {
-            if picked {
-                RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(Theme.accent, lineWidth: 2)
-            }
+            RoundedRectangle(cornerRadius: Radius.card - 4, style: .continuous)
+                .strokeBorder(picked ? Theme.accent : Color.primary.opacity(0.07), lineWidth: picked ? 2 : 0.5)
         }
         .contentShape(Rectangle())
         .onTapGesture(count: 2) { open(r.id) }
@@ -175,8 +187,10 @@ struct MacOrdersBoard<RowMenu: View>: View {
                     showClosed.toggle()
                 } label: {
                     Text(showClosed ? "Hide Done and Cancelled" : "Show Done and Cancelled (\(closedCount))")
+                        .font(.callout)
                 }
-                .buttonStyle(.link)
+                .buttonStyle(.plain)
+                .foregroundStyle(Theme.accent)
             }
             .padding(.horizontal, 12)
             .frame(height: Self.foldHeight - 1)
