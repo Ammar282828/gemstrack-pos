@@ -25,6 +25,8 @@ final class PostsStore {
     private(set) var piecesPhase: Phase = .idle
     private(set) var pieces: [PostPiece] = []
     private(set) var site = ""
+    /// Set when the list on screen is the one kept on the phone because the website could not be read just now (when that list was read).
+    private(set) var shownFrom: Date?
     private(set) var posted: [String: String] = [:]
     /// nil until the first answer; an empty list is "nothing in the last two days".
     private(set) var sent: [PostSent]?
@@ -58,17 +60,57 @@ final class PostsStore {
     // MARK: Reads
 
     private func loadPieces() async {
-        do {
-            let a = try await ERPAPI.shared.get("/api/website/site-pieces", as: PostPiecesAnswer.self)
+        let path = "/api/website/site-pieces?lean=1"
+        let biz = House.business
+        // The last list this business read, kept on the phone: From the website paints at once and is refreshed behind it.
+        if pieces.isEmpty, let kept = Self.kept(biz.id), let a = try? JSONDecoder().decode(PostPiecesAnswer.self, from: kept.data) {
             site = a.site
             pieces = a.pieces.filter { (p: PostPiece) in !p.hidden }
             posted = a.posted
             piecesPhase = .loaded
+            shownFrom = kept.at
+        }
+        do {
+            // 45 seconds, not 15: a long list on a shop's mobile line (House of Mina's is 85 KB packed, 1.3 MB if the line does not pack it).
+            let raw = try await ERPAPI.shared.data(path, timeout: 45)
+            let a = try JSONDecoder().decode(PostPiecesAnswer.self, from: raw)
+            site = a.site
+            pieces = a.pieces.filter { (p: PostPiece) in !p.hidden }
+            posted = a.posted
+            piecesPhase = .loaded
+            shownFrom = nil
+            Self.keep(raw, for: biz.id)
         } catch let f as ERPAPI.Failure where f.status == 404 {
             piecesPhase = .off
         } catch {
-            if pieces.isEmpty { piecesPhase = .failed(error.localizedDescription) }
+            // A screen that left mid-read (its task cancelled) is not a failure to show: the next screen reads again.
+            let cancelled = error is CancellationError || (error as? URLError)?.code == .cancelled
+            if pieces.isEmpty { piecesPhase = cancelled ? .idle : .failed(Self.said(error)) }
+            else if !cancelled, shownFrom == nil { shownFrom = Date() }
         }
+    }
+
+    // MARK: The list kept on the phone
+
+    private static func file(_ business: String) -> URL? {
+        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?.appendingPathComponent("erp.sitePieces.\(business).json")
+    }
+
+    private static func keep(_ data: Data, for business: String) {
+        guard let url = file(business) else { return }
+        try? data.write(to: url, options: .atomic)
+    }
+
+    private static func kept(_ business: String) -> (data: Data, at: Date)? {
+        guard let url = file(business), let data = try? Data(contentsOf: url) else { return nil }
+        let at = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? Date()
+        return (data, at)
+    }
+
+    /// The ERP's own words when it gave any (its `error`), else what the phone's line said, never a bare "The data couldn't be read".
+    private static func said(_ error: Error) -> String {
+        if error is DecodingError { return "The website's pieces came back in a shape this app could not read. Pull to refresh; if it stays, tell the shop." }
+        return error.localizedDescription
     }
 
     private func loadSent() async {

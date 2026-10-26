@@ -164,7 +164,7 @@ fun SitePhotoPicker(picked: suspend (MarketingValue, ByteArray) -> Unit, onClose
     var loaded by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         try {
-            pieces = MarketingRequest.get("/api/website/site-pieces")["pieces"].array.filter { !it["hidden"].bool }
+            pieces = MarketingRequest.get("/api/website/site-pieces?lean=1")["pieces"].array.filter { !it["hidden"].bool }
             loaded = true
         } catch (e: CancellationException) {
             throw e

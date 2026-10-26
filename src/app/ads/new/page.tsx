@@ -270,7 +270,7 @@ function NewAd() {
   const [piecesError, setPiecesError] = useState<string | null>(null);
   useEffect(() => {
     if (!hasSite || kind !== 'site' || pieces || piecesError) return;
-    api<{ pieces: SitePiece[] }>('/api/website/site-pieces').then(d => setPieces(d.pieces)).catch(e => setPiecesError(e instanceof Error ? e.message : String(e)));
+    api<{ pieces: SitePiece[] }>('/api/website/site-pieces?lean=1').then(d => setPieces(d.pieces)).catch(e => setPiecesError(e instanceof Error ? e.message : String(e)));
   }, [hasSite, kind, pieces, piecesError]);
   const addPiece = async (p: SitePiece) => {
     if (photos.length >= 10) return;
@@ -335,7 +335,7 @@ function NewAd() {
     if (!pieceParam || startedFrom.current || !ready || !hasSite) return;
     startedFrom.current = true;
     setKind('site');
-    api<{ pieces: SitePiece[] }>('/api/website/site-pieces').then(d => {
+    api<{ pieces: SitePiece[] }>('/api/website/site-pieces?lean=1').then(d => {
       setPieces(d.pieces);
       const p = d.pieces.find(x => x.id === pieceParam);
       if (p) addPiece(p);

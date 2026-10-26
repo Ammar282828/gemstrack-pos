@@ -55,7 +55,7 @@ export function SitePicker({ open, onOpenChange, siteName, headers, onAdd }: {
     setError(null);
     (async () => {
       try {
-        const res = await fetch('/api/website/site-pieces', { headers: await headers(), cache: 'no-store' });
+        const res = await fetch('/api/website/site-pieces?lean=1', { headers: await headers(), cache: 'no-store' });
         const d = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(d.error || `The website’s pieces didn’t load (${res.status}).`);
         if (live) setPieces(((d.pieces ?? []) as SitePick[]).filter(p => !p.hidden).sort(byNewest));

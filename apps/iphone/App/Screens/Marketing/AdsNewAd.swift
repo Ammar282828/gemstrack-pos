@@ -419,7 +419,7 @@ struct AdsNewAdScreen: View {
 
     private func loadPieces() async {
         do {
-            let a = try await ERPAPI.shared.get("/api/website/site-pieces", as: PostPiecesAnswer.self)
+            let a = try await ERPAPI.shared.get("/api/website/site-pieces?lean=1", as: PostPiecesAnswer.self)
             pieces = a.pieces.filter { (p: PostPiece) in !p.hidden }
             piecesError = nil
         } catch {

@@ -234,7 +234,7 @@ object AdsAPI : AdsBackend {
     override suspend fun template(ad: String): AdsTemplate = read("/api/ads/template?ad=${AdsQuery.escape(ad)}", AdsTemplate)
 
     override suspend fun sitePieces(): List<AdsSitePiece> {
-        val text = api.data("/api/website/site-pieces")
+        val text = api.data("/api/website/site-pieces?lean=1")
         val m = Json.parse(text) as? Map<*, *> ?: return emptyList()
         return Container(mapOf("pieces" to m["pieces"])).list("pieces", AdsSitePiece).filter { it.id.isNotEmpty() }
     }

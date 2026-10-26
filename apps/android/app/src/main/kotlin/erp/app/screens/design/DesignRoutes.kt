@@ -135,7 +135,7 @@ fun DesignScreen(path: String, preset: DesignWorkspaceModel? = null) {
 
     suspend fun startFromSite(id: String) {
         try {
-            val pieces = MarketingRequest.get("/api/website/site-pieces")["pieces"].array
+            val pieces = MarketingRequest.get("/api/website/site-pieces?lean=1")["pieces"].array
             val piece = pieces.firstOrNull { it.s("id") == id } ?: throw erp.app.data.ErpApi.Failure(0, "That piece is no longer on the website.")
             val sizes = DesignKinds.card("piece").sizes.map { DesignSizeChoice(it) }
             if (workspace.start(DesignStartRequest("piece", sizes, DesignPhotoSources.site(piece)))) go(DesignSection.Make)

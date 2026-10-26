@@ -83,7 +83,7 @@ fun DesignSitePieces(onPick: (DesignStartPhoto) -> Unit) {
     suspend fun load() {
         if (House.isDemo) { pieces = DesignDemo.sitePieces(); loaded = true; return }
         try {
-            val all = MarketingRequest.get("/api/website/site-pieces")["pieces"].array.filter { !it["hidden"].bool }
+            val all = MarketingRequest.get("/api/website/site-pieces?lean=1")["pieces"].array.filter { !it["hidden"].bool }
             // New arrivals first (lib/website/new-arrivals.ts byNewest): the later `added`, then the name.
             pieces = all.sortedWith { a, b -> if (a.n("added") != b.n("added")) b.n("added").compareTo(a.n("added")) else a.s("name").compareTo(b.s("name")) }
             error = null

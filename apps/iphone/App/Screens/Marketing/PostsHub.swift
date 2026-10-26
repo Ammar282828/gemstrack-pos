@@ -376,6 +376,10 @@ struct PostsHub: View {
                 }
                 .listRowInsets(EdgeInsets())
             }
+            if let from = store.shownFrom {
+                Text("Showing the list from \(from.formatted(date: .abbreviated, time: .shortened)). The website did not answer just now.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             MarketingLink(title: "All \(store.pieces.count) pieces", symbol: "square.grid.2x2", path: MarketingKit.piecesPath)
         } header: {
             LedgerHeading(title: fresh.isEmpty ? "From \(store.siteName)" : "New on \(store.siteName)")

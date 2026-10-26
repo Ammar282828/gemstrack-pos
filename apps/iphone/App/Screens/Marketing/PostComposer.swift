@@ -358,7 +358,7 @@ struct NativeSitePhotoPicker: View {
             #if os(macOS)
             .frame(minWidth: 520, minHeight: 520)
             #endif
-            .task { do { pieces = try await MarketingRequest.get("/api/website/site-pieces")["pieces"].array.filter { !$0["hidden"].bool }; loaded = true } catch { self.error = error.localizedDescription } }.websiteBusy(busy) }
+            .task { do { pieces = try await MarketingRequest.get("/api/website/site-pieces?lean=1")["pieces"].array.filter { !$0["hidden"].bool }; loaded = true } catch { self.error = error.localizedDescription } }.websiteBusy(busy) }
     }
     private func take(_ p: MarketingValue) async { busy = "Bringing the photo…"; defer { busy = nil }; do { let data = try await ERPAPI.shared.data("/api/website/site-pieces/image?id=\(AdsQuery.escape(p.s("id")))&size=3000" + (p["photoSource"] == .null ? "" : "&original=1")); picked(p, data) } catch { self.error = error.localizedDescription } }
 }

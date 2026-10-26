@@ -102,7 +102,7 @@ function DesignRoute() {
       if (askedDraft) {
         await openAnyDraft(askedDraft);
       } else if (askedSite) {
-        const res = await fetch('/api/website/site-pieces', { headers: await authHeaders(), cache: 'no-store' });
+        const res = await fetch('/api/website/site-pieces?lean=1', { headers: await authHeaders(), cache: 'no-store' });
         const body = await res.json().catch(() => ({}));
         const piece = ((body.pieces ?? []) as SitePick[]).find(x => x.id === askedSite);
         if (!res.ok || !piece) throw new Error(body.error || 'That piece is no longer on the website.');

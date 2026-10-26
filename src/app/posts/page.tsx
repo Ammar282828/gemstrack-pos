@@ -167,7 +167,7 @@ function PostsHub() {
     }).catch(() => undefined);
     if (!STORE_SITE_POSTS) return;
     try {
-      const res = await fetch('/api/website/site-pieces', { headers, cache: 'no-store' });
+      const res = await fetch('/api/website/site-pieces?lean=1', { headers, cache: 'no-store' });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(d.error || `${res.status}`);
       setPieces((d.pieces as Piece[]).filter(p => !p.hidden)); setSite(d.site); setPosted(d.posted || {});

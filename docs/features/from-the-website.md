@@ -60,3 +60,15 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
 
 - **From the website → Instagram story** (2026-09-26): the square site photo whole on the house's ground with its mark, name and
   metal · weight (`src/lib/social/site-story.ts`), posted through `/api/instagram/story` when connected, else the share sheet.
+
+### When the catalogue blips (2026-10-26)
+
+- Owner: "HoM website posts not loading in app". `/api/website/site-pieces` read `catalog-pieces.json` and, on **any** failure, fell back to
+  taheri.shop's `catalog-attributes.json` (Mina has none: 404), so a Hostinger deploy of the catalogue (its files were swapped at 08:48 that
+  day) turned into a 502 "catalog attributes unavailable: 404". Now only a 404/410 means "this site publishes no pieces list"; any other
+  failure is retried once, then the last list is kept (asked again in a minute) or the error names the site (`site-pieces.ts`, tested with a
+  Mina-shaped fixture). The phone no longer shows a cancelled read (a screen that left) as a failure (`PostsStore.loadPieces`); Android already didn't.
+- Size (same day): `/api/website/site-pieces` was 1.3 MB for Mina (2.7 MB Taheri), uncompressed on the wire (the log's response size equalled the JSON's).
+  `?lean=1` drops `own`, `words` and an empty `change` (nothing outside Edit a piece reads them; that screen uses `/api/website/edits`): 1.32 MB to 0.85 MB;
+  the route gzips when `Accept-Encoding` allows: 0.85 MB to 86 KB. Web pickers, iPhone and Android all ask for `lean=1`. The iPhone reads with a 45 s
+  timeout and keeps the last list per business in Caches (`PostsStore`), showing "Showing the list from <time>" when the refresh fails.

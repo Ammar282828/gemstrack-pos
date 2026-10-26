@@ -142,6 +142,7 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 |---|---|---|---|---|---|---|
 | Posts hub: Today, queue, pieces, Send all, Spread over the day | ✓ | ✓ | ✓ | ✓ | 2026-10-19 | [Hub](features/from-the-website.md#posts-hub) |
 | Several photos of a piece, one caption, Instagram carousel of 10 | ✓ | ✓ | ✓ | ✓ | 2026-10-23 | [Queue and Mina](features/post-a-piece.md#queue-and-mina) |
+| From the website: the last list kept on the device, 45 s read, "Showing the list from <time>" when the refresh fails | n/a | ✓ | owed | ✓ | 2026-10-26 | [When the catalogue blips](features/from-the-website.md#when-the-catalogue-blips-2026-10-26); Android already sends `?lean=1` and gets the gzip; `PostsStore.kt` needs the disk copy and a longer timeout |
 | A post's card starts with the hero photo alone | ✓ | ✓ | ✓ | ✓ | 2026-10-23 | `PostTrayPhotos.swift` |
 | Design: make, pages, resize, publish, AI tools, saved | ✓ | ✓ | ✓ | ✓ | 2026-10-19 | [Design](decisions.md#design) |
 | Designer v2 (effects, rich text, gradients, QR, photo adjust) | ✓ | ✓ | ✓ | ✓ | 2026-10-19 |  |

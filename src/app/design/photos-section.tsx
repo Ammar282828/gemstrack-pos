@@ -89,7 +89,7 @@ function SitePieces({ onMake }: { onMake: (p: StartPhoto) => void }) {
     let live = true;
     (async () => {
       try {
-        const res = await fetch('/api/website/site-pieces', { headers: await authHeaders(), cache: 'no-store' });
+        const res = await fetch('/api/website/site-pieces?lean=1', { headers: await authHeaders(), cache: 'no-store' });
         const d = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(d.error || `The website’s pieces didn’t load (${res.status}).`);
         if (live) setPieces(((d.pieces ?? []) as SitePick[]).filter(p => !p.hidden).sort(byNewest));

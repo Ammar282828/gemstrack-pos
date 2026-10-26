@@ -187,7 +187,7 @@ struct DesignScreen: View {
 
     private func startFromSite(_ id: String) async {
         do {
-            let pieces = try await MarketingRequest.get("/api/website/site-pieces")["pieces"].array
+            let pieces = try await MarketingRequest.get("/api/website/site-pieces?lean=1")["pieces"].array
             guard let piece = pieces.first(where: { $0.s("id") == id }) else { throw ERPAPI.Failure(status: 0, message: "That piece is no longer on the website.") }
             let sizes = DesignKinds.card("piece").sizes.map { DesignSizeChoice(id: $0) }
             if await workspace.start(DesignStartRequest(kind: "piece", sizes: sizes, photo: DesignPhotoSources.site(piece))) { go(.make) }

@@ -102,7 +102,7 @@ struct DesignSitePieces: View {
     private func load() async {
         if House.isDemo { loaded = true; return }
         do {
-            let all = try await MarketingRequest.get("/api/website/site-pieces")["pieces"].array.filter { !$0["hidden"].bool }
+            let all = try await MarketingRequest.get("/api/website/site-pieces?lean=1")["pieces"].array.filter { !$0["hidden"].bool }
             // New arrivals first (lib/website/new-arrivals.ts byNewest): the later `added`, then the name.
             pieces = all.sorted { a, b in a.n("added") != b.n("added") ? a.n("added") > b.n("added") : a.s("name") < b.s("name") }
             error = nil

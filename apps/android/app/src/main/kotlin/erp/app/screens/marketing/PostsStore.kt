@@ -140,7 +140,7 @@ object PostsStore {
 
     private suspend fun loadPieces() {
         try {
-            val a = PostPiecesAnswer.from(ErpApi.shared.get("/api/website/site-pieces")) ?: PostPiecesAnswer("", emptyList(), emptyMap())
+            val a = PostPiecesAnswer.from(ErpApi.shared.get("/api/website/site-pieces?lean=1")) ?: PostPiecesAnswer("", emptyList(), emptyMap())
             _state.update { it.copy(site = a.site, pieces = a.pieces.filter { p -> !p.hidden }, posted = a.posted, piecesPhase = PostsPhase.Loaded) }
         } catch (e: CancellationException) {
             throw e

@@ -102,28 +102,55 @@ type Published = { site?: string; pieces?: { id: string; name: string; path: str
 /** "Rhodium", "Gold" → "rhodium or gold plated". */
 const plated = (p: string[] = []) => (p.length ? `${p.map(x => x.toLowerCase()).join(' or ')} plated` : '');
 
-async function fromCatalogPieces(site: string): Promise<Listed[] | null> {
-  const res = await fetch(`${site}/catalog-pieces.json`, { cache: 'no-store', signal: AbortSignal.timeout(8000) }).catch(() => null);
-  if (!res?.ok) return null;
-  const d = (await res.json().catch(() => null)) as Published | null;
-  if (!d?.pieces?.length) return null;
+/** What reading the catalogue's own list came to: pieces, "this site publishes none" (taheri.shop), or "it did not answer well just now". */
+export type CatalogRead = { kind: 'ok'; pieces: Listed[] } | { kind: 'absent' } | { kind: 'failed'; why: string };
+
+/** catalog-pieces.json as `Listed`, tolerant of a field of the wrong type: one odd piece never costs the list. */
+export function parseCatalogPieces(site: string, d: Published | null): Listed[] {
   const abs = (u: string) => (/^https?:\/\//.test(u) ? u : `${site}${u.startsWith('/') ? '' : '/'}${u}`);
-  return d.pieces.filter(p => p.id && p.name && p.path && p.image).map(p => ({
-    id: p.id, name: p.name, url: abs(p.path), image: abs(p.image), thumb: abs(p.thumb || p.image),
-    collection: p.collection || '', weightGrams: null, weightOnPhoto: false,
-    facts: [...(p.stones ?? []), plated(p.plating)].filter(Boolean),
-    about: (p.about || '').trim(),
-    added: p.added ? Date.parse(p.added) || null : null,
+  const str = (v: unknown) => (typeof v === 'string' ? v : '');
+  const list = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
+  return (Array.isArray(d?.pieces) ? d!.pieces : []).filter(p => p && str(p.id) && str(p.name) && str(p.path) && str(p.image)).map(p => ({
+    id: p.id, name: p.name, url: abs(p.path), image: abs(p.image), thumb: abs(str(p.thumb) || p.image),
+    collection: str(p.collection), weightGrams: null, weightOnPhoto: false,
+    facts: [...list(p.stones), plated(list(p.plating))].filter(Boolean),
+    about: str(p.about).trim(),
+    added: str(p.added) ? Date.parse(str(p.added)) || null : null,
     newArrival: !!p.newArrival,
     imagePath: imagePathOf(abs(p.image), site),
     // Every photograph after the first (a catalogue built before 2026-10-23 lists only the first).
-    photos: (p.images ?? []).slice(1).filter(x => x?.image).map((x, i) => ({ key: `${p.id}#${i + 2}`, image: abs(x.image), thumb: abs(x.thumb || x.image) })),
+    photos: (Array.isArray(p.images) ? p.images : []).slice(1).filter(x => x && str(x.image)).map((x, i) => ({ key: `${p.id}#${i + 2}`, image: abs(x.image), thumb: abs(str(x.thumb) || x.image) })),
     source: 'pieces' as const,
-    photoSource: p.source ? abs(p.source) : null,
+    photoSource: str(p.source) ? abs(p.source!) : null,
     sourceMarked: !!p.marked,
     // A catalogue built before 2026-09-27 lists one paragraph and no facts.
-    own: { name: p.name, about: (p.story?.length ? p.story : [p.about || '']).join('\n\n').trim(), facts: p.facts ?? [] },
+    own: { name: p.name, about: (list(p.story).length ? list(p.story) : [str(p.about)]).join('\n\n').trim(), facts: list(p.facts) },
   }));
+}
+
+/**
+ * A 404/410 means this site publishes no catalog-pieces.json (taheri.shop: read its attributes instead). Anything else
+ * that is not a usable list (the host mid-deploy, a timeout, a 5xx, half a file) is `failed`, never "absent": falling
+ * through to taheri.shop's attributes on a blip made Mina's catalogue answer "catalog attributes unavailable: 404 from
+ * …/catalog-attributes.json" (2026-10-26, the catalogue was redeployed minutes before).
+ */
+async function fromCatalogPieces(site: string): Promise<CatalogRead> {
+  let why = '';
+  // One more try after a short wait: the host swaps its files while a deploy runs, and they are back within seconds.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt) await new Promise(r => setTimeout(r, 800));
+    try {
+      const res = await fetch(`${site}/catalog-pieces.json`, { cache: 'no-store', signal: AbortSignal.timeout(8000) });
+      if (res.status === 404 || res.status === 410) return { kind: 'absent' };
+      if (!res.ok) { why = `${res.status}`; continue; }
+      const pieces = parseCatalogPieces(site, (await res.json()) as Published);
+      if (pieces.length) return { kind: 'ok', pieces };
+      why = 'an empty list';
+    } catch (e) {
+      why = e instanceof Error ? e.message : String(e);
+    }
+  }
+  return { kind: 'failed', why };
 }
 
 /** A tag worth showing: "None" is the tagger's word for nothing. */
@@ -266,12 +293,29 @@ export function withAngles(pieces: SitePiece[], changes: Record<string, SiteOver
   });
 }
 
+/** A piece as the apps and pickers read it: without the editor's duplicate of the site's words (`own`, `words`) or an empty `change`. */
+export function leanPiece(p: SitePiece): Omit<SitePiece, 'own' | 'words' | 'change'> & { change?: SitePiece['change'] } {
+  const { own: _own, words: _words, change, ...rest } = p;
+  return change ? { ...rest, change } : rest;
+}
+
 /** After a weight is typed: the next read lists the site again. */
 export function forgetSitePieces() { cache = null; }
 
 async function listed(site: string): Promise<Listed[]> {
   if (cache && cache.site === site && Date.now() - cache.at < TTL_MS) return cache.pieces;
-  const all = (await fromCatalogPieces(site)) ?? (await fromAttributes(site));
+  const read = await fromCatalogPieces(site);
+  const host = site.replace(/^https?:\/\//, '');
+  let all: Listed[];
+  if (read.kind === 'ok') all = read.pieces;
+  else if (read.kind === 'failed') {
+    // The site did not answer well: keep showing what it last said (however old) over showing nothing, and ask again in a minute.
+    if (cache && cache.site === site) { cache = { ...cache, at: Date.now() - TTL_MS + 60_000 }; return cache.pieces; }
+    throw new Error(`${host} did not give its list of pieces just now (${read.why}). Try again in a minute.`);
+  } else {
+    try { all = await fromAttributes(site); }
+    catch (e) { throw new Error(`${host} publishes no list of pieces the ERP can read (${e instanceof Error ? e.message : e}).`); }
+  }
   const fresh = newArrivalIds(all.filter(p => p.url));
   const pieces = all.map(p => ({ ...p, newArrival: fresh.has(p.id) })).sort(byNewest);
   cache = { at: Date.now(), site, pieces };
