@@ -530,15 +530,22 @@ struct MacReturnOpens: ViewModifier {
             .background(MacAnchorView { box.anchor = $0 })
             .onAppear {
                 guard box.monitor == nil else { return }
-                box.monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak box] (e: NSEvent) -> NSEvent? in
-                    guard let box, e.keyCode == 36 || e.keyCode == 76,
+                box.monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { (e: NSEvent) -> NSEvent? in
+                    guard e.keyCode == 36 || e.keyCode == 76,
                           e.modifierFlags.intersection([.command, .option, .control, .shift]).isEmpty,
-                          let anchor = box.anchor, let window = anchor.window, e.window === window,
-                          let table = window.firstResponder as? NSTableView,
-                          let scroll = table.enclosingScrollView else { return e }
-                    // The table with the keys is this list's (not the sidebar's, not an inspector's).
+                          let anchor = box.anchor, let window = anchor.window, e.window === window else { return e }
+                    let responder = window.firstResponder
+                    // Nothing in particular has the keys (the window itself): the picked rows are what Return means.
+                    if responder === window {
+                        return box.open?() == true ? nil : e
+                    }
+                    // Whatever has the keys, never a field being typed in (its Return is its own).
+                    guard let focused = responder as? NSView, !(focused is NSText) else { return e }
+                    // What has the keys sits in this list (its table, or a row's own view; not the sidebar, not an
+                    // inspector: a row of Stock's took the keys itself, so the table alone was too narrow a test).
+                    let area = focused.enclosingScrollView ?? focused
                     let here = anchor.convert(anchor.bounds, to: nil)
-                    let there = scroll.convert(scroll.bounds, to: nil)
+                    let there = area.convert(area.bounds, to: nil)
                     guard here.contains(CGPoint(x: there.midX, y: there.midY)), box.open?() == true else { return e }
                     return nil
                 }

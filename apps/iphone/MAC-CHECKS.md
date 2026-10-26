@@ -15,3 +15,4 @@ Xcode Cloud (the screenshots). One line per check, newest last.
 - 2026-10-27: 3 left, all the tests' own: the record test picks the place's list (not the sidebar's), the saved list's title read without its subtitle, switching places by ⌘2–⌘6 (a low sidebar row was scrolled out of a short window).
 - 2026-10-27: Return and double-click open a picked row in Orders, Invoices, Customers, Repairs (their grouped lists' primary action fired for neither) and Return in Stock.
 - 2026-10-27: Return opens the picked rows through AppKit (a List hands Return to neither its primary action nor onKeyPress); the record test finds the empty inspector by its value (a Mac's static text), so it picks a row, not a section heading.
+- 2026-10-27: Return in Stock (a row of Stock's takes the keys itself, so the list's area counts, not its table alone).
