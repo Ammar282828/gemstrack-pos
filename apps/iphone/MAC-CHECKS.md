@@ -8,3 +8,4 @@ Xcode Cloud (the screenshots). One line per check, newest last.
 - 2026-10-27: the first Mac check: the iPhone's look on the Mac, the tests' first run.
 - 2026-10-27: with the review's fixes and their tests (two ⌘N windows, keys from a sale window and Settings, a list in a window, Forward after ⌘K, Print on the inbox, snapshots in the demo).
 - 2026-10-27: the Mac check workflow's first run (set up by the owner): every unit and UI test.
+- 2026-10-27: again, the test target given the CCUPS module path (the first run stopped at "Unable to resolve module dependency: 'CCUPS'"); the shared figure card and even grid, the opaque summary bar, inspectors on the ground.
