@@ -58,3 +58,12 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
 - **Not PDFs:** what goes to customers and the community: the website checkout's messages to the customer, Post a piece,
   Investments, and the wa.me links the app opens on a phone (sent by a person from their own WhatsApp; a link cannot carry a
   file). The website order's shop copy is a PDF to the alert numbers (it went to the shop's own line, which is the sender).
+
+### Not your own action
+
+- (2026-10-26, owner: "why is it sending notifications to the device that is using the app or causing the notification"): an event push (a sale, a payment, an order, an order finished or cancelled) leaves out
+  every phone registered to the person who caused it, whichever surface they used (web, iPhone, Android, Mac, the voice assistant): the same
+  person already knows. The actor is the signed-in email on the request to `/api/notifications/alert` (`by` in `sendLiveAlert`); `push_devices`
+  already keep each phone's `email`, so no new header or registration field is needed, and an old device with no email keeps receiving.
+  Events nobody here caused (a customer's website order or slip, Shopify, the clock) and the person's own reports, reminders and **Send test**
+  go to everyone as before. `recipientsFor` in `lib/push/send.ts`, tested in `lib/push/recipients.test.ts`.

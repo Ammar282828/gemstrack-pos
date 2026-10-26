@@ -33,6 +33,12 @@ export interface PushMessage {
   url?: string;
   /** Sent once per key; omit for a one-off (a test). */
   key?: string;
+  /**
+   * The signed-in person whose action caused this event (their email). Every phone registered to
+   * them is left out: nobody is told of their own action ("Not your own action"). Omit for what
+   * no person did here (a customer's order, Shopify, the clock) and for reports and tests.
+   */
+  actor?: string;
 }
 
 export interface PushResult {
@@ -74,14 +80,29 @@ async function claim(key: string): Promise<boolean> {
   }
 }
 
+/** An actor is a signed-in person's email; 'scheduler', 'ai:<key>' and the like name nobody with a phone. */
+export const actorEmail = (by?: string | null): string | undefined => (by && by.includes('@') ? by.trim().toLowerCase() : undefined);
+
+/**
+ * Who a notification goes to: with `only`, that one phone (a test); otherwise every owner phone that
+ * has not switched the kind off, less every phone registered to the actor. A phone with no email
+ * recorded cannot be told from anyone's, so it keeps receiving.
+ */
+export function recipientsFor<D extends { token: string; email: string; off: PushKind[] }>(
+  devices: D[], m: Pick<PushMessage, 'kind' | 'actor'>, only?: { token: string }, isOwner: (email: string) => boolean = (e) => roleForEmail(e) === 'owner',
+): D[] {
+  if (only) return devices.filter((d) => d.token === only.token);
+  const actor = actorEmail(m.actor);
+  return devices.filter((d) => isOwner(d.email) && !d.off.includes(m.kind) && !(actor && d.email?.trim().toLowerCase() === actor));
+}
+
 export async function pushToShop(m: PushMessage, only?: { token: string }): Promise<PushResult> {
   try {
     if (process.env.NODE_ENV !== 'production' && process.env.PUSH_FROM_DEV !== '1') {
       console.log('[push: dev, not sent]', m.kind, m.title, '·', m.body);
       return { status: 'dev' };
     }
-    const devices = (await allDevices()).filter((d) =>
-      only ? d.token === only.token : roleForEmail(d.email) === 'owner' && !d.off.includes(m.kind));
+    const devices = recipientsFor(await allDevices(), m, only);
     const android = devices.filter((d) => d.platform === 'android');
     const ios = devices.filter((d) => d.platform !== 'android');
     // The Apple key is needed for iPhones only: Android goes through the backend's own service account.
@@ -111,8 +132,8 @@ export async function pushToShop(m: PushMessage, only?: { token: string }): Prom
 }
 
 /** An alert document (the WhatsApp PDF's) as a notification: its title, and its one line. */
-export function pushDoc(doc: AlertDoc, opts: { url?: string; key?: string; kind?: PushKind }): Promise<PushResult> {
+export function pushDoc(doc: AlertDoc, opts: { url?: string; key?: string; kind?: PushKind; actor?: string }): Promise<PushResult> {
   const kind = opts.kind ?? kindOfDoc(doc);
   if (!kind) return Promise.resolve({ status: 'none' });
-  return pushToShop({ kind, title: doc.title, body: doc.headline || doc.heading, url: opts.url, key: opts.key });
+  return pushToShop({ kind, title: doc.title, body: doc.headline || doc.heading, url: opts.url, key: opts.key, actor: opts.actor });
 }

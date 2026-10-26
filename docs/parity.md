@@ -176,6 +176,7 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Both businesses on every widget size | n/a | ✓ | ✓ | ✓ | 2026-10-24 | "Show both businesses" in Settings → Widgets (Android has no per-widget configuration) |
 | Lock Screen widget / gauge | n/a | ✓ | n/a | ✓ | 2026-10-23 | no lock-screen widgets on Android |
 | Push notifications, per-kind switches, naming the store | n/a | ✓ | ✓ | ✓ | 2026-10-13 | `src/lib/push` |
+| No push for your own action (event pushes skip the actor's phones, by email) | ✓ | ✓ | ✓ | ✓ | 2026-10-26 | server-side, `recipientsFor` in `src/lib/push/send.ts`; no client change |
 | WhatsApp reports and the monthly PDF by WhatsApp | ✓ | n/a | n/a | n/a | 2026-10 | server-side, [notifications.md](features/notifications.md) |
 | Voice (live words, any step) | ✓ | ✓ | ✓ | ✓ | 2026-10 | [Voice](features/ai.md#voice) |
 | Voice, Siri-grade: instant start, on-device words, end of speech by itself, keeps listening for changes and "yes", "Do it" | owed | ✓ | owed | ✓ | 2026-10-25 | [Voice, Siri-grade](features/ai.md#voice-siri-grade-iphone-and-mac-2026-10-25); `Device/NativeVoice.swift`, `Device/VoiceEngine.swift`; the Mac compiles the same sources (not yet run on a Mac). Web has live words only (`lib/voice/live.ts`); Android's recogniser and sheet are owed |

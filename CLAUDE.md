@@ -164,6 +164,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Signed-in defaults](docs/decisions.md#signed-in-defaults) — `NEXT_PUBLIC_STORE_PEOPLE`; Taken by, Workshop; Orders/Invoices: all, yours lit
 - [Karigar sign-in](docs/decisions.md#karigar-sign-in) — in-app browsers; `[sign-in]` in the log
 - [Marketing role](docs/decisions.md#marketing-role) — `NEXT_PUBLIC_STORE_MARKETING_EMAILS`; Marketing group only, via the server; audiences owners'
+- [Not your own action](docs/decisions.md#not-your-own-action) — an event push skips every phone of the person who caused it; reports, reminders and the test still reach them
 - [Delete code](docs/decisions.md#delete-code) — every delete asks; the server checks it
 
 **The website and copy**

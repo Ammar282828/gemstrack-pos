@@ -673,6 +673,15 @@ balance below zero is the customer's credit (`lib/invoice-credit.ts`).
   the left (`mineRowClass`, lib/utils.ts; "Taken by you" on hover) — never filtered or moved. Orders open **grouped by day**
   (Invoices already did); Stage is a tap away. The Workshop still starts on the signed-in person.
 
+### Not your own action
+
+- **Not your own action** (2026-10-26, owner: "why is it sending notifications to the device that is using the app or causing the notification"): an event push (a sale, a payment, an order, an order finished or cancelled) leaves out
+  every phone registered to the person who caused it, whichever surface they used (web, iPhone, Android, Mac, the voice assistant): the same
+  person already knows. The actor is the signed-in email on the request to `/api/notifications/alert` (`by` in `sendLiveAlert`); `push_devices`
+  already keep each phone's `email`, so no new header or registration field is needed, and an old device with no email keeps receiving.
+  Events nobody here caused (a customer's website order or slip, Shopify, the clock) and the person's own reports, reminders and **Send test**
+  go to everyone as before. `recipientsFor` in `lib/push/send.ts`, tested in `lib/push/recipients.test.ts`.
+
 ### Delete code
 
 - **Every delete asks for a code first** (2026-10-01, owner: "add ability to delete invoices/advances/orders or anything —
