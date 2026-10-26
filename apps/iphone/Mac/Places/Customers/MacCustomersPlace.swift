@@ -242,6 +242,7 @@ struct MacCustomersPlace: View {
                 Section {
                     ForEach(g.rows) { (r: MacCustomersRow) in
                         MacCustomersListRow(row: r).tag(r.id)
+                            .macOpensOnDoubleClick { go(CustomerKit.route(r.id)) }
                     }
                 } header: {
                     if sort == .group {
@@ -258,6 +259,7 @@ struct MacCustomersPlace: View {
         } primaryAction: { (ids: Set<String>) in
             for id in ids.prefix(5) { go(CustomerKit.route(id)) }
         }
+        .macOpensOnReturn(selection) { (ids: Set<String>) in for id in ids.prefix(5) { go(CustomerKit.route(id)) } }
         .overlay { if rows.isEmpty { emptyState } }
         .macSummaryBar(summary(rows, b))
     }

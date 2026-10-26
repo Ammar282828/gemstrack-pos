@@ -74,6 +74,7 @@ struct MacRepairsListView<RowMenu: View>: View {
         } primaryAction: { (ids: Set<String>) in
             open(ids)
         }
+        .macOpensOnReturn(selection, open)
     }
 
     // MARK: Groups
@@ -119,18 +120,18 @@ struct MacRepairsListView<RowMenu: View>: View {
     private func section(_ g: MacRepairsGroup) -> some View {
         if g.title.isEmpty {
             Section {
-                ForEach(g.rows) { (r: MacRepairsRow) in MacRepairsRowView(row: r, showsStatus: true) }
+                ForEach(g.rows) { (r: MacRepairsRow) in MacRepairsRowView(row: r, showsStatus: true).macOpensOnDoubleClick { open([r.id]) } }
             }
             .houseRows()
         } else if namedByTitle(g) {
             Section {
-                ForEach(g.rows) { (r: MacRepairsRow) in MacRepairsRowView(row: r, showsStatus: false) }
+                ForEach(g.rows) { (r: MacRepairsRow) in MacRepairsRowView(row: r, showsStatus: false).macOpensOnDoubleClick { open([r.id]) } }
             }
             .houseRows()
         } else {
             Section {
                 if isOpen(g) {
-                    ForEach(g.rows) { (r: MacRepairsRow) in MacRepairsRowView(row: r, showsStatus: false) }
+                    ForEach(g.rows) { (r: MacRepairsRow) in MacRepairsRowView(row: r, showsStatus: false).macOpensOnDoubleClick { open([r.id]) } }
                 }
             } header: {
                 header(g)

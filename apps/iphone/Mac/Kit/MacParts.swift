@@ -489,6 +489,27 @@ extension View {
     }
 }
 
+// MARK: Opening a picked row
+
+extension View {
+    /// Return opens what is picked in a list, as Finder's and Mail's do. A grouped `List`'s own primary action
+    /// (`contextMenu(forSelectionType:primaryAction:)`) fired for neither Return nor a double-click on rows inside a
+    /// `Section` (the Mac check, 2026-10-27: Orders, Invoices, Customers, Repairs); a flat list's did on a double-click.
+    func macOpensOnReturn(_ selection: Set<String>, _ open: @escaping (Set<String>) -> Void) -> some View {
+        onKeyPress(.return) {
+            guard !selection.isEmpty else { return .ignored }
+            open(selection)
+            return .handled
+        }
+    }
+
+    /// A double-click on a row opens it, beside the row's own selection (a simultaneous gesture leaves the click
+    /// that picks the row to the list).
+    func macOpensOnDoubleClick(_ open: @escaping () -> Void) -> some View {
+        simultaneousGesture(TapGesture(count: 2).onEnded { open() })
+    }
+}
+
 /// The inspector with nothing picked, or several: "No Order Selected" and what picking one shows, the same words, type
 /// and place in every inspector.
 struct MacInspectorEmpty: View {

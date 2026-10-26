@@ -128,6 +128,7 @@ struct MacInvoicesPlace: View {
                     ForEach(g.rows) { (r: MacInvoicesPlaceRow) in
                         MacInvoiceListRow(row: r, mine: !person.isEmpty && r.takenBy == person, dated: sort != .date)
                             .tag(r.id)
+                            .macOpensOnDoubleClick { open([r.id], cx) }
                     }
                 } header: {
                     // The days' headings, but not one the window's own title already says ("Today" over today's list).
@@ -145,6 +146,7 @@ struct MacInvoicesPlace: View {
         } primaryAction: { (ids: Set<String>) in
             open(ids, cx)
         }
+        .macOpensOnReturn(selection) { (ids: Set<String>) in open(ids, cx) }
         .onKeyPress(.space) {
             // Space looks at the PDF, as it looks at a file in Finder.
             guard selection.count == 1, let id = selection.first, let inv = book.invoices.item(id) else { return .ignored }

@@ -208,6 +208,7 @@ struct MacStockPlace: View {
         } primaryAction: { ids in
             open(Array(ids))
         }
+        .macOpensOnReturn(selection) { (ids: Set<String>) in open(Array(ids)) }
     }
 
     private func listRow(_ r: MacStockPlaceRow) -> some View {

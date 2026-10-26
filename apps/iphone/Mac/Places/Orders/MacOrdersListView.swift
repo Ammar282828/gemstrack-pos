@@ -64,6 +64,7 @@ struct MacOrdersListView<RowMenu: View>: View {
         } primaryAction: { (ids: Set<String>) in
             open(ids)
         }
+        .macOpensOnReturn(selection, open)
     }
 
     // MARK: Groups
@@ -107,18 +108,18 @@ struct MacOrdersListView<RowMenu: View>: View {
     private func section(_ g: MacOrdersGroup) -> some View {
         if g.title.isEmpty {
             Section {
-                ForEach(g.rows) { (r: MacOrdersListRow) in MacOrdersRow(row: r, showsStage: true) }
+                ForEach(g.rows) { (r: MacOrdersListRow) in MacOrdersRow(row: r, showsStage: true).macOpensOnDoubleClick { open([r.id]) } }
             }
             .houseRows()
         } else if namedByTitle(g) {
             Section {
-                ForEach(g.rows) { (r: MacOrdersListRow) in MacOrdersRow(row: r, showsStage: false) }
+                ForEach(g.rows) { (r: MacOrdersListRow) in MacOrdersRow(row: r, showsStage: false).macOpensOnDoubleClick { open([r.id]) } }
             }
             .houseRows()
         } else {
             Section {
                 if isOpen(g) {
-                    ForEach(g.rows) { (r: MacOrdersListRow) in MacOrdersRow(row: r, showsStage: false) }
+                    ForEach(g.rows) { (r: MacOrdersListRow) in MacOrdersRow(row: r, showsStage: false).macOpensOnDoubleClick { open([r.id]) } }
                 }
             } header: {
                 header(g)
