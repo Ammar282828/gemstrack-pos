@@ -144,4 +144,142 @@ extension View {
         frame(maxWidth: width).frame(maxWidth: .infinity)
     }
 }
+
+// MARK: The page's own bar at the foot, the attention banner, the chips that wrap
+
+/// A page's own action bar at the foot (Design's Continue, the website's Send, Ad sets' Create): the look of the list's summary
+/// bar, one hairline over the page's ground, 44 points high. Before it, each of these was `.bar`, a grey of its own, under
+/// pages that stand on the house's ground (owner's snapshots, 2026-10-27).
+struct MacPageFooter<Content: View>: View {
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Divider()
+            HStack(spacing: 10) { content() }
+                .padding(.horizontal, 12)
+                .frame(height: 44)
+        }
+        .background(Theme.ground)
+    }
+}
+
+/// What a page says on the left of its foot (the balance, what is still missing), quiet.
+struct MacFooterSummary: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.callout)
+            .foregroundStyle(.secondary)
+            .monospacedDigit()
+            .lineLimit(1)
+            .truncationMode(.tail)
+    }
+}
+
+/// The foot's push button: the title, a symbol or a spinner before it.
+struct MacFooterButton: View {
+    let action: ActionBar.Action
+    var prominent = false
+
+    var body: some View {
+        if prominent {
+            Button(role: action.role, action: action.action) { label }
+                .keyboardShortcut(.defaultAction)
+                .buttonStyle(.borderedProminent)
+                .controlSize(.regular)
+                .disabled(action.isDisabled || action.isBusy)
+        } else {
+            Button(role: action.role, action: action.action) { label }
+                .controlSize(.regular)
+                .disabled(action.isDisabled || action.isBusy)
+        }
+    }
+
+    private var label: some View {
+        HStack(spacing: 6) {
+            if action.isBusy {
+                ProgressView().controlSize(.small)
+            } else if let symbol = action.systemImage {
+                Image(systemName: symbol)
+            }
+            Text(action.title)
+        }
+        .frame(minWidth: 72)
+    }
+}
+
+extension View {
+    /// The page's one primary action at the foot, in the page's own bar: what it will do on the left, the other actions, then the
+    /// primary as the default button (Return) at the right. The Mac's form of `.actionBar`, on the ground.
+    func macPageActionBar(primary: ActionBar.Action, secondary: [ActionBar.Action] = [], summary: String? = nil) -> some View {
+        safeAreaInset(edge: .bottom, spacing: 0) {
+            MacPageFooter {
+                if let summary, !summary.isEmpty { MacFooterSummary(text: summary) }
+                Spacer(minLength: 12)
+                ForEach(Array(secondary.enumerated()), id: \.offset) { (_: Int, item: ActionBar.Action) in
+                    MacFooterButton(action: item)
+                }
+                MacFooterButton(action: primary, prominent: true)
+            }
+        }
+    }
+}
+
+/// What needs a look, said once at the head of a page: a tinted card in the house's corner, the same on Posts, Ads and the
+/// website's tray (it was a rounded box here, a grey full-width bar there).
+struct MacBanner<Content: View>: View {
+    var tone: Tone = .owed
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        content()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(12)
+            .background(tone.color.opacity(0.12), in: .rect(cornerRadius: Radius.card, style: .continuous))
+    }
+}
+
+/// Chips (sizes, where a photograph comes from) set one after another and wrapped at the width, left-aligned: an adaptive grid
+/// gave each chip a column as wide as the widest, and the short ones stood apart.
+struct MacChipFlow: Layout {
+    var spacing: CGFloat = 8
+    var lineSpacing: CGFloat = 8
+
+    private func arrange(width: CGFloat, subviews: Subviews) -> (offsets: [CGPoint], size: CGSize) {
+        var offsets: [CGPoint] = []
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var lineHeight: CGFloat = 0
+        var widest: CGFloat = 0
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > 0 && x + size.width > width {
+                x = 0
+                y += lineHeight + lineSpacing
+                lineHeight = 0
+            }
+            offsets.append(CGPoint(x: x, y: y))
+            x += size.width
+            widest = max(widest, x)
+            x += spacing
+            lineHeight = max(lineHeight, size.height)
+        }
+        return (offsets, CGSize(width: widest, height: y + lineHeight))
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width ?? CGFloat.infinity
+        return arrange(width: width, subviews: subviews).size
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let placed = arrange(width: bounds.width, subviews: subviews)
+        for (i, subview) in subviews.enumerated() {
+            subview.place(at: CGPoint(x: bounds.minX + placed.offsets[i].x, y: bounds.minY + placed.offsets[i].y),
+                          anchor: .topLeading, proposal: .unspecified)
+        }
+    }
+}
 #endif

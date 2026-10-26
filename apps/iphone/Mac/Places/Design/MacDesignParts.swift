@@ -91,7 +91,7 @@ struct MacDesignCandidateBar: View {
                 .padding(.vertical, 8)
                 Divider()
             }
-            .background(.bar)
+            .background(Theme.ground)
         }
     }
 

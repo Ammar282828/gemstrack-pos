@@ -194,9 +194,16 @@ struct WebsiteEditTile: View {
                     }
                     .padding(pt(6))
                 }
+            #if os(macOS)
+            // Two lines reserved, so a row of cards stands level whatever the names say.
+            Text(piece.words.name.isEmpty ? "A piece" : piece.words.name)
+                .font(.subheadline.weight(.medium))
+                .lineLimit(2, reservesSpace: true)
+            #else
             Text(piece.words.name.isEmpty ? "A piece" : piece.words.name)
                 .font(.subheadline.weight(.medium))
                 .lineLimit(2)
+            #endif
             Text(detail)
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -440,11 +447,12 @@ extension WebsiteEditScreen {
         }
         .overlay {
             if rows.isEmpty {
-                ContentUnavailableView("Nothing matches", systemImage: "square.grid.2x2", description: Text("Clear the search, or pick another collection."))
+                ContentUnavailableView("Nothing Matches", systemImage: "square.grid.2x2", description: Text("Clear the search, or pick another collection."))
             }
         }
         .macSearchable(text: $search, prompt: "Name, collection, ruby, Ring 12…")
-        .macSummaryBar(["\(rows.count) of \(store.pieces.count) pieces", "\(tally.changed) changed here", "\(tally.hidden) hidden",
+        // The count of pieces is the window's subtitle; the bar says what was changed and how it reaches the site.
+        .macSummaryBar(["\(tally.changed) changed here", "\(tally.hidden) hidden",
                         "It shows on \(store.siteName) within a minute; the original photo is kept to put back"])
         .macInspector { macInspectorBody }
         .onChange(of: macSelection) { _, new in macSelectionChanged(new) }
@@ -492,7 +500,7 @@ extension WebsiteEditScreen {
         } else if macSelection.count > 1 {
             MacInspectorEmpty(title: "\(macSelection.count) pieces picked", detail: "Pick one to change its words, weight or photograph.")
         } else {
-            MacInspectorEmpty(title: "No piece picked", detail: "Pick a piece to change what the website says about it.")
+            MacInspectorEmpty(title: "No Piece Selected", detail: "Pick a piece to change what the website says about it.")
         }
     }
 }
