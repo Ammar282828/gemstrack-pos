@@ -16,14 +16,17 @@ import erp.core.models.Product
  */
 object SaleStore {
     /** This phone's unfinished sale, if it has one worth keeping. */
-    fun load(): SaleDraft? = Prefs.string(SaleDraftStore.key)?.let { SaleDraftStore.decode(it) }
+    fun load(business: String? = null): SaleDraft? = Prefs.string(SaleDraftStore.key, business)?.let { SaleDraftStore.decode(it) }
 
-    /** A blank sale is not kept: what is there goes. */
-    fun save(draft: SaleDraft) = Prefs.putString(SaleDraftStore.key, SaleDraftStore.encode(draft))
+    /** A blank sale is not kept: what is there goes. `business` is the one a screen was opened in. */
+    fun save(draft: SaleDraft, business: String? = null) = Prefs.putString(SaleDraftStore.key, SaleDraftStore.encode(draft), business)
 
-    fun clear() = Prefs.remove(SaleDraftStore.key)
+    fun clear(business: String? = null) = Prefs.remove(SaleDraftStore.key, business)
 
-    /** Puts a piece on the unfinished sale (a new one if there is none). False when it is already there. */
+    /**
+     * Puts a piece on the unfinished sale (a new one if there is none). False when it is already there. The caller opens
+     * the sale with `?resume=1` ([SaleLinks.continueSale]): a New sale otherwise starts blank.
+     */
     fun add(product: Product): Boolean {
         val d = load() ?: SaleDraft()
         if (!d.add(product)) return false
@@ -31,7 +34,7 @@ object SaleStore {
         return true
     }
 
-    /** Seeds the phone's order draft from the sale; it replaces an order in progress, so ask first ([orderInProgress]). */
+    /** Seeds the phone's order draft from the sale (the order opens on it, `?resume=1`); release an order in progress to Drafts first. */
     fun startOrderFrom(sale: SaleDraft) {
         Prefs.putString(NewOrderDraftStore.key, NewOrderDraftStore.startFromSale(sale))
     }

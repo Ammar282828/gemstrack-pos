@@ -123,7 +123,7 @@ fun ScanTag() {
         when (val f = found) {
             is Found.Piece -> {
                 val p = products.firstOrNull { it.sku == f.sku }
-                if (p != null) PieceCard(p, settings, added = addedSku == p.sku, onSale, isOwner, { addToSale(p) }, { navigator.open(SaleLinks.newSale) }, { navigator.open(SaleLinks.piece(p.sku)) }, ::scanAnother)
+                if (p != null) PieceCard(p, settings, added = addedSku == p.sku, onSale, isOwner, { addToSale(p) }, { navigator.open(SaleLinks.continueSale) }, { navigator.open(SaleLinks.piece(p.sku)) }, ::scanAnother)
                 else UnknownCard(f.sku, ::scanAnother)
             }
             is Found.Sold -> SoldCard(f.code, f.invoice, invoices.firstOrNull { it.id == f.invoice }, { navigator.open(SaleLinks.invoice(f.invoice)) }, ::scanAnother)
@@ -137,7 +137,7 @@ fun ScanTag() {
                     Icon(Icons.Filled.ShoppingCart, contentDescription = null)
                     Text("$onSale piece${if (onSale == 1) "" else "s"} on the new sale", style = MaterialTheme.typography.titleMedium)
                 }
-                FilledTonalButton(onClick = { navigator.open(SaleLinks.newSale) }, Modifier.fillMaxWidth().defaultMinSize(minHeight = 52.dp)) { Text("Open the sale") }
+                FilledTonalButton(onClick = { navigator.open(SaleLinks.continueSale) }, Modifier.fillMaxWidth().defaultMinSize(minHeight = 52.dp)) { Text("Open the sale") }
             }
         }
     }

@@ -27,6 +27,32 @@ data class DraftRow(
     val id: String get() = if (phoneOnly) "phone-" + draft.kind else draft.id
 }
 
+/** What a New order / New sale opens on (decisions.md "Drafts": saved at every change, never auto-opened). */
+enum class DraftOpen {
+    /** The phone's copy, on purpose (`?resume=1`), or because it has no other place to be found. */
+    Continue,
+
+    /** Blank, with the copy this phone was holding made sure of in Drafts first. */
+    ReleaseAndBlank,
+
+    /** Blank: nothing is held. */
+    Blank,
+}
+
+object DraftOpening {
+    fun decide(holdsCopy: Boolean, resumes: Boolean, kept: Boolean): DraftOpen = when {
+        holdsCopy && (resumes || !kept) -> DraftOpen.Continue
+        holdsCopy -> DraftOpen.ReleaseAndBlank
+        else -> DraftOpen.Blank
+    }
+
+    /**
+     * Whether the form's work has a place in Drafts to be found: not turned off (`autoDraftForms`), not the demo, and the
+     * person can read Drafts (staff cannot: firestore.rules, so they continue the phone's copy as before).
+     */
+    fun kept(autoDraftForms: Boolean?, demo: Boolean, canRead: Boolean = true): Boolean = (autoDraftForms ?: true) && !demo && canRead
+}
+
 /** The Drafts page's pure rules (DraftsScreen.swift), kept off the view so they are tested. */
 object DraftsLogic {
     /**
@@ -85,7 +111,8 @@ object DraftsLogic {
 
     /** Where a row opens: the native form where this phone holds the work, else the ERP's form on the draft. */
     fun path(row: DraftRow): String {
-        if (row.native) return if (row.draft.isOrder) "/orders/add" else "/invoices/new"
+        // A New order / New sale is blank; a draft is continued from here, on purpose (`?resume=1`).
+        if (row.native) return if (row.draft.isOrder) "/orders/add?resume=1" else "/invoices/new?resume=1"
         return draftHref(row.draft.kind, row.draft.id) + "&web=1"
     }
 

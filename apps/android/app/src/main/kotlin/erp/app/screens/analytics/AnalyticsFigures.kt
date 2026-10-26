@@ -2,6 +2,7 @@ package erp.app.screens.analytics
 
 import erp.core.logic.CashIn
 import erp.core.logic.MarginSettings
+import erp.core.logic.NetProfit
 import erp.core.logic.Period
 import erp.core.logic.WALK_IN_ENTITY
 import erp.core.logic.WALK_IN_NAME
@@ -511,7 +512,7 @@ object AnaBreakdown {
 // MARK: Sales: the years and the months
 
 class AnaYear(val year: Int, val revenue: Double, val expenses: Double, val unpaid: Double, val profit: Double) {
-    val netProfit: Double get() = revenue - expenses
+    val netProfit: Double get() = NetProfit.of(profit, expenses)
 }
 
 class AnaMonth(

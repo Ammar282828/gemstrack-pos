@@ -53,6 +53,7 @@ import erp.app.ui.theme.ErpColors
 import erp.core.ERPDate
 import erp.core.logic.MarginSettings
 import erp.core.logic.Money
+import erp.core.logic.NetProfit
 import java.time.LocalDate
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -95,8 +96,8 @@ fun AnaOverviewPage(figures: AnaFigures, period: AnaPeriodState, showCosts: Bool
 
 @Composable
 private fun MoneySection(f: AnaFigures, showCosts: Boolean, margin: MarginSettings) {
-    val net = f.totalSales - f.totalExpenses
-    val netPct = if (f.totalSales > 0) net / f.totalSales * 100 else 0.0
+    val net = NetProfit.of(f.estProfit, f.totalExpenses)
+    val netPct = NetProfit.marginPercent(net, f.totalSales)
     val netDetail = if (f.totalSales > 0) "${AnaFormat.fixed(netPct, 1)}% margin" else "No revenue in period"
     val netTint = if (net >= 0) Tone.settled.color() else Tone.owed.color()
     val assumed = (margin.assumedMargin * 100).roundToInt()

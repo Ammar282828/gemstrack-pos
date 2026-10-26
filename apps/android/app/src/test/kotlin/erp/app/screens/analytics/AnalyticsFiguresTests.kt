@@ -2,6 +2,7 @@ package erp.app.screens.analytics
 
 import erp.core.logic.MarginSettings
 import erp.core.logic.Money
+import erp.core.logic.NetProfit
 import erp.core.logic.invoiceSaleValue
 import erp.core.models.AdditionalRevenue
 import erp.core.models.Customer
@@ -460,7 +461,11 @@ class AnalyticsFiguresTests {
         assertEquals(listOf(2026, 2025), h.yearly.map { it.year })
         val y26 = h.yearly[0]
         assertEquals(351000.0, y26.revenue, 0.0)
-        assertEquals(y26.revenue - y26.expenses, y26.netProfit, 0.0)
+        // Net profit is the estimate less expenses, never revenue less expenses: the goods cost something.
+        assertTrue(y26.profit > 0 && y26.profit < y26.revenue)
+        assertEquals(y26.profit - y26.expenses, y26.netProfit, 0.0)
+        assertTrue(y26.netProfit < y26.revenue - y26.expenses)
+        assertTrue(NetProfit.marginPercent(y26.netProfit, y26.revenue) < 15.0, "a jewellery shop is not at 100% margin")
         assertEquals(40000.0, h.yearly[1].unpaid, 0.0)
         assertEquals(listOf("2025-12", "2026-01", "2026-02"), h.months.map { it.key })
         assertEquals(0.0, h.months[1].revenue, 0.0)

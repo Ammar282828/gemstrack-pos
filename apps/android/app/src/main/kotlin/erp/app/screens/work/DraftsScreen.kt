@@ -70,7 +70,8 @@ import kotlinx.coroutines.launch
  *
  * Owners read Firestore `drafts` live, as the web does. Staff have no Firestore (firestore.rules) and the server has no list
  * of drafts for them, so they see what is kept on this phone, which is their own order in progress. A draft this phone wrote
- * (WorkDraftSync) is continued in the native form, which holds that work already; one begun on the web or on another phone
+ * (WorkDraftSync) is continued in the native form, which holds that work already (`?resume=1`: a New order or New sale is
+ * blank, a draft is continued from here, on purpose); one begun on the web or on another phone
  * opens in the ERP's own form inside the app (`/orders/add?draft=<id>&web=1`).
  */
 @Composable
@@ -107,6 +108,8 @@ private fun DraftsPage() {
     LaunchedEffect(Unit) {
         phoneOrder = NewOrderPhoneStore.load()?.also { d -> d.pieces.forEach { it.photo = null } }
         phoneSale = if (session.isOwner) SaleStore.load() else null
+        // Drafts that could not be sent (no line) are sent now if the line is back.
+        WorkDraftSync.resumeAll()
     }
     var discarding by remember { mutableStateOf<DraftRow?>(null) }
     var failure by remember { mutableStateOf<String?>(null) }
@@ -153,6 +156,8 @@ private fun DraftsPage() {
             }
             return
         }
+        // One still waiting to be sent (no line) must not come back after this.
+        (if (d.isOrder) WorkDraftSync.order else WorkDraftSync.sale).abandon(d.id)
         scope.launch {
             try {
                 ErpApi.shared.send("/api/app/drafts", body = mapOf("action" to "drop", "id" to d.id))

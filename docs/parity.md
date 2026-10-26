@@ -104,7 +104,8 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Piece details edit (order / invoice piece from the workshop) | ✓ | ✓ | ✓ | ✓ | 2026-10 | `WorkshopPieceDetailsSheet.swift`, `lib/writes/piece-details.ts`; Android `WorkshopPieceDetailsSheet.kt`, through the Outbox |
 | My work (karigar's own list) | ✓ | ✓ | ✓ | ✓ | 2026-10 |  |
 | Drafts, Calendar, Activity log | ✓ | ✓ | ✓ | ✓ | 2026-10-09 | `Screens/Work`, `screens/work` |
-| Drafts: saved at every keystroke, never auto-opened (a New sale / New order is blank; the unfinished one waits in Drafts; a quiet "N drafts" line on the blank form) | ✓ | ✓ | owed | ✓ | 2026-10-25 | [Drafts](decisions.md#drafts); web `use-work-drafts.ts` + `lib/draft-writer.ts`, `?continue=1`; iPhone/Mac one code: `Data/WorkDraftSync.swift`, `NewSale.swift`, `NewOrder.swift`, `Work/DraftsNote.swift`, `?resume=1`; Android: own copy on the phone still auto-opens, send within 300 ms, write the previous draft to Drafts and start blank, `?resume` for Scan/Stock/Drafts |
+| Drafts: saved at every keystroke, never auto-opened (a New sale / New order is blank; the unfinished one waits in Drafts; a quiet "N drafts" line on the blank form) | ✓ | ✓ | ✓ | ✓ | 2026-10-25 | [Drafts](decisions.md#drafts); web `use-work-drafts.ts` + `lib/draft-writer.ts`, `?continue=1`; iPhone/Mac one code: `Data/WorkDraftSync.swift`, `NewSale.swift`, `NewOrder.swift`, `Work/DraftsNote.swift`, `?resume=1`; Android: `data/WorkDraftSync.kt` (tested: `WorkDraftSyncTests`), `DraftsNote`, `?resume=1` for Scan/Stock/Drafts/Create order |
+| New sale in the + menu opens the sale itself, not the New chooser | n/a | ✓ | ✓ | owed | 2026-10-25 | iPhone `RootView.swift` (ed1a79a); Android `nav/RootScaffold.kt` `createItems` |
 
 ## Money
 
@@ -121,7 +122,7 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Overview, Sales, Products, Customers (this month by default) | ✓ | ✓ | ✓ | ✓ | 2026-10 | [Analytics default](decisions.md#analytics-default-this-month) |
 | Categories as ranked share bars | ✓ | ✓ | ✓ | ✓ | 2026-10-20 | `lineCategory`/`guessCategory`: `Categories.swift`, `core/logic/Categories.kt` (+ tests); `AnaShareChart` |
 | One Analytics with sections (Sales · Website · Social · Ads) and a section picker; the marketing account sees only tabs marked `marketing` | ✓ | ✓ | ✓ | ✓ | 2026-10-23 | [The map](decisions.md#the-map) |
-| Net profit = estimated profit less expenses (not revenue less expenses) | ✓ | ✓ | owed | ✓ | 2026-10-25 | [Net profit](decisions.md#net-profit); `src/lib/analytics/net-profit.ts`, `AnaNet`; Android `AnaYear.netProfit` and the Overview tile still use revenue − expenses |
+| Net profit = estimated profit less expenses (not revenue less expenses) | ✓ | ✓ | ✓ | ✓ | 2026-10-25 | [Net profit](decisions.md#net-profit); `src/lib/analytics/net-profit.ts`, `AnaNet`; Android core `NetProfit`, `AnaYear.netProfit`, Overview tile |
 | Monthly PDF | ✓ | ✓ | ✓ | ✓ | 2026-10 | [Monthly PDF](features/notifications.md#monthly-pdf) |
 | Sums spoken in rupees, charts summarised for screen readers | n/a | ✓ | n/a | ✓ | 2026-10-20 | Android uses TalkBack labels (`android-app.md`) |
 

@@ -81,7 +81,7 @@ fun NewChooser() {
     ) {
         inProgress?.takeIf { it.lines.isNotEmpty() }?.let { draft ->
             Untitled("Kept on this phone, and in Drafts for the counter.") {
-                ProgressRow(draft, settings) { navigator.open(SaleLinks.newSale) }
+                ProgressRow(draft, settings) { navigator.open(SaleLinks.continueSale) }
             }
         }
 
