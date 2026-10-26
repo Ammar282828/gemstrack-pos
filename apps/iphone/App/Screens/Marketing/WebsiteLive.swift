@@ -25,7 +25,8 @@ struct WebsiteLiveScreen: View {
         .navigationTitle("Live")
         .navigationBarTitleDisplayMode(.inline)
         #if os(macOS)
-        .navigationSubtitle(live.map { (l: SiteLive) in "\(l.visitors) on the site now" } ?? "")
+        // The count is the first figure of the page; the window says what "now" means.
+        .navigationSubtitle("Seen in the last 5 minutes")
         // View › Refresh (⌘R) asks again; the page also updates itself every 15 seconds.
         .macRefresh { Task { await load() } }
         #endif
@@ -36,7 +37,11 @@ struct WebsiteLiveScreen: View {
     @ViewBuilder
     private var content: some View {
         if wide {
+            #if os(macOS)
+            macBody
+            #else
             wideBody
+            #endif
         } else {
             phoneList
         }
@@ -268,3 +273,64 @@ struct WebsiteLiveScreen: View {
         }
     }
 }
+
+#if os(macOS)
+extension WebsiteLiveScreen {
+    /// Live as a report page (centred, 1400 at most, 24 points of gutter): the people on the site now and today's running totals
+    /// as the kit's figure cards in one row, the lists as cards in even rows, then every visit.
+    var macBody: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                if let l = live {
+                    macTop(l)
+                    if l.visitors > 0 {
+                        macCards(l)
+                    } else {
+                        Text("No one on the site at the moment. Visits are counted from 23 October 2026.")
+                            .font(.subheadline).foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .environment(\.siteWide, true)
+            .padding(24)
+            .frame(maxWidth: 1400, alignment: .leading)
+            .frame(maxWidth: .infinity)
+        }
+        .background(Theme.ground)
+    }
+
+    private func macTop(_ l: SiteLive) -> some View {
+        let t = l.today
+        let now = MacFigure("On the site now", "\(l.visitors)",
+                            detail: l.visitors > 0 ? "\(l.newVisitors) new, \(max(0, l.visitors - l.newVisitors)) returning" : "No one at the moment",
+                            symbol: "dot.radiowaves.left.and.right",
+                            symbolTint: l.visitors > 0 ? Tone.settled.color : Color.secondary)
+        return FigureGrid {
+            MacFigureCard(figure: now)
+            FigureTile(label: "Sessions", value: SiteWords.number(t.sessions), detail: SiteWords.number(t.visitors) + " people")
+            FigureTile(label: "Page views", value: SiteWords.number(t.pageviews), detail: SiteWords.duration(t.avgSessionMs) + " a session")
+            FigureTile(label: "Opened a piece", value: SiteWords.number(t.pieces), detail: SiteWords.number(t.saves) + " saved one")
+            FigureTile(label: "Asked on WhatsApp", value: SiteWords.number(t.enquiries), detail: SiteWords.pct(t.conversion, digits: 1) + " of sessions")
+        }
+    }
+
+    /// The four short lists in even rows, then the long one (each visit) across the page.
+    private func macCards(_ l: SiteLive) -> some View {
+        var cards: [MacSiteCard] = []
+        let cities = SiteRanks.cityRows(l.countries, cities: l.cityRows)
+        let countries = SiteRanks.countryRows(l.countries)
+        if !cities.isEmpty || !countries.isEmpty { cards.append(MacSiteCard("places", AnyView(places(l)))) }
+        if !l.pages.isEmpty { cards.append(MacSiteCard("looking", AnyView(looking(l)))) }
+        if !l.sources.isEmpty { cards.append(MacSiteCard("came", AnyView(came(l)))) }
+        if !l.devices.isEmpty { cards.append(MacSiteCard("devices", AnyView(devices(l)))) }
+        let shown = cards
+        return VStack(alignment: .leading, spacing: 20) {
+            MacEvenLayout(minimum: 340, spacing: 16) {
+                ForEach(shown) { (c: MacSiteCard) in c.view }
+            }
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+            visitsSection(l.sessions)
+        }
+    }
+}
+#endif

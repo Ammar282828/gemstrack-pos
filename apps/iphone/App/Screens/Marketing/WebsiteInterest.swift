@@ -159,7 +159,11 @@ struct WebsiteInterestScreen: View {
         .motion(query)
         .motion(list)
         .overlay { stateOverlay }
+        #if os(macOS)
+        .navigationTitle("Visitors")
+        #else
         .navigationTitle("Interest")
+        #endif
         .navigationBarTitleDisplayMode(.inline)
         #if os(macOS)
         .navigationSubtitle(report.map { (r: SiteReport) in spanLine(r) } ?? "")
@@ -186,7 +190,11 @@ struct WebsiteInterestScreen: View {
     @ViewBuilder
     private var content: some View {
         if wide {
+            #if os(macOS)
+            macBody
+            #else
             wideBody
+            #endif
         } else {
             List {
                 periodSection
@@ -578,7 +586,102 @@ struct WebsiteInterestScreen: View {
 }
 
 #if os(macOS)
+/// One card of Visitors' report, kept whole so a card that has nothing to say can be left out of the grid (a hidden section
+/// would leave a hole in it).
+struct MacSiteCard: Identifiable {
+    let id: String
+    let view: AnyView
+
+    init(_ id: String, _ view: AnyView) {
+        self.id = id
+        self.view = view
+    }
+}
+
 extension WebsiteInterestScreen {
+    /// Visitors as a report page (the rule of every report: centred, 1400 at most, 24 points of gutter): the figures as the kit's
+    /// cards, the chart, the report's cards in even rows (each as tall as its row's tallest), then the pieces.
+    var macBody: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                if let r = report {
+                    macReport(r)
+                }
+                if report != nil || pieces != nil {
+                    widePieces
+                }
+            }
+            .environment(\.siteWide, true)
+            .padding(24)
+            .frame(maxWidth: 1400, alignment: .leading)
+            .frame(maxWidth: .infinity)
+        }
+        .background(Theme.ground)
+    }
+
+    @ViewBuilder
+    private func macReport(_ r: SiteReport) -> some View {
+        let n = r.now
+        if n.sessions == 0 && r.before.sessions == 0 {
+            Text("Nothing counted in this period yet. Visits are counted from 23 October 2026; piece interest from 22 October. It fills as people use the website.")
+                .font(.subheadline).foregroundStyle(.secondary)
+        }
+        FigureGrid {
+            tiles(r)
+        }
+        SiteChartSection(report: r)
+        let cards = macCards(n, r.before)
+        MacEvenLayout(minimum: 420, spacing: 16) {
+            ForEach(cards) { (c: MacSiteCard) in c.view }
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+
+    /// The report's blocks, in the order a reader asks: how far they got and where they are, where they came from and landed,
+    /// which sources brought enquiries, then the devices and the rest of the pages. The ones with nothing to show are left out.
+    private func macCards(_ n: SiteSummary, _ before: SiteSummary) -> [MacSiteCard] {
+        var out: [MacSiteCard] = []
+        out.append(MacSiteCard("funnel", AnyView(SiteFunnelSection(now: n, before: before))))
+        out.append(MacSiteCard("places", AnyView(
+            SiteRankSection(title: "Where they are", rows: SiteRanks.cityRows(n.countries, cities: n.cities), total: n.sessions, empty: "No sessions yet.",
+                            alt: SiteRanks.countryRows(n.countries), picks: ["Cities", "Countries"]))))
+        out.append(MacSiteCard("came", AnyView(
+            SiteRankSection(title: "Where they came from", rows: SiteRanks.sourceRows(n.sources), total: n.sessions, empty: "No sessions yet.",
+                            alt: SiteRanks.channelRows(n.channels), picks: ["Sources", "Kinds"]))))
+        out.append(MacSiteCard("arrived", AnyView(
+            SiteRankSection(title: "Pages they arrived on", rows: SiteRanks.pages(n.landing), total: n.sessions, empty: "No sessions yet."))))
+        if !n.sources.isEmpty { out.append(MacSiteCard("sources", AnyView(SiteSourcesSection(sources: n.sources)))) }
+        let campaigns = campaignRows(n)
+        if !campaigns.isEmpty {
+            out.append(MacSiteCard("campaigns", AnyView(SiteRankSection(title: "Campaigns", rows: campaigns, total: n.sessions))))
+        }
+        out.append(MacSiteCard("device", AnyView(
+            SiteRankSection(title: "Device", rows: SiteRanks.counts(n.devices, label: SiteWords.device), total: n.sessions, empty: "No sessions yet."))))
+        out.append(MacSiteCard("system", AnyView(
+            SiteRankSection(title: "System", rows: SiteRanks.plain(n.os), total: n.sessions, empty: "No sessions yet."))))
+        out.append(MacSiteCard("browser", AnyView(
+            SiteRankSection(title: "Browser", rows: SiteRanks.plain(n.browsers), total: n.sessions, empty: "No sessions yet.",
+                            note: "Instagram and Facebook are their in-app browsers."))))
+        out.append(MacSiteCard("exits", AnyView(
+            SiteRankSection(title: "Pages they left from", rows: SiteRanks.pages(n.exits), total: n.sessions, empty: "No sessions yet."))))
+        out.append(MacSiteCard("viewed", AnyView(
+            SiteRankSection(title: "Most viewed pages", rows: SiteRanks.pages(n.pages), total: n.pageviews, empty: "No page views yet."))))
+        let browsed = SiteRanks.pages(n.collections)
+        if !browsed.isEmpty {
+            out.append(MacSiteCard("collections", AnyView(SiteRankSection(title: "Collections browsed", rows: browsed))))
+        }
+        let searched = searchRows(n)
+        if !searched.isEmpty {
+            out.append(MacSiteCard("searches", AnyView(SiteRankSection(title: "What they searched for", rows: searched))))
+        }
+        let missing = SiteRanks.pages(n.notFound)
+        if !missing.isEmpty {
+            out.append(MacSiteCard("notfound", AnyView(
+                SiteRankSection(title: "Pages not found", rows: missing, note: "A broken link somewhere, or a piece taken down."))))
+        }
+        return out
+    }
+
     /// Live (with the count on the site now) and the period as one menu; View › Refresh (⌘R) reads the report again.
     @ToolbarContentBuilder
     var macToolbar: some ToolbarContent {

@@ -98,7 +98,13 @@ struct AnaOrdersChart: View {
         VStack(alignment: .leading, spacing: pt(6)) {
             Chart(days) { (d: AnaDay) in
                 BarMark(x: .value("Day", d.plotDate, unit: .day), y: .value("Orders", d.orders))
+                    #if os(macOS)
+                    // The Mac's charts are the house's one colour (the sales line above it is the accent too), not a green
+                    // beside it with no legend.
+                    .foregroundStyle(Theme.accent)
+                    #else
                     .foregroundStyle(Tone.settled.color)
+                    #endif
             }
             .frame(height: 110)
             #if os(macOS)
@@ -121,12 +127,23 @@ struct AnaMonthlyChart: View {
     let average: Double
     let best: String?
 
+    #if os(macOS)
+    /// The latest month on record, the one bar drawn at full strength.
+    private var latest: Date? { months.map { (m: AnaMonth) -> Date in m.plotDate }.max() }
+    #endif
+
     var body: some View {
         VStack(alignment: .leading, spacing: pt(6)) {
             Chart {
                 ForEach(months) { (m: AnaMonth) in
                     BarMark(x: .value("Month", m.plotDate, unit: .month), y: .value("Revenue", m.revenue / Money.lac))
+                        #if os(macOS)
+                        // One colour, the latest month at full strength and the rest softer, as Home's month chart has its
+                        // today (the best month is a figure above; a green bar beside a beige one had no legend).
+                        .foregroundStyle(m.plotDate == latest ? Theme.accent : Theme.accent.opacity(0.5))
+                        #else
                         .foregroundStyle(m.key == best ? Tone.settled.color : Theme.accent)
+                        #endif
                 }
                 RuleMark(y: .value("Average", average / Money.lac))
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))

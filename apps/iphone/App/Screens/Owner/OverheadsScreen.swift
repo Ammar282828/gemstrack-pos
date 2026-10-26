@@ -371,12 +371,26 @@ extension OverheadsBoard {
                   enabled: dirty && !saving, id: "save") { Task { await save() } }
     }
 
+    /// One page, not two panes with a divider between them: the record at the left and the sheet beside it, one scroll, the
+    /// gutters every report has (centred, 1400 points at most). Narrow, the sheet goes under the record.
     private func macBoard(rows: [OverheadMonthRow], summary: OverheadSummary, target: Double, earned: Double, p: OverheadProgress) -> some View {
-        HSplitView {
-            macRecord(rows, summary, target: target, earned: earned, p: p)
-                .frame(minWidth: 360)
-            macSheet(target)
-                .frame(minWidth: 280, idealWidth: 380, maxWidth: 520)
+        ScrollView {
+            MacReportsWidth(900) {
+                HStack(alignment: .top, spacing: 20) {
+                    macRecord(rows, summary, target: target, earned: earned, p: p)
+                        .frame(maxWidth: .infinity)
+                    macSheet(target)
+                        .frame(minWidth: 320, idealWidth: 400, maxWidth: 440)
+                }
+            } narrow: {
+                VStack(alignment: .leading, spacing: 20) {
+                    macRecord(rows, summary, target: target, earned: earned, p: p)
+                    macSheet(target)
+                }
+            }
+            .padding(24)
+            .frame(maxWidth: 1400, alignment: .leading)
+            .frame(maxWidth: .infinity)
         }
         .background(Theme.ground)
         .navigationSubtitle(monthName)
@@ -384,62 +398,54 @@ extension OverheadsBoard {
 
     private func macRecord(_ rows: [OverheadMonthRow], _ s: OverheadSummary, target: Double, earned: Double, p: OverheadProgress) -> some View {
         let met = p.shortfall == 0 && target > 0
-        return ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 180, maximum: 400), spacing: 16)], spacing: 16) {
-                    MacDashFigureCard(title: "Needed this month", symbol: "target", tint: Theme.accent,
-                                      value: OwnerText.pkr(target), detail: monthName, open: nil) { EmptyView() }
-                    MacDashFigureCard(title: "Revenue so far", symbol: "banknote", tint: Tone.settled.color,
-                                      value: OwnerText.pkr(earned), detail: "Taken this month", open: nil) { EmptyView() }
-                    MacDashFigureCard(title: met ? "Above the benchmark" : "Still to earn", symbol: "chart.line.uptrend.xyaxis",
-                                      tint: met ? Tone.settled.color : Tone.owed.color,
-                                      value: OwnerText.pkr(met ? earned - target : p.shortfall),
-                                      detail: daysLine(p, met: met), open: nil) { EmptyView() }
-                }
-                VStack(alignment: .leading, spacing: 8) {
-                    ProgressView(value: p.percent, total: 100).tint(Theme.accent)
-                    Text("What \(monthName) has to cover before anything is profit. Scored from \(Overheads.monthLabel(Overheads.benchmarkStart)).")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(16)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .houseCard()
-                VStack(alignment: .leading, spacing: 0) {
-                    LedgerHeading(title: "Month by month", count: rows.count)
-                        .padding(.horizontal, 16)
-                        .padding(.top, 14)
-                        .padding(.bottom, 6)
-                    Table(rows) {
-                        TableColumn("Month") { (r: OverheadMonthRow) in Text(r.inProgress ? "\(r.label) \u{00B7} so far" : r.label).lineLimit(1) }
-                            .width(min: 110, ideal: 170)
-                        TableColumn("Needed") { (r: OverheadMonthRow) in MacAmount(r.target) }
-                            .width(min: 70, ideal: 90)
-                        TableColumn("Revenue") { (r: OverheadMonthRow) in MacAmount(r.earned) }
-                            .width(min: 70, ideal: 90)
-                        TableColumn("Over / short") { (r: OverheadMonthRow) in
-                            // A month that met its target is the expected end: no colour; one that fell short is amber.
-                            MacAmount(r.surplus, tone: r.inProgress || r.surplus >= 0 ? Tone.quiet : Tone.owed)
-                        }
-                        .width(min: 70, ideal: 90)
-                        TableColumn("") { (r: OverheadMonthRow) in
-                            if !r.inProgress { Image(systemName: r.met ? "checkmark.circle.fill" : "arrow.down.right.circle.fill").foregroundStyle(r.met ? Color.secondary : Tone.owed.color) }
-                        }
-                        .width(24)
-                    }
-                    .scrollContentBackground(.hidden)
-                    .frame(minHeight: 120 + 28 * CGFloat(rows.count))
-                    Text(summaryLine(summary: s))
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                        .padding(16)
-                }
-                .houseCard()
-                .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        return VStack(alignment: .leading, spacing: 20) {
+            MacEvenLayout(minimum: 180, spacing: 16) {
+                MacDashFigureCard(title: "Needed this month", symbol: "target", tint: Theme.accent,
+                                  value: OwnerText.pkr(target), detail: monthName, open: nil) { EmptyView() }
+                MacDashFigureCard(title: "Revenue so far", symbol: "banknote", tint: Tone.settled.color,
+                                  value: OwnerText.pkr(earned), detail: "Taken this month", open: nil) { EmptyView() }
+                MacDashFigureCard(title: met ? "Above the benchmark" : "Still to earn", symbol: "chart.line.uptrend.xyaxis",
+                                  tint: met ? Tone.settled.color : Tone.owed.color,
+                                  value: OwnerText.pkr(met ? earned - target : p.shortfall),
+                                  detail: daysLine(p, met: met), open: nil) { EmptyView() }
             }
-            .padding(20)
+            MacDashCard(title: "Target covered", trailing: "\(Int(p.percent.rounded()))%") {
+                MacDashProgress(fraction: min(1, max(0, p.percent / 100)), tint: met ? Tone.settled.color : Theme.accent)
+                Text("What \(monthName) has to cover before anything is profit. Scored from \(Overheads.monthLabel(Overheads.benchmarkStart)).")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            .fixedSize(horizontal: false, vertical: true)
+            MacReportsCard {
+                MacReportsHeader(title: "Month by month", detail: "\(rows.count) month\(rows.count == 1 ? "" : "s")")
+                // Sized to its rows: a table taller than them left an empty band under the last row.
+                Table(rows) {
+                    TableColumn("Month") { (r: OverheadMonthRow) in Text(r.inProgress ? "\(r.label) \u{00B7} so far" : r.label).lineLimit(1) }
+                        .width(min: 110, ideal: 170)
+                    TableColumn("Needed") { (r: OverheadMonthRow) in MacAmount(r.target) }
+                        .width(min: 70, ideal: 90)
+                    TableColumn("Revenue") { (r: OverheadMonthRow) in MacAmount(r.earned) }
+                        .width(min: 70, ideal: 90)
+                    TableColumn("Over / short") { (r: OverheadMonthRow) in
+                        // A month that met its target is the expected end: no colour; one that fell short is amber.
+                        MacAmount(r.surplus, tone: r.inProgress || r.surplus >= 0 ? Tone.quiet : Tone.owed)
+                    }
+                    .width(min: 70, ideal: 90)
+                    TableColumn("") { (r: OverheadMonthRow) in
+                        if !r.inProgress { Image(systemName: r.met ? "checkmark.circle.fill" : "arrow.down.right.circle.fill").foregroundStyle(r.met ? Color.secondary : Tone.owed.color) }
+                    }
+                    .width(24)
+                }
+                .scrollContentBackground(.hidden)
+                .scrollDisabled(true)
+                .macReportsTable(rows: rows.count)
+                Text(summaryLine(summary: s))
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .padding(16)
+            }
+            .fixedSize(horizontal: false, vertical: true)
         }
-        .background(Theme.ground)
     }
 
     private func summaryLine(summary s: OverheadSummary) -> String {
@@ -451,10 +457,9 @@ extension OverheadsBoard {
     }
 
     private func macSheet(_ target: Double) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 16) {
+            MacDashCard(title: "The sheet", count: lines.count) {
                 VStack(alignment: .leading, spacing: 10) {
-                    LedgerHeading(title: "The sheet", count: lines.count)
                     ForEach($lines) { $line in
                         HStack(spacing: 10) {
                             TextField("What is it for", text: $line.label)
@@ -478,17 +483,13 @@ extension OverheadsBoard {
                         RowAmount(amount: target, tone: Theme.accent)
                     }
                 }
-                .padding(16)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .houseCard()
-                Text("A benchmark, not a ledger. Nothing here is recorded as an expense or counted against profit \u{2014} enter the real payments in Expenses as they go out. Changes apply from \(Overheads.monthLabel(thisMonth)) onward; months already scored keep the target they were scored against.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 4)
             }
-            .padding(20)
+            .fixedSize(horizontal: false, vertical: true)
+            Text("A benchmark, not a ledger. Nothing here is recorded as an expense or counted against profit \u{2014} enter the real payments in Expenses as they go out. Changes apply from \(Overheads.monthLabel(thisMonth)) onward; months already scored keep the target they were scored against.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 4)
         }
-        .background(Theme.ground)
     }
 }
 #endif

@@ -50,6 +50,8 @@ struct MacRepairsListView<RowMenu: View>: View {
     let sort: MacRepairsSort
     /// A search is on: the folded groups open so its hits are not hidden.
     let searching: Bool
+    /// The saved list's title (In the Shop, Collected), nil on the whole place: a group of that very name is not said twice.
+    var listTitle: String?
     @Binding var selection: Set<String>
     let open: (Set<String>) -> Void
     @ViewBuilder let menu: (Set<String>) -> RowMenu
@@ -102,8 +104,15 @@ struct MacRepairsListView<RowMenu: View>: View {
         return out
     }
 
+    /// The window's title already names this group ("Collected" over a group "Collected"): no heading is said again, and a
+    /// folded one is open (the list is nothing else).
+    private func namedByTitle(_ g: MacRepairsGroup) -> Bool {
+        guard let listTitle else { return false }
+        return g.title.caseInsensitiveCompare(listTitle) == .orderedSame
+    }
+
     private func isOpen(_ g: MacRepairsGroup) -> Bool {
-        !g.folds || searching || unfolded.contains(g.id)
+        !g.folds || searching || namedByTitle(g) || unfolded.contains(g.id)
     }
 
     @ViewBuilder
@@ -111,6 +120,11 @@ struct MacRepairsListView<RowMenu: View>: View {
         if g.title.isEmpty {
             Section {
                 ForEach(g.rows) { (r: MacRepairsRow) in MacRepairsRowView(row: r, showsStatus: true) }
+            }
+            .houseRows()
+        } else if namedByTitle(g) {
+            Section {
+                ForEach(g.rows) { (r: MacRepairsRow) in MacRepairsRowView(row: r, showsStatus: false) }
             }
             .houseRows()
         } else {
@@ -135,7 +149,7 @@ struct MacRepairsListView<RowMenu: View>: View {
                     Image(systemName: isOpen(g) ? "chevron.down" : "chevron.right")
                         .font(.caption.weight(.semibold)).foregroundStyle(.secondary).frame(width: 12).padding(.top, 3)
                 }
-                LedgerHeading(title: g.title, count: g.rows.count, trailing: g.owed >= 1 ? Money.pkr(g.owed) + " due" : nil)
+                LedgerHeading(title: g.title, count: g.rows.count, trailing: g.owed >= 1 ? Money.pkrLac(g.owed, digits: 1) + " owed" : nil)
             }
             .contentShape(Rectangle())
         }
@@ -202,7 +216,7 @@ struct MacRepairsRowView: View {
             if row.owed >= 1 {
                 VStack(alignment: .trailing, spacing: 1) {
                     RowAmount(amount: row.owed, tone: Tone.owed.color)
-                    Text("due").font(.caption2).foregroundStyle(.secondary)
+                    Text("Owed").font(.caption2).foregroundStyle(.secondary)
                 }
             } else {
                 Color.clear.frame(width: 1, height: 1)

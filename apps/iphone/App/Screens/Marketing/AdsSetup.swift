@@ -682,16 +682,22 @@ struct AdsSetupScreen: View {
 extension AdsSetupScreen {
     func macContent(_ s: AdsStatusAnswer) -> some View {
         Form {
-            AdsAlertsSection(status: s)
-            readinessSection(s)
-            appSections(s)
-            macConnect(s)
-            macChoices(s)
-            macGreeting
-            macPixel
-            macAlso
+            // The sections on the house's card colour over the ground (they were the system's grey, a shade of their own).
+            Group {
+                AdsAlertsSection(status: s)
+                readinessSection(s)
+                appSections(s)
+                macConnect(s)
+                macChoices(s)
+                macGreeting
+                macPixel
+                macAlso
+            }
+            .houseRows()
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .background(Theme.ground)
         .disabled(busy != nil)
         .macRefresh { Task { await load(fresh: true) } }
         .navigationSubtitle(macSubtitle(s))

@@ -236,7 +236,8 @@ struct MacRepairsTicket: View {
             }
             if !wide, let receipt = receiptAction(r) {
                 Button { receipt.perform() } label: { Label("Print Receipt", systemImage: "printer") }
-                    .buttonStyle(.link)
+                    .buttonStyle(.plain)
+                    .foregroundStyle(Theme.accent)
                     .help(receipt.help)
             }
         }
@@ -255,7 +256,7 @@ struct MacRepairsTicket: View {
         if let cid = r.customerId, !cid.isEmpty, !isWalkInName(r.customerName) {
             // The customer opens in a window of their own, as a record does from a list.
             line("Customer") {
-                Button(name) { openPlace?(Route(path: "/customers/\(cid)")) }.buttonStyle(.link)
+                Button(name) { openPlace?(Route(path: "/customers/\(cid)")) }.buttonStyle(.plain).foregroundStyle(Theme.accent)
             }
         } else {
             line("Customer") { Text(name) }

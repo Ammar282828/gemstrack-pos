@@ -121,6 +121,7 @@ struct MacInvoicesPlace: View {
     private func table(_ groups: [MacInvoicesPlaceGroup], _ shown: MacInvoicesPlaceTable, _ list: String?,
                         _ cx: MacInvoiceContext) -> some View {
         let person = session.shop.person ?? ""
+        let named = list == nil ? "" : title(list)
         return List(selection: $selection) {
             ForEach(groups) { (g: MacInvoicesPlaceGroup) in
                 Section {
@@ -129,8 +130,9 @@ struct MacInvoicesPlace: View {
                             .tag(r.id)
                     }
                 } header: {
-                    if sort == .date {
-                        LedgerHeading(title: g.title, count: g.rows.count, trailing: Money.pkr(g.billed))
+                    // The days' headings, but not one the window's own title already says ("Today" over today's list).
+                    if sort == .date && g.title.caseInsensitiveCompare(named) != .orderedSame {
+                        LedgerHeading(title: g.title, count: g.rows.count, trailing: Money.pkrLac(g.billed, digits: 1))
                     }
                 }
                 .houseRows()

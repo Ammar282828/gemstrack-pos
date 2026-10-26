@@ -707,7 +707,7 @@ extension WebsiteInvestmentsScreen {
                                 }
                         }
                     } header: {
-                        Text("The Fortnight")
+                        LedgerHeading(title: "The fortnight")
                     }
                 }
                 .houseRows()

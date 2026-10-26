@@ -1,5 +1,6 @@
 import XCTest
 @testable import ERP
+import ERPCore
 
 /// The Mac's own rules, run inside the Mac app in the demo (`-ERPDemo YES`, made-up books): the window's Back and
 /// Forward, the sidebar every role is drawn, that every row it shows opens a native page, the saved lists, the page
@@ -290,7 +291,7 @@ final class ERPMacTests: XCTestCase {
         for role in Self.roles {
             for path in MacSidebarMap.allPaths(sections(role)) {
                 let bare = ScreenRoute.bare(path)
-                XCTAssertTrue(macPlaces.contains(bare) || ScreenRoute.hasNative(path),
+                XCTAssertTrue(macPlaces.contains(bare) || ScreenRegistry.hasNative(path),
                               "\(role): the sidebar row \(path) has no native page")
             }
         }
@@ -341,6 +342,29 @@ final class ERPMacTests: XCTestCase {
             XCTAssertEqual(stops.count, MacSidebarMap.allPaths(s).count, role)
             XCTAssertEqual(Set(stops.map(\.path)), MacSidebarMap.allPaths(s), role)
             XCTAssertEqual(stops.first?.path, MacSidebarMap.places(s).first?.id, role)
+        }
+    }
+
+    // MARK: Figure cards in even columns (MacEvenLayout)
+
+    func testFigureRowsFillTheWidthAndBalance() {
+        func cols(_ n: Int, _ w: CGFloat, _ m: CGFloat = 190) -> Int { MacEvenLayout.columns(count: n, width: w, minimum: m, spacing: 12) }
+        XCTAssertEqual(cols(4, 1350), 4, "Today's four figures in one row on a wide window")
+        XCTAssertEqual(cols(4, 600, 220), 2, "two and two at a list's narrowest")
+        XCTAssertEqual(cols(6, 1000), 3, "six that fit five a row are three and three, never five and one")
+        XCTAssertEqual(cols(10, 1350, 170), 5, "Analytics' ten figures: five and five")
+        XCTAssertEqual(cols(3, 260), 1, "an inspector's figures stack")
+        XCTAssertEqual(cols(1, 2000), 1)
+        XCTAssertEqual(cols(0, 800), 1)
+        XCTAssertEqual(cols(5, .infinity), 5, "an unbounded width lays one row")
+        for n in 1...12 {
+            for w in stride(from: CGFloat(200), through: 2400, by: 50) {
+                let c = cols(n, w)
+                let rows = Int((Double(n) / Double(c)).rounded(.up))
+                XCTAssertLessThanOrEqual(c, n)
+                // Balanced: the last row is never more than one card short of the others.
+                XCTAssertLessThanOrEqual(c * rows - n, max(0, rows - 1), "\(n) cards at \(w): \(c) columns")
+            }
         }
     }
 

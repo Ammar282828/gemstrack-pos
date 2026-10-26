@@ -106,8 +106,10 @@ struct MacCustomersPlace: View {
 
     init(path: String) {
         self.path = path
-        let owing = MacLists.list(in: path) == "owe"
-        _sort = State(initialValue: owing ? MacCustomersSort.owed : MacCustomersSort.group)
+        let list = MacLists.list(in: path)
+        // Owe Us runs by what is owed and Recent by the last sale: each its own order, so neither opens under a heading.
+        let first: MacCustomersSort = list == "owe" ? .owed : (list == "recent" ? .lastSale : .group)
+        _sort = State(initialValue: first)
     }
 
     private var listId: String? { MacLists.list(in: path) }
@@ -279,19 +281,19 @@ struct MacCustomersPlace: View {
             let owed = picked.reduce(0.0) { (sum: Double, r: MacCustomersRow) in sum + r.owed }
             let spent = picked.reduce(0.0) { (sum: Double, r: MacCustomersRow) in sum + r.spent }
             var parts = ["\(picked.count) selected"]
-            if owed >= 1 { parts.append("\(Money.pkr(owed)) owed") }
-            if spent > 0 { parts.append("\(Money.pkrLac(spent)) spent") }
+            if owed >= 1 { parts.append("\(Money.pkrLac(owed, digits: 1)) owed") }
+            if spent > 0 { parts.append("\(Money.pkrLac(spent, digits: 1)) spent") }
             return parts
         }
         var parts = ["\(rows.count) customer\(rows.count == 1 ? "" : "s")"]
         let whole = listId == nil && CustomerKit.trim(query).isEmpty
         // The whole book says the ERP's one figure, walk-ins and typed names in it; a list or a search says what its rows owe.
         let owed = whole ? b.owed.total : rows.reduce(0.0) { (sum: Double, r: MacCustomersRow) in sum + r.owed }
-        if owed >= 1 { parts.append("\(Money.pkr(owed)) owed") }
+        if owed >= 1 { parts.append("\(Money.pkrLac(owed, digits: 1)) owed") }
         if whole {
-            if b.owed.walkIn >= 1 { parts.append("walk-ins \(Money.pkr(b.owed.walkIn))") }
-            if b.owed.nameOnly >= 1 { parts.append("typed names \(Money.pkr(b.owed.nameOnly))") }
-            if session.isOwner && b.owed.ledger >= 1 { parts.append("hisaab \(Money.pkr(b.owed.ledger))") }
+            if b.owed.walkIn >= 1 { parts.append("walk-ins \(Money.pkrLac(b.owed.walkIn, digits: 1))") }
+            if b.owed.nameOnly >= 1 { parts.append("typed names \(Money.pkrLac(b.owed.nameOnly, digits: 1))") }
+            if session.isOwner && b.owed.ledger >= 1 { parts.append("hisaab \(Money.pkrLac(b.owed.ledger, digits: 1))") }
         }
         return parts
     }
@@ -406,36 +408,34 @@ struct MacCustomersPlace: View {
         }
     }
 
-    /// New, and for an owner the one Tidy Up menu (merging and cleaning up are about the whole book, not one customer).
+    /// New and the one Filter menu, as every list has them. Merging and cleaning up (the owner's, about the whole book and not
+    /// one customer) are the bottom of that menu.
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
         ToolbarItemGroup(placement: .automatic) {
             Button { adding = true } label: { Label("New Customer", systemImage: "plus") }
                 .help("New customer (\u{2303}\u{2318}N)")
             sortMenu
-            if session.isOwner {
-                Menu {
-                    MacActionMenuItem(action: mergeAction)
-                    MacActionMenuItem(action: cleanAction)
-                } label: {
-                    Label("Tidy Up", systemImage: "ellipsis.circle")
-                }
-                .help("Merge duplicates or clean up spam")
-            }
         }
     }
 
-    /// The one Filter menu of the place: how the list is ordered.
+    /// The one Filter menu of the place: how the list is ordered, and for an owner Tidy Up.
     private var sortMenu: some View {
         Menu {
             Picker("Sort By", selection: $sort) {
                 ForEach(MacCustomersSort.allCases) { (o: MacCustomersSort) in Text(o.title).tag(o) }
             }
             .pickerStyle(.inline)
+            if session.isOwner {
+                Section("Tidy Up") {
+                    MacActionMenuItem(action: mergeAction)
+                    MacActionMenuItem(action: cleanAction)
+                }
+            }
         } label: {
             Label("Filter", systemImage: "line.3.horizontal.decrease.circle")
         }
-        .help("Order the list")
+        .help("Order the list; for an owner, merge duplicates or clean up spam")
     }
 
     private func editSheet(_ id: String) -> some View {
@@ -462,9 +462,9 @@ struct MacCustomersPlace: View {
                 actions: contactActions(c, hisaab: session.isOwner),
                 open: { (r: Route) in go(r) })
         } else if selection.count > 1 {
-            MacInspectorEmpty(title: "\(selection.count) Customers Selected")
+            MacInspectorEmpty(title: "\(selection.count) Customers Selected", detail: "Pick one to see what they owe and how to reach them.")
         } else {
-            MacInspectorEmpty(title: "No Customer Selected")
+            MacInspectorEmpty(title: "No Customer Selected", detail: "Pick a customer to see what they owe, their sales and orders, and how to reach them.")
         }
     }
 }
@@ -669,15 +669,16 @@ struct MacCustomersListRow: View {
 
     @ViewBuilder
     private var trailing: some View {
+        // The same two lines as an order's or a repair's: the sum over its small word.
         if row.owed >= 1 {
-            VStack(alignment: .trailing, spacing: 2) {
+            VStack(alignment: .trailing, spacing: 1) {
                 RowAmount(amount: row.owed, tone: Tone.owed.color)
-                Text("Owed").font(.caption).foregroundStyle(.secondary)
+                Text("Owed").font(.caption2).foregroundStyle(.secondary)
             }
         } else if row.spent > 0 {
-            VStack(alignment: .trailing, spacing: 2) {
+            VStack(alignment: .trailing, spacing: 1) {
                 RowAmount(amount: row.spent, lac: true)
-                Text("Lifetime").font(.caption).foregroundStyle(.secondary)
+                Text("Lifetime").font(.caption2).foregroundStyle(.secondary)
             }
         }
     }

@@ -41,7 +41,7 @@ struct AdsOverviewScreen: View {
             }
         }
         #if os(macOS)
-        .navigationTitle("Ad Results")
+        .navigationTitle("Ad results")
         #else
         .navigationTitle("Ads")
         #endif
@@ -565,8 +565,9 @@ extension AdsOverviewScreen {
     /// One page: the figures with their change, what needs a look, the days, the ads that spent most, and who saw them.
     func macContent(_ d: AdOverview) -> some View {
         let cur = d.account.currency
+        // A report page: centred, 1400 at most, 24 points of gutter, as Today and the other reports.
         return ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: 20) {
                 macAccountLine(d)
                 AdsMacFigureGrid(AdsMacResultsFigures.head(d))
                 macMonth(d)
@@ -577,8 +578,8 @@ extension AdsOverviewScreen {
                 macSplits(d, cur)
                 macFoot(d)
             }
-            .padding(20)
-            .frame(maxWidth: 1100, alignment: .leading)
+            .padding(24)
+            .frame(maxWidth: 1400, alignment: .leading)
             .frame(maxWidth: .infinity)
         }
         .background(Theme.ground)
@@ -609,14 +610,14 @@ extension AdsOverviewScreen {
         let figures = AdsMacResultsFigures.month(d)
         if !figures.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
-                LedgerHeading(title: "This Month")
+                LedgerHeading(title: "This month")
                 AdsMacFigureGrid(figures)
             }
         }
     }
 
     private func macAttention(_ d: AdOverview) -> some View {
-        AdsMacSection(title: "Needs a Look", detail: d.attention.isEmpty ? nil : "\(d.attention.count)") {
+        AdsMacSection(title: "Needs a look", detail: d.attention.isEmpty ? nil : "\(d.attention.count)") {
             AdsMacAttentionTable(items: d.attention, acting: acting,
                                  pause: { (a: AdAttention) in Task { await run(a, running: false) } },
                                  resume: { (a: AdAttention) in asking = a },
@@ -631,14 +632,14 @@ extension AdsOverviewScreen {
             return AdsDailyPoint(id: day.date, date: date, spend: day.metrics.spend)
         }
         if points.count > 1 {
-            AdsMacSection(title: "Day by Day") {
+            AdsMacSection(title: "Day by day") {
                 AdsDailyHoverChart(days: points, currency: cur).frame(height: 180)
             }
         }
     }
 
     private func macTopAds(_ d: AdOverview, _ cur: String) -> some View {
-        AdsMacSection(title: "The Ads That Spent Most") {
+        AdsMacSection(title: "The ads that spent most") {
             if d.topAds.isEmpty {
                 Text("No ad spent anything in \(AdsRange.label(rangeKey).lowercased()).").foregroundStyle(.secondary)
             } else {
@@ -656,14 +657,14 @@ extension AdsOverviewScreen {
         let shown = AdsResults.headlineResult(d.totals).label
         let lines = AdsResults.headlineActions(d.totals, limit: 10).filter { (a: AdsResults.Line) in a.label != shown }
         if !lines.isEmpty {
-            AdsMacSection(title: "What It Brought") { AdsMacBroughtTable(lines: lines) }
+            AdsMacSection(title: "What it brought") { AdsMacBroughtTable(lines: lines) }
         }
     }
 
     @ViewBuilder
     private func macSplits(_ d: AdOverview, _ cur: String) -> some View {
         if !d.ageGender.isEmpty {
-            AdsMacSection(title: "Who Saw Them") { AdsMacSplitTable(heading: "Age and gender", rows: Array(d.ageGender.prefix(12)), currency: cur) }
+            AdsMacSection(title: "Who saw them") { AdsMacSplitTable(heading: "Age and gender", rows: Array(d.ageGender.prefix(12)), currency: cur) }
         }
         if !d.placement.isEmpty {
             AdsMacSection(title: "Where") { AdsMacSplitTable(heading: "Placement", rows: Array(d.placement.prefix(12)), currency: cur) }

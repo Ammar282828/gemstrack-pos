@@ -38,42 +38,58 @@ struct MacReportsCalendarDay: View {
     var body: some View {
         let placeOf = places
         let numberOf = numbers
-        List(selection: $picked) {
-            Section {
-                if events.isEmpty {
-                    Text("No events for this day.").foregroundStyle(.secondary)
-                } else {
-                    ForEach(events) { (e: ShopCalendarEvent) in
-                        eventRow(e).tag(e.id)
-                    }
-                }
-            } header: {
-                Text("Events for \(ShopCalendar.longDay(day))").lineLimit(2)
-            }
-            if !promised.isEmpty {
+        VStack(spacing: 0) {
+            header
+            List(selection: $picked) {
                 Section {
-                    ForEach(promised) { (o: Order) in
-                        promisedRow(o).tag(Self.promisedID(o))
+                    if events.isEmpty {
+                        Text("No events for this day.").foregroundStyle(.secondary)
+                    } else {
+                        ForEach(events) { (e: ShopCalendarEvent) in
+                            eventRow(e).tag(e.id)
+                        }
                     }
-                } header: {
-                    Text("Promised for this day")
+                }
+                .houseRows()
+                if !promised.isEmpty {
+                    Section {
+                        ForEach(promised) { (o: Order) in
+                            promisedRow(o).tag(Self.promisedID(o))
+                        }
+                    } header: {
+                        LedgerHeading(title: "Promised", count: promised.count)
+                    }
+                    .houseRows()
+                }
+            }
+            .listStyle(.inset)
+            .scrollContentBackground(.hidden)
+            .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
+                if let id = ids.sorted().first, let place = placeOf[id] {
+                    NavigationLink(value: Route(path: place)) { Text("Open") }
+                    if let openPlace {
+                        Button("Open in New Window") { openPlace(Route(path: place)) }
+                    }
+                    Button("Copy Number") { UIPasteboard.general.string = numberOf[id] }
+                }
+            } primaryAction: { (ids: Set<String>) in
+                for id in ids.sorted().prefix(5) {
+                    if let place = placeOf[id] { openPlace?(Route(path: place)) }
                 }
             }
         }
-        .listStyle(.inset)
-        .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
-            if let id = ids.sorted().first, let place = placeOf[id] {
-                NavigationLink(value: Route(path: place)) { Text("Open") }
-                if let openPlace {
-                    Button("Open in New Window") { openPlace(Route(path: place)) }
-                }
-                Button("Copy Number") { UIPasteboard.general.string = numberOf[id] }
-            }
-        } primaryAction: { (ids: Set<String>) in
-            for id in ids.sorted().prefix(5) {
-                if let place = placeOf[id] { openPlace?(Route(path: place)) }
-            }
+    }
+
+    /// What the inspector is about, as every inspector's head says it: a headline over the day it is for.
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("Events").font(.title3.weight(.semibold))
+            Text(ShopCalendar.longDay(day)).font(.callout).foregroundStyle(.secondary).lineLimit(2)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 16)
+        .padding(.top, 14)
+        .padding(.bottom, 6)
     }
 
     // The rows are made for the inspector's 260 points: two lines, the number and what it came to over who and when, no

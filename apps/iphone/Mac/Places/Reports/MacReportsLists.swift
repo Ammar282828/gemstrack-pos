@@ -69,16 +69,19 @@ struct MacReportsProducts: View {
     var body: some View {
         let all = allRows
         let list = shown(all)
-        VStack(alignment: .leading, spacing: 16) {
+        // The page of every Analytics place: centred, 1400 points at most, the same gutters as Today. The table's card takes the
+        // rest of the height and the table scrolls inside it.
+        VStack(alignment: .leading, spacing: 20) {
             macReportsFigures(figureList(all))
             MacReportsCard {
                 MacReportsHeader(title: "Pieces sold", detail: "\(list.count)")
                 table(list)
                 MacReportsNote(text: "Revenue here is each piece’s own total, before invoice discounts and trade-ins, so it runs higher than the Overview’s net figure.")
             }
-            .frame(maxHeight: .infinity)
         }
-        .padding(20)
+        .padding(24)
+        .frame(maxWidth: 1400, alignment: .leading)
+        .frame(maxWidth: .infinity)
         .background(Theme.ground)
         .macSummaryBar(summary(all, list))
         .macSearchable(text: $search, prompt: "Search every piece by name or SKU")
@@ -199,7 +202,7 @@ struct MacReportsCustomers: View {
     var body: some View {
         let all = allRows
         let list = shown(all)
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 20) {
             macReportsFigures(figureList(all))
             MacReportsCard { sources }
                 .frame(minHeight: 200, maxHeight: 330)
@@ -209,7 +212,9 @@ struct MacReportsCustomers: View {
             }
             .frame(minHeight: 240, maxHeight: .infinity)
         }
-        .padding(20)
+        .padding(24)
+        .frame(maxWidth: 1400, alignment: .leading)
+        .frame(maxWidth: .infinity)
         .background(Theme.ground)
         .macSummaryBar(summary(all, list))
         .macSearchable(text: $search, prompt: "Search everyone by name")
@@ -324,7 +329,7 @@ struct MacReportsCustomers: View {
                                 .padding(.horizontal, 16)
                             Divider()
                             sourceTable(rows)
-                                .frame(height: 36 + 26 * CGFloat(max(rows.count, 1)))
+                                .macReportsTable(rows: rows.count)
                         }
                     }
                 }
@@ -393,49 +398,54 @@ struct MacReportsCategories: View {
     var body: some View {
         let all = allRows
         let rows = tableRows(all)
-        VStack(alignment: .leading, spacing: 16) {
-            macReportsFigures(figureList(all))
-            if all.isEmpty {
-                Text("No category sales data for the selected period.")
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                // The share chart beside the table from about 760 points; narrower, the chart above it and the page scrolls.
-                MacReportsWidth(760) {
-                    HStack(alignment: .top, spacing: 16) {
-                        MacReportsCard {
-                            MacReportsHeader(title: "Share of revenue", detail: nil)
-                            ScrollView { AnaShareChart(rows: all).padding(.horizontal, 16).padding(.bottom, 14) }
+        // A page that scrolls, like Overview and Sales: the table is as tall as its rows (a table of its own height left an
+        // empty band between its last row and the note under it), and the chart's card is as tall as the table's.
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                macReportsFigures(figureList(all))
+                if all.isEmpty {
+                    ContentUnavailableView("No Category Sales", systemImage: "square.grid.2x2",
+                                           description: Text("No category sales data for the selected period."))
+                        .frame(maxWidth: .infinity, minHeight: 320)
+                } else {
+                    // The share chart beside the table from about 760 points; narrower, the chart above it.
+                    MacReportsWidth(760) {
+                        HStack(alignment: .top, spacing: 16) {
+                            shareCard(all).frame(minWidth: 280, maxWidth: .infinity, maxHeight: .infinity)
+                            tableCard(rows).frame(minWidth: 400, maxWidth: .infinity, maxHeight: .infinity)
                         }
-                        .frame(minWidth: 260, idealWidth: 380)
-                        MacReportsCard {
-                            MacReportsHeader(title: "By category", detail: nil)
-                            table(rows)
-                            MacReportsNote(text: "Revenue is before invoice discounts and trade-ins, so it can be higher than Overview.")
-                        }
-                        .frame(minWidth: 360, maxHeight: .infinity)
-                    }
-                } narrow: {
-                    ScrollView {
+                        .fixedSize(horizontal: false, vertical: true)
+                    } narrow: {
                         VStack(alignment: .leading, spacing: 16) {
-                            MacReportsCard {
-                                MacReportsHeader(title: "Share of revenue", detail: nil)
-                                AnaShareChart(rows: all).padding(.horizontal, 16).padding(.bottom, 14)
-                            }
-                            MacReportsCard {
-                                MacReportsHeader(title: "By category", detail: nil)
-                                table(rows)
-                                    .frame(height: 36 + 26 * CGFloat(max(rows.count, 1)))
-                                MacReportsNote(text: "Revenue is before invoice discounts and trade-ins, so it can be higher than Overview.")
-                            }
+                            shareCard(all)
+                            tableCard(rows)
                         }
                     }
                 }
             }
+            .padding(24)
+            .frame(maxWidth: 1400, alignment: .leading)
+            .frame(maxWidth: .infinity)
         }
-        .padding(20)
         .background(Theme.ground)
         .macSummaryBar(summary(rows))
+    }
+
+    private func shareCard(_ all: [AnaBreakdown.CategoryRow]) -> some View {
+        MacReportsCard {
+            MacReportsHeader(title: "Share of revenue", detail: nil)
+            AnaShareChart(rows: all).padding(.horizontal, 16).padding(.bottom, 14)
+        }
+    }
+
+    private func tableCard(_ rows: [MacReportsCategoryRow]) -> some View {
+        MacReportsCard {
+            MacReportsHeader(title: "By category", detail: nil)
+            table(rows)
+                .scrollDisabled(true)
+                .macReportsTable(rows: rows.count)
+            MacReportsNote(text: "Revenue is before invoice discounts and trade-ins, so it can be higher than Overview.")
+        }
     }
 
     private func tableRows(_ all: [AnaBreakdown.CategoryRow]) -> [MacReportsCategoryRow] {

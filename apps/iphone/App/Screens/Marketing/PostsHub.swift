@@ -407,7 +407,12 @@ struct PostPieceTile: View {
                             .padding(pt(6))
                     }
                 }
+            #if os(macOS)
+            // Two lines reserved, so a row of tiles stands level whatever the names say.
+            Text(piece.name).font(.caption.weight(.semibold)).lineLimit(2, reservesSpace: true).multilineTextAlignment(.leading)
+            #else
             Text(piece.name).font(.caption.weight(.semibold)).lineLimit(2).multilineTextAlignment(.leading)
+            #endif
             Text(note).font(.caption2).foregroundStyle(noteColor).lineLimit(1)
         }
     }
@@ -545,21 +550,11 @@ extension PostsHub {
         }
     }
 
-    private var macSubtitle: String {
-        let out = store.sentToday.count
-        let waiting = store.waiting.count
-        var parts: [String] = []
-        if out > 0 { parts.append("\(out) out today") }
-        if waiting > 0 { parts.append("\(waiting) in the queue") }
-        return parts.joined(separator: " · ")
-    }
+    /// "0 out today": the window always says where the day stands (it said nothing on a quiet day). The bar holds the rest.
+    private var macSubtitle: String { "\(store.sentToday.count) out today" }
 
     private var macSummaryParts: [String] {
-        var parts: [String] = []
-        let out = store.sentToday.count
-        let waiting = store.waiting.count
-        parts.append("\(out) out today")
-        parts.append("\(waiting) waiting in the queue")
+        var parts: [String] = ["\(store.waiting.count) waiting in the queue"]
         if hasInvestments { parts.append("Gold post: " + goldLine) }
         return parts
     }
@@ -766,25 +761,32 @@ extension PostsHub {
 
     // MARK: The table
 
+    /// The checks that fail, folded into one banner (the same tinted card as Ads' alerts); a click opens what each says.
     @ViewBuilder
     private var macChecks: some View {
         let failing = store.failingChecks
         if !failing.isEmpty {
-            VStack(alignment: .leading, spacing: 6) {
-                Button { checksOpen.toggle() } label: {
-                    Label("\(failing.count) \(failing.count == 1 ? "thing needs" : "things need") attention", systemImage: "exclamationmark.triangle.fill")
-                        .foregroundStyle(Tone.owed.color)
-                }
-                .buttonStyle(.plain)
-                if checksOpen {
-                    ForEach(failing) { (c: PostCheck) in
-                        Text("\(c.group): \(c.label). \(c.fix ?? c.detail)").font(.callout).foregroundStyle(.secondary)
+            MacBanner {
+                VStack(alignment: .leading, spacing: 6) {
+                    Button { checksOpen.toggle() } label: {
+                        HStack(spacing: 6) {
+                            Label("\(failing.count) \(failing.count == 1 ? "thing needs" : "things need") attention", systemImage: "exclamationmark.triangle.fill")
+                                .foregroundStyle(Tone.owed.color)
+                            Image(systemName: checksOpen ? "chevron.down" : "chevron.right")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.tertiary)
+                            Spacer(minLength: 0)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    if checksOpen {
+                        ForEach(failing) { (c: PostCheck) in
+                            Text("\(c.group): \(c.label). \(c.fix ?? c.detail)").font(.callout).foregroundStyle(.secondary)
+                        }
                     }
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(12)
-            .background(Tone.owed.color.opacity(0.12), in: .rect(cornerRadius: Radius.card, style: .continuous))
             .padding(.horizontal, 12)
             .padding(.top, 10)
         }
@@ -801,6 +803,7 @@ extension PostsHub {
                 } header: {
                     LedgerHeading(title: "In the queue", count: queued.count)
                 }
+                .houseRows()
             }
             if !out.isEmpty {
                 Section {
@@ -808,6 +811,7 @@ extension PostsHub {
                 } header: {
                     LedgerHeading(title: "Out today", count: out.count)
                 }
+                .houseRows()
             }
         }
         .listStyle(.inset)
@@ -824,7 +828,7 @@ extension PostsHub {
                 if store.sent == nil && store.sentError == nil {
                     MarketingReading(text: "Reading what went out…")
                 } else {
-                    ContentUnavailableView("Nothing out and nothing waiting", systemImage: "paperplane",
+                    ContentUnavailableView("Nothing Out and Nothing Waiting", systemImage: "paperplane",
                                            description: Text(macQuiet))
                 }
             }
@@ -893,7 +897,7 @@ extension PostsHub {
         } else if let r = picked.first {
             macInspect(r)
         } else {
-            MacInspectorEmpty(title: "No post picked", detail: "Pick a post to see its caption and where it goes.")
+            MacInspectorEmpty(title: "No Post Selected", detail: "Pick a post to see its caption and where it goes.")
         }
     }
 
@@ -1002,7 +1006,7 @@ extension PostsHub {
     private var macPieces: some View {
         switch store.piecesPhase {
         case .off:
-            ContentUnavailableView("No website pieces", systemImage: "globe",
+            ContentUnavailableView("No Website Pieces", systemImage: "globe",
                                    description: Text("This shop's website has no pieces for the ERP to post from."))
         case .idle, .loading:
             MarketingReading(text: "Reading the website…").frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -1025,7 +1029,9 @@ extension PostsHub {
                 HStack {
                     LedgerHeading(title: fresh.isEmpty ? "From \(store.siteName)" : "New on \(store.siteName)")
                     Spacer()
-                    Button("All \(store.pieces.count) Pieces") { macOpenWindow(MarketingKit.piecesPath) }.buttonStyle(.link)
+                    Button("All \(store.pieces.count) Pieces") { macOpenWindow(MarketingKit.piecesPath) }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(Theme.accent)
                 }
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 14, alignment: .top)], spacing: 14) {
                     ForEach(shown) { (p: PostPiece) in macPieceCell(p) }
