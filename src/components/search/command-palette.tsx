@@ -20,7 +20,7 @@ import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { nameScore } from '@/lib/voice/phonetics';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { Search, Briefcase, Gem, Receipt, ClipboardList, ArrowRight } from 'lucide-react';
+import { Search, Briefcase, Gem, Receipt, ClipboardList, ArrowRight, Wrench } from 'lucide-react';
 import { paletteFor } from '@/lib/nav';
 import { scorePlace } from '@/lib/palette-match';
 import { useAuth } from '@/components/auth/google-auth-gate';
@@ -37,7 +37,7 @@ interface Item {
 }
 
 /** Search results grouped under these headings, in this order when they score alike. */
-const GROUP_ORDER = ['Go to', 'Create', 'Orders', 'Invoices', 'Karigars', 'Products'];
+const GROUP_ORDER = ['Go to', 'Create', 'Orders', 'Invoices', 'Repairs', 'Karigars', 'Products'];
 
 const shortDate = (iso?: string) => {
   const d = iso ? new Date(iso) : null;
@@ -88,6 +88,8 @@ export function CommandPalette() {
   const invoices = useAppStore((s) => s.generatedInvoices);
   const karigars = useAppStore((s) => s.karigars);
   const products = useAppStore((s) => s.products);
+  const repairs = useAppStore((s) => s.repairs);
+  const loadRepairs = useAppStore((s) => s.loadRepairs);
   const loadOrders = useAppStore((s) => s.loadOrders);
   const loadInvoices = useAppStore((s) => s.loadGeneratedInvoices);
   const loadKarigars = useAppStore((s) => s.loadKarigars);
@@ -116,9 +118,10 @@ export function CommandPalette() {
     loadOrders();
     loadInvoices();
     loadKarigars();
+    loadRepairs();
     setQ('');
     setCursor(0);
-  }, [open, loadOrders, loadInvoices, loadKarigars]);
+  }, [open, loadOrders, loadInvoices, loadKarigars, loadRepairs]);
 
   const items = useMemo<Item[]>(() => {
     const needle = q.trim().toLowerCase();
@@ -160,8 +163,8 @@ export function CommandPalette() {
     // "31", "000031", "ord-31" or "inv-17" is that document's own number: it goes to the
     // top, above everything that merely has those digits in a phone number.
     // "inv"/"ord" in front narrows it to that kind.
-    const numberQuery = /^(inv|ord|in|or|i|o)?[\s#-]*0*(\d+)$/.exec(needle);
-    const wantKind = numberQuery?.[1]?.[0];            // 'i' | 'o' | undefined
+    const numberQuery = /^(inv|ord|rep|in|or|re|i|o|r)?[\s#-]*0*(\d+)$/.exec(needle);
+    const wantKind = numberQuery?.[1]?.[0];            // 'i' | 'o' | 'r' | undefined
     const wantNumber = numberQuery?.[2];
     const isNumber = (docId: string) => !!wantNumber
       && (!wantKind || docId.toLowerCase().startsWith(wantKind))
@@ -195,6 +198,21 @@ export function CommandPalette() {
         `${name} ${inv.id} ${phoneForms(inv.customerContact)}`,
         inv.createdAt,
         isNumber(inv.id),
+      );
+    }
+    // Repair tickets by the customer's name, number (REP-12, "rep 12") or phone, as on the Mac's Quick Open.
+    for (const r of repairs) {
+      const name = r.customerName || 'Walk-in customer';
+      consider(
+        `r${r.id}`,
+        name,
+        [r.id, shortDate(r.receivedAt), r.status].filter(Boolean).join(' · '),
+        'Repairs',
+        <Wrench className="h-4 w-4" />,
+        `/repairs?id=${encodeURIComponent(r.id)}`,
+        `${name} ${r.id} ${phoneForms(r.customerContact)} ${(r.pieces || []).map((x) => `${x.item} ${x.work}`).join(' ')}`,
+        r.receivedAt,
+        isNumber(r.id),
       );
     }
     for (const k of karigars) {
@@ -253,14 +271,16 @@ export function CommandPalette() {
       .map((x, i) => ({ x, i }))
       .sort((a, b) => (groupRank.get(a.x.item.group)! - groupRank.get(b.x.item.group)!) || (a.i - b.i))
       .map(({ x }) => x.item);
-  }, [q, orders, invoices, karigars, products, isStaff]);
+  }, [q, orders, invoices, repairs, karigars, products, isStaff]);
 
   useEffect(() => setCursor(0), [q]);
 
-  const run = useCallback((item: Item | undefined) => {
+  // ⌘Return / Ctrl+Return opens it in a new window (a tab), as on the Mac; Return here.
+  const run = useCallback((item: Item | undefined, newWindow = false) => {
     if (!item) return;
     setOpen(false);
-    router.push(item.href);
+    if (newWindow) window.open(item.href, '_blank', 'noopener');
+    else router.push(item.href);
   }, [router]);
 
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -272,7 +292,7 @@ export function CommandPalette() {
       setCursor((c) => Math.max(c - 1, 0));
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      run(items[cursor]);
+      run(items[cursor], e.metaKey || e.ctrlKey);
     }
   };
 
@@ -336,7 +356,7 @@ export function CommandPalette() {
                   type="button"
                   data-on={i === cursor}
                   onMouseEnter={() => setCursor(i)}
-                  onClick={() => run(it)}
+                  onClick={(e) => run(it, e.metaKey || e.ctrlKey)}
                   className={`flex w-full items-center gap-3 rounded-md px-3 py-3 text-left text-[15px] sm:py-2 sm:text-sm ${
                     i === cursor ? 'bg-accent text-accent-foreground' : ''
                   }`}
