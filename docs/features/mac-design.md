@@ -119,11 +119,12 @@ kept per window.
 ## The places
 
 ### Today
-One page, no cards. A team-note strip at the top when there is one (yellow, the pencil for owners). A row of five plain
-figures, each a link to its list: Taken today (with a 7-day sparkline), Owed to you, On the bench, This month (± against
-last month), Orders due. Then three columns of plain lists with section headers: **Needs you**, **Due to customers**,
-**Recent sales** — selectable rows (the inspector shows the record), no chevrons, all rows shown (the columns scroll).
-The rate is the sidebar's foot.
+A dashboard of cards (owner, 2026-10-26: "give me a nice beautiful dashboard, cards etc"; the one place cards are the rule):
+a greeting and the date; the team note as a yellow card; four figure cards, each a button to its place (Taken today with
+the week's bars, Owed to you, This month with a bar against last month, On the bench with what is promised and late); the
+month's takings as a chart card beside Needs you; then Due to customers and Recent sales, six rows each with Show All.
+Cards are `MacDashSurface` (16-point corners, a hairline, a soft shadow that lifts under the pointer); the columns stack
+when the window is narrow. `Mac/Places/Reports/MacReportsToday.swift`.
 
 ### Invoices
 Table: Number, Customer, Date, Total, Paid, Owed, Status (dot: Paid · Owed · In credit · Refunded); Pieces, Taken by and

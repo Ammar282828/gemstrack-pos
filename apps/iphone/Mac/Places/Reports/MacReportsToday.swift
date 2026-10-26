@@ -3,10 +3,11 @@ import SwiftUI
 import Charts
 import ERPCore
 
-// The Mac's Today (docs/features/mac-design.md, "Today"): one page, no cards. The team note as a plain yellow strip, five
-// plain figures that each open their place, then three columns of plain lists (Needs you, Due to customers, Recent
-// sales) with every row shown, selectable, opening its record in a window of its own. Nothing here works out a figure:
-// `DashFigures` (DashboardFigures.swift) is the iPhone's own and Dashboard hands it in.
+// The Mac's Today (owner, 2026-10-26: "give me a nice beautiful dashboard, cards etc"): a greeting over the day, four
+// figure cards that each open their place (today's takings with the week's bars, what is owed, the month against last,
+// the bench and the promises), the month's takings as a chart beside Needs you, then Due to customers and Recent sales.
+// Every card is a button to its place. Nothing here works out a figure: `DashFigures` (DashboardFigures.swift) is the
+// iPhone's own and Dashboard hands it in.
 
 struct MacReportsTodayPage: View {
     let figures: DashFigures
@@ -21,150 +22,418 @@ struct MacReportsTodayPage: View {
     @Environment(\.openPlaceWindow) private var openPlace
 
     var body: some View {
-        VStack(spacing: 0) {
-            MacReportsNoteStrip(text: TeamNoteEditor.current(book), isOwner: isOwner, edit: editNote)
-            head
-            Divider()
-            // Three columns from about 780 points; narrower, the lists stand one under another and the page scrolls
-            // (each column would be under 260 points, too narrow for a row's two lines).
-            MacReportsWidth(780) {
-                HStack(spacing: 0) {
-                    needsList
-                    Divider()
-                    dueList
-                    Divider()
-                    salesList
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                greeting
+                let note = TeamNoteEditor.current(book)
+                if !note.isEmpty {
+                    MacDashNote(text: note, isOwner: isOwner, edit: editNote)
                 }
-            } narrow: {
-                ScrollView {
-                    VStack(spacing: 0) {
-                        needsList.frame(height: 260)
-                        Divider()
-                        dueList.frame(height: 260)
-                        Divider()
-                        salesList.frame(height: 260)
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 220, maximum: 400), spacing: 16)], spacing: 16) {
+                    takenCard
+                    owedCard
+                    monthCard
+                    benchCard
+                }
+                MacReportsWidth(900) {
+                    HStack(alignment: .top, spacing: 16) {
+                        chartCard.frame(maxWidth: .infinity)
+                        needsCard.frame(width: 340)
                     }
+                } narrow: {
+                    VStack(spacing: 16) { chartCard; needsCard }
+                }
+                MacReportsWidth(760) {
+                    HStack(alignment: .top, spacing: 16) { dueCard; salesCard }
+                } narrow: {
+                    VStack(spacing: 16) { dueCard; salesCard }
                 }
             }
+            .padding(24)
+            .frame(maxWidth: 1400, alignment: .leading)
+            .frame(maxWidth: .infinity)
+        }
+        .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    private func go(_ path: String) { openPlace?(Route(path: path)) }
+
+    // MARK: The greeting
+
+    private var greeting: some View {
+        let hour = Calendar.current.component(.hour, from: figures.now)
+        let hello = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening"
+        return VStack(alignment: .leading, spacing: 2) {
+            Text(DashDate.longDay(figures.now).uppercased())
+                .font(.caption.weight(.semibold)).foregroundStyle(.secondary).tracking(0.6)
+            Text(hello).font(.system(size: 28, weight: .bold, design: .rounded))
         }
     }
 
-    // MARK: The figures
+    // MARK: The four figure cards
 
-    private var head: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            macReportsFigures(figureList)
-            sparkline
-        }
-    }
-
-    private func go(_ path: String) {
-        openPlace?(Route(path: path))
-    }
-
-    private var figureList: [MacFigure] {
+    private var takenCard: some View {
         let f = figures
-        return [taken(f), owed(f), bench(f), month(f), orders(f)]
-    }
-
-    private func taken(_ f: DashFigures) -> MacFigure {
         let n = f.todayInvoiceCount
         var detail = n == 0 ? "No invoices yet today" : "\(n) invoice\(n == 1 ? "" : "s")"
         if let last = f.lastSaleToday {
             let clock = DashDate.clock(iso: last.createdAt)
             if !clock.isEmpty { detail += " · last \(clock)" }
         }
-        return MacFigure("Taken today", Money.pkrLac(f.todayRevenue), detail: detail, open: { go("/invoices") })
+        return MacDashFigureCard(title: "Taken today", symbol: "banknote", tint: Theme.accent,
+                                 value: Money.pkrLac(f.todayRevenue), detail: detail, open: { go("/invoices") }) {
+            if f.week.contains(where: { $0.amount > 0 }) {
+                MacReportsSparkline(days: f.week).frame(height: 34)
+            }
+        }
     }
 
-    private func owed(_ f: DashFigures) -> MacFigure {
+    private var owedCard: some View {
+        let f = figures
         let owing = f.totalOutstanding >= 1
-        var detail = "\(f.unpaid.count) unpaid"
+        var detail = "\(f.unpaid.count) unpaid invoice\(f.unpaid.count == 1 ? "" : "s")"
         if f.owedInHisaab > 0 { detail += " · \(Money.lacCrore(f.owedInHisaab)) in hisaab" }
-        // The hisaab is the owners' book.
-        let path = isOwner && f.owedInHisaab > 0 ? "/hisaab" : "/invoices"
-        return MacFigure("Owed to you", owing ? Money.pkrLac(f.totalOutstanding) : "Nil", detail: detail,
-                         tone: owing ? Tone.owed : nil, open: { go(path) })
+        let path = isOwner && f.owedInHisaab > 0 ? "/hisaab" : "/invoices?list=unpaid"
+        return MacDashFigureCard(title: "Owed to you", symbol: "hourglass", tint: owing ? Tone.owed.color : Tone.settled.color,
+                                 value: owing ? Money.pkrLac(f.totalOutstanding) : "Nil", detail: detail,
+                                 open: { go(path) }) { EmptyView() }
     }
 
-    private func bench(_ f: DashFigures) -> MacFigure {
-        let n = f.activeJobs
-        let critical = f.criticalJobs.count
-        // Nothing overdue is the normal state: no line for it.
-        let detail: String? = critical > 0 ? "\(critical) sitting \(DashBench.criticalDays)+ days" : nil
-        return MacFigure("On the bench", "\(n) piece\(n == 1 ? "" : "s")", detail: detail,
-                         detailTone: critical > 0 ? Tone.late : nil, open: { go("/workshop") })
-    }
-
-    /// This month so far against last: "+12% on September" once it has passed the whole of last month, else how far along
-    /// it is ("62% of Sep"), the words Home has always used.
-    private func month(_ f: DashFigures) -> MacFigure {
+    private var monthCard: some View {
+        let f = figures
         let last = DashDate.lastMonth(f.now)
-        var detail = DashDate.monthName(f.now)
+        let ratio = f.monthAgainstLast
+        var detail = "Takings in \(DashDate.monthName(f.now))"
         var tone: Tone?
-        if let ratio = f.monthAgainstLast {
+        if let ratio {
             if ratio > 1 {
                 detail = "+\(max(1, Int(((ratio - 1) * 100).rounded())))% on \(DashDate.monthName(last))"
                 tone = .settled
             } else {
-                detail = "\(Int((ratio * 100).rounded()))% of \(DashDate.shortMonth(last))"
+                detail = "\(Int((ratio * 100).rounded()))% of \(DashDate.shortMonth(last))'s takings"
             }
         }
-        // Analytics is the owners'.
         var opens: (() -> Void)?
         if isOwner { opens = { go("/analytics") } }
-        return MacFigure("This month", Money.pkrLac(f.revenueMonth), detail: detail, detailTone: tone, open: opens)
-    }
-
-    /// Orders and repairs promised to customers; red only for the late ones.
-    private func orders(_ f: DashFigures) -> MacFigure {
-        let n = f.due.count
-        let late = f.due.filter { $0.isLate }.count
-        return MacFigure("Orders due", n == 0 ? "None" : "\(n) open", detail: late > 0 ? "\(late) late" : nil,
-                         detailTone: late > 0 ? Tone.late : nil, open: { go("/orders") })
-    }
-
-    /// The week's days as small bars under Taken today, set under the first figure's column.
-    @ViewBuilder
-    private var sparkline: some View {
-        if figures.week.contains(where: { $0.amount > 0 }) {
-            HStack(spacing: 0) {
-                MacReportsSparkline(days: figures.week)
-                    .frame(width: 120, height: 24)
-                Spacer(minLength: 0)
+        return MacDashFigureCard(title: "This month", symbol: "calendar", tint: Color.indigo,
+                                 value: Money.pkrLac(f.revenueMonth), detail: detail, detailTone: tone,
+                                 open: opens) {
+            if let ratio {
+                MacDashProgress(fraction: min(ratio, 1), tint: ratio >= 1 ? Tone.settled.color : Color.indigo)
             }
-            .padding(.horizontal, 14)
-            .padding(.bottom, 8)
         }
     }
 
-    // MARK: The three lists
+    private var benchCard: some View {
+        let f = figures
+        let critical = f.criticalJobs.count
+        let late = f.due.filter { $0.isLate }.count
+        var parts: [String] = ["\(f.due.count) promised"]
+        if late > 0 { parts.append("\(late) late") }
+        if critical > 0 { parts.append("\(critical) sitting \(DashBench.criticalDays)+ days") }
+        return MacDashFigureCard(title: "On the bench", symbol: "hammer", tint: Color.orange,
+                                 value: "\(f.activeJobs) piece\(f.activeJobs == 1 ? "" : "s")",
+                                 detail: parts.joined(separator: " · "),
+                                 detailTone: late > 0 || critical > 0 ? Tone.late : nil,
+                                 open: { go("/workshop") }) { EmptyView() }
+    }
 
-    private var needsList: some View {
-        MacReportsTodayList(title: "Needs you", count: needs.count, items: needs,
-                            emptyText: "All clear. Nothing late, unpaid or waiting.",
-                            path: { (n: DashNeed) -> String? in n.opensRates ? nil : n.path },
-                            special: (title: "Set Today’s Rate…", run: setRate)) { (n: DashNeed) in
-            MacReportsNeedRow(need: n)
+    // MARK: The month's chart
+
+    private var chartCard: some View {
+        var opens: (() -> Void)?
+        if isOwner { opens = { go("/analytics") } }
+        return MacDashCard(title: "Takings this month", trailing: Money.pkrLac(figures.revenueMonth), open: opens) {
+            if figures.monthDays.contains(where: { $0.amount > 0 }) {
+                MacDashMonthChart(days: figures.monthDays).frame(height: 190)
+            } else {
+                Text("No takings yet this month.").foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 190)
+            }
         }
     }
 
-    private var dueList: some View {
-        MacReportsTodayList(title: "Due to customers", count: figures.due.count, items: figures.due,
-                            emptyText: "No open orders or repairs.",
-                            path: { (d: DashDue) -> String? in d.path },
-                            special: nil) { (d: DashDue) in
-            MacReportsDueRow(due: d)
+    // MARK: The lists
+
+    private var needsCard: some View {
+        MacDashCard(title: "Needs you", count: needs.count) {
+            if needs.isEmpty {
+                MacDashEmpty(symbol: "checkmark.seal", text: "All clear. Nothing late, unpaid or waiting.")
+            } else {
+                MacDashRows(items: Array(needs.prefix(7))) { (n: DashNeed) in
+                    if n.opensRates { setRate() } else { go(n.path) }
+                } row: { (n: DashNeed) in MacReportsNeedRow(need: n) }
+            }
         }
     }
 
-    private var salesList: some View {
-        MacReportsTodayList(title: "Recent sales", count: nil, items: figures.recentInvoices,
-                            emptyText: "No sales yet.",
-                            path: { (i: Invoice) -> String? in DashPath.invoice(i.id) },
-                            special: nil) { (i: Invoice) in
-            MacReportsSaleRow(invoice: i)
+    private var dueCard: some View {
+        var more: (() -> Void)?
+        if figures.due.count > 6 { more = { go("/orders") } }
+        return MacDashCard(title: "Due to customers", count: figures.due.count, more: more) {
+            if figures.due.isEmpty {
+                MacDashEmpty(symbol: "shippingbox", text: "No open orders or repairs.")
+            } else {
+                MacDashRows(items: Array(figures.due.prefix(6))) { (d: DashDue) in go(d.path) } row: { (d: DashDue) in
+                    MacReportsDueRow(due: d)
+                }
+            }
         }
+    }
+
+    private var salesCard: some View {
+        MacDashCard(title: "Recent sales", more: { go("/invoices") }) {
+            if figures.recentInvoices.isEmpty {
+                MacDashEmpty(symbol: "doc.text", text: "No sales yet.")
+            } else {
+                MacDashRows(items: Array(figures.recentInvoices.prefix(6))) { (i: Invoice) in go(DashPath.invoice(i.id)) } row: { (i: Invoice) in
+                    MacReportsSaleRow(invoice: i)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - The card kit
+
+/// A card: a rounded surface on the window's ground, a hairline and a soft shadow, lifted a little under the pointer
+/// when it opens something.
+struct MacDashSurface: ViewModifier {
+    var hovering = false
+
+    func body(content: Content) -> some View {
+        content
+            .background(Color(nsColor: .controlBackgroundColor), in: .rect(cornerRadius: 16, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5))
+            .shadow(color: .black.opacity(hovering ? 0.14 : 0.06), radius: hovering ? 14 : 6, y: hovering ? 6 : 2)
+    }
+}
+
+/// A figure card: a tinted symbol, the figure's name, the figure large, a line under it and anything below (a chart, a
+/// bar). A click opens its place.
+struct MacDashFigureCard<Extra: View>: View {
+    let title: String
+    let symbol: String
+    let tint: Color
+    let value: String
+    let detail: String
+    var detailTone: Tone?
+    let open: (() -> Void)?
+    @ViewBuilder let extra: () -> Extra
+    @State private var hovering = false
+
+    init(title: String, symbol: String, tint: Color, value: String, detail: String, detailTone: Tone? = nil,
+         open: (() -> Void)?, @ViewBuilder extra: @escaping () -> Extra) {
+        self.title = title
+        self.symbol = symbol
+        self.tint = tint
+        self.value = value
+        self.detail = detail
+        self.detailTone = detailTone
+        self.open = open
+        self.extra = extra
+    }
+
+    var body: some View {
+        Button { open?() } label: {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 8) {
+                    Image(systemName: symbol)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(tint)
+                        .frame(width: 28, height: 28)
+                        .background(tint.opacity(0.15), in: .rect(cornerRadius: 8, style: .continuous))
+                    Text(title).font(.callout.weight(.medium)).foregroundStyle(.secondary)
+                    Spacer(minLength: 0)
+                    if open != nil {
+                        Image(systemName: "arrow.up.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
+                            .opacity(hovering ? 1 : 0)
+                    }
+                }
+                Text(value)
+                    .font(.system(size: 26, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                Text(detail)
+                    .font(.callout)
+                    .foregroundStyle(detailTone?.color ?? Color.secondary)
+                    .lineLimit(2)
+                extra()
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, minHeight: 150, alignment: .topLeading)
+            .contentShape(Rectangle())
+            .modifier(MacDashSurface(hovering: hovering && open != nil))
+        }
+        .buttonStyle(.plain)
+        .disabled(open == nil)
+        .onHover { hovering = $0 }
+        .animation(.easeOut(duration: 0.15), value: hovering)
+        .help(open == nil ? title : "Open \(title)")
+    }
+}
+
+/// A card with a heading (a count beside it, "Show all" or a figure at its right) and its content.
+struct MacDashCard<Content: View>: View {
+    let title: String
+    var count: Int?
+    var trailing: String?
+    var open: (() -> Void)?
+    var more: (() -> Void)?
+    @ViewBuilder let content: () -> Content
+
+    init(title: String, count: Int? = nil, trailing: String? = nil, open: (() -> Void)? = nil, more: (() -> Void)? = nil,
+         @ViewBuilder content: @escaping () -> Content) {
+        self.title = title
+        self.count = count
+        self.trailing = trailing
+        self.open = open
+        self.more = more
+        self.content = content
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Text(title).font(.headline)
+                if let count, count > 0 {
+                    Text("\(count)").font(.caption.weight(.semibold)).monospacedDigit()
+                        .padding(.horizontal, 7).padding(.vertical, 2)
+                        .background(Color.primary.opacity(0.08), in: Capsule())
+                }
+                Spacer(minLength: 8)
+                if let trailing {
+                    Text(trailing).font(.headline).monospacedDigit().foregroundStyle(.secondary)
+                }
+                if let action = more ?? open {
+                    Button(more != nil ? "Show All" : "Open", action: action)
+                        .buttonStyle(.link)
+                        .font(.callout)
+                }
+            }
+            content()
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .modifier(MacDashSurface())
+    }
+}
+
+/// Rows inside a card: each a button that lights under the pointer, divided by hairlines.
+struct MacDashRows<Item: Identifiable, Row: View>: View {
+    let items: [Item]
+    let pick: (Item) -> Void
+    @ViewBuilder let row: (Item) -> Row
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ForEach(Array(items.enumerated()), id: \.element.id) { i, item in
+                if i > 0 { Divider().padding(.leading, 4) }
+                MacDashRow { pick(item) } label: { row(item) }
+            }
+        }
+    }
+}
+
+struct MacDashRow<Label: View>: View {
+    let action: () -> Void
+    @ViewBuilder let label: () -> Label
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            label()
+                .padding(.horizontal, 8)
+                .padding(.vertical, 6)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .background(hovering ? Color.primary.opacity(0.06) : Color.clear, in: .rect(cornerRadius: 8, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+    }
+}
+
+/// A card with nothing in it: a symbol and a line.
+struct MacDashEmpty: View {
+    let symbol: String
+    let text: String
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: symbol).font(.title3).foregroundStyle(Tone.settled.color)
+            Text(text).foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, minHeight: 80)
+    }
+}
+
+/// How far the month has come against the whole of last month.
+struct MacDashProgress: View {
+    let fraction: Double
+    let tint: Color
+
+    var body: some View {
+        GeometryReader { g in
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.primary.opacity(0.08))
+                Capsule().fill(tint).frame(width: max(6, g.size.width * fraction))
+            }
+        }
+        .frame(height: 6)
+    }
+}
+
+/// The month's takings day by day: rounded bars, today's in the accent, with a light grid.
+struct MacDashMonthChart: View {
+    let days: [DashDay]
+
+    var body: some View {
+        let today = days.last?.id
+        Chart {
+            ForEach(days) { (d: DashDay) in
+                BarMark(x: .value("Day", d.day, unit: .day), y: .value("Taken", d.amount))
+                    .foregroundStyle(d.id == today ? Theme.accent : Theme.accent.opacity(0.45))
+                    .cornerRadius(4)
+            }
+        }
+        .chartYAxis {
+            AxisMarks(position: .trailing) { (v: AxisValue) in
+                AxisGridLine().foregroundStyle(Color.primary.opacity(0.06))
+                AxisValueLabel { if let n = v.as(Double.self) { Text(Money.axisLac(n)) } }
+            }
+        }
+        .chartXAxis {
+            AxisMarks(values: .stride(by: .day, count: 7)) { (_: AxisValue) in
+                AxisValueLabel(format: .dateTime.day().month(.abbreviated))
+            }
+        }
+        .accessibilityLabel("Takings each day this month")
+    }
+}
+
+/// The team note as a card: a pin, the words, the pencil for owners.
+struct MacDashNote: View {
+    let text: String
+    let isOwner: Bool
+    let edit: () -> Void
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Image(systemName: "pin.fill").foregroundStyle(.orange)
+            Text(text).lineLimit(3).textSelection(.enabled)
+            Spacer(minLength: 8)
+            if isOwner {
+                Button(action: edit) { Image(systemName: "pencil") }
+                    .buttonStyle(.borderless)
+                    .help("Edit the team note")
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.yellow.opacity(0.18), in: .rect(cornerRadius: 14, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color.yellow.opacity(0.35), lineWidth: 0.5))
     }
 }
 
