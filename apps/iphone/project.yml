@@ -88,6 +88,7 @@ targets:
         excludes:
           - Info.plist
           - ERPMac.entitlements
+          - ERPMac-Debug.entitlements
           - CUPS
           - "*.md"
     settings:
@@ -102,6 +103,11 @@ targets:
         COMBINE_HIDPI_IMAGES: YES
         # `import CCUPS` (Mac/CUPS/module.modulemap): raw ZPL to a printer macOS knows.
         SWIFT_INCLUDE_PATHS: $(SRCROOT)/Mac/CUPS
+      configs:
+        # The tests' build (Debug) without the entitlements that need a provisioning profile: the Mac check's test
+        # machine could not launch the app with them. The release (archive) keeps every one.
+        Debug:
+          CODE_SIGN_ENTITLEMENTS: Mac/ERPMac-Debug.entitlements
     dependencies:
       - package: Firebase
         product: FirebaseAuth
