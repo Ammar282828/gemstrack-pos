@@ -296,7 +296,14 @@ Rules: `apps/android/CONVENTIONS.md` rule 5; the decision: `docs/decisions.md#ma
   shapes, which morph while pressed; a card that is itself a button is `morphCard` (corners 28 to 16 while pressed); waits are `Loading`/`ContainedLoading` (the
   morphing loading indicator); pull to refresh was already the expressive one. Icons stay the Rounded set (Material Symbols Rounded is not in Compose's icon library
   as a font, and switching would be noise).
-- **Motion.** `MotionScheme.expressive()` springs as before; the press scale is gone for the morph above; Reduce Motion is honoured (the morph and the loading shapes' extras
-  stay still). The platform's own page transitions (PageActivity) are untouched.
+- **Motion.** `MotionScheme.expressive()` springs as before; the press scale is gone for the morphs above (the buttons' come from Material's own `shapes`, `morphCard`'s
+  corners spring with the theme's fast spatial spec and stay still under Reduce Motion). The platform's own page transitions (PageActivity) are untouched.
 - **Kept from the house:** the business's wordmark and badge, the colour seed, money wording, whole rupees, lac and crore, the owner's words.
 - **Screenshots.** Every baseline under `app/src/test/screenshots/<house>/` was re-recorded for both flavors (phone and tablet, light and dark): they are the review.
+- **Left as it was, on purpose.** The icon set is still `Icons.Filled`/`Rounded` (Material Symbols Rounded is not shipped for Compose and a swap would touch every screen); the
+  Glance widget keeps its own look (the widget owner's); a bespoke card of rows inside a page (an order's pieces, the invoice's totals) keeps a hairline between its lines, as Material
+  lists inside a card do; form text fields are Material's outlined ones; `SwipeActions` keep their tone fills; the paper of a PDF keeps its shadow; the launch window's colour is
+  the resource ground until Compose draws (then the window takes the scheme's surface).
+- **Checks.** `SchemeTests` (the seed is the business's colour that carries a hue; gold and pink keep their hues; every role and every tone reads at 4.5:1 or better on the surfaces it
+  sits on, both houses, light and dark; late stays red) and `SegmentedTests` (tiles two dp apart, with or without a divider, an empty row leaves no gap); `:app:testTaheriDebugUnitTest`
+  and `:app:assembleTaheriRelease` (R8 with the colour library) pass; `verifyRoborazziTaheriDebug` against the new baselines.

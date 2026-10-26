@@ -629,7 +629,7 @@ private fun PinnedSummary(totals: NewOrderMath.Totals) {
     ) {
         Column(Modifier.weight(1f)) {
             Text("Order total", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium), color = MaterialTheme.colorScheme.onSurfaceVariant)
-            MoneyText(totals.subtotal, exact = true, style = MaterialTheme.typography.titleLarge.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Serif, fontWeight = FontWeight.SemiBold))
+            MoneyText(totals.subtotal, exact = true, style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold))
         }
         Column(horizontalAlignment = Alignment.End) {
             Text(NewOrderLogic.dueLabel(totals.balance), style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium), color = MaterialTheme.colorScheme.onSurfaceVariant)
