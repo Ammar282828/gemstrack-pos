@@ -1,5 +1,6 @@
 package erp.app.screens.orders
 
+import erp.app.ui.Loading
 import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -18,17 +19,16 @@ import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
+import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import erp.app.ui.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
+import erp.app.ui.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -222,7 +222,7 @@ fun OrderCourierSheet(order: Order, onDismiss: () -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = ErpColors.accent, contentColor = ErpColors.onAccent),
             ) {
-                if (busy != null) CircularProgressIndicator(Modifier.size(18.dp).padding(end = 0.dp), strokeWidth = 2.dp, color = ErpColors.onAccent)
+                if (busy != null) Loading(Modifier.size(24.dp), color = ErpColors.onAccent)
                 Icon(if (sent != null) Icons.Filled.CheckCircle else Icons.Filled.LocalShipping, null, Modifier.padding(start = 8.dp).size(18.dp))
                 Text(buttonWords, Modifier.padding(start = 8.dp))
             }
@@ -382,7 +382,7 @@ fun OrderTrackingSheet(order: Order, onDismiss: () -> Unit) {
         if (asking && track == null && failure == null) {
             OrdersFormSection {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                    Loading(Modifier.size(24.dp))
                     Text("Asking TCS…", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }

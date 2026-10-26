@@ -7,8 +7,8 @@ Started 2026-10-12 (owner: port the native iPhone/iPad ERP to Android, both hous
 **What it is.** `apps/android`: Kotlin, Jetpack Compose, Material 3 (expressive), one codebase with two product
 flavors, **taheri** (`shop.taheri.erp`, "ERP": the one app that holds Taheri, House of Mina and any business added by its
 address, [below](#one-app-many-businesses-2026-10-24)) and **mina** (`store.houseofmina.erp`, "Mina ERP", deprecated like Mina's own
-iPhone app: it starts on Mina and holds only Mina), the same IDs as the iPhone apps. The design reference is `apps/iphone` (its 2026-10-12 redesign): the same places, words,
-money rules, payloads and look, in Android's own idiom (Material, not Liquid Glass). `apps/android/CONVENTIONS.md`
+iPhone app: it starts on Mina and holds only Mina), the same IDs as the iPhone apps. The reference is `apps/iphone` (its 2026-10-12 redesign): the same places, words,
+money rules and payloads; the look is Android's own, [Material You](#material-you-2026-10-26) (not the iPhone's, not Liquid Glass). `apps/android/CONVENTIONS.md`
 is its rulebook, mirroring `apps/iphone/CONVENTIONS.md`.
 
 ### Shape
@@ -55,12 +55,11 @@ is its rulebook, mirroring `apps/iphone/CONVENTIONS.md`.
   (Home, Orders, Invoices, Customers, Search — Search is the whole map, Settings and the account) and a floating
   New sale · Order · Scan · Voice menu; tablets and unfolded foldables (window size classes) get a navigation rail or
   drawer, and Orders, Invoices, Customers, Stock and Repairs show their list beside the picked item (`nav/HubSplit.kt`, the iPad's `HubSplit`: the item side stays open with "Choose an order" etc. until something is picked; a window under 700 dp is the phone's one stack).
-- **The look.** Material 3 expressive with the house's palette (Accent, Ground, Card, OnAccent; light and dark follow
-  the device, or the shop's/phone's theme as on the iPhone). The iPhone's kit, by the same names: `Tone` (late,
-  problem, owed, settled, working, credit), `Radius` (card 22, chip 14, tile 12, thumb 10), `ledgerCard`,
-  `SectionCard`, `heroSheen`, `MoneyRow`, `HeroAmount`, `PaidRing`, `Pill`, `FilterChip`, `Monogram`, the `Note`
-  toast, haptics on money events, shared-element list→detail. Font scaling, TalkBack labels, Reduce Motion
-  (`ANIMATOR_DURATION_SCALE` = 0) are first-class.
+- **The look** (Material You since 2026-10-26, [below](#material-you-2026-10-26)). Material 3 Expressive on the open business's colour: tonal
+  surfaces, segmented groups of rows, large collapsing top bars; light and dark follow the device, or the shop's/phone's theme as on the
+  iPhone. The kit keeps the iPhone's names: `Tone` (late, problem, owed, settled, working, credit), `Radius`, `ledgerCard`, `SectionCard`,
+  `heroSheen`, `MoneyRow`, `HeroAmount`, `PaidRing`, `Pill`, `FilterChip`, `Monogram`, the `Note` toast, haptics on money events. Font
+  scaling, TalkBack labels, Reduce Motion (`ANIMATOR_DURATION_SCALE` = 0) are first-class.
 - **Device.** Voice, Siri-grade since 2026-10-26 (see [Voice](ai.md#android-2026-10-26): warm on-device recogniser, end of speech by itself, follow-ups, yes/no; "Talk to ERP" shortcut, Quick Settings tile, assist intents). The older recording path (`screens/voice`: Android's recogniser for live words plus a recording of up to a minute, AAC in
   `.m4a`, sent to `/api/voice/native` as `{audio: base64}`; if the recorder came out empty or silent, the live words go as
   `{text}` instead, because the recogniser and the recorder share the microphone and nothing here could try a phone). It
@@ -257,3 +256,54 @@ key and handed over directly.
 - **Update gate** (`config/UpdateGate.kt`, `ui/UpdateBanner.kt`): `/api/app/business` carries `minAndroidBuild` (`APP_MIN_ANDROID_BUILD`, default 0), compared
   with `BuildConfig.VERSION_CODE`; below it `ErpApi.write` answers 426 "This app is out of date: install the latest version." and the money Saves shut under a
   quiet line. It is its own number: the iPhone's `APP_MIN_BUILD` is a CFBundleVersion.
+
+### Material You (2026-10-26)
+
+Owner: "Update the design language to Material YOU. Do your research on how Material You looks and feels, the UI, and everything, and implement it on the app."
+The Android app had worn the iPhone's look on Material (cream/grey ground, flat white 22 dp cards with a shadow or hairline, the serif for figures
+and headings, iOS grouped rows). It now looks like Pixel's own apps on Android 16 (Settings, Clock, Phone, Files, Wallet). A look-and-feel change only:
+money, words, payloads, navigation and the iPhone's features are as they were (so `docs/parity.md` is untouched: a platform look, n/a elsewhere).
+Rules: `apps/android/CONVENTIONS.md` rule 5; the decision: `docs/decisions.md#material-you`.
+
+- **Colour is tonal and from a seed.** `ui/theme/Scheme.kt` grows the whole Material 3 scheme (primary, secondary, tertiary and their containers, surface,
+  dim/bright, `surfaceContainerLowest`..`Highest`, outline, inverse, error), light and dark, from the open business's accent with Google's Material Color
+  Utilities (`com.materialkolor:material-color-utilities`, the pure-Kotlin port: no Compose in it, so it cannot clash with androidx material3; R8 passes), variant
+  TonalSpot (the Pixel's). The seed is the business's light accent, unless that is too dark to carry a hue (Mina's maroon, tone 10): then its dark accent, the
+  pink. `ErpColors.*` are aliases onto the scheme (accent = primary, onAccent = onPrimary, ground = surface, card = surfaceContainer, elevated =
+  surfaceContainerHigh), so existing screens compile and follow. The descriptor's palette is still the seed, the demo/bare-preview fallback is Taheri's gold.
+- **Wallpaper colours** (Settings → This phone, Android 12+, `ThemeChoice.wallpaper`, the phone's own key `erp.phone.wallpaperColors`): the phone's
+  `dynamicLightColorScheme`/`dynamicDarkColorScheme` instead. Off by default, because one app holds Taheri (gold) and House of Mina (pink) and the business's
+  colour is how staff tell them apart; the switch's footer says so.
+- **Tones** (`Tone`) are tonal palettes, as Material builds a role: red is the scheme's error (never shifted), amber, green, teal and blue are harmonised toward
+  the seed (Material's `Blend.harmonize`, at most 15 degrees) with a capped chroma, read at tone 40 in light and 80 in dark for words and icons, 50/70 for bars; a
+  `Pill` is a container (tone 90 / 30) with its on-container words (10 / 90), so every one reads on the scheme's surfaces in both modes.
+- **Surfaces, no shadow.** The page is `surface`; a card or group `surfaceContainer`; sheets, menus and dialogs one step up (Material's defaults); the one hero card
+  of a screen `primaryContainer`; "yours" (an order or sale of the signed-in person) is `ledgerCard(lit = true)`, a wash of the primary container, not an outline.
+  Edge to edge over the surface, the bars' icons follow the theme.
+- **Shape and type.** `Radius` is the Expressive scale (card 28, chip 16, tile 12, thumb 8, joint 4; the theme's `Shapes` carry extraSmall 4 ... extraLargeIncreased 32).
+  The serif is gone: the Material 3 type scale in the system sans (Google Sans on a Pixel, Roboto elsewhere); `ErpType.heroNumber` is displaySmall emphasized,
+  `tileValue` titleLarge emphasized, `heading` titleMedium emphasized, digits tabular; `LedgerHeading` is sentence case in the primary, as Settings' group headers.
+- **Segmented groups.** `ui/Segmented.kt`: `SegmentedColumn` lays out its children as tiles 2 dp apart, the first with extraLarge corners above, the last below, small
+  joints between, each clipped to its tile (a ripple keeps the corners). `LedgerSection`, `FormSection`, `SettingsSection`, Search and the Home lists draw it, so the
+  ~75 screens that build rows with `ledgerRow()` follow; `LedgerDivider` inside one is a marker (the gap is the line), in a plain card still a hairline. The lazy lists of
+  rows (Customers, Invoices, Stock, Repairs, money, the activity log) take the same corners by place. Settings' row icons are a glyph in the primary on a tonal circle
+  (the iPhone's coloured squares are gone).
+- **Components.** Pushed pages and form first screens have `LargeFlexibleTopAppBar` collapsing as the page scrolls (tab roots and wide windows the small bar, which takes
+  the container tone under scrolled content); the short bottom navigation bar with the pill indicator and the FAB menu as before; connected button groups
+  (`SingleChoiceSegmentedButtonRow`/`SegmentedButton` keep their names and are Material's `ToggleButton`s) for every one-of-few choice (Day | Stage | Due, the sections,
+  Sources | Kinds, a method); `FilterChip` is Material's with its check; search boxes are the search bar field (`SearchBarField`); switches carry their icon
+  (`ui/Controls.kt`); `Button`, `FilledTonalButton`, `OutlinedButton`, `TextButton` and `IconButton` (`ui/Buttons.kt`) take the stock arguments and the Expressive
+  shapes, which morph while pressed; a card that is itself a button is `morphCard` (corners 28 to 16 while pressed); waits are `Loading`/`ContainedLoading` (the
+  morphing loading indicator); pull to refresh was already the expressive one. Icons stay the Rounded set (Material Symbols Rounded is not in Compose's icon library
+  as a font, and switching would be noise).
+- **Motion.** `MotionScheme.expressive()` springs as before; the press scale is gone for the morphs above (the buttons' come from Material's own `shapes`, `morphCard`'s
+  corners spring with the theme's fast spatial spec and stay still under Reduce Motion). The platform's own page transitions (PageActivity) are untouched.
+- **Kept from the house:** the business's wordmark and badge, the colour seed, money wording, whole rupees, lac and crore, the owner's words.
+- **Screenshots.** Every baseline under `app/src/test/screenshots/<house>/` was re-recorded for both flavors (phone and tablet, light and dark): they are the review.
+- **Left as it was, on purpose.** The icon set is still `Icons.Filled`/`Rounded` (Material Symbols Rounded is not shipped for Compose and a swap would touch every screen); the
+  Glance widget keeps its own look (the widget owner's); a bespoke card of rows inside a page (an order's pieces, the invoice's totals) keeps a hairline between its lines, as Material
+  lists inside a card do; form text fields are Material's outlined ones; `SwipeActions` keep their tone fills; the paper of a PDF keeps its shadow; the launch window's colour is
+  the resource ground until Compose draws (then the window takes the scheme's surface).
+- **Checks.** `SchemeTests` (the seed is the business's colour that carries a hue; gold and pink keep their hues; every role and every tone reads at 4.5:1 or better on the surfaces it
+  sits on, both houses, light and dark; late stays red) and `SegmentedTests` (tiles two dp apart, with or without a divider, an empty row leaves no gap); `:app:testTaheriDebugUnitTest`
+  and `:app:assembleTaheriRelease` (R8 with the colour library) pass; `verifyRoborazziTaheriDebug` against the new baselines.

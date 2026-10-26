@@ -1,5 +1,6 @@
 package erp.app.screens.invoices
 
+import erp.app.ui.Loading
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -21,19 +22,18 @@ import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.Button
+import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import erp.app.ui.SegmentedButton
+import erp.app.ui.SegmentedButtonDefaults
+import erp.app.ui.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -154,7 +154,7 @@ private fun ErrorLine(text: String) {
 @Composable
 private fun SaveAction(label: String, saving: Boolean, enabled: Boolean, onClick: () -> Unit) {
     Button(onClick = onClick, enabled = enabled && !saving) {
-        if (saving) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary) else Text(label)
+        if (saving) Loading(Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary) else Text(label)
     }
 }
 

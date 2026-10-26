@@ -1,5 +1,6 @@
 package erp.app.screens.owner
 
+import erp.app.ui.Loading
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,13 +16,12 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Engineering
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Undo
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import erp.app.ui.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import erp.app.ui.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -180,7 +180,7 @@ private fun RecentlyRemovedList() {
 @Composable
 private fun Section(title: String, content: @Composable () -> Unit) {
     Column(Modifier.padding(horizontal = 16.dp).readableColumn(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        LedgerHeading(title, Modifier.padding(horizontal = 4.dp))
+        LedgerHeading(title, Modifier.padding(horizontal = 16.dp))
         Column(Modifier.fillMaxWidth().cardEdges(first = true, last = true)) { content() }
     }
 }
@@ -195,10 +195,10 @@ private fun Summary(
 ) {
     val total = customers.size + karigars.size
     Column(Modifier.padding(horizontal = 16.dp).readableColumn(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        LedgerHeading("$total removed", Modifier.padding(horizontal = 4.dp))
+        LedgerHeading("$total removed", Modifier.padding(horizontal = 16.dp))
         Column(Modifier.fillMaxWidth().cardEdges(first = true, last = true).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = putAllBack, enabled = busy == null, modifier = Modifier.fillMaxWidth()) {
-                if (busy == "all") CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                if (busy == "all") Loading(Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
                 else Icon(Icons.Filled.Undo, contentDescription = null)
                 Text("  Put everything back")
             }
@@ -263,7 +263,7 @@ private fun PersonRow(
             }
         }
         TextButton(onClick = putBack, enabled = busy == null) {
-            if (busy == id) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else Text("Put back")
+            if (busy == id) Loading(Modifier.size(24.dp)) else Text("Put back")
         }
     }
 }

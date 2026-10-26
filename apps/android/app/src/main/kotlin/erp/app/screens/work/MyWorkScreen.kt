@@ -31,15 +31,15 @@ import androidx.compose.material.icons.filled.Scale
 import androidx.compose.material.icons.filled.PersonSearch
 import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material.icons.filled.WifiOff
-import androidx.compose.material3.Button
+import erp.app.ui.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import erp.app.ui.OutlinedButton
+import erp.app.ui.SegmentedButton
+import erp.app.ui.SegmentedButtonDefaults
+import erp.app.ui.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -336,7 +336,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.group(
     if (jobs.isEmpty()) return
     item(key = "h-$title") {
         Row(
-            Modifier.readableColumn(820.dp).padding(horizontal = 4.dp),
+            Modifier.readableColumn(820.dp).padding(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically,
         ) {
             if (icon != null) Icon(icon, null, Modifier.size(18.dp), tint = tone)
@@ -501,7 +501,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.account(a: KarigarPor
 
 @Composable
 private fun SectionLabel(icon: ImageVector, title: String) {
-    Row(Modifier.padding(horizontal = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
         Icon(icon, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }

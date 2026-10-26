@@ -29,10 +29,10 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -175,7 +175,6 @@ fun RepairsScreen(path: String) {
                         Column(Modifier.padding(horizontal = 16.dp)) {
                             Column(Modifier.cardEdges(first = true, last = !open)) {
                                 FoldRow(g, open, forceOpen) { opened = if (g.id in opened) opened - g.id else opened + g.id }
-                                if (open) LedgerDivider()
                             }
                         }
                     }
@@ -190,7 +189,6 @@ fun RepairsScreen(path: String) {
                                     sheetSeed = null
                                     sheetId = r.id
                                 }
-                                if (i != g.rows.lastIndex) LedgerDivider()
                             }
                         }
                     }
@@ -227,9 +225,9 @@ fun RepairsScreen(path: String) {
 /** Rows of one card: the first rounds the top, the last the bottom. */
 @Composable
 private fun Modifier.cardEdges(first: Boolean, last: Boolean): Modifier {
-    val top: Dp = if (first) 22.dp else 0.dp
-    val bottom: Dp = if (last) 22.dp else 0.dp
-    return fillMaxWidth().clip(RoundedCornerShape(topStart = top, topEnd = top, bottomStart = bottom, bottomEnd = bottom)).background(ErpColors.card)
+    val top: Dp = if (first) erp.app.ui.Radius.card else erp.app.ui.Radius.joint
+    val bottom: Dp = if (last) erp.app.ui.Radius.card else erp.app.ui.Radius.joint
+    return fillMaxWidth().padding(bottom = if (last) 0.dp else 2.dp).clip(RoundedCornerShape(topStart = top, topEnd = top, bottomStart = bottom, bottomEnd = bottom)).background(ErpColors.card)
 }
 
 @Composable

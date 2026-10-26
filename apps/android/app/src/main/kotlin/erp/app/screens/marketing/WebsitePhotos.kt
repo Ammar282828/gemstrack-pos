@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.SearchBarField
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
@@ -38,13 +39,13 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.ArrowCircleUp
-import androidx.compose.material3.Button
+import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -629,7 +630,7 @@ fun WebsiteCollectionSheet(collections: List<WebsiteCollection>, folder: String,
     FullScreenSheet(title = "Collection", onCancel = onClose) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             item {
-                OutlinedTextField(
+                SearchBarField(
                     value = search, onValueChange = { search = it }, singleLine = true, modifier = Modifier.fillMaxWidth(),
                     placeholder = { Text("Find a collection") }, leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                     keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),

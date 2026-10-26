@@ -33,10 +33,10 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -539,7 +539,7 @@ private fun HisaabSection(karigar: Karigar, p: WorkshopPosition, rows: List<Hisa
     val net = p.khataNet
     val netTint = if (net > 0.0005) Tone.owed.color() else if (net < -0.0005) Tone.settled.color() else Color.Unspecified
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        LedgerHeading("Hisaab", Modifier.padding(horizontal = 4.dp))
+        LedgerHeading("Hisaab", Modifier.padding(horizontal = 16.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             FigureTile("Given", WorkshopLogic.grams3(p.khataGiven), Modifier.weight(1f))
             FigureTile("Received", WorkshopLogic.grams3(p.khataBack), Modifier.weight(1f))
@@ -559,7 +559,7 @@ private fun HisaabSection(karigar: Karigar, p: WorkshopPosition, rows: List<Hisa
                 Text(if (rows.size > 8) "All ${rows.size} entries in Hisaab" else "Open in Hisaab", color = MaterialTheme.colorScheme.primary)
             }
         }
-        Text("${rows.size} entries · net = gold still with the karigar", Modifier.padding(horizontal = 4.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("${rows.size} entries · net = gold still with the karigar", Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -579,7 +579,7 @@ private fun PayBatchSection(pay: KarigarPay.Figures, onAsk: (WorkshopPayAsk) -> 
     val open = pay.open
     if (open != null) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(Modifier.padding(horizontal = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Filled.LockOpen, null, Modifier.size(18.dp))
                 Text(open.batch.label.ifEmpty { "Pay batch" }, style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold))
                 Pill("Active", tone = Tone.settled)
@@ -611,11 +611,11 @@ private fun PayBatchSection(pay: KarigarPay.Figures, onAsk: (WorkshopPayAsk) -> 
                 LedgerDivider()
                 SettleLine { onAsk(WorkshopPayAsk.Settle(open)) }
             }
-            Text(KarigarNow.startedWords(open), Modifier.padding(horizontal = 4.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(KarigarNow.startedWords(open), Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     } else {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            LedgerHeading("Pay batch", Modifier.padding(horizontal = 4.dp))
+            LedgerHeading("Pay batch", Modifier.padding(horizontal = 16.dp))
             Column(Modifier.fillMaxWidth().ledgerCardRows()) {
                 Column(Modifier.fillMaxWidth().ledgerRow(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text("No active pay batch", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold))

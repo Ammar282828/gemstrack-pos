@@ -17,7 +17,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -244,7 +244,7 @@ private fun DashboardPage(
 private fun DateLine(f: DashFigures) {
     Text(
         DashDate.dayLabel(f.now).uppercase(),
-        Modifier.padding(horizontal = 4.dp).clearAndSetSemantics { contentDescription = DashDate.longDay(f.now) },
+        Modifier.padding(horizontal = 16.dp).clearAndSetSemantics { contentDescription = DashDate.longDay(f.now) },
         style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold, letterSpacing = 0.8.sp),
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )

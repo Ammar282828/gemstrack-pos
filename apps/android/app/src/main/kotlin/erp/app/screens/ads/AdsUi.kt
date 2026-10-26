@@ -1,5 +1,7 @@
 package erp.app.screens.ads
 
+import erp.app.ui.SegmentedColumn
+import erp.app.ui.SearchBarField
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -31,21 +33,21 @@ import androidx.compose.material.icons.filled.Power
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
+import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
+import erp.app.ui.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
@@ -127,14 +129,13 @@ fun AdsSection(
     content: @Composable () -> Unit,
 ) {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (header != null) Box(Modifier.padding(horizontal = 4.dp)) { header() }
-        else if (title != null) LedgerHeading(title, Modifier.padding(horizontal = 4.dp), count = count)
-        Column(Modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card)) {
-            if (divided) DividedColumn(content = content) else content()
-        }
+        if (header != null) Box(Modifier.padding(horizontal = 16.dp)) { header() }
+        else if (title != null) LedgerHeading(title, Modifier.padding(horizontal = 16.dp), count = count)
+        if (divided) SegmentedColumn { content() }
+        else Column(Modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card)) { content() }
         if (footer != null) {
             CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant) {
-                ProvideTextStyle(MaterialTheme.typography.bodySmall) { Column(Modifier.padding(horizontal = 4.dp)) { footer() } }
+                ProvideTextStyle(MaterialTheme.typography.bodySmall) { Column(Modifier.padding(horizontal = 16.dp)) { footer() } }
             }
         }
     }
@@ -552,7 +553,7 @@ fun AdsChips(modifier: Modifier = Modifier, content: @Composable RowScope.() -> 
 /** A search box with a magnifier, flush with the page's margin. */
 @Composable
 fun AdsSearchField(placeholder: String, value: String, onChange: (String) -> Unit, modifier: Modifier = Modifier) {
-    androidx.compose.material3.OutlinedTextField(
+    SearchBarField(
         value = value, onValueChange = onChange, modifier = modifier.fillMaxWidth(),
         placeholder = { Text(placeholder) },
         leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },

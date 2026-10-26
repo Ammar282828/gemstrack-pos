@@ -1,5 +1,6 @@
 package erp.app.screens.money
 
+import erp.app.ui.SegmentedColumn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,7 +17,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -107,8 +108,8 @@ private fun RevenueBoard() {
                 }
                 item(key = "dates") {
                     Column(Modifier.padding(horizontal = 16.dp).readableColumn(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        LedgerHeading("Dates", Modifier.padding(horizontal = 4.dp))
-                        Column(Modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card)) { MoneyRangeFields(dates, { dates = it }) }
+                        LedgerHeading("Dates", Modifier.padding(horizontal = 16.dp))
+                        SegmentedColumn { MoneyRangeFields(dates, { dates = it }) }
                         Footnote(if (dates.useFrom) "Without an end date it runs to the end of today." else "Until a start date is chosen, every entry is shown.")
                     }
                 }

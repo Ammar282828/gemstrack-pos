@@ -23,7 +23,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -176,7 +176,7 @@ fun CustomerMergeSheet(onDismiss: () -> Unit) {
                                         Text("No duplicates auto-detected.", Modifier.fillMaxWidth().card().padding(16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
                                         Text(
                                             "Customers who share a number, or whose names are almost the same, show up here.",
-                                            Modifier.padding(horizontal = 4.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
                                     }
                                 }
@@ -231,7 +231,7 @@ private fun PairSection(
     onNot: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(pair.reason, Modifier.padding(horizontal = 4.dp), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(pair.reason, Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Column(Modifier.fillMaxWidth().card()) {
             Person("Keep", keep, ErpColors.accent)
             Rule()
@@ -309,7 +309,7 @@ private fun ManualSection(
     onMerge: (Customer, Customer) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        LedgerHeading("Manual merge", Modifier.padding(horizontal = 4.dp))
+        LedgerHeading("Manual merge", Modifier.padding(horizontal = 16.dp))
         Column(Modifier.fillMaxWidth().card()) {
             Chooser("Keep (primary)", keep, ErpColors.accent, keepSearch, onKeepSearch, live, other = duplicateId, choose = onKeep)
             Rule()
@@ -335,7 +335,7 @@ private fun ManualSection(
         }
         Text(
             "Search the customer to keep, then the duplicate. The duplicate's record is deleted for good.",
-            Modifier.padding(horizontal = 4.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
