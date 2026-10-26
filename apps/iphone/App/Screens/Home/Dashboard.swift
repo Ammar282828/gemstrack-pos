@@ -288,6 +288,7 @@ struct Dashboard: View {
             DashStat(label: "This month", linked: session.isOwner) {
                 DashStatAmount(amount: f.revenueMonth)
                 DashMonthChange(ratio: f.monthAgainstLast, now: f.now)
+                if f.monthCoins > 0 { DashStatNote(text: "+ \(Money.pkrLac(f.monthCoins)) in gold coins") }
             }
         }
     }

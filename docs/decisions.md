@@ -193,6 +193,10 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
   days, birthdays/anniversaries), **Due to customers** (open orders *and* repairs in the shop by their promised date — late,
   today, soonest, undated by age; `orderTiming` for both) and **Recent sales**; the 30-day line at the bottom. No buttons:
   New Sale is the sidebar's.
+- **Revenue on Home is the jewellery side, as in Analytics** (owner, 2026-10-26: "dashboard this month and analytics revenue
+  don't match"): gold coins are split out first (`lib/analytics/coins.ts`; iPhone `AnaCoins.splitAll`), for today, this month,
+  last month, the daily chart and Net, and the month's coins are noted beside it, "+ PKR X in gold coins" (nothing when none).
+  Also aligned: the month and today end at the close of today, and an invoice with no `createdAt` counts nowhere, as in Analytics.
 
 ### Rate chip
 

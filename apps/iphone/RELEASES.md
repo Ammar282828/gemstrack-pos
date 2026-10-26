@@ -58,3 +58,4 @@ cloud session cannot press that button, but it can push. One line per build, new
 - 2026-10-25: the same build, compiling (drafts' card read the books without importing them).
 - 2026-10-25: light and dark pulled apart (warm grounds with floating white cards; near-black with lifted cards and a fine edge; richer gold and rose), no empty title band under Analytics or eleven other screens, and net profit counts the cost of the goods.
 - 2026-10-26: From the website paints at once from the phone's last copy and refreshes behind (a list 15× smaller on the wire, retried when the site is mid-update); no notification about your own action.
+- 2026-10-26: Home's revenue matches Analytics (gold coins counted apart, with a '+ PKR X in gold coins' line under This month).

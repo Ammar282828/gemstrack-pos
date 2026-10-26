@@ -424,6 +424,8 @@ struct DashFigures {
     private(set) var todayInvoiceCount = 0
     private(set) var monthRevenue = 0.0
     private(set) var lastMonthRevenue = 0.0
+    /// Gold coins sold this month, apart from `monthRevenue` (Analytics splits them out too); shown as a quiet line, never added.
+    private(set) var monthCoins = 0.0
     /// Invoices owing, largest balance first.
     private(set) var unpaid: [Invoice] = []
     private(set) var totalOutstanding = 0.0
@@ -492,12 +494,23 @@ struct DashFigures {
         for o in orders { ordersById[o.id] = o }
 
         // Revenue is recognised on the source order's date, and counts an exchange as payment (invoiceSaleValue).
+        // Gold coins are split out first, exactly as Analytics does (AnaCoins.splitAll; lib/analytics/coins.ts), so Home's
+        // revenue and Analytics' are one figure; the month's coins are noted beside it. An invoice with no createdAt counts nowhere.
         var events: [Event] = []
+        var coinEvents: [Event] = []
         var invoicesToday = 0
         for inv in invoices where inv.status != .refunded {
             guard let at = DashDate.parseISO(DashRules.revenueDate(of: inv, orders: ordersById)) else { continue }
-            events.append(Event(at: at, amount: invoiceSaleValue(inv)))
             if at >= todayStart { invoicesToday += 1 }
+        }
+        let split = AnaCoins.splitAll(invoices)
+        for inv in split.jewellery where inv.status != .refunded && !inv.createdAt.isEmpty {
+            guard let at = DashDate.parseISO(DashRules.revenueDate(of: inv, orders: ordersById)) else { continue }
+            events.append(Event(at: at, amount: invoiceSaleValue(inv)))
+        }
+        for inv in split.coins where inv.status != .refunded && !inv.createdAt.isEmpty {
+            guard let at = DashDate.parseISO(DashRules.revenueDate(of: inv, orders: ordersById)) else { continue }
+            coinEvents.append(Event(at: at, amount: invoiceSaleValue(inv)))
         }
         // A counter order not yet invoiced is a sale once taken (bookedAsSale); an online one waits for its transfer.
         for o in orders where bookedAsSale(o) {
@@ -510,8 +523,11 @@ struct DashFigures {
         }
 
         todayInvoiceCount = invoicesToday
-        todayRevenue = Self.total(events, from: todayStart)
-        monthRevenue = Self.total(events, from: monthStart)
+        // Capped at the end of today, like Analytics' "this month" (the 1st to today), so a future-dated row reads the same in both.
+        let tomorrowStart = DashDate.startOfDay(DashDate.adding(days: 1, to: now))
+        todayRevenue = Self.total(events, from: todayStart, before: tomorrowStart)
+        monthRevenue = Self.total(events, from: monthStart, before: tomorrowStart)
+        monthCoins = Self.total(coinEvents, from: monthStart, before: tomorrowStart)
         lastMonthRevenue = Self.total(events, from: lastMonthStart, before: monthStart)
         revenueMonth = monthRevenue
 

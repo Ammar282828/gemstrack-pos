@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { revenueForPeriod } from './revenue-period';
+import { revenueForPeriod, coinRevenueForPeriod } from './revenue-period';
+import { splitAllCoinSales, summariseCoins } from './coins';
+import { invoiceSaleValue } from './sale-value';
 import type { AdditionalRevenue, Invoice, Order } from '@/lib/store';
 
 const from = new Date('2026-10-01T00:00:00+05:00');
@@ -26,5 +28,34 @@ describe('dashboard and widget revenue', () => {
     const rows = { invoices: [], orders: [], extraRevenues };
     expect(revenueForPeriod(rows, from, to)).toBe(900);
     expect(revenueForPeriod(rows, from, new Date('2026-10-02T00:00:00+05:00'))).toBe(500);
+  });
+
+  describe('gold coins are apart, as in Analytics', () => {
+    const line = (categoryId: string, itemTotal: number) => ({ categoryId, itemTotal, quantity: 1 });
+    const coinInv = invoice({ id: 'INV-coin', grandTotal: 1000, subtotal: 1000, items: [line('cat017', 1000)] });
+    const ringInv = invoice({ id: 'INV-ring', grandTotal: 500, subtotal: 500, items: [line('cat001', 500)] });
+    const mixed = invoice({ id: 'INV-mix', grandTotal: 400, subtotal: 400, amountPaid: 400, items: [line('cat017', 100), line('cat001', 300)] });
+    const rows = { invoices: [coinInv, ringInv, mixed], orders: [], extraRevenues: [extra(50, '2026-10-08')] };
+
+    it('leaves a coin invoice out of the month and reports it in the coin line', () => {
+      expect(revenueForPeriod(rows, from, to)).toBe(500 + 300 + 50);
+      expect(coinRevenueForPeriod(rows, from, to)).toBe(1000 + 100);
+    });
+
+    it('equals what Analytics counts (jewellery split, then invoice sale value) on a mixed fixture', () => {
+      const { jewellery, coins } = splitAllCoinSales(rows.invoices);
+      const analytics = jewellery.reduce((s, i) => s + invoiceSaleValue(i), 0) + 50;
+      expect(revenueForPeriod(rows, from, to)).toBe(analytics);
+      expect(coinRevenueForPeriod(rows, from, to)).toBe(summariseCoins(coins).revenue);
+    });
+
+    it('shows no coin line when none were sold, and ignores refunded coins', () => {
+      expect(coinRevenueForPeriod({ invoices: [ringInv], orders: [] }, from, to)).toBe(0);
+      expect(coinRevenueForPeriod({ invoices: [{ ...coinInv, status: 'Refunded' } as Invoice], orders: [] }, from, to)).toBe(0);
+    });
+
+    it('counts an invoice with no createdAt nowhere, like Analytics', () => {
+      expect(revenueForPeriod({ invoices: [invoice({ createdAt: '' })], orders: [], extraRevenues: [] }, from, to)).toBe(0);
+    });
   });
 });

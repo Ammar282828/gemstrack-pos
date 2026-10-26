@@ -561,6 +561,7 @@ struct DashMonthCard: View {
             }
             // Against last month, here with the revenue it compares (the This month card said it twice).
             if figures.monthAgainstLast != nil { DashMonthChange(ratio: figures.monthAgainstLast, now: figures.now) }
+            if figures.monthCoins > 0 { DashStatNote(text: "+ \(Money.pkrLac(figures.monthCoins)) in gold coins") }
             if figures.revenueMonth > 0 && figures.monthDays.count > 1 { chart }
         }
         .ledgerCard()

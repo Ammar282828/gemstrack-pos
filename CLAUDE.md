@@ -124,7 +124,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Recent picks](docs/decisions.md#recent-picks) — last five per device
 
 **Home and the day**
-- [Dashboard](docs/decisions.md#dashboard) — four figures, Needs you, Due to customers, Recent sales; no buttons
+- [Dashboard](docs/decisions.md#dashboard) — four figures, Needs you, Due to customers, Recent sales; no buttons; revenue is the jewellery side (gold coins noted beside it, as Analytics splits them)
 - [Rate chip](docs/decisions.md#rate-chip) — the cart writes back only a new invoice's typed rates
 - [Team note](docs/decisions.md#team-note) — `settings.teamNote`, ≤ 600 characters; owners write via `/api/app/write`, staff read
 - [One screen per question](docs/decisions.md#one-screen-per-question) — `lib/owed.ts`, Today's cash, the karigar's Now

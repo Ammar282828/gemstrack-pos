@@ -26,6 +26,7 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Feature | Web | iPhone | Android | Mac | Since | Where |
 |---|---|---|---|---|---|---|
 | Dashboard: four figures, Needs you, Due to customers, Recent sales | ✓ | ✓ | ✓ | ✓ | 2026-09 | [Dashboard](decisions.md#dashboard); `Screens/Home`, `screens/home` |
+| Home revenue matches Analytics (coins apart; "+ PKR X in gold coins" under This month) | ✓ | ✓ | owed | ✓ | 2026-10-26 | [Dashboard](decisions.md#dashboard); `lib/analytics/revenue-period.ts`, `DashboardFigures.swift`; Mac gets the figure, not the coin line; Android `screens/home` still counts coins |
 | Today's cash | ✓ | ✓ | ✓ | ✓ | 2026-10 | `Screens/Home/TodaysCashScreen.swift`, `screens/home/TodaysCashScreen.kt` |
 | Team note (owners write, staff read) | ✓ | ✓ | ✓ | ✓ | 2026-09 | [Team note](decisions.md#team-note) |
 | Search: one calm list (the map by group, then the account; no quick buttons, no recents) that finds customers, invoices, orders, stock, repairs, places | n/a (web search is the page's own) | ✓ | ✓ | ✓ | 2026-10-21 | `Nav/SearchHome.swift`, `nav/SearchScreen.kt` + `SearchLogic.kt`; Android has no long-press menu of a row's tabs |

@@ -24,12 +24,12 @@ import { useAppReady } from '@/hooks/use-store';
 import { ChevronRight, CheckCircle2, Globe, Hammer, CalendarClock, Gem, Receipt, Cake, Wrench, Coins, UserX } from 'lucide-react';
 import { DateLeaf, EmptyState, FigureTile, HeroAmount, LedgerSection, Monogram, Pill, toneClasses, type Tone } from '@/components/ledger';
 import { lacCrore } from '@/lib/money';
-import { format, parseISO, subDays, startOfDay, startOfMonth, subMonths, differenceInCalendarDays, isValid } from 'date-fns';
+import { format, parseISO, subDays, startOfDay, startOfMonth, subMonths, addDays, differenceInCalendarDays, isValid } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { isBusinessCost } from '@/lib/partnership';
 import { upcomingOccasions, occasionWhen } from '@/lib/occasions';
 import { invoiceSaleValue } from '@/lib/analytics/sale-value';
-import { revenueForPeriod } from '@/lib/analytics/revenue-period';
+import { revenueForPeriod, coinRevenueForPeriod } from '@/lib/analytics/revenue-period';
 import { useOnlineWaiting, useSellingPausedForRates } from '@/lib/website/online-client';
 import { awaitingTransfer, bookedAsSale } from '@/lib/order-stage';
 import { owesMoney } from '@/lib/money';
@@ -184,6 +184,9 @@ export default function HomePage() {
     const ordersById = new Map(orders.map(o => [o.id, o]));
 
     // Revenue recognised on the source order's date (getInvoiceRevenueDate), between two instants.
+    // Gold coins are split out first, as in Analytics (lib/analytics/coins.ts), and noted beside the month.
+    // Capped at the end of today, like Analytics' "this month" (1st to today), so a future-dated row reads the same in both.
+    const tomorrowStart = startOfDay(addDays(now, 1));
     const rev = (from: Date, to?: Date) => revenueForPeriod({ invoices: generatedInvoices, orders, extraRevenues: additionalRevenues }, from, to);
 
     const todayInvoices = generatedInvoices.filter(i =>
@@ -220,15 +223,16 @@ export default function HomePage() {
     // Repairs finished but not collected for a while — the customer needs a call.
     const readyWaiting = repairs.filter(r => r.status === 'ready' && r.readyAt && isValid(parseISO(r.readyAt)) && differenceInCalendarDays(now, parseISO(r.readyAt)) >= 3);
 
-    const revenueMonth = rev(monthStart);
+    const revenueMonth = rev(monthStart, tomorrowStart);
     // netMonth is a profit figure, so partner drawings stay out of it.
     const expensesMonth = expenses.filter(e => parseISO(e.date) >= monthStart && isBusinessCost(e))
       .reduce((s, e) => s + (e.amount || 0), 0);
 
     return {
-      todayRevenue: rev(todayStart),
+      todayRevenue: rev(todayStart, tomorrowStart),
       todayInvoiceCount: todayInvoices.length,
-      monthRevenue: rev(monthStart),
+      monthRevenue: revenueMonth,
+      monthCoins: coinRevenueForPeriod({ invoices: generatedInvoices, orders }, monthStart, tomorrowStart),
       lastMonthRevenue: rev(lastMonthStart, monthStart),
       unpaid, totalOutstanding, owedInHisaab: owed.ledger,
       activeJobs, criticalJobs, unassignedJobs,
@@ -428,7 +432,8 @@ export default function HomePage() {
         </TileLink>
         <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-3 lg:col-span-3">
           <TileLink href="/analytics" title={`PKR ${stats.monthRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}>
-            <FigureTile className="h-full" label="This month" value={stats.monthRevenue} detail={monthSub} />
+            <FigureTile className="h-full" label="This month" value={stats.monthRevenue}
+              detail={stats.monthCoins > 0 ? <>{monthSub}<br />+ {compactPKR(stats.monthCoins)} in gold coins</> : monthSub} />
           </TileLink>
           <TileLink
             href={stats.owedInHisaab > 0 ? '/hisaab' : '/invoices'}
