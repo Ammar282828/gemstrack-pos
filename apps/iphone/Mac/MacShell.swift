@@ -190,7 +190,12 @@ struct MacShell: View {
             // Back where this window was when the app last quit (a place this person can still open).
             if !restored {
                 restored = true
-                if savedPlace != "/", MacSidebarMap.allPaths(sidebarSections(map)).contains(savedPlace) { model.selection = savedPlace }
+                if House.isDemo, let p = UserDefaults.standard.string(forKey: "ERPDemoOpen"), p.hasPrefix("/") {
+                    // The UI tests open one page at launch (`-ERPDemoOpen /orders?list=late`), as the iPhone's do.
+                    model.go(p)
+                } else if savedPlace != "/", MacSidebarMap.allPaths(sidebarSections(map)).contains(savedPlace) {
+                    model.selection = savedPlace
+                }
             }
             guard session.role != "marketing" else { return }
             try? await Task.sleep(for: .milliseconds(400))

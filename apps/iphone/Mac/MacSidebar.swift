@@ -232,6 +232,7 @@ struct MacSidebar: View {
         .buttonStyle(.plain)
         .badge(Text(key))
         .help("\(title) (\(key))")
+        .accessibilityIdentifier("sidebar.command." + title)
     }
 
     @ViewBuilder
@@ -250,6 +251,8 @@ struct MacSidebar: View {
     private func label(_ r: MacSidebarRow, _ counts: [MacSidebarCount: Int]) -> some View {
         Label(r.title, systemImage: r.symbol)
             .badge(r.count.flatMap { counts[$0] } ?? 0)
+            // The UI tests find a row by its path (MacUITests): `sidebar./orders?list=late`.
+            .accessibilityIdentifier("sidebar." + r.id)
     }
 
     private func expanded(_ id: String) -> Binding<Bool> {
@@ -327,6 +330,7 @@ struct MacBusinessMenu: View {
             .menuIndicator(.visible)
             .fixedSize()
             .help("Switch business (\u{21E7}\u{2318}B manages them)")
+            .accessibilityIdentifier("sidebar.business")
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 8)
@@ -375,6 +379,7 @@ struct MacSidebarRate: View {
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
         .help(today ? "Today\u{2019}s rates" : "The rate was not set today")
+        .accessibilityIdentifier("sidebar.rate")
         .onAppear { book.settings.need() }
         .sheet(isPresented: $open) { RateSheetHost() }
     }
