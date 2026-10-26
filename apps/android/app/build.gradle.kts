@@ -130,8 +130,8 @@ android {
     defaultConfig {
         minSdk = 26
         targetSdk = 37
-        versionCode = 5 // above the interim web app (apps/android-twa, 1), so this installs over it
-        versionName = "0.3.0"
+        versionCode = 6 // above the interim web app (apps/android-twa, 1), so this installs over it
+        versionName = "0.3.1"
     }
 
     buildFeatures {
@@ -159,6 +159,8 @@ android {
                 val preview = project.hasProperty("preview")
                 if (preview) applicationIdSuffix = ".preview"
                 resValue("string", "app_name", (s["homeName"] as String) + if (preview) " Preview" else "")
+                // The launcher shortcut (xml/shortcuts.xml) names the package it opens; an XML file cannot read the applicationId.
+                resValue("string", "erp_package", (s["bundleId"] as String) + if (preview) ".preview" else "")
                 buildConfigField("boolean", "PREVIEW_DEMO", preview.toString())
                 buildConfigField("String", "HOUSE", q(id))
                 buildConfigField("String", "STORE_NAME", q(s["storeName"] as String))

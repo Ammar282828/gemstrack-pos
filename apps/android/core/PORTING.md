@@ -46,7 +46,7 @@ is `-0.0`), `String.count` as grapheme clusters (`graphemeCount`).
 | `Partnership`, `ShareholderFigures` | `logic/Partnership.kt` |
 | `KarigarPay`, `KarigarPortal` | `logic/Karigar.kt` |
 | `ActivityLogRules`, `WorkDrafts` | `logic/Drafts.kt` |
-| every other `Logic/X.swift` | `logic/X.kt` (`RatesLogic`, `Pricing`, `Margin`, `Exchange`, `WalkIn`, `Owed`, `Materials`, `OrderFinalize`, `InvoiceActions`, `Overheads`, `ShopCalendar`, `CustomerSearch`) |
+| every other `Logic/X.swift` | `logic/X.kt` (`RatesLogic`, `Pricing`, `Margin`, `Exchange`, `WalkIn`, `Owed`, `Materials`, `OrderFinalize`, `InvoiceActions`, `Overheads`, `ShopCalendar`, `CustomerSearch`, `VoiceReplies`: the voice sheet's whole-utterance yes/no) |
 
 Swift names stay, in Kotlin style: functions and properties as they were (`invoiceSaleValue`, `owedToYou`,
 `PricedPiece`). Swift enums with an `.unknown(raw)` case (`OrderStatus` …) are classes in `Words.kt`

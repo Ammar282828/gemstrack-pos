@@ -52,6 +52,10 @@ import erp.app.nav.AppRouter
 import erp.app.nav.LocalNavigator
 import erp.app.nav.ScreenActions
 import erp.app.nav.ScreenTitle
+import erp.app.screens.work.DraftOpen
+import erp.app.screens.work.DraftOpening
+import erp.app.screens.work.DraftsCount
+import erp.app.screens.work.DraftsNote
 import erp.app.ui.EntryContinue
 import erp.app.ui.EntryStep
 import erp.app.ui.EntrySteps
@@ -70,6 +74,7 @@ import erp.app.ui.color
 import erp.app.ui.MinTouchTarget
 import erp.core.entry.EntryHouse
 import erp.core.entry.NewOrderDraft
+import erp.core.entry.NewOrderDraftStore
 import erp.core.entry.NewOrderEdit
 import erp.core.entry.NewOrderFormat
 import erp.core.entry.NewOrderMath
@@ -79,24 +84,24 @@ import erp.core.entry.SaleDraftStore
 import erp.core.entry.SaleLine
 import erp.core.entry.editRequest
 import erp.core.entry.fromSale
-import erp.core.entry.webValues
 import erp.core.logic.Money
 import erp.core.models.Product
 import java.util.UUID
 import kotlin.math.abs
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 // New order (src/app/orders/add/page.tsx, components/order/order-form.tsx): who it is for, when it is promised, the
 // pieces (each opens full-screen), the rates, the discount, the advance and the exchange, and the totals as the web
 // works them out. Saved through the ERP's own shared write (`createOrder`, lib/writes/create-order.ts): it numbers the
 // order and stamps the rates, exactly as the browser's does.
 //
-// The order in progress stays on this phone, and in Drafts, if the screen closes (NewOrderPhoneStore, WorkDraftSync),
-// until it is saved or started over. A piece can start from one in stock (Add from stock); sizes are offered to the
+// The order in progress is kept at every change, on this phone and in Drafts (NewOrderPhoneStore, WorkDraftSync), until
+// it is saved or started over. A New order always opens blank: the one kept before is in Drafts, continued from there
+// (or from a screen that opens this one with `?resume=1`). A piece can start from one in stock (Add from stock); sizes are offered to the
 // customer's profile once the order is saved (SizeAskSheet). "Read a slip" reads a parchi with the ERP's AI reader
 // into this form (ScanSlipPage); the voice order stays on the ERP's page.
 //
@@ -105,7 +110,7 @@ import kotlinx.coroutines.withContext
 // browser. (NewOrder.swift.)
 
 @Composable
-fun NewOrder(readsSlip: Boolean = false, edit: NewOrderEdit? = null, ratesFirst: Boolean = false) {
+fun NewOrder(readsSlip: Boolean = false, edit: NewOrderEdit? = null, ratesFirst: Boolean = false, resumes: Boolean = false) {
     // The core knows no BuildConfig: the house is told once, before any piece starts on its metal.
     EntryHouse.id = House.id
     val session = LocalSession.current
@@ -114,13 +119,13 @@ fun NewOrder(readsSlip: Boolean = false, edit: NewOrderEdit? = null, ratesFirst:
     when {
         edit != null && role != "owner" ->
             NotAvailableState("Only an owner can change an order", why = "Ask an owner to make the change, or add a note on the order.")
-        role == "owner" || role == "staff" -> NewOrderForm(readsSlip, edit, ratesFirst)
+        role == "owner" || role == "staff" -> NewOrderForm(readsSlip, edit, ratesFirst, resumes)
         else -> NotAvailableState("Orders are taken by the shop", why = "Sign in with an owner or staff account to take an order.")
     }
 }
 
 @Composable
-private fun NewOrderForm(readsSlip: Boolean, edit: NewOrderEdit?, ratesFirst: Boolean) {
+private fun NewOrderForm(readsSlip: Boolean, edit: NewOrderEdit?, ratesFirst: Boolean, resumes: Boolean) {
     val session = LocalSession.current
     val me by session.me.collectAsStateWithLifecycle()
     val shop = me?.shop ?: session.shop
@@ -137,8 +142,12 @@ private fun NewOrderForm(readsSlip: Boolean, edit: NewOrderEdit?, ratesFirst: Bo
     val workshop = remember(karigars) { karigars.filter { (it.deletedAt ?: "").isEmpty() } }
 
     val holder = remember(edit) { DraftHolder(edit?.draft ?: NewOrderDraft.fresh()) }
-    /** The phone's copy has been read (and not before: an unread draft must never be overwritten). */
+    /** The phone's copy has been dealt with (and not before: an unread draft must never be overwritten). */
     var loaded by remember(edit) { mutableStateOf(edit != null) }
+    /** The business this screen was opened in: every draft and the save go to it, whatever is open when they run. */
+    val biz = remember { House.id }
+    /** The draft this form was opened on, as text, until the first change: opening a draft is not a change to it. */
+    var baseline by remember { mutableStateOf<String?>(null) }
     var restored by remember { mutableStateOf(false) }
     var editingId by remember { mutableStateOf<UUID?>(null) }
     var saving by remember { mutableStateOf(false) }
@@ -184,19 +193,33 @@ private fun NewOrderForm(readsSlip: Boolean, edit: NewOrderEdit?, ratesFirst: Bo
         holder.edit { settleTakenBy(shop.person, shop.takenBy) }
     }
 
-    /** The order in Drafts as the web's form holds it, a moment after the last change (`now` as the screen or the app goes). */
+    /**
+     * The order in Drafts as the web's form holds it, within a third of a second of the last change (`now` as the screen
+     * or the app goes). `make` reads the form when the write is due, so a burst of keys is one write of the newest.
+     */
     fun sync(now: Boolean = false) {
         if (!loaded || created != null || edit != null) return
-        val d = holder.now.copy()
         val s = settings
-        WorkDraftSync.order.push(blank = d.isBlank, enabled = s?.autoDraftForms ?: true, now = now) {
-            WorkDraftSync.Snapshot(values = d.webValues(s), total = NewOrderMath.totals(d, s).balance, customerName = d.customerName)
+        WorkDraftSync.order.push(blank = holder.now.isBlank, enabled = s?.autoDraftForms ?: true, now = now, business = biz) {
+            WorkDraftSync.snapshot(holder.now, s)
         }
+    }
+
+    /** Any change to the form is on the phone at once (off the main thread, the newest of a burst) and in Drafts. */
+    fun changed() {
+        // An edit is never kept on the phone or in Drafts: the order on file is the copy.
+        if (!loaded || created != null || edit != null) return
+        // The draft just opened is not a change to it.
+        baseline?.let { if (NewOrderDraftStore.encode(holder.now) == it) return; baseline = null }
+        NewOrderPhoneStore.save(holder.now.copy(), business = biz)
+        sync()
     }
 
     fun keepNow() {
         if (!loaded || created != null || edit != null) return
-        NewOrderPhoneStore.save(holder.now)
+        // A draft opened and left as it was has nothing new to keep.
+        baseline?.let { if (NewOrderDraftStore.encode(holder.now) == it) return }
+        NewOrderPhoneStore.save(holder.now.copy(), now = true, business = biz)
         sync(now = true)
     }
 
@@ -207,27 +230,64 @@ private fun NewOrderForm(readsSlip: Boolean, edit: NewOrderEdit?, ratesFirst: Bo
 
     fun orderPath(id: String): String = "/orders/" + java.net.URLEncoder.encode(id, "UTF-8").replace("+", "%20")
 
-    // The phone's copy is read once; a draft restored is checked against Drafts, since one finished at the counter
-    // since is not this phone's to save a second time.
+    /**
+     * The order kept on this phone is in Drafts too: one saved or thrown away at the counter since is not this phone's
+     * to save a second time, so it goes from here as well.
+     */
+    suspend fun stillOurs() {
+        if (WorkDraftSync.order.stillThere(biz) != false || created != null) return
+        NewOrderPhoneStore.clear(biz)
+        WorkDraftSync.order.forget(biz)
+        holder.replace(NewOrderDraft.fresh())
+        baseline = null
+        restored = false
+        editingId = null
+        seedTodaysRates()
+        settleTakenBy()
+        tell("Finished on another device", "The order kept on this phone was saved or discarded from Drafts on another device, so it is cleared here. Look for it under Orders.")
+    }
+
+    /**
+     * What the form opens on, once: blank, with the order this phone was holding made sure of in Drafts (the owner,
+     * 2026-10-25: "don't auto open the draft"); or that very order, when it is continued on purpose. Where the work has
+     * no other place to be found the phone's copy is continued as it always was: drafts turned off, the demo, and staff,
+     * who cannot read Drafts (firestore.rules).
+     */
+    fun begin() {
+        if (loaded || edit != null) return
+        loaded = true
+        scope.launch { DraftsCount.refresh() }
+        val s = settings
+        val kept = DraftOpening.kept(s?.autoDraftForms, House.isDemo, session.isOwner)
+        val saved = NewOrderPhoneStore.load(biz)
+        if (saved != null && DraftOpening.decide(true, resumes, kept) == DraftOpen.Continue) {
+            // A form that was typed in while this waited keeps what it has.
+            if (holder.now.isBlank) {
+                holder.replace(saved)
+                baseline = NewOrderDraftStore.encode(saved)
+                restored = true
+            }
+            scope.launch { stillOurs() }
+            // Work put on the phone's draft by another screen is in Drafts from now, not from its next key.
+            if (WorkDraftSync.order.id == null) sync()
+        } else if (saved != null) {
+            // Blank, with this phone's copy made sure of in Drafts.
+            WorkDraftSync.order.release(biz, kept) { WorkDraftSync.snapshot(saved, s) }
+            NewOrderPhoneStore.clear(biz)
+        } else {
+            // Nothing kept here: an id left from it is no draft of this form's.
+            WorkDraftSync.order.forget(biz)
+        }
+        WorkDraftSync.order.resume()
+        seedTodaysRates()
+        settleTakenBy()
+    }
+
+    // The shop's settings say whether drafts are kept: wait for them (a moment, from the phone's cache), then decide what to open.
     LaunchedEffect(Unit) {
         if (!loaded) {
-            NewOrderPhoneStore.load()?.let { saved ->
-                holder.replace(saved)
-                restored = true
-                launch {
-                    if (WorkDraftSync.order.stillThere() == false && created == null) {
-                        NewOrderPhoneStore.clear()
-                        WorkDraftSync.order.forget()
-                        holder.replace(NewOrderDraft.fresh())
-                        restored = false
-                        editingId = null
-                        seedTodaysRates()
-                        settleTakenBy()
-                        tell("Finished on another device", "The order kept on this phone was saved or discarded from Drafts on another device, so it is cleared here. Look for it under Orders.")
-                    }
-                }
-            }
-            loaded = true
+            if (!House.isDemo) withTimeoutOrNull(3000) { book.settings.loaded.first { it } }
+            begin()
         }
     }
     // The rates start as today's, once; a draft that is continued keeps the rates it was quoted at.
@@ -240,14 +300,8 @@ private fun NewOrderForm(readsSlip: Boolean, edit: NewOrderEdit?, ratesFirst: Bo
         }
     }
 
-    // Kept on this phone as it is typed: a moment after the last key, and at once when the app leaves.
-    LaunchedEffect(holder.stamp, loaded) {
-        if (!loaded || edit != null || created != null) return@LaunchedEffect
-        delay(700)
-        val snapshot = holder.now.copy()
-        withContext(Dispatchers.Default) { NewOrderPhoneStore.save(snapshot) }
-        sync()
-    }
+    // Kept on this phone and in Drafts at every change, and at once when the app leaves or the screen goes.
+    LaunchedEffect(holder.stamp, loaded) { changed() }
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { keepNow() }
     DisposableEffect(Unit) { onDispose { keepNow() } }
     MoneyFeedback(success = created, failure = null)
@@ -305,13 +359,13 @@ private fun NewOrderForm(readsSlip: Boolean, edit: NewOrderEdit?, ratesFirst: Bo
                         tell("The order wasn't saved", "The ERP saved the order but didn't say its number. Look for it in Orders.")
                         return@launch
                     }
-                    NewOrderPhoneStore.clear()
-                    WorkDraftSync.order.drop()
+                    NewOrderPhoneStore.clear(biz)
+                    WorkDraftSync.order.drop(biz)
                     // Made from the sale in progress: the pieces are the order's now, and leaving them on the sale would
                     // bill the same pieces a second time (the web clears the cart).
                     if (draft.fromSale) {
-                        Prefs.remove(SaleDraftStore.key)
-                        WorkDraftSync.sale.drop()
+                        Prefs.remove(SaleDraftStore.key, biz)
+                        WorkDraftSync.sale.drop(biz)
                     }
                     offerSizes(made, draft)
                     // Blank, so a keep that was already on its way writes nothing back.
@@ -335,9 +389,10 @@ private fun NewOrderForm(readsSlip: Boolean, edit: NewOrderEdit?, ratesFirst: Bo
     }
 
     fun startOver() {
-        NewOrderPhoneStore.clear()
-        WorkDraftSync.order.drop()
+        NewOrderPhoneStore.clear(biz)
+        WorkDraftSync.order.drop(biz)
         holder.replace(NewOrderDraft.fresh())
+        baseline = null
         restored = false
         editingId = null
         stepIndex = 0
@@ -376,6 +431,7 @@ private fun NewOrderForm(readsSlip: Boolean, edit: NewOrderEdit?, ratesFirst: Bo
                     }
                     when (step) {
                         EntryStep.customer -> {
+                            if (edit == null && d.isBlank) DraftsNote()
                             CustomerSection(holder, people, shop.takenBy) { RecentCustomers.recent(invoices, orders, customers) }
                             PromisedSection(holder)
                         }
@@ -425,7 +481,7 @@ private fun NewOrderForm(readsSlip: Boolean, edit: NewOrderEdit?, ratesFirst: Bo
                             if (EntryHouse.margin.rattiLess != null) MarginSection(holder, settings) { totals }
                             TotalsSection(totals, d.pieces.size)
                             if (edit == null && !d.isBlank) {
-                                FormCard(footer = "Your order is kept on this phone, and in Drafts for the counter, until you save it or start over.") {
+                                FormCard(footer = "Your order is kept as you type, on this phone and in Drafts for the counter, until you save it or start over.") {
                                     ActionRow("Start over", destructive = true, onClick = { confirmReset = true })
                                 }
                             }

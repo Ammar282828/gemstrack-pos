@@ -59,7 +59,8 @@ object StockKit {
 
     const val addPath = "/products/add"
     const val bulkAddPath = "/products/bulk-add"
-    const val newSalePath = "/invoices/new"
+    /** Where Sell goes: the sale in progress, which the piece was just put on (it does not open blank). */
+    const val newSalePath = "/invoices/new?resume=1"
 
     /** Pages under /products/ that are not a piece: the forms (adding one, adding many). */
     val ownPages: Set<String> = setOf(addPath, bulkAddPath)

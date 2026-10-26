@@ -8,6 +8,8 @@ import erp.core.entry.SaleBillReading
 import erp.core.entry.SaleDraft
 import erp.core.entry.fillFromBill
 import erp.core.entry.fillFromSlip
+import erp.core.logic.VoiceReplies
+import erp.core.logic.VoiceReply
 import erp.core.logic.rupees
 import erp.core.models.Customer
 import erp.core.models.Product
@@ -36,6 +38,9 @@ class VoiceCard(raw: Map<String, Any?>) {
 
 /** The ERP's reading of a request (`NativeVoicePlan`): an answer, steps to confirm, and the page to open. */
 class VoicePlan(raw: Map<String, Any?>, var reviewedWords: String) {
+    /** The model's own reading, sent back with the next change so one plan is refined (src/lib/voice/refine.ts). */
+    @Suppress("UNCHECKED_CAST")
+    val reading: Map<String, Any?>? = raw["reading"] as? Map<String, Any?>
     val cards: List<VoiceCard> = (raw["cards"] as? List<*>).orEmpty().mapNotNull { (it as? Map<*, *>)?.let { m -> @Suppress("UNCHECKED_CAST") VoiceCard(m as Map<String, Any?>) } }
     val answer: String? = raw["answer"] as? String
     val href: String? = raw["href"] as? String
@@ -86,6 +91,46 @@ object VoiceLogic {
         val db = 20.0 * log10(amplitude / 32767.0)
         return ((db + 55.0) / 55.0).coerceIn(0.0, 1.0).toFloat()
     }
+
+    /** How much of the earlier words goes back with a change (refine.ts keeps 1000; the iPhone sends the last 800). */
+    private const val PREVIOUS_WORDS = 800
+
+    /** The wait for a reading: the model answers in about a second, so a request this slow has lost its line. */
+    const val ASK_TIMEOUT_MS = 30_000L
+
+    /**
+     * A request body for a spoken or typed sentence. With a plan not yet saved on screen the sentence is a change to
+     * it: the earlier words and the model's own reading go with it (`previous`, src/lib/voice/refine.ts).
+     */
+    fun requestBody(words: String, refining: VoicePlan?): Map<String, Any?> {
+        val body = LinkedHashMap(textBody(words))
+        val reading = refining?.reading
+        if (refining != null && reading != null) {
+            body["previous"] = mapOf("words" to refining.reviewedWords.takeLast(PREVIOUS_WORDS), "reading" to reading)
+        }
+        return body
+    }
+
+    /** The words the plan answers: the earlier ones and the change, so a further change goes back whole. */
+    fun cumulative(refining: VoicePlan?, words: String): String =
+        if (refining == null) words else "${refining.reviewedWords}, $words"
+
+    /** What was said while a reading was out: only a change is kept (a "yes" then was about the plan before it). */
+    fun queue(queued: String?, words: String): String? =
+        if (VoiceReplies.of(words) == VoiceReply.OTHER) listOfNotNull(queued, words).joinToString(" ") else queued
+
+    /** One short line aloud: the answer, the first thing wrong, or what is about to be saved (`NativeVoiceSession.spoken`). */
+    fun spoken(plan: VoicePlan): String {
+        fun short(text: String) = if (text.length > 220) text.take(220) + "…" else text
+        plan.answer?.let { return short(it) }
+        plan.cards.firstNotNullOfOrNull { it.problem }?.let { return short(it) }
+        if (plan.operations.isEmpty()) return ""
+        if (plan.cards.size == 1) return short(plan.cards[0].summary) + ". Save it?"
+        return "${plan.cards.size} changes. Save them?"
+    }
+
+    /** The meter's 0...1 from the recogniser's rms (about -2 quiet to 10 loud, in dB). */
+    fun levelFromRms(db: Float): Float = ((db + 2f) / 12f).coerceIn(0f, 1f)
 
     /** A card's heading as the iPhone shows it (`.capitalized`: each word's first letter up, the rest down). */
     fun heading(title: String): String =

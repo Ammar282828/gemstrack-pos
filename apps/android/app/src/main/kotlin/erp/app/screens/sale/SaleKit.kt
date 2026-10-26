@@ -115,6 +115,9 @@ internal fun Modifier.keyboardSafe(): Modifier = if (LocalBottomBar.current) thi
 internal object SaleLinks {
     const val newSale = "/invoices/new"
 
+    /** The sale in progress: a piece was put on it (SaleStore.add), so the sale opens on it rather than blank. */
+    const val continueSale = "/invoices/new?resume=1"
+
     /** New sale with the AI bill reader open over it (SaleScanScreen). */
     const val readBill = "/invoices/new?scan=bill"
 

@@ -41,6 +41,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import erp.app.ErpApp
 import erp.app.auth.LocalSession
@@ -83,6 +85,12 @@ fun VoiceScreen(model: VoiceModel? = null) {
     val context = LocalContext.current
     val voice = remember(model) { model ?: VoiceModel(context, ErpApp.scope) }
     DisposableEffect(voice) { onDispose { voice.close() } }
+    var language by rememberSaveable { mutableStateOf("en-PK") }
+    // Listening starts with the sheet, not with a tap (a model handed in, as the previews do, is shown as it stands).
+    LaunchedEffect(voice) { if (model == null) voice.open(language) }
+    // The lock, the switcher and other apps close the microphone; it opens again with the app.
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { voice.pause() }
+    LifecycleEventEffect(Lifecycle.Event.ON_START) { voice.resume() }
 
     val book = LocalBook.current
     LaunchedEffect(book) { book.customers.need(); book.products.need(); book.settings.need() }
@@ -92,7 +100,6 @@ fun VoiceScreen(model: VoiceModel? = null) {
     val formsReady = customersLoaded && productsLoaded && settingsLoaded
     val person = LocalSession.current.shop.person
 
-    var language by rememberSaveable { mutableStateOf("en-PK") }
     val navigator = LocalNavigator.current
     val scope = rememberCoroutineScope()
 
@@ -114,7 +121,8 @@ fun VoiceScreen(model: VoiceModel? = null) {
                 )
                 else -> throw VoiceHandoff.Failure("Open the native form and enter the details shown above.")
             }
-            open(path)
+            // The form opens blank unless asked to continue (drafts, 2026-10-25): voice has just filled it, so ask.
+            open(if ('?' in path) "$path&resume=1" else "$path?resume=1")
         } catch (e: Exception) {
             voice.failure = e.message ?: e.toString()
         }
@@ -125,10 +133,24 @@ fun VoiceScreen(model: VoiceModel? = null) {
     SettingsPage {
         SettingsSection {
             Column(Modifier.fillMaxWidth().padding(vertical = 12.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                MicButton(listening = voice.listening, enabled = !voice.busy) { if (voice.listening) voice.finish() else voice.start(language) }
-                Text(if (voice.listening) "Listening… tap stop when done" else "Talk to the book", style = MaterialTheme.typography.titleMedium)
+                MicButton(listening = voice.listening, enabled = !(voice.starting || voice.writing)) { voice.micTap(language) }
+                Text(
+                    when {
+                        voice.listening && voice.clipMode -> "Listening… tap stop when done"
+                        voice.listening -> "Listening… tap when done"
+                        voice.starting -> "Starting…"
+                        else -> "Talk to the book"
+                    },
+                    style = MaterialTheme.typography.titleMedium,
+                )
                 if (voice.listening) {
                     LevelBars(voice.level)
+                    if (voice.live.isNotBlank()) {
+                        Text(
+                            voice.live, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                        )
+                    }
                 } else {
                     Text(
                         "Ask a question, record a payment, or open a page.",
@@ -137,8 +159,8 @@ fun VoiceScreen(model: VoiceModel? = null) {
                     )
                 }
             }
-            if (!voice.listening && !voice.busy) {
-                PickerRow("Live words", language, VoiceLogic.languages) { language = it }
+            if (!voice.writing && (!voice.clipMode || (!voice.listening && !voice.busy))) {
+                PickerRow("Live words", language, VoiceLogic.languages) { language = it; voice.setLanguage(it) }
             } else {
                 Row(Modifier.fillMaxWidth().ledgerRow(), verticalAlignment = Alignment.CenterVertically) {
                     Text("Live words", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -148,8 +170,9 @@ fun VoiceScreen(model: VoiceModel? = null) {
             ToggleRow("Read answers aloud", voice.readAloud, { on -> voice.readAloud = on; if (!on) voice.silence() })
         }
 
-        val editable = !(voice.listening || voice.busy || voice.completed > 0)
-        SettingsSection("Your words", footer = "Check the reading below before saving. Recording stops after one minute.") {
+        // The microphone stays open beside the field (what is said lands above it), so only a recording or a request locks it.
+        val editable = !((voice.listening && voice.clipMode) || voice.busy || voice.completed > 0)
+        SettingsSection("Your words", footer = if (voice.clipMode) "Check the reading below before saving. Recording stops after one minute." else "Check the reading below before saving. Say yes to save, or a change to adjust it.") {
             FieldRow(
                 "Or type what you need…", voice.words, { voice.words = it }, enabled = editable,
                 singleLine = false, minLines = 3, maxLines = 8,
@@ -171,7 +194,10 @@ fun VoiceScreen(model: VoiceModel? = null) {
             }
         }
         voice.failure?.let { error ->
-            SettingsSection { SmallPrint(error, Tone.problem, Modifier.fillMaxWidth().ledgerRow()) }
+            SettingsSection {
+                SmallPrint(error, Tone.problem, Modifier.fillMaxWidth().ledgerRow())
+                if (voice.canRetry) ActionRow("Try again", onClick = { voice.retry() }, icon = Icons.Filled.Refresh)
+            }
         }
 
         voice.plan?.let { plan ->

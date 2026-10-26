@@ -17,6 +17,13 @@
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
 
+    <!-- Package visibility (API 30+): without this SpeechRecognizer.isRecognitionAvailable answers false and the voice sheet never listens -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+    </queries>
+
     <application
         android:name=".ErpApp"
         android:allowBackup="false"
@@ -55,6 +62,16 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="shoperp" android:host="open" />
             </intent-filter>
+            <!-- "Talk to ERP" from the system: a headset or car's voice command, and the assist gesture; both open the voice sheet
+                 (AppRouter.voiceTarget). The launcher shortcut and the Quick Settings tile use erp://voice below. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VOICE_COMMAND" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.ASSIST" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
             <!-- The app's own address: erp://orders/ORD-000123 -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
@@ -62,6 +79,8 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="erp" />
             </intent-filter>
+            <!-- Long-press the icon, the launcher's search and the Assistant: Talk to ERP (xml/shortcuts.xml) -->
+            <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts" />
         </activity>
 
         <!-- Every page pushed from a tab or the create menu: its own Activity, so Android draws the open/close
@@ -87,6 +106,18 @@
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
             android:resource="@drawable/ic_stat_erp" />
+
+        <!-- Quick Settings tile "Talk to ERP": opens the app listening -->
+        <service
+            android:name=".device.VoiceTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_voice"
+            android:label="@string/voice_tile_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
 
         <!-- The home-screen widget; its picker label is the flavor's app_name ("Taheri ERP" / "Mina ERP") -->
         <receiver

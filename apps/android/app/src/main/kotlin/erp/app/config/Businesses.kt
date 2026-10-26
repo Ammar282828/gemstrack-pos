@@ -207,6 +207,8 @@ object Businesses {
         if (House.isDemo || id == _current.value.id) return
         val next = business(id) ?: return
         val left = _current.value
+        // Work still waiting for its moment in Drafts is sent now, to the business it was typed in.
+        WorkDraftSync.flushAll(left.id)
         Prefs.putString(Prefs.BUSINESS_CURRENT, id)
         erp.app.data.Book.leave(left)
         erp.app.auth.Sessions.deactivate(left.id)
