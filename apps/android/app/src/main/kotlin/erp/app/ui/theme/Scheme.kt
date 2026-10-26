@@ -116,7 +116,6 @@ class ToneColors private constructor(
         // The meaning-colours' starting points (amber, green, teal, blue): each is blended toward the scheme's primary by
         // Material's own harmonisation (a hue shift of at most 15 degrees) so they belong to the scheme without ever changing
         // meaning. Red is the scheme's error and is left alone: a late promise must stay red whatever the business's colour.
-        private val owedBase = 0xFFFF9500.toInt()
         private val settledBase = 0xFF34C759.toInt()
         private val creditBase = 0xFF30B0C7.toInt()
         private val workingBase = 0xFF007AFF.toInt()
@@ -136,9 +135,12 @@ class ToneColors private constructor(
             }
             // M3's error, as its own palette: hue 25, chroma 84.
             val red = roles(TonalPalette.fromHueAndChroma(25.0, 84.0))
+            // Owed is a fixed deep orange, not harmonised: blended toward Taheri's gold it became the gold itself, and money
+            // owed must read as a warning beside the house's own colour (found in the 2026-10-26 screenshots).
+            val orange = roles(TonalPalette.fromHueAndChroma(45.0, 72.0))
             return ToneColors(
                 late = red,
-                owed = harmonised(owedBase),
+                owed = orange,
                 settled = harmonised(settledBase),
                 credit = harmonised(creditBase),
                 working = harmonised(workingBase),
