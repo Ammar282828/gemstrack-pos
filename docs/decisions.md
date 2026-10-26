@@ -890,6 +890,20 @@ their standing "do everything yourself": `docs/features/design-studio-plan.md`; 
 - **Words, not audio, go to the model** (on-device words as text); one model, thinking off. Money saves stay awaited, the rest go through the Outbox.
 - **Siri, the Action button, Spotlight and Control Center open it** straight into listening, for an owner, behind the lock, on the open business.
 
+## Android app
+
+### Material You
+
+2026-10-26. The owner: "Update the design language to Material YOU. Do your research on how Material You looks and feels, the UI, and everything, and implement it on the app." `docs/features/android-app.md#material-you-2026-10-26`.
+
+- **Android wears Material You, not the iPhone's look.** Material 3 Expressive as Pixel's own apps draw it (Settings, Clock, Wallet): tonal surfaces with no shadow or
+  hairline, the Expressive shape scale, the system sans (no serif), segmented groups of rows, large collapsing top bars, connected button groups, shape-morphing
+  buttons and cards. Words, money, payloads, navigation and the iPhone's features are untouched; the iPhone and the web keep their own look.
+- **The seed is the business's colour.** Every Material 3 role is grown from the open business's accent (TonalSpot, light and dark; Google's Material Color Utilities), so
+  Taheri is gold and House of Mina pink and staff tell them apart as before. The meaning-colours (late, owed, settled, credit, working) are tonal palettes harmonised toward it.
+- **Wallpaper colours are optional.** Settings → This phone → "Wallpaper colours" (Android 12+) wears the phone's own scheme instead. Off by default, because one app holds both
+  houses and the business's colour is the cue.
+
 ## Outside AI
 
 ### AI keys

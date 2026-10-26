@@ -22,7 +22,6 @@ import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -269,10 +268,10 @@ object RecentCustomers {
 fun Initials(name: String, modifier: Modifier = Modifier, size: Dp = 30.dp) {
     val parts = name.split(' ').filter { it.isNotEmpty() }.take(2)
     val letters = parts.joinToString("") { it.first().uppercase() }.ifEmpty { "?" }
-    val accent = ErpColors.accent
+    val accent = MaterialTheme.colorScheme.onSecondaryContainer
     val textSize = with(LocalDensity.current) { (size * 0.4f).toSp() }
     androidx.compose.foundation.layout.Box(
-        modifier.size(size).clip(CircleShape).background(accent.copy(alpha = 0.16f)).clearAndSetSemantics {},
+        modifier.size(size).clip(CircleShape).background(MaterialTheme.colorScheme.secondaryContainer).clearAndSetSemantics {},
         contentAlignment = Alignment.Center,
     ) {
         Text(letters, color = accent, fontSize = textSize, lineHeight = textSize, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.SansSerif, maxLines = 1, softWrap = false)

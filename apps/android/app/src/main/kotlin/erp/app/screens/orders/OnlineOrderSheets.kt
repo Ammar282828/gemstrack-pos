@@ -1,5 +1,6 @@
 package erp.app.screens.orders
 
+import erp.app.ui.Loading
 import android.content.Intent
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
@@ -20,15 +21,14 @@ import androidx.compose.material.icons.filled.ListAlt
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.Button
+import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import erp.app.ui.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -85,7 +85,7 @@ fun OnlineMessageSection(preview: OnlinePreview?, problem: String?, fallback: St
                 Text("The exact words could not be read: $problem", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             else -> Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                Loading(Modifier.size(24.dp))
                 Text("Reading what is sent…", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
@@ -111,7 +111,7 @@ private fun OnlineBottomButton(
     val colors = if (destructive) ButtonDefaults.buttonColors(containerColor = Tone.problem.color(), contentColor = Color.White)
     else ButtonDefaults.buttonColors(containerColor = ErpColors.accent, contentColor = ErpColors.onAccent)
     Button(onClick = onClick, enabled = !disabled && !busy, modifier = Modifier.fillMaxWidth(), colors = colors) {
-        if (busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = colors.contentColor) else Icon(icon, null, Modifier.size(18.dp))
+        if (busy) Loading(Modifier.size(24.dp), color = colors.contentColor) else Icon(icon, null, Modifier.size(18.dp))
         Text(title, Modifier.padding(start = 8.dp))
     }
 }

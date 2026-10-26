@@ -1,5 +1,6 @@
 package erp.app.screens.owner
 
+import erp.app.ui.Loading
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,12 +26,11 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import erp.app.ui.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -363,7 +363,7 @@ private fun PartnerCard(p: ShareholderFigures.Position, onAsk: (ShareholderAsk) 
     val words = if (owed) "The business owes ${p.name}" else if (claim < 0) "${p.name} owes the business" else "All settled"
     val tone: Color = if (owed) Tone.credit.color() else if (claim < 0) Tone.owed.color() else MaterialTheme.colorScheme.onSurface
     Column(Modifier.padding(horizontal = 16.dp).readableColumn(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        LedgerHeading(p.name, Modifier.padding(horizontal = 4.dp))
+        LedgerHeading(p.name, Modifier.padding(horizontal = 16.dp))
         Column(Modifier.fillMaxWidth().cardEdges(true, true).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(words, Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -514,7 +514,7 @@ private fun Distribution(
         partners = positions.map { p -> PartnerDistributionInput(p.name, p.balance.loanBalance, p.balance.equityBalance, p.balance.netPnL) },
     )
     Column(Modifier.padding(horizontal = 16.dp).readableColumn(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        LedgerHeading("Distribution calculator", Modifier.padding(horizontal = 4.dp))
+        LedgerHeading("Distribution calculator", Modifier.padding(horizontal = 16.dp))
         Column(Modifier.fillMaxWidth().cardEdges(true, true).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (Partnership.isFloorStale(s) && Partnership.isMonthStart()) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
@@ -613,7 +613,7 @@ private fun FloorRow(s: PartnershipSettings, floorText: String?, onFloorText: (S
         )
         if (changed) {
             Button(onClick = { saveFloor(parsed) }, enabled = !saving) {
-                if (saving) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = ErpColors.onAccent) else Text("Save")
+                if (saving) Loading(Modifier.size(24.dp), color = ErpColors.onAccent) else Text("Save")
             }
         } else {
             Icon(Icons.Filled.CheckCircle, contentDescription = "Saved", tint = Tone.settled.color())

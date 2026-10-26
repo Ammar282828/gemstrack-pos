@@ -26,13 +26,13 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -249,7 +249,7 @@ fun TeamNoteEditor(onDismiss: () -> Unit) {
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        LedgerHeading("Team note", Modifier.padding(horizontal = 4.dp))
+                        LedgerHeading("Team note", Modifier.padding(horizontal = 16.dp))
                         OutlinedTextField(
                             value = text,
                             onValueChange = { text = it },
@@ -260,7 +260,7 @@ fun TeamNoteEditor(onDismiss: () -> Unit) {
                             enabled = !saving,
                         )
                         // The field never cuts the text; Save stays off until it fits, so say so rather than leave it grey.
-                        Column(Modifier.padding(horizontal = 4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text("Visible to everyone until cleared.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Text(
                                 if (over) "Keep it under ${TeamNote.LIMIT} characters: $count / ${TeamNote.LIMIT}" else "$count / ${TeamNote.LIMIT}",
@@ -279,7 +279,7 @@ fun TeamNoteEditor(onDismiss: () -> Unit) {
                             color = MaterialTheme.colorScheme.error,
                         )
                     }
-                    failure?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(horizontal = 4.dp)) }
+                    failure?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(horizontal = 16.dp)) }
                 }
             }
         }

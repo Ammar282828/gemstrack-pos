@@ -15,7 +15,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -173,12 +173,12 @@ internal fun TaheriBookImportPage(initial: BookPreview? = null, initialDone: Pai
 @Composable
 private fun FileSection(p: BookPreview) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        LedgerHeading("What is in the file", Modifier.padding(horizontal = 4.dp), trailing = p.source.ifEmpty { null })
+        LedgerHeading("What is in the file", Modifier.padding(horizontal = 16.dp), trailing = p.source.ifEmpty { null })
         Tallies("Customers", Icons.Filled.People, p.count("customersNew"), p.count("customersSettled"), p.count("customersConflict"))
         Tallies("Karigars", Icons.Filled.Engineering, p.count("karigarsNew"), p.count("karigarsSettled"), p.count("karigarsConflict"))
         Text(
             "${p.customersInFile} customers and ${p.karigarsInFile} karigars. These go into the live book; nothing is written until you press Import, and anyone already here is skipped.",
-            Modifier.padding(horizontal = 4.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

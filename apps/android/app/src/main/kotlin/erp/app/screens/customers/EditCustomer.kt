@@ -1,5 +1,7 @@
 package erp.app.screens.customers
 
+import erp.app.ui.ContainedLoading
+import erp.app.ui.Loading
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,10 +15,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.PersonOff
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -170,7 +171,7 @@ private fun EditCustomerForm(customer: Customer) {
                 SourcePicker(d.source, original = customer.source?.rawValue) { d = d.copy(source = it) }
             }
             error?.let { Text(it, color = Tone.problem.color(), style = MaterialTheme.typography.bodyMedium) }
-            if (saving) Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+            if (saving) Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { ContainedLoading() }
         }
     }
 }

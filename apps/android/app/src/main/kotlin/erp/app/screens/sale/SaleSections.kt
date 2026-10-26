@@ -1,5 +1,6 @@
 package erp.app.screens.sale
 
+import erp.app.ui.Loading
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -22,17 +23,17 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.Button
+import erp.app.ui.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
+import erp.app.ui.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -764,7 +765,7 @@ internal fun SaveBar(s: SaleFormState, f: SaleFigures, openPath: (String) -> Uni
             enabled = f.canSave && !s.saving && !erp.app.ui.rememberUpdateBlocked(),
             modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 52.dp),
         ) {
-            if (s.saving) androidx.compose.material3.CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = ErpColors.onAccent)
+            if (s.saving) Loading(Modifier.size(24.dp), color = ErpColors.onAccent)
             Text(label, Modifier.padding(start = if (s.saving) 8.dp else 0.dp))
         }
     }

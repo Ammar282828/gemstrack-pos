@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.SegmentedColumn
 import erp.app.ui.zoomSource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -171,15 +172,15 @@ fun sendAllWords(state: PostsState): String {
 /** Rows on the house's card with a hairline between them. */
 @Composable
 internal fun RowsCard(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    Column(modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card)) { DividedColumn { content() } }
+    SegmentedColumn(modifier) { DividedColumn { content() } }
 }
 
 @Composable
 private fun Titled(title: String, footer: String? = null, content: @Composable () -> Unit) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        LedgerHeading(title, Modifier.padding(horizontal = 4.dp))
+        LedgerHeading(title, Modifier.padding(horizontal = 16.dp))
         content()
-        if (footer != null) Text(footer, Modifier.padding(horizontal = 4.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (footer != null) Text(footer, Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

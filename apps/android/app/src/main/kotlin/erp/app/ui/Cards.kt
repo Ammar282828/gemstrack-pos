@@ -1,22 +1,17 @@
 package erp.app.ui
 
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.ui.layout.Layout
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -29,6 +24,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -36,14 +32,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
@@ -55,29 +46,24 @@ import erp.app.ui.theme.ErpType
 
 // MARK: Cards
 
-/** Content on the house's card: the padding and corner every ledger card shares. */
-@Composable
-fun Modifier.ledgerCard(padding: Dp = 16.dp): Modifier =
-    fillMaxWidth().houseCardSurface().padding(padding)
+// Material You: a card is a tonal surface (surfaceContainer on the page's surface), never a shadow or a hairline.
 
 /**
- * The card's surface in the flat 22 dp shape, lifted off the ground by what each mode can carry (the iPhone's `houseCard`):
- * light, a very soft shadow (y 1, blur 3, black 5%); dark, a 0.5 dp hairline of white at 7%. No other border.
+ * Content on the scheme's card tone: the padding and corner every ledger card shares. [lit] is "yours" (the person's own
+ * order or sale): a short bar of the primary at the leading edge, as a list row has it (`mineRow`), never an outline or a wash.
  */
 @Composable
-fun Modifier.houseCardSurface(): Modifier {
-    val shape = Radius.cardShape
-    return if (ErpColors.dark) {
-        clip(shape).background(ErpColors.card).border(0.5.dp, Color.White.copy(alpha = 0.07f), shape)
-    } else {
-        shadow(1.dp, shape, clip = false, ambientColor = Color.Black.copy(alpha = 0.05f), spotColor = Color.Black.copy(alpha = 0.05f))
-            .clip(shape).background(ErpColors.card)
-    }
-}
+fun Modifier.ledgerCard(padding: Dp = 16.dp, lit: Boolean = false): Modifier =
+    fillMaxWidth().houseCardSurface(lit).padding(padding)
+
+/** The card's surface: the extraLarge shape on `surfaceContainer`. Flat: lifted by tone, not by a shadow. */
+@Composable
+fun Modifier.houseCardSurface(lit: Boolean = false): Modifier =
+    clip(Radius.cardShape).background(ErpColors.card).then(if (lit) Modifier.mineBar() else Modifier)
 
 /**
- * A titled card: [LedgerHeading] over the content, on the house's card. Use it for a block of rows or figures
- * on a page of cards (a list of rows uses [LedgerSection]).
+ * A titled card: [LedgerHeading] over the content, on the scheme's card tone. Use it for a block of figures or free
+ * content on a page of cards (a list of rows uses [LedgerSection], which draws each row as its own tile).
  */
 @Composable
 fun SectionCard(
@@ -94,41 +80,17 @@ fun SectionCard(
 }
 
 /**
- * The one hero card of a screen, in place of [ledgerCard]: a faint wash of the house's accent from the top
- * corner, a hairline edge and, now and then, a slow light across it. Still when animations are off. Once per
- * screen; every other card is a [ledgerCard].
+ * The one hero card of a screen, in place of [ledgerCard]: the scheme's primary container, as Material 3 Expressive
+ * marks the one thing a screen is about. Once per screen; every other card is a [ledgerCard].
  */
 @Composable
-fun Modifier.heroSheen(padding: Dp = 16.dp): Modifier {
-    val accent = ErpColors.accent
-    val reduce = reduceMotion()
-    // One pass of light when the card first appears, then it rests: nothing on a screen loops.
-    val phase = remember { Animatable(if (reduce) 1f else 0f) }
-    if (!reduce) LaunchedEffect(Unit) { phase.animateTo(1f, tween(1100, delayMillis = 250, easing = Motion.TravelEasing)) }
-    return fillMaxWidth()
-        .clip(Radius.cardShape)
-        .background(ErpColors.card)
-        .drawBehind {
-            drawRect(Brush.linearGradient(listOf(accent.copy(alpha = 0.10f), Color.Transparent), Offset.Zero, Offset(size.width * 0.5f, size.height * 0.5f)))
-            val t = phase.value
-            if (t < 1f) {
-                val x = -size.width * 0.5f + (size.width * 2f) * t
-                drawRect(
-                    Brush.linearGradient(
-                        listOf(Color.Transparent, accent.copy(alpha = 0.07f), Color.Transparent),
-                        Offset(x, 0f), Offset(x + size.width * 0.5f, size.height * 0.5f),
-                    ),
-                )
-            }
-        }
-        .border(BorderStroke(0.5.dp, accent.copy(alpha = 0.18f)), Radius.cardShape)
-        .padding(padding)
-}
+fun Modifier.heroSheen(padding: Dp = 16.dp): Modifier =
+    fillMaxWidth().clip(Radius.cardShape).background(MaterialTheme.colorScheme.primaryContainer).padding(padding)
 
 /** A dashed hairline, like the tear on a receipt: between a bill's lines and its totals. */
 @Composable
 fun PerforationDivider(modifier: Modifier = Modifier) {
-    val line = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
+    val line = MaterialTheme.colorScheme.outlineVariant
     Canvas(modifier.fillMaxWidth().height(1.dp).clearAndSetSemantics {}) {
         drawLine(
             line, Offset(0f, size.height / 2), Offset(size.width, size.height / 2),
@@ -139,18 +101,25 @@ fun PerforationDivider(modifier: Modifier = Modifier) {
 
 // MARK: Sections of rows
 
-/** A row inside a [LedgerSection]: the card's own inset and a comfortable height. */
+/** A row inside a [LedgerSection]: the tile's own inset and a comfortable height. */
 fun Modifier.ledgerRow(): Modifier = defaultMinSize(minHeight = 56.dp).padding(horizontal = 16.dp, vertical = 8.dp)
 
-/** The line between two rows of a [LedgerSection]. */
+/**
+ * The line between two rows. In a segmented group ([LedgerSection], [FormSection]) it is only a marker: the gap between
+ * two tiles is the line. In a plain card it is the hairline it always was.
+ */
 @Composable
 fun LedgerDivider(modifier: Modifier = Modifier) {
-    HorizontalDivider(modifier.padding(start = 16.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+    if (LocalInSegments.current) {
+        Layout({}, modifier.segmentGap()) { _, _ -> layout(0, 0) {} }
+    } else {
+        HorizontalDivider(modifier.padding(start = 16.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+    }
 }
 
 /**
- * Secondary pages use the same headings and row surfaces as the main ledger: the name over a card of rows
- * (give each row [ledgerRow] and put a [LedgerDivider] between), with an optional footnote under it.
+ * Secondary pages use the same headings and row surfaces as the main ledger: the name over a group of rows, each its
+ * own tile (give each row [ledgerRow]; a [LedgerDivider] between is optional), with an optional footnote under it.
  * [collapsible] folds the rows under their title.
  */
 @Composable
@@ -164,9 +133,7 @@ fun LedgerSection(
     val reduce = reduceMotion()
     val foot: @Composable () -> Unit = {
         if (footer != null) {
-            androidx.compose.runtime.CompositionLocalProvider(
-                androidx.compose.material3.LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant,
-            ) {
+            CompositionLocalProvider(androidx.compose.material3.LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant) {
                 androidx.compose.material3.ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                     Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) { footer() }
                 }
@@ -197,13 +164,17 @@ fun LedgerSection(
                 enter = expandVertically(Motion.enter(reduce)) + fadeIn(Motion.enter(reduce)),
                 exit = shrinkVertically(Motion.exit(reduce)) + fadeOut(Motion.exit(reduce)),
             ) {
-                Column { content(); foot() }
+                // The rows are tiles one step up from the card they sit in, with a 4 dp margin as a card holds its rows.
+                Column(Modifier.padding(start = 4.dp, end = 4.dp, bottom = 4.dp)) {
+                    SegmentedColumn(color = MaterialTheme.colorScheme.surfaceContainerHigh, outer = Radius.chip, content = content)
+                    foot()
+                }
             }
         }
     } else {
         Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            LedgerHeading(title, Modifier.padding(horizontal = 4.dp))
-            Column(Modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card)) { content() }
+            LedgerHeading(title, Modifier.padding(horizontal = 16.dp))
+            SegmentedColumn(content = content)
             foot()
         }
     }

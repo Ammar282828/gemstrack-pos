@@ -1,5 +1,6 @@
 package erp.app.screens.design
 
+import erp.app.ui.Loading
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -42,19 +43,18 @@ import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Switch
+import erp.app.ui.OutlinedButton
+import erp.app.ui.SegmentedButton
+import erp.app.ui.SegmentedButtonDefaults
+import erp.app.ui.SingleChoiceSegmentedButtonRow
+import erp.app.ui.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -437,7 +437,7 @@ private fun InstagramBlock(p: DesignPublishModel, scope: kotlinx.coroutines.Coro
 private fun Captions(p: DesignPublishModel, scope: kotlinx.coroutines.CoroutineScope) {
     SectionCard("Captions") {
         OutlinedButton(onClick = { scope.launch { p.writeCaptions() } }, Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp), enabled = !p.aiBusy) {
-            if (p.aiBusy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else Icon(Icons.Filled.AutoAwesome, null, Modifier.size(18.dp))
+            if (p.aiBusy) Loading(Modifier.size(24.dp)) else Icon(Icons.Filled.AutoAwesome, null, Modifier.size(18.dp))
             Text("Write with AI", Modifier.padding(start = 8.dp))
         }
         if (p.waOn) DesignField("WhatsApp caption", p.wa, { p.wa = it }, minLines = 3, maxLines = 8)
@@ -511,7 +511,7 @@ private fun StatusIcon(s: DesignPublishModel.Status) {
     when (s) {
         DesignPublishModel.Status.Done -> Icon(Icons.Filled.CheckCircle, "Done", tint = Tone.settled.color())
         DesignPublishModel.Status.Failed -> Icon(Icons.Filled.Cancel, "Failed", tint = Tone.problem.color())
-        DesignPublishModel.Status.Running -> CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
+        DesignPublishModel.Status.Running -> Loading(Modifier.size(30.dp))
         DesignPublishModel.Status.Manual -> Icon(Icons.Filled.TouchApp, "Waiting for you", tint = Tone.owed.color())
         DesignPublishModel.Status.Waiting -> Icon(Icons.Filled.CheckCircle, "Waiting", tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f))
     }

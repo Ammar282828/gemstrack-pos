@@ -119,15 +119,15 @@ fun QuickAction(
  */
 @Composable
 fun MineTag(modifier: Modifier = Modifier) {
-    val accent = ErpColors.accent
     Text(
         "You",
         modifier
-            .border(1.dp, accent.copy(alpha = 0.5f), CircleShape)
-            .padding(horizontal = 6.dp, vertical = 2.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.secondaryContainer)
+            .padding(horizontal = 8.dp, vertical = 2.dp)
             .clearAndSetSemantics { contentDescription = "Taken by you" },
         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-        color = accent,
+        color = MaterialTheme.colorScheme.onSecondaryContainer,
     )
 }
 
@@ -137,16 +137,14 @@ fun MineTag(modifier: Modifier = Modifier) {
  * 2026-10-05). The whole row tinted made a day's card look like a warning.
  */
 @Composable
-fun Modifier.mineRow(mine: Boolean): Modifier {
-    val card = ErpColors.card
+fun Modifier.mineRow(mine: Boolean): Modifier = background(ErpColors.card).then(if (mine) Modifier.mineBar() else Modifier)
+
+/** The short bar of the primary at a row's or card's leading edge that says "yours". */
+@Composable
+fun Modifier.mineBar(): Modifier {
     val accent = ErpColors.accent
-    return background(card).drawBehind {
-        if (mine) {
-            val inset = 10.dp.toPx()
-            drawRoundRect(
-                accent, Offset(0f, inset), Size(3.dp.toPx(), size.height - 2 * inset),
-                CornerRadius(1.5.dp.toPx()),
-            )
-        }
+    return drawBehind {
+        val inset = 10.dp.toPx()
+        drawRoundRect(accent, Offset(0f, inset), Size(3.dp.toPx(), size.height - 2 * inset), CornerRadius(1.5.dp.toPx()))
     }
 }

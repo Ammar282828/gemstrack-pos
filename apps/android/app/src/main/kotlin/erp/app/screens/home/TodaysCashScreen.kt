@@ -121,7 +121,7 @@ private fun Page(t: TodaysCash, now: Instant, open: (String) -> Unit) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(
                 DashDate.dayLabel(now),
-                Modifier.padding(horizontal = 4.dp),
+                Modifier.padding(horizontal = 16.dp),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
