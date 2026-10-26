@@ -121,7 +121,8 @@ fun VoiceScreen(model: VoiceModel? = null) {
                 )
                 else -> throw VoiceHandoff.Failure("Open the native form and enter the details shown above.")
             }
-            open(path)
+            // The form opens blank unless asked to continue (drafts, 2026-10-25): voice has just filled it, so ask.
+            open(if ('?' in path) "$path&resume=1" else "$path?resume=1")
         } catch (e: Exception) {
             voice.failure = e.message ?: e.toString()
         }
