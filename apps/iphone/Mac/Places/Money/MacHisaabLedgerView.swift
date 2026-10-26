@@ -53,7 +53,7 @@ struct MacHisaabLedgerView: View {
         let rows = made([book.hisaab.revision, page.lines.count, sort.hashValue]) {
             page.lines.map { (l: HisaabLedgerLine) in MacHisaabLedgerRow(l) }.sorted(using: sort)
         }
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 20) {
             head
             figureCards
             VStack(alignment: .leading, spacing: 0) {
@@ -67,7 +67,7 @@ struct MacHisaabLedgerView: View {
             .houseCard()
             .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         }
-        .padding(20)
+        .padding(24)
         .background(Theme.ground)
         .macSummaryBar(summary)
         .macRecordMenu(MacRecordMenu(title: "Hisaab", groups: base + selected(selection)))
@@ -130,7 +130,7 @@ struct MacHisaabLedgerView: View {
     private func moves(cash: Double, grams: Double, tone: Tone) -> some View {
         VStack(alignment: .trailing, spacing: 1) {
             if cash > 0 { MacAmount(cash, tone: tone) }
-            if grams > 0 { Text("\(MoneyFormat.grams(grams)) g").font(.caption).foregroundStyle(.secondary).monospacedDigit() }
+            if grams > 0 { Text(MoneyFormat.grams(grams)).font(.caption).foregroundStyle(.secondary).monospacedDigit() }
         }
         .frame(maxWidth: .infinity, alignment: .trailing)
     }
@@ -159,7 +159,7 @@ struct MacHisaabLedgerView: View {
         if abs(page.gold) > 0.0005 {
             detail = "\(MoneyFormat.grams(abs(page.gold))) \(MoneyWords.metal) \(page.gold > 0 ? "to receive" : "to pay")"
         }
-        return LazyVGrid(columns: [GridItem(.adaptive(minimum: 200, maximum: 400), spacing: 16)], spacing: 16) {
+        return MacEvenLayout(minimum: 200, spacing: 16) {
             MacDashFigureCard(title: settled ? "Balance" : (gets ? "You will get" : "You will give"),
                               symbol: "book.closed", tint: settled ? Tone.settled.color : (gets ? Tone.owed.color : Tone.credit.color),
                               value: Money.pkr(abs(page.cash)), detail: settled ? "Settled" : (detail.isEmpty ? "In cash" : detail),

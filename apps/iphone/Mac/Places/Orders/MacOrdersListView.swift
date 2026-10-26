@@ -40,6 +40,8 @@ struct MacOrdersListView<RowMenu: View>: View {
     let sort: MacOrdersSort
     /// A search is on: the folded groups open so its hits are not hidden.
     let searching: Bool
+    /// The saved list's title (Late, Not Started), nil on the whole place: a group of that very name is not said twice.
+    var listTitle: String?
     @Binding var selection: Set<String>
     let open: (Set<String>) -> Void
     @ViewBuilder let menu: (Set<String>) -> RowMenu
@@ -91,8 +93,14 @@ struct MacOrdersListView<RowMenu: View>: View {
         return [MacOrdersGroup(id: "all", title: "", hint: "", folds: false, rows: ordered, worth: 0)]
     }
 
+    /// The window's title already names this group ("Not Started" over a group "Not started"): no heading is said again.
+    private func namedByTitle(_ g: MacOrdersGroup) -> Bool {
+        guard let listTitle else { return false }
+        return g.title.caseInsensitiveCompare(listTitle) == .orderedSame
+    }
+
     private func isOpen(_ g: MacOrdersGroup) -> Bool {
-        !g.folds || searching || unfolded.contains(g.id)
+        !g.folds || searching || namedByTitle(g) || unfolded.contains(g.id)
     }
 
     @ViewBuilder
@@ -100,6 +108,11 @@ struct MacOrdersListView<RowMenu: View>: View {
         if g.title.isEmpty {
             Section {
                 ForEach(g.rows) { (r: MacOrdersListRow) in MacOrdersRow(row: r, showsStage: true) }
+            }
+            .houseRows()
+        } else if namedByTitle(g) {
+            Section {
+                ForEach(g.rows) { (r: MacOrdersListRow) in MacOrdersRow(row: r, showsStage: false) }
             }
             .houseRows()
         } else {
@@ -125,7 +138,7 @@ struct MacOrdersListView<RowMenu: View>: View {
                         .font(.caption.weight(.semibold)).foregroundStyle(.secondary).frame(width: 12).padding(.top, 3)
                 }
                 VStack(alignment: .leading, spacing: 2) {
-                    LedgerHeading(title: g.title, count: g.rows.count, trailing: g.worth >= 1 ? "worth " + Money.pkrLac(g.worth) : nil)
+                    LedgerHeading(title: g.title, count: g.rows.count, trailing: g.worth >= 1 ? "worth " + Money.pkrLac(g.worth, digits: 1) : nil)
                     if !g.hint.isEmpty {
                         Text(g.hint).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                     }

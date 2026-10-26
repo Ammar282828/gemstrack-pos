@@ -485,12 +485,11 @@ extension ExpensesScreen {
                 Divider()
             }
             List(selection: $macPick) {
+                // The period is the window's subtitle: it is not said again over the figures.
                 Section {
-                    figures(data.summary)
+                    macFigures(data.summary)
                         .listRowInsets(EdgeInsets())
                         .listRowBackground(Color.clear)
-                } header: {
-                    LedgerHeading(title: periodLine(data.range))
                 }
                 ForEach(data.groups) { (group: MoneyGroup<Expense>) in
                     Section {
@@ -502,11 +501,11 @@ extension ExpensesScreen {
                     } header: {
                         groupHeader(group)
                     }
+                    .houseRows()
                 }
             }
             .listStyle(.inset)
-            .scrollContentBackground(.hidden)
-            .background(Theme.ground)
+            .modifier(HouseGround())
             .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
                 MacActionItems(groups: macGroups(for: ids))
             } primaryAction: { (ids: Set<String>) in
@@ -521,6 +520,24 @@ extension ExpensesScreen {
         .navigationSubtitle(periodLine(data.range))
     }
 
+    /// The page's figures as the kit's cards in one grid, as every Mac page has its own: the total and the payments, and what
+    /// the iPhone folds under "Spending breakdown" (the average, the karigars' share, the biggest day, week or month), which
+    /// a Mac has room to show. Nothing to break down when nothing was paid, so then there are two.
+    private func macFigures(_ s: ExpenseSummary) -> some View {
+        let per = grouping.title.lowercased()
+        var out: [MacFigure] = [
+            MacFigure("Total expenses", Money.pkr(s.total)),
+            MacFigure("Payments", "\(s.count)", detail: category.isEmpty ? nil : category),
+        ]
+        if s.count > 0 {
+            out.append(MacFigure("Average per \(per)", Money.pkr(s.perBucket)))
+            out.append(MacFigure("Karigar payments", Money.pkr(s.karigarTotal), detail: "\(s.karigarShare)% of total"))
+            out.append(MacFigure("Biggest \(per)", Money.pkr(s.biggestTotal), detail: s.biggestLabel))
+        }
+        return MacFigureGrid(out, minimum: 180)
+            .padding(.vertical, 6)
+    }
+
     @ViewBuilder
     private var macEmptyState: some View {
         let filtering = !search.isEmpty || !category.isEmpty
@@ -532,22 +549,15 @@ extension ExpensesScreen {
         }
     }
 
-    /// The page's tiles as the one line a list ends in: the payments and their total, the average and the biggest of the
-    /// grouping, and the karigars' share; with rows picked, the picked rows' own sum.
+    /// What a list ends in: the payments and their total (the cards above say the average, the biggest and the karigars' share);
+    /// with rows picked, the picked rows' own sum.
     private func macSummary(_ rows: [ExpensesMacRow], _ s: ExpenseSummary) -> [String] {
         if macPick.count > 1 {
             let picked = rows.filter { (r: ExpensesMacRow) in macPick.contains(r.id) }
             let sum = picked.reduce(0.0) { (total: Double, r: ExpensesMacRow) in total + r.amount }
             return ["\(picked.count) selected", Money.pkr(sum)]
         }
-        let per = grouping.title.lowercased()
-        var parts = ["\(s.count) payment\(s.count == 1 ? "" : "s")", "Total \(Money.pkr(s.total))"]
-        if s.count > 0 {
-            parts.append("Average per \(per) \(Money.pkrLac(s.perBucket))")
-            if s.biggestTotal > 0 { parts.append("Biggest \(per) \(Money.pkrLac(s.biggestTotal)) (\(s.biggestLabel))") }
-        }
-        if s.karigarTotal > 0 { parts.append("Karigar payments \(Money.pkrLac(s.karigarTotal)) (\(s.karigarShare)%)") }
-        return parts
+        return ["\(s.count) payment\(s.count == 1 ? "" : "s")", "Total \(Money.pkr(s.total))"]
     }
 
     // MARK: The actions, declared once

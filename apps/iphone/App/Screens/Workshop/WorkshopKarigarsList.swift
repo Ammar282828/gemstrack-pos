@@ -497,7 +497,7 @@ extension WorkshopKarigarsList {
             if session.isOwner && r.cash.rounded() != 0 {
                 VStack(alignment: .trailing, spacing: 1) {
                     RowAmount(amount: abs(r.cash.rounded()), tone: r.cash.rounded() < 0 ? Tone.owed.color : Color.primary)
-                    Text(r.cash.rounded() < 0 ? "we owe" : "holds").font(.caption).foregroundStyle(.secondary)
+                    Text(r.cash.rounded() < 0 ? "we owe" : "holds").font(.caption2).foregroundStyle(.secondary)
                 }
             }
         }
@@ -634,7 +634,7 @@ extension WorkshopKarigarsList {
         } else if picked.isEmpty {
             MacInspectorEmpty(title: "No Karigar Selected", detail: "Pick a karigar to see what he holds of ours and his details.")
         } else {
-            MacInspectorEmpty(title: "\(picked.count) Karigars", detail: "Pick one to see his page.")
+            MacInspectorEmpty(title: "\(picked.count) Karigars Selected", detail: "Pick one to see what he holds of ours and his details.")
         }
     }
 

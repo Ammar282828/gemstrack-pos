@@ -74,7 +74,11 @@ struct AdsCampaignsScreen: View {
                 SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
+        #if os(macOS)
+        .navigationTitle("Ads")
+        #else
         .navigationTitle("Campaigns")
+        #endif
         .hubTitleDisplay()
         // An iPad's rows and tables sit in a centred column.
         #if !os(macOS)
@@ -684,7 +688,7 @@ extension AdsCampaignsScreen {
                 .macInspector { macInspectorPanel(d) }
                 .macRefresh { Task { await load() } }
                 .macRecordMenu(MacRecordMenu(title: "Ad", groups: actions.groups))
-                .navigationSubtitle(AdsRange.label(rangeKey) + " · " + d.account.name)
+                .navigationSubtitle("Campaigns · " + AdsRange.label(rangeKey) + " · " + d.account.name)
         )
     }
 
@@ -705,8 +709,9 @@ extension AdsCampaignsScreen {
     @ViewBuilder
     private var macFileBar: some View {
         if problem != nil || exporting || csvFile != nil {
-            HStack(spacing: 12) {
-                if let problem { Label(problem, systemImage: "wifi.exclamationmark").foregroundStyle(.secondary) }
+            // The page's own bar at the foot, as every other (the ground, one hairline), not a grey of its own.
+            MacPageFooter {
+                if let problem { Label(problem, systemImage: "wifi.exclamationmark").foregroundStyle(.secondary).lineLimit(1) }
                 if exporting { Label("Making the CSV…", systemImage: "tablecells") }
                 if let csvFile {
                     ShareLink(item: csvFile) { Label("Save or send \(csvFile.lastPathComponent)", systemImage: "square.and.arrow.up") }
@@ -714,8 +719,6 @@ extension AdsCampaignsScreen {
                 Spacer()
             }
             .font(.callout)
-            .padding(.horizontal, 12).padding(.vertical, 6)
-            .background(.bar)
         }
     }
 
@@ -744,6 +747,7 @@ extension AdsCampaignsScreen {
         let cur = d.account.currency
         return List(rows, children: \.children, selection: $macSelection) { (r: AdsMacRow) in
             macOutlineRow(r, cur)
+                .listRowBackground(Theme.card)
         }
         .listStyle(.inset)
         .scrollContentBackground(.hidden)

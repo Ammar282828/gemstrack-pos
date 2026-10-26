@@ -340,7 +340,7 @@ private struct HisaabMacRow: Identifiable {
         cash = a.cash
         youGet = a.hasCash ? max(0, a.cash) : 0
         youGive = a.hasCash ? max(0, -a.cash) : 0
-        metal = a.gold == 0 ? "" : "\(MoneyFormat.grams(abs(a.gold))) g \(a.gold > 0 ? "to receive" : "to pay")"
+        metal = a.gold == 0 ? "" : "\(MoneyFormat.grams(abs(a.gold))) \(a.gold > 0 ? "to receive" : "to pay")"
     }
 }
 
@@ -448,15 +448,18 @@ extension HisaabScreen {
         let made = macRows(data)
         let rows = made.rows
         List(selection: $macPick) {
-            ForEach(rows) { (r: HisaabMacRow) in
-                HisaabAccountRow(account: r.account, listInvoices: true)
-                    .padding(.vertical, 2)
-                    .tag(r.id)
+            // The rows are the iPhone's on the card colour, as Customers' and Invoices' are: the monogram, the name over one
+            // line, the sum at the right. Every row is two lines, so the list keeps one rhythm.
+            Section {
+                ForEach(rows) { (r: HisaabMacRow) in
+                    HisaabMacListRow(account: r.account)
+                        .tag(r.id)
+                }
             }
+            .houseRows()
         }
         .listStyle(.inset)
-        .scrollContentBackground(.hidden)
-        .background(Theme.ground)
+        .modifier(HouseGround())
         .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
             MacActionItems(groups: macGroups(for: ids, data))
         } primaryAction: { (ids: Set<String>) in
@@ -612,7 +615,7 @@ extension HisaabScreen {
         } else if macPick.count > 1 {
             MacInspectorEmpty(title: "\(macPick.count) Accounts Selected")
         } else {
-            MacInspectorEmpty(title: "No Account Selected")
+            MacInspectorEmpty(title: "No Account Selected", detail: "Pick an account to see its balance and every entry.")
         }
     }
 
@@ -620,6 +623,40 @@ extension HisaabScreen {
         macLedgerMade([book.hisaab.revision, id.hashValue]) {
             HisaabLedger.page(book.hisaab.items.filter { (e: HisaabEntry) in e.entityId == id })
         }
+    }
+}
+
+/// One account in the list: the iPhone's row at a pointer's size. The name, then one line that joins what else there is to say
+/// (a karigar, the metal owed either way, the invoices owing), then the cash at the right. A customer with nothing more to
+/// say is "Customer", so no row is a line shorter than the rest.
+private struct HisaabMacListRow: View {
+    let account: HisaabAccount
+
+    private var line: String {
+        var parts: [String] = []
+        if account.isWalkIn { parts.append("Sales with no customer named") } else if !account.isCustomer { parts.append("Karigar") }
+        if account.gold != 0 {
+            parts.append("\(MoneyFormat.grams(abs(account.gold))) \(MoneyWords.metal) \(account.gold > 0 ? "to receive" : "to pay")")
+        }
+        let n = account.unpaid.count
+        if n > 0 { parts.append("\(n) invoice\(n == 1 ? "" : "s") owing") }
+        return parts.isEmpty ? "Customer" : parts.joined(separator: " \u{00B7} ")
+    }
+
+    private var tint: Color { account.cash > 0 ? Tone.owed.color : Tone.credit.color }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Monogram(name: account.name, size: Monogram.Size.row)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(account.name).font(.body.weight(.medium)).lineLimit(1)
+                Text(line).font(.callout).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
+            }
+            Spacer(minLength: 8)
+            if account.hasCash { RowAmount(amount: abs(account.cash), tone: tint) }
+        }
+        .padding(.vertical, 3)
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -668,7 +705,7 @@ private struct HisaabMacInspector: View {
                 }
             }
             if account.gold != 0 {
-                Text("\(MoneyFormat.grams(abs(account.gold))) g \(MoneyWords.metal) \(account.gold > 0 ? "to receive" : "to pay")")
+                Text("\(MoneyFormat.grams(abs(account.gold))) \(MoneyWords.metal) \(account.gold > 0 ? "to receive" : "to pay")")
                     .font(.callout).monospacedDigit().foregroundStyle(.secondary)
             }
         }
@@ -747,8 +784,8 @@ private struct HisaabMacLine: View {
             VStack(alignment: .trailing, spacing: 1) {
                 if e.cashDebit > 0 { Text("Gave \(Money.pkr(e.cashDebit))").foregroundStyle(Tone.owed.color) }
                 if e.cashCredit > 0 { Text("Got \(Money.pkr(e.cashCredit))").foregroundStyle(Tone.settled.color) }
-                if e.goldDebitGrams > 0 { Text("Gave \(MoneyFormat.grams(e.goldDebitGrams)) g").font(.caption).foregroundStyle(.secondary) }
-                if e.goldCreditGrams > 0 { Text("Got \(MoneyFormat.grams(e.goldCreditGrams)) g").font(.caption).foregroundStyle(.secondary) }
+                if e.goldDebitGrams > 0 { Text("Gave \(MoneyFormat.grams(e.goldDebitGrams))").font(.caption).foregroundStyle(.secondary) }
+                if e.goldCreditGrams > 0 { Text("Got \(MoneyFormat.grams(e.goldCreditGrams))").font(.caption).foregroundStyle(.secondary) }
             }
             .monospacedDigit()
         }

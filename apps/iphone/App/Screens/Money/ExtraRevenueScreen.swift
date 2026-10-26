@@ -299,7 +299,7 @@ extension ExtraRevenueScreen {
             Divider()
             List(selection: $macPick) {
                 Section {
-                    figures(data.months.flatMap { (m: MoneyMonth<AdditionalRevenue>) in m.rows })
+                    macFigures(rows)
                         .listRowInsets(EdgeInsets())
                         .listRowBackground(Color.clear)
                 }
@@ -312,11 +312,11 @@ extension ExtraRevenueScreen {
                     } header: {
                         monthHeader(month)
                     }
+                    .houseRows()
                 }
             }
             .listStyle(.inset)
-            .scrollContentBackground(.hidden)
-            .background(Theme.ground)
+            .modifier(HouseGround())
             .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
                 MacActionItems(groups: macGroups(for: ids))
                 if let r = macEntry(ids), let repairId = r.repairId, !repairId.isEmpty {
@@ -337,6 +337,22 @@ extension ExtraRevenueScreen {
             }
         }
         .macSummaryBar(macSummary(rows))
+        .navigationSubtitle("\(rows.count) entr\(rows.count == 1 ? "y" : "ies")")
+    }
+
+    /// The page's figures as the kit's cards in one grid, like every Mac page's: the total, how many entries, and the biggest
+    /// (nothing is biggest while there are none).
+    private func macFigures(_ rows: [ExtraRevenueMacRow]) -> some View {
+        let total = rows.reduce(0.0) { (sum: Double, r: ExtraRevenueMacRow) in sum + r.amount }
+        var out: [MacFigure] = [
+            MacFigure("Total revenue", Money.pkr(total)),
+            MacFigure("Entries", "\(rows.count)"),
+        ]
+        if let biggest = rows.max(by: { (a: ExtraRevenueMacRow, b: ExtraRevenueMacRow) in a.amount < b.amount }) {
+            out.append(MacFigure("Biggest entry", Money.pkr(biggest.amount), detail: biggest.what))
+        }
+        return MacFigureGrid(out, minimum: 180)
+            .padding(.vertical, 6)
     }
 
     // MARK: Worked out once

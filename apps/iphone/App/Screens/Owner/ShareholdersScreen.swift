@@ -498,8 +498,8 @@ extension ShareholdersBoard {
             Dictionary(f.positions.map { (p: ShareholderFigures.Position) in (p.id, macRows(p)) }, uniquingKeysWith: { first, _ in first })
         }
         return ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 200, maximum: 400), spacing: 16)], spacing: 16) {
+            VStack(alignment: .leading, spacing: 20) {
+                MacEvenLayout(minimum: 200, spacing: 16) {
                     MacDashFigureCard(title: "Revenue", symbol: "banknote", tint: Theme.accent,
                                       value: ShareholderMoney.fmt(f.totals.totalRevenue), detail: "The partnership's", open: nil) { EmptyView() }
                     MacDashFigureCard(title: "Expenses", symbol: "arrow.up.circle", tint: Color.orange,
@@ -512,11 +512,13 @@ extension ShareholdersBoard {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                 MacReportsWidth(760) {
+                    // The partners' cards stand level: each is as tall as the taller.
                     HStack(alignment: .top, spacing: 16) {
                         ForEach(f.positions) { (p: ShareholderFigures.Position) in
-                            macPartner(p, rows: byPartner[p.id] ?? []).frame(maxWidth: .infinity)
+                            macPartner(p, rows: byPartner[p.id] ?? []).frame(maxWidth: .infinity, maxHeight: .infinity)
                         }
                     }
+                    .fixedSize(horizontal: false, vertical: true)
                 } narrow: {
                     VStack(spacing: 16) {
                         ForEach(f.positions) { (p: ShareholderFigures.Position) in
@@ -525,7 +527,9 @@ extension ShareholdersBoard {
                     }
                 }
             }
-            .padding(20)
+            .padding(24)
+            .frame(maxWidth: 1400, alignment: .leading)
+            .frame(maxWidth: .infinity)
         }
         .background(Theme.ground)
         .macInspector {
@@ -624,7 +628,8 @@ extension ShareholdersBoard {
                 if macPick.count == 1, let id = macPick.first, let r = rows.first(where: { $0.id == id }) { macDelete(r, of: p) }
             }
             .scrollContentBackground(.hidden)
-            .frame(minHeight: rows.isEmpty ? 200 : min(420, 90 + 44 * CGFloat(rows.count)))
+            // Sized to its rows (nine at most, then it scrolls), not 90 points over them.
+            .macReportsTable(rows: rows.isEmpty ? 4 : rows.count, cap: 9)
             .overlay {
                 if rows.isEmpty {
                     ContentUnavailableView("No Entries", systemImage: "tray",
@@ -632,6 +637,7 @@ extension ShareholdersBoard {
                 }
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .houseCard()
         .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
     }

@@ -141,7 +141,9 @@ struct MacWorkshopBoardView: View {
             }
         }
         .padding(.horizontal, 12).padding(.vertical, 12)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        // Every column's head is as tall as the tallest (a karigar's with his load and his pills), so the first pieces of the
+        // columns start level.
+        .frame(maxWidth: .infinity, minHeight: 82, alignment: .topLeading)
     }
 
     @ViewBuilder

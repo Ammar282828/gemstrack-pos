@@ -156,7 +156,7 @@ struct InsightsMacPlatformTable: View {
                 .width(min: 100, ideal: 260)
         }
         .scrollContentBackground(.hidden)
-        .frame(height: adsMacTableHeight(list.count, row: 36))
+        .frame(height: adsMacTableHeight(list.count, row: 42))
     }
 }
 
@@ -275,7 +275,7 @@ struct InsightsMacPostPanel: View {
                         .houseCard()
                 }
                 VStack(alignment: .leading, spacing: 8) {
-                    LedgerHeading(title: "The Numbers")
+                    LedgerHeading(title: "The numbers")
                     VStack(spacing: 6) { AdsMacFigureRows(figures: figures) }
                 }
                 .padding(14)

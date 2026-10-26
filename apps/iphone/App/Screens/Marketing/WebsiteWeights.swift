@@ -406,29 +406,35 @@ extension WebsiteWeightsScreen {
         let c = counts
         let q = queue
         return MacTwoPane(sideWidth: 520) {
-            List {
-                Group {
-                    if let p = current {
-                        photoSection(p, of: q.count)
-                    } else {
-                        Section {
-                            Label(onlyMissing ? "Every photo here has a weight. Switch off “Only photos without a weight” to review or correct any of them." : "Nothing matches. Clear the search or choose another collection.",
-                                  systemImage: "checkmark.circle")
-                                .foregroundStyle(.secondary)
-                        }
-                    }
+            if let p = current {
+                List {
+                    Group { photoSection(p, of: q.count) }
+                        .houseRows()
                 }
-                .houseRows()
+                .listStyle(.inset)
+            } else {
+                // The empty page, as every page says it: centred, a title and one line.
+                ContentUnavailableView {
+                    Label(onlyMissing ? "Every Photo Has a Weight" : "Nothing Matches", systemImage: "checkmark.circle")
+                } description: {
+                    Text(onlyMissing ? "Switch off “Only Photos Without a Weight” in the toolbar to review or correct any of them."
+                                     : "Clear the search or choose another collection.")
+                }
             }
-            .listStyle(.inset)
         } main: {
             VStack(spacing: 0) {
-                MacFigures([
-                    MacFigure("Weighed", "\(c.withWeight) of \(c.total)"),
-                    MacFigure("To go", c.total - c.withWeight > 0 ? "\(c.total - c.withWeight)" : "None"),
-                ])
-                ProgressView(value: Double(c.withWeight), total: Double(max(1, c.total))).tint(Theme.accent).padding(.horizontal, 14)
-                Divider().padding(.top, 8)
+                // The kit's figure cards (the plain divided row was the one place that did not use them).
+                MacFigureGrid([
+                    MacFigure("Weighed", "\(c.withWeight) of \(c.total)", detail: "\(Int((Double(c.withWeight) / Double(max(1, c.total)) * 100).rounded()))% done"),
+                    MacFigure("To go", c.total - c.withWeight > 0 ? "\(c.total - c.withWeight)" : "None",
+                              detail: c.total - c.withWeight > 0 ? "photos without a weight" : "every photo has one"),
+                ], minimum: 150)
+                .padding(.horizontal, 16)
+                .padding(.top, 14)
+                ProgressView(value: Double(c.withWeight), total: Double(max(1, c.total))).tint(Theme.accent)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                Divider()
                 List {
                     Group {
                         Section {
@@ -447,7 +453,7 @@ extension WebsiteWeightsScreen {
                 .listStyle(.inset)
             }
         }
-        .navigationSubtitle(collection.isEmpty ? "" : collection)
+        .navigationSubtitle(collection.isEmpty ? "All collections" : collection)
         .macRecordMenu(MacRecordMenu(title: "Photo", groups: [[macSaveNext(q.count), macSkip(q.count)], [macPrevious, macNext(q.count)]]))
         .macRefresh { Task { await load() } }
         .toolbar {
@@ -471,7 +477,7 @@ extension WebsiteWeightsScreen {
         }
         .savedFeedback(trigger: savedTick)
         .onAppear { typing = true }
-        .actionBar(primary: .init("Save & Next", systemImage: "checkmark", isDisabled: current == nil) { ask(advance: true) })
+        .macPageActionBar(primary: .init("Save & Next", systemImage: "checkmark", isDisabled: current == nil) { ask(advance: true) })
     }
 
     private var macPrevious: MacAction {
@@ -508,7 +514,7 @@ extension WebsiteWeightsScreen {
             }
             WebsiteFeatureButton(key: p.key, name: p.file)
         } header: {
-            Text("Weight")
+            LedgerHeading(title: "Weight")
         } footer: {
             if p.source == "label", let g = p.labelWeightGrams {
                 Text("The photo already shows \(WebsiteNumber.grams(g))g. A weight typed here is used for pricing instead; the photo keeps its own label.")

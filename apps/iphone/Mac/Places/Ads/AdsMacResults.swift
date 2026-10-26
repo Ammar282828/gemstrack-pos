@@ -64,8 +64,9 @@ enum AdsMacResultsFigures {
     }
 }
 
-/// A table's height for its rows: the report stacks its tables, each as tall as its rows.
-func adsMacTableHeight(_ rows: Int, row: CGFloat = 28) -> CGFloat {
+/// A table's height for its rows: the report stacks its tables, each as tall as its rows. 34 points a row and the head's 32:
+/// at 28 the last row of a table of two lines in a cell was cut in half at the card's foot.
+func adsMacTableHeight(_ rows: Int, row: CGFloat = 34) -> CGFloat {
     CGFloat(max(rows, 1)) * row + 32
 }
 

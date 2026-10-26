@@ -519,6 +519,15 @@ struct SiteTile: View {
     var detail: String?
 
     var body: some View {
+        #if os(macOS)
+        // The Mac's one figure card (Mac/Kit/MacParts.swift), with the change on the period before under the line: every
+        // tile of a row as tall as the tallest, whatever it has to say (two of Visitors' eight stood shorter).
+        MacFigureCard(figure: MacFigure(label, value, detail: detail), extraHeight: 18) {
+            if let now, let before {
+                SiteDelta(now: now, before: before, invert: invert)
+            }
+        }
+        #else
         VStack(alignment: .leading, spacing: pt(6)) {
             Text(label).font(.subheadline).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -537,6 +546,7 @@ struct SiteTile: View {
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .ledgerCard()
+        #endif
     }
 }
 
@@ -564,6 +574,18 @@ struct SiteBlock<Content: View>: View {
 
     var body: some View {
         if wide {
+            #if os(macOS)
+            // The card fills its cell's height, so cards side by side in a row stand level (owner's snapshots, 2026-10-27).
+            VStack(alignment: .leading, spacing: pt(12)) {
+                head
+                content()
+                if let note {
+                    Text(note).font(.footnote).foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxHeight: .infinity, alignment: .topLeading)
+            .ledgerCard()
+            #else
             VStack(alignment: .leading, spacing: pt(12)) {
                 head
                 content()
@@ -572,6 +594,7 @@ struct SiteBlock<Content: View>: View {
                 }
             }
             .ledgerCard()
+            #endif
         } else {
             Section {
                 content()

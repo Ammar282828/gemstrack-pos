@@ -51,7 +51,7 @@ struct MacReportsCashPage: View {
         let out = paidOutRows(t, key: key)
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 200, maximum: 400), spacing: 16)], spacing: 16) {
+                MacEvenLayout(minimum: 200, spacing: 16) {
                     MacDashFigureCard(title: "In the drawer", symbol: "banknote", tint: t.netCash < 0 ? Tone.owed.color : Theme.accent,
                                       value: Money.pkr(t.netCash), detail: "Cash in, less paid out",
                                       detailTone: t.netCash < 0 ? Tone.owed : nil, open: nil) { EmptyView() }
@@ -67,11 +67,16 @@ struct MacReportsCashPage: View {
                                       open: nil) { EmptyView() }
                 }
                 MacReportsWidth(880) {
+                    // The two columns stand level: "Came in" is as tall as the right column, whose last card takes the rest.
                     HStack(alignment: .top, spacing: 16) {
-                        cameIn(came).frame(maxWidth: .infinity)
-                        VStack(spacing: 16) { methodsCard(methods); paidOutCard(out) }
-                            .frame(minWidth: 320, idealWidth: 380, maxWidth: 460)
+                        cameIn(came).frame(maxWidth: .infinity, maxHeight: .infinity)
+                        VStack(spacing: 16) {
+                            methodsCard(methods).fixedSize(horizontal: false, vertical: true)
+                            paidOutCard(out)
+                        }
+                        .frame(minWidth: 320, idealWidth: 380, maxWidth: 460, maxHeight: .infinity)
                     }
+                    .fixedSize(horizontal: false, vertical: true)
                 } narrow: {
                     VStack(spacing: 16) { cameIn(came); methodsCard(methods); paidOutCard(out) }
                 }

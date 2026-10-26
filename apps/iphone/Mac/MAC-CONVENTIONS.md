@@ -148,6 +148,26 @@ built for mac." This replaces the classic-Mac look of 2026-10-25 (system greys, 
   sections as cards. Report heads are figure cards. Cards, LedgerHeading, FigureTile, HeroAmount are wanted.
 - The Mac's structure stays: sidebar, toolbar (`.automatic`, never `.primaryAction`), inspector, windows, menus, keys.
 
+## One look on every page (2026-10-27, owner: "fix all ui inconsistencies throughout every page")
+
+From the owner's snapshots of all 56 pages. Each rule fixes something that was visible:
+- **Figures**: `MacFigureCard` in `MacFigureGrid` / `MacEvenLayout` (Mac/Kit/MacParts.swift), serif `MacType.figure`, every
+  card in a row as tall as the tallest and the row filling the width. Never an adaptive `LazyVGrid` with a `maximum`
+  (four cards filled two thirds of a wide window), never a fixed-width card, never a figure font of a page's own.
+  `FigureTile`/`FigureGrid` draw through the kit on the Mac.
+- **Title = the sidebar's word**, a count or period as the subtitle ("Website" / "Add photos", not "Add photos").
+- **Widths**: reports and dashboards `padding(24)`, `maxWidth: 1400`, centred; lists fill.
+- **Cards side by side stand level** (`frame(maxHeight: .infinity)` inside, `fixedSize(horizontal: false, vertical: true)` on the row).
+- **Tables in cards never clip** a row or a column.
+- **Bars at the foot**: `.macSummaryBar` (opaque, on the ground); a page's own action bar the same look
+  (`.macPageActionBar` / `MacPageFooter` in App/Screens/Marketing/MarketingMacKit.swift). A notice over a page is a
+  `MacBanner`; chips that wrap are a `MacChipFlow`; short tables in a report are `MacReportsGrid` rows (never clipped).
+- **Inspectors**: on the ground; empty is `MacInspectorEmpty("No X Selected", detail:)`.
+- **The ground under the toolbar** is the shell's (`MacPageGround`), so no page shows the window's grey there.
+- **A dashboard's card goes there in the window** (`macGo`); a list's row opens a window (double-click, Return).
+- **Snapshots** use ScreenCaptureKit once the Mac allows Screen Recording; `cacheDisplay` (the fallback) draws the
+  sidebar white, vibrant text dark and a selected toolbar segment as a blank pill: those are not bugs.
+
 ## Windows, menus and the lock (2026-10-27, from the end-to-end review)
 
 - **Menus answer from any window.** `MacCommands` reads the business in front (`Sessions.shared.current`), never only the

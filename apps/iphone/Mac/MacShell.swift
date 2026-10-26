@@ -124,6 +124,12 @@ struct MacShell: View {
     @State private var columns = NavigationSplitViewVisibility.all
     /// The window's place, kept across quitting: a Mac app reopens where it was left.
     @SceneStorage("mac.place") private var savedPlace = "/"
+    /// The last place any window showed, for the first window of a launch: macOS restores a window's scene storage only
+    /// when it reopens its windows, and with System Settings' "Close windows when quitting an application" on (the
+    /// default) it never does, so every launch opened on Today (the Mac check, 2026-10-27).
+    @AppStorage("mac.lastPlace") private var lastPlace = "/"
+    /// The launch's first window has taken `lastPlace`; a New Window (⌥⇧⌘N) opens on Today.
+    @MainActor private static var launchRestored = false
     @State private var restored = false
 
     private var map: NavMap { NavMap.current.visible(to: session.role) }
@@ -152,10 +158,16 @@ struct MacShell: View {
         } detail: {
             NavigationStack(path: $model.stack) {
                 detailRoot
-                    .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
+                    .modifier(MacPageGround())
+                    .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path).modifier(MacPageGround()) }
             }
             // A hub's row opened in a window of its own (its context menu or a double-click) comes through here.
             .environment(\.openPlaceWindow, OpenPlaceWindow { openWindow(id: MacWindows.place, value: $0) })
+            // A dashboard's card or row goes there in this window, as a link does: a place of the sidebar is selected,
+            // anything else opens over the page (Back returns).
+            .environment(\.macGo, MacGo { [model] path in
+                if MacSidebarMap.allPaths(sections).contains(path) { model.go(path) } else { model.stack.append(Route(path: path)) }
+            })
         }
         // The window's only toolbar items: Back and Forward, ahead of the title as Finder's are. A Mac toolbar with nothing
         // before the title drew the title over the sidebar (owner's screenshots, 2026-10-25). The rest of the toolbar is
@@ -228,7 +240,11 @@ struct MacShell: View {
         .onChange(of: AppLock.shared.locked) { _, locked in
             if locked { model.quickOpen = false; model.voice = false }
         }
-        .onChange(of: model.selection) { _, s in if restored { savedPlace = s ?? "/" } }
+        .onChange(of: model.selection) { _, s in
+            guard restored else { return }
+            savedPlace = s ?? "/"
+            if let s, s != Self.searchID { lastPlace = s }
+        }
         .onChange(of: model.snapshots) { _, asked in
             guard asked else { return }
             model.snapshots = false
@@ -250,7 +266,10 @@ struct MacShell: View {
                     model.go(p)
                 } else if savedPlace != "/", MacSidebarMap.allPaths(sidebarSections(map)).contains(savedPlace) {
                     model.selection = savedPlace
+                } else if !Self.launchRestored, lastPlace != "/", MacSidebarMap.allPaths(sidebarSections(map)).contains(lastPlace) {
+                    model.selection = lastPlace
                 }
+                Self.launchRestored = true
             }
             // A role with no Today (marketing) opens on its first place, never on a dashboard of books it may not see.
             let sections = sidebarSections(map)
@@ -318,6 +337,29 @@ struct MacShell: View {
 
 // MARK: - Opening a place in its own window
 
+/// The page's ground under the whole page, the band under the toolbar included: a page that is not a list showed the
+/// window's grey behind the toolbar while a list showed the ground (owner's snapshots, 2026-10-27).
+struct MacPageGround: ViewModifier {
+    func body(content: Content) -> some View {
+        content.background(Theme.ground.ignoresSafeArea())
+    }
+}
+
+/// Goes to a path in the main window (a sidebar place, or a page over the current one); nil in a separate window.
+struct MacGo {
+    let go: (String) -> Void
+    func callAsFunction(_ path: String) { go(path) }
+}
+
+private struct MacGoKey: EnvironmentKey { static let defaultValue: MacGo? = nil }
+
+extension EnvironmentValues {
+    var macGo: MacGo? {
+        get { self[MacGoKey.self] }
+        set { self[MacGoKey.self] = newValue }
+    }
+}
+
 /// Lets a screen deep in the detail (a table's row) open a place in a window of its own without knowing the scene.
 struct OpenPlaceWindow {
     let open: (Route) -> Void
@@ -350,7 +392,8 @@ struct MacPlaceWindow: View {
             if let route, session.state == .signedIn, openedOn == nil || openedOn == business.id {
                 NavigationStack(path: $stack) {
                     root(route, role: session.role)
-                        .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
+                        .modifier(MacPageGround())
+                        .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path).modifier(MacPageGround()) }
                 }
                 // A record in this window opens another record in a window of its own, as the main window's do.
                 .environment(\.openPlaceWindow, OpenPlaceWindow { openWindow(id: MacWindows.place, value: $0) })

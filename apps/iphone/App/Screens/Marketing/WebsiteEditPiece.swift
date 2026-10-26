@@ -1,4 +1,7 @@
 import SwiftUI
+#if os(macOS)
+import AppKit
+#endif
 import ERPCore
 
 /// One piece of Edit a piece (edit/page.tsx `PieceEditor`): what the website says about it, changed from
@@ -668,7 +671,7 @@ extension WebsiteEditPieceScreen {
                 Button("Put the Original Photo Back…", role: .destructive) { confirm = .photo }
             }
             if let url = URL(string: p.url), !p.url.isEmpty {
-                Link("Open on \(siteName)", destination: url)
+                Button("Open on \(siteName)") { NSWorkspace.shared.open(url) }
             }
             if MarketingKit.has("/design", role: session.role), let openPlace {
                 Button("Open in Design") { openPlace(Route(path: "/design?v=make&site=" + WebsiteNumber.query(p.id))) }
@@ -688,7 +691,11 @@ extension WebsiteEditPieceScreen {
                 Text(anyChange(p) ? "It shows on \(siteName) within a minute." : "Nothing changed yet.")
                     .font(.caption).foregroundStyle(.secondary)
                 HStack {
-                    if p.changed { Button("Undo Every Change…", role: .destructive) { confirm = .all }.buttonStyle(.link) }
+                    if p.changed {
+                        Button("Undo Every Change…", role: .destructive) { confirm = .all }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(Tone.problem.color)
+                    }
                     Spacer(minLength: 8)
                     Button { confirm = .save } label: { Text("Save to the Website") }
                         .buttonStyle(.borderedProminent)
@@ -698,7 +705,8 @@ extension WebsiteEditPieceScreen {
             }
             .padding(12)
         }
-        .background(.bar)
+        // On the page's ground, like every foot (the inspector's own grey bar was a shade of its own).
+        .background(Theme.ground)
     }
 
     // MARK: In a window of its own

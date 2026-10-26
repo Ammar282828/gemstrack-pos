@@ -342,7 +342,7 @@ extension AdsTestsScreen {
         .macRefresh { Task { await loadTests() } }
         .macRecordMenu(MacRecordMenu(title: "Test", groups: [[macManager(s)], [macNewTest]]))
         .macSummaryBar(["\(tests.count) test\(tests.count == 1 ? "" : "s")", "\(tests.filter { (t: AdsTest) in t.running }.count) running"])
-        .navigationSubtitle(data.map { (d: AdsTestsAnswer) in "\(d.tests.count) tests" } ?? "")
+        .navigationSubtitle("Ad sets split against each other")
         .toolbar {
             ToolbarItemGroup(placement: .automatic) {
                 MacToolbarAction(action: macNewTest)

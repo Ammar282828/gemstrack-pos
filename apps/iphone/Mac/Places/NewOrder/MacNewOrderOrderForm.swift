@@ -115,7 +115,8 @@ struct MacNewOrderRates: View {
                 }
                 if differs, let settings {
                     Button("Use Today's Rates") { draft.rates = NewOrderMath.todaysRates(settings) }
-                        .buttonStyle(.link)
+                        .buttonStyle(.plain)
+                        .foregroundStyle(Theme.accent)
                 }
             } header: {
                 Text("Metal Rates (PKR / gram)")
@@ -338,7 +339,8 @@ struct MacNewOrderDelivery: View {
         let offered = knownAddresses().filter { $0 != NewOrderFormat.trim(draft.deliveryAddress) }
         if offered.count == 1, let only = offered.first {
             Button("Use Their Address on File") { draft.deliveryAddress = only }
-                .buttonStyle(.link)
+                .buttonStyle(.plain)
+                .foregroundStyle(Theme.accent)
         } else if offered.count > 1 {
             Menu {
                 ForEach(offered, id: \.self) { a in
@@ -432,7 +434,8 @@ struct MacNewOrderMargin: View {
                 Button("Use the Rate Sheet's \(Money.grouped(Double(sheetTola))) a Tola") {
                     draft.costTola = String(sheetTola)
                 }
-                .buttonStyle(.link)
+                .buttonStyle(.plain)
+                .foregroundStyle(Theme.accent)
             }
             Button { shown.toggle() } label: {
                 HStack {

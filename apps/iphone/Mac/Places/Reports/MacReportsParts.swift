@@ -8,54 +8,21 @@ import ERPCore
 /// A report's figures as cards (the iPhone's figure tiles at a pointer's scale): a grid that uses the width, each figure a
 /// card with its label, the value large, and the line under it (a change against the period compared, a count). Reports
 /// build the kit's `MacFigure`s and hand them here, so the initializer is named once.
-@ViewBuilder
 func macReportsFigures(_ figures: [MacFigure]) -> some View {
-    LazyVGrid(columns: [GridItem(.adaptive(minimum: 170, maximum: 360), spacing: 12)], spacing: 12) {
-        ForEach(figures) { (f: MacFigure) in
-            MacReportsFigureCard(figure: f)
-        }
-    }
+    MacFigureGrid(figures, minimum: 170)
 }
 
-/// One figure as a card: a click opens its place when it has one.
+/// One figure as a card (the kit's `MacFigureCard`: the one look of a figure on the Mac).
 struct MacReportsFigureCard: View {
     let figure: MacFigure
-    @State private var hovering = false
 
-    var body: some View {
-        if let open = figure.open {
-            Button(action: open) { card }
-                .buttonStyle(.plain)
-                .onHover { hovering = $0 }
-                .help("Open \(figure.label)")
-        } else {
-            card
-        }
-    }
-
-    private var card: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(figure.label).font(.callout.weight(.medium)).foregroundStyle(.secondary).lineLimit(1)
-            Text(figure.value)
-                .font(.system(size: 22, weight: .bold, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(figure.tone?.color ?? Color.primary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-            Text(figure.detail ?? " ")
-                .font(.caption)
-                .foregroundStyle(figure.detailTone?.color ?? Color.secondary)
-                .lineLimit(2)
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .topLeading)
-        .contentShape(Rectangle())
-        .modifier(MacDashSurface(hovering: hovering && figure.open != nil))
-    }
+    var body: some View { MacFigureCard(figure: figure) }
 }
 
 /// A report's card: what is inside (a chart, a block of rows, a table) on the card colour with the house's hairline and
-/// lift. A table inside is clipped to the card's corners.
+/// lift. A table inside is clipped to the card's corners. The card fills the height it is given, its surface included
+/// (`maxHeight` is before the background), so cards side by side in a row stand level (owner's snapshots, 2026-10-27:
+/// three cards of one row stood at three heights).
 struct MacReportsCard<Content: View>: View {
     @ViewBuilder let content: () -> Content
 
@@ -63,9 +30,97 @@ struct MacReportsCard<Content: View>: View {
         VStack(alignment: .leading, spacing: 0) {
             content()
         }
-        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .modifier(MacDashSurface())
         .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+    }
+}
+
+/// How tall a `Table` is inside a card: a row is the house's 44 points (`HouseGround`) and the header 36. A table given
+/// less than its rows cut the last one in half and one given more left an empty band under them (owner's snapshots,
+/// 2026-10-27), so a short table is `.macReportsTable(rows:)`: the row height set here and the frame worked out from it.
+enum MacReportsTable {
+    static let row: CGFloat = 44
+    static let header: CGFloat = 36
+
+    /// The height of `rows` rows under the header; `cap` rows at most (a longer table scrolls inside its card).
+    static func height(rows: Int, cap: Int? = nil) -> CGFloat {
+        let shown = min(max(rows, 1), cap ?? Int.max)
+        return header + row * CGFloat(shown)
+    }
+}
+
+extension View {
+    /// A table sized to its rows (see `MacReportsTable`).
+    func macReportsTable(rows: Int, cap: Int? = nil) -> some View {
+        environment(\.defaultMinListRowHeight, MacReportsTable.row)
+            .frame(height: MacReportsTable.height(rows: rows, cap: cap))
+    }
+}
+
+/// One row of a `MacReportsGrid`: its cells as words, the tone of any cell that has one (by column), and, for a row that
+/// opens something, what its first cell does when it is clicked (it is then a link in the house's accent).
+struct MacReportsGridRow: Identifiable {
+    let id: String
+    let cells: [String]
+    var tones: [Int: Tone] = [:]
+    var open: (() -> Void)?
+    var hint: String = ""
+
+    init(_ id: String, _ cells: [String], tones: [Int: Tone] = [:], hint: String = "", open: (() -> Void)? = nil) {
+        self.id = id
+        self.cells = cells
+        self.tones = tones
+        self.hint = hint
+        self.open = open
+    }
+}
+
+/// A short table drawn as rows, a header and a hairline between rows: the first column takes the room, the others are as
+/// wide as their digits. Nothing in it can be cut off at the card's edge or leave a row half drawn, which a `Table` sized by
+/// hand did (the gold sold by karat, the yearly performance; owner's snapshots, 2026-10-27).
+struct MacReportsGrid: View {
+    let headers: [String]
+    let rows: [MacReportsGridRow]
+
+    var body: some View {
+        Grid(alignment: .trailing, horizontalSpacing: 16, verticalSpacing: 0) {
+            GridRow {
+                ForEach(Array(headers.enumerated()), id: \.offset) { (i: Int, h: String) in
+                    cell(h, column: i)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            ForEach(rows) { (r: MacReportsGridRow) in
+                Divider()
+                GridRow {
+                    ForEach(Array(r.cells.enumerated()), id: \.offset) { (i: Int, text: String) in
+                        if i == 0, let open = r.open {
+                            Button(action: open) { cell(text, column: i) }
+                                .buttonStyle(.plain)
+                                .foregroundStyle(Theme.accent)
+                                .pointerHover()
+                                .help(r.hint)
+                        } else {
+                            cell(text, column: i)
+                                .foregroundStyle(r.tones[i]?.color ?? Color.primary)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 8)
+    }
+
+    private func cell(_ text: String, column: Int) -> some View {
+        let room: CGFloat? = column == 0 ? CGFloat.infinity : nil
+        return Text(text)
+            .monospacedDigit()
+            .lineLimit(1)
+            .padding(.vertical, 7)
+            .frame(maxWidth: room, alignment: column == 0 ? .leading : .trailing)
     }
 }
 

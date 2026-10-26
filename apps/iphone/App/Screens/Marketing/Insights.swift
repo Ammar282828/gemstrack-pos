@@ -557,7 +557,12 @@ struct InsightsOverviewScreen: View {
                 SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
+        #if os(macOS)
+        .navigationTitle("Social")
+        .navigationSubtitle("Insights · " + InsightRange.label(rangeKey))
+        #else
         .navigationTitle("Insights")
+        #endif
         .hubTitleDisplay()
         #if os(macOS)
         .toolbar { if mayRead { ToolbarItemGroup(placement: .automatic) { macToolbarItems } } }
@@ -1218,27 +1223,27 @@ extension InsightsOverviewScreen {
     }
 
     func macContent(_ d: InsightsOverview) -> some View {
+        // A report page: centred, 1400 at most, 24 points of gutter, as Today and the other reports.
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: 20) {
                 macFindings
                 if let ig = d.instagram { macInstagram(d, ig) }
                 macPaid(d)
                 if let fb = d.facebook { macFacebook(fb) }
                 macFoot(d)
             }
-            .padding(20)
-            .frame(maxWidth: 1100, alignment: .leading)
+            .padding(24)
+            .frame(maxWidth: 1400, alignment: .leading)
             .frame(maxWidth: .infinity)
         }
         .background(Theme.ground)
         .macRefresh { Task { await load(fresh: true) } }
-        .navigationSubtitle(InsightRange.label(rangeKey))
     }
 
     @ViewBuilder
     private var macFindings: some View {
         if !found.isEmpty {
-            AdsMacSection(title: "What the Numbers Say") {
+            AdsMacSection(title: "What the numbers say") {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(found) { (f: InsightFinding) in
                         HStack(alignment: .top, spacing: 8) {
@@ -1256,29 +1261,43 @@ extension InsightsOverviewScreen {
     }
 
     private func macInstagram(_ d: InsightsOverview, _ ig: InstagramInsight) -> some View {
-        VStack(alignment: .leading, spacing: 24) {
+        VStack(alignment: .leading, spacing: 20) {
             VStack(alignment: .leading, spacing: 10) {
                 LedgerHeading(title: "Instagram", trailing: "@" + ig.username)
-                ForEach(Array(InsightsMacFigures.instagram(ig).enumerated()), id: \.offset) { _, cells in
-                    AdsMacFigureGrid(cells)
-                }
+                // One grid of the eight figures (four and four where the window is wide), not two grids.
+                AdsMacFigureGrid(InsightsMacFigures.instagram(ig).flatMap { (cells: [MacFigure]) in cells })
             }
-            HStack(alignment: .top, spacing: 20) {
-                macReach(ig).frame(maxWidth: .infinity, alignment: .top)
-                macFollowers(d).frame(maxWidth: .infinity, alignment: .top)
-            }
+            macCharts(d, ig)
             macSplit(ig)
         }
     }
 
-    @ViewBuilder
-    private func macReach(_ ig: InstagramInsight) -> some View {
-        let points: [Point] = ig.daily.compactMap { (d: InstagramInsight.Day) -> Point? in
+    private func macReachPoints(_ ig: InstagramInsight) -> [Point] {
+        ig.daily.compactMap { (d: InstagramInsight.Day) -> Point? in
             guard let date = AdsDay.plot(d.date) else { return nil }
             return Point(id: d.date, date: date, value: d.reach)
         }
-        if points.count > 1 {
-            AdsMacSection(title: "Reached, Day by Day") {
+    }
+
+    /// The two charts side by side, each card as tall as the other (the reach chart alone when it has no days to show would
+    /// leave the followers' card at half the width, so then it stands alone).
+    @ViewBuilder
+    private func macCharts(_ d: InsightsOverview, _ ig: InstagramInsight) -> some View {
+        let reach = macReachPoints(ig)
+        if reach.count > 1 {
+            HStack(alignment: .top, spacing: 16) {
+                macReach(reach)
+                macFollowers(d)
+            }
+            .fixedSize(horizontal: false, vertical: true)
+        } else {
+            macFollowers(d)
+        }
+    }
+
+    private func macReach(_ points: [Point]) -> some View {
+        Group {
+            AdsMacSection(title: "Reached, day by day") {
                 Chart(points) { (p: Point) in
                     BarMark(x: .value("Day", p.date, unit: .day), y: .value("Reached", p.value)).foregroundStyle(Theme.accent)
                 }
@@ -1295,7 +1314,7 @@ extension InsightsOverviewScreen {
             guard let date = AdsDay.plot(k.date) else { return nil }
             return Point(id: k.date, date: date, value: k.followers)
         }
-        return AdsMacSection(title: "Followers Over Time") {
+        return AdsMacSection(title: "Followers over time") {
             if points.count > 1 {
                 Chart(points) { (p: Point) in
                     LineMark(x: .value("Day", p.date, unit: .day), y: .value("Followers", p.value)).foregroundStyle(Theme.accent)
@@ -1320,7 +1339,7 @@ extension InsightsOverviewScreen {
         }
         return Group {
             if !rows.isEmpty {
-                AdsMacSection(title: "Ads or Own Posts?", detail: "Counted per surface (posts, carousels, reels, stories, ads), so the parts can add up to more than the account's reach.") {
+                AdsMacSection(title: "Ads or own posts?", detail: "Counted per surface (posts, carousels, reels, stories, ads), so the parts can add up to more than the account's reach.") {
                     InsightsMacSplitTable(rows: rows)
                 }
             }
@@ -1339,7 +1358,7 @@ extension InsightsOverviewScreen {
                                           change: AdsFormat.change(p.metrics.spend, before[p.platform]) ?? "", reach: p.metrics.reach,
                                           views: p.metrics.impressions, clicks: p.metrics.linkClicks, results: results)
         }
-        return AdsMacSection(title: "Ads by Platform") {
+        return AdsMacSection(title: "Ads by platform") {
             if rows.isEmpty {
                 Text("No ad ran in \(InsightRange.label(rangeKey).lowercased()).").foregroundStyle(.secondary)
             } else {
@@ -1357,16 +1376,16 @@ extension InsightsOverviewScreen {
             LedgerHeading(title: "Facebook", trailing: fb.name)
             AdsMacFigureGrid(InsightsMacFigures.facebook(fb))
             if points.count > 1 && points.contains(where: { (x: Point) in x.value > 0 }) {
-                    AdsMacCard(title: "Page Views, Day by Day") {
-                        Chart(points) { (x: Point) in
-                            BarMark(x: .value("Day", x.date, unit: .day), y: .value("Views", x.value)).foregroundStyle(Theme.accent)
-                        }
-                        .macDayHover(points.map { (p: Point) in MacHoverPoint(id: p.id, date: p.date, value: p.value) }) { (v: Double) in "\(AdsFormat.compact(v)) views" }
-                        .frame(height: 160)
-                        .accessibilityLabel("Page views each day")
-                        .accessibilityValue(ChartSummary.say(points.map { (label: ChartSummary.day($0.date), value: $0.value) }, money: false))
+                AdsMacCard(title: "Page views, day by day") {
+                    Chart(points) { (x: Point) in
+                        BarMark(x: .value("Day", x.date, unit: .day), y: .value("Views", x.value)).foregroundStyle(Theme.accent)
                     }
+                    .macDayHover(points.map { (p: Point) in MacHoverPoint(id: p.id, date: p.date, value: p.value) }) { (v: Double) in "\(AdsFormat.compact(v)) views" }
+                    .frame(height: 160)
+                    .accessibilityLabel("Page views each day")
+                    .accessibilityValue(ChartSummary.say(points.map { (label: ChartSummary.day($0.date), value: $0.value) }, money: false))
                 }
+            }
         }
     }
 
@@ -1546,6 +1565,7 @@ extension InsightsPostsScreen {
     private func macTable(_ d: InsightsPosts, _ sorted: [InsightPost]) -> some View {
         List(sorted, selection: $macPicked) { (p: InsightPost) in
             macPostRow(p, d)
+                .listRowBackground(Theme.card)
         }
         .listStyle(.inset)
         .scrollContentBackground(.hidden)
@@ -1590,27 +1610,24 @@ extension InsightsPostsScreen {
 
 extension InsightsAudienceScreen {
     func macContent(_ a: InsightsAudience, _ dims: InsightDims?) -> some View {
+        // A report page: centred, 1400 at most, 24 points of gutter; the four breakdowns are cards in even rows (age beside
+        // gender, cities beside countries), each as tall as its row's tallest.
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: 20) {
                 Text(audienceNote()).font(.callout).foregroundStyle(.secondary)
                 if let dims {
-                    HStack(alignment: .top, spacing: 20) {
-                        VStack(alignment: .leading, spacing: 24) {
-                            macShares("Age", "Age", dims.age) { (k: String) in k }
-                            macShares("Cities", "City", dims.city) { (k: String) in k }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .topLeading)
-                        VStack(alignment: .leading, spacing: 24) {
-                            macShares("Gender", "Gender", dims.gender) { (k: String) in InsightWords.gender[k] ?? k }
-                            macShares("Countries", "Country", dims.country) { (k: String) in InsightWords.country[k] ?? k }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                    MacEvenLayout(minimum: 420, spacing: 16) {
+                        macShares("Age", "Age", dims.age) { (k: String) in k }
+                        macShares("Gender", "Gender", dims.gender) { (k: String) in InsightWords.gender[k] ?? k }
+                        macShares("Cities", "City", dims.city) { (k: String) in k }
+                        macShares("Countries", "Country", dims.country) { (k: String) in InsightWords.country[k] ?? k }
                     }
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
                 }
                 macOnline(a.online)
             }
-            .padding(20)
-            .frame(maxWidth: 1100, alignment: .leading)
+            .padding(24)
+            .frame(maxWidth: 1400, alignment: .leading)
             .frame(maxWidth: .infinity)
         }
         .background(Theme.ground)
@@ -1631,7 +1648,7 @@ extension InsightsAudienceScreen {
     }
 
     private func macOnline(_ hours: [Double]?) -> some View {
-        AdsMacSection(title: "When Followers Are Online", detail: "Karachi time") {
+        AdsMacSection(title: "When followers are online", detail: "Karachi time") {
             if let hours, hours.count == 24, hours.contains(where: { (v: Double) in v > 0 }) {
                 InsightsMacHourChart(hours: hours.indices.map { (i: Int) in
                     InsightsMacHourChart.Hour(id: i, label: InsightWords.hour(i), online: hours[i])

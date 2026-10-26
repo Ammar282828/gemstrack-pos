@@ -97,8 +97,15 @@ struct MacQuickOpen: View {
         .background(.regularMaterial, in: .rect(cornerRadius: 14, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color(nsColor: .separatorColor), lineWidth: 0.5))
         .shadow(color: .black.opacity(0.25), radius: 24, y: 10)
-        .onAppear {
+        // The field takes the keys the moment the panel is up: set on appear alone, the focus was asked for before the
+        // panel was in the window and never arrived, so typing after ⌘K went nowhere (the Mac check, 2026-10-27).
+        .defaultFocus($focused, true)
+        .task {
             focused = true
+            try? await Task.sleep(for: .milliseconds(60))
+            focused = true
+        }
+        .onAppear {
             if session.role != "marketing" {
                 book.customers.need(); book.invoices.need(); book.orders.need(); book.products.need(); book.repairs.need()
             }
