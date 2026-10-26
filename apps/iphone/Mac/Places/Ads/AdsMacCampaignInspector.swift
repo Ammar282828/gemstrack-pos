@@ -90,7 +90,7 @@ struct AdsMacInspector: View {
     private var sections: some View {
         resultsSection
         if !row.issues.isEmpty || row.learning != nil {
-            Section("Meta Says") {
+            Section("Meta says") {
                 ForEach(row.issues, id: \.self) { (issue: String) in
                     Label(issue, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.owed.color)
                 }
@@ -115,7 +115,7 @@ struct AdsMacInspector: View {
             AdsMacBudgetEditor(row: row, currency: currency, enabled: mayChange && !row.locked, saved: reload, failed: fail)
                 .id(row.id)
         } else {
-            Section("Budget and Dates") {
+            Section("Budget and dates") {
                 Text(row.level == .campaign ? "Its budget is set on its ad sets." : "Its budget is set on the campaign.")
                     .foregroundStyle(.secondary)
                 LabeledContent("Ends", value: row.end == nil ? "No end" : ShopDate.say(row.end))
@@ -204,7 +204,7 @@ struct AdsMacBudgetEditor: View {
     // MARK: The section
 
     var body: some View {
-        Section("Budget and Dates") {
+        Section("Budget and dates") {
             LabeledContent("Now", value: before > 0 ? money(before) + (isDaily ? " a day" : " in total") : "None of its own")
             LabeledContent("Ends", value: dayWords(endBefore))
             LabeledContent(isDaily ? "A day" : "In total") {
@@ -250,7 +250,7 @@ struct AdsMacRawDetails: View {
     @State private var problem: String?
 
     var body: some View {
-        DisclosureGroup("Meta's Details", isExpanded: $open) {
+        DisclosureGroup("Meta's details", isExpanded: $open) {
             if let fields {
                 MarketingDetails(fields: fields)
             } else if let problem {

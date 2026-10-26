@@ -338,11 +338,13 @@ struct DesignStartView: View {
                 }
             } else {
                 #if os(macOS)
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 8)], alignment: .leading, spacing: 8) {
+                // One after another, wrapped at the width (an adaptive grid set "From the website" at the far edge of the card).
+                MacChipFlow(spacing: 8, lineSpacing: 8) {
                     chip("Browse photos", "photo.on.rectangle", onBrowse)
                     chip("From the website", "globe") { sitePicker = true }
                     PhotosPicker(selection: $picked, matching: .images) { chipLabel("This Mac", "desktopcomputer") }.buttonStyle(.plain)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 #else
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: pt(8)) {
@@ -465,37 +467,26 @@ struct DesignRecordLine: View {
 
 #if os(macOS)
 extension DesignStartView {
-    /// Start as a window: what to make (the kind, the sizes) and the smart input on the left; the photograph, a dropped
-    /// picture and where you left off on the right. Continue is the footer's default button (Return).
+    /// Start as a window: what to make (the kind, the sizes) and the smart input in the column, the photograph, a dropped
+    /// picture and where you left off in the panel beside it, the two as one composition centred in the window (the panel
+    /// sat at the window's far edge with a wide gap between), under the panel on a narrow window. Continue is the page's
+    /// own bar at the foot, the default button (Return).
     @ViewBuilder
     fileprivate var macBody: some View {
-        HStack(alignment: .top, spacing: 0) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    anything
-                    macMaking
-                }
+        ScrollView {
+            macComposition
                 .padding(20)
-                .frame(maxWidth: 760, alignment: .leading)
-            }
-            .frame(minWidth: 340, maxWidth: .infinity)
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    photograph
-                    investments
-                    macLeftOff
-                }
-                .padding(20)
-            }
-            .frame(minWidth: 280, idealWidth: 380, maxWidth: 460)
-            .dropDestination(for: URL.self) { urls, _ in
-                guard let url = urls.first else { return false }
-                Task { await takeFile(url) }
-                return true
-            }
+                .frame(maxWidth: 1180, alignment: .leading)
+                .frame(maxWidth: .infinity)
         }
         .background(Theme.ground)
-        .actionBar(primary: .init("Continue", isBusy: starting, action: onBegin))
+        .dropDestination(for: URL.self) { urls, _ in
+            guard let url = urls.first else { return false }
+            Task { await takeFile(url) }
+            return true
+        }
+        .macPageActionBar(primary: .init("Continue", isBusy: starting, action: onBegin), summary: macMakingLine)
+        .navigationSubtitle("New design")
         .task { await shelf.load(); await shelf.loadDrafts() }
         .onAppear { start.adsAllowed = access.ads }
         .onChange(of: picked) { _, item in if let item { Task { await take(item) } } }
@@ -508,6 +499,64 @@ extension DesignStartView {
         }
         .sheet(item: $start.sheet) { $0.shown }
         .failureAlert($problem, title: "Could not use that photograph")
+    }
+
+    /// What Continue will make, on the bar's left: "A piece · 9:16 + 1:1".
+    private var macMakingLine: String {
+        let kind = DesignKinds.card(start.kind).title
+        return start.summary.isEmpty ? kind : kind + " · " + start.summary
+    }
+
+    /// The column and the panel side by side where they fit (the column from 440 to 760 points, the panel 360), else the panel
+    /// under the column.
+    private var macComposition: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: 20) {
+                macColumn.frame(minWidth: 440, idealWidth: 440, maxWidth: 760, alignment: .topLeading)
+                macPanel.frame(width: 360, alignment: .topLeading)
+            }
+            VStack(alignment: .leading, spacing: 16) {
+                macColumn
+                macPanel
+            }
+            .frame(maxWidth: 760, alignment: .leading)
+        }
+    }
+
+    private var macColumn: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            anything
+            macMaking
+        }
+    }
+
+    private var macPanel: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            photograph
+            macInvestments
+            macLeftOff
+        }
+    }
+
+    /// The link to Investments (Taheri), as a card with a chevron rather than a bare grey bar.
+    @ViewBuilder
+    private var macInvestments: some View {
+        if MarketingKit.has("/website/investments", role: role) {
+            NavigationLink(value: Route(path: "/website/investments")) {
+                HStack(spacing: 10) {
+                    Image(systemName: "chart.line.uptrend.xyaxis").foregroundStyle(Theme.accent)
+                    Text("Gold investment posts: Investments").font(.subheadline)
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.right").font(.footnote).foregroundStyle(.tertiary)
+                }
+                .padding(14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .houseCard()
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .pointerHover()
+        }
     }
 
     /// What are you making: the kinds as cards (the chosen one edged in the accent), then the sizes.
@@ -529,9 +578,10 @@ extension DesignStartView {
                 ForEach(DesignSizes.groups) { g in
                     VStack(alignment: .leading, spacing: 4) {
                         Text(g.title).font(.caption).foregroundStyle(.secondary)
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 64), spacing: 8)], alignment: .leading, spacing: 8) {
+                        MacChipFlow(spacing: 8, lineSpacing: 8) {
                             ForEach(g.sizes) { s in FilterChip(title: s.ratio, chosen: start.sizes.contains(s.id)) { start.toggle(s.id) } }
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
                 VStack(alignment: .leading, spacing: 4) {

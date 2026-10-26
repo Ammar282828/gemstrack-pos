@@ -67,7 +67,12 @@ struct WebsitePhotosScreen: View {
                 page
             }
         }
+        #if os(macOS)
+        .navigationTitle("Website")
+        .navigationSubtitle("Add photos")
+        #else
         .navigationTitle("Add photos")
+        #endif
         .hubTitleDisplay()
         .task {
             await site.loadSettings()
@@ -626,7 +631,7 @@ extension WebsitePhotosScreen {
         }
         .macRecordMenu(MacRecordMenu(title: "Photo", groups: [[macRetouchAction, macOriginalAction], [macRemoveAction]]))
         .macRefresh { Task { await load() } }
-        .actionBar(
+        .macPageActionBar(
             primary: .init(sending ? "Sending…" : "Send \(pending.count) to the Website", systemImage: "arrow.up.circle.fill",
                            isBusy: sending, isDisabled: !canSend || items.isEmpty) { confirmingSend = true },
             summary: items.isEmpty ? nil : (unnamed > 0 ? "\(unnamed) still need\(unnamed == 1 ? "s" : "") a house and a name." : nil))
@@ -644,34 +649,37 @@ extension WebsitePhotosScreen {
         return order.map { (k: String) in WebsiteCollectionSheet.Shelf(id: k, list: by[k] ?? []) }
     }
 
-    /// What is worth saying above the tray: uploads off, where the photographs go, how this collection names them.
+    /// What is worth saying above the tray: uploads off, where the photographs go, how this collection names them. With no
+    /// collection and nothing in the tray, the empty tray says "Choose a collection…" and this says nothing (it said it twice).
     @ViewBuilder
     private var macNotes: some View {
         let note: String? = {
-            if folder.isEmpty { return "Choose a collection in the toolbar, then add or drop photographs." }
+            if folder.isEmpty { return items.isEmpty ? nil : "Choose a collection in the toolbar, then send them." }
             if isMaison {
                 return "The houses' own pieces. Give each photograph its house and the model's official name, exactly as the house names it (“LOVE Bracelet, Classic”). The site shows it under its house, in 18k, with no gold-rate price. Several photographs of one piece: give them the same name."
             }
             if maisonUnknown { return "Couldn't check how this collection names its photographs. Refresh (⌘R) before sending." }
             return "They appear on \(site.siteName) as soon as they arrive: no rebuild. JPEG, PNG, WebP or HEIC, up to 25 MB each."
         }()
-        VStack(alignment: .leading, spacing: 6) {
-            if !configured {
-                Label("Uploads are not switched on yet: the website's upload secret isn't set on this ERP. Until it is, nothing below can be sent.", systemImage: "exclamationmark.triangle.fill")
-                    .foregroundStyle(Tone.owed.color)
+        if !configured || chosen != nil || note != nil || reading {
+            VStack(alignment: .leading, spacing: 6) {
+                if !configured {
+                    Label("Uploads are not switched on yet: the website's upload secret isn't set on this ERP. Until it is, nothing below can be sent.", systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(Tone.owed.color)
+                }
+                if let c = chosen {
+                    Text("\(c.category) → \(c.collection) · " + (c.count > 0 ? "it has \(c.count) pieces today" : "nothing in it yet")).font(.system(.headline, design: .serif))
+                }
+                if let note { Text(note).font(.callout).foregroundStyle(.secondary) }
+                if reading { MarketingReading(text: "Reading the photographs…") }
             }
-            if let c = chosen {
-                Text("\(c.category) → \(c.collection) · " + (c.count > 0 ? "it has \(c.count) pieces today" : "nothing in it yet")).font(.system(.headline, design: .serif))
-            }
-            if let note { Text(note).font(.callout).foregroundStyle(.secondary) }
-            if reading { MarketingReading(text: "Reading the photographs…") }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .houseCard()
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
+            .background(Theme.ground)
         }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .houseCard()
-        .padding(.horizontal, 20)
-        .padding(.top, 16)
-        .background(Theme.ground)
     }
 
     // MARK: The tray
@@ -702,7 +710,7 @@ extension WebsitePhotosScreen {
             .clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))
             .opacity(item.status == .done ? 0.7 : 1)
             .overlay(alignment: .topLeading) { macItemStatus(item).padding(6) }
-            Text(displayName(item)).font(.subheadline.weight(.medium)).lineLimit(2)
+            Text(displayName(item)).font(.subheadline.weight(.medium)).lineLimit(2, reservesSpace: true)
             if isMaison {
                 macHouse(item)
                 macOfficialName(item)
@@ -729,7 +737,7 @@ extension WebsitePhotosScreen {
     @ViewBuilder
     private var macTrayEmpty: some View {
         if items.isEmpty {
-            ContentUnavailableView("No photographs yet", systemImage: "photo.on.rectangle.angled",
+            ContentUnavailableView("No Photographs Yet", systemImage: "photo.on.rectangle.angled",
                                    description: Text(folder.isEmpty ? "Choose a collection, then add or drop photographs." : "Add or drop photographs to put them in the tray."))
         }
     }

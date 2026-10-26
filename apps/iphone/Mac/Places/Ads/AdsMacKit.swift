@@ -5,24 +5,25 @@ import ERPCore
 // What the Ads places share on the Mac (docs/features/mac-design.md, "Ads"): the account's alerts as a bar above a
 // table, the foot of a short sheet, and a plain heading.
 
-/// The account's own trouble (payment due, a login running out) as a bar above a page that is not a List.
+/// The account's own trouble (payment due, a login running out) as a banner above a page that is not a List: the same tinted
+/// card as Posts' "things need attention" (it was a grey full-width bar of its own).
 struct AdsMacAlertBar: View {
     let status: AdsStatusAnswer
 
     var body: some View {
         let lines = AdsAlertsSection(status: status).macLines
         if !lines.isEmpty {
-            VStack(alignment: .leading, spacing: 4) {
-                ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
-                    Label(line.text, systemImage: "exclamationmark.triangle.fill")
-                        .font(.callout)
-                        .foregroundStyle(line.bad ? Tone.problem.color : Tone.owed.color)
+            MacBanner {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
+                        Label(line.text, systemImage: "exclamationmark.triangle.fill")
+                            .font(.callout)
+                            .foregroundStyle(line.bad ? Tone.problem.color : Tone.owed.color)
+                    }
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.bar)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
         }
     }
 }
@@ -141,37 +142,8 @@ struct AdsMacFigureGrid: View {
     }
 
     var body: some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: minimum), spacing: 12, alignment: .top)], spacing: 12) {
-            ForEach(figures) { (f: MacFigure) in tile(f) }
-        }
-    }
-
-    @ViewBuilder
-    private func tile(_ f: MacFigure) -> some View {
-        let words = VStack(alignment: .leading, spacing: 6) {
-            Text(f.label).font(.callout).foregroundStyle(.secondary).lineLimit(1)
-            Text(f.value)
-                .font(.system(.title2, design: .serif).weight(.semibold))
-                .monospacedDigit()
-                .foregroundStyle(f.tone?.color ?? Color.primary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-            Text(f.detail ?? " ")
-                .font(.caption)
-                .foregroundStyle(f.detailTone?.color ?? Color.secondary)
-                .lineLimit(2)
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .topLeading)
-        .houseCard()
-        if let open = f.open {
-            Button(action: open) { words.contentShape(Rectangle()) }
-                .buttonStyle(.plain)
-                .pointerHover()
-                .help("Open \(f.label)")
-        } else {
-            words
-        }
+        // The kit's grid and card: the same figures as every other page's.
+        MacFigureGrid(figures, minimum: minimum)
     }
 }
 
@@ -188,7 +160,8 @@ struct AdsMacCard<Content: View>: View {
             content()
         }
         .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        // The surface is inside the frame that fills the cell's height, so cards side by side stand level (owner's snapshots).
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .houseCard()
     }
 }

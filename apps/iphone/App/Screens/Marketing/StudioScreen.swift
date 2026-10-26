@@ -403,6 +403,7 @@ extension StudioPlan {
                 .help("What to run, the ad days and rules, or the competitors")
             }
         }
+        .navigationSubtitle(model.part == "guide" ? "Ad Days and Rules" : (model.part == "rivals" ? "Competitors" : "What to Run"))
         .task(id: model.part) { if model.part == "guide" { await loadGuide() } }
     }
 
@@ -476,18 +477,22 @@ extension StudioPlan {
                     .padding(16)
                 Divider()
                 Form {
-                    Section("Where It Runs") { Text(p.place) }
-                    Section("Why") { Text(p.value.s("why")) }
-                    Section {
-                        LabeledContent("Who", value: p.value.s("who"))
-                        LabeledContent("Budget", value: p.budget)
-                        LabeledContent("Judge it by", value: p.value.s("judge"))
-                        LabeledContent("Format", value: p.format)
-                        LabeledContent("Layout", value: p.value.s("template"))
-                        LabeledContent("Call to action", value: p.value.s("cta"))
+                    Group {
+                        Section("Where it runs") { Text(p.place) }
+                        Section("Why") { Text(p.value.s("why")) }
+                        Section {
+                            LabeledContent("Who", value: p.value.s("who"))
+                            LabeledContent("Budget", value: p.budget)
+                            LabeledContent("Judge it by", value: p.value.s("judge"))
+                            LabeledContent("Format", value: p.format)
+                            LabeledContent("Layout", value: p.value.s("template"))
+                            LabeledContent("Call to action", value: p.value.s("cta"))
+                        }
                     }
+                    .houseRows()
                 }
                 .formStyle(.grouped)
+                .scrollContentBackground(.hidden)
             }
         } else {
             MacInspectorEmpty(title: macPicked.count > 1 ? "\(macPicked.count) Selected" : "No Play Selected",
@@ -508,25 +513,30 @@ extension StudioPlan {
 
     private var macGuide: some View {
         Form {
-            if model.guide != .null {
-                Section("Ad Days") { MarketingDetails(fields: model.guide["calendar"].object.mapValues(\.any)) }
-            }
-            Section("What Our Ads Say") { MarketingDetails(fields: model.guide["winners"].object.mapValues(\.any)) }
-            Section("This Week's Board") { MarketingDetails(fields: model.weekly["weekly"].object.mapValues(\.any)) }
-            ForEach(model.catalogue["playbook"].array, id: \.text) { (section: MarketingValue) in
-                Section(section.s("title")) {
-                    Text(section.s("lead")).foregroundStyle(.secondary)
-                    ForEach(section["points"].array, id: \.text) { (point: MarketingValue) in
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(point.s("head")).fontWeight(.semibold)
-                            Text(point.s("body")).foregroundStyle(.secondary)
+            Group {
+                if model.guide != .null {
+                    Section("Ad days") { MarketingDetails(fields: model.guide["calendar"].object.mapValues(\.any)) }
+                }
+                Section("What our ads say") { MarketingDetails(fields: model.guide["winners"].object.mapValues(\.any)) }
+                Section("This week's board") { MarketingDetails(fields: model.weekly["weekly"].object.mapValues(\.any)) }
+                ForEach(model.catalogue["playbook"].array, id: \.text) { (section: MarketingValue) in
+                    Section(section.s("title")) {
+                        Text(section.s("lead")).foregroundStyle(.secondary)
+                        ForEach(section["points"].array, id: \.text) { (point: MarketingValue) in
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(point.s("head")).fontWeight(.semibold)
+                                Text(point.s("body")).foregroundStyle(.secondary)
+                            }
+                            .padding(.vertical, 2)
                         }
-                        .padding(.vertical, 2)
                     }
                 }
             }
+            .houseRows()
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .background(Theme.ground)
         .toolbar {
             ToolbarItem(placement: .automatic) {
                 Menu {

@@ -344,7 +344,7 @@ struct AdsAdSetsScreen: View {
             }
         } header: {
             #if os(macOS)
-            Text("Campaign")
+            LedgerHeading(title: "Campaign")
             #else
             LedgerHeading(title: "Campaign")
             #endif
@@ -371,7 +371,7 @@ struct AdsAdSetsScreen: View {
             }
         } header: {
             #if os(macOS)
-            Text("Ads in Them")
+            LedgerHeading(title: "Ads in them")
             #else
             LedgerHeading(title: "Ads in them")
             #endif
@@ -636,13 +636,19 @@ private struct AdsSetCard: View {
                     Spacer(minLength: 8)
                     Image(systemName: "chevron.right").foregroundStyle(.tertiary)
                 }
+                #if os(macOS)
+                .contentShape(Rectangle())
+                #endif
             }
+            #if os(macOS)
+            .buttonStyle(.plain)
+            #endif
             if removable {
                 Button(role: .destructive, action: remove) { Label("Remove this ad set", systemImage: "trash") }
             }
         } header: {
             #if os(macOS)
-            Text("Ad Set \(number)")
+            LedgerHeading(title: "Ad set \(number)")
             #else
             LedgerHeading(title: "Ad set \(number)")
             #endif

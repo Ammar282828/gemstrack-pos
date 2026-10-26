@@ -351,7 +351,7 @@ extension AdsRulesScreen {
         .macRefresh { Task { await loadRules() } }
         .macRecordMenu(MacRecordMenu(title: "Rule", groups: macActions(picked)))
         .macSummaryBar(macSummary(rules))
-        .navigationSubtitle(data.map { (d: AdsRulesAnswer) in "\(d.rules.count) on the account" } ?? "")
+        .navigationSubtitle("On the ad account")
         .toolbar {
             ToolbarItemGroup(placement: .automatic) {
                 MacToolbarAction(action: macNewRule)
@@ -397,7 +397,7 @@ extension AdsRulesScreen {
 
     private var macLog: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Changes Made from the ERP").font(.headline).padding(.horizontal, 12).padding(.top, 8)
+            LedgerHeading(title: "Changes made from the ERP").padding(.horizontal, 12).padding(.top, 8)
             Table(data?.log ?? []) {
                 TableColumn("When") { (r: AdsLogRow) in Text(ShopDate.say(r.at, withTime: true)).monospacedDigit().lineLimit(1) }
                     .width(min: 110, ideal: 150)

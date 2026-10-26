@@ -398,8 +398,8 @@ extension AdsAudiencesScreen {
         .macInspector { macInspectorPanel(picked) }
         .macRefresh { Task { await loadAudiences() } }
         .macRecordMenu(MacRecordMenu(title: "Audience", groups: macActions(picked)))
-        .macSummaryBar(["\(rows.count) audience\(rows.count == 1 ? "" : "s") in the ad account"])
-        .navigationSubtitle(data.map { (d: AdsAudiencesAnswer) in "\(d.audiences.count) in the ad account" } ?? "")
+        .macSummaryBar(macSummary(rows))
+        .navigationSubtitle("In the ad account")
         .toolbar {
             ToolbarItemGroup(placement: .automatic) {
                 MacToolbarAction(action: macNewAudience)
@@ -407,6 +407,16 @@ extension AdsAudiencesScreen {
         }
         .disabled(busy != nil)
         .sheet(isPresented: $macMaking) { macNewSheet }
+    }
+
+    /// The count and what the audiences are (the window's subtitle says where they are, so the bar does not say it again).
+    private func macSummary(_ rows: [AdsAudienceRow]) -> [String] {
+        var parts = ["\(rows.count) audience\(rows.count == 1 ? "" : "s")"]
+        let lists = rows.filter { (a: AdsAudienceRow) in a.kind == "Customer list" }.count
+        let like = rows.filter { (a: AdsAudienceRow) in a.kind == "Lookalike" }.count
+        if lists > 0 { parts.append("\(lists) customer list\(lists == 1 ? "" : "s")") }
+        if like > 0 { parts.append("\(like) lookalike\(like == 1 ? "" : "s")") }
+        return parts
     }
 
     private func macTable(_ rows: [AdsAudienceRow]) -> some View {
@@ -459,7 +469,7 @@ extension AdsAudiencesScreen {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } else {
             MacInspectorEmpty(title: macPicked.count > 1 ? "\(macPicked.count) Selected" : "No Audience Selected",
-                              detail: "Click an audience to see it. Pick it on a new ad under Who Sees It.")
+                              detail: "Click an audience to see it. Pick it on a new ad under Who sees it.")
         }
     }
 

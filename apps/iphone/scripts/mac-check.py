@@ -78,7 +78,7 @@ def main():
     for f in files:
         text = open(os.path.join(ROOT, f)).read()
         old = subprocess.run(["git", "show", f"{a.base}:{f}"], capture_output=True, text=True, cwd=ROOT)
-        if old.returncode == 0 and not f.startswith("apps/iphone/Mac/"):
+        if old.returncode == 0 and not f.startswith(("apps/iphone/Mac/", "apps/iphone/MacTests/", "apps/iphone/MacUITests/")):
             diff = list(difflib.unified_diff(iphone_view(old.stdout), iphone_view(text), lineterm="", n=0))
             if diff:
                 problems.append(f"{f}: the iPhone's code changed:\n  " + "\n  ".join(diff[2:12]))
