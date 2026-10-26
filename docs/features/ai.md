@@ -122,4 +122,21 @@ Owner: "The voice function on iOS should be as smooth and continuous and immedia
   labelled orb, live words marked as updating. The lock and the app switcher close the microphone and it opens again with the app;
   a call or a route change is handled by the engine. The sheet is the business's: switching rebuilds the screens and closes it.
 - **Not done / owed:** Urdu-script listening (the language picker went; en-IN only), barge-in over the spoken confirmation, web
-  auto end-of-speech and follow-ups, Android (`parity.md`).
+  auto end-of-speech and follow-ups.
+
+##### Android (2026-10-26)
+
+The same conversation on `apps/android` (`screens/voice/VoiceModel.kt`; ears in `device/VoiceEars.kt`), same server calls and
+payloads: `{warm: true}` when the sheet opens, `{text, previous: {words, reading}}` for a change, 30 s timeout with Try again,
+money awaited through `ErpApi.write`, the other steps through the Outbox, the same yes/no words (`core` `VoiceReplies`).
+- **Immediate.** `VoiceEars.warm` makes the recogniser when the app comes to the front for an owner (and at once on a "Talk to ERP"
+  launch), so the sheet's first listen does not wait for the recogniser's service to bind. The sheet starts listening on open.
+- **On-device words.** API 31+ with `isOnDeviceRecognitionAvailable`: `createOnDeviceSpeechRecognizer`, `EXTRA_PREFER_OFFLINE`; if it
+  reports its language missing (errors 12, 13) the default recogniser takes over for the run. Language is the picker's (en-PK, ur-PK).
+- **End of speech.** `EndpointDetector` (a port of the iPhone's tap): about a second of quiet after talk, from the recogniser's rms
+  (the room's level learnt, steady noise too) and its words changing; the recogniser's own end is the second clock. The microphone
+  re-opens at once for the next sentence; the ear shuts while the answer is spoken. The lock or another app closes it (`ON_STOP`).
+- **No recogniser on the phone:** the mic button records up to a minute and the ERP listens, as before (`clipMode`).
+- **Talk to ERP.** `erp://voice` (an owner only; the app lock asks first) from: the launcher/App Shortcut (`shortcuts.xml`, with the
+  Assistant's `OPEN_APP_FEATURE` binding), the Quick Settings tile (`VoiceTileService`), and `VOICE_COMMAND` / `ASSIST` intents.
+  No Lock Screen control on Android. Android's recogniser may chime when a session starts on some phones; not verified on a phone.

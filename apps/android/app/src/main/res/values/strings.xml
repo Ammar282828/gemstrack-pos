@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="widget_description">Takings today with the week’s line and its change, what is owed and due, and the shop’s pinned message. Shows both businesses when two are linked.</string>
+    <!-- "Talk to ERP": the launcher shortcut and the Quick Settings tile (the iPhone's Siri phrase, Action button and Control Center control) -->
+    <string name="voice_shortcut_short">Talk to ERP</string>
+    <string name="voice_shortcut_long">Talk to ERP: say what you need</string>
+    <string name="voice_tile_label">Talk to ERP</string>
+    <string name="voice_tile_subtitle">Opens listening</string>
 </resources>

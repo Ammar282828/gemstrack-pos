@@ -61,7 +61,7 @@ is its rulebook, mirroring `apps/iphone/CONVENTIONS.md`.
   `SectionCard`, `heroSheen`, `MoneyRow`, `HeroAmount`, `PaidRing`, `Pill`, `FilterChip`, `Monogram`, the `Note`
   toast, haptics on money events, shared-element list→detail. Font scaling, TalkBack labels, Reduce Motion
   (`ANIMATOR_DURATION_SCALE` = 0) are first-class.
-- **Device.** Voice (`screens/voice`: Android's recogniser for live words plus a recording of up to a minute, AAC in
+- **Device.** Voice, Siri-grade since 2026-10-26 (see [Voice](ai.md#android-2026-10-26): warm on-device recogniser, end of speech by itself, follow-ups, yes/no; "Talk to ERP" shortcut, Quick Settings tile, assist intents). The older recording path (`screens/voice`: Android's recogniser for live words plus a recording of up to a minute, AAC in
   `.m4a`, sent to `/api/voice/native` as `{audio: base64}`; if the recorder came out empty or silent, the live words go as
   `{text}` instead, because the recogniser and the recorder share the microphone and nothing here could try a phone). It
   is a sheet from the create menu, owners only, and the page its answer chooses opens after the sheet has closed; a card

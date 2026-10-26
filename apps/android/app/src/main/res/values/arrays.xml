@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- What the Assistant may call the feature the shortcut opens ("open voice in ERP") -->
+    <string-array name="voice_feature_names">
+        <item>voice</item>
+        <item>talk</item>
+        <item>assistant</item>
+    </string-array>
+</resources>

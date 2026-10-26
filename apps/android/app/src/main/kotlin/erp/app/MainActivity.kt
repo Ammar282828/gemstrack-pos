@@ -14,6 +14,8 @@ import erp.app.data.Outbox
 import erp.app.device.AppLock
 import erp.app.device.Foreground
 import erp.app.device.LaunchClock
+import erp.app.device.VoiceEars
+import erp.app.screens.voice.VoiceLaunch
 import erp.app.nav.AppRoot
 import erp.app.nav.AppRouter
 import erp.app.nav.rebuildOnBusinessSwitch
@@ -43,7 +45,11 @@ class MainActivity : FragmentActivity() {
         splash.setKeepOnScreenCondition { session.state.value == Session.State.Starting && System.currentTimeMillis() - started < 1000 }
         if (savedInstanceState == null) {
             // The page the link named, or the one a business switch kept for the shell it rebuilt.
-            (route ?: AppRouter.takePending())?.let { PageActivity.start(this, it) }
+            (route ?: AppRouter.takePending())?.let {
+                // "Talk to ERP" (shortcut, tile, assist): the recogniser is made now, while the page is still opening.
+                if (it == VoiceLaunch.PATH) VoiceEars.warm(this)
+                PageActivity.start(this, it)
+            }
             // A cold start of a signed-in app asks for the fingerprint too; a fresh sign-in does not.
             if (session.state.value == Session.State.SignedIn) AppLock.launched(this, signedIn = true)
         }
@@ -97,6 +103,8 @@ class MainActivity : FragmentActivity() {
     }
 
     override fun onStop() {
+        // The recogniser's service is not held while the app is away (unless the voice sheet has it).
+        VoiceEars.idle(this)
         AppLock.stopped(signedIn)
         super.onStop()
     }
@@ -109,6 +117,8 @@ class MainActivity : FragmentActivity() {
         // The widget's figures are as fresh as the app coming to the front.
         if (signedIn && session.isOwner && !House.isDemo) {
             WidgetSync.refreshSoon(this)
+            // The voice sheet starts at once: the recogniser is already made (VoiceEars), and the ERP reads its book when the sheet opens.
+            VoiceEars.warm(this)
             // Each business's phone token, looked at again: only the default app is told when FCM changes one.
             lifecycleScope.launch { runCatching { erp.app.device.Push.refreshAll() } }
         }

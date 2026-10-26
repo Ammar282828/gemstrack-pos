@@ -14,6 +14,7 @@ import erp.app.config.BusinessRules
 import erp.app.config.Businesses
 import erp.app.device.Foreground
 import erp.app.device.PushLogic
+import erp.app.screens.voice.VoiceLaunch
 import kotlinx.coroutines.launch
 
 /**
@@ -61,7 +62,11 @@ object AppRouter {
         PageActivity.start(from, path)
     }
 
+    /** The system's voice-command and assist requests open the voice sheet on the open business ("Talk to ERP"). */
+    fun voiceTarget(action: String?): Target? = if (VoiceLaunch.isVoiceRequest(action)) Target(null, VoiceLaunch.PATH) else null
+
     fun target(intent: Intent?): Target? {
+        voiceTarget(intent?.action)?.let { return it }
         val data = intent?.data
         if (data != null) {
             val t = target(data.scheme, data.host, data.encodedPath, data.encodedQuery, Businesses.list.value.map { it.id to it.host })
