@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.SearchBarField
 import erp.app.ui.zoomDestination
 import erp.app.ui.zoomSource
 import androidx.compose.foundation.clickable
@@ -36,13 +37,13 @@ import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
-import androidx.compose.material3.Button
+import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
+import erp.app.ui.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -166,7 +167,7 @@ fun PostPiecesScreen(tray: PostTrayModel? = null) {
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
                     item(span = { GridItemSpan(maxLineSpan) }) {
-                        OutlinedTextField(
+                        SearchBarField(
                             value = search, onValueChange = { search = it }, singleLine = true, modifier = Modifier.fillMaxWidth(),
                             placeholder = { Text("Search: ruby, kara, jhumka…") },
                             leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },

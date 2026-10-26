@@ -1,5 +1,6 @@
 package erp.app.screens.invoices
 
+import erp.app.ui.Loading
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -13,11 +14,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -195,7 +195,7 @@ fun InvoiceWhatsAppSend(
                 shadowElevation = 4.dp,
             ) {
                 Row(Modifier.padding(horizontal = 14.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
+                    Loading(Modifier.size(20.dp))
                     Text("Sending the PDF…", style = MaterialTheme.typography.labelLarge)
                 }
             }

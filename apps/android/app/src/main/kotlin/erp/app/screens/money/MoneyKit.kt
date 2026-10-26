@@ -1,5 +1,7 @@
 package erp.app.screens.money
 
+import erp.app.ui.Loading
+import erp.app.ui.SearchBarField
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -29,25 +31,24 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import erp.app.ui.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SelectableDates
-import androidx.compose.material3.Switch
+import erp.app.ui.Switch
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberSwipeToDismissBoxState
@@ -121,9 +122,10 @@ object MoneyWords {
 /** The corners a row of a card list takes by its place: the first rounds the top, the last the bottom. */
 @Composable
 fun Modifier.cardEdges(first: Boolean, last: Boolean): Modifier {
-    val top = if (first) Radius.card else 0.dp
-    val bottom = if (last) Radius.card else 0.dp
-    return clip(RoundedCornerShape(topStart = top, topEnd = top, bottomStart = bottom, bottomEnd = bottom)).background(ErpColors.card)
+    // Android 16's grouped list: the group's outer corners large, the joints small, 2 dp between the tiles.
+    val top = if (first) Radius.card else Radius.joint
+    val bottom = if (last) Radius.card else Radius.joint
+    return padding(bottom = if (last) 0.dp else 2.dp).clip(RoundedCornerShape(topStart = top, topEnd = top, bottomStart = bottom, bottomEnd = bottom)).background(ErpColors.card)
 }
 
 /** Rows of one card in a lazy list: each its own item (the list stays lazy), the card's corners and hairlines drawn by place. */
@@ -134,7 +136,6 @@ fun <T> LazyListScope.cardRows(keyPrefix: String, rows: List<T>, key: (T) -> Str
         Column(Modifier.padding(horizontal = 16.dp).readableColumn()) {
             Column(Modifier.cardEdges(first, last)) {
                 row(r)
-                if (!last) LedgerDivider()
             }
         }
     }
@@ -145,7 +146,7 @@ fun <T> LazyListScope.cardRows(keyPrefix: String, rows: List<T>, key: (T) -> Str
 fun Footnote(text: String, modifier: Modifier = Modifier, tone: Tone = Tone.quiet) {
     Text(
         text,
-        modifier.padding(horizontal = 4.dp),
+        modifier.padding(horizontal = 16.dp),
         style = MaterialTheme.typography.bodySmall,
         color = if (tone == Tone.quiet) MaterialTheme.colorScheme.onSurfaceVariant else tone.color(),
     )
@@ -168,7 +169,7 @@ fun SheetHeading(text: String) {
 
 @Composable
 fun MoneySearchField(value: String, onChange: (String) -> Unit, placeholder: String, modifier: Modifier = Modifier, enabled: Boolean = true) {
-    OutlinedTextField(
+    SearchBarField(
         value = value,
         onValueChange = onChange,
         modifier = modifier.fillMaxWidth(),
@@ -218,7 +219,7 @@ fun MoneySheet(
                 )
                 if (confirmText != null) {
                     Button(onClick = onConfirm, enabled = confirmEnabled && !busy) {
-                        if (busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary) else Text(confirmText)
+                        if (busy) Loading(Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary) else Text(confirmText)
                     }
                 } else {
                     Spacer(Modifier.size(64.dp))

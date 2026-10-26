@@ -1,5 +1,6 @@
 package erp.app.screens.neworder
 
+import erp.app.ui.SearchBarField
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,7 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -58,7 +59,7 @@ internal fun StockPickerSheet(onPick: (Product) -> Unit, onDismiss: () -> Unit) 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Add from stock", style = MaterialTheme.typography.titleLarge)
-            OutlinedTextField(
+            SearchBarField(
                 value = query,
                 onValueChange = { query = it },
                 modifier = Modifier.fillMaxWidth(),

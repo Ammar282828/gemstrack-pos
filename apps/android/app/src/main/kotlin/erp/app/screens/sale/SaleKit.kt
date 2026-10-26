@@ -1,5 +1,6 @@
 package erp.app.screens.sale
 
+import erp.app.ui.SegmentedColumn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -30,15 +31,15 @@ import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
+import erp.app.ui.FilledTonalButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
+import erp.app.ui.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -188,7 +189,7 @@ internal fun SaleCustomerPicker(pick: (Customer?) -> Unit, onDismiss: () -> Unit
                 }
             }
             if (people.isNotEmpty()) {
-                Column(Modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card)) {
+                SegmentedColumn {
                     people.forEachIndexed { i, c ->
                         if (i > 0) LedgerDivider()
                         Row(

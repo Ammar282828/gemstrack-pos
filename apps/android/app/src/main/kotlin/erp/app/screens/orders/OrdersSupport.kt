@@ -21,7 +21,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -246,7 +246,7 @@ fun OrdersFormSection(
         if (title != null) LedgerHeading(title)
         Column(Modifier.ledgerCard(), verticalArrangement = Arrangement.spacedBy(10.dp)) { content() }
         if (footer != null) {
-            Text(footer, Modifier.padding(horizontal = 4.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(footer, Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.SearchBarField
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -26,15 +27,15 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Scale
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Button
+import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import erp.app.ui.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -295,7 +296,7 @@ private fun ProgressCard(
         }
         PickerRow("Collection", collection, listOf("" to "All collections") + WebsiteWeightsLogic.collections(all).map { it to it }, setCollection)
         ToggleRow("Only photos without a weight", onlyMissing, setOnlyMissing)
-        OutlinedTextField(
+        SearchBarField(
             value = search, onValueChange = setSearch, singleLine = true, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
             placeholder = { Text("Find a photo…") }, leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
             keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),

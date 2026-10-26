@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.Loading
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -9,9 +10,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Button
+import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -49,7 +49,7 @@ fun MarketingActionBar(title: String, icon: ImageVector, onClick: () -> Unit, bu
         modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 52.dp),
         colors = ButtonDefaults.buttonColors(containerColor = ErpColors.accent, contentColor = ErpColors.onAccent),
     ) {
-        if (busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = ErpColors.onAccent)
+        if (busy) Loading(Modifier.size(26.dp), color = ErpColors.onAccent)
         else Icon(icon, null, Modifier.size(18.dp))
         Text(title, Modifier.padding(start = 8.dp))
     }

@@ -1,5 +1,6 @@
 package erp.app.screens.stock
 
+import erp.app.ui.SearchBarField
 import erp.app.ui.appearOnce
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -33,11 +34,11 @@ import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -174,7 +175,7 @@ fun StockList() {
 
     ShelfState(loaded = products.loaded, error = products.error, offline = products.offline, connectionLost = connectionLost) {
         Column(Modifier.fillMaxSize()) {
-            OutlinedTextField(
+            SearchBarField(
                 value = search,
                 onValueChange = { search = it },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
@@ -274,11 +275,11 @@ private fun ListView(
                 val first = i == 0
                 val last = i == shown.lastIndex
                 val shape = RoundedCornerShape(
-                    topStart = if (first) Radius.card else 0.dp, topEnd = if (first) Radius.card else 0.dp,
-                    bottomStart = if (last) Radius.card else 0.dp, bottomEnd = if (last) Radius.card else 0.dp,
+                    topStart = if (first) Radius.card else Radius.joint, topEnd = if (first) Radius.card else Radius.joint,
+                    bottomStart = if (last) Radius.card else Radius.joint, bottomEnd = if (last) Radius.card else Radius.joint,
                 )
                 val menu = actions(p)
-                Column(Modifier.appearOnce(i).clip(shape)) {
+                Column(Modifier.appearOnce(i).padding(bottom = if (last) 0.dp else 2.dp).clip(shape)) {
                     SwipeActions(
                         start = menu.firstOrNull { it.label == "Sell" },
                         end = menu.firstOrNull { it.label == "Edit" },
@@ -287,7 +288,6 @@ private fun ListView(
                     ) {
                         Box(Modifier.fillMaxWidth().background(ErpColors.card)) { StockRow(row, selecting, selected.contains(row.id)) }
                     }
-                    if (!last) LedgerDivider()
                 }
             }
         }

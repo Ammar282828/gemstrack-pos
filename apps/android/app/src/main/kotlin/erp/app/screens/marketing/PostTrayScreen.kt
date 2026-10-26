@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.Loading
 import erp.core.logic.ShopNumber
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -45,20 +46,19 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
+import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import erp.app.ui.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import erp.app.ui.SegmentedButton
+import erp.app.ui.SegmentedButtonDefaults
+import erp.app.ui.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -336,7 +336,7 @@ private fun TrayStrip(model: PostTrayModel, clearAll: () -> Unit) {
                         "$number", Modifier.padding(3.dp).clip(CircleShape).background(ErpColors.accent).padding(horizontal = 5.dp, vertical = 1.dp),
                         style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = TabularDigits), color = ErpColors.onAccent,
                     )
-                    if (c.sending) Box(Modifier.fillMaxSize().background(ErpColors.card.copy(alpha = 0.7f)), contentAlignment = Alignment.Center) { CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) }
+                    if (c.sending) Box(Modifier.fillMaxSize().background(ErpColors.card.copy(alpha = 0.7f)), contentAlignment = Alignment.Center) { Loading(Modifier.size(26.dp)) }
                     if (c.failed != null) Icon(Icons.Filled.Error, "Didn't go", Modifier.align(Alignment.BottomCenter).padding(3.dp).size(18.dp), tint = Tone.problem.color())
                 }
             }
@@ -384,14 +384,14 @@ private fun TrayBar(
 ) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
         OutlinedButton(onClick = onSecondary, enabled = enabled && !secondaryBusy, modifier = Modifier.heightIn(min = 52.dp)) {
-            if (secondaryBusy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else Icon(Icons.Filled.Schedule, null, Modifier.size(18.dp))
+            if (secondaryBusy) Loading(Modifier.size(24.dp)) else Icon(Icons.Filled.Schedule, null, Modifier.size(18.dp))
             Text("Later", Modifier.padding(start = 8.dp))
         }
         Button(
             onClick = onPrimary, enabled = enabled && !primaryBusy, modifier = Modifier.weight(1f).heightIn(min = 52.dp),
             colors = ButtonDefaults.buttonColors(containerColor = ErpColors.accent, contentColor = ErpColors.onAccent),
         ) {
-            if (primaryBusy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = ErpColors.onAccent) else Icon(Icons.AutoMirrored.Filled.Send, null, Modifier.size(18.dp))
+            if (primaryBusy) Loading(Modifier.size(26.dp), color = ErpColors.onAccent) else Icon(Icons.AutoMirrored.Filled.Send, null, Modifier.size(18.dp))
             Text(primary, Modifier.padding(start = 8.dp))
         }
     }

@@ -1,5 +1,6 @@
 package erp.app.screens.work
 
+import erp.app.ui.SegmentedColumn
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -25,10 +26,10 @@ import androidx.compose.material.icons.filled.FiberManualRecord
 import androidx.compose.material.icons.filled.ListAlt
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import erp.app.ui.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -272,8 +273,8 @@ internal fun spoken(key: String, data: ShopCalendarDay?, due: Int): String {
 private fun DaySection(events: List<ShopCalendarEvent>, selected: String) {
     val nav = LocalNavigator.current
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        LedgerHeading("Events for ${ShopCalendar.longDay(selected)}", Modifier.padding(horizontal = 4.dp))
-        Column(Modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card)) {
+        LedgerHeading("Events for ${ShopCalendar.longDay(selected)}", Modifier.padding(horizontal = 16.dp))
+        SegmentedColumn {
             if (events.isEmpty()) {
                 Text("No events for this day.", Modifier.fillMaxWidth().ledgerRow(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else {
@@ -298,7 +299,7 @@ private fun DaySection(events: List<ShopCalendarEvent>, selected: String) {
         }
         Text(
             "${events.size} event${if (events.size == 1) "" else "s"} found.",
-            Modifier.padding(horizontal = 4.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -309,8 +310,8 @@ private fun DueSection(due: List<Order>, selected: String) {
     if (due.isEmpty()) return
     val nav = LocalNavigator.current
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        LedgerHeading("Promised for this day", Modifier.padding(horizontal = 4.dp))
-        Column(Modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card)) {
+        LedgerHeading("Promised for this day", Modifier.padding(horizontal = 16.dp))
+        SegmentedColumn {
             due.forEachIndexed { i, o ->
                 if (i > 0) LedgerDivider()
                 Row(
