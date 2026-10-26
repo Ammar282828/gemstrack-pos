@@ -15,7 +15,10 @@ final class ERPMacUITests: XCTestCase {
     /// The demo, fresh: no window restored from a past run, unless a test asks for it.
     private func demo(_ extra: [String] = [], restoreState: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-ERPDemo", "YES"] + (restoreState ? [] : ["-ApplePersistenceIgnoreState", "YES"]) + extra
+        // Fresh is fresh: no window restored and no last place remembered from another test (`mac.lastPlace`, read from
+        // the arguments before the app's own defaults).
+        app.launchArguments = ["-ERPDemo", "YES"]
+            + (restoreState ? [] : ["-ApplePersistenceIgnoreState", "YES", "-mac.lastPlace", "/"]) + extra
         return app
     }
 
@@ -30,7 +33,11 @@ final class ERPMacUITests: XCTestCase {
         app.descendants(matching: .any).matching(identifier: "sidebar." + path).firstMatch
     }
 
-    private func title(_ app: XCUIApplication) -> String { app.windows.firstMatch.title }
+    /// The place the window shows: its title without the subtitle macOS joins to it ("Orders – 6 orders" is "Orders").
+    private func title(_ app: XCUIApplication) -> String {
+        let whole = app.windows.firstMatch.title
+        return whole.components(separatedBy: " \u{2013} ").first ?? whole
+    }
 
     private func shot(_ app: XCUIApplication, _ name: String) {
         let a = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
@@ -304,13 +311,26 @@ final class ERPMacUITests: XCTestCase {
             let app = launch(["-ERPDemoOpen", place])
             sleep(2)
             let before = app.windows.count
-            let first = app.windows.firstMatch.outlines.firstMatch.cells.element(boundBy: 1)
-            guard first.waitForExistence(timeout: 5) else { XCTFail("\(place) shows no rows in the demo"); app.terminate(); continue }
-            first.click()
-            sleep(1)
+            let cells = app.windows.firstMatch.outlines.firstMatch.cells
+            guard cells.firstMatch.waitForExistence(timeout: 5) else { XCTFail("\(place) shows no rows in the demo"); app.terminate(); continue }
+            // A section's heading is a cell too: click down the list until the inspector shows a record.
+            let empty = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'No ' AND label ENDSWITH ' Selected'")).firstMatch
+            var picked: XCUIElement?
+            for i in 0..<8 {
+                let c = cells.element(boundBy: i)
+                guard c.exists else { break }
+                c.click()
+                usleep(500_000)
+                if !empty.exists { picked = c; break }
+            }
+            guard let row = picked else { XCTFail("no row of \(place) could be picked"); app.terminate(); continue }
             shot(app, "picked in " + place)
             app.typeKey(.return, modifierFlags: [])
-            XCTAssertTrue(app.windows.element(boundBy: before).waitForExistence(timeout: 5), "Return on a row of \(place) opened no window")
+            if !app.windows.element(boundBy: before).waitForExistence(timeout: 5) {
+                row.doubleClick()
+                let byClick = app.windows.element(boundBy: before).waitForExistence(timeout: 5)
+                XCTFail("Return on a row of \(place) opened no window (a double-click \(byClick ? "did" : "did not either"))")
+            }
             shot(app, "record from " + place)
             stillUp(app, "a record of " + place)
             app.terminate()
@@ -451,10 +471,14 @@ final class ERPMacUITests: XCTestCase {
 
     // MARK: Speed
 
-    func testLaunchAndSwitchingPlacesAreQuick() {
+    func testLaunchIsQuick() {
         measure(metrics: [XCTApplicationLaunchMetric()]) {
             demo().launch()
         }
+    }
+
+    /// One set of metrics per test (XCTest's rule): switching places is its own test.
+    func testSwitchingPlacesIsQuick() {
         let app = launch()
         let clock = XCTClockMetric()
         measure(metrics: [clock]) {

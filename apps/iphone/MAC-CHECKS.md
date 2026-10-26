@@ -11,3 +11,4 @@ Xcode Cloud (the screenshots). One line per check, newest last.
 - 2026-10-27: again, the test target given the CCUPS module path (the first run stopped at "Unable to resolve module dependency: 'CCUPS'"); the shared figure card and even grid, the opaque summary bar, inspectors on the ground.
 - 2026-10-27: the unit tests import ERPCore (Money) and ask ScreenRegistry, not ScreenRoute, for a native page: the app and its new kit compiled, only the tests did not.
 - 2026-10-27: the app could not launch on the test machine ("Launchd job spawn failed"): the Debug build now signs without push and keychain groups (ERPMac-Debug.entitlements); with the money and reports pages in one look.
+- 2026-10-27: the first run that launched (25 failures): ⌘K's field takes the keys at once, Live's and Plan's icons, the last place reopened at launch, the tests read titles without their subtitles, pick a real row before Return, one metric per test; with every page's one-look fixes.

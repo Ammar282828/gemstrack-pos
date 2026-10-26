@@ -124,6 +124,12 @@ struct MacShell: View {
     @State private var columns = NavigationSplitViewVisibility.all
     /// The window's place, kept across quitting: a Mac app reopens where it was left.
     @SceneStorage("mac.place") private var savedPlace = "/"
+    /// The last place any window showed, for the first window of a launch: macOS restores a window's scene storage only
+    /// when it reopens its windows, and with System Settings' "Close windows when quitting an application" on (the
+    /// default) it never does, so every launch opened on Today (the Mac check, 2026-10-27).
+    @AppStorage("mac.lastPlace") private var lastPlace = "/"
+    /// The launch's first window has taken `lastPlace`; a New Window (⌥⇧⌘N) opens on Today.
+    @MainActor private static var launchRestored = false
     @State private var restored = false
 
     private var map: NavMap { NavMap.current.visible(to: session.role) }
@@ -234,7 +240,11 @@ struct MacShell: View {
         .onChange(of: AppLock.shared.locked) { _, locked in
             if locked { model.quickOpen = false; model.voice = false }
         }
-        .onChange(of: model.selection) { _, s in if restored { savedPlace = s ?? "/" } }
+        .onChange(of: model.selection) { _, s in
+            guard restored else { return }
+            savedPlace = s ?? "/"
+            if let s, s != Self.searchID { lastPlace = s }
+        }
         .onChange(of: model.snapshots) { _, asked in
             guard asked else { return }
             model.snapshots = false
@@ -256,7 +266,10 @@ struct MacShell: View {
                     model.go(p)
                 } else if savedPlace != "/", MacSidebarMap.allPaths(sidebarSections(map)).contains(savedPlace) {
                     model.selection = savedPlace
+                } else if !Self.launchRestored, lastPlace != "/", MacSidebarMap.allPaths(sidebarSections(map)).contains(lastPlace) {
+                    model.selection = lastPlace
                 }
+                Self.launchRestored = true
             }
             // A role with no Today (marketing) opens on its first place, never on a dashboard of books it may not see.
             let sections = sidebarSections(map)
