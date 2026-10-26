@@ -199,6 +199,93 @@ final class ERPMacUITests: XCTestCase {
         stillUp(app, "the three windows")
     }
 
+    /// File › New is a new window every time, as a document app's is: a second ⌘N must not bring the first forward.
+    func testTwoNewSalesAreTwoWindows() {
+        let app = launch()
+        let before = app.windows.count
+        app.typeKey("n", modifierFlags: .command)
+        XCTAssertTrue(app.windows.element(boundBy: before).waitForExistence(timeout: 5))
+        app.typeKey("n", modifierFlags: .command)
+        XCTAssertTrue(app.windows.element(boundBy: before + 1).waitForExistence(timeout: 5),
+                      "the second ⌘N brought the first sale forward instead of a new one")
+        stillUp(app, "two new sales")
+    }
+
+    /// The counter's keys answer whatever window is in front: a New Sale window, the Settings window.
+    func testNewKeysWorkFromAWindowWithNoSidebar() {
+        let app = launch()
+        let before = app.windows.count
+        app.typeKey("n", modifierFlags: .command)
+        XCTAssertTrue(app.windows.element(boundBy: before).waitForExistence(timeout: 5))
+        // The sale's window is key now.
+        app.typeKey("n", modifierFlags: [.command, .shift])
+        XCTAssertTrue(app.windows.element(boundBy: before + 1).waitForExistence(timeout: 5),
+                      "⇧⌘N from a New Sale window did nothing (the menus read the main window only)")
+        app.typeKey(",", modifierFlags: .command)
+        sleep(1)
+        let withSettings = app.windows.count
+        app.typeKey("n", modifierFlags: [.command, .option])
+        XCTAssertTrue(app.windows.element(boundBy: withSettings).waitForExistence(timeout: 5),
+                      "⌥⌘N from Settings did nothing")
+        stillUp(app, "new from other windows")
+    }
+
+    /// A saved list opened in a window of its own shows that list, not every record of its place.
+    func testASavedListInAWindowIsThatList() {
+        let app = launch(["-ERPDemoOpen", "/orders?list=late"])
+        sleep(2)
+        let before = app.windows.count
+        let listTitle = title(app)
+        app.typeKey("o", modifierFlags: .command)
+        let w = app.windows.element(boundBy: before)
+        XCTAssertTrue(w.waitForExistence(timeout: 5))
+        sleep(1)
+        XCTAssertEqual(app.windows.firstMatch.title, listTitle, "the list's window is titled as another page")
+        shot(app, "a saved list in a window")
+    }
+
+    /// A link (⌘K) after Back is a new step: Forward has nowhere left to go.
+    func testForwardIsGoneAfterQuickOpen() {
+        let app = launch()
+        row(app, "/orders").click()
+        row(app, "/invoices").click()
+        app.typeKey("[", modifierFlags: .command)
+        XCTAssertTrue(app.buttons["Forward"].firstMatch.isEnabled)
+        app.typeKey("k", modifierFlags: .command)
+        app.textFields.firstMatch.typeText("ORD-D0002")
+        sleep(1)
+        app.typeKey(.return, modifierFlags: [])
+        sleep(1)
+        XCTAssertFalse(app.buttons["Forward"].firstMatch.isEnabled, "Forward still leads past a page opened by ⌘K")
+        app.typeKey("[", modifierFlags: .command)
+        stillUp(app, "Back after ⌘K")
+    }
+
+    private func menuItem(_ app: XCUIApplication, _ menu: String, _ item: String) -> XCUIElement {
+        app.menuBars.menuBarItems[menu].click()
+        return app.menuBars.menuItems[item]
+    }
+
+    func testPrintIsOffOnTheOnlineInbox() {
+        let app = launch(["-ERPDemoOpen", "/orders/online"])
+        sleep(2)
+        let print = menuItem(app, "File", "Print…")
+        XCTAssertTrue(print.exists)
+        XCTAssertFalse(print.isEnabled, "File › Print offered an order slip for the online inbox")
+        app.typeKey(.escape, modifierFlags: [])
+        app.typeKey("p", modifierFlags: .command)
+        sleep(1)
+        stillUp(app, "⌘P on the inbox")
+    }
+
+    func testSnapshotsAreOffInTheDemo() {
+        let app = launch()
+        let item = menuItem(app, "Help", "Send Page Snapshots…")
+        XCTAssertTrue(item.exists)
+        XCTAssertFalse(item.isEnabled, "the demo's made-up books could be sent to a real ERP")
+        app.typeKey(.escape, modifierFlags: [])
+    }
+
     func testTheSidebarCommandsOpenTheirWindows() {
         let app = launch()
         let before = app.windows.count

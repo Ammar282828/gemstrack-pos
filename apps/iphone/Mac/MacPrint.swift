@@ -17,7 +17,7 @@ enum MacPrint {
         func id(_ prefix: String) -> String? {
             guard bare.hasPrefix(prefix) else { return nil }
             let rest = String(bare.dropFirst(prefix.count))
-            guard !rest.isEmpty, !rest.contains("/"), !["add", "new", "bulk-add"].contains(rest) else { return nil }
+            guard !rest.isEmpty, !rest.contains("/"), !["add", "new", "bulk-add", "online"].contains(rest) else { return nil }
             return rest.removingPercentEncoding ?? rest
         }
         if let sku = id("/products/") { return .tag(sku) }

@@ -111,6 +111,116 @@ final class ERPMacTests: XCTestCase {
         XCTAssertNil(m.current)
     }
 
+    func testAPageOpenedByALinkDropsTheWayForward() {
+        let m = MacShellModel()
+        m.go("/orders")
+        m.go("/invoices")
+        m.goBack()
+        XCTAssertTrue(m.canGoForward)
+        // A link inside the page (or ⌘K) opens a record: a new step, as a browser's link is.
+        m.stack.append(Route(path: "/orders/ORD-D0002"))
+        XCTAssertFalse(m.canGoForward, "Forward after a new page would jump to a place the person left behind")
+    }
+
+    func testTheStackWrittenBackUnchangedKeepsTheWayForward() {
+        let m = MacShellModel()
+        m.go("/orders")
+        m.go("/invoices")
+        m.goBack()
+        m.stack = m.stack   // NavigationStack writes its path back as it draws
+        XCTAssertTrue(m.canGoForward)
+    }
+
+    func testBackAndForwardThroughPagesKeepTheWayForward() {
+        let m = MacShellModel()
+        m.go("/orders")
+        m.stack.append(Route(path: "/orders/ORD-D0002"))
+        m.goBack()
+        XCTAssertTrue(m.canGoForward, "Back closing a page is a retrace, not a new step")
+        m.goForward()
+        XCTAssertEqual(m.stack.map(\.path), ["/orders/ORD-D0002"])
+    }
+
+    func testARoleChangeForgetsPlacesItCanNoLongerOpen() {
+        let m = MacShellModel()
+        m.go("/orders")
+        m.go("/expenses")
+        m.go(MacShell.searchID)
+        m.go("/invoices")
+        m.goBack()
+        m.goBack()
+        // Now on /expenses with /invoices and search ahead, Today and /orders behind.
+        m.forget(keeping: ["/", "/invoices"])
+        XCTAssertEqual(m.history.compactMap(\.selection), ["/"])
+        XCTAssertEqual(m.future.compactMap(\.selection), ["/invoices", MacShell.searchID])
+        while m.canGoBack { m.goBack() }
+        XCTAssertEqual(m.selection, "/")
+    }
+
+    func testAMementoPutsTheWindowBackExactly() {
+        let m = MacShellModel()
+        m.go("/orders")
+        m.stack.append(Route(path: "/orders/ORD-D0002"))
+        m.go("/invoices")
+        m.goBack()
+        let before = m.memento
+        for p in ["/customers", "/repairs", "/products"] { m.go(p) }
+        m.restore(before)
+        XCTAssertEqual(m.selection, before.selection)
+        XCTAssertEqual(m.stack, before.stack)
+        XCTAssertEqual(m.history, before.history)
+        XCTAssertEqual(m.future, before.future)
+        XCTAssertTrue(m.canGoForward, "the snapshot walk must not cost the person their Forward")
+    }
+
+    // MARK: Windows, print and home
+
+    func testEveryNewIsAWindowOfItsOwn() {
+        for path in ["/invoices/new", "/orders/add", "/repairs?new=1", "/scan"] {
+            let a = MacWindows.fresh(Route(path: path)), b = MacWindows.fresh(Route(path: path))
+            XCTAssertNotEqual(a, b, "a second \(path) would bring the first window forward")
+            XCTAssertEqual(ScreenRoute.bare(a.path), ScreenRoute.bare(path), "the mark must not change the screen")
+            XCTAssertTrue(ScreenRegistry.hasNative(a.path) || ScreenRoute.bare(path) == "/repairs", a.path)
+            if path.contains("new=1") {
+                XCTAssertEqual(URLComponents(string: a.path)?.queryItems?.first { $0.name == "new" }?.value, "1",
+                               "the repair's own ask survives the mark")
+            }
+        }
+    }
+
+    func testPrintOffersOnlyRecordsThatPrint() {
+        XCTAssertFalse(MacPrint.canPrint(Route(path: "/orders/online")), "the online inbox is not an order")
+        XCTAssertFalse(MacPrint.canPrint(Route(path: "/orders/add")))
+        XCTAssertFalse(MacPrint.canPrint(Route(path: "/invoices/new")))
+        XCTAssertFalse(MacPrint.canPrint(Route(path: "/products/bulk-add")))
+        XCTAssertFalse(MacPrint.canPrint(Route(path: "/orders")))
+        XCTAssertFalse(MacPrint.canPrint(nil))
+        XCTAssertTrue(MacPrint.canPrint(Route(path: "/orders/ORD-D0002")))
+        XCTAssertTrue(MacPrint.canPrint(Route(path: "/invoices/INV-D0001")))
+        XCTAssertTrue(MacPrint.canPrint(Route(path: "/products/SKU-1")))
+        XCTAssertTrue(MacPrint.canPrint(Route(path: "/repairs?id=REP-1")))
+        XCTAssertEqual(MacPrint.title(for: Route(path: "/orders/ORD-D0002")), "Print Order Slip…")
+    }
+
+    func testEveryRoleStartsOnAPlaceItHas() {
+        for role in Self.roles {
+            let s = sections(role)
+            let home = MacShell.home(s)
+            XCTAssertTrue(MacSidebarMap.allPaths(s).contains(home), "\(role) starts on \(home), not in its sidebar")
+            if role != "marketing" { XCTAssertEqual(home, "/", role) }
+        }
+    }
+
+    func testSettingsPanesFollowTheRole() {
+        let owner = MacSettingsPane.groups(owner: true, websiteSelling: true).flatMap(\.panes)
+        let staff = MacSettingsPane.groups(owner: false, websiteSelling: true).flatMap(\.panes)
+        XCTAssertTrue(owner.contains(.general) && staff.contains(.general), "the fallback pane is everyone's")
+        XCTAssertFalse(staff.contains(.shop))
+        XCTAssertFalse(staff.contains(.ai))
+        XCTAssertEqual(Set(owner).count, owner.count, "a pane listed twice")
+        XCTAssertFalse(MacSettingsPane.groups(owner: true, websiteSelling: false).flatMap(\.panes).contains(.website))
+    }
+
     // MARK: The sidebar for every role (MacSidebarMap)
 
     private static let roles = ["owner", "staff", "marketing"]

@@ -195,6 +195,13 @@ enum MacWindows {
     static let main = "main"
     static let place = "place"
 
+    /// A new sale, order, repair or scan opens a window of its own every time, as File › New does in any Mac app: the
+    /// window is found by its route, so each gets a mark of its own (`w=`, which no screen reads) and a second ⌘N is a
+    /// second window, not the first one brought forward.
+    static func fresh(_ r: Route) -> Route {
+        Route(path: r.path + (r.path.contains("?") ? "&" : "?") + "w=" + String(UUID().uuidString.prefix(8)))
+    }
+
     /// The main window to the front: the one already open (a WindowGroup would make another on every ask), else a new one.
     @MainActor static func bringMain(_ make: () -> Void) {
         NSApp.activate()

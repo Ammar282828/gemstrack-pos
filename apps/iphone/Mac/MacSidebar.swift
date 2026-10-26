@@ -269,7 +269,9 @@ struct MacSidebar: View {
     private var counts: [MacSidebarCount: Int] {
         let wanted = Set(sections.flatMap { $0.rows.flatMap { [$0.count] + $0.children.map(\.count) } }.compactMap { $0 })
         let key = [book.orders.revision, book.invoices.revision, book.repairs.revision, book.customers.revision,
-                   inbox.waiting, Int(Date().timeIntervalSince1970 / 3600)]
+                   inbox.waiting, Int(Date().timeIntervalSince1970 / 3600),
+                   // Another role or business draws other rows: their counts are worked out afresh, never an old map's.
+                   wanted.hashValue]
         return counted(key) {
             var out: [MacSidebarCount: Int] = [:]
             for c in wanted {
@@ -348,7 +350,8 @@ struct MacSidebarRate: View {
 
     var body: some View {
         let s = book.settings.value
-        let today = RateKeys.setToday(s)
+        // Before the settings arrive the rate is unknown, not unset: no warning for the first second after launch.
+        let today = s == nil || RateKeys.setToday(s)
         let rate = s.map { Money.grouped($0[keyPath: RateKeys.main.value]) } ?? "\u{2014}"
         Button { open = true } label: {
             HStack(spacing: 8) {

@@ -8,8 +8,20 @@ import AppKit
 final class MacShellModel {
     /// The sidebar's place (an entry's href, or "search").
     var selection: String? = "/"
-    /// Pages opened from it, the detail's stack.
-    var stack: [Route] = []
+    /// Pages opened from it, the detail's stack. A page opened (or closed) by anything but Back and Forward (a link in
+    /// a page, ⌘K) is a step of its own: the way forward is dropped, as a browser's is.
+    var stack: [Route] {
+        get { pages }
+        set {
+            // NavigationStack writes its path back unchanged at times: that is no step.
+            guard newValue != pages else { return }
+            pages = newValue
+            if !retracing { future = [] }
+        }
+    }
+    private var pages: [Route] = []
+    /// Back or Forward is moving the window: its own changes to the stack keep the way forward.
+    @ObservationIgnored private var retracing = false
     /// New sale, New order, Scan, a repair: opened in a window of its own (`MacPlaceWindow`).
     var creating: Route?
     var voice = false
@@ -49,6 +61,8 @@ final class MacShellModel {
     /// Out of the page opened inside a place first, then to the place before.
     func goBack() {
         guard canGoBack else { return }
+        retracing = true
+        defer { retracing = false }
         future.append(Visit(selection: selection, stack: stack))
         if !stack.isEmpty {
             stack.removeLast()
@@ -60,10 +74,37 @@ final class MacShellModel {
 
     func goForward() {
         guard let next = future.popLast() else { return }
+        retracing = true
+        defer { retracing = false }
         // Deeper in the same place is the page Back closed; another place is a visit of its own.
         if next.selection != selection { history.append(Visit(selection: selection, stack: stack)) }
         selection = next.selection
         stack = next.stack
+    }
+
+    /// A role that may no longer open some places (or another business's map): visits to them leave the history and
+    /// the way forward, so Back never reaches a page the person can no longer see.
+    func forget(keeping allowed: Set<String>) {
+        func ok(_ v: Visit) -> Bool { v.selection.map { allowed.contains($0) || $0 == MacShell.searchID } ?? false }
+        history = history.filter(ok)
+        future = future.filter(ok)
+    }
+
+    /// Where the window is and how it got there, to put back after it has been walked (Send Page Snapshots).
+    struct Memento {
+        let selection: String?
+        let stack: [Route]
+        let history: [Visit]
+        let future: [Visit]
+    }
+    var memento: Memento { Memento(selection: selection, stack: stack, history: history, future: future) }
+    func restore(_ m: Memento) {
+        retracing = true
+        defer { retracing = false }
+        selection = m.selection
+        stack = m.stack
+        history = m.history
+        future = m.future
     }
 }
 
@@ -71,6 +112,12 @@ final class MacShellModel {
 /// the detail with its own stack; the business, New Sale, New Order and Search at the sidebar's head, the rate at its foot.
 struct MacShell: View {
     static let searchID = "search"
+
+    /// Where a window starts and Go › Today goes: Today, or the first place of a role without it.
+    static func home(_ sections: [MacSidebarSection]) -> String {
+        MacSidebarMap.allPaths(sections).contains("/") ? "/" : (MacSidebarMap.places(sections).first?.id ?? "/")
+    }
+
     @Environment(Session.self) private var session
     @Environment(\.openWindow) private var openWindow
     @State private var model = MacShellModel()
@@ -148,7 +195,7 @@ struct MacShell: View {
         // usable beside it (look up a customer, check the stock), and two can be open at once.
         .onChange(of: model.creating) { _, r in
             guard let r else { return }
-            openWindow(id: MacWindows.place, value: r)
+            openWindow(id: MacWindows.place, value: MacWindows.fresh(r))
             model.creating = nil
         }
         .sheet(isPresented: $model.voice, onDismiss: {
@@ -171,15 +218,23 @@ struct MacShell: View {
         // Another role sees another map: a place it may no longer open goes Home (a role arriving at launch keeps the
         // place the window reopened on).
         .onChange(of: session.role) { _, _ in
+            let sections = sidebarSections(map)
+            let allowed = MacSidebarMap.allPaths(sections)
+            model.forget(keeping: allowed)
             let s = model.selection ?? "/"
-            if MacSidebarMap.allPaths(sidebarSections(map)).contains(s) { model.stack = [] } else { model.go("/") }
+            if allowed.contains(s) || s == Self.searchID { model.stack = [] } else { model.go(Self.home(sections)) }
+        }
+        // Locked: nothing of the books stays drawn over the lock (the ⌘K panel, the voice sheet).
+        .onChange(of: AppLock.shared.locked) { _, locked in
+            if locked { model.quickOpen = false; model.voice = false }
         }
         .onChange(of: model.selection) { _, s in if restored { savedPlace = s ?? "/" } }
         .onChange(of: model.snapshots) { _, asked in
             guard asked else { return }
             model.snapshots = false
             let stops = MacSnapshots.stops(sections)
-            Task { @MainActor in MacSnapshots.ask(shell: model, stops: stops) }
+            let business = Businesses.shared.current.id
+            Task { @MainActor in MacSnapshots.ask(shell: model, stops: stops, business: business) }
         }
         // Every list a shop opens all day is read in the background once the window is up, so the first click on
         // Orders, Invoices, Customers, Stock or Repairs shows its table at once, never a spinner. A Mac has the memory;
@@ -196,6 +251,11 @@ struct MacShell: View {
                 } else if savedPlace != "/", MacSidebarMap.allPaths(sidebarSections(map)).contains(savedPlace) {
                     model.selection = savedPlace
                 }
+            }
+            // A role with no Today (marketing) opens on its first place, never on a dashboard of books it may not see.
+            let sections = sidebarSections(map)
+            if let s = model.selection, s != Self.searchID, !MacSidebarMap.allPaths(sections).contains(s) {
+                model.selection = Self.home(sections)
             }
             guard session.role != "marketing" else { return }
             try? await Task.sleep(for: .milliseconds(400))
@@ -228,7 +288,9 @@ struct MacShell: View {
     // MARK: The detail
 
     /// The Mac's own places (docs/features/mac-design.md), by the sidebar's path; nil for a place drawn by its screen.
-    private func macPlace(_ path: String) -> AnyView? {
+    /// A place (or one of its saved lists) opened in a window of its own is drawn by the same view, so the window shows
+    /// the list it was opened from, not every record.
+    static func macPlace(_ path: String) -> AnyView? {
         switch ScreenRoute.bare(path) {
         case "/orders": return AnyView(MacOrdersPlace(path: path))
         case "/invoices": return AnyView(MacInvoicesPlace(path: path))
@@ -244,7 +306,7 @@ struct MacShell: View {
         let selection = model.selection ?? "/"
         if selection == Self.searchID {
             SearchView(map: map).modifier(TeamNotePresentation())
-        } else if session.role != "marketing", let place = macPlace(selection) {
+        } else if session.role != "marketing", let place = Self.macPlace(selection) {
             // Orders, Invoices, Customers, Repairs, Stock (and their saved lists): the place's table with the inspector.
             place.id(selection)
         } else {
@@ -276,14 +338,18 @@ struct MacPlaceWindow: View {
     let route: Route?
     @State private var stack: [Route] = []
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.dismiss) private var dismiss
+    /// The business this window was opened on. Its books are that business's: a switch to another closes the window
+    /// rather than draw the same path (an order number, a half-made sale) from the other business's books.
+    @State private var openedOn: String?
 
     var body: some View {
         let business = Businesses.shared.current
         let session = Sessions.shared.session(for: business)
         Group {
-            if let route, session.state == .signedIn {
+            if let route, session.state == .signedIn, openedOn == nil || openedOn == business.id {
                 NavigationStack(path: $stack) {
-                    PlaceScreen(path: route.path)
+                    root(route, role: session.role)
                         .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
                 }
                 // A record in this window opens another record in a window of its own, as the main window's do.
@@ -300,6 +366,17 @@ struct MacPlaceWindow: View {
         .modifier(MacLockCover())
         .environment(\.locale, Locale(identifier: "en_PK"))
         .frame(minWidth: 640, minHeight: 520)
+        .onAppear { if openedOn == nil { openedOn = business.id } }
+        .onChange(of: business.id) { _, now in if let openedOn, now != openedOn { dismiss() } }
+    }
+
+    @ViewBuilder
+    private func root(_ route: Route, role: String) -> some View {
+        if role != "marketing", let place = MacShell.macPlace(route.path) {
+            place
+        } else {
+            PlaceScreen(path: route.path)
+        }
     }
 }
 

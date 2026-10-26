@@ -7,6 +7,10 @@ import SwiftUI
 struct MacSettingsWindow: View {
     @State private var pane: MacSettingsPane? = .general
 
+    private func keep(_ all: [MacSettingsPane]) {
+        if let p = pane, !all.contains(p) { pane = .general }
+    }
+
     var body: some View {
         let business = Businesses.shared.current
         let session = Sessions.shared.session(for: business)
@@ -27,15 +31,16 @@ struct MacSettingsWindow: View {
                     .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 240)
                 } detail: {
                     NavigationStack {
-                        MacSettingsPaneView(pane: pane ?? .general)
-                            .id(pane)
+                        // A pane this account no longer sees (another business, another role) is never drawn, even for
+                        // the moment before the selection resets.
+                        let shown = pane.flatMap { panes.flatMap(\.panes).contains($0) ? $0 : nil } ?? .general
+                        MacSettingsPaneView(pane: shown)
+                            .id(shown)
                             .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
                     }
                 }
-                .onAppear {
-                    let all = panes.flatMap(\.panes)
-                    if let p = pane, !all.contains(p) { pane = .general }
-                }
+                .onAppear { keep(panes.flatMap(\.panes)) }
+                .onChange(of: panes.flatMap(\.panes)) { _, all in keep(all) }
             } else {
                 ContentUnavailableView("Sign in first", systemImage: "person.crop.circle.badge.questionmark",
                                        description: Text("Settings open once you have signed in in the main window."))

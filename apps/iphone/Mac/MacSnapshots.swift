@@ -29,36 +29,43 @@ enum MacSnapshots {
     }
 
     /// Asks once (the window is busy for the length of the walk), then walks.
-    static func ask(shell: MacShellModel, stops: [Stop]) {
-        guard !running, !stops.isEmpty else { return }
+    static func ask(shell: MacShellModel, stops: [Stop], business: String) {
+        // The demo's books are made up: nothing of it goes to a real ERP.
+        guard !running, !stops.isEmpty, !House.isDemo else { return }
+        // The window that asked (the menu acts on the key window); taken before the alert takes the key.
+        let window = NSApp.keyWindow ?? mainWindow()
         let alert = NSAlert()
         alert.messageText = "Send a snapshot of every page?"
         alert.informativeText = "This window opens each of its \(stops.count) pages in turn, about \(stops.count * 2) seconds, and sends a picture of each to \(House.storeName)'s own ERP for whoever is building the Mac app. Leave the window alone until it says it is done."
         alert.addButton(withTitle: "Send Snapshots")
         alert.addButton(withTitle: "Cancel")
         guard alert.runModal() == .alertFirstButtonReturn else { return }
-        walk(shell: shell, stops: stops)
+        walk(shell: shell, stops: stops, window: window, business: business)
     }
 
-    private static func walk(shell: MacShellModel, stops: [Stop]) {
+    private static func walk(shell: MacShellModel, stops: [Stop], window: NSWindow?, business: String) {
         running = true
-        let back = shell.selection
+        // Where the window was and how it got there: put back after the walk, Back and Forward as they were.
+        let back = shell.memento
         let run = runID()
-        let window = mainWindow()
         Task { @MainActor in
             var sent = 0
             for (i, stop) in stops.enumerated() {
+                // Another business opened, the window closed or the Mac locked mid-walk: stop, never photograph
+                // another business's books (or the lock) under this one's run.
+                guard Businesses.shared.current.id == business, window?.isVisible == true, !AppLock.shared.locked else { break }
                 shell.go(stop.path)
                 // The page draws from the shelves already in memory; the wait is for its first layout and any fetch.
                 try? await Task.sleep(for: .milliseconds(1800))
-                guard let window, let shot = picture(of: window) else { continue }
+                guard Businesses.shared.current.id == business, !AppLock.shared.locked,
+                      let window, let shot = picture(of: window) else { continue }
                 let body: [String: Any] = [
                     "run": run, "n": i, "path": stop.path, "title": stop.title, "build": build,
                     "width": shot.width, "height": shot.height, "image": shot.base64,
                 ]
                 if (try? await ERPAPI.shared.send("/api/app/snapshots", body, timeout: 30)) != nil { sent += 1 }
             }
-            if let back { shell.go(back) }
+            if Businesses.shared.current.id == business { shell.restore(back) }
             running = false
             let done = NSAlert()
             done.messageText = sent == stops.count ? "Sent all \(sent) pages" : "Sent \(sent) of \(stops.count) pages"

@@ -7,7 +7,6 @@ import AppKit
 /// the record's menu is drawn from them, so every action a record has is in the menu bar with its key.
 struct MacCommands: Commands {
     @FocusedValue(\.macShell) private var shell
-    @FocusedValue(\.macMap) private var map
     @FocusedValue(\.macPlace) private var place
     @FocusedValue(\.macPlaces) private var places
     @FocusedValue(\.macRecordMenu) private var recordMenu
@@ -15,12 +14,26 @@ struct MacCommands: Commands {
     @Environment(\.openWindow) private var openWindow
 
     /// The page in front: a separate window's, else the main window's deepest.
-    private var current: Route? { place ?? shell?.current }
+    private var current: Route? { ready ? place ?? shell?.current : nil }
+    /// The business in front's map, whatever window is key: a place window or Settings has no sidebar, and its menus
+    /// still answer (⌘N from a New Sale window, Lock Now from Settings).
+    private var map: NavMap? {
+        let session = Sessions.shared.current
+        return session.state == .signedIn ? NavMap.current.visible(to: session.role) : nil
+    }
     private var signedIn: Bool { map != nil }
+    /// Signed in and not behind the lock: the books' commands answer only then.
+    private var ready: Bool { signedIn && !AppLock.shared.locked }
     private var isOwner: Bool { map?.settings != nil }
     private var sells: Bool { map?.actions.isEmpty == false }
 
     private func open(_ path: String) { openWindow(id: MacWindows.place, value: Route(path: path)) }
+
+    /// A new sale, order, repair or scan: through the main window when it is in front (it remembers a voice's pick), else
+    /// straight into a window of its own.
+    private func create(_ path: String) {
+        if let shell { shell.creating = Route(path: path) } else { openWindow(id: MacWindows.place, value: MacWindows.fresh(Route(path: path))) }
+    }
 
     var body: some Commands {
         appMenu
@@ -29,7 +42,7 @@ struct MacCommands: Commands {
         viewMenu
         goMenu
         CommandMenu(recordMenu?.title ?? "Item") {
-            if let recordMenu {
+            if let recordMenu, ready {
                 MacActionItems(groups: Self.withoutReserved(recordMenu.groups))
             } else {
                 Button("Nothing Selected") {}.disabled(true)
@@ -44,7 +57,7 @@ struct MacCommands: Commands {
             }
             Divider()
             Button("Send Page Snapshots\u{2026}") { shell?.snapshots = true }
-                .disabled(shell == nil || !isOwner || MacSnapshots.running)
+                .disabled(shell == nil || !ready || !isOwner || House.isDemo || MacSnapshots.running)
         }
         // Continuity Camera: "Import from iPhone" (Take Photo, Scan Documents) on the File menu, into whatever field has
         // focus and takes pictures (a piece's photo, a bill to read).
@@ -58,7 +71,7 @@ struct MacCommands: Commands {
             Divider()
             Button("Lock Now") { AppLock.shared.lockNow() }
                 .keyboardShortcut("l", modifiers: [.command, .control])
-                .disabled(!signedIn || !AppLock.shared.enabled)
+                .disabled(!ready || !AppLock.shared.enabled)
             Button("Sign Out…") { MacSignOut.ask() }
                 .disabled(!signedIn)
         }
@@ -70,33 +83,33 @@ struct MacCommands: Commands {
         Group {
             CommandGroup(replacing: .newItem) {
                 // The counter's three jobs keep their keys whatever is in front (a new sale is a sale, not the chooser).
-                Button("New Sale") { shell?.creating = Route(path: "/invoices/new") }
+                Button("New Sale") { create("/invoices/new") }
                     .keyboardShortcut("n", modifiers: .command)
-                    .disabled(shell == nil || map?.newSale == nil)
-                Button("New Order") { shell?.creating = Route(path: "/orders/add") }
+                    .disabled(!ready || map?.newSale == nil)
+                Button("New Order") { create("/orders/add") }
                     .keyboardShortcut("n", modifiers: [.command, .shift])
-                    .disabled(shell == nil || !sells)
-                Button("New Repair") { shell?.creating = Route(path: "/repairs?new=1") }
+                    .disabled(!ready || !sells)
+                Button("New Repair") { create("/repairs?new=1") }
                     .keyboardShortcut("n", modifiers: [.command, .option])
-                    .disabled(shell == nil || !sells)
+                    .disabled(!ready || !sells)
                 Menu("New") {
                     Button("Customer") { open("/customers/add") }.disabled(!sells)
                     Button("Piece") { open("/products/add") }.disabled(!isOwner)
                     Button("Pieces in Bulk") { open("/products/bulk-add") }.disabled(!isOwner)
                     Button("Karigar") { open("/karigars/add") }.disabled(!isOwner)
                 }
-                .disabled(!signedIn)
+                .disabled(!ready)
                 Button("New Window") { openWindow(id: MacWindows.main) }
                     .keyboardShortcut("n", modifiers: [.command, .option, .shift])
                 Divider()
                 Button("Open in New Window") { if let r = current { openWindow(id: MacWindows.place, value: r) } }
                     .keyboardShortcut("o", modifiers: .command)
                     .disabled(current == nil)
-                Button("Scan a Tag…") { shell?.creating = Route(path: "/scan") }
+                Button("Scan a Tag…") { create("/scan") }
                     .keyboardShortcut("t", modifiers: [.command, .shift])
-                    .disabled(shell == nil || !sells)
+                    .disabled(!ready || !sells)
                 Button("Voice Assistant…") { shell?.voice = true }
-                    .disabled(shell == nil || !isOwner)
+                    .disabled(shell == nil || !ready || !isOwner)
             }
             CommandGroup(after: .saveItem) {
                 Menu("Import") {
@@ -106,9 +119,9 @@ struct MacCommands: Commands {
                         Button("Taheri Software Book…") { open("/settings/import-taheri") }
                     }
                 }
-                .disabled(!isOwner)
+                .disabled(!ready || !isOwner)
                 Button("Backups…") { open("/settings/backups") }
-                    .disabled(!isOwner)
+                    .disabled(!ready || !isOwner)
             }
             CommandGroup(replacing: .printItem) {
                 // The record in front prints: its record menu's own Print (an invoice, an order's slip, the picked
@@ -116,7 +129,7 @@ struct MacCommands: Commands {
                 if let print = recordPrint {
                     Button(print.title.hasSuffix("…") ? print.title : print.title + "…") { print.perform() }
                         .keyboardShortcut("p", modifiers: .command)
-                        .disabled(!print.enabled)
+                        .disabled(!ready || !print.enabled)
                 } else {
                     Button(MacPrint.title(for: current)) { if let r = current { MacPrint.print(r) } }
                         .keyboardShortcut("p", modifiers: .command)
@@ -141,10 +154,10 @@ struct MacCommands: Commands {
             Divider()
             Button("Find") { MacFind.shared.ask() }
                 .keyboardShortcut("f", modifiers: .command)
-                .disabled(!signedIn)
+                .disabled(!ready)
             Button("Quick Open…") { shell?.quickOpen.toggle() }
                 .keyboardShortcut("k", modifiers: .command)
-                .disabled(shell == nil)
+                .disabled(shell == nil || !ready)
         }
     }
 
@@ -168,7 +181,7 @@ struct MacCommands: Commands {
                 if let refresh { refresh.run() } else { ServerShelf.wake() }
             }
             .keyboardShortcut("r", modifiers: .command)
-            .disabled(!signedIn)
+            .disabled(!ready)
             Divider()
             Button("Businesses…") { Businesses.shared.switcherOpen = true }
                 .keyboardShortcut("b", modifiers: [.command, .shift])
@@ -194,24 +207,27 @@ struct MacCommands: Commands {
 
     // MARK: Go
 
+    private var hasToday: Bool { places?.contains { $0.path == "/" } ?? true }
+
     private var goMenu: some Commands {
         CommandMenu("Go") {
-            Button("Today") { shell?.go("/") }
+            // Today, or the first place of a role without it (marketing).
+            Button(hasToday ? "Today" : "Home") { shell?.go(hasToday ? "/" : places?.first?.path ?? "/") }
                 .keyboardShortcut("h", modifiers: [.command, .shift])
-                .disabled(shell == nil)
+                .disabled(shell == nil || !ready)
             Divider()
             ForEach(Array((places ?? []).prefix(9).enumerated()), id: \.element.path) { i, p in
                 Button(p.title) { shell?.go(p.path) }
                     .keyboardShortcut(KeyEquivalent(Character(String(i + 1))), modifiers: .command)
-                    .disabled(shell == nil)
+                    .disabled(shell == nil || !ready)
             }
             Divider()
             Button("Back") { shell?.goBack() }
                 .keyboardShortcut("[", modifiers: .command)
-                .disabled(shell?.canGoBack != true)
+                .disabled(!ready || shell?.canGoBack != true)
             Button("Forward") { shell?.goForward() }
                 .keyboardShortcut("]", modifiers: .command)
-                .disabled(shell?.canGoForward != true)
+                .disabled(!ready || shell?.canGoForward != true)
         }
     }
 
@@ -220,9 +236,9 @@ struct MacCommands: Commands {
     private var windowMenu: some Commands {
         CommandGroup(before: .windowList) {
             Button("Activity Log") { open("/activity-log") }
-                .disabled(!isOwner)
+                .disabled(!ready || !isOwner)
             Button("Recently Removed") { open("/settings/recently-removed") }
-                .disabled(!isOwner)
+                .disabled(!ready || !isOwner)
             Divider()
         }
     }
