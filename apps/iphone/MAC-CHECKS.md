@@ -7,3 +7,4 @@ Results show on the commit in GitHub ("Xcode Cloud" check: test failures and the
 Xcode Cloud (the screenshots). One line per check, newest last.
 - 2026-10-27: the first Mac check: the iPhone's look on the Mac, the tests' first run.
 - 2026-10-27: with the review's fixes and their tests (two ⌘N windows, keys from a sale window and Settings, a list in a window, Forward after ⌘K, Print on the inbox, snapshots in the demo).
+- 2026-10-27: the Mac check workflow's first run (set up by the owner): every unit and UI test.
