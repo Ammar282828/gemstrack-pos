@@ -492,15 +492,16 @@ extension View {
 // MARK: Opening a picked row
 
 extension View {
-    /// Return opens what is picked in a list, as Finder's and Mail's do. A grouped `List`'s own primary action
-    /// (`contextMenu(forSelectionType:primaryAction:)`) fired for neither Return nor a double-click on rows inside a
-    /// `Section` (the Mac check, 2026-10-27: Orders, Invoices, Customers, Repairs); a flat list's did on a double-click.
+    /// Return opens what is picked in a list, as Finder's and Mail's do. A `List` hands Return to neither its primary
+    /// action (`contextMenu(forSelectionType:primaryAction:)`, a `Table`'s only) nor `onKeyPress` (the Mac check,
+    /// 2026-10-27: Return opened nothing in any list), so the key is read where AppKit sees it: while the list itself has
+    /// the keys (its table is the window's first responder, under this list), Return opens the picked rows.
     func macOpensOnReturn(_ selection: Set<String>, _ open: @escaping (Set<String>) -> Void) -> some View {
-        onKeyPress(.return) {
-            guard !selection.isEmpty else { return .ignored }
+        modifier(MacReturnOpens {
+            guard !selection.isEmpty else { return false }
             open(selection)
-            return .handled
-        }
+            return true
+        })
     }
 
     /// A double-click on a row opens it, beside the row's own selection (a simultaneous gesture leaves the click
@@ -508,6 +509,58 @@ extension View {
     func macOpensOnDoubleClick(_ open: @escaping () -> Void) -> some View {
         simultaneousGesture(TapGesture(count: 2).onEnded { open() })
     }
+}
+
+/// What Return opens and where the list sits, kept outside SwiftUI's state: the key monitor reads the latest each time.
+@MainActor
+final class MacReturnBox {
+    weak var anchor: NSView?
+    var open: (() -> Bool)?
+    var monitor: Any?
+}
+
+struct MacReturnOpens: ViewModifier {
+    let open: () -> Bool
+    @State private var box = MacReturnBox()
+
+    func body(content: Content) -> some View {
+        let box = self.box
+        box.open = open
+        return content
+            .background(MacAnchorView { box.anchor = $0 })
+            .onAppear {
+                guard box.monitor == nil else { return }
+                box.monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak box] (e: NSEvent) -> NSEvent? in
+                    guard let box, e.keyCode == 36 || e.keyCode == 76,
+                          e.modifierFlags.intersection([.command, .option, .control, .shift]).isEmpty,
+                          let anchor = box.anchor, let window = anchor.window, e.window === window,
+                          let table = window.firstResponder as? NSTableView,
+                          let scroll = table.enclosingScrollView else { return e }
+                    // The table with the keys is this list's (not the sidebar's, not an inspector's).
+                    let here = anchor.convert(anchor.bounds, to: nil)
+                    let there = scroll.convert(scroll.bounds, to: nil)
+                    guard here.contains(CGPoint(x: there.midX, y: there.midY)), box.open?() == true else { return e }
+                    return nil
+                }
+            }
+            .onDisappear {
+                if let m = box.monitor { NSEvent.removeMonitor(m) }
+                box.monitor = nil
+            }
+    }
+}
+
+/// A plain view behind a SwiftUI view, to find its window and frame from AppKit.
+struct MacAnchorView: NSViewRepresentable {
+    let found: (NSView) -> Void
+
+    func makeNSView(context: Context) -> NSView {
+        let v = NSView()
+        DispatchQueue.main.async { found(v) }
+        return v
+    }
+
+    func updateNSView(_ v: NSView, context: Context) {}
 }
 
 /// The inspector with nothing picked, or several: "No Order Selected" and what picking one shows, the same words, type

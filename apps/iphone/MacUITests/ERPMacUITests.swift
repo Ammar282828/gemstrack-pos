@@ -322,7 +322,9 @@ final class ERPMacUITests: XCTestCase {
             let cells = list.cells
             guard cells.firstMatch.waitForExistence(timeout: 5) else { XCTFail("\(place) shows no rows in the demo"); app.terminate(); continue }
             // A section's heading is a cell too: click down the list until the inspector shows a record.
-            let empty = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'No ' AND label ENDSWITH ' Selected'")).firstMatch
+            // A Mac's static text carries its words as its value, not its label.
+            let empty = app.staticTexts.matching(NSPredicate(format: "value BEGINSWITH 'No ' AND value ENDSWITH ' Selected'")).firstMatch
+            XCTAssertTrue(empty.waitForExistence(timeout: 3), "\(place)'s inspector shows no empty state before a row is picked")
             var picked: XCUIElement?
             for i in 0..<8 {
                 let c = cells.element(boundBy: i)
