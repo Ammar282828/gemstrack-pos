@@ -1,8 +1,11 @@
 package erp.app.screens.marketing
 
+import erp.app.ErpApp
 import erp.app.config.House
 import erp.app.data.ErpApi
 import erp.app.ui.AppClock
+import erp.core.Json
+import java.io.File
 import java.net.URI
 import java.time.Instant
 import java.time.format.DateTimeFormatter
@@ -30,6 +33,8 @@ data class PostsState(
     val piecesPhase: PostsPhase = PostsPhase.Idle,
     val pieces: List<PostPiece> = emptyList(),
     val site: String = "",
+    /** Set when the list on screen is the one kept on the phone because the website could not be read just now (when that list was read). */
+    val shownFrom: Instant? = null,
     val posted: Map<String, String> = emptyMap(),
     /** null until the first answer; an empty list is "nothing in the last two days". */
     val sent: List<PostSent>? = null,
@@ -138,19 +143,51 @@ object PostsStore {
 
     // MARK: Reads
 
-    private suspend fun loadPieces() {
+    // Where the list is kept, how it is read and which business it is: replaced by a test.
+    internal var piecesDir: () -> File = { File(ErpApp.instance.cacheDir, "erp-site-pieces") }
+    internal var fetchPieces: suspend () -> String = { ErpApi.shared.data(SitePiecesKeep.PATH, timeoutMs = SitePiecesKeep.TIMEOUT_MS) }
+    internal var businessId: () -> String = { House.id }
+    internal fun resetForTest() { _state.value = PostsState() }
+
+    internal suspend fun loadPieces() {
+        val biz = businessId()
+        val dir = piecesDir()
+        // The last list this business read, kept on the phone: From the website paints at once and is refreshed behind it.
+        if (_state.value.pieces.isEmpty()) {
+            SitePiecesKeep.kept(dir, biz)?.let { (text, at) ->
+                PostPiecesAnswer.from(Json.parse(text))?.let { a ->
+                    _state.update { it.copy(site = a.site, pieces = a.pieces.filter { p -> !p.hidden }, posted = a.posted, piecesPhase = PostsPhase.Loaded, shownFrom = at) }
+                }
+            }
+        }
         try {
-            val a = PostPiecesAnswer.from(ErpApi.shared.get("/api/website/site-pieces?lean=1")) ?: PostPiecesAnswer("", emptyList(), emptyMap())
-            _state.update { it.copy(site = a.site, pieces = a.pieces.filter { p -> !p.hidden }, posted = a.posted, piecesPhase = PostsPhase.Loaded) }
+            // 45 seconds, not 15: a long list on a shop's mobile line (House of Mina's is 85 KB packed, 1.3 MB if the line does not pack it).
+            val raw = fetchPieces()
+            val a = PostPiecesAnswer.from(Json.parse(raw)) ?: throw UnreadablePieces()
+            _state.update { it.copy(site = a.site, pieces = a.pieces.filter { p -> !p.hidden }, posted = a.posted, piecesPhase = PostsPhase.Loaded, shownFrom = null) }
+            SitePiecesKeep.keep(dir, biz, raw)
         } catch (e: CancellationException) {
+            // A screen that left mid-read is not a failure to show: the next screen reads again.
             throw e
         } catch (e: ErpApi.Failure) {
-            if (e.status == 404) _state.update { it.copy(piecesPhase = PostsPhase.Off) }
-            else if (_state.value.pieces.isEmpty()) _state.update { it.copy(piecesPhase = PostsPhase.Failed(e.message)) }
+            if (e.status == 404) _state.update { it.copy(piecesPhase = PostsPhase.Off) } else piecesFailed(e.message)
+        } catch (e: UnreadablePieces) {
+            piecesFailed(e.message)
         } catch (e: Exception) {
-            if (_state.value.pieces.isEmpty()) _state.update { it.copy(piecesPhase = PostsPhase.Failed(e.message ?: "Couldn't read the website.")) }
+            piecesFailed(e.message ?: "Couldn't read the website.")
         }
     }
+
+    /** Nothing on screen: say so. A list on screen stays, with the time it was read from (the site blipped). */
+    private fun piecesFailed(message: String?) {
+        _state.update {
+            if (it.pieces.isEmpty()) it.copy(piecesPhase = PostsPhase.Failed(message ?: "Couldn't read the website."))
+            else if (it.shownFrom == null) it.copy(shownFrom = Instant.now())
+            else it
+        }
+    }
+
+    private class UnreadablePieces : Exception("The website's pieces came back in a shape this app could not read. Pull to refresh; if it stays, tell the shop.")
 
     private suspend fun loadSent() {
         try {

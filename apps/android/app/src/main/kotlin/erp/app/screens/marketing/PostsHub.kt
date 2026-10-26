@@ -392,6 +392,13 @@ private fun SiteSection(state: PostsState, hasInvestments: Boolean) {
                             }
                         }
                     }
+                    state.shownFrom?.let { from ->
+                        Text(
+                            "Showing the list from ${ShopDate.stamp(from, withTime = true)}. The website did not answer just now.",
+                            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                     MarketingLink("All ${state.pieces.size} pieces", Icons.Filled.GridView, MarketingKit.piecesPath)
                 }
             }

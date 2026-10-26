@@ -83,6 +83,47 @@ class DashFiguresTests {
         assertEquals(listOf("oORD-C"), f.due.map { it.id })
     }
 
+    // lib/analytics/revenue-period.test.ts "gold coins are apart, as in Analytics", case for case (Home's month = Analytics' revenue).
+    private fun line(category: String, total: Double) = mapOf("categoryId" to category, "itemTotal" to total, "quantity" to 1)
+    private fun lined(id: String, total: Double, paid: Double, vararg items: Map<String, Any>, at: String = "2026-10-08T06:00:00.000Z") =
+        invoice(id, total = total, paid = paid, at = at, extra = mapOf("items" to items.toList()))
+
+    private val coinInv get() = lined("INV-coin", 1000.0, 1000.0, line("cat017", 1000.0))
+    private val ringInv get() = lined("INV-ring", 500.0, 500.0, line("cat001", 500.0))
+    private val mixedInv get() = lined("INV-mix", 400.0, 400.0, line("cat017", 100.0), line("cat001", 300.0))
+    private val polish get() = AdditionalRevenue.fromMap(mapOf("id" to "R1", "date" to "2026-10-08T06:00:00.000Z", "description" to "Polish", "amount" to 50))
+
+    @Test fun aCoinInvoiceLeavesTheMonthAndIsReportedInTheCoinLine() {
+        val f = figures(invoices = listOf(coinInv, ringInv, mixedInv), revenues = listOf(polish))
+        assertEquals(500.0 + 300.0 + 50.0, f.monthRevenue, 0.001)
+        assertEquals(1000.0 + 100.0, f.monthCoins, 0.001)
+    }
+
+    @Test fun homeEqualsWhatAnalyticsCountsOnAMixedFixture() {
+        val invoices = listOf(coinInv, ringInv, mixedInv)
+        val (jewellery, coins) = erp.app.screens.analytics.AnaCoins.splitAll(invoices)
+        val f = figures(invoices = invoices, revenues = listOf(polish))
+        assertEquals(jewellery.sumOf { erp.core.logic.invoiceSaleValue(it) } + 50.0, f.monthRevenue, 0.001)
+        assertEquals(erp.app.screens.analytics.AnaCoins.summarise(coins).revenue, f.monthCoins, 0.001)
+    }
+
+    @Test fun noCoinLineWhenNoneWereSoldAndRefundedCoinsAreIgnored() {
+        assertEquals(0.0, figures(invoices = listOf(ringInv)).monthCoins, 0.001)
+        val refunded = invoice("INV-r", total = 1000.0, extra = mapOf("status" to "Refunded", "items" to listOf(line("cat017", 1000.0))))
+        assertEquals(0.0, figures(invoices = listOf(refunded)).monthCoins, 0.001)
+    }
+
+    @Test fun anInvoiceWithNoCreatedAtCountsNowhere() {
+        assertEquals(0.0, figures(invoices = listOf(invoice("INV-e", at = ""))).monthRevenue, 0.001)
+        assertEquals(0.0, figures(invoices = listOf(invoice("INV-e", at = ""))).todayRevenue, 0.001)
+    }
+
+    @Test fun aFutureDatedRowIsOutOfTodayAndThisMonth() {
+        val f = figures(invoices = listOf(invoice("INV-f", total = 700.0, at = "2026-10-20T06:00:00.000Z"), invoice("INV-n", total = 100.0)))
+        assertEquals(100.0, f.monthRevenue, 0.001)
+        assertEquals(100.0, f.todayRevenue, 0.001)
+    }
+
     @Test fun extraRevenueCounts() {
         val f = figures(revenues = listOf(AdditionalRevenue.fromMap(mapOf("id" to "R1", "date" to "2026-10-12T06:00:00.000Z", "description" to "Polish", "amount" to 2_500))))
         assertEquals(2_500.0, f.todayRevenue, 0.001)

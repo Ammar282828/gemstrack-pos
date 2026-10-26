@@ -7,6 +7,7 @@ import erp.core.logic.OrderTiming
 import erp.core.logic.PromiseState
 import erp.core.logic.awaitingTransfer
 import erp.core.logic.bookedAsSale
+import erp.app.screens.analytics.AnaCoins
 import erp.core.logic.invoiceSaleValue
 import erp.core.logic.isActiveOrder
 import erp.core.logic.orderTiming
@@ -338,6 +339,9 @@ class DashFigures(
     var monthRevenue = 0.0; private set
     var lastMonthRevenue = 0.0; private set
 
+    /** Gold coins sold this month, apart from [monthRevenue] (Analytics splits them out too); a quiet line, never added. */
+    var monthCoins = 0.0; private set
+
     /** Invoices owing, largest balance first. */
     var unpaid: List<Invoice> = emptyList(); private set
     var totalOutstanding = 0.0; private set
@@ -397,13 +401,26 @@ class DashFigures(
         for (o in orders) ordersById[o.id] = o
 
         // Revenue is recognised on the source order's date, and counts an exchange as payment (invoiceSaleValue).
+        // Gold coins are split out first, exactly as Analytics does (AnaCoins.splitAll; lib/analytics/coins.ts), so Home's
+        // revenue and Analytics' are one figure; the month's coins are noted beside it. An invoice with no createdAt counts nowhere.
         val events = ArrayList<Event>()
+        val coinEvents = ArrayList<Event>()
         var invoicesToday = 0
         for (inv in invoices) {
             if (inv.status == InvoiceStatus.refunded) continue
             val at = DashDate.parseISO(DashRules.revenueDate(inv, ordersById)) ?: continue
-            events += Event(at, invoiceSaleValue(inv))
             if (at >= todayStart) invoicesToday += 1
+        }
+        val (jewellery, coins) = AnaCoins.splitAll(invoices)
+        for (inv in jewellery) {
+            if (inv.status == InvoiceStatus.refunded || inv.createdAt.isEmpty()) continue
+            val at = DashDate.parseISO(DashRules.revenueDate(inv, ordersById)) ?: continue
+            events += Event(at, invoiceSaleValue(inv))
+        }
+        for (inv in coins) {
+            if (inv.status == InvoiceStatus.refunded || inv.createdAt.isEmpty()) continue
+            val at = DashDate.parseISO(DashRules.revenueDate(inv, ordersById)) ?: continue
+            coinEvents += Event(at, invoiceSaleValue(inv))
         }
         // A counter order not yet invoiced is a sale once taken (bookedAsSale); an online one waits for its transfer.
         for (o in orders) {
@@ -417,8 +434,11 @@ class DashFigures(
         }
 
         todayInvoiceCount = invoicesToday
-        todayRevenue = total(events, todayStart)
-        monthRevenue = total(events, monthStart)
+        // Capped at the end of today, like Analytics' "this month" (the 1st to today), so a future-dated row reads the same in both.
+        val tomorrowStart = DashDate.startOfDay(DashDate.adding(1, now))
+        todayRevenue = total(events, todayStart, before = tomorrowStart)
+        monthRevenue = total(events, monthStart, before = tomorrowStart)
+        monthCoins = total(coinEvents, monthStart, before = tomorrowStart)
         lastMonthRevenue = total(events, lastMonthStart, before = monthStart)
         revenue30 = total(events, last30Start)
 

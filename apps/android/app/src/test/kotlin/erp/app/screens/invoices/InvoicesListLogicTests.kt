@@ -125,6 +125,20 @@ class InvoicesListLogicTests {
         assertEquals(2, s.owedCount)
     }
 
+    // 26eb7e5: an all-gold sale read 0 on the list; rows, the strip and a section's billed use grandTotal + exchange.
+    @Test fun anExchangedSaleCountsAtItsFullValueInTheStripAndTheSectionBilled() {
+        val gold = invoice(
+            id = "INV-G", grandTotal = 0.0, amountPaid = 0.0, createdAt = "2026-10-12T02:00:00.000Z",
+            extra = mapOf("exchanges" to listOf(mapOf("description" to "old ring", "value" to 80_000))),
+        )
+        val s = InvoiceSummary.of(listOf(gold, today), now)
+        assertEquals(130_000.0, s.today)
+        assertEquals(130_000.0, s.month)
+        assertEquals(130_000.0, InvoicesListRules.sections(listOf(gold, today), InvoiceGrouping.day, now)[0].billed)
+        // the bill's own figure is still what is left to settle
+        assertEquals(0.0, gold.grandTotal)
+    }
+
     @Test fun aFigureTappedShowsWhatItCountsAndTappedAgainLetsGo() {
         val none = InvoiceFilter()
         val (f1, c1) = InvoicesListRules.pick(InvoiceSummary.Figure.today, none, InvoiceChip.all, now)

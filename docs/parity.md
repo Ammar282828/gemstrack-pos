@@ -26,7 +26,7 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Feature | Web | iPhone | Android | Mac | Since | Where |
 |---|---|---|---|---|---|---|
 | Dashboard: four figures, Needs you, Due to customers, Recent sales | ✓ | ✓ | ✓ | ✓ | 2026-09 | [Dashboard](decisions.md#dashboard); `Screens/Home`, `screens/home` |
-| Home revenue matches Analytics (coins apart; "+ PKR X in gold coins" under This month) | ✓ | ✓ | owed | ✓ | 2026-10-26 | [Dashboard](decisions.md#dashboard); `lib/analytics/revenue-period.ts`, `DashboardFigures.swift`; Mac gets the figure, not the coin line; Android `screens/home` still counts coins |
+| Home revenue matches Analytics (coins apart; "+ PKR X in gold coins" under This month) | ✓ | ✓ | ✓ | ✓ | 2026-10-26 | [Dashboard](decisions.md#dashboard); `lib/analytics/revenue-period.ts`, `DashboardFigures.swift`; Mac gets the figure, not the coin line; Android `DashFigures` (`screens/home`) splits with `AnaCoins`, the coin line is on This month and the 30-day card; the Android widget reads the server's summary (`lib/widget/summary.ts`), so it follows with no client change |
 | Today's cash | ✓ | ✓ | ✓ | ✓ | 2026-10 | `Screens/Home/TodaysCashScreen.swift`, `screens/home/TodaysCashScreen.kt` |
 | Team note (owners write, staff read) | ✓ | ✓ | ✓ | ✓ | 2026-09 | [Team note](decisions.md#team-note) |
 | Search: one calm list (the map by group, then the account; no quick buttons, no recents) that finds customers, invoices, orders, stock, repairs, places | n/a (web search is the page's own) | ✓ | ✓ | ✓ | 2026-10-21 | `Nav/SearchHome.swift`, `nav/SearchScreen.kt` + `SearchLogic.kt`; Android has no long-press menu of a row's tabs |
@@ -43,7 +43,7 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Feature | Web | iPhone | Android | Mac | Since | Where |
 |---|---|---|---|---|---|---|
 | Invoices list, three-figure strip, Shopify chip | ✓ | ✓ | ✓ | ✓ | 2026-10 | `Screens/Invoices`, `screens/invoices` |
-| Invoice and customer totals count exchanged gold (list rows, month/today strip, customer spend) | ✓ | ✓ | ✓ | ✓ | 2026-10-26 | `invoiceSaleValue` in `Screens/Invoices`, `screens/invoices`, `Customers` |
+| Invoice and customer totals count exchanged gold (list rows, month/today strip, customer spend) | ✓ | ✓ | ✓ | ✓ | 2026-10-26 | `invoiceSaleValue` in `Screens/Invoices`, `screens/invoices`, `Customers`; Android's customer page has no "billed" line (Mac only) |
 | Invoice page, payments, discount, refund, delete, customer named | ✓ | ✓ | ✓ | ✓ | 2026-10 | [Invoice pages](decisions.md#invoice-pages) |
 | New sale (scan a bill, scan a tag, line editor) | ✓ | ✓ | ✓ | ✓ | 2026-10 | `Screens/Sale`, `screens/sale` |
 | Edit invoice | ✓ | ✓ | ✓ | ✓ | 2026-10-09 | `Screens/Sale/SaleEdit.swift`; Android in `sale/` (check) |
@@ -144,7 +144,7 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 |---|---|---|---|---|---|---|
 | Posts hub: Today, queue, pieces, Send all, Spread over the day | ✓ | ✓ | ✓ | ✓ | 2026-10-19 | [Hub](features/from-the-website.md#posts-hub) |
 | Several photos of a piece, one caption, Instagram carousel of 10 | ✓ | ✓ | ✓ | ✓ | 2026-10-23 | [Queue and Mina](features/post-a-piece.md#queue-and-mina) |
-| From the website: the last list kept on the device, 45 s read, "Showing the list from <time>" when the refresh fails | n/a | ✓ | owed | ✓ | 2026-10-26 | [When the catalogue blips](features/from-the-website.md#when-the-catalogue-blips-2026-10-26); Android already sends `?lean=1` and gets the gzip; `PostsStore.kt` needs the disk copy and a longer timeout |
+| From the website: the last list kept on the device, 45 s read, "Showing the list from <time>" when the refresh fails | n/a | ✓ | ✓ | ✓ | 2026-10-26 | [When the catalogue blips](features/from-the-website.md#when-the-catalogue-blips-2026-10-26); Android: `PostsStore.kt` + `SitePiecesKeep.kt` (cache folder, per business, 45 s) and the line in `PostsHub.kt` |
 | A post's card starts with the hero photo alone | ✓ | ✓ | ✓ | ✓ | 2026-10-23 | `PostTrayPhotos.swift` |
 | Design: make, pages, resize, publish, AI tools, saved | ✓ | ✓ | ✓ | ✓ | 2026-10-19 | [Design](decisions.md#design) |
 | Designer v2 (effects, rich text, gradients, QR, photo adjust) | ✓ | ✓ | ✓ | ✓ | 2026-10-19 |  |
@@ -180,7 +180,7 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Both businesses on every widget size | n/a | ✓ | ✓ | ✓ | 2026-10-24 | "Show both businesses" in Settings → Widgets (Android has no per-widget configuration) |
 | Lock Screen widget / gauge | n/a | ✓ | n/a | ✓ | 2026-10-23 | no lock-screen widgets on Android |
 | Push notifications, per-kind switches, naming the store | n/a | ✓ | ✓ | ✓ | 2026-10-13 | `src/lib/push` |
-| No push for your own action (event pushes skip the actor's phones, by email) | ✓ | ✓ | ✓ | ✓ | 2026-10-26 | server-side, `recipientsFor` in `src/lib/push/send.ts`; no client change |
+| No push for your own action (event pushes skip the actor's phones, by email) | ✓ | ✓ | ✓ | ✓ | 2026-10-26 | server-side, `recipientsFor` in `src/lib/push/send.ts`; no client change (Android registers through `/api/push/devices` with its sign-in, so the device row already holds the email) |
 | WhatsApp reports and the monthly PDF by WhatsApp | ✓ | n/a | n/a | n/a | 2026-10 | server-side, [notifications.md](features/notifications.md) |
 | Voice (live words, any step) | ✓ | ✓ | ✓ | ✓ | 2026-10 | [Voice](features/ai.md#voice) |
 | Voice, Siri-grade: instant start, on-device words, end of speech by itself, keeps listening for changes and "yes", "Do it" | owed | ✓ | ✓ | ✓ | 2026-10-25 | [Voice, Siri-grade](features/ai.md#voice-siri-grade-iphone-and-mac-2026-10-25); `Device/NativeVoice.swift`, `Device/VoiceEngine.swift`; the Mac compiles the same sources (not yet run on a Mac). Web has live words only (`lib/voice/live.ts`). Android: `screens/voice/VoiceModel.kt` + `VoiceEndpoint.kt`, `device/VoiceEars.kt` (recogniser made at launch and kept; `createOnDeviceSpeechRecognizer` on API 31+, else the default; a second of quiet ends the sentence; the sentence goes as text with `previous`; `core` `VoiceReplies`); a phone with no recogniser records a clip as before. Not run on a phone |

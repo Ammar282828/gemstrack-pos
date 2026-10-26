@@ -556,6 +556,7 @@ fun DashMonthCard(figures: DashFigures, showCosts: Boolean, onClick: (() -> Unit
             }
             if (onClick != null) DashChevron()
         }
+        if (figures.monthCoins > 0) DashStatNote("+ ${Money.pkrLac(figures.monthCoins)} in gold coins")
         if (figures.revenue30 > 0) MonthChart(figures)
     }
 }

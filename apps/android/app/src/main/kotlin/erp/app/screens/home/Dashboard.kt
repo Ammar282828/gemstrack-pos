@@ -307,6 +307,7 @@ private fun MonthTile(f: DashFigures, owner: Boolean, open: (String) -> Unit, mo
     DashStat("This month", if (owner) ({ open("/analytics") }) else null, modifier) {
         DashStatAmount(f.monthRevenue)
         DashMonthChange(f.monthAgainstLast, f.now)
+        if (f.monthCoins > 0) DashStatNote("+ ${Money.pkrLac(f.monthCoins)} in gold coins")
     }
 }
 

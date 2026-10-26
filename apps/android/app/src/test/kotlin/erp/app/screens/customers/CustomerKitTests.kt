@@ -156,6 +156,13 @@ class CustomerKitTests {
         assertEquals(53_000.0, owner.total)
     }
 
+    // 26eb7e5: a customer's spend counts the gold they handed over, as Analytics does.
+    @Test fun spentCountsExchangedGold() {
+        val withGold = Invoice.fromMap(mapOf("id" to "INV-X", "customerId" to "c1", "grandTotal" to 20_000, "subtotal" to 50_000, "amountPaid" to 20_000, "balanceDue" to 0, "createdAt" to "2026-10-01T06:00:00.000Z", "items" to emptyList<Any>(), "exchanges" to listOf(mapOf("description" to "old chain", "value" to 30_000))))
+        val stats = CustomerKit.stats(listOf(withGold), emptyList(), CustomerKit.owed(listOf(withGold), emptyList(), emptyList()))
+        assertEquals(50_000.0, stats.getValue("c1").spent)
+    }
+
     @Test fun statsCountSalesAndOpenOrders() {
         val owed = CustomerKit.owed(invoices, customers, ledger)
         val stats = CustomerKit.stats(invoices, orders, owed)
