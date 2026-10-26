@@ -1,6 +1,7 @@
 package erp.app.screens.invoices
 
 import erp.core.ERPDate
+import erp.core.logic.invoiceSaleValue
 import erp.core.logic.BalanceState
 import erp.core.logic.balanceLine
 import erp.core.logic.isOwing
@@ -80,10 +81,10 @@ data class InvoiceSummary(
                 val made = ERPDate.parse(inv.createdAt) ?: continue
                 val day = ERPDate.karachiDay(made)
                 if (!day.startsWith(month)) continue
-                monthSum += inv.grandTotal
+                monthSum += invoiceSaleValue(inv)
                 monthCount += 1
                 if (day == today) {
-                    todaySum += inv.grandTotal
+                    todaySum += invoiceSaleValue(inv)
                     todayCount += 1
                 }
             }
@@ -267,7 +268,7 @@ object InvoicesListRules {
         var billed = 0.0
         var owed = 0.0
         for (inv in rows) {
-            billed += inv.grandTotal
+            billed += invoiceSaleValue(inv)
             if (isOwing(inv)) owed += inv.balanceDue
         }
         return InvoiceSection(id, title, hint, rows, billed, owed)

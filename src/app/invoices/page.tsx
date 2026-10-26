@@ -2,6 +2,17 @@
 "use client";
 
 import { isOwing, owedToYou } from '@/lib/owed';
+import { invoiceSaleValue } from '@/lib/analytics/sale-value';
+
+/**
+ * What a row shows as its total. An invoice's `grandTotal` is what was left to settle after the
+ * exchange, so a sale paid partly in old gold showed less than it was worth and one paid wholly in
+ * gold showed PKR 0 (owner, 2026-10-26: "if someone has given gold as exchange it shows the total as
+ * the amount minus the exchange value"). The sale's worth is that plus the exchange (lib/analytics/
+ * sale-value.ts, as Analytics counts it); the balance pill beside it still shows what is owed.
+ */
+const docTotal = (d: { docType: string; grandTotal?: number }) =>
+  d.docType === 'invoice' ? invoiceSaleValue(d as unknown as Invoice) : (Number(d.grandTotal) || 0);
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { authedFetch } from '@/lib/voice/authed-fetch';
 import { ListSkeleton } from '@/components/shared/skeletons';
@@ -148,7 +159,7 @@ const DocumentCard: React.FC<RowProps> = ({ doc, onPrint, onPrintPerPiece, onMar
                 {doc.docType === 'order' && onStatusChange
                     ? <OrderStatusSelect doc={doc as Order} onStatusChange={onStatusChange} />
                     : <BalancePill doc={doc} />}
-                <span className="whitespace-nowrap font-serif text-ios-title3 font-semibold tabular-nums">PKR {doc.grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                <span className="whitespace-nowrap font-serif text-ios-title3 font-semibold tabular-nums">PKR {docTotal(doc).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
             </div>
             <div className="-mb-1 mt-1 flex flex-wrap items-center gap-x-1 pl-[42px]">
                 <PrintButton pieces={pieceCount(doc)} onPrint={onPrint} onPrintPerPiece={onPrintPerPiece} />
@@ -200,7 +211,7 @@ const DocumentRow: React.FC<RowProps> = ({ doc, onPrint, onPrintPerPiece, onMark
                     {isShopifyDoc(doc) && <Pill tone="settled" icon={<ShoppingBag />}>Shopify</Pill>}
                 </div>
             </TableCell>
-            <TableCell className="whitespace-nowrap text-right tabular-nums">PKR {doc.grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
+            <TableCell className="whitespace-nowrap text-right tabular-nums">PKR {docTotal(doc).toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
              {/* One shape for the whole column. An order rendered as a
                  bordered select box while an invoice rendered as a coloured
                  pill, so the same column carried two different objects. Both
@@ -453,7 +464,7 @@ export default function DocumentsPage() {
     const owedOf = (d: DocumentType) =>
       d.docType === 'invoice' && isOwing(d as Invoice) ? (d as Invoice).balanceDue || 0 : 0;
     const valueOf = (d: DocumentType) =>
-      d.docType === 'invoice' ? ((d as Invoice).grandTotal || 0) : ((d as Order).grandTotal || 0);
+      docTotal(d);
 
     const out: { key: string; title: string; hint: string; danger?: boolean; rows: DocumentType[] }[] = [];
     const push = (key: string, title: string, hint: string, rows: DocumentType[], danger?: boolean) => {

@@ -5,6 +5,7 @@ import erp.app.ui.Tone
 import erp.app.ui.toWhatsAppNumber
 import erp.core.ERPDate
 import erp.core.entry.NewOrderFormat
+import erp.core.logic.invoiceSaleValue
 import erp.core.logic.Owed
 import erp.core.logic.WALK_IN_ENTITY
 import erp.core.logic.ledgerBalances
@@ -186,7 +187,7 @@ object CustomerKit {
             }
             map[id] = cur.copy(spent = cur.spent + total, count = cur.count + 1, lastAt = last)
         }
-        for (inv in invoices) if (inv.status != InvoiceStatus.refunded) bump(inv.customerId, inv.grandTotal, inv.createdAt)
+        for (inv in invoices) if (inv.status != InvoiceStatus.refunded) bump(inv.customerId, invoiceSaleValue(inv), inv.createdAt)
         for ((key, o) in owed.byKey) {
             val cur = map[key]
             if (cur != null) map[key] = cur.copy(owed = o.amount)

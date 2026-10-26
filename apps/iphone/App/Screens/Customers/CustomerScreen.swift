@@ -393,7 +393,7 @@ private struct CustInvoiceRow: View {
     }
 
     var body: some View {
-        TwoLine(title: invoice.id, subtitle: subtitle, trailing: Money.pkr(invoice.grandTotal),
+        TwoLine(title: invoice.id, subtitle: subtitle, trailing: Money.pkr(invoiceSaleValue(invoice)),
                 trailingTint: (!refunded && line.state == .due) ? Tone.owed.color : .primary)
     }
 }
@@ -668,7 +668,7 @@ extension CustomerScreen {
         case .invoices:
             var parts = [count(f.invoices.count, "invoice")]
             let billed = f.invoices.filter { (i: Invoice) in i.status != .refunded }
-                .reduce(0.0) { (sum: Double, i: Invoice) in sum + i.grandTotal }
+                .reduce(0.0) { (sum: Double, i: Invoice) in sum + invoiceSaleValue(i) }
             if billed > 0 { parts.append("\(Money.pkrLac(billed)) billed") }
             if f.owing.onInvoices >= 1 { parts.append("\(Money.pkr(f.owing.onInvoices)) owed on invoices") }
             if f.owing.inHisaab >= 1 { parts.append("\(Money.pkr(f.owing.inHisaab)) in the hisaab") }

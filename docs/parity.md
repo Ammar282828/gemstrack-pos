@@ -42,6 +42,7 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Feature | Web | iPhone | Android | Mac | Since | Where |
 |---|---|---|---|---|---|---|
 | Invoices list, three-figure strip, Shopify chip | ✓ | ✓ | ✓ | ✓ | 2026-10 | `Screens/Invoices`, `screens/invoices` |
+| Invoice and customer totals count exchanged gold (list rows, month/today strip, customer spend) | ✓ | ✓ | ✓ | ✓ | 2026-10-26 | `invoiceSaleValue` in `Screens/Invoices`, `screens/invoices`, `Customers` |
 | Invoice page, payments, discount, refund, delete, customer named | ✓ | ✓ | ✓ | ✓ | 2026-10 | [Invoice pages](decisions.md#invoice-pages) |
 | New sale (scan a bill, scan a tag, line editor) | ✓ | ✓ | ✓ | ✓ | 2026-10 | `Screens/Sale`, `screens/sale` |
 | Edit invoice | ✓ | ✓ | ✓ | ✓ | 2026-10-09 | `Screens/Sale/SaleEdit.swift`; Android in `sale/` (check) |

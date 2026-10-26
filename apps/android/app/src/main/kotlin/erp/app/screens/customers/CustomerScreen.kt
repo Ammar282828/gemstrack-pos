@@ -85,6 +85,7 @@ import erp.app.ui.rememberNoteState
 import erp.app.ui.theme.ErpColors
 import erp.app.ui.theme.ErpType
 import erp.app.ui.zoomDestination
+import erp.core.logic.invoiceSaleValue
 import erp.core.logic.BalanceState
 import erp.core.logic.Money
 import erp.core.logic.balanceLine
@@ -442,7 +443,7 @@ private fun CustInvoiceRow(invoice: Invoice) {
     val line = balanceLine(invoice.balanceDue)
     val refunded = invoice.status == InvoiceStatus.refunded
     TwoLine(
-        invoice.id, subtitle = invoiceSubtitle(invoice), trailing = Money.pkr(invoice.grandTotal),
+        invoice.id, subtitle = invoiceSubtitle(invoice), trailing = Money.pkr(invoiceSaleValue(invoice)),
         trailingTint = if (!refunded && line.state == BalanceState.due) Tone.owed.color() else Color.Unspecified,
     )
 }

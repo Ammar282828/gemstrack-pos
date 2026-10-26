@@ -26,7 +26,7 @@ struct MacCustomerRecordInvoiceRow: Identifiable {
     init(_ inv: Invoice) {
         invoice = inv
         date = inv.createdAt
-        total = inv.grandTotal
+        total = invoiceSaleValue(inv)
         paid = inv.amountPaid
         let line = balanceLine(inv.balanceDue)
         let refunded = inv.status == .refunded

@@ -300,11 +300,11 @@ struct MacInvoicesPlace: View {
             if !words.isEmpty && !matches(hay[inv.id] ?? haystack(inv), words) { continue }
             let status = MacInvoiceWords.status(inv)
             let due = isOwing(inv) ? inv.balanceDue : 0
-            billed += inv.grandTotal
+            billed += invoiceSaleValue(inv)
             owed += due
             rows.append(MacInvoicesPlaceRow(
                 id: inv.id, customer: InvoiceFacts.customerName(inv), createdAt: inv.createdAt,
-                dateText: ShopDate.say(inv.createdAt), pieces: inv.items.count, total: inv.grandTotal, paid: inv.amountPaid,
+                dateText: ShopDate.say(inv.createdAt), pieces: inv.items.count, total: invoiceSaleValue(inv), paid: inv.amountPaid,
                 due: due, statusText: status.text, statusRank: status.rank, tone: status.tone,
                 takenBy: inv.takenBy ?? "", source: channel))
         }

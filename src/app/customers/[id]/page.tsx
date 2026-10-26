@@ -31,6 +31,7 @@ import {
 import { format, parseISO } from 'date-fns';
 import { PageBack } from '@/components/shared/page-back';
 import { deleteErrorText } from '@/lib/delete-code';
+import { invoiceSaleValue } from '@/lib/analytics/sale-value';
 
 /** An order's stage in its one tone (a.2); owed is amber, never red. */
 const STATUS_TONE: Record<Order['status'], Tone> = {
@@ -138,7 +139,7 @@ export default function CustomerDetailPage() {
     .byKey.get(customerId)?.amount ?? 0;
   // Credit they have paid ahead on invoices (lib/invoice-credit.ts): the owner can hand it back.
   const creditInvoices = customerInvoices.map(i => ({ inv: i, credit: creditHeld(i) })).filter(c => c.credit > 0);
-  const bought = customerInvoices.reduce((n, i) => n + (i.status === 'Refunded' ? 0 : i.grandTotal || 0), 0);
+  const bought = customerInvoices.reduce((n, i) => n + (i.status === 'Refunded' ? 0 : invoiceSaleValue(i)), 0);
 
   const invoiceRows = customerInvoices.map(invoice => (
     <Link key={invoice.id} href={`/invoices/${invoice.id}`} className="flex items-center justify-between gap-3 py-3">
@@ -146,7 +147,7 @@ export default function CustomerDetailPage() {
         <p className="truncate text-ios-sub font-semibold">{invoice.id}</p>
         <p className="text-ios-cap text-muted-foreground">{new Date(invoice.createdAt).toLocaleDateString()}</p>
       </div>
-      <span className="font-serif text-ios-title3 font-semibold tabular-nums">PKR {invoice.grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+      <span className="font-serif text-ios-title3 font-semibold tabular-nums">PKR {invoiceSaleValue(invoice).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
     </Link>
   ));
   const orderRows = customerOrders.map(order => (
@@ -267,7 +268,7 @@ export default function CustomerDetailPage() {
                           <Link href={`/invoices/${invoice.id}`} onClick={e => e.stopPropagation()}>{invoice.id}</Link>
                         </TableCell>
                         <TableCell>{new Date(invoice.createdAt).toLocaleDateString()}</TableCell>
-                        <TableCell className="text-right tabular-nums">{invoice.grandTotal.toLocaleString()}</TableCell>
+                        <TableCell className="text-right tabular-nums">{invoiceSaleValue(invoice).toLocaleString()}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

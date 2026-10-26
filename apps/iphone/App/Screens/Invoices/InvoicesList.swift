@@ -87,10 +87,10 @@ struct InvoiceSummary {
             guard let made = ERPDate.parse(inv.createdAt) else { continue }
             let day = ERPDate.karachiDay(made)
             guard day.hasPrefix(month) else { continue }
-            s.month += inv.grandTotal
+            s.month += invoiceSaleValue(inv)
             s.monthCount += 1
             if day == today {
-                s.today += inv.grandTotal
+                s.today += invoiceSaleValue(inv)
                 s.todayCount += 1
             }
         }
@@ -708,7 +708,7 @@ struct InvoicesList: View {
         var billed = 0.0
         var owed = 0.0
         for inv in rows {
-            billed += inv.grandTotal
+            billed += invoiceSaleValue(inv)
             if isOwing(inv) { owed += inv.balanceDue }
         }
         return InvoiceSection(id: id, title: title, hint: hint, rows: rows, billed: billed, owed: owed)
@@ -762,7 +762,8 @@ private struct InvoiceListRow: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 VStack(alignment: stacked ? .leading : .trailing, spacing: pt(4)) {
-                    RowAmount(amount: invoice.grandTotal)
+                    // The sale's worth with any exchanged gold, as on the web (owner, 2026-10-26).
+                    RowAmount(amount: invoiceSaleValue(invoice))
                     InvoiceBalancePill(invoice: invoice)
                 }
                 .fixedSize(horizontal: !stacked, vertical: true)

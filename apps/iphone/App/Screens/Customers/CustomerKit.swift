@@ -205,7 +205,7 @@ enum CustomerKit {
             map[id] = cur
         }
         for inv in invoices where inv.status != .refunded {
-            bump(inv.customerId, inv.grandTotal, inv.createdAt)
+            bump(inv.customerId, invoiceSaleValue(inv), inv.createdAt)
         }
         for (key, o) in owed.byKey {
             if var cur = map[key] {

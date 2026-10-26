@@ -480,7 +480,7 @@ private struct MacCustomersInspector: View {
             Section("Recent Invoices") {
                 ForEach(recent.invoices) { (inv: Invoice) in
                     MacCustomersMiniRow(title: inv.id, subtitle: ShopDate.say(inv.createdAt),
-                                        trailing: Money.pkr(inv.grandTotal), flag: invoiceFlag(inv)) {
+                                        trailing: Money.pkr(invoiceSaleValue(inv)), flag: invoiceFlag(inv)) {
                         open(CustomerKit.place("/invoices/", inv.id))
                     }
                 }

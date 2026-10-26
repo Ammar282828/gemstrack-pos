@@ -35,6 +35,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { PageShell } from '@/components/shared/page-shell';
 import { deleteErrorText } from '@/lib/delete-code';
+import { invoiceSaleValue } from '@/lib/analytics/sale-value';
 import { detectSpamCustomers, transactedCustomerIds, type SpamCandidate as SpamOf } from '@/lib/customer-spam';
 
 type SpamCandidate = SpamOf<Customer>;
@@ -542,7 +543,7 @@ export default function CustomersPage() {
     // Spend and last sale per customer; what they owe comes from owedToYou (below), the dashboard's own figure.
     for (const inv of generatedInvoices) {
       if (inv?.status === 'Refunded') continue;
-      bump(inv?.customerId, inv?.grandTotal || 0, 0, inv?.createdAt);
+      bump(inv?.customerId, invoiceSaleValue(inv), 0, inv?.createdAt); // with any exchanged gold, as Analytics counts a sale
     }
     // A customer known only from the hisaab (the old khata) has no sale here, but still owes.
     for (const [key, o] of owed.byKey) {

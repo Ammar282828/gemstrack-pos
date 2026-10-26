@@ -114,6 +114,7 @@ import erp.app.ui.theme.ErpType
 import erp.app.ui.theme.TabularDigits
 import erp.app.ui.zoomSource
 import erp.core.ERPDate
+import erp.core.logic.invoiceSaleValue
 import erp.core.logic.BalanceState
 import erp.core.logic.balanceLine
 import erp.core.logic.isOwing
@@ -472,14 +473,14 @@ private fun InvoiceListRow(invoice: Invoice, mine: Boolean, dated: Boolean, modi
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 RowIdentity(invoice, mine, dated, Modifier)
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    RowAmount(invoice.grandTotal)
+                    RowAmount(invoiceSaleValue(invoice))
                     InvoiceBalancePill(invoice)
                 }
             }
         } else {
             RowIdentity(invoice, mine, dated, Modifier.weight(1f))
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                RowAmount(invoice.grandTotal)
+                RowAmount(invoiceSaleValue(invoice))
                 InvoiceBalancePill(invoice)
             }
         }
@@ -543,7 +544,7 @@ private fun InvoiceCard(
             Row(Modifier.fillMaxWidth().semantics(mergeDescendants = true) {}, horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
                 RowIdentity(inv, mine, dated, Modifier.weight(1f))
                 Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    RowAmount(inv.grandTotal)
+                    RowAmount(invoiceSaleValue(inv))
                     InvoiceBalancePill(inv)
                 }
             }
