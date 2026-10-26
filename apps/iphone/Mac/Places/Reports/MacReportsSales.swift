@@ -3,8 +3,8 @@ import SwiftUI
 import ERPCore
 
 // Analytics › Sales on the Mac: when the money came in. The figures with their change, the charts (they read out on hover)
-// on the left, and on the right the daily summary and the yearly performance as sortable tables, every day and every year
-// shown. A day opens its report; a year sets the period to that year.
+// on the left and the daily summary (a sortable table, every day) at the right, the two cards one height; under them the
+// yearly performance across the page, a year a row. A day opens its report; a year sets the period to that year.
 
 struct MacReportsSales: View {
     let c: MacReportsContext
@@ -16,9 +16,7 @@ struct MacReportsSales: View {
     @State private var yearMade = Memo<[MacReportsYearRow]>()
     @State private var day: AnaDay?
     @State private var daySort = [KeyPathComparator(\MacReportsDayRow.date, order: .reverse)]
-    @State private var yearSort = [KeyPathComparator(\MacReportsYearRow.year, order: .reverse)]
     @State private var daySelection = Set<String>()
-    @State private var yearSelection = Set<String>()
 
     private var f: AnaFigures { c.figures }
 
@@ -32,28 +30,26 @@ struct MacReportsSales: View {
         let days = dayRowList()
         let years = yearRows(h)
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 20) {
                 macReportsFigures(figureList(h))
-                // Charts beside the two tables on a wide window; narrow, each stands under the last.
+                // The charts beside the daily table on a wide window, one height; narrow, each stands under the last.
                 MacReportsWidth(960) {
                     HStack(alignment: .top, spacing: 16) {
                         MacReportsCard { chartsContent(h) }
-                            .frame(minWidth: 380, idealWidth: 520)
-                        VStack(spacing: 16) {
-                            MacReportsCard { daily(days) }
-                            MacReportsCard { yearly(years) }
-                        }
-                        .frame(minWidth: 460, idealWidth: 480)
+                            .frame(minWidth: 380, maxWidth: .infinity, maxHeight: .infinity)
+                        MacReportsCard { daily(days) }
+                            .frame(minWidth: 440, idealWidth: 560, maxWidth: 640, maxHeight: .infinity)
                     }
+                    .fixedSize(horizontal: false, vertical: true)
                 } narrow: {
                     VStack(spacing: 16) {
                         MacReportsCard { chartsContent(h) }
                         MacReportsCard { daily(days) }
-                        MacReportsCard { yearly(years) }
                     }
                 }
+                MacReportsCard { yearly(years) }
             }
-            .padding(20)
+            .padding(24)
             .frame(maxWidth: 1400, alignment: .leading)
             .frame(maxWidth: .infinity)
         }
@@ -141,7 +137,7 @@ struct MacReportsSales: View {
                 if let row = rows.first(where: { ids.contains($0.id) }) { day = row.day }
             }
             .scrollContentBackground(.hidden)
-            .frame(height: min(440, 60 + 28 * CGFloat(max(rows.count, 2))))
+            .macReportsTable(rows: rows.count, cap: 14)
             .overlay {
                 if rows.isEmpty { Text("No days in this period.").foregroundStyle(.secondary) }
             }
@@ -150,55 +146,59 @@ struct MacReportsSales: View {
 
     // MARK: The years
 
+    /// Newest year first, as the table had them.
     private func yearRows(_ h: AnaHistory) -> [MacReportsYearRow] {
-        yearMade(c.booksKey + [yearSort.hashValue]) {
+        yearMade(c.booksKey) {
             h.yearly
                 .map { (y: AnaYear) -> MacReportsYearRow in
                     MacReportsYearRow(id: String(y.year), year: y.year, revenue: y.revenue, unpaid: y.unpaid, expenses: y.expenses,
                                       profit: y.profit, net: y.netProfit, margin: y.revenue > 0 ? y.netProfit / y.revenue * 100 : 0)
                 }
-                .sorted(using: yearSort)
+                .sorted { (a: MacReportsYearRow, b: MacReportsYearRow) -> Bool in a.year > b.year }
         }
     }
 
+    /// The years as rows, every column when the card has room for them and the four that matter when it has not (a seventh
+    /// column of a table cut the Margin off at the card's edge).
     private func yearly(_ rows: [MacReportsYearRow]) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            MacReportsHeader(title: "Yearly performance", detail: rows.isEmpty ? nil : "Double-click a year to filter Analytics to it")
-            Table(rows, selection: $yearSelection, sortOrder: $yearSort) {
-                TableColumn("Year", value: \.year) { (r: MacReportsYearRow) in Text(String(r.year)).monospacedDigit() }
-                    .width(min: 50, ideal: 60)
-                TableColumn("Revenue", value: \.revenue) { (r: MacReportsYearRow) in MacAmount(r.revenue) }
-                    .width(min: 70, ideal: 90)
-                TableColumn("Unpaid", value: \.unpaid) { (r: MacReportsYearRow) in
-                    MacAmount(r.unpaid >= 1 ? r.unpaid : nil, tone: .owed)
+            MacReportsHeader(title: "Yearly performance", detail: rows.isEmpty ? nil : "Click a year to filter Analytics to it")
+            if rows.isEmpty {
+                Text("No sales on record yet.")
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 14)
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    yearGrid(rows, full: true)
+                    yearGrid(rows, full: false)
                 }
-                .width(min: 70, ideal: 90)
-                TableColumn("Expenses", value: \.expenses) { (r: MacReportsYearRow) in MacAmount(r.expenses) }
-                    .width(min: 70, ideal: 90)
-                TableColumn("Est. profit", value: \.profit) { (r: MacReportsYearRow) in MacAmount(r.profit) }
-                    .width(min: 70, ideal: 90)
-                TableColumn("Net profit", value: \.net) { (r: MacReportsYearRow) in
-                    MacAmount(r.net, tone: r.net < 0 ? Tone.late : .quiet)
-                }
-                .width(min: 70, ideal: 90)
-                TableColumn("Margin", value: \.margin) { (r: MacReportsYearRow) in
-                    MacReportsNumber(r.revenue > 0 ? AnaFormat.fixed(r.margin, 1) + "%" : "\u{2014}")
-                }
-                .width(min: 50, ideal: 60)
-            }
-            .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
-                if let row = rows.first(where: { ids.contains($0.id) }) {
-                    Button("Show Analytics for \(String(row.year))") { pickYear(row.year) }
-                }
-            } primaryAction: { (ids: Set<String>) in
-                if let row = rows.first(where: { ids.contains($0.id) }) { pickYear(row.year) }
-            }
-            .scrollContentBackground(.hidden)
-            .frame(height: min(440, 60 + 28 * CGFloat(max(rows.count, 2))))
-            .overlay {
-                if rows.isEmpty { Text("No sales on record yet.").foregroundStyle(.secondary) }
             }
         }
+    }
+
+    private func yearGrid(_ rows: [MacReportsYearRow], full: Bool) -> some View {
+        let headers = full ? ["Year", "Revenue", "Unpaid", "Expenses", "Est. profit", "Net profit", "Margin"]
+                           : ["Year", "Revenue", "Net profit", "Margin"]
+        return MacReportsGrid(headers: headers, rows: rows.map { (r: MacReportsYearRow) -> MacReportsGridRow in yearRow(r, full: full) })
+    }
+
+    /// One year's row: its number first, a link that sets the period to that year.
+    private func yearRow(_ r: MacReportsYearRow, full: Bool) -> MacReportsGridRow {
+        let margin = r.revenue > 0 ? AnaFormat.fixed(r.margin, 1) + "%" : "\u{2014}"
+        let year = r.year
+        var tones: [Int: Tone] = [:]
+        let cells: [String]
+        if full {
+            if r.unpaid >= 1 { tones[2] = Tone.owed }
+            if r.net < 0 { tones[5] = Tone.late }
+            cells = [String(year), Money.grouped(r.revenue), r.unpaid >= 1 ? Money.grouped(r.unpaid) : "", Money.grouped(r.expenses),
+                     Money.grouped(r.profit), Money.grouped(r.net), margin]
+        } else {
+            if r.net < 0 { tones[2] = Tone.late }
+            cells = [String(year), Money.grouped(r.revenue), Money.grouped(r.net), margin]
+        }
+        return MacReportsGridRow(String(year), cells, tones: tones, hint: "Show Analytics for \(String(year))") { pickYear(year) }
     }
 }
 
