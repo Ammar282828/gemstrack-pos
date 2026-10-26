@@ -247,7 +247,7 @@ final class ERPMacUITests: XCTestCase {
         let w = app.windows.element(boundBy: before)
         XCTAssertTrue(w.waitForExistence(timeout: 5))
         sleep(1)
-        XCTAssertEqual(app.windows.firstMatch.title, listTitle, "the list's window is titled as another page")
+        XCTAssertEqual(title(app), listTitle, "the list's window is titled as another page")
         shot(app, "a saved list in a window")
     }
 
@@ -311,7 +311,15 @@ final class ERPMacUITests: XCTestCase {
             let app = launch(["-ERPDemoOpen", place])
             sleep(2)
             let before = app.windows.count
-            let cells = app.windows.firstMatch.outlines.firstMatch.cells
+            // The place's list, not the sidebar's (the first outline in the window is the sidebar).
+            // The sidebar's right edge (its Orders row's outline), then the first outline beyond it.
+            _ = row(app, "/orders").waitForExistence(timeout: 5)
+            let edge = row(app, "/orders").frame.minX + 200
+            let outlines = app.windows.firstMatch.outlines.allElementsBoundByIndex
+            guard let list = outlines.first(where: { $0.frame.minX > edge }) else {
+                XCTFail("\(place) shows no list beside the sidebar"); app.terminate(); continue
+            }
+            let cells = list.cells
             guard cells.firstMatch.waitForExistence(timeout: 5) else { XCTFail("\(place) shows no rows in the demo"); app.terminate(); continue }
             // A section's heading is a cell too: click down the list until the inspector shows a record.
             let empty = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'No ' AND label ENDSWITH ' Selected'")).firstMatch
@@ -319,6 +327,7 @@ final class ERPMacUITests: XCTestCase {
             for i in 0..<8 {
                 let c = cells.element(boundBy: i)
                 guard c.exists else { break }
+                guard c.isHittable else { continue }
                 c.click()
                 usleep(500_000)
                 if !empty.exists { picked = c; break }
@@ -481,8 +490,9 @@ final class ERPMacUITests: XCTestCase {
     func testSwitchingPlacesIsQuick() {
         let app = launch()
         let clock = XCTClockMetric()
+        // By the Go menu's keys (⌘2–⌘6): a row low in the sidebar can be scrolled out of a short window.
         measure(metrics: [clock]) {
-            for p in ["/orders", "/invoices", "/customers", "/products", "/analytics"] { row(app, p).click() }
+            for k in ["2", "3", "4", "5", "6", "1"] { app.typeKey(k, modifierFlags: .command) }
         }
     }
 }
