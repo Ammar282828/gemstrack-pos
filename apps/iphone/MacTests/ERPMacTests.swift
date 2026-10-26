@@ -1,5 +1,6 @@
 import XCTest
 @testable import ERP
+import ERPCore
 
 /// The Mac's own rules, run inside the Mac app in the demo (`-ERPDemo YES`, made-up books): the window's Back and
 /// Forward, the sidebar every role is drawn, that every row it shows opens a native page, the saved lists, the page
@@ -290,7 +291,7 @@ final class ERPMacTests: XCTestCase {
         for role in Self.roles {
             for path in MacSidebarMap.allPaths(sections(role)) {
                 let bare = ScreenRoute.bare(path)
-                XCTAssertTrue(macPlaces.contains(bare) || ScreenRoute.hasNative(path),
+                XCTAssertTrue(macPlaces.contains(bare) || ScreenRegistry.hasNative(path),
                               "\(role): the sidebar row \(path) has no native page")
             }
         }
