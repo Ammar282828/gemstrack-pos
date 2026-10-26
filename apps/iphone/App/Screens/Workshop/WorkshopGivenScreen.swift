@@ -55,6 +55,7 @@ struct WorkshopGivenScreen: View {
         .modifier(HouseGround())
         #if os(macOS)
         .macSearchable(text: $query, prompt: "Search Given Items")
+        .navigationSubtitle(macSubtitle)
         #else
         .searchable(text: $query, prompt: "Item or recipient")
         .toolbar { givenToolbar }
@@ -341,6 +342,13 @@ private struct MacGivenRows {
 // every action declared once for the Item menu, the toolbar and the right-click menu. Record Item Given is a sheet (⌃⌘N); editing
 // an item opens that same sheet (its save is the sheet's), and Delete asks for the delete code.
 extension WorkshopGivenScreen {
+    /// The window's subtitle, as the other lists say what they hold: "6 items · 1 out".
+    var macSubtitle: String {
+        guard book.givenItems.loaded else { return "" }
+        let data = macData()
+        return "\(data.total) item\(data.total == 1 ? "" : "s") \u{00B7} \(data.out) out"
+    }
+
     var macContent: some View {
         let data = macData()
         return macTable(data)
@@ -547,7 +555,7 @@ extension WorkshopGivenScreen {
         } else if items.isEmpty {
             MacInspectorEmpty(title: "No Item Selected", detail: "Pick an item to see who has it and whether it came back.")
         } else {
-            MacInspectorEmpty(title: "\(items.count) Items", detail: "Got Back marks them all as back.")
+            MacInspectorEmpty(title: "\(items.count) Items Selected", detail: "Got Back marks them all as back.")
         }
     }
 

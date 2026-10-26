@@ -300,7 +300,9 @@ extension OnlineOrdersScreen {
                 macSplit(waiting: waiting, lately: lately, current: current)
             }
         }
-        .navigationSubtitle(waiting.isEmpty ? "" : "\(waiting.count) to confirm")
+        // As every list says what it holds: how many wait, or that none do.
+        .navigationSubtitle(waiting.isEmpty ? "Nothing waiting" : "\(waiting.count) to confirm")
+        .macSummaryBar(macSummary(waiting: waiting, lately: lately))
         .toolbar {
             ToolbarItemGroup(placement: .automatic) {
                 // Nothing in the inbox, nothing to act on: no greyed Confirm and Decline.
@@ -324,27 +326,47 @@ extension OnlineOrdersScreen {
         HSplitView {
             List(selection: $picked) {
                 if waiting.isEmpty && !lately.isEmpty {
-                    Label("Nothing to confirm", systemImage: "checkmark.seal").foregroundStyle(.secondary)
+                    Label("Nothing to confirm", systemImage: "checkmark.seal")
+                        .foregroundStyle(.secondary)
+                        .listRowBackground(Theme.card)
                 }
                 if !waiting.isEmpty {
-                    Section("To confirm") {
+                    Section {
                         ForEach(waiting) { (r: OnlineOrderRow) in macRow(r).tag(r.id) }
+                    } header: {
+                        LedgerHeading(title: "To confirm", count: waiting.count)
                     }
+                    .houseRows()
                 }
                 if !lately.isEmpty {
-                    Section("The last two weeks") {
+                    Section {
                         ForEach(lately) { (r: OnlineOrderRow) in macLatelyRow(r).tag(r.id) }
+                    } header: {
+                        LedgerHeading(title: "The last two weeks", count: lately.count)
                     }
+                    .houseRows()
                 }
             }
             .listStyle(.inset)
+            .scrollContentBackground(.hidden)
+            .background(Theme.ground)
             .frame(minWidth: 240, idealWidth: 320, maxWidth: 440)
             .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
                 if let id = ids.first, let r = macRows.first(where: { $0.id == id }) { macMenu(r) }
             }
             macDetail(current)
                 .frame(minWidth: 340, idealWidth: 560, maxWidth: .infinity, maxHeight: .infinity)
+                .background(Theme.ground)
         }
+    }
+
+    /// The one line at the foot, as every list has: what waits and what it comes to, and the fortnight's.
+    private func macSummary(waiting: [OnlineOrderRow], lately: [OnlineOrderRow]) -> [String] {
+        var parts: [String] = [waiting.isEmpty ? "Nothing waiting" : "\(waiting.count) to confirm"]
+        let worth = waiting.reduce(0.0) { (sum: Double, r: OnlineOrderRow) -> Double in sum + r.grandTotal }
+        if worth >= 1 { parts.append("\(Money.pkrLac(worth, digits: 1)) waiting") }
+        parts.append("\(lately.count) in the last two weeks")
+        return parts
     }
 
     /// No inspector here, so two actions may stay in the toolbar: Confirm and Decline for an order waiting, Open the Order for a
@@ -356,19 +378,23 @@ extension OnlineOrdersScreen {
 
     // MARK: The list
 
+    /// The iPhone's row at a pointer's size, as every list of records has it: a monogram, the customer over the order's number and
+    /// age, the sum at the right.
     private func macRow(_ r: OnlineOrderRow) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
+        HStack(spacing: 12) {
+            Monogram(name: r.customer.name, size: Monogram.Size.row)
             VStack(alignment: .leading, spacing: 2) {
-                Text(r.customer.name.isEmpty ? "Customer" : r.customer.name).lineLimit(1)
+                Text(r.customer.name.isEmpty ? "Customer" : r.customer.name).font(.body).lineLimit(1)
                 Text([r.id, OnlineOrdersLogic.ago(r.placedAt)].filter { !$0.isEmpty }.joined(separator: " \u{00B7} "))
-                    .font(.caption)
+                    .font(.callout)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
                     .lineLimit(1)
             }
             Spacer(minLength: 8)
-            Text(Money.pkr(r.grandTotal)).monospacedDigit()
+            RowAmount(amount: r.grandTotal)
         }
+        .padding(.vertical, 3)
     }
 
     @ViewBuilder
@@ -453,7 +479,7 @@ extension OnlineOrdersScreen {
                         headline: MacHeadline("Customer pays", Money.pkr(r.grandTotal))
                     )
                     Divider()
-                    VStack(alignment: .leading, spacing: 24) {
+                    VStack(alignment: .leading, spacing: 16) {
                         macPieces(r)
                         macCustomer(r)
                         macState(r)
@@ -479,18 +505,12 @@ extension OnlineOrdersScreen {
     }
 
     private func macPieces(_ r: OnlineOrderRow) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(r.lines.count == 1 ? "1 piece" : "\(r.lines.count) pieces").font(.headline)
-                Spacer(minLength: 8)
-                Text(r.deliveryCharge > 0 ? "incl. \(Money.pkr(r.deliveryCharge)) delivery" : "free delivery")
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
-            }
+        MacWorkCard(r.lines.count == 1 ? "1 piece" : "\(r.lines.count) pieces",
+                    trailing: r.deliveryCharge > 0 ? "incl. \(Money.pkr(r.deliveryCharge)) delivery" : "free delivery") {
             VStack(spacing: 0) {
                 ForEach(Array(r.lines.enumerated()), id: \.offset) { pair in
+                    if pair.offset > 0 { Divider() }
                     macLine(pair.element)
-                    Divider()
                 }
             }
         }
@@ -516,12 +536,11 @@ extension OnlineOrdersScreen {
     private func macCustomer(_ r: OnlineOrderRow) -> some View {
         let address = [r.delivery.address, r.delivery.city].filter { !$0.isEmpty }.joined(separator: ", ")
         let notes = r.delivery.notes?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        return VStack(alignment: .leading, spacing: 10) {
-            Text("The customer").font(.headline)
+        return MacWorkCard("The customer") {
             if !r.customer.phone.isEmpty {
                 MacOrdersFact(label: "Phone") {
                     if let call = OnlineOrdersLogic.callURL(r.customer.phone) {
-                        Button(r.customer.phone) { openURL(call) }.buttonStyle(.link)
+                        Button(r.customer.phone) { openURL(call) }.buttonStyle(.plain).foregroundStyle(Theme.accent)
                     } else {
                         Text(r.customer.phone)
                     }

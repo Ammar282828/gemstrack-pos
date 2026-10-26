@@ -143,6 +143,7 @@ struct LabelDesigner: View {
         #if os(macOS)
         // Field / Label / Preview are the inspector's own header, not a tab row over the content.
         .macInspector { macInspectorPanel(m) }
+        .navigationSubtitle(macSubtitle(m))
         #endif
         .toolbar { designerToolbar(m) }
         .sheet(isPresented: $addingPicture) {
@@ -478,24 +479,38 @@ private struct LabelStandardDoc: Decodable {
 // The Mac's designer (docs/features/mac-design.md, "Stock"): the layers at the left and the canvas with its controls, as before;
 // the right-hand pane is the window's inspector (View › Show Inspector, ⌥⌘I) with Field / Label / Preview as its header switch.
 extension LabelDesigner {
+    /// The window's subtitle, as the other pages say how many they hold: the fields on the tag ("2 fields").
+    fileprivate func macSubtitle(_ m: LabelDesignerModel) -> String {
+        let n = m.layout.fields.count
+        return "\(n) field\(n == 1 ? "" : "s")"
+    }
+
+    /// The layers and the canvas fill the page and never size the window: the page used to open at a different size from every
+    /// other (the split's children asked for their own, the window grew to fit them), so it is laid out in the room the window
+    /// gives it, whatever the panes say they would like.
     fileprivate func macBody(_ m: LabelDesignerModel) -> some View {
-        HSplitView {
-            VStack(spacing: 0) {
-                HStack {
-                    Text("Layers").font(.headline)
-                    Spacer()
-                    Text("\(m.layout.fields.count)").foregroundStyle(.secondary)
+        GeometryReader { (geo: GeometryProxy) in
+            HSplitView {
+                VStack(spacing: 0) {
+                    HStack {
+                        Text("Layers").font(.headline)
+                        Spacer()
+                        Text("\(m.layout.fields.count)").foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 14).padding(.vertical, 10)
+                    LabelLayersList(model: m)
                 }
-                .padding(.horizontal, 14).padding(.vertical, 10)
-                LabelLayersList(model: m)
+                .frame(minWidth: 150, idealWidth: 210, maxWidth: 280, maxHeight: .infinity)
+                VStack(spacing: 0) {
+                    canvas(m).frame(maxWidth: .infinity, maxHeight: .infinity)
+                    Divider()
+                    controlBar(m)
+                }
+                .frame(minWidth: 300, maxWidth: .infinity, maxHeight: .infinity)
             }
-            .frame(minWidth: 150, idealWidth: 210, maxWidth: 280)
-            VStack(spacing: 0) {
-                canvas(m).frame(minWidth: 300, minHeight: 240)
-                Divider()
-                controlBar(m)
-            }
+            .frame(width: geo.size.width, height: geo.size.height)
         }
+        .frame(minWidth: 0, minHeight: 0)
         .onChange(of: m.selection) { _, s in if !s.isEmpty, panel != .field { panel = .field } }
         .onAppear { if panel == .layers { panel = .field } }
     }
@@ -510,6 +525,18 @@ extension LabelDesigner {
             .pickerStyle(.segmented).labelsHidden()
             .padding(10)
             Divider()
+            macPanelBody(m)
+        }
+    }
+
+    /// With no field picked the Field tab says so in the inspector's own words (the form's one white row did not match its
+    /// neighbours); every other tab, and a picked field, is the form.
+    @ViewBuilder
+    private func macPanelBody(_ m: LabelDesignerModel) -> some View {
+        if panel == .field && m.primary == nil {
+            MacInspectorEmpty(title: "No Field Selected",
+                              detail: "Click a field on the tag to change it, or add one from the Add menu.")
+        } else {
             panelBody(m)
         }
     }

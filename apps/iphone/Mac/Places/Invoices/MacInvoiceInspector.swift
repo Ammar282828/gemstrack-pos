@@ -20,9 +20,9 @@ struct MacInvoiceInspector: View {
         if let inv = invoice {
             MacInvoiceInspectorBody(invoice: inv, cx: cx, customer: customerId(inv))
         } else if count > 1 {
-            MacInspectorEmpty(title: "\(count) Invoices", detail: "Pick one to see it here.")
+            MacInspectorEmpty(title: "\(count) Invoices Selected", detail: "Pick one to see its pieces, payments and what is still owed.")
         } else {
-            MacInspectorEmpty(title: "No Invoice Selected")
+            MacInspectorEmpty(title: "No Invoice Selected", detail: "Pick an invoice to see its pieces, payments and what is still owed.")
         }
     }
 

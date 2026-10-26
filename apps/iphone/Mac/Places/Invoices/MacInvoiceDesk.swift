@@ -173,7 +173,8 @@ struct MacInvoiceLink: View {
     var body: some View {
         if let openPlace {
             Button(title) { openPlace(route) }
-                .buttonStyle(.link)
+                .buttonStyle(.plain)
+                .foregroundStyle(Theme.accent)
         } else {
             NavigationLink(value: route) { Text(title) }
         }

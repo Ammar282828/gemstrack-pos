@@ -143,7 +143,7 @@ struct MacRepairsPlace: View {
         let used = chosen.isEmpty ? rows : chosen
         let owing = used.reduce(0.0) { (sum: Double, r: MacRepairsRow) -> Double in sum + r.owed }
         var parts: [String] = [chosen.isEmpty ? count(rows.count) : "\(chosen.count) of \(rows.count) selected"]
-        if owing >= 1 { parts.append("\(Money.pkr(owing)) due") }
+        if owing >= 1 { parts.append("\(Money.pkrLac(owing, digits: 1)) owed") }
         return parts
     }
 
@@ -151,18 +151,23 @@ struct MacRepairsPlace: View {
 
     private func listView(_ rows: [MacRepairsRow], list: String?) -> some View {
         let searching = !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        return MacRepairsListView(rows: rows, version: rowsKey(list), sort: sort, searching: searching, selection: $selection,
+        return MacRepairsListView(rows: rows, version: rowsKey(list), sort: sort, searching: searching,
+                                  listTitle: list == nil ? nil : title(list), selection: $selection,
                                   open: { (ids: Set<String>) in for id in ids.sorted().prefix(5) { openTicket(id) } }) { (ids: Set<String>) in
             menu(ids)
         }
-        .overlay { if rows.isEmpty { empty } }
+        .overlay { if rows.isEmpty { empty(list) } }
     }
 
     @ViewBuilder
-    private var empty: some View {
+    private func empty(_ list: String?) -> some View {
         let typed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         if !typed.isEmpty {
             ContentUnavailableView.search(text: typed)
+        } else if list != nil {
+            // A saved list says it is empty, as Orders' and Invoices' do; only the whole place invites a first repair.
+            ContentUnavailableView("Nothing in \(title(list))", systemImage: "wrench.and.screwdriver",
+                                   description: Text("No ticket is in this list now."))
         } else if book.repairs.items.isEmpty {
             ContentUnavailableView("No Repairs Yet", systemImage: "wrench.and.screwdriver",
                                    description: Text(session.isOwner ? "Take one in with New Repair (\u{2325}\u{2318}N)." : "Repairs the shop takes in will show here."))
@@ -238,10 +243,10 @@ struct MacRepairsPlace: View {
             MacRepairsTicket(id: id, seed: nil, model: model).id(id)
         } else if selection.count > 1 {
             let owing = pickedRepairs.reduce(0.0) { (sum: Double, r: Repair) -> Double in sum + RepairsKit.repairBalance(r) }
-            MacInspectorEmpty(title: "\(selection.count) Repairs Picked",
+            MacInspectorEmpty(title: "\(selection.count) Repairs Selected",
                               detail: owing >= 1 ? "\(Money.pkr(owing)) due on them. Pick one to read it." : "Pick one to read it.")
         } else {
-            MacInspectorEmpty(title: "No Repair Picked", detail: "Pick a repair to read it here.")
+            MacInspectorEmpty(title: "No Repair Selected", detail: "Pick a repair to see what it needs and what it owes.")
         }
     }
 }

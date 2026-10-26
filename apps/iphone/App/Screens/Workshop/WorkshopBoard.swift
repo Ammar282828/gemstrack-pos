@@ -75,7 +75,11 @@ struct WorkshopBoard: View {
         }
         .navigationTitle(orderId == nil ? "Workshop" : "Give out")
         .hubTitleDisplay()
+        #if os(macOS)
+        .navigationSubtitle(macSubtitle)
+        #else
         .navigationSubtitle(orderId ?? "")
+        #endif
         #if !os(macOS)
         // The Mac's toolbar is the board's own (Board / Table, Show, Filter, Give To, Mark Done): not the phone's menus too.
         .toolbar { if orderId == nil { boardToolbar } }
@@ -781,6 +785,14 @@ private struct JobPatch {
 // action declared once for the Job menu, the toolbar, the right-click menu and the inspector. The writes are the screen's
 // own (setKarigar, setDone, setGiven, openDetails, askDelete): this is arrangement only.
 extension WorkshopBoard {
+    /// The window's subtitle: how many pieces are active ("16 active"), as the other lists say how many they hold; the one
+    /// order's "Give out" page says the order.
+    var macSubtitle: String {
+        if let orderId { return orderId }
+        guard loaded else { return "" }
+        return "\(macData().snap.stats.active) active"
+    }
+
     var macContent: some View {
         let data = macData()
         return VStack(spacing: 0) {
@@ -887,7 +899,7 @@ extension WorkshopBoard {
         if stats.overdue > 0 { parts.append("\(stats.overdue) late") }
         if stats.unassigned > 0 { parts.append("\(stats.unassigned) need a karigar") }
         if data.grams > 0 { parts.append(WorkshopLogic.number(data.grams, digits: 1) + "g of metal out") }
-        if session.isOwner && data.value > 0 { parts.append(Money.pkrLac(data.value) + " out") }
+        if session.isOwner && data.value > 0 { parts.append(Money.pkrLac(data.value, digits: 1) + " out") }
         return parts
     }
 

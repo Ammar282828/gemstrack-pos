@@ -160,7 +160,7 @@ struct MacStockPlace: View {
         return parts
     }
 
-    private func worthWords(_ total: Double, known: Bool) -> String { known ? Money.pkrLac(total) : "\u{2014}" }
+    private func worthWords(_ total: Double, known: Bool) -> String { known ? Money.pkrLac(total, digits: 1) : "\u{2014}" }
 
     // MARK: The content
 
@@ -199,7 +199,12 @@ struct MacStockPlace: View {
         .scrollContentBackground(.hidden)
         .background(Theme.ground)
         .contextMenu(forSelectionType: String.self) { ids in
-            if !ids.isEmpty { MacActionItems(groups: actionGroups(Array(ids))) }
+            if ids.isEmpty {
+                // The empty part of the table: what is not about one piece.
+                MacActionItems(groups: [[newAction, bulkAction]])
+            } else {
+                MacActionItems(groups: actionGroups(Array(ids)))
+            }
         } primaryAction: { ids in
             open(Array(ids))
         }
@@ -208,16 +213,16 @@ struct MacStockPlace: View {
     private func listRow(_ r: MacStockPlaceRow) -> some View {
         HStack(spacing: 10) {
             StockImage(imageUrl: r.product.imageUrl, name: r.product.name, key: r.sku)
-                .frame(width: 40, height: 40)
+                .frame(width: 36, height: 36)
                 .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
-                Text(r.name.isEmpty ? r.sku : r.name).font(.body.weight(.medium)).lineLimit(1)
+                Text(r.name.isEmpty ? r.sku : r.name).font(.body).lineLimit(1)
                 Text(r.sku + " \u{00B7} " + detail(r)).font(.callout).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer(minLength: 8)
             price(r)
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 3)
         .tag(r.id)
         .houseRows()
     }
@@ -342,24 +347,14 @@ struct MacStockPlace: View {
             .pickerStyle(.segmented)
             .help("The pieces as a table or as photographs (\u{2303}\u{2318}1, \u{2303}\u{2318}2)")
         }
-        // New (its arrow adds in bulk) and the one filter. The picked pieces' Sell and Print are the inspector's, the Piece
-        // menu's and the right-click menu's, never the toolbar's.
+        // New and the one filter, as every list has them. The picked pieces' Sell and Print are the inspector's, the Piece
+        // menu's and the right-click menu's, never the toolbar's; Add in Bulk is the Piece menu's and the empty table's.
         ToolbarItemGroup(placement: .automatic) {
-            newMenu
+            Button { openRoute(StockKit.addPath) } label: { Label("New Piece", systemImage: "plus") }
+                .disabled(!session.isOwner)
+                .help("New piece (\u{2303}\u{2318}N)")
             filterMenu
         }
-    }
-
-    private var newMenu: some View {
-        Menu {
-            Button { openRoute(StockKit.bulkAddPath) } label: { Label("Add in Bulk\u{2026}", systemImage: "square.stack.3d.up") }
-        } label: {
-            Label("New Piece", systemImage: "plus")
-        } primaryAction: {
-            openRoute(StockKit.addPath)
-        }
-        .disabled(!session.isOwner)
-        .help("New piece (\u{2303}\u{2318}N); the arrow adds many at once")
     }
 
     private var filterMenu: some View {
