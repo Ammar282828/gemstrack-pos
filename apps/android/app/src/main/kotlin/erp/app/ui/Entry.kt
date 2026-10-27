@@ -116,6 +116,24 @@ fun EntrySteps(
     }
 }
 
+/**
+ * The step on show, moving as the person goes on or back: a shared axis along Y (Material's for the steps of one task), forward
+ * when the new step is later. Instant under Reduce Motion. [content] draws the step it is handed, which is the leaving one while
+ * it leaves, so it reads that rather than the live selection.
+ */
+@Composable
+fun EntryStepContent(step: EntryStep, modifier: Modifier = Modifier, content: @Composable (EntryStep) -> Unit) {
+    val motion = rememberErpMotion()
+    val forward = motion.sharedAxisY(true)
+    val backward = motion.sharedAxisY(false)
+    androidx.compose.animation.AnimatedContent(
+        targetState = step,
+        modifier = modifier,
+        transitionSpec = { if (ErpMotion.forward(initialState.ordinal, targetState.ordinal)) forward else backward },
+        label = "entryStep",
+    ) { shown -> content(shown) }
+}
+
 /** Back and Continue under the steps. */
 @Composable
 fun EntryContinue(selection: EntryStep, onSelect: (EntryStep) -> Unit, modifier: Modifier = Modifier) {

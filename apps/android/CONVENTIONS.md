@@ -96,19 +96,31 @@ iPhone app, `apps/iphone` (read `apps/iphone/CONVENTIONS.md` too: its rules hold
     `LocalNavigator.current.replace(path)` for a form that hands over to what it made, and `ScreenRegistry.readableWidth`
     (PlaceScreen already puts a native page in its column: do not add another unless the page needs a narrower one).
 
-## Motion (the platform's own page transitions since 2026-10-15)
+## Motion (Material 3 Expressive on the theme's springs; the pages are the platform's since 2026-10-15)
 
-The ERP's three curves and 150-400 ms live in `ui/Motion.kt` (docs/decisions.md "Motion"); everything is instant under
-`LocalReduceMotion`. Nothing loops, nothing animates on scroll, per-frame work is read in the layer (`graphicsLayer {}`).
+Every spec is the theme's `MotionScheme.expressive()` (docs/decisions.md "Motion"), written once in `ui/Motion.kt` as `ErpMotion`; everything is instant under
+`LocalReduceMotion`. Nothing loops, nothing animates on scroll, per-frame work is read in the layer (`graphicsLayer {}`). **Never pick a tween or a curve by hand**:
+get `val motion = rememberErpMotion()` where content is composed and use it (specs outside composition, in a `transitionSpec`, read the `motion` you captured).
 
 - **Every pushed page is its own Activity** (`PageActivity`, the path in an extra): `LocalNavigator.current.open(path)` starts
   one, `back()` finishes it, `replace(path)` starts the new one and finishes this. Android draws the open/close animation and
   the predictive back gesture; never add `overridePendingTransition`, `overrideActivityTransition` or a window animation style,
-  and do not intercept Back except for an unsaved form. `AppShell` is what both activities wear.
+  never a shared element or container transform between pages (the owner rejected them twice), and do not intercept Back except for an unsaved
+  form or a save on its way. `AppShell` is what both activities wear. A `BackHandler` never goes inside a `ModalBottomSheet`: Material's sheet does its own predictive Back.
 - `zoomSource` / `zoomDestination` are inert now (no shared scopes between Activities); leaving them in is harmless.
-- **Tabs** fade through (`RootScaffold`); the create sheet rises from the corner of the create button.
-- **Small things use the kit:** `Modifier.morphCard(onClick)` on a card that is itself the button (its corners morph from extraLarge to large
-  while pressed, then spring back), buttons and icon buttons morph by the kit's own wrappers, `Modifier.appearOnce(index)`
-  on a list's rows (first six, once, saved with the row), `NumericText`/`HeroAmount` for figures that change, `Pill` (colour
-  cross-fades), `LedgerSection(collapsible)` / `motionContentSize()` for sections, `ErpPullToRefreshBox` for refresh
-  (the expressive indicator), `NoteHost` for toasts. Tests: `shots/MotionTests` runs open -> back with a paused clock.
+- **Spatial for what moves or resizes** (`motion.spatial()`, `fastSpatial()`, `slowSpatial()`: they overshoot a little), **effects for colour and opacity**
+  (`effects()`, `fastEffects()`, `slowEffects()`: they never do; use them for anything that must not pass its target, a drawn bar or ring).
+- **Which transition:** peers in a set (the tabs, the wide item column) **fade through** (`motion.fadeThrough()`); the steps of one task
+  **shared axis Y** (`EntryStepContent`); tabs, sections, a period's words, Sources | Kinds **shared axis X** (`AxisSwap`, `PlaceScreen`);
+  a state replacing another in place **cross-fades** (`crossFade()`); a figure **rolls** (`NumericText`, `HeroAmount`); a section **expands/collapses**
+  (`expandIn`/`collapseOut`, `motionContentSize()`), its chevron turning on `spatial()`; a toast or banner **slides from its edge** (`slideIn/slideOut`); a small thing
+  **pops** (`popIn/popOut`: the tab badge).
+- **Lists:** a keyed `items` row gets `Modifier.animateItem()` on its root (or inside a `Box(Modifier.animateItem())` when the row is a call with no modifier); a keyed
+  single `item` is `animatedItem(key = …)` (`ui/LazyMotion.kt`, lists and grids). The first six rows of a list rise once on first paint (`Modifier.appearOnce(index)`,
+  30 ms apart, never on scroll).
+- **Small things use the kit:** `Modifier.morphCard(onClick)` on a card that is itself the button (corners morph 28 -> 16 while pressed), buttons and icon buttons morph by the
+  kit's own wrappers, `SingleChoiceSegmentedButtonRow` squeezes the neighbours of a held button, `FilterChip` grows its check, `Pill` (colour cross-fades),
+  `LedgerSection(collapsible)`, `ErpPullToRefreshBox`, `NoteHost` for toasts, `AlertDialog` from `erp.app.ui` (not Material's: it scales and fades in), `Loading`.
+- **Haptics go with motion:** `rememberHaptics()`: `selection()` (segment tick) on a segmented or chip choice (the kit does it), `toggle(on)` on a switch (the kit's `Switch`
+  does it), `success()`/`failure()` on money as before.
+- Tests: `shots/MotionTests` (open -> back with a paused clock; the fade through and shared axes at their middle, `motion-*-mid` shots, and Reduce Motion), `ui/ErpMotionTests`.

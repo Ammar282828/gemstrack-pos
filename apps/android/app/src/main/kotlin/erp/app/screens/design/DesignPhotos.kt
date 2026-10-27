@@ -129,7 +129,7 @@ fun DesignSitePieces(onPick: (DesignStartPhoto) -> Unit) {
                     Text("${filtered.size} of ${pieces.size} pieces. Tap one to design it.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 items(filtered.take(shown), key = { it.s("id") }) { p ->
-                    PieceCell(p.s("name"), p.s("collection"), p.s("thumb", p.s("image"))) { onPick(DesignPhotoSources.site(p)) }
+                    Box(Modifier.animateItem()) { PieceCell(p.s("name"), p.s("collection"), p.s("thumb", p.s("image"))) { onPick(DesignPhotoSources.site(p)) } }
                 }
                 if (filtered.size > shown) item(span = { GridItemSpan(maxLineSpan) }) {
                     TextButton(onClick = { shown += 60 }, Modifier.fillMaxWidth()) { Text("Show more (${filtered.size - shown} left)") }
@@ -205,7 +205,7 @@ fun DesignLibraryPhotos(all: Boolean, onPick: (DesignStartPhoto) -> Unit) {
                 horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 items(rows, key = { it.s("id") }) { item ->
-                    PieceCell(item.s("name"), if (item["adScore"].isNull) item.s("collection") else "Ad score ${item.n("adScore").toInt()}", item.s("thumb")) { onPick(DesignPhotoSources.library(item)) }
+                    Box(Modifier.animateItem()) { PieceCell(item.s("name"), if (item["adScore"].isNull) item.s("collection") else "Ad score ${item.n("adScore").toInt()}", item.s("thumb")) { onPick(DesignPhotoSources.library(item)) } }
                 }
                 if (rows.size < total) item(span = { GridItemSpan(maxLineSpan) }) {
                     var more by remember { mutableStateOf(false) }

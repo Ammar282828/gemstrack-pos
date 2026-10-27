@@ -1,5 +1,6 @@
 package erp.app.screens.owner
 
+import erp.app.ui.animatedItem
 import erp.app.ui.Loading
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -247,11 +248,11 @@ private fun ShareholdersBoard() {
     Box(Modifier.fillMaxSize()) {
         ShelfState(loaded = ready, error = readError, offline = expenses.offline, connectionLost = connectionLost) {
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = 4.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                item(key = "tiles") { Tiles(figures.totals) }
+                animatedItem(key = "tiles") { Tiles(figures.totals) }
                 for (p in figures.positions) {
-                    item(key = "p-${p.id}") { PartnerCard(p, onAsk = { asking = it }) }
+                    animatedItem(key = "p-${p.id}") { PartnerCard(p, onAsk = { asking = it }) }
                     if (p.rows.isEmpty() && p.salaries.isEmpty()) {
-                        item(key = "none-${p.id}") {
+                        animatedItem(key = "none-${p.id}") {
                             Column(Modifier.padding(horizontal = 16.dp).readableColumn()) {
                                 Text(
                                     "No entries recorded.",
@@ -268,14 +269,14 @@ private fun ShareholdersBoard() {
                             is PartnerEntry.Row -> LedgerEntryRow(entry.r, p, onDelete = { deletion = askDeleteEntry(entry.r, p) })
                         }
                     }
-                    if (entries.isNotEmpty()) item(key = "foot-${p.id}") {
+                    if (entries.isNotEmpty()) animatedItem(key = "foot-${p.id}") {
                         Box(Modifier.padding(horizontal = 20.dp).readableColumn()) {
                             Footnote("Withdrawing capital reduces their stake; it is not a salary. Swipe an entry to delete it.")
                         }
                     }
                 }
-                item(key = "notes") { Notes(figures) }
-                item(key = "distribution") {
+                animatedItem(key = "notes") { Notes(figures) }
+                animatedItem(key = "distribution") {
                     Distribution(
                         figures.positions, settings, cashText, { cashText = it },
                         floorText, { floorText = it }, savingFloor, floorError,

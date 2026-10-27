@@ -1,5 +1,6 @@
 package erp.app.screens.invoices
 
+import erp.app.ui.animatedItem
 import erp.app.ui.SearchBarField
 import erp.app.ui.appearOnce
 import erp.app.ui.AppClock
@@ -230,16 +231,16 @@ fun InvoicesList() {
                         }
                     }
                     for (group in groups) {
-                        item(key = "h" + group.id, span = FULL_WIDTH) {
+                        animatedItem(key = "h" + group.id, span = FULL_WIDTH) {
                             Box(Modifier.padding(horizontal = 20.dp).padding(top = if (wide) 4.dp else SECTION_GAP, bottom = 8.dp)) { SectionHeader(group) }
                         }
                         if (wide) {
                             items(group.rows.size, key = { "c${group.id}${group.rows[it].id}" }) { i ->
                                 val inv = group.rows[i]
-                                InvoiceCard(
+                                Box(Modifier.animateItem()) { InvoiceCard(
                                     inv, mine = mine(inv), dated = grouping != InvoiceGrouping.day, canPay = canPay,
                                     actions = actions(inv), open = { navigator.open(InvoiceFacts.path(inv.id)) }, take = { paying = inv },
-                                )
+                                ) }
                             }
                         } else {
                             items(group.rows.size, key = { "r${group.id}${group.rows[it].id}" }, span = { FULL_WIDTH() }) { i ->
@@ -250,7 +251,7 @@ fun InvoicesList() {
                                     topStart = if (first) Radius.card else Radius.joint, topEnd = if (first) Radius.card else Radius.joint,
                                     bottomStart = if (last) Radius.card else Radius.joint, bottomEnd = if (last) Radius.card else Radius.joint,
                                 )
-                                Column(Modifier.appearOnce(if (group === groups.first()) i else Int.MAX_VALUE).padding(horizontal = 16.dp).readableColumn().padding(bottom = if (last) 0.dp else 2.dp).clip(shape)) {
+                                Column(Modifier.animateItem().appearOnce(if (group === groups.first()) i else Int.MAX_VALUE).padding(horizontal = 16.dp).readableColumn().padding(bottom = if (last) 0.dp else 2.dp).clip(shape)) {
                                     SwipeActions(
                                         // The bill to the customer: the commonest thing after a sale, the same send as the invoice page's.
                                         start = RowAction("Send on WhatsApp", Icons.AutoMirrored.Filled.Message, Tone.credit) { sending = inv },
@@ -317,7 +318,7 @@ private fun LazyGridScope.head(
     now: Instant,
     onPick: (InvoiceSummary.Figure) -> Unit,
 ) {
-    item(key = "search", span = FULL_WIDTH) {
+    animatedItem(key = "search", span = FULL_WIDTH) {
         SearchBarField(
             value = search,
             onValueChange = onSearch,
@@ -332,7 +333,7 @@ private fun LazyGridScope.head(
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
         )
     }
-    item(key = "chips", span = FULL_WIDTH) {
+    animatedItem(key = "chips", span = FULL_WIDTH) {
         ChipRow {
             for (c in listOf(InvoiceChip.all, InvoiceChip.unpaid, InvoiceChip.paid)) {
                 FilterChip(c.title, chosen = c == chip, onClick = { onChip(c) }, count = scoped.count { c.matches(it) })
@@ -340,14 +341,14 @@ private fun LazyGridScope.head(
         }
     }
     if (caption != null) {
-        item(key = "caption", span = FULL_WIDTH) {
+        animatedItem(key = "caption", span = FULL_WIDTH) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(caption, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 TextButton(onClick = onClear) { Text("Clear", fontWeight = FontWeight.SemiBold) }
             }
         }
     }
-    item(key = "summary", span = FULL_WIDTH) {
+    animatedItem(key = "summary", span = FULL_WIDTH) {
         Box(Modifier.padding(horizontal = 16.dp).readableColumn()) { SummaryStrip(summary, filter, chip, now, onPick) }
     }
 }

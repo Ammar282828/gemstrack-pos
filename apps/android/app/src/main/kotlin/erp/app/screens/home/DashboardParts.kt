@@ -1,5 +1,6 @@
 package erp.app.screens.home
 
+import erp.app.ui.rememberErpMotion
 import erp.app.ui.morphCard
 import erp.app.ui.zoomSource
 import androidx.compose.animation.animateContentSize
@@ -313,9 +314,8 @@ fun DashHeader(title: String, count: Int? = null, allLabel: String? = null, onAl
 /** A list's rows, each its own tile in one segmented group. */
 @Composable
 fun <T> DashRowsCard(items: List<T>, inset: Dp, modifier: Modifier = Modifier, row: @Composable (T) -> Unit) {
-    val reduce = reduceMotion()
     // Each row its own tile (Android 16's grouped list); the hairline and its inset are gone, the gap is the line.
-    SegmentedColumn(modifier.animateContentSize(Motion.enter(reduce))) {
+    SegmentedColumn(modifier.animateContentSize(rememberErpMotion().spatial())) {
         items.forEach { item -> Box(Modifier.padding(horizontal = 14.dp)) { row(item) } }
     }
 }
@@ -366,9 +366,9 @@ fun DashReveal(expanded: Boolean, count: Int, onToggle: () -> Unit) {
 @Composable
 fun DashDisclosure(title: String, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     var open by rememberSaveable(title) { mutableStateOf(false) }
-    val reduce = reduceMotion()
-    val turn by animateFloatAsState(if (open) 0f else -90f, Motion.enter(reduce), label = "disclosure")
-    Column(modifier.ledgerCard().animateContentSize(Motion.enter(reduce))) {
+    val motion = rememberErpMotion()
+    val turn by animateFloatAsState(if (open) 0f else -90f, motion.spatial(), label = "disclosure")
+    Column(modifier.ledgerCard().animateContentSize(motion.spatial())) {
         Row(
             Modifier
                 .fillMaxWidth()

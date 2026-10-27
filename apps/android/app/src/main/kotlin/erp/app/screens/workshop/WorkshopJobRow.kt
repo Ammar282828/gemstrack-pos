@@ -1,5 +1,6 @@
 package erp.app.screens.workshop
 
+import erp.app.ui.rememberErpMotion
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -244,7 +245,7 @@ private fun Instructions(notes: String, open: Boolean, onToggle: (Boolean) -> Un
             Text("Instructions", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium))
             Icon(Icons.Filled.ExpandMore, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        AnimatedVisibility(open) {
+        AnimatedVisibility(open, enter = rememberErpMotion().expandIn, exit = rememberErpMotion().collapseOut) {
             Text(
                 notes, Modifier.padding(bottom = 12.dp), style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

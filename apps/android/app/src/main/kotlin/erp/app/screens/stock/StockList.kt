@@ -1,5 +1,6 @@
 package erp.app.screens.stock
 
+import erp.app.ui.animatedItem
 import erp.app.ui.SearchBarField
 import erp.app.ui.appearOnce
 import androidx.compose.foundation.background
@@ -265,9 +266,9 @@ private fun ListView(
     onOpen: (String) -> Unit,
 ) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp)) {
-        item(key = "header") { Box(Modifier.padding(bottom = 16.dp)) { Header(all, shown, owner, filtering) } }
+        animatedItem(key = "header") { Box(Modifier.padding(bottom = 16.dp)) { Header(all, shown, owner, filtering) } }
         if (shown.isEmpty()) {
-            item(key = "empty") { EmptyState(filtering) }
+            animatedItem(key = "empty") { EmptyState(filtering) }
         } else {
             items(shown.size, key = { shown[it].id }) { i ->
                 val row = shown[i]
@@ -279,7 +280,7 @@ private fun ListView(
                     bottomStart = if (last) Radius.card else Radius.joint, bottomEnd = if (last) Radius.card else Radius.joint,
                 )
                 val menu = actions(p)
-                Column(Modifier.appearOnce(i).padding(bottom = if (last) 0.dp else 2.dp).clip(shape)) {
+                Column(Modifier.animateItem().appearOnce(i).padding(bottom = if (last) 0.dp else 2.dp).clip(shape)) {
                     SwipeActions(
                         start = menu.firstOrNull { it.label == "Sell" },
                         end = menu.firstOrNull { it.label == "Edit" },
@@ -348,12 +349,12 @@ private fun GridView(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        item(key = "header", span = { GridItemSpan(maxLineSpan) }) { Header(all, shown, owner, filtering) }
+        animatedItem(key = "header", span = { GridItemSpan(maxLineSpan) }) { Header(all, shown, owner, filtering) }
         if (shown.isEmpty()) {
-            item(key = "empty", span = { GridItemSpan(maxLineSpan) }) { EmptyState(filtering) }
+            animatedItem(key = "empty", span = { GridItemSpan(maxLineSpan) }) { EmptyState(filtering) }
         } else {
             items(shown, key = { it.id }) { row ->
-                SwipeActions(menu = actions(row.product), onClick = { onOpen(row.product.sku) }, modifier = Modifier.clip(Radius.cardShape)) {
+                SwipeActions(menu = actions(row.product), onClick = { onOpen(row.product.sku) }, modifier = Modifier.animateItem().clip(Radius.cardShape)) {
                     StockCard(row, selecting, selected.contains(row.id))
                 }
             }

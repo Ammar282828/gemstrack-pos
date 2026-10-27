@@ -218,7 +218,7 @@ fun WebsiteEditScreen() {
                         }
                     } else {
                         items(items.take(shown), key = { it.id }) { p ->
-                            Box(Modifier.clickable { navigator.open(WebsiteEditLogic.piecePath(p.id)) }.ledgerCard(10.dp)) { WebsiteEditTile(p) }
+                            Box(Modifier.animateItem().clickable { navigator.open(WebsiteEditLogic.piecePath(p.id)) }.ledgerCard(10.dp)) { WebsiteEditTile(p) }
                         }
                         if (items.size > shown) {
                             item(span = { GridItemSpan(maxLineSpan) }) {

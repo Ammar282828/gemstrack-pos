@@ -45,7 +45,7 @@ import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.AlertDialog
+import erp.app.ui.AlertDialog
 import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -326,7 +326,7 @@ private fun TrayStrip(model: PostTrayModel, clearAll: () -> Unit) {
                 val number = model.cards.indexOfFirst { it.id == c.id } + 1
                 val on = c.id == model.activeCard?.id
                 Box(
-                    Modifier.size(56.dp).clip(Radius.thumbShape).alpha(if (on) 1f else 0.8f)
+                    Modifier.animateItem().size(56.dp).clip(Radius.thumbShape).alpha(if (on) 1f else 0.8f)
                         .border(BorderStroke(2.dp, if (on) ErpColors.accent else androidx.compose.ui.graphics.Color.Transparent), Radius.thumbShape)
                         .clickable { model.active = c.id }
                         .semantics { contentDescription = "$number: ${c.piece.name}" },

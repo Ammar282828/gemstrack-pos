@@ -1,5 +1,6 @@
 package erp.app.screens.orders
 
+import erp.app.ui.animatedItem
 import erp.app.ui.SearchBarField
 import erp.app.ui.appearOnce
 import androidx.compose.foundation.lazy.grid.itemsIndexed
@@ -32,7 +33,7 @@ import androidx.compose.material.icons.filled.FilterListOff
 import androidx.compose.material.icons.filled.ListAlt
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.AlertDialog
+import erp.app.ui.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import erp.app.ui.Button
@@ -244,7 +245,7 @@ fun OrdersHub() {
                 horizontalArrangement = Arrangement.spacedBy(20.dp),
                 verticalArrangement = Arrangement.spacedBy(if (grid) 20.dp else 14.dp),
             ) {
-                item(key = "controls", span = { GridItemSpan(maxLineSpan) }) {
+                animatedItem(key = "controls", span = { GridItemSpan(maxLineSpan) }) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         SearchBarField(
                             value = query, onValueChange = { query = it }, modifier = Modifier.fillMaxWidth(), singleLine = true,
@@ -260,11 +261,11 @@ fun OrdersHub() {
                     }
                 }
                 for (g in sections) {
-                    item(key = "h-" + g.id, span = { GridItemSpan(maxLineSpan) }) { OrdersSectionHeader(g) }
+                    animatedItem(key = "h-" + g.id, span = { GridItemSpan(maxLineSpan) }) { OrdersSectionHeader(g) }
                     if (g.folds) {
                         // A search or a filter must reach the folded stages too, or its hits hide behind "Show".
                         val open = anyFilter || opened.contains(g.id)
-                        item(key = "f-" + g.id, span = { GridItemSpan(maxLineSpan) }) {
+                        animatedItem(key = "f-" + g.id, span = { GridItemSpan(maxLineSpan) }) {
                             Row(
                                 Modifier.fillMaxWidth().clickable(enabled = !anyFilter) { opened = if (open) opened - g.id else opened + g.id }.padding(vertical = 8.dp),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
@@ -276,13 +277,13 @@ fun OrdersHub() {
                                 Icon(if (open) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, if (open) "Hide" else "Show", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
-                        if (open) itemsIndexed(g.orders, key = { _, it -> "o-" + g.id + "-" + it.id }) { i, order -> Card(order, view, isOwner, person, localStatus[order.id], actions, grouping, i) }
+                        if (open) itemsIndexed(g.orders, key = { _, it -> "o-" + g.id + "-" + it.id }) { i, order -> Card(order, view, isOwner, person, localStatus[order.id], actions, grouping, i, Modifier.animateItem()) }
                     } else {
-                        itemsIndexed(g.orders, key = { _, it -> "o-" + g.id + "-" + it.id }) { i, order -> Card(order, view, isOwner, person, localStatus[order.id], actions, grouping, i) }
+                        itemsIndexed(g.orders, key = { _, it -> "o-" + g.id + "-" + it.id }) { i, order -> Card(order, view, isOwner, person, localStatus[order.id], actions, grouping, i, Modifier.animateItem()) }
                     }
                 }
                 if (sections.isEmpty()) {
-                    item(key = "empty", span = { GridItemSpan(maxLineSpan) }) {
+                    animatedItem(key = "empty", span = { GridItemSpan(maxLineSpan) }) {
                         EmptyState(nothingOpen = grouping == OrdersGrouping.due && view.shown.isNotEmpty(), filtering = anyFilter, onClear = ::clearFilters) {
                             navigator.open("/orders/add")
                         }
@@ -351,10 +352,11 @@ private fun Card(
     actions: OrderCardActions,
     grouping: OrdersGrouping,
     index: Int = Int.MAX_VALUE,
+    modifier: Modifier = Modifier,
 ) {
     val owed = OrdersLogic.owed(order, view.owedOn)
     OrderCard(
-        modifier = Modifier.appearOnce(index),
+        modifier = modifier.appearOnce(index),
         order = order,
         stage = OrdersLocal.stage(stageOf(order, owed), OrdersLogic.hasInvoice(order), localStatus),
         owed = owed,

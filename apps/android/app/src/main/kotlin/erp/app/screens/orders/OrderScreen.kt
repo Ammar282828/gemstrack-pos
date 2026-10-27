@@ -37,7 +37,7 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.StickyNote2
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material3.AlertDialog
+import erp.app.ui.AlertDialog
 import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu

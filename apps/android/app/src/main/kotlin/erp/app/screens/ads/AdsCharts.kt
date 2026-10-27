@@ -1,5 +1,6 @@
 package erp.app.screens.ads
 
+import erp.app.ui.rememberErpMotion
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -47,10 +48,10 @@ fun adsDayWord(ymd: String): String = runCatching { dayMonth.format(LocalDate.pa
 
 @Composable
 fun AdsDayBars(days: List<AdDay>, currency: String, modifier: Modifier = Modifier) {
-    val reduce = reduceMotion()
-    var target by remember { mutableFloatStateOf(if (reduce) 1f else 0f) }
+    val motion = rememberErpMotion()
+    var target by remember { mutableFloatStateOf(if (motion.reduce) 1f else 0f) }
     LaunchedEffect(Unit) { target = 1f }
-    val reveal by animateFloatAsState(target, Motion.travel(reduce), label = "adsBars")
+    val reveal by animateFloatAsState(target, motion.slowEffects(), label = "adsBars")
     val accent = ErpColors.accent
     val base = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
     val top = days.maxOfOrNull { it.metrics.spend } ?: 0.0

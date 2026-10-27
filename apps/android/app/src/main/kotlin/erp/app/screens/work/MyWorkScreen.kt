@@ -1,5 +1,6 @@
 package erp.app.screens.work
 
+import erp.app.ui.animatedItem
 import erp.app.ui.AppClock
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -255,7 +256,7 @@ private fun Content(p: KarigarPortal, updatedAt: Instant?, pane: Pane, onPane: (
     ) {
         if (readOnly) {
             p.karigar?.name?.let { name ->
-                item(key = "preview") {
+                animatedItem(key = "preview") {
                     Text(
                         "Viewing exactly what $name sees. Read-only — tick items off from the Workshop dashboard instead.",
                         Modifier.readableColumn(820.dp).ledgerCard(),
@@ -264,7 +265,7 @@ private fun Content(p: KarigarPortal, updatedAt: Instant?, pane: Pane, onPane: (
                 }
             }
         }
-        item(key = "figures") {
+        animatedItem(key = "figures") {
             Column(Modifier.readableColumn(820.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Figures(p.summary)
                 if (updatedAt != null) {
@@ -276,7 +277,7 @@ private fun Content(p: KarigarPortal, updatedAt: Instant?, pane: Pane, onPane: (
                 }
             }
         }
-        item(key = "pane") {
+        animatedItem(key = "pane") {
             SingleChoiceSegmentedButtonRow(Modifier.readableColumn(820.dp).fillMaxWidth()) {
                 Pane.entries.forEachIndexed { i, t ->
                     SegmentedButton(
@@ -290,7 +291,7 @@ private fun Content(p: KarigarPortal, updatedAt: Instant?, pane: Pane, onPane: (
         when (pane) {
             Pane.Work -> {
                 if (rules.active.isEmpty()) {
-                    item(key = "none") {
+                    animatedItem(key = "none") {
                         Column(
                             Modifier.readableColumn(820.dp).ledgerCard(), horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -334,7 +335,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.group(
     toggle: (KarigarPortalJob) -> Unit,
 ) {
     if (jobs.isEmpty()) return
-    item(key = "h-$title") {
+    animatedItem(key = "h-$title") {
         Row(
             Modifier.readableColumn(820.dp).padding(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically,
@@ -347,7 +348,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.group(
         }
     }
     for (g in KarigarPortalRules.groups(jobs)) {
-        item(key = "g-$title-${g.key}") {
+        animatedItem(key = "g-$title-${g.key}") {
             Column(Modifier.readableColumn(820.dp).ledgerCard(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OrderHeader(g)
                 g.jobs.forEach { j -> PieceRow(j, readOnly, busy, toggle) }
@@ -472,7 +473,7 @@ private fun SamplePhoto(uri: String, key: String) {
 // MARK: My Account
 
 private fun androidx.compose.foundation.lazy.LazyListScope.account(a: KarigarPortalAccount) {
-    item(key = "gold") {
+    animatedItem(key = "gold") {
         Column(Modifier.readableColumn(820.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             SectionLabel(Icons.Filled.Scale, "Gold")
             FigureRow(spacing = 10.dp) {
@@ -485,7 +486,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.account(a: KarigarPor
             }
         }
     }
-    item(key = "paid") {
+    animatedItem(key = "paid") {
         Column(Modifier.readableColumn(820.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             SectionLabel(Icons.Filled.Payments, "Payments received")
             Column(Modifier.ledgerCard(), verticalArrangement = Arrangement.spacedBy(12.dp)) {

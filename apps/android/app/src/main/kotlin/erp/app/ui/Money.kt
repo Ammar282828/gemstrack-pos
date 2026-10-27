@@ -88,7 +88,10 @@ fun NumericText(
     autoSize: Boolean = false,
     maxLines: Int = 1,
 ) {
-    val reduce = reduceMotion()
+    val motion = rememberErpMotion()
+    val reduce = motion.reduce
+    val rollUp = motion.roll(up = true)
+    val rollDown = motion.roll(up = false)
     val resolved = style.copy(fontFeatureSettings = TabularDigits, textAlign = textAlign ?: style.textAlign)
     val tint = if (color == Color.Unspecified) MaterialTheme.colorScheme.onSurface else color
     val draw: @Composable (String) -> Unit = { shown ->
@@ -111,12 +114,8 @@ fun NumericText(
             targetState = text to value,
             modifier = modifier,
             contentKey = { it.first },
-            transitionSpec = {
-                val up = targetState.second >= initialState.second
-                (slideInVertically(Motion.enter()) { h -> if (up) h / 3 else -h / 3 } + fadeIn(Motion.enter()))
-                    .togetherWith(slideOutVertically(Motion.exit()) { h -> if (up) -h / 3 else h / 3 } + fadeOut(Motion.exit()))
-                    .using(SizeTransform(clip = false) { _, _ -> snap() })
-            },
+            // A figure that grew rolls up, one that fell rolls down, on the theme's springs.
+            transitionSpec = { if (ErpMotion.rollsUp(initialState.second, targetState.second)) rollUp else rollDown },
             label = "numeric",
         ) { (shown, _) -> draw(shown) }
     }

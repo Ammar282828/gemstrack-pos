@@ -1,5 +1,6 @@
 package erp.app.screens.money
 
+import erp.app.ui.animatedItem
 import erp.app.ui.SegmentedColumn
 import erp.app.ui.zoomDestination
 import androidx.compose.foundation.background
@@ -150,17 +151,17 @@ private fun LedgerBoard(path: String) {
                 // The ERP's own page: the ledger PDF and the WhatsApp reminder are built there, in the browser.
                 val printPath = MoneyPaths.ledger(id, isCustomer, web = true)
                 LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = 4.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    item(key = "head") {
+                    animatedItem(key = "head") {
                         Column(Modifier.padding(horizontal = 16.dp).readableColumn(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Footnote(if (isCustomer) "Customer ledger" else "Karigar ledger")
                             Tiles(result)
                         }
                     }
-                    item(key = "heading") {
+                    animatedItem(key = "heading") {
                         Box(Modifier.padding(horizontal = 20.dp).readableColumn()) { LedgerHeading("Transactions · ${result.lines.size}") }
                     }
                     if (result.lines.isEmpty()) {
-                        item(key = "none") {
+                        animatedItem(key = "none") {
                             Column(Modifier.padding(horizontal = 16.dp).readableColumn()) {
                                 Text(
                                     "No transactions found.",
@@ -182,12 +183,12 @@ private fun LedgerBoard(path: String) {
                                 Box(Modifier.background(ErpColors.card)) { LedgerRow(line, result.hasGold) }
                             }
                         }
-                        if (onFile) item(key = "swipe") {
+                        if (onFile) animatedItem(key = "swipe") {
                             Box(Modifier.padding(horizontal = 20.dp).readableColumn()) { Footnote("Swipe a transaction to delete it. It asks for the delete code.") }
                         }
                     }
                     if (onFile) {
-                        item(key = "add") {
+                        animatedItem(key = "add") {
                             Column(Modifier.padding(horizontal = 16.dp).readableColumn(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 SegmentedColumn {
                                     ActionRow("You gave", Icons.Filled.ArrowUpward) { adding = HisaabEntryMode.gave }
@@ -198,7 +199,7 @@ private fun LedgerBoard(path: String) {
                             }
                         }
                     }
-                    item(key = "print") {
+                    animatedItem(key = "print") {
                         Column(Modifier.padding(horizontal = 16.dp).readableColumn(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             SegmentedColumn {
                                 ActionRow("Print the ledger or send a reminder", Icons.Filled.Print) { navigator.open(printPath) }

@@ -73,8 +73,8 @@ fun Pill(text: String, color: Color, modifier: Modifier = Modifier, icon: ImageV
 /** A tonal container with its on-container words (Material's own roles), as a small capsule. */
 @Composable
 private fun PillBody(text: String, inkTo: Color, washTo: Color, modifier: Modifier, icon: ImageVector?) {
-    // A status that changes cross-fades its colour (150 ms) instead of blinking.
-    val spec = Motion.exit<Color>(reduceMotion()).let { if (reduceMotion()) it else androidx.compose.animation.core.tween(150) }
+    // A status that changes cross-fades its colour on the fast effects spring instead of blinking.
+    val spec = rememberErpMotion().fastEffects<Color>()
     val ink by androidx.compose.animation.animateColorAsState(inkTo, spec, label = "pillInk")
     val wash by androidx.compose.animation.animateColorAsState(washTo, spec, label = "pillWash")
     Row(
@@ -243,7 +243,7 @@ object StageSteps {
 @Composable
 fun StageTrack(stage: OrderStage, modifier: Modifier = Modifier, labels: Boolean = false) {
     val at = StageSteps.index(stage)
-    val reduce = reduceMotion()
+    val motion = rememberErpMotion()
     // Inactive bars a little firmer in dark, where 0.18 of grey nearly vanishes on the card.
     val idle = MaterialTheme.colorScheme.outlineVariant
     val accent = ErpColors.accent
@@ -254,7 +254,7 @@ fun StageTrack(stage: OrderStage, modifier: Modifier = Modifier, labels: Boolean
     ) {
         StageSteps.names.forEachIndexed { index, name ->
             // The bars travel to the new stage (none with animations off).
-            val fill by animateColorAsState(if (index <= at) accent else idle, Motion.travel(reduce), label = "stage")
+            val fill by animateColorAsState(if (index <= at) accent else idle, motion.effects(), label = "stage")
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Box(Modifier.fillMaxWidth().height(if (labels) 5.dp else 4.dp).clip(CircleShape).background(fill))
                 if (labels) {

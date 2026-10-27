@@ -181,7 +181,7 @@ private fun OnlineList(
                 )
             }
         } else {
-            items(waiting, key = { it.id }) { r -> WaitingCard(r, onConfirm, onDecline) }
+            items(waiting, key = { it.id }) { r -> Box(Modifier.animateItem()) { WaitingCard(r, onConfirm, onDecline) } }
         }
         if (lately.isNotEmpty()) {
             item("lately-h") { LedgerHeading("The last two weeks") }

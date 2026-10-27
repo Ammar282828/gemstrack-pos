@@ -1,6 +1,8 @@
 package erp.app.nav
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import erp.app.ui.rememberErpMotion
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -84,13 +86,25 @@ fun HubSplit(prompt: HubPrompt, modifier: Modifier = Modifier, hub: @Composable 
             Column(Modifier.width(listWidth).fillMaxHeight()) { hub(pick) }
             VerticalDivider()
             Column(Modifier.weight(1f).fillMaxHeight()) {
+                // Picking another item swaps the column's page in place: a fade through (peers, nothing slides), the old one
+                // leaving with its own state. (The phone's pages are Activities; this is only the wide window's item column.)
+                val motion = rememberErpMotion()
+                val swap = motion.fadeThrough()
                 val top = shown.lastOrNull()
-                if (top == null) {
-                    HubPlaceholder(prompt)
-                } else {
-                    CompositionLocalProvider(LocalNavigator provides detailNavigator) {
-                        // A new item is a new page: its own state, as the iPad's `.id(picked)`.
-                        key(shown.first(), shown.size) { PlaceScreen(top, isRoot = false) }
+                AnimatedContent(
+                    targetState = Triple(shown.firstOrNull(), shown.size, top),
+                    modifier = Modifier.fillMaxSize(),
+                    transitionSpec = { swap },
+                    contentKey = { it.first to it.second },
+                    label = "hubItem",
+                ) { (_, _, page) ->
+                    if (page == null) {
+                        HubPlaceholder(prompt)
+                    } else {
+                        CompositionLocalProvider(LocalNavigator provides detailNavigator) {
+                            // A new item is a new page: its own state, as the iPad's `.id(picked)`.
+                            PlaceScreen(page, isRoot = false)
+                        }
                     }
                 }
             }

@@ -136,7 +136,7 @@ fun PostsHub() {
     if (spreading) PostQueueSpreadSheet(onDone = { note.show(it) }, onClose = { spreading = false })
     if (confirmingAll) {
         val waiting = state.waiting.size
-        androidx.compose.material3.AlertDialog(
+        erp.app.ui.AlertDialog(
             onDismissRequest = { confirmingAll = false },
             title = { Text(if (waiting > 1) "Send all $waiting pieces now?" else "Send it now?") },
             text = { Text(sendAllWords(state)) },
@@ -389,7 +389,7 @@ private fun SiteSection(state: PostsState, hasInvestments: Boolean) {
                         val navigator = LocalNavigator.current
                         LazyRow(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             items(strip, key = { it.id }) { p ->
-                                Box(Modifier.width(112.dp).zoomSource(MarketingKit.piecePath(p.id), Radius.tile).clickable(role = Role.Button) { navigator.open(MarketingKit.piecePath(p.id)) }) { PostPieceTile(p, state.posted[p.id]) }
+                                Box(Modifier.animateItem().width(112.dp).zoomSource(MarketingKit.piecePath(p.id), Radius.tile).clickable(role = Role.Button) { navigator.open(MarketingKit.piecePath(p.id)) }) { PostPieceTile(p, state.posted[p.id]) }
                             }
                         }
                     }

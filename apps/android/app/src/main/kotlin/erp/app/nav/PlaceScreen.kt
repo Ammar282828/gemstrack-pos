@@ -59,7 +59,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import erp.app.auth.LocalSession
 import erp.app.screens.home.TeamNoteBanner
 import erp.app.screens.rates.RateChip
+import erp.app.ui.ErpMotion
 import erp.app.ui.readableColumn
+import erp.app.ui.rememberErpMotion
+import androidx.compose.animation.AnimatedContent
 
 /** True under the phone layout's bottom bar, which already takes the system navigation inset. */
 val LocalBottomBar = compositionLocalOf { false }
@@ -172,14 +175,30 @@ fun PlaceScreen(
                 SectionPicker(sections, openSection) { name -> tabs.firstOrNull { it.section == name }?.let { chosen = it.href } }
             }
             Box(Modifier.weight(1f).fillMaxWidth()) {
-                CompositionLocalProvider(LocalChrome provides chrome) {
-                    key(current) {
+                // A tab of this place, or a section of the picker, swaps in place: a shared axis along X, forward when the new
+                // one is later in the row. (A pushed page is never animated here: it is the platform's own transition.)
+                val motion = rememberErpMotion()
+                val forward = motion.sharedAxisX(true)
+                val backward = motion.sharedAxisX(false)
+                AnimatedContent(
+                    targetState = current,
+                    modifier = Modifier.fillMaxSize(),
+                    transitionSpec = {
+                        val from = tabs.indexOfFirst { it.href == ScreenRoute.bare(initialState) }
+                        val to = tabs.indexOfFirst { it.href == ScreenRoute.bare(targetState) }
+                        if (ErpMotion.forward(from, to)) forward else backward
+                    },
+                    label = "place",
+                ) { page ->
+                    // The page that is leaving writes its title and actions to a chrome nobody reads, not over the new one's.
+                    val own = remember(page) { Chrome() }
+                    CompositionLocalProvider(LocalChrome provides (if (page == current) chrome else own)) {
                         // Search is a list of places, not a form: a wide window reads it in a column, as the rest.
                         if (path == SEARCH_PATH) Box(Modifier.readableColumn(720.dp)) { SearchScreen() }
                         else {
                             // A native page reads in its column on a wide window; an ERP page brings its own layout.
-                            val width = if (native) ScreenRegistry.readableWidth(current) else null
-                            Box(if (width != null) Modifier.readableColumn(width) else Modifier) { ScreenRegistry.Screen(current) }
+                            val width = if (native) ScreenRegistry.readableWidth(page) else null
+                            Box(if (width != null) Modifier.readableColumn(width) else Modifier) { ScreenRegistry.Screen(page) }
                         }
                     }
                 }

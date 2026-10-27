@@ -1,6 +1,6 @@
 package erp.app.screens.sale
 
-import androidx.compose.animation.Crossfade
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,7 +15,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.AlertDialog
+import erp.app.ui.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -51,6 +51,8 @@ import erp.app.nav.ScreenTitle
 import erp.app.screens.work.DraftsNote
 import erp.app.ui.EntryContinue
 import erp.app.ui.EntrySteps
+import erp.app.ui.EntryStepContent
+import erp.app.ui.rememberErpMotion
 import erp.app.ui.EntryStep
 import erp.app.ui.LocalReduceMotion
 import erp.app.ui.Motion
@@ -150,14 +152,15 @@ fun SaleForm(edit: SaleEdit? = null, startsReading: Boolean = false, ratesFirst:
     // The sale made: a tick felt as it lands.
     MoneyFeedback(success = s.made, failure = null)
 
-    val reduce = LocalReduceMotion.current
+    val motion = rememberErpMotion()
+    val crossFade = motion.crossFade()
     val phase = when {
         s.made != null -> 0
         !settingsLoaded -> 1
         else -> 2
     }
-    // The sale made: the form gives way to its invoice on the page's curve.
-    Crossfade(phase, animationSpec = Motion.travel(reduce), label = "sale") { p ->
+    // The sale made: the form gives way to its invoice, cross-fading on the effects spring.
+    AnimatedContent(phase, transitionSpec = { crossFade }, label = "sale") { p ->
         when (p) {
             0 -> Box(Modifier.fillMaxSize()) {
                 s.made?.let { ScreenRegistry.Screen(SaleLinks.invoice(it)) }
@@ -225,7 +228,7 @@ private fun Page(s: SaleFormState) {
             Column(Modifier.fillMaxSize()) {
                 EntrySteps(s.step, { s.step = it }, states = stepStates(f))
                 if (s.step == EntryStep.pieces || s.step == EntryStep.payment) SaleSummary(f)
-                Crossfade(s.step, Modifier.weight(1f), animationSpec = Motion.enter(LocalReduceMotion.current), label = "step") { step ->
+                EntryStepContent(s.step, Modifier.weight(1f)) { step ->
                     Column(
                         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).readableColumn().padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(20.dp),

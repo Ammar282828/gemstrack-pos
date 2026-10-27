@@ -109,7 +109,7 @@ val LocalNoteState = staticCompositionLocalOf { NoteState.Inert }
  */
 @Composable
 fun NoteHost(state: NoteState, modifier: Modifier = Modifier, haptics: Boolean = true) {
-    val reduce = reduceMotion()
+    val motion = rememberErpMotion()
     val feel = rememberHaptics()
     val shown = state.note
     LaunchedEffect(shown) {
@@ -118,8 +118,9 @@ fun NoteHost(state: NoteState, modifier: Modifier = Modifier, haptics: Boolean =
     Box(modifier.fillMaxWidth().statusBarsPadding(), contentAlignment = Alignment.TopCenter) {
         AnimatedVisibility(
             visible = shown != null,
-            enter = if (reduce) fadeIn(Motion.enter(true)) else slideInVertically(Motion.enter()) { -it } + fadeIn(Motion.enter()),
-            exit = if (reduce) fadeOut(Motion.exit(true)) else slideOutVertically(Motion.exit()) { -it } + fadeOut(Motion.exit()),
+            // From the top edge on the spatial spring, leaving quickly; only a fade under Reduce Motion.
+            enter = motion.slideIn(fromTop = true),
+            exit = motion.slideOut(toTop = true),
         ) {
             state.lastShown?.let { NoteBanner(it, Modifier.widthIn(max = 560.dp).padding(horizontal = 16.dp, vertical = 8.dp)) }
         }

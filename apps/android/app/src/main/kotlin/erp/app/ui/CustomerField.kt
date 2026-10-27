@@ -106,7 +106,7 @@ fun CustomerField(
     LaunchedEffect(pickedId) { if (pickedId.isNullOrEmpty()) settled = null }
     LaunchedEffect(wantName) { if (wantName > 0) runCatching { nameFocus.requestFocus() } }
 
-    Column(modifier.fillMaxWidth().animateContentSize(Motion.enter(reduceMotion())), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(modifier.fillMaxWidth().animateContentSize(rememberErpMotion().spatial()), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         if (picked != null) {
             PickedRow(picked, phone) {
                 settled = null

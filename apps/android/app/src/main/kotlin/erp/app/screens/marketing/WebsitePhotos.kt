@@ -638,7 +638,7 @@ fun WebsiteCollectionSheet(collections: List<WebsiteCollection>, folder: String,
             }
             if (shelves.isEmpty()) item { NotAvailableState("Nothing matches", why = "No collection has “$search” in it.", icon = Icons.Filled.Search) }
             items(shelves, key = { it.id }) { shelf ->
-                LedgerSection(shelf.id) {
+                LedgerSection(shelf.id, Modifier.animateItem()) {
                     for (c in shelf.list) {
                         Row(
                             Modifier.fillMaxWidth().clickable(role = androidx.compose.ui.semantics.Role.Button) { onPick(c.folder) }.ledgerRow(),

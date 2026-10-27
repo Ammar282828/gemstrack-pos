@@ -13,30 +13,31 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 
-/** How many rows of a list get to arrive; the rest are simply there. */
-private const val APPEAR_ROWS = 6
-
 /**
- * A list's first rows rise 12 dp and fade in, 40 ms apart, the first time the list is shown (the books arriving over
- * the skeleton) and never again: the played flag is saved with the row, so scrolling back, returning from a page or
- * a recomposition shows it still. Only the first six rows move. Off with animations off; layer-only, no recomposition.
+ * A list's first rows rise 12 dp and fade in on the theme's spatial spring, 30 ms apart, the first time the list is shown
+ * (the books arriving over the skeleton) and never again: the played flag is saved with the row, so scrolling back,
+ * returning from a page or a recomposition shows it still. Only the first six rows move ([ErpMotion.appearDelay]).
+ * Off with animations off; layer-only, no recomposition.
  */
 @Composable
 fun Modifier.appearOnce(index: Int): Modifier {
-    if (index >= APPEAR_ROWS || reduceMotion()) return this
+    val motion = rememberErpMotion()
+    val delayMillis = ErpMotion.appearDelay(index)
+    if (delayMillis == null || motion.reduce) return this
     var played by rememberSaveable { mutableStateOf(false) }
     val progress = remember { Animatable(if (played) 1f else 0f) }
     LaunchedEffect(Unit) {
         if (!played) {
-            delay(index * 40L)
-            progress.animateTo(1f, Motion.enter())
+            delay(delayMillis)
+            progress.animateTo(1f, motion.spatial())
             played = true
         }
     }
     return graphicsLayer {
         val p = progress.value
         if (p < 1f) {
-            alpha = p
+            // The spring may overshoot past 1; the row's opacity never does.
+            alpha = p.coerceIn(0f, 1f)
             translationY = (1f - p) * 12.dp.toPx()
         }
     }

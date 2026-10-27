@@ -10,6 +10,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ToggleButton
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -42,14 +51,27 @@ object SegmentedButtonDefaults {
 
 object SegmentedColors
 
+/** Which button of a group is held down, so the others can give way to it. */
+@Stable
+class SqueezeState {
+    var pressed by mutableIntStateOf(-1)
+}
+
 /** The scope of a group's buttons: a row, so each can take its [RowScope.weight]. */
-class ConnectedRowScope(row: RowScope) : RowScope by row
+class ConnectedRowScope(row: RowScope, internal val squeeze: SqueezeState) : RowScope by row
 
 /** A connected group of toggle buttons for one choice among a few; its buttons share the width. */
 @Composable
 fun SingleChoiceSegmentedButtonRow(modifier: Modifier = Modifier, content: @Composable ConnectedRowScope.() -> Unit) {
-    Row(modifier, horizontalArrangement = Arrangement.spacedBy(2.dp)) { ConnectedRowScope(this).content() }
+    val squeeze = remember { SqueezeState() }
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(2.dp)) { ConnectedRowScope(this, squeeze).content() }
 }
+
+/** How much wider than its share a held button grows, as its neighbours give way (Material's ButtonGroup `animateWidth`). */
+internal const val SQUEEZE_GROWTH = 0.16f
+
+/** The weight a button takes: its share, plus [SQUEEZE_GROWTH] while it is held; the rest of the row shrinks to make room. */
+internal fun squeezeWeight(pressed: Int, index: Int): Float = if (pressed == index) 1f + SQUEEZE_GROWTH else 1f
 
 /**
  * One button of the group. [label] is the trailing lambda; [icon] is drawn before it. A button that is chosen is fully round
@@ -70,6 +92,16 @@ fun ConnectedRowScope.SegmentedButton(
 ) {
     val slot = shape as? ConnectedSlot
     val last = (slot?.count ?: 1) - 1
+    val index = slot?.index ?: 0
+    val motion = rememberErpMotion()
+    val haptics = rememberHaptics()
+    val source = remember { MutableInteractionSource() }
+    val held by source.collectIsPressedAsState()
+    // A held button widens on the fast spatial spring and its neighbours narrow with it; they spring back on release.
+    LaunchedEffect(held) {
+        if (held && !motion.reduce) squeeze.pressed = index else if (squeeze.pressed == index) squeeze.pressed = -1
+    }
+    val weight by animateFloatAsState(squeezeWeight(squeeze.pressed, index), motion.fastSpatial(), label = "squeeze")
     val shapes = when (slot?.index ?: 0) {
         0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
         last -> ButtonGroupDefaults.connectedTrailingButtonShapes()
@@ -77,10 +109,12 @@ fun ConnectedRowScope.SegmentedButton(
     }
     ToggleButton(
         checked = selected,
-        onCheckedChange = { if (it) onClick() },
-        modifier = with(this as RowScope) { modifier.weight(1f) }.semantics { role = Role.RadioButton },
+        // The system's segment tick as a choice is made.
+        onCheckedChange = { if (it) { haptics.selection(); onClick() } },
+        modifier = with(this as RowScope) { modifier.weight(weight.coerceAtLeast(0.1f)) }.semantics { role = Role.RadioButton },
         enabled = enabled,
         shapes = shapes,
+        interactionSource = source,
         contentPadding = PaddingValues(horizontal = 12.dp),
     ) {
         icon()

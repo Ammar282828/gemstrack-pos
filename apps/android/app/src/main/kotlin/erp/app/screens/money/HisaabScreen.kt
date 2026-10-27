@@ -1,5 +1,6 @@
 package erp.app.screens.money
 
+import erp.app.ui.animatedItem
 import erp.app.ui.Radius
 import erp.app.ui.zoomSource
 import androidx.compose.foundation.background
@@ -143,17 +144,17 @@ private fun HisaabBoard() {
                 contentPadding = PaddingValues(top = 4.dp, bottom = 96.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                item(key = "search") {
+                animatedItem(key = "search") {
                     Box(Modifier.padding(horizontal = 16.dp).readableColumn()) {
                         MoneySearchField(search, { search = it }, "Search by name")
                     }
                 }
-                item(key = "chips") {
+                animatedItem(key = "chips") {
                     ChipRow {
                         for (c in HisaabChip.values()) FilterChip(c.title, chosen = c == chip, onClick = { chip = c }, count = scoped.count { c.matches(it) })
                     }
                 }
-                item(key = "head") {
+                animatedItem(key = "head") {
                     Column(Modifier.padding(horizontal = 16.dp).readableColumn(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Footnote("Outstanding accounts for customers and karigars.")
                         Tiles(summary, onInvoices)
@@ -161,11 +162,11 @@ private fun HisaabBoard() {
                     }
                 }
                 if (shown.isEmpty()) {
-                    item(key = "empty") { EmptyState(search.isNotEmpty()) }
+                    animatedItem(key = "empty") { EmptyState(search.isNotEmpty()) }
                 } else {
                     cardRows("a", shown, { it.id }) { a -> AccountRows(a, onOpen = navigator::open) }
                 }
-                item(key = "export") {
+                animatedItem(key = "export") {
                     Column(Modifier.padding(horizontal = 16.dp).readableColumn(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Column(Modifier.fillMaxWidth().clip(erp.app.ui.Radius.cardShape).background(ErpColors.card)) {
                             Row(

@@ -344,10 +344,10 @@ fun AdsCampaignsContent(
             }
         }
         if (gallery) {
-            items(AdsCampaignsLogic.gallery(list, filter, sort), key = { "ad-" + it.id }) { ad -> AdCard(ad, cur, busy, onSwitch, onDetails) }
+            items(AdsCampaignsLogic.gallery(list, filter, sort), key = { "ad-" + it.id }) { ad -> Box(Modifier.animateItem()) { AdCard(ad, cur, busy, onSwitch, onDetails) } }
         } else {
             items(list, key = { it.id }) { c ->
-                CampaignCard(c, cur, busy, allExpanded || c.id in expanded, { onExpand(c.id, it) }, onSwitch, onBudget, onDetails)
+                Box(Modifier.animateItem()) { CampaignCard(c, cur, busy, allExpanded || c.id in expanded, { onExpand(c.id, it) }, onSwitch, onBudget, onDetails) }
             }
         }
     }

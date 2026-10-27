@@ -250,7 +250,7 @@ private fun PersonPicker(people: List<HisaabPerson>, onCancel: () -> Unit, pick:
             LazyColumn(Modifier.fillMaxSize()) {
                 items(shown, key = { it.type + it.id }) { p ->
                     Row(
-                        Modifier.fillMaxWidth().clickable(role = Role.Button) { pick(p) }.ledgerRow(),
+                        Modifier.animateItem().fillMaxWidth().clickable(role = Role.Button) { pick(p) }.ledgerRow(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(if (p.type == "karigar") Icons.Filled.Engineering else Icons.Filled.Person, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)

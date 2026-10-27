@@ -1,5 +1,6 @@
 package erp.app.screens.money
 
+import erp.app.ui.animatedItem
 import erp.app.ui.SegmentedColumn
 import erp.app.ui.Loading
 import androidx.compose.foundation.background
@@ -144,7 +145,7 @@ fun HisaabAccountPicker(onDismiss: () -> Unit, go: (String) -> Unit) {
                     val rows: List<PickerRow> = shown.map { PickerRow.Contact(it) } + (if (canCreate || creating) listOf(PickerRow.Create) else emptyList())
                     LazyColumn(Modifier.fillMaxWidth(), contentPadding = PaddingValues(bottom = 24.dp)) {
                         if (rows.isEmpty()) {
-                            item(key = "none") {
+                            animatedItem(key = "none") {
                                 Text(
                                     "No contacts found. Add a new one below.",
                                     Modifier.padding(horizontal = 20.dp, vertical = 12.dp).readableColumn(),
@@ -171,7 +172,7 @@ fun HisaabAccountPicker(onDismiss: () -> Unit, go: (String) -> Unit) {
                                 }
                             }
                         }
-                        item(key = "links") {
+                        animatedItem(key = "links") {
                             Column(Modifier.padding(horizontal = 16.dp, vertical = 16.dp).readableColumn()) {
                                 SegmentedColumn {
                                     LinkRow("New customer", Icons.Filled.PersonAdd, enabled = !creating) { finish("/customers/add") }

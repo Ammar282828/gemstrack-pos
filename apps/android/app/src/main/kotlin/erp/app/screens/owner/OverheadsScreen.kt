@@ -1,5 +1,6 @@
 package erp.app.screens.owner
 
+import erp.app.ui.animatedItem
 import erp.app.ui.ContainedLoading
 import erp.app.ui.Loading
 import androidx.compose.foundation.background
@@ -231,7 +232,7 @@ private fun OverheadsBoard() {
                         contentPadding = PaddingValues(top = 4.dp, bottom = if (dirty) 190.dp else 96.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        if (answer == null && loadError != null) item(key = "error") {
+                        if (answer == null && loadError != null) animatedItem(key = "error") {
                             Column(Modifier.padding(horizontal = 16.dp).readableColumn(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 LedgerHeading("Couldn’t read the sheet")
                                 Row(
@@ -247,9 +248,9 @@ private fun OverheadsBoard() {
                                 }
                             }
                         }
-                        item(key = "month") { ThisMonth(target, earned, p, monthName) }
-                        item(key = "record") { Record(rows, summary) }
-                        if (answer != null) item(key = "sheet") {
+                        animatedItem(key = "month") { ThisMonth(target, earned, p, monthName) }
+                        animatedItem(key = "record") { Record(rows, summary) }
+                        if (answer != null) animatedItem(key = "sheet") {
                             Sheet(
                                 lines, target, thisMonth,
                                 onChange = { id, edit -> lines = lines.map { if (it.id == id) edit(it) else it } },

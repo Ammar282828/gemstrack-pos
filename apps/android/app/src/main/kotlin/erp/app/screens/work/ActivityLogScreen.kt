@@ -1,5 +1,6 @@
 package erp.app.screens.work
 
+import erp.app.ui.animatedItem
 import erp.app.ui.SegmentedColumn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -128,7 +129,7 @@ private fun ActivityLogPage() {
             Modifier.fillMaxSize(),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
         ) {
-            item(key = "filters") {
+            animatedItem(key = "filters") {
                 Box(Modifier.padding(bottom = 12.dp)) { FormSection(
                     "Filters",
                     footer = if (range.useFrom && !range.useTo) ({ Text("Without an end date the range runs to the end of today.") }) else null,
@@ -140,7 +141,7 @@ private fun ActivityLogPage() {
                     WorkRangeFields(range) { range = it; shown = PAGE_SIZE }
                 } }
             }
-            item(key = "head") {
+            animatedItem(key = "head") {
                 Text(
                     "Everything done in the ERP, newest first · ${list.size} ${if (list.size == 1) "entry" else "entries"}",
                     Modifier.padding(start = 4.dp, end = 4.dp, bottom = 12.dp),
@@ -148,7 +149,7 @@ private fun ActivityLogPage() {
                 )
             }
             if (list.isEmpty()) {
-                item(key = "none") {
+                animatedItem(key = "none") {
                     NotAvailableState("No Activity Found", Modifier.padding(bottom = 12.dp), why = "There are no log entries for the selected filters.", icon = Icons.Filled.History)
                 }
             } else {
@@ -159,21 +160,21 @@ private fun ActivityLogPage() {
                     val top = if (first) Radius.card else Radius.joint
                     val bottom = if (last) Radius.card else Radius.joint
                     Column(
-                        Modifier.padding(bottom = if (i == visible.lastIndex) 12.dp else 2.dp)
+                        Modifier.animateItem().padding(bottom = if (i == visible.lastIndex) 12.dp else 2.dp)
                             .clip(androidx.compose.foundation.shape.RoundedCornerShape(top, top, bottom, bottom)).background(ErpColors.card),
                     ) {
                         LogRow(visible[i]) { nav.open(WEB_PAGE) }
                     }
                 }
                 if (list.size > shown) {
-                    item(key = "more") {
+                    animatedItem(key = "more") {
                         Column(Modifier.padding(top = 12.dp).clip(Radius.cardShape).background(ErpColors.card)) {
                             ActionRow("Show ${minOf(PAGE_SIZE, list.size - shown)} more", { shown += PAGE_SIZE })
                         }
                     }
                 }
             }
-            item(key = "web") {
+            animatedItem(key = "web") {
                 Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SegmentedColumn {
                         ActionRow("Sign-ins and the emergency lock", { nav.open(WEB_PAGE) }, icon = Icons.Filled.Shield)

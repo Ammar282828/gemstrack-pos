@@ -1,5 +1,6 @@
 package erp.app.screens.invoices
 
+import erp.app.ui.rememberErpMotion
 import erp.app.ui.Loading
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -13,7 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.material3.AlertDialog
+import erp.app.ui.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -185,8 +186,8 @@ fun InvoiceWhatsAppSend(
     Box(Modifier.fillMaxSize().statusBarsPadding(), contentAlignment = Alignment.TopCenter) {
         AnimatedVisibility(
             visible = sending,
-            enter = slideInVertically { -it } + fadeIn(),
-            exit = slideOutVertically { -it } + fadeOut(),
+            enter = rememberErpMotion().slideIn(fromTop = true),
+            exit = rememberErpMotion().slideOut(toTop = true),
         ) {
             Surface(
                 Modifier.padding(top = 8.dp),

@@ -1,5 +1,6 @@
 package erp.app.screens.work
 
+import erp.app.ui.animatedItem
 import erp.app.ui.SegmentedColumn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -12,7 +13,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.AlertDialog
+import erp.app.ui.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import erp.app.ui.TextButton
@@ -176,14 +177,14 @@ private fun DraftsPage() {
             contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            item(key = "orders") {
+            animatedItem(key = "orders") {
                 DraftSection("Orders", orders, "No unfinished orders.", "New order", { nav.open("/orders/add") }, { discarding = it }, nav::open, now)
             }
             // A sale is an owner's to make (the ERP's write is for owners), so staff are not shown a place for them.
-            if (session.isOwner) item(key = "sales") {
+            if (session.isOwner) animatedItem(key = "sales") {
                 DraftSection("Sales", sales, "No unfinished sales.", "New sale", { nav.open("/invoices/new") }, { discarding = it }, nav::open, now)
             }
-            item(key = "footer") {
+            animatedItem(key = "footer") {
                 Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     val small = MaterialTheme.typography.bodySmall
                     val quiet = MaterialTheme.colorScheme.onSurfaceVariant

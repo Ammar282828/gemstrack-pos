@@ -1,5 +1,6 @@
 package erp.app.screens.customers
 
+import erp.app.ui.animatedItem
 import erp.app.ui.SegmentedColumn
 import erp.app.ui.SearchBarField
 import erp.app.ui.appearOnce
@@ -145,7 +146,7 @@ fun CustomersList() {
             Modifier.fillMaxSize().readableColumn(),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 96.dp),
         ) {
-            item(key = "search") {
+            animatedItem(key = "search") {
                 SearchBarField(
                     value = search,
                     onValueChange = { search = it },
@@ -160,7 +161,7 @@ fun CustomersList() {
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 )
             }
-            item(key = "summary") {
+            animatedItem(key = "summary") {
                 CustSummary(
                     modifier = Modifier.padding(bottom = GAP),
                     customerCount = reckoned.live.size,
@@ -171,13 +172,13 @@ fun CustomersList() {
                     showHisaab = owner,
                 )
             }
-            item(key = "chips") {
+            animatedItem(key = "chips") {
                 ChipRow(Modifier.padding(bottom = GAP)) {
                     for (option in CustomersShowing.values()) FilterChip(option.title, chosen = option == showing, onClick = { showing = option })
                 }
             }
             if (shown.owing.isEmpty() && shown.active.isEmpty() && shown.quiet.isEmpty()) {
-                item(key = "empty") { Box(Modifier.padding(bottom = GAP)) { Empty(matched.size, search, showing) } }
+                animatedItem(key = "empty") { Box(Modifier.padding(bottom = GAP)) { Empty(matched.size, search, showing) } }
             } else {
                 group("Owing money", "most owed first", shown.owing, reckoned.stats) { navigator.open(CustomerKit.path(it)) }
                 group("Recent", "bought in the last ${CustomerKit.dormantAfterMonths} months", shown.active, reckoned.stats) { navigator.open(CustomerKit.path(it)) }
@@ -185,7 +186,7 @@ fun CustomersList() {
             }
             // Clearing up the book is an owner's: the web's merge and removals are browser writes the shop floor cannot make.
             if (owner) {
-                item(key = "clean") {
+                animatedItem(key = "clean") {
                     Column(Modifier.padding(top = GAP), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         SegmentedColumn {
                             ActionLine("Merge duplicates", Icons.Filled.Group) { merging = true }
@@ -227,7 +228,7 @@ private fun LazyListScope.group(
     open: (String) -> Unit,
 ) {
     if (people.isEmpty()) return
-    item(key = "h-$title") {
+    animatedItem(key = "h-$title") {
         Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(start = 4.dp, end = 4.dp, bottom = 8.dp)) {
             LedgerHeading(title, count = people.size)
             Text(hint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -242,7 +243,7 @@ private fun LazyListScope.group(
             bottomStart = if (last) Radius.card else Radius.joint, bottomEnd = if (last) Radius.card else Radius.joint,
         )
         // The rows of a group are one card; the last leaves the gap to the next group.
-        Column(Modifier.appearOnce(i).padding(bottom = if (last) GAP else 2.dp).clip(shape)) {
+        Column(Modifier.animateItem().appearOnce(i).padding(bottom = if (last) GAP else 2.dp).clip(shape)) {
             CustomerRow(c, stats[c.id], onClick = { open(c.id) })
         }
     }

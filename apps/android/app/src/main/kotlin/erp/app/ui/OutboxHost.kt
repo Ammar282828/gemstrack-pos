@@ -36,7 +36,7 @@ fun OutboxHost(modifier: Modifier = Modifier) {
     val failure by Outbox.failure.collectAsStateWithLifecycle()
     val note = LocalNoteState.current
     LaunchedEffect(Unit) { Outbox.notices.collect { note.show(Note(it)) } }
-    val reduce = reduceMotion()
+    val motion = rememberErpMotion()
     val feel = rememberHaptics()
     LaunchedEffect(failure?.id) { if (failure != null) feel.warning() }
     // The banner leaves with its words, not an empty box.
@@ -45,8 +45,8 @@ fun OutboxHost(modifier: Modifier = Modifier) {
     Box(modifier.navigationBarsPadding().padding(bottom = 72.dp), contentAlignment = Alignment.BottomCenter) {
         AnimatedVisibility(
             visible = failure != null,
-            enter = if (reduce) fadeIn(Motion.enter(true)) else slideInVertically(Motion.enter()) { it } + fadeIn(Motion.enter()),
-            exit = if (reduce) fadeOut(Motion.exit(true)) else slideOutVertically(Motion.exit()) { it } + fadeOut(Motion.exit()),
+            enter = motion.slideIn(fromTop = false),
+            exit = motion.slideOut(toTop = false),
         ) {
             shown[0]?.let { f ->
                 Row(

@@ -198,12 +198,12 @@ fun PostPiecesScreen(tray: PostTrayModel? = null) {
                     } else {
                         items(items.take(shown), key = { it.id }) { p ->
                             if (tray != null) {
-                                Box(Modifier.clickable { refused = tray.pick(p) }.ledgerCard(10.dp)) {
+                                Box(Modifier.animateItem().clickable { refused = tray.pick(p) }.ledgerCard(10.dp)) {
                                     PostPieceTile(p, state.posted[p.id])
                                     PickMark(tray, p, Modifier.align(Alignment.TopEnd))
                                 }
                             } else {
-                                Box(Modifier.zoomSource(MarketingKit.piecePath(p.id)).clickable { navigator.open(MarketingKit.piecePath(p.id)) }.ledgerCard(10.dp)) { PostPieceTile(p, state.posted[p.id]) }
+                                Box(Modifier.animateItem().zoomSource(MarketingKit.piecePath(p.id)).clickable { navigator.open(MarketingKit.piecePath(p.id)) }.ledgerCard(10.dp)) { PostPieceTile(p, state.posted[p.id]) }
                             }
                         }
                         if (items.size > shown) {

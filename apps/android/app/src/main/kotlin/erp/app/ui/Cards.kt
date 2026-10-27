@@ -1,6 +1,7 @@
 package erp.app.ui
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -130,7 +131,7 @@ fun LedgerSection(
     footer: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val reduce = reduceMotion()
+    val motion = rememberErpMotion()
     val foot: @Composable () -> Unit = {
         if (footer != null) {
             CompositionLocalProvider(androidx.compose.material3.LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant) {
@@ -153,17 +154,15 @@ fun LedgerSection(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(title, Modifier.weight(1f), style = ErpType.heading, color = MaterialTheme.colorScheme.onSurface)
+                // The chevron turns on the spatial spring as the rows fold.
+                val turn by animateFloatAsState(if (open) 0f else -90f, motion.spatial(), label = "fold")
                 Icon(
                     Icons.Filled.ExpandMore, contentDescription = null,
-                    Modifier.rotate(if (open) 0f else -90f),
+                    Modifier.rotate(turn),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            AnimatedVisibility(
-                open,
-                enter = expandVertically(Motion.enter(reduce)) + fadeIn(Motion.enter(reduce)),
-                exit = shrinkVertically(Motion.exit(reduce)) + fadeOut(Motion.exit(reduce)),
-            ) {
+            AnimatedVisibility(open, enter = motion.expandIn, exit = motion.collapseOut) {
                 // The rows are tiles one step up from the card they sit in, with a 4 dp margin as a card holds its rows.
                 Column(Modifier.padding(start = 4.dp, end = 4.dp, bottom = 4.dp)) {
                     SegmentedColumn(color = MaterialTheme.colorScheme.surfaceContainerHigh, outer = Radius.chip, content = content)

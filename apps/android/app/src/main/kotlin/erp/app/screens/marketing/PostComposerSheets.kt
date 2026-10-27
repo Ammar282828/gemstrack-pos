@@ -20,7 +20,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.AlertDialog
+import erp.app.ui.AlertDialog
 import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -72,7 +72,7 @@ fun PostDraftsSheet(model: PostComposerModel, onClose: () -> Unit) {
                 LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(model.drafts, key = { it.id }) { saved ->
                         SwipeActions(
-                            Modifier.clip(Radius.cardShape),
+                            Modifier.animateItem().clip(Radius.cardShape),
                             end = RowAction("Delete", Icons.Filled.Delete, Tone.problem) { deleting = saved },
                             onClick = { scope.launch { model.open(saved); onClose() } },
                         ) {
@@ -204,7 +204,7 @@ fun SitePhotoPicker(picked: suspend (MarketingValue, ByteArray) -> Unit, onClose
                     loaded && shown.isEmpty() -> NotAvailableState(if (q.isEmpty()) "No pieces on the website" else "Nothing matches “$q”", icon = Icons.Filled.Public)
                     else -> LazyColumn(Modifier.fillMaxSize()) {
                         items(shown, key = { it.s("id") }) { p ->
-                            Row(Modifier.fillMaxWidth().clickable(enabled = busy == null) { take(p) }.ledgerRow(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Row(Modifier.animateItem().fillMaxWidth().clickable(enabled = busy == null) { take(p) }.ledgerRow(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                                 MarketingPhoto(p.s("thumb", p.s("image")), Modifier.size(64.dp))
                                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                     Text(p.s("name"), style = MaterialTheme.typography.bodyLarge)

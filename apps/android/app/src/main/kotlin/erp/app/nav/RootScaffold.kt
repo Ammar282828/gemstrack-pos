@@ -23,8 +23,7 @@ import androidx.compose.material3.ToggleFloatingActionButtonDefaults
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.vector.ImageVector
-import erp.app.ui.Motion
-import erp.app.ui.reduceMotion
+import erp.app.ui.rememberErpMotion
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -171,11 +170,12 @@ fun RootScaffold() {
         Box(Modifier.fillMaxSize()) {
             // Every tab keeps its stack; the chosen one is drawn. Switching tabs is a fade-through: no sliding between
             // places that are peers, the old one out, the new one in with a little scale.
-            val reduce = reduceMotion()
+            val motion = rememberErpMotion()
+            val fadeThrough = motion.fadeThrough()
             AnimatedContent(
                 targetState = selected,
                 modifier = Modifier.fillMaxSize(),
-                transitionSpec = { fadeThrough(reduce) },
+                transitionSpec = { fadeThrough },
                 label = "tab",
             ) { tab ->
                 CompositionLocalProvider(
@@ -250,28 +250,21 @@ fun createItems(spec: CreateSpec): List<CreateItem> = buildList {
 /** The outline until the tab is chosen, then the filled icon, crossfaded quickly. */
 @Composable
 private fun TabIcon(outline: ImageVector, filled: ImageVector, selected: Boolean) {
-    val reduce = reduceMotion()
-    Crossfade(selected, animationSpec = Motion.enter(reduce), label = "tabIcon") { on -> Icon(if (on) filled else outline, null) }
+    val motion = rememberErpMotion()
+    Crossfade(selected, animationSpec = motion.effects(), label = "tabIcon") { on -> Icon(if (on) filled else outline, null) }
 }
 
 /** The count on a tab pops in with a small scale, and goes the same way; the number itself changes in place. */
 @Composable
 private fun PoppingBadge(count: Int) {
-    val reduce = reduceMotion()
+    val motion = rememberErpMotion()
     var shown by remember { mutableStateOf(count) }
     if (count > 0) shown = count
     AnimatedVisibility(
         visible = count > 0,
-        enter = if (reduce) EnterTransition.None else scaleIn(spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium)) + fadeIn(Motion.enter()),
-        exit = if (reduce) ExitTransition.None else scaleOut(Motion.exit()) + fadeOut(Motion.exit()),
+        enter = motion.popIn(),
+        exit = motion.popOut(),
     ) {
         Badge { Text(if (shown > 99) "99+" else shown.toString()) }
     }
 }
-
-/** Material's fade-through: the old tab fades out, then the new one fades in from a little smaller. 90 + 210 ms. */
-private fun fadeThrough(reduce: Boolean): ContentTransform =
-    if (reduce) ContentTransform(EnterTransition.None, ExitTransition.None)
-    else (fadeIn(tween(210, delayMillis = 90, easing = Motion.EnterEasing)) +
-        scaleIn(tween(210, delayMillis = 90, easing = Motion.EnterEasing), initialScale = 0.94f))
-        .togetherWith(fadeOut(tween(90, easing = Motion.ExitEasing)))

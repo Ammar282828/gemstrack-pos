@@ -1,5 +1,6 @@
 package erp.app.screens.workshop
 
+import erp.app.ui.animatedItem
 import erp.app.ui.SearchBarField
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -216,7 +217,7 @@ fun WorkshopGivenScreen() {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val columns = workshopColumns((maxWidth - 32.dp).value, isLargeText(), 340f)
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 96.dp)) {
-                item(key = "search") {
+                animatedItem(key = "search") {
                     SearchBarField(
                         value = query,
                         onValueChange = { query = it },
@@ -229,7 +230,7 @@ fun WorkshopGivenScreen() {
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                     )
                 }
-                item(key = "summary") {
+                animatedItem(key = "summary") {
                     val out = all.count { it.status == GivenItemStatus.out }
                     val back = all.count { it.status == GivenItemStatus.returned }
                     FigureRow(Modifier.padding(bottom = 12.dp)) {
@@ -237,13 +238,13 @@ fun WorkshopGivenScreen() {
                         FigureTile("Returned", "$back", Modifier.share(), tint = if (back > 0) Tone.settled.color() else Color.Unspecified)
                     }
                 }
-                item(key = "filter") {
+                animatedItem(key = "filter") {
                     ChipRow(Modifier.padding(bottom = 12.dp)) {
                         for (f in GivenFilter.values()) FilterChip(f.title, chosen = filter == f, onClick = { filter = f })
                     }
                 }
                 if (shown.isNotEmpty()) {
-                    item(key = "head") {
+                    animatedItem(key = "head") {
                         Column(Modifier.padding(bottom = 8.dp)) { LedgerHeading(if (filter == GivenFilter.returned) "Returned items" else "Items", count = shown.size) }
                     }
                     workshopCardRows(shown, columns, "given", key = { it.id }) { item ->
@@ -256,7 +257,7 @@ fun WorkshopGivenScreen() {
                         )
                     }
                 } else {
-                    item(key = "empty") {
+                    animatedItem(key = "empty") {
                         val filtering = query.isNotEmpty() || filter != GivenFilter.all
                         NotAvailableState(
                             "Nothing here yet",

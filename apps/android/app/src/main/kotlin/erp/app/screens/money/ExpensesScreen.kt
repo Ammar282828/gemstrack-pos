@@ -1,5 +1,6 @@
 package erp.app.screens.money
 
+import erp.app.ui.animatedItem
 import erp.app.ui.SegmentedColumn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -160,16 +161,16 @@ private fun ExpensesBoard() {
             val summary = remember(shown, groups) { ExpenseFigures.summary(shown, groups) }
 
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = 4.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                item(key = "search") {
+                animatedItem(key = "search") {
                     Box(Modifier.padding(horizontal = 16.dp).readableColumn()) { MoneySearchField(search, { search = it }, "Description, category or karigar") }
                 }
-                if (names.isNotEmpty()) item(key = "chips") {
+                if (names.isNotEmpty()) animatedItem(key = "chips") {
                     ChipRow {
                         FilterChip("All", chosen = category.isEmpty(), onClick = { category = "" }, count = scoped.size)
                         for (n in names) FilterChip(n, chosen = category == n, onClick = { category = n }, count = scoped.count { it.item.category == n })
                     }
                 }
-                if (period == ExpensePeriod.custom) item(key = "custom") {
+                if (period == ExpensePeriod.custom) animatedItem(key = "custom") {
                     Column(Modifier.padding(horizontal = 16.dp).readableColumn(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         LedgerHeading("Custom range", Modifier.padding(horizontal = 16.dp))
                         SegmentedColumn {
@@ -178,14 +179,14 @@ private fun ExpensesBoard() {
                         Footnote(if (custom.useFrom) "Without an end date it runs to the end of today." else "Until a start date is chosen, every expense is shown.")
                     }
                 }
-                item(key = "figures") {
+                animatedItem(key = "figures") {
                     Column(Modifier.padding(horizontal = 16.dp).readableColumn(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Footnote(periodLine(period, range))
                         Figures(summary, grouping, category)
                     }
                 }
                 if (groups.isEmpty()) {
-                    item(key = "empty") {
+                    animatedItem(key = "empty") {
                         val filtered = search.isNotEmpty() || category.isNotEmpty()
                         NotAvailableState(
                             "No expenses in this period",
@@ -195,7 +196,7 @@ private fun ExpensesBoard() {
                     }
                 }
                 for (group in groups) {
-                    item(key = "h" + group.key) {
+                    animatedItem(key = "h" + group.key) {
                         val n = group.rows.size
                         val count = "$n item${if (n == 1) "" else "s"}"
                         Column(Modifier.padding(horizontal = 20.dp).padding(top = 8.dp).readableColumn(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -215,7 +216,7 @@ private fun ExpensesBoard() {
                         )
                     }
                 }
-                item(key = "report") {
+                animatedItem(key = "report") {
                     Column(Modifier.padding(horizontal = 16.dp).readableColumn(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         SegmentedColumn {
                             Row(

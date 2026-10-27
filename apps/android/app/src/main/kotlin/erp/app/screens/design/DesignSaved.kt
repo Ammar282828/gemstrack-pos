@@ -28,7 +28,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.AlertDialog
+import erp.app.ui.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -206,6 +206,7 @@ fun DesignSavedView(
                     else LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         items(shelf.draftRows, key = { it.id }) { d ->
                             SwipeActions(
+                                Modifier.animateItem(),
                                 end = RowAction("Delete", Icons.Filled.Delete, Tone.late) { deletingDraft = d },
                                 onClick = { onOpenDraft(d) },
                             ) { Box(Modifier.fillMaxWidth().ledgerCard()) { DesignDraftLine(d) } }
@@ -229,11 +230,11 @@ fun DesignSavedView(
                             GridCells.Fixed(2), Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
-                            gridItems(shown, key = { it.id }) { r -> RecordRow(r, onOpen = { detail = r }, onDelete = { deletingRecord = r }) }
+                            gridItems(shown, key = { it.id }) { r -> Box(Modifier.animateItem()) { RecordRow(r, onOpen = { detail = r }, onDelete = { deletingRecord = r }) } }
                         }
                     } else {
                         LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            items(shown, key = { it.id }) { r -> RecordRow(r, onOpen = { detail = r }, onDelete = { deletingRecord = r }) }
+                            items(shown, key = { it.id }) { r -> Box(Modifier.animateItem()) { RecordRow(r, onOpen = { detail = r }, onDelete = { deletingRecord = r }) } }
                         }
                     }
                 }

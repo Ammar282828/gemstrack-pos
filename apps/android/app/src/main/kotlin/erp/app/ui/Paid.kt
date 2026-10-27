@@ -49,9 +49,8 @@ import erp.core.logic.Money
 fun PaidBar(paid: Double, total: Double, modifier: Modifier = Modifier) {
     val whole = maxOf(total, 1.0)
     val done = total - paid < 1
-    val reduce = reduceMotion()
     val progress by animateFloatAsState(
-        (paid.coerceIn(0.0, whole) / whole).toFloat(), Motion.travel(reduce), label = "paidBar",
+        (paid.coerceIn(0.0, whole) / whole).toFloat(), rememberErpMotion().slowEffects(), label = "paidBar",
     )
     val spoken = if (done) "Paid in full" else "Paid ${Money.pkr(paid)} of ${Money.pkr(total)}"
     LinearProgressIndicator(
@@ -72,18 +71,19 @@ fun PaidBar(paid: Double, total: Double, modifier: Modifier = Modifier) {
 fun PaidRing(paid: Double, total: Double, modifier: Modifier = Modifier, size: Dp = 64.dp) {
     val settled = total > 0 && total - paid < 1
     val fraction = if (total > 0) (paid / total).coerceIn(0.0, 1.0).toFloat() else 0f
-    val reduce = reduceMotion()
+    val motion = rememberErpMotion()
     val colour = if (settled) Tone.settled.fill() else ErpColors.accent
     val track = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.18f)
-    val sweep by animateFloatAsState(fraction, Motion.travel(reduce), label = "paidRing")
+    val sweep by animateFloatAsState(fraction, motion.slowEffects(), label = "paidRing")
 
     // The tick is always in the tree so the bounce has an image to play on when it turns on.
     val bounce = remember { Animatable(1f) }
     var wasSettled by remember { mutableStateOf(settled) }
     LaunchedEffect(settled) {
-        if (settled && !wasSettled && !reduce) {
-            bounce.animateTo(1.3f, tween(110))
-            bounce.animateTo(1f, spring(Spring.DampingRatioMediumBouncy))
+        if (settled && !wasSettled && !motion.reduce) {
+            // The tick pops in from small on the spatial spring (which overshoots a little by itself).
+            bounce.snapTo(0.6f)
+            bounce.animateTo(1f, motion.spatial())
         }
         wasSettled = settled
     }

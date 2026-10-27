@@ -133,7 +133,7 @@ fun <T> LazyListScope.cardRows(keyPrefix: String, rows: List<T>, key: (T) -> Str
     itemsIndexed(rows, key = { _, r -> keyPrefix + key(r) }) { i, r ->
         val first = i == 0
         val last = i == rows.lastIndex
-        Column(Modifier.padding(horizontal = 16.dp).readableColumn()) {
+        Column(Modifier.animateItem().padding(horizontal = 16.dp).readableColumn()) {
             Column(Modifier.cardEdges(first, last)) {
                 row(r)
             }

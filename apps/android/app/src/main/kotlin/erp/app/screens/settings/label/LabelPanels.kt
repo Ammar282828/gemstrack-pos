@@ -112,7 +112,7 @@ fun PlaceholderSheet(tags: Int, title: String, onPick: (String) -> Unit, onDismi
             }
             LazyColumn(Modifier.weight(1f).padding(horizontal = 16.dp)) {
                 items(chips, key = { it.first }) { (token, label) ->
-                    Row(Modifier.fillMaxWidth().clickable { pick(token) }.ledgerRow(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.animateItem().fillMaxWidth().clickable { pick(token) }.ledgerRow(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
                         Text(token, style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
@@ -165,7 +165,7 @@ fun LayersPanel(state: DesignerState) {
             val selected = model.selection.contains(f.id)
             val index = fields.indexOfFirst { it.id == f.id }
             Row(
-                Modifier.fillMaxWidth().background(if (selected) ErpColors.accent.copy(alpha = 0.18f) else ErpColors.card)
+                Modifier.animateItem().fillMaxWidth().background(if (selected) ErpColors.accent.copy(alpha = 0.18f) else ErpColors.card)
                     .clickable { if (model.multiSelect) model.toggleSelected(f.id) else model.select(setOf(f.id)) }
                     .padding(horizontal = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(2.dp),

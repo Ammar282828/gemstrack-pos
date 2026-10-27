@@ -186,12 +186,12 @@ fun CustomerMergeSheet(onDismiss: () -> Unit) {
                                     val keep = byId[if (turned) pair.b else pair.a]
                                     val duplicate = byId[if (turned) pair.a else pair.b]
                                     if (keep != null && duplicate != null) {
-                                        PairSection(
+                                        Box(Modifier.animateItem()) { PairSection(
                                             pair, keep, duplicate, moves(duplicate.id),
                                             onSwap = { swapped = if (pair.id in swapped) swapped - pair.id else swapped + pair.id },
                                             onMerge = { ask(keep, duplicate) },
                                             onNot = { dismissed = dismissed + pair.id },
-                                        )
+                                        ) }
                                     }
                                 }
                             }

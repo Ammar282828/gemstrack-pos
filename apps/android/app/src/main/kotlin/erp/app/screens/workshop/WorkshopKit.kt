@@ -27,7 +27,7 @@ import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.PanoramaFishEye
 import androidx.compose.material.icons.filled.Pending
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.AlertDialog
+import erp.app.ui.AlertDialog
 import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DatePicker
@@ -180,7 +180,7 @@ fun <T : Any> LazyListScope.workshopCardRows(
     val rows = items.chunked(n)
     items(rows.size, key = { "$keyPrefix:" + key(rows[it].first()) }) { r ->
         val row = rows[r]
-        Row(Modifier.fillMaxWidth().padding(bottom = 16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.Top) {
+        Row(Modifier.animateItem().fillMaxWidth().padding(bottom = 16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.Top) {
             for (item in row) Column(Modifier.weight(1f).let { m -> if (zoomId != null) m.zoomSource(zoomId(item)) else m }.ledgerCard()) { content(item) }
             repeat(n - row.size) { Spacer(Modifier.weight(1f)) }
         }

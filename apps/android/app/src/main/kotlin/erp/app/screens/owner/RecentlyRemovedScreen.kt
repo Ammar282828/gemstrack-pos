@@ -1,5 +1,6 @@
 package erp.app.screens.owner
 
+import erp.app.ui.animatedItem
 import erp.app.ui.Loading
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -133,7 +134,7 @@ private fun RecentlyRemovedList() {
             val history = remember(hisaab.revision, orders.revision) { RecentlyRemoved.removedHistory(hisaab.items, orders.items) }
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = 8.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (removedCustomers.isEmpty() && removedKarigars.isEmpty()) {
-                    item(key = "none") {
+                    animatedItem(key = "none") {
                         NotAvailableState(
                             "Nobody has been removed",
                             why = "Nothing here has been destroyed. Their history is exactly where they left it.",
@@ -141,14 +142,14 @@ private fun RecentlyRemovedList() {
                         )
                     }
                 } else {
-                    item(key = "summary") {
+                    animatedItem(key = "summary") {
                         Summary(
                             removedCustomers, removedKarigars, busy,
                             putAllBack = { restore(removedCustomers.map { it.id }, removedKarigars.map { it.id }, "all", null) },
                             empty = { deletion = askToEmpty(removedCustomers, removedKarigars, history, note::show) },
                         )
                     }
-                    if (removedCustomers.isNotEmpty()) item(key = "customers") {
+                    if (removedCustomers.isNotEmpty()) animatedItem(key = "customers") {
                         Section("Customers") {
                             removedCustomers.forEachIndexed { i, c ->
                                 if (i > 0) LedgerDivider()
@@ -158,7 +159,7 @@ private fun RecentlyRemovedList() {
                             }
                         }
                     }
-                    if (removedKarigars.isNotEmpty()) item(key = "karigars") {
+                    if (removedKarigars.isNotEmpty()) animatedItem(key = "karigars") {
                         Section("Karigars") {
                             removedKarigars.forEachIndexed { i, k ->
                                 if (i > 0) LedgerDivider()

@@ -1,5 +1,6 @@
 package erp.app.screens.customers
 
+import erp.app.ui.rememberErpMotion
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -76,6 +77,7 @@ fun DetailRow(label: String, value: String, modifier: Modifier = Modifier) {
 @Composable
 fun Disclosure(title: String, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     var open by rememberSaveable(title) { mutableStateOf(false) }
+    val motion = rememberErpMotion()
     Column(modifier.fillMaxWidth()) {
         Row(
             Modifier
@@ -86,12 +88,13 @@ fun Disclosure(title: String, modifier: Modifier = Modifier, content: @Composabl
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(title, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+            val turn by androidx.compose.animation.core.animateFloatAsState(if (open) 0f else -90f, motion.spatial(), label = "fold")
             Icon(
                 Icons.Filled.ExpandMore, contentDescription = null,
-                Modifier.rotate(if (open) 0f else -90f),
+                Modifier.rotate(turn),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        AnimatedVisibility(open) { Column(Modifier.padding(top = 4.dp)) { content() } }
+        AnimatedVisibility(open, enter = motion.expandIn, exit = motion.collapseOut) { Column(Modifier.padding(top = 4.dp)) { content() } }
     }
 }

@@ -1,5 +1,6 @@
 package erp.app.screens.analytics
 
+import erp.app.ui.rememberErpMotion
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -57,10 +58,11 @@ import kotlin.math.max
 /** 0 to 1 as a chart arrives; already 1 when animations are off. */
 @Composable
 private fun rememberReveal(): Float {
-    val reduce = reduceMotion()
-    var target by remember { mutableFloatStateOf(if (reduce) 1f else 0f) }
+    val motion = rememberErpMotion()
+    var target by remember { mutableFloatStateOf(if (motion.reduce) 1f else 0f) }
     LaunchedEffect(Unit) { target = 1f }
-    val shown by animateFloatAsState(target, Motion.travel(reduce), label = "chartReveal")
+    // Drawn in on the slow effects spring (it never overshoots, so no bar is taller than its value).
+    val shown by animateFloatAsState(target, motion.slowEffects(), label = "chartReveal")
     return shown
 }
 

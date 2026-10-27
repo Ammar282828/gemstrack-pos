@@ -22,7 +22,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -127,7 +126,8 @@ fun ShelfState(
     connectionLost: Boolean = false,
     content: @Composable () -> Unit,
 ) {
-    val reduce = reduceMotion()
+    val motion = rememberErpMotion()
+    val crossFade = motion.crossFade()
     val showingOfflineCopy = offline && connectionLost
     val phase = when {
         !loaded -> 0
@@ -138,7 +138,7 @@ fun ShelfState(
     AnimatedContent(
         targetState = phase,
         modifier = modifier,
-        transitionSpec = { fadeIn(Motion.travel(reduce)) togetherWith fadeOut(Motion.travel(reduce)) },
+        transitionSpec = { crossFade },
         label = "shelf",
     ) { shown ->
         when (shown) {

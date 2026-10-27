@@ -1,5 +1,6 @@
 package erp.app.screens.invoices
 
+import erp.app.ui.rememberErpMotion
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -502,7 +503,7 @@ private fun PiecesCard(inv: Invoice, owner: Boolean, all: Boolean, showAll: () -
     val shown = if (all) items else items.take(FIRST_PIECES)
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         LedgerHeading("Pieces", Modifier.padding(horizontal = 16.dp), count = items.size)
-        Column(Modifier.ledgerCard().animateContentSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.ledgerCard().animateContentSize(rememberErpMotion().spatial()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (items.isEmpty()) Text("No pieces on this invoice.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             shown.forEach { PieceRow(it, owner) }
             if (!all && items.size > FIRST_PIECES) TextButton(onClick = showAll) { Text("Show ${items.size - FIRST_PIECES} more") }

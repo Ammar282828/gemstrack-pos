@@ -1,5 +1,6 @@
 package erp.app.screens.money
 
+import erp.app.ui.animatedItem
 import erp.app.ui.SegmentedColumn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -103,17 +104,17 @@ private fun RevenueBoard() {
             val total = remember(shown) { shown.fold(0.0) { acc, l -> acc + l.item.amount } }
 
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = 4.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                item(key = "search") {
+                animatedItem(key = "search") {
                     Box(Modifier.padding(horizontal = 16.dp).readableColumn()) { MoneySearchField(search, { search = it }, "Search by description") }
                 }
-                item(key = "dates") {
+                animatedItem(key = "dates") {
                     Column(Modifier.padding(horizontal = 16.dp).readableColumn(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         LedgerHeading("Dates", Modifier.padding(horizontal = 16.dp))
                         SegmentedColumn { MoneyRangeFields(dates, { dates = it }) }
                         Footnote(if (dates.useFrom) "Without an end date it runs to the end of today." else "Until a start date is chosen, every entry is shown.")
                     }
                 }
-                item(key = "figures") {
+                animatedItem(key = "figures") {
                     Column(Modifier.padding(horizontal = 16.dp).readableColumn(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Footnote("Income not tied to an order or invoice.")
                         FigureRow(spacing = 10.dp) {
@@ -123,7 +124,7 @@ private fun RevenueBoard() {
                     }
                 }
                 if (months.isEmpty()) {
-                    item(key = "empty") {
+                    animatedItem(key = "empty") {
                         NotAvailableState(
                             "No revenue entries found",
                             why = if (search.isEmpty() && !dates.useFrom) "Add a revenue entry to begin." else "Try adjusting your search or filters.",
@@ -132,7 +133,7 @@ private fun RevenueBoard() {
                     }
                 }
                 for (month in months) {
-                    item(key = "h" + month.key) {
+                    animatedItem(key = "h" + month.key) {
                         val n = month.rows.size
                         val count = "$n entr${if (n == 1) "y" else "ies"}"
                         Column(Modifier.padding(horizontal = 20.dp).padding(top = 8.dp).readableColumn(), verticalArrangement = Arrangement.spacedBy(2.dp)) {

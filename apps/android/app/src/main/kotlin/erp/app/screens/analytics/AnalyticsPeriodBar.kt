@@ -17,6 +17,7 @@ import erp.app.config.Prefs
 import erp.app.screens.money.DayRow
 import erp.app.screens.money.MoneySheet
 import erp.app.ui.AppClock
+import erp.app.ui.AxisSwap
 import erp.app.ui.ChipRow
 import erp.app.ui.FilterChip
 import erp.app.ui.ledgerCard
@@ -68,12 +69,15 @@ fun AnaPeriodBar(state: AnaPeriodState, modifier: Modifier = Modifier) {
             AnaPeriod.year(state.key)?.let { FilterChip(it.toString(), chosen = true, onClick = {}) }
             FilterChip(customTitle(state), chosen = state.key == "custom", onClick = { choosing = true })
         }
-        Text(
-            AnaPeriod.describe(state.range),
+        // The words under the chips change with the period: they slide along X as the new period's replace them.
+        val quick = AnaPeriod.quick.map { it.key }
+        AxisSwap(
+            state.key to AnaPeriod.describe(state.range),
             Modifier.padding(horizontal = 20.dp),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+            forward = { from, to -> quick.indexOf(to.first) >= quick.indexOf(from.first) },
+        ) { (_, words) ->
+            Text(words, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
     if (choosing) {
         val today = karachiDay(AppClock.now())

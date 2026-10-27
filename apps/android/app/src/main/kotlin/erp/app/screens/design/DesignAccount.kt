@@ -93,7 +93,7 @@ fun DesignAccountAds(folders: List<DesignFolder>, onKept: () -> Unit) {
                 shown.isEmpty() -> NotAvailableState("No ads", why = "The ad account has none that match.", icon = Icons.Filled.Campaign)
                 else -> LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     items(shown, key = { it.id }) { a ->
-                        Row(Modifier.fillMaxWidth().ledgerCard(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Row(Modifier.animateItem().fillMaxWidth().ledgerCard(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             Box(Modifier.size(52.dp).clip(Radius.thumbShape).background(ErpColors.ground)) { if (a.image.isNotEmpty()) MarketingPhoto(a.image, Modifier.size(52.dp)) }
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                 Text(a.name, maxLines = 1, style = MaterialTheme.typography.titleSmall)

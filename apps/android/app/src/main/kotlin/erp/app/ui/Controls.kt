@@ -36,9 +36,11 @@ fun Switch(
     enabled: Boolean = true,
     colors: SwitchColors = SwitchDefaults.colors(),
 ) {
+    val haptics = rememberHaptics()
     androidx.compose.material3.Switch(
         checked = checked,
-        onCheckedChange = onCheckedChange,
+        // The system's switch tick as it flips; the thumb and track spring on the theme's motion scheme by themselves.
+        onCheckedChange = onCheckedChange?.let { change -> { on -> haptics.toggle(on); change(on) } },
         modifier = modifier,
         thumbContent = {
             Icon(if (checked) Icons.Filled.Check else Icons.Filled.Close, contentDescription = null, Modifier.size(SwitchDefaults.IconSize))

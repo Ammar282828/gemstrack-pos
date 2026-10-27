@@ -392,7 +392,7 @@ private fun CustomerPicker(customers: List<Customer>, onDismiss: () -> Unit, onP
                 LazyColumn(Modifier.weight(1f).padding(horizontal = 16.dp)) {
                     items(shown, key = { it.id }) { c ->
                         Box(
-                            Modifier.fillMaxWidth().clickable(role = Role.Button) {
+                            Modifier.animateItem().fillMaxWidth().clickable(role = Role.Button) {
                                 onPick(c)
                                 scope.launch { state.hide(); onDismiss() }
                             }.ledgerRow(),

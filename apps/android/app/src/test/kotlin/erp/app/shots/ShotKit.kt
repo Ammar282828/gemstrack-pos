@@ -134,6 +134,12 @@ abstract class ShotBase(protected val config: ShotConfig) {
         compose.onRoot().captureRoboImage(File(dir, "${name}_${config.label}.png").path)
     }
 
+    /** Like [shoot] but on the frame the clock is at: the middle of a transition is the picture, so it is not settled first. */
+    protected fun shootFrozen(name: String) {
+        val dir = File("src/test/screenshots/${House.id}")
+        compose.onRoot().captureRoboImage(File(dir, "${name}_${config.label}.png").path)
+    }
+
     /** Screens whose look does not depend on the house are kept for Taheri only: the baseline stays small. */
     protected fun onlyTaheri() = Assume.assumeTrue(House.id == "taheri")
 }

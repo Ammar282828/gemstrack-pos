@@ -1,5 +1,7 @@
 package erp.app.screens.workshop
 
+import erp.app.ui.rememberErpMotion
+import erp.app.ui.animatedItem
 import erp.app.ui.SearchBarField
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
@@ -256,7 +258,7 @@ fun WorkshopBoard(path: String) {
             val ctx = BoardContext(columns, owner, emptySet(), choices, actions)
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 96.dp)) {
                 if (orderId == null) {
-                    item(key = "search") {
+                    animatedItem(key = "search") {
                         SearchBarField(
                             value = filter.query,
                             onValueChange = { filter = filter.copy(query = it) },
@@ -271,13 +273,13 @@ fun WorkshopBoard(path: String) {
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                         )
                     }
-                    item(key = "figures") {
+                    animatedItem(key = "figures") {
                         FigureRow(Modifier.padding(bottom = 12.dp)) {
                             FigureTile("All active pieces", "${snap.stats.active}", Modifier.share())
                             FigureTile("Benches working", "${snap.stats.workers}", Modifier.share())
                         }
                     }
-                    item(key = "controls") {
+                    animatedItem(key = "controls") {
                         ControlBar(
                             snap, focus, { focus = it }, grouping, { grouping = it }, filter,
                             karigarName = karigars.items.firstOrNull { it.id == filter.karigarId }?.name ?: "one karigar",
@@ -286,7 +288,7 @@ fun WorkshopBoard(path: String) {
                         )
                     }
                 } else {
-                    item(key = "order") {
+                    animatedItem(key = "order") {
                         Column(Modifier.padding(bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(orderId, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold))
                             Text(
@@ -305,12 +307,12 @@ fun WorkshopBoard(path: String) {
                         }
                     WorkshopGrouping.stage -> stageSections(ctx, focused)
                     WorkshopGrouping.list -> if (focused.isNotEmpty()) {
-                        item(key = "pieces") { Box(Modifier.padding(bottom = 8.dp)) { LedgerHeading("Pieces", count = focused.size) } }
+                        animatedItem(key = "pieces") { Box(Modifier.padding(bottom = 8.dp)) { LedgerHeading("Pieces", count = focused.size) } }
                         jobCards(ctx, focused, showKarigar = true, "list")
                     }
                 }
                 if (focused.isEmpty()) {
-                    item(key = "empty") { EmptyState(focus, snap.all.isNotEmpty()) }
+                    animatedItem(key = "empty") { EmptyState(focus, snap.all.isNotEmpty()) }
                 }
             }
         }
@@ -355,16 +357,16 @@ private fun LazyListScope.karigarSections(
     setFree: (Boolean) -> Unit,
 ) {
     if (focus == WorkshopFocus.all && focused.isNotEmpty()) {
-        item(key = "glance") { Glance(WorkshopLogic.groupByKarigar(snap.bench), ctx.isOwner, showTotals, setTotals) }
+        animatedItem(key = "glance") { Glance(WorkshopLogic.groupByKarigar(snap.bench), ctx.isOwner, showTotals, setTotals) }
     }
     for (load in WorkshopLogic.groupByKarigar(focused)) {
-        item(key = "head:${load.karigarId}") { KarigarHeader(load, ctx.actions) }
+        animatedItem(key = "head:${load.karigarId}") { KarigarHeader(load, ctx.actions) }
         jobCards(ctx, WorkshopLogic.byOrder(load.jobs), showKarigar = false, "k:${load.karigarId}")
     }
     if (focus == WorkshopFocus.all && !filter.narrowed && filter.karigarId.isEmpty()) {
         val busyIds = snap.bench.filter { !it.isDone }.map { it.karigarId }.toSet()
         val idle = live.filter { it.id !in busyIds }
-        if (idle.isNotEmpty()) item(key = "free") { FreeSection(idle, showFree, setFree, ctx.actions) }
+        if (idle.isNotEmpty()) animatedItem(key = "free") { FreeSection(idle, showFree, setFree, ctx.actions) }
     }
 }
 
@@ -385,7 +387,7 @@ private fun Glance(loads: List<WorkshopLoad>, owner: Boolean, open: Boolean, set
             Text("Bench totals", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
             Icon(Icons.Filled.ExpandMore, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        AnimatedVisibility(open) {
+        AnimatedVisibility(open, enter = rememberErpMotion().expandIn, exit = rememberErpMotion().collapseOut) {
             FigureGrid(Modifier.padding(vertical = 4.dp)) {
                 FigureTile("Pieces out", "$active")
                 FigureTile("Benches working", "$working")
@@ -449,7 +451,7 @@ private fun FreeSection(idle: List<erp.core.models.Karigar>, open: Boolean, setO
                 Text("${idle.size} free", Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Icon(Icons.Filled.ExpandMore, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            AnimatedVisibility(open) {
+            AnimatedVisibility(open, enter = rememberErpMotion().expandIn, exit = rememberErpMotion().collapseOut) {
                 Column {
                     for (k in idle) {
                         Row(
@@ -483,7 +485,7 @@ private fun LazyListScope.focusedKarigar(ctx: BoardContext, focused: List<Worksh
     val onTrack = oldestFirst(active.filter { it.urgency == WorkshopJob.Urgency.ok })
     val done = load.jobs.filter { it.isDone }
     val orders = active.mapNotNull { it.orderId }.toSet().size
-    item(key = "summary") { FocusedSummary(load, orders, ctx.isOwner, ctx.actions) }
+    animatedItem(key = "summary") { FocusedSummary(load, orders, ctx.isOwner, ctx.actions) }
     urgencySection(ctx, "Critical", "sitting ${WorkshopLogic.criticalDays}+ days", Tone.late, critical)
     urgencySection(ctx, "Late", "${WorkshopLogic.warnDays}–${WorkshopLogic.criticalDays} days", Tone.owed, late)
     urgencySection(ctx, "On track", "", Tone.quiet, onTrack)
@@ -494,7 +496,7 @@ private fun LazyListScope.focusedKarigar(ctx: BoardContext, focused: List<Worksh
 
 private fun LazyListScope.urgencySection(ctx: BoardContext, title: String, hint: String, tone: Tone, jobs: List<WorkshopJob>) {
     if (jobs.isEmpty()) return
-    item(key = "u:$title") { Box(Modifier.padding(bottom = 8.dp)) { LedgerHeading(title, count = jobs.size, trailing = hint.ifEmpty { null }, tone = tone) } }
+    animatedItem(key = "u:$title") { Box(Modifier.padding(bottom = 8.dp)) { LedgerHeading(title, count = jobs.size, trailing = hint.ifEmpty { null }, tone = tone) } }
     jobCards(ctx, WorkshopLogic.byOrder(jobs), showKarigar = false, "u:$title")
 }
 
@@ -565,7 +567,7 @@ private fun LazyListScope.stageSections(ctx: BoardContext, focused: List<Worksho
     for (stage in stages) {
         val jobs = focused.filter { it.status == stage.status }
         if (jobs.isEmpty()) continue
-        item(key = "stage:${stage.title}") {
+        animatedItem(key = "stage:${stage.title}") {
             Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(stage.icon, null, Modifier.size(18.dp))
                 Text(stage.title, Modifier.weight(1f), style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold))

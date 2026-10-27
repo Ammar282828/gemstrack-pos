@@ -76,7 +76,7 @@ internal fun StockPickerSheet(onPick: (Product) -> Unit, onDismiss: () -> Unit) 
                 } else {
                     LazyColumn {
                         items(found, key = { it.sku }) { p ->
-                            Box(Modifier.fillMaxWidth().clickable(role = Role.Button) { onPick(p); onDismiss() }.padding(vertical = 6.dp)) {
+                            Box(Modifier.animateItem().fillMaxWidth().clickable(role = Role.Button) { onPick(p); onDismiss() }.padding(vertical = 6.dp)) {
                                 TwoLine(title = p.name, subtitle = p.sku)
                             }
                         }

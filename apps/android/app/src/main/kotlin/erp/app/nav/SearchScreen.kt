@@ -1,5 +1,6 @@
 package erp.app.nav
 
+import erp.app.ui.animatedItem
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -20,7 +21,7 @@ import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.Domain
 import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material3.AlertDialog
+import erp.app.ui.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
@@ -102,7 +103,7 @@ fun SearchScreen() {
     }
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        item(key = "field") {
+        animatedItem(key = "field") {
             // Material 3's search bar: a full-round field on the container tone, the search glyph first, no outline.
             SearchBarField(
                 value = text,
@@ -115,7 +116,7 @@ fun SearchScreen() {
         }
         if (typed.isEmpty()) {
             for (g in SearchLogic.groups(map)) {
-                item(key = "g-${g.key}") {
+                animatedItem(key = "g-${g.key}") {
                     Group(g.label) {
                         g.entries.forEachIndexed { i, e ->
                             if (i > 0) Hairline()
@@ -128,7 +129,7 @@ fun SearchScreen() {
                     }
                 }
             }
-            item(key = "account") {
+            animatedItem(key = "account") {
                 Group("Account") {
                     Line("Businesses", null, Icons.Rounded.Domain, "/app/businesses"); Hairline()
                     if (session.isOwner) { Line("This phone", null, Icons.Rounded.PhoneAndroid, "/app/phone"); Hairline() }
@@ -163,7 +164,7 @@ fun SearchScreen() {
             val r = SearchResults.of(query, map, customers, invoices, orders, stock, repairs)
             val settled = query.equals(typed, ignoreCase = true)
             if (settled && r.isEmpty) {
-                item(key = "none") {
+                animatedItem(key = "none") {
                     Text(
                         "No results for \"$typed\"",
                         Modifier.padding(24.dp),
@@ -226,7 +227,7 @@ private fun <T> androidx.compose.foundation.lazy.LazyListScope.results(
     row: @Composable (T) -> Unit,
 ) {
     if (items.isEmpty()) return
-    item(key = "r-$title") {
+    animatedItem(key = "r-$title") {
         val open = title in expanded
         Group(title) {
             val shown = if (open) items else items.take(CAP)

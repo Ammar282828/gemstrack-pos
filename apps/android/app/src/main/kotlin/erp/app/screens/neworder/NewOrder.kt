@@ -18,7 +18,7 @@ import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.DocumentScanner
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.AlertDialog
+import erp.app.ui.AlertDialog
 import erp.app.ui.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -59,6 +59,7 @@ import erp.app.screens.work.DraftsNote
 import erp.app.ui.EntryContinue
 import erp.app.ui.EntryStep
 import erp.app.ui.EntrySteps
+import erp.app.ui.EntryStepContent
 import erp.app.ui.FailureAlert
 import erp.app.ui.MoneyFeedback
 import erp.app.ui.MoneyText
@@ -429,7 +430,9 @@ private fun NewOrderForm(readsSlip: Boolean, edit: NewOrderEdit?, ratesFirst: Bo
                             NoteRow("This order is on an invoice already. The invoice keeps its own copy of the pieces and the money: change those on the invoice.", Icons.Filled.Description)
                         }
                     }
-                    when (step) {
+                    EntryStepContent(step) { shown ->
+                    Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                    when (shown) {
                         EntryStep.customer -> {
                             if (edit == null && d.isBlank) DraftsNote()
                             CustomerSection(holder, people, shop.takenBy) { RecentCustomers.recent(invoices, orders, customers) }
@@ -486,6 +489,8 @@ private fun NewOrderForm(readsSlip: Boolean, edit: NewOrderEdit?, ratesFirst: Bo
                                 }
                             }
                         }
+                    }
+                    }
                     }
                 }
             }

@@ -32,6 +32,14 @@ class Haptics(private val view: View) {
         if (Build.VERSION.SDK_INT >= 34) HapticFeedbackConstants.SEGMENT_TICK else HapticFeedbackConstants.CLOCK_TICK,
     )
 
+    /** The system's switch tick (API 34 has an on and an off), the segment tick before it. */
+    fun toggle(on: Boolean) = perform(
+        when {
+            Build.VERSION.SDK_INT >= 34 -> if (on) HapticFeedbackConstants.TOGGLE_ON else HapticFeedbackConstants.TOGGLE_OFF
+            else -> HapticFeedbackConstants.CLOCK_TICK
+        },
+    )
+
     private fun perform(constant: Int) {
         view.performHapticFeedback(constant)
     }

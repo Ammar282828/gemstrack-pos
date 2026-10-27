@@ -149,7 +149,7 @@ fun PostAlbumStrip(card: PostTrayCard, model: PostTrayModel, siteName: String, l
 
     FormSection("Photos", footer = { Text(footer) }) {
         LazyRow(contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            items(card.album.toList(), key = { it.id }) { x -> Tile(card, model, x, locked) }
+            items(card.album.toList(), key = { it.id }) { x -> Box(Modifier.animateItem()) { Tile(card, model, x, locked) } }
         }
         if (ownLeft.isNotEmpty()) {
             Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -158,7 +158,7 @@ fun PostAlbumStrip(card: PostTrayCard, model: PostTrayModel, siteName: String, l
                     items(ownLeft, key = { it }) { i ->
                         StockImage(
                             card.piece.photos[i].thumb, "${card.piece.name}, photo ${i + 2}", card.id + "|own$i",
-                            Modifier.size(56.dp).clip(Radius.thumbShape).clickable(enabled = !locked && !full, onClickLabel = "Add") { addOwn(listOf(i)) }
+                            Modifier.animateItem().size(56.dp).clip(Radius.thumbShape).clickable(enabled = !locked && !full, onClickLabel = "Add") { addOwn(listOf(i)) }
                                 .semantics { contentDescription = "Add photo ${i + 2} of this piece" },
                         )
                     }
@@ -217,7 +217,7 @@ private fun PostAlbumSitePicker(card: PostTrayCard, model: PostTrayModel, onSay:
                 items(shown, key = { it.id }) { p ->
                     val place = card.album.indexOfFirst { it.pieceID == p.id }.takeIf { it >= 0 }?.plus(1)
                     Row(
-                        Modifier.fillMaxWidth().clickable { model.toggleSite(card, p)?.let { onSay(listOf(Note(it, failed = true))) } }.ledgerRow(),
+                        Modifier.animateItem().fillMaxWidth().clickable { model.toggleSite(card, p)?.let { onSay(listOf(Note(it, failed = true))) } }.ledgerRow(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
                     ) {
                         StockImage(p.thumb, p.name, p.id, Modifier.size(52.dp).clip(Radius.thumbShape))

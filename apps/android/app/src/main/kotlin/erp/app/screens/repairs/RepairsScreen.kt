@@ -1,5 +1,6 @@
 package erp.app.screens.repairs
 
+import erp.app.ui.animatedItem
 import erp.app.ui.AppClock
 import android.content.ActivityNotFoundException
 import android.content.Context
@@ -27,7 +28,7 @@ import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Build
-import androidx.compose.material3.AlertDialog
+import erp.app.ui.AlertDialog
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -148,13 +149,13 @@ fun RepairsScreen(path: String) {
             contentPadding = PaddingValues(top = 4.dp, bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            item(key = "search") {
+            animatedItem(key = "search") {
                 Box(Modifier.padding(horizontal = 16.dp)) {
                     RepairsSearchField(query, { query = it }, "Name, phone, piece or REP no.")
                 }
             }
             if (groups.isEmpty()) {
-                item(key = "empty") {
+                animatedItem(key = "empty") {
                     if (q.isNotEmpty()) {
                         NotAvailableState("No Results for “$query”", why = "Check the spelling or try a new search.", icon = Icons.Filled.Search)
                     } else {
@@ -167,11 +168,11 @@ fun RepairsScreen(path: String) {
                 }
             }
             for (g in groups) {
-                item(key = "h" + g.id) { GroupHeader(g) }
+                animatedItem(key = "h" + g.id) { GroupHeader(g) }
                 val forceOpen = q.isNotEmpty()
                 val open = !g.folded || forceOpen || g.id in opened
                 if (g.folded) {
-                    item(key = "f" + g.id) {
+                    animatedItem(key = "f" + g.id) {
                         Column(Modifier.padding(horizontal = 16.dp)) {
                             Column(Modifier.cardEdges(first = true, last = !open)) {
                                 FoldRow(g, open, forceOpen) { opened = if (g.id in opened) opened - g.id else opened + g.id }
@@ -183,7 +184,7 @@ fun RepairsScreen(path: String) {
                     items(g.rows.size, key = { i -> g.id + "/" + g.rows[i].id }) { i ->
                         val r = g.rows[i]
                         val firstInCard = !g.folded && i == 0
-                        Column(Modifier.padding(horizontal = 16.dp)) {
+                        Column(Modifier.animateItem().padding(horizontal = 16.dp)) {
                             Column(Modifier.cardEdges(first = firstInCard, last = i == g.rows.lastIndex)) {
                                 RepairRow(desk.shown(r), now, desk, context, isOwner = session.isOwner, shopName = session.shop.name) {
                                     sheetSeed = null

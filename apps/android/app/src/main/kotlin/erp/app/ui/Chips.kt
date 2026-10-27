@@ -1,5 +1,6 @@
 package erp.app.ui
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -49,6 +50,7 @@ fun FilterChip(
     count: Int? = null,
 ) {
     val haptics = rememberHaptics()
+    val motion = rememberErpMotion()
     // A light tick as a chip is chosen (never as the old one lets go).
     OnChange(chosen) { if (chosen) haptics.selection() }
 
@@ -69,9 +71,12 @@ fun FilterChip(
                 }
             }
         },
-        leadingIcon = if (chosen) {
-            { Icon(Icons.Filled.Check, contentDescription = null, Modifier.size(FilterChipDefaults.IconSize)) }
-        } else null,
+        // The check makes room for itself and fades in (and goes the same way) instead of appearing at once.
+        leadingIcon = {
+            AnimatedVisibility(chosen, enter = motion.expandInX, exit = motion.collapseOutX) {
+                Icon(Icons.Filled.Check, contentDescription = null, Modifier.size(FilterChipDefaults.IconSize))
+            }
+        },
         shape = MaterialTheme.shapes.small,
     )
 }

@@ -1,5 +1,6 @@
 package erp.app.screens.workshop
 
+import erp.app.ui.animatedItem
 import erp.app.ui.SearchBarField
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -181,7 +182,7 @@ fun WorkshopKarigarsList() {
             val columns = workshopColumns((maxWidth - 32.dp).value, isLargeText(), 340f)
             val matchedCount = working.size + free.size
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 96.dp)) {
-                item(key = "search") {
+                animatedItem(key = "search") {
                     SearchBarField(
                         value = query,
                         onValueChange = { query = it },
@@ -194,7 +195,7 @@ fun WorkshopKarigarsList() {
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                     )
                 }
-                item(key = "figures") {
+                animatedItem(key = "figures") {
                     FigureGrid(Modifier.padding(bottom = 12.dp)) {
                         FigureTile("Working now", "${figures.working}", detail = "of ${figures.live} on file")
                         FigureTile(
@@ -206,21 +207,21 @@ fun WorkshopKarigarsList() {
                         else FigureTile("Free", "${figures.live - figures.working}", detail = "nothing on the bench")
                     }
                 }
-                item(key = "show") {
+                animatedItem(key = "show") {
                     ChipRow(Modifier.padding(bottom = 12.dp)) {
                         for (s in KarigarsShowing.values()) FilterChip(s.title, chosen = show == s, onClick = { show = s })
                     }
                 }
                 if (show != KarigarsShowing.free && working.isNotEmpty()) {
-                    item(key = "h:working") { Column(Modifier.padding(bottom = 8.dp)) { LedgerHeading("Working", count = working.size) } }
+                    animatedItem(key = "h:working") { Column(Modifier.padding(bottom = 8.dp)) { LedgerHeading("Working", count = working.size) } }
                     workshopCardRows(working, columns, "working", key = { it.id }, zoomId = { WorkshopLogic.karigarPath(it.id) }) { k -> KarigarCard(k, loads[k.id], batches[k.id]) { navigator.open(WorkshopLogic.karigarPath(k.id)) } }
                 }
                 if (show != KarigarsShowing.working && free.isNotEmpty()) {
-                    item(key = "h:free") { Column(Modifier.padding(bottom = 8.dp)) { LedgerHeading("Free", count = free.size) } }
+                    animatedItem(key = "h:free") { Column(Modifier.padding(bottom = 8.dp)) { LedgerHeading("Free", count = free.size) } }
                     workshopCardRows(free, columns, "free", key = { it.id }, zoomId = { WorkshopLogic.karigarPath(it.id) }) { k -> KarigarCard(k, loads[k.id], batches[k.id]) { navigator.open(WorkshopLogic.karigarPath(k.id)) } }
                 }
                 if ((show == KarigarsShowing.working && working.isEmpty()) || (show == KarigarsShowing.free && free.isEmpty()) || matchedCount == 0) {
-                    item(key = "empty") {
+                    animatedItem(key = "empty") {
                         NotAvailableState(
                             "No karigars found",
                             why = if (query.isNotEmpty()) "Try a different search term." else "Add a karigar to begin.",
