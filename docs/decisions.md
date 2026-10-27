@@ -827,6 +827,14 @@ Website → Interest ranks them (Saved, Asked about, Looked at longest with at l
   for the same days (`/api/website/interest?from&to`, added; `days` unchanged for the iPhone app). Live: people in the last five
   minutes (pages beat every 30 s while visible), where, on what, how they came, each visit, and today's totals.
 - A session ends after 30 minutes away, or when the visitor arrives again from a referrer or tagged link.
+### Story drafts
+
+2026-10-27. The owner asked for a week of Instagram stories from the pieces ready for WhatsApp, 9:16 with the weight and the piece's
+kind set to stand out, then 50 more "in a stories draft tab in the erp", at 2160 × 3840 with no sharpening. Posts › Stories
+(`docs/features/from-the-website.md#stories`): a hand-written running order (`lib/social/story-drafts.ts`) whose names and weights
+are the site's at the time, drawn in the browser (`week-story.ts`), never stored as pictures; only posted / skipped is kept. The site's
+own marks and printed weights are taken off the photograph (lettering only, never a light ground or the piece).
+
 ### Design
 
 2026-10-12. The owner: "make further improvements … more powerful than Canva, especially fine-tuning controls … instant resizing using

@@ -7,9 +7,9 @@ const { scorePlace } = await import('./palette-match');
 
 describe('Design is a tab of Posts (docs/features/design.md)', () => {
   const posts = (who: 'owner' | 'staff' | 'marketing') => forRole(NAV.find(e => e.id === 'posts')!, who)!;
-  it('Posts is Hub · Design · Investments, for staff too', () => {
-    expect(posts('owner').tabs?.map(t => t.label)).toEqual(['Hub', 'Design', 'Investments']);
-    expect(posts('staff').tabs?.map(t => t.label)).toEqual(['Hub', 'Design', 'Investments']);
+  it('Posts is Hub · Stories · Design · Investments, for staff too', () => {
+    expect(posts('owner').tabs?.map(t => t.label)).toEqual(['Hub', 'Stories', 'Design', 'Investments']);
+    expect(posts('staff').tabs?.map(t => t.label)).toEqual(['Hub', 'Stories', 'Design', 'Investments']);
     expect(posts('marketing').tabs?.map(t => t.href)).toContain('/design');
   });
   it('Ads has Plan in place of the Studio; the moved addresses are not offered twice', () => {

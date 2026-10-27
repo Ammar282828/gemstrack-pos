@@ -143,6 +143,7 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Feature | Web | iPhone | Android | Mac | Since | Where |
 |---|---|---|---|---|---|---|
 | Posts hub: Today, queue, pieces, Send all, Spread over the day | ✓ | ✓ | ✓ | ✓ | 2026-10-19 | [Hub](features/from-the-website.md#posts-hub) |
+| Stories: a story a day from the website's pieces (Taheri's running order of 57), drawn 2160 × 3840 with the weight; post to Instagram, save, mark posted or skip | ✓ | pg | pg | pg | 2026-10-27 | [Stories](features/from-the-website.md#stories); `lib/social/story-drafts.ts`, `week-story.ts`, `/posts/stories`, `/api/posts/story-drafts`; the apps open the ERP's page (the map carries the tab) |
 | Several photos of a piece, one caption, Instagram carousel of 10 | ✓ | ✓ | ✓ | ✓ | 2026-10-23 | [Queue and Mina](features/post-a-piece.md#queue-and-mina) |
 | From the website: the last list kept on the device, 45 s read, "Showing the list from <time>" when the refresh fails | n/a | ✓ | ✓ | ✓ | 2026-10-26 | [When the catalogue blips](features/from-the-website.md#when-the-catalogue-blips-2026-10-26); Android: `PostsStore.kt` + `SitePiecesKeep.kt` (cache folder, per business, 45 s) and the line in `PostsHub.kt` |
 | A post's card starts with the hero photo alone | ✓ | ✓ | ✓ | ✓ | 2026-10-23 | `PostTrayPhotos.swift` |

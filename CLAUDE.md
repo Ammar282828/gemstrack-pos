@@ -207,6 +207,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 
 **Posts** (`docs/features/from-the-website.md`)
 - [Hub](docs/features/from-the-website.md#posts-hub) — `/posts`: Today, queue, site pieces in batches
+- [Stories](docs/decisions.md#story-drafts) — Posts › Stories: a story a day from the site's pieces, 2160 × 3840, weight in gold; order in `lib/social/story-drafts.ts`, drawn by `week-story.ts`, only posted/skipped stored
 - [From the website](docs/features/from-the-website.md#from-the-website), [its story](docs/features/from-the-website.md#site-story) — the card; moved to Design
 
 **Investments by Taheri** (`docs/features/investments.md`)

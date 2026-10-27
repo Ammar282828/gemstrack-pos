@@ -31,6 +31,7 @@ import {
   STORE_LINKS, STORE_PARTNERSHIP, STORE_WEBSITE_WEIGHTS, STORE_SITE_EDIT, STORE_INVESTMENTS, STORE_POST_PIECE,
   STORE_SITE_POSTS, STORE_META_ADS, STORE_AD_STUDIO, STORE_BRAND, STORE_DESIGN,
 } from '@/lib/store-config';
+import { STORY_DRAFT_SEEDS } from '@/lib/social/story-drafts';
 
 export type NavGroup = 'home' | 'sales' | 'workshop' | 'marketing' | 'money' | 'footer';
 
@@ -156,6 +157,9 @@ export const NAV: NavEntry[] = [
     when: () => website() && (STORE_POST_PIECE || STORE_SITE_POSTS || STORE_INVESTMENTS),
     tabs: [
       { staff: true, href: '/posts', label: 'Hub', heading: 'Posts', icon: LayoutGrid, match: ['/website/from-site'], keywords: ['from the website', 'website post', 'share a piece', 'new arrivals', 'queue', 'posted today', 'posting hub'] },
+      // A story a day from the website's pieces, drawn here (lib/social/story-drafts.ts; the owner, 2026-10-27).
+      { staff: true, href: '/posts/stories', label: 'Stories', icon: Camera, when: () => STORE_SITE_POSTS && STORY_DRAFT_SEEDS[STORE_BRAND].length > 0,
+        keywords: ['story', 'stories', 'instagram story', 'story drafts', 'weekly stories', '9:16'] },
       // One place to make anything and send it anywhere (docs/features/design.md; the owner, 2026-10-12): Post a piece,
       // the Ad studio's Make / Photos / Board / Saved and the Hub's designer. Ads-only sections gate themselves inside.
       { staff: true, href: '/design', label: 'Design', icon: Palette, when: () => STORE_DESIGN,

@@ -276,6 +276,20 @@
           ]
         },
         {
+          "href": "/posts/stories",
+          "label": "Stories",
+          "icon": "Camera",
+          "staff": true,
+          "keywords": [
+            "story",
+            "stories",
+            "instagram story",
+            "story drafts",
+            "weekly stories",
+            "9:16"
+          ]
+        },
+        {
           "href": "/design",
           "label": "Design",
           "icon": "Palette",

@@ -72,3 +72,32 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   `?lean=1` drops `own`, `words` and an empty `change` (nothing outside Edit a piece reads them; that screen uses `/api/website/edits`): 1.32 MB to 0.85 MB;
   the route gzips when `Accept-Encoding` allows: 0.85 MB to 86 KB. Web pickers, iPhone and Android all ask for `lean=1`. The iPhone reads with a 45 s
   timeout and keeps the last list per business in Caches (`PostsStore`), showing "Showing the list from <time>" when the refresh fails.
+
+<a id="stories"></a>
+## Stories (2026-10-27)
+
+The owner: "prepare a bunch of Instagram stories, one for every day of the week … make them 9:16 and add text overlays with their
+weights, and type to make them stand out", then "make 50 more and add them to a stories draft tab in the erp … make sure you dont do
+any oversharpening and just give them all in 2x 1080p resolution for 9:16".
+
+- **Posts › Stories** (`/posts/stories`, Taheri only: Mina has no running order yet) lists 57 website pieces in a running order, one a
+  day from a Monday ("Week 3 · Wed"), with Next up at the top and To post / Posted / Skipped. A draft opens to Post to Instagram (when
+  the account is connected; the server sizes it to 1080 × 1920), Save (the share sheet on a phone, a download elsewhere), Mark posted
+  or Skip; Back to drafts undoes either. Only that status is stored (`story_drafts`, one document per piece, `/api/posts/story-drafts`).
+- **The order and what each piece is** are written by hand in `lib/social/story-drafts.ts` (the tags say "Colored Stones" where the
+  counter says "Navratan"; "21K gold" only where the site records the karat, as some diamond pieces are 18K). The **name and weight are
+  the site's**, read when the tab opens: a weight typed on Photo weights shows at once. A numbered look-alike drops its number
+  ("… Taweez II" → "… Taweez"); a piece gone from the site says so and can't be made.
+- **The picture** (`lib/social/week-story.ts`, drawn in the browser, 2160 × 3840, smooth scaling and no sharpening anywhere): the
+  square photograph in the middle, its own ground running on above and below (a 48-px copy scaled up, darker), the wordmark in cream,
+  the kind in gold capitals, the name in Cormorant italic, the weight large in Bodoni gold with "— WEIGHT —" over it, "Reply for
+  today's price", all inside Instagram's bars. No canvas `filter` (WebKit has none).
+- **taheri.shop's marks come off.** The site's photos carry the wordmark (top right, or bottom right) and older ones the weight
+  printed top left (light on velvet, or dark on a light wall). `planCorners` finds the lettering as thin strokes, never a light area
+  (a bust, a wall: a light area fills nearly all of any window around it), and covers it with nearby cloth of the corner's own colour
+  when the corner holds nothing else; otherwise, with gold or a stand in the corner, it fills only the lettering from the ground around
+  each stroke. Tested on all 57 (`story-drafts.test.ts` holds the cases met: gold beside the label, dark ink, a bust's edge).
+- The 57 were picked from what the site can show cleanly: the counter-weighed new uploads (taweez, a kara pair) and older catalogue
+  pieces across chains, lockets, takhti, earrings, rings, sets and bangles; left out were light grounds, portrait photos, photos with
+  paper price tags and other houses' pieces (Maisons).
+
