@@ -414,7 +414,10 @@ struct MacStockPlace: View {
         let making: [MacAction] = [newAction, bulkAction]
         let selling: [MacAction] = [sellAction(skus), printAction(skus, now: false), printAction(skus, now: true)]
         let editAction = MacAction("Edit", symbol: "pencil", shortcut: KeyboardShortcut("e", modifiers: .command), enabled: owner && one) { edit(skus) }
-        let windowAction = MacAction("Open in New Window", symbol: "macwindow.badge.plus", enabled: some) { open(skus) }
+        // Return opens the picked pieces from the Piece menu too, as Hisaab's ledger and Expenses do: Stock's list let the
+        // key go past the list's own handling (the Mac check, 2026-10-27), the menu's key equivalent never misses it.
+        let windowAction = MacAction("Open in New Window", symbol: "macwindow.badge.plus",
+                                     shortcut: KeyboardShortcut(.return, modifiers: []), enabled: some) { open(skus) }
         let copyAction = MacAction(skus.count > 1 ? "Copy SKUs" : "Copy SKU", symbol: "doc.on.doc", enabled: some) { copy(skus) }
         let qrAction = MacAction("Show QR\u{2026}", symbol: "qrcode", enabled: one) { showTag(skus) }
         let csvAction = MacAction("Export Tag CSV\u{2026}", symbol: "arrow.down.doc", enabled: one) { showTag(skus) }
