@@ -90,8 +90,8 @@ any oversharpening and just give them all in 2x 1080p resolution for 9:16".
   ("… Taweez II" → "… Taweez"); a piece gone from the site says so and can't be made.
 - **The picture** (`lib/social/week-story.ts`, drawn in the browser, 2160 × 3840, smooth scaling and no sharpening anywhere): the
   square photograph in the middle, its own ground running on above and below (a 48-px copy scaled up, darker), the wordmark in cream,
-  the kind in gold capitals, the name in Cormorant italic, the weight large in Bodoni gold with "— WEIGHT —" over it, "Reply for
-  today's price", all inside Instagram's bars. No canvas `filter` (WebKit has none).
+  the kind in gold capitals, the name in Cormorant italic, the weight large in Bodoni gold with "— WEIGHT —" over it, "DM us for
+  the current price" (owner, 2026-10-27; was "Reply for today's price"), all inside Instagram's bars. No canvas `filter` (WebKit has none).
 - **taheri.shop's marks come off.** The site's photos carry the wordmark (top right, or bottom right) and older ones the weight
   printed top left (light on velvet, or dark on a light wall). `planCorners` finds the lettering as thin strokes, never a light area
   (a bust, a wall: a light area fills nearly all of any window around it), and covers it with nearby cloth of the corner's own colour

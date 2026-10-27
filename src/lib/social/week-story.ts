@@ -4,7 +4,7 @@
  *
  * The square photograph keeps its place in the middle and its own ground runs on above and below it, blurred and
  * darker, so the story is the photograph rather than a card holding one. The house's wordmark and what the piece is
- * sit above it; its name, the weight large in gold, and "Reply for today's price" below, all inside Instagram's safe
+ * sit above it; its name, the weight large in gold, and "DM us for the current price" below, all inside Instagram's safe
  * area (its own bars cover the top ~220 px and the bottom ~200 px).
  *
  * taheri.shop's photographs carry the house's mark (top right) and older ones their weight (top left). The story has
@@ -458,7 +458,7 @@ export function drawWeekStory(photo: Source, t: WeekStoryText, fonts: WeekStoryF
   y += 20;
   ctx.fillStyle = 'rgba(245,239,227,0.78)';
   ctx.font = `400 22px ${fonts.caps}`;
-  spaced(ctx, 'REPLY FOR TODAY’S PRICE', STORY_W / 2, y + 11, 22 * 0.24);
+  spaced(ctx, 'DM US FOR THE CURRENT PRICE', STORY_W / 2, y + 11, 22 * 0.24);
   return c;
 }
 
