@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.TextField
 import erp.core.logic.ShopNumber
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.background
@@ -17,7 +18,6 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.shape.CircleShape
 import erp.app.ui.AlertDialog
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import erp.app.ui.TextButton
@@ -274,7 +274,7 @@ private fun ArtworkColorDialog(title: String, hex: String, onDismiss: () -> Unit
                 ArtworkSlider("Red", r, 0.0..255.0, { r = it; sync() })
                 ArtworkSlider("Green", g, 0.0..255.0, { g = it; sync() })
                 ArtworkSlider("Blue", b, 0.0..255.0, { b = it; sync() })
-                OutlinedTextField(
+                TextField(
                     value = typed,
                     onValueChange = { t ->
                         typed = t

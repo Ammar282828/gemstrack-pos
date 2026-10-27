@@ -62,7 +62,7 @@ import kotlinx.coroutines.flow.asStateFlow
 object ThemeChoice {
     private const val DEVICE_KEY = "deviceTheme"
     private const val SHOP_KEY = "erp.lastShopTheme"
-    private const val WALLPAPER_KEY = "erp.phone.wallpaperColors"
+    const val WALLPAPER_KEY = "erp.phone.wallpaperColors"
 
     private val _device = MutableStateFlow("")
     val device: StateFlow<String> = _device.asStateFlow()

@@ -1,6 +1,7 @@
 package erp.app.screens.money
 
 import erp.app.ui.animatedItem
+import erp.app.ui.icons.Symbols
 import erp.app.ui.SegmentedColumn
 import erp.app.ui.Loading
 import androidx.compose.foundation.background
@@ -19,12 +20,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddCircleOutline
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.PersonAdd
-import androidx.compose.material.icons.filled.Work
-import androidx.compose.material.icons.filled.WorkOutline
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -161,7 +156,7 @@ fun HisaabAccountPicker(onDismiss: () -> Unit, go: (String) -> Unit) {
                                     horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     if (creating) Loading(Modifier.size(30.dp))
-                                    else Icon(Icons.Filled.AddCircleOutline, contentDescription = null, tint = ErpColors.accent)
+                                    else Icon(Symbols.AddCircleOutline, contentDescription = null, tint = ErpColors.accent)
                                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                         Text(
                                             "${if (creating) "Adding" else "Add karigar"} \u201C$typed\u201D",
@@ -175,9 +170,9 @@ fun HisaabAccountPicker(onDismiss: () -> Unit, go: (String) -> Unit) {
                         animatedItem(key = "links") {
                             Column(Modifier.padding(horizontal = 16.dp, vertical = 16.dp).readableColumn()) {
                                 SegmentedColumn {
-                                    LinkRow("New customer", Icons.Filled.PersonAdd, enabled = !creating) { finish("/customers/add") }
+                                    LinkRow("New customer", Symbols.PersonAdd, enabled = !creating) { finish("/customers/add") }
                                     LedgerDivider()
-                                    LinkRow("New karigar", Icons.Filled.WorkOutline, enabled = !creating) { finish("/karigars/add") }
+                                    LinkRow("New karigar", Symbols.WorkOutline, enabled = !creating) { finish("/karigars/add") }
                                 }
                                 Footnote("A new customer or karigar is added with the full form.", Modifier.padding(top = 8.dp))
                             }
@@ -205,7 +200,7 @@ private fun ContactRow(c: PickerContact, enabled: Boolean, onClick: () -> Unit) 
         horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.size(32.dp).clip(CircleShape).background(ErpColors.accent.copy(alpha = 0.14f)), contentAlignment = Alignment.Center) {
-            Icon(if (c.isCustomer) Icons.Filled.Person else Icons.Filled.Work, contentDescription = null, tint = ErpColors.accent)
+            Icon(if (c.isCustomer) Symbols.Person else Symbols.Work, contentDescription = null, tint = ErpColors.accent)
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(c.name.ifEmpty { c.id }, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium), maxLines = 1)

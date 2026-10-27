@@ -1,5 +1,16 @@
+import com.materialkolor.dynamiccolor.ColorSpec
+import com.materialkolor.hct.Hct
+import com.materialkolor.scheme.DynamicScheme
+import com.materialkolor.scheme.SchemeTonalSpot
 import groovy.json.JsonSlurper
 import java.net.URI
+
+// The launch window's colour is the business's Material You surface, worked out here with the same library the app themes with
+// (ui/theme/Scheme.kt), so no other colour shows before Compose draws. Keep the version level with libs.versions.toml.
+buildscript {
+    repositories { mavenCentral() }
+    dependencies { classpath("com.materialkolor:material-color-utilities:5.0.1") }
+}
 
 plugins {
     alias(libs.plugins.android.application)
@@ -68,15 +79,31 @@ abstract class HouseResources : DefaultTask() {
             "Accent" to "house_accent", "Ground" to "house_ground", "Card" to "house_card", "Elevated" to "house_elevated",
             "OnAccent" to "house_on_accent", "Launch" to "house_launch",
         )
+        fun accent(dark: Boolean): Int? =
+            reader(colorsets.files.first { it.parentFile.name == "Accent-${house.get()}.colorset" }, dark)?.let { hex ->
+                hex.removePrefix("#").toLong(16).toInt() or (0xFF shl 24)
+            }
+        // ErpScheme.seedOf: the light accent, unless it is too dark to carry a hue (Mina's maroon), then the dark accent.
+        val lightAccent = accent(false)
+        val darkAccent = accent(true)
+        val seed = when {
+            lightAccent != null && Hct.fromInt(lightAccent).tone >= 25.0 -> lightAccent
+            darkAccent != null -> darkAccent
+            lightAccent != null -> lightAccent
+            else -> 0xFF8A6B42.toInt()
+        }
         for ((dark, dir) in listOf(false to "values", true to "values-night")) {
+            // The window behind Compose and the splash screen wear the scheme's surface, so no other colour flashes first.
+            val surface = "#%06X".format(SchemeTonalSpot(Hct.fromInt(seed), dark, 0.0, ColorSpec.SpecVersion.SPEC_2021, DynamicScheme.Platform.PHONE).surface and 0xFFFFFF)
             val body = names.mapNotNull { (set, name) ->
+                if (name == "house_launch" || name == "house_ground") return@mapNotNull "    <color name=\"$name\">$surface</color>"
                 val f = colorsets.files.first { it.parentFile.name == "$set-${house.get()}.colorset" }
                 reader(f, dark)?.let { "    <color name=\"$name\">$it</color>" }
             }
             if (body.isEmpty()) continue
             File(out, dir).mkdirs()
             File(out, "$dir/colors.xml").writeText(
-                "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<!-- Generated from the iPhone's asset catalog; do not edit. -->\n" +
+                "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<!-- Generated: the iPhone's asset catalog, and the launch window's ground from the business's Material You surface; do not edit. -->\n" +
                     "<resources>\n${body.joinToString("\n")}\n</resources>\n",
             )
         }
@@ -283,7 +310,6 @@ dependencies {
     implementation(libs.compose.material3)
     implementation(libs.compose.material3.window.size)
     implementation(libs.compose.material3.adaptive.navigation.suite)
-    implementation(libs.compose.material.icons.extended)
     implementation(libs.material.color.utilities) // the business's colour as a whole Material 3 scheme (ui/theme/Scheme.kt)
     implementation(libs.compose.adaptive)
     implementation(libs.compose.adaptive.layout)

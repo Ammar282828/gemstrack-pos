@@ -1,5 +1,7 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.TextField
+import erp.app.ui.icons.Symbols
 import android.graphics.Bitmap
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -26,19 +28,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Redo
-import androidx.compose.material.icons.automirrored.filled.Undo
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.RadioButtonUnchecked
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.VisibilityOff
 import erp.app.ui.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -289,9 +280,9 @@ fun ArtworkEditor(
                     title = { Text("Design") },
                     navigationIcon = { TextButton(onClick = ::cancel) { Text("Cancel") } },
                     actions = {
-                        IconButton(onClick = { history.back(doc)?.let { doc = it; onDoc(it); tick++ } }, enabled = history.canUndo) { Icon(Icons.AutoMirrored.Filled.Undo, "Undo") }
-                        IconButton(onClick = { history.forward(doc)?.let { doc = it; onDoc(it); tick++ } }, enabled = history.canRedo) { Icon(Icons.AutoMirrored.Filled.Redo, "Redo") }
-                        IconButton(onClick = ::export, enabled = !busy) { Icon(Icons.Filled.Share, "Share") }
+                        IconButton(onClick = { history.back(doc)?.let { doc = it; onDoc(it); tick++ } }, enabled = history.canUndo) { Icon(Symbols.Undo, "Undo") }
+                        IconButton(onClick = { history.forward(doc)?.let { doc = it; onDoc(it); tick++ } }, enabled = history.canRedo) { Icon(Symbols.Redo, "Redo") }
+                        IconButton(onClick = ::export, enabled = !busy) { Icon(Symbols.Share, "Share") }
                         TextButton(onClick = onClose) { Text("Done") }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = ErpColors.ground),
@@ -368,7 +359,7 @@ fun ArtworkEditor(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("What the code opens: a link, a number or any words. Dark on light reads on every phone.", style = MaterialTheme.typography.bodyMedium)
-                    OutlinedTextField(qrText, { qrText = it }, label = { Text("Link or words") }, singleLine = true)
+                    TextField(qrText, { qrText = it }, label = { Text("Link or words") }, singleLine = true)
                 }
             },
             confirmButton = {
@@ -640,10 +631,10 @@ private fun LayerRow(l: MarketingValue, chosen: Boolean, select: (String, Boolea
             Modifier.fillMaxWidth().clickable(role = Role.Button, onClickLabel = "Select") { select(id, false) }.ledgerRow(),
             horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(if (chosen) Icons.Filled.CheckCircle else Icons.Filled.RadioButtonUnchecked, contentDescription = if (chosen) "Selected" else null, tint = if (chosen) ErpColors.accent else MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(if (chosen) Symbols.CheckCircle else Symbols.RadioButtonUnchecked, contentDescription = if (chosen) "Selected" else null, tint = if (chosen) ErpColors.accent else MaterialTheme.colorScheme.onSurfaceVariant)
             Text(ArtworkOps.name(l), Modifier.weight(1f), maxLines = 1, style = MaterialTheme.typography.bodyLarge)
-            if (l["locked"].bool) Icon(Icons.Filled.Lock, contentDescription = "Locked", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (l["hidden"].bool) Icon(Icons.Filled.VisibilityOff, contentDescription = "Hidden", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (l["locked"].bool) Icon(Symbols.Lock, contentDescription = "Locked", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (l["hidden"].bool) Icon(Symbols.VisibilityOff, contentDescription = "Hidden", tint = MaterialTheme.colorScheme.onSurfaceVariant)
             TextButton(onClick = { menu = true }) { Text("More") }
         }
         androidx.compose.material3.DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {

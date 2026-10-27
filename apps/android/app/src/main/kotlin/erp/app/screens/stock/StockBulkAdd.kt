@@ -1,5 +1,6 @@
 package erp.app.screens.stock
 
+import erp.app.ui.icons.Symbols
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -14,12 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ContentPaste
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Inventory2
-import androidx.compose.material.icons.filled.Lock
 import erp.app.ui.AlertDialog
 import erp.app.ui.Button
 import androidx.compose.material3.Icon
@@ -96,7 +91,7 @@ fun StockBulkAdd() {
         StockBulkEditor()
     } else {
         ScreenTitle("Add in bulk")
-        NotAvailableState("Only an owner can change the stock", why = "Ask an owner to add the pieces.", icon = Icons.Filled.Lock)
+        NotAvailableState("Only an owner can change the stock", why = "Ask an owner to add the pieces.", icon = Symbols.Lock)
     }
 }
 
@@ -304,8 +299,8 @@ private fun AddWeightsSection(pasted: String, setPasted: (String) -> Unit, onAdd
     val any = StockBulk.weights(pasted).isNotEmpty()
     FormSection(title = "Add weights", footer = "Paste a list from a message or a sheet: every number in it becomes a piece.") {
         TextRow("Weights", pasted, setPasted, prompt = "Paste or type weights, e.g. 4.2 5.1 6.75", minLines = 2, maxLines = 6)
-        LinkLine("Add these weights", Icons.Filled.ContentPaste, any, onAddPasted)
-        LinkLine("Add a row", Icons.Filled.Add, true, onAddRow)
+        LinkLine("Add these weights", Symbols.ContentPaste, any, onAddPasted)
+        LinkLine("Add a row", Symbols.Add, true, onAddRow)
     }
 }
 
@@ -343,7 +338,7 @@ private fun WeightsSection(rows: List<StockBulkRow>, change: (String, StockBulkR
                     row.suffix, { change(row.id, row.copy(suffix = it)) }, Modifier.weight(1f), placeholder = "Name suffix",
                     capitalization = KeyboardCapitalization.Words, label = "Name suffix of piece ${index + 1}",
                 )
-                IconButton(onClick = { remove(row.id) }) { Icon(Icons.Filled.Close, contentDescription = "Remove piece ${index + 1}") }
+                IconButton(onClick = { remove(row.id) }) { Icon(Symbols.Close, contentDescription = "Remove piece ${index + 1}") }
             }
         }
     }
@@ -368,7 +363,7 @@ private fun DonePage(skus: List<String>, onAgain: () -> Unit, onOpenPiece: (Stri
                 }
             }
             FormSection(footer = "The setup stays as it is; the weights start again.") {
-                LinkLine("Add more pieces", Icons.Filled.Inventory2, true, onAgain)
+                LinkLine("Add more pieces", Symbols.Inventory2, true, onAgain)
             }
         }
         Button(

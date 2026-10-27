@@ -1,5 +1,7 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.TextField
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -8,18 +10,11 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Chat
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.AutoFixHigh
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Crop
 import erp.app.ui.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import erp.app.ui.SegmentedButton
 import erp.app.ui.SegmentedButtonDefaults
 import erp.app.ui.SingleChoiceSegmentedButtonRow
@@ -90,19 +85,19 @@ fun WebsitePhotoEditRows(
     if (edit.layoutShowsWeight && (fields["weight"] ?: "").isEmpty()) {
         Text("Type the weight (below) to put it on.", Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), style = MaterialTheme.typography.bodySmall, color = Tone.owed.color())
     }
-    ActionRow("Crop and design", { designing = true }, Icons.Filled.Crop, enabled = !busy)
+    ActionRow("Crop and design", { designing = true }, Symbols.Crop, enabled = !busy)
     Box {
-        ActionRow("AI", { aiMenu = true }, Icons.Filled.AutoAwesome, enabled = !busy)
+        ActionRow("AI", { aiMenu = true }, Symbols.AutoAwesome, enabled = !busy)
         DropdownMenu(expanded = aiMenu, onDismissRequest = { aiMenu = false }) {
             Text("On this photo (about a minute)", Modifier.padding(horizontal = 16.dp, vertical = 6.dp), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            DropdownMenuItem(text = { Text("Enhance: light, sparkle, dust") }, leadingIcon = { Icon(Icons.Filled.AutoFixHigh, null) }, onClick = { aiMenu = false; onAI("enhance", mapOf("tidy" to false), "Enhanced") })
-            DropdownMenuItem(text = { Text("Enhance and clear old labels") }, leadingIcon = { Icon(Icons.Filled.AutoFixHigh, null) }, onClick = { aiMenu = false; onAI("enhance", mapOf("tidy" to true), "Enhanced, labels cleared") })
-            DropdownMenuItem(text = { Text("Ask AI…") }, leadingIcon = { Icon(Icons.AutoMirrored.Filled.Chat, null) }, onClick = { aiMenu = false; askText = ""; asking = true })
+            DropdownMenuItem(text = { Text("Enhance: light, sparkle, dust") }, leadingIcon = { Icon(Symbols.AutoFixHigh, null) }, onClick = { aiMenu = false; onAI("enhance", mapOf("tidy" to false), "Enhanced") })
+            DropdownMenuItem(text = { Text("Enhance and clear old labels") }, leadingIcon = { Icon(Symbols.AutoFixHigh, null) }, onClick = { aiMenu = false; onAI("enhance", mapOf("tidy" to true), "Enhanced, labels cleared") })
+            DropdownMenuItem(text = { Text("Ask AI…") }, leadingIcon = { Icon(Symbols.Chat, null) }, onClick = { aiMenu = false; askText = ""; asking = true })
             if (edit.photos.size > 1) {
                 Text("Use", Modifier.padding(horizontal = 16.dp, vertical = 6.dp), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 for (p in edit.photos) {
                     DropdownMenuItem(
-                        text = { Text(p.label) }, leadingIcon = { if (edit.current?.id == p.id) Icon(Icons.Filled.Check, null, tint = ErpColors.accent) },
+                        text = { Text(p.label) }, leadingIcon = { if (edit.current?.id == p.id) Icon(Symbols.Check, null, tint = ErpColors.accent) },
                         onClick = { aiMenu = false; edit.use(p.id) },
                     )
                 }
@@ -130,7 +125,7 @@ fun WebsitePhotoEditRows(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Say what to change: the piece itself stays as it is, and the result is checked against it.", style = MaterialTheme.typography.bodyMedium)
-                    OutlinedTextField(askText, { askText = it }, Modifier.fillMaxWidth(), placeholder = { Text("Make the background plain white") })
+                    TextField(askText, { askText = it }, Modifier.fillMaxWidth(), placeholder = { Text("Make the background plain white") })
                 }
             },
             confirmButton = {

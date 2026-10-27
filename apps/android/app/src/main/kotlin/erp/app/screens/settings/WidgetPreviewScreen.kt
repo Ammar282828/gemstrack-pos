@@ -1,5 +1,6 @@
 package erp.app.screens.settings
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -7,8 +8,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Print
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -128,7 +127,7 @@ fun WeprintSettings() {
             NoteRow("WEPrint")
             NoteRow("The live feed to WEPrint isn’t set up, so this page is switched off.")
             NoteRow("Export the pieces as CSV from Labels and import that file into WEPrint instead.")
-            SettingsNavRow("Open Labels", Icons.Filled.Print, "/settings/printer")
+            SettingsNavRow("Open Labels", Symbols.Print, "/settings/printer")
         }
     }
 }

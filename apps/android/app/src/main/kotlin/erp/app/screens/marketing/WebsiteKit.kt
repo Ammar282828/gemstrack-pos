@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.SegmentedColumn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -11,9 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.StarBorder
 import erp.app.ui.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -259,7 +257,7 @@ fun WebsiteFeatureButton(key: String, name: String, modifier: Modifier = Modifie
     val enabled = store.featuredRead
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         TextButton(onClick = { asking = true }, enabled = enabled) {
-            Icon(if (on) Icons.Filled.Star else Icons.Filled.StarBorder, contentDescription = null, Modifier.size(18.dp))
+            Icon(if (on) Symbols.Star else Symbols.StarBorder, contentDescription = null, Modifier.size(18.dp))
             Text(if (on) "Set of the day: on the home page" else "Feature today", Modifier.padding(start = 6.dp))
         }
     }
@@ -303,10 +301,10 @@ fun WebsiteSetOfTheDay(withNote: Boolean = true) {
                     FieldRow("A line about it (optional)", note, { note = it.take(160) }, imeAction = androidx.compose.ui.text.input.ImeAction.Done)
                     if (note != f.note) ActionRow("Put this line on the home page", { asking = "note" })
                 }
-                ActionRow("Take it off the home page", { asking = "remove" }, Icons.Filled.StarBorder, tone = Tone.problem)
+                ActionRow("Take it off the home page", { asking = "remove" }, Symbols.StarBorder, tone = Tone.problem)
             }
             else -> Row(Modifier.fillMaxWidth().ledgerRow(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.StarBorder, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Symbols.StarBorder, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("Nothing is the set of the day. Feature a photo to lead the home page with it.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }

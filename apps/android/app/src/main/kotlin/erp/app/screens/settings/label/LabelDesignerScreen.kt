@@ -1,11 +1,13 @@
 package erp.app.screens.settings.label
 
+import erp.app.ui.icons.Symbols
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,8 +18,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.LocalOffer
 import erp.app.ui.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -179,7 +179,7 @@ private fun LabelDesigner() {
             },
         )
         loaded && error != null && settings == null -> Column(Modifier.fillMaxSize(), horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
-            NotAvailableState("Couldn't load the tag", why = error, icon = Icons.Filled.LocalOffer)
+            NotAvailableState("Couldn't load the tag", why = error, icon = Symbols.LocalOffer)
             Button(onClick = { book.settings.reset(); book.settings.need() }) { Text("Try again") }
         }
         else -> SkeletonLoading()
@@ -279,8 +279,7 @@ internal fun LabelDesignerContent(state: DesignerState, standard: LabelLayout, s
                     VerticalRule()
                     Column(Modifier.weight(1f).fillMaxHeight()) {
                         LabelCanvas(state, Modifier.weight(1f), ::requestDelete)
-                        HorizontalDivider()
-                        LabelControlBar(state, saveState)
+                        Box(Modifier.background(MaterialTheme.colorScheme.surfaceContainer)) { LabelControlBar(state, saveState) }
                     }
                     VerticalRule()
                     Column(Modifier.width(360.dp).fillMaxHeight()) {
@@ -291,8 +290,7 @@ internal fun LabelDesignerContent(state: DesignerState, standard: LabelLayout, s
             } else {
                 Column(Modifier.fillMaxSize()) {
                     LabelCanvas(state, Modifier.weight(1f).heightIn(min = 230.dp), ::requestDelete)
-                    HorizontalDivider()
-                    LabelControlBar(state, saveState)
+                    Box(Modifier.background(MaterialTheme.colorScheme.surfaceContainer)) { LabelControlBar(state, saveState) }
                     LabelSegments(Panel.entries.map { it.title to it.title }, panel.title, { v -> panel = Panel.entries.first { it.title == v } })
                     Box(Modifier.fillMaxWidth().height(300.dp)) { PanelBody(state, panel, standard, ::requestDelete, { replacingPicture = true }) { confirmingStandard = true } }
                 }
@@ -335,7 +333,8 @@ internal fun LabelDesignerContent(state: DesignerState, standard: LabelLayout, s
 
 @Composable
 private fun VerticalRule() {
-    Box(Modifier.width(1.dp).fillMaxHeight().background(MaterialTheme.colorScheme.outlineVariant))
+    // The panes part by a gap of the page tone, not a rule.
+    Spacer(Modifier.width(8.dp).fillMaxHeight())
 }
 
 @Composable
@@ -346,7 +345,7 @@ private fun PanelBody(state: DesignerState, panel: Panel, standard: LabelLayout,
         Panel.Label -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(20.dp)) {
             LabelSettingsSections(state)
             SettingsSection {
-                LabelTapRow("Back to the standard tag", toStandard, enabled = !state.model.readOnly, icon = Icons.Filled.LocalOffer)
+                LabelTapRow("Back to the standard tag", toStandard, enabled = !state.model.readOnly, icon = Symbols.LocalOffer)
             }
             LabelCsvSection()
         }

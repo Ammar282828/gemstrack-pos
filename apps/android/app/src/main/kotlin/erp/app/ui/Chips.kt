@@ -1,6 +1,7 @@
 package erp.app.ui
 
 import androidx.compose.animation.AnimatedVisibility
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -8,8 +9,6 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -74,7 +73,7 @@ fun FilterChip(
         // The check makes room for itself and fades in (and goes the same way) instead of appearing at once.
         leadingIcon = {
             AnimatedVisibility(chosen, enter = motion.expandInX, exit = motion.collapseOutX) {
-                Icon(Icons.Filled.Check, contentDescription = null, Modifier.size(FilterChipDefaults.IconSize))
+                Icon(Symbols.Check, contentDescription = null, Modifier.size(FilterChipDefaults.IconSize))
             }
         },
         shape = MaterialTheme.shapes.small,

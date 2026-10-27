@@ -1,111 +1,62 @@
 package erp.app.nav
 
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.AccountBalance
-import androidx.compose.material.icons.rounded.AccountBalanceWallet
-import androidx.compose.material.icons.rounded.AddCircleOutline
-import androidx.compose.material.icons.rounded.AddPhotoAlternate
-import androidx.compose.material.icons.automirrored.rounded.Assignment
-import androidx.compose.material.icons.rounded.Build
-import androidx.compose.material.icons.rounded.BusinessCenter
-import androidx.compose.material.icons.rounded.CalendarMonth
-import androidx.compose.material.icons.rounded.Campaign
-import androidx.compose.material.icons.rounded.Checklist
-import androidx.compose.material.icons.rounded.Construction
-import androidx.compose.material.icons.rounded.AutoAwesome
-import androidx.compose.material.icons.rounded.Sensors
-import androidx.compose.material.icons.rounded.ContactPage
-import androidx.compose.material.icons.rounded.Contacts
-import androidx.compose.material.icons.rounded.CropSquare
-import androidx.compose.material.icons.rounded.Diamond
-import androidx.compose.material.icons.rounded.Download
-import androidx.compose.material.icons.rounded.Edit
-import androidx.compose.material.icons.rounded.GridView
-import androidx.compose.material.icons.rounded.Groups
-import androidx.compose.material.icons.rounded.ViewAgenda
-import androidx.compose.material.icons.rounded.Explore
-import androidx.compose.material.icons.rounded.History
-import androidx.compose.material.icons.rounded.Home
-import androidx.compose.material.icons.rounded.Inventory
-import androidx.compose.material.icons.rounded.Inventory2
-import androidx.compose.material.icons.rounded.Language
-import androidx.compose.material.icons.rounded.Layers
-import androidx.compose.material.icons.rounded.Mic
-import androidx.compose.material.icons.rounded.Notifications
-import androidx.compose.material.icons.rounded.Paid
-import androidx.compose.material.icons.rounded.Palette
-import androidx.compose.material.icons.rounded.Payments
-import androidx.compose.material.icons.rounded.PendingActions
-import androidx.compose.material.icons.rounded.People
-import androidx.compose.material.icons.rounded.PhotoCamera
-import androidx.compose.material.icons.rounded.PieChart
-import androidx.compose.material.icons.rounded.Power
-import androidx.compose.material.icons.rounded.QrCodeScanner
-import androidx.compose.material.icons.rounded.Receipt
-import androidx.compose.material.icons.rounded.RocketLaunch
-import androidx.compose.material.icons.rounded.Scale
-import androidx.compose.material.icons.rounded.Sell
-import androidx.compose.material.icons.automirrored.rounded.Send
-import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.Storage
-import androidx.compose.material.icons.rounded.Adjust
-import androidx.compose.material.icons.rounded.BarChart
-import androidx.compose.material.icons.automirrored.rounded.TrendingUp
-import androidx.compose.material.icons.rounded.Tune
-import androidx.compose.material.icons.automirrored.rounded.Undo
-import androidx.compose.material.icons.rounded.Unarchive
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material.icons.automirrored.outlined.*
+import erp.app.ui.icons.Symbols
 
 /**
- * The ERP's icons (lucide) as Material icons. A name not here falls back to a plain square, and the map is
+ * The ERP's icons (lucide) as Material Symbols. A name not here falls back to a plain square, and the map is
  * short enough to keep whole: nav-export lists every icon the ERP's map uses (a test checks both files').
  */
 object NavIcon {
     private val icons: Map<String, () -> ImageVector> = mapOf(
-        "ArchiveRestore" to { Icons.Rounded.Unarchive }, "Banknote" to { Icons.Rounded.Payments }, "Bell" to { Icons.Rounded.Notifications },
-        "BookUser" to { Icons.Rounded.ContactPage }, "Bot" to { Icons.Rounded.AutoAwesome }, "Radio" to { Icons.Rounded.Sensors }, "Boxes" to { Icons.Rounded.Inventory2 }, "Briefcase" to { Icons.Rounded.BusinessCenter },
-        "Calendar" to { Icons.Rounded.CalendarMonth }, "Camera" to { Icons.Rounded.PhotoCamera }, "ChartColumn" to { Icons.Rounded.BarChart },
-        "ChartPie" to { Icons.Rounded.PieChart }, "CirclePlus" to { Icons.Rounded.AddCircleOutline }, "ClipboardList" to { Icons.AutoMirrored.Rounded.Assignment },
-        "Coins" to { Icons.Rounded.Paid }, "Contact" to { Icons.Rounded.Contacts }, "Database" to { Icons.Rounded.Storage },
-        "FileClock" to { Icons.Rounded.PendingActions }, "Gem" to { Icons.Rounded.Diamond }, "Globe" to { Icons.Rounded.Language },
-        "Hammer" to { Icons.Rounded.Construction }, "History" to { Icons.Rounded.History }, "House" to { Icons.Rounded.Home },
-        "ImagePlus" to { Icons.Rounded.AddPhotoAlternate }, "Import" to { Icons.Rounded.Download }, "Landmark" to { Icons.Rounded.AccountBalance },
-        "Layers" to { Icons.Rounded.Layers }, "LayoutGrid" to { Icons.Rounded.GridView }, "ListChecks" to { Icons.Rounded.Checklist },
-        "Map" to { Icons.Rounded.Explore }, "Megaphone" to { Icons.Rounded.Campaign }, "Mic" to { Icons.Rounded.Mic }, "Package" to { Icons.Rounded.Inventory },
-        "Palette" to { Icons.Rounded.Palette }, "PenLine" to { Icons.Rounded.Edit }, "Plug" to { Icons.Rounded.Power },
-        "Receipt" to { Icons.Rounded.Receipt }, "Rocket" to { Icons.Rounded.RocketLaunch }, "Rows3" to { Icons.Rounded.ViewAgenda }, "RotateCcw" to { Icons.AutoMirrored.Rounded.Undo },
-        "Scale" to { Icons.Rounded.Scale }, "ScanLine" to { Icons.Rounded.QrCodeScanner }, "Send" to { Icons.AutoMirrored.Rounded.Send },
-        "Settings" to { Icons.Rounded.Settings }, "SlidersHorizontal" to { Icons.Rounded.Tune }, "Tag" to { Icons.Rounded.Sell },
-        "Target" to { Icons.Rounded.Adjust }, "TrendingUp" to { Icons.AutoMirrored.Rounded.TrendingUp }, "Users" to { Icons.Rounded.People },
-        "UsersRound" to { Icons.Rounded.Groups }, "Wallet" to { Icons.Rounded.AccountBalanceWallet }, "Wrench" to { Icons.Rounded.Build },
+        "ArchiveRestore" to { Symbols.Unarchive }, "Banknote" to { Symbols.Payments }, "Bell" to { Symbols.Notifications },
+        "BookUser" to { Symbols.ContactPage }, "Bot" to { Symbols.AutoAwesome }, "Radio" to { Symbols.Sensors }, "Boxes" to { Symbols.Inventory2 }, "Briefcase" to { Symbols.BusinessCenter },
+        "Calendar" to { Symbols.CalendarMonth }, "Camera" to { Symbols.PhotoCamera }, "ChartColumn" to { Symbols.BarChart },
+        "ChartPie" to { Symbols.PieChart }, "CirclePlus" to { Symbols.AddCircleOutline }, "ClipboardList" to { Symbols.Assignment },
+        "Coins" to { Symbols.Paid }, "Contact" to { Symbols.Contacts }, "Database" to { Symbols.Storage },
+        "FileClock" to { Symbols.PendingActions }, "Gem" to { Symbols.Diamond }, "Globe" to { Symbols.Language },
+        "Hammer" to { Symbols.Construction }, "History" to { Symbols.History }, "House" to { Symbols.Home },
+        "ImagePlus" to { Symbols.AddPhotoAlternate }, "Import" to { Symbols.Download }, "Landmark" to { Symbols.AccountBalance },
+        "Layers" to { Symbols.Layers }, "LayoutGrid" to { Symbols.GridView }, "ListChecks" to { Symbols.Checklist },
+        "Map" to { Symbols.Explore }, "Megaphone" to { Symbols.Campaign }, "Mic" to { Symbols.Mic }, "Package" to { Symbols.Inventory },
+        "Palette" to { Symbols.Palette }, "PenLine" to { Symbols.Edit }, "Plug" to { Symbols.Power },
+        "Receipt" to { Symbols.Receipt }, "Rocket" to { Symbols.RocketLaunch }, "Rows3" to { Symbols.ViewAgenda }, "RotateCcw" to { Symbols.Undo },
+        "Scale" to { Symbols.Scale }, "ScanLine" to { Symbols.QrCodeScanner }, "Send" to { Symbols.Send },
+        "Settings" to { Symbols.Settings }, "SlidersHorizontal" to { Symbols.Tune }, "Tag" to { Symbols.Sell },
+        "Target" to { Symbols.Adjust }, "TrendingUp" to { Symbols.TrendingUp }, "Users" to { Symbols.People },
+        "UsersRound" to { Symbols.Groups }, "Wallet" to { Symbols.AccountBalanceWallet }, "Wrench" to { Symbols.Build },
     )
 
-    /** The same places drawn as outlines: the bar shows these until a tab is chosen, then crossfades to the filled one. */
-    private val outlined: Map<String, () -> ImageVector> = mapOf(
-        "ArchiveRestore" to { Icons.Outlined.Unarchive }, "Banknote" to { Icons.Outlined.Payments }, "Bell" to { Icons.Outlined.Notifications },
-        "BookUser" to { Icons.Outlined.ContactPage }, "Bot" to { Icons.Outlined.AutoAwesome }, "Radio" to { Icons.Outlined.Sensors }, "Boxes" to { Icons.Outlined.Inventory2 }, "Briefcase" to { Icons.Outlined.BusinessCenter },
-        "Calendar" to { Icons.Outlined.CalendarMonth }, "Camera" to { Icons.Outlined.PhotoCamera }, "ChartColumn" to { Icons.Outlined.BarChart },
-        "ChartPie" to { Icons.Outlined.PieChart }, "CirclePlus" to { Icons.Outlined.AddCircleOutline }, "ClipboardList" to { Icons.AutoMirrored.Outlined.Assignment },
-        "Coins" to { Icons.Outlined.Paid }, "Contact" to { Icons.Outlined.Contacts }, "Database" to { Icons.Outlined.Storage },
-        "FileClock" to { Icons.Outlined.PendingActions }, "Gem" to { Icons.Outlined.Diamond }, "Globe" to { Icons.Outlined.Language },
-        "Hammer" to { Icons.Outlined.Construction }, "History" to { Icons.Outlined.History }, "House" to { Icons.Outlined.Home },
-        "ImagePlus" to { Icons.Outlined.AddPhotoAlternate }, "Import" to { Icons.Outlined.Download }, "Landmark" to { Icons.Outlined.AccountBalance },
-        "Layers" to { Icons.Outlined.Layers }, "LayoutGrid" to { Icons.Outlined.GridView }, "ListChecks" to { Icons.Outlined.Checklist },
-        "Map" to { Icons.Outlined.Explore }, "Megaphone" to { Icons.Outlined.Campaign }, "Mic" to { Icons.Outlined.Mic }, "Package" to { Icons.Outlined.Inventory },
-        "Palette" to { Icons.Outlined.Palette }, "PenLine" to { Icons.Outlined.Edit }, "Plug" to { Icons.Outlined.Power },
-        "Receipt" to { Icons.Outlined.Receipt }, "Rocket" to { Icons.Outlined.RocketLaunch }, "Rows3" to { Icons.Outlined.ViewAgenda }, "RotateCcw" to { Icons.AutoMirrored.Outlined.Undo },
-        "Scale" to { Icons.Outlined.Scale }, "ScanLine" to { Icons.Outlined.QrCodeScanner }, "Send" to { Icons.AutoMirrored.Outlined.Send },
-        "Settings" to { Icons.Outlined.Settings }, "SlidersHorizontal" to { Icons.Outlined.Tune }, "Tag" to { Icons.Outlined.Sell },
-        "Target" to { Icons.Outlined.Adjust }, "TrendingUp" to { Icons.AutoMirrored.Outlined.TrendingUp }, "Users" to { Icons.Outlined.People },
-        "UsersRound" to { Icons.Outlined.Groups }, "Wallet" to { Icons.Outlined.AccountBalanceWallet }, "Wrench" to { Icons.Outlined.Build },
+
+    /** The same places filled: the chosen tab of the bar. */
+    private val selected: Map<String, () -> ImageVector> = mapOf(
+        "ArchiveRestore" to { Symbols.Fill.Unarchive }, "Banknote" to { Symbols.Fill.Payments }, "Bell" to { Symbols.Fill.Notifications },
+        "BookUser" to { Symbols.Fill.ContactPage }, "Bot" to { Symbols.Fill.AutoAwesome }, "Radio" to { Symbols.Fill.Sensors }, "Boxes" to { Symbols.Fill.Inventory2 }, "Briefcase" to { Symbols.Fill.BusinessCenter },
+        "Calendar" to { Symbols.Fill.CalendarMonth }, "Camera" to { Symbols.Fill.PhotoCamera }, "ChartColumn" to { Symbols.Fill.BarChart },
+        "ChartPie" to { Symbols.Fill.PieChart }, "CirclePlus" to { Symbols.Fill.AddCircleOutline }, "ClipboardList" to { Symbols.Fill.Assignment },
+        "Coins" to { Symbols.Fill.Paid }, "Contact" to { Symbols.Fill.Contacts }, "Database" to { Symbols.Fill.Storage },
+        "FileClock" to { Symbols.Fill.PendingActions }, "Gem" to { Symbols.Fill.Diamond }, "Globe" to { Symbols.Fill.Language },
+        "Hammer" to { Symbols.Fill.Construction }, "History" to { Symbols.Fill.History }, "House" to { Symbols.Fill.Home },
+        "ImagePlus" to { Symbols.Fill.AddPhotoAlternate }, "Import" to { Symbols.Fill.Download }, "Landmark" to { Symbols.Fill.AccountBalance },
+        "Layers" to { Symbols.Fill.Layers }, "LayoutGrid" to { Symbols.Fill.GridView }, "ListChecks" to { Symbols.Fill.Checklist },
+        "Map" to { Symbols.Fill.Explore }, "Megaphone" to { Symbols.Fill.Campaign }, "Mic" to { Symbols.Fill.Mic }, "Package" to { Symbols.Fill.Inventory },
+        "Palette" to { Symbols.Fill.Palette }, "PenLine" to { Symbols.Fill.Edit }, "Plug" to { Symbols.Fill.Power },
+        "Receipt" to { Symbols.Fill.Receipt }, "Rocket" to { Symbols.Fill.RocketLaunch }, "Rows3" to { Symbols.Fill.ViewAgenda }, "RotateCcw" to { Symbols.Fill.Undo },
+        "Scale" to { Symbols.Fill.Scale }, "ScanLine" to { Symbols.Fill.QrCodeScanner }, "Send" to { Symbols.Fill.Send },
+        "Settings" to { Symbols.Fill.Settings }, "SlidersHorizontal" to { Symbols.Fill.Tune }, "Tag" to { Symbols.Fill.Sell },
+        "Target" to { Symbols.Fill.Adjust }, "TrendingUp" to { Symbols.Fill.TrendingUp }, "Users" to { Symbols.Fill.People },
+        "UsersRound" to { Symbols.Fill.Groups }, "Wallet" to { Symbols.Fill.AccountBalanceWallet }, "Wrench" to { Symbols.Fill.Build },
     )
+
 
     /** The lucide names this app draws. */
     val known: Set<String> get() = icons.keys
 
-    fun vector(lucide: String?): ImageVector = lucide?.let { icons[it]?.invoke() } ?: Icons.Rounded.CropSquare
+    /** Outline: the bar shows this until a tab is chosen, and every list of places wears it. */
+    fun vector(lucide: String?): ImageVector = lucide?.let { icons[it]?.invoke() } ?: Symbols.CropSquare
 
-    fun outline(lucide: String?): ImageVector = lucide?.let { outlined[it]?.invoke() } ?: Icons.Outlined.CropSquare
+    fun outline(lucide: String?): ImageVector = vector(lucide)
+
+    /** Filled: the bar's chosen tab (Material Symbols' fill axis, as the navigation bar's selected item). */
+    fun filled(lucide: String?): ImageVector = lucide?.let { selected[it]?.invoke() } ?: Symbols.Fill.CropSquare
 }

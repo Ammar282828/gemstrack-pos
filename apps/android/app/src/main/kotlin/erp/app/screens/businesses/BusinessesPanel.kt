@@ -1,5 +1,7 @@
 package erp.app.screens.businesses
 
+import erp.app.ui.TextField
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -13,14 +15,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.AddCircle
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.KeyboardArrowDown
-import androidx.compose.material.icons.rounded.KeyboardArrowUp
-import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.Info
 import erp.app.ui.AlertDialog
 import erp.app.ui.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -29,7 +23,6 @@ import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import erp.app.ui.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import erp.app.ui.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -173,7 +166,7 @@ fun BusinessesPanel(inSheet: Boolean, demo: Boolean = House.isDemo, initialPrevi
         if (inSheet) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("Businesses", Modifier.weight(1f), style = ErpType.heading)
-                IconButton(onClick = Businesses::closeSheet) { Icon(Icons.Rounded.Close, "Close") }
+                IconButton(onClick = Businesses::closeSheet) { Icon(Symbols.Close, "Close") }
             }
         }
 
@@ -206,7 +199,7 @@ fun BusinessesPanel(inSheet: Boolean, demo: Boolean = House.isDemo, initialPrevi
                 else "Type the address of the business's ERP, like erp.houseofmina.store. You'll see its name, logo and colours before it is added, then sign in with the Gmail it has for you.",
             ) {
                 Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedTextField(
+                    TextField(
                         value = address,
                         onValueChange = {
                             address = it
@@ -277,11 +270,11 @@ private fun BusinessRow(
             Status(b, who, demo)
         }
         if (editing) {
-            IconButton(onClick = onUp, enabled = canUp) { Icon(Icons.Rounded.KeyboardArrowUp, "Move ${b.displayName} up") }
-            IconButton(onClick = onDown, enabled = canDown) { Icon(Icons.Rounded.KeyboardArrowDown, "Move ${b.displayName} down") }
-            IconButton(onClick = onRemove) { Icon(Icons.Rounded.Delete, (if (b.art != null) "Hide " else "Remove ") + b.displayName, tint = Tone.problem.color()) }
+            IconButton(onClick = onUp, enabled = canUp) { Icon(Symbols.KeyboardArrowUp, "Move ${b.displayName} up") }
+            IconButton(onClick = onDown, enabled = canDown) { Icon(Symbols.KeyboardArrowDown, "Move ${b.displayName} down") }
+            IconButton(onClick = onRemove) { Icon(Symbols.Delete, (if (b.art != null) "Hide " else "Remove ") + b.displayName, tint = Tone.problem.color()) }
         } else if (open) {
-            Icon(Icons.Rounded.CheckCircle, "Open now", tint = ErpColors.accent)
+            Icon(Symbols.CheckCircle, "Open now", tint = ErpColors.accent)
         }
     }
 }
@@ -322,7 +315,7 @@ private fun PreviewCard(b: Business, known: Boolean, adding: Boolean, onAdd: () 
         }
         if (known) NoticeRow("Already on this phone: adding it again refreshes how it looks.")
         Button(onClick = onAdd, enabled = !adding, modifier = Modifier.fillMaxWidth()) {
-            Icon(Icons.Rounded.AddCircle, null, Modifier.size(18.dp))
+            Icon(Symbols.AddCircle, null, Modifier.size(18.dp))
             Text(if (adding) "Adding…" else if (known) "Refresh and open ${b.name}" else "Add ${b.name}", Modifier.padding(start = 8.dp))
         }
         TextButton(onClick = onDrop, enabled = !adding, modifier = Modifier.fillMaxWidth()) { Text("Not this one") }
@@ -332,7 +325,7 @@ private fun PreviewCard(b: Business, known: Boolean, adding: Boolean, onAdd: () 
 @Composable
 private fun NoticeRow(text: String) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
-        Icon(Icons.Rounded.Info, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Icon(Symbols.Info, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

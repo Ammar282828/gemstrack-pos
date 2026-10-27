@@ -1,5 +1,6 @@
 package erp.app.screens.rates
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -19,10 +20,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
@@ -121,7 +118,7 @@ fun RateChip(modifier: Modifier = Modifier) {
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (!today) Icon(Icons.Filled.Warning, contentDescription = null, Modifier.size(14.dp), tint = ink)
+        if (!today) Icon(Symbols.Warning, contentDescription = null, Modifier.size(14.dp), tint = ink)
         Text(main.label, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold), color = ink)
         NumericText(
             if (rate != null) Money.grouped(rate) else "—", rate ?: 0.0,
@@ -282,7 +279,7 @@ fun RateSheet(onDismiss: () -> Unit) {
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(Icons.Filled.Language, contentDescription = null, Modifier.size(22.dp), tint = ErpColors.accent)
+                        Icon(Symbols.Language, contentDescription = null, Modifier.size(22.dp), tint = ErpColors.accent)
                         Text("Fill gold from gold.pk", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge, color = ErpColors.accent)
                         if (filling) SkeletonLoading(compact = true)
                     }
@@ -358,7 +355,7 @@ private fun RateDialog(
             Column(Modifier.fillMaxSize().safeDrawingPadding()) {
                 TopAppBar(
                     title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                    navigationIcon = { IconButton(onClick = onCancel) { Icon(Icons.Filled.Close, "Cancel") } },
+                    navigationIcon = { IconButton(onClick = onCancel) { Icon(Symbols.Close, "Cancel") } },
                     actions = {
                         TextButton(onClick = onConfirm, enabled = confirmEnabled, modifier = Modifier.defaultMinSize(minHeight = MinTouchTarget)) { Text(confirmText) }
                     },

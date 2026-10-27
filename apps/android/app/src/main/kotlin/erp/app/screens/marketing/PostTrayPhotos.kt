@@ -1,5 +1,7 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.TextField
+import erp.app.ui.icons.Symbols
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -19,16 +21,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import erp.app.ui.TextButton
 import androidx.compose.runtime.Composable
@@ -169,9 +164,9 @@ fun PostAlbumStrip(card: PostTrayCard, model: PostTrayModel, siteName: String, l
         ActionRow(
             if (reading) "Reading the photos…" else "Add from this phone",
             { pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-            Icons.Filled.PhotoLibrary, enabled = !locked && !reading && !full,
+            Symbols.PhotoLibrary, enabled = !locked && !reading && !full,
         )
-        ActionRow("Add from $siteName", { choosing = true }, Icons.Filled.Language, enabled = !locked && !full)
+        ActionRow("Add from $siteName", { choosing = true }, Symbols.Language, enabled = !locked && !full)
     }
     if (choosing) PostAlbumSitePicker(card, model, onSay) { choosing = false }
 }
@@ -190,10 +185,10 @@ private fun Tile(card: PostTrayCard, model: PostTrayModel, x: PostAlbumPhoto, lo
             )
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = { model.move(card, x.id, -1) }, enabled = !locked && number > 1) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Move earlier") }
+            IconButton(onClick = { model.move(card, x.id, -1) }, enabled = !locked && number > 1) { Icon(Symbols.KeyboardArrowLeft, "Move earlier") }
             if (x.isLead) Box(Modifier.size(48.dp))
-            else IconButton(onClick = { model.remove(card, x.id) }, enabled = !locked) { Icon(Icons.Filled.Close, "Take photo $number out") }
-            IconButton(onClick = { model.move(card, x.id, 1) }, enabled = !locked && number < card.album.size) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Move later") }
+            else IconButton(onClick = { model.remove(card, x.id) }, enabled = !locked) { Icon(Symbols.Close, "Take photo $number out") }
+            IconButton(onClick = { model.move(card, x.id, 1) }, enabled = !locked && number < card.album.size) { Icon(Symbols.KeyboardArrowRight, "Move later") }
         }
     }
 }
@@ -210,7 +205,7 @@ private fun PostAlbumSitePicker(card: PostTrayCard, model: PostTrayModel, onSay:
     }.take(80)
     FullScreenSheet(title = "Add a photo", onCancel = onClose, cancelText = "Done", confirmText = "Done", onConfirm = onClose) {
         Column(Modifier.fillMaxSize()) {
-            OutlinedTextField(
+            TextField(
                 search, { search = it }, Modifier.fillMaxWidth().padding(16.dp), singleLine = true, placeholder = { Text("Search: ruby, kara, jhumka…") },
             )
             LazyColumn(Modifier.fillMaxSize()) {

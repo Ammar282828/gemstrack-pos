@@ -1,5 +1,6 @@
 package erp.app.screens.settings.label
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -14,9 +15,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -114,10 +112,10 @@ private fun NumberBox(value: Int, onChange: (Int) -> Unit, range: IntRange, modi
 @Composable
 private fun RowScope.Stepper(value: Int, onChange: (Int) -> Unit, range: IntRange, label: String) {
     IconButton(onClick = { onChange((value - 1).coerceIn(range.first, range.last)) }, Modifier.size(MinTouchTarget).semantics { contentDescription = "Less $label" }) {
-        Icon(Icons.Filled.Remove, null, tint = ErpColors.accent)
+        Icon(Symbols.Remove, null, tint = ErpColors.accent)
     }
     IconButton(onClick = { onChange((value + 1).coerceIn(range.first, range.last)) }, Modifier.size(MinTouchTarget).semantics { contentDescription = "More $label" }) {
-        Icon(Icons.Filled.Add, null, tint = ErpColors.accent)
+        Icon(Symbols.Add, null, tint = ErpColors.accent)
     }
 }
 

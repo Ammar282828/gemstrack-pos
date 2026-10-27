@@ -1,5 +1,6 @@
 package erp.app.screens.sale
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.SegmentedColumn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -12,15 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Assignment
-import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.DocumentScanner
-import androidx.compose.material.icons.filled.Inbox
-import androidx.compose.material.icons.filled.QrCodeScanner
-import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -90,21 +82,21 @@ fun NewChooser() {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             LedgerHeading("What is it?", Modifier.padding(horizontal = 16.dp))
             SegmentedColumn {
-                Choice("Sale", "Buying now: pieces, payment, the invoice", Icons.Filled.Description, ErpColors.accent, ErpColors.onAccent) { navigator.open("/invoices/new") }
-                Choice("Order", "To be made: sizes, an advance, the workshop", Icons.AutoMirrored.Filled.Assignment, Indigo, Color.White) { navigator.open("/orders/add") }
-                Choice("Repair", "Brought in to be fixed: pieces, price, ready-by", Icons.Filled.Build, Teal, Color.White) { navigator.open("/repairs?new=1") }
+                Choice("Sale", "Buying now: pieces, payment, the invoice", Symbols.Description, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onPrimary) { navigator.open("/invoices/new") }
+                Choice("Order", "To be made: sizes, an advance, the workshop", Symbols.Assignment, MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.onSecondaryContainer) { navigator.open("/orders/add") }
+                Choice("Repair", "Brought in to be fixed: pieces, price, ready-by", Symbols.Build, MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer) { navigator.open("/repairs?new=1") }
             }
         }
 
         // The other ways in. Reading a written bill and a parchi are the ERP's AI scanners: its pages.
         LedgerSection("Other ways in") {
-            LinkRow("Scan a tag", Icons.Filled.QrCodeScanner) { navigator.open("/scan") }
-            LinkRow("Read a written bill", Icons.Filled.DocumentScanner) { navigator.open(SaleLinks.readBill) }
-            LinkRow("Scan a parchi", Icons.AutoMirrored.Filled.Article) { navigator.open("/orders/add?scan=parchi") }
+            LinkRow("Scan a tag", Symbols.QrCodeScanner) { navigator.open("/scan") }
+            LinkRow("Read a written bill", Symbols.DocumentScanner) { navigator.open(SaleLinks.readBill) }
+            LinkRow("Scan a parchi", Symbols.Article) { navigator.open("/orders/add?scan=parchi") }
         }
 
         Untitled("Orders and sales not yet saved, from every device in the shop.") {
-            LinkRow("Drafts", Icons.Filled.Inbox) { navigator.open("/drafts") }
+            LinkRow("Drafts", Symbols.Inbox) { navigator.open("/drafts") }
         }
     }
 }
@@ -117,10 +109,6 @@ private fun Untitled(footer: String, content: @Composable () -> Unit) {
         Text(footer, Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
-
-// iOS's system indigo and teal, which the New menu's order and repair icons wear.
-private val Indigo = Color(0xFF5856D6)
-private val Teal = Color(0xFF30B0C7)
 
 /**
  * A bill left half-finished should be obvious, and one tap from here. Its figure is the pieces at today's rates, as
@@ -138,7 +126,7 @@ private fun ProgressRow(draft: SaleDraft, settings: erp.core.models.Settings?, o
         Modifier.fillMaxWidth().ledgerRow().clickable(role = Role.Button, onClick = open),
         horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(Icons.Filled.ShoppingCart, contentDescription = null, tint = erp.app.ui.Tone.owed.fill())
+        Icon(Symbols.ShoppingCart, contentDescription = null, tint = erp.app.ui.Tone.owed.fill())
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text("A sale in progress", style = MaterialTheme.typography.titleMedium)
             Text(

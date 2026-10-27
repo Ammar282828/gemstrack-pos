@@ -1,5 +1,6 @@
 package erp.app.nav
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,12 +16,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.ArrowDropDown
-import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -66,6 +61,12 @@ import androidx.compose.animation.AnimatedContent
 
 /** True under the phone layout's bottom bar, which already takes the system navigation inset. */
 val LocalBottomBar = compositionLocalOf { false }
+
+/**
+ * How far the last row of a tab's list must clear the bottom: the floating create button (56 dp, 16 dp from the edge) and a gap,
+ * as Material's lists pad under a FAB. Zero where no button floats (tablets carry it in the bar; pushed pages and sheets have none).
+ */
+val LocalFabClearance = compositionLocalOf { 0.dp }
 
 /** True where the business chip sits in the wide navigation rail's header already, so a screen's own top bar does not repeat it. */
 val LocalChipInRail = compositionLocalOf { false }
@@ -126,8 +127,8 @@ fun PlaceScreen(
     }
     val barNavigation: @Composable () -> Unit = {
         when {
-            navigator.canGoBack -> IconButton(onClick = navigator::back) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back") }
-            onClose != null -> IconButton(onClick = onClose) { Icon(Icons.Rounded.Close, "Close") }
+            navigator.canGoBack -> IconButton(onClick = navigator::back) { Icon(Symbols.ArrowBack, "Back") }
+            onClose != null -> IconButton(onClick = onClose) { Icon(Symbols.Close, "Close") }
             rateChip -> RateChip()
         }
     }
@@ -192,7 +193,10 @@ fun PlaceScreen(
                 ) { page ->
                     // The page that is leaving writes its title and actions to a chrome nobody reads, not over the new one's.
                     val own = remember(page) { Chrome() }
-                    CompositionLocalProvider(LocalChrome provides (if (page == current) chrome else own)) {
+                    CompositionLocalProvider(
+                        LocalChrome provides (if (page == current) chrome else own),
+                        LocalFabClearance provides if (LocalBottomBar.current && tabRoot && role != "marketing") 88.dp else 0.dp,
+                    ) {
                         // Search is a list of places, not a form: a wide window reads it in a column, as the rest.
                         if (path == SEARCH_PATH) Box(Modifier.readableColumn(720.dp)) { SearchScreen() }
                         else {
@@ -212,7 +216,7 @@ private fun CreateMenuButton(spec: CreateSpec) {
     var open by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { open = true }) {
-            Icon(Icons.Rounded.Add, if (spec.voice) "Create: new sale, new order, scan or voice" else "Create: new sale, new order or scan")
+            Icon(Symbols.Add, if (spec.voice) "Create: new sale, new order, scan or voice" else "Create: new sale, new order or scan")
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             for (item in createItems(spec)) {
@@ -232,7 +236,7 @@ private fun TitleWithTabs(title: String, tabs: List<NavPlace>, section: String?,
     Box {
         Row(Modifier.clickable { open = true }, verticalAlignment = Alignment.CenterVertically) {
             Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-            Icon(Icons.Rounded.ArrowDropDown, contentDescription = "Switch tab")
+            Icon(Symbols.ArrowDropDown, contentDescription = "Switch tab")
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             if (section != null) {
@@ -242,7 +246,7 @@ private fun TitleWithTabs(title: String, tabs: List<NavPlace>, section: String?,
                 DropdownMenuItem(
                     text = { Text(t.label) },
                     // The page showing now is ticked, as the iPhone's menu does.
-                    leadingIcon = { Icon(if (t.href == current) Icons.Rounded.Check else NavIcon.vector(t.icon), null) },
+                    leadingIcon = { Icon(if (t.href == current) Symbols.Check else NavIcon.vector(t.icon), null) },
                     onClick = { open = false; onChoose(t.href) },
                 )
             }

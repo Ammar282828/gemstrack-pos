@@ -1,5 +1,6 @@
 package erp.app.screens.stock
 
+import erp.app.ui.icons.Symbols
 import android.graphics.Bitmap
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -13,11 +14,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Print
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -144,13 +140,13 @@ fun StockPieceTagSheet(product: Product, onDismiss: () -> Unit) {
                 }
                 LabelTapRow("Save, send or print the QR", {
                     qrPng(product.sku)?.let { shareBytes(context, it, "${product.sku}-qr.png", "image/png", "QR code for ${product.sku}") }
-                }, icon = Icons.Filled.Share, enabled = qr != null)
+                }, icon = Symbols.Share, enabled = qr != null)
             }
 
             if (method == TagMethod.zebra) {
                 SettingsSection(footer = "Sends the shop's tag for this piece to the Zebra, at today's rates.") {
-                    LabelTapRow("Print tag…", { jobOpen = true }, icon = Icons.Filled.Print)
-                    LabelTapRow("Printer", { onDismiss(); navigator.open("/app/tag-printer") }, icon = Icons.Filled.Print)
+                    LabelTapRow("Print tag…", { jobOpen = true }, icon = Symbols.Print)
+                    LabelTapRow("Printer", { onDismiss(); navigator.open("/app/tag-printer") }, icon = Symbols.Print)
                 }
             } else if (settings?.labelLiveConfig != null) {
                 SettingsSection(footer = "Sends this piece's tag to Label LIVE at the counter, at today's rates.") {
@@ -163,11 +159,11 @@ fun StockPieceTagSheet(product: Product, onDismiss: () -> Unit) {
                             printing = false
                             if (outcome.ok) note.show(Note("Tag sent", outcome.message)) else problem = outcome.message
                         }
-                    }, icon = Icons.Filled.Print, enabled = !printing)
+                    }, icon = Symbols.Print, enabled = !printing)
                 }
             } else {
                 SettingsSection(footer = "Paste the design's link once in Settings, and tags print from here.") {
-                    LabelTapRow("Set up Label LIVE", { onDismiss(); navigator.open("/app/label-live") }, icon = Icons.Filled.Print)
+                    LabelTapRow("Set up Label LIVE", { onDismiss(); navigator.open("/app/label-live") }, icon = Symbols.Print)
                 }
             }
 
@@ -186,8 +182,8 @@ fun StockPieceTagSheet(product: Product, onDismiss: () -> Unit) {
                         }
                         making = false
                     }
-                }, icon = Icons.Filled.Download, enabled = !making)
-                csv?.let { f -> LabelTapRow("Save or send the CSV", { shareFile(context, f, "text/csv", f.name) }, icon = Icons.Filled.Share) }
+                }, icon = Symbols.Download, enabled = !making)
+                csv?.let { f -> LabelTapRow("Save or send the CSV", { shareFile(context, f, "text/csv", f.name) }, icon = Symbols.Share) }
             }
         }
     }
@@ -245,7 +241,7 @@ fun TagPrintJobSheet(initial: List<Product>, onDismiss: () -> Unit, onPrinted: (
                             Text(p.name.ifEmpty { p.sku }, maxLines = 1, style = MaterialTheme.typography.bodyLarge)
                             if (p.name.isNotEmpty()) Text(p.sku, style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace), color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        IconButton({ pieces = pieces.filter { it.sku != p.sku } }) { Icon(Icons.Filled.Close, "Remove ${p.sku}", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+                        IconButton({ pieces = pieces.filter { it.sku != p.sku } }) { Icon(Symbols.Close, "Remove ${p.sku}", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
                     }
                 }
                 if (pieces.isEmpty()) Text("No pieces left to print.", Modifier.padding(16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -280,7 +276,7 @@ fun TagPrintJobSheet(initial: List<Product>, onDismiss: () -> Unit, onPrinted: (
             }
             SettingsSection("Printer") {
                 ValueRow("Print with") { Text(methodWords(method), color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, textAlign = TextAlign.End) }
-                LabelTapRow("Printer settings", { onDismiss(); navigator.open("/app/tag-printer") }, icon = Icons.Filled.Print)
+                LabelTapRow("Printer settings", { onDismiss(); navigator.open("/app/tag-printer") }, icon = Symbols.Print)
             }
         }
     }

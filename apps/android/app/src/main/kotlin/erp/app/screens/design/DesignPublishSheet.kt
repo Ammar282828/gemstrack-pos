@@ -1,5 +1,6 @@
 package erp.app.screens.design
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -9,6 +10,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -21,27 +23,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
-import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.Cancel
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.ErrorOutline
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.Message
-import androidx.compose.material.icons.filled.Public
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Save
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.TouchApp
-import androidx.compose.material.icons.filled.Campaign
-import androidx.compose.material.icons.filled.Sync
-import androidx.compose.material.icons.filled.Warning
 import erp.app.ui.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -65,6 +46,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
@@ -132,7 +114,7 @@ fun DesignPublishSheet(model: DesignWorkspaceModel, dismiss: () -> Unit) {
 
     DesignSheetBody(note) {
         when {
-            p.loadError != null -> erp.app.ui.NotAvailableState("Couldn’t look at where this can go", why = p.loadError, icon = Icons.Filled.ErrorOutline)
+            p.loadError != null -> erp.app.ui.NotAvailableState("Couldn’t look at where this can go", why = p.loadError, icon = Symbols.ErrorOutline)
             !p.loaded -> SkeletonLoading(Modifier.fillMaxSize().padding(16.dp), label = "Looking at where this can go")
             else -> {
                 BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
@@ -149,7 +131,7 @@ fun DesignPublishSheet(model: DesignWorkspaceModel, dismiss: () -> Unit) {
                         if (issues.isNotEmpty()) {
                             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 for (i in issues) Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.Top) {
-                                    Icon(Icons.Filled.ErrorOutline, null, Modifier.size(16.dp), tint = Tone.problem.color())
+                                    Icon(Symbols.ErrorOutline, null, Modifier.size(16.dp), tint = Tone.problem.color())
                                     Text(i, style = MaterialTheme.typography.bodySmall, color = Tone.problem.color())
                                 }
                             }
@@ -172,7 +154,7 @@ fun DesignPublishSheet(model: DesignWorkspaceModel, dismiss: () -> Unit) {
                         val path = p.metaPath ?: p.ref("meta-ad")
                         if (path != null) {
                             OutlinedButton(onClick = { model.route = path; dismiss() }, Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp)) {
-                                Icon(Icons.Filled.AutoAwesome, null, Modifier.size(18.dp)); Text("Open the new ad", Modifier.padding(start = 6.dp))
+                                Icon(Symbols.AutoAwesome, null, Modifier.size(18.dp)); Text("Open the new ad", Modifier.padding(start = 6.dp))
                             }
                         }
                         p.note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
@@ -205,7 +187,7 @@ fun DesignPublishSheet(model: DesignWorkspaceModel, dismiss: () -> Unit) {
                 val summary = if (n > 0) "$n place${if (n == 1) "" else "s"}, ${if (p.whenKind == "now") "now" else if (p.whenKind == "hold") "held in the queue" else "scheduled"}" else null
                 DesignActionBar(
                     DesignAction(
-                        if (p.whenKind == "now") "Publish" else if (p.whenKind == "hold") "Hold in the queue" else "Schedule", Icons.AutoMirrored.Filled.Send, busy = p.busy,
+                        if (p.whenKind == "now") "Publish" else if (p.whenKind == "hold") "Hold in the queue" else "Schedule", Symbols.Send, busy = p.busy,
                         disabled = problems.isNotEmpty() || p.wordIssues.isNotEmpty() || plan.steps.isEmpty() || allDone,
                     ) {
                         scope.launch {
@@ -260,12 +242,12 @@ private fun Health(p: DesignPublishModel, scope: kotlinx.coroutines.CoroutineSco
             p.healthLoading && p.checks.isEmpty() -> SkeletonLoading(label = "Checking the connections", compact = true)
             f != null -> Text(f, style = MaterialTheme.typography.bodySmall, color = Tone.owed.color())
             failing.isEmpty() -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.CheckCircle, null, Modifier.size(18.dp), tint = Tone.settled.color())
+                Icon(Symbols.CheckCircle, null, Modifier.size(18.dp), tint = Tone.settled.color())
                 Text("Every connection is fine", style = MaterialTheme.typography.bodyMedium, color = Tone.settled.color())
             }
             else -> for (c in failing) Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.Cancel, null, Modifier.size(18.dp), tint = Tone.problem.color())
+                    Icon(Symbols.Cancel, null, Modifier.size(18.dp), tint = Tone.problem.color())
                     Text(c.s("label"), style = MaterialTheme.typography.titleSmall, color = Tone.problem.color())
                 }
                 if (c.s("fix").isNotEmpty()) Text(c.s("fix"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -279,14 +261,14 @@ private fun Health(p: DesignPublishModel, scope: kotlinx.coroutines.CoroutineSco
             }
             if (open) for (c in p.checks) Column(Modifier.padding(vertical = 2.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(if (c.s("status") == "ok") Icons.Filled.CheckCircle else Icons.Filled.Warning, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(if (c.s("status") == "ok") Symbols.CheckCircle else Symbols.Warning, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(c.s("label"), style = MaterialTheme.typography.bodySmall)
                 }
                 Text(c.s("detail"), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         TextButton(onClick = { scope.launch { p.refreshHealth() } }, enabled = !p.healthLoading) {
-            Icon(Icons.Filled.Refresh, null, Modifier.size(16.dp)); Text("Check again", Modifier.padding(start = 6.dp))
+            Icon(Symbols.Refresh, null, Modifier.size(16.dp)); Text("Check again", Modifier.padding(start = 6.dp))
         }
     }
 }
@@ -298,14 +280,14 @@ private fun Places(p: DesignPublishModel, scope: kotlinx.coroutines.CoroutineSco
     SectionCard("Where it goes") {
         if (p.row("website") != null) WebsiteBlock(p, scope)
         if (p.row("whatsapp") != null || p.row("channel") != null) WhatsappBlock(p, scope)
-        InstagramBlock(p, scope, "instagram-story", "Instagram story", Icons.Filled.CameraAlt, p.storyOn, { p.storyOn = it }, onConnect)
-        InstagramBlock(p, scope, "instagram-post", "Instagram post", Icons.Filled.Image, p.postOn, { p.postOn = it }, onConnect)
+        InstagramBlock(p, scope, "instagram-story", "Instagram story", Symbols.CameraAlt, p.storyOn, { p.storyOn = it }, onConnect)
+        InstagramBlock(p, scope, "instagram-post", "Instagram post", Symbols.Image, p.postOn, { p.postOn = it }, onConnect)
         if (p.ok("meta-ad")) {
             val beside = if (DesignDestinations.storyPage(p.pages) != null) " and the 9:16 beside it" else ""
-            PlaceToggle(p, scope, "Meta ad", Icons.Filled.Campaign, p.metaOn, { p.metaOn = it }, "meta-ad", if (p.metaOn) "Opens New ad with the picture$beside." else null)
+            PlaceToggle(p, scope, "Meta ad", Symbols.Campaign, p.metaOn, { p.metaOn = it }, "meta-ad", if (p.metaOn) "Opens New ad with the picture$beside." else null)
         }
-        if (p.ok("site-replace")) PlaceToggle(p, scope, "Replace the photo on the website", Icons.Filled.Sync, p.replaceOn, { p.replaceOn = it }, "site-replace", null)
-        ToggleLine("Save the design", Icons.Filled.Save, p.saveOn, { p.saveOn = it })
+        if (p.ok("site-replace")) PlaceToggle(p, scope, "Replace the photo on the website", Symbols.Sync, p.replaceOn, { p.replaceOn = it }, "site-replace", null)
+        ToggleLine("Save the design", Symbols.Save, p.saveOn, { p.saveOn = it })
     }
 }
 
@@ -334,7 +316,7 @@ private fun PictureLine(p: DesignPublishModel, scope: kotlinx.coroutines.Corouti
     val page = pick.page
     val m = p.missing(dest)
     if (page != null) Text("Uses: ${page.label}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    else if (m != null) OutlinedButton(onClick = { scope.launch { p.make(m) } }) { Icon(Icons.Filled.AutoAwesome, null, Modifier.size(16.dp)); Text(m.label, Modifier.padding(start = 6.dp)) }
+    else if (m != null) OutlinedButton(onClick = { scope.launch { p.make(m) } }) { Icon(Symbols.AutoAwesome, null, Modifier.size(16.dp)); Text(m.label, Modifier.padding(start = 6.dp)) }
 }
 
 /** A choice from a short list, as a bordered row that opens its menu (a `Picker` in a card). */
@@ -346,12 +328,13 @@ fun ChoiceField(label: String, value: String, options: List<Pair<String, String>
         Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Box {
             Row(
-                Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp).border(BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)), Radius.tileShape)
-                    .clickable(role = Role.DropdownList) { open = true }.padding(horizontal = 14.dp),
+                // The filled field's look (ui/TextFields.kt): a tonal box, no outline.
+                Modifier.fillMaxWidth().defaultMinSize(minHeight = 56.dp).clip(Radius.chipShape).background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                    .clickable(role = Role.DropdownList) { open = true }.padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(shown, Modifier.weight(1f), maxLines = 2, style = MaterialTheme.typography.bodyLarge)
-                Icon(Icons.Filled.ArrowDropDown, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Symbols.ArrowDropDown, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             DropdownMenu(open, { open = false }) {
                 for ((v, title) in options) DropdownMenuItem(text = { Text(title) }, onClick = { open = false; onSelect(v) })
@@ -363,7 +346,7 @@ fun ChoiceField(label: String, value: String, options: List<Pair<String, String>
 @Composable
 private fun WebsiteBlock(p: DesignPublishModel, scope: kotlinx.coroutines.CoroutineScope) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        ToggleLine("Website", Icons.Filled.Public, p.websiteOn, { p.websiteOn = it }, enabled = p.ok("website"))
+        ToggleLine("Website", Symbols.Public, p.websiteOn, { p.websiteOn = it }, enabled = p.ok("website"))
         val reason = p.row("website")?.reason
         if (reason != null && !p.ok("website")) Text(reason, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (p.websiteOn && p.ok("website")) {
@@ -392,7 +375,7 @@ private fun WebsiteBlock(p: DesignPublishModel, scope: kotlinx.coroutines.Corout
             PictureLine(p, scope, "website")
             val m = p.missing("website")
             if (p.pages.none { it.label == DesignSizes.website.label } && m != null) {
-                OutlinedButton(onClick = { scope.launch { p.make(m) } }) { Icon(Icons.Filled.AutoAwesome, null, Modifier.size(16.dp)); Text("Make the catalogue photo (weight stamped)", Modifier.padding(start = 6.dp)) }
+                OutlinedButton(onClick = { scope.launch { p.make(m) } }) { Icon(Symbols.AutoAwesome, null, Modifier.size(16.dp)); Text("Make the catalogue photo (weight stamped)", Modifier.padding(start = 6.dp)) }
             }
         }
     }
@@ -406,7 +389,7 @@ private fun WhatsappBlock(p: DesignPublishModel, scope: kotlinx.coroutines.Corou
     if (wa?.available == true) targets += wa.targets
     if (ch?.available == true) targets += ch.targets
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        ToggleLine("WhatsApp", Icons.Filled.Message, p.waOn, { p.waOn = it }, enabled = targets.isNotEmpty())
+        ToggleLine("WhatsApp", Symbols.Message, p.waOn, { p.waOn = it }, enabled = targets.isNotEmpty())
         if (targets.isEmpty()) Text(wa?.reason ?: ch?.reason ?: "This shop has no WhatsApp community set.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (p.waOn && targets.isNotEmpty()) {
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -426,7 +409,7 @@ private fun InstagramBlock(p: DesignPublishModel, scope: kotlinx.coroutines.Coro
         r?.reason?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         if (on) {
             PictureLine(p, scope, id)
-            if (r?.connectable == true) OutlinedButton(onClick = onConnect) { Icon(Icons.Filled.Link, null, Modifier.size(16.dp)); Text("Connect Instagram", Modifier.padding(start = 6.dp)) }
+            if (r?.connectable == true) OutlinedButton(onClick = onConnect) { Icon(Symbols.Link, null, Modifier.size(16.dp)); Text("Connect Instagram", Modifier.padding(start = 6.dp)) }
         }
     }
 }
@@ -437,7 +420,7 @@ private fun InstagramBlock(p: DesignPublishModel, scope: kotlinx.coroutines.Coro
 private fun Captions(p: DesignPublishModel, scope: kotlinx.coroutines.CoroutineScope) {
     SectionCard("Captions") {
         OutlinedButton(onClick = { scope.launch { p.writeCaptions() } }, Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp), enabled = !p.aiBusy) {
-            if (p.aiBusy) Loading(Modifier.size(24.dp)) else Icon(Icons.Filled.AutoAwesome, null, Modifier.size(18.dp))
+            if (p.aiBusy) Loading(Modifier.size(24.dp)) else Icon(Symbols.AutoAwesome, null, Modifier.size(18.dp))
             Text("Write with AI", Modifier.padding(start = 8.dp))
         }
         if (p.waOn) DesignField("WhatsApp caption", p.wa, { p.wa = it }, minLines = 3, maxLines = 8)
@@ -490,18 +473,18 @@ private fun Steps(p: DesignPublishModel, plan: DesignPublishModel.Plan, scope: k
                     }
                 }
                 if (st.status == DesignPublishModel.Status.Failed) {
-                    OutlinedButton(onClick = { scope.launch { p.run(only = s.id) } }, enabled = !p.busy) { Icon(Icons.Filled.Refresh, null, Modifier.size(16.dp)); Text("Retry", Modifier.padding(start = 6.dp)) }
+                    OutlinedButton(onClick = { scope.launch { p.run(only = s.id) } }, enabled = !p.busy) { Icon(Symbols.Refresh, null, Modifier.size(16.dp)); Text("Retry", Modifier.padding(start = 6.dp)) }
                 }
                 if (s.manual && st.status == DesignPublishModel.Status.Manual) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        OutlinedButton(onClick = { onShare(s) }) { Icon(Icons.Filled.Share, null, Modifier.size(16.dp)); Text("Share it", Modifier.padding(start = 6.dp)) }
+                        OutlinedButton(onClick = { onShare(s) }) { Icon(Symbols.Share, null, Modifier.size(16.dp)); Text("Share it", Modifier.padding(start = 6.dp)) }
                         TextButton(onClick = { scope.launch { p.markDone(s.id, "by hand") } }) { Text("Posted") }
                     }
                 }
             }
         }
         if (plan.steps.any { p.state(it).status == DesignPublishModel.Status.Failed } && !p.busy) {
-            OutlinedButton(onClick = { scope.launch { p.run() } }, Modifier.fillMaxWidth()) { Icon(Icons.Filled.Refresh, null, Modifier.size(16.dp)); Text("Retry what failed", Modifier.padding(start = 6.dp)) }
+            OutlinedButton(onClick = { scope.launch { p.run() } }, Modifier.fillMaxWidth()) { Icon(Symbols.Refresh, null, Modifier.size(16.dp)); Text("Retry what failed", Modifier.padding(start = 6.dp)) }
         }
     }
 }
@@ -509,11 +492,11 @@ private fun Steps(p: DesignPublishModel, plan: DesignPublishModel.Plan, scope: k
 @Composable
 private fun StatusIcon(s: DesignPublishModel.Status) {
     when (s) {
-        DesignPublishModel.Status.Done -> Icon(Icons.Filled.CheckCircle, "Done", tint = Tone.settled.color())
-        DesignPublishModel.Status.Failed -> Icon(Icons.Filled.Cancel, "Failed", tint = Tone.problem.color())
+        DesignPublishModel.Status.Done -> Icon(Symbols.CheckCircle, "Done", tint = Tone.settled.color())
+        DesignPublishModel.Status.Failed -> Icon(Symbols.Cancel, "Failed", tint = Tone.problem.color())
         DesignPublishModel.Status.Running -> Loading(Modifier.size(30.dp))
-        DesignPublishModel.Status.Manual -> Icon(Icons.Filled.TouchApp, "Waiting for you", tint = Tone.owed.color())
-        DesignPublishModel.Status.Waiting -> Icon(Icons.Filled.CheckCircle, "Waiting", tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f))
+        DesignPublishModel.Status.Manual -> Icon(Symbols.TouchApp, "Waiting for you", tint = Tone.owed.color())
+        DesignPublishModel.Status.Waiting -> Icon(Symbols.CheckCircle, "Waiting", tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f))
     }
 }
 
@@ -522,12 +505,11 @@ private fun StatusIcon(s: DesignPublishModel.Status) {
 @Composable
 private fun Extras(p: DesignPublishModel, onAgain: () -> Unit, onAll: () -> Unit, onCaptioned: () -> Unit, onCopy: () -> Unit, onChannel: (String) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-        ExtraLine("Share or save every size", Icons.Filled.Share, onAll)
-        if (p.row("whatsapp") != null || p.row("channel") != null) ExtraLine("Share the picture with its caption", Icons.Filled.Share, onCaptioned)
-        if (p.wa.trim().isNotEmpty()) ExtraLine("Copy the caption", Icons.Filled.ContentCopy, onCopy)
+        ExtraLine("Share or save every size", Symbols.Share, onAll)
+        if (p.row("whatsapp") != null || p.row("channel") != null) ExtraLine("Share the picture with its caption", Symbols.Share, onCaptioned)
+        if (p.wa.trim().isNotEmpty()) ExtraLine("Copy the caption", Symbols.ContentCopy, onCopy)
         val link = p.config["posting"]["links"].s("waChannel")
-        if (link.startsWith("https://")) ExtraLine("Open the WhatsApp channel", Icons.AutoMirrored.Filled.OpenInNew) { onChannel(link) }
+        if (link.startsWith("https://")) ExtraLine("Open the WhatsApp channel", Symbols.OpenInNew) { onChannel(link) }
         if (p.memory.isNotEmpty()) TextButton(onClick = onAgain, enabled = !p.busy) { Text("Send again from the start") }
     }
 }

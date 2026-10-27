@@ -923,6 +923,7 @@ their standing "do everything yourself": `docs/features/design-studio-plan.md`; 
 - **Motion is Material 3 Expressive's too:** springs from the theme's motion scheme, never hand-picked tweens; pages stay the platform's own Activity transitions (see Motion).
 - **Wallpaper colours are optional.** Settings → This phone → "Wallpaper colours" (Android 12+) wears the phone's own scheme instead. Off by default, because one app holds both
   houses and the business's colour is the cue.
+- **All of it, 2026-10-27** ("Convert the remaining"): Material Symbols Rounded for every icon, the home-screen widget in the same scheme and the system's widget corner, the create button never over the last row, tonal tiles and spacing in place of hairlines inside cards, Material's filled text field, and the launch window in the business's surface. Spec: `docs/features/android-app.md#material-you-the-rest-2026-10-27`.
 
 ## Outside AI
 

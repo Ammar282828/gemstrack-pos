@@ -1,5 +1,6 @@
 package erp.app.screens.settings
 
+import erp.app.ui.icons.Symbols
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -11,14 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Contacts
-import androidx.compose.material.icons.filled.Engineering
-import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material.icons.filled.NoteAdd
-import androidx.compose.material.icons.filled.People
 import erp.app.ui.Button
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
@@ -167,11 +160,11 @@ internal fun ContactImportPage(initialAnswer: ContactPlanAnswer? = null) {
                 "Choose the file",
                 "On Android: read this phone's contacts directly, or export a .vcf from Contacts and choose it here. Only entries marked TJ, HOM, TC or Karigar in the name are taken. The mark is stripped, so “Altaf TJ” is saved as Altaf. Nothing is written until you press Import.",
             ) {
-                ActionRow("Read this phone's contacts", onClick = { readPhone() }, icon = Icons.Filled.Contacts, enabled = !reading && !importing)
+                ActionRow("Read this phone's contacts", onClick = { readPhone() }, icon = Symbols.Contacts, enabled = !reading && !importing)
                 ActionRow(
                     if (fileName.isEmpty() || fileName == "This phone's contacts") "Choose a .vcf file" else fileName,
                     onClick = { picker.launch(arrayOf("text/x-vcard", "text/vcard", "text/directory", "text/plain", "application/octet-stream")) },
-                    icon = Icons.Filled.NoteAdd, enabled = !reading && !importing,
+                    icon = Symbols.NoteAdd, enabled = !reading && !importing,
                 )
                 if (reading) Column(Modifier.fillMaxWidth().ledgerRow()) { erp.app.ui.SkeletonLoading(compact = true) }
                 error?.let { msg ->
@@ -222,7 +215,7 @@ internal fun ContactImportPage(initialAnswer: ContactPlanAnswer? = null) {
             ) {
                 Text("$willAdd to add, $willResolve to resolve.", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Button(onClick = { runImport() }, enabled = !importing && (willAdd > 0 || willResolve > 0)) {
-                    Icon(Icons.Filled.FileDownload, contentDescription = null, Modifier.size(18.dp))
+                    Icon(Symbols.FileDownload, contentDescription = null, Modifier.size(18.dp))
                     Text("  Import")
                 }
             }
@@ -264,7 +257,7 @@ private fun FreshRow(f: PendingContact, off: Boolean, enabled: Boolean, toggle: 
         Modifier.fillMaxWidth().ledgerRow().alpha(if (off) 0.45f else 1f),
         horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(if (f.kind == "karigar") Icons.Filled.Engineering else Icons.Filled.People, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Icon(if (f.kind == "karigar") Symbols.Engineering else Symbols.People, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
                 f.name, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium, textDecoration = if (off) TextDecoration.LineThrough else null),
@@ -274,7 +267,7 @@ private fun FreshRow(f: PendingContact, off: Boolean, enabled: Boolean, toggle: 
         }
         f.tags.forEach { StatusBadge(it.uppercase(), Tone.quiet) }
         IconButton(onClick = toggle, enabled = enabled) {
-            Icon(if (off) Icons.Filled.Check else Icons.Filled.Close, if (off) "Put back" else "Drop", tint = if (off) Tone.settled.color() else MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(if (off) Symbols.Check else Symbols.Close, if (off) "Put back" else "Drop", tint = if (off) Tone.settled.color() else MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

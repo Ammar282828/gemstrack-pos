@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -17,9 +18,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.GpsFixed
 import androidx.compose.material3.FilterChip as M3FilterChip
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
@@ -299,14 +297,14 @@ fun ArtworkRunsRows(layer: MarketingValue, words: String, change: ArtworkChange)
                         Text(words.substring(r.from, r.to), maxLines = 1, style = MaterialTheme.typography.bodyMedium)
                         Text(runSummary(r), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    IconButton(onClick = { picked = tokens.indices.filter { tokens[it].from >= r.from && tokens[it].to <= r.to }.toSet() }, Modifier.semantics { contentDescription = "Pick these words" }) { Icon(Icons.Filled.GpsFixed, null) }
+                    IconButton(onClick = { picked = tokens.indices.filter { tokens[it].from >= r.from && tokens[it].to <= r.to }.toSet() }, Modifier.semantics { contentDescription = "Pick these words" }) { Icon(Symbols.GpsFixed, null) }
                     IconButton(onClick = {
                         val all = ArtworkRuns.normalize(layer["runs"].array, length).toMutableList()
                         if (index in all.indices) {
                             all.removeAt(index)
                             change(if (all.isEmpty()) layer.without("runs") else layer.with("runs", MarketingValue.array(all.map(ArtworkRuns::encode))), null)
                         }
-                    }, Modifier.semantics { contentDescription = "Remove this style" }) { Icon(Icons.Filled.Delete, null, tint = Tone.problem.color()) }
+                    }, Modifier.semantics { contentDescription = "Remove this style" }) { Icon(Symbols.Delete, null, tint = Tone.problem.color()) }
                 }
             }
         }

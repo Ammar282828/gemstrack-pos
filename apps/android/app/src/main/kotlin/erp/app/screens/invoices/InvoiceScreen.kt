@@ -1,6 +1,7 @@
 package erp.app.screens.invoices
 
 import erp.app.ui.rememberErpMotion
+import erp.app.ui.icons.Symbols
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -17,30 +18,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Message
-import androidx.compose.material.icons.automirrored.filled.Undo
-import androidx.compose.material.icons.filled.AccountBalance
-import androidx.compose.material.icons.filled.ArrowCircleDown
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.CreditCard
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.FileCopy
-import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material.icons.filled.PersonAdd
-import androidx.compose.material.icons.filled.PictureAsPdf
-import androidx.compose.material.icons.filled.Percent
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material.icons.filled.QuestionMark
 import erp.app.ui.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -93,7 +70,8 @@ import erp.app.ui.NotAvailableState
 import erp.app.ui.PaidRing
 import erp.app.ui.PaymentCustomer
 import erp.app.ui.PaymentSheet
-import erp.app.ui.PerforationDivider
+import erp.app.ui.SegmentedColumn
+import erp.app.ui.ledgerRow
 import erp.app.ui.Pill
 import erp.app.ui.QuickAction
 import erp.app.ui.RowAmount
@@ -178,7 +156,7 @@ fun InvoiceScreen(id: String) {
 private fun InvoiceNotFound(id: String) {
     val navigator = LocalNavigator.current
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-        NotAvailableState("Invoice $id not found", why = "It may have been refunded in full, which removes it.", icon = Icons.Filled.QuestionMark)
+        NotAvailableState("Invoice $id not found", why = "It may have been refunded in full, which removes it.", icon = Symbols.QuestionMark)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TextButton(onClick = { navigator.open("/invoices") }) { Text("All invoices") }
             TextButton(onClick = { navigator.open("/invoices/new") }) { Text("New sale") }
@@ -225,39 +203,39 @@ private fun InvoiceDetail(inv: Invoice, customers: List<erp.core.models.Customer
 
     ScreenActions {
         Box {
-            IconButton(onClick = { menuOpen = true }) { Icon(Icons.Filled.MoreVert, contentDescription = "More") }
+            IconButton(onClick = { menuOpen = true }) { Icon(Symbols.MoreVert, contentDescription = "More") }
             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                 val item: @Composable (String, ImageVector, Boolean, () -> Unit) -> Unit = { label, icon, destructive, run ->
                     MenuAction(label, icon, destructive) { menuOpen = false; run() }
                 }
                 MenuHeading("Share")
                 // The PDF Print saves, drawn on the ERP's server and shown here: Print, Save, WhatsApp from its share sheet.
-                item("PDF", Icons.Filled.PictureAsPdf, false) { pdf = InvoiceFacts.pdfTarget(inv, byCustomer) }
+                item("PDF", Symbols.PictureAsPdf, false) { pdf = InvoiceFacts.pdfTarget(inv, byCustomer) }
                 // The split button's other half (print-button.tsx): one invoice per piece, for pieces bought for several people.
-                if (inv.items.size > 1) item("PDF per piece", Icons.Filled.FileCopy, false) { pdf = InvoiceFacts.pdfTarget(inv, byCustomer, perPiece = true) }
-                item(if (inv.sentOnWhatsApp == null) "WhatsApp" else "WhatsApp again", Icons.AutoMirrored.Filled.Message, false) { sending = inv }
+                if (inv.items.size > 1) item("PDF per piece", Symbols.FileCopy, false) { pdf = InvoiceFacts.pdfTarget(inv, byCustomer, perPiece = true) }
+                item(if (inv.sentOnWhatsApp == null) "WhatsApp" else "WhatsApp again", Symbols.Message, false) { sending = inv }
                 InvoiceFacts.shareUrl(inv, House.serverUrl)?.let { link ->
-                    item("Customer link", Icons.Filled.Link, false) {
+                    item("Customer link", Symbols.Link, false) {
                         val words = InvoiceFacts.shareMessage(inv, session.shop.name, byCustomer)
                         erp.app.device.shareText(context, InvoiceFacts.shareTitle(inv, byCustomer), "$words\n\n$link")
                     }
                 }
                 HorizontalDivider()
                 MenuHeading("Change")
-                item("Edit", Icons.Filled.Edit, false) { navigator.open(InvoiceFacts.editPath(inv.id)) }
+                item("Edit", Symbols.Edit, false) { navigator.open(InvoiceFacts.editPath(inv.id)) }
                 // Gold moves: the same edit, at its rates (owners', as Edit invoice is).
-                if (owner) item("Change rate", Icons.Filled.Percent, false) { navigator.open(InvoiceFacts.changeRatePath(inv.id)) }
+                if (owner) item("Change rate", Symbols.Percent, false) { navigator.open(InvoiceFacts.changeRatePath(inv.id)) }
                 if (inv.status != InvoiceStatus.refunded) {
                     // The store's own Firestore write on the web, which the shop floor cannot make: an owner's.
-                    if (owner) item(if (InvoiceFacts.unnamed(inv)) "Name the customer" else "Change customer", Icons.Filled.Person, false) { settingCustomer = true }
-                    item("Change discount", Icons.Filled.Percent, false) { act(InvoiceAct.Discount) }
+                    if (owner) item(if (InvoiceFacts.unnamed(inv)) "Name the customer" else "Change customer", Symbols.Person, false) { settingCustomer = true }
+                    item("Change discount", Symbols.Percent, false) { act(InvoiceAct.Discount) }
                 }
                 HorizontalDivider()
                 MenuHeading("More")
-                item("Open in the ERP", Icons.Filled.Language, false) { openWeb() }
+                item("Open in the ERP", Symbols.Language, false) { openWeb() }
                 HorizontalDivider()
-                if (inv.status != InvoiceStatus.refunded) item("Refund…", Icons.AutoMirrored.Filled.Undo, true) { act(InvoiceAct.Refund) }
-                item("Delete invoice…", Icons.Filled.Delete, true) { act(InvoiceAct.Delete) }
+                if (inv.status != InvoiceStatus.refunded) item("Refund…", Symbols.Undo, true) { act(InvoiceAct.Refund) }
+                item("Delete invoice…", Symbols.Delete, true) { act(InvoiceAct.Delete) }
             }
         }
     }
@@ -292,7 +270,7 @@ private fun InvoiceDetail(inv: Invoice, customers: List<erp.core.models.Customer
                     onClick = { paying = inv },
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).defaultMinSize(minHeight = 52.dp),
                 ) {
-                    Icon(Icons.Filled.Payments, contentDescription = null)
+                    Icon(Symbols.Payments, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
                     if (isLargeText()) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -403,16 +381,15 @@ private fun Hero(inv: Invoice, owner: Boolean, nameThem: () -> Unit) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Icons.Filled.PersonAdd, contentDescription = null, tint = ErpColors.accent)
+                Icon(Symbols.PersonAdd, contentDescription = null, tint = ErpColors.accent)
                 Text("Name the customer", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold), color = ErpColors.accent)
             }
         }
-        PerforationDivider()
         Figures(inv)
         // Whoever opens it next sees the PDF went, so it is not sent twice.
         inv.sentOnWhatsApp?.let { sent ->
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.CheckCircle, contentDescription = null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Symbols.CheckCircle, contentDescription = null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("PDF sent to ${sent.to} · ${ShopDate.say(sent.at, withTime = true)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
@@ -466,7 +443,7 @@ private fun Figures(inv: Invoice) {
 private fun LeadFigure(inv: Invoice) {
     val line = balanceLine(inv.balanceDue)
     if (inv.status == InvoiceStatus.refunded) {
-        Pill("Refunded", tone = Tone.quiet, icon = Icons.AutoMirrored.Filled.Undo)
+        Pill("Refunded", tone = Tone.quiet, icon = Symbols.Undo)
         return
     }
     when (line.state) {
@@ -491,7 +468,7 @@ private fun QuickRow(inv: Invoice, customers: List<erp.core.models.Customer>, by
     val reachable = InvoiceFacts.dialable(phone).isNotEmpty()
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
         if (reachable) ContactActions(phone, Modifier.weight(1f))
-        QuickAction("PDF", Icons.Filled.PictureAsPdf, { openPdf(InvoiceFacts.pdfTarget(inv, byCustomer)) }, Modifier.width(if (reachable) 88.dp else 110.dp))
+        QuickAction("PDF", Symbols.PictureAsPdf, { openPdf(InvoiceFacts.pdfTarget(inv, byCustomer)) }, Modifier.width(if (reachable) 88.dp else 110.dp))
     }
 }
 
@@ -503,12 +480,11 @@ private fun PiecesCard(inv: Invoice, owner: Boolean, all: Boolean, showAll: () -
     val shown = if (all) items else items.take(FIRST_PIECES)
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         LedgerHeading("Pieces", Modifier.padding(horizontal = 16.dp), count = items.size)
-        Column(Modifier.ledgerCard().animateContentSize(rememberErpMotion().spatial()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (items.isEmpty()) Text("No pieces on this invoice.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            shown.forEach { PieceRow(it, owner) }
-            if (!all && items.size > FIRST_PIECES) TextButton(onClick = showAll) { Text("Show ${items.size - FIRST_PIECES} more") }
-            PerforationDivider()
-            TotalRows(inv)
+        SegmentedColumn(Modifier.animateContentSize(rememberErpMotion().spatial())) {
+            if (items.isEmpty()) Text("No pieces on this invoice.", Modifier.ledgerRow(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            shown.forEach { Box(Modifier.ledgerRow()) { PieceRow(it, owner) } }
+            if (!all && items.size > FIRST_PIECES) TextButton(onClick = showAll, Modifier.padding(horizontal = 8.dp)) { Text("Show ${items.size - FIRST_PIECES} more") }
+            Box(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) { TotalRows(inv) }
         }
     }
 }
@@ -596,14 +572,14 @@ private fun PaymentsCard(
             count = if (inv.paymentHistory.size > 1) inv.paymentHistory.size else null,
             trailing = Money.pkr(inv.amountPaid),
         )
-        Column(Modifier.fillMaxWidth().clip(erp.app.ui.Radius.cardShape).background(ErpColors.card)) {
+        SegmentedColumn {
             if (inv.paymentHistory.isEmpty()) {
                 Text("No payments yet", Modifier.padding(16.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             inv.paymentHistory.forEachIndexed { index, p ->
                 if (index > 0) erp.app.ui.LedgerDivider()
                 if (owner) {
-                    SwipeActions(end = RowAction("Delete payment", Icons.Filled.Delete, Tone.problem) { onDelete(index, p) }, menu = listOf(RowAction("Delete payment", Icons.Filled.Delete, Tone.problem) { onDelete(index, p) })) {
+                    SwipeActions(end = RowAction("Delete payment", Symbols.Delete, Tone.problem) { onDelete(index, p) }, menu = listOf(RowAction("Delete payment", Symbols.Delete, Tone.problem) { onDelete(index, p) })) {
                         PaymentRow(p)
                     }
                 } else {
@@ -612,7 +588,7 @@ private fun PaymentsCard(
             }
             if (mayTake && (inv.paymentHistory.isEmpty() || !owing)) {
                 TextButton(onClick = onTake, Modifier.padding(horizontal = 8.dp)) {
-                    Icon(Icons.Filled.Payments, contentDescription = null)
+                    Icon(Symbols.Payments, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
                     Text(if (owing) "Take payment" else "Take payment as credit")
                 }
@@ -620,7 +596,7 @@ private fun PaymentsCard(
             // Paid past the total: the customer's credit, on their hisaab (decision "Invoice credit").
             if (line.state == BalanceState.credit && inv.status != InvoiceStatus.refunded && inv.paymentHistory.isNotEmpty()) {
                 Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = null, tint = Tone.credit.color())
+                    Icon(Symbols.Undo, contentDescription = null, tint = Tone.credit.color())
                     Text(
                         "${line.label} · ${Money.pkr(line.amount)}, on ${InvoiceFacts.customerName(inv, walkIn = "the customer")}'s hisaab",
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
@@ -630,7 +606,7 @@ private fun PaymentsCard(
                 // Finish the credit by handing the money over (an owner's; a walk-in holds none).
                 if (owner && InvoiceCredit.canGiveBack(inv)) {
                     TextButton(onClick = onGiveBack, Modifier.padding(horizontal = 8.dp)) {
-                        Icon(Icons.Filled.Payments, contentDescription = null)
+                        Icon(Symbols.Payments, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
                         Text(InvoiceCredit.buttonWords(inv))
                     }
@@ -645,12 +621,12 @@ private fun PaymentsCard(
 private fun PaymentRow(p: Payment) {
     val refund = InvoiceWords.isRefund(p)
     val tone = if (refund) Tone.quiet else Tone.settled
-    val symbol: ImageVector = if (refund) Icons.AutoMirrored.Filled.Undo else when (p.method) {
-        PaymentType.cash -> Icons.Filled.Payments
-        PaymentType.card -> Icons.Filled.CreditCard
-        PaymentType.bankTransfer -> Icons.Filled.AccountBalance
-        PaymentType.cheque -> Icons.Filled.Description
-        else -> Icons.Filled.ArrowCircleDown
+    val symbol: ImageVector = if (refund) Symbols.Undo else when (p.method) {
+        PaymentType.cash -> Symbols.Payments
+        PaymentType.card -> Symbols.CreditCard
+        PaymentType.bankTransfer -> Symbols.AccountBalance
+        PaymentType.cheque -> Symbols.Description
+        else -> Symbols.ArrowCircleDown
     }
     Row(
         Modifier.fillMaxWidth().background(ErpColors.card).defaultMinSize(minHeight = 56.dp).padding(horizontal = 16.dp, vertical = 10.dp).semantics(mergeDescendants = true) {},
@@ -718,7 +694,7 @@ private fun LinkRow(label: String, value: String, onClick: () -> Unit) {
     ) {
         Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(value, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.End)
-        Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Icon(Symbols.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -734,7 +710,7 @@ private fun ShopCard(inv: Invoice, role: String) {
     if (shopNote.isEmpty() && !showsMargin) return
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(Modifier.padding(horizontal = 16.dp).semantics(mergeDescendants = true) {}, horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Filled.Lock, contentDescription = null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(Symbols.Lock, contentDescription = null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
             Text("For the shop (never printed)", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold), color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Column(Modifier.ledgerCard(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -761,7 +737,7 @@ private fun MarginRow(inv: Invoice, settings: erp.core.logic.MarginSettings) {
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(if (shown) Icons.Filled.VisibilityOff else Icons.Filled.Visibility, contentDescription = null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Icon(if (shown) Symbols.VisibilityOff else Symbols.Visibility, contentDescription = null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         Text("We earn", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.weight(1f))
         if (shown) {

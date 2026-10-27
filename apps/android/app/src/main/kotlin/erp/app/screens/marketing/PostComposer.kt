@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.icons.Symbols
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -23,13 +24,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Public
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.filled.PhotoLibrary
 import erp.app.ui.AlertDialog
 import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
@@ -162,7 +156,7 @@ fun PostComposerScreen(path: String) {
     ScreenActions {
         var menu by remember { mutableStateOf(false) }
         Box {
-            IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, "More") }
+            IconButton(onClick = { menu = true }) { Icon(Symbols.MoreVert, "More") }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                 DropdownMenuItem(text = { Text("Drafts") }, onClick = { menu = false; draftsOpen = true })
                 DropdownMenuItem(text = { Text("New piece") }, onClick = { menu = false; scope.launch { model.startOver() } })
@@ -324,7 +318,7 @@ private fun PhotoSection(
         FieldRow("Headline", d.words.s("headline"), { model.word("headline", it) }, singleLine = false, minLines = 1, maxLines = 4, enabled = !model.frozen)
         if (d.photos.isEmpty()) {
             Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Icon(Icons.Filled.PhotoLibrary, null, Modifier.size(40.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Symbols.PhotoLibrary, null, Modifier.size(40.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("Start with a photo", style = MaterialTheme.typography.titleMedium)
                 Text("Choose photos, take one, or bring in a website piece.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -333,10 +327,10 @@ private fun PhotoSection(
         }
         if (!model.frozen) {
             // Twelve photos is the most a piece takes: past that the picker would only fail.
-            if (d.photos.size < 12) ActionRow("Add photos", { onAdd(12 - d.photos.size) }, Icons.Filled.PhotoLibrary)
+            if (d.photos.size < 12) ActionRow("Add photos", { onAdd(12 - d.photos.size) }, Symbols.PhotoLibrary)
             else Text("Twelve photos is the most a piece takes.", Modifier.fillMaxWidth().ledgerRow(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (canCamera) ActionRow("Camera", onCamera, Icons.Filled.CameraAlt)
-            ActionRow("From the website", onSite, Icons.Filled.Public)
+            if (canCamera) ActionRow("Camera", onCamera, Symbols.CameraAlt)
+            ActionRow("From the website", onSite, Symbols.Public)
         }
         MarketingDisclosure("Piece details") {
             Column {
@@ -560,7 +554,7 @@ private fun HealthSection(model: PostComposerModel) {
                     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                if (check.s("status") == "ok") Icons.Filled.CheckCircle else Icons.Filled.Warning, null,
+                                if (check.s("status") == "ok") Symbols.CheckCircle else Symbols.Warning, null,
                                 Modifier.size(18.dp), tint = if (check.s("status") == "ok") Tone.settled.color() else Tone.owed.color(),
                             )
                             Text(check.s("label"), style = MaterialTheme.typography.bodyLarge)

@@ -1,5 +1,6 @@
 package erp.app.screens.settings
 
+import erp.app.ui.icons.Symbols
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -17,9 +18,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -212,37 +210,24 @@ fun SettingsSectionWith(title: String? = null, footer: (@Composable () -> Unit)?
  * per-row colour and is not used: Material You keeps one tonal icon, whatever the row.
  */
 @Composable
-fun SettingsIcon(icon: ImageVector, color: Color, modifier: Modifier = Modifier) {
+fun SettingsIcon(icon: ImageVector, modifier: Modifier = Modifier) {
     Box(modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
         Icon(icon, contentDescription = null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
     }
 }
 
-/** The iPhone's system colours for the icons' squares. */
-object SettingsColors {
-    val blue = Color(0xFF007AFF)
-    val red = Color(0xFFFF3B30)
-    val green = Color(0xFF34C759)
-    val purple = Color(0xFFAF52DE)
-    val gray = Color(0xFF8E8E93)
-    val indigo = Color(0xFF5856D6)
-    val pink = Color(0xFFFF2D55)
-    val teal = Color(0xFF30B0C7)
-    val orange = Color(0xFFFF9500)
-}
-
-/** A row that opens another place, with its icon on a coloured square (the iPhone's `SettingsLinkRow`). */
+/** A row that opens another place, with its icon as a glyph on a tonal circle (Pixel Settings). */
 @Composable
-fun SettingsLinkRow(title: String, icon: ImageVector, color: Color, path: String) {
+fun SettingsLinkRow(title: String, icon: ImageVector, path: String) {
     val navigator = LocalNavigator.current
     Row(
         Modifier.fillMaxWidth().clickable(role = Role.Button) { navigator.open(path) }.ledgerRow(),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        SettingsIcon(icon, color)
+        SettingsIcon(icon)
         Text(title, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-        Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Icon(Symbols.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -260,7 +245,7 @@ fun SettingsNavRow(title: String, icon: ImageVector? = null, path: String, sub: 
             Text(title, style = MaterialTheme.typography.bodyLarge)
             if (sub != null) Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Icon(Symbols.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -280,7 +265,7 @@ fun SettingsErrorSection(writer: SettingsWriter) {
 @Composable
 fun ErrorRow(message: String) {
     Row(Modifier.fillMaxWidth().ledgerRow(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
-        Icon(Icons.Filled.Warning, contentDescription = null, Modifier.size(20.dp), tint = Tone.problem.color())
+        Icon(Symbols.Warning, contentDescription = null, Modifier.size(20.dp), tint = Tone.problem.color())
         Text(message, style = MaterialTheme.typography.bodyMedium, color = Tone.problem.color())
     }
 }

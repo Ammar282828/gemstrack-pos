@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.icons.Symbols
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
@@ -11,11 +12,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.BrokenImage
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -227,7 +223,7 @@ fun MarketingLink(title: String, symbol: ImageVector, path: String, subtitle: St
             Text(title, style = MaterialTheme.typography.bodyLarge)
             if (!subtitle.isNullOrEmpty()) Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+        Icon(Symbols.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
     }
 }
 
@@ -282,7 +278,7 @@ private sealed interface PhotoState {
 @Composable
 private fun PhotoProblem(words: String) {
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(Icons.Filled.BrokenImage, contentDescription = null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Icon(Symbols.BrokenImage, contentDescription = null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(words, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
@@ -325,7 +321,7 @@ fun MarketingDisclosure(title: String, initiallyOpen: Boolean = false, content: 
             horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(title, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-            Icon(if (open) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, contentDescription = if (open) "Fold" else "Unfold", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(if (open) Symbols.ExpandLess else Symbols.ExpandMore, contentDescription = if (open) "Fold" else "Unfold", tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         if (open) Column(Modifier.padding(start = 12.dp, end = 16.dp, bottom = 12.dp)) { content() }
     }

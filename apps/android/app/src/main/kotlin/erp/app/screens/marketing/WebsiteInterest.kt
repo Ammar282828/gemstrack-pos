@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.icons.Symbols
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -15,10 +16,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -222,12 +219,12 @@ private fun LiveLink(liveNow: Int?) {
             Modifier.fillMaxWidth().clickable(role = Role.Button) { navigator.open("/website/interest/live") }.padding(horizontal = 16.dp, vertical = 14.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(Icons.Filled.GraphicEq, contentDescription = null, tint = if ((liveNow ?: 0) > 0) Tone.settled.color() else MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(Symbols.GraphicEq, contentDescription = null, tint = if ((liveNow ?: 0) > 0) Tone.settled.color() else MaterialTheme.colorScheme.onSurfaceVariant)
             Text(
                 if (liveNow != null) "$liveNow on the site now" else "Live",
                 Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = TabularDigits),
             )
-            Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(Symbols.OpenInNew, contentDescription = null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -295,11 +292,11 @@ private fun PieceRow(r: WebsiteInterestPiece, rank: Int, list: WebsiteInterestLi
         if (hasLink) {
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                 DropdownMenuItem(
-                    text = { Text("Open on the website") }, leadingIcon = { Icon(Icons.AutoMirrored.Filled.OpenInNew, null) },
+                    text = { Text("Open on the website") }, leadingIcon = { Icon(Symbols.OpenInNew, null) },
                     onClick = { menu = false; openPiece(context, r.url) },
                 )
                 DropdownMenuItem(
-                    text = { Text("Copy link") }, leadingIcon = { Icon(Icons.Filled.ContentCopy, null) },
+                    text = { Text("Copy link") }, leadingIcon = { Icon(Symbols.ContentCopy, null) },
                     onClick = {
                         menu = false
                         (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("Link", r.url))

@@ -5,14 +5,15 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.net.Uri
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
+import androidx.glance.ColorFilter
 import androidx.glance.GlanceTheme
 import androidx.glance.Image
 import androidx.glance.ImageProvider
@@ -39,6 +40,7 @@ import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
 import androidx.glance.layout.padding
+import androidx.glance.layout.size
 import androidx.glance.layout.width
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
@@ -47,6 +49,7 @@ import erp.app.MainActivity
 import erp.app.R
 import erp.app.config.Businesses
 import erp.app.config.Prefs
+import erp.app.ui.Tone
 import java.time.Instant
 
 /**
@@ -102,19 +105,23 @@ class ErpWidgetReceiver : GlanceAppWidgetReceiver() {
     }
 }
 
-// Inks: the day and night values follow the device; each business's own accent and ground come from its palette.
-private val primary = ColorProvider(day = Color(0xFF1B1B1F), night = Color(0xFFEDEAE4))
-private val secondary = ColorProvider(day = Color(0xFF6B6B70), night = Color(0xFFA6A39C))
-private val hair = ColorProvider(day = Color(0x24000000), night = Color(0x33FFFFFF))
-private val up = ColorProvider(day = Color(0xFF1E8E3E), night = Color(0xFF5BD17A))
-private val late = ColorProvider(day = Color(0xFFD32F2F), night = Color(0xFFFF7B72))
-private val owed = ColorProvider(day = Color(0xFFB45309), night = Color(0xFFFFB347))
+// Inks are the business's own scheme (WidgetColors): onSurface for the figures, onSurfaceVariant for what is quiet, the primary for
+// the business's name and its chart, the tones for late/owed/up. Tonal surfaces take the place of every rule.
+private val ink @Composable get() = GlanceTheme.colors.onSurface
+private val inkQuiet @Composable get() = GlanceTheme.colors.onSurfaceVariant
+private val accent @Composable get() = GlanceTheme.colors.primary
 
-private fun accentOf(look: WidgetLook) = ColorProvider(day = look.accent(false), night = look.accent(true))
-private fun groundOf(look: WidgetLook) = ColorProvider(day = look.ground(false), night = look.ground(true))
-private fun toneOf(tone: String) = if (tone == "late") late else owed
+@Composable
+private fun toneOf(tone: String) = LocalWidgetColors.current.tone(if (tone == "late") Tone.late else Tone.owed)
 
 private fun Context.isNight() = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+
+/** A widget-sized tonal tile: the corner the system gives the widget (Android 12+; before that Glance leaves it square). */
+@Composable
+private fun GlanceModifier.outerCorner(): GlanceModifier = cornerRadius(WidgetShape.outer(LocalContext.current))
+
+@Composable
+private fun GlanceModifier.innerCorner(): GlanceModifier = cornerRadius(WidgetShape.inner(LocalContext.current))
 
 /** A tap that opens the app on a business and a screen (`shoperp://open?b=&p=`, AppRouter), by intent: never the browser. */
 @Composable
@@ -125,47 +132,59 @@ private fun open(look: WidgetLook?, path: String = "/"): GlanceModifier {
 }
 
 @Composable
-fun WidgetGlance(shown: List<Pair<WidgetLinkData, WidgetSummary?>>, size: WidgetSize, widthDp: Float, appName: String, now: Instant = Instant.now()) {
+fun WidgetGlance(shown: List<Pair<WidgetLinkData, WidgetSummary?>>, size: WidgetSize, widthDp: Float, appName: String, now: Instant = Instant.now(), wallpaper: Boolean = WidgetColors.wantsWallpaper()) {
     val plan = WidgetLayout.plan(shown, size, now, widthDp)
-    WidgetPlanGlance(plan, appName)
+    WidgetPlanGlance(plan, appName, wallpaper)
 }
 
 @Composable
-fun WidgetPlanGlance(plan: WidgetPlan, appName: String) {
-    // The widget's own outline carries the rounded corner; each business's paper sits inside it.
-    Box(GlanceModifier.fillMaxSize().appWidgetBackground().cornerRadius(22.dp)) {
-        val items = plan.items
+fun WidgetPlanGlance(plan: WidgetPlan, appName: String, wallpaper: Boolean = false) {
+    val context = LocalContext.current
+    val items = plan.items
+    // The widget's own outline carries the system's rounded corner; each business's tonal tile sits inside it. Two tiles leave a
+    // 3 dp seam of the first business's page colour; one tile is the whole widget.
+    val seam = WidgetColors.of(items.firstOrNull()?.look, wallpaper, context).color { it.surface }
+    val alone = if (items.size == 1 || items.isEmpty()) WidgetColors.of(items.firstOrNull()?.look, wallpaper, context).color { it.surfaceContainerHigh } else seam
+    Box(GlanceModifier.fillMaxSize().appWidgetBackground().outerCorner().background(alone)) {
         when {
-            items.isEmpty() -> Paper(null, GlanceModifier.fillMaxSize()) { Unlinked(appName) }
-            plan.arrangement == WidgetArrangement.Single -> Paper(items[0].look, GlanceModifier.fillMaxSize()) { Business(items[0], plan) }
+            items.isEmpty() -> Tile(null, wallpaper, GlanceModifier.fillMaxSize()) { Unlinked(appName) }
+            plan.arrangement == WidgetArrangement.Single -> Tile(items[0].look, wallpaper, GlanceModifier.fillMaxSize()) { Business(items[0], plan) }
             plan.arrangement == WidgetArrangement.Columns -> Row(GlanceModifier.fillMaxSize()) {
-                Paper(items[0].look, GlanceModifier.defaultWeight().fillMaxHeight()) { Business(items[0], plan) }
+                Tile(items[0].look, wallpaper, GlanceModifier.defaultWeight().fillMaxHeight()) { Business(items[0], plan) }
                 Spacer(GlanceModifier.width(3.dp))
-                Paper(items[1].look, GlanceModifier.defaultWeight().fillMaxHeight()) { Business(items[1], plan) }
+                Tile(items[1].look, wallpaper, GlanceModifier.defaultWeight().fillMaxHeight()) { Business(items[1], plan) }
             }
             else -> Column(GlanceModifier.fillMaxSize()) {
                 val tight = plan.size == WidgetSize.Small
-                Paper(items[0].look, GlanceModifier.defaultWeight().fillMaxWidth(), tight) { Business(items[0], plan) }
+                Tile(items[0].look, wallpaper, GlanceModifier.defaultWeight().fillMaxWidth(), tight) { Business(items[0], plan) }
                 Spacer(GlanceModifier.height(3.dp))
-                Paper(items[1].look, GlanceModifier.defaultWeight().fillMaxWidth(), tight) { Business(items[1], plan) }
+                Tile(items[1].look, wallpaper, GlanceModifier.defaultWeight().fillMaxWidth(), tight) { Business(items[1], plan) }
             }
         }
     }
 }
 
-/** A business's own ground: the colour of its palette, the whole of it a tap that opens that business. */
+/** A business's own tile: its scheme's tonal surface (GlanceTheme carries the rest of its colours), the whole of it a tap that opens that business. */
 @Composable
-private fun Paper(look: WidgetLook?, modifier: GlanceModifier, tight: Boolean = false, content: @Composable () -> Unit) {
-    val ground = look?.let { groundOf(it) } ?: ColorProvider(day = Color(0xFFECE8E1), night = Color(0xFF030606))
-    Box(modifier.background(ground).cornerRadius(if (look == null) 0.dp else 18.dp).then(open(look)).padding(horizontal = 14.dp, vertical = if (tight) 6.dp else 10.dp)) { content() }
+private fun Tile(look: WidgetLook?, wallpaper: Boolean, modifier: GlanceModifier, tight: Boolean = false, content: @Composable () -> Unit) {
+    val context = LocalContext.current
+    val colors = remember(look?.id, look?.palette, wallpaper) { WidgetColors.of(look, wallpaper, context) }
+    GlanceTheme(colors = colors.glance) {
+        CompositionLocalProvider(LocalWidgetColors provides colors) {
+            Box(
+                modifier.background(colors.color { it.surfaceContainerHigh }).outerCorner().then(open(look))
+                    .padding(horizontal = 14.dp, vertical = if (tight) 6.dp else 10.dp),
+            ) { content() }
+        }
+    }
 }
 
 @Composable
 private fun Unlinked(appName: String) {
     Column(GlanceModifier.fillMaxSize()) {
-        Text("Your shop, at a glance", style = TextStyle(color = primary, fontSize = 16.sp, fontWeight = FontWeight.Medium), maxLines = 2)
+        Text("Your shop, at a glance", style = TextStyle(color = ink, fontSize = 16.sp, fontWeight = FontWeight.Medium), maxLines = 2)
         Spacer(GlanceModifier.height(4.dp))
-        Text("Open $appName and sign in.", style = TextStyle(color = secondary, fontSize = 12.sp), maxLines = 3)
+        Text("Open $appName and sign in.", style = TextStyle(color = inkQuiet, fontSize = 12.sp), maxLines = 3)
     }
 }
 
@@ -174,7 +193,7 @@ private fun Business(item: WidgetItem, plan: WidgetPlan) {
     val face = item.face
     if (face == null) {
         // A business whose figures have not come yet keeps its place and says so.
-        Text("${item.look.name} · no figures yet", style = TextStyle(color = secondary, fontSize = 12.sp), maxLines = 2)
+        Text("${item.look.name} · no figures yet", style = TextStyle(color = inkQuiet, fontSize = 12.sp), maxLines = 2)
         return
     }
     when (face.kind) {
@@ -209,14 +228,14 @@ private fun SmallFace(look: WidgetLook, f: FacePlan) {
 private fun HalfFace(look: WidgetLook, f: FacePlan, withChart: Boolean) {
     Column(GlanceModifier.fillMaxSize()) {
         if (withChart) {
-            NameTag(look, f)
+            NameTag(f)
             Spacer(GlanceModifier.height(2.dp))
             Hero(f)
             Delta(f)
         } else {
             // A row of a small widget is short: the name with the week's change at its end, then the figure.
             Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                NameTag(look, f, GlanceModifier.defaultWeight())
+                NameTag(f, GlanceModifier.defaultWeight())
                 Delta(f, long = false)
             }
             Spacer(GlanceModifier.height(2.dp))
@@ -278,8 +297,8 @@ private fun LargeFace(look: WidgetLook, f: FacePlan) {
         Row(GlanceModifier.fillMaxWidth()) {
             for (s in f.stats) { Column(GlanceModifier.defaultWeight()) { Stat(s) } }
         }
-        if (f.needs.isNotEmpty()) Section("NEEDS YOU") { f.needs.forEach { NeedRow(look, it) } }
-        if (f.recent.isNotEmpty()) Section("RECENT SALES") { f.recent.forEach { SaleRow(look, it) } }
+        if (f.needs.isNotEmpty()) Section("Needs you", R.drawable.ic_symbol_pending_actions) { f.needs.forEach { NeedRow(look, it) } }
+        if (f.recent.isNotEmpty()) Section("Recent sales", R.drawable.ic_symbol_receipt_long) { f.recent.forEach { SaleRow(look, it) } }
         if (f.needs.isEmpty() && f.recent.isEmpty() && f.supporting.isNotEmpty()) {
             Spacer(GlanceModifier.height(8.dp))
             f.supporting.chunked(f.columns).forEach { row ->
@@ -290,21 +309,22 @@ private fun LargeFace(look: WidgetLook, f: FacePlan) {
             }
         }
         Spacer(GlanceModifier.defaultWeight())
-        f.note?.let { Text("◆ $it", style = TextStyle(color = secondary, fontSize = 11.sp), maxLines = 1) }
+        f.note?.let { Note(it) }
     }
 }
 
 // ---- Pieces ----
 
+/** A label: Material's labelMedium, sentence case, the quiet ink. */
 @Composable
 private fun Eyebrow(text: String) {
-    Text(text.uppercase(), style = TextStyle(color = secondary, fontSize = 10.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+    Text(text, style = TextStyle(color = inkQuiet, fontSize = 11.sp, fontWeight = FontWeight.Medium), maxLines = 1)
 }
 
-/** The business's name in its accent, small caps: what tells two businesses apart on one widget. */
+/** The business's name in its primary, labelMedium: what tells two businesses apart on one widget. */
 @Composable
-private fun NameTag(look: WidgetLook, f: FacePlan, modifier: GlanceModifier = GlanceModifier) {
-    Text(f.name.uppercase(), modifier, style = TextStyle(color = accentOf(look), fontSize = 10.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+private fun NameTag(f: FacePlan, modifier: GlanceModifier = GlanceModifier) {
+    Text(f.name, modifier, style = TextStyle(color = accent, fontSize = 12.sp, fontWeight = FontWeight.Medium), maxLines = 1)
 }
 
 /** "Rs" small and quiet, the number large. */
@@ -312,45 +332,51 @@ private fun NameTag(look: WidgetLook, f: FacePlan, modifier: GlanceModifier = Gl
 private fun Hero(f: FacePlan) {
     Row(verticalAlignment = Alignment.Bottom) {
         f.heroPrefix?.let {
-            Text(it, style = TextStyle(color = secondary, fontSize = 12.sp, fontWeight = FontWeight.Medium), maxLines = 1)
+            Text(it, style = TextStyle(color = inkQuiet, fontSize = 12.sp, fontWeight = FontWeight.Medium), maxLines = 1)
             Spacer(GlanceModifier.width(3.dp))
         }
-        Text(f.heroNumber, style = TextStyle(color = primary, fontSize = f.heroSp.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+        Text(f.heroNumber, style = TextStyle(color = ink, fontSize = f.heroSp.sp, fontWeight = FontWeight.Bold), maxLines = 1)
     }
 }
 
-/** "▲ 12% vs last week": green up, red down, nothing when there is nothing to compare. */
+/** "▲ 12% vs last week": the settled tone up, the late tone down, nothing when there is nothing to compare. */
 @Composable
 private fun Delta(f: FacePlan, long: Boolean = true) {
     val d = f.delta ?: return
     Row {
-        Text(d.text, style = TextStyle(color = if (d.up) up else late, fontSize = 11.sp, fontWeight = FontWeight.Bold), maxLines = 1)
-        if (long) Text("  vs last week", style = TextStyle(color = secondary, fontSize = 11.sp), maxLines = 1)
+        Text(d.text, style = TextStyle(color = LocalWidgetColors.current.tone(if (d.up) Tone.settled else Tone.late), fontSize = 11.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+        if (long) Text("  vs last week", style = TextStyle(color = inkQuiet, fontSize = 11.sp), maxLines = 1)
     }
 }
 
 @Composable
 private fun Stat(s: WidgetStat) {
     Column {
-        Text(s.value, style = TextStyle(color = if (s.late) late else primary, fontSize = 14.sp, fontWeight = FontWeight.Bold), maxLines = 1)
-        Text(s.label, style = TextStyle(color = secondary, fontSize = 10.sp), maxLines = 1)
+        Text(s.value, style = TextStyle(color = if (s.late) LocalWidgetColors.current.tone(Tone.late) else ink, fontSize = 14.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+        Text(s.label, style = TextStyle(color = inkQuiet, fontSize = 11.sp), maxLines = 1)
     }
 }
 
+/** A group of lines in a tonal inset (the rule that used to part them is gone): a symbol and a title in the primary, then the rows. */
 @Composable
-private fun Section(title: String, rows: @Composable () -> Unit) {
-    Spacer(GlanceModifier.height(8.dp))
-    Box(GlanceModifier.fillMaxWidth().height(1.dp).background(hair)) {}
-    Spacer(GlanceModifier.height(5.dp))
-    Eyebrow(title)
-    Spacer(GlanceModifier.height(3.dp))
-    rows()
+private fun Section(title: String, icon: Int, rows: @Composable () -> Unit) {
+    Spacer(GlanceModifier.height(7.dp))
+    val colors = LocalWidgetColors.current
+    Column(GlanceModifier.fillMaxWidth().background(colors.color { it.surfaceContainerHighest }).innerCorner().padding(horizontal = 10.dp, vertical = 6.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Image(ImageProvider(icon), null, GlanceModifier.size(14.dp), colorFilter = ColorFilter.tint(accent))
+            Spacer(GlanceModifier.width(5.dp))
+            Text(title, style = TextStyle(color = accent, fontSize = 12.sp, fontWeight = FontWeight.Medium), maxLines = 1)
+        }
+        Spacer(GlanceModifier.height(2.dp))
+        rows()
+    }
 }
 
 @Composable
 private fun NeedRow(look: WidgetLook, n: WidgetNeed) {
     Row(GlanceModifier.fillMaxWidth().padding(vertical = 1.dp).then(open(look, n.path))) {
-        Text(n.title, GlanceModifier.defaultWeight(), style = TextStyle(color = primary, fontSize = 12.sp, fontWeight = FontWeight.Medium), maxLines = 1)
+        Text(n.title, GlanceModifier.defaultWeight(), style = TextStyle(color = ink, fontSize = 12.sp, fontWeight = FontWeight.Medium), maxLines = 1)
         Text(n.detail, style = TextStyle(color = toneOf(n.tone), fontSize = 12.sp), maxLines = 1)
     }
 }
@@ -358,22 +384,32 @@ private fun NeedRow(look: WidgetLook, n: WidgetNeed) {
 @Composable
 private fun SaleRow(look: WidgetLook, r: WidgetSale) {
     Row(GlanceModifier.fillMaxWidth().padding(vertical = 1.dp).then(open(look, r.path)), verticalAlignment = Alignment.CenterVertically) {
-        Text(r.title, GlanceModifier.defaultWeight(), style = TextStyle(color = primary, fontSize = 12.sp, fontWeight = FontWeight.Medium), maxLines = 1)
-        Text(r.whenText + "  ", style = TextStyle(color = secondary, fontSize = 10.sp), maxLines = 1)
-        Text(r.amount, style = TextStyle(color = primary, fontSize = 12.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+        Text(r.title, GlanceModifier.defaultWeight(), style = TextStyle(color = ink, fontSize = 12.sp, fontWeight = FontWeight.Medium), maxLines = 1)
+        Text(r.whenText + "  ", style = TextStyle(color = inkQuiet, fontSize = 11.sp), maxLines = 1)
+        Text(r.amount, style = TextStyle(color = ink, fontSize = 12.sp, fontWeight = FontWeight.Bold), maxLines = 1)
     }
 }
 
 @Composable
 private fun Cell(f: WidgetFigure) {
-    Text(f.label, style = TextStyle(color = secondary, fontSize = 10.sp), maxLines = 1)
-    Text(f.value, style = TextStyle(color = primary, fontSize = 14.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+    Text(f.label, style = TextStyle(color = inkQuiet, fontSize = 11.sp), maxLines = 1)
+    Text(f.value, style = TextStyle(color = ink, fontSize = 14.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+}
+
+/** The team note, pinned. */
+@Composable
+private fun Note(text: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Image(ImageProvider(R.drawable.ic_symbol_push_pin), null, GlanceModifier.size(14.dp), colorFilter = ColorFilter.tint(inkQuiet))
+        Spacer(GlanceModifier.width(5.dp))
+        Text(text, style = TextStyle(color = inkQuiet, fontSize = 11.sp), maxLines = 1)
+    }
 }
 
 /** Quiet: only when the figures are not from today, or the ERP could not be reached. */
 @Composable
 private fun Stamp(f: FacePlan) {
-    f.stamp?.let { Text(it, style = TextStyle(color = secondary, fontSize = 10.sp), maxLines = 1) }
+    f.stamp?.let { Text(it, style = TextStyle(color = inkQuiet, fontSize = 11.sp), maxLines = 1) }
 }
 
 /** The week's line (small, half) or bars (medium, large), drawn as a bitmap in the business's accent. */
@@ -382,7 +418,7 @@ private fun Chart(look: WidgetLook, f: FacePlan, heightDp: Int) {
     if (f.chart == ChartKind.None) return
     val context = LocalContext.current
     val density = context.resources.displayMetrics.density
-    val color = look.accent(context.isNight()).toArgb()
+    val color = LocalWidgetColors.current.scheme(context.isNight()).primary.toArgb()
     val bitmap = remember(f.days, f.chart, color, heightDp) {
         val h = (heightDp * density).toInt()
         val w = (130 * density).toInt()
@@ -400,5 +436,5 @@ private fun Wordmark(look: WidgetLook, w: Int, h: Int) {
         else -> null
     }
     if (res != null) Image(ImageProvider(res), look.name, GlanceModifier.width(w.dp).height(h.dp), contentScale = ContentScale.Fit)
-    else Text(look.name, style = TextStyle(color = accentOf(look), fontSize = (h * 0.7f).sp, fontWeight = FontWeight.Bold), maxLines = 1)
+    else Text(look.name, style = TextStyle(color = accent, fontSize = (h * 0.7f).sp, fontWeight = FontWeight.Bold), maxLines = 1)
 }

@@ -1,5 +1,6 @@
 package erp.app.screens.settings
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,11 +10,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CloudOff
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -88,7 +84,7 @@ private fun WebsiteSellingLoader() {
     when {
         !loaded -> SkeletonLoading(Modifier.fillMaxWidth().padding(16.dp))
         error != null && value == null ->
-            NotAvailableState("Couldn’t read the website settings", why = error, icon = Icons.Filled.CloudOff)
+            NotAvailableState("Couldn’t read the website settings", why = error, icon = Symbols.CloudOff)
         // No document yet reads as the page's defaults.
         else -> WebsiteSellingForm(value ?: WebsiteSellingConfig())
     }
@@ -145,7 +141,7 @@ fun WebsiteSellingForm(fresh: WebsiteSellingConfig) {
             )
             if (draft.missing.isNotEmpty()) {
                 Row(Modifier.fillMaxWidth().ledgerRow(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
-                    Icon(Icons.Filled.Warning, null, Modifier.size(20.dp), tint = Tone.owed.color())
+                    Icon(Symbols.Warning, null, Modifier.size(20.dp), tint = Tone.owed.color())
                     Text(
                         "Before this can work, set ${draft.missing.joinToString(" and ")}.",
                         style = MaterialTheme.typography.bodyMedium, color = Tone.owed.color(),
@@ -237,7 +233,7 @@ fun WebsiteSellingForm(fresh: WebsiteSellingConfig) {
 @Composable
 private fun CollectionRow(name: String, row: WebsitePricing, def: WebsitePricing, onChange: (WebsitePricing) -> Unit, onRemove: () -> Unit) {
     SwipeActions(
-        end = RowAction("Remove $name", Icons.Filled.Delete, Tone.problem, onRemove),
+        end = RowAction("Remove $name", Symbols.Delete, Tone.problem, onRemove),
     ) {
         Column(Modifier.fillMaxWidth().background(ErpColors.card)) {
             Text(name, Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp), style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold))
@@ -291,7 +287,7 @@ private fun ChoiceRow(label: String, selected: String, options: List<Pair<String
                 Text(label, style = MaterialTheme.typography.bodyLarge)
                 Text(shown, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Icon(Icons.Filled.ExpandMore, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(Symbols.ExpandMore, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             options.forEach { (value, title) -> DropdownMenuItem(text = { Text(title) }, onClick = { open = false; onSelect(value) }) }

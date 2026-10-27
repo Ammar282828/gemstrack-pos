@@ -1,5 +1,6 @@
 package erp.app.screens.customers
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.ContainedLoading
 import erp.app.ui.Loading
 import androidx.activity.compose.BackHandler
@@ -15,10 +16,6 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PersonAdd
-import androidx.compose.material.icons.filled.Straighten
-import androidx.compose.material.icons.filled.VerifiedUser
 import erp.app.ui.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -158,7 +155,7 @@ fun AddCustomer() {
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
-                            Icon(Icons.Filled.VerifiedUser, contentDescription = null, tint = ErpColors.accent)
+                            Icon(Symbols.VerifiedUser, contentDescription = null, tint = ErpColors.accent)
                             Text("Already on file: ${CustomerKit.shown(sameNumber)}", color = ErpColors.accent, style = MaterialTheme.typography.bodyLarge)
                         }
                     }
@@ -207,8 +204,8 @@ private fun SavedPage(s: SavedCustomer, owner: Boolean, onEdit: () -> Unit, onAn
                 footer = if (owner) "The second number, city, sizes, dates and notes are filled in on the edit page." else null,
             ) {
                 // Editing a profile is an owner's (the shop floor has no write to it, in the ERP or here).
-                if (s.id.isNotEmpty() && owner) SavedAction("Add sizes, birthday and notes", Icons.Filled.Straighten, onEdit)
-                SavedAction("Add another customer", Icons.Filled.PersonAdd, onAnother)
+                if (s.id.isNotEmpty() && owner) SavedAction("Add sizes, birthday and notes", Symbols.Straighten, onEdit)
+                SavedAction("Add another customer", Symbols.PersonAdd, onAnother)
             }
         }
         if (s.id.isNotEmpty()) {

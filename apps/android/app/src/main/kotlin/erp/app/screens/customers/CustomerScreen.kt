@@ -1,5 +1,6 @@
 package erp.app.screens.customers
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.SegmentedColumn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -12,15 +13,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.automirrored.filled.Chat
-import androidx.compose.material.icons.filled.PersonOff
-import androidx.compose.material.icons.filled.PersonRemove
-import androidx.compose.material.icons.filled.QuestionMark
-import androidx.compose.material.icons.filled.Sms
-import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -201,10 +193,10 @@ fun CustomerScreen(id: String) {
         ShelfState(loaded = loaded, error = failure, offline = customers.offline, connectionLost = connectionLost) {
             when {
                 customer == null -> NotAvailableState(
-                    "Customer not found", why = "They are not in the book on this phone.", icon = Icons.Filled.QuestionMark,
+                    "Customer not found", why = "They are not in the book on this phone.", icon = Symbols.QuestionMark,
                 )
                 CustomerKit.isRemoved(customer) -> NotAvailableState(
-                    "Removed", why = "${CustomerKit.shown(customer)} was removed. Settings, then Recently removed, puts them back.", icon = Icons.Filled.PersonOff,
+                    "Removed", why = "${CustomerKit.shown(customer)} was removed. Settings, then Recently removed, puts them back.", icon = Symbols.PersonOff,
                 )
                 shown != null -> Page(shown, owner, onGiveBack = { givingBack = it }) { askToRemove(shown) }
             }
@@ -243,7 +235,7 @@ private fun Page(f: Facts, owner: Boolean, onGiveBack: (Invoice) -> Unit, onRemo
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            Icon(Icons.Filled.PersonRemove, contentDescription = null, tint = Tone.problem.color())
+                            Icon(Symbols.PersonRemove, contentDescription = null, tint = Tone.problem.color())
                             Text("Remove this customer", style = MaterialTheme.typography.bodyLarge, color = Tone.problem.color())
                         }
                     }
@@ -273,9 +265,9 @@ private fun Header(c: Customer) {
             }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Contact("Call", Icons.Filled.Call, CustomerKit.callUri(c.phone) != null, Modifier.weight(1f)) { CustomerLinks.call(context, c.phone) }
-            Contact("WhatsApp", Icons.AutoMirrored.Filled.Chat, CustomerKit.whatsAppUri(c.phone) != null, Modifier.weight(1f)) { CustomerLinks.whatsApp(context, c.phone) }
-            Contact("Message", Icons.Filled.Sms, CustomerKit.messageUri(c.phone) != null, Modifier.weight(1f)) { CustomerLinks.message(context, c.phone) }
+            Contact("Call", Symbols.Call, CustomerKit.callUri(c.phone) != null, Modifier.weight(1f)) { CustomerLinks.call(context, c.phone) }
+            Contact("WhatsApp", Symbols.Chat, CustomerKit.whatsAppUri(c.phone) != null, Modifier.weight(1f)) { CustomerLinks.whatsApp(context, c.phone) }
+            Contact("Message", Symbols.Sms, CustomerKit.messageUri(c.phone) != null, Modifier.weight(1f)) { CustomerLinks.message(context, c.phone) }
         }
     }
 }
@@ -362,7 +354,7 @@ private fun InvoicesSection(list: List<Invoice>, owner: Boolean, onGiveBack: (In
         if (list.isEmpty()) EmptyLine("No sales history found for this customer.")
         list.forEachIndexed { i, inv ->
             // Credit they have paid ahead: the owner can hand it back (decision "Invoice credit").
-            val giveBack = if (owner && InvoiceCredit.canGiveBack(inv)) RowAction("Give back", Icons.Filled.Payments, Tone.credit) { onGiveBack(inv) } else null
+            val giveBack = if (owner && InvoiceCredit.canGiveBack(inv)) RowAction("Give back", Symbols.Payments, Tone.credit) { onGiveBack(inv) } else null
             SwipeActions(end = giveBack, menu = listOfNotNull(giveBack)) {
                 Box(Modifier.clickable(role = Role.Button) { open(inv.id) }.ledgerRow()) { CustInvoiceRow(inv) }
             }
@@ -373,7 +365,7 @@ private fun InvoicesSection(list: List<Invoice>, owner: Boolean, onGiveBack: (In
             list.filter { InvoiceCredit.canGiveBack(it) }.forEach { inv ->
                 LedgerDivider()
                 Row(Modifier.fillMaxWidth().clickable(role = Role.Button) { onGiveBack(inv) }.ledgerRow(), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.Payments, null, Modifier.padding(end = 8.dp), tint = Tone.credit.color())
+                    Icon(Symbols.Payments, null, Modifier.padding(end = 8.dp), tint = Tone.credit.color())
                     Text(InvoiceCredit.rowWords(inv), color = Tone.credit.color(), style = MaterialTheme.typography.bodyLarge)
                 }
             }
@@ -421,7 +413,7 @@ private fun HisaabSection(rows: List<HisaabEntry>, id: String, openAll: () -> Un
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Icon(Symbols.MenuBook, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
             Text(if (rows.size > HISAAB_SHOWN) "All ${rows.size} rows in their hisaab" else "Open their hisaab", style = MaterialTheme.typography.bodyLarge)
         }
     }

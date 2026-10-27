@@ -1,5 +1,7 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.TextField
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -13,29 +15,11 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.CloudOff
-import androidx.compose.material.icons.filled.Inbox
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.ShowChart
-import androidx.compose.material.icons.filled.Verified
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import erp.app.ui.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -215,7 +199,7 @@ fun WebsiteInvestmentsScreen() {
         }
     }
     ScreenActions {
-        IconButton(onClick = { adding = true }, enabled = gold.phase == PostsPhase.Loaded) { Icon(Icons.Filled.Add, "Add by hand") }
+        IconButton(onClick = { adding = true }, enabled = gold.phase == PostsPhase.Loaded) { Icon(Symbols.Add, "Add by hand") }
     }
 
     fun flip(on: Boolean) {
@@ -238,7 +222,7 @@ fun WebsiteInvestmentsScreen() {
 
     Box(Modifier.fillMaxSize()) {
         when (val phase = gold.phase) {
-            PostsPhase.Off -> NotAvailableState("Investments by Taheri isn't part of this shop", why = "Its daily post belongs to Taheri's own website.", icon = Icons.Filled.ShowChart)
+            PostsPhase.Off -> NotAvailableState("Investments by Taheri isn't part of this shop", why = "Its daily post belongs to Taheri's own website.", icon = Symbols.ShowChart)
             is PostsPhase.Failed -> MarketingErrorState(phase.message) { scope.launch { WebsiteGold.load() } }
             PostsPhase.Idle, PostsPhase.Loading -> SkeletonLoading(Modifier.fillMaxSize())
             PostsPhase.Loaded -> PullToRefreshBox(isRefreshing = refreshing, onRefresh = { scope.launch { refreshing = true; WebsiteGold.load(); refreshing = false } }) {
@@ -280,7 +264,7 @@ private fun GoldPage(gold: WebsiteGoldState, flip: (Boolean) -> Unit, edit: () -
     ScheduleSection(gold, flip, edit)
     if (gold.todays == null) {
         Row(Modifier.fillMaxWidth().ledgerCard(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Icon(Icons.Filled.Schedule, null, tint = Tone.owed.color())
+            Icon(Symbols.Schedule, null, tint = Tone.owed.color())
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text("Today's post hasn't arrived yet.")
                 Text(
@@ -314,7 +298,7 @@ private fun DayRow(p: WebsiteGoldPost, gold: WebsiteGoldState, open: () -> Unit)
             Text(p.headline, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 3, overflow = TextOverflow.Ellipsis)
         }
         Text("$sent/${targets.size} sent", style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = TabularDigits), color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+        Icon(Symbols.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
     }
 }
 
@@ -329,7 +313,7 @@ private fun ScheduleSection(gold: WebsiteGoldState, flip: (Boolean) -> Unit, edi
             )
             if (WebsiteGoldWords.silent(s)) {
                 Row(Modifier.fillMaxWidth().ledgerRow(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
-                    Icon(Icons.Filled.Warning, null, tint = Tone.owed.color())
+                    Icon(Symbols.Warning, null, tint = Tone.owed.color())
                     Text(
                         if (s.lastTick == null) "The scheduler hasn't checked in yet. It runs every 5 minutes; if this stays, nothing goes out by itself."
                         else "The scheduler last checked in ${WebsiteGoldTime.ago(s.lastTick)}. It should every 5 minutes: until it does, nothing goes out by itself.",
@@ -337,7 +321,7 @@ private fun ScheduleSection(gold: WebsiteGoldState, flip: (Boolean) -> Unit, edi
                     )
                 }
             }
-            ActionRow("Edit the schedule", edit, Icons.Filled.CalendarMonth)
+            ActionRow("Edit the schedule", edit, Symbols.CalendarMonth)
         } else {
             Text("The schedule couldn't be read.", Modifier.fillMaxWidth().padding(16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
@@ -426,12 +410,12 @@ fun WebsiteGoldDaySheet(id: String, onClose: () -> Unit) {
     ) {
         MarketingPinned(bar = if (unsent.size > 1) ({
             MarketingActionBar(
-                "Send all ${WebsiteGoldWords.count(unsent.size)}", Icons.AutoMirrored.Filled.Send, { ask = WebsiteGoldAsk.Send(unsent, false) }, busy = busy != null,
+                "Send all ${WebsiteGoldWords.count(unsent.size)}", Symbols.Send, { ask = WebsiteGoldAsk.Send(unsent, false) }, busy = busy != null,
                 summary = "Each part goes once. None of it can be unsent from here.",
             )
         }) else null) { Box(Modifier.fillMaxSize()) {
             if (day == null) {
-                NotAvailableState("This day's post is gone", icon = Icons.Filled.Inbox)
+                NotAvailableState("This day's post is gone", icon = Symbols.Inbox)
             } else {
                 PullToRefreshBox(isRefreshing = false, onRefresh = { scope.launch { WebsiteGold.load() } }) {
                     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
@@ -470,13 +454,13 @@ private fun DayPage(
     val edited = post != d.post || teaser != d.teaser
     if (said != null) {
         Row(Modifier.fillMaxWidth().ledgerCard(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Icon(Icons.Filled.CheckCircle, null, tint = Tone.settled.color())
+            Icon(Symbols.CheckCircle, null, tint = Tone.settled.color())
             Text(said, color = Tone.settled.color())
         }
     }
     FormSection("Post · ${post.length} characters", footer = if (post.length > 1024) ({ Text("Too long for a caption: it goes under the card.") }) else null) {
         Mono(post, setPost, "The WhatsApp post", 6, 24)
-        ActionRow("Share or copy the post", { shareText(context, "Investments", post) }, Icons.Filled.Share)
+        ActionRow("Share or copy the post", { shareText(context, "Investments", post) }, Symbols.Share)
     }
     FormSection(
         "Teaser · for the main community",
@@ -493,7 +477,7 @@ private fun DayPage(
         },
     ) {
         Mono(teaser, setTeaser, "The teaser (optional)", 3, 14)
-        if (teaser.isNotEmpty()) ActionRow("Share or copy the teaser", { shareText(context, "Investments", teaser) }, Icons.Filled.Share)
+        if (teaser.isNotEmpty()) ActionRow("Share or copy the teaser", { shareText(context, "Investments", teaser) }, Symbols.Share)
     }
     CardsSection(d, context)
     if (scheduled) PlanSection(d, gold, ask, hold)
@@ -502,7 +486,7 @@ private fun DayPage(
 
 @Composable
 private fun Mono(value: String, onChange: (String) -> Unit, placeholder: String, min: Int, max: Int) {
-    OutlinedTextField(
+    TextField(
         value = value, onValueChange = onChange, modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
         placeholder = { Text(placeholder) }, minLines = min, maxLines = max,
         textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontSize = 13.sp),
@@ -533,7 +517,7 @@ private fun CardTile(d: WebsiteGoldPost, kind: String, label: String, context: a
         Column(Modifier.fillMaxWidth().clickable(role = Role.Button) { openAddress(context, android.content.Intent.ACTION_VIEW, url) }, verticalArrangement = Arrangement.spacedBy(4.dp)) {
             StockImage(url, label, d.id + kind + d.receivedAt, Modifier.fillMaxWidth().heightIn(max = 260.dp).aspectRatio(if (kind == "square") 1f else 9f / 16f, matchHeightConstraintsFirst = false).clip(Radius.thumbShape))
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.AutoMirrored.Filled.OpenInNew, null, Modifier.padding(0.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Symbols.OpenInNew, null, Modifier.padding(0.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
@@ -552,11 +536,11 @@ private fun PlanSection(d: WebsiteGoldPost, gold: WebsiteGoldState, ask: (Websit
             if (at != null) {
                 Text("Approved ${ShopDate.say(at, withTime = true)}", Modifier.fillMaxWidth().ledgerRow(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else if (!d.hold) {
-                ActionRow("Approve today", { ask(WebsiteGoldAsk.Approve) }, Icons.Filled.Verified)
+                ActionRow("Approve today", { ask(WebsiteGoldAsk.Approve) }, Symbols.Verified)
             }
         }
-        if (d.hold) ActionRow("Let it send", { ask(WebsiteGoldAsk.LetGo) }, Icons.Filled.PlayArrow)
-        else ActionRow("Hold today", hold, Icons.Filled.Pause)
+        if (d.hold) ActionRow("Let it send", { ask(WebsiteGoldAsk.LetGo) }, Symbols.PlayArrow)
+        else ActionRow("Hold today", hold, Symbols.Pause)
     }
 }
 
@@ -591,7 +575,7 @@ private fun PartRow(
         val line = part?.line
         if (scheduled && line != null) {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.Top) {
-                Icon(Icons.Filled.Schedule, null, Modifier.padding(0.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Symbols.Schedule, null, Modifier.padding(0.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(
                     line, style = MaterialTheme.typography.bodySmall,
                     // A plan on time is the expected state: only a warning is coloured.

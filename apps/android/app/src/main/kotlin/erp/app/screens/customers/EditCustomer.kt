@@ -1,5 +1,6 @@
 package erp.app.screens.customers
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.ContainedLoading
 import erp.app.ui.Loading
 import androidx.activity.compose.BackHandler
@@ -12,9 +13,6 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddCircle
-import androidx.compose.material.icons.filled.PersonOff
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import erp.app.ui.TextButton
@@ -94,7 +92,7 @@ fun EditCustomer(id: String) {
             !session.isOwner -> NotAvailableState("Only an owner can change a customer", why = "Ask an owner to make the change.")
             customer != null && !CustomerKit.isRemoved(customer) -> EditCustomerForm(customer)
             else -> NotAvailableState(
-                "Customer not found", why = "They may have been removed. Settings, Recently removed puts them back.", icon = Icons.Filled.PersonOff,
+                "Customer not found", why = "They may have been removed. Settings, Recently removed puts them back.", icon = Symbols.PersonOff,
             )
         }
     }
@@ -182,7 +180,7 @@ private fun EditDayRow(title: String, day: String, onChange: (String) -> Unit) {
     val lower = title.lowercase()
     val today = { EditDay.string(Instant.now()) }
     if (day.isEmpty()) {
-        ActionRow("Add $lower", onClick = { onChange(today()) }, icon = Icons.Filled.AddCircle)
+        ActionRow("Add $lower", onClick = { onChange(today()) }, icon = Symbols.AddCircle)
     } else if (EditDay.date(day) != null) {
         DateRow(title, day.take(10)) { onChange(it) }
         ActionRow("Remove $lower", onClick = { onChange("") }, destructive = true)

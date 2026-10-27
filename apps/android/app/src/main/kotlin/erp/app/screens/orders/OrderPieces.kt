@@ -1,5 +1,6 @@
 package erp.app.screens.orders
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -11,15 +12,6 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Diamond
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Hardware
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -152,7 +144,7 @@ private fun KarigarLine(item: OrderItem, karigar: String?) {
         Modifier.semantics(mergeDescendants = true) {},
         horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(Icons.Filled.Hardware, null, Modifier.size(16.dp), tint = if (karigar == null) owed else quiet)
+        Icon(Symbols.Hardware, null, Modifier.size(16.dp), tint = if (karigar == null) owed else quiet)
         if (karigar != null) {
             Text(karigar, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium))
             Text("· " + givenWords(item), style = MaterialTheme.typography.bodyMedium, color = if (item.givenAt == null) owed else quiet)
@@ -166,10 +158,10 @@ private fun KarigarLine(item: OrderItem, karigar: String?) {
 
 @Composable
 private fun Notes(item: OrderItem) {
-    clean(item.diamondDetails)?.let { NoteBox("Diamonds", it, Icons.Filled.Diamond, MaterialTheme.colorScheme.onSurfaceVariant) }
-    clean(item.stoneDetails)?.let { NoteBox("Stones", it, Icons.Filled.AutoAwesome, MaterialTheme.colorScheme.onSurfaceVariant) }
+    clean(item.diamondDetails)?.let { NoteBox("Diamonds", it, Symbols.Diamond, MaterialTheme.colorScheme.onSurfaceVariant) }
+    clean(item.stoneDetails)?.let { NoteBox("Stones", it, Symbols.AutoAwesome, MaterialTheme.colorScheme.onSurfaceVariant) }
     // Owners only: the staff's copy of the order comes without it (roles.ts).
-    clean(item.adminNote)?.let { NoteBox("Instructions for the karigar (never printed)", it, Icons.Filled.Lock, Tone.owed.color()) }
+    clean(item.adminNote)?.let { NoteBox("Instructions for the karigar (never printed)", it, Symbols.Lock, Tone.owed.color()) }
 }
 
 private fun clean(s: String?): String? = (s ?: "").trim().ifEmpty { null }
@@ -201,7 +193,7 @@ private fun Price(item: OrderItem, showBreakdown: Boolean) {
         ) {
             Text("Item total", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(Money.pkr(total), style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold, fontFeatureSettings = TabularDigits))
-            Icon(if (open) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(if (open) Symbols.ExpandLess else Symbols.ExpandMore, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         if (open) Breakdown(item)
     } else {
@@ -245,12 +237,12 @@ private fun Tick(item: OrderItem, canTick: Boolean, busy: Boolean, onTick: (Bool
             modifier = Modifier.semantics { contentDescription = if (item.isCompleted) "Done. Tap to mark not done." else "Mark as complete" },
         ) {
             Icon(
-                if (item.isCompleted) Icons.Filled.CheckCircle else Icons.Outlined.RadioButtonUnchecked, null,
+                if (item.isCompleted) Symbols.CheckCircle else Symbols.RadioButtonUnchecked, null,
                 Modifier.size(28.dp), tint = if (item.isCompleted) Tone.settled.color() else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         item.isCompleted -> Box(Modifier.size(48.dp).semantics { contentDescription = "Done" }, contentAlignment = Alignment.Center) {
-            Icon(Icons.Filled.CheckCircle, null, Modifier.size(28.dp).clearAndSetSemantics {}, tint = Tone.settled.color())
+            Icon(Symbols.CheckCircle, null, Modifier.size(28.dp).clearAndSetSemantics {}, tint = Tone.settled.color())
         }
     }
 }

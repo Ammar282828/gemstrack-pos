@@ -1,6 +1,7 @@
 package erp.app.screens.money
 
 import erp.app.ui.animatedItem
+import erp.app.ui.icons.Symbols
 import erp.app.ui.SegmentedColumn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -13,15 +14,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
@@ -134,7 +126,7 @@ private fun ExpensesBoard() {
         Box {
             IconButton(onClick = { menu = true }) {
                 Icon(
-                    Icons.Filled.FilterList,
+                    Symbols.FilterList,
                     contentDescription = if (filtering) "Period and grouping, on" else "Period and grouping",
                     tint = if (filtering) ErpColors.accent else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -147,7 +139,7 @@ private fun ExpensesBoard() {
                 for (g in ExpenseGrouping.values()) ChoiceItem(g.title, g == grouping) { grouping = g; menu = false }
             }
         }
-        IconButton(onClick = { adding = true }) { Icon(Icons.Filled.Add, contentDescription = "Add expense") }
+        IconButton(onClick = { adding = true }) { Icon(Symbols.Add, contentDescription = "Add expense") }
     }
 
     Box(Modifier.fillMaxSize()) {
@@ -191,7 +183,7 @@ private fun ExpensesBoard() {
                         NotAvailableState(
                             "No expenses in this period",
                             why = if (filtered) "Select a wider period, or clear the filters." else "No expenses recorded for ${period.title.lowercase()}.",
-                            icon = Icons.Filled.Inbox,
+                            icon = Symbols.Inbox,
                         )
                     }
                 }
@@ -223,7 +215,7 @@ private fun ExpensesBoard() {
                                 Modifier.fillMaxWidth().clickable(role = Role.Button) { navigator.open(MoneyPaths.expensesWeb) }.ledgerRow(),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Icon(Icons.Filled.Description, contentDescription = null, tint = ErpColors.accent)
+                                Icon(Symbols.Description, contentDescription = null, tint = ErpColors.accent)
                                 Text("Expense report (PDF)", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
                             }
                         }
@@ -324,11 +316,11 @@ private fun ExpenseRow(
         }
     }
     if (ExpenseEditing.isDrawing(e, partnership)) {
-        val go = RowAction("Change this on Shareholders", Icons.Filled.Group, Tone.quiet, shareholders)
-        SwipeActions(end = RowAction("Shareholders", Icons.Filled.Group, Tone.quiet, shareholders), menu = listOf(go), onClick = null, content = row)
+        val go = RowAction("Change this on Shareholders", Symbols.Group, Tone.quiet, shareholders)
+        SwipeActions(end = RowAction("Shareholders", Symbols.Group, Tone.quiet, shareholders), menu = listOf(go), onClick = null, content = row)
     } else {
-        val editAction = RowAction("Edit", Icons.Filled.Edit, Tone.house, edit)
-        val deleteAction = RowAction("Delete", Icons.Filled.Delete, Tone.problem, delete)
+        val editAction = RowAction("Edit", Symbols.Edit, Tone.house, edit)
+        val deleteAction = RowAction("Delete", Symbols.Delete, Tone.problem, delete)
         SwipeActions(start = editAction, end = deleteAction, menu = listOf(editAction, deleteAction), onClick = null, content = row)
     }
 }
@@ -352,7 +344,7 @@ private fun Figures(s: ExpenseSummary, grouping: ExpenseGrouping, category: Stri
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text("Spending breakdown", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-                Icon(Icons.Filled.ExpandMore, contentDescription = null, Modifier.rotate(if (open) 0f else -90f), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Symbols.ExpandMore, contentDescription = null, Modifier.rotate(if (open) 0f else -90f), tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (open) {
                 Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {

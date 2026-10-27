@@ -1,5 +1,7 @@
 package erp.app.screens.ads
 
+import erp.app.ui.TextField
+import erp.app.ui.icons.Symbols
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -11,14 +13,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.VideoLibrary
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import erp.app.ui.TextButton
 import androidx.compose.runtime.Composable
@@ -102,7 +99,7 @@ fun AdsVideoSection(video: AdsVideoDraft?, onPick: () -> Unit) {
                 }
             }
         }
-        AdsActionRow(if (video == null) "Choose a video" else "A different video", onPick, icon = Icons.Filled.VideoLibrary, enabled = video?.busy != true)
+        AdsActionRow(if (video == null) "Choose a video" else "A different video", onPick, icon = Symbols.VideoLibrary, enabled = video?.busy != true)
     }
 }
 
@@ -132,7 +129,7 @@ fun AdsPartnerSection(
     ) {
         Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
+                TextField(
                     code, onCode, Modifier.weight(1f), placeholder = { Text("Paste the ad code") }, singleLine = true,
                     textStyle = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Monospace),
                     keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),
@@ -168,7 +165,7 @@ fun AdsPartnerSection(
                 }
             }
             if (toSite) {
-                OutlinedTextField(
+                TextField(
                     link, onLink, Modifier.fillMaxWidth(), placeholder = { Text("https://… the page the button opens") }, singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, autoCorrectEnabled = false),
                 )
@@ -191,7 +188,7 @@ fun AdsCatalogSection(choice: AdsCatalogChoice, onChoice: (AdsCatalogChoice) -> 
             )
         },
     ) {
-        choice.problem?.let { AdsWarningRow(it, Tone.problem, Icons.Filled.Warning) }
+        choice.problem?.let { AdsWarningRow(it, Tone.problem, Symbols.Warning) }
         val catalogs = choice.catalogs
         if (catalogs != null) {
             if (catalogs.isEmpty()) {
@@ -232,7 +229,7 @@ fun AdsAdvancedSection(advanced: AdsAdvanced, onAdvanced: (AdsAdvanced) -> Unit,
                 Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge,
             )
             Icon(
-                Icons.Filled.ExpandMore, if (advanced.open) "Fold" else "Unfold", Modifier.rotate(if (advanced.open) 0f else -90f),
+                Symbols.ExpandMore, if (advanced.open) "Fold" else "Unfold", Modifier.rotate(if (advanced.open) 0f else -90f),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }

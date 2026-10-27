@@ -1,5 +1,7 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.TextField
+import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
 import erp.core.logic.ShopNumber
 import androidx.compose.foundation.BorderStroke
@@ -26,25 +28,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
-import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.Campaign
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Crop
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.GridView
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Shuffle
-import androidx.compose.material.icons.filled.Undo
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.filled.AutoFixHigh
-import androidx.compose.material.icons.filled.Share
 import erp.app.ui.AlertDialog
 import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
@@ -53,7 +36,6 @@ import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
 import erp.app.ui.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import erp.app.ui.SegmentedButton
 import erp.app.ui.SegmentedButtonDefaults
 import erp.app.ui.SingleChoiceSegmentedButtonRow
@@ -133,7 +115,7 @@ fun PostTrayScreen(path: String) {
 
     ScreenTitle(PostTrayLogic.title(model.cards.size))
     ScreenActions {
-        IconButton(onClick = { picking = true }, enabled = model.busy == null) { Icon(Icons.Filled.Add, contentDescription = "Add pieces") }
+        IconButton(onClick = { picking = true }, enabled = model.busy == null) { Icon(Symbols.Add, contentDescription = "Add pieces") }
     }
 
     LaunchedEffect(Unit) {
@@ -199,7 +181,7 @@ fun PostTrayScreen(path: String) {
                 val top: @Composable () -> Unit = {
                     if (state.piecesPhase == PostsPhase.Loaded && !model.audience.canSend && !model.toInstagram) {
                         Row(Modifier.fillMaxWidth().ledgerCard(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Icon(Icons.Filled.Warning, null, tint = Tone.owed.color())
+                            Icon(Symbols.Warning, null, tint = Tone.owed.color())
                             Text(
                                 "No WhatsApp community is set up for this shop yet (WHATSAPP_COMMUNITY_CHAT_ID), so nothing can be sent from here.",
                                 color = Tone.owed.color(),
@@ -308,11 +290,11 @@ private fun EmptyTray(model: PostTrayModel, noPieces: Boolean, choose: () -> Uni
         )
         Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), contentAlignment = Alignment.Center) {
             OutlinedButton(onClick = choose) {
-                Icon(Icons.Filled.GridView, null, Modifier.size(18.dp))
+                Icon(Symbols.GridView, null, Modifier.size(18.dp))
                 Text("Choose pieces", Modifier.padding(start = 8.dp))
             }
         }
-        ActionRow("Shuffle a piece", { model.shuffle()?.let(refuse) }, Icons.Filled.Shuffle, enabled = !noPieces)
+        ActionRow("Shuffle a piece", { model.shuffle()?.let(refuse) }, Symbols.Shuffle, enabled = !noPieces)
     }
 }
 
@@ -337,7 +319,7 @@ private fun TrayStrip(model: PostTrayModel, clearAll: () -> Unit) {
                         style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = TabularDigits), color = ErpColors.onAccent,
                     )
                     if (c.sending) Box(Modifier.fillMaxSize().background(ErpColors.card.copy(alpha = 0.7f)), contentAlignment = Alignment.Center) { Loading(Modifier.size(26.dp)) }
-                    if (c.failed != null) Icon(Icons.Filled.Error, "Didn't go", Modifier.align(Alignment.BottomCenter).padding(3.dp).size(18.dp), tint = Tone.problem.color())
+                    if (c.failed != null) Icon(Symbols.Error, "Didn't go", Modifier.align(Alignment.BottomCenter).padding(3.dp).size(18.dp), tint = Tone.problem.color())
                 }
             }
         }
@@ -384,14 +366,14 @@ private fun TrayBar(
 ) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
         OutlinedButton(onClick = onSecondary, enabled = enabled && !secondaryBusy, modifier = Modifier.heightIn(min = 52.dp)) {
-            if (secondaryBusy) Loading(Modifier.size(24.dp)) else Icon(Icons.Filled.Schedule, null, Modifier.size(18.dp))
+            if (secondaryBusy) Loading(Modifier.size(24.dp)) else Icon(Symbols.Schedule, null, Modifier.size(18.dp))
             Text("Later", Modifier.padding(start = 8.dp))
         }
         Button(
             onClick = onPrimary, enabled = enabled && !primaryBusy, modifier = Modifier.weight(1f).heightIn(min = 52.dp),
             colors = ButtonDefaults.buttonColors(containerColor = ErpColors.accent, contentColor = ErpColors.onAccent),
         ) {
-            if (primaryBusy) Loading(Modifier.size(26.dp), color = ErpColors.onAccent) else Icon(Icons.AutoMirrored.Filled.Send, null, Modifier.size(18.dp))
+            if (primaryBusy) Loading(Modifier.size(26.dp), color = ErpColors.onAccent) else Icon(Symbols.Send, null, Modifier.size(18.dp))
             Text(primary, Modifier.padding(start = 8.dp))
         }
     }
@@ -431,7 +413,7 @@ private fun PieceRows(card: PostTrayCard, siteName: String, posted: String?) {
     val p = card.piece
     card.failed?.let {
         Row(Modifier.fillMaxWidth().ledgerRow(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Icon(Icons.Filled.Warning, null, tint = Tone.problem.color())
+            Icon(Symbols.Warning, null, tint = Tone.problem.color())
             Text("Didn't go: $it", color = Tone.problem.color())
         }
     }
@@ -443,7 +425,7 @@ private fun PieceRows(card: PostTrayCard, siteName: String, posted: String?) {
         )
     }
     MarketingTime.postedAgo(posted)?.let { Text("Already went out: $it.", Modifier.fillMaxWidth().ledgerRow(), color = Tone.owed.color()) }
-    if (p.url.startsWith("http")) ActionRow("Open on $siteName", { openAddress(context, android.content.Intent.ACTION_VIEW, p.url) }, Icons.AutoMirrored.Filled.OpenInNew)
+    if (p.url.startsWith("http")) ActionRow("Open on $siteName", { openAddress(context, android.content.Intent.ACTION_VIEW, p.url) }, Symbols.OpenInNew)
 }
 
 @Composable
@@ -459,7 +441,7 @@ private fun PlainPhotoSection(card: PostTrayCard, state: PostsState, posted: Str
                 StockImage(p.image, p.name, p.id, Modifier.widthIn(max = 380.dp).fillMaxWidth().aspectRatio(1f).clip(shape))
             }
         }
-        ActionRow(if (card.design != null) "Fetching the photo…" else "Crop and design", onDesign, Icons.Filled.Crop, enabled = !locked && card.design == null)
+        ActionRow(if (card.design != null) "Fetching the photo…" else "Crop and design", onDesign, Symbols.Crop, enabled = !locked && card.design == null)
         PieceRows(card, state.siteName, posted)
     }
 }
@@ -472,12 +454,12 @@ private fun DesignSection(
 ) {
     FormSection("Crop and design") {
         WebsitePhotoEditRows(edit, model.engine, card.designFields(model.metal), locked, shapes = false) { op, params, label -> onAI(edit, op, params, label) }
-        OutlinedTextField(
+        TextField(
             card.designName, { card.designName = it }, Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
             singleLine = true, label = { Text("Name on the photo") },
         )
         PostTrayLogic.designNote(House.id, card.piece)?.let { Text(it, Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        ActionRow("Use the photo as it is", { model.dropDesign(card) }, Icons.Filled.Undo, enabled = !locked)
+        ActionRow("Use the photo as it is", { model.dropDesign(card) }, Symbols.Undo, enabled = !locked)
         PieceRows(card, state.siteName, posted)
     }
 }
@@ -497,7 +479,7 @@ private fun WeightSection(card: PostTrayCard, siteName: String, locked: Boolean)
         if (card.design == null) ToggleRow("Weight on the photo", card.overlay, { if (!locked) card.overlay = it })
         Row(Modifier.fillMaxWidth().ledgerRow(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("Weight", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-            OutlinedTextField(
+            TextField(
                 card.weight, { v -> if (!locked) card.weight = ShopNumber.ascii(v).replace(",", ".").filter { it in '0'..'9' || it == '.' } }, Modifier.width(120.dp), singleLine = true,
                 placeholder = { Text("0.00") }, textStyle = MaterialTheme.typography.bodyLarge.copy(textAlign = TextAlign.End, fontFeatureSettings = TabularDigits),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), enabled = !locked,
@@ -525,13 +507,13 @@ private fun WeightSection(card: PostTrayCard, siteName: String, locked: Boolean)
 private fun CaptionSection(card: PostTrayCard, model: PostTrayModel, locked: Boolean, onAI: () -> Unit) {
     val scope = rememberCoroutineScope()
     FormSection("Caption") {
-        OutlinedTextField(
+        TextField(
             card.caption, { card.caption = it; card.edited = true }, Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
             minLines = 6, maxLines = 16, enabled = !locked, placeholder = { Text("Caption") },
             textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
         )
-        ActionRow("Write with AI", onAI, Icons.Filled.AutoAwesome, enabled = !locked)
-        if (card.edited || card.aiLine != null) ActionRow("The house's caption", { scope.launch { model.houseWords(card) } }, Icons.Filled.Undo, enabled = !locked)
+        ActionRow("Write with AI", onAI, Symbols.AutoAwesome, enabled = !locked)
+        if (card.edited || card.aiLine != null) ActionRow("The house's caption", { scope.launch { model.houseWords(card) } }, Symbols.Undo, enabled = !locked)
     }
 }
 
@@ -542,13 +524,13 @@ private fun MoreSection(card: PostTrayCard, model: PostTrayModel, siteName: Stri
     val user = ig.s("username")
     WebsiteCard(footer = { Text("${card.going}.") }) {
         ActionRow(
-            if (ig["connected"].bool && user.isNotEmpty()) "Instagram story · @$user" else "Instagram story", onStory, Icons.Filled.CameraAlt, enabled = !locked,
+            if (ig["connected"].bool && user.isNotEmpty()) "Instagram story · @$user" else "Instagram story", onStory, Symbols.CameraAlt, enabled = !locked,
         )
-        if (access.design) MarketingLink("Design", Icons.Filled.AutoFixHigh, WebsiteEditLogic.designPath(p.id))
-        if (access.edit) MarketingLink("Edit on $siteName", Icons.Filled.Edit, "/website/edit?id=" + MarketingKit.escape(p.id))
-        if (access.promote) MarketingLink("Promote", Icons.Filled.Campaign, "/ads/new?piece=" + MarketingKit.escape(p.id))
-        ActionRow("Another piece", { model.another(card)?.let { onSay(listOf(Note(it, failed = true))) } }, Icons.Filled.Shuffle, enabled = !locked)
-        ActionRow("Take it out", { model.take(card.id) }, Icons.Filled.Close, tone = Tone.problem, enabled = !locked)
+        if (access.design) MarketingLink("Design", Symbols.AutoFixHigh, WebsiteEditLogic.designPath(p.id))
+        if (access.edit) MarketingLink("Edit on $siteName", Symbols.Edit, "/website/edit?id=" + MarketingKit.escape(p.id))
+        if (access.promote) MarketingLink("Promote", Symbols.Campaign, "/ads/new?piece=" + MarketingKit.escape(p.id))
+        ActionRow("Another piece", { model.another(card)?.let { onSay(listOf(Note(it, failed = true))) } }, Symbols.Shuffle, enabled = !locked)
+        ActionRow("Take it out", { model.take(card.id) }, Symbols.Close, tone = Tone.problem, enabled = !locked)
     }
 }
 
@@ -580,7 +562,7 @@ private fun TrayStorySheet(s: TrayStory, model: PostTrayModel, working: String?,
                     }
                 }
                 WebsiteCard {
-                    ActionRow("Save or share", { shareBytes(context, s.data, s.slug + "-story.jpg", "image/jpeg", s.name) }, Icons.Filled.Share)
+                    ActionRow("Save or share", { shareBytes(context, s.data, s.slug + "-story.jpg", "image/jpeg", s.name) }, Symbols.Share)
                 }
             }
             WebsiteBusy(working)

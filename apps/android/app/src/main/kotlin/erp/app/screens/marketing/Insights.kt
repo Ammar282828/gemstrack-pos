@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.icons.Symbols
 import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,18 +18,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Campaign
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.GridView
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.OpenInNew
-import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.SwapVert
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -120,14 +109,14 @@ fun InsightRangeMenu() {
             onClick = { open = true },
             modifier = Modifier.defaultMinSize(minHeight = 48.dp).semantics { contentDescription = "Range: ${InsightRange.label(InsightsRangeStore.key)}" },
         ) {
-            Icon(Icons.Filled.CalendarMonth, contentDescription = null, Modifier.size(18.dp))
+            Icon(Symbols.CalendarMonth, contentDescription = null, Modifier.size(18.dp))
             Text(InsightRange.label(InsightsRangeStore.key), Modifier.padding(start = 6.dp), maxLines = 1)
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             for (r in InsightRange.all) {
                 DropdownMenuItem(
                     text = { Text(r.label, fontWeight = if (r.key == InsightsRangeStore.key) FontWeight.SemiBold else FontWeight.Normal) },
-                    trailingIcon = { if (r.key == InsightsRangeStore.key) Icon(Icons.Filled.Check, null, tint = ErpColors.accent) },
+                    trailingIcon = { if (r.key == InsightsRangeStore.key) Icon(Symbols.Check, null, tint = ErpColors.accent) },
                     onClick = { open = false; InsightsRangeStore.set(r.key) },
                 )
             }
@@ -138,14 +127,14 @@ fun InsightRangeMenu() {
 /** The kit's ErrorState (Surface.swift): the words, and a way to try again unless the demo has no ERP to ask. */
 @Composable
 fun MarketingErrorState(message: String, retry: (() -> Unit)?) {
-    AdsUnavailable("Couldn't load this", message, icon = Icons.Filled.Warning) {
+    AdsUnavailable("Couldn't load this", message, icon = Symbols.Warning) {
         if (retry != null) AdsTonalButton("Try again", retry)
     }
 }
 
 @Composable
 private fun InsightsLocked() {
-    NotAvailableState("Insights are for owners", why = "Sign in with an owner or marketing account to see the shop's Instagram and Facebook numbers.", icon = Icons.Filled.Lock)
+    NotAvailableState("Insights are for owners", why = "Sign in with an owner or marketing account to see the shop's Instagram and Facebook numbers.", icon = Symbols.Lock)
 }
 
 /** Asks `/api/insights` for a part; the demo answers from made-up numbers. */
@@ -234,7 +223,7 @@ private fun Findings(found: List<InsightFinding>) {
             AdsRow {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
                     Icon(
-                        when (f.tone) { "good" -> Icons.Filled.CheckCircle; "warn" -> Icons.Filled.Warning; else -> Icons.Filled.Info },
+                        when (f.tone) { "good" -> Symbols.CheckCircle; "warn" -> Symbols.Warning; else -> Symbols.Info },
                         contentDescription = when (f.tone) { "good" -> "Good"; "warn" -> "Warning"; else -> "Note" },
                         Modifier.size(20.dp).padding(top = 2.dp),
                         tint = when (f.tone) { "good" -> Tone.settled.color(); "warn" -> Tone.owed.color(); else -> MaterialTheme.colorScheme.onSurfaceVariant },
@@ -363,7 +352,7 @@ private fun PaidSection(d: InsightsOverview, rangeKey: String) {
                 }
             }
         }
-        AdsLink("Ads overview", Icons.Filled.Campaign, "/ads")
+        AdsLink("Ads overview", Symbols.Campaign, "/ads")
     }
 }
 
@@ -399,8 +388,8 @@ private fun PlacesSection(d: InsightsOverview) {
             }
         },
     ) {
-        AdsLink("Posts", Icons.Filled.GridView, "/insights/posts", "Every post, reel and story, with its numbers")
-        AdsLink("Audience", Icons.Filled.People, "/insights/audience", "Who follows, who was reached, when they're online")
+        AdsLink("Posts", Symbols.GridView, "/insights/posts", "Every post, reel and story, with its numbers")
+        AdsLink("Audience", Symbols.People, "/insights/audience", "Who follows, who was reached, when they're online")
     }
 }
 
@@ -438,7 +427,7 @@ fun InsightsPostsScreen() {
         d != null -> ErpPullToRefreshBox(refreshing, { scope.launch { refreshing = true; load(true); refreshing = false } }, Modifier.fillMaxSize()) {
             InsightsPostsContent(d, rangeKey, filter, { filter = it }, sort)
         }
-        problem != null -> AdsUnavailable("Couldn't read the posts", problem ?: "", icon = Icons.Filled.GridView) {
+        problem != null -> AdsUnavailable("Couldn't read the posts", problem ?: "", icon = Symbols.GridView) {
             if (!House.isDemo) AdsTonalButton("Try again", { scope.launch { load(true) } })
         }
         else -> Box(Modifier.fillMaxSize()) { SkeletonLoading(Modifier.fillMaxSize(), label = "Reading the posts") }
@@ -450,19 +439,19 @@ fun InsightsPostsScreen() {
 private fun PostsSortMenu(sort: String, onSort: (String) -> Unit) {
     var open by remember { mutableStateOf(false) }
     Box {
-        IconButton(onClick = { open = true }, Modifier.semantics { contentDescription = "Sort" }) { Icon(Icons.Filled.SwapVert, contentDescription = null) }
+        IconButton(onClick = { open = true }, Modifier.semantics { contentDescription = "Sort" }) { Icon(Symbols.SwapVert, contentDescription = null) }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             for ((k, label) in InsightsLogic.sorts) {
                 DropdownMenuItem(
                     text = { Text(label, fontWeight = if (k == sort) FontWeight.SemiBold else FontWeight.Normal) },
-                    trailingIcon = { if (k == sort) Icon(Icons.Filled.Check, null, tint = ErpColors.accent) },
+                    trailingIcon = { if (k == sort) Icon(Symbols.Check, null, tint = ErpColors.accent) },
                     onClick = { open = false; onSort(k) },
                 )
             }
             for (r in InsightRange.all) {
                 DropdownMenuItem(
                     text = { Text(r.label, fontWeight = if (r.key == InsightsRangeStore.key) FontWeight.SemiBold else FontWeight.Normal) },
-                    trailingIcon = { if (r.key == InsightsRangeStore.key) Icon(Icons.Filled.Check, null, tint = ErpColors.accent) },
+                    trailingIcon = { if (r.key == InsightsRangeStore.key) Icon(Symbols.Check, null, tint = ErpColors.accent) },
                     onClick = { open = false; InsightsRangeStore.set(r.key) },
                 )
             }
@@ -519,7 +508,7 @@ private fun PostRow(p: InsightPost, live: Boolean) {
                     Box(Modifier.weight(1f))
                     p.link?.takeIf { it.startsWith("http") }?.let { link ->
                         IconButton(onClick = { openAddress(context, Intent.ACTION_VIEW, link) }, Modifier.size(32.dp)) {
-                            Icon(Icons.Filled.OpenInNew, contentDescription = "Open the post", Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Icon(Symbols.OpenInNew, contentDescription = "Open the post", Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
@@ -572,7 +561,7 @@ fun InsightsAudienceScreen() {
         d != null -> ErpPullToRefreshBox(refreshing, { scope.launch { refreshing = true; load(true); refreshing = false } }, Modifier.fillMaxSize()) {
             InsightsAudienceContent(d, group) { group = it }
         }
-        problem != null -> AdsUnavailable("Couldn't read the audience", problem ?: "", icon = Icons.Filled.People) {
+        problem != null -> AdsUnavailable("Couldn't read the audience", problem ?: "", icon = Symbols.People) {
             if (!House.isDemo) AdsTonalButton("Try again", { scope.launch { load(true) } })
         }
         else -> Box(Modifier.fillMaxSize()) { SkeletonLoading(Modifier.fillMaxSize(), label = "Reading the audience") }

@@ -1,5 +1,6 @@
 package erp.app.screens.voice
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -13,13 +14,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -180,7 +174,7 @@ fun VoiceScreen(model: VoiceModel? = null) {
             ActionRow(
                 if (voice.plan == null) "Review" else "Read again",
                 onClick = { voice.readText(voice.readAloud) },
-                icon = Icons.Filled.Refresh,
+                icon = Symbols.Refresh,
                 enabled = VoiceLogic.canRead(voice.words) && editable,
             )
         }
@@ -196,7 +190,7 @@ fun VoiceScreen(model: VoiceModel? = null) {
         voice.failure?.let { error ->
             SettingsSection {
                 SmallPrint(error, Tone.problem, Modifier.fillMaxWidth().ledgerRow())
-                if (voice.canRetry) ActionRow("Try again", onClick = { voice.retry() }, icon = Icons.Filled.Refresh)
+                if (voice.canRetry) ActionRow("Try again", onClick = { voice.retry() }, icon = Symbols.Refresh)
             }
         }
 
@@ -204,7 +198,7 @@ fun VoiceScreen(model: VoiceModel? = null) {
             plan.answer?.let { answer ->
                 SettingsSection("Answer") {
                     Text(answer, Modifier.fillMaxWidth().ledgerRow(), style = MaterialTheme.typography.bodyLarge)
-                    plan.href?.let { path -> ActionRow("Open page", onClick = { open(path) }, icon = Icons.AutoMirrored.Filled.ArrowForward) }
+                    plan.href?.let { path -> ActionRow("Open page", onClick = { open(path) }, icon = Symbols.ArrowForward) }
                 }
             }
             plan.cards.forEach { card ->
@@ -216,7 +210,7 @@ fun VoiceScreen(model: VoiceModel? = null) {
                         ActionRow(
                             if (card.handoff == null) "Open record" else "Fill the form",
                             onClick = { if (card.handoff == null) open(path) else fill(card, path) },
-                            icon = Icons.AutoMirrored.Filled.ArrowForward,
+                            icon = Symbols.ArrowForward,
                             enabled = !voice.busy && formsReady,
                         )
                     }
@@ -233,7 +227,7 @@ fun VoiceScreen(model: VoiceModel? = null) {
                 ) {
                     if (voice.completed == plan.operations.size) {
                         Row(Modifier.fillMaxWidth().ledgerRow(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Filled.CheckCircle, null, tint = Tone.settled.color())
+                            Icon(Symbols.CheckCircle, null, tint = Tone.settled.color())
                             Text("Saved", color = Tone.settled.color(), style = MaterialTheme.typography.bodyLarge)
                         }
                         plan.cards.lastOrNull()?.href?.let { path -> ActionRow("Open record", onClick = { open(path) }) }
@@ -242,7 +236,7 @@ fun VoiceScreen(model: VoiceModel? = null) {
                         ActionRow(
                             if (voice.completed > 0) "Save remaining changes" else "Confirm and save",
                             onClick = { voice.save() },
-                            icon = Icons.Filled.Check,
+                            icon = Symbols.Check,
                             enabled = !voice.busy && plan.ready && words == plan.reviewedWords,
                         )
                         if (voice.completed > 0) {
@@ -265,7 +259,7 @@ private fun MicButton(listening: Boolean, enabled: Boolean, onClick: () -> Unit)
             .semantics { contentDescription = label },
         contentAlignment = Alignment.Center,
     ) {
-        Icon(if (listening) Icons.Filled.Stop else Icons.Filled.Mic, null, Modifier.size(32.dp), tint = ErpColors.onAccent)
+        Icon(if (listening) Symbols.Stop else Symbols.Mic, null, Modifier.size(32.dp), tint = ErpColors.onAccent)
     }
 }
 

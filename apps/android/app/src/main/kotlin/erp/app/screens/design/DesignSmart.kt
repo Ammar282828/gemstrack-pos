@@ -1,5 +1,7 @@
 package erp.app.screens.design
 
+import erp.app.ui.TextField
+import erp.app.ui.icons.Symbols
 import android.graphics.Bitmap
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -20,18 +22,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Cancel
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Layers
-import androidx.compose.material.icons.filled.PhotoLibrary
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
 import erp.app.ui.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import erp.app.ui.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -321,7 +315,7 @@ fun DesignSmartSheet(start: DesignStartModel, allowLayers: Boolean, dismiss: () 
     DesignSheetBody(note) {
         Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             SectionCard("Paste anything") {
-                OutlinedTextField(
+                TextField(
                     m.text, { m.text = it }, Modifier.fillMaxWidth(), minLines = 3, maxLines = 8, enabled = m.busy == null,
                     placeholder = { Text("A caption, a WhatsApp message, a link or a SKU. Or type it: “ruby ring 21k 12.35g”.") },
                 )
@@ -329,13 +323,13 @@ fun DesignSmartSheet(start: DesignStartModel, allowLayers: Boolean, dismiss: () 
                     // Reading again, once there are pieces: before that, "Read it" is the bar's.
                     if (m.items.isNotEmpty()) {
                         OutlinedButton(onClick = { scope.launch { m.read() } }, Modifier.weight(1f).defaultMinSize(minHeight = 48.dp), enabled = m.busy == null && m.text.isNotBlank()) {
-                            Icon(Icons.Filled.AutoAwesome, null, Modifier.size(18.dp)); Text("Read it again", Modifier.padding(start = 6.dp))
+                            Icon(Symbols.AutoAwesome, null, Modifier.size(18.dp)); Text("Read it again", Modifier.padding(start = 6.dp))
                         }
                     }
                     OutlinedButton(
                         onClick = { pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                         Modifier.weight(1f).defaultMinSize(minHeight = 48.dp), enabled = m.busy == null,
-                    ) { Icon(Icons.Filled.PhotoLibrary, null, Modifier.size(18.dp)); Text("Photos", Modifier.padding(start = 6.dp)) }
+                    ) { Icon(Symbols.PhotoLibrary, null, Modifier.size(18.dp)); Text("Photos", Modifier.padding(start = 6.dp)) }
                 }
                 Text("Nothing is used until you tick it. No figure appears that is not in what you gave.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -348,13 +342,13 @@ fun DesignSmartSheet(start: DesignStartModel, allowLayers: Boolean, dismiss: () 
         val review = m.review
         if (review != null) {
             DesignActionBar(
-                DesignAction("Start a design from this", Icons.Filled.Layers, disabled = m.busy != null) { m.startFromReview(); dismiss() },
+                DesignAction("Start a design from this", Symbols.Layers, disabled = m.busy != null) { m.startFromReview(); dismiss() },
                 secondary = listOf(DesignAction("Back") { m.review = null }),
             )
         } else if (m.items.isEmpty()) {
-            DesignActionBar(DesignAction(m.busy ?: "Read it", Icons.Filled.AutoAwesome, busy = m.busy != null, disabled = m.text.isBlank()) { scope.launch { m.read() } })
+            DesignActionBar(DesignAction(m.busy ?: "Read it", Symbols.AutoAwesome, busy = m.busy != null, disabled = m.text.isBlank()) { scope.launch { m.read() } })
         } else {
-            DesignActionBar(DesignAction(if (m.items.size > 1) "Use all ${m.items.size} pieces" else "Use this piece", Icons.Filled.Check, disabled = m.busy != null) { m.use(m.items); dismiss() })
+            DesignActionBar(DesignAction(if (m.items.size > 1) "Use all ${m.items.size} pieces" else "Use this piece", Symbols.Check, disabled = m.busy != null) { m.use(m.items); dismiss() })
         }
     }
     erp.app.ui.FailureAlert(m.error, onDismiss = { m.error = null }, title = "Could not read that")
@@ -371,7 +365,7 @@ private fun ItemCard(m: DesignSmartModel, item: DesignSmartModel.Item, dismiss: 
             if (!sure) Pill("Check this", tone = Tone.owed)
             if (item.parsed.s("suggestedKind").isNotEmpty()) Text("suggests: " + item.parsed.s("suggestedKind"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Box(Modifier.weight(1f))
-            IconButton(onClick = { m.items = m.items.filter { it.id != item.id } }) { Icon(Icons.Filled.Cancel, "Remove", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+            IconButton(onClick = { m.items = m.items.filter { it.id != item.id } }) { Icon(Symbols.Cancel, "Remove", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
         if (item.photos.isNotEmpty()) {
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -383,7 +377,7 @@ private fun ItemCard(m: DesignSmartModel, item: DesignSmartModel.Item, dismiss: 
                                 .clickable(onClickLabel = if (n == item.main) "Main photo" else "Use as the main photo") { set { it.copy(main = n) } },
                         ) { p.image?.let { DesignPicture(it, Modifier.fillMaxSize()) } }
                         if (m.allowLayers && n == item.main) {
-                            OutlinedButton(onClick = { scope.launch { m.split(p) } }, enabled = m.busy == null) { Icon(Icons.Filled.Layers, null, Modifier.size(14.dp)); Text("Layers", Modifier.padding(start = 4.dp), style = MaterialTheme.typography.labelSmall) }
+                            OutlinedButton(onClick = { scope.launch { m.split(p) } }, enabled = m.busy == null) { Icon(Symbols.Layers, null, Modifier.size(14.dp)); Text("Layers", Modifier.padding(start = 4.dp), style = MaterialTheme.typography.labelSmall) }
                         }
                     }
                 }
@@ -395,7 +389,7 @@ private fun ItemCard(m: DesignSmartModel, item: DesignSmartModel.Item, dismiss: 
                     Switch(item.accept[k] == true, { on -> set { it.copy(accept = it.accept + (k to on)) } }, Modifier.semantics { contentDescription = DesignSmartModel.fieldLabel[k] ?: k }, colors = SwitchDefaults.colors(checkedTrackColor = ErpColors.accent, checkedThumbColor = ErpColors.onAccent))
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(DesignSmartModel.fieldLabel[k] ?: k, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        OutlinedTextField(item.fields[k] ?: "", { v -> set { it.copy(fields = it.fields + (k to v), accept = it.accept + (k to true)) } }, Modifier.fillMaxWidth(), minLines = 1, maxLines = 3)
+                        TextField(item.fields[k] ?: "", { v -> set { it.copy(fields = it.fields + (k to v), accept = it.accept + (k to true)) } }, Modifier.fillMaxWidth(), minLines = 1, maxLines = 3)
                     }
                 }
             }
@@ -417,14 +411,14 @@ private fun ItemCard(m: DesignSmartModel, item: DesignSmartModel.Item, dismiss: 
         }
         for (w in item.parsed["warnings"].array.map { it.string }) {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.Top) {
-                Icon(Icons.Filled.Warning, null, Modifier.size(16.dp), tint = Tone.owed.color())
+                Icon(Symbols.Warning, null, Modifier.size(16.dp), tint = Tone.owed.color())
                 Text(w, style = MaterialTheme.typography.bodySmall, color = Tone.owed.color())
             }
         }
         // One piece: the bar's "Use this piece" is its button; with several, each can be used on its own turn.
         if (m.items.size > 1) {
             OutlinedButton(onClick = { m.use(listOf(item)); dismiss() }, Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp), enabled = m.busy == null) {
-                Icon(Icons.Filled.Check, null, Modifier.size(18.dp)); Text("Use this", Modifier.padding(start = 6.dp))
+                Icon(Symbols.Check, null, Modifier.size(18.dp)); Text("Use this", Modifier.padding(start = 6.dp))
             }
         }
     }

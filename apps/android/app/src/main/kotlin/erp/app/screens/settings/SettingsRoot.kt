@@ -1,5 +1,6 @@
 package erp.app.screens.settings
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -9,16 +10,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBalance
-import androidx.compose.material.icons.rounded.Domain
-import androidx.compose.material.icons.filled.Extension
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.NotificationsActive
-import androidx.compose.material.icons.filled.PhoneAndroid
-import androidx.compose.material.icons.filled.Storage
-import androidx.compose.material.icons.filled.Storefront
 import erp.app.ui.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -81,8 +72,8 @@ fun SettingsRoot() {
         }
 
         SettingsSection {
-            SettingsLinkRow("Businesses", Icons.Rounded.Domain, SettingsColors.orange, "/app/businesses")
-            SettingsLinkRow("This phone", Icons.Filled.PhoneAndroid, SettingsColors.teal, "/app/phone")
+            SettingsLinkRow("Businesses", Symbols.Domain, "/app/businesses")
+            SettingsLinkRow("This phone", Symbols.PhoneAndroid, "/app/phone")
         }
 
         SettingsSection(footer = versionLine(House.storeName, BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE)) {
@@ -110,14 +101,14 @@ fun SettingsRoot() {
 @Composable
 private fun SettingsTabRow(t: NavPlace) {
     when (t.href) {
-        "/settings" -> SettingsLinkRow("Shop", Icons.Filled.Storefront, SettingsColors.blue, "/app/settings/shop")
-        "/settings/alerts" -> SettingsLinkRow("Alerts", Icons.Filled.NotificationsActive, SettingsColors.red, t.href)
-        "/settings/payment-methods" -> SettingsLinkRow("Bank accounts", Icons.Filled.AccountBalance, SettingsColors.green, t.href)
-        "/settings/integrations" -> SettingsLinkRow("Integrations", Icons.Filled.Extension, SettingsColors.purple, t.href)
-        "/settings/data" -> SettingsLinkRow("Data", Icons.Filled.Storage, SettingsColors.gray, t.href)
-        "/activity-log" -> SettingsLinkRow("Activity", Icons.Filled.History, SettingsColors.indigo, t.href)
-        "/settings/voice" -> SettingsLinkRow("Voice", Icons.Filled.Mic, SettingsColors.pink, t.href)
-        else -> SettingsLinkRow(t.label, NavIcon.vector(t.icon), SettingsColors.teal, t.href)
+        "/settings" -> SettingsLinkRow("Shop", Symbols.Storefront, "/app/settings/shop")
+        "/settings/alerts" -> SettingsLinkRow("Alerts", Symbols.NotificationsActive, t.href)
+        "/settings/payment-methods" -> SettingsLinkRow("Bank accounts", Symbols.AccountBalance, t.href)
+        "/settings/integrations" -> SettingsLinkRow("Integrations", Symbols.Extension, t.href)
+        "/settings/data" -> SettingsLinkRow("Data", Symbols.Storage, t.href)
+        "/activity-log" -> SettingsLinkRow("Activity", Symbols.History, t.href)
+        "/settings/voice" -> SettingsLinkRow("Voice", Symbols.Mic, t.href)
+        else -> SettingsLinkRow(t.label, NavIcon.vector(t.icon), t.href)
     }
 }
 

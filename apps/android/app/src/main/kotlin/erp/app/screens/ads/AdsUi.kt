@@ -1,5 +1,6 @@
 package erp.app.screens.ads
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.SegmentedColumn
 import erp.app.ui.SearchBarField
 import androidx.compose.foundation.background
@@ -22,16 +23,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Campaign
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Power
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Warning
 import erp.app.ui.AlertDialog
 import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
@@ -168,7 +159,7 @@ fun AdsLink(title: String, icon: ImageVector, path: String, subtitle: String? = 
             Text(title, style = MaterialTheme.typography.bodyLarge)
             if (!subtitle.isNullOrEmpty()) Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Icon(Symbols.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -194,7 +185,7 @@ fun AdsChoiceRow(title: String, chosen: Boolean, onClick: () -> Unit, subtitle: 
             Text(title, style = MaterialTheme.typography.bodyLarge)
             if (!subtitle.isNullOrEmpty()) Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        if (chosen) Icon(Icons.Filled.Check, contentDescription = "Chosen", tint = ErpColors.accent)
+        if (chosen) Icon(Symbols.Check, contentDescription = "Chosen", tint = ErpColors.accent)
     }
 }
 
@@ -271,7 +262,7 @@ fun AdsUnavailable(
     title: String,
     message: String,
     modifier: Modifier = Modifier,
-    icon: ImageVector = Icons.Filled.Campaign,
+    icon: ImageVector = Symbols.Campaign,
     actions: @Composable ColumnScope.() -> Unit = {},
 ) {
     Column(
@@ -294,7 +285,7 @@ fun AdsUnavailable(
 /** Who the Ads pages are for (src/lib/ads/gate.ts): owners and marketing accounts. */
 @Composable
 fun AdsOwnersOnly() {
-    erp.app.ui.NotAvailableState("Ads are for owners", why = "Sign in with an owner or marketing account to see the ad spend.", icon = Icons.Filled.Lock)
+    erp.app.ui.NotAvailableState("Ads are for owners", why = "Sign in with an owner or marketing account to see the ad spend.", icon = Symbols.Lock)
 }
 
 /** The Ads pages answer owners and marketing accounts alone (gate.ts). */
@@ -309,7 +300,7 @@ fun AdsNotReady(status: AdsStatusAnswer?, problem: String?, retry: () -> Unit) {
             // The demo has no ERP to ask again: no button that can only fail.
             if (!erp.app.config.House.isDemo) AdsTonalButton("Try again", retry)
         }
-        status != null -> AdsUnavailable(notReadyTitle(status), notReadyDetail(status), icon = Icons.Filled.Power) {
+        status != null -> AdsUnavailable(notReadyTitle(status), notReadyDetail(status), icon = Symbols.Power) {
             AdsTonalButton("Open Setup", { navigator.open("/ads/setup") })
         }
         else -> Box(Modifier.fillMaxSize()) { SkeletonLoading(Modifier.fillMaxSize(), label = "Checking the Meta connection…") }
@@ -371,7 +362,7 @@ fun AdsAlertsSection(status: AdsStatusAnswer) {
 
 /** A triangle and a line of words in a tone. */
 @Composable
-fun AdsWarningRow(text: String, tone: Tone, icon: ImageVector = Icons.Filled.Warning) {
+fun AdsWarningRow(text: String, tone: Tone, icon: ImageVector = Symbols.Warning) {
     Row(Modifier.fillMaxWidth().ledgerRow(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
         Icon(icon, contentDescription = null, Modifier.size(18.dp).padding(top = 2.dp), tint = tone.color())
         Text(text, style = MaterialTheme.typography.bodyMedium, color = tone.color())
@@ -384,7 +375,7 @@ fun AdsProblemsSection(problems: List<String>, setup: Boolean = true) {
     if (problems.isEmpty()) return
     AdsSection("Before it can be made") {
         for (p in problems) AdsWarningRow(p, Tone.owed)
-        if (setup && problems.any { it.contains("Setup") }) AdsLink("Open Setup", Icons.Filled.Power, "/ads/setup")
+        if (setup && problems.any { it.contains("Setup") }) AdsLink("Open Setup", Symbols.Power, "/ads/setup")
     }
 }
 
@@ -394,14 +385,14 @@ fun RowScope.AdsRangeMenu() {
     var open by remember { mutableStateOf(false) }
     Box {
         TextButton(onClick = { open = true }, modifier = Modifier.defaultMinSize(minHeight = MinTouchTarget).semantics { contentDescription = "Range: ${AdsRange.label(AdsRangeStore.key)}" }) {
-            Icon(Icons.Filled.CalendarMonth, contentDescription = null, Modifier.size(18.dp))
+            Icon(Symbols.CalendarMonth, contentDescription = null, Modifier.size(18.dp))
             Text(AdsRange.label(AdsRangeStore.key), Modifier.padding(start = 6.dp), maxLines = 1)
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             for (r in AdsRange.all) {
                 DropdownMenuItem(
                     text = { Text(r.label, fontWeight = if (r.key == AdsRangeStore.key) FontWeight.SemiBold else FontWeight.Normal) },
-                    trailingIcon = { if (r.key == AdsRangeStore.key) Icon(Icons.Filled.Check, null, tint = ErpColors.accent) },
+                    trailingIcon = { if (r.key == AdsRangeStore.key) Icon(Symbols.Check, null, tint = ErpColors.accent) },
                     onClick = { open = false; AdsRangeStore.set(r.key) },
                 )
             }
@@ -556,7 +547,7 @@ fun AdsSearchField(placeholder: String, value: String, onChange: (String) -> Uni
     SearchBarField(
         value = value, onValueChange = onChange, modifier = modifier.fillMaxWidth(),
         placeholder = { Text(placeholder) },
-        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+        leadingIcon = { Icon(Symbols.Search, contentDescription = null) },
         singleLine = true,
         shape = Radius.chipShape,
     )

@@ -1,6 +1,7 @@
 package erp.app.screens.home
 
 import erp.app.ui.rememberErpMotion
+import erp.app.ui.icons.Symbols
 import erp.app.ui.morphCard
 import erp.app.ui.zoomSource
 import androidx.compose.animation.animateContentSize
@@ -19,20 +20,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.Cake
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.ErrorOutline
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Hardware
-import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material.icons.filled.PersonOff
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -118,7 +105,7 @@ fun DashLabel(text: String, modifier: Modifier = Modifier, large: Boolean = fals
 /** The quiet arrow on whatever opens a place. */
 @Composable
 fun DashChevron() {
-    Icon(Icons.Filled.ChevronRight, contentDescription = null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+    Icon(Symbols.ChevronRight, contentDescription = null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
 }
 
 /** A tap target that reads as the one spoken line the iPhone gives it, and lets its words stay out of the reader's way. */
@@ -305,7 +292,7 @@ fun DashHeader(title: String, count: Int? = null, allLabel: String? = null, onAl
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text("All", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium), color = ErpColors.accent)
-                Icon(Icons.Filled.ChevronRight, contentDescription = null, Modifier.size(16.dp), tint = ErpColors.accent)
+                Icon(Symbols.ChevronRight, contentDescription = null, Modifier.size(16.dp), tint = ErpColors.accent)
             }
         }
     }
@@ -342,7 +329,7 @@ fun DashAllClear() {
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(Icons.Filled.CheckCircle, contentDescription = null, Modifier.size(24.dp), tint = Tone.settled.color())
+        Icon(Symbols.CheckCircle, contentDescription = null, Modifier.size(24.dp), tint = Tone.settled.color())
         Text("All clear", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
         Text("Nothing late, unpaid or waiting", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
     }
@@ -378,7 +365,7 @@ fun DashDisclosure(title: String, modifier: Modifier = Modifier, content: @Compo
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold))
-            Icon(Icons.Filled.ExpandMore, contentDescription = null, Modifier.rotate(turn), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(Symbols.ExpandMore, contentDescription = null, Modifier.rotate(turn), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         if (open) Column(Modifier.padding(top = 12.dp)) { content() }
     }
@@ -402,16 +389,16 @@ internal fun needTone(t: DashNeed.Tone): Tone = when (t) {
 }
 
 internal fun needSymbol(k: DashNeed.Kind): ImageVector = when (k) {
-    DashNeed.Kind.rate -> Icons.AutoMirrored.Filled.TrendingUp
-    DashNeed.Kind.online -> Icons.Filled.Language
-    DashNeed.Kind.late -> Icons.Filled.Schedule
-    DashNeed.Kind.bench -> Icons.Filled.Hardware
-    DashNeed.Kind.unassigned -> Icons.Filled.PersonOff
-    DashNeed.Kind.unpaid -> Icons.Filled.Payments
-    DashNeed.Kind.repairReady -> Icons.Filled.Build
-    DashNeed.Kind.birthday -> Icons.Filled.Cake
-    DashNeed.Kind.anniversary -> Icons.Filled.Favorite
-    DashNeed.Kind.other -> Icons.Filled.ErrorOutline
+    DashNeed.Kind.rate -> Symbols.TrendingUp
+    DashNeed.Kind.online -> Symbols.Language
+    DashNeed.Kind.late -> Symbols.Schedule
+    DashNeed.Kind.bench -> Symbols.Hardware
+    DashNeed.Kind.unassigned -> Symbols.PersonOff
+    DashNeed.Kind.unpaid -> Symbols.Payments
+    DashNeed.Kind.repairReady -> Symbols.Build
+    DashNeed.Kind.birthday -> Symbols.Cake
+    DashNeed.Kind.anniversary -> Symbols.Favorite
+    DashNeed.Kind.other -> Symbols.ErrorOutline
 }
 
 internal fun needSpoken(n: DashNeed): String {

@@ -1,6 +1,7 @@
 package erp.app.screens.customers
 
 import erp.app.ui.rememberErpMotion
+import erp.app.ui.icons.Symbols
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -12,8 +13,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -90,7 +89,7 @@ fun Disclosure(title: String, modifier: Modifier = Modifier, content: @Composabl
             Text(title, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
             val turn by androidx.compose.animation.core.animateFloatAsState(if (open) 0f else -90f, motion.spatial(), label = "fold")
             Icon(
-                Icons.Filled.ExpandMore, contentDescription = null,
+                Symbols.ExpandMore, contentDescription = null,
                 Modifier.rotate(turn),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )

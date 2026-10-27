@@ -1,5 +1,7 @@
 package erp.app.screens.home
 
+import erp.app.nav.LocalFabClearance
+import erp.app.ui.icons.Symbols
 import erp.app.ui.AppClock
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,8 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -153,7 +153,7 @@ fun Dashboard() {
     ScreenTitle("Today")
     if (owner) {
         ScreenActions {
-            IconButton(onClick = { noteSheet = true }) { Icon(Icons.Filled.PushPin, "Team note") }
+            IconButton(onClick = { noteSheet = true }) { Icon(Symbols.PushPin, "Team note") }
         }
     }
 
@@ -203,7 +203,7 @@ private fun DashboardPage(
             Column(
                 Modifier
                     .padding(horizontal = if (wide) 28.dp else 16.dp)
-                    .padding(top = 4.dp, bottom = 24.dp)
+                    .padding(top = 4.dp, bottom = maxOf(24.dp, LocalFabClearance.current))
                     // On the widest windows the page stays a page: the two columns never drift a room apart.
                     .widthIn(max = if (wide) 1240.dp else Dp.Infinity)
                     .fillMaxWidth(),

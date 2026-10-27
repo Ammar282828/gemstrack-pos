@@ -1,5 +1,7 @@
 package erp.app.screens.customers
 
+import erp.app.ui.TextField
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -13,15 +15,10 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.CallMerge
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import erp.app.ui.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -237,11 +234,11 @@ private fun PairSection(
             Rule()
             Person("Delete", duplicate, Tone.problem.color(), moves)
             Rule()
-            Line("Swap keep and delete", Icons.Filled.SwapVert, ErpColors.accent, onSwap)
+            Line("Swap keep and delete", Symbols.SwapVert, ErpColors.accent, onSwap)
             Rule()
-            Line("Merge and delete the duplicate", Icons.AutoMirrored.Filled.CallMerge, Tone.problem.color(), onMerge)
+            Line("Merge and delete the duplicate", Symbols.CallMerge, Tone.problem.color(), onMerge)
             Rule()
-            Line("Not a duplicate", Icons.Filled.Close, ErpColors.accent, onNot)
+            Line("Not a duplicate", Symbols.Close, ErpColors.accent, onNot)
         }
     }
 }
@@ -329,7 +326,7 @@ private fun ManualSection(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 val ink = if (can) Tone.problem.color() else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                Icon(Icons.AutoMirrored.Filled.CallMerge, contentDescription = null, tint = ink)
+                Icon(Symbols.CallMerge, contentDescription = null, tint = ink)
                 Text("Merge and delete the duplicate", style = MaterialTheme.typography.bodyLarge, color = ink)
             }
         }
@@ -366,7 +363,7 @@ private fun Chooser(
     } else {
         Column(Modifier.fillMaxWidth().ledgerRow(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(title, style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold), color = tint)
-            OutlinedTextField(
+            TextField(
                 value = search, onValueChange = onSearch, modifier = Modifier.fillMaxWidth(),
                 placeholder = { Text("Search by name or phone") }, singleLine = true, shape = Radius.chipShape,
                 label = null,

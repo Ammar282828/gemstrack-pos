@@ -1,5 +1,6 @@
 package erp.app.screens.design
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -10,12 +11,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.OpenInFull
-import androidx.compose.material.icons.filled.Public
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -198,10 +193,10 @@ fun DesignScreen(path: String, preset: DesignWorkspaceModel? = null) {
         ScreenActions {
             var menu by remember { mutableStateOf(false) }
             Box {
-                IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, "More") }
+                IconButton(onClick = { menu = true }) { Icon(Symbols.MoreVert, "More") }
                 DropdownMenu(menu, { menu = false }) {
-                    DropdownMenuItem(text = { Text("Resize…") }, leadingIcon = { Icon(Icons.Filled.OpenInFull, null) }, onClick = { menu = false; go(DesignSection.Make); DesignHooks.resize(workspace) })
-                    DropdownMenuItem(text = { Text("Close this design") }, leadingIcon = { Icon(Icons.Filled.Close, null) }, onClick = { menu = false; scope.launch { workspace.close(); shelf.loadDrafts(context); go(DesignSection.Make) } })
+                    DropdownMenuItem(text = { Text("Resize…") }, leadingIcon = { Icon(Symbols.OpenInFull, null) }, onClick = { menu = false; go(DesignSection.Make); DesignHooks.resize(workspace) })
+                    DropdownMenuItem(text = { Text("Close this design") }, leadingIcon = { Icon(Symbols.Close, null) }, onClick = { menu = false; scope.launch { workspace.close(); shelf.loadDrafts(context); go(DesignSection.Make) } })
                 }
             }
         }
@@ -209,7 +204,7 @@ fun DesignScreen(path: String, preset: DesignWorkspaceModel? = null) {
 
     Box(Modifier.fillMaxSize()) {
         if (!access.post) {
-            NotAvailableState("Design is for the shop’s team", why = "Sign in with an owner, staff or marketing account to make posts and ads.", icon = Icons.Filled.Lock)
+            NotAvailableState("Design is for the shop’s team", why = "Sign in with an owner, staff or marketing account to make posts and ads.", icon = Symbols.Lock)
         } else {
             Column(Modifier.fillMaxSize()) {
                 ChipRow(Modifier.padding(vertical = 4.dp)) {
@@ -268,7 +263,7 @@ fun DesignBoardSection() {
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             OutlinedButton(onClick = { navigator.open("/design?v=board&web=1") }, Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp)) {
-                Icon(Icons.Filled.Public, null, Modifier.size(18.dp))
+                Icon(Symbols.Public, null, Modifier.size(18.dp))
                 Text("Open the Board", Modifier.padding(start = 8.dp))
             }
         }

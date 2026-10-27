@@ -1,5 +1,6 @@
 package erp.app.ui
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -14,8 +15,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -98,7 +97,7 @@ fun PaidRing(paid: Double, total: Double, modifier: Modifier = Modifier, size: D
             drawArc(colour, -90f, 360f * sweep, useCenter = false, topLeft = Offset(inset, inset), size = arc, style = Stroke(stroke, cap = StrokeCap.Round))
         }
         Icon(
-            Icons.Filled.Check, contentDescription = null,
+            Symbols.Check, contentDescription = null,
             Modifier.size(size * 0.36f).scale(bounce.value),
             tint = colour.copy(alpha = if (settled) 1f else 0f),
         )

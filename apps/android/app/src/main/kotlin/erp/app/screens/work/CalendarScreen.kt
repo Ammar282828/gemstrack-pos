@@ -1,5 +1,6 @@
 package erp.app.screens.work
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.SegmentedColumn
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -18,13 +19,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.EventAvailable
-import androidx.compose.material.icons.filled.FiberManualRecord
-import androidx.compose.material.icons.filled.ListAlt
-import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -178,9 +172,9 @@ private fun MonthCard(
 ) {
     Column(Modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card).padding(horizontal = 8.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = { onStep(-1) }) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Previous month") }
+            IconButton(onClick = { onStep(-1) }) { Icon(Symbols.KeyboardArrowLeft, "Previous month") }
             Text(ShopCalendar.title(year, month), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
-            IconButton(onClick = { onStep(1) }) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Next month") }
+            IconButton(onClick = { onStep(1) }) { Icon(Symbols.KeyboardArrowRight, "Next month") }
         }
         Row {
             for (name in listOf("Su", "Mo", "Tu", "We", "Th", "Fr", "Sa")) {
@@ -200,9 +194,9 @@ private fun MonthCard(
             }
         }
         Row(Modifier.padding(horizontal = 8.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            Legend(Icons.Filled.FiberManualRecord, "Sales", Tone.settled)
-            Legend(Icons.Filled.FiberManualRecord, "Orders", Tone.working)
-            Legend(Icons.Filled.EventAvailable, "Promised", Tone.owed)
+            Legend(Symbols.FiberManualRecord, "Sales", Tone.settled)
+            Legend(Symbols.FiberManualRecord, "Orders", Tone.working)
+            Legend(Symbols.EventAvailable, "Promised", Tone.owed)
         }
     }
 }
@@ -241,7 +235,7 @@ private fun RowScope.DayCell(day: Int, key: String, data: ShopCalendarDay?, due:
             if (data != null && data.orders > 0) Count(data.orders, Tone.working)
             if (due > 0) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.EventAvailable, null, Modifier.size(9.dp), tint = Tone.owed.color())
+                    Icon(Symbols.EventAvailable, null, Modifier.size(9.dp), tint = Tone.owed.color())
                     Text("$due", fontSize = 9.sp, color = Tone.owed.color())
                 }
             }
@@ -286,7 +280,7 @@ private fun DaySection(events: List<ShopCalendarEvent>, selected: String) {
                         horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top,
                     ) {
                         val tone = if (e.isInvoice) Tone.settled else Tone.working
-                        Icon(if (e.isInvoice) Icons.Filled.Receipt else Icons.Filled.ListAlt, null, Modifier.size(24.dp), tint = tone.color())
+                        Icon(if (e.isInvoice) Symbols.Receipt else Symbols.ListAlt, null, Modifier.size(24.dp), tint = tone.color())
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text(e.docId, style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text(e.customerName.ifEmpty { "Walk-in" }, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -318,7 +312,7 @@ private fun DueSection(due: List<Order>, selected: String) {
                     Modifier.fillMaxWidth().clickable(role = Role.Button) { nav.open(WorkPaths.order(o.id)) }.ledgerRow(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top,
                 ) {
-                    Icon(Icons.Filled.EventAvailable, null, Modifier.size(24.dp), tint = Tone.owed.color())
+                    Icon(Symbols.EventAvailable, null, Modifier.size(24.dp), tint = Tone.owed.color())
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(o.id, style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.SemiBold), maxLines = 1)
                         Text((o.customerName ?: "").ifEmpty { "Walk-in" }, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)

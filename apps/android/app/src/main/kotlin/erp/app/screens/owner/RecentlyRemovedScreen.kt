@@ -1,6 +1,7 @@
 package erp.app.screens.owner
 
 import erp.app.ui.animatedItem
+import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,11 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Engineering
-import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.Undo
 import erp.app.ui.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -138,7 +134,7 @@ private fun RecentlyRemovedList() {
                         NotAvailableState(
                             "Nobody has been removed",
                             why = "Nothing here has been destroyed. Their history is exactly where they left it.",
-                            icon = Icons.Filled.Undo,
+                            icon = Symbols.Undo,
                         )
                     }
                 } else {
@@ -200,12 +196,12 @@ private fun Summary(
         Column(Modifier.fillMaxWidth().cardEdges(first = true, last = true).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = putAllBack, enabled = busy == null, modifier = Modifier.fillMaxWidth()) {
                 if (busy == "all") Loading(Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
-                else Icon(Icons.Filled.Undo, contentDescription = null)
+                else Icon(Symbols.Undo, contentDescription = null)
                 Text("  Put everything back")
             }
             // The sheet says what goes and what it orphans before it takes the code (the page's "Empty Recently removed?").
             OutlinedButton(onClick = empty, enabled = busy == null, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Filled.Delete, contentDescription = null, tint = Tone.problem.color())
+                Icon(Symbols.Delete, contentDescription = null, tint = Tone.problem.color())
                 Text("  Empty", color = Tone.problem.color())
             }
         }
@@ -255,7 +251,7 @@ private fun PersonRow(
         Modifier.fillMaxWidth().ledgerRow(),
         horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(if (kind == Kind.customer) Icons.Filled.People else Icons.Filled.Engineering, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Icon(if (kind == Kind.customer) Symbols.People else Symbols.Engineering, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(name.ifEmpty { id }, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium), maxLines = 1)
             Text(line, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)

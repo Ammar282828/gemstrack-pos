@@ -1,13 +1,11 @@
 package erp.app.ui
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SwitchColors
@@ -43,7 +41,7 @@ fun Switch(
         onCheckedChange = onCheckedChange?.let { change -> { on -> haptics.toggle(on); change(on) } },
         modifier = modifier,
         thumbContent = {
-            Icon(if (checked) Icons.Filled.Check else Icons.Filled.Close, contentDescription = null, Modifier.size(SwitchDefaults.IconSize))
+            Icon(if (checked) Symbols.Check else Symbols.Close, contentDescription = null, Modifier.size(SwitchDefaults.IconSize))
         },
         enabled = enabled,
         colors = colors,

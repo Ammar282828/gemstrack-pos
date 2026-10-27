@@ -1,5 +1,6 @@
 package erp.app.screens.neworder
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -9,14 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.PersonSearch
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -114,7 +107,7 @@ internal fun CustomerSection(
                 recent = recent,
             )
         }
-        numberMatch?.let { NoteRow("This number is ${it.name}'s: the order goes to them.", Icons.Filled.PersonSearch) }
+        numberMatch?.let { NoteRow("This number is ${it.name}'s: the order goes to them.", Symbols.PersonSearch) }
         PickerRow(
             "How they found us", d.source,
             listOf("" to "Not specified") + NewOrderWords.sources.map { it.id to it.label },
@@ -146,7 +139,7 @@ internal fun PromisedSection(holder: DraftHolder) {
             DateRow("Date promised", d.promised) { day -> holder.edit { promised = day } }
             if (days != null && days <= URGENT_WINDOW_DAYS) {
                 // Soon is amber, as the order page's "Urgent" pill: red is kept for what is already late.
-                NoteRow(NewOrderLogic.urgentWords(days), Icons.Filled.Warning, if (days < 0) Tone.late else Tone.owed)
+                NoteRow(NewOrderLogic.urgentWords(days), Symbols.Warning, if (days < 0) Tone.late else Tone.owed)
             }
         }
     }
@@ -241,7 +234,7 @@ internal fun ExchangeSection(holder: DraftHolder) {
                         Modifier.width(110.dp), placeholder = "Amount", keyboardType = KeyboardType.Number, autoCorrect = false, end = true, label = "Amount",
                     )
                     IconButton(onClick = { remove(row.id) }, Modifier.size(MinTouchTarget)) {
-                        Icon(Icons.Filled.Close, "Remove this exchange", Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(Symbols.Close, "Remove this exchange", Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
                 if (showDetails) {
@@ -273,7 +266,7 @@ internal fun ExchangeSection(holder: DraftHolder) {
                 }
             }
         }
-        ActionRow("Add another exchange", icon = Icons.Filled.Add, onClick = { holder.edit { exchanges.add(NewOrderExchangeDraft.blank()) } })
+        ActionRow("Add another exchange", icon = Symbols.Add, onClick = { holder.edit { exchanges.add(NewOrderExchangeDraft.blank()) } })
         if (d.exchanges.size > 1 && total > 0) ValueRow("Exchange total", Money.pkr(total))
     }
 }
@@ -288,7 +281,7 @@ private fun KaratMenu(karat: String, onPick: (String) -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(karat.ifEmpty { "Karat" }, color = if (karat.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface)
-            Icon(Icons.Filled.ExpandMore, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(Symbols.ExpandMore, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             DropdownMenuItem(text = { Text("Karat") }, onClick = { open = false; onPick("") })
@@ -339,7 +332,7 @@ internal fun DeliverySection(
 private fun AddressesMenu(offered: List<String>, onPick: (String) -> Unit) {
     var open by remember { mutableStateOf(false) }
     Box {
-        ActionRow("Addresses on file (${offered.size})", icon = Icons.Filled.LocationOn, onClick = { open = true })
+        ActionRow("Addresses on file (${offered.size})", icon = Symbols.LocationOn, onClick = { open = true })
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             offered.forEach { a -> DropdownMenuItem(text = { Text(a) }, onClick = { open = false; onPick(a) }) }
         }
@@ -364,7 +357,7 @@ internal fun MarginSection(holder: DraftHolder, settings: Settings?, totals: () 
     FormCard(title = "Our margin (shop only)", footer = "Never printed, and never on anything the customer sees.") {
         NumberRow("24k rate now (per tola)", d.costTola, { t -> holder.edit { costTola = t } }, prompt = "Leave empty for ${NewOrderLogic.assumedPercent(house)}%")
         Row(Modifier.fillMaxWidth().formRow(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
-            Icon(Icons.Filled.Lock, null, Modifier.padding(top = 2.dp).size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(Symbols.Lock, null, Modifier.padding(top = 2.dp).size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(NewOrderLogic.rateWords(perGram, house), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         if (sheetTola > 0 && sheetTola.toDouble() != NewOrderFormat.num(d.costTola)) {
@@ -376,7 +369,7 @@ internal fun MarginSection(holder: DraftHolder, settings: Settings?, totals: () 
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Icon(Icons.Filled.Lock, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(Symbols.Lock, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
             Text("We earn", Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(
                 if (shown) NewOrderLogic.marginWords(NewOrderMath.margin(d, settings, totals()), house) else "••.•% · PKR ••,•••",

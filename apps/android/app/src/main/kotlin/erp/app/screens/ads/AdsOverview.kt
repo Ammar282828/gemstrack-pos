@@ -1,5 +1,6 @@
 package erp.app.screens.ads
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,15 +13,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Checklist
-import androidx.compose.material.icons.filled.Lightbulb
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.Send
-import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -215,7 +207,7 @@ fun AdsOverviewContent(
         AdsTwoPane(
             left = {
                 AccountCard(d, rangeKey)
-                if (problem != null) AdsSection("Couldn't refresh") { AdsWarningRow(problem, Tone.quiet, Icons.Filled.WifiOff) }
+                if (problem != null) AdsSection("Couldn't refresh") { AdsWarningRow(problem, Tone.quiet, Symbols.WifiOff) }
                 Figures(d, cur)
                 Brought(d)
                 Attention(d, acting, onPause, onRunAgain)
@@ -307,7 +299,7 @@ private fun Attention(d: AdOverview, acting: String?, onPause: (AdAttention) -> 
     AdsSection("Needs a look", count = d.attention.size) {
         if (d.attention.isEmpty()) {
             Row(Modifier.fillMaxWidth().ledgerRow(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.CheckCircle, contentDescription = null, Modifier.size(20.dp), tint = Tone.settled.color())
+                Icon(Symbols.CheckCircle, contentDescription = null, Modifier.size(20.dp), tint = Tone.settled.color())
                 Text("Nothing needs attention.", color = Tone.settled.color())
             }
         } else {
@@ -316,7 +308,7 @@ private fun Attention(d: AdOverview, acting: String?, onPause: (AdAttention) -> 
                 AdsRow(onClick = if (tap) ({ navigator.open(a.href) }) else null) {
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
                         Icon(
-                            if (a.severity == "tip") Icons.Filled.Lightbulb else Icons.Filled.Warning, contentDescription = null,
+                            if (a.severity == "tip") Symbols.Lightbulb else Symbols.Warning, contentDescription = null,
                             Modifier.size(20.dp).padding(top = 2.dp),
                             tint = when (a.severity) { "bad" -> Tone.problem.color(); "warn" -> Tone.owed.color(); else -> MaterialTheme.colorScheme.onSurfaceVariant },
                         )
@@ -425,9 +417,9 @@ private fun ElsewhereInAds(d: AdOverview, role: String) {
             }
         },
     ) {
-        AdsLink("Campaigns", Icons.Filled.Checklist, "/ads/campaigns", "Every campaign, ad set and ad; run or pause them")
-        if (adsMapHas("/ads/studio", role)) AdsLink("Studio", Icons.Filled.Palette, "/ads/studio", "Make the creative before the ad")
-        AdsLink("New ad", Icons.Filled.Send, "/ads/new", "Boost a piece or an Instagram post")
-        AdsLink("Setup", Icons.Filled.Tune, "/ads/setup", "The Meta connection, ad account, audiences and rules")
+        AdsLink("Campaigns", Symbols.Checklist, "/ads/campaigns", "Every campaign, ad set and ad; run or pause them")
+        if (adsMapHas("/ads/studio", role)) AdsLink("Studio", Symbols.Palette, "/ads/studio", "Make the creative before the ad")
+        AdsLink("New ad", Symbols.Send, "/ads/new", "Boost a piece or an Instagram post")
+        AdsLink("Setup", Symbols.Tune, "/ads/setup", "The Meta connection, ad account, audiences and rules")
     }
 }

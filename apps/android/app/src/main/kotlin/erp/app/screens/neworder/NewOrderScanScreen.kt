@@ -1,5 +1,6 @@
 package erp.app.screens.neworder
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,10 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.automirrored.filled.HelpOutline
-import androidx.compose.material.icons.filled.Warning
 import erp.app.ui.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -148,7 +145,7 @@ internal fun ScanSlipPage(holder: DraftHolder, onClose: () -> Unit) {
                     enabled = reading != null && !busy && photos.isNotEmpty() && (seeded || settings != null),
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp).defaultMinSize(minHeight = MinTouchTarget),
                 ) {
-                    Icon(Icons.Filled.Check, null)
+                    Icon(Symbols.Check, null)
                     Text("Fill the form", Modifier.padding(start = 8.dp))
                 }
             }
@@ -193,7 +190,7 @@ internal fun ScanSlipPage(holder: DraftHolder, onClose: () -> Unit) {
                         }
                     }
                 }
-                problem?.let { FormCard(title = "Could not read that") { NoteRow(it, Icons.Filled.Warning, Tone.problem) } }
+                problem?.let { FormCard(title = "Could not read that") { NoteRow(it, Symbols.Warning, Tone.problem) } }
                 val r = reading
                 if (r != null && !busy) {
                     picks.let { }
@@ -210,14 +207,14 @@ private fun ReadingSections(r: NewOrderScanReading, photoCount: Int, onPick: () 
     val check = NewOrderSlip.check(a)
     Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
         a.unreadable?.takeIf { it.isNotEmpty() }?.let { unread ->
-            FormCard(title = "Could not make this out") { NoteRow(unread, Icons.AutoMirrored.Filled.HelpOutline, Tone.owed) }
+            FormCard(title = "Could not make this out") { NoteRow(unread, Symbols.HelpOutline, Tone.owed) }
         }
         if (check.warnings.isNotEmpty()) {
             FormCard(
                 title = "The slip does not add up as read",
                 footer = "Nothing has been corrected: check the figures against the photo, and fix them on the form.",
             ) {
-                check.warnings.forEach { w -> NoteRow(w, Icons.Filled.Warning, Tone.owed) }
+                check.warnings.forEach { w -> NoteRow(w, Symbols.Warning, Tone.owed) }
             }
         }
         r.karigar?.let { g ->

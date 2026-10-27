@@ -1,11 +1,10 @@
 package erp.app.ui
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Call
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.PreviewLightDark
@@ -60,7 +59,7 @@ private fun BadgesPreview() = Page {
         PaidBar(paid = 40_000.0, total = 100_000.0)
         PaidRing(paid = 100_000.0, total = 100_000.0)
         ContactActions("0300 1234567")
-        QuickAction("Call", Icons.Filled.Call, {}, prominent = true)
+        QuickAction("Call", Symbols.Call, {}, prominent = true)
     }
 }
 

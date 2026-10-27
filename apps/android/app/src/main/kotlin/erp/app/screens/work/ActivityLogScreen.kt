@@ -1,6 +1,7 @@
 package erp.app.screens.work
 
 import erp.app.ui.animatedItem
+import erp.app.ui.icons.Symbols
 import erp.app.ui.SegmentedColumn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -15,20 +16,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Undo
-import androidx.compose.material.icons.filled.AttachMoney
-import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.Diamond
-import androidx.compose.material.icons.filled.Hardware
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Inventory2
-import androidx.compose.material.icons.filled.ListAlt
-import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Receipt
-import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -150,7 +137,7 @@ private fun ActivityLogPage() {
             }
             if (list.isEmpty()) {
                 animatedItem(key = "none") {
-                    NotAvailableState("No Activity Found", Modifier.padding(bottom = 12.dp), why = "There are no log entries for the selected filters.", icon = Icons.Filled.History)
+                    NotAvailableState("No Activity Found", Modifier.padding(bottom = 12.dp), why = "There are no log entries for the selected filters.", icon = Symbols.History)
                 }
             } else {
                 val visible = list.take(shown)
@@ -177,7 +164,7 @@ private fun ActivityLogPage() {
             animatedItem(key = "web") {
                 Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SegmentedColumn {
-                        ActionRow("Sign-ins and the emergency lock", { nav.open(WEB_PAGE) }, icon = Icons.Filled.Shield)
+                        ActionRow("Sign-ins and the emergency lock", { nav.open(WEB_PAGE) }, icon = Symbols.Shield)
                     }
                     Text(
                         "Reverting an invoice, an order or an expense asks for the delete code, so it stays on the ERP's page (swipe the line). The last 30 sign-ins and the emergency lock are there too.",
@@ -198,8 +185,8 @@ private fun LogRow(e: ActivityLogEntry, openWeb: () -> Unit) {
         ActivityLogRules.Tone.deleted -> Tone.owed
         ActivityLogRules.Tone.other -> Tone.quiet
     }.color()
-    val revert = if (ActivityLogRules.isRevertable(e.eventType)) RowAction("Revert", Icons.AutoMirrored.Filled.Undo, Tone.owed, openWeb) else null
-    val menu = if (revert == null) emptyList() else listOf(RowAction("Revert on the ERP's page", Icons.AutoMirrored.Filled.Undo, Tone.owed, openWeb))
+    val revert = if (ActivityLogRules.isRevertable(e.eventType)) RowAction("Revert", Symbols.Undo, Tone.owed, openWeb) else null
+    val menu = if (revert == null) emptyList() else listOf(RowAction("Revert on the ERP's page", Symbols.Undo, Tone.owed, openWeb))
     SwipeActions(end = revert, menu = menu) {
         Row(
             Modifier.fillMaxWidth().background(ErpColors.card).ledgerRow(),
@@ -222,18 +209,18 @@ private fun LogRow(e: ActivityLogEntry, openWeb: () -> Unit) {
 
 /** The icon of the thing it was done to (the page's own). */
 private fun symbol(eventType: String) = when {
-    eventType.endsWith(".refund") -> Icons.AutoMirrored.Filled.Undo
+    eventType.endsWith(".refund") -> Symbols.Undo
     else -> when (eventType.substringBefore('.')) {
-        "product" -> Icons.Filled.Diamond
-        "customer" -> Icons.Filled.Person
-        "karigar", "job" -> Icons.Filled.Hardware
-        "invoice" -> Icons.Filled.Receipt
-        "order" -> Icons.Filled.ListAlt
-        "expense" -> Icons.Filled.Payments
-        "revenue" -> Icons.Filled.TrendingUp
-        "given" -> Icons.Filled.Inventory2
-        "repair" -> Icons.Filled.Build
-        "rates" -> Icons.Filled.AttachMoney
-        else -> Icons.Filled.History
+        "product" -> Symbols.Diamond
+        "customer" -> Symbols.Person
+        "karigar", "job" -> Symbols.Hardware
+        "invoice" -> Symbols.Receipt
+        "order" -> Symbols.ListAlt
+        "expense" -> Symbols.Payments
+        "revenue" -> Symbols.TrendingUp
+        "given" -> Symbols.Inventory2
+        "repair" -> Symbols.Build
+        "rates" -> Symbols.AttachMoney
+        else -> Symbols.History
     }
 }

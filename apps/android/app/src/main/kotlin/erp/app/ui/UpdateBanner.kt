@@ -1,12 +1,11 @@
 package erp.app.ui
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowCircleDown
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -47,7 +46,7 @@ internal fun UpdateNotice(modifier: Modifier = Modifier) {
             Modifier.padding(horizontal = 16.dp, vertical = 8.dp).semantics(mergeDescendants = true) {},
             horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(Icons.Filled.ArrowCircleDown, null, Modifier.size(18.dp), tint = Tone.owed.color())
+            Icon(Symbols.ArrowCircleDown, null, Modifier.size(18.dp), tint = Tone.owed.color())
             Text(UpdateGate.words, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold), color = Tone.owed.color())
         }
     }

@@ -1,6 +1,7 @@
 package erp.app.screens.money
 
 import erp.app.ui.animatedItem
+import erp.app.ui.icons.Symbols
 import erp.app.ui.Radius
 import erp.app.ui.zoomSource
 import androidx.compose.foundation.background
@@ -16,13 +17,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AutoStories
-import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.IosShare
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Work
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -114,7 +108,7 @@ private fun HisaabBoard() {
         Box {
             IconButton(onClick = { menu = true }) {
                 Icon(
-                    Icons.Filled.FilterList,
+                    Symbols.FilterList,
                     contentDescription = if (filtering) "Filter, on" else "Filter",
                     tint = if (filtering) ErpColors.accent else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -127,7 +121,7 @@ private fun HisaabBoard() {
                 for (k in HisaabKind.values()) ChoiceItem(k.title, k == kind) { kind = k; menu = false }
             }
         }
-        IconButton(onClick = { picking = true }) { Icon(Icons.Filled.Add, contentDescription = "Add entry") }
+        IconButton(onClick = { picking = true }) { Icon(Symbols.Add, contentDescription = "Add entry") }
     }
 
     Box(Modifier.fillMaxSize()) {
@@ -173,7 +167,7 @@ private fun HisaabBoard() {
                                 Modifier.fillMaxWidth().clickable(role = Role.Button) { navigator.open(MoneyPaths.hisaabWeb) }.ledgerRow(),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Icon(Icons.Filled.IosShare, contentDescription = null, tint = ErpColors.accent)
+                                Icon(Symbols.IosShare, contentDescription = null, tint = ErpColors.accent)
                                 Text("Export the summary report", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
                             }
                         }
@@ -194,7 +188,7 @@ private fun EmptyState(searching: Boolean) {
     NotAvailableState(
         if (searching) "No accounts found" else "All settled",
         why = if (searching) "No accounts match your search." else "All accounts are settled. No outstanding balances found.",
-        icon = Icons.Filled.AutoStories,
+        icon = Symbols.AutoStories,
     )
 }
 
@@ -248,7 +242,7 @@ private fun AccountRow(account: HisaabAccount, listInvoices: Boolean, modifier: 
         verticalAlignment = Alignment.Top,
     ) {
         Box(Modifier.size(36.dp).clip(CircleShape).background(ErpColors.accent.copy(alpha = 0.14f)), contentAlignment = Alignment.Center) {
-            Icon(if (account.isCustomer) Icons.Filled.Person else Icons.Filled.Work, contentDescription = null, tint = ErpColors.accent)
+            Icon(if (account.isCustomer) Symbols.Person else Symbols.Work, contentDescription = null, tint = ErpColors.accent)
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
@@ -273,7 +267,6 @@ private fun AccountRow(account: HisaabAccount, listInvoices: Boolean, modifier: 
             }
             if (listInvoices && account.unpaid.isNotEmpty()) {
                 // Every invoice still owing, as the web's card lists them.
-                HorizontalDivider(Modifier.padding(vertical = 2.dp), thickness = 0.5.dp)
                 for (inv in account.unpaid) UnpaidLine(inv)
             }
         }

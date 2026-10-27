@@ -1,15 +1,11 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -44,7 +40,7 @@ fun NestedMenu(expanded: Boolean, onDismiss: () -> Unit, items: List<MenuNode>) 
         if (path.isNotEmpty()) {
             DropdownMenuItem(
                 text = { Text(path.last().label) },
-                leadingIcon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") },
+                leadingIcon = { Icon(Symbols.ArrowBack, contentDescription = "Back") },
                 onClick = { path = path.dropLast(1) },
             )
         }
@@ -57,7 +53,7 @@ fun NestedMenu(expanded: Boolean, onDismiss: () -> Unit, items: List<MenuNode>) 
                 )
                 is MenuNode.Sub -> DropdownMenuItem(
                     text = { Text(node.label) },
-                    trailingIcon = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) },
+                    trailingIcon = { Icon(Symbols.KeyboardArrowRight, contentDescription = null) },
                     onClick = { path = path + node },
                 )
             }
@@ -77,7 +73,7 @@ fun ArtworkMenuRow(label: String, items: List<MenuNode>, modifier: Modifier = Mo
         ) {
             Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge, color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
             if (value != null) Text(value, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Icon(Icons.Filled.ExpandMore, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(Symbols.ExpandMore, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         NestedMenu(open, { open = false }, items)
     }
@@ -90,7 +86,7 @@ fun MenuTextButton(label: String, items: List<MenuNode>, modifier: Modifier = Mo
     Box(modifier) {
         TextButton(onClick = { open = true }, enabled = enabled) {
             Text(label)
-            Icon(Icons.Filled.ArrowDropDown, contentDescription = null)
+            Icon(Symbols.ArrowDropDown, contentDescription = null)
         }
         NestedMenu(open, { open = false }, items)
     }

@@ -1,5 +1,6 @@
 package erp.app.screens.neworder
 
+import erp.app.ui.icons.Symbols
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.Base64
@@ -22,12 +23,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DocumentScanner
-import androidx.compose.material.icons.filled.PhotoLibrary
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import erp.app.ui.OutlinedButton
@@ -184,7 +179,7 @@ internal fun PaperPicker(
     ) {
         val off = disabled || loading || room <= 0
         OutlinedButton(onClick = ::scan, enabled = !off, modifier = Modifier.heightIn(min = MinTouchTarget)) {
-            Icon(Icons.Filled.DocumentScanner, null, Modifier.size(18.dp))
+            Icon(Symbols.DocumentScanner, null, Modifier.size(18.dp))
             Text(scanTitle, Modifier.padding(start = 6.dp))
         }
         OutlinedButton(
@@ -195,7 +190,7 @@ internal fun PaperPicker(
             enabled = !off,
             modifier = Modifier.heightIn(min = MinTouchTarget),
         ) {
-            Icon(Icons.Filled.PhotoLibrary, null, Modifier.size(18.dp))
+            Icon(Symbols.PhotoLibrary, null, Modifier.size(18.dp))
             Text("From Photos", Modifier.padding(start = 6.dp))
         }
         if (loading) SkeletonLoading(compact = true)
@@ -227,7 +222,7 @@ internal fun PaperPhotoStrip(
                     )
                 }
                 if (remove != null) {
-                    RoundIconButton(Icons.Filled.Close, "Remove photo ${i + 1}", { remove(p.id) }, Modifier.align(Alignment.TopEnd))
+                    RoundIconButton(Symbols.Close, "Remove photo ${i + 1}", { remove(p.id) }, Modifier.align(Alignment.TopEnd))
                 }
             }
         }
@@ -266,7 +261,7 @@ internal fun PaperNamePick(
     ) {
         if (pinned != null) {
             Row(Modifier.fillMaxWidth().formRow(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Icon(Icons.Filled.CheckCircle, null, tint = MaterialTheme.colorScheme.primary)
+                Icon(Symbols.CheckCircle, null, tint = MaterialTheme.colorScheme.primary)
                 Text(pinned.name, Modifier.weight(1f))
                 TextButton(onClick = { onPick(null) }) { Text("Not them") }
             }
@@ -276,7 +271,7 @@ internal fun PaperNamePick(
                     Modifier.fillMaxWidth().formRow().clickable(role = Role.Button) { onPick(c) },
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    Icon(Icons.Filled.Person, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(Symbols.Person, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(c.name, Modifier.weight(1f))
                 }
             }

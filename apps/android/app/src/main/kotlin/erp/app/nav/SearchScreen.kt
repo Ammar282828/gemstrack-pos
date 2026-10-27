@@ -1,6 +1,7 @@
 package erp.app.nav
 
 import erp.app.ui.animatedItem
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -15,12 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.Logout
-import androidx.compose.material.icons.rounded.Clear
-import androidx.compose.material.icons.rounded.Domain
-import androidx.compose.material.icons.rounded.PhoneAndroid
-import androidx.compose.material.icons.rounded.Search
 import erp.app.ui.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -102,7 +97,7 @@ fun SearchScreen() {
         query = next
     }
 
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = maxOf(24.dp, LocalFabClearance.current)), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         animatedItem(key = "field") {
             // Material 3's search bar: a full-round field on the container tone, the search glyph first, no outline.
             SearchBarField(
@@ -110,8 +105,8 @@ fun SearchScreen() {
                 onValueChange = { text = it },
                 modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
                 placeholder = { Text("Customers, invoices, orders, stock, places", maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                leadingIcon = { Icon(Icons.Rounded.Search, null) },
-                trailingIcon = { if (text.isNotEmpty()) IconButton({ text = "" }) { Icon(Icons.Rounded.Clear, "Clear") } },
+                leadingIcon = { Icon(Symbols.Search, null) },
+                trailingIcon = { if (text.isNotEmpty()) IconButton({ text = "" }) { Icon(Symbols.Clear, "Clear") } },
             )
         }
         if (typed.isEmpty()) {
@@ -131,8 +126,8 @@ fun SearchScreen() {
             }
             animatedItem(key = "account") {
                 Group("Account") {
-                    Line("Businesses", null, Icons.Rounded.Domain, "/app/businesses"); Hairline()
-                    if (session.isOwner) { Line("This phone", null, Icons.Rounded.PhoneAndroid, "/app/phone"); Hairline() }
+                    Line("Businesses", null, Symbols.Domain, "/app/businesses"); Hairline()
+                    if (session.isOwner) { Line("This phone", null, Symbols.PhoneAndroid, "/app/phone"); Hairline() }
                     // The map is already this person's: Settings is in it for owners only.
                     map.settings?.let { s -> Line(s.label, null, NavIcon.vector(s.icon), s.href); Hairline() }
                     val email = me?.email.orEmpty()
@@ -149,7 +144,7 @@ fun SearchScreen() {
                         Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(role = Role.Button) { signingOut = true }.padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
-                        Icon(Icons.AutoMirrored.Rounded.Logout, null, tint = Tone.problem.color())
+                        Icon(Symbols.Logout, null, tint = Tone.problem.color())
                         Text("Sign out", style = MaterialTheme.typography.bodyLarge, color = Tone.problem.color())
                     }
                 }

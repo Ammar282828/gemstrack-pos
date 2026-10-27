@@ -1,5 +1,6 @@
 package erp.app.screens.settings.label
 
+import erp.app.ui.icons.Symbols
 import android.graphics.Paint
 import android.graphics.Typeface
 import androidx.compose.foundation.Canvas

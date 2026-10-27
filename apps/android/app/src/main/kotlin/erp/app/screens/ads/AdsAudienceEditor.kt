@@ -1,5 +1,7 @@
 package erp.app.screens.ads
 
+import erp.app.ui.TextField
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,20 +11,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddCircle
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Cancel
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.PinDrop
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import erp.app.ui.TextButton
 import androidx.compose.runtime.Composable
@@ -163,7 +156,7 @@ fun AdsAudienceSheet(
                     // The estimate
                     AdsSection(null, footer = { Text(draft.words) }) {
                         Row(Modifier.fillMaxWidth().ledgerRow(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Filled.People, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Icon(Symbols.People, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                             val e = estimate
                             val upper = e?.upper
                             when {
@@ -183,7 +176,7 @@ fun AdsAudienceSheet(
                         for (p in draft.places) PlaceRow(p, { r -> draft = AdsAudienceEdit.setRadius(draft, p, r) }) { draft = AdsAudienceEdit.remove(draft, p) }
                         if (draft.places.isEmpty()) AdsRow { Text("Choose at least one place.", color = Tone.problem.color()) }
                         AdsRow(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedTextField(
+                            TextField(
                                 placeQ, { placeQ = it }, Modifier.fillMaxWidth(), placeholder = { Text("A city, area or country") }, singleLine = true,
                                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(capitalization = KeyboardCapitalization.Words, autoCorrectEnabled = false),
                             )
@@ -234,19 +227,19 @@ fun AdsAudienceSheet(
                             Row(Modifier.fillMaxWidth().ledgerRow(), verticalAlignment = Alignment.CenterVertically) {
                                 Text(i.name, Modifier.weight(1f))
                                 IconButton(onClick = { draft = draft.copy(interests = draft.interests.filter { it.id != i.id }) }) {
-                                    Icon(Icons.Filled.Cancel, "Remove ${i.name}", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Icon(Symbols.Cancel, "Remove ${i.name}", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             }
                         }
                         AdsRow(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedTextField(interestQ, { interestQ = it }, Modifier.fillMaxWidth(), placeholder = { Text("Jewellery, gold, weddings…") }, singleLine = true)
+                            TextField(interestQ, { interestQ = it }, Modifier.fillMaxWidth(), placeholder = { Text("Jewellery, gold, weddings…") }, singleLine = true)
                             AdsChips {
                                 for (s in interestShortcuts) AdsTonalButton(s, { interestQ = s })
                                 if (draft.interests.isNotEmpty()) AdsTonalButton("More like these", {
                                     scope.launch {
                                         interestHits = try { backend.suggestions(draft.interests.map { it.name }) } catch (e: CancellationException) { throw e } catch (_: Exception) { emptyList() }
                                     }
-                                }, icon = Icons.Filled.AutoAwesome)
+                                }, icon = Symbols.AutoAwesome)
                             }
                             interestHits?.let { hits ->
                                 if (hits.isEmpty()) Text("Nothing found.", color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -261,7 +254,7 @@ fun AdsAudienceSheet(
                                             if (!h.path.isNullOrEmpty()) Text(h.path, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
                                         }
                                         h.size?.let { Text(AdsFormat.compact(it), style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = TabularDigits), color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                                        Icon(if (on) Icons.Filled.Check else Icons.Filled.AddCircle, if (on) "Added" else "Add ${h.name}", tint = ErpColors.accent)
+                                        Icon(if (on) Symbols.Check else Symbols.AddCircle, if (on) "Added" else "Add ${h.name}", tint = ErpColors.accent)
                                     }
                                 }
                             }
@@ -324,7 +317,7 @@ fun AdsAudienceSheet(
 @Composable
 private fun PlaceRow(p: AdsPlace, setRadius: (Double?) -> Unit, remove: () -> Unit) {
     Row(Modifier.fillMaxWidth().ledgerRow(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(if (p.type == "pin") Icons.Filled.PinDrop else Icons.Filled.LocationOn, contentDescription = null, tint = ErpColors.accent)
+        Icon(if (p.type == "pin") Symbols.PinDrop else Symbols.LocationOn, contentDescription = null, tint = ErpColors.accent)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(p.name)
             if (!p.detail.isNullOrEmpty()) Text(p.detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -340,6 +333,6 @@ private fun PlaceRow(p: AdsPlace, setRadius: (Double?) -> Unit, remove: () -> Un
                 }
             }
         }
-        IconButton(onClick = remove) { Icon(Icons.Filled.Cancel, "Remove ${p.name}", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+        IconButton(onClick = remove) { Icon(Symbols.Cancel, "Remove ${p.name}", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
     }
 }

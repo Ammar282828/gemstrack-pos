@@ -1,5 +1,6 @@
 package erp.app.screens.workshop
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.zoomDestination
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -15,22 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddCircle
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Handyman
-import androidx.compose.material.icons.filled.LockOpen
-import androidx.compose.material.icons.filled.NoteAlt
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.PersonOff
-import androidx.compose.material.icons.filled.PersonRemove
-import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.Scale
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
@@ -247,7 +232,7 @@ fun WorkshopKarigarScreen(id: String) {
         if (karigar == null || !karigar.deletedAt.isNullOrEmpty()) {
             NotAvailableState(
                 "Karigar not found", why = "They may have been removed. Settings, Recently removed puts them back.",
-                icon = Icons.Filled.PersonOff,
+                icon = Symbols.PersonOff,
             )
             return@ShelfState
         }
@@ -267,7 +252,7 @@ fun WorkshopKarigarScreen(id: String) {
             ScreenActions {
                 // The web copies the list and opens WhatsApp to the karigar; the share sheet does both.
                 IconButton(onClick = { workshopShare(context, WorkshopLogic.shareText(load, session.shop.name), "Send list") }) {
-                    Icon(Icons.Filled.Share, "Send list")
+                    Icon(Symbols.Share, "Send list")
                 }
             }
         }
@@ -319,7 +304,7 @@ fun WorkshopKarigarScreen(id: String) {
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     Box(Modifier.weight(1f)) { TwoLine(s.batch.label, subtitle = KarigarNow.settledWords(s), trailing = PaymentText.pkr(s.total)) }
-                                    Icon(Icons.Filled.ExpandMore, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Icon(Symbols.ExpandMore, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                                 if (open) {
                                     Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp)) {
@@ -334,7 +319,7 @@ fun WorkshopKarigarScreen(id: String) {
                                             )
                                             deletedWhat = "Batch deleted"
                                         }, Modifier.defaultMinSize(minHeight = MinTouchTarget)) {
-                                            Icon(Icons.Filled.Delete, null, Modifier.size(18.dp), tint = Tone.problem.color())
+                                            Icon(Symbols.Delete, null, Modifier.size(18.dp), tint = Tone.problem.color())
                                             Text("Delete batch", Modifier.padding(start = 6.dp), color = Tone.problem.color())
                                         }
                                     }
@@ -356,7 +341,7 @@ fun WorkshopKarigarScreen(id: String) {
                             Box(Modifier.weight(1f)) {
                                 TwoLine("Direct payments", subtitle = "Not part of any hisaab · $n payment${if (n == 1) "" else "s"}", trailing = PaymentText.pkr(pay.directTotal))
                             }
-                            Icon(Icons.Filled.ExpandMore, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Icon(Symbols.ExpandMore, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         if (open) Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp)) { for (e in pay.direct) PaymentRow(e) }
                     }
@@ -365,11 +350,11 @@ fun WorkshopKarigarScreen(id: String) {
             ProfileSection(karigar, if (showingAccounts) pay else null) { workshopDial(context, it) }
             if (owner) {
                 LedgerSection("Karigar") {
-                    ActionLine("Edit karigar", Icons.Filled.Edit, false) { navigator.open("/karigars/" + WorkshopLogic.piece(karigar.id) + "/edit") }
+                    ActionLine("Edit karigar", Symbols.Edit, false) { navigator.open("/karigars/" + WorkshopLogic.piece(karigar.id) + "/edit") }
                     LedgerDivider()
-                    ActionLine("Their view", Icons.Filled.Visibility, false) { navigator.open("/my-work?preview=" + WorkshopLogic.piece(karigar.id)) }
+                    ActionLine("Their view", Symbols.Visibility, false) { navigator.open("/my-work?preview=" + WorkshopLogic.piece(karigar.id)) }
                     LedgerDivider()
-                    ActionLine("Remove karigar", Icons.Filled.PersonRemove, true) {
+                    ActionLine("Remove karigar", Symbols.PersonRemove, true) {
                         // Removing him (`removeKarigar`, the delete code, the store's words) only hides him: his jobs,
                         // given items and hisaab stay, and Settings, Recently removed puts him back.
                         val name = karigar.name.ifEmpty { karigar.id }
@@ -525,7 +510,7 @@ private fun StockJobsSection(karigar: Karigar, mine: List<KarigarJob>, owner: Bo
         if (owner) {
             if (mine.isNotEmpty()) LedgerDivider()
             // The Workshop's Assign Stock Work, with him chosen (the web's "Assign" on his card).
-            ActionLine("Assign stock work", Icons.Filled.AddCircle, false, onAssign)
+            ActionLine("Assign stock work", Symbols.AddCircle, false, onAssign)
         }
     }
 }
@@ -580,7 +565,7 @@ private fun PayBatchSection(pay: KarigarPay.Figures, onAsk: (WorkshopPayAsk) -> 
     if (open != null) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.LockOpen, null, Modifier.size(18.dp))
+                Icon(Symbols.LockOpen, null, Modifier.size(18.dp))
                 Text(open.batch.label.ifEmpty { "Pay batch" }, style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold))
                 Pill("Active", tone = Tone.settled)
             }
@@ -605,9 +590,9 @@ private fun PayBatchSection(pay: KarigarPay.Figures, onAsk: (WorkshopPayAsk) -> 
                     Box(Modifier.fillMaxWidth().ledgerRow()) { PaymentRow(e) }
                 }
                 LedgerDivider()
-                ActionLine("Add payment", Icons.Filled.AddCircle, false) { onAsk(WorkshopPayAsk.Pay(open.batch)) }
+                ActionLine("Add payment", Symbols.AddCircle, false) { onAsk(WorkshopPayAsk.Pay(open.batch)) }
                 LedgerDivider()
-                ActionLine("Silver", Icons.Filled.Scale, false) { onAsk(WorkshopPayAsk.Silver) }
+                ActionLine("Silver", Symbols.Scale, false) { onAsk(WorkshopPayAsk.Silver) }
                 LedgerDivider()
                 SettleLine { onAsk(WorkshopPayAsk.Settle(open)) }
             }
@@ -622,7 +607,7 @@ private fun PayBatchSection(pay: KarigarPay.Figures, onAsk: (WorkshopPayAsk) -> 
                     Text("Start a new hisaab to track payments in batches.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 LedgerDivider()
-                ActionLine("Start a pay batch", Icons.Filled.AddCircle, false) { onAsk(WorkshopPayAsk.Start) }
+                ActionLine("Start a pay batch", Symbols.AddCircle, false) { onAsk(WorkshopPayAsk.Start) }
             }
         }
     }
@@ -636,7 +621,7 @@ private fun SettleLine(onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Icon(Icons.Filled.CheckCircle, null, Modifier.size(20.dp), tint = ink)
+        Icon(Symbols.CheckCircle, null, Modifier.size(20.dp), tint = ink)
         Text("Settle", color = ink, style = MaterialTheme.typography.bodyLarge)
     }
 }
@@ -670,12 +655,12 @@ private fun SilverSection(silver: KarigarPay.Silver, onAdd: () -> Unit, onDelete
                     )
                 }
                 IconButton(onClick = { onDelete(t) }, Modifier.size(MinTouchTarget)) {
-                    Icon(Icons.Filled.Delete, "Delete this silver entry", tint = Tone.problem.color())
+                    Icon(Symbols.Delete, "Delete this silver entry", tint = Tone.problem.color())
                 }
             }
         }
         LedgerDivider()
-        ActionLine("Silver", Icons.Filled.AddCircle, false, onAdd)
+        ActionLine("Silver", Symbols.AddCircle, false, onAdd)
     }
 }
 
@@ -691,16 +676,16 @@ private fun ProfileSection(karigar: Karigar, pay: KarigarPay.Figures?, onDial: (
                     Modifier.fillMaxWidth().clickable(role = Role.Button, onClickLabel = "Call $contact") { onDial(contact) }.ledgerRow(),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    Icon(Icons.Filled.Phone, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                    Icon(Symbols.Phone, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
                     Text(contact, color = MaterialTheme.colorScheme.primary)
                 }
             }
         }
         karigar.specialty?.takeIf { it.isNotEmpty() }?.let { s ->
-            rows.add { IconLine(Icons.Filled.Handyman, s) }
+            rows.add { IconLine(Symbols.Handyman, s) }
         }
         karigar.notes?.takeIf { it.isNotEmpty() }?.let { n ->
-            rows.add { IconLine(Icons.Filled.NoteAlt, n) }
+            rows.add { IconLine(Symbols.NoteAlt, n) }
         }
         if (pay != null) {
             rows.add {

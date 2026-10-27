@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,19 +13,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.Campaign
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.Groups
-import androidx.compose.material.icons.filled.Inbox
-import androidx.compose.material.icons.filled.PauseCircle
-import androidx.compose.material.icons.filled.Public
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Warning
 import erp.app.ui.AlertDialog
 import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
@@ -166,7 +154,7 @@ private fun QueueContent(id: String, onClose: () -> Unit, embedded: Boolean) {
     val state by PostsStore.state.collectAsStateWithLifecycle()
     val entry = state.queue.firstOrNull { it.id == id }
     if (entry == null) {
-        NotAvailableState("No longer in the queue", why = "It was sent, removed, or changed on another device.", icon = Icons.Filled.Inbox)
+        NotAvailableState("No longer in the queue", why = "It was sent, removed, or changed on another device.", icon = Symbols.Inbox)
         return
     }
     QueuePage(entry, state, onClose, embedded)
@@ -197,14 +185,14 @@ private fun QueuePage(e: PostQueueEntry, state: PostsState, onClose: () -> Unit,
     // Send now is the page's one action, pinned (the iPhone's ActionBar): only where there is something left to send.
     val sendBar: (@Composable () -> Unit)? = if (PostQueueLogic.canSend(e)) ({
         MarketingActionBar(
-            if (e.status == "failed") "Send what is left now" else "Send now", Icons.AutoMirrored.Filled.Send, { confirmingSend = true }, busy = false,
+            if (e.status == "failed") "Send what is left now" else "Send now", Symbols.Send, { confirmingSend = true }, busy = false,
         )
     }) else null
     MarketingPinned(sendBar) { Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
             QueueHeader(e)
-            said?.let { Row(Modifier.fillMaxWidth().ledgerCard(), horizontalArrangement = Arrangement.spacedBy(8.dp)) { Icon(Icons.Filled.CheckCircle, null, tint = Tone.settled.color()); Text(it, color = Tone.settled.color()) } }
-            failure?.let { Row(Modifier.fillMaxWidth().ledgerCard(), horizontalArrangement = Arrangement.spacedBy(8.dp)) { Icon(Icons.Filled.Warning, null, tint = Tone.problem.color()); Text(it, color = Tone.problem.color()) } }
+            said?.let { Row(Modifier.fillMaxWidth().ledgerCard(), horizontalArrangement = Arrangement.spacedBy(8.dp)) { Icon(Symbols.CheckCircle, null, tint = Tone.settled.color()); Text(it, color = Tone.settled.color()) } }
+            failure?.let { Row(Modifier.fillMaxWidth().ledgerCard(), horizontalArrangement = Arrangement.spacedBy(8.dp)) { Icon(Symbols.Warning, null, tint = Tone.problem.color()); Text(it, color = Tone.problem.color()) } }
             FormSection(
                 "Where it goes",
                 footer = { Text(if (e.toWebsite && e.websiteNames.isNotEmpty()) "On the website as " + e.websiteNames.joinToString(", ") + "." else "") },
@@ -232,11 +220,11 @@ private fun QueuePage(e: PostQueueEntry, state: PostsState, onClose: () -> Unit,
                                     hand("Scheduling the piece", "Scheduling…") { PostsStore.schedule(id, at); "It goes " + ShopDate.stamp(at, withTime = true) + "." }
                                 })
                             } else {
-                                ActionRow("Send at a time…", { picking = true }, Icons.Filled.Schedule)
+                                ActionRow("Send at a time…", { picking = true }, Symbols.Schedule)
                             }
-                            if (e.status == "scheduled") ActionRow("Hold it", { val id = e.id; hand("Holding the piece", "Holding…") { PostsStore.hold(id); "Held. It waits for you." } }, Icons.Filled.PauseCircle)
+                            if (e.status == "scheduled") ActionRow("Hold it", { val id = e.id; hand("Holding the piece", "Holding…") { PostsStore.hold(id); "Held. It waits for you." } }, Symbols.PauseCircle)
                         }
-                        if (e.status != "sent") ActionRow("Remove from the queue", { confirmingRemove = true }, Icons.Filled.Delete, tone = Tone.problem)
+                        if (e.status != "sent") ActionRow("Remove from the queue", { confirmingRemove = true }, Symbols.Delete, tone = Tone.problem)
                     }
                 }
             }
@@ -311,7 +299,7 @@ private fun PlaceRow(p: PostQueueLogic.Place, e: PostQueueEntry) {
         }
         when {
             gone == p.units.size -> Text("Gone", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            problem != null -> Icon(Icons.Filled.Error, contentDescription = "Failed", tint = Tone.problem.color())
+            problem != null -> Icon(Symbols.Error, contentDescription = "Failed", tint = Tone.problem.color())
             gone > 0 -> Text("$gone/${p.units.size}", style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = TabularDigits), color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }

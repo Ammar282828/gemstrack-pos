@@ -1,5 +1,6 @@
 package erp.app.screens.ads
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -7,15 +8,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Public
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.VerifiedUser
-import androidx.compose.material.icons.filled.Warning
 import erp.app.ui.AlertDialog
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
@@ -159,7 +151,7 @@ fun AdsAudiencesScreen() {
                         ) {
                             if (isOwner) {
                                 for (seg in data?.segments ?: emptyList()) AdsChoiceRow(seg.label, seg.key == segment, { segment = seg.key }, subtitle = seg.hint, enabled = busy == null)
-                                AdsActionRow("Make “$segmentLabel”", { sendingCustomers = true }, icon = Icons.Filled.VerifiedUser, enabled = data != null && busy == null, busy = busy == "customers")
+                                AdsActionRow("Make “$segmentLabel”", { sendingCustomers = true }, icon = Symbols.VerifiedUser, enabled = data != null && busy == null, busy = busy == "customers")
                             } else {
                                 AdsRow { Text("Only an owner can send the customer book to Meta.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
                             }
@@ -173,7 +165,7 @@ fun AdsAudiencesScreen() {
                             PickerRow("In the last", days.toString(), listOf("30" to "30 days", "90" to "90 days", "180" to "180 days", "365" to "Year", "730" to "2 years")) { days = it.toInt() }
                             AdsActionRow(
                                 "Make the engagers audience", { scope.launch { make(mapOf("kind" to "engagers", "days" to days, "event" to event), "engagers") } },
-                                icon = Icons.Filled.CameraAlt, enabled = data != null && busy == null, busy = busy == "engagers",
+                                icon = Symbols.CameraAlt, enabled = data != null && busy == null, busy = busy == "engagers",
                             )
                         }
                         // Website visitors (the shop's pixel, audiences/page.tsx "Website visitors")
@@ -189,7 +181,7 @@ fun AdsAudiencesScreen() {
                                 PickerRow("In the last", webDays.toString(), listOf(7, 14, 30, 60, 90, 180).map { it.toString() to "$it days" }) { webDays = it.toInt() }
                                 AdsActionRow(
                                     "Make the website audience", { scope.launch { make(AdsAudiencesLogic.websiteBody(webEvent, webDays), "website") } },
-                                    icon = Icons.Filled.Public, enabled = data != null && busy == null, busy = busy == "website",
+                                    icon = Symbols.Public, enabled = data != null && busy == null, busy = busy == "website",
                                 )
                             }
                         }
@@ -206,7 +198,7 @@ fun AdsAudiencesScreen() {
                             PickerRow("Country", country, AdsCountries.map { it.key to it.label }) { country = it }
                             AdsActionRow(
                                 "Make the lookalike", { scope.launch { make(mapOf("kind" to "lookalike", "origin" to origin, "percent" to percent, "country" to country), "lookalike") } },
-                                icon = Icons.Filled.AutoAwesome, enabled = origin.isNotEmpty() && busy == null, busy = busy == "lookalike",
+                                icon = Symbols.AutoAwesome, enabled = origin.isNotEmpty() && busy == null, busy = busy == "lookalike",
                             )
                         }
                     },
@@ -292,9 +284,9 @@ private fun AudienceRow(a: AdsAudienceRow, isOwner: Boolean, busy: String?, onRe
             erp.app.ui.SkeletonLoading(compact = true, label = "Working")
         } else {
             if (a.kind == "Customer list" && isOwner) {
-                IconButton(onClick = onRefresh, enabled = busy == null) { Icon(Icons.Filled.Refresh, "Add today's customers") }
+                IconButton(onClick = onRefresh, enabled = busy == null) { Icon(Symbols.Refresh, "Add today's customers") }
             }
-            IconButton(onClick = onDelete, enabled = busy == null) { Icon(Icons.Filled.Delete, "Delete ${a.name}", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+            IconButton(onClick = onDelete, enabled = busy == null) { Icon(Symbols.Delete, "Delete ${a.name}", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
     }
 }

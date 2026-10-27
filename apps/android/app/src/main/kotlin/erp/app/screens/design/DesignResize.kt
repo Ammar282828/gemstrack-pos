@@ -1,5 +1,7 @@
 package erp.app.screens.design
 
+import erp.app.ui.TextField
+import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
 import android.graphics.Bitmap
 import androidx.compose.foundation.BorderStroke
@@ -18,15 +20,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.OpenInFull
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import erp.app.ui.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import erp.app.ui.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -315,16 +311,16 @@ fun DesignResizeSheet(model: DesignWorkspaceModel, dismiss: () -> Unit) {
                 }
                 SectionCard("Your own shape") {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        OutlinedTextField(
+                        TextField(
                             r.customW, { r.customW = it }, Modifier.width(80.dp).semantics { contentDescription = "Width" }, singleLine = true,
                             keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Decimal), placeholder = { Text("W") },
                         )
                         Text(":")
-                        OutlinedTextField(
+                        TextField(
                             r.customH, { r.customH = it }, Modifier.width(80.dp).semantics { contentDescription = "Height" }, singleLine = true,
                             keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Decimal), placeholder = { Text("H") },
                         )
-                        OutlinedButton(onClick = r::addCustom) { Icon(Icons.Filled.Add, null, Modifier.size(18.dp)); Text("Add", Modifier.padding(start = 4.dp)) }
+                        OutlinedButton(onClick = r::addCustom) { Icon(Symbols.Add, null, Modifier.size(18.dp)); Text("Add", Modifier.padding(start = 4.dp)) }
                     }
                     if (r.customs.isNotEmpty()) {
                         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -335,7 +331,7 @@ fun DesignResizeSheet(model: DesignWorkspaceModel, dismiss: () -> Unit) {
                 Column(Modifier.ledgerCard(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Filled.AutoAwesome, null, Modifier.size(18.dp)); Text("Smart", style = MaterialTheme.typography.titleSmall) }
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) { Icon(Symbols.AutoAwesome, null, Modifier.size(18.dp)); Text("Smart", style = MaterialTheme.typography.titleSmall) }
                             Text(if (r.smart) "Asks the AI once for all sizes; used only where it does better." else "Instant, no AI.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Switch(r.smart, { r.smart = it }, colors = SwitchDefaults.colors(checkedTrackColor = ErpColors.accent, checkedThumbColor = ErpColors.onAccent))
@@ -357,11 +353,11 @@ fun DesignResizeSheet(model: DesignWorkspaceModel, dismiss: () -> Unit) {
         if (r.shown.isEmpty()) {
             val n = r.picked.size
             DesignActionBar(
-                DesignAction(r.busy ?: (if (n == 0) "Resize" else "Resize $n size${if (n == 1) "" else "s"}"), Icons.Filled.OpenInFull, busy = r.busy != null, disabled = r.picked.isEmpty()) { scope.launch { r.resizeAll() } },
+                DesignAction(r.busy ?: (if (n == 0) "Resize" else "Resize $n size${if (n == 1) "" else "s"}"), Symbols.OpenInFull, busy = r.busy != null, disabled = r.picked.isEmpty()) { scope.launch { r.resizeAll() } },
             )
         } else {
             val n = r.accepted.size
-            DesignActionBar(DesignAction("Add $n size${if (n == 1) "" else "s"}", Icons.Filled.Check, disabled = r.accepted.isEmpty() || r.busy != null) { scope.launch { r.accept(); dismiss() } })
+            DesignActionBar(DesignAction("Add $n size${if (n == 1) "" else "s"}", Symbols.Check, disabled = r.accepted.isEmpty() || r.busy != null) { scope.launch { r.accept(); dismiss() } })
         }
     }
     erp.app.ui.FailureAlert(r.problem, onDismiss = { r.problem = null }, title = "Could not finish")
@@ -421,7 +417,7 @@ private fun ResultCard(r: DesignResizeModel, id: String) {
         if (res["needsExtend"].bool && r.extras[id] == null) {
             Text("The piece doesn’t fill this shape; the photo is shown whole.", style = MaterialTheme.typography.labelSmall, color = Tone.owed.color())
             OutlinedButton(onClick = { scope.launch { r.extend(id) } }, enabled = r.extending == null && r.busy == null) {
-                if (r.extending == id) Loading(Modifier.size(22.dp)) else Icon(Icons.Filled.AutoAwesome, null, Modifier.size(16.dp))
+                if (r.extending == id) Loading(Modifier.size(22.dp)) else Icon(Symbols.AutoAwesome, null, Modifier.size(16.dp))
                 Text("Extend the photo", Modifier.padding(start = 6.dp), style = MaterialTheme.typography.labelMedium)
             }
         }

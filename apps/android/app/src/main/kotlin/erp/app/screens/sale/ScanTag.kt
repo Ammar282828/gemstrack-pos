@@ -1,5 +1,6 @@
 package erp.app.screens.sale
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,12 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
-import androidx.compose.material.icons.filled.AddShoppingCart
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.ShoppingCart
 import erp.app.ui.Button
 import erp.app.ui.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -134,7 +129,7 @@ fun ScanTag() {
             // Pieces already waiting on the new sale.
             Card {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.ShoppingCart, contentDescription = null)
+                    Icon(Symbols.ShoppingCart, contentDescription = null)
                     Text("$onSale piece${if (onSale == 1) "" else "s"} on the new sale", style = MaterialTheme.typography.titleMedium)
                 }
                 FilledTonalButton(onClick = { navigator.open(SaleLinks.continueSale) }, Modifier.fillMaxWidth().defaultMinSize(minHeight = 52.dp)) { Text("Open the sale") }
@@ -196,7 +191,7 @@ private fun PieceCard(
         if (isOwner) {
             if (added) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = Tone.settled.color())
+                    Icon(Symbols.CheckCircle, contentDescription = null, tint = Tone.settled.color())
                     Text(
                         "On the new sale · $onSale piece${if (onSale == 1) "" else "s"}",
                         style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold), color = Tone.settled.color(),
@@ -205,13 +200,13 @@ private fun PieceCard(
                 Button(onClick = openSale, Modifier.fillMaxWidth().defaultMinSize(minHeight = 52.dp)) { Text("Open the sale") }
             } else {
                 Button(onClick = addToSale, Modifier.fillMaxWidth().defaultMinSize(minHeight = 52.dp)) {
-                    Icon(Icons.Filled.AddShoppingCart, contentDescription = null, Modifier.size(18.dp))
+                    Icon(Symbols.AddShoppingCart, contentDescription = null, Modifier.size(18.dp))
                     Text("Add to a new sale", Modifier.padding(start = 8.dp))
                 }
             }
         }
         FilledTonalButton(onClick = openPiece, Modifier.fillMaxWidth().defaultMinSize(minHeight = 52.dp)) {
-            Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, Modifier.size(18.dp))
+            Icon(Symbols.OpenInNew, contentDescription = null, Modifier.size(18.dp))
             Text("Open the piece", Modifier.padding(start = 8.dp))
         }
         TextButton(onClick = scanAnother, Modifier.fillMaxWidth().defaultMinSize(minHeight = MinTouchTarget)) { Text("Scan another") }
@@ -222,7 +217,7 @@ private fun PieceCard(
 private fun SoldCard(code: String, invoiceId: String, inv: erp.core.models.Invoice?, open: () -> Unit, scanAnother: () -> Unit) {
     Card {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Filled.Search, contentDescription = null)
+            Icon(Symbols.Search, contentDescription = null)
             Text("$code is not in stock", style = MaterialTheme.typography.titleMedium)
         }
         if (inv != null) {
@@ -240,7 +235,7 @@ private fun SoldCard(code: String, invoiceId: String, inv: erp.core.models.Invoi
 private fun UnknownCard(code: String, scanAnother: () -> Unit) {
     Card {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Filled.Search, contentDescription = null)
+            Icon(Symbols.Search, contentDescription = null)
             Text("No piece $code in stock", style = MaterialTheme.typography.titleMedium)
         }
         Text(

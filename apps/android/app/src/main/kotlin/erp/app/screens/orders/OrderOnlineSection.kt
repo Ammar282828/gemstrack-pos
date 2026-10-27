@@ -1,5 +1,6 @@
 package erp.app.screens.orders
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.AppClock
 import android.content.Intent
 import androidx.compose.foundation.clickable
@@ -9,16 +10,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Block
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Inventory2
-import androidx.compose.material.icons.filled.LocalShipping
-import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Send
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -88,7 +79,7 @@ fun OrderOnlineSection(order: Order, leopards: () -> Unit, modifier: Modifier = 
         Column(Modifier.ledgerCard(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             OrdersLabeled("Payment", OrdersLogic.paymentWords(w.paymentStatus), tint = paymentTint(w.paymentStatus))
             told?.let { t ->
-                OrdersStatusLine(if (t.ok) Icons.Filled.CheckCircle else Icons.Filled.Warning, t.words, if (t.ok) Tone.settled else Tone.owed)
+                OrdersStatusLine(if (t.ok) Symbols.CheckCircle else Symbols.Warning, t.words, if (t.ok) Tone.settled else Tone.owed)
             }
             order.leopards?.takeIf { it.cn.isNotEmpty() }?.let { Courier(it, context) }
             OrdersLabeled("Placed", ShopDate.say(w.placedAt, withTime = true))
@@ -126,14 +117,14 @@ private fun Moves(order: Order, w: WebsiteOrderMeta, context: android.content.Co
     if (awaitingMoney(order, w)) {
         bankDetailsUrl(order, w)?.let { url ->
             // The shop sends its bank details itself (owner, 2026-10-04): the chat, the amount written in.
-            MoveButton(Icons.Filled.Send, "Bank details on WhatsApp") { erp.app.device.openAddress(context, Intent.ACTION_VIEW, url) }
+            MoveButton(Symbols.Send, "Bank details on WhatsApp") { erp.app.device.openAddress(context, Intent.ACTION_VIEW, url) }
         }
-        MoveButton(Icons.Filled.Payments, "Transfer received: ${Money.pkr(OrdersLogic.onlineTotal(order))}") { onMove(OnlineMoveKind.paid) }
-        MoveButton(Icons.Filled.Block, "Let it lapse", destructive = true) { onMove(OnlineMoveKind.lapse) }
+        MoveButton(Symbols.Payments, "Transfer received: ${Money.pkr(OrdersLogic.onlineTotal(order))}") { onMove(OnlineMoveKind.paid) }
+        MoveButton(Symbols.Block, "Let it lapse", destructive = true) { onMove(OnlineMoveKind.lapse) }
     } else if (w.paymentStatus == WebsitePaymentStatus.transferReceived && (order.leopards?.deliveredAt ?: "").isEmpty()) {
         val shipped = !(order.leopards?.cn ?: "").isEmpty()
         MoveButton(
-            if (shipped) Icons.Filled.Inventory2 else Icons.Filled.LocalShipping,
+            if (shipped) Symbols.Inventory2 else Symbols.LocalShipping,
             if (shipped) "Tracking and Delivered" else "Book with Leopards, or enter a CN",
         ) { leopards() }
     }
@@ -198,7 +189,7 @@ private fun Hold(w: WebsiteOrderMeta) {
     val relative = OnlineOrdersLogic.ago(until)
     val tone = if (ended) Tone.late.color() else MaterialTheme.colorScheme.onSurfaceVariant
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
-        Icon(Icons.Filled.Schedule, null, Modifier.size(16.dp), tint = tone)
+        Icon(Symbols.Schedule, null, Modifier.size(16.dp), tint = tone)
         Text(
             if (ended) "The price hold ended $relative. Check the bank before anything else."
             else "Price held until ${ShopDate.say(until, withTime = true)} ($relative)",
@@ -217,7 +208,7 @@ private fun SlipRow(order: Order, s: WebsiteSlip, mayAct: Boolean, onOpen: () ->
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Filled.Description, null, Modifier.size(16.dp), tint = if (mayAct) ErpColors.accent else MaterialTheme.colorScheme.onSurface)
+            Icon(Symbols.Description, null, Modifier.size(16.dp), tint = if (mayAct) ErpColors.accent else MaterialTheme.colorScheme.onSurface)
             Text(
                 "Slip " + ShopDate.say(s.at, withTime = true), Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium,
                 color = if (mayAct) ErpColors.accent else MaterialTheme.colorScheme.onSurface,

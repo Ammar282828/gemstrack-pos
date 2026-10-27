@@ -1,5 +1,6 @@
 package erp.app.screens.sale
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -8,8 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.UnfoldMore
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -197,7 +196,7 @@ private fun SaleSizeField(title: String, options: List<String>, value: String, o
     ValueRow(title) {
         ValueInput(value, onChange, prompt = "Optional", label = title, keyboard = KeyboardType.Text)
         Box {
-            IconButton(onClick = { open = true }) { Icon(Icons.Filled.UnfoldMore, "Choose a $title") }
+            IconButton(onClick = { open = true }) { Icon(Symbols.UnfoldMore, "Choose a $title") }
             DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
                 DropdownMenuItem(text = { Text("No size") }, onClick = { open = false; onChange("") })
                 options.forEach { option -> DropdownMenuItem(text = { Text(option) }, onClick = { open = false; onChange(option) }) }

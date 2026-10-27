@@ -1,5 +1,6 @@
 package erp.app.ui
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -15,14 +16,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DirectionsWalk
-import androidx.compose.material.icons.filled.NorthWest
-import androidx.compose.material.icons.filled.PersonAdd
-import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -115,7 +110,7 @@ fun CustomerField(
                 wantName++
             }
         } else {
-            OutlinedTextField(
+            TextField(
                 value = name,
                 onValueChange = { if (settled == null) onType(it) },
                 modifier = Modifier
@@ -135,7 +130,7 @@ fun CustomerField(
                             .clickable(role = Role.Button) { onPick(null); focusManager.clearFocus() },
                         horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(Icons.Filled.DirectionsWalk, contentDescription = null, Modifier.size(30.dp).padding(3.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(Symbols.DirectionsWalk, contentDescription = null, Modifier.size(30.dp).padding(3.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text("Walk-in", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     recent().take(4).forEach { c ->
@@ -152,14 +147,14 @@ fun CustomerField(
                             Modifier.fillMaxWidth().padding(vertical = 8.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Icon(Icons.Filled.PersonAdd, contentDescription = null, Modifier.size(24.dp), tint = ErpColors.accent)
+                            Icon(Symbols.PersonAdd, contentDescription = null, Modifier.size(24.dp), tint = ErpColors.accent)
                             Text("New customer “$typed”", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
             }
             var phoneWasFocused by remember { mutableStateOf(false) }
-            OutlinedTextField(
+            TextField(
                 value = phone,
                 onValueChange = onPhoneChange,
                 modifier = Modifier
@@ -205,7 +200,7 @@ private fun HitRow(hit: CustomerSearch.Hit, note: String?, onClick: () -> Unit) 
                 )
             }
         }
-        Icon(Icons.Filled.NorthWest, contentDescription = null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+        Icon(Symbols.NorthWest, contentDescription = null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
     }
 }
 
@@ -217,7 +212,7 @@ private fun PickedRow(c: Customer, phone: String, onChange: () -> Unit) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(c.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.Verified, contentDescription = null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Symbols.Verified, contentDescription = null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(
                     sub.ifEmpty { "On file" },
                     style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = TabularDigits),

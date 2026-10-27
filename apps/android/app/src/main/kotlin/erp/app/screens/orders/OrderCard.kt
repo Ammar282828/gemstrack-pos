@@ -1,5 +1,6 @@
 package erp.app.screens.orders
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.border
@@ -14,17 +15,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.Chat
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material.icons.filled.PersonAdd
-import androidx.compose.material.icons.filled.Public
-import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -121,10 +111,10 @@ fun OrderCard(
     // The card's swipes (OrderCard.swift): from the left the customer, from the right the money and the bench. A swipe
     // has room for one a side, so the second of each pair (WhatsApp; Ready beside Advance) is in the card's menu and
     // TalkBack's actions.
-    val call = RowAction("Call", Icons.Filled.Call, Tone.settled) { actions.contact(order, OrderContactKind.call) }
-    val whatsApp = RowAction("WhatsApp", Icons.Filled.Chat, Tone.credit) { actions.contact(order, OrderContactKind.whatsApp) }
-    val advance = RowAction("Advance", Icons.Filled.Payments, Tone.working) { actions.advance(order) }
-    val ready = RowAction("Ready", Icons.Filled.CheckCircle, Tone.settled) { actions.markReady(order) }
+    val call = RowAction("Call", Symbols.Call, Tone.settled) { actions.contact(order, OrderContactKind.call) }
+    val whatsApp = RowAction("WhatsApp", Symbols.Chat, Tone.credit) { actions.contact(order, OrderContactKind.whatsApp) }
+    val advance = RowAction("Advance", Symbols.Payments, Tone.working) { actions.advance(order) }
+    val ready = RowAction("Ready", Symbols.CheckCircle, Tone.settled) { actions.markReady(order) }
     val right = listOfNotNull(advance.takeIf { canAdvance }, ready.takeIf { stage == OrderStage.karigar })
     SwipeActions(
         modifier = modifier.clip(Radius.cardShape),
@@ -150,21 +140,20 @@ fun OrderCard(
                 OrderCardHead(order, stage, owed, now, greyed, mine, showsStage)
             }
         }
-        HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.18f))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.weight(1f)) {
                 if (step != null) OrderNextStepRow(order, step, busy, actions)
             }
             Box {
                 IconButton(onClick = { menu = true }, modifier = Modifier.semantics { contentDescription = "Actions for ${order.id}" }) {
-                    Icon(Icons.Filled.MoreVert, null)
+                    Icon(Symbols.MoreVert, null)
                 }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     if (canAdvance) {
-                        MenuItem("Record an advance", Icons.Filled.Payments) { menu = false; actions.advance(order) }
+                        MenuItem("Record an advance", Symbols.Payments) { menu = false; actions.advance(order) }
                     }
                     if (stage == OrderStage.karigar) {
-                        MenuItem("Mark ready", Icons.Filled.CheckCircle) { menu = false; actions.markReady(order) }
+                        MenuItem("Mark ready", Symbols.CheckCircle) { menu = false; actions.markReady(order) }
                     }
                     Text(
                         "Set status",
@@ -175,16 +164,16 @@ fun OrderCard(
                     for (s in OrdersLogic.settableStatuses) {
                         DropdownMenuItem(
                             text = { Text(s) },
-                            leadingIcon = if (s == order.status.rawValue) ({ Icon(Icons.Filled.Check, "Current status") }) else null,
+                            leadingIcon = if (s == order.status.rawValue) ({ Icon(Symbols.Check, "Current status") }) else null,
                             onClick = { menu = false; actions.setStatus(order, s) },
                         )
                     }
                     HorizontalDivider()
                     if (hasPhone) {
-                        MenuItem("Call", Icons.Filled.Call) { menu = false; actions.contact(order, OrderContactKind.call) }
-                        MenuItem("WhatsApp", Icons.Filled.Chat) { menu = false; actions.contact(order, OrderContactKind.whatsApp) }
+                        MenuItem("Call", Symbols.Call) { menu = false; actions.contact(order, OrderContactKind.call) }
+                        MenuItem("WhatsApp", Symbols.Chat) { menu = false; actions.contact(order, OrderContactKind.whatsApp) }
                     }
-                    MenuItem("Open in the ERP", Icons.Filled.Public) { menu = false; actions.open(OrderPaths.orderPage(order.id)) }
+                    MenuItem("Open in the ERP", Symbols.Public) { menu = false; actions.open(OrderPaths.orderPage(order.id)) }
                 }
             }
         }
@@ -325,7 +314,7 @@ fun OrderNextStepRow(order: Order, step: OrderNextStep, busy: Boolean, actions: 
             Modifier.defaultMinSize(minHeight = 48.dp).clickable(onClickLabel = "Open invoice ${step.id}") { actions.open(OrderPaths.invoice(step.id)) },
             horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(Icons.Filled.Description, null, Modifier.size(18.dp), tint = ErpColors.accent)
+            Icon(Symbols.Description, null, Modifier.size(18.dp), tint = ErpColors.accent)
             Text("Invoice ${step.id}", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium), color = ErpColors.accent)
         }
     } else if (busy) {
@@ -352,8 +341,8 @@ fun OrderNextStepRow(order: Order, step: OrderNextStep, busy: Boolean, actions: 
 
 /** The step's icon (the SF Symbol the iPhone draws, in Material's terms). */
 fun stepIcon(step: OrderNextStep): ImageVector = when (step.symbol) {
-    "banknote" -> Icons.Filled.Payments
-    "person.badge.plus" -> Icons.Filled.PersonAdd
-    "checkmark.circle" -> Icons.Filled.CheckCircle
-    else -> Icons.Filled.Description
+    "banknote" -> Symbols.Payments
+    "person.badge.plus" -> Symbols.PersonAdd
+    "checkmark.circle" -> Symbols.CheckCircle
+    else -> Symbols.Description
 }

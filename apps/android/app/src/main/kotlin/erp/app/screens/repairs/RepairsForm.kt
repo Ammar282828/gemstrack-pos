@@ -1,5 +1,6 @@
 package erp.app.screens.repairs
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,12 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddCircle
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -177,7 +172,7 @@ fun RepairsForm(editing: Repair?, onDismiss: () -> Unit, onSaved: (id: String, s
                 Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp).clickable(role = Role.Button) { picking = true },
                 horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Icons.Filled.Person, null, tint = ErpColors.accent)
+                Icon(Symbols.Person, null, tint = ErpColors.accent)
                 Text("Pick from your customers", color = ErpColors.accent, style = MaterialTheme.typography.bodyLarge)
             }
             RepairsField(
@@ -207,7 +202,7 @@ fun RepairsForm(editing: Repair?, onDismiss: () -> Unit, onSaved: (id: String, s
                         }
                         if (pieces.size > 1) {
                             IconButton(onClick = { pieces = pieces.filterIndexed { i, _ -> i != index } }) {
-                                Icon(Icons.Filled.Delete, contentDescription = "Remove piece ${index + 1}", tint = Tone.problem.color())
+                                Icon(Symbols.Delete, contentDescription = "Remove piece ${index + 1}", tint = Tone.problem.color())
                             }
                         }
                     }
@@ -231,7 +226,7 @@ fun RepairsForm(editing: Repair?, onDismiss: () -> Unit, onSaved: (id: String, s
                 },
                 horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Icons.Filled.AddCircle, null, tint = ErpColors.accent)
+                Icon(Symbols.AddCircle, null, tint = ErpColors.accent)
                 Text("Add another piece", color = ErpColors.accent, style = MaterialTheme.typography.bodyLarge)
             }
             if (total > 0) {
@@ -356,7 +351,7 @@ private fun PickerRow(label: String, shown: String, options: List<Pair<String, S
         ) {
             Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
             if (shown.isNotEmpty()) Text(shown, color = ErpColors.accent, fontWeight = FontWeight.Medium)
-            Icon(Icons.Filled.ArrowDropDown, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(Symbols.ArrowDropDown, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             options.forEach { (value, text) ->
@@ -386,8 +381,8 @@ private fun CustomerPicker(customers: List<Customer>, onDismiss: () -> Unit, onP
             }
             Box(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) { RepairsSearchField(query, { query = it }, "Name or phone") }
             if (shown.isEmpty()) {
-                if (q.isEmpty()) NotAvailableState("No customers yet", icon = Icons.Filled.Group)
-                else NotAvailableState("No Results for “$query”", why = "Check the spelling or try a new search.", icon = Icons.Filled.Group)
+                if (q.isEmpty()) NotAvailableState("No customers yet", icon = Symbols.Group)
+                else NotAvailableState("No Results for “$query”", why = "Check the spelling or try a new search.", icon = Symbols.Group)
             } else {
                 LazyColumn(Modifier.weight(1f).padding(horizontal = 16.dp)) {
                     items(shown, key = { it.id }) { c ->

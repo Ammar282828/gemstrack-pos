@@ -1,5 +1,6 @@
 package erp.app.screens.orders
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
 import android.content.Intent
 import androidx.compose.foundation.background
@@ -16,19 +17,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.Chat
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.CloudOff
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Public
-import androidx.compose.material.icons.filled.TrendingUp
-import androidx.compose.material.icons.filled.Verified
-import androidx.compose.material.icons.filled.Warning
 import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -114,12 +102,12 @@ fun OnlineOrdersScreen() {
 
     Box(Modifier.fillMaxSize()) {
         when {
-            !session.shop.websiteSelling -> NotAvailableState("No online orders here", why = "This house's website takes no orders.", icon = Icons.Filled.Public)
+            !session.shop.websiteSelling -> NotAvailableState("No online orders here", why = "This house's website takes no orders.", icon = Symbols.Public)
             !mayAct -> NotAvailableState("Owners and staff only", why = "Only owner and staff accounts can act on online orders.")
             else -> when (val p = phase) {
                 OnlineOrdersStore.Phase.Idle, OnlineOrdersStore.Phase.Loading -> SkeletonLoading(Modifier.fillMaxSize())
                 is OnlineOrdersStore.Phase.Failed -> Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                    NotAvailableState("Couldn't read the online orders", why = p.message, icon = Icons.Filled.CloudOff)
+                    NotAvailableState("Couldn't read the online orders", why = p.message, icon = Symbols.CloudOff)
                     Button(
                         onClick = { scope.launch { OnlineOrdersStore.load() } },
                         colors = ButtonDefaults.buttonColors(containerColor = ErpColors.accent, contentColor = ErpColors.onAccent),
@@ -168,7 +156,7 @@ private fun OnlineList(
         if (told != null) {
             item("told") {
                 Column(Modifier.ledgerCard()) {
-                    OrdersStatusLine(if (told.ok) Icons.Filled.CheckCircle else Icons.Filled.Warning, told.words, if (told.ok) Tone.settled else Tone.owed)
+                    OrdersStatusLine(if (told.ok) Symbols.CheckCircle else Symbols.Warning, told.words, if (told.ok) Tone.settled else Tone.owed)
                 }
             }
         }
@@ -177,7 +165,7 @@ private fun OnlineList(
                 NotAvailableState(
                     "Nothing to confirm",
                     why = "A new one shows here, on Home and beside Orders. Nothing is in the book, and nobody has the bank details, until you confirm.",
-                    icon = Icons.Filled.Verified,
+                    icon = Symbols.Verified,
                 )
             }
         } else {
@@ -229,7 +217,7 @@ private fun WaitingCard(r: OnlineOrderRow, onConfirm: (OnlineOrderRow) -> Unit, 
         OnlineOrdersLogic.movedLine(r)?.let { moved ->
             val dearer = (OnlineOrdersLogic.moved(r)?.amount ?: 0.0) > 0
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
-                Icon(Icons.Filled.TrendingUp, null, Modifier.size(18.dp), tint = if (dearer) Tone.owed.color() else MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Symbols.TrendingUp, null, Modifier.size(18.dp), tint = if (dearer) Tone.owed.color() else MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(moved, style = MaterialTheme.typography.bodySmall, color = if (dearer) Tone.owed.color() else MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
@@ -247,11 +235,11 @@ private fun WaitingCard(r: OnlineOrderRow, onConfirm: (OnlineOrderRow) -> Unit, 
                 onClick = { onConfirm(r) }, modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = ErpColors.accent, contentColor = ErpColors.onAccent),
             ) {
-                Icon(Icons.Filled.Check, null, Modifier.size(18.dp))
+                Icon(Symbols.Check, null, Modifier.size(18.dp))
                 Text("Confirm", Modifier.padding(start = 8.dp))
             }
             OutlinedButton(onClick = { onDecline(r) }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.outlinedButtonColors(contentColor = Tone.problem.color())) {
-                Icon(Icons.Filled.Close, null, Modifier.size(18.dp))
+                Icon(Symbols.Close, null, Modifier.size(18.dp))
                 Text("Decline", Modifier.padding(start = 8.dp))
             }
         }
@@ -323,20 +311,20 @@ private fun CustomerRows(r: OnlineOrderRow) {
     val dial = OrdersLogic.dialable(r.customer.phone)
     if (dial.isNotEmpty()) {
         TextButton(onClick = { erp.app.device.openAddress(context, Intent.ACTION_DIAL, "tel:$dial") }) {
-            Icon(Icons.Filled.Call, null, Modifier.size(18.dp))
+            Icon(Symbols.Call, null, Modifier.size(18.dp))
             Text(r.customer.phone, Modifier.padding(start = 8.dp))
         }
     }
     val wa = toWhatsAppNumber(r.customer.phone)
     if (wa.isNotEmpty()) {
         TextButton(onClick = { erp.app.device.openAddress(context, Intent.ACTION_VIEW, "https://wa.me/$wa") }) {
-            Icon(Icons.Filled.Chat, null, Modifier.size(18.dp))
+            Icon(Symbols.Chat, null, Modifier.size(18.dp))
             Text("WhatsApp", Modifier.padding(start = 8.dp))
         }
     }
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
-            Icon(Icons.Filled.LocationOn, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(Symbols.LocationOn, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(listOf(r.delivery.address, r.delivery.city).filter { it.isNotEmpty() }.joinToString(", "), style = MaterialTheme.typography.bodyMedium)
         }
         val notes = r.delivery.notes?.trim().orEmpty()

@@ -1,5 +1,6 @@
 package erp.app.screens.stock
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.ContainedLoading
 import erp.app.ui.Loading
 import androidx.activity.compose.BackHandler
@@ -16,10 +17,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Inventory2
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.PhotoLibrary
 import erp.app.ui.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -119,7 +116,7 @@ fun StockPieceForm(sku: String?, onCreated: ((Product) -> Unit)? = null) {
     when {
         !session.isOwner -> {
             ScreenTitle(if (sku == null) "Add piece" else "Edit piece")
-            NotAvailableState("Only an owner can change the stock", why = "Ask an owner to add or edit the piece.", icon = Icons.Filled.Lock)
+            NotAvailableState("Only an owner can change the stock", why = "Ask an owner to add or edit the piece.", icon = Symbols.Lock)
         }
         sku != null -> {
             ScreenTitle("Edit piece")
@@ -136,7 +133,7 @@ fun StockPieceForm(sku: String?, onCreated: ((Product) -> Unit)? = null) {
 private fun NotInStock(sku: String) {
     val navigator = LocalNavigator.current
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-        NotAvailableState("Not in stock", why = "$sku is not in stock, so it cannot be edited. A sold piece stays as it was sold.", icon = Icons.Filled.Inventory2)
+        NotAvailableState("Not in stock", why = "$sku is not in stock, so it cannot be edited. A sold piece stays as it was sold.", icon = Symbols.Inventory2)
         TextButton(onClick = { navigator.open(StockKit.piecePath(sku)) }) { Text("Open $sku") }
     }
 }
@@ -465,7 +462,7 @@ private fun PhotoSection(original: Product?) {
     } else {
         FormSection(title = "Photo", footer = "A photo can be added once the piece is saved.") {
             Row(Modifier.fillMaxWidth().formRow(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Icon(Icons.Filled.PhotoLibrary, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Symbols.PhotoLibrary, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("Add the photo once the piece is saved", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
             }
         }
@@ -488,7 +485,7 @@ private fun SavedPage(s: SavedPiece, onAnother: () -> Unit, onOpen: () -> Unit) 
                 StockPiecePhotoField(s.sku, s.name, live?.imageUrl)
             }
             FormSection(title = "Next", footer = "Another piece starts in the same category.") {
-                SavedAction("Add another piece", Icons.Filled.Inventory2, onAnother)
+                SavedAction("Add another piece", Symbols.Inventory2, onAnother)
             }
         }
         Button(

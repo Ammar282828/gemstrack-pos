@@ -1,6 +1,8 @@
 package erp.app.screens.customers
 
 import erp.app.ui.animatedItem
+import erp.app.nav.LocalFabClearance
+import erp.app.ui.icons.Symbols
 import erp.app.ui.SegmentedColumn
 import erp.app.ui.SearchBarField
 import erp.app.ui.appearOnce
@@ -18,22 +20,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Message
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Sms
-import androidx.compose.material.icons.filled.People
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.Composable
@@ -138,13 +127,13 @@ fun CustomersList() {
 
     ScreenTitle("Customers")
     ScreenActions {
-        IconButton(onClick = { navigator.open("/customers/add") }) { Icon(Icons.Filled.Add, contentDescription = "Add customer") }
+        IconButton(onClick = { navigator.open("/customers/add") }) { Icon(Symbols.Add, contentDescription = "Add customer") }
     }
 
     ShelfState(loaded = loaded, error = failure, offline = offline, connectionLost = connectionLost) {
         LazyColumn(
             Modifier.fillMaxSize().readableColumn(),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 96.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = maxOf(24.dp, LocalFabClearance.current)),
         ) {
             animatedItem(key = "search") {
                 SearchBarField(
@@ -152,9 +141,9 @@ fun CustomersList() {
                     onValueChange = { search = it },
                     modifier = Modifier.fillMaxWidth().padding(bottom = GAP),
                     placeholder = { Text("Search by name, phone, or email") },
-                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                    leadingIcon = { Icon(Symbols.Search, contentDescription = null) },
                     trailingIcon = {
-                        if (search.isNotEmpty()) IconButton(onClick = { search = "" }) { Icon(Icons.Filled.Close, contentDescription = "Clear search") }
+                        if (search.isNotEmpty()) IconButton(onClick = { search = "" }) { Icon(Symbols.Close, contentDescription = "Clear search") }
                     },
                     singleLine = true,
                     shape = Radius.chipShape,
@@ -189,10 +178,10 @@ fun CustomersList() {
                 animatedItem(key = "clean") {
                     Column(Modifier.padding(top = GAP), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         SegmentedColumn {
-                            ActionLine("Merge duplicates", Icons.Filled.Group) { merging = true }
+                            ActionLine("Merge duplicates", Symbols.Group) { merging = true }
                             LedgerDivider()
                             // The spam finder (gibberish names and addresses with no number, history or address) stays the ERP's.
-                            ActionLine("Clean up spam", Icons.Filled.Delete) { navigator.open("/customers?web=1") }
+                            ActionLine("Clean up spam", Symbols.Delete) { navigator.open("/customers?web=1") }
                         }
                         Text(
                             "Merging moves one customer's invoices, orders and hisaab to another, and asks for the delete code. Cleaning up spam opens on the ERP's own page.",
@@ -258,9 +247,9 @@ private fun CustomerRow(c: Customer, stats: CustomerKit.Stats?, onClick: () -> U
     val wa = CustomerKit.whatsAppUri(c.phone) != null
     val call = CustomerKit.callUri(c.phone) != null
     val menu = buildList {
-        if (call) add(RowAction("Call", Icons.Filled.Call, Tone.house) { CustomerLinks.call(context, c.phone) })
-        if (wa) add(RowAction("WhatsApp", Icons.AutoMirrored.Filled.Message, Tone.settled) { CustomerLinks.whatsApp(context, c.phone) })
-        if (CustomerKit.messageUri(c.phone) != null) add(RowAction("Message", Icons.Filled.Sms, Tone.quiet) { CustomerLinks.message(context, c.phone) })
+        if (call) add(RowAction("Call", Symbols.Call, Tone.house) { CustomerLinks.call(context, c.phone) })
+        if (wa) add(RowAction("WhatsApp", Symbols.Message, Tone.settled) { CustomerLinks.whatsApp(context, c.phone) })
+        if (CustomerKit.messageUri(c.phone) != null) add(RowAction("Message", Symbols.Sms, Tone.quiet) { CustomerLinks.message(context, c.phone) })
     }
     SwipeActions(
         start = menu.firstOrNull { it.label == "WhatsApp" },
@@ -329,7 +318,6 @@ private fun CustSummary(modifier: Modifier, customerCount: Int, owed: Owed, owin
             HeroAmount(owed.total)
             Text(custOwedDetail(owingCount, owed, showHisaab), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         Disclosure("Customer overview") {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 4.dp)) {
                 TwoLine("Customers", trailing = "$customerCount")
@@ -344,11 +332,11 @@ private fun CustSummary(modifier: Modifier, customerCount: Int, owed: Owed, owin
 private fun Empty(matched: Int, search: String, showing: CustomersShowing) {
     when {
         matched == 0 && CustomerKit.trim(search).isNotEmpty() ->
-            NotAvailableState("No results for “$search”", why = "Check the spelling or try a new search.", icon = Icons.Filled.Search)
-        matched == 0 -> NotAvailableState("No customers found", why = "Add a customer to begin.", icon = Icons.Filled.People)
-        showing == CustomersShowing.owing -> NotAvailableState("Nobody owes you", why = "Every customer is settled.", icon = Icons.Filled.CheckCircle)
+            NotAvailableState("No results for “$search”", why = "Check the spelling or try a new search.", icon = Symbols.Search)
+        matched == 0 -> NotAvailableState("No customers found", why = "Add a customer to begin.", icon = Symbols.People)
+        showing == CustomersShowing.owing -> NotAvailableState("Nobody owes you", why = "Every customer is settled.", icon = Symbols.CheckCircle)
         else -> NotAvailableState(
-            "No recent buyers", why = "Nobody here has bought in the last ${CustomerKit.dormantAfterMonths} months.", icon = Icons.Filled.History,
+            "No recent buyers", why = "Nobody here has bought in the last ${CustomerKit.dormantAfterMonths} months.", icon = Symbols.History,
         )
     }
 }

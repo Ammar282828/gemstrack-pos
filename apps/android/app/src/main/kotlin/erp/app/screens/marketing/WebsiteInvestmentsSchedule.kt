@@ -1,5 +1,7 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.TextField
+import erp.app.ui.icons.Symbols
 import android.app.Activity
 import android.content.Intent
 import androidx.compose.foundation.Image
@@ -16,8 +18,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Image
 import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DatePicker
@@ -25,7 +25,6 @@ import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import erp.app.ui.TextButton
 import androidx.compose.material3.rememberDatePickerState
@@ -122,7 +121,7 @@ fun WebsiteGoldScheduleSheet(onClose: () -> Unit) {
     ) {
         Box(Modifier.fillMaxSize()) {
             if (d == null) {
-                erp.app.ui.NotAvailableState("The schedule couldn't be read", icon = Icons.Filled.Image)
+                erp.app.ui.NotAvailableState("The schedule couldn't be read", icon = Symbols.Image)
             } else {
                 Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
                     FormSection("Which days") {
@@ -332,7 +331,7 @@ fun WebsiteGoldAddSheet(onClose: () -> Unit) {
 
 @Composable
 private fun Field(value: String, onChange: (String) -> Unit, placeholder: String, min: Int, max: Int) {
-    OutlinedTextField(
+    TextField(
         value = value, onValueChange = onChange, modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
         placeholder = { Text(placeholder) }, minLines = min, maxLines = max,
         textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontSize = 13.sp),
@@ -344,7 +343,7 @@ private fun CardRow(title: String, thumb: ImageBitmap?, has: Boolean, pick: () -
     Row(Modifier.fillMaxWidth().ledgerRow(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(52.dp).clip(Radius.thumbShape).background(MaterialTheme.colorScheme.surfaceContainerHighest), contentAlignment = Alignment.Center) {
             if (thumb != null) Image(thumb, contentDescription = null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-            else Icon(Icons.Filled.Image, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            else Icon(Symbols.Image, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(title, style = MaterialTheme.typography.bodyMedium)

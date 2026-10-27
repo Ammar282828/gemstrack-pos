@@ -1,5 +1,6 @@
 package erp.app.screens.design
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.SearchBarField
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -14,13 +15,8 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.PhotoLibrary
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import erp.app.ui.SingleChoiceSegmentedButtonRow
 import erp.app.ui.SegmentedButton
 import erp.app.ui.SegmentedButtonDefaults
@@ -115,12 +111,12 @@ fun DesignSitePieces(onPick: (DesignStartPhoto) -> Unit) {
         }
         SearchBarField(
             q, { q = it; shown = 60 }, Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), singleLine = true,
-            placeholder = { Text("Ruby, kara, jhumka") }, leadingIcon = { Icon(Icons.Filled.Search, null) },
+            placeholder = { Text("Ruby, kara, jhumka") }, leadingIcon = { Icon(Symbols.Search, null) },
         )
         when {
-            error != null -> NotAvailableState("Couldn’t read the website", why = error, icon = Icons.Filled.Language)
+            error != null -> NotAvailableState("Couldn’t read the website", why = error, icon = Symbols.Language)
             !loaded -> SkeletonLoading(Modifier.fillMaxSize(), label = "Reading the website")
-            filtered.isEmpty() -> NotAvailableState("No pieces", why = "Nothing on the website matches.", icon = Icons.Filled.Language)
+            filtered.isEmpty() -> NotAvailableState("No pieces", why = "Nothing on the website matches.", icon = Symbols.Language)
             else -> LazyVerticalGrid(
                 GridCells.Adaptive(minSize = 104.dp), Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -144,7 +140,7 @@ private fun PieceCell(name: String, sub: String, thumb: String, onClick: () -> U
     Column(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Box(Modifier.fillMaxWidth().aspectRatio(1f).clip(Radius.tileShape).background(ErpColors.ground), contentAlignment = Alignment.Center) {
             if (thumb.isNotEmpty()) MarketingPhoto(thumb, Modifier.fillMaxSize(), ContentScale.Crop)
-            else Icon(Icons.Filled.PhotoLibrary, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            else Icon(Symbols.PhotoLibrary, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Text(name, maxLines = 2, style = MaterialTheme.typography.labelLarge)
         if (sub.isNotEmpty()) Text(sub, maxLines = 1, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -188,7 +184,7 @@ fun DesignLibraryPhotos(all: Boolean, onPick: (DesignStartPhoto) -> Unit) {
     Column(Modifier.fillMaxSize()) {
         SearchBarField(
             q, { q = it }, Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), singleLine = true,
-            placeholder = { Text("Name, subject or collection") }, leadingIcon = { Icon(Icons.Filled.Search, null) },
+            placeholder = { Text("Name, subject or collection") }, leadingIcon = { Icon(Symbols.Search, null) },
         )
         val options = listOf("portrait" to "Feed 4:5", "square" to "Feed 1:1", "story" to "Stories 9:16")
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
@@ -197,9 +193,9 @@ fun DesignLibraryPhotos(all: Boolean, onPick: (DesignStartPhoto) -> Unit) {
             }
         }
         when {
-            error != null -> NotAvailableState("Couldn’t read the library", why = error, icon = Icons.Filled.PhotoLibrary)
+            error != null -> NotAvailableState("Couldn’t read the library", why = error, icon = Symbols.PhotoLibrary)
             !loaded -> SkeletonLoading(Modifier.fillMaxSize(), label = "Loading the photos")
-            rows.isEmpty() -> NotAvailableState("No photos", why = "No photos match.", icon = Icons.Filled.PhotoLibrary)
+            rows.isEmpty() -> NotAvailableState("No photos", why = "No photos match.", icon = Symbols.PhotoLibrary)
             else -> LazyVerticalGrid(
                 GridCells.Adaptive(minSize = 104.dp), Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp),

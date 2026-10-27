@@ -1,5 +1,6 @@
 package erp.app.screens.businesses
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -9,10 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.Domain
-import androidx.compose.material.icons.rounded.UnfoldMore
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -80,19 +77,19 @@ fun BusinessChip(modifier: Modifier = Modifier, wide: Boolean = false) {
                     style = MaterialTheme.typography.titleMedium, color = tone, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
             }
-            if (many) Icon(Icons.Rounded.UnfoldMore, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (many) Icon(Symbols.UnfoldMore, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
             for (b in list) {
                 DropdownMenuItem(
                     text = { Text(b.displayName) },
-                    leadingIcon = { if (b.id == open.id) Icon(Icons.Rounded.Check, "Open now") else BusinessBadge(b, size = 24.dp) },
+                    leadingIcon = { if (b.id == open.id) Icon(Symbols.Check, "Open now") else BusinessBadge(b, size = 24.dp) },
                     onClick = { menu = false; if (b.id != open.id) { haptics.selection(); Businesses.switchTo(b.id) } },
                 )
             }
             DropdownMenuItem(
                 text = { Text("Businesses…") },
-                leadingIcon = { Icon(Icons.Rounded.Domain, null) },
+                leadingIcon = { Icon(Symbols.Domain, null) },
                 onClick = { menu = false; Businesses.openSheet() },
             )
         }

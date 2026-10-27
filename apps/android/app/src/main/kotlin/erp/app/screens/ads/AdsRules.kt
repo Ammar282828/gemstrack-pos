@@ -1,13 +1,12 @@
 package erp.app.screens.ads
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.MaterialTheme
 import erp.app.ui.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -164,7 +163,7 @@ fun AdsRulesScreen() {
                             if (d != null) {
                                 if (d.rules.isEmpty()) AdsRow { Text("None yet.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
                                 for (r in d.rules) {
-                                    SwipeActions(end = RowAction("Delete", Icons.Filled.Delete, Tone.problem) { deleting = r }) {
+                                    SwipeActions(end = RowAction("Delete", Symbols.Delete, Tone.problem) { deleting = r }) {
                                         Row(
                                             Modifier.fillMaxWidth().background(ErpColors.card).ledgerRow(),
                                             horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically,

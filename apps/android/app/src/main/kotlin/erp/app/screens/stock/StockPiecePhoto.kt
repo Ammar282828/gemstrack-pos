@@ -1,5 +1,6 @@
 package erp.app.screens.stock
 
+import erp.app.ui.icons.Symbols
 import android.graphics.Bitmap
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -12,10 +13,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import erp.app.ui.OutlinedButton
@@ -120,18 +117,18 @@ fun StockPiecePhotoField(sku: String, name: String, imageUrl: String?, modifier:
         }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton({ library.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, Modifier.heightIn(min = MinTouchTarget), enabled = busy == null) {
-                Icon(Icons.Filled.PhotoLibrary, null, Modifier.size(18.dp))
+                Icon(Symbols.PhotoLibrary, null, Modifier.size(18.dp))
                 Text(if (shown == null) "Add from Photos" else "Photos", Modifier.padding(start = 6.dp))
             }
             if (hasCamera(context)) {
                 OutlinedButton(camera, Modifier.heightIn(min = MinTouchTarget), enabled = busy == null) {
-                    Icon(Icons.Filled.CameraAlt, null, Modifier.size(18.dp))
+                    Icon(Symbols.CameraAlt, null, Modifier.size(18.dp))
                     Text("Camera", Modifier.padding(start = 6.dp))
                 }
             }
             if (shown != null) {
                 OutlinedButton({ confirmRemove = true }, Modifier.heightIn(min = MinTouchTarget).semantics { contentDescription = "Remove photo" }, enabled = busy == null) {
-                    Icon(Icons.Filled.DeleteOutline, null, Modifier.size(18.dp), tint = Tone.problem.color())
+                    Icon(Symbols.DeleteOutline, null, Modifier.size(18.dp), tint = Tone.problem.color())
                     Text("Remove", Modifier.padding(start = 6.dp), color = Tone.problem.color())
                 }
             }

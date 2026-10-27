@@ -1,5 +1,7 @@
 package erp.app.screens.ads
 
+import erp.app.ui.TextField
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -8,16 +10,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Checklist
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -302,7 +296,7 @@ private fun AdPage(
                 AdsSection(null, footer = { Text("It starts as a copy of the last, so a test changes one thing. Six at most.") }) {
                     AdsActionRow("Another ad set", {
                         d.sets.lastOrNull()?.let { last -> onSets(d.sets + last.next(d.sets.size + 1, UUID.randomUUID().toString())) }
-                    }, icon = Icons.Filled.Add, enabled = d.sets.size < 6)
+                    }, icon = Symbols.Add, enabled = d.sets.size < 6)
                 }
             },
             right = {
@@ -338,7 +332,7 @@ private fun CampaignSection(d: AdsDesign, tree: AdCampaigns?, treeError: String?
     AdsSection("Campaign", footer = { if (d.budgeted) Text("This campaign holds the budget; its ad sets share it.") }) {
         PickerRow("Campaign", d.target, options, onTarget)
         if (d.target == "new") {
-            AdsRow { OutlinedTextField(d.campaignName, onName, Modifier.fillMaxWidth(), placeholder = { Text("Campaign name") }, singleLine = true) }
+            AdsRow { TextField(d.campaignName, onName, Modifier.fillMaxWidth(), placeholder = { Text("Campaign name") }, singleLine = true) }
         }
         if (treeError != null) AdsRow { Text("The account's campaigns didn't come: $treeError", style = MaterialTheme.typography.bodySmall, color = Tone.problem.color()) }
     }
@@ -359,7 +353,7 @@ private fun SetCard(
 ) {
     val now = AppClock.now()
     AdsSection("Ad set $number") {
-        AdsRow { OutlinedTextField(set.name, { change(set.copy(name = it)) }, Modifier.fillMaxWidth(), label = { Text("Ad set name") }, singleLine = true) }
+        AdsRow { TextField(set.name, { change(set.copy(name = it)) }, Modifier.fillMaxWidth(), label = { Text("Ad set name") }, singleLine = true) }
         PickerRow("Goal", set.goal, goals.map { it.key to it.label }) { change(set.copy(goal = it)) }
         if (!budgeted) {
             AdsRow {
@@ -385,9 +379,9 @@ private fun SetCard(
                 Text("Who sees it", style = MaterialTheme.typography.bodyLarge)
                 Text(set.audience.words, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Icon(Icons.Filled.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(Symbols.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        if (removable) AdsActionRow("Remove this ad set", remove, icon = Icons.Filled.Delete, tone = Tone.problem)
+        if (removable) AdsActionRow("Remove this ad set", remove, icon = Symbols.Delete, tone = Tone.problem)
     }
 }
 
@@ -419,7 +413,7 @@ private fun AdsInThem(
             if (tree == null && treeError == null) {
                 AdsReading("Reading the account's ads…")
             } else {
-                AdsRow { OutlinedTextField(adQ, onAdQ, Modifier.fillMaxWidth(), placeholder = { Text("Find an ad") }, singleLine = true, keyboardOptions = KeyboardOptions(autoCorrectEnabled = false)) }
+                AdsRow { TextField(adQ, onAdQ, Modifier.fillMaxWidth(), placeholder = { Text("Find an ad") }, singleLine = true, keyboardOptions = KeyboardOptions(autoCorrectEnabled = false)) }
                 val shown = AdsAdSetsLogic.shownAds(tree, d.adIds, adQ)
                 if (shown.isEmpty()) AdsRow { Text(if (adQ.isEmpty()) "No ads in the last 30 days." else "No ad matches “$adQ”.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 for (r in shown) {
@@ -435,7 +429,7 @@ private fun AdsInThem(
                             Text(r.ad.name, maxLines = 2, overflow = TextOverflow.Ellipsis)
                             Text(r.place, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
-                        Icon(if (on) Icons.Filled.CheckCircle else Icons.Filled.RadioButtonUnchecked, if (on) "Chosen" else "Not chosen", tint = if (on) ErpColors.accent else MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(if (on) Symbols.CheckCircle else Symbols.RadioButtonUnchecked, if (on) "Chosen" else "Not chosen", tint = if (on) ErpColors.accent else MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -444,7 +438,7 @@ private fun AdsInThem(
                 AdsRow { AdsMediaGrid(media, d.post.ifEmpty { null }) { m -> onPost(if (d.post == m.id) "" else m.id) } }
                 if (d.sets.any { lists.goal(it.goal)?.toSite == true || it.goal == "channel" }) {
                     AdsRow {
-                        OutlinedTextField(
+                        TextField(
                             d.link, onLink, Modifier.fillMaxWidth(), placeholder = { Text("https://… where the button goes") }, singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, autoCorrectEnabled = false),
                         )
@@ -462,7 +456,7 @@ private fun AdSetsMade(m: AdsDesignMade) {
     AdsPage {
         AdsSection(null) {
             Column(Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Icon(Icons.Filled.CheckCircle, null, Modifier.size(40.dp), tint = Tone.settled.color())
+                Icon(Symbols.CheckCircle, null, Modifier.size(40.dp), tint = Tone.settled.color())
                 Text("${m.adsets.size} ad set${if (m.adsets.size == 1) "" else "s"} made${if (m.live) "" else ", paused"}", style = MaterialTheme.typography.titleMedium)
                 for (w in m.warnings) Text(w, style = MaterialTheme.typography.bodySmall, color = Tone.owed.color())
             }
@@ -470,6 +464,6 @@ private fun AdSetsMade(m: AdsDesignMade) {
         AdsSection(null) {
             for (s in m.adsets) ValueRow(s.name) { Text("${s.ads.size} ad${if (s.ads.size == 1) "" else "s"}") }
         }
-        AdsSection(null) { AdsLink("See them in Campaigns", Icons.Filled.Checklist, "/ads/campaigns") }
+        AdsSection(null) { AdsLink("See them in Campaigns", Symbols.Checklist, "/ads/campaigns") }
     }
 }

@@ -1,5 +1,7 @@
 package erp.app.screens.orders
 
+import erp.app.ui.TextField
+import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -12,16 +14,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Warning
 import erp.app.ui.AlertDialog
 import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import erp.app.ui.Switch
 import androidx.compose.material3.Text
 import erp.app.ui.TextButton
@@ -142,7 +139,7 @@ fun OrderFinalizeScreen(id: String) {
         order != null && s != null -> {
             val inv = order.invoiceId
             if (!inv.isNullOrEmpty()) {
-                NotAvailableState("Invoiced already", why = "${order.id} is on $inv.", icon = Icons.Filled.Description)
+                NotAvailableState("Invoiced already", why = "${order.id} is on $inv.", icon = Symbols.Description)
             } else {
                 FinalizeForm(
                     order, s, rows, { rows = it }, rateTexts, { rateTexts = it }, discount, { discount = it }, costTola, { costTola = it },
@@ -251,7 +248,7 @@ private fun FinalizeForm(
         },
         footer = {
             Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                if (failure != null) OrdersStatusLine(Icons.Filled.Warning, failure, Tone.problem)
+                if (failure != null) OrdersStatusLine(Symbols.Warning, failure, Tone.problem)
                 Button(
                     onClick = {
                         val problem = OrderFinalizeMath.problem(rows, discount, order, rateTexts)
@@ -410,7 +407,7 @@ private fun Field(
         Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
         // A number-pad box is a sum of money, kept to whole rupees (owner, 2026-10-17: "there should be no decimals").
         val whole = keyboard == KeyboardType.Number
-        OutlinedTextField(
+        TextField(
             value = if (whole) PaymentText.whole(value) else value, onValueChange = { onChange(if (whole) PaymentText.whole(it) else it) }, modifier = Modifier.width(160.dp), enabled = enabled, singleLine = true,
             placeholder = { Text(placeholder, Modifier.fillMaxWidth(), textAlign = TextAlign.End) },
             textStyle = MaterialTheme.typography.bodyMedium.copy(textAlign = TextAlign.End, fontFeatureSettings = TabularDigits),

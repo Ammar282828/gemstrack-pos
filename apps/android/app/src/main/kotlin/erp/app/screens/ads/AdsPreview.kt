@@ -1,5 +1,6 @@
 package erp.app.screens.ads
 
+import erp.app.ui.icons.Symbols
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.net.Uri
@@ -14,8 +15,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -110,7 +109,7 @@ fun AdsPreviewSheet(previews: List<AdsPreview>, onDismiss: () -> Unit) {
                     AdsFrame(p.src, Modifier.clip(RoundedCornerShape(16.dp)).weight(1f))
                 }
             } else {
-                AdsUnavailable("Meta gave no preview", "", icon = Icons.Filled.VisibilityOff)
+                AdsUnavailable("Meta gave no preview", "", icon = Symbols.VisibilityOff)
             }
         }
     }

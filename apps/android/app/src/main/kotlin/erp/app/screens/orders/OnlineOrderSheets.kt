@@ -1,5 +1,7 @@
 package erp.app.screens.orders
 
+import erp.app.ui.TextField
+import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
 import android.content.Intent
 import android.graphics.BitmapFactory
@@ -11,22 +13,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Block
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.ListAlt
-import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material.icons.filled.Send
-import androidx.compose.material.icons.filled.Warning
 import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import erp.app.ui.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import erp.app.ui.TextButton
 import androidx.compose.runtime.Composable
@@ -95,7 +86,7 @@ fun OnlineMessageSection(preview: OnlinePreview?, problem: String?, fallback: St
 /** The ERP's refusal, in the problem tone. */
 @Composable
 private fun OnlineFailureSection(message: String?) {
-    if (message != null) OrdersFormSection { OrdersStatusLine(Icons.Filled.Warning, message, Tone.problem) }
+    if (message != null) OrdersFormSection { OrdersStatusLine(Symbols.Warning, message, Tone.problem) }
 }
 
 /** The sheet's one big button, pinned under the form. */
@@ -170,9 +161,9 @@ fun OnlineConfirmSheet(row: OnlineOrderRow, onDismiss: () -> Unit, openOrder: (S
         locked = busy,
         bottom = {
             if (confirmed == null) {
-                OnlineBottomButton("Confirm", Icons.Filled.Check, busy, disabled = refused != null || (preview == null && problem == null)) { confirm() }
+                OnlineBottomButton("Confirm", Symbols.Check, busy, disabled = refused != null || (preview == null && problem == null)) { confirm() }
             } else if (bankUrl != null) {
-                OnlineBottomButton("Send bank details on WhatsApp", Icons.Filled.Send, busy = false, disabled = false) {
+                OnlineBottomButton("Send bank details on WhatsApp", Symbols.Send, busy = false, disabled = false) {
                     erp.app.device.openAddress(context, Intent.ACTION_VIEW, bankUrl)
                 }
             }
@@ -202,9 +193,9 @@ fun OnlineConfirmSheet(row: OnlineOrderRow, onDismiss: () -> Unit, openOrder: (S
             ) {
                 val n = c.notified
                 if (!n.isNullOrEmpty()) {
-                    OrdersStatusLine(Icons.Filled.Warning, "Confirmed, but the WhatsApp telling ${row.customer.name} did not send ($n).", Tone.owed)
+                    OrdersStatusLine(Symbols.Warning, "Confirmed, but the WhatsApp telling ${row.customer.name} did not send ($n).", Tone.owed)
                 } else {
-                    OrdersStatusLine(Icons.Filled.CheckCircle, "${row.customer.name} has been told it is confirmed and that your bank details are coming.", Tone.settled)
+                    OrdersStatusLine(Symbols.CheckCircle, "${row.customer.name} has been told it is confirmed and that your bank details are coming.", Tone.settled)
                 }
                 Text(
                     "Send them now: the price is held ${OnlineOrdersLogic.holdWords(preview?.holdUntil)} for ${Money.pkr(row.grandTotal)}.",
@@ -214,7 +205,7 @@ fun OnlineConfirmSheet(row: OnlineOrderRow, onDismiss: () -> Unit, openOrder: (S
             if (c.orderId.isNotEmpty()) {
                 OrdersFormSection {
                     TextButton(onClick = { close(); openOrder(c.orderId) }) {
-                        Icon(Icons.Filled.ListAlt, null, Modifier.size(18.dp))
+                        Icon(Symbols.ListAlt, null, Modifier.size(18.dp))
                         Text("Open ${c.orderId}", Modifier.padding(start = 8.dp))
                     }
                 }
@@ -274,7 +265,7 @@ fun OnlineDeclineSheet(row: OnlineOrderRow, onDismiss: () -> Unit, done: (Online
         onDismiss = onDismiss,
         locked = busy,
         bottom = { close ->
-            OnlineBottomButton("Decline & tell them", Icons.Filled.Close, busy, disabled = !ready || (preview == null && problem == null), destructive = true) { decline(close) }
+            OnlineBottomButton("Decline & tell them", Symbols.Close, busy, disabled = !ready || (preview == null && problem == null), destructive = true) { decline(close) }
         },
     ) {
         OrdersFormSection {
@@ -291,10 +282,10 @@ fun OnlineDeclineSheet(row: OnlineOrderRow, onDismiss: () -> Unit, done: (Online
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(r, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-                    if (trimmed == r) Icon(Icons.Filled.Check, "Chosen", Modifier.size(18.dp), tint = ErpColors.accent)
+                    if (trimmed == r) Icon(Symbols.Check, "Chosen", Modifier.size(18.dp), tint = ErpColors.accent)
                 }
             }
-            OutlinedTextField(
+            TextField(
                 value = reason,
                 onValueChange = { reason = if (it.length > OnlineOrdersLogic.reasonLimit) it.take(OnlineOrdersLogic.reasonLimit) else it },
                 modifier = Modifier.fillMaxWidth(),
@@ -368,7 +359,7 @@ fun OnlineMoveSheet(order: Order, kind: OnlineMoveKind, onDismiss: () -> Unit, d
         bottom = { close ->
             OnlineBottomButton(
                 if (kind == OnlineMoveKind.paid) "Yes, it is in" else "Let it lapse",
-                if (kind == OnlineMoveKind.paid) Icons.Filled.Payments else Icons.Filled.Block,
+                if (kind == OnlineMoveKind.paid) Symbols.Payments else Symbols.Block,
                 busy,
                 disabled = refused != null || (preview == null && problem == null),
                 destructive = kind == OnlineMoveKind.lapse,
@@ -436,11 +427,11 @@ fun OnlineSlipSheet(orderId: String, slip: WebsiteSlip, onDismiss: () -> Unit) {
                     },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Icon(Icons.Filled.Description, null, Modifier.size(18.dp))
+                    Icon(Symbols.Description, null, Modifier.size(18.dp))
                     Text("Open the PDF", Modifier.padding(start = 8.dp))
                 }
             }
-            failure != null -> OrdersFormSection(title = "The slip did not open") { OrdersStatusLine(Icons.Filled.Warning, failure ?: "", Tone.problem) }
+            failure != null -> OrdersFormSection(title = "The slip did not open") { OrdersStatusLine(Symbols.Warning, failure ?: "", Tone.problem) }
             else -> erp.app.ui.SkeletonLoading(Modifier.fillMaxWidth())
         }
     }

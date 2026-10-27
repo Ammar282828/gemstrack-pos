@@ -1,6 +1,7 @@
 package erp.app.screens.stock
 
 import erp.app.ui.animatedItem
+import erp.app.ui.icons.Symbols
 import erp.app.ui.SearchBarField
 import erp.app.ui.appearOnce
 import androidx.compose.foundation.background
@@ -21,23 +22,10 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Checklist
-import androidx.compose.material.icons.filled.Print
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.GridView
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Sell
-import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import erp.app.ui.TextButton
 import androidx.compose.runtime.Composable
@@ -148,29 +136,29 @@ fun StockList() {
             Prefs.putString(STOCK_LAYOUT_KEY, layout.name)
         }) {
             Icon(
-                if (layout == StockLayout.grid) Icons.AutoMirrored.Filled.ViewList else Icons.Filled.GridView,
+                if (layout == StockLayout.grid) Symbols.ViewList else Symbols.GridView,
                 contentDescription = if (layout == StockLayout.grid) "List" else "Grid",
             )
         }
         if (owner && selecting) {
             TextButton(onClick = { selected = shown.map { it.id } }) { Text("All") }
             TextButton(onClick = { jobOpen = true }, enabled = selected.isNotEmpty()) {
-                Icon(Icons.Filled.Print, contentDescription = null, Modifier.size(18.dp))
+                Icon(Symbols.Print, contentDescription = null, Modifier.size(18.dp))
                 Text(if (selected.size > 1) "  Print ${selected.size} tags" else "  Print tag")
             }
             TextButton(onClick = { selecting = false; selected = emptyList() }) { Text("Done") }
         } else {
-            if (owner) IconButton(onClick = { selecting = true }) { Icon(Icons.Filled.Checklist, contentDescription = "Select pieces to print their tags") }
-            if (owner) IconButton(onClick = { navigator.open(StockKit.addPath) }) { Icon(Icons.Filled.Add, contentDescription = "Add piece") }
+            if (owner) IconButton(onClick = { selecting = true }) { Icon(Symbols.Checklist, contentDescription = "Select pieces to print their tags") }
+            if (owner) IconButton(onClick = { navigator.open(StockKit.addPath) }) { Icon(Symbols.Add, contentDescription = "Add piece") }
         }
     }
 
     fun actions(p: Product): List<RowAction> = buildList {
         // Selling is the owners' (createInvoice): staff are not offered a sale they cannot save. Ticking pieces offers no swipe.
         if (owner && !selecting) {
-            add(RowAction("Sell", Icons.Filled.ShoppingCart, Tone.settled) { sell(p) })
-            add(RowAction("Edit", Icons.Filled.Edit, Tone.house) { navigator.open(StockKit.editPath(p.sku)) })
-            add(RowAction("Delete", Icons.Filled.Delete, Tone.problem) { navigator.open(StockKit.piecePath(p.sku, web = true)) })
+            add(RowAction("Sell", Symbols.ShoppingCart, Tone.settled) { sell(p) })
+            add(RowAction("Edit", Symbols.Edit, Tone.house) { navigator.open(StockKit.editPath(p.sku)) })
+            add(RowAction("Delete", Symbols.Delete, Tone.problem) { navigator.open(StockKit.piecePath(p.sku, web = true)) })
         }
     }
 
@@ -181,9 +169,9 @@ fun StockList() {
                 onValueChange = { search = it },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                 placeholder = { Text("Search by name or SKU") },
-                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                leadingIcon = { Icon(Symbols.Search, contentDescription = null) },
                 trailingIcon = {
-                    if (search.isNotEmpty()) IconButton(onClick = { search = "" }) { Icon(Icons.Filled.Close, contentDescription = "Clear search") }
+                    if (search.isNotEmpty()) IconButton(onClick = { search = "" }) { Icon(Symbols.Close, contentDescription = "Clear search") }
                 },
                 singleLine = true,
                 shape = Radius.chipShape,
@@ -248,7 +236,7 @@ private fun EmptyState(filtering: Boolean) {
     NotAvailableState(
         "No pieces found",
         why = if (filtering) "Try adjusting your search or filter." else "Add a piece to begin.",
-        icon = Icons.Filled.Sell,
+        icon = Symbols.Sell,
     )
 }
 

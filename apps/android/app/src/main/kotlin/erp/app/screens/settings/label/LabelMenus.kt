@@ -1,5 +1,6 @@
 package erp.app.screens.settings.label
 
+import erp.app.ui.icons.Symbols
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -12,19 +13,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Redo
-import androidx.compose.material.icons.automirrored.filled.Undo
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CheckBox
-import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
-import androidx.compose.material.icons.filled.GridOn
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.PanTool
-import androidx.compose.material.icons.filled.Straighten
-import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.filled.ZoomIn
-import androidx.compose.material.icons.filled.ZoomOut
 import erp.app.ui.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -124,7 +112,7 @@ fun AddMenu(state: DesignerState, addPicture: () -> Unit, addCounter: () -> Unit
         Entry("Counter…", action = addCounter),
     )
     Box {
-        IconButton({ open = true }, enabled = !model.readOnly) { Icon(Icons.Filled.Add, "Add a field to the tag") }
+        IconButton({ open = true }, enabled = !model.readOnly) { Icon(Symbols.Add, "Add a field to the tag") }
         SwapMenu(open, { open = false }, entries)
     }
 }
@@ -161,7 +149,7 @@ fun ArrangeMenu(state: DesignerState, requestDelete: () -> Unit) {
         Entry("Remove", has, danger = true, action = requestDelete),
     )
     Box {
-        IconButton({ open = true }, enabled = !model.readOnly) { Icon(Icons.Filled.Tune, "Arrange: align, order, turn and copy the selected fields") }
+        IconButton({ open = true }, enabled = !model.readOnly) { Icon(Symbols.Tune, "Arrange: align, order, turn and copy the selected fields") }
         SwapMenu(open, { open = false }, entries)
     }
 }
@@ -178,7 +166,7 @@ fun FileMenu(import: () -> Unit, copyZpl: () -> Unit, testPrint: () -> Unit, sta
         Entry("Back to the standard tag", !readOnly, action = standard),
     )
     Box {
-        IconButton({ open = true }) { Icon(Icons.Filled.MoreVert, "More: import, copy ZPL, test print") }
+        IconButton({ open = true }) { Icon(Symbols.MoreVert, "More: import, copy ZPL, test print") }
         SwapMenu(open, { open = false }, entries)
     }
 }
@@ -197,9 +185,9 @@ fun LabelControlBar(state: DesignerState, saveState: String) {
         horizontalArrangement = Arrangement.spacedBy(0.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton({ model.undo() }, enabled = model.canUndo) { Icon(Icons.AutoMirrored.Filled.Undo, "Undo") }
-        IconButton({ model.redo() }, enabled = model.canRedo) { Icon(Icons.AutoMirrored.Filled.Redo, "Redo") }
-        IconButton({ model.zoomOut() }) { Icon(Icons.Filled.ZoomOut, "Zoom out") }
+        IconButton({ model.undo() }, enabled = model.canUndo) { Icon(Symbols.Undo, "Undo") }
+        IconButton({ model.redo() }, enabled = model.canRedo) { Icon(Symbols.Redo, "Redo") }
+        IconButton({ model.zoomOut() }) { Icon(Symbols.ZoomOut, "Zoom out") }
         Box {
             TextButton({ zoomOpen = true }, Modifier.widthIn(min = 56.dp)) { Text(model.zoomText, maxLines = 1) }
             DropdownMenu(expanded = zoomOpen, onDismissRequest = { zoomOpen = false }) {
@@ -207,17 +195,17 @@ fun LabelControlBar(state: DesignerState, saveState: String) {
                 listOf(50, 100, 200, 400, 800).forEach { p -> DropdownMenuItem(text = { Text("$p%") }, onClick = { zoomOpen = false; model.zoomPercent(p) }) }
             }
         }
-        IconButton({ model.zoomIn() }) { Icon(Icons.Filled.ZoomIn, "Zoom in") }
-        Toggle(Icons.Filled.GridOn, "Grid and snap", model.gridOn) { model.gridOn = it; model.redraw() }
+        IconButton({ model.zoomIn() }) { Icon(Symbols.ZoomIn, "Zoom in") }
+        Toggle(Symbols.GridOn, "Grid and snap", model.gridOn) { model.gridOn = it; model.redraw() }
         if (model.gridOn) Box {
             TextButton({ gridOpen = true }) { Text("${model.gridDots} dots", maxLines = 1) }
             DropdownMenu(expanded = gridOpen, onDismissRequest = { gridOpen = false }) {
                 listOf(2, 4, 8, 16, 24).forEach { g -> DropdownMenuItem(text = { Text("$g dots") }, onClick = { gridOpen = false; model.gridDots = g; model.redraw() }) }
             }
         }
-        Toggle(Icons.Filled.Straighten, "Rulers in millimetres", model.showRulers) { model.showRulers = it; model.redraw() }
-        Toggle(Icons.Filled.PanTool, "Move the view", model.panMode) { model.panMode = it; model.redraw() }
-        Toggle(if (model.multiSelect) Icons.Filled.CheckBox else Icons.Filled.CheckBoxOutlineBlank, "Select several", model.multiSelect) { model.multiSelect = it; model.redraw() }
+        Toggle(Symbols.Straighten, "Rulers in millimetres", model.showRulers) { model.showRulers = it; model.redraw() }
+        Toggle(Symbols.PanTool, "Move the view", model.panMode) { model.panMode = it; model.redraw() }
+        Toggle(if (model.multiSelect) Symbols.CheckBox else Symbols.CheckBoxOutlineBlank, "Select several", model.multiSelect) { model.multiSelect = it; model.redraw() }
         Text(
             "${LabelUnits.mmText(l.widthDots.toDouble(), l.dpi)} × ${LabelUnits.mmText(l.heightDots.toDouble(), l.dpi)} mm · ${l.widthDots} × ${l.heightDots} dots · ${l.dpi ?: 203} dpi",
             Modifier.padding(start = 8.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1,

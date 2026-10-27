@@ -1,5 +1,6 @@
 package erp.app.ui
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
@@ -10,6 +11,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.ui.layout.Layout
@@ -18,8 +20,6 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -107,14 +107,14 @@ fun Modifier.ledgerRow(): Modifier = defaultMinSize(minHeight = 56.dp).padding(h
 
 /**
  * The line between two rows. In a segmented group ([LedgerSection], [FormSection]) it is only a marker: the gap between
- * two tiles is the line. In a plain card it is the hairline it always was.
+ * two tiles is the line. In a plain card it is the same gap, a slit of the page tone (never a hairline).
  */
 @Composable
 fun LedgerDivider(modifier: Modifier = Modifier) {
     if (LocalInSegments.current) {
         Layout({}, modifier.segmentGap()) { _, _ -> layout(0, 0) {} }
     } else {
-        HorizontalDivider(modifier.padding(start = 16.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+        Box(modifier.fillMaxWidth().height(2.dp).background(MaterialTheme.colorScheme.surface))
     }
 }
 
@@ -157,7 +157,7 @@ fun LedgerSection(
                 // The chevron turns on the spatial spring as the rows fold.
                 val turn by animateFloatAsState(if (open) 0f else -90f, motion.spatial(), label = "fold")
                 Icon(
-                    Icons.Filled.ExpandMore, contentDescription = null,
+                    Symbols.ExpandMore, contentDescription = null,
                     Modifier.rotate(turn),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

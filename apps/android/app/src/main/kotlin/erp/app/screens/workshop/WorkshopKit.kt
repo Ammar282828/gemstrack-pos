@@ -1,5 +1,7 @@
 package erp.app.screens.workshop
 
+import erp.app.ui.TextField
+import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
 import erp.app.ui.zoomSource
 import android.content.ActivityNotFoundException
@@ -21,12 +23,6 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Fingerprint
-import androidx.compose.material.icons.filled.PanoramaFishEye
-import androidx.compose.material.icons.filled.Pending
-import androidx.compose.material.icons.filled.Warning
 import erp.app.ui.AlertDialog
 import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
@@ -37,7 +33,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import erp.app.ui.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SelectableDates
 import erp.app.ui.Switch
 import androidx.compose.material3.Text
@@ -141,9 +136,9 @@ object WorkshopStatusWords {
     }
 
     fun icon(s: KarigarJobStatus): ImageVector = when (s) {
-        KarigarJobStatus.completed -> Icons.Filled.CheckCircle
-        KarigarJobStatus.inProgress -> Icons.Filled.Pending
-        else -> Icons.Filled.PanoramaFishEye
+        KarigarJobStatus.completed -> Symbols.CheckCircle
+        KarigarJobStatus.inProgress -> Symbols.Pending
+        else -> Symbols.PanoramaFishEye
     }
 }
 
@@ -418,7 +413,7 @@ fun WorkshopDeleteCodeSheet(deletion: WorkshopDeletion, onDismiss: () -> Unit, o
                     listOf(deletion.detail, if (deletion.final) "This can't be undone." else "", "Enter the code to go ahead.").filter { it.isNotEmpty() }.joinToString(" "),
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                OutlinedTextField(
+                TextField(
                     value = code,
                     onValueChange = { typed ->
                         code = typed.filter { it in '0'..'9' }.take(8)
@@ -435,7 +430,7 @@ fun WorkshopDeleteCodeSheet(deletion: WorkshopDeletion, onDismiss: () -> Unit, o
                 )
                 if (canFace && kept) {
                     OutlinedButton(onClick = { scope.launch { byFace() } }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Filled.Fingerprint, null, Modifier.padding(end = 8.dp))
+                        Icon(Symbols.Fingerprint, null, Modifier.padding(end = 8.dp))
                         Text("Use your fingerprint or face")
                     }
                 }
@@ -448,7 +443,7 @@ fun WorkshopDeleteCodeSheet(deletion: WorkshopDeletion, onDismiss: () -> Unit, o
             }
             error?.let {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
-                    Icon(Icons.Filled.Warning, null, Modifier.size(20.dp), tint = Tone.problem.color())
+                    Icon(Symbols.Warning, null, Modifier.size(20.dp), tint = Tone.problem.color())
                     Text(it, Modifier.weight(1f), color = Tone.problem.color())
                 }
             }

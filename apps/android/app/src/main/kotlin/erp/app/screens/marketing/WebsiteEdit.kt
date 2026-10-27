@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.SearchBarField
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -21,21 +22,11 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CloudOff
-import androidx.compose.material.icons.filled.EditNote
-import androidx.compose.material.icons.filled.GridView
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.VisibilityOff
 import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -169,7 +160,7 @@ fun WebsiteEditScreen() {
     LaunchedEffect(search, filter, collection) { shown = WebsiteEditLogic.PAGE_SIZE }
 
     when (val phase = state.phase) {
-        PostsPhase.Off -> NotAvailableState("This shop doesn't edit its website from here", icon = Icons.Filled.Language)
+        PostsPhase.Off -> NotAvailableState("This shop doesn't edit its website from here", icon = Symbols.Language)
         is PostsPhase.Failed -> MarketingErrorState(phase.message) { scope.launch { WebsiteEdits.load(fresh = true) } }
         PostsPhase.Idle, PostsPhase.Loading -> SkeletonLoading(Modifier.fillMaxSize(), label = "Reading ${state.siteName}…")
         PostsPhase.Loaded -> {
@@ -189,7 +180,7 @@ fun WebsiteEditScreen() {
                         SearchBarField(
                             value = search, onValueChange = { search = it }, singleLine = true, modifier = Modifier.fillMaxWidth(),
                             placeholder = { Text("Name, collection, ruby, Ring 12…") },
-                            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                            leadingIcon = { Icon(Symbols.Search, contentDescription = null) },
                             keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),
                         )
                     }
@@ -214,7 +205,7 @@ fun WebsiteEditScreen() {
                     }
                     if (items.isEmpty()) {
                         item(span = { GridItemSpan(maxLineSpan) }) {
-                            NotAvailableState("Nothing matches", why = "Clear the search, or pick another collection.", icon = Icons.Filled.GridView)
+                            NotAvailableState("Nothing matches", why = "Clear the search, or pick another collection.", icon = Symbols.GridView)
                         }
                     } else {
                         items(items.take(shown), key = { it.id }) { p ->
@@ -256,9 +247,9 @@ fun WebsiteEditTile(piece: WebsiteEditPiece) {
         Box {
             StockImage(piece.thumb, piece.words.name, piece.id, Modifier.fillMaxWidth().aspectRatio(1f).clip(Radius.tileShape).alpha(if (piece.hidden) 0.45f else 1f))
             Column(Modifier.padding(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                if (piece.hidden) Badge("Hidden", Icons.Filled.VisibilityOff)
-                if (piece.photoEdited) Badge("New photo", Icons.Filled.Image)
-                if (piece.wordsChanged) Badge("Words changed", Icons.Filled.EditNote)
+                if (piece.hidden) Badge("Hidden", Symbols.VisibilityOff)
+                if (piece.photoEdited) Badge("New photo", Symbols.Image)
+                if (piece.wordsChanged) Badge("Words changed", Symbols.EditNote)
             }
         }
         Text(piece.words.name.ifEmpty { "A piece" }, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium), maxLines = 2, overflow = TextOverflow.Ellipsis)

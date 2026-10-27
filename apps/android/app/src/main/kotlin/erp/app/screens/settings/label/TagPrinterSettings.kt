@@ -1,14 +1,12 @@
 package erp.app.screens.settings.label
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Print
-import androidx.compose.material.icons.filled.Troubleshoot
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import erp.app.ui.TextButton
@@ -122,7 +120,7 @@ fun TagPrinterSettings() {
                     listOf(TagMethod.labelLive.raw to "Label LIVE", TagMethod.zebra.raw to "Zebra: the shop's tag"), method.raw,
                     { v -> method = TagMethod.of(v); TagPrinter.method = method },
                 )
-                if (method == TagMethod.labelLive) LabelTapRow("Label LIVE", { navigator.open("/app/label-live") }, icon = Icons.Filled.Print)
+                if (method == TagMethod.labelLive) LabelTapRow("Label LIVE", { navigator.open("/app/label-live") }, icon = Symbols.Print)
             }
             if (method == TagMethod.zebra) {
                 SettingsSection(
@@ -144,7 +142,7 @@ fun TagPrinterSettings() {
                                 if (outcome.ok) note.show(Note("Test tag sent", outcome.message)) else problem = outcome.message
                             }
                         },
-                        icon = Icons.Filled.Print, enabled = !testing && currentRoute() != null,
+                        icon = Symbols.Print, enabled = !testing && currentRoute() != null,
                     )
                     LabelTapRow(
                         if (checking) "Asking…" else "Check the printer",
@@ -156,7 +154,7 @@ fun TagPrinterSettings() {
                                 checking = false
                             }
                         },
-                        icon = Icons.Filled.Troubleshoot, enabled = !checking && currentRoute() != null,
+                        icon = Symbols.Troubleshoot, enabled = !checking && currentRoute() != null,
                     )
                     statusLine?.let {
                         Text(it, Modifier.fillMaxWidth().padding(16.dp), style = MaterialTheme.typography.bodyMedium, color = if (it == "Ready.") MaterialTheme.colorScheme.onSurfaceVariant else Tone.owed.color())

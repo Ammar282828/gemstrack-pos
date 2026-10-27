@@ -1,5 +1,6 @@
 package erp.app.screens.settings.label
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -13,16 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.LockOpen
-import androidx.compose.material.icons.filled.Print
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
@@ -174,20 +165,19 @@ fun LayersPanel(state: DesignerState) {
                 Text(fieldGlyph(f.type), Modifier.size(22.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(layerTitle(f), Modifier.weight(1f).padding(vertical = 14.dp), maxLines = 1, color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (f.hidden) 0.5f else 1f))
                 IconButton({ model.setHidden(f.id, !f.hidden) }, Modifier.size(MinTouchTarget)) {
-                    Icon(if (f.hidden) Icons.Filled.VisibilityOff else Icons.Filled.Visibility, if (f.hidden) "Show" else "Hide", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(if (f.hidden) Symbols.VisibilityOff else Symbols.Visibility, if (f.hidden) "Show" else "Hide", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 IconButton({ model.setLocked(f.id, !f.locked) }, Modifier.size(MinTouchTarget)) {
-                    Icon(if (f.locked) Icons.Filled.Lock else Icons.Filled.LockOpen, if (f.locked) "Unlock" else "Lock", tint = if (f.locked) Tone.owed.color() else MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(if (f.locked) Symbols.Lock else Symbols.LockOpen, if (f.locked) "Unlock" else "Lock", tint = if (f.locked) Tone.owed.color() else MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 // The list shows the top field first: "up" in the list is "forward" on the tag.
                 IconButton({ model.moveLayers(setOf(index), index - 1) }, Modifier.size(MinTouchTarget), enabled = !model.readOnly && index > 0) {
-                    Icon(Icons.Filled.ArrowUpward, "Move ${layerTitle(f)} up")
+                    Icon(Symbols.ArrowUpward, "Move ${layerTitle(f)} up")
                 }
                 IconButton({ model.moveLayers(setOf(index), index + 2) }, Modifier.size(MinTouchTarget), enabled = !model.readOnly && index < fields.lastIndex) {
-                    Icon(Icons.Filled.ArrowDownward, "Move ${layerTitle(f)} down")
+                    Icon(Symbols.ArrowDownward, "Move ${layerTitle(f)} down")
                 }
             }
-            androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
         }
     }
 }
@@ -251,8 +241,8 @@ fun LabelSettingsSections(state: DesignerState) {
         ) { v -> if (!model.readOnly) model.edit { it.copy(tags = if (v.toInt() <= 1) null else v.toInt()) } }
     }
     SettingsSection(footer = "Print tags straight to a Zebra on the network, or through Label LIVE on the Mac at the counter.") {
-        LabelTapRow("Printer settings", { navigator.open("/app/tag-printer") }, icon = Icons.Filled.Print)
-        LabelTapRow("Label LIVE", { navigator.open("/app/label-live") }, icon = Icons.Filled.Print)
+        LabelTapRow("Printer settings", { navigator.open("/app/tag-printer") }, icon = Symbols.Print)
+        LabelTapRow("Label LIVE", { navigator.open("/app/label-live") }, icon = Symbols.Print)
     }
 }
 
@@ -346,7 +336,7 @@ fun LabelCsvSection() {
                 hits.forEach { h -> Box(Modifier.fillMaxWidth().clickable { picked = h; search = ""; csv = null }.ledgerRow()) { TwoLine(h.name, subtitle = h.sku) } }
             }
         }
-        ActionRow(if (making) "Making…" else "Download CSV for this piece", onClick = { makeCsv() }, icon = Icons.Filled.FileDownload, enabled = picked != null && !making)
-        csv?.let { f -> ActionRow("Save or send ${f.name}", onClick = { shareFile(context, f, "text/csv", f.name) }, icon = Icons.Filled.Share) }
+        ActionRow(if (making) "Making…" else "Download CSV for this piece", onClick = { makeCsv() }, icon = Symbols.FileDownload, enabled = picked != null && !making)
+        csv?.let { f -> ActionRow("Save or send ${f.name}", onClick = { shareFile(context, f, "text/csv", f.name) }, icon = Symbols.Share) }
     }
 }

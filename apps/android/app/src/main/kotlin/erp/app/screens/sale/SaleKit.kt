@@ -1,5 +1,7 @@
 package erp.app.screens.sale
 
+import erp.app.ui.TextField
+import erp.app.ui.icons.Symbols
 import erp.app.ui.SegmentedColumn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -21,13 +23,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DirectionsWalk
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.QrCodeScanner
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -35,7 +30,6 @@ import erp.app.ui.FilledTonalButton
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import erp.app.ui.Switch
 import androidx.compose.material3.Text
@@ -178,13 +172,13 @@ internal fun SaleCustomerPicker(pick: (Customer?) -> Unit, onDismiss: () -> Unit
     }
     FullScreenSheet(title = "Customer", onCancel = onDismiss) {
         Column(Modifier.fillMaxSize().verticalScrollColumn().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            FieldRow("Name or phone", search, { search = it }, Modifier.padding(0.dp), leading = Icons.Filled.Search)
+            FieldRow("Name or phone", search, { search = it }, Modifier.padding(0.dp), leading = Symbols.Search)
             FormSection("Walk-in", footer = { Text("Walk-in. No customer is made; overpayment can't be kept as credit.") }) {
                 Row(
                     Modifier.fillMaxWidth().ledgerRow().clickable(role = Role.Button) { pick(null); onDismiss() },
                     horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(Icons.Filled.DirectionsWalk, contentDescription = null, Modifier.size(MonogramSize.row), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(Symbols.DirectionsWalk, contentDescription = null, Modifier.size(MonogramSize.row), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text("Walk-in", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Medium))
                 }
             }
@@ -272,7 +266,7 @@ internal fun TagScanner(active: Boolean = true, onCode: (String) -> Unit) {
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Icon(
-                if (problem == null) Icons.Filled.QrCodeScanner else Icons.Filled.CameraAlt, contentDescription = null,
+                if (problem == null) Symbols.QrCodeScanner else Symbols.CameraAlt, contentDescription = null,
                 Modifier.size(44.dp), tint = if (problem == null) ErpColors.accent else MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(problem ?: "Hold the tag's code in view", style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
@@ -282,13 +276,13 @@ internal fun TagScanner(active: Boolean = true, onCode: (String) -> Unit) {
             )
             if (problem == null) {
                 FilledTonalButton(onClick = ::scan, enabled = active && !busy, modifier = Modifier.defaultMinSize(minHeight = MinTouchTarget)) {
-                    Icon(Icons.Filled.QrCodeScanner, contentDescription = null, Modifier.size(18.dp))
+                    Icon(Symbols.QrCodeScanner, contentDescription = null, Modifier.size(18.dp))
                     Text("Open the camera", Modifier.padding(start = 8.dp))
                 }
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(
+            TextField(
                 value = typed,
                 onValueChange = { typed = it },
                 modifier = Modifier.weight(1f),

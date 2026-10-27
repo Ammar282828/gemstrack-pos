@@ -1,6 +1,8 @@
 package erp.app.screens.orders
 
 import erp.app.ui.animatedItem
+import erp.app.nav.LocalFabClearance
+import erp.app.ui.icons.Symbols
 import erp.app.ui.SearchBarField
 import erp.app.ui.appearOnce
 import androidx.compose.foundation.lazy.grid.itemsIndexed
@@ -23,16 +25,6 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.FilterListOff
-import androidx.compose.material.icons.filled.ListAlt
-import androidx.compose.material.icons.filled.Public
-import androidx.compose.material.icons.filled.Search
 import erp.app.ui.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
@@ -43,7 +35,6 @@ import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
 import erp.app.ui.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import erp.app.ui.SegmentedButton
 import erp.app.ui.SegmentedButtonDefaults
 import erp.app.ui.SingleChoiceSegmentedButtonRow
@@ -208,7 +199,7 @@ fun OrdersHub() {
     ScreenActions {
         IconButton(onClick = { filtering = true }) {
             Icon(
-                if (narrowed) Icons.Filled.FilterList else Icons.Filled.FilterListOff, "Filter",
+                if (narrowed) Symbols.FilterList else Symbols.FilterListOff, "Filter",
                 tint = if (narrowed) ErpColors.accent else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -220,7 +211,7 @@ fun OrdersHub() {
                 modifier = Modifier.semantics { contentDescription = "Online orders, $waiting to confirm" },
             ) {
                 BadgedBox(badge = { Badge(containerColor = ErpColors.accent, contentColor = ErpColors.onAccent) { Text(if (waiting > 99) "99+" else "$waiting") } }) {
-                    Icon(Icons.Filled.Public, null)
+                    Icon(Symbols.Public, null)
                 }
             }
         }
@@ -241,7 +232,7 @@ fun OrdersHub() {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(columns),
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(pad),
+                contentPadding = PaddingValues(start = pad, top = pad, end = pad, bottom = maxOf(pad, LocalFabClearance.current)),
                 horizontalArrangement = Arrangement.spacedBy(20.dp),
                 verticalArrangement = Arrangement.spacedBy(if (grid) 20.dp else 14.dp),
             ) {
@@ -250,8 +241,8 @@ fun OrdersHub() {
                         SearchBarField(
                             value = query, onValueChange = { query = it }, modifier = Modifier.fillMaxWidth(), singleLine = true,
                             placeholder = { Text("Order, customer, phone or piece") },
-                            leadingIcon = { Icon(Icons.Filled.Search, null) },
-                            trailingIcon = { if (query.isNotEmpty()) IconButton(onClick = { query = "" }) { Icon(Icons.Filled.Clear, "Clear the search") } },
+                            leadingIcon = { Icon(Symbols.Search, null) },
+                            trailingIcon = { if (query.isNotEmpty()) IconButton(onClick = { query = "" }) { Icon(Symbols.Clear, "Clear the search") } },
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                         )
                         GroupingPicker(grouping, ::choose)
@@ -274,7 +265,7 @@ fun OrdersHub() {
                                     "${g.orders.size} order${if (g.orders.size == 1) "" else "s"}",
                                     Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
-                                Icon(if (open) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, if (open) "Hide" else "Show", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Icon(if (open) Symbols.ExpandLess else Symbols.ExpandMore, if (open) "Hide" else "Show", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                         if (open) itemsIndexed(g.orders, key = { _, it -> "o-" + g.id + "-" + it.id }) { i, order -> Card(order, view, isOwner, person, localStatus[order.id], actions, grouping, i, Modifier.animateItem()) }
@@ -424,9 +415,9 @@ private fun FilterSummary(status: String, month: String, takenBy: String, paymen
 private fun EmptyState(nothingOpen: Boolean, filtering: Boolean, onClear: () -> Unit, onNew: () -> Unit) {
     Column(Modifier.fillMaxWidth().padding(top = 40.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (nothingOpen) {
-            NotAvailableState("Nothing to chase", why = "Every order here is invoiced or closed. Day and Stage show them all.", icon = Icons.Filled.CalendarMonth)
+            NotAvailableState("Nothing to chase", why = "Every order here is invoiced or closed. Day and Stage show them all.", icon = Symbols.CalendarMonth)
         } else {
-            NotAvailableState("No orders found", why = if (filtering) "Try adjusting the search or filters." else "Create a custom order to begin.", icon = Icons.Filled.ListAlt)
+            NotAvailableState("No orders found", why = if (filtering) "Try adjusting the search or filters." else "Create a custom order to begin.", icon = Symbols.ListAlt)
             if (filtering) OutlinedButton(onClick = onClear) { Text("Clear filters") }
             Button(onClick = onNew, colors = ButtonDefaults.buttonColors(containerColor = ErpColors.accent, contentColor = ErpColors.onAccent)) { Text("New order") }
         }

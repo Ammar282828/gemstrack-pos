@@ -1,5 +1,6 @@
 package erp.app.nav
 
+import erp.app.ui.icons.Symbols
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import erp.app.ui.rememberErpMotion
@@ -12,12 +13,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.Assignment
-import androidx.compose.material.icons.outlined.Build
-import androidx.compose.material.icons.outlined.Description
-import androidx.compose.material.icons.outlined.Diamond
-import androidx.compose.material.icons.outlined.People
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -43,11 +38,11 @@ class HubPrompt(val title: String, val icon: ImageVector)
 /** Which hub tabs split into a list and the item beside it on a wide window, keyed by the tab's path. */
 object HubSplitKind {
     fun prompt(path: String): HubPrompt? = when (ScreenRoute.bare(path)) {
-        "/orders" -> HubPrompt("Choose an order", Icons.AutoMirrored.Outlined.Assignment)
-        "/invoices" -> HubPrompt("Choose an invoice", Icons.Outlined.Description)
-        "/customers" -> HubPrompt("Choose a customer", Icons.Outlined.People)
-        "/products" -> HubPrompt("Choose a piece", Icons.Outlined.Diamond)
-        "/repairs" -> HubPrompt("Choose a repair", Icons.Outlined.Build)
+        "/orders" -> HubPrompt("Choose an order", Symbols.Assignment)
+        "/invoices" -> HubPrompt("Choose an invoice", Symbols.Description)
+        "/customers" -> HubPrompt("Choose a customer", Symbols.People)
+        "/products" -> HubPrompt("Choose a piece", Symbols.Diamond)
+        "/repairs" -> HubPrompt("Choose a repair", Symbols.Build)
         else -> null
     }
 

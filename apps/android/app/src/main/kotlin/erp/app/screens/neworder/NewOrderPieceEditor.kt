@@ -1,5 +1,6 @@
 package erp.app.screens.neworder
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -12,11 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.MoreVert
 import erp.app.ui.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -107,14 +103,14 @@ internal fun PieceRow(
                 Text(Money.pkr(price), style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold, fontFeatureSettings = TabularDigits))
             }
             IconButton(onClick = { menu = true }, Modifier.size(MinTouchTarget)) {
-                Icon(Icons.Filled.MoreVert, "More for piece $number", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Symbols.MoreVert, "More for piece $number", tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-            DropdownMenuItem(text = { Text("Duplicate") }, leadingIcon = { Icon(Icons.Filled.ContentCopy, null) }, onClick = { menu = false; onDuplicate() })
+            DropdownMenuItem(text = { Text("Duplicate") }, leadingIcon = { Icon(Symbols.ContentCopy, null) }, onClick = { menu = false; onDuplicate() })
             DropdownMenuItem(
                 text = { Text("Remove", color = Tone.problem.color()) },
-                leadingIcon = { Icon(Icons.Filled.Delete, null, tint = Tone.problem.color()) },
+                leadingIcon = { Icon(Symbols.Delete, null, tint = Tone.problem.color()) },
                 onClick = { menu = false; onRemove() },
             )
         }
@@ -141,7 +137,7 @@ internal fun PieceEditor(
         actions = { TextButton(onClick = onClose) { Text("Save product") } },
     ) {
         if (index < 0) {
-            NotAvailableState("That piece is gone", icon = Icons.Filled.Delete)
+            NotAvailableState("That piece is gone", icon = Symbols.Delete)
         } else {
             PieceEditorBody(holder, pieceId, settings, karigars, editingOrder, onDuplicate = { onDuplicate(); onClose() }, onRemove = { onRemove(); onClose() })
         }
@@ -264,7 +260,7 @@ private fun PieceEditorBody(
                 // The workshop
                 FormCard(title = "For the workshop", footer = "The instructions are never printed on a customer estimate or invoice.") {
                     Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.Lock, null, Modifier.size(16.dp), tint = Tone.owed.color())
+                        Icon(Symbols.Lock, null, Modifier.size(16.dp), tint = Tone.owed.color())
                         Text("Instructions for the karigar", style = MaterialTheme.typography.bodyMedium, color = Tone.owed.color())
                     }
                     WideFieldRow("Instructions", piece.adminNote, { t -> edit { adminNote = t } }, prompt = "Stones, plating, sizing, or other specifications", minLines = 2, maxLines = 6)
@@ -288,8 +284,8 @@ private fun PieceEditorBody(
                 }
 
                 FormCard {
-                    ActionRow("Duplicate this piece", icon = Icons.Filled.ContentCopy, onClick = onDuplicate)
-                    ActionRow("Remove this piece", icon = Icons.Filled.Delete, destructive = true, onClick = { confirmRemove = true })
+                    ActionRow("Duplicate this piece", icon = Symbols.ContentCopy, onClick = onDuplicate)
+                    ActionRow("Remove this piece", icon = Symbols.Delete, destructive = true, onClick = { confirmRemove = true })
                 }
             }
         },
