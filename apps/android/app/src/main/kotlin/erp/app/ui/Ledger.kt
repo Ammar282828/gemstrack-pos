@@ -1,5 +1,6 @@
 package erp.app.ui
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -12,9 +13,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -147,7 +145,7 @@ fun Monogram(name: String, modifier: Modifier = Modifier, size: Dp = 40.dp) {
         contentAlignment = Alignment.Center,
     ) {
         if (letters.isEmpty()) {
-            Icon(Icons.Filled.Person, contentDescription = null, Modifier.size(size * 0.5f), tint = accent)
+            Icon(Symbols.Person, contentDescription = null, Modifier.size(size * 0.5f), tint = accent)
         } else {
             Text(
                 letters,
@@ -197,7 +195,7 @@ fun DateLeaf(date: Instant?, modifier: Modifier = Modifier, tone: Tone = Tone.qu
             )
             Text(monthFormat.format(date).uppercase(), fontSize = fixed(0.16f), lineHeight = fixed(0.2f), fontWeight = FontWeight.SemiBold, color = quiet, maxLines = 1)
         } else {
-            Icon(Icons.Filled.CalendarToday, contentDescription = null, Modifier.size(size * 0.36f), tint = quiet.copy(alpha = 0.6f))
+            Icon(Symbols.CalendarToday, contentDescription = null, Modifier.size(size * 0.36f), tint = quiet.copy(alpha = 0.6f))
         }
     }
 }

@@ -1,5 +1,6 @@
 package erp.app.screens.businesses
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
@@ -16,9 +17,6 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -155,12 +153,12 @@ internal fun BusinessPicker(list: List<Business>, last: Business) {
                         emails[b.id]?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                         if (b.id == last.id) Text("Last opened", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Icon(Icons.Rounded.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(Symbols.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             if (Businesses.canAdd) {
                 TextButton(onClick = Businesses::openSheet, Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                    Icon(Icons.Rounded.Add, null)
+                    Icon(Symbols.Add, null)
                     Text("Add a business", Modifier.padding(start = 8.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }

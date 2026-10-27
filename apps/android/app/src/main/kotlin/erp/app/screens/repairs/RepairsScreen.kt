@@ -1,5 +1,6 @@
 package erp.app.screens.repairs
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.AppClock
 import android.content.ActivityNotFoundException
 import android.content.Context
@@ -17,16 +18,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Chat
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Inventory2
-import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Build
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
@@ -115,7 +106,7 @@ fun RepairsScreen(path: String) {
 
     ScreenTitle("Repairs")
     ScreenActions {
-        if (session.isOwner) IconButton(onClick = { creating = true }) { Icon(Icons.Filled.Add, contentDescription = "New repair") }
+        if (session.isOwner) IconButton(onClick = { creating = true }) { Icon(Symbols.Add, contentDescription = "New repair") }
     }
 
     // /repairs?new=1 opens the form (for an owner); /repairs?id=REP-000012 opens that ticket once the list has come in,
@@ -156,12 +147,12 @@ fun RepairsScreen(path: String) {
             if (groups.isEmpty()) {
                 item(key = "empty") {
                     if (q.isNotEmpty()) {
-                        NotAvailableState("No Results for “$query”", why = "Check the spelling or try a new search.", icon = Icons.Filled.Search)
+                        NotAvailableState("No Results for “$query”", why = "Check the spelling or try a new search.", icon = Symbols.Search)
                     } else {
                         NotAvailableState(
                             "No repairs yet",
                             why = if (session.isOwner) "Tap + when a customer leaves pieces to be mended." else "Repairs the shop takes in will show here.",
-                            icon = Icons.Filled.Build,
+                            icon = Symbols.Build,
                         )
                     }
                 }
@@ -263,7 +254,7 @@ private fun FoldRow(g: RepairsGroup, open: Boolean, forced: Boolean, toggle: () 
     ) {
         Text("$n repair${if (n == 1) "" else "s"}", Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurfaceVariant)
         Icon(
-            Icons.Filled.ExpandMore, contentDescription = null,
+            Symbols.ExpandMore, contentDescription = null,
             Modifier.then(if (open) Modifier else Modifier.alpha(0.9f)),
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -286,9 +277,9 @@ private fun RepairRow(
     onOpen: () -> Unit,
 ) {
     val whatsApp = if (r.status == RepairStatus.ready) RepairsKit.whatsAppUrl(r, shopName) else null
-    val ready = RowAction("Mark ready", Icons.Filled.CheckCircle, Tone.settled) { desk.markReady(r) }
-    val collected = RowAction("Collected", Icons.Filled.Inventory2, Tone.working) { desk.collect(r) }
-    val tell = whatsApp?.let { RowAction("Tell them", Icons.Filled.Chat, Tone.settled) { openUrl(context, it) } }
+    val ready = RowAction("Mark ready", Symbols.CheckCircle, Tone.settled) { desk.markReady(r) }
+    val collected = RowAction("Collected", Symbols.Inventory2, Tone.working) { desk.collect(r) }
+    val tell = whatsApp?.let { RowAction("Tell them", Symbols.Chat, Tone.settled) { openUrl(context, it) } }
     val trailing = when {
         isOwner && r.status == RepairStatus.received -> ready
         isOwner && r.status == RepairStatus.ready -> collected
@@ -297,12 +288,12 @@ private fun RepairRow(
     val menu = ArrayList<RowAction>()
     if (isOwner && r.status == RepairStatus.received) menu.add(ready)
     if (isOwner && r.status == RepairStatus.ready) menu.add(collected)
-    if (whatsApp != null) menu.add(RowAction("Tell them it's ready", Icons.Filled.Chat, Tone.settled) { openUrl(context, whatsApp) })
+    if (whatsApp != null) menu.add(RowAction("Tell them it's ready", Symbols.Chat, Tone.settled) { openUrl(context, whatsApp) })
     if (isOwner && r.status != RepairStatus.cancelled && repairBalance(r) > 0) {
-        menu.add(RowAction("Take payment", Icons.Filled.Payments, Tone.house) { desk.taking = r })
+        menu.add(RowAction("Take payment", Symbols.Payments, Tone.house) { desk.taking = r })
     }
     if (isOwner && (r.status == RepairStatus.received || r.status == RepairStatus.ready)) {
-        menu.add(RowAction("Cancel repair", Icons.Filled.Close, Tone.problem) { desk.askCancel(r) })
+        menu.add(RowAction("Cancel repair", Symbols.Close, Tone.problem) { desk.askCancel(r) })
     }
     SwipeActions(start = tell, end = trailing, menu = menu, onClick = onOpen) {
         RepairRowBody(r, now, busy = desk.isBusy(r.id))

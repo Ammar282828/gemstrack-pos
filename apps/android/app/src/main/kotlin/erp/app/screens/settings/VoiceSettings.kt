@@ -1,17 +1,12 @@
 package erp.app.screens.settings
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material.icons.filled.CloudOff
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
@@ -183,7 +178,7 @@ private fun VoiceSettingsPage() {
         SettingsPage {
             SettingsSection(footer = "Billed to this shop’s own Google Cloud account. There is no API key to keep.") {
                 Row(Modifier.fillMaxWidth().ledgerRow(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(if (ready == true) Icons.Filled.Mic else Icons.Filled.MicOff, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(if (ready == true) Symbols.Mic else Symbols.MicOff, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(
                         when (ready) { null -> "Checking…"; true -> "Voice is ready"; false -> "Voice is not set up" },
                         style = MaterialTheme.typography.titleMedium,
@@ -206,7 +201,7 @@ private fun VoiceSettingsPage() {
                     Column(Modifier.fillMaxWidth().ledgerRow()) { SkeletonLoading(compact = true) }
                 } else if (error != null && items.isEmpty()) {
                     Row(Modifier.fillMaxWidth().ledgerRow(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.CloudOff, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(Symbols.CloudOff, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(error!!, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 } else if (items.none { it.id !in forgotten }) {
@@ -227,7 +222,7 @@ private fun AliasRow(a: SettingsVoiceAlias, busy: Boolean, anyBusy: Boolean, for
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("“${a.heard}”", Modifier.weight(1f, fill = false), style = MaterialTheme.typography.bodyLarge.copy(fontStyle = FontStyle.Italic), color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Icon(Icons.Filled.ArrowForward, contentDescription = null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Symbols.ArrowForward, contentDescription = null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(a.refName, Modifier.weight(1f, fill = false), style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Text(VoiceWords.rowSub(a), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -236,7 +231,7 @@ private fun AliasRow(a: SettingsVoiceAlias, busy: Boolean, anyBusy: Boolean, for
             Column(Modifier.padding(horizontal = 8.dp)) { SkeletonLoading(compact = true) }
         } else {
             IconButton(onClick = forget, enabled = !anyBusy) {
-                Icon(Icons.Filled.Delete, "Forget", Modifier.size(22.dp), tint = Tone.problem.color())
+                Icon(Symbols.Delete, "Forget", Modifier.size(22.dp), tint = Tone.problem.color())
             }
         }
     }

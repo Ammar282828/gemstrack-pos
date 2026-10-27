@@ -1,12 +1,10 @@
 package erp.app.screens.analytics
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.PictureAsPdf
 import erp.app.ui.Button
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -70,7 +68,7 @@ fun AnaOverviewPage(figures: AnaFigures, period: AnaPeriodState, showCosts: Bool
     // The month's PDF is the ERP's own: any month, drawn by the server, the same document the 1st's WhatsApp report carries.
     if (showCosts) {
         ScreenActions {
-            IconButton(onClick = { monthlyPdf = true }) { Icon(Icons.Filled.PictureAsPdf, contentDescription = "Monthly PDF") }
+            IconButton(onClick = { monthlyPdf = true }) { Icon(Symbols.PictureAsPdf, contentDescription = "Monthly PDF") }
         }
     }
     AnaPage(period) {
@@ -131,7 +129,7 @@ private fun TrendSection(f: AnaFigures) {
     val navigator = LocalNavigator.current
     SectionCard("Revenue over time") {
         AnaRevenueBars(f.salesOverTime)
-        ActionRow("Sales details", onClick = { navigator.open("/analytics/sales") }, icon = Icons.Filled.BarChart)
+        ActionRow("Sales details", onClick = { navigator.open("/analytics/sales") }, icon = Symbols.BarChart)
     }
 }
 

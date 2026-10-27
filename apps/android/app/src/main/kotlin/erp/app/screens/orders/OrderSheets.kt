@@ -1,5 +1,6 @@
 package erp.app.screens.orders
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
 import android.content.Intent
 import androidx.compose.foundation.background
@@ -11,13 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Chat
-import androidx.compose.material.icons.filled.LocalShipping
-import androidx.compose.material.icons.filled.OpenInNew
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
@@ -223,7 +217,7 @@ fun OrderCourierSheet(order: Order, onDismiss: () -> Unit) {
                 colors = ButtonDefaults.buttonColors(containerColor = ErpColors.accent, contentColor = ErpColors.onAccent),
             ) {
                 if (busy != null) Loading(Modifier.size(24.dp), color = ErpColors.onAccent)
-                Icon(if (sent != null) Icons.Filled.CheckCircle else Icons.Filled.LocalShipping, null, Modifier.padding(start = 8.dp).size(18.dp))
+                Icon(if (sent != null) Symbols.CheckCircle else Symbols.LocalShipping, null, Modifier.padding(start = 8.dp).size(18.dp))
                 Text(buttonWords, Modifier.padding(start = 8.dp))
             }
         },
@@ -235,7 +229,7 @@ fun OrderCourierSheet(order: Order, onDismiss: () -> Unit) {
             )
         }
         if (!OrderActions.delivering(order)) {
-            OrdersFormSection { OrdersStatusLine(Icons.Filled.Warning, OrderActions.noAddressWarning, Tone.owed) }
+            OrdersFormSection { OrdersStatusLine(Symbols.Warning, OrderActions.noAddressWarning, Tone.owed) }
         }
         OrdersFormSection(title = "What happens") {
             CourierStep(1, firstStep, linked != null)
@@ -253,17 +247,17 @@ fun OrderCourierSheet(order: Order, onDismiss: () -> Unit) {
         made?.let { m ->
             val said = OrderActions.madeNote(m)
             OrdersFormSection {
-                OrdersStatusLine(Icons.Filled.CheckCircle, said.first, Tone.settled)
+                OrdersStatusLine(Symbols.CheckCircle, said.first, Tone.settled)
                 Text(said.second, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         sent?.let { words ->
             OrdersFormSection {
-                OrdersStatusLine(Icons.Filled.LocalShipping, "Sent for booking", Tone.settled)
+                OrdersStatusLine(Symbols.LocalShipping, "Sent for booking", Tone.settled)
                 Text(words, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        error?.let { OrdersFormSection(title = "Could not book") { OrdersStatusLine(Icons.Filled.Warning, it, Tone.problem) } }
+        error?.let { OrdersFormSection(title = "Could not book") { OrdersStatusLine(Symbols.Warning, it, Tone.problem) } }
     }
 }
 
@@ -271,7 +265,7 @@ fun OrderCourierSheet(order: Order, onDismiss: () -> Unit) {
 private fun CourierStep(n: Int, words: String, done: Boolean) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
         if (done) {
-            Icon(Icons.Filled.CheckCircle, null, Modifier.size(22.dp), tint = Tone.settled.color())
+            Icon(Symbols.CheckCircle, null, Modifier.size(22.dp), tint = Tone.settled.color())
         } else {
             Box(Modifier.size(22.dp).clip(CircleShape).background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.15f)), contentAlignment = Alignment.Center) {
                 Text("$n", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold), color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -311,7 +305,7 @@ fun OrderNotifySheet(order: Order, onDismiss: () -> Unit, kind: OrderActions.Mes
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = ErpColors.accent, contentColor = ErpColors.onAccent),
             ) {
-                Icon(Icons.Filled.Chat, null, Modifier.size(18.dp))
+                Icon(Symbols.Chat, null, Modifier.size(18.dp))
                 Text("Send message", Modifier.padding(start = 8.dp))
             }
         },
@@ -376,7 +370,7 @@ fun OrderTrackingSheet(order: Order, onDismiss: () -> Unit) {
         title = "Track $cn",
         onDismiss = onDismiss,
         trailing = {
-            IconButton(onClick = { attempt++ }, enabled = !asking) { Icon(Icons.Filled.Refresh, "Refresh") }
+            IconButton(onClick = { attempt++ }, enabled = !asking) { Icon(Symbols.Refresh, "Refresh") }
         },
     ) {
         if (asking && track == null && failure == null) {
@@ -387,7 +381,7 @@ fun OrderTrackingSheet(order: Order, onDismiss: () -> Unit) {
                 }
             }
         }
-        failure?.let { OrdersFormSection(title = "Tracking failed") { OrdersStatusLine(Icons.Filled.Warning, it, Tone.problem) } }
+        failure?.let { OrdersFormSection(title = "Tracking failed") { OrdersStatusLine(Symbols.Warning, it, Tone.problem) } }
         track?.let { t ->
             OrdersFormSection(title = "TCS tracking — $cn") {
                 Text(t.summary, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -402,7 +396,7 @@ fun OrderTrackingSheet(order: Order, onDismiss: () -> Unit) {
         if (cn.isNotEmpty()) {
             OrdersFormSection {
                 TextButton(onClick = { erp.app.device.openAddress(context, Intent.ACTION_VIEW, OrderActions.tcsUrl(cn)) }) {
-                    Icon(Icons.Filled.OpenInNew, null, Modifier.size(18.dp))
+                    Icon(Symbols.OpenInNew, null, Modifier.size(18.dp))
                     Text("Full tracking on TCS website", Modifier.padding(start = 8.dp))
                 }
             }
@@ -503,7 +497,7 @@ fun OrderLeopardsSheet(order: Order, onDismiss: () -> Unit) {
                     onClick = { asking = LeopardsAsk.Book }, enabled = !busy, modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(containerColor = ErpColors.accent, contentColor = ErpColors.onAccent),
                 ) {
-                    Icon(Icons.Filled.LocalShipping, null, Modifier.size(18.dp))
+                    Icon(Symbols.LocalShipping, null, Modifier.size(18.dp))
                     Text("Book with Leopards", Modifier.padding(start = 8.dp))
                 }
                 OutlinedTextField(
@@ -526,7 +520,7 @@ fun OrderLeopardsSheet(order: Order, onDismiss: () -> Unit) {
                 val tracking = onFile?.trackingUrl ?: ""
                 if (tracking.isNotEmpty()) {
                     TextButton(onClick = { erp.app.device.openAddress(context, Intent.ACTION_VIEW, tracking) }) {
-                        Icon(Icons.Filled.OpenInNew, null, Modifier.size(18.dp))
+                        Icon(Symbols.OpenInNew, null, Modifier.size(18.dp))
                         Text("Track $cnOnFile on Leopards", Modifier.padding(start = 8.dp))
                     }
                 } else {
@@ -538,11 +532,11 @@ fun OrderLeopardsSheet(order: Order, onDismiss: () -> Unit) {
                 }
                 if (!done) {
                     OutlinedButton(onClick = { refresh() }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Filled.Refresh, null, Modifier.size(18.dp))
+                        Icon(Symbols.Refresh, null, Modifier.size(18.dp))
                         Text("Refresh", Modifier.padding(start = 8.dp))
                     }
                     OutlinedButton(onClick = { markDelivered() }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Filled.CheckCircle, null, Modifier.size(18.dp))
+                        Icon(Symbols.CheckCircle, null, Modifier.size(18.dp))
                         Text("Mark delivered", Modifier.padding(start = 8.dp))
                     }
                 }
@@ -550,11 +544,11 @@ fun OrderLeopardsSheet(order: Order, onDismiss: () -> Unit) {
         }
         said?.let { s ->
             OrdersFormSection {
-                OrdersStatusLine(Icons.Filled.CheckCircle, s.first, Tone.settled)
+                OrdersStatusLine(Symbols.CheckCircle, s.first, Tone.settled)
                 if (s.second.isNotEmpty()) Text(s.second, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        error?.let { OrdersFormSection { OrdersStatusLine(Icons.Filled.Warning, it, Tone.problem) } }
+        error?.let { OrdersFormSection { OrdersStatusLine(Symbols.Warning, it, Tone.problem) } }
     }
 
     asking?.let { ask ->

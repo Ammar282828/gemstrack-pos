@@ -1,5 +1,6 @@
 package erp.app.screens.repairs
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.SearchBarField
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -19,10 +20,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenu
@@ -196,8 +193,8 @@ fun RepairsSearchField(value: String, onChange: (String) -> Unit, prompt: String
         onValueChange = onChange,
         modifier = modifier.fillMaxWidth(),
         placeholder = { Text(prompt) },
-        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-        trailingIcon = if (value.isEmpty()) null else ({ IconButton(onClick = { onChange("") }) { Icon(Icons.Filled.Close, "Clear search") } }),
+        leadingIcon = { Icon(Symbols.Search, contentDescription = null) },
+        trailingIcon = if (value.isEmpty()) null else ({ IconButton(onClick = { onChange("") }) { Icon(Symbols.Close, "Clear search") } }),
         singleLine = true,
         shape = Radius.chipShape,
     )
@@ -226,7 +223,7 @@ fun RepairsDayRow(label: String, day: String, onPick: (String) -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Icon(Icons.Filled.CalendarMonth, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Icon(Symbols.CalendarMonth, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
         Text(erp.app.ui.ShopDate.say(day + "T00:00:00+05:00"), color = ErpColors.accent, fontWeight = FontWeight.Medium)
     }

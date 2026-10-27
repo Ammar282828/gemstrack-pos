@@ -1,16 +1,12 @@
 package erp.app.screens.settings
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Engineering
-import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material.icons.filled.People
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -123,7 +119,7 @@ internal fun TaheriBookImportPage(initial: BookPreview? = null, initialDone: Pai
         bar = if (shown != null && done == null) {
             {
                 MarketingActionBar(
-                    "Import $willAdd", Icons.Filled.FileDownload, onClick = { confirming = true }, busy = importing,
+                    "Import $willAdd", Symbols.FileDownload, onClick = { confirming = true }, busy = importing,
                     enabled = !loading && willAdd != 0, summary = "${TaheriBookImportLogic.records(willAdd)} would be added",
                 )
             }
@@ -143,7 +139,7 @@ internal fun TaheriBookImportPage(initial: BookPreview? = null, initialDone: Pai
                         done?.let { (customers, karigars) ->
                             SettingsSection("Imported", footer = "Re-running now adds nobody — they all count as already here.") {
                                 Row(Modifier.fillMaxWidth().ledgerRow(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Filled.CheckCircle, null, Modifier.size(22.dp), tint = Tone.settled.color())
+                                    Icon(Symbols.CheckCircle, null, Modifier.size(22.dp), tint = Tone.settled.color())
                                     Text("$customers customers and $karigars karigars added", style = MaterialTheme.typography.bodyLarge, color = Tone.settled.color())
                                 }
                             }
@@ -174,8 +170,8 @@ internal fun TaheriBookImportPage(initial: BookPreview? = null, initialDone: Pai
 private fun FileSection(p: BookPreview) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         LedgerHeading("What is in the file", Modifier.padding(horizontal = 16.dp), trailing = p.source.ifEmpty { null })
-        Tallies("Customers", Icons.Filled.People, p.count("customersNew"), p.count("customersSettled"), p.count("customersConflict"))
-        Tallies("Karigars", Icons.Filled.Engineering, p.count("karigarsNew"), p.count("karigarsSettled"), p.count("karigarsConflict"))
+        Tallies("Customers", Symbols.People, p.count("customersNew"), p.count("customersSettled"), p.count("customersConflict"))
+        Tallies("Karigars", Symbols.Engineering, p.count("karigarsNew"), p.count("karigarsSettled"), p.count("karigarsConflict"))
         Text(
             "${p.customersInFile} customers and ${p.karigarsInFile} karigars. These go into the live book; nothing is written until you press Import, and anyone already here is skipped.",
             Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,

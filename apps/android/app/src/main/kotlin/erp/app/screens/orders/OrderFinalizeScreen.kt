@@ -1,5 +1,6 @@
 package erp.app.screens.orders
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -12,10 +13,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
@@ -142,7 +139,7 @@ fun OrderFinalizeScreen(id: String) {
         order != null && s != null -> {
             val inv = order.invoiceId
             if (!inv.isNullOrEmpty()) {
-                NotAvailableState("Invoiced already", why = "${order.id} is on $inv.", icon = Icons.Filled.Description)
+                NotAvailableState("Invoiced already", why = "${order.id} is on $inv.", icon = Symbols.Description)
             } else {
                 FinalizeForm(
                     order, s, rows, { rows = it }, rateTexts, { rateTexts = it }, discount, { discount = it }, costTola, { costTola = it },
@@ -251,7 +248,7 @@ private fun FinalizeForm(
         },
         footer = {
             Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                if (failure != null) OrdersStatusLine(Icons.Filled.Warning, failure, Tone.problem)
+                if (failure != null) OrdersStatusLine(Symbols.Warning, failure, Tone.problem)
                 Button(
                     onClick = {
                         val problem = OrderFinalizeMath.problem(rows, discount, order, rateTexts)

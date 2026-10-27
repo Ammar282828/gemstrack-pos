@@ -1,5 +1,6 @@
 package erp.app.screens.invoices
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -17,11 +18,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Message
-import androidx.compose.material.icons.automirrored.filled.Undo
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Warning
 import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -146,7 +142,7 @@ private fun Footnote(text: String, tone: Tone = Tone.quiet) {
 @Composable
 private fun ErrorLine(text: String) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(Icons.Filled.Warning, contentDescription = null, tint = Tone.problem.color())
+        Icon(Symbols.Warning, contentDescription = null, tint = Tone.problem.color())
         Text(text, color = Tone.problem.color(), style = MaterialTheme.typography.bodyMedium)
     }
 }
@@ -352,7 +348,7 @@ fun InvoicePaymentDeleteSheet(invoice: Invoice, onDismiss: () -> Unit, onDone: (
                     Text(InvoiceActionWords.paymentDetail(p), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Text(PaymentText.pkr(p.amount), style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium, fontFeatureSettings = TabularDigits))
-                Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Symbols.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         Footnote("Tap the payment to take off: an advance carried over from the order, a payment, or a refund. The delete code is asked next.")
@@ -463,7 +459,7 @@ fun InvoiceRefundSheet(invoice: Invoice, onDismiss: () -> Unit, onDone: (Invoice
                 modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 52.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Tone.problem.fill(), contentColor = androidx.compose.ui.graphics.Color.White),
             ) {
-                Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = null)
+                Icon(Symbols.Undo, contentDescription = null)
                 Spacer(Modifier.size(8.dp))
                 Text(if (full) "Yes, refund invoice" else "Record partial refund")
             }
@@ -650,7 +646,7 @@ fun InvoiceWhatsAppSheet(invoice: Invoice, initialPhone: String, onDismiss: () -
                 enabled = url != null,
                 modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 52.dp),
             ) {
-                Icon(Icons.AutoMirrored.Filled.Message, contentDescription = null)
+                Icon(Symbols.Message, contentDescription = null)
                 Spacer(Modifier.size(8.dp))
                 Text("Open WhatsApp")
             }

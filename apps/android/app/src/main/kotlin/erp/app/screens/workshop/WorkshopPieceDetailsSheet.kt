@@ -1,12 +1,11 @@
 package erp.app.screens.workshop
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -147,7 +146,7 @@ private fun SamplePicture(ask: WorkshopPieceAsk, hasStored: Boolean, photo: Byte
                 StoredSample.Loading -> SkeletonLoading(Modifier.heightIn(min = 80.dp))
             }
             TextButton(onClick = { change(null, true) }) {
-                Icon(Icons.Filled.DeleteOutline, null, Modifier.size(18.dp), tint = Tone.problem.color())
+                Icon(Symbols.DeleteOutline, null, Modifier.size(18.dp), tint = Tone.problem.color())
                 Text("Remove photo", Modifier.padding(start = 6.dp), color = Tone.problem.color())
             }
         }

@@ -1,5 +1,6 @@
 package erp.app.screens.design
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -14,21 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.ContentCut
-import androidx.compose.material.icons.filled.Layers
-import androidx.compose.material.icons.filled.Undo
-import androidx.compose.material.icons.filled.Chat
-import androidx.compose.material.icons.filled.Brush
-import androidx.compose.material.icons.filled.Crop
-import androidx.compose.material.icons.filled.PhotoSizeSelectLarge
-import androidx.compose.material.icons.filled.Verified
-import androidx.compose.material.icons.filled.GppMaybe
-import androidx.compose.material.icons.filled.AutoFixHigh
-import androidx.compose.material.icons.filled.Landscape
-import androidx.compose.material.icons.filled.ClearAll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import erp.app.ui.OutlinedButton
@@ -70,33 +56,33 @@ fun DesignAITools(model: DesignWorkspaceModel, access: DesignAccess) {
     val scope = rememberCoroutineScope()
     Column(Modifier.clip(Radius.tileShape).background(ErpColors.ground).padding(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Filled.AutoFixHigh, null, Modifier.size(18.dp))
+            Icon(Symbols.AutoFixHigh, null, Modifier.size(18.dp))
             Text("With AI: the piece stays as it is", style = MaterialTheme.typography.titleSmall)
         }
         model.photoCheck?.let { check ->
             val ok = DesignAIRules.checkOK(check)
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(if (ok) Icons.Filled.Verified else Icons.Filled.GppMaybe, null, Modifier.size(16.dp), tint = if (ok) Tone.settled.color() else Tone.owed.color())
+                Icon(if (ok) Symbols.Verified else Symbols.GppMaybe, null, Modifier.size(16.dp), tint = if (ok) Tone.settled.color() else Tone.owed.color())
                 Text(if (ok) "Same piece" else (check["differences"].array.firstOrNull()?.string ?: "Look closely"), style = MaterialTheme.typography.bodySmall, color = if (ok) Tone.settled.color() else Tone.owed.color())
             }
         }
         val off = model.aiBusy != null || model.photos["photo"] == null
         if (model.photos["photo"] == null) Text("Add a photograph first.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Tool("Enhance: clean, colour, sparkle", Icons.Filled.AutoAwesome, off) { scope.launch { model.photoTool(DesignPhotoOp.Enhance) } }
-            Tool("Logo and labels off", Icons.Filled.ClearAll, off) { scope.launch { model.photoTool(DesignPhotoOp.Clean) } }
-            Tool("Extend to this shape", Icons.Filled.PhotoSizeSelectLarge, off) { scope.launch { model.photoTool(DesignPhotoOp.Extend) } }
-            Tool("Retouch: piece, background, light", Icons.Filled.Brush, off) { scope.launch { model.photoTool(DesignPhotoOp.Retouch) } }
-            Tool("New setting…", Icons.Filled.Landscape, off) { model.sheet = DesignSheet("New setting", compact = true) { dismiss -> DesignSettingSheet(model, dismiss) } }
-            Tool("Ask AI… (anything, in your words)", Icons.Filled.Chat, off) { model.sheet = DesignSheet("Ask AI", compact = true) { dismiss -> DesignAskSheet(model, dismiss) } }
-            Tool("Remove background", Icons.Filled.ContentCut, off) { scope.launch { model.cutOut() } }
-            if (access.ads) Tool("Flat image → layers", Icons.Filled.Layers, off) { scope.launch { model.splitLayers() } }
+            Tool("Enhance: clean, colour, sparkle", Symbols.AutoAwesome, off) { scope.launch { model.photoTool(DesignPhotoOp.Enhance) } }
+            Tool("Logo and labels off", Symbols.ClearAll, off) { scope.launch { model.photoTool(DesignPhotoOp.Clean) } }
+            Tool("Extend to this shape", Symbols.PhotoSizeSelectLarge, off) { scope.launch { model.photoTool(DesignPhotoOp.Extend) } }
+            Tool("Retouch: piece, background, light", Symbols.Brush, off) { scope.launch { model.photoTool(DesignPhotoOp.Retouch) } }
+            Tool("New setting…", Symbols.Landscape, off) { model.sheet = DesignSheet("New setting", compact = true) { dismiss -> DesignSettingSheet(model, dismiss) } }
+            Tool("Ask AI… (anything, in your words)", Symbols.Chat, off) { model.sheet = DesignSheet("Ask AI", compact = true) { dismiss -> DesignAskSheet(model, dismiss) } }
+            Tool("Remove background", Symbols.ContentCut, off) { scope.launch { model.cutOut() } }
+            if (access.ads) Tool("Flat image → layers", Symbols.Layers, off) { scope.launch { model.splitLayers() } }
             if (access.ads && model.work?.kind == "ad") {
-                Tool("Make the ad with AI…", Icons.Filled.Crop, off) { model.sheet = DesignSheet("Make it with AI", compact = true) { dismiss -> DesignMakeAdSheet(model, dismiss) } }
+                Tool("Make the ad with AI…", Symbols.Crop, off) { model.sheet = DesignSheet("Make it with AI", compact = true) { dismiss -> DesignMakeAdSheet(model, dismiss) } }
             }
             if (model.canUndoPhoto) {
                 TextButton(onClick = { model.undoPhoto() }, enabled = model.aiBusy == null, modifier = Modifier.fillMaxWidth()) {
-                    Icon(Icons.Filled.Undo, null, Modifier.size(18.dp)); Text("Back to the photo before", Modifier.weight(1f).padding(start = 8.dp))
+                    Icon(Symbols.Undo, null, Modifier.size(18.dp)); Text("Back to the photo before", Modifier.weight(1f).padding(start = 8.dp))
                 }
             }
         }
@@ -134,18 +120,18 @@ fun DesignCandidateBanner(model: DesignWorkspaceModel) {
         if (bitmap != null) DesignPicture(bitmap, Modifier.fillMaxWidth().heightIn(max = 280.dp).clip(Radius.tileShape), ContentScale.Fit, "An AI picture to look at")
         if (same == true) {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Icon(Icons.Filled.Verified, null, Modifier.size(16.dp), tint = Tone.settled.color())
+                Icon(Symbols.Verified, null, Modifier.size(16.dp), tint = Tone.settled.color())
                 Text("The same piece as the photograph.", style = MaterialTheme.typography.bodySmall, color = Tone.settled.color())
             }
         } else if (c.check != null) {
             val diffs = c.check["differences"].array.take(3).joinToString("; ") { it.string }
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Icon(Icons.Filled.GppMaybe, null, Modifier.size(16.dp), tint = Tone.problem.color())
+                Icon(Symbols.GppMaybe, null, Modifier.size(16.dp), tint = Tone.problem.color())
                 Text("The piece may have changed: " + diffs.ifEmpty { "compare it with your photograph" } + ".", style = MaterialTheme.typography.bodySmall, color = Tone.problem.color())
             }
         } else {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Icon(Icons.Filled.GppMaybe, null, Modifier.size(16.dp), tint = Tone.owed.color())
+                Icon(Symbols.GppMaybe, null, Modifier.size(16.dp), tint = Tone.owed.color())
                 Text("Not checked: compare the piece with your photograph.", style = MaterialTheme.typography.bodySmall, color = Tone.owed.color())
             }
         }
@@ -186,7 +172,7 @@ fun DesignSettingSheet(model: DesignWorkspaceModel, dismiss: () -> Unit) {
                         Text(s.s("label"), style = MaterialTheme.typography.bodyLarge)
                         Text(s.s("suits"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    if (on) Icon(Icons.Filled.Check, "Chosen", tint = ErpColors.accent)
+                    if (on) Icon(Symbols.Check, "Chosen", tint = ErpColors.accent)
                 }
             }
         }
@@ -198,7 +184,7 @@ fun DesignSettingSheet(model: DesignWorkspaceModel, dismiss: () -> Unit) {
                 shapes.forEachIndexed { i, s -> SegmentedButton(selected = shape == s, onClick = { shape = s }, shape = SegmentedButtonDefaults.itemShape(i, shapes.size)) { Text(shapeName(s), maxLines = 1) } }
             }
         }
-        DesignActionBarInline(DesignAction("Photograph it", Icons.Filled.Landscape, disabled = sceneId.isEmpty() && custom.isBlank()) {
+        DesignActionBarInline(DesignAction("Photograph it", Symbols.Landscape, disabled = sceneId.isEmpty() && custom.isBlank()) {
             val text = custom.trim()
             val op = DesignPhotoOp.Setting(if (text.isEmpty()) sceneId else null, text.ifEmpty { null }, shape.ifEmpty { own })
             dismiss()
@@ -230,7 +216,7 @@ fun DesignAskSheet(model: DesignWorkspaceModel, dismiss: () -> Unit) {
                 options.forEachIndexed { i, (id, title) -> SegmentedButton(selected = shape == id, onClick = { shape = id }, shape = SegmentedButtonDefaults.itemShape(i, options.size)) { Text(title, maxLines = 1) } }
             }
         }
-        DesignActionBarInline(DesignAction("Do it", Icons.Filled.Chat, disabled = text.isBlank()) {
+        DesignActionBarInline(DesignAction("Do it", Symbols.Chat, disabled = text.isBlank()) {
             val op = DesignPhotoOp.Ask(text, if (shape == "same") null else shape)
             dismiss()
             scope.launch { model.photoTool(op) }
@@ -250,7 +236,7 @@ fun DesignMakeAdSheet(model: DesignWorkspaceModel, dismiss: () -> Unit) {
             "Lays the ad out from the photograph and its details: the layout, the words on the picture and the ad’s own text and headline, on every size. The photo is extended to the shape if it needs it. Then you look at it.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        DesignActionBarInline(DesignAction("Make it", Icons.Filled.Crop) {
+        DesignActionBarInline(DesignAction("Make it", Symbols.Crop) {
             val aim = brief
             dismiss()
             scope.launch { model.makeAd(aim) }
@@ -302,7 +288,7 @@ fun DesignLayerReviewCard(
         if (showsActions) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedButton(onClick = onCancel) { Text("Cancel") }
-                OutlinedButton(onClick = onStart, Modifier.weight(1f)) { Icon(Icons.Filled.Layers, null, Modifier.size(18.dp)); Text("Start a design from this", Modifier.padding(start = 6.dp)) }
+                OutlinedButton(onClick = onStart, Modifier.weight(1f)) { Icon(Symbols.Layers, null, Modifier.size(18.dp)); Text("Start a design from this", Modifier.padding(start = 6.dp)) }
             }
         }
     }
@@ -325,6 +311,6 @@ fun DesignLayersSheet(model: DesignWorkspaceModel, plan: MarketingValue, photo: 
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 12.dp)) {
             DesignLayerReviewCard(plan, keep, { keep = it }, dismiss, ::start, showsActions = false)
         }
-        DesignActionBar(DesignAction("Start a design from this", Icons.Filled.Layers, disabled = keep.isEmpty(), onClick = ::start))
+        DesignActionBar(DesignAction("Start a design from this", Symbols.Layers, disabled = keep.isEmpty(), onClick = ::start))
     }
 }

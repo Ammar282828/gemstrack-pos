@@ -1,5 +1,6 @@
 package erp.app.screens.work
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.AppClock
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -19,18 +20,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.RadioButtonUnchecked
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Scale
-import androidx.compose.material.icons.filled.PersonSearch
-import androidx.compose.material.icons.filled.Whatshot
-import androidx.compose.material.icons.filled.WifiOff
 import erp.app.ui.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -190,9 +179,9 @@ fun MyWorkScreen(path: String) {
 
     ScreenTitle(portal?.karigar?.name ?: "My work")
     ScreenActions {
-        IconButton(onClick = { scope.launch { load() } }) { Icon(Icons.Filled.Refresh, contentDescription = "Refresh") }
+        IconButton(onClick = { scope.launch { load() } }) { Icon(Symbols.Refresh, contentDescription = "Refresh") }
         if (isKarigar && portal?.preview != true) {
-            IconButton(onClick = { session.signOut() }) { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Sign out") }
+            IconButton(onClick = { session.signOut() }) { Icon(Symbols.Logout, contentDescription = "Sign out") }
         }
     }
 
@@ -218,11 +207,11 @@ fun MyWorkScreen(path: String) {
         when (val p = phase) {
             Phase.Loading -> SkeletonLoading(Modifier.fillMaxSize())
             Phase.NoAccount -> Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                NotAvailableState("No work account found", why = "Ask the shop to add your Google address.", icon = Icons.Filled.PersonSearch)
+                NotAvailableState("No work account found", why = "Ask the shop to add your Google address.", icon = Symbols.PersonSearch)
                 if (isKarigar) OutlinedButton(onClick = { session.signOut() }) { Text("Sign out") }
             }
             is Phase.Failed -> Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                NotAvailableState("Couldn't load the work", why = p.message, icon = Icons.Filled.WifiOff)
+                NotAvailableState("Couldn't load the work", why = p.message, icon = Symbols.WifiOff)
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedButton(onClick = { phase = Phase.Loading; scope.launch { load() } }) { Text("Try again") }
                     // A karigar has nothing else in the app: the ERP's own portal is the way through meanwhile.
@@ -295,17 +284,17 @@ private fun Content(p: KarigarPortal, updatedAt: Instant?, pane: Pane, onPane: (
                             Modifier.readableColumn(820.dp).ledgerCard(), horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
-                            Icon(Icons.Filled.CheckCircle, null, Modifier.size(40.dp), tint = Tone.settled.color())
+                            Icon(Symbols.CheckCircle, null, Modifier.size(40.dp), tint = Tone.settled.color())
                             Text("No pending work", style = MaterialTheme.typography.titleMedium)
                             Text("Nothing is waiting for you at the bench.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 } else {
-                    group("Urgent", rules.critical, Icons.Filled.Whatshot, lateTone, "14+ days", readOnly, busy, toggle)
-                    group("Late", rules.late, Icons.Filled.Schedule, owedTone, "7–14 days", readOnly, busy, toggle)
+                    group("Urgent", rules.critical, Symbols.Whatshot, lateTone, "14+ days", readOnly, busy, toggle)
+                    group("Late", rules.late, Symbols.Schedule, owedTone, "7–14 days", readOnly, busy, toggle)
                     group("In hand", rules.onTrack, null, quiet, "on track", readOnly, busy, toggle)
                 }
-                group("Completed", rules.done, Icons.Filled.CheckCircle, quiet, null, readOnly, busy, toggle)
+                group("Completed", rules.done, Symbols.CheckCircle, quiet, null, readOnly, busy, toggle)
             }
             Pane.Account -> account(p.account)
         }
@@ -414,13 +403,13 @@ private fun Tick(j: KarigarPortalJob, readOnly: Boolean, busy: String?, toggle: 
         busy == j.id -> Box(box, contentAlignment = Alignment.Center) { SkeletonLoading(Modifier.size(28.dp), compact = true) }
         readOnly -> Box(box.semantics { contentDescription = if (j.isDone) "Done" else "Not done" }, contentAlignment = Alignment.Center) {
             Icon(
-                if (j.isDone) Icons.Filled.CheckCircle else Icons.Filled.RadioButtonUnchecked, null, Modifier.size(28.dp),
+                if (j.isDone) Symbols.CheckCircle else Symbols.RadioButtonUnchecked, null, Modifier.size(28.dp),
                 tint = if (j.isDone) Tone.settled.color() else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
             )
         }
         else -> IconButton(onClick = { toggle(j) }, modifier = box) {
             Icon(
-                if (j.isDone) Icons.Filled.CheckCircle else Icons.Filled.RadioButtonUnchecked,
+                if (j.isDone) Symbols.CheckCircle else Symbols.RadioButtonUnchecked,
                 contentDescription = if (j.isDone) "Done. Tap to reopen." else "Mark as done",
                 Modifier.size(28.dp),
                 tint = if (j.isDone) Tone.settled.color() else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -474,7 +463,7 @@ private fun SamplePhoto(uri: String, key: String) {
 private fun androidx.compose.foundation.lazy.LazyListScope.account(a: KarigarPortalAccount) {
     item(key = "gold") {
         Column(Modifier.readableColumn(820.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            SectionLabel(Icons.Filled.Scale, "Gold")
+            SectionLabel(Symbols.Scale, "Gold")
             FigureRow(spacing = 10.dp) {
                 FigureTile("Received", KarigarPortalRules.grams(a.goldGiven), Modifier.share())
                 FigureTile("Returned", KarigarPortalRules.grams(a.goldReceived), Modifier.share())
@@ -487,7 +476,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.account(a: KarigarPor
     }
     item(key = "paid") {
         Column(Modifier.readableColumn(820.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            SectionLabel(Icons.Filled.Payments, "Payments received")
+            SectionLabel(Symbols.Payments, "Payments received")
             Column(Modifier.ledgerCard(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     HeroAmount(a.totalPaid)
@@ -543,7 +532,7 @@ private fun WebPortal(onClose: () -> Unit) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Column(Modifier.fillMaxSize().statusBarsPadding()) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onClose) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
+                    IconButton(onClick = onClose) { Icon(Symbols.ArrowBack, "Back") }
                 }
                 Box(Modifier.weight(1f).fillMaxWidth()) { WebScreen("/") }
             }

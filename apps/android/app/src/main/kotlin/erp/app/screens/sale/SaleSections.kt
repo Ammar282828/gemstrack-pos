@@ -1,5 +1,6 @@
 package erp.app.screens.sale
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -12,17 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddCircle
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.DocumentScanner
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.QrCodeScanner
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.automirrored.filled.Assignment
-import androidx.compose.material.icons.filled.Delete
 import erp.app.ui.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -194,7 +184,7 @@ internal fun LineRow(s: SaleFormState, line: SaleLine, f: SaleFigures, d: SaleDa
                 // Only while it is being swiped: drawn at rest, the red showed as a fringe at a rounded card's corners.
                 if (dismiss.dismissDirection != androidx.compose.material3.SwipeToDismissBoxValue.Settled) {
                     Row(Modifier.fillMaxWidth().background(Tone.late.fill()).padding(horizontal = 20.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.Delete, contentDescription = null, tint = androidx.compose.ui.graphics.Color.White)
+                        Icon(Symbols.Delete, contentDescription = null, tint = androidx.compose.ui.graphics.Color.White)
                     }
                 }
             },
@@ -222,7 +212,7 @@ internal fun LineRow(s: SaleFormState, line: SaleLine, f: SaleFigures, d: SaleDa
                 }
                 if (gone) {
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.Warning, contentDescription = null, Modifier.size(14.dp), tint = Tone.problem.color())
+                        Icon(Symbols.Warning, contentDescription = null, Modifier.size(14.dp), tint = Tone.problem.color())
                         Text("No longer in stock", style = MaterialTheme.typography.bodySmall, color = Tone.problem.color())
                     }
                 }
@@ -241,7 +231,7 @@ internal fun PiecesSection(s: SaleFormState, f: SaleFigures, d: SaleData) {
         FieldRow(
             label = "Search stock by SKU or name", value = s.query, onChange = { s.query = it; s.notice = null },
             imeAction = androidx.compose.ui.text.input.ImeAction.Search, onImeAction = { s.addTyped() },
-            leading = Icons.Filled.Search,
+            leading = Symbols.Search,
         )
         results.forEach { p ->
             val price = calculateProductCosts(PricedPiece(p), f.rateBook.pricing).totalPrice
@@ -251,15 +241,15 @@ internal fun PiecesSection(s: SaleFormState, f: SaleFigures, d: SaleData) {
         }
         s.notice?.let { notice ->
             Row(Modifier.fillMaxWidth().ledgerRow(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.Warning, contentDescription = null, Modifier.size(16.dp), tint = Tone.problem.color())
+                Icon(Symbols.Warning, contentDescription = null, Modifier.size(16.dp), tint = Tone.problem.color())
                 Text(notice, style = MaterialTheme.typography.bodyMedium, color = Tone.problem.color())
             }
         }
-        ActionRow("Scan a tag", { s.scanning = true }, Icons.Filled.QrCodeScanner)
+        ActionRow("Scan a tag", { s.scanning = true }, Symbols.QrCodeScanner)
         // Straight to the piece: no "this bill only or stock too?" question first (owner, 2026-10-24).
-        ActionRow("New item", { s.startNewItem() }, Icons.Filled.AddCircle)
+        ActionRow("New item", { s.startNewItem() }, Symbols.AddCircle)
         // The AI bill reader (SaleScanScreen): the ERP's own reader, its lines put on this sale.
-        ActionRow("Read a written bill", { s.readingBill = true }, Icons.Filled.DocumentScanner)
+        ActionRow("Read a written bill", { s.readingBill = true }, Symbols.DocumentScanner)
     }
 }
 
@@ -284,7 +274,7 @@ internal fun RatesSection(s: SaleFormState, f: SaleFigures, d: SaleData) {
                 Modifier.fillMaxWidth().ledgerRow().clickable(role = Role.Button) { s.rateSheet = true },
                 horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Icons.Filled.Warning, contentDescription = null, Modifier.size(18.dp), tint = Tone.owed.color())
+                Icon(Symbols.Warning, contentDescription = null, Modifier.size(18.dp), tint = Tone.owed.color())
                 Text(staleRateText(d.settings), style = MaterialTheme.typography.bodySmall, color = Tone.owed.color())
             }
         }
@@ -389,7 +379,7 @@ internal fun ExchangeSection(s: SaleFormState) {
     val total = exchangeRowsTotal(s.draft.exchanges.map { it.core })
     FormSection("Exchange / trade-in", footer = { Text("Gold or anything else the customer hands over, taken off the bill at an agreed value.") }) {
         s.draft.exchanges.forEach { row -> SwipeToRemove(onRemove = { s.update { it.removeExchange(row.id) } }) { ExchangeRowView(s, row) } }
-        ActionRow("Add another exchange", { s.update { it.addExchange() } }, Icons.Filled.Add)
+        ActionRow("Add another exchange", { s.update { it.addExchange() } }, Symbols.Add)
         if (s.draft.exchanges.size > 1 && total > 0) {
             ValueRow("Exchange total") { Text(Money.pkr(total), style = MaterialTheme.typography.bodyLarge) }
         }
@@ -413,7 +403,7 @@ internal fun SwipeToRemove(onRemove: () -> Unit, content: @Composable () -> Unit
         backgroundContent = {
             if (dismiss.dismissDirection != androidx.compose.material3.SwipeToDismissBoxValue.Settled) {
                 Row(Modifier.fillMaxWidth().background(Tone.late.fill()).padding(horizontal = 20.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.Delete, contentDescription = null, tint = androidx.compose.ui.graphics.Color.White)
+                    Icon(Symbols.Delete, contentDescription = null, tint = androidx.compose.ui.graphics.Color.White)
                 }
             }
         },
@@ -462,7 +452,7 @@ internal fun PaymentSection(s: SaleFormState, f: SaleFigures) {
         footer = { Text("Taken as the invoice is written and filed in its payment history. Leave it empty if nothing is paid yet: a payment can still be recorded after.") },
     ) {
         s.draft.payments.forEach { row -> SwipeToRemove(onRemove = { s.update { it.removePayment(row.id) } }) { PaymentRowView(s, row, f) } }
-        ActionRow("Add another payment", { s.update { it.addPayment() } }, Icons.Filled.Add)
+        ActionRow("Add another payment", { s.update { it.addPayment() } }, Symbols.Add)
         if (f.hasEstimate) BalanceRow(f)
     }
 }
@@ -475,7 +465,7 @@ internal fun BalanceRow(f: SaleFigures) {
         ValueRow("More than the total by") { Text(Money.pkr(abs(f.balance)), style = MaterialTheme.typography.bodyLarge, color = Tone.problem.color()) }
     } else when (line.state) {
         BalanceState.credit -> ValueRow(line.label) { Text(Money.pkr(line.amount), style = MaterialTheme.typography.bodyLarge, color = Tone.credit.color()) }
-        BalanceState.paid -> ValueRow(line.label) { Icon(Icons.Filled.CheckCircle, "Paid in full", tint = Tone.settled.color()) }
+        BalanceState.paid -> ValueRow(line.label) { Icon(Symbols.CheckCircle, "Paid in full", tint = Tone.settled.color()) }
         BalanceState.due -> ValueRow(line.label) { Text(Money.pkr(line.amount), style = MaterialTheme.typography.bodyLarge, color = Tone.owed.color()) }
     }
 }
@@ -545,7 +535,7 @@ private fun MarginRow(s: SaleFormState, m: Margin) {
         Modifier.fillMaxWidth().ledgerRow().clickable(role = Role.Button, onClickLabel = if (s.marginShown) "Hide our margin" else "Show our margin") { s.marginShown = !s.marginShown },
         horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(Icons.Filled.Lock, contentDescription = null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Icon(Symbols.Lock, contentDescription = null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         Text("We earn", Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(
             if (s.marginShown) marginWords(m) else "00.0% · PKR 00,000",
@@ -718,7 +708,7 @@ internal fun OrderSection(s: SaleFormState) {
     // A sale already billed is not turned into an order.
     if (s.edit != null) return
     FormSection("Order", footer = { Text("Invoice bills it now. Order sends it to the workshop first, with an advance if taken.") }) {
-        ActionRow("Create order", { s.askOrder() }, Icons.AutoMirrored.Filled.Assignment, enabled = s.draft.lines.isNotEmpty())
+        ActionRow("Create order", { s.askOrder() }, Symbols.Assignment, enabled = s.draft.lines.isNotEmpty())
     }
 }
 

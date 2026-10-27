@@ -1,14 +1,12 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.Language
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -34,7 +32,7 @@ fun WebsiteMenu() {
     val me by LocalSession.current.me.collectAsStateWithLifecycle()
     val tabs = MarketingKit.tabs("website", me?.role ?: "none")
     if (tabs.isEmpty()) {
-        NotAvailableState("This shop doesn't change its website from the ERP", why = "Its website is managed outside the ERP, so there are no website tools here.", icon = Icons.Filled.Language)
+        NotAvailableState("This shop doesn't change its website from the ERP", why = "Its website is managed outside the ERP, so there are no website tools here.", icon = Symbols.Language)
         return
     }
     Column(Modifier.fillMaxSize().readableColumn(720.dp).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
@@ -42,7 +40,7 @@ fun WebsiteMenu() {
             for (t in tabs) MarketingLink(t.label, NavIcon.vector(t.icon), t.href)
         }
         WebsiteCard {
-            MarketingLink("Posts", Icons.AutoMirrored.Filled.Send, "/posts")
+            MarketingLink("Posts", Symbols.Send, "/posts")
         }
     }
 }

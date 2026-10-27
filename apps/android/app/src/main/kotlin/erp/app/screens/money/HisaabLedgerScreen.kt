@@ -1,5 +1,6 @@
 package erp.app.screens.money
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.SegmentedColumn
 import erp.app.ui.zoomDestination
 import androidx.compose.foundation.background
@@ -13,13 +14,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Print
-import androidx.compose.material.icons.filled.PersonSearch
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -125,14 +119,14 @@ private fun LedgerBoard(path: String) {
     if (ready && !notFound && onFile) {
         ScreenActions {
             Box {
-                IconButton(onClick = { menu = true }) { Icon(Icons.Filled.Add, contentDescription = "Add entry") }
+                IconButton(onClick = { menu = true }) { Icon(Symbols.Add, contentDescription = "Add entry") }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     DropdownMenuItem(
-                        text = { Text("You gave") }, leadingIcon = { Icon(Icons.Filled.ArrowUpward, null) },
+                        text = { Text("You gave") }, leadingIcon = { Icon(Symbols.ArrowUpward, null) },
                         onClick = { menu = false; adding = HisaabEntryMode.gave },
                     )
                     DropdownMenuItem(
-                        text = { Text("You got") }, leadingIcon = { Icon(Icons.Filled.ArrowDownward, null) },
+                        text = { Text("You got") }, leadingIcon = { Icon(Symbols.ArrowDownward, null) },
                         onClick = { menu = false; adding = HisaabEntryMode.got },
                     )
                 }
@@ -144,7 +138,7 @@ private fun LedgerBoard(path: String) {
         ShelfState(loaded = ready, error = hisaab.error, offline = hisaab.offline, connectionLost = connectionLost) {
             if (notFound) {
                 // The web says "Entity not found. It may have been deleted."
-                NotAvailableState("Not found", why = "It may have been deleted.", icon = Icons.Filled.PersonSearch)
+                NotAvailableState("Not found", why = "It may have been deleted.", icon = Symbols.PersonSearch)
             } else {
                 val result = remember(rows) { HisaabLedger.page(rows) }
                 // The ERP's own page: the ledger PDF and the WhatsApp reminder are built there, in the browser.
@@ -171,7 +165,7 @@ private fun LedgerBoard(path: String) {
                         }
                     } else {
                         cardRows("l", result.lines, { it.id }) { line ->
-                            val delete = RowAction("Delete", Icons.Filled.Delete, Tone.problem) { deletion = askToDelete(line.entry) }
+                            val delete = RowAction("Delete", Symbols.Delete, Tone.problem) { deletion = askToDelete(line.entry) }
                             val invoiceId = line.entry.linkedInvoiceId
                             // A row that is an invoice's own balance opens the invoice (the web's link beside it).
                             SwipeActions(
@@ -190,9 +184,9 @@ private fun LedgerBoard(path: String) {
                         item(key = "add") {
                             Column(Modifier.padding(horizontal = 16.dp).readableColumn(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 SegmentedColumn {
-                                    ActionRow("You gave", Icons.Filled.ArrowUpward) { adding = HisaabEntryMode.gave }
+                                    ActionRow("You gave", Symbols.ArrowUpward) { adding = HisaabEntryMode.gave }
                                     LedgerDivider()
-                                    ActionRow("You got", Icons.Filled.ArrowDownward) { adding = HisaabEntryMode.got }
+                                    ActionRow("You got", Symbols.ArrowDownward) { adding = HisaabEntryMode.got }
                                 }
                                 Footnote("Writes a row in their hisaab, dated today.")
                             }
@@ -201,7 +195,7 @@ private fun LedgerBoard(path: String) {
                     item(key = "print") {
                         Column(Modifier.padding(horizontal = 16.dp).readableColumn(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             SegmentedColumn {
-                                ActionRow("Print the ledger or send a reminder", Icons.Filled.Print) { navigator.open(printPath) }
+                                ActionRow("Print the ledger or send a reminder", Symbols.Print) { navigator.open(printPath) }
                             }
                             Footnote("The ledger PDF and the WhatsApp reminder are made on the ERP’s own page.")
                         }

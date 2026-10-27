@@ -1,5 +1,6 @@
 package erp.app.screens.owner
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.ContainedLoading
 import erp.app.ui.Loading
 import androidx.compose.foundation.background
@@ -15,18 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AddCircleOutline
-import androidx.compose.material.icons.filled.Autorenew
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.CloudOff
-import androidx.compose.material.icons.filled.RemoveCircle
-import androidx.compose.material.icons.filled.TrendingDown
-import androidx.compose.material.icons.filled.TrendingUp
-import androidx.compose.material.icons.filled.Undo
 import erp.app.ui.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -166,7 +155,7 @@ private fun OverheadsBoard() {
 
     ScreenTitle("Overheads")
     ScreenActions {
-        IconButton(onClick = ::add, enabled = answer != null) { Icon(Icons.Filled.Add, contentDescription = "Add a line") }
+        IconButton(onClick = ::add, enabled = answer != null) { Icon(Symbols.Add, contentDescription = "Add a line") }
     }
 
     /**
@@ -238,11 +227,11 @@ private fun OverheadsBoard() {
                                     Modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card).padding(16.dp),
                                     horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
                                 ) {
-                                    Icon(Icons.Filled.CloudOff, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Icon(Symbols.CloudOff, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                     Text(loadError.orEmpty(), Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                                 TextButton(onClick = { scope.launch { load() } }) {
-                                    Icon(Icons.Filled.Autorenew, contentDescription = null)
+                                    Icon(Symbols.Autorenew, contentDescription = null)
                                     Text("  Try again")
                                 }
                             }
@@ -291,7 +280,7 @@ private fun ThisMonth(target: Double, earned: Double, p: OverheadProgress, month
             )
             if (met) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.TrendingUp, contentDescription = null, tint = Tone.settled.color())
+                    Icon(Symbols.TrendingUp, contentDescription = null, tint = Tone.settled.color())
                     Text(
                         "Covered — ${OwnerText.pkr(earned - target)} above the benchmark",
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium), color = Tone.settled.color(),
@@ -304,7 +293,7 @@ private fun ThisMonth(target: Double, earned: Double, p: OverheadProgress, month
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.CalendarMonth, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Symbols.CalendarMonth, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(daysLine(p, met), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
@@ -345,7 +334,7 @@ internal fun summaryLine(s: OverheadSummary): String {
 private fun MonthRow(r: OverheadMonthRow) {
     val quiet = MaterialTheme.colorScheme.onSurfaceVariant
     val tone: Color = if (r.inProgress) quiet else if (r.met) Tone.settled.color() else Tone.owed.color()
-    val icon = if (r.inProgress) Icons.Filled.RemoveCircle else if (r.met) Icons.Filled.CheckCircle else Icons.Filled.TrendingDown
+    val icon = if (r.inProgress) Symbols.RemoveCircle else if (r.met) Symbols.CheckCircle else Symbols.TrendingDown
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
@@ -392,11 +381,11 @@ private fun Sheet(
                         textStyle = MaterialTheme.typography.bodyLarge.copy(textAlign = TextAlign.End),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     )
-                    IconButton(onClick = { onRemove(line.id) }) { Icon(Icons.Filled.Close, contentDescription = "Remove ${line.label.ifEmpty { "this line" }}") }
+                    IconButton(onClick = { onRemove(line.id) }) { Icon(Symbols.Close, contentDescription = "Remove ${line.label.ifEmpty { "this line" }}") }
                 }
             }
             TextButton(onClick = onAdd, Modifier.padding(horizontal = 8.dp)) {
-                Icon(Icons.Filled.AddCircleOutline, contentDescription = null)
+                Icon(Symbols.AddCircleOutline, contentDescription = null)
                 Text("  Add a line")
             }
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -428,7 +417,7 @@ private fun SaveBar(saveError: String?, saving: Boolean, monthName: String, onDi
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth().readableColumn()) {
             OutlinedButton(onClick = onDiscard, enabled = !saving, modifier = Modifier.weight(1f)) {
-                Icon(Icons.Filled.Undo, contentDescription = null)
+                Icon(Symbols.Undo, contentDescription = null)
                 Text("  Discard")
             }
             Button(onClick = onSave, enabled = !saving, modifier = Modifier.weight(1f)) {

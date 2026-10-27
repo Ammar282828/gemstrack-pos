@@ -1,5 +1,6 @@
 package erp.app.ui
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -8,8 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -75,7 +74,7 @@ fun AdvanceExchange(rows: List<ExchangeRow>, onRows: (List<ExchangeRow>) -> Unit
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     )
                     IconButton(onClick = { remove(row.id) }, Modifier.defaultMinSize(48.dp, 48.dp)) {
-                        Icon(Icons.Filled.Close, "Remove this exchange", Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(Symbols.Close, "Remove this exchange", Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
                 if (showDetails) {

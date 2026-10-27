@@ -1,5 +1,6 @@
 package erp.app.screens.settings
 
+import erp.app.ui.icons.Symbols
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -12,15 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Engineering
-import androidx.compose.material.icons.filled.Cancel
-import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material.icons.filled.NoteAdd
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Search
 import erp.app.ui.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -157,7 +149,7 @@ internal fun HisaabImportPage(initialRead: HisaabRead? = null, initialPerson: Hi
             ActionRow(
                 if (fileName.isEmpty()) "Choose File" else "Change File",
                 onClick = { picker.launch(arrayOf("text/csv", "text/comma-separated-values", "application/csv", "text/plain", "application/vnd.ms-excel", "application/octet-stream")) },
-                icon = Icons.Filled.NoteAdd, enabled = !reading && !importing,
+                icon = Symbols.NoteAdd, enabled = !reading && !importing,
             )
             if (reading) Column(Modifier.fillMaxWidth().ledgerRow()) { SkeletonLoading(compact = true) }
             if (fileName.isNotEmpty()) NoteRow(fileName)
@@ -171,12 +163,12 @@ internal fun HisaabImportPage(initialRead: HisaabRead? = null, initialPerson: Hi
             ) {
                 val p = person
                 if (p != null) {
-                    Icon(if (p.type == "karigar") Icons.Filled.Engineering else Icons.Filled.Person, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(if (p.type == "karigar") Symbols.Engineering else Symbols.Person, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(p.name, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
                 } else {
                     Text("Select a customer or karigar...", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge, color = erp.app.ui.theme.ErpColors.accent)
                 }
-                Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Symbols.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 
@@ -203,7 +195,7 @@ internal fun HisaabImportPage(initialRead: HisaabRead? = null, initialPerson: Hi
                     onClick = { runImport() }, Modifier.fillMaxWidth(),
                     enabled = HisaabImportLogic.canImport(read, person, importing, error),
                 ) {
-                    Icon(Icons.Filled.FileDownload, contentDescription = null, Modifier.size(18.dp))
+                    Icon(Symbols.FileDownload, contentDescription = null, Modifier.size(18.dp))
                     Text("  " + if (importing) "Importing ${rows.size} Transactions..." else "Import for ${person?.name ?: "..."}")
                 }
             }
@@ -221,7 +213,7 @@ internal fun HisaabImportPage(initialRead: HisaabRead? = null, initialPerson: Hi
 private fun PreviewRow(row: HisaabRow) {
     Row(Modifier.fillMaxWidth().ledgerRow(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
         Icon(
-            if (row.isValidDate) Icons.Filled.CheckCircle else Icons.Filled.Cancel, contentDescription = if (row.isValidDate) "Date read" else "Invalid date",
+            if (row.isValidDate) Symbols.CheckCircle else Symbols.Cancel, contentDescription = if (row.isValidDate) "Date read" else "Invalid date",
             Modifier.size(22.dp), tint = if (row.isValidDate) Tone.settled.color() else Tone.problem.color(),
         )
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -246,14 +238,14 @@ private fun PersonPicker(people: List<HisaabPerson>, onCancel: () -> Unit, pick:
     val shown = remember(people, query) { HisaabImportLogic.shown(people, query) }
     FullScreenSheet(title = "Whose hisaab?", onCancel = onCancel) {
         Column(Modifier.fillMaxSize()) {
-            FieldRow("Name", query, { query = it }, leading = Icons.Filled.Search)
+            FieldRow("Name", query, { query = it }, leading = Symbols.Search)
             LazyColumn(Modifier.fillMaxSize()) {
                 items(shown, key = { it.type + it.id }) { p ->
                     Row(
                         Modifier.fillMaxWidth().clickable(role = Role.Button) { pick(p) }.ledgerRow(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(if (p.type == "karigar") Icons.Filled.Engineering else Icons.Filled.Person, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(if (p.type == "karigar") Symbols.Engineering else Symbols.Person, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(p.name, Modifier.padding(0.dp), style = MaterialTheme.typography.bodyLarge)
                     }
                 }

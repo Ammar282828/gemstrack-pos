@@ -1,5 +1,6 @@
 package erp.app.screens.design
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.SearchBarField
 import android.content.Context
 import androidx.compose.foundation.background
@@ -21,13 +22,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -191,7 +185,7 @@ fun DesignSavedView(
         }
         SearchBarField(
             q, { q = it }, Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), singleLine = true, placeholder = { Text("Find a design") },
-            leadingIcon = { Icon(Icons.Filled.Search, null) },
+            leadingIcon = { Icon(Symbols.Search, null) },
         )
         if (folder != null && view == folder.id) {
             Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -202,11 +196,11 @@ fun DesignSavedView(
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
                 view == DEVICE -> {
-                    if (shelf.draftRows.isEmpty()) NotAvailableState("No drafts on this phone", why = "A design is kept here as you make it, and for 30 days after.", icon = Icons.Filled.Phone)
+                    if (shelf.draftRows.isEmpty()) NotAvailableState("No drafts on this phone", why = "A design is kept here as you make it, and for 30 days after.", icon = Symbols.Phone)
                     else LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         items(shelf.draftRows, key = { it.id }) { d ->
                             SwipeActions(
-                                end = RowAction("Delete", Icons.Filled.Delete, Tone.late) { deletingDraft = d },
+                                end = RowAction("Delete", Symbols.Delete, Tone.late) { deletingDraft = d },
                                 onClick = { onOpenDraft(d) },
                             ) { Box(Modifier.fillMaxWidth().ledgerCard()) { DesignDraftLine(d) } }
                         }
@@ -214,12 +208,12 @@ fun DesignSavedView(
                     }
                 }
                 view == ACCOUNT && adsOk -> DesignAccountAds(shelf.folders) { scope.launch { shelf.load() } }
-                shelf.error != null -> NotAvailableState("Couldn’t read the shelf", why = shelf.error, icon = Icons.Filled.Info)
+                shelf.error != null -> NotAvailableState("Couldn’t read the shelf", why = shelf.error, icon = Symbols.Info)
                 !shelf.loaded -> SkeletonLoading(Modifier.fillMaxSize(), label = "Opening the shelf")
                 shown.isEmpty() -> NotAvailableState(
                     if (shelf.items.isEmpty()) "Nothing saved yet" else "Nothing here",
                     why = if (shelf.items.isEmpty()) "Save a design from the workspace and it waits here, in any folder you make." else "No design in this folder matches.",
-                    icon = Icons.Filled.Folder,
+                    icon = Symbols.Folder,
                 )
                 else -> BoxWithConstraints(Modifier.fillMaxSize()) {
                     val wide = maxWidth >= 840.dp
@@ -292,8 +286,8 @@ fun DesignSavedView(
 @Composable
 private fun RecordRow(r: DesignRecord, onOpen: () -> Unit, onDelete: () -> Unit) {
     SwipeActions(
-        end = RowAction("Delete", Icons.Filled.Delete, Tone.late, onDelete),
-        menu = listOf(RowAction("Details", Icons.Filled.Info, Tone.quiet, onOpen)),
+        end = RowAction("Delete", Symbols.Delete, Tone.late, onDelete),
+        menu = listOf(RowAction("Details", Symbols.Info, Tone.quiet, onOpen)),
         onClick = onOpen,
     ) { Box(Modifier.fillMaxWidth().ledgerCard()) { DesignRecordLine(r) } }
 }
@@ -368,13 +362,13 @@ fun DesignDetailSheet(
             FormSection(
                 "", footer = if (record.isLegacy) ({ Text("A saved ad from the earlier Studio. Saving it from the workspace keeps a design in its place.", Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }) else null,
             ) {
-                if (record.canOpen) ActionRow("Open", { onClose(); onOpen(record) }, icon = Icons.Filled.Folder)
+                if (record.canOpen) ActionRow("Open", { onClose(); onOpen(record) }, icon = Symbols.Folder)
                 ActionRow("Share the picture", {
                     val data = picture ?: return@ActionRow
                     val safe = record.name.replace(Regex("[^A-Za-z0-9 _-]+"), "")
                     shareBytes(context, data, (safe.ifEmpty { "design" }) + ".jpg", "image/jpeg", record.name)
-                }, icon = Icons.Filled.Share, enabled = picture != null)
-                ActionRow("Delete", { confirmDelete = true }, icon = Icons.Filled.Delete, tone = Tone.problem)
+                }, icon = Symbols.Share, enabled = picture != null)
+                ActionRow("Delete", { confirmDelete = true }, icon = Symbols.Delete, tone = Tone.problem)
             }
         }
         busy?.let { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { SkeletonLoading(label = it) } }

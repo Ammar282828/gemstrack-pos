@@ -1,5 +1,6 @@
 package erp.app.nav
 
+import erp.app.ui.icons.Symbols
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -18,7 +19,6 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
-import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.ToggleFloatingActionButtonDefaults
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.TransformOrigin
@@ -33,14 +33,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Mic
-import androidx.compose.material.icons.rounded.Payments
-import androidx.compose.material.icons.rounded.QrCodeScanner
-import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.automirrored.rounded.Assignment
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -151,7 +143,7 @@ fun RootScaffold() {
                     icon = {
                         // The Orders row carries the online-orders count for owners.
                         val badge = if (e.count == "online" && role == "owner" && shop.websiteSelling) waiting else 0
-                        BadgedBox(badge = { PoppingBadge(badge) }) { TabIcon(NavIcon.outline(e.icon), NavIcon.vector(e.icon), selected == e.id) }
+                        BadgedBox(badge = { PoppingBadge(badge) }) { TabIcon(NavIcon.vector(e.icon), NavIcon.filled(e.icon), selected == e.id) }
                     },
                     label = { Text(if (e.id == "home") "Home" else e.label) },
                 )
@@ -163,7 +155,7 @@ fun RootScaffold() {
                 navigationSuiteType = layout,
                 selected = selected == SEARCH_TAB,
                 onClick = { if (selected == SEARCH_TAB) popToRoot(stacks[SEARCH_TAB]) else chosen = SEARCH_TAB },
-                icon = { TabIcon(Icons.Outlined.Search, Icons.Rounded.Search, selected == SEARCH_TAB) },
+                icon = { TabIcon(Symbols.Search, Symbols.Fill.Search, selected == SEARCH_TAB) },
                 label = { Text("Search") },
             )
         },
@@ -216,7 +208,7 @@ private fun CreateButton(spec: CreateSpec, modifier: Modifier) {
             ToggleFloatingActionButton(checked = expanded, onCheckedChange = { expanded = it }) {
                 // The + turns a quarter-turn into a ×, on the button's own morph; the colour and size follow it.
                 Icon(
-                    Icons.Rounded.Add, if (expanded) "Close the create menu" else "Create: new sale, new order, scan or voice",
+                    Symbols.Add, if (expanded) "Close the create menu" else "Create: new sale, new order, scan or voice",
                     with(ToggleFloatingActionButtonDefaults) {
                         Modifier.animateIcon({ checkedProgress }).graphicsLayer { rotationZ = checkedProgress * 45f }
                     },
@@ -241,10 +233,10 @@ class CreateItem(val label: String, val path: String, val icon: androidx.compose
 
 fun createItems(spec: CreateSpec): List<CreateItem> = buildList {
     // Straight to the sale, not the New chooser (which asks Sale / Order / Repair again, though the person just said which).
-    if (spec.sale != null) add(CreateItem("New sale", NEW_SALE_PATH, Icons.Rounded.Payments))
-    add(CreateItem("New order", "/orders/add", Icons.AutoMirrored.Rounded.Assignment))
-    add(CreateItem("Scan", "/scan", Icons.Rounded.QrCodeScanner))
-    if (spec.voice) add(CreateItem("Voice", "/voice", Icons.Rounded.Mic))
+    if (spec.sale != null) add(CreateItem("New sale", NEW_SALE_PATH, Symbols.Payments))
+    add(CreateItem("New order", "/orders/add", Symbols.Assignment))
+    add(CreateItem("Scan", "/scan", Symbols.QrCodeScanner))
+    if (spec.voice) add(CreateItem("Voice", "/voice", Symbols.Mic))
 }
 
 /** The outline until the tab is chosen, then the filled icon, crossfaded quickly. */

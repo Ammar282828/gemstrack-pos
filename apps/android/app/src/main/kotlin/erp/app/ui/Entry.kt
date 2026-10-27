@@ -1,5 +1,6 @@
 package erp.app.ui
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,12 +18,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.automirrored.filled.FactCheck
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -90,7 +85,7 @@ fun EntrySteps(
             contentAlignment = Alignment.Center,
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (state == EntryStepState.done) Icon(Icons.Filled.Check, contentDescription = null, Modifier.size(14.dp), tint = if (chosen) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant)
+                if (state == EntryStepState.done) Icon(Symbols.Check, contentDescription = null, Modifier.size(14.dp), tint = if (chosen) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(
                     step.title,
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = if (chosen) FontWeight.SemiBold else FontWeight.Normal),
@@ -127,7 +122,7 @@ fun EntryContinue(selection: EntryStep, onSelect: (EntryStep) -> Unit, modifier:
     Row(modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
         if (selection != EntryStep.customer) {
             OutlinedButton(onClick = { move(selection.previous) }, Modifier.defaultMinSize(minHeight = MinTouchTarget)) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, Modifier.size(18.dp))
+                Icon(Symbols.ArrowBack, contentDescription = null, Modifier.size(18.dp))
                 Text("Back", Modifier.padding(start = 6.dp))
             }
         }
@@ -137,7 +132,7 @@ fun EntryContinue(selection: EntryStep, onSelect: (EntryStep) -> Unit, modifier:
             Modifier.weight(1f).defaultMinSize(minHeight = MinTouchTarget).semantics { stateDescription = "Continue to ${selection.next.title}" },
         ) {
             Text("Continue")
-            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, Modifier.padding(start = 6.dp).size(18.dp))
+            Icon(Symbols.ArrowForward, contentDescription = null, Modifier.padding(start = 6.dp).size(18.dp))
         }
     }
 }
@@ -179,7 +174,7 @@ data class TransactionReviewRow(val label: String, val value: String)
 @Composable
 fun PieceInspector(title: String, rows: List<TransactionReviewRow>, modifier: Modifier = Modifier) {
     Column(modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card).padding(20.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-        GlanceTitle("Piece summary", Icons.Filled.AutoAwesome)
+        GlanceTitle("Piece summary", Symbols.AutoAwesome)
         Text(title.ifEmpty { "New piece" }, style = MaterialTheme.typography.titleMedium)
         HorizontalDivider()
         rows.forEach { row ->
@@ -206,7 +201,7 @@ fun TransactionReview(
     contact: String = "",
 ) {
     Column(modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card).padding(20.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-        GlanceTitle("At a glance", Icons.AutoMirrored.Filled.FactCheck)
+        GlanceTitle("At a glance", Symbols.FactCheck)
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(customer.ifEmpty { "Walk-in" }, style = MaterialTheme.typography.titleMedium)
             if (contact.isNotEmpty()) Text(contact, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)

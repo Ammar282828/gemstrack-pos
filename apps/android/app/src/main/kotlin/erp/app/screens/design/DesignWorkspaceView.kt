@@ -1,5 +1,6 @@
 package erp.app.screens.design
 
+import erp.app.ui.icons.Symbols
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -25,22 +26,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Cancel
-import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.PhotoLibrary
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Save
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.filled.ViewQuilt
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -167,8 +152,8 @@ fun DesignWorkspaceView(
         }
         // The one primary action stays at the foot where it never scrolls away (rule 16): Publish, with Save beside it.
         DesignActionBar(
-            DesignAction("Publish", Icons.AutoMirrored.Filled.Send, disabled = model.saving) { DesignHooks.publish(model) },
-            secondary = listOf(DesignAction("Save", Icons.Filled.Save, busy = model.saving || model.uploading) { scope.launch { model.saveInBackground() } }),
+            DesignAction("Publish", Symbols.Send, disabled = model.saving) { DesignHooks.publish(model) },
+            secondary = listOf(DesignAction("Save", Symbols.Save, busy = model.saving || model.uploading) { scope.launch { model.saveInBackground() } }),
             summary = if (w.dirty) "Not saved" else "Saved",
         )
     }
@@ -200,7 +185,7 @@ private fun Header(model: DesignWorkspaceModel, w: DesignWork, onClose: () -> Un
     Column(Modifier.ledgerCard(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TextButton(onClick = onClose) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, null, Modifier.size(18.dp))
+                Icon(Symbols.ArrowBack, null, Modifier.size(18.dp))
                 Text("Designs", Modifier.padding(start = 6.dp), style = MaterialTheme.typography.titleSmall)
             }
             Pill(DesignKinds.label(w.kind), tone = Tone.house)
@@ -224,7 +209,7 @@ private fun Strip(model: DesignWorkspaceModel, w: DesignWork, onRemove: (DesignP
                 .clickable(onClickLabel = "Resize: add a size") { DesignHooks.resize(model) },
             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
         ) {
-            Icon(Icons.Filled.Add, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(Symbols.Add, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             Text("Size", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
@@ -250,16 +235,16 @@ private fun PageCell(model: DesignWorkspaceModel, work: DesignWork, page: Design
         ) { if (image != null) DesignPicture(image, Modifier.fillMaxSize(), ContentScale.Fit, page.label) }
         Text(page.label, Modifier.widthIn96(), maxLines = 1, style = MaterialTheme.typography.labelSmall)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-            if (page.id == work.master) Icon(Icons.Filled.Star, null, Modifier.size(12.dp), tint = if (stale) Tone.owed.color() else MaterialTheme.colorScheme.onSurfaceVariant)
+            if (page.id == work.master) Icon(Symbols.Star, null, Modifier.size(12.dp), tint = if (stale) Tone.owed.color() else MaterialTheme.colorScheme.onSurfaceVariant)
             Text(work.stripNote(page), style = MaterialTheme.typography.labelSmall, color = if (stale) Tone.owed.color() else MaterialTheme.colorScheme.onSurfaceVariant)
         }
         if (on) {
             Box {
-                IconButton(onClick = { menu = true }, Modifier.size(32.dp).semantics { contentDescription = "This size" }) { Icon(Icons.Filled.MoreVert, null, Modifier.size(18.dp)) }
+                IconButton(onClick = { menu = true }, Modifier.size(32.dp).semantics { contentDescription = "This size" }) { Icon(Symbols.MoreVert, null, Modifier.size(18.dp)) }
                 DropdownMenu(menu, { menu = false }) {
-                    if (stale) DropdownMenuItem(text = { Text("Re-do from the master") }, leadingIcon = { Icon(Icons.Filled.Refresh, null) }, onClick = { menu = false; DesignHooks.redoFromMaster(model, page.id) })
-                    if (page.id != work.master) DropdownMenuItem(text = { Text("Make this the master") }, leadingIcon = { Icon(Icons.Filled.Star, null) }, onClick = { menu = false; model.setMaster(page.id) })
-                    if (work.pages.size > 1) DropdownMenuItem(text = { Text("Take this size out", color = Tone.problem.color()) }, leadingIcon = { Icon(Icons.Filled.Delete, null, tint = Tone.problem.color()) }, onClick = { menu = false; onRemove(page) })
+                    if (stale) DropdownMenuItem(text = { Text("Re-do from the master") }, leadingIcon = { Icon(Symbols.Refresh, null) }, onClick = { menu = false; DesignHooks.redoFromMaster(model, page.id) })
+                    if (page.id != work.master) DropdownMenuItem(text = { Text("Make this the master") }, leadingIcon = { Icon(Symbols.Star, null) }, onClick = { menu = false; model.setMaster(page.id) })
+                    if (work.pages.size > 1) DropdownMenuItem(text = { Text("Take this size out", color = Tone.problem.color()) }, leadingIcon = { Icon(Symbols.Delete, null, tint = Tone.problem.color()) }, onClick = { menu = false; onRemove(page) })
                 }
             }
         }
@@ -312,12 +297,12 @@ private fun Stage(model: DesignWorkspaceModel, w: DesignWork, safe: Boolean, onS
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             OutlinedButton(onClick = { onEdit(page.id) }, Modifier.weight(1f).defaultMinSize(minHeight = 48.dp)) {
-                Icon(Icons.Filled.Tune, null, Modifier.size(18.dp), tint = ErpColors.accent)
+                Icon(Symbols.Tune, null, Modifier.size(18.dp), tint = ErpColors.accent)
                 Text("Edit design", Modifier.padding(start = 8.dp), color = ErpColors.accent)
             }
             Box(Modifier.weight(1f)) {
                 OutlinedButton(onClick = { layouts = true }, Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp)) {
-                    Icon(Icons.Filled.ViewQuilt, null, Modifier.size(18.dp))
+                    Icon(Symbols.ViewQuilt, null, Modifier.size(18.dp))
                     Text("Layout", Modifier.padding(start = 8.dp))
                 }
                 DropdownMenu(layouts, { layouts = false }) {
@@ -374,7 +359,7 @@ private fun Photograph(
     SectionCard("The photograph") {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Box(Modifier.size(64.dp).clip(Radius.thumbShape).background(ErpColors.ground), contentAlignment = Alignment.Center) {
-                if (thumb != null) DesignPicture(thumb, Modifier.fillMaxSize()) else Icon(Icons.Filled.PhotoLibrary, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (thumb != null) DesignPicture(thumb, Modifier.fillMaxSize()) else Icon(Symbols.PhotoLibrary, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(if (has) "The design’s photograph" else "No photograph", style = MaterialTheme.typography.titleSmall)
@@ -383,14 +368,14 @@ private fun Photograph(
         }
         Box {
             OutlinedButton(onClick = { menu = true }, Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp)) {
-                Icon(Icons.Filled.PhotoLibrary, null, Modifier.size(18.dp))
+                Icon(Symbols.PhotoLibrary, null, Modifier.size(18.dp))
                 Text(if (has) "Change the photograph" else "Choose a photograph", Modifier.padding(start = 8.dp))
             }
             DropdownMenu(menu, { menu = false }) {
-                DropdownMenuItem(text = { Text("Browse photos") }, leadingIcon = { Icon(Icons.Filled.PhotoLibrary, null) }, onClick = { menu = false; onChangePhoto() })
-                DropdownMenuItem(text = { Text("From the website") }, leadingIcon = { Icon(Icons.Filled.Language, null) }, onClick = { menu = false; onSite() })
-                DropdownMenuItem(text = { Text("This phone") }, leadingIcon = { Icon(Icons.Filled.Phone, null) }, onClick = { menu = false; onDevice() })
-                if (onCamera != null) DropdownMenuItem(text = { Text("Camera") }, leadingIcon = { Icon(Icons.Filled.CameraAlt, null) }, onClick = { menu = false; onCamera() })
+                DropdownMenuItem(text = { Text("Browse photos") }, leadingIcon = { Icon(Symbols.PhotoLibrary, null) }, onClick = { menu = false; onChangePhoto() })
+                DropdownMenuItem(text = { Text("From the website") }, leadingIcon = { Icon(Symbols.Language, null) }, onClick = { menu = false; onSite() })
+                DropdownMenuItem(text = { Text("This phone") }, leadingIcon = { Icon(Symbols.Phone, null) }, onClick = { menu = false; onDevice() })
+                if (onCamera != null) DropdownMenuItem(text = { Text("Camera") }, leadingIcon = { Icon(Symbols.CameraAlt, null) }, onClick = { menu = false; onCamera() })
             }
         }
         MoreRow(model, onMore)
@@ -404,7 +389,7 @@ private fun MoreRow(model: DesignWorkspaceModel, onAdd: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("More photos of this piece", Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
-            OutlinedButton(onClick = onAdd) { Icon(Icons.Filled.Add, null, Modifier.size(16.dp)); Text("Add", Modifier.padding(start = 4.dp)) }
+            OutlinedButton(onClick = onAdd) { Icon(Symbols.Add, null, Modifier.size(16.dp)); Text("Add", Modifier.padding(start = 4.dp)) }
         }
         if (model.moreIds.isNotEmpty()) {
             Row(Modifier.horizontalScroll(rememberScrollState()).padding(top = 5.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -413,7 +398,7 @@ private fun MoreRow(model: DesignWorkspaceModel, onAdd: () -> Unit) {
                     Box {
                         DesignPicture(bmp, Modifier.size(56.dp).clip(Radius.thumbShape))
                         IconButton(onClick = { model.removePhoto(id) }, Modifier.align(Alignment.TopEnd).size(32.dp).semantics { contentDescription = "Take this photo out" }) {
-                            Icon(Icons.Filled.Cancel, null, tint = androidx.compose.ui.graphics.Color.White, modifier = Modifier.background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.7f), androidx.compose.foundation.shape.CircleShape).size(20.dp))
+                            Icon(Symbols.Cancel, null, tint = androidx.compose.ui.graphics.Color.White, modifier = Modifier.background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.7f), androidx.compose.foundation.shape.CircleShape).size(20.dp))
                         }
                     }
                 }

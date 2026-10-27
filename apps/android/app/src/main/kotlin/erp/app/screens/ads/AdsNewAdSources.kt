@@ -1,5 +1,6 @@
 package erp.app.screens.ads
 
+import erp.app.ui.icons.Symbols
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -11,10 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.VideoLibrary
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -102,7 +99,7 @@ fun AdsVideoSection(video: AdsVideoDraft?, onPick: () -> Unit) {
                 }
             }
         }
-        AdsActionRow(if (video == null) "Choose a video" else "A different video", onPick, icon = Icons.Filled.VideoLibrary, enabled = video?.busy != true)
+        AdsActionRow(if (video == null) "Choose a video" else "A different video", onPick, icon = Symbols.VideoLibrary, enabled = video?.busy != true)
     }
 }
 
@@ -191,7 +188,7 @@ fun AdsCatalogSection(choice: AdsCatalogChoice, onChoice: (AdsCatalogChoice) -> 
             )
         },
     ) {
-        choice.problem?.let { AdsWarningRow(it, Tone.problem, Icons.Filled.Warning) }
+        choice.problem?.let { AdsWarningRow(it, Tone.problem, Symbols.Warning) }
         val catalogs = choice.catalogs
         if (catalogs != null) {
             if (catalogs.isEmpty()) {
@@ -232,7 +229,7 @@ fun AdsAdvancedSection(advanced: AdsAdvanced, onAdvanced: (AdsAdvanced) -> Unit,
                 Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge,
             )
             Icon(
-                Icons.Filled.ExpandMore, if (advanced.open) "Fold" else "Unfold", Modifier.rotate(if (advanced.open) 0f else -90f),
+                Symbols.ExpandMore, if (advanced.open) "Fold" else "Unfold", Modifier.rotate(if (advanced.open) 0f else -90f),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }

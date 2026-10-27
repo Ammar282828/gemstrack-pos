@@ -1,5 +1,6 @@
 package erp.app.screens.workshop
 
+import erp.app.ui.icons.Symbols
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -9,8 +10,6 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PersonOff
 import androidx.compose.material3.Text
 import erp.app.ui.TextButton
 import androidx.compose.runtime.Composable
@@ -81,7 +80,7 @@ fun KarigarForm(id: String? = null) {
             } else {
                 NotAvailableState(
                     "Karigar not found", why = "They may have been removed. Settings, Recently removed puts them back.",
-                    icon = Icons.Filled.PersonOff,
+                    icon = Symbols.PersonOff,
                 )
             }
         }

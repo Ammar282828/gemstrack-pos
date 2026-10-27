@@ -1,5 +1,6 @@
 package erp.app.screens.orders
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
 import erp.app.ui.AppClock
 import androidx.compose.foundation.clickable
@@ -14,29 +15,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Chat
-import androidx.compose.material.icons.filled.ListAlt
-import androidx.compose.material.icons.filled.LocalShipping
-import androidx.compose.material.icons.filled.LockOpen
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material.icons.filled.Percent
-import androidx.compose.material.icons.filled.PersonAdd
-import androidx.compose.material.icons.filled.Print
-import androidx.compose.material.icons.filled.Public
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Undo
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.filled.Inventory2
-import androidx.compose.material.icons.filled.StickyNote2
-import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.AlertDialog
 import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
@@ -163,7 +141,7 @@ fun OrderScreen(id: String) {
     Box(Modifier.fillMaxSize().zoomDestination(OrderPaths.order(id))) {
         ShelfState(loaded = orders.loaded, error = orders.error, offline = orders.offline, connectionLost = connectionLost) {
             // Read through `items`: the shelf's lookup alone would not redraw on a change.
-            if (order != null) Detail(order) else NotAvailableState("Order not found", why = "$id is not in the book.", icon = Icons.Filled.ListAlt)
+            if (order != null) Detail(order) else NotAvailableState("Order not found", why = "$id is not in the book.", icon = Symbols.ListAlt)
         }
     }
 }
@@ -257,7 +235,7 @@ private fun Detail(shelfOrder: Order) {
     // Changing an order is an owner's, as in the browser, and only until it is invoiced (Unlock & edit is in the menu then).
     ScreenActions {
         if (isOwner && !OrdersLogic.hasInvoice(order)) {
-            IconButton(onClick = { navigator.open(OrderPaths.edit(order.id)) }) { Icon(Icons.Filled.Edit, "Edit order") }
+            IconButton(onClick = { navigator.open(OrderPaths.edit(order.id)) }) { Icon(Symbols.Edit, "Edit order") }
         }
         MoreMenu(
             order, stage, step, isOwner, offersAdvance, false,
@@ -289,7 +267,7 @@ private fun Detail(shelfOrder: Order) {
             if (t != null) {
                 item("told") {
                     Column(Modifier.ledgerCard()) {
-                        OrdersStatusLine(if (t.ok) Icons.Filled.CheckCircle else Icons.Filled.Warning, t.words, if (t.ok) Tone.settled else Tone.owed)
+                        OrdersStatusLine(if (t.ok) Symbols.CheckCircle else Symbols.Warning, t.words, if (t.ok) Tone.settled else Tone.owed)
                     }
                 }
             }
@@ -414,7 +392,7 @@ private fun HeroFigure(order: Order, stage: OrderStage, owed: Double, invoice: I
             Pill("In credit", tone = Tone.credit)
             HeroAmount(-due, tone = Tone.credit.color())
         } else {
-            Pill("Paid", tone = Tone.settled, icon = Icons.Filled.Check)
+            Pill("Paid", tone = Tone.settled, icon = Symbols.Check)
         }
     }
 }
@@ -460,13 +438,13 @@ private fun NoteCard(order: Order) {
     val shipTo = describeDelivery(order.delivery)
     Column(Modifier.ledgerCard(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            LabelLine("Note", Icons.Filled.StickyNote2)
+            LabelLine("Note", Symbols.StickyNote2)
             androidx.compose.foundation.text.selection.SelectionContainer { Text(notes, style = MaterialTheme.typography.bodyMedium) }
         }
         if (shipTo.isNotEmpty()) {
             HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.18f))
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                LabelLine("Deliver to", Icons.Filled.LocationOn)
+                LabelLine("Deliver to", Symbols.LocationOn)
                 Text(shipTo.joinToString("\n"), style = MaterialTheme.typography.bodyMedium)
             }
         }
@@ -518,7 +496,7 @@ private fun Pieces(order: Order, ticking: Int?, isOwner: Boolean, onGiveOut: () 
             }
             if (counts.unassigned > 0 && !invoiced) {
                 TextButton(onClick = onGiveOut, contentPadding = PaddingValues(horizontal = 0.dp, vertical = 8.dp)) {
-                    Icon(Icons.Filled.PersonAdd, null, Modifier.size(18.dp))
+                    Icon(Symbols.PersonAdd, null, Modifier.size(18.dp))
                     Text("Give out: ${counts.unassigned} without a karigar", Modifier.padding(start = 8.dp))
                 }
             }
@@ -552,7 +530,7 @@ private fun MoneyCard(order: Order) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text("Breakdown", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium))
-                Icon(if (open) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(if (open) Symbols.ExpandLess else Symbols.ExpandMore, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (open) {
                 MoneyRow("Pieces", subtotal)
@@ -604,7 +582,7 @@ private fun InvoiceCard(order: Order, invoice: Invoice?, owed: Double, isOwner: 
                 Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp).clickable(onClickLabel = "Open invoice $invoiceId") { navigator.open(OrderPaths.invoice(invoiceId)) },
                 horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Icons.Filled.Description, null, Modifier.size(18.dp), tint = ErpColors.accent)
+                Icon(Symbols.Description, null, Modifier.size(18.dp), tint = ErpColors.accent)
                 Text("Invoiced · $invoiceId", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium), color = ErpColors.accent)
                 if (owed >= 1) {
                     Text(
@@ -688,13 +666,13 @@ private fun ActionBar(
                 OutlinedButton(
                     onClick = onAdvance, modifier = m.defaultMinSize(minHeight = 52.dp).semantics { contentDescription = "Record an advance" },
                 ) {
-                    Icon(Icons.Filled.Payments, null, Modifier.size(18.dp))
+                    Icon(Symbols.Payments, null, Modifier.size(18.dp))
                     Text("Advance", Modifier.padding(start = 8.dp))
                 }
             }
         } else {
             Button(onClick = onAdvance, modifier = m.defaultMinSize(minHeight = 52.dp), colors = prominent) {
-                Icon(Icons.Filled.Payments, null, Modifier.size(18.dp))
+                Icon(Symbols.Payments, null, Modifier.size(18.dp))
                 Text("Record an advance", Modifier.padding(start = 8.dp))
             }
         }
@@ -751,44 +729,44 @@ private fun MoreMenu(
         )
     }
     Box {
-    IconButton(onClick = { open = true }) { Icon(Icons.Filled.MoreVert, "More") }
+    IconButton(onClick = { open = true }) { Icon(Symbols.MoreVert, "More") }
     DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
         MenuHeader("Status")
         for (s in OrdersLogic.settableStatuses) {
             DropdownMenuItem(
                 text = { Text(s) },
-                leadingIcon = if (s == order.status.rawValue) ({ Icon(Icons.Filled.Check, "Current status") }) else null,
+                leadingIcon = if (s == order.status.rawValue) ({ Icon(Symbols.Check, "Current status") }) else null,
                 enabled = !updatingStatus,
                 onClick = { open = false; onStatus(s) },
             )
         }
         if (showAdvance || showFinalize) {
             HorizontalDivider()
-            if (showAdvance) item("Record an advance", Icons.Filled.Payments, onClick = onAdvance)()
-            if (showFinalize) item("Make invoice", Icons.Filled.Description, onClick = onFinalize)()
+            if (showAdvance) item("Record an advance", Symbols.Payments, onClick = onAdvance)()
+            if (showFinalize) item("Make invoice", Symbols.Description, onClick = onFinalize)()
         }
         HorizontalDivider()
         MenuHeader("Share")
         // The workshop slip: printed, saved or sent from the share sheet.
-        item("Print slip", Icons.Filled.Print, onClick = onSlip)()
-        item("Message the customer", Icons.Filled.Chat, onClick = onMessage)()
+        item("Print slip", Symbols.Print, onClick = onSlip)()
+        item("Message the customer", Symbols.Chat, onClick = onMessage)()
         if (tcs != null || canBook) {
             HorizontalDivider()
             MenuHeader("Shipping")
-            if (tcs != null) item("Track $tcs", Icons.Filled.Inventory2, onClick = onTrack)()
-            if (canBook) item("Book courier", Icons.Filled.LocalShipping, onClick = onBook)()
+            if (tcs != null) item("Track $tcs", Symbols.Inventory2, onClick = onTrack)()
+            if (canBook) item("Book courier", Symbols.LocalShipping, onClick = onBook)()
         }
         HorizontalDivider()
         MenuHeader("More")
-        if (onChangeRate != null) item("Change rate", Icons.Filled.Percent, onClick = onChangeRate)()
-        if (canUndo) item("Unlock & edit", Icons.Filled.LockOpen) { onUndo(OrderUndo.unlockAndEdit(order)) }()
+        if (onChangeRate != null) item("Change rate", Symbols.Percent, onClick = onChangeRate)()
+        if (canUndo) item("Unlock & edit", Symbols.LockOpen) { onUndo(OrderUndo.unlockAndEdit(order)) }()
         // Anything else the page has.
-        item("Open in the ERP", Icons.Filled.Public, onClick = onWeb)()
+        item("Open in the ERP", Symbols.Public, onClick = onWeb)()
         if (canUndo || canRefund || canDelete) {
             HorizontalDivider()
-            if (canUndo) item("Cancel invoice", Icons.Filled.Undo, destructive = true) { onUndo(OrderUndo.undoInvoice(order)) }()
-            if (canRefund) item("Refund order", Icons.Filled.Undo, destructive = true) { onUndo(OrderUndo.refund(order)) }()
-            if (canDelete) item("Delete order", Icons.Filled.Delete, destructive = true) { onUndo(OrderUndo.delete(order)) }()
+            if (canUndo) item("Cancel invoice", Symbols.Undo, destructive = true) { onUndo(OrderUndo.undoInvoice(order)) }()
+            if (canRefund) item("Refund order", Symbols.Undo, destructive = true) { onUndo(OrderUndo.refund(order)) }()
+            if (canDelete) item("Delete order", Symbols.Delete, destructive = true) { onUndo(OrderUndo.delete(order)) }()
         }
     }
     }

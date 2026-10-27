@@ -1,5 +1,6 @@
 package erp.app.screens.workshop
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
 import erp.app.ui.zoomSource
 import android.content.ActivityNotFoundException
@@ -21,12 +22,6 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Fingerprint
-import androidx.compose.material.icons.filled.PanoramaFishEye
-import androidx.compose.material.icons.filled.Pending
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
@@ -141,9 +136,9 @@ object WorkshopStatusWords {
     }
 
     fun icon(s: KarigarJobStatus): ImageVector = when (s) {
-        KarigarJobStatus.completed -> Icons.Filled.CheckCircle
-        KarigarJobStatus.inProgress -> Icons.Filled.Pending
-        else -> Icons.Filled.PanoramaFishEye
+        KarigarJobStatus.completed -> Symbols.CheckCircle
+        KarigarJobStatus.inProgress -> Symbols.Pending
+        else -> Symbols.PanoramaFishEye
     }
 }
 
@@ -435,7 +430,7 @@ fun WorkshopDeleteCodeSheet(deletion: WorkshopDeletion, onDismiss: () -> Unit, o
                 )
                 if (canFace && kept) {
                     OutlinedButton(onClick = { scope.launch { byFace() } }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Filled.Fingerprint, null, Modifier.padding(end = 8.dp))
+                        Icon(Symbols.Fingerprint, null, Modifier.padding(end = 8.dp))
                         Text("Use your fingerprint or face")
                     }
                 }
@@ -448,7 +443,7 @@ fun WorkshopDeleteCodeSheet(deletion: WorkshopDeletion, onDismiss: () -> Unit, o
             }
             error?.let {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
-                    Icon(Icons.Filled.Warning, null, Modifier.size(20.dp), tint = Tone.problem.color())
+                    Icon(Symbols.Warning, null, Modifier.size(20.dp), tint = Tone.problem.color())
                     Text(it, Modifier.weight(1f), color = Tone.problem.color())
                 }
             }

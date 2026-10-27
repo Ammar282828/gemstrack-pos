@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -11,15 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
-import androidx.compose.material.icons.automirrored.filled.Undo
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.CloudOff
-import androidx.compose.material.icons.filled.Crop
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.Replay
-import androidx.compose.material.icons.filled.Save
 import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -49,9 +41,6 @@ import erp.app.data.ErpApi
 import erp.app.device.openAddress
 import erp.app.nav.ScreenActions
 import erp.app.nav.ScreenTitle
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.AutoFixHigh
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import erp.app.screens.stock.StockImage
@@ -193,7 +182,7 @@ fun WebsiteEditPieceScreen(id: String) {
                 val dirty = WebsiteEditLogic.dirty(p, form) || (photo?.changed(WebsiteEditLogic.photoFields(p, form)) ?: false)
                 MarketingPinned(bar = {
                     MarketingActionBar(
-                        "Save to $siteName", Icons.Filled.Save, { confirm = WebsiteEditLogic.Confirm.Save }, busy = busy != null,
+                        "Save to $siteName", Symbols.Save, { confirm = WebsiteEditLogic.Confirm.Save }, busy = busy != null,
                         enabled = dirty && form.name.trim().isNotEmpty(),
                         summary = if (dirty) "It shows on $siteName within a minute." else "Nothing changed yet.",
                     )
@@ -207,7 +196,7 @@ fun WebsiteEditPieceScreen(id: String) {
                     }
                 }
             }
-            missing -> NotAvailableState("That piece isn't on the website's list", why = "It may have been taken off the site, or renamed there.", icon = Icons.Filled.Image)
+            missing -> NotAvailableState("That piece isn't on the website's list", why = "It may have been taken off the site, or renamed there.", icon = Symbols.Image)
             problem != null -> MarketingErrorState(problem ?: "") { scope.launch { problem = null; load() } }
             else -> SkeletonLoading(Modifier.fillMaxSize())
         }
@@ -310,7 +299,7 @@ private fun PiecePage(
     val rest: @Composable () -> Unit = {
         if (said != null) {
             Row(Modifier.fillMaxWidth().ledgerCard(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Icon(Icons.Filled.CheckCircle, null, tint = Tone.settled.color())
+                Icon(Symbols.CheckCircle, null, tint = Tone.settled.color())
                 Text(said, color = Tone.settled.color())
             }
         }
@@ -355,7 +344,7 @@ private fun PhotoSection(
             WebsitePhotoEditRows(edit, engine, drawn, busy, onAI = runAI)
             if (warning != null) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Icon(Icons.Filled.Warning, null, tint = Tone.owed.color())
+                    Icon(Symbols.Warning, null, tint = Tone.owed.color())
                     Text(warning, style = MaterialTheme.typography.bodySmall, color = Tone.owed.color())
                 }
             }
@@ -375,13 +364,13 @@ private fun PhotoSection(
             )
             edit?.problem?.let { Text(it, Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), style = MaterialTheme.typography.bodySmall, color = Tone.problem.color()) }
             ActionRow(
-                if (edit?.loading == true) "Fetching the photo…" else "Re-make the photo", beginPhoto, Icons.Filled.Crop,
+                if (edit?.loading == true) "Fetching the photo…" else "Re-make the photo", beginPhoto, Symbols.Crop,
                 enabled = edit?.loading != true && !busy,
             )
         }
-        if (original != null || p.photoEdited) ActionRow("Put the original photo back", { ask(WebsiteEditLogic.Confirm.Photo) }, Icons.Filled.Replay, tone = Tone.problem)
-        if (p.url.isNotEmpty()) ActionRow("Open on $siteName", { openAddress(context, android.content.Intent.ACTION_VIEW, p.url) }, Icons.AutoMirrored.Filled.OpenInNew)
-        if (MarketingKit.has("/design", role)) MarketingLink("Open in Design", Icons.Filled.AutoFixHigh, WebsiteEditLogic.designPath(p.id))
+        if (original != null || p.photoEdited) ActionRow("Put the original photo back", { ask(WebsiteEditLogic.Confirm.Photo) }, Symbols.Replay, tone = Tone.problem)
+        if (p.url.isNotEmpty()) ActionRow("Open on $siteName", { openAddress(context, android.content.Intent.ACTION_VIEW, p.url) }, Symbols.OpenInNew)
+        if (MarketingKit.has("/design", role)) MarketingLink("Open in Design", Symbols.AutoFixHigh, WebsiteEditLogic.designPath(p.id))
     }
 }
 
@@ -420,7 +409,7 @@ private fun WordsField(label: String, own: String, now: String, reset: () -> Uni
             Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (own.trim() != now.trim()) {
                 TextButton(onClick = reset) {
-                    Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = null, Modifier.padding(end = 4.dp))
+                    Icon(Symbols.Undo, contentDescription = null, Modifier.padding(end = 4.dp))
                     Text("The site's own", style = MaterialTheme.typography.bodySmall)
                 }
             }
@@ -442,11 +431,11 @@ private fun Field(value: String, onChange: (String) -> Unit, placeholder: String
 private fun MoreMenu(undoAll: () -> Unit) {
     var open by remember { mutableStateOf(false) }
     Box {
-        androidx.compose.material3.IconButton(onClick = { open = true }, Modifier.semantics { contentDescription = "More" }) { Icon(Icons.Filled.MoreVert, contentDescription = null) }
+        androidx.compose.material3.IconButton(onClick = { open = true }, Modifier.semantics { contentDescription = "More" }) { Icon(Symbols.MoreVert, contentDescription = null) }
         androidx.compose.material3.DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             androidx.compose.material3.DropdownMenuItem(
                 text = { Text("Undo every change to this piece", color = Tone.problem.color()) },
-                leadingIcon = { Icon(Icons.AutoMirrored.Filled.Undo, null, tint = Tone.problem.color()) },
+                leadingIcon = { Icon(Symbols.Undo, null, tint = Tone.problem.color()) },
                 onClick = { open = false; undoAll() },
             )
         }

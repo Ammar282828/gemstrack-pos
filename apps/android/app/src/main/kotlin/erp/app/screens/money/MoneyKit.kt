@@ -1,5 +1,6 @@
 package erp.app.screens.money
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
 import erp.app.ui.SearchBarField
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -25,12 +26,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Warning
 import erp.app.ui.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -155,7 +150,7 @@ fun Footnote(text: String, modifier: Modifier = Modifier, tone: Tone = Tone.quie
 @Composable
 fun ErrorLine(text: String) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(Icons.Filled.Warning, contentDescription = null, tint = Tone.problem.color())
+        Icon(Symbols.Warning, contentDescription = null, tint = Tone.problem.color())
         Text(text, color = Tone.problem.color(), style = MaterialTheme.typography.bodyMedium)
     }
 }
@@ -175,9 +170,9 @@ fun MoneySearchField(value: String, onChange: (String) -> Unit, placeholder: Str
         modifier = modifier.fillMaxWidth(),
         enabled = enabled,
         placeholder = { Text(placeholder) },
-        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+        leadingIcon = { Icon(Symbols.Search, contentDescription = null) },
         trailingIcon = {
-            if (value.isNotEmpty()) IconButton(onClick = { onChange("") }) { Icon(Icons.Filled.Close, contentDescription = "Clear search") }
+            if (value.isNotEmpty()) IconButton(onClick = { onChange("") }) { Icon(Symbols.Close, contentDescription = "Clear search") }
         },
         singleLine = true,
         shape = Radius.chipShape,
@@ -281,7 +276,7 @@ fun <T> PickerRow(label: String, options: List<Pair<T, String>>, selected: T, on
         ) {
             Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
             Text(shown, style = MaterialTheme.typography.bodyLarge, color = ErpColors.accent, textAlign = TextAlign.End, maxLines = 2)
-            Icon(Icons.Filled.ExpandMore, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(Symbols.ExpandMore, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             for ((value, name) in options) {
@@ -335,7 +330,7 @@ fun DayRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Icon(Icons.Filled.CalendarMonth, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Icon(Symbols.CalendarMonth, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
         Text(MoneyCalendar.sayFull(MoneyCalendar.pickedDay(day)), color = ErpColors.accent, fontWeight = FontWeight.Medium)
     }

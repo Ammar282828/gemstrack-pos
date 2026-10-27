@@ -1,15 +1,12 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.SwapHoriz
-import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -161,9 +158,9 @@ fun ArtworkGuideRows(doc: MarketingValue, change: (MarketingValue) -> Unit) {
         val values = ArtworkSnap.guides(doc, a)
         for (v in values) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Icon(if (a == "x") Icons.Filled.SwapHoriz else Icons.Filled.SwapVert, null)
+                Icon(if (a == "x") Symbols.SwapHoriz else Symbols.SwapVert, null)
                 Text(if (a == "x") "Across ${v.toInt()}" else "Down ${v.toInt()}", Modifier.weight(1f))
-                IconButton(onClick = { change(ArtworkSnap.withGuides(doc, a, values.filter { it != v })) }, Modifier.semantics { contentDescription = "Remove this guide" }) { Icon(Icons.Filled.Delete, null, tint = Tone.problem.color()) }
+                IconButton(onClick = { change(ArtworkSnap.withGuides(doc, a, values.filter { it != v })) }, Modifier.semantics { contentDescription = "Remove this guide" }) { Icon(Symbols.Delete, null, tint = Tone.problem.color()) }
             }
         }
     }

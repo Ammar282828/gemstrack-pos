@@ -1,5 +1,6 @@
 package erp.app.screens.workshop
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.SearchBarField
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -15,18 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.filled.Handyman
-import androidx.compose.material.icons.filled.Inventory2
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -131,9 +120,9 @@ object GivenLogic {
     }
 
     fun icon(t: GivenItemRecipientType): ImageVector = when (t) {
-        GivenItemRecipientType.karigar -> Icons.Filled.Handyman
-        GivenItemRecipientType.customer -> Icons.Filled.Group
-        else -> Icons.Filled.Person
+        GivenItemRecipientType.karigar -> Symbols.Handyman
+        GivenItemRecipientType.customer -> Symbols.Group
+        else -> Symbols.Person
     }
 
     fun typeWords(t: GivenItemRecipientType): String = when (t) {
@@ -209,7 +198,7 @@ fun WorkshopGivenScreen() {
 
     ScreenTitle("Given items")
     if (owner) {
-        ScreenActions { IconButton(onClick = { adding = true }) { Icon(Icons.Filled.Add, "Record item given") } }
+        ScreenActions { IconButton(onClick = { adding = true }) { Icon(Symbols.Add, "Record item given") } }
     }
 
     ShelfState(loaded = given.loaded, error = given.error, offline = given.offline, connectionLost = connectionLost) {
@@ -222,8 +211,8 @@ fun WorkshopGivenScreen() {
                         onValueChange = { query = it },
                         modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
                         placeholder = { Text("Item or recipient") },
-                        leadingIcon = { Icon(Icons.Filled.Search, null) },
-                        trailingIcon = { if (query.isNotEmpty()) IconButton(onClick = { query = "" }) { Icon(Icons.Filled.Close, "Clear search") } },
+                        leadingIcon = { Icon(Symbols.Search, null) },
+                        trailingIcon = { if (query.isNotEmpty()) IconButton(onClick = { query = "" }) { Icon(Symbols.Close, "Clear search") } },
                         singleLine = true,
                         shape = Radius.chipShape,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -261,7 +250,7 @@ fun WorkshopGivenScreen() {
                         NotAvailableState(
                             "Nothing here yet",
                             why = if (filtering) "No items match your filter." else "Tap + to record an item given.",
-                            icon = Icons.Filled.Inventory2,
+                            icon = Symbols.Inventory2,
                         )
                     }
                 }
@@ -301,10 +290,10 @@ private fun GivenCard(
         Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(item.description, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold))
             Box {
-                IconButton(onClick = { menu = true }, Modifier.size(MinTouchTarget)) { Icon(Icons.Filled.MoreVert, "Actions for " + item.description) }
+                IconButton(onClick = { menu = true }, Modifier.size(MinTouchTarget)) { Icon(Symbols.MoreVert, "Actions for " + item.description) }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     if (canReturn) {
-                        DropdownMenuItem(text = { Text("Got back") }, leadingIcon = { Icon(Icons.Filled.CheckCircle, null) }, onClick = { menu = false; onReturned() })
+                        DropdownMenuItem(text = { Text("Got back") }, leadingIcon = { Icon(Symbols.CheckCircle, null) }, onClick = { menu = false; onReturned() })
                     }
                     if (recipientPath != null) {
                         DropdownMenuItem(
@@ -313,9 +302,9 @@ private fun GivenCard(
                         )
                     }
                     if (owner) {
-                        DropdownMenuItem(text = { Text("Edit") }, leadingIcon = { Icon(Icons.Filled.Edit, null) }, onClick = { menu = false; onEdit() })
+                        DropdownMenuItem(text = { Text("Edit") }, leadingIcon = { Icon(Symbols.Edit, null) }, onClick = { menu = false; onEdit() })
                         DropdownMenuItem(
-                            text = { Text("Delete", color = Tone.problem.color()) }, leadingIcon = { Icon(Icons.Filled.Delete, null, tint = Tone.problem.color()) },
+                            text = { Text("Delete", color = Tone.problem.color()) }, leadingIcon = { Icon(Symbols.Delete, null, tint = Tone.problem.color()) },
                             onClick = { menu = false; onDelete() },
                         )
                     }
@@ -345,7 +334,7 @@ private fun GivenCard(
                     SkeletonLoading(Modifier.size(width = 120.dp, height = 20.dp), compact = true)
                 } else {
                     OutlinedButton(onClick = onReturned, Modifier.defaultMinSize(minHeight = MinTouchTarget)) {
-                        Icon(Icons.Filled.CheckCircle, null, Modifier.size(18.dp), tint = Tone.settled.color())
+                        Icon(Symbols.CheckCircle, null, Modifier.size(18.dp), tint = Tone.settled.color())
                         Text("Got back", Modifier.padding(start = 6.dp), color = Tone.settled.color())
                     }
                 }

@@ -1,5 +1,6 @@
 package erp.app.screens.design
 
+import erp.app.ui.icons.Symbols
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -24,15 +25,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Cancel
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.PhotoLibrary
-import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -304,7 +296,7 @@ private fun Anything(start: DesignStartModel) {
     SectionCard("Start with anything") {
         Text("Paste a caption, a forwarded WhatsApp message, a link or a SKU, or drop photos.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         OutlinedButton(onClick = { DesignHooks.startWithAnything(start) }, Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp)) {
-            Icon(Icons.Filled.AutoAwesome, null, Modifier.size(18.dp))
+            Icon(Symbols.AutoAwesome, null, Modifier.size(18.dp))
             Text("Paste or describe a piece…", Modifier.padding(start = 8.dp))
         }
         val found = start.fields.filterValues { it.isNotEmpty() }
@@ -321,7 +313,7 @@ private fun Anything(start: DesignStartModel) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(f.name.ifEmpty { "A piece" }, Modifier.weight(1f), maxLines = 1, style = MaterialTheme.typography.bodyMedium)
                         OutlinedButton(onClick = { start.use(f); start.waiting = start.waiting.filter { it.id != f.id } }) { Text("Use") }
-                        IconButton(onClick = { start.waiting = start.waiting.filter { it.id != f.id } }) { Icon(Icons.Filled.Cancel, "Put it aside", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+                        IconButton(onClick = { start.waiting = start.waiting.filter { it.id != f.id } }) { Icon(Symbols.Cancel, "Put it aside", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
                     }
                 }
             }
@@ -419,16 +411,16 @@ private fun Photograph(start: DesignStartModel, onBrowse: () -> Unit, onSite: ()
         val photo = start.photo
         if (photo != null) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Icon(Icons.Filled.PhotoLibrary, null, tint = ErpColors.accent)
+                Icon(Symbols.PhotoLibrary, null, tint = ErpColors.accent)
                 Text(photo.label, Modifier.weight(1f), maxLines = 1, style = MaterialTheme.typography.titleSmall)
-                IconButton(onClick = { start.photo = null }) { Icon(Icons.Filled.Cancel, "Choose another photograph", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+                IconButton(onClick = { start.photo = null }) { Icon(Symbols.Cancel, "Choose another photograph", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
         } else {
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                SourceChip("Browse photos", Icons.Filled.PhotoLibrary, onBrowse)
-                SourceChip("From the website", Icons.Filled.Language, onSite)
-                SourceChip("This phone", Icons.Filled.Phone, onDevice)
-                if (onCamera != null) SourceChip("Camera", Icons.Filled.CameraAlt, onCamera)
+                SourceChip("Browse photos", Symbols.PhotoLibrary, onBrowse)
+                SourceChip("From the website", Symbols.Language, onSite)
+                SourceChip("This phone", Symbols.Phone, onDevice)
+                if (onCamera != null) SourceChip("Camera", Symbols.CameraAlt, onCamera)
             }
             Text("A photograph is optional: without one the design starts on the house’s ground.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
@@ -457,9 +449,9 @@ private fun Investments(role: String) {
         Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp).clickable(role = Role.Button) { navigator.open("/website/investments") }.padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Icon(Icons.Filled.ShowChart, null, tint = ErpColors.accent)
+        Icon(Symbols.ShowChart, null, tint = ErpColors.accent)
         Text("Gold investment posts: Investments", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+        Icon(Symbols.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
     }
 }
 
@@ -481,7 +473,7 @@ fun DesignDraftLine(row: DesignDraftRow) {
     val thumb = rememberBitmap(row.thumb, 120)
     Row(Modifier.fillMaxWidth().defaultMinSize(minHeight = 56.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Box(Modifier.size(44.dp).clip(Radius.thumbShape).background(ErpColors.ground), contentAlignment = Alignment.Center) {
-            if (thumb != null) DesignPicture(thumb, Modifier.fillMaxSize()) else Icon(Icons.Filled.Phone, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (thumb != null) DesignPicture(thumb, Modifier.fillMaxSize()) else Icon(Symbols.Phone, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(row.title, maxLines = 1, style = MaterialTheme.typography.titleSmall)
@@ -490,7 +482,7 @@ fun DesignDraftLine(row: DesignDraftRow) {
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+        Icon(Symbols.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
     }
 }
 
@@ -500,7 +492,7 @@ fun DesignRecordLine(record: DesignRecord) {
     val thumb = rememberBitmap(remember(record.thumb) { DesignThumb.bytes(record.thumb) }, 120)
     Row(Modifier.fillMaxWidth().defaultMinSize(minHeight = 56.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Box(Modifier.size(44.dp).clip(Radius.thumbShape).background(ErpColors.ground), contentAlignment = Alignment.Center) {
-            if (thumb != null) DesignPicture(thumb, Modifier.fillMaxSize()) else Icon(Icons.Filled.PhotoLibrary, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (thumb != null) DesignPicture(thumb, Modifier.fillMaxSize()) else Icon(Symbols.PhotoLibrary, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(record.name, maxLines = 1, style = MaterialTheme.typography.titleSmall)
@@ -509,6 +501,6 @@ fun DesignRecordLine(record: DesignRecord) {
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+        Icon(Symbols.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
     }
 }

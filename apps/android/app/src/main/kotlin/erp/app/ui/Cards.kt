@@ -1,5 +1,6 @@
 package erp.app.ui
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -17,8 +18,6 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -154,7 +153,7 @@ fun LedgerSection(
             ) {
                 Text(title, Modifier.weight(1f), style = ErpType.heading, color = MaterialTheme.colorScheme.onSurface)
                 Icon(
-                    Icons.Filled.ExpandMore, contentDescription = null,
+                    Symbols.ExpandMore, contentDescription = null,
                     Modifier.rotate(if (open) 0f else -90f),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

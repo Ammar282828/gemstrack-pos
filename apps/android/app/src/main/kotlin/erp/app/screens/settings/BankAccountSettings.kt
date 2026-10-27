@@ -1,5 +1,6 @@
 package erp.app.screens.settings
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -7,9 +8,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -74,7 +72,7 @@ internal fun BankAccountsForm(settings: Settings) {
     }
 
     ScreenActions {
-        IconButton(onClick = { editing = BankAccountDraft.new() }) { Icon(Icons.Filled.Add, "Add account") }
+        IconButton(onClick = { editing = BankAccountDraft.new() }) { Icon(Symbols.Add, "Add account") }
     }
 
     SettingsPage {
@@ -89,7 +87,7 @@ internal fun BankAccountsForm(settings: Settings) {
                 ) {
                     TwoLine(a.bankName, Modifier.weight(1f), subtitle = listOf(a.accountName, a.accountNumber).filter { it.isNotEmpty() }.joinToString(" · "))
                     IconButton(onClick = { removing = a }) {
-                        Icon(Icons.Filled.Delete, "Remove ${a.bankName.ifEmpty { "account" }}", Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(Symbols.Delete, "Remove ${a.bankName.ifEmpty { "account" }}", Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }

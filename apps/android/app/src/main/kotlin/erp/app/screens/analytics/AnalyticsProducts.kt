@@ -1,10 +1,9 @@
 package erp.app.screens.analytics
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -99,7 +98,7 @@ private fun CategorySection(f: AnaFigures) {
         } else {
             AnaBarChart(sold.map { AnaBar(it.categoryId, it.name, it.sales) })
         }
-        ActionRow("Sales by category in detail", onClick = { navigator.open("/analytics/categories") }, icon = Icons.Filled.PieChart)
+        ActionRow("Sales by category in detail", onClick = { navigator.open("/analytics/categories") }, icon = Symbols.PieChart)
     }
 }
 

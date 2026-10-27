@@ -1,5 +1,6 @@
 package erp.app.screens.workshop
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.SearchBarField
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
@@ -19,25 +20,6 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.filled.Handyman
-import androidx.compose.material.icons.filled.Inventory2
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.NightsStay
-import androidx.compose.material.icons.filled.PanoramaFishEye
-import androidx.compose.material.icons.filled.Pending
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.ViewAgenda
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -243,7 +225,7 @@ fun WorkshopBoard(path: String) {
             FilterMenu(filter, session.shop.takenBy, live) { filter = it }
             if (owner) {
                 // The karigar in focus is the one the work goes to, as the web's "Assign" on his card.
-                IconButton(onClick = { assigning = filter.karigarId }) { Icon(Icons.Filled.Add, "Assign stock work") }
+                IconButton(onClick = { assigning = filter.karigarId }) { Icon(Symbols.Add, "Assign stock work") }
             }
             MoreMenu(owner, onAssign = { assigning = filter.karigarId }, onOpen = { navigator.open(it) })
         }
@@ -262,9 +244,9 @@ fun WorkshopBoard(path: String) {
                             onValueChange = { filter = filter.copy(query = it) },
                             modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
                             placeholder = { Text("Item, karigar, customer, order") },
-                            leadingIcon = { Icon(Icons.Filled.Search, null) },
+                            leadingIcon = { Icon(Symbols.Search, null) },
                             trailingIcon = {
-                                if (filter.query.isNotEmpty()) IconButton(onClick = { filter = filter.copy(query = "") }) { Icon(Icons.Filled.Close, "Clear search") }
+                                if (filter.query.isNotEmpty()) IconButton(onClick = { filter = filter.copy(query = "") }) { Icon(Symbols.Close, "Clear search") }
                             },
                             singleLine = true,
                             shape = Radius.chipShape,
@@ -383,7 +365,7 @@ private fun Glance(loads: List<WorkshopLoad>, owner: Boolean, open: Boolean, set
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("Bench totals", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
-            Icon(Icons.Filled.ExpandMore, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(Symbols.ExpandMore, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         AnimatedVisibility(open) {
             FigureGrid(Modifier.padding(vertical = 4.dp)) {
@@ -404,7 +386,7 @@ private fun KarigarHeader(load: WorkshopLoad, actions: WorkshopActions) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    if (load.isUnassigned) Icons.Filled.Warning else Icons.Filled.Handyman, null, Modifier.size(18.dp),
+                    if (load.isUnassigned) Symbols.Warning else Symbols.Handyman, null, Modifier.size(18.dp),
                     tint = if (load.isUnassigned) Tone.owed.color() else MaterialTheme.colorScheme.primary,
                 )
                 Text(
@@ -418,7 +400,7 @@ private fun KarigarHeader(load: WorkshopLoad, actions: WorkshopActions) {
         WorkshopUrgencyBadges(load.critical, load.late)
         if (!load.isUnassigned) {
             IconButton(onClick = { actions.open(WorkshopLogic.karigarPath(load.karigarId)) }, Modifier.size(MinTouchTarget)) {
-                Icon(Icons.Filled.AccountCircle, "Open " + load.karigarName)
+                Icon(Symbols.AccountCircle, "Open " + load.karigarName)
             }
         }
     }
@@ -445,9 +427,9 @@ private fun FreeSection(idle: List<erp.core.models.Karigar>, open: Boolean, setO
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Icon(Icons.Filled.NightsStay, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Symbols.NightsStay, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("${idle.size} free", Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Icon(Icons.Filled.ExpandMore, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Symbols.ExpandMore, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             AnimatedVisibility(open) {
                 Column {
@@ -457,9 +439,9 @@ private fun FreeSection(idle: List<erp.core.models.Karigar>, open: Boolean, setO
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            Icon(Icons.Filled.Handyman, null, Modifier.size(18.dp))
+                            Icon(Symbols.Handyman, null, Modifier.size(18.dp))
                             Text(k.name, Modifier.weight(1f))
-                            Icon(Icons.Filled.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Icon(Symbols.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
@@ -510,7 +492,7 @@ private fun FocusedSummary(load: WorkshopLoad, orders: Int, owner: Boolean, acti
                 Text(if (load.isUnassigned) "Unassigned work" else load.karigarName, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold))
                 Text(focusedSentence(load, orders), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            if (!load.isUnassigned) Icon(Icons.Filled.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (!load.isUnassigned) Icon(Symbols.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         FocusedCells(load, owner)
     }
@@ -556,9 +538,9 @@ private fun FocusedCells(load: WorkshopLoad, showValue: Boolean) {
 private class Stage(val status: WorkshopJob.Status, val title: String, val icon: ImageVector)
 
 private val stages = listOf(
-    Stage(WorkshopJob.Status.pending, "Pending", Icons.Filled.PanoramaFishEye),
-    Stage(WorkshopJob.Status.inProgress, "In Progress", Icons.Filled.Pending),
-    Stage(WorkshopJob.Status.completed, "Completed", Icons.Filled.CheckCircle),
+    Stage(WorkshopJob.Status.pending, "Pending", Symbols.PanoramaFishEye),
+    Stage(WorkshopJob.Status.inProgress, "In Progress", Symbols.Pending),
+    Stage(WorkshopJob.Status.completed, "Completed", Symbols.CheckCircle),
 )
 
 private fun LazyListScope.stageSections(ctx: BoardContext, focused: List<WorkshopJob>) {
@@ -600,7 +582,7 @@ private fun ControlBar(
         FigureRow(verticalAlignment = Alignment.CenterVertically) {
             Box {
                 TextButton(onClick = { groupMenu = true }, Modifier.defaultMinSize(minHeight = MinTouchTarget)) {
-                    Icon(Icons.Filled.ViewAgenda, null, Modifier.size(18.dp))
+                    Icon(Symbols.ViewAgenda, null, Modifier.size(18.dp))
                     Text(if (grouping == WorkshopGrouping.list) "All pieces" else grouping.title, Modifier.padding(start = 6.dp))
                 }
                 DropdownMenu(expanded = groupMenu, onDismissRequest = { groupMenu = false }) {
@@ -608,7 +590,7 @@ private fun ControlBar(
                     for (g in WorkshopGrouping.values()) {
                         DropdownMenuItem(
                             text = { Text(g.title) },
-                            leadingIcon = if (g == grouping) ({ Icon(Icons.Filled.Check, null) }) else null,
+                            leadingIcon = if (g == grouping) ({ Icon(Symbols.Check, null) }) else null,
                             onClick = { groupMenu = false; setGrouping(g) },
                         )
                     }
@@ -649,7 +631,7 @@ private fun MenuHeader(text: String) {
 private fun Choice(title: String, chosen: Boolean, onClick: () -> Unit) {
     DropdownMenuItem(
         text = { Text(title) },
-        leadingIcon = if (chosen) ({ Icon(Icons.Filled.Check, null) }) else null,
+        leadingIcon = if (chosen) ({ Icon(Symbols.Check, null) }) else null,
         onClick = onClick,
     )
 }
@@ -660,7 +642,7 @@ private fun FilterMenu(filter: WorkshopFilter, people: List<String>, live: List<
     var open by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { open = true }) {
-            Icon(Icons.Filled.FilterList, "Filter", tint = if (filter.menuCount > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+            Icon(Symbols.FilterList, "Filter", tint = if (filter.menuCount > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             if (people.isNotEmpty()) {
@@ -684,13 +666,13 @@ private fun FilterMenu(filter: WorkshopFilter, people: List<String>, live: List<
 private fun MoreMenu(owner: Boolean, onAssign: () -> Unit, onOpen: (String) -> Unit) {
     var open by remember { mutableStateOf(false) }
     Box {
-        IconButton(onClick = { open = true }) { Icon(Icons.Filled.MoreVert, "More") }
+        IconButton(onClick = { open = true }) { Icon(Symbols.MoreVert, "More") }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             if (owner) {
-                DropdownMenuItem(text = { Text("Assign stock work") }, leadingIcon = { Icon(Icons.Filled.Add, null) }, onClick = { open = false; onAssign() })
+                DropdownMenuItem(text = { Text("Assign stock work") }, leadingIcon = { Icon(Symbols.Add, null) }, onClick = { open = false; onAssign() })
             }
-            DropdownMenuItem(text = { Text("Karigars") }, leadingIcon = { Icon(Icons.Filled.Group, null) }, onClick = { open = false; onOpen("/karigars") })
-            DropdownMenuItem(text = { Text("Given items") }, leadingIcon = { Icon(Icons.Filled.Inventory2, null) }, onClick = { open = false; onOpen("/given") })
+            DropdownMenuItem(text = { Text("Karigars") }, leadingIcon = { Icon(Symbols.Group, null) }, onClick = { open = false; onOpen("/karigars") })
+            DropdownMenuItem(text = { Text("Given items") }, leadingIcon = { Icon(Symbols.Inventory2, null) }, onClick = { open = false; onOpen("/given") })
         }
     }
 }
@@ -706,6 +688,6 @@ fun emptyWords(focus: WorkshopFocus, anyWork: Boolean): Pair<String, String> = w
 @Composable
 private fun EmptyState(focus: WorkshopFocus, anyWork: Boolean) {
     val (title, why) = emptyWords(focus, anyWork)
-    val icon = if (focus == WorkshopFocus.all) Icons.Filled.Handyman else Icons.Filled.CheckCircle
+    val icon = if (focus == WorkshopFocus.all) Symbols.Handyman else Symbols.CheckCircle
     NotAvailableState(title, why = why, icon = icon)
 }

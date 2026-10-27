@@ -1,5 +1,6 @@
 package erp.app.screens.settings.label
 
+import erp.app.ui.icons.Symbols
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -16,9 +17,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -182,8 +180,8 @@ fun LabelPictureSheet(
     ) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
             SettingsSection("Picture") {
-                LabelTapRow("Choose a photo", { photos.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, icon = Icons.Filled.PhotoLibrary)
-                LabelTapRow("Choose a file", { files.launch(arrayOf("image/*")) }, icon = Icons.Filled.FolderOpen)
+                LabelTapRow("Choose a photo", { photos.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, icon = Symbols.PhotoLibrary)
+                LabelTapRow("Choose a file", { files.launch(arrayOf("image/*")) }, icon = Symbols.FolderOpen)
                 problem?.let { SmallPrint(it, Tone.problem, Modifier.padding(16.dp)) }
             }
             if (image != null) {

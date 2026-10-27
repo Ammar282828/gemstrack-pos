@@ -1,5 +1,6 @@
 package erp.app.screens.ads
 
+import erp.app.ui.icons.Symbols
 import erp.app.data.Outbox
 import erp.app.ui.zoomSource
 import androidx.compose.foundation.clickable
@@ -21,17 +22,6 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Campaign
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.TableChart
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -136,7 +126,7 @@ fun AdsCampaignsScreen(path: String = "/ads/campaigns") {
             AdsRangeMenu()
             var more by remember { mutableStateOf(false) }
             Box {
-                IconButton(onClick = { more = true }) { Icon(Icons.Filled.MoreVert, "More") }
+                IconButton(onClick = { more = true }) { Icon(Symbols.MoreVert, "More") }
                 DropdownMenu(expanded = more, onDismissRequest = { more = false }) {
                     DropdownMenuItem(
                         text = { Text("Show archived") }, leadingIcon = { Checkbox(archived, null) },
@@ -147,11 +137,11 @@ fun AdsCampaignsScreen(path: String = "/ads/campaigns") {
                         onClick = { allExpanded = !allExpanded },
                     )
                     DropdownMenuItem(
-                        text = { Text("New ad") }, leadingIcon = { Icon(Icons.Filled.Add, null) },
+                        text = { Text("New ad") }, leadingIcon = { Icon(Symbols.Add, null) },
                         onClick = { more = false; navigator.open("/ads/new") },
                     )
                     DropdownMenuItem(
-                        text = { Text("Download (CSV)") }, leadingIcon = { Icon(Icons.Filled.TableChart, null) }, enabled = !exporting,
+                        text = { Text("Download (CSV)") }, leadingIcon = { Icon(Symbols.TableChart, null) }, enabled = !exporting,
                         onClick = { more = false; exportCsv = true },
                     )
                 }
@@ -325,13 +315,13 @@ fun AdsCampaignsContent(
             item(span = { GridItemSpan(maxLineSpan) }) {
                 AdsSection(null, footer = { Text("Every campaign, ad set and ad in the range, with spend, results, purchases, sales and ROAS.") }) {
                     if (exporting) AdsReading("Making the CSV…")
-                    csv?.let { f -> AdsActionRow("Save or send ${f.name}", { onShareCsv(f) }, icon = Icons.Filled.Share) }
+                    csv?.let { f -> AdsActionRow("Save or send ${f.name}", { onShareCsv(f) }, icon = Symbols.Share) }
                 }
             }
         }
         if (problem != null) {
             item(span = { GridItemSpan(maxLineSpan) }) {
-                AdsSection("Couldn't refresh") { AdsWarningRow(problem, Tone.quiet, Icons.Filled.WifiOff) }
+                AdsSection("Couldn't refresh") { AdsWarningRow(problem, Tone.quiet, Symbols.WifiOff) }
             }
         }
         if (list.isEmpty()) {
@@ -387,7 +377,7 @@ private fun CampaignCard(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("${c.adsets.size} ad set${if (c.adsets.size == 1) "" else "s"}", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium))
-            Icon(Icons.Filled.ExpandMore, contentDescription = if (open) "Fold" else "Unfold", Modifier.rotate(if (open) 0f else -90f), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(Symbols.ExpandMore, contentDescription = if (open) "Fold" else "Unfold", Modifier.rotate(if (open) 0f else -90f), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         if (open) {
             for (s in c.adsets) AdSetRow(s, cur, busy, onSwitch, onBudget, onDetails)
@@ -487,7 +477,7 @@ private fun RunSwitch(t: AdsTarget, ownStatus: String, busy: String?, onSwitch: 
 @Composable
 private fun BudgetButton(words: String, onClick: () -> Unit) {
     TextButton(onClick = onClick, contentPadding = PaddingValues(horizontal = 0.dp), modifier = Modifier.defaultMinSize(minHeight = 32.dp)) {
-        Icon(Icons.Filled.Edit, contentDescription = null, Modifier.size(16.dp))
+        Icon(Symbols.Edit, contentDescription = null, Modifier.size(16.dp))
         Text(words, Modifier.padding(start = 6.dp), style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium))
     }
 }
@@ -495,7 +485,7 @@ private fun BudgetButton(words: String, onClick: () -> Unit) {
 @Composable
 private fun DetailsButton(name: String, onClick: () -> Unit) {
     IconButton(onClick = onClick, modifier = Modifier.semantics { contentDescription = "Details and actions: $name" }) {
-        Icon(Icons.Filled.MoreVert, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Icon(Symbols.MoreVert, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -513,7 +503,7 @@ private fun Numbers(m: AdMetrics, goal: String?, before: AdMetrics?, cur: String
 private fun Issues(list: List<String>) {
     for (issue in list) {
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.Top) {
-            Icon(Icons.Filled.Warning, contentDescription = null, Modifier.size(14.dp).padding(top = 2.dp), tint = Tone.owed.color())
+            Icon(Symbols.Warning, contentDescription = null, Modifier.size(14.dp).padding(top = 2.dp), tint = Tone.owed.color())
             Text(issue, style = MaterialTheme.typography.bodySmall, color = Tone.owed.color())
         }
     }

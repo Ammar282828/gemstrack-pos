@@ -1,5 +1,6 @@
 package erp.app.screens.repairs
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.AppClock
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -10,18 +11,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.Chat
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Inventory2
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material.icons.filled.Print
 import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
@@ -106,30 +95,30 @@ fun RepairsSheet(id: String, seed: Repair?, onDismiss: () -> Unit) {
         onDismiss = onDismiss,
         trailing = { _ ->
             Box {
-                IconButton(onClick = { menuOpen = true }) { Icon(Icons.Filled.MoreVert, contentDescription = "More") }
+                IconButton(onClick = { menuOpen = true }) { Icon(Symbols.MoreVert, contentDescription = "More") }
                 val cancellable = current?.let { it.status == RepairStatus.received || it.status == RepairStatus.ready } ?: false
                 DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                     // Print receipt is the ERP's page for this ticket (it draws the PDF), open to everyone who can read the ticket;
                     // Edit, Cancel and Delete are native and owners'. Cancel keeps the record.
                     DropdownMenuItem(
-                        text = { Text("Print receipt") }, leadingIcon = { Icon(Icons.Filled.Print, null) },
+                        text = { Text("Print receipt") }, leadingIcon = { Icon(Symbols.Print, null) },
                         onClick = { menuOpen = false; web = RepairsKit.webPath(id) },
                     )
                     if (session.isOwner && current != null) {
                         DropdownMenuItem(
-                            text = { Text("Edit") }, leadingIcon = { Icon(Icons.Filled.Edit, null) },
+                            text = { Text("Edit") }, leadingIcon = { Icon(Symbols.Edit, null) },
                             onClick = { menuOpen = false; editing = true },
                         )
                         if (cancellable) {
                             DropdownMenuItem(
                                 text = { Text("Cancel repair", color = Tone.problem.color()) },
-                                leadingIcon = { Icon(Icons.Filled.Close, null, tint = Tone.problem.color()) },
+                                leadingIcon = { Icon(Symbols.Close, null, tint = Tone.problem.color()) },
                                 onClick = { menuOpen = false; desk.askCancel(current) },
                             )
                         }
                         DropdownMenuItem(
                             text = { Text("Delete", color = Tone.problem.color()) },
-                            leadingIcon = { Icon(Icons.Filled.Delete, null, tint = Tone.problem.color()) },
+                            leadingIcon = { Icon(Symbols.Delete, null, tint = Tone.problem.color()) },
                             onClick = { menuOpen = false; deletion = askDelete(current) },
                         )
                     }
@@ -145,7 +134,7 @@ fun RepairsSheet(id: String, seed: Repair?, onDismiss: () -> Unit) {
         when {
             current != null -> Detail(current, session.isOwner, session.shop.name, onCustomer = { cid -> close(); navigator.open("/customers/$cid") }, context = context)
             !loaded -> SkeletonLoading(Modifier.fillMaxWidth())
-            else -> NotAvailableState("Repair not found", why = "$id is not in the book. It may have been deleted.", icon = Icons.Filled.Build)
+            else -> NotAvailableState("Repair not found", why = "$id is not in the book. It may have been deleted.", icon = Symbols.Build)
         }
     }
 
@@ -184,7 +173,7 @@ private fun RepairsWebPage(path: String, onClose: () -> Unit) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Column(Modifier.fillMaxSize().statusBarsPadding()) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onClose) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
+                    IconButton(onClick = onClose) { Icon(Symbols.ArrowBack, "Back") }
                     Text("Print receipt", style = MaterialTheme.typography.titleMedium)
                 }
                 Box(Modifier.weight(1f).fillMaxWidth()) { WebScreen(erp.app.nav.ScreenRegistry.withoutWebFlag(path)) }
@@ -242,7 +231,7 @@ private fun HeaderCard(r: Repair, now: Instant, shopName: String, onCustomer: (S
                     Modifier.fillMaxWidth().clickable(role = Role.Button) { openUrl(context, url) },
                     horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(Icons.Filled.Chat, null, tint = ErpColors.accent)
+                    Icon(Symbols.Chat, null, tint = ErpColors.accent)
                     Text("Tell them it's ready", color = ErpColors.accent, style = MaterialTheme.typography.bodyLarge)
                 }
             }
@@ -324,13 +313,13 @@ private fun ActionBar(r: Repair, desk: RepairsDesk) {
     val owing = r.status != RepairStatus.cancelled && repairBalance(r) > 0
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         if (r.status == RepairStatus.received) {
-            ActionButton("Mark ready", Icons.Filled.CheckCircle, true, busy, Modifier.weight(1f)) { desk.markReady(r) }
+            ActionButton("Mark ready", Symbols.CheckCircle, true, busy, Modifier.weight(1f)) { desk.markReady(r) }
         }
         if (r.status == RepairStatus.ready) {
-            ActionButton("Collected", Icons.Filled.Inventory2, true, busy, Modifier.weight(1f)) { desk.collect(r) }
+            ActionButton("Collected", Symbols.Inventory2, true, busy, Modifier.weight(1f)) { desk.collect(r) }
         }
         if (owing) {
-            ActionButton("Take payment", Icons.Filled.Payments, false, busy, Modifier.weight(1f)) { desk.taking = r }
+            ActionButton("Take payment", Symbols.Payments, false, busy, Modifier.weight(1f)) { desk.taking = r }
         }
     }
 }

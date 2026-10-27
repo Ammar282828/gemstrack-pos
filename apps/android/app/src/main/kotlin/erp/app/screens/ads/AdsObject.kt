@@ -1,5 +1,6 @@
 package erp.app.screens.ads
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.layout.Box
 import erp.app.data.Outbox
 import erp.app.ui.zoomDestination
@@ -13,13 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Archive
-import androidx.compose.material.icons.filled.AttachMoney
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.People
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -214,7 +208,7 @@ private fun AdsObjectBody(path: String) {
                                         daily = number(budget["daily"]).takeIf { it > 0 }, lifetime = number(budget["lifetime"]).takeIf { it > 0 },
                                         end = obj[if (level == "campaign") "stop_time" else "end_time"] as? String, currency = currency,
                                     )
-                                }, icon = Icons.Filled.AttachMoney)
+                                }, icon = Symbols.AttachMoney)
                             }
                             ToggleRow("End date", hasEnd || totalBudget, { if (!totalBudget) hasEnd = it })
                             if (hasEnd || totalBudget) AdsDayTimeRow("Stops", end, min = Instant.now()) { end = it }
@@ -230,7 +224,7 @@ private fun AdsObjectBody(path: String) {
                 right = {
                     if (level == "adset") {
                         AdsSection("Audience and placements") {
-                            AdsActionRow("Edit audience and placements", { audienceSheet = true }, icon = Icons.Filled.People, enabled = audience != null && !busy)
+                            AdsActionRow("Edit audience and placements", { audienceSheet = true }, icon = Symbols.People, enabled = audience != null && !busy)
                             AdsDetails(obj.obj("targeting") ?: emptyMap())
                         }
                     }
@@ -244,11 +238,11 @@ private fun AdsObjectBody(path: String) {
                             "campaign" -> AdsNavRow("Add ad sets", "/ads/adset?campaign=$q")
                             else -> AdsNavRow("Copy and change", "/ads/adset?from=$q")
                         }
-                        AdsActionRow("Duplicate (paused)", { confirming = "duplicate" }, icon = Icons.Filled.ContentCopy, enabled = !busy)
+                        AdsActionRow("Duplicate (paused)", { confirming = "duplicate" }, icon = Symbols.ContentCopy, enabled = !busy)
                     }
                     LedgerSection("Details and review notes", collapsible = true) { AdsDetails(obj) }
                     AdsSection("Manage") {
-                        AdsActionRow("Archive", { confirming = "archive" }, icon = Icons.Filled.Archive, enabled = !busy)
+                        AdsActionRow("Archive", { confirming = "archive" }, icon = Symbols.Archive, enabled = !busy)
                         AdsActionRow("Delete permanently", { confirming = "delete" }, enabled = !busy, tone = Tone.problem)
                     }
                 },
@@ -291,7 +285,7 @@ fun AdsNavRow(title: String, path: String) {
         horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(title, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Icon(Symbols.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -380,7 +374,7 @@ private fun Fold(title: String, open: Boolean, onOpen: (Boolean) -> Unit, conten
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(title, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium))
-            Icon(Icons.Filled.ExpandMore, contentDescription = if (open) "Fold" else "Unfold", Modifier.size(20.dp).rotate(if (open) 0f else -90f), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(Symbols.ExpandMore, contentDescription = if (open) "Fold" else "Unfold", Modifier.size(20.dp).rotate(if (open) 0f else -90f), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         if (open) Column(Modifier.padding(start = 12.dp)) { content() }
     }

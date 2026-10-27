@@ -1,5 +1,6 @@
 package erp.app.ui
 
+import erp.app.ui.icons.Symbols
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -16,10 +17,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.Chat
-import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -55,12 +52,12 @@ fun ContactActions(phone: String?, modifier: Modifier = Modifier) {
     if (digits.isEmpty()) return
     val context = LocalContext.current
     Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        QuickAction("Call", Icons.Filled.Call, { open(context, Intent.ACTION_DIAL, "tel:$digits") }, Modifier.weight(1f))
-        QuickAction("WhatsApp", Icons.Filled.Chat, {
+        QuickAction("Call", Symbols.Call, { open(context, Intent.ACTION_DIAL, "tel:$digits") }, Modifier.weight(1f))
+        QuickAction("WhatsApp", Symbols.Chat, {
             val wa = toWhatsAppNumber(raw)
             open(context, Intent.ACTION_VIEW, "https://wa.me/" + wa.ifEmpty { digits.filter { it.isDigit() } })
         }, Modifier.weight(1f))
-        QuickAction("Message", Icons.Filled.Sms, { open(context, Intent.ACTION_SENDTO, "smsto:$digits") }, Modifier.weight(1f))
+        QuickAction("Message", Symbols.Sms, { open(context, Intent.ACTION_SENDTO, "smsto:$digits") }, Modifier.weight(1f))
     }
 }
 

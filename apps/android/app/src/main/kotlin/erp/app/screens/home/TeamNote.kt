@@ -1,5 +1,6 @@
 package erp.app.screens.home
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -20,10 +21,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
@@ -154,13 +151,13 @@ fun TeamNoteBanner(modifier: Modifier = Modifier) {
                     verticalArrangement = Arrangement.spacedBy(5.dp),
                 ) {
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.PushPin, contentDescription = null, Modifier.size(12.dp), tint = ErpColors.accent)
+                        Icon(Symbols.PushPin, contentDescription = null, Modifier.size(12.dp), tint = ErpColors.accent)
                         Text("Urgent note", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold), color = ErpColors.accent)
                     }
                     Text(text, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
                 if (session.isOwner) {
-                    IconButton(onClick = { editing = true }, Modifier.size(MinTouchTarget)) { Icon(Icons.Filled.Edit, "Edit note") }
+                    IconButton(onClick = { editing = true }, Modifier.size(MinTouchTarget)) { Icon(Symbols.Edit, "Edit note") }
                 }
             }
         }
@@ -234,7 +231,7 @@ fun TeamNoteEditor(onDismiss: () -> Unit) {
             Column(Modifier.fillMaxSize().safeDrawingPadding()) {
                 TopAppBar(
                     title = { Text("Urgent note") },
-                    navigationIcon = { IconButton(onClick = onDismiss, enabled = !saving) { Icon(Icons.Filled.Close, "Cancel") } },
+                    navigationIcon = { IconButton(onClick = onDismiss, enabled = !saving) { Icon(Symbols.Close, "Cancel") } },
                     actions = {
                         TextButton(
                             onClick = { save(TeamNote.trimmed(text)) },

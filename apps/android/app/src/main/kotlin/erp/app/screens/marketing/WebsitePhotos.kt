@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.SearchBarField
 import android.app.Activity
 import android.content.Intent
@@ -21,24 +22,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
-import androidx.compose.material.icons.filled.AddAPhoto
-import androidx.compose.material.icons.filled.AutoFixHigh
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Cancel
-import androidx.compose.material.icons.filled.CloudOff
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.PhotoLibrary
-import androidx.compose.material.icons.filled.Scale
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Undo
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.ArrowCircleUp
 import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -430,14 +413,14 @@ fun WebsitePhotosScreen() {
 
     val hasCamera = remember { context.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_CAMERA_ANY) }
     when {
-        model.denied -> NotAvailableState("This account can't add photographs", why = "Only owner, staff and marketing accounts can write to the website.", icon = Icons.Filled.Lock)
+        model.denied -> NotAvailableState("This account can't add photographs", why = "Only owner, staff and marketing accounts can write to the website.", icon = Symbols.Lock)
         model.problem != null && model.collections == null -> MarketingErrorState(model.problem ?: "") { scope.launch { model.problem = null; model.load() } }
         model.collections == null -> SkeletonLoading(Modifier.fillMaxSize())
         // The page's one action is pinned: where the photographs go is said in the confirmation it opens.
         else -> MarketingPinned(bar = if (model.items.isNotEmpty()) ({
             val unnamed = model.unnamed
             MarketingActionBar(
-                if (model.sending) "Sending…" else "Send ${model.pending.size} to the website", Icons.Filled.ArrowCircleUp, { confirmingSend = true },
+                if (model.sending) "Sending…" else "Send ${model.pending.size} to the website", Symbols.ArrowCircleUp, { confirmingSend = true },
                 busy = model.sending, enabled = model.canSend,
                 summary = if (unnamed > 0) "$unnamed still need${if (unnamed == 1) "s" else ""} a house and a name." else null,
             )
@@ -466,14 +449,14 @@ private fun PhotosPage(
     Column(Modifier.fillMaxSize().readableColumn(720.dp).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
         if (!m.configured) {
             Row(Modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card).padding(16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Icon(Icons.Filled.Warning, null, tint = Tone.owed.color())
+                Icon(Symbols.Warning, null, tint = Tone.owed.color())
                 Text("Uploads are not switched on yet: the website's upload secret isn't set on this ERP. Until it is, nothing below can be sent.", color = Tone.owed.color())
             }
         }
         CollectionSection(m, siteName, chooseCollection)
         WebsiteCard(footer = { Text(if (m.folder.isEmpty()) "Choose a collection first." else "JPEG, PNG, WebP or HEIC · up to 25 MB each · add as many as you like.") }) {
-            ActionRow("Choose photographs", choosePhotos, Icons.Filled.PhotoLibrary, enabled = m.folder.isNotEmpty() && !m.sending)
-            if (hasCamera) ActionRow("Take a photo", takePhoto, Icons.Filled.AddAPhoto, enabled = m.folder.isNotEmpty() && !m.sending)
+            ActionRow("Choose photographs", choosePhotos, Symbols.PhotoLibrary, enabled = m.folder.isNotEmpty() && !m.sending)
+            if (hasCamera) ActionRow("Take a photo", takePhoto, Symbols.AddAPhoto, enabled = m.folder.isNotEmpty() && !m.sending)
             if (m.reading) MarketingReading("Reading the photographs…")
         }
         if (m.items.isNotEmpty()) TraySection(m, siteName)
@@ -509,7 +492,7 @@ private fun CollectionSection(m: WebsitePhotosModel, siteName: String, choose: (
                 )
                 if (c != null) Text(if (c.count > 0) "It has ${c.count} pieces today" else "Nothing in it yet", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Icon(Icons.Filled.ExpandMore, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(Symbols.ExpandMore, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -524,8 +507,8 @@ private fun TraySection(m: WebsitePhotosModel, siteName: String) {
             androidx.compose.runtime.key(item.id) {
                 val removable = item.status != WebsitePhotoItem.Status.Uploading && !m.sending && !item.retouching
                 SwipeActions(
-                    end = if (removable) RowAction("Remove", Icons.Filled.Delete, Tone.problem) { m.remove(item.id) } else null,
-                    menu = if (removable) listOf(RowAction("Remove", Icons.Filled.Delete, Tone.problem) { m.remove(item.id) }) else emptyList(),
+                    end = if (removable) RowAction("Remove", Symbols.Delete, Tone.problem) { m.remove(item.id) } else null,
+                    menu = if (removable) listOf(RowAction("Remove", Symbols.Delete, Tone.problem) { m.remove(item.id) }) else emptyList(),
                 ) { PhotoRow(m, item, siteName) }
             }
         }
@@ -552,19 +535,19 @@ private fun PhotoRow(m: WebsitePhotosModel, item: WebsitePhotoItem, siteName: St
             val check = item.check
             if (check != null && !check.passes) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Icon(Icons.Filled.Warning, null, Modifier.size(16.dp), tint = Tone.owed.color())
+                    Icon(Symbols.Warning, null, Modifier.size(16.dp), tint = Tone.owed.color())
                     Text(check.differences.firstOrNull() ?: "Not checked: compare it with the original.", style = MaterialTheme.typography.bodySmall, color = Tone.owed.color())
                 }
             }
             if (editable && !item.retouching) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     TextButton(onClick = { scope.launch { m.retouch(item.id) } }) {
-                        Icon(Icons.Filled.AutoFixHigh, null, Modifier.size(18.dp))
+                        Icon(Symbols.AutoFixHigh, null, Modifier.size(18.dp))
                         Text(if (item.original == null) "Retouch" else "Retouch again", Modifier.padding(start = 6.dp))
                     }
                     if (item.original != null) {
                         TextButton(onClick = { m.undoRetouch(item.id) }) {
-                            Icon(Icons.Filled.Undo, null, Modifier.size(18.dp))
+                            Icon(Symbols.Undo, null, Modifier.size(18.dp))
                             Text("Original", Modifier.padding(start = 6.dp))
                         }
                     }
@@ -585,7 +568,7 @@ private fun Picture(item: WebsitePhotoItem) {
     ) {
         val thumb = item.thumb
         if (thumb != null) Image(thumb, contentDescription = null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-        else Icon(Icons.Filled.Image, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        else Icon(Symbols.Image, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         if (item.status == WebsitePhotoItem.Status.Uploading || item.retouching) {
             Box(Modifier.fillMaxSize().background(ErpColors.card.copy(alpha = 0.7f)), contentAlignment = Alignment.Center) { SkeletonLoading(compact = true) }
         }
@@ -596,12 +579,12 @@ private fun Picture(item: WebsitePhotoItem) {
 private fun StatusLine(item: WebsitePhotoItem) {
     when (item.status) {
         WebsitePhotoItem.Status.Done -> Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Filled.CheckCircle, null, Modifier.size(16.dp), tint = Tone.settled.color())
+            Icon(Symbols.CheckCircle, null, Modifier.size(16.dp), tint = Tone.settled.color())
             // Done is the expected end: a quiet word, the dimmed photo says the rest.
             Text("On the website", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         WebsitePhotoItem.Status.Failed -> Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.Top) {
-            Icon(Icons.Filled.Cancel, null, Modifier.size(16.dp), tint = Tone.problem.color())
+            Icon(Symbols.Cancel, null, Modifier.size(16.dp), tint = Tone.problem.color())
             Text(item.error ?: "Failed", style = MaterialTheme.typography.bodySmall, color = Tone.problem.color())
         }
         WebsitePhotoItem.Status.Uploading -> Text("Sending…", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -617,8 +600,8 @@ private fun AfterSection(m: WebsitePhotosModel, site: String?, role: String) {
     val context = LocalContext.current
     val url = WebsitePhotosLogic.collectionUrl(m.chosen, site)
     WebsiteCard {
-        if (MarketingKit.has("/website/weights", role)) MarketingLink("Record their weights", Icons.Filled.Scale, "/website/weights")
-        if (url != null) ActionRow("See ${m.chosen?.collection ?: "the collection"} on the website", { openAddress(context, Intent.ACTION_VIEW, url) }, Icons.AutoMirrored.Filled.OpenInNew)
+        if (MarketingKit.has("/website/weights", role)) MarketingLink("Record their weights", Symbols.Scale, "/website/weights")
+        if (url != null) ActionRow("See ${m.chosen?.collection ?: "the collection"} on the website", { openAddress(context, Intent.ACTION_VIEW, url) }, Symbols.OpenInNew)
     }
 }
 
@@ -632,11 +615,11 @@ fun WebsiteCollectionSheet(collections: List<WebsiteCollection>, folder: String,
             item {
                 SearchBarField(
                     value = search, onValueChange = { search = it }, singleLine = true, modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("Find a collection") }, leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                    placeholder = { Text("Find a collection") }, leadingIcon = { Icon(Symbols.Search, contentDescription = null) },
                     keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),
                 )
             }
-            if (shelves.isEmpty()) item { NotAvailableState("Nothing matches", why = "No collection has “$search” in it.", icon = Icons.Filled.Search) }
+            if (shelves.isEmpty()) item { NotAvailableState("Nothing matches", why = "No collection has “$search” in it.", icon = Symbols.Search) }
             items(shelves, key = { it.id }) { shelf ->
                 LedgerSection(shelf.id) {
                     for (c in shelf.list) {
@@ -646,7 +629,7 @@ fun WebsiteCollectionSheet(collections: List<WebsiteCollection>, folder: String,
                         ) {
                             Text(c.collection, Modifier.weight(1f))
                             if (c.count > 0) Text("${c.count}", style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = TabularDigits), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            if (c.folder == folder) Icon(Icons.Filled.Check, contentDescription = "Chosen", tint = ErpColors.accent)
+                            if (c.folder == folder) Icon(Symbols.Check, contentDescription = "Chosen", tint = ErpColors.accent)
                         }
                     }
                 }

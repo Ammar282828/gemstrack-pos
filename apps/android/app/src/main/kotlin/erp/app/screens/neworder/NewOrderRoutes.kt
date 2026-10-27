@@ -1,5 +1,6 @@
 package erp.app.screens.neworder
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -16,8 +17,6 @@ import erp.app.screens.invoices.InvoicePdfTarget
 import erp.app.ui.NotAvailableState
 import erp.app.ui.SkeletonLoading
 import erp.core.entry.NewOrderEdit
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FolderOff
 
 /**
  * The New order group: the order form (src/app/orders/add/page.tsx, components/order/order-form.tsx), and the same
@@ -84,7 +83,7 @@ internal fun NewOrderEditLoader(id: String, ratesFirst: Boolean = false) {
         opened != null -> NewOrder(edit = opened, ratesFirst = ratesFirst)
         loaded && order == null -> {
             ScreenTitle("Edit $id")
-            NotAvailableState("No such order", why = "$id isn't in the book. It may have been deleted.", icon = Icons.Filled.FolderOff)
+            NotAvailableState("No such order", why = "$id isn't in the book. It may have been deleted.", icon = Symbols.FolderOff)
         }
         else -> {
             ScreenTitle("Edit $id")

@@ -1,5 +1,6 @@
 package erp.app.screens.settings.label
 
+import erp.app.ui.icons.Symbols
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -16,8 +17,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.LocalOffer
 import erp.app.ui.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -179,7 +178,7 @@ private fun LabelDesigner() {
             },
         )
         loaded && error != null && settings == null -> Column(Modifier.fillMaxSize(), horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
-            NotAvailableState("Couldn't load the tag", why = error, icon = Icons.Filled.LocalOffer)
+            NotAvailableState("Couldn't load the tag", why = error, icon = Symbols.LocalOffer)
             Button(onClick = { book.settings.reset(); book.settings.need() }) { Text("Try again") }
         }
         else -> SkeletonLoading()
@@ -346,7 +345,7 @@ private fun PanelBody(state: DesignerState, panel: Panel, standard: LabelLayout,
         Panel.Label -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(20.dp)) {
             LabelSettingsSections(state)
             SettingsSection {
-                LabelTapRow("Back to the standard tag", toStandard, enabled = !state.model.readOnly, icon = Icons.Filled.LocalOffer)
+                LabelTapRow("Back to the standard tag", toStandard, enabled = !state.model.readOnly, icon = Symbols.LocalOffer)
             }
             LabelCsvSection()
         }

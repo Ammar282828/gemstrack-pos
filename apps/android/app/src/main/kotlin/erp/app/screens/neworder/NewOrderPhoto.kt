@@ -1,5 +1,6 @@
 package erp.app.screens.neworder
 
+import erp.app.ui.icons.Symbols
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
@@ -20,10 +21,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import erp.app.ui.OutlinedButton
@@ -216,7 +213,7 @@ internal fun SampleField(holder: DraftHolder, pieceId: UUID) {
                 else -> SkeletonLoading(Modifier.heightIn(min = 80.dp))
             }
             TextButton(onClick = { holder.editPiece(pieceId) { removePhoto = true } }) {
-                Icon(Icons.Filled.DeleteOutline, null, Modifier.size(18.dp), tint = Tone.problem.color())
+                Icon(Symbols.DeleteOutline, null, Modifier.size(18.dp), tint = Tone.problem.color())
                 Text("Remove photo", Modifier.padding(start = 6.dp), color = Tone.problem.color())
             }
         }
@@ -302,17 +299,17 @@ internal fun PhotoField(data: ByteArray?, onData: (ByteArray?) -> Unit) {
                 androidx.compose.material3.IconButton(
                     onClick = { onData(null) },
                     Modifier.size(MinTouchTarget).semantics { contentDescription = "Remove photo" },
-                ) { Icon(Icons.Filled.DeleteOutline, null, tint = Tone.problem.color()) }
+                ) { Icon(Symbols.DeleteOutline, null, tint = Tone.problem.color()) }
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
             OutlinedButton(onClick = { library.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, Modifier.heightIn(min = MinTouchTarget)) {
-                Icon(Icons.Filled.PhotoLibrary, null, Modifier.size(18.dp))
+                Icon(Symbols.PhotoLibrary, null, Modifier.size(18.dp))
                 Text("Photos", Modifier.padding(start = 6.dp))
             }
             if (hasCamera(context)) {
                 OutlinedButton(onClick = camera, Modifier.heightIn(min = MinTouchTarget)) {
-                    Icon(Icons.Filled.CameraAlt, null, Modifier.size(18.dp))
+                    Icon(Symbols.CameraAlt, null, Modifier.size(18.dp))
                     Text("Camera", Modifier.padding(start = 6.dp))
                 }
             }

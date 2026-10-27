@@ -1,5 +1,6 @@
 package erp.app.screens.ads
 
+import erp.app.ui.icons.Symbols
 import android.app.Activity
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -21,22 +22,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.Cancel
-import androidx.compose.material.icons.filled.CellTower
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Chat
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Forum
-import androidx.compose.material.icons.filled.PhotoLibrary
-import androidx.compose.material.icons.filled.Podcasts
-import androidx.compose.material.icons.filled.Send
-import androidx.compose.material.icons.filled.ShoppingBag
-import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -83,15 +68,15 @@ import kotlinx.coroutines.withContext
 
 /** The icon for a goal (AdsNewAdWords.symbol). */
 fun adsGoalIcon(goal: String): ImageVector = when (goal) {
-    "whatsapp" -> Icons.Filled.Chat
-    "messages" -> Icons.Filled.Forum
-    "instagram_dm" -> Icons.Filled.Send
-    "website" -> Icons.Filled.TouchApp
-    "sales" -> Icons.Filled.ShoppingBag
-    "channel" -> Icons.Filled.Podcasts
-    "profile" -> Icons.Filled.AccountCircle
-    "engagement" -> Icons.Filled.Favorite
-    else -> Icons.Filled.CellTower
+    "whatsapp" -> Symbols.Chat
+    "messages" -> Symbols.Forum
+    "instagram_dm" -> Symbols.Send
+    "website" -> Symbols.TouchApp
+    "sales" -> Symbols.ShoppingBag
+    "channel" -> Symbols.Podcasts
+    "profile" -> Symbols.AccountCircle
+    "engagement" -> Symbols.Favorite
+    else -> Symbols.CellTower
 }
 
 /** A goal on the picker: its words, and a tick on the chosen one. */
@@ -174,7 +159,7 @@ fun AdsMediaGrid(media: List<AdsMedia>, chosen: String?, pick: (AdsMedia) -> Uni
                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold), color = Color.White,
                 )
             }
-            if (on) Icon(Icons.Filled.CheckCircle, "Chosen", Modifier.align(Alignment.TopEnd).padding(4.dp), tint = ErpColors.accent)
+            if (on) Icon(Symbols.CheckCircle, "Chosen", Modifier.align(Alignment.TopEnd).padding(4.dp), tint = ErpColors.accent)
         }
     }
 }
@@ -236,11 +221,11 @@ fun AdsPhotoRow(
         }
         if (carousel) {
             Column {
-                IconButton(onClick = { move(-1) }, enabled = !first) { Icon(Icons.Filled.ArrowUpward, "Earlier") }
-                IconButton(onClick = { move(1) }, enabled = !last) { Icon(Icons.Filled.ArrowDownward, "Later") }
+                IconButton(onClick = { move(-1) }, enabled = !first) { Icon(Symbols.ArrowUpward, "Earlier") }
+                IconButton(onClick = { move(1) }, enabled = !last) { Icon(Symbols.ArrowDownward, "Later") }
             }
         }
-        IconButton(onClick = remove) { Icon(Icons.Filled.Cancel, "Remove the photo", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+        IconButton(onClick = remove) { Icon(Symbols.Cancel, "Remove the photo", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
     }
 }
 
@@ -284,7 +269,7 @@ fun AdsLibrarySheet(chosen: Set<String>, room: Int, onDismiss: () -> Unit, pick:
             }
             val list = images
             if (list != null) {
-                if (list.isEmpty()) AdsUnavailable("The library is empty so far", "", Modifier.fillMaxWidth(), icon = Icons.Filled.PhotoLibrary)
+                if (list.isEmpty()) AdsUnavailable("The library is empty so far", "", Modifier.fillMaxWidth(), icon = Symbols.PhotoLibrary)
                 AdsTileGrid(list, 84.dp) { img, size ->
                     val used = img.hash in chosen || img.hash in added
                     Box(
@@ -294,7 +279,7 @@ fun AdsLibrarySheet(chosen: Set<String>, room: Int, onDismiss: () -> Unit, pick:
                         },
                     ) {
                         StockImage(img.thumb, img.name.ifEmpty { "Photo" }, img.hash, Modifier.size(size))
-                        if (used) Icon(Icons.Filled.CheckCircle, "Used", Modifier.align(Alignment.TopEnd).padding(4.dp), tint = ErpColors.accent)
+                        if (used) Icon(Symbols.CheckCircle, "Used", Modifier.align(Alignment.TopEnd).padding(4.dp), tint = ErpColors.accent)
                     }
                 }
                 if (after != null) {

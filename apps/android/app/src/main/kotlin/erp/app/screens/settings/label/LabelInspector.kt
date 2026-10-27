@@ -1,5 +1,6 @@
 package erp.app.screens.settings.label
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -8,16 +9,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.AutoFixHigh
-import androidx.compose.material.icons.filled.DataObject
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.PhotoLibrary
-import androidx.compose.material.icons.filled.RotateRight
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -78,7 +69,7 @@ fun LabelInspector(state: DesignerState, requestDelete: () -> Unit, replacePictu
         TurnSection(state, f)
         if (!ro) {
             SettingsSection {
-                LabelTapRow("Remove ${if (model.selection.size > 1) "${model.selection.size} fields" else "field"}", requestDelete, icon = Icons.Filled.Delete, danger = true)
+                LabelTapRow("Remove ${if (model.selection.size > 1) "${model.selection.size} fields" else "field"}", requestDelete, icon = Symbols.Delete, danger = true)
             }
         }
     }
@@ -111,10 +102,10 @@ private fun PlaceSection(state: DesignerState, f: LabelLayoutField) {
         Box(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
             androidx.compose.foundation.layout.Row(Modifier.align(Alignment.Center), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("Nudge", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(end = 8.dp))
-                NudgeButton(Icons.Filled.ArrowBack, "Left") { model.nudge(-1, 0) }
-                NudgeButton(Icons.Filled.ArrowUpward, "Up") { model.nudge(0, -1) }
-                NudgeButton(Icons.Filled.ArrowDownward, "Down") { model.nudge(0, 1) }
-                NudgeButton(Icons.Filled.ArrowForward, "Right") { model.nudge(1, 0) }
+                NudgeButton(Symbols.ArrowBack, "Left") { model.nudge(-1, 0) }
+                NudgeButton(Symbols.ArrowUpward, "Up") { model.nudge(0, -1) }
+                NudgeButton(Symbols.ArrowDownward, "Down") { model.nudge(0, 1) }
+                NudgeButton(Symbols.ArrowForward, "Right") { model.nudge(1, 0) }
             }
         }
     }
@@ -132,10 +123,10 @@ private fun TurnSection(state: DesignerState, f: LabelLayoutField) {
         when (f.type) {
             LabelFieldType.text, LabelFieldType.qr, LabelFieldType.barcode -> {
                 PickerRow("Rotation", f.rotation.toString(), listOf(0, 90, 180, 270).map { it.toString() to "$it°" }) { v -> model.rotateSelection(v.toInt() - f.rotation) }
-                LabelTapRow("Rotate 90°", { model.rotateSelection() }, icon = Icons.Filled.RotateRight)
+                LabelTapRow("Rotate 90°", { model.rotateSelection() }, icon = Symbols.RotateRight)
             }
             LabelFieldType.image -> ToggleRow("Upside down (180°)", f.rotation == 180, { model.rotateSelection() })
-            LabelFieldType.line, LabelFieldType.box, LabelFieldType.ellipse -> LabelTapRow("Turn on its side", { model.rotateSelection() }, icon = Icons.Filled.RotateRight)
+            LabelFieldType.line, LabelFieldType.box, LabelFieldType.ellipse -> LabelTapRow("Turn on its side", { model.rotateSelection() }, icon = Symbols.RotateRight)
         }
     }
 }
@@ -158,7 +149,7 @@ private fun append(state: DesignerState, token: String) {
 @Composable
 private fun PlaceholderRow(state: DesignerState) {
     var open by remember { mutableStateOf(false) }
-    LabelTapRow("Add a piece field", { open = true }, icon = Icons.Filled.DataObject, enabled = !state.model.readOnly)
+    LabelTapRow("Add a piece field", { open = true }, icon = Symbols.DataObject, enabled = !state.model.readOnly)
     if (open) PlaceholderSheet(state.model.layout.tagsPerLabel, "Add a piece field", { append(state, it) }, { open = false })
 }
 
@@ -166,7 +157,7 @@ private fun PlaceholderRow(state: DesignerState) {
 private fun TransformRow(state: DesignerState, f: LabelLayoutField) {
     var open by remember { mutableStateOf(false) }
     Box {
-        LabelTapRow("Change how a value reads", { open = true }, icon = Icons.Filled.AutoFixHigh, enabled = !state.model.readOnly)
+        LabelTapRow("Change how a value reads", { open = true }, icon = Symbols.AutoFixHigh, enabled = !state.model.readOnly)
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             LabelPlaceholders.transforms.forEach { t ->
                 DropdownMenuItem(
@@ -284,6 +275,6 @@ private fun ImageSection(state: DesignerState, f: LabelLayoutField, replacePictu
             { v -> redo(Dither.entries.first { it.raw == v }, null) }, enabled = hasSource && !model.readOnly,
         )
         LabelSliderRow("Threshold ${Math.round((f.threshold ?: 0.5) * 100)}%", f.threshold ?: 0.5, 0.05..0.95, { redo(null, it) }, enabled = hasSource && !model.readOnly)
-        LabelTapRow("Choose another picture…", replacePicture, icon = Icons.Filled.PhotoLibrary, enabled = !model.readOnly)
+        LabelTapRow("Choose another picture…", replacePicture, icon = Symbols.PhotoLibrary, enabled = !model.readOnly)
     }
 }

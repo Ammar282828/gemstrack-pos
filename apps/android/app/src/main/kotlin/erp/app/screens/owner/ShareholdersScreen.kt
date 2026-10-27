@@ -1,5 +1,6 @@
 package erp.app.screens.owner
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -14,18 +15,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AddCircleOutline
-import androidx.compose.material.icons.filled.ArrowOutward
-import androidx.compose.material.icons.filled.CallReceived
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.Warning
 import erp.app.ui.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -128,7 +117,7 @@ fun ShareholdersScreen() {
     } else if (!session.shop.partnership) {
         // Reachable by address from either house; only one keeps this book.
         ScreenTitle("Shareholders")
-        NotAvailableState("No partner ledgers", why = "This shop keeps no partner ledgers.", icon = Icons.Filled.People)
+        NotAvailableState("No partner ledgers", why = "This shop keeps no partner ledgers.", icon = Symbols.People)
     } else {
         ShareholdersBoard()
     }
@@ -224,18 +213,18 @@ private fun ShareholdersBoard() {
     ScreenTitle("Shareholders")
     ScreenActions {
         Box {
-            IconButton(onClick = { menu = true }) { Icon(Icons.Filled.Add, contentDescription = "Add") }
+            IconButton(onClick = { menu = true }) { Icon(Symbols.Add, contentDescription = "Add") }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                 DropdownMenuItem(
-                    text = { Text("Add contribution") }, leadingIcon = { Icon(Icons.Filled.Add, null) },
+                    text = { Text("Add contribution") }, leadingIcon = { Icon(Symbols.Add, null) },
                     onClick = { menu = false; asking = ShareholderAsk(ShareholderMove.contribution, "mina") },
                 )
                 DropdownMenuItem(
-                    text = { Text("Pay salary") }, leadingIcon = { Icon(Icons.Filled.Payments, null) },
+                    text = { Text("Pay salary") }, leadingIcon = { Icon(Symbols.Payments, null) },
                     onClick = { menu = false; asking = ShareholderAsk(ShareholderMove.salary, "mina") },
                 )
                 DropdownMenuItem(
-                    text = { Text("Withdraw capital") }, leadingIcon = { Icon(Icons.Filled.ArrowOutward, null) },
+                    text = { Text("Withdraw capital") }, leadingIcon = { Icon(Symbols.ArrowOutward, null) },
                     onClick = { menu = false; asking = ShareholderAsk(ShareholderMove.withdrawal, "mina") },
                 )
             }
@@ -379,17 +368,17 @@ private fun PartnerCard(p: ShareholderFigures.Position, onAsk: (ShareholderAsk) 
                 )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                SmallFigure("Contributed", p.contributed, Icons.Filled.CallReceived, Modifier.weight(1f))
-                SmallFigure("Salary", p.salaryPaid, Icons.Filled.Payments, Modifier.weight(1f))
-                SmallFigure("Capital drawn", p.withdrawn, Icons.Filled.ArrowOutward, Modifier.weight(1f))
+                SmallFigure("Contributed", p.contributed, Symbols.CallReceived, Modifier.weight(1f))
+                SmallFigure("Salary", p.salaryPaid, Symbols.Payments, Modifier.weight(1f))
+                SmallFigure("Capital drawn", p.withdrawn, Symbols.ArrowOutward, Modifier.weight(1f))
             }
         }
         Column(Modifier.fillMaxWidth().cardEdges(true, true)) {
-            ActionRow("Pay salary", Icons.Filled.Payments) { onAsk(ShareholderAsk(ShareholderMove.salary, p.id)) }
+            ActionRow("Pay salary", Symbols.Payments) { onAsk(ShareholderAsk(ShareholderMove.salary, p.id)) }
             LedgerDivider()
-            ActionRow("Add a contribution", Icons.Filled.AddCircleOutline) { onAsk(ShareholderAsk(ShareholderMove.contribution, p.id)) }
+            ActionRow("Add a contribution", Symbols.AddCircleOutline) { onAsk(ShareholderAsk(ShareholderMove.contribution, p.id)) }
             LedgerDivider()
-            ActionRow("Withdraw capital", Icons.Filled.ArrowOutward) { onAsk(ShareholderAsk(ShareholderMove.withdrawal, p.id)) }
+            ActionRow("Withdraw capital", Symbols.ArrowOutward) { onAsk(ShareholderAsk(ShareholderMove.withdrawal, p.id)) }
         }
     }
 }
@@ -427,7 +416,7 @@ private fun ActionRow(label: String, icon: androidx.compose.ui.graphics.vector.I
 @Composable
 private fun SalaryRow(e: Expense, p: ShareholderFigures.Position, onDelete: () -> Unit) {
     val shown = e.description.replace("${p.name} salary — ", "")
-    val delete = RowAction("Delete", Icons.Filled.Delete, Tone.problem, onDelete)
+    val delete = RowAction("Delete", Symbols.Delete, Tone.problem, onDelete)
     SwipeActions(end = delete, menu = listOf(delete)) {
         Box(Modifier.background(ErpColors.card).fillMaxWidth().ledgerRow()) {
             TwoLine(
@@ -445,7 +434,7 @@ private fun LedgerEntryRow(r: ShareholderLedgerRow, p: ShareholderFigures.Positi
     val isIn = r.type == PartnerLedgerType.payment
     var sub = "${OwnerText.shortDate(r.date)} · ${if (r.category == erp.core.models.PartnerLedgerCategory.loan) "Loan" else "Equity"}"
     if (r.linkedExpenseId != null) sub += " · logged as an expense"
-    val delete = RowAction("Delete", Icons.Filled.Delete, Tone.problem, onDelete)
+    val delete = RowAction("Delete", Symbols.Delete, Tone.problem, onDelete)
     SwipeActions(end = delete, menu = listOf(delete)) {
         Box(Modifier.background(ErpColors.card).fillMaxWidth().ledgerRow()) {
             TwoLine(
@@ -486,7 +475,7 @@ private fun Notes(f: ShareholderBoardFigures) {
 @Composable
 private fun InfoLine(text: String) {
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
-        Icon(Icons.Filled.Info, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Icon(Symbols.Info, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
@@ -518,7 +507,7 @@ private fun Distribution(
         Column(Modifier.fillMaxWidth().cardEdges(true, true).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (Partnership.isFloorStale(s) && Partnership.isMonthStart()) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
-                    Icon(Icons.Filled.Warning, contentDescription = null, tint = Tone.owed.color())
+                    Icon(Symbols.Warning, contentDescription = null, tint = Tone.owed.color())
                     Text(
                         "It’s a new month — review the working-capital floor for ${Overheads.monthLabel(Overheads.monthKey(Instant.now()))}. Last set: ${lastSet(s)}.",
                         style = MaterialTheme.typography.bodySmall, color = Tone.owed.color(),
@@ -544,7 +533,7 @@ private fun Distribution(
                         "Last reviewed: ${s.floorLastSetAt?.let { OwnerText.shortDate(it) } ?: "—"} · ${s.floorHistory.size} change${if (s.floorHistory.size == 1) "" else "s"}",
                         Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Icon(Icons.Filled.ExpandMore, contentDescription = null, Modifier.rotate(if (showHistory) 0f else -90f), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(Symbols.ExpandMore, contentDescription = null, Modifier.rotate(if (showHistory) 0f else -90f), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 if (showHistory) {
                     // Newest first, as the page lists them.
@@ -616,7 +605,7 @@ private fun FloorRow(s: PartnershipSettings, floorText: String?, onFloorText: (S
                 if (saving) Loading(Modifier.size(24.dp), color = ErpColors.onAccent) else Text("Save")
             }
         } else {
-            Icon(Icons.Filled.CheckCircle, contentDescription = "Saved", tint = Tone.settled.color())
+            Icon(Symbols.CheckCircle, contentDescription = "Saved", tint = Tone.settled.color())
         }
     }
 }

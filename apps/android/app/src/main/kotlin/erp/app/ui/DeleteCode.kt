@@ -1,5 +1,6 @@
 package erp.app.ui
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,9 +14,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Fingerprint
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -187,7 +185,7 @@ fun OwnerDeleteCodeSheet(deletion: OwnerDeletion, onDismiss: () -> Unit, onDone:
             )
             if (canFace && kept) {
                 OutlinedButton(onClick = { scope.launch { byFace() } }, enabled = !busy) {
-                    Icon(Icons.Filled.Fingerprint, contentDescription = null)
+                    Icon(Symbols.Fingerprint, contentDescription = null)
                     Spacer(Modifier.size(8.dp))
                     Text("Use fingerprint")
                 }
@@ -201,7 +199,7 @@ fun OwnerDeleteCodeSheet(deletion: OwnerDeletion, onDismiss: () -> Unit, onDone:
             Text(DeleteCode.footer(deletion), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             error?.let {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.Warning, contentDescription = null, tint = Tone.problem.color())
+                    Icon(Symbols.Warning, contentDescription = null, tint = Tone.problem.color())
                     Text(it, color = Tone.problem.color(), style = MaterialTheme.typography.bodyMedium)
                 }
             }

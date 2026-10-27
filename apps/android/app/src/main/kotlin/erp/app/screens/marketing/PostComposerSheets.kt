@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.SearchBarField
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -15,11 +16,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Public
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
@@ -67,13 +63,13 @@ fun PostDraftsSheet(model: PostComposerModel, onClose: () -> Unit) {
     FullScreenSheet(title = "Drafts", onCancel = onClose, cancelText = "Done") {
         Box(Modifier.fillMaxSize().readableColumn(720.dp)) {
             if (model.drafts.isEmpty()) {
-                NotAvailableState("No drafts", why = "A piece you start is kept here, on this device, until it goes out.", icon = Icons.Filled.Description)
+                NotAvailableState("No drafts", why = "A piece you start is kept here, on this device, until it goes out.", icon = Symbols.Description)
             } else {
                 LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(model.drafts, key = { it.id }) { saved ->
                         SwipeActions(
                             Modifier.clip(Radius.cardShape),
-                            end = RowAction("Delete", Icons.Filled.Delete, Tone.problem) { deleting = saved },
+                            end = RowAction("Delete", Symbols.Delete, Tone.problem) { deleting = saved },
                             onClick = { scope.launch { model.open(saved); onClose() } },
                         ) {
                             Column(Modifier.fillMaxWidth().background(ErpColors.card).ledgerRow(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -196,12 +192,12 @@ fun SitePhotoPicker(picked: suspend (MarketingValue, ByteArray) -> Unit, onClose
             Column(Modifier.fillMaxSize()) {
                 SearchBarField(
                     q, { q = it }, Modifier.fillMaxWidth().padding(16.dp), singleLine = true, placeholder = { Text("Search") },
-                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                    leadingIcon = { Icon(Symbols.Search, contentDescription = null) },
                 )
                 error?.let { Text(it, Modifier.padding(horizontal = 16.dp), color = Tone.problem.color()) }
                 when {
                     !loaded && error == null -> SkeletonLoading(Modifier.fillMaxSize(), label = "Loading the website’s pieces")
-                    loaded && shown.isEmpty() -> NotAvailableState(if (q.isEmpty()) "No pieces on the website" else "Nothing matches “$q”", icon = Icons.Filled.Public)
+                    loaded && shown.isEmpty() -> NotAvailableState(if (q.isEmpty()) "No pieces on the website" else "Nothing matches “$q”", icon = Symbols.Public)
                     else -> LazyColumn(Modifier.fillMaxSize()) {
                         items(shown, key = { it.s("id") }) { p ->
                             Row(Modifier.fillMaxWidth().clickable(enabled = busy == null) { take(p) }.ledgerRow(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {

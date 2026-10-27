@@ -1,5 +1,6 @@
 package erp.app.screens.work
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.SegmentedColumn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -9,9 +10,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -235,7 +233,7 @@ private fun DraftSection(
                 } else {
                     for (row in rows) DraftRowView(row, onDiscard, open, now)
                 }
-                ActionRow(newTitle, onNew, icon = Icons.Filled.Add)
+                ActionRow(newTitle, onNew, icon = Symbols.Add)
             }
         }
     }
@@ -244,7 +242,7 @@ private fun DraftSection(
 @Composable
 private fun DraftRowView(row: DraftRow, onDiscard: (DraftRow) -> Unit, open: (String) -> Unit, now: java.time.Instant) {
     val d = row.draft
-    val discard = RowAction("Discard", Icons.Filled.Delete, Tone.problem) { onDiscard(row) }
+    val discard = RowAction("Discard", Symbols.Delete, Tone.problem) { onDiscard(row) }
     SwipeActions(end = discard, menu = listOf(discard), onClick = { open(DraftsLogic.path(row)) }) {
         Column(Modifier.fillMaxWidth().background(ErpColors.card).ledgerRow(), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

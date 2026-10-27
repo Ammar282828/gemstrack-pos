@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.SearchBarField
 import erp.app.ui.zoomDestination
 import erp.app.ui.zoomSource
@@ -29,14 +30,6 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CloudOff
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.GridView
-import androidx.compose.material.icons.filled.Public
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -151,7 +144,7 @@ fun PostPiecesScreen(tray: PostTrayModel? = null) {
     LaunchedEffect(search, collection, freshOnly) { shown = PostPiecesLogic.PAGE_SIZE }
 
     when (val phase = state.piecesPhase) {
-        PostsPhase.Off -> NotAvailableState("This shop doesn't post its website's pieces", why = "Its website has no pieces for the ERP to post from, so there is nothing to choose here.", icon = Icons.Filled.Public)
+        PostsPhase.Off -> NotAvailableState("This shop doesn't post its website's pieces", why = "Its website has no pieces for the ERP to post from, so there is nothing to choose here.", icon = Symbols.Public)
         is PostsPhase.Failed -> MarketingErrorState(phase.message) { scope.launch { PostsStore.load() } }
         PostsPhase.Idle, PostsPhase.Loading -> SkeletonLoading(Modifier.fillMaxSize())
         PostsPhase.Loaded -> {
@@ -170,7 +163,7 @@ fun PostPiecesScreen(tray: PostTrayModel? = null) {
                         SearchBarField(
                             value = search, onValueChange = { search = it }, singleLine = true, modifier = Modifier.fillMaxWidth(),
                             placeholder = { Text("Search: ruby, kara, jhumka…") },
-                            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                            leadingIcon = { Icon(Symbols.Search, contentDescription = null) },
                             keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),
                         )
                     }
@@ -193,7 +186,7 @@ fun PostPiecesScreen(tray: PostTrayModel? = null) {
                     }
                     if (items.isEmpty()) {
                         item(span = { GridItemSpan(maxLineSpan) }) {
-                            NotAvailableState("Nothing matches", why = "Clear the search, pick another collection, or show what went out lately.", icon = Icons.Filled.GridView)
+                            NotAvailableState("Nothing matches", why = "Clear the search, pick another collection, or show what went out lately.", icon = Symbols.GridView)
                         }
                     } else {
                         items(items.take(shown), key = { it.id }) { p ->
@@ -248,7 +241,7 @@ fun PostPieceScreen(id: String) {
     Box(Modifier.fillMaxSize().zoomDestination(MarketingKit.piecePath(id))) {
         when {
             piece != null -> Box(Modifier.fillMaxSize().readableColumn(720.dp)) { PieceDetail(piece, state) }
-            state.piecesPhase == PostsPhase.Loaded -> NotAvailableState("That piece is not on the website any more", icon = Icons.Filled.GridView)
+            state.piecesPhase == PostsPhase.Loaded -> NotAvailableState("That piece is not on the website any more", icon = Symbols.GridView)
             else -> SkeletonLoading(Modifier.fillMaxSize())
         }
     }
@@ -278,10 +271,10 @@ private fun PieceDetail(p: PostPiece, state: PostsState) {
             FormSection("About") { Text(p.about, Modifier.fillMaxWidth().padding(16.dp)) }
         }
         FormSection("Act on it") {
-            MarketingLink("Send or queue it", Icons.AutoMirrored.Filled.Send, MarketingKit.trayPath(p.id))
-            if (MarketingKit.has("/website/edit", role)) MarketingLink("Edit this piece", Icons.Filled.Edit, PostPiecesLogic.editPath(p))
+            MarketingLink("Send or queue it", Symbols.Send, MarketingKit.trayPath(p.id))
+            if (MarketingKit.has("/website/edit", role)) MarketingLink("Edit this piece", Symbols.Edit, PostPiecesLogic.editPath(p))
             if (p.url.startsWith("http")) {
-                ActionRow("Open on ${state.siteName}", { openAddress(context, android.content.Intent.ACTION_VIEW, p.url) }, Icons.AutoMirrored.Filled.OpenInNew)
+                ActionRow("Open on ${state.siteName}", { openAddress(context, android.content.Intent.ACTION_VIEW, p.url) }, Symbols.OpenInNew)
             }
         }
     }

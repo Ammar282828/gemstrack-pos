@@ -1,5 +1,6 @@
 package erp.app.screens.settings
 
+import erp.app.ui.icons.Symbols
 import android.content.Intent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -9,17 +10,6 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Cancel
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.RadioButtonUnchecked
-import androidx.compose.material.icons.filled.Verified
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.filled.OpenInBrowser
-import androidx.compose.material.icons.filled.RemoveCircleOutline
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -220,7 +210,7 @@ internal fun ShopifyInnerForm(initialStatus: ShopifyStatus? = null, initialOrder
                     ValueRow("Status") {
                         val tone = if (!s.configured) Tone.quiet else if (s.connected == true) Tone.settled else Tone.owed
                         Icon(
-                            if (!s.configured) Icons.Filled.RemoveCircleOutline else if (s.connected == true) Icons.Filled.CheckCircle else Icons.Filled.Warning,
+                            if (!s.configured) Symbols.RemoveCircleOutline else if (s.connected == true) Symbols.CheckCircle else Symbols.Warning,
                             contentDescription = null, Modifier.size(18.dp), tint = tone.color(),
                         )
                         Text("  " + ShopifyLogic.statusText(s), color = tone.color())
@@ -234,7 +224,7 @@ internal fun ShopifyInnerForm(initialStatus: ShopifyStatus? = null, initialOrder
                     if (s.configured) ShopifyLogic.reauthorizeUrl(s, House.serverUrl)?.let { url ->
                         ActionRow(
                             if (s.connected == true) "Reauthorize in the browser" else "Connect in the browser",
-                            onClick = { openAddress(context, Intent.ACTION_VIEW, url) }, icon = Icons.Filled.OpenInBrowser, enabled = !isDemo && !writing,
+                            onClick = { openAddress(context, Intent.ACTION_VIEW, url) }, icon = Symbols.OpenInBrowser, enabled = !isDemo && !writing,
                         )
                     }
                 } else if (statusFailure != null) {
@@ -257,7 +247,7 @@ internal fun ShopifyInnerForm(initialStatus: ShopifyStatus? = null, initialOrder
                     } else {
                         ValueRow("Required") {
                             val tone = if (missing.isEmpty()) Tone.settled else Tone.owed
-                            Icon(if (missing.isEmpty()) Icons.Filled.Verified else Icons.Filled.Warning, contentDescription = null, Modifier.size(18.dp), tint = tone.color())
+                            Icon(if (missing.isEmpty()) Symbols.Verified else Symbols.Warning, contentDescription = null, Modifier.size(18.dp), tint = tone.color())
                             Text("  " + if (missing.isEmpty()) "All granted" else "${missing.size} missing", color = tone.color())
                         }
                         Row(
@@ -265,7 +255,7 @@ internal fun ShopifyInnerForm(initialStatus: ShopifyStatus? = null, initialOrder
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text("Permissions", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-                            Icon(Icons.Filled.ExpandMore, if (permissionsOpen) "Collapse" else "Expand", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Icon(Symbols.ExpandMore, if (permissionsOpen) "Collapse" else "Expand", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         if (permissionsOpen) {
                             ShopifyLogic.scopeNeeds.forEach { need ->
@@ -348,7 +338,7 @@ internal fun ShopifyInnerForm(initialStatus: ShopifyStatus? = null, initialOrder
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text("Review selection", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-                                Icon(Icons.Filled.ExpandMore, if (reviewOpen) "Collapse" else "Expand", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Icon(Symbols.ExpandMore, if (reviewOpen) "Collapse" else "Expand", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             if (reviewOpen) pickedOrders.forEach { o ->
                                 Row(Modifier.fillMaxWidth().ledgerRow(), verticalAlignment = Alignment.CenterVertically) {
@@ -359,7 +349,7 @@ internal fun ShopifyInnerForm(initialStatus: ShopifyStatus? = null, initialOrder
                         }
                         ActionRow(
                             if (picked.isEmpty()) "Select orders to import" else "Import ${picked.size} order${if (picked.size == 1) "" else "s"}",
-                            onClick = { confirmImport = true }, icon = Icons.Filled.FileDownload,
+                            onClick = { confirmImport = true }, icon = Symbols.FileDownload,
                             enabled = !isDemo && picked.isNotEmpty() && !writing && Busy.List !in busy,
                         )
                         if (Busy.Importing in busy) Column(Modifier.fillMaxWidth().ledgerRow()) { SkeletonLoading(compact = true) }
@@ -392,7 +382,7 @@ internal fun ShopifyInnerForm(initialStatus: ShopifyStatus? = null, initialOrder
 
 @Composable
 private fun Retry(title: String, busy: Boolean, writing: Boolean, onClick: () -> Unit) {
-    ActionRow(title, onClick = onClick, icon = Icons.Filled.Refresh, enabled = !busy && !writing)
+    ActionRow(title, onClick = onClick, icon = Symbols.Refresh, enabled = !busy && !writing)
 }
 
 @Composable
@@ -401,7 +391,7 @@ private fun ScopeChip(title: String, ok: Boolean) {
         Modifier.semantics { contentDescription = "$title ${if (ok) "granted" else "missing"}" },
         horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(if (ok) Icons.Filled.CheckCircle else Icons.Filled.Cancel, contentDescription = null, Modifier.size(16.dp), tint = (if (ok) Tone.settled else Tone.problem).color())
+        Icon(if (ok) Symbols.CheckCircle else Symbols.Cancel, contentDescription = null, Modifier.size(16.dp), tint = (if (ok) Tone.settled else Tone.problem).color())
         Text(title, style = MaterialTheme.typography.bodySmall, color = (if (ok) Tone.settled else Tone.problem).color())
     }
 }
@@ -415,7 +405,7 @@ private fun OrderRow(o: PullOrder, on: Boolean, enabled: Boolean, toggle: () -> 
             .padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top,
     ) {
-        Icon(if (on) Icons.Filled.CheckCircle else Icons.Filled.RadioButtonUnchecked, if (on) "Selected" else "Not selected", Modifier.size(24.dp), tint = if (on) ErpColors.accent else MaterialTheme.colorScheme.onSurfaceVariant)
+        Icon(if (on) Symbols.CheckCircle else Symbols.RadioButtonUnchecked, if (on) "Selected" else "Not selected", Modifier.size(24.dp), tint = if (on) ErpColors.accent else MaterialTheme.colorScheme.onSurfaceVariant)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(o.title, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Medium))
@@ -432,7 +422,7 @@ private fun OutcomeView(r: ImportOutcome, dismiss: () -> Unit) {
     val tone = if (r.clean) Tone.settled else Tone.owed
     Column(Modifier.fillMaxWidth().ledgerRow(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(if (r.clean) Icons.Filled.CheckCircle else Icons.Filled.Warning, contentDescription = null, Modifier.size(20.dp), tint = tone.color())
+            Icon(if (r.clean) Symbols.CheckCircle else Symbols.Warning, contentDescription = null, Modifier.size(20.dp), tint = tone.color())
             Text("Imported ${r.imported} of ${r.requested} order${if (r.requested == 1) "" else "s"}", style = MaterialTheme.typography.bodyLarge, color = tone.color())
         }
         Text(r.whenText, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

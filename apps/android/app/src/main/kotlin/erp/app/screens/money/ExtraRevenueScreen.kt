@@ -1,5 +1,6 @@
 package erp.app.screens.money
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.SegmentedColumn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -11,11 +12,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -93,7 +89,7 @@ private fun RevenueBoard() {
     var deletion by remember { mutableStateOf<OwnerDeletion?>(null) }
 
     ScreenTitle("Extra revenue")
-    ScreenActions { IconButton(onClick = { adding = true }) { Icon(Icons.Filled.Add, contentDescription = "Add extra revenue") } }
+    ScreenActions { IconButton(onClick = { adding = true }) { Icon(Symbols.Add, contentDescription = "Add extra revenue") } }
 
     Box(Modifier.fillMaxSize()) {
         ShelfState(loaded = revenue.loaded, error = revenue.error, offline = revenue.offline, connectionLost = connectionLost) {
@@ -127,7 +123,7 @@ private fun RevenueBoard() {
                         NotAvailableState(
                             "No revenue entries found",
                             why = if (search.isEmpty() && !dates.useFrom) "Add a revenue entry to begin." else "Try adjusting your search or filters.",
-                            icon = Icons.Filled.TrendingUp,
+                            icon = Symbols.TrendingUp,
                         )
                     }
                 }
@@ -157,8 +153,8 @@ private fun RevenueBoard() {
                                 )
                             }
                         } else {
-                            val edit = RowAction("Edit", Icons.Filled.Edit, Tone.house) { editing = r }
-                            val delete = RowAction("Delete", Icons.Filled.Delete, Tone.problem) { deletion = askDelete(r) }
+                            val edit = RowAction("Edit", Symbols.Edit, Tone.house) { editing = r }
+                            val delete = RowAction("Delete", Symbols.Delete, Tone.problem) { deletion = askDelete(r) }
                             SwipeActions(start = edit, end = delete, menu = listOf(edit, delete)) {
                                 Box(Modifier.background(ErpColors.card).fillMaxWidth().ledgerRow()) {
                                     TwoLine(title = r.description, subtitle = whenSaid, trailing = Money.pkr(r.amount))

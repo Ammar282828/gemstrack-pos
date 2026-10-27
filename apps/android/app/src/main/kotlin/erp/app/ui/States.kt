@@ -1,5 +1,6 @@
 package erp.app.ui
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -19,9 +20,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CloudOff
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -143,7 +141,7 @@ fun ShelfState(
     ) { shown ->
         when (shown) {
             0 -> SkeletonLoading(Modifier.fillMaxSize())
-            1 -> NotAvailableState("Couldn't read the books", why = error, icon = Icons.Filled.CloudOff, modifier = Modifier.fillMaxSize())
+            1 -> NotAvailableState("Couldn't read the books", why = error, icon = Symbols.CloudOff, modifier = Modifier.fillMaxSize())
             else -> Column(Modifier.fillMaxSize()) {
                 if (showingOfflineCopy) {
                     Text(
@@ -169,7 +167,7 @@ fun NotAvailableState(
     title: String,
     modifier: Modifier = Modifier,
     why: String? = null,
-    icon: ImageVector = Icons.Filled.Lock,
+    icon: ImageVector = Symbols.Lock,
 ) {
     Column(
         modifier.fillMaxWidth().padding(32.dp).semantics(mergeDescendants = true) {},

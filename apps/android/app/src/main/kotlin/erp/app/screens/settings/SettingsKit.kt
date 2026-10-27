@@ -1,5 +1,6 @@
 package erp.app.screens.settings
 
+import erp.app.ui.icons.Symbols
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -17,9 +18,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -242,7 +240,7 @@ fun SettingsLinkRow(title: String, icon: ImageVector, color: Color, path: String
     ) {
         SettingsIcon(icon, color)
         Text(title, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-        Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Icon(Symbols.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -260,7 +258,7 @@ fun SettingsNavRow(title: String, icon: ImageVector? = null, path: String, sub: 
             Text(title, style = MaterialTheme.typography.bodyLarge)
             if (sub != null) Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Icon(Symbols.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -280,7 +278,7 @@ fun SettingsErrorSection(writer: SettingsWriter) {
 @Composable
 fun ErrorRow(message: String) {
     Row(Modifier.fillMaxWidth().ledgerRow(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
-        Icon(Icons.Filled.Warning, contentDescription = null, Modifier.size(20.dp), tint = Tone.problem.color())
+        Icon(Symbols.Warning, contentDescription = null, Modifier.size(20.dp), tint = Tone.problem.color())
         Text(message, style = MaterialTheme.typography.bodyMedium, color = Tone.problem.color())
     }
 }

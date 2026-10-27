@@ -1,15 +1,11 @@
 package erp.app.screens.settings
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.NotificationsActive
-import androidx.compose.material.icons.filled.NotificationsOff
-import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -142,16 +138,16 @@ fun PhoneSettings() {
         SettingsSectionWith("Notifications on this phone", { Text("The shop's WhatsApp alerts are set in the ERP's Settings → Alerts.") }) {
             when (allowed) {
                 NotificationAccess.Denied -> {
-                    StatusRow("Notifications are off for this app", Icons.Filled.NotificationsOff)
+                    StatusRow("Notifications are off for this app", Symbols.NotificationsOff)
                     ActionRow("Open Settings", onClick = { NotificationPermission.openSettings(context) })
                 }
                 NotificationAccess.NotAsked -> ActionRow("Turn on notifications", onClick = { register() })
                 NotificationAccess.Allowed -> {
                     if (!loaded) {
-                        StatusRow(if (registering) "Registering this phone…" else "Phone not linked", Icons.Filled.NotificationsActive)
+                        StatusRow(if (registering) "Registering this phone…" else "Phone not linked", Symbols.NotificationsActive)
                         ActionRow("Register again", onClick = { register() }, enabled = !registering)
                     } else {
-                        StatusRow("This phone is linked", Icons.Filled.CheckCircle)
+                        StatusRow("This phone is linked", Symbols.CheckCircle)
                         PhoneLogic.kinds.forEach { k ->
                             ToggleRow(k.title, !off.contains(k.id), { on -> if (!saving) save(PhoneLogic.toggled(off, k.id, on)) }, sub = k.detail)
                         }
@@ -225,7 +221,7 @@ fun PhoneSettings() {
 
         SettingsSection(footer = "Add it from the home screen: touch and hold, then Widgets → ${context.getString(erp.app.R.string.app_name)}.") {
             ValueRow("Home-screen widget") { ReadOnly(if (widgetLinked) "Linked" else "Not linked") }
-            SettingsNavRow("Preview widgets", Icons.Filled.Widgets, "/app/widgets")
+            SettingsNavRow("Preview widgets", Symbols.Widgets, "/app/widgets")
             ActionRow(
                 if (linking) "Linking…" else if (widgetLinked) "Link again" else "Link the widget",
                 onClick = {

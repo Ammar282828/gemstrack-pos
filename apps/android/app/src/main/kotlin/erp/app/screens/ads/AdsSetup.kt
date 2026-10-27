@@ -1,5 +1,6 @@
 package erp.app.screens.ads
 
+import erp.app.ui.icons.Symbols
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -11,19 +12,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Circle
-import androidx.compose.material.icons.filled.Cancel
-import androidx.compose.material.icons.filled.Checklist
-import androidx.compose.material.icons.filled.Science
-import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.FormatListNumbered
-import androidx.compose.material.icons.filled.OpenInBrowser
-import androidx.compose.material.icons.filled.Power
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -231,7 +219,7 @@ fun AdsSetupScreen() {
     if (mayUse && status != null) {
         ScreenActions {
             TextButton(onClick = { scope.launch { load(fresh = true) } }, enabled = !loading) {
-                Icon(Icons.Filled.Refresh, contentDescription = null, Modifier.size(18.dp))
+                Icon(Symbols.Refresh, contentDescription = null, Modifier.size(18.dp))
                 Text("Check again", Modifier.padding(start = 6.dp), maxLines = 1)
             }
         }
@@ -249,9 +237,9 @@ fun AdsSetupScreen() {
                     left = {
                         Readiness(s0, pixel)
                         AdsSection(null) {
-                            AdsLink("Audiences", Icons.Filled.Group, "/ads/audiences", "The ERP's customers, Instagram engagers, lookalikes")
-                            AdsLink("Rules", Icons.Filled.Checklist, "/ads/rules", "Meta's automated rules, and every change logged")
-                            AdsLink("A/B tests", Icons.Filled.Science, "/ads/tests", "Two to five ad sets against each other, audiences kept apart")
+                            AdsLink("Audiences", Symbols.Group, "/ads/audiences", "The ERP's customers, Instagram engagers, lookalikes")
+                            AdsLink("Rules", Symbols.Checklist, "/ads/rules", "Meta's automated rules, and every change logged")
+                            AdsLink("A/B tests", Symbols.Science, "/ads/tests", "Two to five ad sets against each other, audiences kept apart")
                         }
                         AppSections(s0, configId, { configId = it }, busy) { id -> scope.launch { save(mapOf("loginConfigId" to id), "config") } }
                         ConnectSection(s0, session.shop.name, busy, onOpen = { openOutside(context, Uri.parse(AdsSetupLogic.setupAddress())) }, onDisconnect = { confirmOff = true })
@@ -315,7 +303,7 @@ private fun StepHeader(n: Int, title: String, done: Boolean?) {
     val tint = when (done) { null -> MaterialTheme.colorScheme.onSurfaceVariant; true -> Tone.settled.color(); false -> Tone.problem.color() }
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
         Icon(
-            when (done) { null -> Icons.Filled.Circle; true -> Icons.Filled.CheckCircle; false -> Icons.Filled.Cancel }, contentDescription = null,
+            when (done) { null -> Symbols.Circle; true -> Symbols.CheckCircle; false -> Symbols.Cancel }, contentDescription = null,
             Modifier.size(if (done == null) 14.dp else 18.dp), tint = tint,
         )
         Text("$n. $title", style = erp.app.ui.theme.ErpType.heading)
@@ -346,7 +334,7 @@ private fun AppSections(s: AdsStatusAnswer, configId: String, onConfigId: (Strin
         LiveRow("Category", ok = app.live?.category != null, known = app.live != null, now = app.live?.category, give = "Business and pages")
         LiveRow("App icon (1024 × 1024)", ok = app.live?.icon == true, known = app.live != null, now = null, give = "${House.serverUrl.trimEnd('/')}/brand/meta-app-icon-1024.png")
         ConfigRow(app, configId, onConfigId, busy, onSaveConfig)
-        AdsLink("The one-time steps in Meta's dashboard", Icons.Filled.FormatListNumbered, "/ads/setup?web=1", "Products, domains, redirect addresses, the login configuration")
+        AdsLink("The one-time steps in Meta's dashboard", Symbols.FormatListNumbered, "/ads/setup?web=1", "Products, domains, redirect addresses, the login configuration")
     }
     AdsSection(
         null,
@@ -368,7 +356,7 @@ private fun LiveRow(label: String, ok: Boolean, known: Boolean, now: String?, gi
     AdsRow(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(
-                if (known && ok) Icons.Filled.CheckCircle else if (known) Icons.Filled.Cancel else Icons.Filled.Circle, contentDescription = null,
+                if (known && ok) Symbols.CheckCircle else if (known) Symbols.Cancel else Symbols.Circle, contentDescription = null,
                 Modifier.size(if (known) 18.dp else 14.dp),
                 tint = if (known && ok) Tone.settled.color() else if (known) Tone.problem.color() else MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -437,10 +425,10 @@ private fun ConnectSection(s: AdsStatusAnswer, shopName: String, busy: String?, 
         }
         AdsActionRow(
             if (s.connection?.connected == true) "Connect again in the browser" else "Connect in the browser", onOpen,
-            icon = Icons.Filled.OpenInBrowser, enabled = (s.app?.secret ?: false) && s.app?.id != null && busy == null,
+            icon = Symbols.OpenInBrowser, enabled = (s.app?.secret ?: false) && s.app?.id != null && busy == null,
         )
         if (s.connection != null) {
-            AdsActionRow(if (busy == "off") "Disconnecting…" else "Disconnect", onDisconnect, icon = Icons.Filled.Power, tone = Tone.problem, enabled = busy == null)
+            AdsActionRow(if (busy == "off") "Disconnecting…" else "Disconnect", onDisconnect, icon = Symbols.Power, tone = Tone.problem, enabled = busy == null)
         }
         s.connectionError?.let { e -> AdsRow { Text(e, style = MaterialTheme.typography.bodySmall, color = Tone.problem.color()) } }
     }
@@ -459,7 +447,7 @@ private fun ChoiceRow(title: String, line: String, picture: String?, on: Boolean
             Text(title)
             if (line.isNotEmpty()) Text(line, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        if (on) Icon(Icons.Filled.CheckCircle, "Chosen", tint = ErpColors.accent)
+        if (on) Icon(Symbols.CheckCircle, "Chosen", tint = ErpColors.accent)
     }
 }
 
@@ -610,7 +598,7 @@ private fun PixelSection(
             !ready -> AdsRow { Text("Connect and choose the ad account first.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
             pixelProblem != null -> {
                 AdsRow { Text(pixelProblem, color = Tone.problem.color()) }
-                AdsActionRow("Try again", onRetry, icon = Icons.Filled.Refresh)
+                AdsActionRow("Try again", onRetry, icon = Symbols.Refresh)
             }
             pixel != null && st != null -> PixelRows(pixel, st, pixelName, onPixelName, busy, onAct, onNew)
             else -> AdsReading("Reading the ad account's pixels…")
@@ -632,7 +620,7 @@ private fun PixelRows(
     for (id in st.carried.filter { it != st.id }) {
         AdsRow(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.Language, null, Modifier.size(18.dp))
+                Icon(Symbols.Language, null, Modifier.size(18.dp))
                 Text("${st.sitesCarrying(id)} already carries pixel $id", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium))
             }
             Text(
@@ -646,7 +634,7 @@ private fun PixelRows(
     if (st.id != null) {
         AdsRow(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(if (st.live) Icons.Filled.CheckCircle else Icons.Filled.Warning, null, Modifier.size(18.dp), tint = if (st.live) Tone.settled.color() else Tone.owed.color())
+                Icon(if (st.live) Symbols.CheckCircle else Symbols.Warning, null, Modifier.size(18.dp), tint = if (st.live) Tone.settled.color() else Tone.owed.color())
                 Text(
                     "Pixel ${st.id} ${if (st.live) "is receiving from the website" else "has not received anything this week"}",
                     color = if (st.live) Tone.settled.color() else Tone.owed.color(),

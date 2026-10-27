@@ -1,13 +1,11 @@
 package erp.app.screens.settings.label
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Print
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import erp.app.ui.TextButton
@@ -168,7 +166,7 @@ internal fun LabelLiveSettings(initial: LabelLiveConfig?) {
                         Modifier.fillMaxWidth().padding(16.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                LabelTapRow(if (testing) "Printing…" else "Test print", ::testPrint, icon = Icons.Filled.Print, enabled = !testing && !changed && saved != null)
+                LabelTapRow(if (testing) "Printing…" else "Test print", ::testPrint, icon = Symbols.Print, enabled = !testing && !changed && saved != null)
             }
             SettingsSection(
                 "Variables",
@@ -201,7 +199,7 @@ internal fun LabelLiveSettings(initial: LabelLiveConfig?) {
                         }
                     }
                 }
-                LabelTapRow("Clear the history", { confirming = true }, icon = Icons.Filled.Delete, danger = true)
+                LabelTapRow("Clear the history", { confirming = true }, icon = Symbols.Delete, danger = true)
             }
             if (confirming) LabelConfirm(
                 "Clear the print history?", "Only this phone's list of printed tags goes; nothing is printed or changed in the ERP.", "Clear",

@@ -1,5 +1,6 @@
 package erp.app.screens.neworder
 
+import erp.app.ui.icons.Symbols
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -10,14 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Undo
-import androidx.compose.material.icons.filled.AddCircle
-import androidx.compose.material.icons.filled.ArrowCircleRight
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.DocumentScanner
-import androidx.compose.material.icons.filled.Inventory2
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import erp.app.ui.Button
 import androidx.compose.material3.MaterialTheme
@@ -170,7 +163,7 @@ private fun NewOrderForm(readsSlip: Boolean, edit: NewOrderEdit?, ratesFirst: Bo
         // The AI slip reader (ScanSlipPage): the ERP's own reader, its answer laid into this draft.
         ScreenActions {
             TextButton(onClick = { readingSlip = true }) {
-                androidx.compose.material3.Icon(Icons.Filled.DocumentScanner, null, Modifier.padding(end = 6.dp))
+                androidx.compose.material3.Icon(Symbols.DocumentScanner, null, Modifier.padding(end = 6.dp))
                 Text("Read a slip")
             }
         }
@@ -426,7 +419,7 @@ private fun NewOrderForm(readsSlip: Boolean, edit: NewOrderEdit?, ratesFirst: Bo
                     if (restored) RestoredBanner(d.fromSale, d.photosLeftOut)
                     if (edit?.invoiced == true) {
                         FormCard {
-                            NoteRow("This order is on an invoice already. The invoice keeps its own copy of the pieces and the money: change those on the invoice.", Icons.Filled.Description)
+                            NoteRow("This order is on an invoice already. The invoice keeps its own copy of the pieces and the money: change those on the invoice.", Symbols.Description)
                         }
                     }
                     when (step) {
@@ -570,8 +563,8 @@ private fun PiecesSection(
                 onRemove = { holder.edit { pieces.removeAll { it.id == piece.id } } },
             )
         }
-        ActionRow("Add a piece", icon = Icons.Filled.AddCircle, onClick = onAdd)
-        ActionRow("Add from stock", icon = Icons.Filled.Inventory2, onClick = onStock)
+        ActionRow("Add a piece", icon = Symbols.AddCircle, onClick = onAdd)
+        ActionRow("Add from stock", icon = Symbols.Inventory2, onClick = onStock)
     }
 }
 
@@ -579,11 +572,11 @@ private fun PiecesSection(
 private fun RestoredBanner(fromSale: Boolean, photosLeftOut: Boolean) {
     FormCard {
         if (fromSale) {
-            NoteRow("These are the pieces of your sale. Once this order is saved they leave the sale.", Icons.Filled.ArrowCircleRight)
+            NoteRow("These are the pieces of your sale. Once this order is saved they leave the sale.", Symbols.ArrowCircleRight)
         } else {
-            NoteRow("Your order in progress is back. It was kept on this phone.", Icons.AutoMirrored.Filled.Undo)
+            NoteRow("Your order in progress is back. It was kept on this phone.", Symbols.Undo)
         }
-        if (photosLeftOut) NoteRow("The sample photos were too many to keep: add them again.", Icons.Filled.Warning, Tone.owed)
+        if (photosLeftOut) NoteRow("The sample photos were too many to keep: add them again.", Symbols.Warning, Tone.owed)
     }
 }
 

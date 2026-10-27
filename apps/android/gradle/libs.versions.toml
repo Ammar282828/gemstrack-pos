@@ -46,7 +46,6 @@ compose-foundation = { module = "androidx.compose.foundation:foundation" }
 compose-material3 = { module = "androidx.compose.material3:material3", version.ref = "material3" }
 compose-material3-adaptive-navigation-suite = { module = "androidx.compose.material3:material3-adaptive-navigation-suite", version.ref = "material3" }
 compose-material3-window-size = { module = "androidx.compose.material3:material3-window-size-class", version.ref = "material3" }
-compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
 compose-adaptive = { module = "androidx.compose.material3.adaptive:adaptive" }
 compose-adaptive-layout = { module = "androidx.compose.material3.adaptive:adaptive-layout" }
 compose-adaptive-navigation = { module = "androidx.compose.material3.adaptive:adaptive-navigation" }

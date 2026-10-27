@@ -1,5 +1,6 @@
 package erp.app.screens.ads
 
+import erp.app.ui.icons.Symbols
 import android.app.Activity
 import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
@@ -13,18 +14,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddPhotoAlternate
-import androidx.compose.material.icons.filled.Cancel
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Checklist
-import androidx.compose.material.icons.filled.EventBusy
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.PhotoLibrary
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.Layers
-import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -559,7 +548,7 @@ private fun NewAdForm(
     AdsPage {
         AdsAlertsSection(s)
         notice?.let { n ->
-            AdsSection(null) { AdsWarningRow(n, Tone.quiet, Icons.Filled.Info) }
+            AdsSection(null) { AdsWarningRow(n, Tone.quiet, Symbols.Info) }
         }
         AdsTwoPane(
             left = {
@@ -706,8 +695,8 @@ private fun PhotosSection(
         if (d.kind == AdsKind.photos && d.photos.size < AdsNewAdDraft.MAX_PHOTOS) {
             AdsRow {
                 AdsChips {
-                    AdsTonalButton(if (d.photos.isEmpty()) "From this phone" else "Add more", onPick, icon = Icons.Filled.AddPhotoAlternate)
-                    AdsTonalButton("Ad account photos", onLibrary, icon = Icons.Filled.PhotoLibrary)
+                    AdsTonalButton(if (d.photos.isEmpty()) "From this phone" else "Add more", onPick, icon = Symbols.AddPhotoAlternate)
+                    AdsTonalButton("Ad account photos", onLibrary, icon = Symbols.PhotoLibrary)
                 }
             }
         }
@@ -716,7 +705,7 @@ private fun PhotosSection(
             Row(Modifier.fillMaxWidth().ledgerRow(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                 erp.app.screens.stock.StockImage(v.thumb ?: v.url, "Story size", v.key, Modifier.size(width = 32.dp, height = 56.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(6.dp)))
                 Text("With its 9:16 version for stories, reels and WhatsApp Status: one ad, each place its own size.", Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
-                IconButton(onClick = { onDraft(d.copy(vertical = null)) }) { Icon(Icons.Filled.Cancel, "Drop the story size", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+                IconButton(onClick = { onDraft(d.copy(vertical = null)) }) { Icon(Symbols.Cancel, "Drop the story size", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
         }
     }
@@ -836,7 +825,7 @@ private fun AudienceSection(d: AdsNewAdDraft, onAudience: () -> Unit) {
                 Text("Who sees it", style = MaterialTheme.typography.bodyLarge)
                 Text(d.audience.words, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(Symbols.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -875,7 +864,7 @@ private fun QuietSection(l: AdsNewAdLists, d: AdsNewAdDraft, now: Instant) {
         null,
         header = {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.EventBusy, null, Modifier.size(20.dp), tint = ErpColors.accent)
+                Icon(Symbols.EventBusy, null, Modifier.size(20.dp), tint = ErpColors.accent)
                 Text(
                     if (d.days == null) "Left running, it would reach days kept free of product ads" else "It would run through days kept free of product ads",
                     style = MaterialTheme.typography.titleSmall,
@@ -900,7 +889,7 @@ private fun QuietSection(l: AdsNewAdLists, d: AdsNewAdDraft, now: Instant) {
 private fun PreviewSection(d: AdsNewAdDraft, busy: Boolean, error: String?, onPreview: () -> Unit) {
     AdsSection("${d.step(6)} · Preview") {
         AdsActionRow(
-            if (busy) "Asking Meta…" else "See it as Instagram will show it", onPreview, icon = Icons.Filled.Visibility, busy = busy,
+            if (busy) "Asking Meta…" else "See it as Instagram will show it", onPreview, icon = Symbols.Visibility, busy = busy,
             enabled = !busy && d.previewable,
         )
         if (error != null) AdsRow { Text(error, style = MaterialTheme.typography.bodySmall, color = Tone.problem.color()) }
@@ -945,7 +934,7 @@ private fun MadeView(m: AdsMade, again: () -> Unit) {
     AdsPage {
         AdsSection(null) {
             Column(Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Icon(Icons.Filled.CheckCircle, null, Modifier.size(40.dp), tint = Tone.settled.color())
+                Icon(Symbols.CheckCircle, null, Modifier.size(40.dp), tint = Tone.settled.color())
                 Text(if (m.live) "The ad is on its way" else "The ad is made, paused", style = MaterialTheme.typography.titleMedium)
                 Text(
                     if (m.live) "Meta reviews every ad first (usually within the hour); it starts as soon as it is approved."
@@ -956,9 +945,9 @@ private fun MadeView(m: AdsMade, again: () -> Unit) {
             }
         }
         AdsSection(null) {
-            AdsLink("See it in Campaigns", Icons.Filled.Checklist, "/ads/campaigns")
-            AdsLink("Test it on another audience", Icons.Filled.Layers, AdsNewAdDraft.adSetPath(m), "The same ad in more ad sets, side by side")
-            AdsActionRow("Make another", again, icon = Icons.Filled.Add)
+            AdsLink("See it in Campaigns", Symbols.Checklist, "/ads/campaigns")
+            AdsLink("Test it on another audience", Symbols.Layers, AdsNewAdDraft.adSetPath(m), "The same ad in more ad sets, side by side")
+            AdsActionRow("Make another", again, icon = Symbols.Add)
         }
     }
 }

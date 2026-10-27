@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.SegmentedColumn
 import erp.app.ui.zoomSource
 import androidx.compose.foundation.background
@@ -22,19 +23,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Forum
-import androidx.compose.material.icons.filled.GridView
-import androidx.compose.material.icons.filled.Public
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.filled.Camera
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -191,9 +179,9 @@ private fun MakeSection(role: String) {
     val hasInvestments = MarketingKit.has("/website/investments", role)
     val hasWebsite = MarketingKit.has("/website/photos", role)
     RowsCard {
-        if (hasInvestments) MarketingLink("Investments", Icons.AutoMirrored.Filled.TrendingUp, "/website/investments")
-        MarketingLink("Pick, caption and send", Icons.AutoMirrored.Filled.Send, MarketingKit.trayPath())
-        if (hasWebsite) MarketingLink("The website", Icons.Filled.Public, MarketingKit.websitePath)
+        if (hasInvestments) MarketingLink("Investments", Symbols.TrendingUp, "/website/investments")
+        MarketingLink("Pick, caption and send", Symbols.Send, MarketingKit.trayPath())
+        if (hasWebsite) MarketingLink("The website", Symbols.Public, MarketingKit.websitePath)
     }
 }
 
@@ -211,20 +199,20 @@ private fun FailingSection(state: PostsState) {
             Modifier.fillMaxWidth().clickable(role = Role.Button, onClickLabel = if (open) "Fold the checks" else "Show the checks") { open = !open }.ledgerRow(),
             horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(Icons.Filled.Warning, contentDescription = null, tint = Tone.owed.color())
+            Icon(Symbols.Warning, contentDescription = null, tint = Tone.owed.color())
             Text(
                 "${failing.size} ${if (failing.size == 1) "thing needs" else "things need"} attention", Modifier.weight(1f),
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium), color = Tone.owed.color(),
             )
             Icon(
-                if (open) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, contentDescription = if (open) "Fold" else "Unfold",
+                if (open) Symbols.ExpandLess else Symbols.ExpandMore, contentDescription = if (open) "Fold" else "Unfold",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         if (open) {
             for (c in failing) {
                 Row(Modifier.fillMaxWidth().ledgerRow(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
-                    Icon(Icons.Filled.Warning, contentDescription = null, tint = Tone.owed.color())
+                    Icon(Symbols.Warning, contentDescription = null, tint = Tone.owed.color())
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text("${c.group}: ${c.label}", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
                         Text(c.fix ?: c.detail, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -267,7 +255,7 @@ private fun QuietDay(state: PostsState) {
         "Nothing out yet. The last was $what, ${MarketingTime.weekday(earlier.at)} at ${MarketingTime.clock(earlier.at)}."
     } else "Nothing in the last two days."
     Row(Modifier.fillMaxWidth().ledgerRow(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(Icons.Filled.Schedule, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Icon(Symbols.Schedule, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(words, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
     }
 }
@@ -283,7 +271,7 @@ private fun SentRow(s: PostSent, state: PostsState) {
             StockImage(piece.thumb, piece.name, piece.id, Modifier.size(44.dp).clip(Radius.thumbShape))
         } else {
             Box(Modifier.size(44.dp).clip(Radius.thumbShape).background(MaterialTheme.colorScheme.surfaceContainerHighest), contentAlignment = Alignment.Center) {
-                Icon(if (storyOnly) Icons.Filled.Camera else Icons.Filled.Forum, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(if (storyOnly) Symbols.Camera else Symbols.Forum, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         TwoLine(title, Modifier.weight(1f), subtitle = places, trailing = MarketingTime.clock(s.at))
@@ -296,7 +284,7 @@ private fun SentRow(s: PostSent, state: PostsState) {
 private fun GoldSection(state: PostsState) {
     Titled("Investments") {
         RowsCard {
-            MarketingLink("Gold post", Icons.AutoMirrored.Filled.TrendingUp, "/website/investments", goldLine(state))
+            MarketingLink("Gold post", Symbols.TrendingUp, "/website/investments", goldLine(state))
         }
     }
 }
@@ -321,8 +309,8 @@ private fun QueueSection(state: PostsState, sendingAll: Boolean, onSpread: () ->
             for (e in items) QueueRow(e, state) { open(e.id) }
             val waiting = state.waiting.size
             if (waiting > 0) {
-                ActionRow("Spread over the day", onSpread, Icons.Filled.Schedule, enabled = !sendingAll)
-                ActionRow(if (sendingAll) "Sending…" else if (waiting > 1) "Send all $waiting now" else "Send it now", onSendAll, Icons.AutoMirrored.Filled.Send, enabled = !sendingAll)
+                ActionRow("Spread over the day", onSpread, Symbols.Schedule, enabled = !sendingAll)
+                ActionRow(if (sendingAll) "Sending…" else if (waiting > 1) "Send all $waiting now" else "Send it now", onSendAll, Symbols.Send, enabled = !sendingAll)
             }
         }
     }
@@ -338,7 +326,7 @@ private fun QueueRow(e: PostQueueEntry, state: PostsState, open: () -> Unit) {
         StockImage(e.thumb, e.headline, e.id, Modifier.size(44.dp).clip(Radius.thumbShape), decodeDataUri = true)
         TwoLine(e.headline.ifEmpty { "A piece" }, Modifier.weight(1f), subtitle = queueNote(e, state))
         QueueBadge(e)
-        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+        Icon(Symbols.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
     }
 }
 
@@ -400,7 +388,7 @@ private fun SiteSection(state: PostsState, hasInvestments: Boolean) {
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    MarketingLink("All ${state.pieces.size} pieces", Icons.Filled.GridView, MarketingKit.piecesPath)
+                    MarketingLink("All ${state.pieces.size} pieces", Symbols.GridView, MarketingKit.piecesPath)
                 }
             }
         }

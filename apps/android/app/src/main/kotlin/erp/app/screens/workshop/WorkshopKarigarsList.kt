@@ -1,5 +1,6 @@
 package erp.app.screens.workshop
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.SearchBarField
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -13,14 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Book
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -172,7 +165,7 @@ fun WorkshopKarigarsList() {
     if (owner) {
         ScreenActions {
             // The karigar form: an owner's, as the ERP's menu has it.
-            IconButton(onClick = { navigator.open("/karigars/add") }) { Icon(Icons.Filled.Add, "Add karigar") }
+            IconButton(onClick = { navigator.open("/karigars/add") }) { Icon(Symbols.Add, "Add karigar") }
         }
     }
 
@@ -187,8 +180,8 @@ fun WorkshopKarigarsList() {
                         onValueChange = { query = it },
                         modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
                         placeholder = { Text("Name or contact") },
-                        leadingIcon = { Icon(Icons.Filled.Search, null) },
-                        trailingIcon = { if (query.isNotEmpty()) IconButton(onClick = { query = "" }) { Icon(Icons.Filled.Close, "Clear search") } },
+                        leadingIcon = { Icon(Symbols.Search, null) },
+                        trailingIcon = { if (query.isNotEmpty()) IconButton(onClick = { query = "" }) { Icon(Symbols.Close, "Clear search") } },
                         singleLine = true,
                         shape = Radius.chipShape,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -224,7 +217,7 @@ fun WorkshopKarigarsList() {
                         NotAvailableState(
                             "No karigars found",
                             why = if (query.isNotEmpty()) "Try a different search term." else "Add a karigar to begin.",
-                            icon = Icons.Filled.Group,
+                            icon = Symbols.Group,
                         )
                     }
                 }
@@ -241,18 +234,18 @@ private fun KarigarCard(k: Karigar, load: WorkshopLoad?, batch: KarigarBatch?, o
     ) {
         Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(k.name, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold))
-            Icon(Icons.Filled.ChevronRight, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(Symbols.ChevronRight, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         BenchLine(load)
         if (batch != null && batch.label.isNotEmpty()) {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.Book, null, Modifier.size(14.dp), tint = ErpColors.accent)
+                Icon(Symbols.Book, null, Modifier.size(14.dp), tint = ErpColors.accent)
                 Text(batch.label, style = MaterialTheme.typography.bodySmall, color = ErpColors.accent)
             }
         }
         k.contact?.takeIf { it.isNotEmpty() }?.let { contact ->
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.Phone, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Symbols.Phone, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(contact, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }

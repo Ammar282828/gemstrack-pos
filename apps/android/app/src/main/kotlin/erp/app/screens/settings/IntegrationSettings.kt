@@ -1,12 +1,8 @@
 package erp.app.screens.settings
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Campaign
-import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.LocalOffer
-import androidx.compose.material.icons.filled.Sync
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -59,7 +55,7 @@ private fun IntegrationsForm(settings: Settings) {
     SettingsPage {
         if (session.shop.websiteSelling) {
             SettingsSection(footer = "Whether the site takes orders, and at what rate.") {
-                SettingsNavRow("Selling on the website", Icons.Filled.Language, "/app/settings/website")
+                SettingsNavRow("Selling on the website", Symbols.Language, "/app/settings/website")
             }
         }
 
@@ -77,17 +73,17 @@ private fun IntegrationsForm(settings: Settings) {
                 Column(Modifier.fillMaxWidth().ledgerRow()) { SkeletonLoading(compact = true) }
             }
             if (shopify?.configured != false) {
-                SettingsNavRow("Connection and import", Icons.Filled.Sync, "/app/settings/shopify")
+                SettingsNavRow("Connection and import", Symbols.Sync, "/app/settings/shopify")
             }
-            SettingsNavRow("On the ERP's page", Icons.Filled.Language, "/settings/integrations?web=1")
+            SettingsNavRow("On the ERP's page", Symbols.Language, "/settings/integrations?web=1")
         }
 
         SettingsSection("Meta", "The Facebook login, ad account, Page, Instagram and pixel.") {
-            SettingsNavRow("Ads › Setup", Icons.Filled.Campaign, "/ads/setup")
+            SettingsNavRow("Ads › Setup", Symbols.Campaign, "/ads/setup")
         }
 
         SettingsSection {
-            SettingsNavRow("Labels and tags", Icons.Filled.LocalOffer, "/settings/printer")
+            SettingsNavRow("Labels and tags", Symbols.LocalOffer, "/settings/printer")
         }
     }
 }

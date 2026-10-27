@@ -1,5 +1,6 @@
 package erp.app.screens.sale
 
+import erp.app.ui.icons.Symbols
 import android.util.Base64
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -12,12 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Done
-import androidx.compose.material.icons.filled.HelpOutline
-import androidx.compose.material.icons.filled.RadioButtonUnchecked
-import androidx.compose.material.icons.filled.Warning
 import erp.app.ui.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -184,7 +179,7 @@ private fun ScanForm(draft: SaleDraft, onDraft: (SaleDraft) -> Unit, keep: Boole
             problem?.let { text ->
                 FormSection("Could not read that") {
                     Row(Modifier.fillMaxWidth().ledgerRow(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.Warning, contentDescription = null, tint = Tone.problem.color())
+                        Icon(Symbols.Warning, contentDescription = null, tint = Tone.problem.color())
                         Text(text, color = Tone.problem.color())
                     }
                 }
@@ -199,7 +194,7 @@ private fun ScanForm(draft: SaleDraft, onDraft: (SaleDraft) -> Unit, keep: Boole
             enabled = reading != null && !busy && n > 0,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp).defaultMinSize(minHeight = 52.dp),
         ) {
-            Icon(Icons.Filled.Done, contentDescription = null, Modifier.size(18.dp))
+            Icon(Symbols.Done, contentDescription = null, Modifier.size(18.dp))
             Text(if (n > 0) "Add ${if (n == 1) "1 line" else "$n lines"} to the sale" else "Add to the sale", Modifier.padding(start = 8.dp))
         }
     }
@@ -217,7 +212,7 @@ private fun ReadingSections(
     a.unreadable?.takeIf { it.isNotEmpty() }?.let { unread ->
         FormSection("Could not make this out") {
             Row(Modifier.fillMaxWidth().ledgerRow(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.HelpOutline, contentDescription = null, tint = Tone.owed.color())
+                Icon(Symbols.HelpOutline, contentDescription = null, tint = Tone.owed.color())
                 Text(unread, color = Tone.owed.color())
             }
         }
@@ -260,7 +255,7 @@ private fun LinesSection(r: SaleBillReading, onReading: (SaleBillReading) -> Uni
                     horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top,
                 ) {
                     Icon(
-                        if (on) Icons.Filled.CheckCircle else Icons.Filled.RadioButtonUnchecked,
+                        if (on) Symbols.CheckCircle else Symbols.RadioButtonUnchecked,
                         contentDescription = if (on) "On the sale" else "Left off",
                         tint = if (on) ErpColors.accent else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -324,7 +319,7 @@ private fun FootSection(r: SaleBillReading, draft: SaleDraft, settings: erp.core
         if (check != null) {
             Row(Modifier.fillMaxWidth().ledgerRow(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
                 Icon(
-                    if (check.second) Icons.Filled.CheckCircle else Icons.Filled.Warning, contentDescription = null,
+                    if (check.second) Symbols.CheckCircle else Symbols.Warning, contentDescription = null,
                     tint = if (check.second) MaterialTheme.colorScheme.onSurfaceVariant else Tone.owed.color(),
                 )
                 Text(check.first, color = if (check.second) MaterialTheme.colorScheme.onSurfaceVariant else Tone.owed.color())

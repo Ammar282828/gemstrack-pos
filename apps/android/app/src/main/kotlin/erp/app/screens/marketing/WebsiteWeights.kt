@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.SearchBarField
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -19,14 +20,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.CloudOff
-import androidx.compose.material.icons.filled.Scale
-import androidx.compose.material.icons.filled.Search
 import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -191,9 +184,9 @@ fun WebsiteWeightsScreen() {
 
     val off = site.settings?.let { !it.weights } ?: false
     when {
-        off -> NotAvailableState("This shop's website prices pieces without weights", icon = Icons.Filled.Scale)
+        off -> NotAvailableState("This shop's website prices pieces without weights", icon = Symbols.Scale)
         pieces != null -> MarketingPinned(bar = if (current != null) ({
-            MarketingActionBar("Save & next", Icons.Filled.Check, { ask(true) }, busy = false)
+            MarketingActionBar("Save & next", Symbols.Check, { ask(true) }, busy = false)
         }) else null) {
             PullToRefreshBox(isRefreshing = refreshing, onRefresh = { scope.launch { refreshing = true; load(); refreshing = false } }) {
                 WeightsPage(
@@ -247,7 +240,7 @@ private fun WeightsPage(
             if (upcoming.isNotEmpty()) UpcomingStrip(upcoming, goTo)
         } else {
             Row(Modifier.fillMaxWidth().ledgerCard(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Icon(Icons.Filled.CheckCircle, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Symbols.CheckCircle, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(
                     if (onlyMissing) "Every photo here has a weight. Switch off “Only photos without a weight” to review or correct any of them."
                     else "Nothing matches. Clear the search or choose another collection.",
@@ -298,7 +291,7 @@ private fun ProgressCard(
         ToggleRow("Only photos without a weight", onlyMissing, setOnlyMissing)
         SearchBarField(
             value = search, onValueChange = setSearch, singleLine = true, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-            placeholder = { Text("Find a photo…") }, leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+            placeholder = { Text("Find a photo…") }, leadingIcon = { Icon(Symbols.Search, contentDescription = null) },
             keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),
         )
     }
@@ -311,9 +304,9 @@ private fun PhotoSection(p: WebsiteWeightPiece, total: Int, index: Int, value: S
             WebsiteWeightPhoto(p, value, Modifier.fillMaxWidth())
         }
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = { goTo(maxOf(index - 1, 0)) }, enabled = index > 0) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Previous") }
+            IconButton(onClick = { goTo(maxOf(index - 1, 0)) }, enabled = index > 0) { Icon(Symbols.KeyboardArrowLeft, "Previous") }
             Text("${index + 1} of $total", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = TabularDigits), color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-            IconButton(onClick = { goTo(minOf(index + 1, total - 1)) }, enabled = index < total - 1) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Next") }
+            IconButton(onClick = { goTo(minOf(index + 1, total - 1)) }, enabled = index < total - 1) { Icon(Symbols.KeyboardArrowRight, "Next") }
         }
     }
 }

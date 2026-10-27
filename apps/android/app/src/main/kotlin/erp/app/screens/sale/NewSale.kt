@@ -1,5 +1,6 @@
 package erp.app.screens.sale
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -12,9 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -208,7 +206,7 @@ private fun Page(s: SaleFormState) {
         ScreenActions {
             var menu by remember { mutableStateOf(false) }
             Box {
-                IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, "More") }
+                IconButton(onClick = { menu = true }) { Icon(Symbols.MoreVert, "More") }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     DropdownMenuItem(
                         text = { Text("Start over", color = Tone.late.color()) },
@@ -279,7 +277,7 @@ private fun Page(s: SaleFormState) {
 @Composable
 private fun EditBanner(edit: SaleEdit) {
     Row(Modifier.ledgerCard(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
-        Icon(Icons.Filled.Edit, contentDescription = null, Modifier.size(20.dp), tint = ErpColors.accent)
+        Icon(Symbols.Edit, contentDescription = null, Modifier.size(20.dp), tint = ErpColors.accent)
         Text(
             if (edit.paidBefore > 0) {
                 "${Money.pkr(edit.paidBefore)} paid before stays on ${edit.invoiceId}. A payment added below is taken now. A piece taken off stays sold."

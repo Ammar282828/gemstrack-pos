@@ -1,5 +1,6 @@
 package erp.app.screens.workshop
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -14,22 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Handyman
-import androidx.compose.material.icons.filled.Inventory2
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.PanoramaFishEye
-import androidx.compose.material.icons.filled.PersonAdd
-import androidx.compose.material.icons.filled.PersonRemove
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.ShoppingBag
-import androidx.compose.material.icons.automirrored.filled.StickyNote2
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -111,32 +96,32 @@ fun WorkshopJobRow(
             }
             Box {
                 IconButton(onClick = { menuOpen = true }, Modifier.size(MinTouchTarget)) {
-                    Icon(Icons.Filled.MoreVert, "Actions for " + job.description)
+                    Icon(Symbols.MoreVert, "Actions for " + job.description)
                 }
                 DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                     if (referencePath != null) {
-                        MenuItem("Open $referenceId", Icons.Filled.Description) { menuOpen = false; actions.open(referencePath) }
+                        MenuItem("Open $referenceId", Symbols.Description) { menuOpen = false; actions.open(referencePath) }
                     }
                     if (!job.isUnassigned) {
-                        MenuItem("Open " + job.karigarName, Icons.Filled.Handyman) { menuOpen = false; actions.open(WorkshopLogic.karigarPath(job.karigarId)) }
+                        MenuItem("Open " + job.karigarName, Symbols.Handyman) { menuOpen = false; actions.open(WorkshopLogic.karigarPath(job.karigarId)) }
                     }
                     if (showsDetails && !busy) {
-                        MenuItem("Details", Icons.Filled.Edit) { menuOpen = false; actions.details(job) }
+                        MenuItem("Details", Symbols.Edit) { menuOpen = false; actions.details(job) }
                     }
                     if (canWrite && !busy) {
                         MenuItem(
                             if (job.isDone) "Mark not done" else "Mark done",
-                            if (job.isDone) Icons.Filled.PanoramaFishEye else Icons.Filled.CheckCircle,
+                            if (job.isDone) Symbols.PanoramaFishEye else Symbols.CheckCircle,
                         ) { menuOpen = false; actions.done(job, !job.isDone) }
                         if (!job.isDone && !job.isUnassigned) {
-                            MenuItem(if (job.hasGiven) "Mark not given" else "Mark given", Icons.Filled.Inventory2) {
+                            MenuItem(if (job.hasGiven) "Mark not given" else "Mark given", Symbols.Inventory2) {
                                 menuOpen = false
                                 actions.given(job, !job.hasGiven)
                             }
                         }
                         if (isStock) {
-                            MenuItem("Details", Icons.Filled.Edit) { menuOpen = false; actions.details(job) }
-                            MenuItem("Delete job", Icons.Filled.Delete, destructive = true) { menuOpen = false; actions.delete(job) }
+                            MenuItem("Details", Symbols.Edit) { menuOpen = false; actions.details(job) }
+                            MenuItem("Delete job", Symbols.Delete, destructive = true) { menuOpen = false; actions.delete(job) }
                         }
                     }
                 }
@@ -145,13 +130,13 @@ fun WorkshopJobRow(
         ReferenceLine(job, referencePath, referenceId, actions)
         if (job.isOnline) {
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.ShoppingBag, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Symbols.ShoppingBag, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("Online sale", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         if (showKarigar && !job.isUnassigned && (job.isDone || (isStock && canWrite))) {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.Handyman, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Symbols.Handyman, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(job.karigarName, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
@@ -186,10 +171,10 @@ private fun StageLabel(job: WorkshopJob) {
         else -> "Ready to give"
     }
     val icon = when {
-        job.isDone -> Icons.Filled.CheckCircle
-        job.isUnassigned -> Icons.Filled.PersonAdd
-        job.hasGiven -> Icons.Filled.Handyman
-        else -> Icons.Filled.Inventory2
+        job.isDone -> Symbols.CheckCircle
+        job.isUnassigned -> Symbols.PersonAdd
+        job.hasGiven -> Symbols.Handyman
+        else -> Symbols.Inventory2
     }
     val tint = when {
         job.isDone -> Tone.settled.color()
@@ -213,7 +198,7 @@ private fun ReferenceLine(job: WorkshopJob, path: String?, id: String, actions: 
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(id, style = MaterialTheme.typography.labelLarge.copy(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Medium))
-                Icon(Icons.Filled.ChevronRight, null, Modifier.size(16.dp))
+                Icon(Symbols.ChevronRight, null, Modifier.size(16.dp))
             }
             val parts = ArrayList<String>()
             job.customerName?.takeIf { it.isNotEmpty() }?.let { parts.add(it) }
@@ -222,7 +207,7 @@ private fun ReferenceLine(job: WorkshopJob, path: String?, id: String, actions: 
         }
     } else {
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Filled.Inventory2, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(Symbols.Inventory2, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
             Text("Stock work", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
@@ -240,9 +225,9 @@ private fun Instructions(notes: String, open: Boolean, onToggle: (Boolean) -> Un
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Icon(Icons.AutoMirrored.Filled.StickyNote2, null, Modifier.size(18.dp))
+            Icon(Symbols.StickyNote2, null, Modifier.size(18.dp))
             Text("Instructions", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium))
-            Icon(Icons.Filled.ExpandMore, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(Symbols.ExpandMore, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         AnimatedVisibility(open) {
             Text(
@@ -273,7 +258,7 @@ private fun Controls(
                 FigureRow(spacing = 12.dp, verticalAlignment = Alignment.CenterVertically) {
                     StatusMenu(stockStatus, busy) { actions.status(job, it) }
                     OutlinedButton(onClick = { actions.details(job) }, enabled = !busy, modifier = Modifier.defaultMinSize(minHeight = MinTouchTarget)) {
-                        Icon(Icons.Filled.Edit, null, Modifier.size(18.dp))
+                        Icon(Symbols.Edit, null, Modifier.size(18.dp))
                         Text("Details", Modifier.padding(start = 6.dp))
                     }
                 }
@@ -286,7 +271,7 @@ private fun Controls(
                 FigureRow(spacing = 12.dp, verticalAlignment = Alignment.CenterVertically) {
                     AssignMenu(job, busy, choices, actions)
                     OutlinedButton(onClick = { actions.done(job, true) }, enabled = !busy, modifier = Modifier.defaultMinSize(minHeight = MinTouchTarget)) {
-                        Icon(Icons.Filled.CheckCircle, null, Modifier.size(18.dp))
+                        Icon(Symbols.CheckCircle, null, Modifier.size(18.dp))
                         Text("Mark done", Modifier.padding(start = 6.dp), fontWeight = FontWeight.Medium)
                     }
                 }
@@ -295,7 +280,7 @@ private fun Controls(
         }
         !job.isDone -> ReadOnlyControls(job)
         else -> Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Filled.CheckCircle, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(Symbols.CheckCircle, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(
                 if (job.hasGiven) "Given " + ShopDate.say(job.givenAt) else "Completed",
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -316,7 +301,7 @@ private fun StatusMenu(current: KarigarJobStatus, busy: Boolean, onPick: (Kariga
             for (s in WorkshopStatusWords.choices) {
                 DropdownMenuItem(
                     text = { Text(WorkshopStatusWords.say(s)) },
-                    leadingIcon = { Icon(if (s == current) Icons.Filled.Check else WorkshopStatusWords.icon(s), null) },
+                    leadingIcon = { Icon(if (s == current) Symbols.Check else WorkshopStatusWords.icon(s), null) },
                     onClick = {
                         open = false
                         if (s != current) onPick(s)
@@ -333,7 +318,7 @@ private fun AssignMenu(job: WorkshopJob, busy: Boolean, choices: WorkshopChoices
     val assigned = !job.isUnassigned
     Box {
         OutlinedButton(onClick = { open = true }, enabled = !busy, modifier = Modifier.defaultMinSize(minHeight = MinTouchTarget)) {
-            Icon(if (assigned) Icons.Filled.Handyman else Icons.Filled.PersonAdd, null, Modifier.size(18.dp), tint = if (assigned) MaterialTheme.colorScheme.onSurface else ErpColors.accent)
+            Icon(if (assigned) Symbols.Handyman else Symbols.PersonAdd, null, Modifier.size(18.dp), tint = if (assigned) MaterialTheme.colorScheme.onSurface else ErpColors.accent)
             Text(
                 if (assigned) job.karigarName else "Assign karigar", Modifier.padding(start = 6.dp),
                 color = if (assigned) MaterialTheme.colorScheme.onSurface else ErpColors.accent,
@@ -341,7 +326,7 @@ private fun AssignMenu(job: WorkshopJob, busy: Boolean, choices: WorkshopChoices
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             if (assigned) {
-                MenuItem("Remove karigar", Icons.Filled.PersonRemove, destructive = true) { open = false; actions.assign(job, "none") }
+                MenuItem("Remove karigar", Symbols.PersonRemove, destructive = true) { open = false; actions.assign(job, "none") }
             }
             if (choices.working.isNotEmpty()) {
                 MenuHeader("Has work now")
@@ -365,7 +350,7 @@ private fun MenuHeader(text: String) {
 private fun KarigarItem(k: Karigar, job: WorkshopJob, actions: WorkshopActions, close: () -> Unit) {
     DropdownMenuItem(
         text = { Text(k.name) },
-        leadingIcon = if (k.id == job.karigarId) ({ Icon(Icons.Filled.Check, null) }) else null,
+        leadingIcon = if (k.id == job.karigarId) ({ Icon(Symbols.Check, null) }) else null,
         onClick = {
             close()
             if (k.id != job.karigarId) actions.assign(job, k.id)
@@ -399,7 +384,7 @@ private fun GivenToggle(job: WorkshopJob, busy: Boolean, actions: WorkshopAction
 @Composable
 private fun ReadOnlyControls(job: WorkshopJob) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Icon(Icons.Filled.Handyman, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Icon(Symbols.Handyman, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         if (job.isUnassigned) {
             Text("No karigar yet", color = Tone.owed.color(), style = MaterialTheme.typography.bodyMedium)
         } else {

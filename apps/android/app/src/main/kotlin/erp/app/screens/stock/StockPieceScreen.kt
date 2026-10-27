@@ -1,5 +1,6 @@
 package erp.app.screens.stock
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.SegmentedColumn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -16,13 +17,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Inventory2
-import androidx.compose.material.icons.filled.Print
-import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material.icons.filled.Verified
 import erp.app.ui.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -134,7 +128,7 @@ private fun Detail(p: Product, settings: Settings?) {
                 },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).defaultMinSize(minHeight = 52.dp),
             ) {
-                Icon(Icons.Filled.ShoppingCart, contentDescription = null)
+                Icon(Symbols.ShoppingCart, contentDescription = null)
                 Text("  Sell")
             }
         }
@@ -290,15 +284,15 @@ private fun TextBlock(title: String, text: String) {
 private fun ErpSection(p: Product, open: (String) -> Unit, onTag: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
         SegmentedColumn {
-            LinkRow("Edit", Icons.Filled.Edit, ErpColors.accent) { open(StockKit.editPath(p.sku)) }
+            LinkRow("Edit", Symbols.Edit, ErpColors.accent) { open(StockKit.editPath(p.sku)) }
             LedgerDivider()
-            LinkRow("Print tag", Icons.Filled.Print, ErpColors.accent, onTag)
+            LinkRow("Print tag", Symbols.Print, ErpColors.accent, onTag)
         }
         LedgerSection("Photo") { StockPiecePhotoField(p.sku, p.name, p.imageUrl) }
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             LedgerHeading("On the ERP's page", Modifier.padding(horizontal = 16.dp))
             SegmentedColumn {
-                LinkRow("Delete", Icons.Filled.Delete, Tone.problem.color()) { open(StockKit.piecePath(p.sku, web = true)) }
+                LinkRow("Delete", Symbols.Delete, Tone.problem.color()) { open(StockKit.piecePath(p.sku, web = true)) }
             }
             Text(
                 "This opens the ERP's own page. Delete asks for the delete code there.",
@@ -341,7 +335,7 @@ private fun StockSoldView(sku: String) {
             NotAvailableState(
                 "Not in stock",
                 why = invoices.error ?: "No piece with the SKU $sku is in stock, and no invoice carries it.",
-                icon = Icons.Filled.Inventory2,
+                icon = Symbols.Inventory2,
             )
             TextButton(onClick = { navigator.open("/products") }) { Text("All stock") }
         }
@@ -354,7 +348,7 @@ private fun StockSoldView(sku: String) {
     ) {
         item {
             Column(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Icon(Icons.Filled.Verified, contentDescription = null, Modifier.padding(bottom = 2.dp), tint = Tone.settled.color())
+                Icon(Symbols.Verified, contentDescription = null, Modifier.padding(bottom = 2.dp), tint = Tone.settled.color())
                 Text("Sold", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold))
                 Text("$sku is no longer in stock.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }

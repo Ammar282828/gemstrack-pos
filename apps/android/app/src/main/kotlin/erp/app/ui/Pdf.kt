@@ -1,5 +1,6 @@
 package erp.app.ui
 
+import erp.app.ui.icons.Symbols
 import android.graphics.Bitmap
 import android.graphics.Color as AndroidColor
 import android.graphics.pdf.PdfRenderer
@@ -23,10 +24,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -129,12 +126,12 @@ fun PdfDocumentScreen(
                 title = { Text(title, maxLines = 1) },
                 navigationIcon = {
                     if (onBack != null) {
-                        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                        IconButton(onClick = onBack) { Icon(Symbols.ArrowBack, contentDescription = "Back") }
                     }
                 },
                 actions = {
                     shown?.let { source ->
-                        IconButton(onClick = { onShare?.invoke(source.file) ?: shareFile(context, source.file, "application/pdf", title, name = fileName) }) { Icon(Icons.Filled.Share, contentDescription = "Share or print") }
+                        IconButton(onClick = { onShare?.invoke(source.file) ?: shareFile(context, source.file, "application/pdf", title, name = fileName) }) { Icon(Symbols.Share, contentDescription = "Share or print") }
                     }
                 },
             )
@@ -145,7 +142,7 @@ fun PdfDocumentScreen(
             when {
                 source != null -> PdfPages(source, Modifier.fillMaxSize())
                 problem != null -> Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
-                    NotAvailableState("Couldn't draw the PDF", why = problem, icon = Icons.Filled.Warning)
+                    NotAvailableState("Couldn't draw the PDF", why = problem, icon = Symbols.Warning)
                     Button(onClick = { failed = null; attempt++ }) { Text("Try again") }
                 }
                 else -> SkeletonLoading(Modifier.fillMaxSize())

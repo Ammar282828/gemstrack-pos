@@ -1,5 +1,6 @@
 package erp.app.screens.settings
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -7,14 +8,6 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.toggleable
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CloudOff
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.FileUpload
-import androidx.compose.material.icons.filled.OpenInNew
-import androidx.compose.material.icons.filled.Restore
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -240,9 +233,9 @@ private fun BackupPage() {
                     if (exporting) LinearProgressIndicator(progress = { progress }, Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp))
                     ActionRow(
                         if (exporting) "Exporting… ${(progress * 100).toInt()}%" else "Download Backup",
-                        onClick = { export() }, icon = Icons.Filled.FileUpload, enabled = !exporting && selected.isNotEmpty(),
+                        onClick = { export() }, icon = Symbols.FileUpload, enabled = !exporting && selected.isNotEmpty(),
                     )
-                    file?.let { f -> ActionRow("Save or send ${f.name}", onClick = { shareFile(context, f, "application/json", f.name) }, icon = Icons.Filled.Share) }
+                    file?.let { f -> ActionRow("Save or send ${f.name}", onClick = { shareFile(context, f, "application/json", f.name) }, icon = Symbols.Share) }
                 }
             }
 
@@ -251,7 +244,7 @@ private fun BackupPage() {
                 "Restore from backup",
                 "Upload a previously exported JSON backup. Documents are merged — existing records are updated, nothing is deleted. It writes over the live books, so it is done on the ERP’s own page.",
             ) {
-                SettingsNavRow("Restore from Backup in the ERP", Icons.Filled.Restore, "/settings/backups?web=1")
+                SettingsNavRow("Restore from Backup in the ERP", Symbols.Restore, "/settings/backups?web=1")
             }
 
             // MARK: Sold Product Recovery
@@ -267,7 +260,7 @@ private fun BackupPage() {
                             TwoLine(p.name, Modifier.weight(1f), subtitle = p.sku)
                             if (recovering == p.sku) Column { SkeletonLoading(compact = true) }
                             else TextButton(onClick = { reAdd(p) }, enabled = recovering == null) {
-                                Icon(Icons.Filled.AddCircle, contentDescription = null)
+                                Icon(Symbols.AddCircle, contentDescription = null)
                                 Text("  Re-Add")
                             }
                         }
@@ -281,7 +274,7 @@ private fun BackupPage() {
                 "Firestore’s Point-in-Time Recovery lets you restore to any minute in the last 7 days via the Google Cloud Console. Managed by Google Cloud.",
             ) {
                 NoteRow("PITR must be enabled in your Firebase project. Restoration overwrites your current data — consult a developer before using it.")
-                ActionRow("Open Firestore Console", onClick = { openAddress(context, android.content.Intent.ACTION_VIEW, BackupLogic.consoleUrl(House.firebaseProjectId)) }, icon = Icons.Filled.OpenInNew)
+                ActionRow("Open Firestore Console", onClick = { openAddress(context, android.content.Intent.ACTION_VIEW, BackupLogic.consoleUrl(House.firebaseProjectId)) }, icon = Symbols.OpenInNew)
             }
 
             // MARK: Danger Zone
@@ -290,7 +283,7 @@ private fun BackupPage() {
                     ValueInput(deleteCountText, { deleteCountText = it }, "1", "Number of pieces", keyboard = KeyboardType.Number)
                 }
                 val count = BackupLogic.deleteCount(deleteCountText)
-                ActionRow(BackupLogic.deleteLabel(count), onClick = { askToDelete() }, icon = Icons.Filled.Delete, enabled = count > 0, tone = Tone.problem)
+                ActionRow(BackupLogic.deleteLabel(count), onClick = { askToDelete() }, icon = Symbols.Delete, enabled = count > 0, tone = Tone.problem)
             }
         }
     }
@@ -302,7 +295,7 @@ private fun BackupPage() {
 @Composable
 private fun ErrorishRow(message: String) {
     Row(Modifier.fillMaxWidth().ledgerRow(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(Icons.Filled.CloudOff, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Icon(Symbols.CloudOff, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(message, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

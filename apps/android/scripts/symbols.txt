@@ -1,0 +1,249 @@
+# Kotlin name, Material Symbols name, then flags: F = drawn filled by default, M = mirrors in right-to-left, + = also in Symbols.Fill (the selected look).
+# Generated into app/src/main/kotlin/erp/app/ui/icons/Symbols.kt by scripts/symbols.py
+AccountBalance account_balance +
+AccountBalanceWallet account_balance_wallet +
+AccountCircle account_circle
+Add add
+AddAPhoto add_a_photo
+AddCircle add_circle
+AddCircleOutline add_circle +
+AddPhotoAlternate add_photo_alternate +
+AddShoppingCart add_shopping_cart
+Adjust adjust +
+Archive archive
+ArrowBack arrow_back M
+ArrowCircleDown arrow_circle_down
+ArrowCircleRight arrow_circle_right
+ArrowCircleUp arrow_circle_up
+ArrowDownward arrow_downward
+ArrowDropDown arrow_drop_down
+ArrowForward arrow_forward M
+ArrowOutward arrow_outward
+ArrowUpward arrow_upward
+Article article M
+Assignment assignment M+
+AttachMoney attach_money
+AutoAwesome auto_awesome +
+AutoFixHigh auto_fix_high
+AutoStories auto_stories
+Autorenew autorenew
+BarChart bar_chart +
+Block block
+Book book
+BrokenImage broken_image
+Brush brush
+Build build +
+BusinessCenter business_center +
+Cake cake
+CalendarMonth calendar_month +
+CalendarToday calendar_today
+Call call
+CallMerge call_merge M
+CallReceived call_received
+Camera camera
+CameraAlt photo_camera
+Campaign campaign +
+Cancel cancel F
+CellTower cell_tower
+Chat chat M
+Check check
+CheckBox check_box
+CheckBoxOutlineBlank check_box_outline_blank
+CheckCircle check_circle F
+Checklist checklist +
+ChevronRight chevron_right
+Circle circle F
+Clear close
+ClearAll clear_all
+Close close
+CloudOff cloud_off
+Construction construction +
+ContactPage contact_page +
+Contacts contacts +
+ContentCopy content_copy
+ContentCut content_cut
+ContentPaste content_paste
+CreditCard credit_card
+Crop crop
+CropSquare crop_square +
+DataObject data_object
+Delete delete
+DeleteOutline delete
+Description description
+Diamond diamond +
+DirectionsWalk directions_walk
+DocumentScanner document_scanner
+Domain domain
+Done done
+Download download +
+Edit edit +
+EditNote edit_note
+EmojiEvents emoji_events
+Engineering engineering
+Error error F
+ErrorOutline error
+EventAvailable event_available
+EventBusy event_busy
+ExpandLess expand_less
+ExpandMore expand_more
+Explore explore +
+Extension extension
+FactCheck fact_check M
+Favorite favorite F
+FiberManualRecord fiber_manual_record F
+FileCopy file_copy
+FileDownload file_download
+FileUpload file_upload
+FilterList filter_list
+FilterListOff filter_list_off
+Fingerprint fingerprint
+Folder folder
+FolderOff folder_off
+FolderOpen folder_open
+FormatListNumbered format_list_numbered
+Forum forum
+GppMaybe gpp_maybe
+GpsFixed my_location
+GraphicEq graphic_eq
+GridOn grid_on
+GridView grid_view +
+Group group
+Groups groups +
+Handyman handyman
+Hardware hardware
+HelpOutline help M
+History history +
+Home home +
+Image image
+Inbox inbox
+Info info
+Inventory inventory +
+Inventory2 inventory_2 +
+IosShare ios_share
+KeyboardArrowDown keyboard_arrow_down
+KeyboardArrowLeft keyboard_arrow_left M
+KeyboardArrowRight keyboard_arrow_right M
+KeyboardArrowUp keyboard_arrow_up
+Landscape landscape
+Language language +
+Layers layers +
+LibraryBooks library_books
+Lightbulb lightbulb
+Link link
+ListAlt list_alt
+LocalOffer sell
+LocalShipping local_shipping
+LocationOn location_on
+Lock lock
+LockOpen lock_open
+Logout logout M
+MenuBook menu_book M
+Message chat M
+Mic mic +
+MicOff mic_off
+MoreHoriz more_horiz
+MoreVert more_vert
+NightsStay nights_stay
+NorthWest north_west
+NoteAdd note_add
+NoteAlt note_alt
+Notifications notifications +
+NotificationsActive notifications_active
+NotificationsOff notifications_off
+OpenInBrowser open_in_browser
+OpenInFull open_in_full
+OpenInNew open_in_new M
+Paid paid +
+Palette palette +
+PanTool pan_tool
+PanoramaFishEye panorama_fish_eye
+Pause pause
+PauseCircle pause_circle
+Payments payments +
+Pending pending
+PendingActions pending_actions +
+People group +
+Percent percent
+Person person
+PersonAdd person_add
+PersonOff person_off
+PersonRemove person_remove
+PersonSearch person_search
+Phone call
+PhoneAndroid phone_android
+PhotoCamera photo_camera +
+PhotoLibrary photo_library
+PhotoSizeSelectLarge photo_size_select_large
+PictureAsPdf picture_as_pdf
+PieChart pie_chart +
+PinDrop pin_drop
+PlayArrow play_arrow
+Podcasts podcasts
+Power power +
+Print print
+Public public
+PushPin push_pin
+QrCodeScanner qr_code_scanner +
+QuestionMark question_mark
+RadioButtonUnchecked radio_button_unchecked
+Receipt receipt +
+Redo redo M
+Refresh refresh
+Remove remove
+RemoveCircle do_not_disturb_on
+RemoveCircleOutline do_not_disturb_on
+Replay replay
+Restore history
+RocketLaunch rocket_launch +
+RotateRight rotate_right
+Save save
+Scale scale +
+Schedule schedule
+Science science
+Search search +
+Sell sell +
+Send send M+
+Sensors sensors +
+Settings settings +
+Share share
+Shield shield
+ShoppingBag shopping_bag
+ShoppingCart shopping_cart
+ShowChart show_chart
+Shuffle shuffle
+Sms sms
+Star star F
+StarBorder star
+StickyNote2 sticky_note_2 M
+Stop stop
+Storage storage +
+Storefront storefront
+Straighten straighten
+SwapHoriz swap_horiz
+SwapVert swap_vert
+Sync sync
+TableChart table_chart
+TouchApp touch_app
+TrendingDown trending_down M
+TrendingUp trending_up M+
+Troubleshoot troubleshoot
+Tune tune +
+Unarchive unarchive +
+Undo undo M+
+UnfoldMore unfold_more
+Verified verified F
+VerifiedUser verified_user F
+VideoLibrary video_library
+ViewAgenda view_agenda +
+ViewList view_list M
+ViewQuilt view_quilt
+Visibility visibility
+VisibilityOff visibility_off
+Warning warning F
+Whatshot whatshot
+Widgets widgets
+WifiOff wifi_off
+Work work
+WorkOutline work
+ZoomIn zoom_in
+ZoomOut zoom_out

@@ -1,5 +1,6 @@
 package erp.app.screens.invoices
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.SearchBarField
 import erp.app.ui.appearOnce
 import erp.app.ui.AppClock
@@ -28,17 +29,6 @@ import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Message
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.MoreHoriz
-import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material.icons.filled.Print
-import androidx.compose.material.icons.filled.Search
 import erp.app.ui.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -186,16 +176,16 @@ fun InvoicesList() {
     }
 
     fun actions(inv: Invoice): List<RowAction> = buildList {
-        if (canPay && isOwing(inv)) add(RowAction("Take payment", Icons.Filled.Payments, Tone.settled) { paying = inv })
-        add(RowAction(if (inv.sentOnWhatsApp == null) "Send on WhatsApp" else "Send again on WhatsApp", Icons.AutoMirrored.Filled.Message, Tone.credit) { sending = inv })
-        add(RowAction("Print / PDF", Icons.Filled.Print, Tone.quiet) { pdf = InvoiceFacts.pdfTarget(inv, byCustomer) })
+        if (canPay && isOwing(inv)) add(RowAction("Take payment", Symbols.Payments, Tone.settled) { paying = inv })
+        add(RowAction(if (inv.sentOnWhatsApp == null) "Send on WhatsApp" else "Send again on WhatsApp", Symbols.Message, Tone.credit) { sending = inv })
+        add(RowAction("Print / PDF", Symbols.Print, Tone.quiet) { pdf = InvoiceFacts.pdfTarget(inv, byCustomer) })
     }
 
     ScreenTitle("Invoices")
     ScreenActions {
         IconButton(onClick = { filtering = true }) {
             Icon(
-                Icons.Filled.FilterList,
+                Symbols.FilterList,
                 contentDescription = if (anyFilter) "Filter, on" else "Filter",
                 tint = if (anyFilter) ErpColors.accent else MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -253,8 +243,8 @@ fun InvoicesList() {
                                 Column(Modifier.appearOnce(if (group === groups.first()) i else Int.MAX_VALUE).padding(horizontal = 16.dp).readableColumn().padding(bottom = if (last) 0.dp else 2.dp).clip(shape)) {
                                     SwipeActions(
                                         // The bill to the customer: the commonest thing after a sale, the same send as the invoice page's.
-                                        start = RowAction("Send on WhatsApp", Icons.AutoMirrored.Filled.Message, Tone.credit) { sending = inv },
-                                        end = if (canPay && isOwing(inv)) RowAction("Take payment", Icons.Filled.Payments, Tone.settled) { paying = inv } else null,
+                                        start = RowAction("Send on WhatsApp", Symbols.Message, Tone.credit) { sending = inv },
+                                        end = if (canPay && isOwing(inv)) RowAction("Take payment", Symbols.Payments, Tone.settled) { paying = inv } else null,
                                         menu = actions(inv),
                                         onClick = { navigator.open(InvoiceFacts.path(inv.id)) },
                                     ) {
@@ -323,9 +313,9 @@ private fun LazyGridScope.head(
             onValueChange = onSearch,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).readableColumn(),
             placeholder = { Text("Search invoices") },
-            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+            leadingIcon = { Icon(Symbols.Search, contentDescription = null) },
             trailingIcon = {
-                if (search.isNotEmpty()) IconButton(onClick = { onSearch("") }) { Icon(Icons.Filled.Close, contentDescription = "Clear search") }
+                if (search.isNotEmpty()) IconButton(onClick = { onSearch("") }) { Icon(Symbols.Close, contentDescription = "Clear search") }
             },
             singleLine = true,
             shape = Radius.chipShape,
@@ -410,10 +400,10 @@ private fun Modifier.chosenEdge(on: Boolean): Modifier =
 private fun EmptyState(filtering: Boolean, onClear: () -> Unit, onNewSale: () -> Unit) {
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         if (filtering) {
-            NotAvailableState("No matches", why = "Try adjusting your search or filter.", icon = Icons.Filled.Search)
+            NotAvailableState("No matches", why = "Try adjusting your search or filter.", icon = Symbols.Search)
             TextButton(onClick = onClear) { Text("Clear filters") }
         } else {
-            NotAvailableState("No invoices yet", why = "A sale you make will be here, with what is still owed on it.", icon = Icons.Filled.Description)
+            NotAvailableState("No invoices yet", why = "A sale you make will be here, with what is still owed on it.", icon = Symbols.Description)
             TextButton(onClick = onNewSale) { Text("New sale") }
         }
     }
@@ -549,14 +539,14 @@ private fun InvoiceCard(
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (canPay && isOwing(inv)) {
                 TextButton(onClick = take, Modifier.defaultMinSize(minHeight = 48.dp)) {
-                    Icon(Icons.Filled.Payments, contentDescription = null)
+                    Icon(Symbols.Payments, contentDescription = null)
                     Spacer(Modifier.size(8.dp))
                     Text("Take payment", fontWeight = FontWeight.Medium)
                 }
             }
             Spacer(Modifier.weight(1f))
             Box {
-                IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreHoriz, contentDescription = "Actions for ${inv.id}") }
+                IconButton(onClick = { menu = true }) { Icon(Symbols.MoreHoriz, contentDescription = "Actions for ${inv.id}") }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     for (a in actions) DropdownMenuItem(text = { Text(a.label) }, leadingIcon = { Icon(a.icon, null) }, onClick = { menu = false; a.run() })
                 }
@@ -608,15 +598,15 @@ private fun InvoiceFilterSheet(
             }
             // Any span of days, on top of a month (the web's date range picker).
             TextButton(onClick = onPickRange) {
-                Icon(Icons.Filled.CalendarMonth, contentDescription = null)
+                Icon(Symbols.CalendarMonth, contentDescription = null)
                 Spacer(Modifier.size(8.dp))
                 Text(filter.rangeFrom?.let { InvoiceCalendar.caption(it, filter.rangeTo) } ?: "Date range")
             }
-            if (filter.rangeFrom != null) TextButton(onClick = onClearRange) { Icon(Icons.Filled.Close, null); Spacer(Modifier.size(8.dp)); Text("Clear the date range") }
-            if (narrowed) TextButton(onClick = onClear) { Icon(Icons.Filled.Close, null); Spacer(Modifier.size(8.dp)); Text("Clear filters") }
+            if (filter.rangeFrom != null) TextButton(onClick = onClearRange) { Icon(Symbols.Close, null); Spacer(Modifier.size(8.dp)); Text("Clear the date range") }
+            if (narrowed) TextButton(onClick = onClear) { Icon(Symbols.Close, null); Spacer(Modifier.size(8.dp)); Text("Clear filters") }
             HorizontalDivider()
             // Import Shopify CSV and the payment links are the ERP's own page.
-            TextButton(onClick = onWeb) { Icon(Icons.Filled.Language, null); Spacer(Modifier.size(8.dp)); Text("Open in the ERP") }
+            TextButton(onClick = onWeb) { Icon(Symbols.Language, null); Spacer(Modifier.size(8.dp)); Text("Open in the ERP") }
         }
     }
 }

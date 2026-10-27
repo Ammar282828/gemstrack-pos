@@ -1,5 +1,6 @@
 package erp.app.screens.analytics
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -10,8 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -168,12 +167,12 @@ private fun AnaEmptyPage(kind: AnaEmptyKind, period: AnaPeriodState) {
             AnaEmptyKind.nothingInRange -> NotAvailableState(
                 "Nothing in this range",
                 why = "There are no invoices or orders in the selected period. Pick another period to see more.",
-                icon = Icons.Filled.BarChart,
+                icon = Symbols.BarChart,
             )
             AnaEmptyKind.noData -> NotAvailableState(
                 "No data yet",
                 why = "There is no data available to generate analytics yet.",
-                icon = Icons.Filled.BarChart,
+                icon = Symbols.BarChart,
             )
         }
     }

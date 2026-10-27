@@ -1,5 +1,6 @@
 package erp.app.screens.neworder
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.SegmentedColumn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -21,10 +22,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.UnfoldMore
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenu
@@ -289,7 +286,7 @@ internal fun PickerRow(title: String, selected: String, options: List<Pair<Strin
         ) {
             Text(title, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
             Text(shown, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.End)
-            Icon(Icons.Filled.ArrowDropDown, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(Symbols.ArrowDropDown, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             options.forEach { (id, label) ->
@@ -402,7 +399,7 @@ internal fun SizeFieldRow(title: String, options: List<String>, value: String, o
         trailing = {
             Box {
                 IconButton(onClick = { open = true }, Modifier.size(MinTouchTarget)) {
-                    Icon(Icons.Filled.UnfoldMore, "Choose a $title from the scale", Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(Symbols.UnfoldMore, "Choose a $title from the scale", Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
                     DropdownMenuItem(text = { Text("No size") }, onClick = { open = false; onChange("") })
@@ -436,7 +433,7 @@ internal fun FullScreenPage(
                 topBar = {
                     TopAppBar(
                         title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                        navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back") } },
+                        navigationIcon = { IconButton(onClick = onBack) { Icon(Symbols.ArrowBack, "Back") } },
                         actions = actions,
                         colors = TopAppBarDefaults.topAppBarColors(containerColor = ErpColors.ground),
                     )

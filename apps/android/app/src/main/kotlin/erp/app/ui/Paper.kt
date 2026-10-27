@@ -1,5 +1,6 @@
 package erp.app.ui
 
+import erp.app.ui.icons.Symbols
 import android.app.Activity
 import android.content.Intent
 import android.graphics.Bitmap
@@ -21,11 +22,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.DocumentScanner
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -195,11 +191,11 @@ fun PaperPicker(
     val off = disabled || loading || room <= 0
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
         FilledTonalButton(onClick = ::scan, enabled = !off, modifier = Modifier.defaultMinSize(minHeight = MinTouchTarget)) {
-            Icon(Icons.Filled.DocumentScanner, contentDescription = null, Modifier.size(18.dp))
+            Icon(Symbols.DocumentScanner, contentDescription = null, Modifier.size(18.dp))
             Text(scanTitle, Modifier.padding(start = 6.dp))
         }
         FilledTonalButton(onClick = ::library, enabled = !off, modifier = Modifier.defaultMinSize(minHeight = MinTouchTarget)) {
-            Icon(Icons.Filled.PhotoLibrary, contentDescription = null, Modifier.size(18.dp))
+            Icon(Symbols.PhotoLibrary, contentDescription = null, Modifier.size(18.dp))
             Text("From Photos", Modifier.padding(start = 6.dp))
         }
         if (loading) SkeletonLoading(compact = true)
@@ -264,13 +260,13 @@ fun PaperNamePick(label: String, guess: PaperNameGuess, nobody: String, pick: (P
         val pinned = guess.pinned
         if (pinned != null) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = ErpColors.accent)
+                Icon(Symbols.CheckCircle, contentDescription = null, tint = ErpColors.accent)
                 Text(pinned.name, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
                 TextButton(onClick = { pick(null) }, Modifier.defaultMinSize(minHeight = MinTouchTarget)) { Text("Not them") }
             }
         } else if (guess.candidates.isNotEmpty()) {
             guess.candidates.forEach { c ->
-                ActionRow(c.name, { pick(c) }, Icons.Filled.Person)
+                ActionRow(c.name, { pick(c) }, Symbols.Person)
             }
         } else {
             Text(nobody, Modifier.padding(16.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)

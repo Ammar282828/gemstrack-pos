@@ -1,5 +1,6 @@
 package erp.app.screens.ads
 
+import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -12,9 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.EmojiEvents
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -327,7 +325,7 @@ fun AdsTestsContent(
                     if (act != null) {
                         AdsActionRow(
                             "Meta's verdict, in Ads Manager", { openAddress(context, android.content.Intent.ACTION_VIEW, AdsTestsLogic.verdictUrl(act)) },
-                            icon = Icons.AutoMirrored.Filled.OpenInNew,
+                            icon = Symbols.OpenInNew,
                         )
                     }
                 }
@@ -369,7 +367,7 @@ private fun TestCard(t: AdsTest, cur: String) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(c.name, style = MaterialTheme.typography.titleSmall)
-                    if (t.ahead == c.name) Icon(Icons.Filled.EmojiEvents, "Ahead", Modifier.size(16.dp), tint = Tone.owed.color())
+                    if (t.ahead == c.name) Icon(Symbols.EmojiEvents, "Ahead", Modifier.size(16.dp), tint = Tone.owed.color())
                     Text(c.adsets.joinToString(", "), Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
                 FigureRow(spacing = 8.dp) {

@@ -1,5 +1,6 @@
 package erp.app.screens.work
 
+import erp.app.ui.icons.Symbols
 import erp.app.ui.AppClock
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -8,8 +9,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -107,7 +106,7 @@ private fun WorkDayRow(label: String, day: LocalDate, latest: LocalDate, earlies
         Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp).clickable(role = Role.Button) { open = true }.padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Icon(Icons.Filled.CalendarMonth, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Icon(Symbols.CalendarMonth, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
         Text(erp.core.logic.ShopCalendar.longDay(day.toString()), color = ErpColors.accent, fontWeight = FontWeight.Medium)
     }
