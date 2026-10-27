@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,7 +17,6 @@ import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import erp.app.ui.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -420,7 +420,7 @@ private fun WordsField(label: String, own: String, now: String, reset: () -> Uni
 
 @Composable
 private fun Field(value: String, onChange: (String) -> Unit, placeholder: String, minLines: Int = 1, maxLines: Int = 1) {
-    OutlinedTextField(
+    TextField(
         value = value, onValueChange = onChange, modifier = Modifier.fillMaxWidth(), placeholder = { Text(placeholder, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)) },
         singleLine = maxLines == 1, minLines = minLines, maxLines = maxLines,
     )

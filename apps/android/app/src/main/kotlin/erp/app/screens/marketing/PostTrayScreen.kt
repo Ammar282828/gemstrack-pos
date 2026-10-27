@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
 import erp.core.logic.ShopNumber
@@ -35,7 +36,6 @@ import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
 import erp.app.ui.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import erp.app.ui.SegmentedButton
 import erp.app.ui.SegmentedButtonDefaults
 import erp.app.ui.SingleChoiceSegmentedButtonRow
@@ -454,7 +454,7 @@ private fun DesignSection(
 ) {
     FormSection("Crop and design") {
         WebsitePhotoEditRows(edit, model.engine, card.designFields(model.metal), locked, shapes = false) { op, params, label -> onAI(edit, op, params, label) }
-        OutlinedTextField(
+        TextField(
             card.designName, { card.designName = it }, Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
             singleLine = true, label = { Text("Name on the photo") },
         )
@@ -479,7 +479,7 @@ private fun WeightSection(card: PostTrayCard, siteName: String, locked: Boolean)
         if (card.design == null) ToggleRow("Weight on the photo", card.overlay, { if (!locked) card.overlay = it })
         Row(Modifier.fillMaxWidth().ledgerRow(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("Weight", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-            OutlinedTextField(
+            TextField(
                 card.weight, { v -> if (!locked) card.weight = ShopNumber.ascii(v).replace(",", ".").filter { it in '0'..'9' || it == '.' } }, Modifier.width(120.dp), singleLine = true,
                 placeholder = { Text("0.00") }, textStyle = MaterialTheme.typography.bodyLarge.copy(textAlign = TextAlign.End, fontFeatureSettings = TabularDigits),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), enabled = !locked,
@@ -507,7 +507,7 @@ private fun WeightSection(card: PostTrayCard, siteName: String, locked: Boolean)
 private fun CaptionSection(card: PostTrayCard, model: PostTrayModel, locked: Boolean, onAI: () -> Unit) {
     val scope = rememberCoroutineScope()
     FormSection("Caption") {
-        OutlinedTextField(
+        TextField(
             card.caption, { card.caption = it; card.edited = true }, Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
             minLines = 6, maxLines = 16, enabled = !locked, placeholder = { Text("Caption") },
             textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),

@@ -1,5 +1,6 @@
 package erp.app.screens.design
 
+import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
 import androidx.compose.foundation.background
@@ -16,7 +17,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -82,7 +82,7 @@ fun DesignAccountAds(folders: List<DesignFolder>, onKept: () -> Unit) {
     val shown = (ads ?: emptyList()).filter { a -> val hay = "${a.name} ${a.place}".lowercase(); words.all { hay.contains(it) } }
 
     Column(Modifier.fillMaxSize()) {
-        OutlinedTextField(q, { q = it }, Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), singleLine = true, placeholder = { Text("Find an ad") })
+        TextField(q, { q = it }, Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), singleLine = true, placeholder = { Text("Find an ad") })
         PickerRow("Keep into", to, listOf("" to "Unfiled") + folders.map { it.id to it.name }) { to = it }
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {

@@ -26,7 +26,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import erp.app.ui.Switch
 import androidx.compose.material3.Text
@@ -233,7 +232,7 @@ fun FieldRow(
     leading: ImageVector? = null,
 ) {
     val focus = LocalFocusManager.current
-    OutlinedTextField(
+    TextField(
         value = value,
         onValueChange = onChange,
         modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),

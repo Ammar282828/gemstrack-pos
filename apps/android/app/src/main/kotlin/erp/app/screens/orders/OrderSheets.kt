@@ -1,5 +1,6 @@
 package erp.app.screens.orders
 
+import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
 import android.content.Intent
@@ -19,7 +20,6 @@ import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
 import erp.app.ui.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import erp.app.ui.Switch
 import androidx.compose.material3.Text
 import erp.app.ui.TextButton
@@ -316,7 +316,7 @@ fun OrderNotifySheet(order: Order, onDismiss: () -> Unit, kind: OrderActions.Mes
             else if (kind == OrderActions.MessageKind.summary) "Would you like to send a summary of this order to the customer?"
             else "The order status has been updated. Would you like to send a notification?",
         ) {
-            OutlinedTextField(
+            TextField(
                 value = phone, onValueChange = { phone = it }, modifier = Modifier.fillMaxWidth(), singleLine = true,
                 label = { Text("WhatsApp number") }, placeholder = { Text("0300 1234567") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
@@ -500,7 +500,7 @@ fun OrderLeopardsSheet(order: Order, onDismiss: () -> Unit) {
                     Icon(Symbols.LocalShipping, null, Modifier.size(18.dp))
                     Text("Book with Leopards", Modifier.padding(start = 8.dp))
                 }
-                OutlinedTextField(
+                TextField(
                     value = cn, onValueChange = { cn = it.uppercase() }, modifier = Modifier.fillMaxWidth(), singleLine = true,
                     label = { Text("CN number") }, placeholder = { Text("CN booked at the counter") },
                 )

@@ -1,5 +1,6 @@
 package erp.app.screens.orders
 
+import erp.app.nav.LocalFabClearance
 import erp.app.ui.icons.Symbols
 import erp.app.ui.SearchBarField
 import erp.app.ui.appearOnce
@@ -33,7 +34,6 @@ import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
 import erp.app.ui.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import erp.app.ui.SegmentedButton
 import erp.app.ui.SegmentedButtonDefaults
 import erp.app.ui.SingleChoiceSegmentedButtonRow
@@ -231,7 +231,7 @@ fun OrdersHub() {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(columns),
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(pad),
+                contentPadding = PaddingValues(start = pad, top = pad, end = pad, bottom = maxOf(pad, LocalFabClearance.current)),
                 horizontalArrangement = Arrangement.spacedBy(20.dp),
                 verticalArrangement = Arrangement.spacedBy(if (grid) 20.dp else 14.dp),
             ) {

@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -23,7 +24,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import erp.app.ui.TextButton
 import androidx.compose.runtime.Composable
@@ -205,7 +205,7 @@ private fun PostAlbumSitePicker(card: PostTrayCard, model: PostTrayModel, onSay:
     }.take(80)
     FullScreenSheet(title = "Add a photo", onCancel = onClose, cancelText = "Done", confirmText = "Done", onConfirm = onClose) {
         Column(Modifier.fillMaxSize()) {
-            OutlinedTextField(
+            TextField(
                 search, { search = it }, Modifier.fillMaxWidth().padding(16.dp), singleLine = true, placeholder = { Text("Search: ruby, kara, jhumka…") },
             )
             LazyColumn(Modifier.fillMaxSize()) {

@@ -191,8 +191,9 @@ fun InvoiceWhatsAppSend(
             Surface(
                 Modifier.padding(top = 8.dp),
                 shape = androidx.compose.foundation.shape.CircleShape,
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                shadowElevation = 4.dp,
+                // Floating, so it is the inverse tone (as a Snackbar), not a shadow.
+                color = MaterialTheme.colorScheme.inverseSurface,
+                contentColor = MaterialTheme.colorScheme.inverseOnSurface,
             ) {
                 Row(Modifier.padding(horizontal = 14.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Loading(Modifier.size(20.dp))

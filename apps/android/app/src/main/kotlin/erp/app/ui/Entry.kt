@@ -18,11 +18,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -153,8 +151,8 @@ fun TransactionWorkspace(
         if (available >= 820.dp && !isLargeText()) {
             Row(Modifier.fillMaxSize()) {
                 Box(Modifier.weight(1f).fillMaxHeight()) { editor() }
-                VerticalDivider()
-                Column(Modifier.width(min(380f, available.value * 0.35f).dp).fillMaxHeight().background(ErpColors.ground)) {
+                // The review pane is its own tone (no rule between the panes).
+                Column(Modifier.width(min(380f, available.value * 0.35f).dp).fillMaxHeight().background(MaterialTheme.colorScheme.surfaceContainerLow)) {
                     Box(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(20.dp)) { review() }
                     footer()
                 }
@@ -173,25 +171,29 @@ data class TransactionReviewRow(val label: String, val value: String)
 /** The same contextual summary accompanies piece editing on a wide window. */
 @Composable
 fun PieceInspector(title: String, rows: List<TransactionReviewRow>, modifier: Modifier = Modifier) {
-    Column(modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card).padding(20.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-        GlanceTitle("Piece summary", Symbols.AutoAwesome)
-        Text(title.ifEmpty { "New piece" }, style = MaterialTheme.typography.titleMedium)
-        HorizontalDivider()
-        rows.forEach { row ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(row.label, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-                Text(
-                    row.value.ifEmpty { "—" },
-                    style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = TabularDigits),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.End,
-                )
+    // Its parts are tonal tiles of one group: no rule between them.
+    SegmentedColumn(modifier) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            GlanceTitle("Piece summary", Symbols.AutoAwesome)
+            Text(title.ifEmpty { "New piece" }, style = MaterialTheme.typography.titleMedium)
+        }
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            rows.forEach { row ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(row.label, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        row.value.ifEmpty { "—" },
+                        style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = TabularDigits),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.End,
+                    )
+                }
             }
         }
     }
 }
 
-/** "At a glance": who it is for, the pieces, and the figures, on a card. */
+/** "At a glance": who it is for, the pieces, and the figures, as three tiles of one group. */
 @Composable
 fun TransactionReview(
     customer: String,
@@ -200,14 +202,15 @@ fun TransactionReview(
     modifier: Modifier = Modifier,
     contact: String = "",
 ) {
-    Column(modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card).padding(20.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-        GlanceTitle("At a glance", Symbols.FactCheck)
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(customer.ifEmpty { "Walk-in" }, style = MaterialTheme.typography.titleMedium)
-            if (contact.isNotEmpty()) Text(contact, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    SegmentedColumn(modifier) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            GlanceTitle("At a glance", Symbols.FactCheck)
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(customer.ifEmpty { "Walk-in" }, style = MaterialTheme.typography.titleMedium)
+                if (contact.isNotEmpty()) Text(contact, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
-        HorizontalDivider()
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(
                 "${pieces.size} piece${if (pieces.size == 1) "" else "s"}",
                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
@@ -218,8 +221,7 @@ fun TransactionReview(
             }
             pieces.forEach { ReviewRow(it) }
         }
-        HorizontalDivider()
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { figures.forEach { ReviewRow(it) } }
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) { figures.forEach { ReviewRow(it) } }
     }
 }
 

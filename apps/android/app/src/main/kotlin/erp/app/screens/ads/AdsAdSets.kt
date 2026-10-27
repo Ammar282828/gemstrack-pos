@@ -1,5 +1,6 @@
 package erp.app.screens.ads
 
+import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -11,7 +12,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -332,7 +332,7 @@ private fun CampaignSection(d: AdsDesign, tree: AdCampaigns?, treeError: String?
     AdsSection("Campaign", footer = { if (d.budgeted) Text("This campaign holds the budget; its ad sets share it.") }) {
         PickerRow("Campaign", d.target, options, onTarget)
         if (d.target == "new") {
-            AdsRow { OutlinedTextField(d.campaignName, onName, Modifier.fillMaxWidth(), placeholder = { Text("Campaign name") }, singleLine = true) }
+            AdsRow { TextField(d.campaignName, onName, Modifier.fillMaxWidth(), placeholder = { Text("Campaign name") }, singleLine = true) }
         }
         if (treeError != null) AdsRow { Text("The account's campaigns didn't come: $treeError", style = MaterialTheme.typography.bodySmall, color = Tone.problem.color()) }
     }
@@ -353,7 +353,7 @@ private fun SetCard(
 ) {
     val now = AppClock.now()
     AdsSection("Ad set $number") {
-        AdsRow { OutlinedTextField(set.name, { change(set.copy(name = it)) }, Modifier.fillMaxWidth(), label = { Text("Ad set name") }, singleLine = true) }
+        AdsRow { TextField(set.name, { change(set.copy(name = it)) }, Modifier.fillMaxWidth(), label = { Text("Ad set name") }, singleLine = true) }
         PickerRow("Goal", set.goal, goals.map { it.key to it.label }) { change(set.copy(goal = it)) }
         if (!budgeted) {
             AdsRow {
@@ -413,7 +413,7 @@ private fun AdsInThem(
             if (tree == null && treeError == null) {
                 AdsReading("Reading the account's ads…")
             } else {
-                AdsRow { OutlinedTextField(adQ, onAdQ, Modifier.fillMaxWidth(), placeholder = { Text("Find an ad") }, singleLine = true, keyboardOptions = KeyboardOptions(autoCorrectEnabled = false)) }
+                AdsRow { TextField(adQ, onAdQ, Modifier.fillMaxWidth(), placeholder = { Text("Find an ad") }, singleLine = true, keyboardOptions = KeyboardOptions(autoCorrectEnabled = false)) }
                 val shown = AdsAdSetsLogic.shownAds(tree, d.adIds, adQ)
                 if (shown.isEmpty()) AdsRow { Text(if (adQ.isEmpty()) "No ads in the last 30 days." else "No ad matches “$adQ”.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 for (r in shown) {
@@ -438,7 +438,7 @@ private fun AdsInThem(
                 AdsRow { AdsMediaGrid(media, d.post.ifEmpty { null }) { m -> onPost(if (d.post == m.id) "" else m.id) } }
                 if (d.sets.any { lists.goal(it.goal)?.toSite == true || it.goal == "channel" }) {
                     AdsRow {
-                        OutlinedTextField(
+                        TextField(
                             d.link, onLink, Modifier.fillMaxWidth(), placeholder = { Text("https://… where the button goes") }, singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, autoCorrectEnabled = false),
                         )

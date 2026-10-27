@@ -178,7 +178,6 @@ fun LayersPanel(state: DesignerState) {
                     Icon(Symbols.ArrowDownward, "Move ${layerTitle(f)} down")
                 }
             }
-            androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
         }
     }
 }

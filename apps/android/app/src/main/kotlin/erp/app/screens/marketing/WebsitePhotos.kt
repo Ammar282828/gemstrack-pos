@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import erp.app.ui.SearchBarField
 import android.app.Activity
@@ -26,7 +27,6 @@ import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import erp.app.ui.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -526,7 +526,7 @@ private fun PhotoRow(m: WebsitePhotosModel, item: WebsitePhotoItem, siteName: St
             StatusLine(item)
             if (m.isMaison && editable) {
                 PickerRow("House", item.house, listOf("" to "House…") + (m.maison?.houses ?: emptyList()).map { it to it }) { m.setHouse(item.id, it) }
-                OutlinedTextField(
+                TextField(
                     value = item.model, onValueChange = { m.setModel(item.id, it) }, singleLine = true, modifier = Modifier.fillMaxWidth(),
                     placeholder = { Text("Official name, e.g. LOVE Bracelet, Classic") },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),

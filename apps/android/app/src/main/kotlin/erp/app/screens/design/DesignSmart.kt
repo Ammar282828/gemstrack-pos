@@ -1,5 +1,6 @@
 package erp.app.screens.design
 
+import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import android.graphics.Bitmap
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -25,7 +26,6 @@ import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
 import erp.app.ui.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import erp.app.ui.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -315,7 +315,7 @@ fun DesignSmartSheet(start: DesignStartModel, allowLayers: Boolean, dismiss: () 
     DesignSheetBody(note) {
         Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             SectionCard("Paste anything") {
-                OutlinedTextField(
+                TextField(
                     m.text, { m.text = it }, Modifier.fillMaxWidth(), minLines = 3, maxLines = 8, enabled = m.busy == null,
                     placeholder = { Text("A caption, a WhatsApp message, a link or a SKU. Or type it: “ruby ring 21k 12.35g”.") },
                 )
@@ -389,7 +389,7 @@ private fun ItemCard(m: DesignSmartModel, item: DesignSmartModel.Item, dismiss: 
                     Switch(item.accept[k] == true, { on -> set { it.copy(accept = it.accept + (k to on)) } }, Modifier.semantics { contentDescription = DesignSmartModel.fieldLabel[k] ?: k }, colors = SwitchDefaults.colors(checkedTrackColor = ErpColors.accent, checkedThumbColor = ErpColors.onAccent))
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(DesignSmartModel.fieldLabel[k] ?: k, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        OutlinedTextField(item.fields[k] ?: "", { v -> set { it.copy(fields = it.fields + (k to v), accept = it.accept + (k to true)) } }, Modifier.fillMaxWidth(), minLines = 1, maxLines = 3)
+                        TextField(item.fields[k] ?: "", { v -> set { it.copy(fields = it.fields + (k to v), accept = it.accept + (k to true)) } }, Modifier.fillMaxWidth(), minLines = 1, maxLines = 3)
                     }
                 }
             }

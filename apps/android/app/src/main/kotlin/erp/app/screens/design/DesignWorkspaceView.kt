@@ -1,5 +1,6 @@
 package erp.app.screens.design
 
+import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -32,7 +33,6 @@ import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
 import erp.app.ui.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import erp.app.ui.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -190,7 +190,7 @@ private fun Header(model: DesignWorkspaceModel, w: DesignWork, onClose: () -> Un
             }
             Pill(DesignKinds.label(w.kind), tone = Tone.house)
         }
-        OutlinedTextField(
+        TextField(
             value = model.work?.name ?: "", onValueChange = { model.rename(it) }, modifier = Modifier.fillMaxWidth(), singleLine = true,
             placeholder = { Text((w.fields["headline"] ?: "").ifEmpty { "Name this design" }) }, textStyle = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
         )

@@ -15,6 +15,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.glance.appwidget.updateAll
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -192,7 +193,7 @@ fun PhoneSettings() {
             SettingsSection(
                 footer = "Uses your phone's wallpaper colours instead of the business's own. Off by default: the business's colour (Taheri's gold, House of Mina's pink) is how you tell the two apart.",
             ) {
-                ToggleRow("Wallpaper colours", wallpaperColors, { ThemeChoice.setWallpaper(it) })
+                ToggleRow("Wallpaper colours", wallpaperColors, { ThemeChoice.setWallpaper(it); scope.launch { runCatching { erp.app.widget.ErpWidget().updateAll(context) } } })
             }
         }
 

@@ -59,6 +59,12 @@ import erp.app.ui.readableColumn
 /** True under the phone layout's bottom bar, which already takes the system navigation inset. */
 val LocalBottomBar = compositionLocalOf { false }
 
+/**
+ * How far the last row of a tab's list must clear the bottom: the floating create button (56 dp, 16 dp from the edge) and a gap,
+ * as Material's lists pad under a FAB. Zero where no button floats (tablets carry it in the bar; pushed pages and sheets have none).
+ */
+val LocalFabClearance = compositionLocalOf { 0.dp }
+
 /** True where the business chip sits in the wide navigation rail's header already, so a screen's own top bar does not repeat it. */
 val LocalChipInRail = compositionLocalOf { false }
 
@@ -167,7 +173,7 @@ fun PlaceScreen(
                 SectionPicker(sections, openSection) { name -> tabs.firstOrNull { it.section == name }?.let { chosen = it.href } }
             }
             Box(Modifier.weight(1f).fillMaxWidth()) {
-                CompositionLocalProvider(LocalChrome provides chrome) {
+                CompositionLocalProvider(LocalChrome provides chrome, LocalFabClearance provides if (LocalBottomBar.current && tabRoot && role != "marketing") 88.dp else 0.dp) {
                     key(current) {
                         // Search is a list of places, not a form: a wide window reads it in a column, as the rest.
                         if (path == SEARCH_PATH) Box(Modifier.readableColumn(720.dp)) { SearchScreen() }

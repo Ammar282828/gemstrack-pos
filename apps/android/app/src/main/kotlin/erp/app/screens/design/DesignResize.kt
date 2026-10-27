@@ -1,5 +1,6 @@
 package erp.app.screens.design
 
+import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
 import android.graphics.Bitmap
@@ -22,7 +23,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import erp.app.ui.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import erp.app.ui.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -311,12 +311,12 @@ fun DesignResizeSheet(model: DesignWorkspaceModel, dismiss: () -> Unit) {
                 }
                 SectionCard("Your own shape") {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        OutlinedTextField(
+                        TextField(
                             r.customW, { r.customW = it }, Modifier.width(80.dp).semantics { contentDescription = "Width" }, singleLine = true,
                             keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Decimal), placeholder = { Text("W") },
                         )
                         Text(":")
-                        OutlinedTextField(
+                        TextField(
                             r.customH, { r.customH = it }, Modifier.width(80.dp).semantics { contentDescription = "Height" }, singleLine = true,
                             keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Decimal), placeholder = { Text("H") },
                         )

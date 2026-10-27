@@ -1,5 +1,6 @@
 package erp.app.screens.ads
 
+import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import android.app.Activity
 import android.graphics.Bitmap
@@ -25,7 +26,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -208,9 +208,9 @@ fun AdsPhotoRow(
                 }
                 photo.error != null -> Text(photo.error, style = MaterialTheme.typography.bodySmall, color = Tone.problem.color())
                 carousel -> {
-                    OutlinedTextField(photo.headline, { change(photo.copy(headline = it)) }, Modifier.fillMaxWidth(), label = { Text("Card headline") }, singleLine = true)
+                    TextField(photo.headline, { change(photo.copy(headline = it)) }, Modifier.fillMaxWidth(), label = { Text("Card headline") }, singleLine = true)
                     if (ownLinks) {
-                        OutlinedTextField(
+                        TextField(
                             photo.link, { change(photo.copy(link = it)) }, Modifier.fillMaxWidth(), label = { Text("Card link (optional)") }, singleLine = true,
                             keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Uri, autoCorrectEnabled = false),
                         )

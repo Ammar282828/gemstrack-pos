@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import android.graphics.Bitmap
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -29,7 +30,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -359,7 +359,7 @@ fun ArtworkEditor(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("What the code opens: a link, a number or any words. Dark on light reads on every phone.", style = MaterialTheme.typography.bodyMedium)
-                    OutlinedTextField(qrText, { qrText = it }, label = { Text("Link or words") }, singleLine = true)
+                    TextField(qrText, { qrText = it }, label = { Text("Link or words") }, singleLine = true)
                 }
             },
             confirmButton = {

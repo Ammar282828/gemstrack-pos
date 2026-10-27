@@ -1,5 +1,6 @@
 package erp.app.screens.ads
 
+import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -15,7 +16,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import erp.app.ui.TextButton
 import androidx.compose.runtime.Composable
@@ -176,7 +176,7 @@ fun AdsAudienceSheet(
                         for (p in draft.places) PlaceRow(p, { r -> draft = AdsAudienceEdit.setRadius(draft, p, r) }) { draft = AdsAudienceEdit.remove(draft, p) }
                         if (draft.places.isEmpty()) AdsRow { Text("Choose at least one place.", color = Tone.problem.color()) }
                         AdsRow(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedTextField(
+                            TextField(
                                 placeQ, { placeQ = it }, Modifier.fillMaxWidth(), placeholder = { Text("A city, area or country") }, singleLine = true,
                                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(capitalization = KeyboardCapitalization.Words, autoCorrectEnabled = false),
                             )
@@ -232,7 +232,7 @@ fun AdsAudienceSheet(
                             }
                         }
                         AdsRow(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedTextField(interestQ, { interestQ = it }, Modifier.fillMaxWidth(), placeholder = { Text("Jewellery, gold, weddings…") }, singleLine = true)
+                            TextField(interestQ, { interestQ = it }, Modifier.fillMaxWidth(), placeholder = { Text("Jewellery, gold, weddings…") }, singleLine = true)
                             AdsChips {
                                 for (s in interestShortcuts) AdsTonalButton(s, { interestQ = s })
                                 if (draft.interests.isNotEmpty()) AdsTonalButton("More like these", {

@@ -1,5 +1,6 @@
 package erp.app.screens.sale
 
+import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import erp.app.ui.SegmentedColumn
 import androidx.compose.foundation.background
@@ -29,7 +30,6 @@ import erp.app.ui.FilledTonalButton
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import erp.app.ui.Switch
 import androidx.compose.material3.Text
@@ -282,7 +282,7 @@ internal fun TagScanner(active: Boolean = true, onCode: (String) -> Unit) {
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(
+            TextField(
                 value = typed,
                 onValueChange = { typed = it },
                 modifier = Modifier.weight(1f),

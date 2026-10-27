@@ -1,5 +1,6 @@
 package erp.app.screens.money
 
+import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
 import erp.app.ui.SearchBarField
@@ -36,7 +37,6 @@ import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SelectableDates
 import erp.app.ui.Switch
@@ -247,7 +247,7 @@ fun MoneyField(
     /** A sum of money: the number pad and whole rupees only (owner, 2026-10-17: "there should be no decimals"). */
     rupees: Boolean = false,
 ) {
-    OutlinedTextField(
+    TextField(
         value = if (rupees) erp.app.ui.PaymentText.whole(value) else value,
         onValueChange = { onChange(if (rupees) erp.app.ui.PaymentText.whole(it) else it) },
         modifier = modifier.fillMaxWidth(),

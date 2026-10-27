@@ -1,5 +1,6 @@
 package erp.app.screens.orders
 
+import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
 import androidx.compose.foundation.layout.Arrangement
@@ -18,7 +19,6 @@ import erp.app.ui.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import erp.app.ui.Switch
 import androidx.compose.material3.Text
 import erp.app.ui.TextButton
@@ -407,7 +407,7 @@ private fun Field(
         Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
         // A number-pad box is a sum of money, kept to whole rupees (owner, 2026-10-17: "there should be no decimals").
         val whole = keyboard == KeyboardType.Number
-        OutlinedTextField(
+        TextField(
             value = if (whole) PaymentText.whole(value) else value, onValueChange = { onChange(if (whole) PaymentText.whole(it) else it) }, modifier = Modifier.width(160.dp), enabled = enabled, singleLine = true,
             placeholder = { Text(placeholder, Modifier.fillMaxWidth(), textAlign = TextAlign.End) },
             textStyle = MaterialTheme.typography.bodyMedium.copy(textAlign = TextAlign.End, fontFeatureSettings = TabularDigits),

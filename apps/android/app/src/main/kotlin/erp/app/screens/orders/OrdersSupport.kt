@@ -220,7 +220,6 @@ fun OrdersSheet(
                 )
                 if (trailing != null) trailing() else Row(Modifier.size(width = 72.dp, height = 1.dp)) {}
             }
-            HorizontalDivider()
             Column(
                 Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),

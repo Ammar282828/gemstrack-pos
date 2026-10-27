@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -55,7 +54,7 @@ fun AdvanceExchange(rows: List<ExchangeRow>, onRows: (List<ExchangeRow>) -> Unit
             val showDetails = row.id in opened || row.karat.isNotEmpty() || row.weightG.isNotEmpty() || row.ratePerGram.isNotEmpty()
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedTextField(
+                    TextField(
                         value = row.description,
                         onValueChange = { patch(row.id, ExchangeRowPatch(description = it)) },
                         modifier = Modifier.weight(1f),
@@ -64,7 +63,7 @@ fun AdvanceExchange(rows: List<ExchangeRow>, onRows: (List<ExchangeRow>) -> Unit
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                     )
-                    OutlinedTextField(
+                    TextField(
                         value = PaymentText.whole(row.value),
                         onValueChange = { patch(row.id, ExchangeRowPatch(value = PaymentText.whole(it))) },
                         modifier = Modifier.width(120.dp),
@@ -88,7 +87,7 @@ fun AdvanceExchange(rows: List<ExchangeRow>, onRows: (List<ExchangeRow>) -> Unit
                                 }
                             }
                         }
-                        OutlinedTextField(
+                        TextField(
                             value = row.weightG,
                             onValueChange = { patch(row.id, ExchangeRowPatch(weightG = it)) },
                             modifier = Modifier.weight(1f),
@@ -96,7 +95,7 @@ fun AdvanceExchange(rows: List<ExchangeRow>, onRows: (List<ExchangeRow>) -> Unit
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         )
-                        OutlinedTextField(
+                        TextField(
                             value = row.ratePerGram,
                             onValueChange = { patch(row.id, ExchangeRowPatch(ratePerGram = it)) },
                             modifier = Modifier.weight(1f),

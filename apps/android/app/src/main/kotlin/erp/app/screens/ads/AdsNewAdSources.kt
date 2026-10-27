@@ -1,5 +1,6 @@
 package erp.app.screens.ads
 
+import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import android.content.Context
 import android.net.Uri
@@ -15,7 +16,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import erp.app.ui.TextButton
 import androidx.compose.runtime.Composable
@@ -129,7 +129,7 @@ fun AdsPartnerSection(
     ) {
         Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
+                TextField(
                     code, onCode, Modifier.weight(1f), placeholder = { Text("Paste the ad code") }, singleLine = true,
                     textStyle = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Monospace),
                     keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),
@@ -165,7 +165,7 @@ fun AdsPartnerSection(
                 }
             }
             if (toSite) {
-                OutlinedTextField(
+                TextField(
                     link, onLink, Modifier.fillMaxWidth(), placeholder = { Text("https://… the page the button opens") }, singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, autoCorrectEnabled = false),
                 )

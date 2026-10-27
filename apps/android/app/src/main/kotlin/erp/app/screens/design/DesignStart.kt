@@ -1,5 +1,6 @@
 package erp.app.screens.design
 
+import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -29,7 +30,6 @@ import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
 import erp.app.ui.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import erp.app.ui.TextButton
 import androidx.compose.runtime.Composable
@@ -397,7 +397,7 @@ private fun Making(start: DesignStartModel, cards: List<DesignKindCard>) {
 @Composable
 private fun SizeBox(label: String, value: Int, onChange: (Int) -> Unit) {
     var text by remember(value) { mutableStateOf(value.toString()) }
-    OutlinedTextField(
+    TextField(
         value = text, onValueChange = { t -> text = t.filter { it.isDigit() }.take(3); text.toIntOrNull()?.let(onChange) },
         modifier = Modifier.width(72.dp).semantics { contentDescription = label }, singleLine = true,
         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number),

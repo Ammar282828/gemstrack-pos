@@ -19,7 +19,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import erp.app.ui.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -167,7 +166,7 @@ fun OwnerDeleteCodeSheet(deletion: OwnerDeletion, onDismiss: () -> Unit, onDone:
                 }
             }
             Text(deletion.what, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
-            OutlinedTextField(
+            TextField(
                 value = code,
                 onValueChange = {
                     val digits = DeleteCode.digits(it)

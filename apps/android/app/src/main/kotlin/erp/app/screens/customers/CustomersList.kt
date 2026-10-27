@@ -1,5 +1,6 @@
 package erp.app.screens.customers
 
+import erp.app.nav.LocalFabClearance
 import erp.app.ui.icons.Symbols
 import erp.app.ui.SegmentedColumn
 import erp.app.ui.SearchBarField
@@ -21,7 +22,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.Composable
@@ -132,7 +132,7 @@ fun CustomersList() {
     ShelfState(loaded = loaded, error = failure, offline = offline, connectionLost = connectionLost) {
         LazyColumn(
             Modifier.fillMaxSize().readableColumn(),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 96.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = maxOf(24.dp, LocalFabClearance.current)),
         ) {
             item(key = "search") {
                 SearchBarField(
@@ -317,7 +317,6 @@ private fun CustSummary(modifier: Modifier, customerCount: Int, owed: Owed, owin
             HeroAmount(owed.total)
             Text(custOwedDetail(owingCount, owed, showHisaab), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         Disclosure("Customer overview") {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 4.dp)) {
                 TwoLine("Customers", trailing = "$customerCount")

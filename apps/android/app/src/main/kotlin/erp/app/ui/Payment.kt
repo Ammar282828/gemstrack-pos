@@ -17,7 +17,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -271,7 +270,7 @@ fun PaymentSheet(
                 }
             }
 
-            OutlinedTextField(
+            TextField(
                 value = amountText,
                 onValueChange = { amountText = PaymentText.whole(it) },
                 modifier = Modifier.fillMaxWidth(),
@@ -307,7 +306,7 @@ fun PaymentSheet(
                 PaymentMethods.all.forEach { m -> FilterChip(m, chosen = method == m, onClick = { method = m }) }
             }
             if (asksReference && method != "Cash") {
-                OutlinedTextField(
+                TextField(
                     value = reference,
                     onValueChange = { reference = it },
                     modifier = Modifier.fillMaxWidth(),
@@ -317,7 +316,7 @@ fun PaymentSheet(
                 )
             }
             if (noteDefault != null) {
-                OutlinedTextField(
+                TextField(
                     value = note,
                     onValueChange = { note = it },
                     modifier = Modifier.fillMaxWidth(),

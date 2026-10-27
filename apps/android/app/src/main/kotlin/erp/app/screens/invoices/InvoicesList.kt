@@ -1,5 +1,6 @@
 package erp.app.screens.invoices
 
+import erp.app.nav.LocalFabClearance
 import erp.app.ui.icons.Symbols
 import erp.app.ui.SearchBarField
 import erp.app.ui.appearOnce
@@ -40,7 +41,6 @@ import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import erp.app.ui.Switch
 import androidx.compose.material3.Text
 import erp.app.ui.TextButton
@@ -200,7 +200,7 @@ fun InvoicesList() {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(columns),
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(start = if (wide) 24.dp else 0.dp, end = if (wide) 24.dp else 0.dp, top = 4.dp, bottom = 96.dp),
+                    contentPadding = PaddingValues(start = if (wide) 24.dp else 0.dp, end = if (wide) 24.dp else 0.dp, top = 4.dp, bottom = maxOf(24.dp, LocalFabClearance.current)),
                     verticalArrangement = Arrangement.spacedBy(if (wide) 20.dp else 0.dp),
                     horizontalArrangement = Arrangement.spacedBy(20.dp),
                 ) {
@@ -535,7 +535,6 @@ private fun InvoiceCard(
                 }
             }
         }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (canPay && isOwing(inv)) {
                 TextButton(onClick = take, Modifier.defaultMinSize(minHeight = 48.dp)) {
@@ -604,7 +603,6 @@ private fun InvoiceFilterSheet(
             }
             if (filter.rangeFrom != null) TextButton(onClick = onClearRange) { Icon(Symbols.Close, null); Spacer(Modifier.size(8.dp)); Text("Clear the date range") }
             if (narrowed) TextButton(onClick = onClear) { Icon(Symbols.Close, null); Spacer(Modifier.size(8.dp)); Text("Clear filters") }
-            HorizontalDivider()
             // Import Shopify CSV and the payment links are the ERP's own page.
             TextButton(onClick = onWeb) { Icon(Symbols.Language, null); Spacer(Modifier.size(8.dp)); Text("Open in the ERP") }
         }

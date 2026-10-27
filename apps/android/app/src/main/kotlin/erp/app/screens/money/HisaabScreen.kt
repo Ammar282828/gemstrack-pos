@@ -266,7 +266,6 @@ private fun AccountRow(account: HisaabAccount, listInvoices: Boolean, modifier: 
             }
             if (listInvoices && account.unpaid.isNotEmpty()) {
                 // Every invoice still owing, as the web's card lists them.
-                HorizontalDivider(Modifier.padding(vertical = 2.dp), thickness = 0.5.dp)
                 for (inv in account.unpaid) UnpaidLine(inv)
             }
         }

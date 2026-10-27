@@ -1,5 +1,6 @@
 package erp.app.screens.workshop
 
+import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
 import erp.app.ui.zoomSource
@@ -32,7 +33,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import erp.app.ui.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SelectableDates
 import erp.app.ui.Switch
 import androidx.compose.material3.Text
@@ -413,7 +413,7 @@ fun WorkshopDeleteCodeSheet(deletion: WorkshopDeletion, onDismiss: () -> Unit, o
                     listOf(deletion.detail, if (deletion.final) "This can't be undone." else "", "Enter the code to go ahead.").filter { it.isNotEmpty() }.joinToString(" "),
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                OutlinedTextField(
+                TextField(
                     value = code,
                     onValueChange = { typed ->
                         code = typed.filter { it in '0'..'9' }.take(8)

@@ -1,9 +1,12 @@
 package erp.app.screens.orders
 
+import erp.app.ui.SegmentedColumn
+import erp.app.ui.ledgerRow
 import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
 import erp.app.ui.AppClock
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -436,14 +439,13 @@ private fun noteText(order: Order): String? = (order.notes ?: "").trim().ifEmpty
 private fun NoteCard(order: Order) {
     val notes = noteText(order) ?: return
     val shipTo = describeDelivery(order.delivery)
-    Column(Modifier.ledgerCard(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    SegmentedColumn {
+        Column(Modifier.ledgerRow(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             LabelLine("Note", Symbols.StickyNote2)
             androidx.compose.foundation.text.selection.SelectionContainer { Text(notes, style = MaterialTheme.typography.bodyMedium) }
         }
         if (shipTo.isNotEmpty()) {
-            HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.18f))
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(Modifier.ledgerRow(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 LabelLine("Deliver to", Symbols.LocationOn)
                 Text(shipTo.joinToString("\n"), style = MaterialTheme.typography.bodyMedium)
             }
@@ -479,23 +481,24 @@ private fun Pieces(order: Order, ticking: Int?, isOwner: Boolean, onGiveOut: () 
                 trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.18f),
             )
         }
-        Column(Modifier.ledgerCard(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        // Each piece is its own tile (the group's joints are the line between two), not a card with rules.
+        SegmentedColumn {
             for ((n, i) in ordered.withIndex()) {
                 val item = order.items[i]
-                if (n > 0) HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.15f))
                 val kid = item.karigarId
                 val name = if (OrdersLogic.hasKarigar(item) && kid != null) karigars.value.firstOrNull { it.id == kid }?.name ?: "Karigar $kid" else null
                 OrderPieceRow(
                     index = i, item = item, karigar = name,
                     canTick = isOwner && !invoiced, busy = ticking == i, showBreakdown = isOwner,
                     onTick = { done -> onTick(i, done) },
+                    modifier = Modifier.ledgerRow(),
                 )
             }
             if (order.items.isEmpty()) {
-                Text("No pieces on this order.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("No pieces on this order.", Modifier.ledgerRow(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (counts.unassigned > 0 && !invoiced) {
-                TextButton(onClick = onGiveOut, contentPadding = PaddingValues(horizontal = 0.dp, vertical = 8.dp)) {
+                TextButton(onClick = onGiveOut, Modifier.padding(horizontal = 8.dp), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)) {
                     Icon(Symbols.PersonAdd, null, Modifier.size(18.dp))
                     Text("Give out: ${counts.unassigned} without a karigar", Modifier.padding(start = 8.dp))
                 }
@@ -677,8 +680,8 @@ private fun ActionBar(
             }
         }
     }
-    HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f))
-    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+    // A bottom bar is its own tone (surfaceContainer), not a rule over the page.
+    Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainer).padding(horizontal = 16.dp, vertical = 8.dp)) {
         if (isLargeText()) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) { buttons(Modifier.fillMaxWidth()) }
         } else {

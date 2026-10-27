@@ -502,7 +502,6 @@ private fun StatusIcon(s: DesignPublishModel.Status) {
 @Composable
 private fun Extras(p: DesignPublishModel, onAgain: () -> Unit, onAll: () -> Unit, onCaptioned: () -> Unit, onCopy: () -> Unit, onChannel: (String) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
         ExtraLine("Share or save every size", Symbols.Share, onAll)
         if (p.row("whatsapp") != null || p.row("channel") != null) ExtraLine("Share the picture with its caption", Symbols.Share, onCaptioned)
         if (p.wa.trim().isNotEmpty()) ExtraLine("Copy the caption", Symbols.ContentCopy, onCopy)

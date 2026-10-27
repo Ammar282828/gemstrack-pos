@@ -145,7 +145,6 @@ fun WorkshopJobRow(
         job.notes?.takeIf { it.isNotEmpty() }?.let { notes ->
             Instructions(notes, instructionsOpen) { instructionsOpen = it }
         }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         Controls(job, canWrite, isStock, busy, choices, actions, stockStatus)
         if (busy) SkeletonLoading(Modifier.height(20.dp), label = "Updating job", compact = true)
     }

@@ -1,5 +1,6 @@
 package erp.app.screens.home
 
+import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -26,7 +27,6 @@ import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import erp.app.ui.TextButton
@@ -247,7 +247,7 @@ fun TeamNoteEditor(onDismiss: () -> Unit) {
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         LedgerHeading("Team note", Modifier.padding(horizontal = 16.dp))
-                        OutlinedTextField(
+                        TextField(
                             value = text,
                             onValueChange = { text = it },
                             modifier = Modifier.fillMaxWidth(),

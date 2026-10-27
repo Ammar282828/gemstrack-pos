@@ -1,5 +1,6 @@
 package erp.app.screens.ads
 
+import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import android.app.Activity
 import android.content.Intent
@@ -17,7 +18,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -726,7 +726,7 @@ fun adsShownPieces(all: List<AdsSitePiece>, q: String): List<AdsSitePiece> {
 private fun SiteSection(d: AdsNewAdDraft, pieces: List<AdsSitePiece>?, piecesError: String?, pieceQ: String, onPieceQ: (String) -> Unit, onPiece: (AdsSitePiece) -> Unit) {
     AdsSection(null, footer = { Text("Each piece is added as a photo below (several make a carousel), with its own link.") }, divided = false) {
         Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            OutlinedTextField(
+            TextField(
                 pieceQ, onPieceQ, Modifier.fillMaxWidth(), placeholder = { Text("Search the website: ruby, kara, jhumka…") }, singleLine = true,
                 keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),
             )
@@ -789,20 +789,20 @@ private fun GoalNote(d: AdsNewAdDraft, s: AdsStatusAnswer, pixel: AdsPixelState?
 private fun WordsSection(l: AdsNewAdLists, d: AdsNewAdDraft, onDraft: (AdsNewAdDraft) -> Unit, goal: AdsGoal?) {
     AdsSection("3 · The words", divided = false) {
         Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            OutlinedTextField(
+            TextField(
                 d.text, { onDraft(d.copy(text = it)) }, Modifier.fillMaxWidth(), minLines = 3, maxLines = 8,
                 placeholder = { Text("What the ad says: the piece, its weight, why it's special.") },
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
             )
-            OutlinedTextField(d.headline, { onDraft(d.copy(headline = it)) }, Modifier.fillMaxWidth(), placeholder = { Text("Headline (short)") }, singleLine = true)
+            TextField(d.headline, { onDraft(d.copy(headline = it)) }, Modifier.fillMaxWidth(), placeholder = { Text("Headline (short)") }, singleLine = true)
             if (d.goalKey == "channel") {
-                OutlinedTextField(
+                TextField(
                     d.link, { onDraft(d.copy(link = it)) }, Modifier.fillMaxWidth(), placeholder = { Text("https://whatsapp.com/channel/…") }, singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, autoCorrectEnabled = false),
                 )
             }
             if (goal?.toSite == true) {
-                OutlinedTextField(
+                TextField(
                     d.link, { onDraft(d.copy(link = it)) }, Modifier.fillMaxWidth(), placeholder = { Text("https://… the page the button opens") }, singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, autoCorrectEnabled = false),
                 )
@@ -908,7 +908,7 @@ private fun MakeSections(d: AdsNewAdDraft, onDraft: (AdsNewAdDraft) -> Unit, che
         },
     ) {
         AdsRow {
-            OutlinedTextField(d.name, { onDraft(d.copy(name = it)) }, Modifier.fillMaxWidth(), placeholder = { Text("Name in Ads Manager (made for you)") }, singleLine = true)
+            TextField(d.name, { onDraft(d.copy(name = it)) }, Modifier.fillMaxWidth(), placeholder = { Text("Name in Ads Manager (made for you)") }, singleLine = true)
         }
         AdsRow {
             AdsChips {

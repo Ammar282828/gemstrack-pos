@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
@@ -10,7 +11,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import erp.app.ui.TextButton
 import androidx.compose.runtime.Composable
@@ -167,7 +167,7 @@ fun ArtworkGuideRows(doc: MarketingValue, change: (MarketingValue) -> Unit) {
     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         FilterChip("Across", axis == "x", { axis = "x" })
         FilterChip("Down", axis == "y", { axis = "y" })
-        OutlinedTextField(
+        TextField(
             position, { position = it.filter { c -> c.isDigit() }.take(5) }, Modifier.widthIn(max = 90.dp), singleLine = true, placeholder = { Text("px") },
             keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number),
         )

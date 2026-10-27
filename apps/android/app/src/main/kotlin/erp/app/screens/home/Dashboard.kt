@@ -1,5 +1,6 @@
 package erp.app.screens.home
 
+import erp.app.nav.LocalFabClearance
 import erp.app.ui.icons.Symbols
 import erp.app.ui.AppClock
 import androidx.compose.foundation.layout.Arrangement
@@ -202,7 +203,7 @@ private fun DashboardPage(
             Column(
                 Modifier
                     .padding(horizontal = if (wide) 28.dp else 16.dp)
-                    .padding(top = 4.dp, bottom = 24.dp)
+                    .padding(top = 4.dp, bottom = maxOf(24.dp, LocalFabClearance.current))
                     // On the widest windows the page stays a page: the two columns never drift a room apart.
                     .widthIn(max = if (wide) 1240.dp else Dp.Infinity)
                     .fillMaxWidth(),

@@ -69,7 +69,8 @@ import erp.app.ui.NotAvailableState
 import erp.app.ui.PaidRing
 import erp.app.ui.PaymentCustomer
 import erp.app.ui.PaymentSheet
-import erp.app.ui.PerforationDivider
+import erp.app.ui.SegmentedColumn
+import erp.app.ui.ledgerRow
 import erp.app.ui.Pill
 import erp.app.ui.QuickAction
 import erp.app.ui.RowAmount
@@ -383,7 +384,6 @@ private fun Hero(inv: Invoice, owner: Boolean, nameThem: () -> Unit) {
                 Text("Name the customer", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold), color = ErpColors.accent)
             }
         }
-        PerforationDivider()
         Figures(inv)
         // Whoever opens it next sees the PDF went, so it is not sent twice.
         inv.sentOnWhatsApp?.let { sent ->
@@ -479,12 +479,11 @@ private fun PiecesCard(inv: Invoice, owner: Boolean, all: Boolean, showAll: () -
     val shown = if (all) items else items.take(FIRST_PIECES)
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         LedgerHeading("Pieces", Modifier.padding(horizontal = 16.dp), count = items.size)
-        Column(Modifier.ledgerCard().animateContentSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (items.isEmpty()) Text("No pieces on this invoice.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            shown.forEach { PieceRow(it, owner) }
-            if (!all && items.size > FIRST_PIECES) TextButton(onClick = showAll) { Text("Show ${items.size - FIRST_PIECES} more") }
-            PerforationDivider()
-            TotalRows(inv)
+        SegmentedColumn(Modifier.animateContentSize()) {
+            if (items.isEmpty()) Text("No pieces on this invoice.", Modifier.ledgerRow(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            shown.forEach { Box(Modifier.ledgerRow()) { PieceRow(it, owner) } }
+            if (!all && items.size > FIRST_PIECES) TextButton(onClick = showAll, Modifier.padding(horizontal = 8.dp)) { Text("Show ${items.size - FIRST_PIECES} more") }
+            Box(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) { TotalRows(inv) }
         }
     }
 }
@@ -572,7 +571,7 @@ private fun PaymentsCard(
             count = if (inv.paymentHistory.size > 1) inv.paymentHistory.size else null,
             trailing = Money.pkr(inv.amountPaid),
         )
-        Column(Modifier.fillMaxWidth().clip(erp.app.ui.Radius.cardShape).background(ErpColors.card)) {
+        SegmentedColumn {
             if (inv.paymentHistory.isEmpty()) {
                 Text("No payments yet", Modifier.padding(16.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }

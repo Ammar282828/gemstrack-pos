@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import erp.app.ui.SearchBarField
 import androidx.compose.foundation.background
@@ -26,7 +27,6 @@ import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import erp.app.ui.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -368,7 +368,7 @@ private fun WeightSection(
         },
     ) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            OutlinedTextField(
+            TextField(
                 value = value, onValueChange = setValue, singleLine = true, modifier = Modifier.weight(1f).focusRequester(typing),
                 placeholder = { Text("0.00", style = ErpType.heroNumber, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)) },
                 textStyle = ErpType.heroNumber,

@@ -10,6 +10,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.ui.layout.Layout
@@ -105,14 +106,14 @@ fun Modifier.ledgerRow(): Modifier = defaultMinSize(minHeight = 56.dp).padding(h
 
 /**
  * The line between two rows. In a segmented group ([LedgerSection], [FormSection]) it is only a marker: the gap between
- * two tiles is the line. In a plain card it is the hairline it always was.
+ * two tiles is the line. In a plain card it is the same gap, a slit of the page tone (never a hairline).
  */
 @Composable
 fun LedgerDivider(modifier: Modifier = Modifier) {
     if (LocalInSegments.current) {
         Layout({}, modifier.segmentGap()) { _, _ -> layout(0, 0) {} }
     } else {
-        HorizontalDivider(modifier.padding(start = 16.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+        Box(modifier.fillMaxWidth().height(2.dp).background(MaterialTheme.colorScheme.surface))
     }
 }
 

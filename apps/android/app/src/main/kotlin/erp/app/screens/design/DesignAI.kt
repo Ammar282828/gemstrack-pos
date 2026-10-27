@@ -1,5 +1,6 @@
 package erp.app.screens.design
 
+import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
 import androidx.compose.foundation.background
@@ -18,7 +19,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import erp.app.ui.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import erp.app.ui.SegmentedButton
 import erp.app.ui.SegmentedButtonDefaults
 import erp.app.ui.SingleChoiceSegmentedButtonRow
@@ -177,7 +177,7 @@ fun DesignSettingSheet(model: DesignWorkspaceModel, dismiss: () -> Unit) {
             }
         }
         SectionCard("Or say it") {
-            OutlinedTextField(custom, { custom = it }, Modifier.fillMaxWidth(), placeholder = { Text("A velvet tray in window light…") }, minLines = 1, maxLines = 4)
+            TextField(custom, { custom = it }, Modifier.fillMaxWidth(), placeholder = { Text("A velvet tray in window light…") }, minLines = 1, maxLines = 4)
         }
         SectionCard("Shape") {
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
@@ -204,7 +204,7 @@ fun DesignAskSheet(model: DesignWorkspaceModel, dismiss: () -> Unit) {
             "Say it the way you’d tell a photographer. The piece itself is protected, and the result is checked against the original.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        OutlinedTextField(text, { text = it }, Modifier.fillMaxWidth(), label = { Text("What should change?") }, minLines = 2, maxLines = 6)
+        TextField(text, { text = it }, Modifier.fillMaxWidth(), label = { Text("What should change?") }, minLines = 2, maxLines = 6)
         SectionCard("Ideas") {
             for (idea in DesignAIRules.askIdeas) {
                 Text(idea, Modifier.fillMaxWidth().defaultMinSize(minHeight = 40.dp).clickable(role = Role.Button) { text = idea }.padding(vertical = 8.dp), style = MaterialTheme.typography.bodyMedium)
@@ -231,7 +231,7 @@ fun DesignMakeAdSheet(model: DesignWorkspaceModel, dismiss: () -> Unit) {
     var brief by remember { mutableStateOf("") }
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Text("Make the ad with AI", style = MaterialTheme.typography.titleLarge)
-        OutlinedTextField(brief, { brief = it }, Modifier.fillMaxWidth(), label = { Text("Aim (optional), e.g. Eid gifting") }, minLines = 1, maxLines = 4)
+        TextField(brief, { brief = it }, Modifier.fillMaxWidth(), label = { Text("Aim (optional), e.g. Eid gifting") }, minLines = 1, maxLines = 4)
         Text(
             "Lays the ad out from the photograph and its details: the layout, the words on the picture and the ad’s own text and headline, on every size. The photo is extended to the shape if it needs it. Then you look at it.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,

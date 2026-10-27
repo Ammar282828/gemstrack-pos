@@ -1,5 +1,6 @@
 package erp.app.screens.design
 
+import erp.app.ui.TextField
 import erp.app.ui.Loading
 import android.content.Context
 import android.graphics.Bitmap
@@ -23,7 +24,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import erp.app.ui.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -67,8 +67,8 @@ class DesignAction(
  */
 @Composable
 fun DesignActionBar(primary: DesignAction, modifier: Modifier = Modifier, secondary: List<DesignAction> = emptyList(), summary: String? = null) {
-    Column(modifier.fillMaxWidth().background(ErpColors.ground)) {
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+    // A bar is its own tone, not a rule over the page.
+    Column(modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainer)) {
         Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             if (summary != null) Text(summary, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -108,7 +108,7 @@ fun DesignField(
 ) {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        OutlinedTextField(
+        TextField(
             value = text, onValueChange = onChange, modifier = Modifier.fillMaxWidth(),
             placeholder = if (prompt.isEmpty()) null else ({ Text(prompt) }),
             minLines = minLines, maxLines = maxLines, shape = RoundedCornerShape(Radius.tile),

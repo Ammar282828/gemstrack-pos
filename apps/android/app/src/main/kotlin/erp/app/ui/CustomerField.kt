@@ -18,7 +18,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -111,7 +110,7 @@ fun CustomerField(
                 wantName++
             }
         } else {
-            OutlinedTextField(
+            TextField(
                 value = name,
                 onValueChange = { if (settled == null) onType(it) },
                 modifier = Modifier
@@ -155,7 +154,7 @@ fun CustomerField(
                 }
             }
             var phoneWasFocused by remember { mutableStateOf(false) }
-            OutlinedTextField(
+            TextField(
                 value = phone,
                 onValueChange = onPhoneChange,
                 modifier = Modifier

@@ -1,5 +1,6 @@
 package erp.app.screens.ads
 
+import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
@@ -15,7 +16,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -296,7 +296,7 @@ fun AdsTestsContent(
                     footer = { Text("Make the versions in Ad sets first (copy one, change one thing), then choose two to five. Off: each ad set is judged on its own result.") },
                 ) {
                     Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        OutlinedTextField(name, onName, Modifier.fillMaxWidth(), placeholder = { Text("Name, like “Packshot vs on-hand”") }, singleLine = true)
+                        TextField(name, onName, Modifier.fillMaxWidth(), placeholder = { Text("Name, like “Packshot vs on-hand”") }, singleLine = true)
                         AdsSearchField("Find an ad set", search, onSearch)
                     }
                     if (data != null) {

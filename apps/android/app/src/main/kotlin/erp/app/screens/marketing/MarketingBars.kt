@@ -27,7 +27,7 @@ import erp.app.ui.theme.ErpColors
 // in reach, with what it will do said under it.
 
 /**
- * A page and its bar: the content scrolls above, the bar stays under it with a hairline between. [bar] is null where
+ * A page and its bar: the content scrolls above, the bar stays under it on its own tone. [bar] is null where
  * there is nothing to do (no bar at all, not a disabled one).
  */
 @Composable
@@ -35,8 +35,7 @@ fun MarketingPinned(bar: (@Composable () -> Unit)?, modifier: Modifier = Modifie
     Column(modifier.fillMaxSize()) {
         Box(Modifier.weight(1f).fillMaxWidth()) { content() }
         if (bar != null) {
-            HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f))
-            Column(Modifier.fillMaxWidth().background(ErpColors.ground).padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) { bar() }
+            Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainer).padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) { bar() }
         }
     }
 }

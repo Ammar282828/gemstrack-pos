@@ -1,5 +1,6 @@
 package erp.app.screens.owner
 
+import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
 import androidx.compose.foundation.background
@@ -21,7 +22,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -515,7 +515,7 @@ private fun Distribution(
                 }
             }
             LabeledRow("Cash available") {
-                OutlinedTextField(
+                TextField(
                     value = PaymentText.whole(cashText), onValueChange = { onCash(PaymentText.whole(it)) }, modifier = Modifier.widthIn130(),
                     singleLine = true, placeholder = { Text("0") },
                     textStyle = MaterialTheme.typography.bodyLarge.copy(textAlign = TextAlign.End),
@@ -594,7 +594,7 @@ private fun FloorRow(s: PartnershipSettings, floorText: String?, onFloorText: (S
     val changed = parsed != PaymentText.rounded(s.workingCapitalFloor)
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
         Text("Working capital floor", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-        OutlinedTextField(
+        TextField(
             value = typed, onValueChange = { onFloorText(PaymentText.whole(it)) }, modifier = Modifier.widthIn130(),
             singleLine = true, placeholder = { Text("0") },
             textStyle = MaterialTheme.typography.bodyLarge.copy(textAlign = TextAlign.End),

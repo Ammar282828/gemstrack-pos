@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import android.app.Activity
 import android.content.Intent
@@ -24,7 +25,6 @@ import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import erp.app.ui.TextButton
 import androidx.compose.material3.rememberDatePickerState
@@ -331,7 +331,7 @@ fun WebsiteGoldAddSheet(onClose: () -> Unit) {
 
 @Composable
 private fun Field(value: String, onChange: (String) -> Unit, placeholder: String, min: Int, max: Int) {
-    OutlinedTextField(
+    TextField(
         value = value, onValueChange = onChange, modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
         placeholder = { Text(placeholder) }, minLines = min, maxLines = max,
         textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontSize = 13.sp),

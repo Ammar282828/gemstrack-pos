@@ -1,5 +1,6 @@
 package erp.app.screens.design
 
+import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import erp.app.ui.SearchBarField
 import android.content.Context
@@ -27,7 +28,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import erp.app.ui.TextButton
 import androidx.compose.runtime.Composable
@@ -242,7 +242,7 @@ fun DesignSavedView(
         AlertDialog(
             onDismissRequest = { asking = false },
             title = { Text(if (renaming == null) "New folder" else "Rename folder") },
-            text = { OutlinedTextField(folderText, { folderText = it }, label = { Text("Name") }, singleLine = true) },
+            text = { TextField(folderText, { folderText = it }, label = { Text("Name") }, singleLine = true) },
             confirmButton = {
                 TextButton(onClick = {
                     asking = false
@@ -345,7 +345,7 @@ fun DesignDetailSheet(
                 }
             }
             FormSection("Design") {
-                OutlinedTextField(
+                TextField(
                     name, { name = it }, Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), label = { Text("Name") }, singleLine = true,
                 )
                 Text(

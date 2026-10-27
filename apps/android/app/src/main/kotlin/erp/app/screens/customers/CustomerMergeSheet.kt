@@ -1,5 +1,6 @@
 package erp.app.screens.customers
 
+import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -18,7 +19,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import erp.app.ui.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -363,7 +363,7 @@ private fun Chooser(
     } else {
         Column(Modifier.fillMaxWidth().ledgerRow(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(title, style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold), color = tint)
-            OutlinedTextField(
+            TextField(
                 value = search, onValueChange = onSearch, modifier = Modifier.fillMaxWidth(),
                 placeholder = { Text("Search by name or phone") }, singleLine = true, shape = Radius.chipShape,
                 label = null,

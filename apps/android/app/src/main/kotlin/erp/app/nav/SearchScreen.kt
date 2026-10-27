@@ -96,7 +96,7 @@ fun SearchScreen() {
         query = next
     }
 
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = maxOf(24.dp, LocalFabClearance.current)), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         item(key = "field") {
             // Material 3's search bar: a full-round field on the container tone, the search glyph first, no outline.
             SearchBarField(

@@ -1,5 +1,6 @@
 package erp.app.screens.invoices
 
+import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
 import androidx.compose.foundation.clickable
@@ -24,7 +25,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import erp.app.ui.SegmentedButton
 import erp.app.ui.SegmentedButtonDefaults
 import erp.app.ui.SingleChoiceSegmentedButtonRow
@@ -213,7 +213,7 @@ fun InvoiceDiscountSheet(invoice: Invoice, onDismiss: () -> Unit, onDone: (Invoi
         val now = balanceLine(invoice.balanceDue)
         MoneyRow(now.label, now.amount)
         SheetHeading("Discount")
-        OutlinedTextField(
+        TextField(
             value = amountText,
             onValueChange = { amountText = PaymentText.whole(it) },
             modifier = Modifier.fillMaxWidth(),
@@ -297,7 +297,7 @@ fun InvoiceCreditSheet(invoice: Invoice, onDismiss: () -> Unit, onDone: (Invoice
         SheetHeading("${InvoiceActionWords.who(invoice)}'s credit")
         MoneyRow("Credit held", held)
         SheetHeading("Give back")
-        OutlinedTextField(
+        TextField(
             value = amountText,
             onValueChange = { amountText = PaymentText.whole(it) },
             modifier = Modifier.fillMaxWidth(),
@@ -479,7 +479,7 @@ fun InvoiceRefundSheet(invoice: Invoice, onDismiss: () -> Unit, onDone: (Invoice
             Footnote("Same as Delete: the invoice is removed.")
         } else {
             SheetHeading("Refund")
-            OutlinedTextField(
+            TextField(
                 value = amountText,
                 onValueChange = { amountText = PaymentText.whole(it) },
                 modifier = Modifier.fillMaxWidth(),
@@ -497,7 +497,7 @@ fun InvoiceRefundSheet(invoice: Invoice, onDismiss: () -> Unit, onDone: (Invoice
                     }
                 },
             )
-            OutlinedTextField(
+            TextField(
                 value = reason,
                 onValueChange = { reason = it },
                 modifier = Modifier.fillMaxWidth(),
@@ -653,7 +653,7 @@ fun InvoiceWhatsAppSheet(invoice: Invoice, initialPhone: String, onDismiss: () -
         },
     ) {
         SheetHeading("WhatsApp number")
-        OutlinedTextField(
+        TextField(
             value = phone,
             onValueChange = { phone = it },
             modifier = Modifier.fillMaxWidth(),

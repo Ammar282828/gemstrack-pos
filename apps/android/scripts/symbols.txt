@@ -1,4 +1,4 @@
-# Kotlin name, Material Symbols name, then flags: F = drawn filled by default, M = mirrors in right-to-left, + = also in Symbols.Fill (the selected look).
+# Kotlin name, Material Symbols name, then flags: F = drawn filled by default, M = mirrors in right-to-left, + = also in Symbols.Fill (the selected look), W = also a vector drawable (res/drawable/ic_symbol_<name>.xml) for the Glance widget, which cannot draw an ImageVector.
 # Generated into app/src/main/kotlin/erp/app/ui/icons/Symbols.kt by scripts/symbols.py
 AccountBalance account_balance +
 AccountBalanceWallet account_balance_wallet +
@@ -161,7 +161,7 @@ Pause pause
 PauseCircle pause_circle
 Payments payments +
 Pending pending
-PendingActions pending_actions +
+PendingActions pending_actions +W
 People group +
 Percent percent
 Person person
@@ -182,11 +182,12 @@ Podcasts podcasts
 Power power +
 Print print
 Public public
-PushPin push_pin
+PushPin push_pin W
 QrCodeScanner qr_code_scanner +
 QuestionMark question_mark
 RadioButtonUnchecked radio_button_unchecked
 Receipt receipt +
+ReceiptLong receipt_long W
 Redo redo M
 Refresh refresh
 Remove remove

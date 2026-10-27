@@ -140,7 +140,6 @@ fun OrderCard(
                 OrderCardHead(order, stage, owed, now, greyed, mine, showsStage)
             }
         }
-        HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.18f))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.weight(1f)) {
                 if (step != null) OrderNextStepRow(order, step, busy, actions)

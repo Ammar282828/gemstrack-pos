@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -278,8 +279,7 @@ internal fun LabelDesignerContent(state: DesignerState, standard: LabelLayout, s
                     VerticalRule()
                     Column(Modifier.weight(1f).fillMaxHeight()) {
                         LabelCanvas(state, Modifier.weight(1f), ::requestDelete)
-                        HorizontalDivider()
-                        LabelControlBar(state, saveState)
+                        Box(Modifier.background(MaterialTheme.colorScheme.surfaceContainer)) { LabelControlBar(state, saveState) }
                     }
                     VerticalRule()
                     Column(Modifier.width(360.dp).fillMaxHeight()) {
@@ -290,8 +290,7 @@ internal fun LabelDesignerContent(state: DesignerState, standard: LabelLayout, s
             } else {
                 Column(Modifier.fillMaxSize()) {
                     LabelCanvas(state, Modifier.weight(1f).heightIn(min = 230.dp), ::requestDelete)
-                    HorizontalDivider()
-                    LabelControlBar(state, saveState)
+                    Box(Modifier.background(MaterialTheme.colorScheme.surfaceContainer)) { LabelControlBar(state, saveState) }
                     LabelSegments(Panel.entries.map { it.title to it.title }, panel.title, { v -> panel = Panel.entries.first { it.title == v } })
                     Box(Modifier.fillMaxWidth().height(300.dp)) { PanelBody(state, panel, standard, ::requestDelete, { replacingPicture = true }) { confirmingStandard = true } }
                 }
@@ -334,7 +333,8 @@ internal fun LabelDesignerContent(state: DesignerState, standard: LabelLayout, s
 
 @Composable
 private fun VerticalRule() {
-    Box(Modifier.width(1.dp).fillMaxHeight().background(MaterialTheme.colorScheme.outlineVariant))
+    // The panes part by a gap of the page tone, not a rule.
+    Spacer(Modifier.width(8.dp).fillMaxHeight())
 }
 
 @Composable

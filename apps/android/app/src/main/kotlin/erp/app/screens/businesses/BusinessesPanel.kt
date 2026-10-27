@@ -1,5 +1,6 @@
 package erp.app.screens.businesses
 
+import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -22,7 +23,6 @@ import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import erp.app.ui.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import erp.app.ui.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -199,7 +199,7 @@ fun BusinessesPanel(inSheet: Boolean, demo: Boolean = House.isDemo, initialPrevi
                 else "Type the address of the business's ERP, like erp.houseofmina.store. You'll see its name, logo and colours before it is added, then sign in with the Gmail it has for you.",
             ) {
                 Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedTextField(
+                    TextField(
                         value = address,
                         onValueChange = {
                             address = it

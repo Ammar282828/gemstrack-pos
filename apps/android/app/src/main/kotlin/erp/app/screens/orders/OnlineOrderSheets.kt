@@ -1,5 +1,6 @@
 package erp.app.screens.orders
 
+import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
 import android.content.Intent
@@ -17,7 +18,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import erp.app.ui.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import erp.app.ui.TextButton
 import androidx.compose.runtime.Composable
@@ -285,7 +285,7 @@ fun OnlineDeclineSheet(row: OnlineOrderRow, onDismiss: () -> Unit, done: (Online
                     if (trimmed == r) Icon(Symbols.Check, "Chosen", Modifier.size(18.dp), tint = ErpColors.accent)
                 }
             }
-            OutlinedTextField(
+            TextField(
                 value = reason,
                 onValueChange = { reason = if (it.length > OnlineOrdersLogic.reasonLimit) it.take(OnlineOrdersLogic.reasonLimit) else it },
                 modifier = Modifier.fillMaxWidth(),

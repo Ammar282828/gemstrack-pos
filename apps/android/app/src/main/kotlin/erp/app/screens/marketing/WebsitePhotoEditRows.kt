@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
@@ -14,7 +15,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import erp.app.ui.SegmentedButton
 import erp.app.ui.SegmentedButtonDefaults
 import erp.app.ui.SingleChoiceSegmentedButtonRow
@@ -125,7 +125,7 @@ fun WebsitePhotoEditRows(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Say what to change: the piece itself stays as it is, and the result is checked against it.", style = MaterialTheme.typography.bodyMedium)
-                    OutlinedTextField(askText, { askText = it }, Modifier.fillMaxWidth(), placeholder = { Text("Make the background plain white") })
+                    TextField(askText, { askText = it }, Modifier.fillMaxWidth(), placeholder = { Text("Make the background plain white") })
                 }
             },
             confirmButton = {

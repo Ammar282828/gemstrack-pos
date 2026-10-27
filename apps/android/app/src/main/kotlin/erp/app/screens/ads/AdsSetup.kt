@@ -1,5 +1,6 @@
 package erp.app.screens.ads
 
+import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
@@ -15,7 +16,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import erp.app.ui.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -379,7 +379,7 @@ private fun ConfigRow(app: AdsStatusAnswer.App, configId: String, onConfigId: (S
     AdsRow(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text("Facebook Login for Business configuration ID")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(
+            TextField(
                 configId, onConfigId, Modifier.weight(1f), placeholder = { Text("Configuration ID") }, singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             )
@@ -567,7 +567,7 @@ private fun GreetingSection(assets: AdsSetupAssets?, settings: AdsSettingsRow?, 
         },
     ) {
         AdsRow {
-            OutlinedTextField(
+            TextField(
                 greeting, onGreeting, Modifier.fillMaxWidth(), minLines = 2, maxLines = 4,
                 placeholder = { Text("Hi! I saw your ad. Can you tell me more about this piece?") },
             )
@@ -663,7 +663,7 @@ private fun PixelRows(
         }
     }
     Row(Modifier.fillMaxWidth().ledgerRow(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        OutlinedTextField(pixelName, onPixelName, Modifier.weight(1f), placeholder = { Text("New pixel's name") }, singleLine = true)
+        TextField(pixelName, onPixelName, Modifier.weight(1f), placeholder = { Text("New pixel's name") }, singleLine = true)
         TextButton(onClick = { onNew(st.carried.isNotEmpty()) }, enabled = busy == null && pixelName.trim().isNotEmpty()) {
             Text(if (busy == "pixel") "Working…" else "Make a new pixel")
         }

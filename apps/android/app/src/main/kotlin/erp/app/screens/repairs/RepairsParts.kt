@@ -1,5 +1,6 @@
 package erp.app.screens.repairs
 
+import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import erp.app.ui.SearchBarField
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -30,7 +31,6 @@ import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SelectableDates
 import erp.app.ui.Switch
 import androidx.compose.material3.SwipeToDismissBox
@@ -114,7 +114,6 @@ fun RepairsSheetFrame(
                 )
                 Box(Modifier.defaultMinSize(minWidth = 72.dp), contentAlignment = Alignment.CenterEnd) { trailing?.invoke(close) }
             }
-            HorizontalDivider()
             Column(
                 Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -171,7 +170,7 @@ fun RepairsField(
     end: Boolean = false,
     supporting: String? = null,
 ) {
-    OutlinedTextField(
+    TextField(
         value = value,
         onValueChange = onChange,
         modifier = modifier.fillMaxWidth(),

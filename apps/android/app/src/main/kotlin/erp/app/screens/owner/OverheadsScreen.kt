@@ -1,5 +1,6 @@
 package erp.app.screens.owner
 
+import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import erp.app.ui.ContainedLoading
 import erp.app.ui.Loading
@@ -23,7 +24,6 @@ import erp.app.ui.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import erp.app.ui.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import erp.app.ui.TextButton
 import erp.app.ui.ErpPullToRefreshBox
@@ -371,11 +371,11 @@ private fun Sheet(
                     Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    OutlinedTextField(
+                    TextField(
                         value = line.label, onValueChange = { v -> onChange(line.id) { it.copy(label = v) } },
                         modifier = Modifier.weight(1f), label = { Text("What is it for") }, singleLine = true,
                     )
-                    OutlinedTextField(
+                    TextField(
                         value = PaymentText.whole(line.amountText), onValueChange = { v -> onChange(line.id) { it.copy(amountText = PaymentText.whole(v)) } },
                         modifier = Modifier.weight(0.7f), label = { Text("Amount") }, singleLine = true,
                         textStyle = MaterialTheme.typography.bodyLarge.copy(textAlign = TextAlign.End),
