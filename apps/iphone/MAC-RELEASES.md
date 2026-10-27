@@ -28,3 +28,4 @@ app archived for TestFlight's "Shop" group, and the iPhone app built beside it a
 - 2026-10-27: the end-to-end review's fixes: menus answer from every window and never behind the lock, every New is its own window, a window closes when another business opens, a saved list in a window is that list, Back/Forward as a browser's, snapshots off in the demo.
 - 2026-10-27: one look on every page (the owner's snapshots): one figure card and even grid, titles as the sidebar's with counts, opaque foot bars, inspectors on the ground, reports at one width with level cards, tables that never clip; ⌘K types at once; the window reopens on its last place.
 - 2026-10-27: Return and double-click open the picked record in every list; ⌘K types at once; Live's and Plan's icons; the window reopens on its last place.
+- 2026-10-27: every Mac check green (unit and UI, every page light and dark): Return in Stock opens the picked piece.
