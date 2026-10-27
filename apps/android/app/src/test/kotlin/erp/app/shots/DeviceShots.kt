@@ -1,15 +1,24 @@
 package erp.app.shots
 
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.unit.dp
 import erp.app.ErpApp
+import erp.app.config.Business
 import erp.app.nav.LocalNavigator
 import erp.app.nav.Navigator
 import erp.app.screens.voice.VoiceModel
 import erp.app.screens.voice.VoicePlan
 import erp.app.screens.voice.VoiceScreen
 import erp.app.ui.ReadableColumn
+import erp.app.widget.WidgetFacePreview
+import erp.app.widget.WidgetLinkData
+import erp.app.widget.WidgetSize
+import erp.app.widget.WidgetSummary
+import erp.app.widget.previewHeight
+import erp.app.widget.previewWidth
 import erp.core.Json
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -90,5 +99,26 @@ class DeviceShots(config: ShotConfig) : ShotBase(config) {
         }
         show { sheet { VoiceScreen(m) } }
         shoot("voice-review")
+    }
+
+    // The Large face alone (Settings' preview page runs below the fold): one business, then two stacked, as a launcher's 4x4 draws them.
+    @Test fun widget_large_faces() {
+        // Each business in its own colours, as the widget draws two.
+        val gold = Business.Palette(Business.Side("#8A6B42", "#ECE8E1", "#FFFFFF", "#FFFFFF"), Business.Side("#D3B47F", "#030606", "#172020", "#0B1414"))
+        val pink = Business.Palette(Business.Side("#380000", "#F2E9E4", "#FFFFFF", "#FBF9F9"), Business.Side("#EBA9B3", "#090405", "#22131A", "#251318"))
+        val taheri = WidgetLinkData("taheri", "Taheri ERP", "https://example.invalid", "", gold, "taheri")
+        val mina = WidgetLinkData("mina", "House of Mina ERP", "https://example.invalid", "", pink, "mina")
+        val one = listOf(taheri to WidgetSummary.sample("Taheri"))
+        val two = one + (mina to WidgetSummary.sample("House of Mina"))
+        show {
+            androidx.compose.foundation.layout.Column(
+                androidx.compose.ui.Modifier.padding(16.dp),
+                verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(16.dp),
+            ) {
+                WidgetFacePreview(one, WidgetSize.Large, "ERP", androidx.compose.ui.Modifier.size(previewWidth(WidgetSize.Large), previewHeight(WidgetSize.Large)), dark = config.dark)
+                WidgetFacePreview(two, WidgetSize.Large, "ERP", androidx.compose.ui.Modifier.size(previewWidth(WidgetSize.Large), previewHeight(WidgetSize.Large)), dark = config.dark)
+            }
+        }
+        shoot("widget-large")
     }
 }

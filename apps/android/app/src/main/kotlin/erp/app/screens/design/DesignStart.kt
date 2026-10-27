@@ -430,8 +430,7 @@ private fun Photograph(start: DesignStartModel, onBrowse: () -> Unit, onSite: ()
 @Composable
 private fun SourceChip(title: String, icon: ImageVector, onClick: () -> Unit) {
     Row(
-        Modifier.defaultMinSize(minHeight = 48.dp).clip(CircleShape).background(ErpColors.ground)
-            .border(BorderStroke(1.dp, MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.18f)), CircleShape)
+        Modifier.defaultMinSize(minHeight = 48.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceContainerHigh)
             .clickable(role = Role.Button, onClick = onClick).padding(horizontal = 13.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {

@@ -123,10 +123,13 @@ private fun PreviewPaper(look: WidgetLook?, dark: Boolean, wallpaper: Boolean, m
     val context = LocalContext.current
     val colors = remember(look?.id, look?.palette, wallpaper) { WidgetColors.of(look, wallpaper, context) }
     CompositionLocalProvider(LocalTile provides (colors to dark)) {
-        Box(
-            modifier.clip(RoundedCornerShape(WidgetShape.outer(context))).background(colors.scheme(dark).surfaceContainerHigh)
-                .padding(horizontal = 14.dp, vertical = if (tight) 6.dp else 10.dp),
-        ) { content() }
+        // A widget's text takes about its font's own line height; the theme's 24 sp one would give each line twice the room (and clip the last).
+        androidx.compose.material3.ProvideTextStyle(androidx.compose.ui.text.TextStyle(lineHeight = 15.sp)) {
+            Box(
+                modifier.clip(RoundedCornerShape(WidgetShape.outer(context))).background(colors.scheme(dark).surfaceContainerHigh)
+                    .padding(horizontal = 14.dp, vertical = if (tight) 6.dp else 10.dp),
+            ) { content() }
+        }
     }
 }
 
@@ -245,7 +248,7 @@ private fun Eyebrow(text: String) {
 private fun Hero(f: FacePlan) {
     Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
         f.heroPrefix?.let { Text(it, color = inkSecondary(), fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1) }
-        Text(f.heroNumber, color = inkPrimary(), fontSize = f.heroSp.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
+        Text(f.heroNumber, color = inkPrimary(), fontSize = f.heroSp.sp, lineHeight = (f.heroSp * 1.15f).sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
     }
 }
 
