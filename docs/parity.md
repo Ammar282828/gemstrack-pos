@@ -107,7 +107,7 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | My work (karigar's own list) | ✓ | ✓ | ✓ | ✓ | 2026-10 |  |
 | Drafts, Calendar, Activity log | ✓ | ✓ | ✓ | ✓ | 2026-10-09 | `Screens/Work`, `screens/work` |
 | Drafts: saved at every keystroke, never auto-opened (a New sale / New order is blank; the unfinished one waits in Drafts; a quiet "N drafts" line on the blank form) | ✓ | ✓ | ✓ | ✓ | 2026-10-25 | [Drafts](decisions.md#drafts); web `use-work-drafts.ts` + `lib/draft-writer.ts`, `?continue=1`; iPhone/Mac one code: `Data/WorkDraftSync.swift`, `NewSale.swift`, `NewOrder.swift`, `Work/DraftsNote.swift`, `?resume=1`; Android: `data/WorkDraftSync.kt` (tested: `WorkDraftSyncTests`), `DraftsNote`, `?resume=1` for Scan/Stock/Drafts/Create order |
-| New sale in the + menu opens the sale itself, not the New chooser | n/a | ✓ | ✓ | owed | 2026-10-25 | iPhone `RootView.swift` (ed1a79a); Android `nav/RootScaffold.kt` `createItems` |
+| New sale in the + menu opens the sale itself, not the New chooser | n/a | ✓ | ✓ | ✓ | 2026-10-25 | iPhone `RootView.swift` (ed1a79a); Android `nav/RootScaffold.kt` `createItems`; the Mac has no + menu: ⌘N, File › New Sale, the sidebar's New Sale and ⌘K's "New sale" all open `/invoices/new` in a window of its own, never `/new` (the chooser is not in the Mac's sidebar, `MacSidebar.actionTabs`); green in the Mac check and release of 2026-10-27 |
 
 ## Money
 
