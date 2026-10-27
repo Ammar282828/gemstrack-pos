@@ -176,6 +176,17 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
   - Left: the desktop sidebar's width animation reflows the table each frame (fine at full speed); the piece
     editor's first render (~130 ms at 4x); Invoices and Customers render the phone list and the hidden desktop table
     both, every keystroke in the search box.
+- **Android moves on Material 3 Expressive's springs** (2026-10-27, owner: "add proper Material You animations as well"). The curves above are the web's;
+  the Android app has none of its own. Everything that moves or resizes uses the theme's `MotionScheme.expressive()` spatial springs, everything that fades or
+  changes colour its effects springs (`ErpMotion` in `ui/Motion.kt`: `spatial/fastSpatial/slowSpatial`, `effects/fastEffects/slowEffects`, `fadeThrough`,
+  `sharedAxisX/Y`, `expandIn/collapseOut`, `roll`, `slideIn/slideOut`, `popIn/popOut`); no tween is picked by hand. Tabs fade through (out first, in from 92%); the steps of
+  one task (New order / New sale's four) and peers in a place (a place's tabs and sections, a period's words) move on a shared axis, 30 dp; lists animate inserts, removals
+  and reorders (`animateItem()` on every keyed row, `animatedItem` for keyed single items); sections fold on the spatial spring; figures roll; the first six rows of a list
+  rise once, 30 ms apart; buttons, cards and toggles morph as they are pressed and a held segmented button squeezes its neighbours; dialogs scale up from 85% and fade
+  in; the system's own ticks go with segment choices and switches (`SEGMENT_TICK`, `TOGGLE_ON/OFF`, `CONFIRM`). Everything is instant under Reduce Motion (animator scale 0).
+  **Pages stay the platform's:** each pushed page is its own Activity, so Android draws its transition and the predictive Back gesture. The owner rejected custom
+  morph/container transitions between pages twice ("a veil", "ghost text", "back feels off"): no shared element or container transform between pages, no
+  `overridePendingTransition`.
 
 ### Recent picks
 
@@ -909,6 +920,7 @@ their standing "do everything yourself": `docs/features/design-studio-plan.md`; 
   buttons and cards. Words, money, payloads, navigation and the iPhone's features are untouched; the iPhone and the web keep their own look.
 - **The seed is the business's colour.** Every Material 3 role is grown from the open business's accent (TonalSpot, light and dark; Google's Material Color Utilities), so
   Taheri is gold and House of Mina pink and staff tell them apart as before. The meaning-colours (late, owed, settled, credit, working) are tonal palettes harmonised toward it.
+- **Motion is Material 3 Expressive's too:** springs from the theme's motion scheme, never hand-picked tweens; pages stay the platform's own Activity transitions (see Motion).
 - **Wallpaper colours are optional.** Settings → This phone → "Wallpaper colours" (Android 12+) wears the phone's own scheme instead. Off by default, because one app holds both
   houses and the business's colour is the cue.
 

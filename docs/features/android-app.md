@@ -298,6 +298,14 @@ Rules: `apps/android/CONVENTIONS.md` rule 5; the decision: `docs/decisions.md#ma
   as a font, and switching would be noise).
 - **Motion.** `MotionScheme.expressive()` springs as before; the press scale is gone for the morphs above (the buttons' come from Material's own `shapes`, `morphCard`'s
   corners spring with the theme's fast spatial spec and stay still under Reduce Motion). The platform's own page transitions (PageActivity) are untouched.
+- **Motion, expressive throughout (2026-10-27).** One file writes the specs, `ui/Motion.kt` (`ErpMotion`, from `rememberErpMotion()`): the theme's spatial springs for what moves or
+  resizes, effects springs for colour and opacity. Tabs fade through (`RootScaffold`); a place's tabs and sections and a period's words move on a shared axis X
+  (`PlaceScreen`, `AxisSwap`), New order / New sale's steps on Y (`EntryStepContent`); the wide window's item column fades through (`HubSplit`); every keyed list row has
+  `animateItem()` and every keyed single item is `animatedItem` (`ui/LazyMotion.kt`); folds (`LedgerSection`, disclosures, the workshop's) expand on the spatial spring with the
+  chevron turning; `NumericText` rolls; `appearOnce` is the six-row, 30 ms first paint; `SegmentedButton` squeezes its neighbours while held; `FilterChip`'s check grows in;
+  the Note, the outbox and the sending banners slide from their edge; `AlertDialog` (`ui/Dialogs.kt`) scales up and fades in. Haptics: segment tick on a segmented choice, toggle
+  tick on a switch, confirm on money as before. Not touched, on purpose: the pages (Activities, platform transition and predictive Back) and the sheets (Material's own
+  predictive Back; no `BackHandler` inside a sheet). Tests: `MotionTests` (mid-transition shots `motion-*-mid`), `ErpMotionTests`.
 - **Kept from the house:** the business's wordmark and badge, the colour seed, money wording, whole rupees, lac and crore, the owner's words.
 - **Screenshots.** Every baseline under `app/src/test/screenshots/<house>/` was re-recorded for both flavors (phone and tablet, light and dark): they are the review.
 - **Left as it was, on purpose.** The icon set is still `Icons.Filled`/`Rounded` (Material Symbols Rounded is not shipped for Compose and a swap would touch every screen); the
