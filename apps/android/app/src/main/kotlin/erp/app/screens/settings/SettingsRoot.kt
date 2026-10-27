@@ -72,8 +72,8 @@ fun SettingsRoot() {
         }
 
         SettingsSection {
-            SettingsLinkRow("Businesses", Symbols.Domain, SettingsColors.orange, "/app/businesses")
-            SettingsLinkRow("This phone", Symbols.PhoneAndroid, SettingsColors.teal, "/app/phone")
+            SettingsLinkRow("Businesses", Symbols.Domain, "/app/businesses")
+            SettingsLinkRow("This phone", Symbols.PhoneAndroid, "/app/phone")
         }
 
         SettingsSection(footer = versionLine(House.storeName, BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE)) {
@@ -101,14 +101,14 @@ fun SettingsRoot() {
 @Composable
 private fun SettingsTabRow(t: NavPlace) {
     when (t.href) {
-        "/settings" -> SettingsLinkRow("Shop", Symbols.Storefront, SettingsColors.blue, "/app/settings/shop")
-        "/settings/alerts" -> SettingsLinkRow("Alerts", Symbols.NotificationsActive, SettingsColors.red, t.href)
-        "/settings/payment-methods" -> SettingsLinkRow("Bank accounts", Symbols.AccountBalance, SettingsColors.green, t.href)
-        "/settings/integrations" -> SettingsLinkRow("Integrations", Symbols.Extension, SettingsColors.purple, t.href)
-        "/settings/data" -> SettingsLinkRow("Data", Symbols.Storage, SettingsColors.gray, t.href)
-        "/activity-log" -> SettingsLinkRow("Activity", Symbols.History, SettingsColors.indigo, t.href)
-        "/settings/voice" -> SettingsLinkRow("Voice", Symbols.Mic, SettingsColors.pink, t.href)
-        else -> SettingsLinkRow(t.label, NavIcon.vector(t.icon), SettingsColors.teal, t.href)
+        "/settings" -> SettingsLinkRow("Shop", Symbols.Storefront, "/app/settings/shop")
+        "/settings/alerts" -> SettingsLinkRow("Alerts", Symbols.NotificationsActive, t.href)
+        "/settings/payment-methods" -> SettingsLinkRow("Bank accounts", Symbols.AccountBalance, t.href)
+        "/settings/integrations" -> SettingsLinkRow("Integrations", Symbols.Extension, t.href)
+        "/settings/data" -> SettingsLinkRow("Data", Symbols.Storage, t.href)
+        "/activity-log" -> SettingsLinkRow("Activity", Symbols.History, t.href)
+        "/settings/voice" -> SettingsLinkRow("Voice", Symbols.Mic, t.href)
+        else -> SettingsLinkRow(t.label, NavIcon.vector(t.icon), t.href)
     }
 }
 

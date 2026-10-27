@@ -82,9 +82,9 @@ fun NewChooser() {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             LedgerHeading("What is it?", Modifier.padding(horizontal = 16.dp))
             SegmentedColumn {
-                Choice("Sale", "Buying now: pieces, payment, the invoice", Symbols.Description, ErpColors.accent, ErpColors.onAccent) { navigator.open("/invoices/new") }
-                Choice("Order", "To be made: sizes, an advance, the workshop", Symbols.Assignment, Indigo, Color.White) { navigator.open("/orders/add") }
-                Choice("Repair", "Brought in to be fixed: pieces, price, ready-by", Symbols.Build, Teal, Color.White) { navigator.open("/repairs?new=1") }
+                Choice("Sale", "Buying now: pieces, payment, the invoice", Symbols.Description, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onPrimary) { navigator.open("/invoices/new") }
+                Choice("Order", "To be made: sizes, an advance, the workshop", Symbols.Assignment, MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.onSecondaryContainer) { navigator.open("/orders/add") }
+                Choice("Repair", "Brought in to be fixed: pieces, price, ready-by", Symbols.Build, MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer) { navigator.open("/repairs?new=1") }
             }
         }
 
@@ -109,10 +109,6 @@ private fun Untitled(footer: String, content: @Composable () -> Unit) {
         Text(footer, Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
-
-// iOS's system indigo and teal, which the New menu's order and repair icons wear.
-private val Indigo = Color(0xFF5856D6)
-private val Teal = Color(0xFF30B0C7)
 
 /**
  * A bill left half-finished should be obvious, and one tap from here. Its figure is the pieces at today's rates, as

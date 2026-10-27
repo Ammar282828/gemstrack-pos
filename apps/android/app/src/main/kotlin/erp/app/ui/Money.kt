@@ -141,7 +141,7 @@ fun heroFigure(amount: Double, lac: Boolean): String {
 }
 
 /**
- * A screen's one big sum: the serif, the rupees exact, "PKR" set small beside it. [unit] is "PKR" for money;
+ * A screen's one big sum: the display size, the rupees exact, "PKR" set small beside it. [unit] is "PKR" for money;
  * pass another ("g", "tola") for a weight, with [text] for the figure itself ([Weight.grams]).
  */
 @Composable

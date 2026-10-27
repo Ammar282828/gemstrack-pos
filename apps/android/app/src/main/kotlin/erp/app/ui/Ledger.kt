@@ -47,7 +47,7 @@ import java.time.Instant
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-// The ledger: the look of Home, Orders and Invoices (Ledger.swift). Money is the subject (the serif for a
+// The ledger: the look of Home, Orders and Invoices (Ledger.swift). Money is the subject (the display size for a
 // screen's one big figure, steady digits); colour means something or it is not used (Tone); a person comes
 // before a number; one badge at most on a card.
 

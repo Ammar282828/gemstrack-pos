@@ -32,7 +32,7 @@ iPhone app, `apps/iphone` (read `apps/iphone/CONVENTIONS.md` too: its rules hold
    `ERPDate` / show with `ShopDate.say`.
 4. **No real data in the repo.** Fixtures, previews and tests use made-up names, phones and amounts only.
 5. **Material You (2026-10-26): Material 3 Expressive on the business's own colour.** The look is Android's own (Pixel's Settings,
-   Clock, Wallet), not the iPhone's: no serif, no shadows, no hairline borders on cards. A screen says roles, not hexes.
+   Clock, Wallet), not the iPhone's: no serif, no shadows, no hairlines or borders on cards, Material Symbols for icons. A screen says roles, not hexes.
    - **Colour is tonal and from a seed.** `ErpTheme` grows every Material 3 role (primary/secondary/tertiary and their
      containers, surface, `surfaceContainerLowest`..`Highest`, outline, error) from the open business's accent with Google's
      Material Color Utilities (`ui/theme/Scheme.kt`, TonalSpot, light and dark). Say `MaterialTheme.colorScheme.*`; the old names
@@ -58,6 +58,25 @@ iPhone app, `apps/iphone` (read `apps/iphone/CONVENTIONS.md` too: its rules hold
      `RowAmount`, `PaidRing`/`PaidBar`, `FigureTile/Row/Grid`, `LedgerHeading`, `Monogram`, `TwoLine`, `ShelfState`/`SkeletonLoading`,
      `NotAvailableState`, `FailureAlert`, the `Note` banner (`LocalNoteState`), `PaymentSheet`, `EntrySteps`/`TransactionWorkspace`,
      `CustomerField`, `PdfDocumentScreen`, `Haptics`/`MoneyFeedback`/`DestructiveFeedback`, `readableColumn`.
+   - **Icons are Material Symbols Rounded** (weight 400, grade 0, optical size 24), never `Icons.*` (material-icons-extended is gone from
+     the app). Say `Symbols.Add` (`erp.app.ui.icons.Symbols`, outline); `Symbols.Fill.Home` is the filled axis, for a selected or
+     active state (the navigation bar's chosen tab, a toggled button). Symbols is generated: add a line to `scripts/symbols.txt`
+     (Kotlin name, Symbols name, flags F filled-by-default / M mirrors in RTL / + also in `Fill` / W also a drawable for the
+     widget) and run `python3 scripts/symbols.py` (network; SVGs from a pinned google/material-design-icons commit). Commit the
+     generated `Symbols.kt` and `res/drawable/ic_symbol_*.xml`. `NavIcon.vector` (outline) / `NavIcon.filled` map the nav JSON's names.
+   - **Text fields are Material's filled field**: `import erp.app.ui.TextField` (`ui/TextFields.kt`: surfaceContainerHighest, chip
+     corners, a primary indicator only while focused). Never `OutlinedTextField`. A label-and-value row of a form (`ValueInput`,
+     `QuietField`, `FieldRow`) is the Settings list's inline entry and stays on its tile.
+   - **No hairlines in a card.** Parts of a card are tiles of a `SegmentedColumn` (the gap is the line), or spacing; a bar is its own
+     tone (`surfaceContainer`), not a rule over the page; `LedgerDivider` outside a group is the same 2 dp gap in the page tone.
+     A line is allowed on a sum rule of the invoice's paper (`PerforationDivider`, the PDF's shadow) and on a chart's axis.
+   - **Under the create button**: a tab root's scrolling content pads its end with `LocalFabClearance.current` (set by `PlaceScreen`
+     where the phone's floating button sits), so the last row scrolls clear of it.
+   - **The widget** (`widget/`) wears the same scheme: `WidgetColors` (the business's seed, or the phone's wallpaper colours when that
+     switch is on) in a `GlanceTheme` per business tile, the system's corner radius (`WidgetShape`), tonal tiles and insets, the M3
+     type sizes; the preview draws the same plan from the same colours.
+   - **The launch window** is the business's `surface` (generated per flavor into `house_launch`/`house_ground`, light and night, by
+     `generate<House>HouseRes` with the same colour library); the Android 12+ splash puts the mark on it.
    - Filled primary buttons carry `onPrimary` words; do not hand-roll a card (`background(...).clip(RoundedCornerShape(..))`), a
      border, a shadow, a serif or a hex ground: add to the kit instead.
 6. **Screens and their places.** A group lives in `screens/<group>/` with `<Group>Routes.kt` exposing

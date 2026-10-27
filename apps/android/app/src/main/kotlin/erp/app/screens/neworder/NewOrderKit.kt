@@ -107,16 +107,9 @@ internal fun FormCard(
     }
 }
 
-/** A row's inset and a hairline under it (the rows of a card are told apart by their lines). */
-@Composable
-internal fun Modifier.formRow(): Modifier {
-    val line = MaterialTheme.colorScheme.outlineVariant
-    return defaultMinSize(minHeight = 52.dp)
-        .drawBehind {
-            drawLine(line, Offset(16.dp.toPx(), size.height), Offset(size.width, size.height), strokeWidth = 0.5.dp.toPx())
-        }
-        .padding(horizontal = 16.dp, vertical = 6.dp)
-}
+/** A row's inset: the rows of a card are tiles of a segmented group, told apart by the gap between them, not by a line. */
+internal fun Modifier.formRow(): Modifier =
+    defaultMinSize(minHeight = 52.dp).padding(horizontal = 16.dp, vertical = 6.dp)
 
 // MARK: Fields
 

@@ -294,16 +294,41 @@ Rules: `apps/android/CONVENTIONS.md` rule 5; the decision: `docs/decisions.md#ma
   Sources | Kinds, a method); `FilterChip` is Material's with its check; search boxes are the search bar field (`SearchBarField`); switches carry their icon
   (`ui/Controls.kt`); `Button`, `FilledTonalButton`, `OutlinedButton`, `TextButton` and `IconButton` (`ui/Buttons.kt`) take the stock arguments and the Expressive
   shapes, which morph while pressed; a card that is itself a button is `morphCard` (corners 28 to 16 while pressed); waits are `Loading`/`ContainedLoading` (the
-  morphing loading indicator); pull to refresh was already the expressive one. Icons stay the Rounded set (Material Symbols Rounded is not in Compose's icon library
-  as a font, and switching would be noise).
+  morphing loading indicator); pull to refresh was already the expressive one. Icons are Material Symbols Rounded (see "The rest" below).
 - **Motion.** `MotionScheme.expressive()` springs as before; the press scale is gone for the morphs above (the buttons' come from Material's own `shapes`, `morphCard`'s
   corners spring with the theme's fast spatial spec and stay still under Reduce Motion). The platform's own page transitions (PageActivity) are untouched.
 - **Kept from the house:** the business's wordmark and badge, the colour seed, money wording, whole rupees, lac and crore, the owner's words.
 - **Screenshots.** Every baseline under `app/src/test/screenshots/<house>/` was re-recorded for both flavors (phone and tablet, light and dark): they are the review.
-- **Left as it was, on purpose.** The icon set is still `Icons.Filled`/`Rounded` (Material Symbols Rounded is not shipped for Compose and a swap would touch every screen); the
-  Glance widget keeps its own look (the widget owner's); a bespoke card of rows inside a page (an order's pieces, the invoice's totals) keeps a hairline between its lines, as Material
-  lists inside a card do; form text fields are Material's outlined ones; `SwipeActions` keep their tone fills; the paper of a PDF keeps its shadow; the launch window's colour is
-  the resource ground until Compose draws (then the window takes the scheme's surface).
+- **Left as it was, on purpose.** `SwipeActions` keep their tone fills; the paper of a PDF keeps its shadow; a chart's axis and the invoice paper's sum rule stay lines. (The icon set, the widget, bespoke cards' hairlines, outlined text fields and the launch window's colour were left on 2026-10-26 and converted the next day: below.)
 - **Checks.** `SchemeTests` (the seed is the business's colour that carries a hue; gold and pink keep their hues; every role and every tone reads at 4.5:1 or better on the surfaces it
   sits on, both houses, light and dark; late stays red) and `SegmentedTests` (tiles two dp apart, with or without a divider, an empty row leaves no gap); `:app:testTaheriDebugUnitTest`
   and `:app:assembleTaheriRelease` (R8 with the colour library) pass; `verifyRoborazziTaheriDebug` against the new baselines.
+
+#### Material You, the rest (2026-10-27)
+
+Owner: "Convert the remaining." The five things the first pass left in the old look:
+
+- **Icons are Material Symbols Rounded** (weight 400, grade 0, optical size 24; outline by default, the filled axis for a selected or active state). Compose has no
+  Symbols library (`material-icons-extended` is the old Material Icons), so `scripts/symbols.py` turns the official SVGs (a pinned commit of google/material-design-icons)
+  into `ui/icons/Symbols.kt`, an object of lazily built `ImageVector`s: `Symbols.Add`, and `Symbols.Fill.Home` where a state is shown (the navigation bar's chosen tab via
+  `NavIcon.filled`; status marks such as the check circle and warning are drawn filled by default, as Material draws them). The list is `scripts/symbols.txt` (Kotlin name,
+  Symbols name, flags). About 250 names replaced every `Icons.Filled/Rounded/Outlined/AutoMirrored.*` (~360 uses of 247 names); `material-icons-extended` is dropped from the app
+  (APK size in the checks below). `NavIcon` keeps its contract (`NavMapTests.everyIconBothMapsUseIsDrawn`).
+- **The widget** (`widget/`) is Material You: `WidgetColors` grows the business's scheme (the same `ErpScheme` seed, light and dark; the phone's wallpaper colours on Android 12+ when
+  Settings > This phone > "Wallpaper colours" is on, and switching it refreshes the widget) into a `GlanceTheme` per business tile, so two businesses on one widget each wear their own colours.
+  Tiles are `surfaceContainerHigh` with the system's own corner (`system_app_widget_background_radius`; `system_app_widget_inner_radius` for the insets, 24/16 dp before Android 12);
+  the large face's "Needs you" and "Recent sales" are tonal insets with a Symbols glyph (`ic_symbol_*` drawables generated with the rest) in place of the rule; names, labels and
+  figures use the Material 3 label/title sizes in sentence case; up, late and owed are the app's tones. Every face's content, the layout plan (`WidgetLayout`, `WidgetPlanTests`)
+  and the both-businesses arrangements are as they were. `WidgetFacePreview` draws the same plan from the same `WidgetColors` and shapes.
+- **The create button no longer covers the last row**: `LocalFabClearance` (88 dp: the button, its margin and a gap) is provided by `PlaceScreen` on a phone's tab root, and Home,
+  the Orders hub, Invoices, Customers and Search pad their scrolling content's end with it.
+- **No hairlines in cards.** An order's pieces and the invoice's pieces, totals and payments are `SegmentedColumn` tiles (the totals the group's last tile); the order's note and
+  delivery, the New sale/order review panes and the piece summary are tiles; an order or invoice card's action row, the sheets' header rules and the Design, Marketing and Label bars
+  are spacing or their own tone (`surfaceContainer`); a pane divider is a gap; `formRow` lost its drawn line; `LedgerDivider` outside a group is a 2 dp slit of the page tone. The
+  invoice's perforation before the totals is gone from the screen (the PDF's paper keeps its own). Menus keep Material's divider between their groups. The New menu's order and
+  repair icons and Settings' icons no longer carry the iPhone's system colours (scheme roles; `SettingsColors` is gone), the sending pill is the inverse surface (no shadow).
+- **Text fields are Material's filled field** (`ui/TextFields.kt`, `erp.app.ui.TextField`: `surfaceContainerHighest`, the chip's corners, a primary indicator only while focused),
+  for all 57 files that used `OutlinedTextField`. The label-and-value rows (`ValueInput`, `QuietField`, `FieldRow` of New order) are the Settings list's inline entry and are unchanged.
+- **The launch window** is the business's surface: `generate<House>HouseRes` (app/build.gradle.kts) works out the scheme's `surface` for the flavor's palette with the same
+  Material Color Utilities (on the build's classpath) and writes `house_launch` and `house_ground` for `values` and `values-night`; `Theme.Erp.Splash` (the Android 12+
+  SplashScreen API) draws the mark on it and `Theme.Erp` is its window, so no cream shows before Compose draws.
