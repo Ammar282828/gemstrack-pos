@@ -845,6 +845,8 @@ kind set to stand out, then 50 more "in a stories draft tab in the erp", at 2160
 (`docs/features/from-the-website.md#stories`): a hand-written running order (`lib/social/story-drafts.ts`) whose names and weights
 are the site's at the time, drawn in the browser (`week-story.ts`), never stored as pictures; only posted / skipped is kept. The site's
 own marks and printed weights are taken off the photograph (lettering only, never a light ground or the piece).
+2026-10-28: they go to the WhatsApp community's groups and channel too, as 9:16 (the one exception to WhatsApp's 1:1), under a caption
+that repeats the name, weight and "DM us for the current price"; a send marks the draft posted and records where.
 
 ### Design
 

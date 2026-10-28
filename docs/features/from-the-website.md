@@ -83,7 +83,17 @@ any oversharpening and just give them all in 2x 1080p resolution for 9:16".
 - **Posts › Stories** (`/posts/stories`, Taheri only: Mina has no running order yet) lists 57 website pieces in a running order, one a
   day from a Monday ("Week 3 · Wed"), with Next up at the top and To post / Posted / Skipped. A draft opens to Post to Instagram (when
   the account is connected; the server sizes it to 1080 × 1920), Save (the share sheet on a phone, a download elsewhere), Mark posted
-  or Skip; Back to drafts undoes either. Only that status is stored (`story_drafts`, one document per piece, `/api/posts/story-drafts`).
+  or Skip; Back to drafts undoes either. Only that status, and where it went, is stored (`story_drafts`, one document per piece,
+  `/api/posts/story-drafts`: `{ id, status }`, or `{ id, sent: 'instagram' }` / `{ id, sent: 'whatsapp', to }` after a send).
+- **The WhatsApp community too** (owner, 2026-10-28: "allow me to post the stories in the whatsapp communites as well"). The dialog
+  lists the community's groups and the channel by the shop's labels (`WHATSAPP_POST_GROUPS`, `WHATSAPP_CHANNEL_ID`, asked from
+  `GET /api/website/post` once a story opens), with their sizes. The picks are remembered on the device; the first group is the default.
+  The 2160 × 3840 story goes through `POST /api/website/post` with `targets` and `sitePiece` (so each group's twin in "- II" gets it,
+  it is logged in `social_posts`, and the hub's shuffle knows the piece went out), under an editable caption from `storyCaption`:
+  the name and weight, the kind, the piece's page, "DM us for the current price" and the numbers. A tall picture is cut short in a chat
+  until it is opened, so the caption carries what the bottom of the story says. Only the places that took it are recorded; a ✓ marks them.
+  A send marks the draft posted, like Instagram, and the card says where ("Posted · Instagram · WhatsApp"). This is the one place
+  WhatsApp gets a 9:16 picture: everywhere else it is 1:1 (2026-09-25), and a story is the owner's explicit ask here.
 - **The order and what each piece is** are written by hand in `lib/social/story-drafts.ts` (the tags say "Colored Stones" where the
   counter says "Navratan"; "21K gold" only where the site records the karat, as some diamond pieces are 18K). The **name and weight are
   the site's**, read when the tab opens: a weight typed on Photo weights shows at once. A numbered look-alike drops its number
