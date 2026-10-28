@@ -6,7 +6,9 @@
  * A draft is a website piece in a running order, one a day, with the line that says what it is ("Ruby bangles ·
  * 21K gold"). Its name and weight are the site's, read when the tab opens, so a weight typed on Photo weights or a
  * renamed piece shows at once; the picture is drawn in the browser (week-story.ts), never stored. What the counter
- * did with each (posted, skipped) is the only thing kept, in Firestore `story_drafts`.
+ * did with each (posted, skipped, and where it went: Instagram, the WhatsApp community's groups) is the only thing
+ * kept, in Firestore `story_drafts`. The owner, 2026-10-28: "allow me to post the stories in the whatsapp communities
+ * as well" — the same picture goes to the groups chosen, with `storyCaption` under it.
  *
  * The kinds are written by hand rather than worked out: a piece's tags say "Colored Stones" where the counter would
  * say "Navratan", and "21K gold" is written only where the site records the karat (some diamond pieces are 18K).
@@ -25,7 +27,12 @@ export interface StoryDraftState {
   status: StoryDraftStatus;
   at: string;
   by: string;
+  /** Where it went from here ('instagram', 'whatsapp'); none when it was marked posted by hand. */
+  on?: StoryDraftPlace[];
+  /** The WhatsApp places it was sent to, by key (destinations.ts: a group's key, or "channel"). */
+  whatsapp?: string[];
 }
+export type StoryDraftPlace = 'instagram' | 'whatsapp';
 
 /** A draft as the tab shows it: the seed with the piece as the site lists it now. */
 export interface StoryDraft {
@@ -38,6 +45,8 @@ export interface StoryDraft {
   weight: string;
   /** Not on the website any more (hidden, removed, or the site did not answer for it). */
   missing: boolean;
+  /** The piece's page on the website; '' when it is missing. */
+  url: string;
   state: StoryDraftState | null;
 }
 
@@ -142,7 +151,7 @@ export function storyDay(n: number): string {
 /** The seeds as drafts, against the pieces the site lists now and what the counter has done with each. */
 export function buildDrafts(
   seeds: StoryDraftSeed[],
-  pieces: Map<string, { name: string; weightGrams: number | null; hidden?: boolean }>,
+  pieces: Map<string, { name: string; weightGrams: number | null; hidden?: boolean; url?: string }>,
   states: Record<string, StoryDraftState>,
 ): StoryDraft[] {
   return seeds.map((s, i) => {
@@ -154,7 +163,28 @@ export function buildDrafts(
       name: p ? storyName(p.name) : storyName(s.id.split('/').pop()!.replace(/\.webp$/i, '')),
       weight: storyWeight(p?.weightGrams),
       missing: !p || !!p.hidden,
+      url: p && !p.hidden ? p.url ?? '' : '',
       state: states[s.id] ?? null,
     };
   });
+}
+
+/**
+ * The words under a story sent to the WhatsApp community. A tall picture is cut short in the chat until it is
+ * opened, so the name, the weight and how to ask stand in the caption too:
+ *
+ *   ✨ *Mozambique Ruby Bangle Pair* — _62.9g_
+ *   _Ruby bangles · 21K gold_
+ *   🌐 See it: *https://taheri.shop/…*
+ *
+ *   *DM us for the current price*
+ *   💬 WhatsApp: +92…, +92…
+ */
+export function storyCaption(d: Pick<StoryDraft, 'name' | 'weight' | 'kind' | 'url'>, numbers: string[]): string {
+  const lines = [`✨ *${d.name.trim()}*${d.weight ? ` — _${d.weight}g_` : ''}`];
+  if (d.kind.trim()) lines.push(`_${d.kind.trim()}_`);
+  if (d.url) lines.push(`🌐 See it: *${d.url}*`);
+  lines.push('', '*DM us for the current price*');
+  if (numbers.length) lines.push(`💬 WhatsApp: ${numbers.join(', ')}`);
+  return lines.join('\n');
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { STORY_DRAFT_SEEDS, buildDrafts, storyDay, storyName, storyWeight } from './story-drafts';
+import { STORY_DRAFT_SEEDS, buildDrafts, storyCaption, storyDay, storyName, storyWeight } from './story-drafts';
 import { cleanCorners, planCorners, type Pixels } from './week-story';
 
 describe('story drafts', () => {
@@ -49,6 +49,28 @@ describe('story drafts', () => {
       [2, 'Gold Set', '', true, null],
       [3, 'c', '', true, null],
     ]);
+  });
+
+  it('links a piece that is on the site, and not one that is hidden or gone', () => {
+    const pieces = new Map([
+      ['a.webp', { name: 'A', weightGrams: 1, url: 'https://taheri.shop/rings/a' }],
+      ['b.webp', { name: 'B', weightGrams: 1, url: 'https://taheri.shop/rings/b', hidden: true }],
+    ]);
+    const d = buildDrafts([{ id: 'a.webp', kind: 'Ring' }, { id: 'b.webp', kind: 'Ring' }, { id: 'c.webp', kind: 'Ring' }], pieces, {});
+    expect(d.map(x => x.url)).toEqual(['https://taheri.shop/rings/a', '', '']);
+  });
+
+  it('writes the WhatsApp caption: name and weight, what it is, its page, and to DM for the price', () => {
+    expect(storyCaption({ name: 'Mozambique Ruby Bangle Pair', weight: '62.9', kind: 'Ruby bangles · 21K gold', url: 'https://taheri.shop/b/x' }, ['+923352275553', '+923262275554'])).toBe([
+      '✨ *Mozambique Ruby Bangle Pair* — _62.9g_',
+      '_Ruby bangles · 21K gold_',
+      '🌐 See it: *https://taheri.shop/b/x*',
+      '',
+      '*DM us for the current price*',
+      '💬 WhatsApp: +923352275553, +923262275554',
+    ].join('\n'));
+    // No weight, no page, no numbers: only what there is.
+    expect(storyCaption({ name: 'Taweez', weight: '', kind: 'Taweez', url: '' }, [])).toBe('✨ *Taweez*\n_Taweez_\n\n*DM us for the current price*');
   });
 });
 
