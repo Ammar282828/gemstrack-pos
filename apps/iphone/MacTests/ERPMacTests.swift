@@ -288,11 +288,14 @@ final class ERPMacTests: XCTestCase {
     /// Every row the sidebar shows opens a native page (a Mac place, or a screen the registry has), never the web.
     func testEveryRowOpensANativePage() {
         let macPlaces: Set<String> = ["/orders", "/invoices", "/customers", "/repairs", "/products"]
+        // The rows docs/parity.md marks "pg" for the Mac: the ERP's own page in the window, covered until a native screen
+        // is built (Posts › Stories, 2026-10-27, is drawn in the browser at 2160 × 3840). A row here must say pg there.
+        let webPages: Set<String> = ["/posts/stories"]
         for role in Self.roles {
             for path in MacSidebarMap.allPaths(sections(role)) {
                 let bare = ScreenRoute.bare(path)
-                XCTAssertTrue(macPlaces.contains(bare) || ScreenRegistry.hasNative(path),
-                              "\(role): the sidebar row \(path) has no native page")
+                XCTAssertTrue(macPlaces.contains(bare) || ScreenRegistry.hasNative(path) || webPages.contains(bare),
+                              "\(role): the sidebar row \(path) has no native page (and is not one parity.md marks pg)")
             }
         }
     }
