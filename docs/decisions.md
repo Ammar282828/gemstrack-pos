@@ -298,7 +298,9 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
 
 ### Wastage in grams
 
-- **Invoices show wastage in grams only** (no rupee value, no percentage); the workshop slip keeps the percentage.
+- **Invoices show wastage in grams only** (no rupee value, no percentage). The workshop slip did keep the percentage until
+  2026-10-28, when the owner asked for it "just like in the bill … by grams": it now prints the estimated weight less stones ×
+  the percentage (`wastageGrams`, the bill's rule; `lib/order-slip.ts`), on every surface, since the apps print the server's slip.
 
 ### Repairs
 

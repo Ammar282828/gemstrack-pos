@@ -132,7 +132,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 **Selling: invoices, orders, repairs**
 - [Drafts](docs/decisions.md#drafts) — only a new order or sale is drafted, in Firestore `drafts`; `finish()` on save; saved at every keystroke (within 300 ms, one write at a time), never auto-opened: a New sale/order is blank, the unfinished one waits in Drafts under its own id (Scan/Stock continue the sale with `?continue=1` / `?resume=1`)
 - [Order actions gate](docs/decisions.md#order-actions-gate) — it moves money
-- [Wastage in grams](docs/decisions.md#wastage-in-grams) — the workshop slip keeps the percentage
+- [Wastage in grams](docs/decisions.md#wastage-in-grams) — the bill and the workshop slip both (slip since 2026-10-28)
 - [Repairs](docs/decisions.md#repairs) — a ticket of many pieces; In the shop → Ready → Collected; money to Extra revenue
 - [Invoice pages](docs/decisions.md#invoice-pages) — the viewer never touches the cart; `/cart` redirects; `/view-invoice/<id>` is the customer's
 - [Invoice PDF](docs/decisions.md#invoice-pdf) — `saveInvoicePdf`, per-piece; Taheri: "Invoice - <customer>", PDF on WhatsApp
