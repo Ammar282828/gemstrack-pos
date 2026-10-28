@@ -331,6 +331,9 @@ object AdsUpload {
             }
             .connectTimeout(20, TimeUnit.SECONDS)
             .callTimeout(90, TimeUnit.SECONDS)
+            // OkHttp's 10 s read/write limits would otherwise cut a slow upload off long before the 90 s.
+            .readTimeout(90, TimeUnit.SECONDS)
+            .writeTimeout(90, TimeUnit.SECONDS)
             .build()
     }
 

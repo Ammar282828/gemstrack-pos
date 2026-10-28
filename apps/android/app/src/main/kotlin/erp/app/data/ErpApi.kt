@@ -85,7 +85,11 @@ class ErpApi private constructor(private val initial: Business) {
         } else if (method != "GET") {
             builder.method(method, ByteArray(0).toRequestBody(null))
         }
+        // OkHttp's own read and write limits are 10 s each and win over the call's: the bill reader answers in 10-70 s,
+        // so it was cut off at 10 s every time (2026-10-28) while the ERP went on to read the bill. The call's limit is the one limit.
         val call = client.newBuilder().callTimeout(timeoutMs, TimeUnit.MILLISECONDS)
+            .readTimeout(timeoutMs, TimeUnit.MILLISECONDS)
+            .writeTimeout(timeoutMs, TimeUnit.MILLISECONDS)
             // A redirect off the ERP's own host (or off https) is refused, so the Authorization header never
             // follows one somewhere else. Network interceptors see every hop.
             .addNetworkInterceptor { chain ->
