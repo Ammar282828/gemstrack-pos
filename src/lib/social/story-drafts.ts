@@ -13,6 +13,7 @@
  * The kinds are written by hand rather than worked out: a piece's tags say "Colored Stones" where the counter would
  * say "Navratan", and "21K gold" is written only where the site records the karat (some diamond pieces are 18K).
  */
+import { askBlock, captionBlocks } from './caption';
 
 export interface StoryDraftSeed {
   /** The site's key for the photograph (SitePiece.id). */
@@ -171,20 +172,22 @@ export function buildDrafts(
 
 /**
  * The words under a story sent to the WhatsApp community. A tall picture is cut short in the chat until it is
- * opened, so the name, the weight and how to ask stand in the caption too:
+ * opened, so the name, the weight and how to ask stand in the caption too, in the house's one shape
+ * (caption.ts captionBlocks):
  *
- *   ✨ *Mozambique Ruby Bangle Pair* — _62.9g_
- *   _Ruby bangles · 21K gold_
+ *   ✨ *Mozambique Ruby Bangle Pair*
+ *   _Ruby bangles · 21K gold · 62.9g_
+ *
  *   🌐 See it: *https://taheri.shop/…*
  *
  *   *DM us for the current price*
  *   💬 WhatsApp: +92…, +92…
  */
 export function storyCaption(d: Pick<StoryDraft, 'name' | 'weight' | 'kind' | 'url'>, numbers: string[]): string {
-  const lines = [`✨ *${d.name.trim()}*${d.weight ? ` — _${d.weight}g_` : ''}`];
-  if (d.kind.trim()) lines.push(`_${d.kind.trim()}_`);
-  if (d.url) lines.push(`🌐 See it: *${d.url}*`);
-  lines.push('', '*DM us for the current price*');
-  if (numbers.length) lines.push(`💬 WhatsApp: ${numbers.join(', ')}`);
-  return lines.join('\n');
+  const sub = [d.kind.trim(), d.weight ? `${d.weight}g` : ''].filter(Boolean).join(' · ');
+  return captionBlocks([
+    [`✨ *${d.name.trim()}*`, sub && `_${sub}_`],
+    [d.url && `🌐 See it: *${d.url}*`],
+    askBlock(numbers, undefined, '*DM us for the current price*'),
+  ]);
 }

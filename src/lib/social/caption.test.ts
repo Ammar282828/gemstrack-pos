@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { detailsLine, sitePieceCaption, waNumberFromUrl, websiteFileName, weightLabel, whatsappCaption } from './caption';
+import { detailsLine, sitePieceCaption, waNumberFromUrl, websiteFileName, tidyCaption, weightLabel, whatsappCaption } from './caption';
 
 describe('weightLabel', () => {
   it('keeps the weight exactly as typed', () => {
@@ -36,7 +36,12 @@ describe('whatsappCaption', () => {
   const ctx = { whatsappNumbers: ['+923352275553', '+923262275554'], link: 'https://taheri.shop/bangles' };
   it('has the header, the stones line and where to ask', () => {
     const c = whatsappCaption({ headline: 'Bangle & Ring', metal: '21K Yellow Gold', weight: '18.8', stones: 'Rubies & Pearls' }, ctx);
-    expect(c.split('\n')[0]).toBe('✨ *Bangle & Ring* — _21K Yellow Gold | 18.8g_');
+    expect(c).toBe([
+      '✨ *Bangle & Ring*', '_21K Yellow Gold · 18.8g_', '',
+      '_Rubies & Pearls_', '',
+      '🌐 See it: *https://taheri.shop/bangles*', '',
+      '*Ask for today’s price*', '💬 WhatsApp: +923352275553, +923262275554',
+    ].join('\n'));
     expect(c).toContain('_Rubies & Pearls_');
     expect(c).toContain('💬 WhatsApp: +923352275553, +923262275554');
     expect(c).toContain('https://taheri.shop/bangles');
@@ -47,7 +52,7 @@ describe('whatsappCaption', () => {
   });
   it('puts the hook under the header', () => {
     const c = whatsappCaption({ headline: 'Rubies', hook: 'For the evening.' }, { whatsappNumbers: [] });
-    expect(c).toBe('✨ *Rubies*\n\nFor the evening.');
+    expect(c).toBe('✨ *Rubies*\n\nFor the evening.\n\n*Ask for today’s price*');
   });
   it('closes in the house\'s own words when it has them (House of Mina)', () => {
     const c = whatsappCaption(
@@ -55,7 +60,7 @@ describe('whatsappCaption', () => {
       { whatsappNumbers: [], link: 'https://catalogue.houseofmina.store/rings', tagline: 'Bespoke, designed in-house.', footer: '📩 DM to order — *+923161930960*\n💳 Card / Bank Transfer' },
     );
     expect(c).toBe([
-      '✨ *Ocean Halo Ring* — _925 Sterling Silver | 4.2g_', '',
+      '✨ *Ocean Halo Ring*', '_925 Sterling Silver · 4.2g_', '',
       '_Blue cubic zirconia_ Bespoke, designed in-house.', '',
       '🌐 See it: *https://catalogue.houseofmina.store/rings*', '',
       '📩 DM to order — *+923161930960*\n💳 Card / Bank Transfer',
@@ -84,7 +89,7 @@ describe('sitePieceCaption', () => {
   it('writes a Taheri piece with its weight, facts and link, and asks for the price', () => {
     const c = sitePieceCaption({ name: 'Turquoise Floral Cluster Tops', url: 'https://taheri.shop/tops/turquoise-floral-cluster-tops', weightGrams: 3.84, facts: ['Turquoise', 'None', 'Floral'] },
       { metal: '21K Gold', whatsappNumbers: ['+923352275553', '+923262275554'] });
-    expect(c.split('\n')[0]).toBe('✨ *Turquoise Floral Cluster Tops* — _21K Gold | 3.84g_');
+    expect(c.split('\n').slice(0, 3)).toEqual(['✨ *Turquoise Floral Cluster Tops*', '_21K Gold · 3.84g_', '']);
     expect(c).toContain('_Turquoise · Floral_');
     expect(c).toContain('🌐 See it: *https://taheri.shop/tops/turquoise-floral-cluster-tops*');
     expect(c).toContain('💬 WhatsApp: +923352275553, +923262275554');
@@ -98,5 +103,21 @@ describe('sitePieceCaption', () => {
     expect(c).toContain('_American Diamond · rhodium plated_ Bespoke, designed in-house.');
     expect(c.trim().endsWith('🌍 Worldwide Shipping')).toBe(true);
     expect(c).not.toContain('today’s price');
+  });
+});
+
+describe('one shape for every caption', () => {
+  it('makes the site\'s words one paragraph, with one blank line between blocks and none inside one', () => {
+    const c = sitePieceCaption({ name: 'Ring', url: 'https://taheri.shop/rings/r', weightGrams: 4.5, about: '  A ruby\n in a halo.\n\n', facts: ['Ruby', 'Oval'] },
+      { metal: '21K Yellow Gold', whatsappNumbers: ['+923352275553'] });
+    expect(c).toBe([
+      '✨ *Ring*', '_21K Yellow Gold · 4.5g_', '',
+      'A ruby in a halo.', '_Ruby · Oval_', '',
+      '🌐 See it: *https://taheri.shop/rings/r*', '',
+      '*Ask for today’s price*', '💬 WhatsApp: +923352275553',
+    ].join('\n'));
+  });
+  it('tidies what is sent: Windows line ends, trailing spaces and runs of blank lines', () => {
+    expect(tidyCaption('✨ *A*  \r\n\r\n\r\n\r\n_b_\t\n\n\n💬 x\n\n')).toBe('✨ *A*\n\n_b_\n\n💬 x');
   });
 });

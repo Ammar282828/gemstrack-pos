@@ -62,10 +62,8 @@ describe('story drafts', () => {
 
   it('writes the WhatsApp caption: name and weight, what it is, its page, and to DM for the price', () => {
     expect(storyCaption({ name: 'Mozambique Ruby Bangle Pair', weight: '62.9', kind: 'Ruby bangles · 21K gold', url: 'https://taheri.shop/b/x' }, ['+923352275553', '+923262275554'])).toBe([
-      '✨ *Mozambique Ruby Bangle Pair* — _62.9g_',
-      '_Ruby bangles · 21K gold_',
-      '🌐 See it: *https://taheri.shop/b/x*',
-      '',
+      '✨ *Mozambique Ruby Bangle Pair*', '_Ruby bangles · 21K gold · 62.9g_', '',
+      '🌐 See it: *https://taheri.shop/b/x*', '',
       '*DM us for the current price*',
       '💬 WhatsApp: +923352275553, +923262275554',
     ].join('\n'));

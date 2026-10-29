@@ -23,6 +23,7 @@
  */
 
 import { communityTwins, twinOf, type WaGroup } from '@/lib/whatsapp-twins';
+import { tidyCaption } from '@/lib/social/caption';
 
 const DEFAULT_BASE = 'https://api.green-api.com';
 
@@ -209,7 +210,7 @@ export async function whatsAppNumberExists(phone: string): Promise<boolean | nul
 
 async function sendFileToChat(chatId: string, file: Blob, fileName: string, caption: string): Promise<string> {
   // WhatsApp shows a caption under images and caps it at 1024 characters.
-  const cap = caption ? caption.slice(0, 1024) : '';
+  const cap = caption ? tidyCaption(caption).slice(0, 1024) : '';
   const w = waha();
   if (w) {
     const mimetype = file.type || (/\.png$/i.test(fileName) ? 'image/png' : 'image/jpeg');

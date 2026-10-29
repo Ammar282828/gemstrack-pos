@@ -62,29 +62,70 @@ export interface CaptionContext {
 }
 
 /**
+ * Every caption the house sends has one shape, so a run of posts in the community reads as one hand
+ * (the owner, 2026-10-29: "some lines are close together some are far … it needs to look good and
+ * professional"). Up to four blocks, one blank line between blocks and none inside one:
+ *
+ *   ✨ *Name*                       the heading: the name, then metal and weight in italics
+ *   _21K Yellow Gold · 35.13g_
+ *
+ *   The piece in a sentence.        the body: the words about it, then its facts in italics
+ *   _Ruby · Oval · Statement_
+ *
+ *   🌐 See it: *https://…*          the link
+ *
+ *   *Ask for today’s price*         how to ask: the house's own lines, or the numbers
+ *   💬 WhatsApp: +92…, +92…
+ */
+export function captionBlocks(blocks: (string | false | null | undefined)[][]): string {
+  return blocks
+    .map(b => b.map(l => (l || '').trim()).filter(Boolean).join('\n'))
+    .filter(Boolean)
+    .join('\n\n');
+}
+
+/** One paragraph: the site's words come with stray line breaks and doubled spaces, which read as gaps in a chat. */
+const paragraph = (v?: string) => String(v ?? '').replace(/\s+/g, ' ').trim();
+
+/** The italic line under a name: "21K Yellow Gold · 35.13g". */
+const subLine = (...parts: (string | undefined)[]) => {
+  const s = parts.map(x => String(x ?? '').trim()).filter(Boolean).join(' · ');
+  return s ? `_${s}_` : '';
+};
+
+/** The italic facts, with the house's tagline after them. */
+const factsLine = (facts: string, tagline?: string) =>
+  [facts.trim() ? `_${facts.trim()}_` : '', tagline?.trim() || ''].filter(Boolean).join(' ');
+
+/** How to ask: the house's own closing (Mina: DM to order, card / bank transfer, shipping), else the line and the numbers. */
+export function askBlock(numbers: string[], footer?: string, ask = '*Ask for today’s price*'): string[] {
+  if (footer?.trim()) return footer.trim().split('\n');
+  return [ask, numbers.length ? `💬 WhatsApp: ${numbers.join(', ')}` : ''];
+}
+
+/**
+ * Whatever is about to go out, typed or drafted: Windows line ends and spaces at line ends dropped, and
+ * never more than one blank line in a row, so an edit in the box cannot open a gap the drafts never make.
+ */
+export function tidyCaption(text: string): string {
+  return String(text ?? '')
+    .replace(/\r\n?/g, '\n')
+    .split('\n').map(l => l.replace(/[ \t\u00a0]+$/g, '')).join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+/**
  * The WhatsApp caption. Everything in it is editable on the page before it is
  * sent; this is the first draft, not the last word.
  */
 export function whatsappCaption(p: PieceText, ctx: CaptionContext): string {
-  const headline = p.headline.trim();
-  const header = [p.metal?.trim(), weightLabel(p)].filter(Boolean).join(' | ');
-  const lines: string[] = [];
-  lines.push(`✨ *${headline}*${header ? ` — _${header}_` : ''}`);
-  if (p.hook?.trim()) lines.push('', p.hook.trim());
-  const tail = [p.stones?.trim() ? `_${p.stones.trim()}_` : '', ctx.tagline?.trim() || ''].filter(Boolean);
-  if (tail.length) lines.push('', tail.join(' '));
-  const footer = ctx.footer?.trim();
-  if (footer) {
-    // A house with its own closing (Mina: DM to order, card / bank transfer, shipping) has no prices to ask for.
-    if (ctx.link) lines.push('', `🌐 See it: *${ctx.link}*`);
-    lines.push('', footer);
-    return lines.join('\n');
-  }
-  const ask: string[] = [];
-  if (ctx.whatsappNumbers.length) ask.push(`💬 WhatsApp: ${ctx.whatsappNumbers.join(', ')}`);
-  if (ctx.link) ask.push(`🌐 See it at *${ctx.link}*`);
-  if (ask.length) lines.push('', '*Ask for today’s price:*', ...ask);
-  return lines.join('\n');
+  return captionBlocks([
+    [`✨ *${p.headline.trim()}*`, subLine(p.metal, weightLabel(p))],
+    [paragraph(p.hook), factsLine(p.stones ?? '', ctx.tagline)],
+    [ctx.link && `🌐 See it: *${ctx.link}*`],
+    askBlock(ctx.whatsappNumbers, ctx.footer),
+  ]);
 }
 
 /**
@@ -120,26 +161,14 @@ export interface SitePieceContext {
   whatsappNumbers: string[];
 }
 
-/**
- * A community post for a piece already on the website, in the house's shape:
- *
- *   ✨ *Turquoise Floral Cluster Tops* — _21K Gold | 3.84g_
- *   (the site's paragraph about it, when it has one)
- *   _Turquoise · Floral_
- *   🌐 See it: *https://taheri.shop/tops/turquoise-floral-cluster-tops*
- *   *Ask for today's price:* … (or the house's own closing lines)
- */
+/** A community post for a piece already on the website, in the house's shape (captionBlocks). */
 export function sitePieceCaption(p: SitePieceText, ctx: SitePieceContext): string {
   const w = p.weightGrams && p.weightGrams > 0 ? `${Number(p.weightGrams.toFixed(3))}g` : '';
-  const header = w ? [ctx.metal?.trim(), w].filter(Boolean).join(' | ') : '';
-  const lines: string[] = [`✨ *${p.name.trim()}*${header ? ` — _${header}_` : ''}`];
-  if (p.about?.trim()) lines.push('', p.about.trim());
   const facts = (p.facts ?? []).map(f => f.trim()).filter(f => f && !/^none$/i.test(f));
-  const tail = [facts.length ? `_${facts.join(' · ')}_` : '', ctx.tagline?.trim() || ''].filter(Boolean);
-  if (tail.length) lines.push('', tail.join(' '));
-  lines.push('', `🌐 See it: *${p.url}*`);
-  const footer = ctx.footer?.trim();
-  if (footer) lines.push('', footer);
-  else if (ctx.whatsappNumbers.length) lines.push('', '*Ask for today’s price:*', `💬 WhatsApp: ${ctx.whatsappNumbers.join(', ')}`);
-  return lines.join('\n');
+  return captionBlocks([
+    [`✨ *${p.name.trim()}*`, w ? subLine(ctx.metal, w) : ''],
+    [paragraph(p.about), factsLine(facts.join(' · '), ctx.tagline)],
+    [`🌐 See it: *${p.url}*`],
+    askBlock(ctx.whatsappNumbers, ctx.footer),
+  ]);
 }

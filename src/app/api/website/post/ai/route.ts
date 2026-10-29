@@ -213,18 +213,14 @@ export async function POST(req: NextRequest) {
           }) }],
           schema: CAPTION_SCHEMA,
         });
-        // The facts are the counter's, not the model's. If the caption dropped or changed
-        // the weight or a number, keep the model's words but rebuild the frame around them.
+        // The model writes the hook; the frame is always the house's one shape (caption.ts captionBlocks), so an
+        // AI caption sits in the community like every other one, and the weight and numbers stay the counter's.
         const weight = String(facts.weight || '');
-        const faithful = (!weight || c.whatsappCaption.includes(weight)) && numbers.every(n => c.whatsappCaption.includes(n))
-          && (!STORE_POST_FOOTER || c.whatsappCaption.includes(STORE_POST_FOOTER))
-          && !/najmi|saddar/i.test(c.whatsappCaption);
-        if (!faithful) {
-          c.whatsappCaption = whatsappCaption(
-            { headline: String(facts.headline || c.headlines[0] || ''), metal: String(facts.metal || ''), weight: weight.replace(/g(\s*each)?$/i, ''), weightEach: /each$/i.test(weight), stones: String(facts.stones || ''), hook: c.hook },
-            { whatsappNumbers: numbers, link: String(facts.link || ''), tagline: STORE_POST_TAGLINE, footer: STORE_POST_FOOTER },
-          );
-        }
+        const faithful = (!weight || c.whatsappCaption.includes(weight)) && numbers.every(n => c.whatsappCaption.includes(n));
+        c.whatsappCaption = whatsappCaption(
+          { headline: String(facts.headline || c.headlines[0] || ''), metal: String(facts.metal || ''), weight: weight.replace(/g(\s*each)?$/i, ''), weightEach: /each$/i.test(weight), stones: String(facts.stones || ''), hook: c.hook },
+          { whatsappNumbers: numbers, link: String(facts.link || ''), tagline: STORE_POST_TAGLINE, footer: STORE_POST_FOOTER },
+        );
         if (!SCENES.some(s => s.id === c.sceneId)) c.sceneId = SCENES[0].id;
         if (!PALETTES.some(p => p.id === c.paletteId)) c.paletteId = PALETTES[0].id;
         result = { caption: { ...c, rebuilt: !faithful } };
