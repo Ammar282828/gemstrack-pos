@@ -472,6 +472,29 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
     alert goes out as before. `pos-import` orders and checkout-link orders are still left alone; products and customers notices
     still do nothing. The pull remains for catch-up: `npx tsx --env-file=.env.mina.local scripts/shopify-missing-orders.ts --since 2026-10-09` (dry run; `--apply`).
 
+### Order WhatsApp
+
+- **House of Mina messages every website order from its own line, by how it is paid** (2026-10-30, owner: "for every type of
+  order there is a separate automation … for cod there is confirm decline, for bank transfer it is bank account details etc and
+  requesting screenshot, for paid orders just a nice message telling them details"). `lib/shopify-whatsapp.ts` (the rules and
+  words), `lib/shopify-whatsapp-server.ts` (sending, replies), started by the orders notice once the ERP has the order:
+  - **Cash on delivery**: the order (pieces, delivery, total, address) and "Reply 1 to confirm, 2 to cancel". 1 adds Shopify's
+    **Confirm** tag — the word the shop already tags confirmed orders with — and tells the shop's phones; 2 adds **Cancel
+    requested** and tells them to cancel it in Shopify (a person cancels: nothing is cancelled by a text).
+  - **Bank deposit**: the order, Mina's bank and IBAN (`NEXT_PUBLIC_STORE_BANK_LINE`, `_IBAN`) and a request for the screenshot.
+    A picture or PDF back adds **Payment screenshot** and tells the shop to check the bank; when Shopify turns the order paid
+    the customer is thanked.
+  - **Paid** (Safepay, or a deposit already marked paid): a thank-you with the details.
+  - Only the website's checkouts (`source_name` "web"), placed in the last two days, not cancelled, with a number; the shop's
+    own orders (drafts, "manual" Instagram/WhatsApp orders, the ERP's pushes, PR gifting) get nothing. A number not on WhatsApp,
+    or a send that fails, is recorded and the shop told to reach them another way.
+  - Each order's conversation is `shopify_whatsapp/<order id>`; its state moves once, in a transaction, so the two notice
+    addresses and WAHA's retries never send twice. A reply is matched to the customer's newest waiting order by number
+    (WhatsApp names senders by private id; GOWS carries the number as `SenderAlt`). Anything that isn't an answer — a
+    question, a second photo — is left for a person on the phone.
+  - Replies arrive at `/api/whatsapp/inbound` from WAHA's session webhook, signed (SHA-512 HMAC) with a key derived from
+    `WAHA_API_KEY`; set by `scripts/waha-inbound-webhook.ts`. On only where `SHOPIFY_ORDER_WHATSAPP=1` (Mina).
+
 ### Advance method
 
 - **An order's advance method is optional, and a refused save is never silent** (2026-09-28, owner: "paid by how? causing

@@ -312,6 +312,12 @@ env:
   - variable: WAHA_SESSION
     value: "mina"
     availability: [RUNTIME]
+  # WhatsApp for every web order from Mina's line (lib/shopify-whatsapp.ts; owner, 2026-10-30): cash on delivery
+  # asks 1 to confirm / 2 to cancel, a bank deposit gets the IBAN and is asked for the screenshot, a paid order is
+  # thanked. Replies come back through WAHA's webhook (scripts/waha-inbound-webhook.ts). "0" turns it off.
+  - variable: SHOPIFY_ORDER_WHATSAPP
+    value: "1"
+    availability: [RUNTIME]
 
   # ── Mina's own integrations ──────────────────────────────────────────────
   # Shopify: the storefront and its webhooks. Secrets live in hom-pos.

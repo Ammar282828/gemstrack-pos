@@ -2,7 +2,8 @@ import crypto from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { getShopifyCredentials, webhookResourceId } from '../../_lib';
 import { adminDb } from '@/lib/firebase-admin';
-import { mirrorShopifyOrderById, type OrderMirrorOutcome } from '../../_order-mirror';
+import { fetchShopifyOrder, mirrorShopifyOrderById, type OrderMirrorOutcome } from '../../_order-mirror';
+import { followUpPaidOrder, shopifyOrderWhatsAppOn, startOrderFlow } from '@/lib/shopify-whatsapp-server';
 import { pushToShop } from '@/lib/push/send';
 
 /**
@@ -67,7 +68,16 @@ export async function POST(request: NextRequest) {
     // A new web order arrives on its own (2026-10-15): create/updated import it when the ERP has none.
     const outcome = await mirrorShopifyOrderById(creds.shop, creds.token, orderId, { importIfAbsent: topic === 'orders/create' || topic === 'orders/updated' });
     await pushFor(topic, orderId, outcome);
-    return NextResponse.json({ ok: true, ...outcome });
+    // The customer's WhatsApp (lib/shopify-whatsapp.ts, House of Mina): the first message on create, the
+    // thank-you when a bank transfer turns paid. Never fails the notice: a send that fails is recorded.
+    let whatsapp: unknown;
+    if (shopifyOrderWhatsAppOn() && !('skipped' in outcome && outcome.skipped === 'pos-push')) {
+      try {
+        const order = await fetchShopifyOrder(creds.shop, creds.token, orderId);
+        if (order) whatsapp = topic === 'orders/create' ? await startOrderFlow(order) : { paidFollowUp: await followUpPaidOrder(order) };
+      } catch (e) { console.error('[shopify/webhooks/orders] whatsapp', orderId, (e as Error)?.message); }
+    }
+    return NextResponse.json({ ok: true, ...outcome, ...(whatsapp ? { whatsapp } : {}) });
   } catch (e) {
     // A failure answers 500, so Shopify sends it again later.
     console.error('[shopify/webhooks/orders]', orderId, (e as Error)?.message);
