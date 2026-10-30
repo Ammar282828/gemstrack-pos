@@ -59,68 +59,63 @@ final class LaunchPicker {
     }
 }
 
-/// The cold start's first screen (redone 2026-10-30, then pared back the same day, owner: "so bulky and ugly"): each
-/// business is one big airy card carrying only its wordmark (in its own ground, never the open business's `Theme`) and one
-/// quiet line under it; the one used last first, one tap opens it. Everything on a card is read locally (the descriptor,
-/// the Firebase app if it already exists, the time it was last opened): nothing here waits on the network, and the
-/// books of the open business keep loading underneath (`launch.ready`), exactly as before.
+/// The cold start's first screen (redone 2026-10-30 as "brand bands", after three card versions were turned down): no
+/// cards and no chrome. The screen is cut into one full-bleed band per business, edge to edge (the colour runs under the
+/// status bar and the home indicator; the content keeps to the safe area): two businesses are two equal halves, three or
+/// four equal bands, more than four scroll at a quarter of the screen each. A Mac window wider than tall lays them side by
+/// side. Each band is the house's own identity, the same in light and dark (this is an identity screen, not a themed
+/// page): Taheri's champagne gold wordmark on #0B1414, Mina's maroon on blush #F2E9E4, an added business's name in the
+/// serif face on its dark accent. A band holds the wordmark (28 pt Taheri, 22 pt MINA; the art is cropped to the letters),
+/// and 10 pt under it one tiny line: who is signed in, or "Sign in". The business used last has a 4 pt dot beside that line
+/// and comes first; Return opens it, and ⌘ and the band's number open the others. A tap grows the band over the rest while its words
+/// fade (a crossfade under Reduce Motion), with one soft haptic, and the app takes the screen. Adding and managing are
+/// two small symbols in the last band's corner. Everything here is read locally (the descriptor, the Firebase app if it
+/// already exists, the stamp of the last open): nothing waits on the network, and the books of the open business keep
+/// loading underneath (`launch.ready`), exactly as before.
 struct BusinessPicker: View {
     let launch: LaunchPicker
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.colorScheme) private var scheme
     @State private var entered = false
     @State private var tick = 0
-    /// The card that was tapped: it grows and the rest let go while the app takes the screen.
+    /// The band that was tapped: it grows and the rest shrink away while the app takes the screen.
     @State private var chosen: String?
 
     /// When each business was last opened from here (a plain local stamp, per business: `BizKey` is for the open one).
     private static func stampKey(_ id: String) -> String { "erp.business.lastOpened.\(id)" }
 
+    /// The most bands that share the screen; more scroll.
+    private static let fit = 4
+
     var body: some View {
         let store = Businesses.shared
         // The business used last first; the rest in the phone's own order.
         let ordered = store.list.filter { $0.id == store.current.id } + store.list.filter { $0.id != store.current.id }
+        let topDark = ordered.first.map { Self.identity($0).isDark } ?? true
         GeometryReader { geo in
-            ScrollView {
-                VStack(spacing: pt(24)) {
-                    Spacer(minLength: pt(24))
-                    VStack(alignment: .leading, spacing: pt(16)) {
-                        header
-                        ForEach(Array(ordered.enumerated()), id: \.element.id) { (index: Int, b: Business) in
-                            let last = b.id == store.current.id
-                            let slot = (store.list.firstIndex { $0.id == b.id } ?? index) + 1
-                            Button { choose(b) } label: { card(b, last: last, slot: slot) }
-                                .buttonStyle(PickerPress())
-                                .pointerHover()
-                                .scaleEffect(chosen == b.id ? 1.05 : 1)
-                                .opacity(chosen != nil && chosen != b.id ? 0 : (entered ? 1 : 0))
-                                .offset(y: entered || reduceMotion ? 0 : 18)
-                                .animation(reduceMotion ? nil : Motion.enter.delay(Double(index) * 0.07), value: entered)
-                                .keyboardShortcut(last ? KeyEquivalent.return : KeyEquivalent(Character(String(min(slot, 9)))),
-                                                  modifiers: last ? [] : .command)
-                                #if os(macOS)
-                                .help("Open \(b.displayName)")
-                                #endif
-                                .accessibilityLabel("Open \(b.displayName)")
-                                .accessibilityValue(accessibilityStatus(b, last: last))
-                                .accessibilityHint("Opens this business")
-                                .accessibilityIdentifier("picker.\(b.id)")
-                        }
-                    }
-                    .frame(maxWidth: 520)
-                    Spacer(minLength: pt(24))
-                    footer(store)
-                        .opacity(chosen == nil && entered ? 1 : 0)
-                        .animation(reduceMotion ? nil : Motion.enter.delay(0.3), value: entered)
+            let horizontal = Self.sideBySide(geo.size)
+            let along = horizontal ? geo.size.width : geo.size.height
+            let each = along / CGFloat(max(1, min(ordered.count, Self.fit)))
+            let layout = horizontal ? AnyLayout(HStackLayout(spacing: 0)) : AnyLayout(VStackLayout(spacing: 0))
+            let bands = layout {
+                ForEach(Array(ordered.enumerated()), id: \.element.id) { (index: Int, b: Business) in
+                    band(b, index: index, count: ordered.count, store: store, geo: geo, horizontal: horizontal,
+                         length: chosen == nil ? each : (chosen == b.id ? along : 0))
                 }
-                .padding(.horizontal, pt(20))
-                .padding(.bottom, pt(20))
-                .frame(maxWidth: .infinity, minHeight: geo.size.height)
             }
-            .scrollBounceBehavior(.basedOnSize)
+            Group {
+                if ordered.count > Self.fit {
+                    ScrollView(horizontal ? .horizontal : .vertical, showsIndicators: false) { bands }
+                        .scrollBounceBehavior(.basedOnSize)
+                } else {
+                    bands
+                }
+            }
+            .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
         }
-        .background(Theme.ground.ignoresSafeArea())
-        .selectionFeedback(trigger: tick)
+        .ignoresSafeArea()
+        // The status bar sits over the top band: light content over a dark one, dark over a light one.
+        .preferredColorScheme(topDark ? .dark : .light)
+        .sensoryFeedback(.impact(flexibility: .soft), trigger: tick)
         .onAppear { entered = true }
         .task {
             LaunchClock.mark("picker:shown")
@@ -131,113 +126,139 @@ struct BusinessPicker: View {
         }
     }
 
-    /// A quiet caption, not a title.
-    private var header: some View {
-        VStack(alignment: .leading, spacing: pt(2)) {
-            Text("Choose a business")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .accessibilityAddTraits(.isHeader)
-            #if os(macOS)
-            Text("Return opens the one you used last, or press \u{2318} and its number.")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-            #endif
-        }
-        .padding(.horizontal, pt(4))
-        .padding(.bottom, pt(4))
-        .opacity(entered ? 1 : 0)
-        .animation(reduceMotion ? nil : Motion.enter, value: entered)
+    /// A Mac window wider than tall puts the bands side by side; a phone or iPad always stacks them.
+    private static func sideBySide(_ size: CGSize) -> Bool {
+        #if os(macOS)
+        return size.width > size.height
+        #else
+        return false
+        #endif
     }
 
-    private func footer(_ store: Businesses) -> some View {
-        // Adding and managing both live on the Businesses screen (its sheet), which this opens above the picker.
-        HStack(spacing: pt(24)) {
-            Button { store.switcherOpen = true } label: {
-                Label("Add a business", systemImage: "plus").font(.subheadline)
+    // MARK: A band
+
+    private func band(_ b: Business, index: Int, count: Int, store: Businesses, geo: GeometryProxy,
+                      horizontal: Bool, length: CGFloat) -> some View {
+        let last = b.id == store.current.id
+        let slot = (store.list.firstIndex { $0.id == b.id } ?? index) + 1
+        let id = Self.identity(b)
+        let isFirst = index == 0
+        let isEnd = index == count - 1
+        let inset = geo.safeAreaInsets
+        // Only the edges of the screen the band touches keep to the safe area.
+        let pad = EdgeInsets(top: horizontal || isFirst ? inset.top : 0,
+                             leading: !horizontal || isFirst ? inset.leading : 0,
+                             bottom: horizontal || isEnd ? inset.bottom : 0,
+                             trailing: !horizontal || isEnd ? inset.trailing : 0)
+        let caption = captionText(b)
+        let visible = entered && chosen == nil
+        return ZStack(alignment: .bottomTrailing) {
+            Button { choose(b) } label: {
+                VStack(spacing: pt(10)) {
+                    BandWordmark(business: b, ink: id.ink)
+                    Text(caption)
+                        .font(.caption2)
+                        .tracking(0.4)
+                        .foregroundStyle(id.ink.opacity(0.55))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .overlay(alignment: .leading) {
+                            if last {
+                                // Beside the line, not in it, so the line stays centred under the wordmark.
+                                Circle().fill(id.ink).frame(width: 4, height: 4).offset(x: -10).accessibilityHidden(true)
+                            }
+                        }
+                }
+                .opacity(visible ? 1 : 0)
+                .animation(reduceMotion ? nil : Motion.enter.delay(Double(index) * 0.07), value: entered)
+                .padding(.horizontal, pt(24))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(pad)
+                .background(id.ground)
+                .contentShape(Rectangle())
             }
+            .buttonStyle(BandPress(tint: id.isDark ? Color.white : Color.black))
+            .keyboardShortcut(last ? KeyEquivalent.return : KeyEquivalent(Character(String(min(slot, 9)))),
+                              modifiers: last ? [] : .command)
+            #if os(macOS)
+            .help("Open \(b.displayName)")
+            #endif
+            .accessibilityLabel("Open \(b.displayName)")
+            .accessibilityValue(accessibilityStatus(b, last: last))
+            .accessibilityHint("Opens this business")
+            .accessibilityIdentifier("picker.\(b.id)")
+
+            if isEnd { footer(store, ink: id.ink, pad: pad).opacity(visible ? 1 : 0) }
+        }
+        .frame(width: horizontal ? length : nil, height: horizontal ? nil : length)
+        .clipped()
+        .allowsHitTesting(chosen == nil)
+    }
+
+    /// Adding and managing both live on the Businesses screen (its sheet), which this opens above the picker.
+    private func footer(_ store: Businesses, ink: Color, pad: EdgeInsets) -> some View {
+        HStack(spacing: 0) {
+            Button { store.switcherOpen = true } label: {
+                Image(systemName: "plus.circle").font(.body).frame(width: Metrics.tap, height: Metrics.tap).contentShape(Rectangle())
+            }
+            .accessibilityLabel("Add a business")
             .accessibilityHint("Opens the list of businesses, where you can add one")
+            .accessibilityIdentifier("picker.add")
             Button { store.switcherOpen = true } label: {
-                Label("Manage", systemImage: "slider.horizontal.3").font(.subheadline)
+                Image(systemName: "slider.horizontal.3").font(.body).frame(width: Metrics.tap, height: Metrics.tap).contentShape(Rectangle())
             }
+            .accessibilityLabel("Manage businesses")
             .accessibilityHint("Opens Settings, Businesses")
+            .accessibilityIdentifier("picker.manage")
         }
         .buttonStyle(.plain)
-        .foregroundStyle(.secondary)
-        .frame(minHeight: Metrics.tap)
+        .foregroundStyle(ink.opacity(0.55))
+        .padding(.bottom, pad.bottom + pt(4))
+        .padding(.trailing, pad.trailing + pt(8))
     }
 
-    // MARK: A card
+    // MARK: Identity
 
-    private func card(_ b: Business, last: Bool, slot: Int) -> some View {
-        let side = scheme == .dark ? b.palette.dark : b.palette.light
-        let accent = Color(hex: side.accent) ?? Theme.accent
-        let fill = Color(hex: side.card) ?? Theme.card
-        let shape = RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-        let line = status(b, last: last)
-        return VStack(alignment: .leading, spacing: 0) {
-            PickerWordmark(business: b)
-            Spacer(minLength: pt(24))
-            HStack(alignment: .lastTextBaseline, spacing: pt(12)) {
-                HStack(spacing: 5) {
-                    if let icon = line.icon {
-                        Image(systemName: icon).imageScale(.small)
-                    }
-                    Text(line.text).lineLimit(1)
-                }
-                .font(.footnote)
-                .foregroundStyle(line.warn ? Color.orange : Color.secondary)
-                Spacer(minLength: 8)
-                #if os(macOS)
-                if !last && slot <= 9 { Text("\u{2318}\(slot)").font(.footnote.monospacedDigit()).foregroundStyle(.tertiary) }
-                #endif
-                Image(systemName: "chevron.right")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.tertiary)
-            }
+    /// A band's own colours, constant in light and dark.
+    private struct Identity { let ground: Color; let ink: Color; let isDark: Bool }
+
+    private static func identity(_ b: Business) -> Identity {
+        switch b.art {
+        case "taheri"?:
+            return Identity(ground: Color(hex: "0B1414") ?? .black, ink: Color(hex: "D3B47F") ?? .yellow, isDark: true)
+        case "mina"?:
+            return Identity(ground: Color(hex: "F2E9E4") ?? .white, ink: Color(hex: "380000") ?? .red, isDark: false)
+        default:
+            // An added business: its accent (the dark side's) as the ground, its name in the colour that sits on that accent.
+            let side = b.palette.dark
+            let dark = (luminance(side.accent) ?? 0) < 0.5
+            return Identity(ground: Color(hex: side.accent) ?? Theme.accent, ink: Color(hex: side.onAccent) ?? .white, isDark: dark)
         }
-        .padding(pt(24))
-        // Big and airy: the height is a floor (Dynamic Type may grow it); a small wordmark above, one quiet line below.
-        .frame(maxWidth: .infinity, minHeight: pt(180), alignment: .topLeading)
-        .background {
-            // The business's own flat card colour. Content, so never glass.
-            shape.fill(fill)
-                .shadow(color: scheme == .light ? .black.opacity(0.06) : .clear, radius: 6, x: 0, y: 2)
-                .overlay {
-                    shape.strokeBorder(scheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.04), lineWidth: 0.5)
-                }
-        }
-        .overlay(alignment: .topTrailing) {
-            if last {
-                Text("Last")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(accent)
-                    .padding(.top, pt(24)).padding(.trailing, pt(24))
-                    .accessibilityHidden(true)
-            }
-        }
-        .contentShape(shape)
     }
 
-    private struct Status { var text: String; var icon: String?; var warn = false }
+    /// Relative brightness (0...1) of a "RRGGBB" colour, or nil if it is not one.
+    private static func luminance(_ hex: String) -> Double? {
+        let s = hex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
+        guard s.count >= 6, let v = UInt64(s.prefix(6), radix: 16) else { return nil }
+        let r = Double((v >> 16) & 0xFF) / 255, g = Double((v >> 8) & 0xFF) / 255, b = Double(v & 0xFF) / 255
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b
+    }
 
-    /// One quiet line, from what is already on the phone: who is signed in, else that a sign-in is needed, else when it was
-    /// last opened, else its address.
-    private func status(_ b: Business, last: Bool) -> Status {
+    // MARK: The line under the wordmark
+
+    /// One quiet line, from what is already on the phone: who is signed in, else that a sign-in is needed, else its address.
+    private func captionText(_ b: Business) -> String {
         switch signIn(b) {
-        case .email(let e): return Status(text: e, icon: "person.crop.circle")
-        case .needed: return Status(text: "Sign-in needed", icon: "person.crop.circle.badge.exclamationmark", warn: true)
-        case .unknown:
-            if let when = Self.lastOpened(b.id) { return Status(text: when, icon: "clock") }
-            return Status(text: b.host, icon: nil)
+        case .email(let e): return e
+        case .needed: return "Sign in"
+        case .unknown: return b.host
         }
     }
 
     private func accessibilityStatus(_ b: Business, last: Bool) -> String {
         var parts: [String] = []
         if last { parts.append("Last opened") }
-        let s = status(b, last: last)
-        parts.append(s.text)
+        parts.append(captionText(b))
         if case .email = signIn(b), let when = Self.lastOpened(b.id) { parts.append(when) }
         return parts.joined(separator: ", ")
     }
@@ -271,8 +292,8 @@ struct BusinessPicker: View {
         UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: Self.stampKey(b.id))
         LaunchClock.mark("picked", b.id)
         // One switch, then the picker leaves in the same change: `switch(to:)` resets the books of the one left and the
-        // root is rebuilt on the new id (BusinessHost), which the picker's state sits above. The chosen card grows and the
-        // others let go as the host's transition (a scale and fade; a plain fade under Reduce Motion) carries the app in.
+        // root is rebuilt on the new id (BusinessHost), which the picker's state sits above. The chosen band grows over the
+        // others as the host's transition (a scale and fade; a plain fade under Reduce Motion) carries the app in.
         Motion.run(Motion.travel, reduce: reduceMotion) {
             chosen = b.id
             if b.id != Businesses.shared.current.id { Businesses.shared.switch(to: b.id) }
@@ -281,46 +302,44 @@ struct BusinessPicker: View {
     }
 }
 
-private struct PickerPress: ButtonStyle {
+/// Pressed, a band brightens (over a dark ground) or dims (over a light one) by 4%.
+private struct BandPress: ButtonStyle {
+    let tint: Color
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.98 : 1)
+            .overlay { tint.opacity(configuration.isPressed ? 0.04 : 0).allowsHitTesting(false) }
             .animation(reduceMotion ? nil : Motion.enter, value: configuration.isPressed)
     }
 }
 
-/// A business's wordmark as its whole identity on a card: the bundled art for a built-in, else the logo its ERP serves
-/// (kept on disk), else its name in the serif display face at the same size.
-private struct PickerWordmark: View {
+/// A business's wordmark as a single tint: the bundled art for a built-in (single-colour PNGs, drawn as templates so the
+/// band's ink colours them whatever the asset's rendering intent), else the name in the serif display face.
+private struct BandWordmark: View {
     let business: Business
-    @Environment(\.colorScheme) private var scheme
-    @State private var fetched: UIImage?
+    let ink: Color
 
-    /// The art's rendered height (the PNGs are cropped to the letters, so this is the visible height): Taheri's 26pt,
-    /// Mina's spaced capitals 22pt, so the two read as the same weight.
-    private var markHeight: CGFloat { business.art == "mina" ? pt(22) : pt(26) }
+    /// The art's rendered height (the PNGs are cropped to the letters, so this is the visible height): Taheri 28 pt, the
+    /// spaced capitals of M I N A 22 pt, so the two read as the same weight.
+    private var markHeight: CGFloat { business.art == "mina" ? pt(22) : pt(28) }
 
     var body: some View {
         Group {
             if let art = business.art {
-                Image("BrandLogo-\(art)").resizable().scaledToFit()
-            } else if let fetched {
-                Image(uiImage: fetched).resizable().scaledToFit()
+                Image("BrandLogo-\(art)")
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+                    .foregroundStyle(ink)
+                    .frame(maxWidth: pt(240), maxHeight: markHeight)
             } else {
                 Text(business.name)
-                    .font(.system(size: pt(22), weight: .semibold, design: .serif))
-                    .foregroundStyle(.primary)
+                    .font(.system(size: pt(26), weight: .semibold, design: .serif))
+                    .foregroundStyle(ink)
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
             }
-        }
-        .frame(maxWidth: 160, alignment: .leading)
-        .frame(height: markHeight, alignment: .leading)
-        .task(id: "\(business.id)|\(scheme == .dark)") {
-            guard business.art == nil else { return }
-            fetched = await BusinessLogos.load(business, dark: scheme == .dark)
         }
         .accessibilityHidden(true)
     }

@@ -62,3 +62,4 @@ cloud session cannot press that button, but it can push. One line per build, new
 - 2026-10-30: a new business picker (each business in its own look, last used first, one tap); several reference photos per order piece and a full-screen viewer; the monthly report shares and saves, with trends (vs last month and last year, daily and 12-month charts, categories, customers, payments, expenses, orders, coins, website).
 - 2026-10-30: the business picker slimmed: one slim card per business with just its wordmark and one quiet line.
 - 2026-10-30: the business picker: big airy cards, small refined wordmarks, one quiet line.
+- 2026-10-30: the business picker from scratch: one full-width band per business in its own colours, the wordmark small in the middle, tap to open.
