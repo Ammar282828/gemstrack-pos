@@ -60,7 +60,7 @@ final class LaunchPicker {
 }
 
 /// The cold start's first screen (redone 2026-10-30, then pared back the same day, owner: "so bulky and ugly"): each
-/// business is one slim card carrying only its wordmark (in its own ground, never the open business's `Theme`) and one
+/// business is one big airy card carrying only its wordmark (in its own ground, never the open business's `Theme`) and one
 /// quiet line under it; the one used last first, one tap opens it. Everything on a card is read locally (the descriptor,
 /// the Firebase app if it already exists, the time it was last opened): nothing here waits on the network, and the
 /// books of the open business keep loading underneath (`launch.ready`), exactly as before.
@@ -84,7 +84,7 @@ struct BusinessPicker: View {
             ScrollView {
                 VStack(spacing: pt(24)) {
                     Spacer(minLength: pt(24))
-                    VStack(alignment: .leading, spacing: pt(12)) {
+                    VStack(alignment: .leading, spacing: pt(16)) {
                         header
                         ForEach(Array(ordered.enumerated()), id: \.element.id) { (index: Int, b: Business) in
                             let last = b.id == store.current.id
@@ -107,7 +107,7 @@ struct BusinessPicker: View {
                                 .accessibilityIdentifier("picker.\(b.id)")
                         }
                     }
-                    .frame(maxWidth: 480)
+                    .frame(maxWidth: 520)
                     Spacer(minLength: pt(24))
                     footer(store)
                         .opacity(chosen == nil && entered ? 1 : 0)
@@ -175,9 +175,10 @@ struct BusinessPicker: View {
         let fill = Color(hex: side.card) ?? Theme.card
         let shape = RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
         let line = status(b, last: last)
-        return HStack(spacing: pt(12)) {
-            VStack(alignment: .leading, spacing: pt(6)) {
-                PickerWordmark(business: b)
+        return VStack(alignment: .leading, spacing: 0) {
+            PickerWordmark(business: b)
+            Spacer(minLength: pt(24))
+            HStack(alignment: .lastTextBaseline, spacing: pt(12)) {
                 HStack(spacing: 5) {
                     if let icon = line.icon {
                         Image(systemName: icon).imageScale(.small)
@@ -186,18 +187,18 @@ struct BusinessPicker: View {
                 }
                 .font(.footnote)
                 .foregroundStyle(line.warn ? Color.orange : Color.secondary)
+                Spacer(minLength: 8)
+                #if os(macOS)
+                if !last && slot <= 9 { Text("\u{2318}\(slot)").font(.footnote.monospacedDigit()).foregroundStyle(.tertiary) }
+                #endif
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.tertiary)
             }
-            Spacer(minLength: 8)
-            #if os(macOS)
-            if !last && slot <= 9 { Text("\u{2318}\(slot)").font(.footnote.monospacedDigit()).foregroundStyle(.tertiary) }
-            #endif
-            Image(systemName: "chevron.right")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(.tertiary)
         }
-        .padding(.horizontal, pt(20))
-        .padding(.vertical, pt(16))
-        .frame(maxWidth: .infinity, minHeight: pt(88), alignment: .leading)
+        .padding(pt(24))
+        // Big and airy: the height is a floor (Dynamic Type may grow it); a small wordmark above, one quiet line below.
+        .frame(maxWidth: .infinity, minHeight: pt(180), alignment: .topLeading)
         .background {
             // The business's own flat card colour. Content, so never glass.
             shape.fill(fill)
@@ -211,7 +212,7 @@ struct BusinessPicker: View {
                 Text("Last")
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(accent)
-                    .padding(.top, pt(10)).padding(.trailing, pt(14))
+                    .padding(.top, pt(24)).padding(.trailing, pt(24))
                     .accessibilityHidden(true)
             }
         }
@@ -296,7 +297,10 @@ private struct PickerWordmark: View {
     let business: Business
     @Environment(\.colorScheme) private var scheme
     @State private var fetched: UIImage?
-    @ScaledMetric(relativeTo: .title) private var size: CGFloat = 30
+
+    /// The art's rendered height (the PNGs are cropped to the letters, so this is the visible height): Taheri's 26pt,
+    /// Mina's spaced capitals 22pt, so the two read as the same weight.
+    private var markHeight: CGFloat { business.art == "mina" ? pt(22) : pt(26) }
 
     var body: some View {
         Group {
@@ -306,13 +310,14 @@ private struct PickerWordmark: View {
                 Image(uiImage: fetched).resizable().scaledToFit()
             } else {
                 Text(business.name)
-                    .font(.system(size: size, weight: .semibold, design: .serif))
+                    .font(.system(size: pt(22), weight: .semibold, design: .serif))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
             }
         }
-        .frame(maxWidth: 190, maxHeight: size + pt(6), alignment: .leading)
+        .frame(maxWidth: 160, alignment: .leading)
+        .frame(height: markHeight, alignment: .leading)
         .task(id: "\(business.id)|\(scheme == .dark)") {
             guard business.art == nil else { return }
             fetched = await BusinessLogos.load(business, dark: scheme == .dark)
