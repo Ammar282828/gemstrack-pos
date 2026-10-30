@@ -478,12 +478,11 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
   order there is a separate automation … for cod there is confirm decline, for bank transfer it is bank account details etc and
   requesting screenshot, for paid orders just a nice message telling them details"). `lib/shopify-whatsapp.ts` (the rules and
   words), `lib/shopify-whatsapp-server.ts` (sending, replies), started by the orders notice once the ERP has the order:
-  - **Cash on delivery**: the order (pieces, delivery, total, address), then a **Confirm / Cancel poll to tap** (owner, same day:
-    "add the button confirm or cancel rather than reply with 1"; a linked line cannot send buttons, WhatsApp keeps them for its
-    Business API and WAHA's GOWS refuses them, while a poll is tappable in every WhatsApp; its tap comes back as `poll.vote`,
-    matched by the poll's message key `pollKey`). Buttons only (owner: "i want button only"): the message says "tap Confirm order
-    below" and nothing about replying; only if the poll fails to send does a line ask for 1 or 2 (a typed 1/2/yes/cancel is still
-    read). Confirm adds Shopify's
+  - **Cash on delivery**: the order (pieces, delivery, total, address) and "Reply 1 to confirm, 2 to cancel" (a typed yes / cancel
+    counts too). On 2026-10-30 the owner asked for buttons; a linked line cannot send them (WhatsApp keeps them for its Business
+    API; WAHA's GOWS answers 501), a Confirm / Cancel poll was tried and not liked, and real buttons through Meta's API on this
+    number (coexistence, via a partner at about €49 a month, unlinking the ERP's line) were turned down: "i prefer the old route".
+    A tap on one of that day's polls is still read (`poll.vote`, `pollKey`). 1 adds Shopify's
     **Confirm** tag — the word the shop already tags confirmed orders with — and tells the shop's phones; 2 adds **Cancel
     requested** and tells them to cancel it in Shopify (a person cancels: nothing is cancelled by a text).
   - **Bank deposit**: the order, Mina's bank and IBAN (`NEXT_PUBLIC_STORE_BANK_LINE`, `_IBAN`) and a request for the screenshot.

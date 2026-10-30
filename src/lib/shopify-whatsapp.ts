@@ -91,7 +91,9 @@ export function orderMessage(kind: OrderFlowKind, o: ShopifyOrderLike, bank: Ban
       '',
       orderBlock(o, 'Total, cash on delivery'),
       '',
-      'Please confirm it so we can send it on its way: tap *Confirm order* below ⬇️',
+      'Please confirm it so we can send it on its way:',
+      'Reply *1* to confirm ✅',
+      'Reply *2* to cancel ❌',
     ].join('\n');
   }
   if (kind === 'bank') {
