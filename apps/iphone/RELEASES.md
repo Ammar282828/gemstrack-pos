@@ -60,3 +60,4 @@ cloud session cannot press that button, but it can push. One line per build, new
 - 2026-10-26: From the website paints at once from the phone's last copy and refreshes behind (a list 15× smaller on the wire, retried when the site is mid-update); no notification about your own action.
 - 2026-10-26: Home's revenue matches Analytics (gold coins counted apart, with a '+ PKR X in gold coins' line under This month).
 - 2026-10-30: a new business picker (each business in its own look, last used first, one tap); several reference photos per order piece and a full-screen viewer; the monthly report shares and saves, with trends (vs last month and last year, daily and 12-month charts, categories, customers, payments, expenses, orders, coins, website).
+- 2026-10-30: the business picker slimmed: one slim card per business with just its wordmark and one quiet line.

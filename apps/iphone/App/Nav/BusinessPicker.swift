@@ -59,9 +59,9 @@ final class LaunchPicker {
     }
 }
 
-/// The cold start's first screen (redone 2026-10-30, owner: "Redo the initial business selection page"): each business is
-/// one large card wearing its own identity (mark, wordmark, ground and accent from its palette, never the open
-/// business's `Theme`), the one used last first, one tap opens it. Everything on a card is read locally (the descriptor,
+/// The cold start's first screen (redone 2026-10-30, then pared back the same day, owner: "so bulky and ugly"): each
+/// business is one slim card carrying only its wordmark (in its own ground, never the open business's `Theme`) and one
+/// quiet line under it; the one used last first, one tap opens it. Everything on a card is read locally (the descriptor,
 /// the Firebase app if it already exists, the time it was last opened): nothing here waits on the network, and the
 /// books of the open business keep loading underneath (`launch.ready`), exactly as before.
 struct BusinessPicker: View {
@@ -72,7 +72,6 @@ struct BusinessPicker: View {
     @State private var tick = 0
     /// The card that was tapped: it grows and the rest let go while the app takes the screen.
     @State private var chosen: String?
-    @ScaledMetric(relativeTo: .title3) private var badge: CGFloat = 52
 
     /// When each business was last opened from here (a plain local stamp, per business: `BizKey` is for the open one).
     private static func stampKey(_ id: String) -> String { "erp.business.lastOpened.\(id)" }
@@ -85,9 +84,8 @@ struct BusinessPicker: View {
             ScrollView {
                 VStack(spacing: pt(24)) {
                     Spacer(minLength: pt(24))
-                    header
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 300, maximum: 440), spacing: pt(16), alignment: .top)],
-                              spacing: pt(16)) {
+                    VStack(alignment: .leading, spacing: pt(12)) {
+                        header
                         ForEach(Array(ordered.enumerated()), id: \.element.id) { (index: Int, b: Business) in
                             let last = b.id == store.current.id
                             let slot = (store.list.firstIndex { $0.id == b.id } ?? index) + 1
@@ -109,6 +107,7 @@ struct BusinessPicker: View {
                                 .accessibilityIdentifier("picker.\(b.id)")
                         }
                     }
+                    .frame(maxWidth: 480)
                     Spacer(minLength: pt(24))
                     footer(store)
                         .opacity(chosen == nil && entered ? 1 : 0)
@@ -116,7 +115,6 @@ struct BusinessPicker: View {
                 }
                 .padding(.horizontal, pt(20))
                 .padding(.bottom, pt(20))
-                .frame(maxWidth: 900)
                 .frame(maxWidth: .infinity, minHeight: geo.size.height)
             }
             .scrollBounceBehavior(.basedOnSize)
@@ -133,21 +131,22 @@ struct BusinessPicker: View {
         }
     }
 
+    /// A quiet caption, not a title.
     private var header: some View {
-        VStack(spacing: pt(6)) {
+        VStack(alignment: .leading, spacing: pt(2)) {
             Text("Choose a business")
-                .font(.system(.largeTitle, design: .serif).weight(.semibold))
-                .multilineTextAlignment(.center)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
                 .accessibilityAddTraits(.isHeader)
             #if os(macOS)
             Text("Return opens the one you used last, or press \u{2318} and its number.")
-                .font(.footnote)
+                .font(.caption)
                 .foregroundStyle(.tertiary)
-                .multilineTextAlignment(.center)
             #endif
         }
+        .padding(.horizontal, pt(4))
+        .padding(.bottom, pt(4))
         .opacity(entered ? 1 : 0)
-        .offset(y: entered || reduceMotion ? 0 : 10)
         .animation(reduceMotion ? nil : Motion.enter, value: entered)
     }
 
@@ -176,57 +175,45 @@ struct BusinessPicker: View {
         let fill = Color(hex: side.card) ?? Theme.card
         let shape = RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
         let line = status(b, last: last)
-        return VStack(alignment: .leading, spacing: pt(18)) {
-            HStack(alignment: .top) {
-                BusinessBadge(business: b, size: badge)
-                Spacer(minLength: 8)
-                if last {
-                    Text("Last opened")
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(accent)
-                        .padding(.horizontal, 10).padding(.vertical, 4)
-                        .background(accent.opacity(0.14), in: Capsule())
-                }
-            }
-            BusinessLogo(business: b)
-            HStack(alignment: .bottom, spacing: pt(12)) {
-                VStack(alignment: .leading, spacing: pt(4)) {
-                    Text(b.displayName).font(.title3.weight(.semibold)).foregroundStyle(.primary)
-                    HStack(spacing: 6) {
-                        if let icon = line.icon {
-                            Image(systemName: icon).foregroundStyle(line.warn ? Color.orange : Color.secondary)
-                        }
-                        Text(line.text)
+        return HStack(spacing: pt(12)) {
+            VStack(alignment: .leading, spacing: pt(6)) {
+                PickerWordmark(business: b)
+                HStack(spacing: 5) {
+                    if let icon = line.icon {
+                        Image(systemName: icon).imageScale(.small)
                     }
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                    Text(line.text).lineLimit(1)
                 }
-                Spacer(minLength: 8)
-                #if os(macOS)
-                if !last && slot <= 9 { Text("\u{2318}\(slot)").font(.footnote.monospacedDigit()).foregroundStyle(.tertiary) }
-                #endif
-                Image(systemName: "arrow.right")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(accent)
-                    .frame(width: 36, height: 36)
-                    .background(accent.opacity(0.14), in: Circle())
+                .font(.footnote)
+                .foregroundStyle(line.warn ? Color.orange : Color.secondary)
             }
+            Spacer(minLength: 8)
+            #if os(macOS)
+            if !last && slot <= 9 { Text("\u{2318}\(slot)").font(.footnote.monospacedDigit()).foregroundStyle(.tertiary) }
+            #endif
+            Image(systemName: "chevron.right")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.tertiary)
         }
-        .padding(pt(22))
-        .frame(maxWidth: .infinity, minHeight: pt(190), alignment: .leading)
+        .padding(.horizontal, pt(20))
+        .padding(.vertical, pt(16))
+        .frame(maxWidth: .infinity, minHeight: pt(88), alignment: .leading)
         .background {
-            // The business's own card, in its own colours; a wash of its accent from the corner. Content, so never glass.
+            // The business's own flat card colour. Content, so never glass.
             shape.fill(fill)
-                .overlay(alignment: .topTrailing) {
-                    RadialGradient(colors: [accent.opacity(scheme == .dark ? 0.22 : 0.13), .clear],
-                                   center: .topTrailing, startRadius: 0, endRadius: 280)
-                        .clipShape(shape)
-                }
                 .shadow(color: scheme == .light ? .black.opacity(0.06) : .clear, radius: 6, x: 0, y: 2)
                 .overlay {
-                    shape.strokeBorder(scheme == .dark ? Color.white.opacity(0.08) : accent.opacity(0.18), lineWidth: 0.5)
+                    shape.strokeBorder(scheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.04), lineWidth: 0.5)
                 }
+        }
+        .overlay(alignment: .topTrailing) {
+            if last {
+                Text("Last")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(accent)
+                    .padding(.top, pt(10)).padding(.trailing, pt(14))
+                    .accessibilityHidden(true)
+            }
         }
         .contentShape(shape)
     }
@@ -298,7 +285,38 @@ private struct PickerPress: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1)
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.98 : 1)
             .animation(reduceMotion ? nil : Motion.enter, value: configuration.isPressed)
+    }
+}
+
+/// A business's wordmark as its whole identity on a card: the bundled art for a built-in, else the logo its ERP serves
+/// (kept on disk), else its name in the serif display face at the same size.
+private struct PickerWordmark: View {
+    let business: Business
+    @Environment(\.colorScheme) private var scheme
+    @State private var fetched: UIImage?
+    @ScaledMetric(relativeTo: .title) private var size: CGFloat = 30
+
+    var body: some View {
+        Group {
+            if let art = business.art {
+                Image("BrandLogo-\(art)").resizable().scaledToFit()
+            } else if let fetched {
+                Image(uiImage: fetched).resizable().scaledToFit()
+            } else {
+                Text(business.name)
+                    .font(.system(size: size, weight: .semibold, design: .serif))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+            }
+        }
+        .frame(maxWidth: 190, maxHeight: size + pt(6), alignment: .leading)
+        .task(id: "\(business.id)|\(scheme == .dark)") {
+            guard business.art == nil else { return }
+            fetched = await BusinessLogos.load(business, dark: scheme == .dark)
+        }
+        .accessibilityHidden(true)
     }
 }
