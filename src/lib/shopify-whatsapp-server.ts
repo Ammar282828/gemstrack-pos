@@ -19,16 +19,13 @@ import { shopifyRequest } from '@/app/api/shopify/_lib';
 import {
   BANK_PAID_REPLY, COD_CONFIRMED_REPLY, COD_DECLINED_REPLY, SLIP_RECEIVED_REPLY,
   codPoll, messageKey, orderFlowKind, orderMessage, orderPhone, readCodReply, readPollVote, withTag,
-  type OrderFlowKind, type ShopifyOrderLike,
+  type OrderFlowKind, type ShopifyOrderLike, type WhatsAppOrderState,
 } from '@/lib/shopify-whatsapp';
 
 const COLLECTION = 'shopify_whatsapp';
 export const shopifyOrderWhatsAppOn = () => process.env.SHOPIFY_ORDER_WHATSAPP === '1';
 
-export type FlowState =
-  | 'awaiting-confirmation' | 'confirmed' | 'declined'
-  | 'awaiting-payment' | 'slip-received' | 'paid'
-  | 'sent' | 'failed' | 'no-whatsapp';
+export type FlowState = WhatsAppOrderState;
 
 export interface OrderFlow {
   orderId: string;
@@ -47,6 +44,24 @@ export interface OrderFlow {
 const invoiceUrl = (o: { order_number?: number | string; name?: string }) =>
   `/invoices/${encodeURIComponent(`SHOPIFY-${o.order_number ?? String(o.name || '').replace('#', '')}`)}`;
 
+/**
+ * The order's WhatsApp state onto its ERP invoice (`whatsappOrder`), so the ERP shows it beside the Shopify chip
+ * (owner, 2026-10-30: "add the tag in shopify and pos"). The pull's SHOPIFY-<n>, else the invoice carrying this
+ * Shopify order id. Never throws: the invoice may not be in yet.
+ */
+async function markInvoice(f: Pick<OrderFlow, 'orderId' | 'name' | 'state'>): Promise<void> {
+  try {
+    const invoices = adminDb.collection('invoices');
+    let ref = invoices.doc(`SHOPIFY-${f.name.replace(/^#/, '')}`);
+    if (!(await ref.get()).exists) {
+      const q = await invoices.where('shopifyOrderId', '==', f.orderId).limit(1).get();
+      if (q.empty) return;
+      ref = q.docs[0].ref;
+    }
+    await ref.set({ whatsappOrder: { state: f.state, at: new Date().toISOString() } }, { merge: true });
+  } catch (e) { console.error('[shopify-whatsapp] invoice', f.name, (e as Error)?.message); }
+}
+
 /** Move a flow from one of `from` to `to`, once. Returns the flow when this call did it. */
 async function advance(orderId: string, from: FlowState[], to: FlowState, extra: Partial<OrderFlow> = {}): Promise<OrderFlow | null> {
   const ref = adminDb.collection(COLLECTION).doc(orderId);
@@ -57,7 +72,7 @@ async function advance(orderId: string, from: FlowState[], to: FlowState, extra:
     const next = { ...f, ...extra, state: to, updatedAt: new Date().toISOString() };
     t.set(ref, next);
     return next;
-  });
+  }).then(async next => { if (next) await markInvoice(next); return next; });
 }
 
 async function tagOrder(shop: string, token: string, orderId: string, tag: string): Promise<void> {
@@ -91,9 +106,11 @@ export async function startOrderFlow(order: ShopifyOrderLike): Promise<{ started
     return true;
   });
   if (!mine) return { started: false, reason: 'already-started' };
+  await markInvoice({ orderId, name, state: first });
 
   const fail = async (state: FlowState, error: string, title: string) => {
     await ref.set({ state, error, updatedAt: new Date().toISOString() }, { merge: true });
+    await markInvoice({ orderId, name, state });
     await pushToShop({ kind: 'orders', title, body: `${name} · ${phone} · ${error}`, url: invoiceUrl(order), key: `shopify-wa-fail_${orderId}` });
   };
   try {
@@ -109,7 +126,11 @@ export async function startOrderFlow(order: ShopifyOrderLike): Promise<{ started
         const p = codPoll({ name });
         const pollKey = messageKey(await sendWhatsAppPoll(phone, p.name, p.options));
         if (pollKey) await ref.set({ pollKey }, { merge: true });
-      } catch (e) { console.error('[shopify-whatsapp] poll', name, (e as Error)?.message); }
+      } catch (e) {
+        // Buttons only (owner): the message points at them, so without the poll the customer is told how else to answer.
+        console.error('[shopify-whatsapp] poll', name, (e as Error)?.message);
+        await sendWhatsAppMessage(phone, 'Reply *1* to confirm ✅ or *2* to cancel ❌').catch(() => undefined);
+      }
     }
     return { started: true, kind, state: first };
   } catch (e) {

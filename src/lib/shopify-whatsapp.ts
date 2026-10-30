@@ -91,8 +91,7 @@ export function orderMessage(kind: OrderFlowKind, o: ShopifyOrderLike, bank: Ban
       '',
       orderBlock(o, 'Total, cash on delivery'),
       '',
-      'Please confirm it so we can send it on its way: tap *Confirm* below ⬇️',
-      '_(or reply *1* to confirm, *2* to cancel)_',
+      'Please confirm it so we can send it on its way: tap *Confirm order* below ⬇️',
     ].join('\n');
   }
   if (kind === 'bank') {
@@ -167,4 +166,25 @@ export function withTag(tags: string | null | undefined, tag: string): string {
   const list = String(tags || '').split(',').map(s => s.trim()).filter(Boolean);
   if (!list.some(t => t.toLowerCase() === tag.toLowerCase())) list.push(tag);
   return list.join(', ');
+}
+
+/** Where an order's WhatsApp stands, as the ERP shows it on its invoice (`whatsappOrder`). */
+export type WhatsAppOrderState =
+  | 'awaiting-confirmation' | 'confirmed' | 'declined'
+  | 'awaiting-payment' | 'slip-received' | 'paid'
+  | 'sent' | 'failed' | 'no-whatsapp';
+
+export function whatsappOrderChip(state: WhatsAppOrderState | string | undefined | null): { label: string; tone: 'late' | 'owed' | 'settled' | 'working' | 'quiet' } | null {
+  switch (state) {
+    case 'awaiting-confirmation': return { label: 'Awaiting confirmation', tone: 'working' };
+    case 'confirmed': return { label: 'Confirmed on WhatsApp', tone: 'settled' };
+    case 'declined': return { label: 'Cancel requested', tone: 'late' };
+    case 'awaiting-payment': return { label: 'Awaiting transfer', tone: 'working' };
+    case 'slip-received': return { label: 'Screenshot sent', tone: 'owed' };
+    case 'paid': return { label: 'Paid · thanked on WhatsApp', tone: 'settled' };
+    case 'sent': return { label: 'Thanked on WhatsApp', tone: 'quiet' };
+    case 'failed': return { label: 'WhatsApp did not send', tone: 'late' };
+    case 'no-whatsapp': return { label: 'No WhatsApp', tone: 'late' };
+    default: return null;
+  }
 }

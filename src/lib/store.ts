@@ -587,6 +587,8 @@ export interface Invoice {
   shopifySyncedAt?: string;
   shopifyOrderName?: string;
   shopifyOrderId?: string;
+  /** House of Mina's order WhatsApp (lib/shopify-whatsapp-server.ts): where the customer's conversation stands. */
+  whatsappOrder?: { state: string; at: string };
   shopifyOrderNumber?: number;
   shopifyDraftOrderId?: string;
   shopifyCheckoutUrl?: string;

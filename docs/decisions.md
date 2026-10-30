@@ -481,7 +481,9 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
   - **Cash on delivery**: the order (pieces, delivery, total, address), then a **Confirm / Cancel poll to tap** (owner, same day:
     "add the button confirm or cancel rather than reply with 1"; a linked line cannot send buttons, WhatsApp keeps them for its
     Business API and WAHA's GOWS refuses them, while a poll is tappable in every WhatsApp; its tap comes back as `poll.vote`,
-    matched by the poll's message key `pollKey`). Replying 1 or 2 still works. Confirm adds Shopify's
+    matched by the poll's message key `pollKey`). Buttons only (owner: "i want button only"): the message says "tap Confirm order
+    below" and nothing about replying; only if the poll fails to send does a line ask for 1 or 2 (a typed 1/2/yes/cancel is still
+    read). Confirm adds Shopify's
     **Confirm** tag — the word the shop already tags confirmed orders with — and tells the shop's phones; 2 adds **Cancel
     requested** and tells them to cancel it in Shopify (a person cancels: nothing is cancelled by a text).
   - **Bank deposit**: the order, Mina's bank and IBAN (`NEXT_PUBLIC_STORE_BANK_LINE`, `_IBAN`) and a request for the screenshot.
@@ -495,6 +497,10 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
     addresses and WAHA's retries never send twice. A reply is matched to the customer's newest waiting order by number
     (WhatsApp names senders by private id; GOWS carries the number as `SenderAlt`). Anything that isn't an answer — a
     question, a second photo — is left for a person on the phone.
+  - **The ERP shows it too** (owner: "add the tag in shopify and pos"): each change is written onto the order's invoice
+    (`whatsappOrder: { state, at }` on `SHOPIFY-<n>`, else the invoice with that `shopifyOrderId`) and shown as a chip beside
+    Shopify's in Invoices and on the invoice: Awaiting confirmation, Confirmed on WhatsApp, Cancel requested, Awaiting transfer,
+    Screenshot sent, Paid · thanked on WhatsApp, Thanked on WhatsApp, WhatsApp did not send, No WhatsApp.
   - Replies arrive at `/api/whatsapp/inbound` from WAHA's session webhook, signed (SHA-512 HMAC) with a key derived from
     `WAHA_API_KEY`; set by `scripts/waha-inbound-webhook.ts`. On only where `SHOPIFY_ORDER_WHATSAPP=1` (Mina).
 

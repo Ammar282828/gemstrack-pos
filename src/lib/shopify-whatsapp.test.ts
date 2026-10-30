@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { codPoll, messageKey, orderFlowKind, orderMessage, orderPhone, readCodReply, readPollVote, senderNumber, withTag, type ShopifyOrderLike } from './shopify-whatsapp';
+import { whatsappOrderChip, codPoll, messageKey, orderFlowKind, orderMessage, orderPhone, readCodReply, readPollVote, senderNumber, withTag, type ShopifyOrderLike } from './shopify-whatsapp';
 
 const NOW = Date.parse('2026-10-30T13:00:00Z');
 const order = (o: Partial<ShopifyOrderLike> = {}): ShopifyOrderLike => ({
@@ -43,8 +43,9 @@ describe('the messages', () => {
     expect(m).toContain('Delivery: Rs 2,000');
     expect(m).toContain('*Total, cash on delivery: Rs 8,350*');
     expect(m).toContain('Delivering to: House 12, Street 4, DHA Phase 6, Karachi');
-    expect(m).toContain('tap *Confirm* below');
-    expect(m).toContain('reply *1* to confirm, *2* to cancel');
+    expect(m).toContain('tap *Confirm order* below');
+    // Buttons only (owner): no "reply 1 / 2" in the message.
+    expect(m).not.toMatch(/reply \*1\*/i);
   });
   it('COD: a Confirm / Cancel poll to tap, whose taps are read back', () => {
     const p = codPoll({ name: '#1459' });
@@ -88,5 +89,15 @@ describe('reading a reply', () => {
     expect(withTag('', 'Confirm')).toBe('Confirm');
     expect(withTag('TCS, WhatsApp', 'Confirm')).toBe('TCS, WhatsApp, Confirm');
     expect(withTag('confirm, TCS', 'Confirm')).toBe('confirm, TCS');
+  });
+});
+
+describe('the ERP shows where the WhatsApp stands', () => {
+  it('a chip for each state, none without one', () => {
+    expect(whatsappOrderChip('awaiting-confirmation')).toEqual({ label: 'Awaiting confirmation', tone: 'working' });
+    expect(whatsappOrderChip('confirmed')).toEqual({ label: 'Confirmed on WhatsApp', tone: 'settled' });
+    expect(whatsappOrderChip('declined')).toEqual({ label: 'Cancel requested', tone: 'late' });
+    expect(whatsappOrderChip('slip-received')?.label).toBe('Screenshot sent');
+    expect(whatsappOrderChip(undefined)).toBeNull();
   });
 });

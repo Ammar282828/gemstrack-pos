@@ -33,6 +33,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { useToast } from '@/hooks/use-toast';
 import { clientPort } from '@/lib/db-client-port';
 import { importShopifyCsv, shopifyCsvPreview } from '@/lib/writes/shopify-csv-import';
+import { whatsappOrderChip } from '@/lib/shopify-whatsapp';
 import { mergeInstructions } from '@/lib/workshop';
 import { describePlating } from '@/lib/materials';
 import { STORE_CONFIG, storeLinksUrl, STORE_LOGO_URL } from '@/lib/store-config';
@@ -151,6 +152,7 @@ const DocumentCard: React.FC<RowProps> = ({ doc, onPrint, onPrintPerPiece, onMar
                         {doc.id} · {format(parseISO(doc.createdAt), 'h:mm a')}
                         {doc.docType === 'order' && ' · Order'}
                         {isShopifyDoc(doc) && ' · Shopify'}
+                        {(() => { const w = whatsappOrderChip((doc as { whatsappOrder?: { state?: string } }).whatsappOrder?.state); return w && ` · ${w.label}`; })()}
                     </p>
                     {sold && <p className="truncate text-ios-sub text-muted-foreground">{sold}</p>}
                 </div>
@@ -209,6 +211,7 @@ const DocumentRow: React.FC<RowProps> = ({ doc, onPrint, onPrintPerPiece, onMark
                 <div className="flex flex-wrap items-center gap-1">
                     <Pill tone={doc.docType === 'order' ? 'working' : 'quiet'} className="capitalize">{doc.docType}</Pill>
                     {isShopifyDoc(doc) && <Pill tone="settled" icon={<ShoppingBag />}>Shopify</Pill>}
+                    {(() => { const w = whatsappOrderChip((doc as { whatsappOrder?: { state?: string } }).whatsappOrder?.state); return w && <Pill tone={w.tone}>{w.label}</Pill>; })()}
                 </div>
             </TableCell>
             <TableCell className="whitespace-nowrap text-right tabular-nums">PKR {docTotal(doc).toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>

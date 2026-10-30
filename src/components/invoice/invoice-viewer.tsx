@@ -12,6 +12,7 @@
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { whatsappOrderChip } from '@/lib/shopify-whatsapp';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAppStore, Invoice as InvoiceType, PAYMENT_TYPES, PaymentType } from '@/lib/store';
@@ -414,6 +415,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
                   <Pill tone="settled">Paid in full</Pill>
                 )}
                 {invoice.status === 'Refunded' && <Pill tone="late">Refunded</Pill>}
+                {(() => { const w = whatsappOrderChip(invoice.whatsappOrder?.state); return w && <Pill tone={w.tone}>{w.label}</Pill>; })()}
               </div>
             </div>
             <MoneySplit total={invoice.grandTotal} paid={invoice.amountPaid} due={invoice.balanceDue} />
