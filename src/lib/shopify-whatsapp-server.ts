@@ -14,11 +14,11 @@
 import { adminDb } from '@/lib/firebase-admin';
 import { STORE_CONFIG } from '@/lib/store-config';
 import { pushToShop } from '@/lib/push/send';
-import { sendWhatsAppMessage, toWhatsAppNumber, whatsAppNumberExists } from '@/lib/whatsapp';
+import { sendWhatsAppMessage, sendWhatsAppPoll, toWhatsAppNumber, whatsAppNumberExists } from '@/lib/whatsapp';
 import { shopifyRequest } from '@/app/api/shopify/_lib';
 import {
   BANK_PAID_REPLY, COD_CONFIRMED_REPLY, COD_DECLINED_REPLY, SLIP_RECEIVED_REPLY,
-  orderFlowKind, orderMessage, orderPhone, readCodReply, withTag,
+  codPoll, messageKey, orderFlowKind, orderMessage, orderPhone, readCodReply, readPollVote, withTag,
   type OrderFlowKind, type ShopifyOrderLike,
 } from '@/lib/shopify-whatsapp';
 
@@ -40,6 +40,8 @@ export interface OrderFlow {
   createdAt: string;
   updatedAt: string;
   error?: string;
+  /** COD: the poll's message key (`messageKey`), which a tap on it names. */
+  pollKey?: string;
 }
 
 const invoiceUrl = (o: { order_number?: number | string; name?: string }) =>
@@ -100,6 +102,15 @@ export async function startOrderFlow(order: ShopifyOrderLike): Promise<{ started
       return { started: false, kind, state: 'no-whatsapp' };
     }
     await sendWhatsAppMessage(phone, orderMessage(kind, order, { bankLine: STORE_CONFIG.bankLine, iban: STORE_CONFIG.iban }));
+    if (kind === 'cod') {
+      // The tap-to-answer question (owner, 2026-10-30: "add the button confirm or cancel rather than reply with 1").
+      // A linked line cannot send buttons; a poll is tappable everywhere. If it fails, the message still says 1 or 2.
+      try {
+        const p = codPoll({ name });
+        const pollKey = messageKey(await sendWhatsAppPoll(phone, p.name, p.options));
+        if (pollKey) await ref.set({ pollKey }, { merge: true });
+      } catch (e) { console.error('[shopify-whatsapp] poll', name, (e as Error)?.message); }
+    }
     return { started: true, kind, state: first };
   } catch (e) {
     await fail('failed', (e as Error)?.message?.slice(0, 200) || 'send failed', 'Order WhatsApp did not send');
@@ -141,16 +152,7 @@ export async function handleInbound(m: InboundMessage, creds: () => Promise<{ sh
   if (flow.kind === 'cod' && flow.state === 'awaiting-confirmation') {
     const answer = m.media ? null : readCodReply(m.text);
     if (!answer) return 'not-an-answer';
-    const to: FlowState = answer === 'confirm' ? 'confirmed' : 'declined';
-    const f = await advance(flow.orderId, ['awaiting-confirmation'], to);
-    if (!f) return 'already-answered';
-    const { shop, token } = await creds();
-    await tagOrder(shop, token, f.orderId, answer === 'confirm' ? 'Confirm' : 'Cancel requested');
-    await sendWhatsAppMessage(f.phone, answer === 'confirm' ? COD_CONFIRMED_REPLY(f) : COD_DECLINED_REPLY(f)).catch(e => console.error('[shopify-whatsapp] reply', f.name, (e as Error)?.message));
-    await pushToShop(answer === 'confirm'
-      ? { kind: 'orders', title: 'COD order confirmed on WhatsApp', body: `${f.name} · ready to dispatch`, url: invoiceUrl(f), key: `shopify-wa-${to}_${f.orderId}` }
-      : { kind: 'orders', title: 'Customer cancelled on WhatsApp', body: `${f.name} · cancel it in Shopify`, url: invoiceUrl(f), key: `shopify-wa-${to}_${f.orderId}` });
-    return to;
+    return answerCod(flow, answer, creds);
   }
 
   if (flow.kind === 'bank' && flow.state === 'awaiting-payment') {
@@ -164,4 +166,32 @@ export async function handleInbound(m: InboundMessage, creds: () => Promise<{ sh
     return 'slip-received';
   }
   return 'not-an-answer';
+}
+
+/** The customer's answer to a COD order, by reply or by a tap on its poll: tag it, thank them, tell the shop. Once. */
+async function answerCod(flow: OrderFlow, answer: 'confirm' | 'decline', creds: () => Promise<{ shop: string; token: string }>): Promise<string> {
+  const to: FlowState = answer === 'confirm' ? 'confirmed' : 'declined';
+  const f = await advance(flow.orderId, ['awaiting-confirmation'], to);
+  if (!f) return 'already-answered';
+  const { shop, token } = await creds();
+  await tagOrder(shop, token, f.orderId, answer === 'confirm' ? 'Confirm' : 'Cancel requested');
+  await sendWhatsAppMessage(f.phone, answer === 'confirm' ? COD_CONFIRMED_REPLY(f) : COD_DECLINED_REPLY(f)).catch(e => console.error('[shopify-whatsapp] reply', f.name, (e as Error)?.message));
+  await pushToShop(answer === 'confirm'
+    ? { kind: 'orders', title: 'COD order confirmed on WhatsApp', body: `${f.name} · ready to dispatch`, url: invoiceUrl(f), key: `shopify-wa-${to}_${f.orderId}` }
+    : { kind: 'orders', title: 'Customer cancelled on WhatsApp', body: `${f.name} · cancel it in Shopify`, url: invoiceUrl(f), key: `shopify-wa-${to}_${f.orderId}` });
+  return to;
+}
+
+/** A tap on a COD order's poll (WAHA's `poll.vote`, app/api/whatsapp/inbound), matched by the poll's message key. */
+export async function handlePollVote(pollId: string, selected: string[], creds: () => Promise<{ shop: string; token: string }>): Promise<string> {
+  if (!shopifyOrderWhatsAppOn()) return 'off';
+  const answer = readPollVote(selected);
+  if (!answer) return 'not-an-answer';
+  const key = messageKey(pollId);
+  if (!key) return 'no-poll';
+  const snap = await adminDb.collection(COLLECTION).where('pollKey', '==', key).limit(1).get();
+  const flow = snap.docs[0]?.data() as OrderFlow | undefined;
+  if (!flow) return 'no-open-order';
+  if (flow.state !== 'awaiting-confirmation') return 'already-answered';
+  return answerCod(flow, answer, creds);
 }

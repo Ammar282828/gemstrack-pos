@@ -21,7 +21,7 @@ if (!session || !erp || !key) { console.error('usage: WAHA_API_KEY=… npx tsx s
   const config = {
     ...(cur?.config || {}),
     webhooks: [...others, {
-      url, events: ['message'], hmac: { key: inboundHmacKey(key) },
+      url, events: ['message', 'poll.vote'], hmac: { key: inboundHmacKey(key) },
       retries: { policy: 'exponential', delaySeconds: 2, attempts: 4 },
     }],
   };

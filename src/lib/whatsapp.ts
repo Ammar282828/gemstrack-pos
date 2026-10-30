@@ -116,6 +116,17 @@ export async function sendWhatsAppMessage(to: string, body: string): Promise<voi
 }
 
 /**
+ * A poll to a person: the nearest thing to buttons a linked line can send (WhatsApp shows buttons only from its
+ * Business API, and WAHA's GOWS engine refuses them). The options are tappable in every WhatsApp; a tap comes
+ * back as WAHA's `poll.vote` event. WAHA only. Returns the poll's message id.
+ */
+export async function sendWhatsAppPoll(to: string, name: string, options: string[]): Promise<string> {
+  const w = waha();
+  if (!w) throw new WhatsAppNotConfiguredError();
+  return wahaMessageId(await wahaCall('/api/sendPoll', { body: { session: w.session, chatId: `${digitsOnly(to)}@c.us`, poll: { name, options, multipleAnswers: false } } }));
+}
+
+/**
  * Is the linked account actually signed in? A gateway drops out when the phone
  * is offline too long or the device is unlinked, and the only symptom otherwise
  * is messages quietly not arriving. `state` is the gateway's own word for it

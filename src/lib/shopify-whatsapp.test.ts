@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { orderFlowKind, orderMessage, orderPhone, readCodReply, senderNumber, withTag, type ShopifyOrderLike } from './shopify-whatsapp';
+import { codPoll, messageKey, orderFlowKind, orderMessage, orderPhone, readCodReply, readPollVote, senderNumber, withTag, type ShopifyOrderLike } from './shopify-whatsapp';
 
 const NOW = Date.parse('2026-10-30T13:00:00Z');
 const order = (o: Partial<ShopifyOrderLike> = {}): ShopifyOrderLike => ({
@@ -43,22 +43,32 @@ describe('the messages', () => {
     expect(m).toContain('Delivery: Rs 2,000');
     expect(m).toContain('*Total, cash on delivery: Rs 8,350*');
     expect(m).toContain('Delivering to: House 12, Street 4, DHA Phase 6, Karachi');
-    expect(m).toContain('Reply *1* to confirm');
-    expect(m).toContain('Reply *2* to cancel');
+    expect(m).toContain('tap *Confirm* below');
+    expect(m).toContain('reply *1* to confirm, *2* to cancel');
+  });
+  it('COD: a Confirm / Cancel poll to tap, whose taps are read back', () => {
+    const p = codPoll({ name: '#1459' });
+    expect(p).toEqual({ name: 'Confirm your order #1459?', options: ['✅ Confirm order', '❌ Cancel order'] });
+    expect(readPollVote(['✅ Confirm order'])).toBe('confirm');
+    expect(readPollVote(['❌ Cancel order'])).toBe('decline');
+    expect(readPollVote([])).toBeNull(); // a vote taken back
+    expect(readPollVote(['✅ Confirm order', '❌ Cancel order'])).toBeNull();
+    expect(messageKey('true_923262275554@c.us_3EB0B66848AFF42624EA94')).toBe('3EB0B66848AFF42624EA94');
+    expect(messageKey('3EB0B66848AFF42624EA94')).toBe('3EB0B66848AFF42624EA94');
   });
   it("bank transfer: the house's bank and IBAN, and asks for the screenshot", () => {
     const m = orderMessage('bank', order({ payment_gateway_names: ['Bank Deposit'] }), BANK);
     expect(m).toContain('*Bank Al Habib · House of Mina*');
     expect(m).toContain('IBAN: *PK42 BAHL 1227 0981 0022 7801*');
     expect(m).toContain('payment screenshot');
-    expect(m).not.toContain('Reply *1*');
+    expect(m).not.toContain('Confirm');
   });
   it('paid: a thank-you with the details, and nothing to do', () => {
     const m = orderMessage('paid', order({ financial_status: 'paid', line_items: [{ title: 'Charm', variant_title: 'Default Title', quantity: 2, price: '1500' }] }), BANK);
     expect(m).toContain('Your payment is in');
     expect(m).toContain('• Charm × 2 — Rs 3,000');
     expect(m).toContain('*Paid: Rs 8,350*');
-    expect(m).not.toMatch(/IBAN|Reply \*1\*/);
+    expect(m).not.toMatch(/IBAN|reply \*1\*/);
   });
 });
 

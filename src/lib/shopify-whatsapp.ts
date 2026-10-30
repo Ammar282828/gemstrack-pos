@@ -91,9 +91,8 @@ export function orderMessage(kind: OrderFlowKind, o: ShopifyOrderLike, bank: Ban
       '',
       orderBlock(o, 'Total, cash on delivery'),
       '',
-      'Please confirm it so we can send it on its way:',
-      'Reply *1* to confirm ✅',
-      'Reply *2* to cancel ❌',
+      'Please confirm it so we can send it on its way: tap *Confirm* below ⬇️',
+      '_(or reply *1* to confirm, *2* to cancel)_',
     ].join('\n');
   }
   if (kind === 'bank') {
@@ -125,6 +124,21 @@ export const COD_CONFIRMED_REPLY = (o: { name: string }) => `Thank you! Your ord
 export const COD_DECLINED_REPLY = (o: { name: string }) => `Noted, we will cancel your order *${o.name}*. If that was a mistake, just reply here and we will sort it out.`;
 export const SLIP_RECEIVED_REPLY = (o: { name: string }) => `Thank you! We have your screenshot for *${o.name}* and will confirm as soon as the payment shows in our account.`;
 export const BANK_PAID_REPLY = (o: { name: string }) => `Your payment for *${o.name}* is in, thank you! Your order is confirmed and we are getting it ready. 💌`;
+
+/** The tap-to-answer question sent under a COD order's message (a WhatsApp poll; see sendWhatsAppPoll). */
+export const COD_POLL_CONFIRM = '✅ Confirm order';
+export const COD_POLL_CANCEL = '❌ Cancel order';
+export const codPoll = (o: { name: string }) => ({ name: `Confirm your order ${o.name}?`, options: [COD_POLL_CONFIRM, COD_POLL_CANCEL] });
+
+/** A tap on the COD poll: the option chosen, or null when the vote was taken back (no option). */
+export function readPollVote(selected: string[] | null | undefined): 'confirm' | 'decline' | null {
+  const s = (selected || []).map(x => String(x).trim());
+  if (s.length !== 1) return null;
+  return s[0] === COD_POLL_CONFIRM ? 'confirm' : s[0] === COD_POLL_CANCEL ? 'decline' : null;
+}
+
+/** The part of a WhatsApp message id both ends agree on ("true_92…@c.us_3EB0…" → "3EB0…"). */
+export const messageKey = (id: string | null | undefined) => String(id || '').split('_').pop() || '';
 
 /** A reply to the COD question: confirm, cancel, or neither (a question for a person, left alone). */
 export function readCodReply(text: string): 'confirm' | 'decline' | null {

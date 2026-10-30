@@ -2,9 +2,10 @@ import crypto from 'crypto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const handleInbound = vi.fn(async () => 'confirmed');
+const handlePollVote = vi.fn(async () => 'confirmed');
 vi.mock('@/lib/firebase-admin', () => ({ adminDb: {} }));
 vi.mock('@/app/api/shopify/_lib', () => ({ getShopifyCredentials: vi.fn() }));
-vi.mock('@/lib/shopify-whatsapp-server', () => ({ handleInbound, shopifyOrderWhatsAppOn: () => true }));
+vi.mock('@/lib/shopify-whatsapp-server', () => ({ handleInbound, handlePollVote, shopifyOrderWhatsAppOn: () => true }));
 
 vi.stubEnv('WAHA_API_KEY', 'test-key');
 vi.stubEnv('WAHA_SESSION', 'mina');
@@ -34,6 +35,11 @@ describe('WhatsApp inbound', () => {
   it('a picture counts as a screenshot', async () => {
     await call(msg({ body: '', hasMedia: true, media: { mimetype: 'image/jpeg' } }));
     expect(handleInbound).toHaveBeenCalledWith(expect.objectContaining({ media: true }), expect.any(Function));
+  });
+  it('passes a tap on the Confirm / Cancel poll on, by the poll', async () => {
+    const r = await call({ event: 'poll.vote', session: 'mina', payload: { vote: { selectedOptions: ['✅ Confirm order'], fromMe: false }, poll: { id: 'true_92@c.us_3EB0AB' } } });
+    expect(r.status).toBe(200);
+    expect(handlePollVote).toHaveBeenCalledWith('true_92@c.us_3EB0AB', ['✅ Confirm order'], expect.any(Function));
   });
   it("ignores the line's own messages, groups and the other house's line", async () => {
     await call(msg({ fromMe: true }));
