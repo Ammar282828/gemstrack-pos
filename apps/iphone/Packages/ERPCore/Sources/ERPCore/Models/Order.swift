@@ -102,6 +102,22 @@ public struct Order: Decodable, Identifiable, Hashable {
     }
 }
 
+/// A piece's reference photo after the first (photos 2...n, `OrderItem.extraPhotos`): the document that holds it
+/// (`order_photos/<id>`), or its bytes inline when the ERP's server hands the order to an account that reads no
+/// Firestore of its own (the staff copy, `withInlinePhotos`).
+public struct OrderExtraPhoto: Decodable, Hashable {
+    public let id: String?
+    public let dataUri: String?
+
+    private enum K: String, CodingKey { case id, dataUri }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: K.self)
+        id = c.string(.id)
+        dataUri = c.string(.dataUri)
+    }
+}
+
 /// One piece of an order (src/lib/store.ts `OrderItem`), nested in `Order.items`.
 /// Surprising: `sampleImageDataUri` was a whole base64 photo inside the order on older orders;
 /// newer ones keep the photo in `order_photos/<samplePhotoId>` and leave this empty, so avoid
@@ -121,6 +137,8 @@ public struct OrderItem: Decodable, Hashable {
     public let stoneCharges: Double
     public let sampleImageDataUri: String?
     public let samplePhotoId: String?
+    /// The other reference photos (2...n) in order; the first is `samplePhotoId` / `sampleImageDataUri`, as ever.
+    public let extraPhotos: [OrderExtraPhoto]
     public let referenceSku: String?
     public let sampleGiven: Bool
     public let isCompleted: Bool
@@ -147,7 +165,7 @@ public struct OrderItem: Decodable, Hashable {
 
     private enum K: String, CodingKey {
         case itemCategory, description, karat, estimatedWeightG, stoneWeightG, hasStones, wastagePercentage
-        case makingCharges, diamondCharges, stoneCharges, sampleImageDataUri, samplePhotoId, referenceSku
+        case makingCharges, diamondCharges, stoneCharges, sampleImageDataUri, samplePhotoId, extraPhotos, referenceSku
         case sampleGiven, isCompleted, givenAt, hasDiamonds, stoneDetails, diamondDetails
         case metalCost, wastageCost, totalEstimate, metalType, karigarId, isManualPrice, manualPrice
         case size, platingType, platingNote, nickelFree, adminNote
@@ -167,6 +185,7 @@ public struct OrderItem: Decodable, Hashable {
         stoneCharges = c.double(.stoneCharges, default: 0)
         sampleImageDataUri = c.string(.sampleImageDataUri)
         samplePhotoId = c.string(.samplePhotoId)
+        extraPhotos = c.list(.extraPhotos, of: OrderExtraPhoto.self).filter { !($0.id ?? "").isEmpty || !($0.dataUri ?? "").isEmpty }
         referenceSku = c.string(.referenceSku)
         sampleGiven = c.bool(.sampleGiven, default: false)
         isCompleted = c.bool(.isCompleted, default: false)

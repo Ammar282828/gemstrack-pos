@@ -13,13 +13,13 @@
  */
 
 import type { DbPort, SideEffects } from '@/lib/db-port';
-import { ORDER_PHOTOS, droppedPhotoIds, isInlinePhoto, photoHash, splitItemPhotos } from '@/lib/order-photos';
+import { ORDER_PHOTOS, type ExtraPhoto, droppedPhotoIds, isInlinePhoto, photoHash, splitItemPhotos } from '@/lib/order-photos';
 import { statusFromPieces } from '@/lib/order-stage';
 import { rupees, rupeesIn } from '@/lib/money';
 
 const ORDERS = 'orders';
 
-type PhotoEdit = { sampleImageDataUri?: string; samplePhotoId?: string; samplePhotoHash?: string };
+type PhotoEdit = { sampleImageDataUri?: string; samplePhotoId?: string; samplePhotoHash?: string; extraPhotos?: ExtraPhoto[] };
 type Advance = { amount: number; date: string; notes?: string; method?: string };
 
 export interface OrderOnFile {
@@ -126,11 +126,31 @@ export async function updateOrder(
     // A picture sent again unchanged (a copy of the order that holds it inline, an old app build) must
     // not become another document: an item whose stored document already holds these bytes, but was
     // filed before documents carried a hash, is recognised by reading that one document.
+    // An edit that says nothing about `extraPhotos` (an older app, which does not know the field) keeps the
+    // piece's other reference photos: only an explicit [] clears them. The piece is the stored one at the same
+    // place with the same main photo or name.
     if (Array.isArray(patch.items)) {
+      const was = Array.isArray(existing.items) ? (existing.items as PhotoEdit[] & { description?: string }[]) : [];
+      patch = { ...patch, items: (patch.items as (PhotoEdit & { description?: string })[]).map((it, i) => {
+        const old = was[i] as (PhotoEdit & { description?: string }) | undefined;
+        if (!it || 'extraPhotos' in it || !old?.extraPhotos?.length) return it;
+        const same = (it.samplePhotoId && it.samplePhotoId === old.samplePhotoId) || (!!it.description && it.description === old.description);
+        return same ? { ...it, extraPhotos: old.extraPhotos } : it;
+      }) };
+    }
+    if (Array.isArray(patch.items)) {
+      const same = async (id: string | undefined, uri: string | undefined, hash: string | undefined) => {
+        if (!id || hash || !isInlinePhoto(uri)) return undefined;
+        const stored = await tx.get<{ dataUri?: string }>(ORDER_PHOTOS, id).catch(() => null);
+        return stored?.dataUri === uri ? photoHash(uri) : undefined;
+      };
       patch = { ...patch, items: await Promise.all((patch.items as PhotoEdit[]).map(async it => {
-        if (!it || !isInlinePhoto(it.sampleImageDataUri) || !it.samplePhotoId || it.samplePhotoHash) return it;
-        const stored = await tx.get<{ dataUri?: string }>(ORDER_PHOTOS, it.samplePhotoId).catch(() => null);
-        return stored?.dataUri === it.sampleImageDataUri ? { ...it, samplePhotoHash: photoHash(it.sampleImageDataUri) } : it;
+        if (!it) return it;
+        const first = await same(it.samplePhotoId, it.sampleImageDataUri, it.samplePhotoHash);
+        const extras = Array.isArray(it.extraPhotos)
+          ? await Promise.all(it.extraPhotos.map(async ex => { const h = ex ? await same(ex.id, ex.dataUri, ex.hash) : undefined; return h ? { ...ex, hash: h } : ex; }))
+          : it.extraPhotos;
+        return { ...it, ...(first ? { samplePhotoHash: first } : {}), ...(extras ? { extraPhotos: extras } : {}) };
       })) };
     }
     const split = Array.isArray(patch.items) ? splitItemPhotos(patch.items as never[]) : null;

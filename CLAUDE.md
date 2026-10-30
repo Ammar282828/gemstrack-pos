@@ -146,7 +146,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Exchange line](docs/decisions.md#exchange-line) — what + amount
 - [Sizes to the profile](docs/decisions.md#sizes-to-the-profile) — order sizes, offered once
 - [Walk-ins](docs/decisions.md#walk-ins) — `lib/walk-in.ts`; one walk-in row everywhere
-- [Saves are one trip](docs/decisions.md#saves-are-one-trip) — one commit per save; photos in `order_photos`
+- [Saves are one trip](docs/decisions.md#saves-are-one-trip) — one commit per save; photos in `order_photos`; several reference photos per piece (`extraPhotos`, one doc each, the first stays in the old field), opened full screen
 
 **Money and analytics**
 - [Whole rupees](docs/decisions.md#whole-rupees) — no decimals; each line rounded, `lib/money-round.ts`; under 1 rupee is settled

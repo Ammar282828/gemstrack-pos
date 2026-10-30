@@ -14,6 +14,8 @@ import { POS_LABEL } from '@/lib/notify-label';
 import { lacCrore } from '@/lib/money';
 import { alignHeadCell, BAND, BRAND, drawDocHeader, drawRowRule, hairline, INK, label, MUTED, tableStyles } from '@/lib/pdf-chrome';
 import type { MonthlyReport } from './monthly';
+import { barChart, chartColours, legend, lineChart, hBars } from './monthly-charts';
+import type { Change } from './monthly-insights';
 
 declare module 'jspdf' {
   interface jsPDF {
@@ -75,50 +77,160 @@ export function buildMonthlyPdf(r: MonthlyReport, logo: ReportLogo | null): jsPD
   ink(MUTED);
   doc.text(plain(`${STORE_CONFIG.name} · ${day(r.from)} to ${day(r.partial ? r.generatedAt : r.to)} · made ${stamp(r.generatedAt)}`), M, y);
 
-  // ── Four figures; the first on the one tinted band.
-  y += 8;
-  const tiles = [
-    { name: 'Revenue', value: r.revenue.total, note: change(r.revenue.total, r.previous.revenue, prev, r.partial) },
-    { name: 'Cash in', value: r.cashIn.total, note: change(r.cashIn.total, r.previous.cashIn, prev, r.partial) },
-    { name: 'Expenses', value: r.expenses.business, note: change(r.expenses.business, r.previous.expenses, prev, r.partial) },
-    { name: 'After expenses', value: r.net, note: 'before metal and making' },
-  ];
-  const gap = 4;
-  const tileW = (W - 2 * M - gap * 3) / 4;
-  tiles.forEach((t, i) => {
-    const x = M + i * (tileW + gap);
-    if (i === 0) { doc.setFillColor(BAND[0], BAND[1], BAND[2]); doc.rect(x - 2, y - 4, tileW + 2, 20, 'F'); }
-    label(doc, t.name, x, y, { size: 6 });
-    doc.setFont('helvetica', 'bold').setFontSize(13);
-    ink(i === 0 ? BRAND : INK);
-    doc.text(plain(`PKR ${lacCrore(t.value)}`), x, y + 7);
-    doc.setFont('helvetica', 'normal').setFontSize(6.5);
-    ink(MUTED);
-    doc.text(plain(t.note), x, y + 12);
-  });
-  y += 22;
-  hairline(doc, M, y, W - M, 'rule');
-  y += 7;
-
-  // ── Two columns of short lists.
-  const colW = (W - 2 * M - 10) / 2;
+  const colWl = (W - 2 * M - 10) / 2;
   const list = (title: string, rows: [string, string, boolean?][], x: number, startY: number): number => {
     let yy = startY;
-    label(doc, title, x, yy, { colour: BRAND });
-    yy += 5;
+    if (title) { label(doc, title, x, yy, { colour: BRAND }); yy += 5; } else yy += 3;
     for (const [k, v, strong] of rows) {
       doc.setFont('helvetica', strong ? 'bold' : 'normal').setFontSize(8);
       ink(strong ? INK : [70, 66, 66]);
-      const lines = doc.splitTextToSize(plain(k), colW - 34) as string[];
+      const lines = doc.splitTextToSize(plain(k), colWl - 34) as string[];
       doc.text(lines, x, yy);
-      doc.text(plain(v), x + colW, yy, { align: 'right' });
+      doc.text(plain(v), x + colWl, yy, { align: 'right' });
       yy += 4.4 * lines.length;
       if (strong) yy += 0.6;
     }
     return yy;
   };
-
+  const ins = r.insights;
+  const col = chartColours();
+  const need = (h: number) => { if (y + h > H - 16) { doc.addPage(); header(); y = TOP + 6; } };
+  const heading = (title: string, note = '') => {
+    need(14);
+    label(doc, title, M, y, { colour: BRAND, size: 7 });
+    if (note) {
+      doc.setFont('helvetica', 'normal').setFontSize(6.5);
+      ink(MUTED);
+      doc.text(plain(note), W - M, y, { align: 'right' });
+    }
+    y += 4;
+  };
+  const gap = 4;
+  const colW = colWl;
   const left = M, right = M + colW + 10;
+
+  // ── Six figures, each against last month and the same month last year; the first on the one tinted band.
+  y += 8;
+  const against = ins.against.throughDay ? `the first ${ins.against.throughDay} days of ` : '';
+  const sign = (c: Change, label: string, goodWhenUp = true): { text: string; colour: readonly number[] } => {
+    if (c.pct === null) return { text: c.now ? `new, none in ${label}` : '', colour: MUTED };
+    const pct = Math.round(c.pct);
+    const good = pct === 0 ? null : (pct > 0) === goodWhenUp;
+    return { text: `${pct >= 0 ? '+' : '-'}${Math.abs(pct)}% on ${label}`, colour: good === null ? MUTED : good ? col.up : col.down };
+  };
+  const tileW = (W - 2 * M - gap * 2) / 3;
+  ins.headline.forEach((t, i) => {
+    const x = M + (i % 3) * (tileW + gap);
+    const ty = y + Math.floor(i / 3) * 27;
+    if (i === 0) { doc.setFillColor(BAND[0], BAND[1], BAND[2]); doc.rect(x - 2, ty - 4, tileW + 2, 25, 'F'); }
+    label(doc, t.name, x, ty, { size: 6 });
+    doc.setFont('helvetica', 'bold').setFontSize(14);
+    ink(i === 0 ? BRAND : INK);
+    doc.text(plain(t.money ? `PKR ${lacCrore(t.now)}` : String(t.now)), x, ty + 7);
+    const good = t.key !== 'expenses';
+    const rows = [sign(t.vsLast, ins.against.last, good), sign(t.vsYear, ins.against.year, good)];
+    if (t.key === 'net') rows.push({ text: `margin ${ins.margin.now.toFixed(1)}%${ins.margin.pct === null ? '' : ` (${ins.margin.pct >= 0 ? '+' : '-'}${Math.abs(ins.margin.pct).toFixed(1)} pts)`}`, colour: MUTED });
+    if (t.key === 'profit') rows.push({ text: 'each sale at its own margin', colour: MUTED });
+    if (t.key === 'cashIn') rows.push({ text: 'payments, advances, exchange', colour: MUTED });
+    if (t.key === 'sales') rows.push({ text: `${r.counts.pieces} pieces, ${r.counts.customers} customers`, colour: MUTED });
+    doc.setFont('helvetica', 'normal').setFontSize(6.8);
+    rows.filter(x => x.text).slice(0, 3).forEach((row, k) => { ink(row.colour); doc.text(plain(row.text), x, ty + 11.5 + k * 3.4); });
+  });
+  y += 2 * 27 - 2;
+  if (ins.against.throughDay) {
+    doc.setFont('helvetica', 'italic').setFontSize(6.5);
+    ink(MUTED);
+    doc.text(plain(`${r.label} is still running: it is set against ${against}${ins.against.last} and ${ins.against.year}. Net profit = estimated profit less expenses.`), M, y);
+  } else {
+    doc.setFont('helvetica', 'italic').setFontSize(6.5);
+    ink(MUTED);
+    doc.text(plain(`Net profit = estimated profit (each sale at its own margin) less expenses. Gold coins are kept out of every figure above.`), M, y);
+  }
+  y += 3;
+  hairline(doc, M, y, W - M, 'rule');
+  y += 7;
+
+  // ── Revenue by day.
+  const days = ins.daily;
+  const busiest = days.reduce((m, d) => (d.revenue > m.revenue ? d : m), days[0]);
+  heading('Revenue by day', busiest?.revenue ? `best day: ${busiest.day} ${r.label.split(' ')[0]}, PKR ${lacCrore(busiest.revenue)}` : '');
+  barChart(doc, { x: M, y: y + 1, w: W - 2 * M, h: 38 }, days.map(d => d.revenue), i => (days[i].day === 1 || days[i].day % 5 === 0 ? String(days[i].day) : ''), col.primary, { highlight: col.second });
+  y += 44;
+
+  // ── Twelve months.
+  heading('The last twelve months', 'revenue and net profit; the open ring is the month still running');
+  legend(doc, M + 11, y + 1.5, [{ name: 'Revenue', colour: col.primary }, { name: 'Net profit', colour: col.second }]);
+  y += 3;
+  lineChart(doc, { x: M, y: y + 1, w: W - 2 * M, h: 44 },
+    [{ name: 'Revenue', values: ins.trend.map(p => p.revenue), colour: col.primary }, { name: 'Net profit', values: ins.trend.map(p => p.net), colour: col.second }],
+    ins.trend.map(p => p.label), { lastIsPartial: ins.trend[ins.trend.length - 1]?.partial });
+  y += 50;
+
+  // ── Rankings.
+  const pkrShort = (v: number) => `PKR ${lacCrore(v)}`;
+  const totalCats = ins.categories.reduce((s, c) => s + c.amount, 0);
+  need(8 + 7.6 * Math.max(ins.categories.length, Math.min(6, ins.products.length), 1));
+  label(doc, 'Sales by category', left, y, { colour: BRAND, size: 7 });
+  label(doc, 'Top pieces', right, y, { colour: BRAND, size: 7 });
+  y += 3;
+  const yCat = hBars(doc, left, y, colW, ins.categories.map(c => ({ label: c.name, value: c.amount, note: totalCats ? `${Math.round((c.amount / totalCats) * 100)}%` : '' })), col.primary, pkrShort);
+  const yPro = hBars(doc, right, y, colW, ins.products.slice(0, 6).map(p => ({ label: `${p.name}${p.count > 1 ? ` x${p.count}` : ''}`, value: p.amount })), col.second, pkrShort);
+  y = Math.max(yCat, yPro) + 3;
+
+  need(8 + 7.6 * Math.max(Math.min(6, ins.customers.length), Math.min(6, r.byMethod.length), 1));
+  label(doc, 'Top customers', left, y, { colour: BRAND, size: 7 });
+  label(doc, 'How it was paid', right, y, { colour: BRAND, size: 7 });
+  y += 3;
+  const yCus = hBars(doc, left, y, colW, ins.customers.slice(0, 6).map(c => ({ label: c.name, value: c.amount, note: c.count > 1 ? `${c.count} sales` : '' })), col.primary, pkrShort);
+  const paid = r.byMethod.reduce((s, m) => s + m.amount, 0);
+  const yPay = hBars(doc, right, y, colW, r.byMethod.slice(0, 6).map(m => ({ label: m.method === 'Not recorded' ? 'How paid not recorded' : m.method, value: m.amount, note: paid ? `${Math.round((m.amount / paid) * 100)}%` : '' })), col.second, pkrShort, 'No payments this month.');
+  y = Math.max(yCus, yPay) + 3;
+
+  need(8 + Math.max(7.6 * Math.min(6, r.expenses.byCategory.length || 1), 50));
+  label(doc, 'Expenses by category', left, y, { colour: BRAND, size: 7 });
+  label(doc, 'Orders', right, y, { colour: BRAND, size: 7 });
+  y += 3;
+  const yExp = hBars(doc, left, y, colW, r.expenses.byCategory.slice(0, 6).map(c => ({ label: c.category, value: c.amount, note: r.expenses.business ? `${Math.round((c.amount / r.expenses.business) * 100)}%` : '' })), col.primary, pkrShort, 'No expenses this month.');
+  const o = ins.orders;
+  const yOrd = list('', [
+    [`Taken this month · ${o.taken}`, pkr(o.takenValue)],
+    ['  still waiting to start', String(o.nowPending)],
+    ['  with the karigars', String(o.nowInProgress)],
+    ['  finished, to hand over', String(o.nowReady)],
+    ['  invoiced', String(o.nowInvoiced)],
+    ...(o.cancelled ? [[`  cancelled or refunded`, String(o.cancelled)] as [string, string]] : []),
+    [`Invoiced this month from an order · ${o.invoicedFromOrders.count}`, pkr(o.invoicedFromOrders.value)],
+    [`Open orders, all months · ${o.open.count}`, pkr(o.open.value), true],
+    ['  advances held', pkr(o.open.advances)],
+    ['  still to collect', pkr(o.open.balance)],
+  ], right, y - 1);
+  y = Math.max(yExp, yOrd) + 3;
+
+  // ── Website and gold coins.
+  const web = ins.web;
+  const coinRows: [string, string, boolean?][] = [
+    [`${ins.coins.invoices} coin sale${ins.coins.invoices === 1 ? '' : 's'}`, pkr(ins.coins.revenue.now), true],
+    ['Grams of gold in them', `${ins.coins.grams.toFixed(2)} g`],
+    ...(ins.coins.revenue.before ? [[`Last month`, pkr(ins.coins.revenue.before)] as [string, string]] : []),
+    ['Kept out of revenue and profit', ''],
+  ];
+  need(34);
+  const yCoin = list('Gold coins', coinRows, left, y);
+  let yWeb = y;
+  if (web) {
+    const wc = (c: Change) => (c.pct === null ? '' : ` (${c.pct >= 0 ? '+' : '-'}${Math.abs(Math.round(c.pct))}%)`);
+    yWeb = list('The website', [
+      ['Visitors', `${rs(web.visitors.now)}${wc(web.visitors)}`],
+      ['Visits', `${rs(web.sessions.now)}${wc(web.sessions)}`],
+      ['WhatsApp enquiries', `${rs(web.enquiries.now)}${wc(web.enquiries)}`],
+      ['Pieces saved', rs(web.saves)],
+      ...web.channels.slice(0, 3).map(c => [`  from ${c.name}`, rs(c.sessions)] as [string, string]),
+    ], right, y);
+  }
+  y = Math.max(yCoin, yWeb) + 5;
+
+  // ── The rest, in numbers.
+  need(40);
   const revenueRows: [string, string, boolean?][] = [
     [`Sales · ${r.counts.invoices} invoice${r.counts.invoices === 1 ? '' : 's'}`, pkr(r.revenue.invoices)],
     [`Orders taken, not yet invoiced · ${r.counts.openOrders}`, pkr(r.revenue.openOrders)],
@@ -132,7 +244,6 @@ export function buildMonthlyPdf(r: MonthlyReport, logo: ReportLogo | null): jsPD
     ['Exchange taken', pkr(r.cashIn.exchange)],
     ['Other income', pkr(r.cashIn.extraRevenue)],
     ['Cash in', pkr(r.cashIn.total), true],
-    ...r.byMethod.map(m => [m.method === 'Not recorded' ? '  how paid not recorded' : `  paid by ${m.method}`, pkr(m.amount)] as [string, string]),
   ];
   const yA = list('Revenue', revenueRows, left, y);
   const yB = list('Cash in', cashRows, right, y);
@@ -142,13 +253,11 @@ export function buildMonthlyPdf(r: MonthlyReport, logo: ReportLogo | null): jsPD
     ? r.metal.map(m => [m.label, `${m.grams.toFixed(2)} g`] as [string, string])
     : [['No weighed pieces sold', '']];
   metalRows.push([`${r.counts.pieces} piece${r.counts.pieces === 1 ? '' : 's'} to ${r.counts.customers} customer${r.counts.customers === 1 ? '' : 's'}`, '', true]);
-  const expenseRows: [string, string, boolean?][] = [
-    ...r.expenses.byCategory.map(c => [c.category, pkr(c.amount)] as [string, string]),
-    ['Expenses', pkr(r.expenses.business), true],
-  ];
-  if (r.expenses.drawings) expenseRows.push(['Partner drawings (not an expense)', pkr(r.expenses.drawings)]);
+  const expenseTotals: [string, string, boolean?][] = [['Expenses', pkr(r.expenses.business), true]];
+  if (r.expenses.drawings) expenseTotals.push(['Partner drawings (not an expense)', pkr(r.expenses.drawings)]);
+  expenseTotals.push(['Revenue less expenses (before metal and making)', pkr(r.net)]);
   const yC = list('Metal sold', metalRows, left, y);
-  const yD = list('Expenses', expenseRows, right, y);
+  const yD = list('Expenses', expenseTotals, right, y);
   y = Math.max(yC, yD) + 5;
 
   const yE = list('Still owed', [

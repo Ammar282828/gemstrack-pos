@@ -16,17 +16,26 @@ export async function readOrderPhotos(db: Firestore, ids: Iterable<string>): Pro
   return out;
 }
 
-/** Orders as they were before the move: each item's photo back in `sampleImageDataUri`. */
+type StoredItem = { samplePhotoId?: string; sampleImageDataUri?: string; extraPhotos?: { id?: string; dataUri?: string; hash?: string }[] };
+
+/** Orders as they were before the move: each item's photos back inline (the first in `sampleImageDataUri`, the others in `extraPhotos[].dataUri`). */
 export async function withInlinePhotos<O extends { items?: unknown }>(db: Firestore, orders: O[]): Promise<O[]> {
   const ids: string[] = [];
-  for (const o of orders) for (const it of (Array.isArray(o.items) ? o.items : []) as { samplePhotoId?: string; sampleImageDataUri?: string }[]) {
+  for (const o of orders) for (const it of (Array.isArray(o.items) ? o.items : []) as StoredItem[]) {
     if (it?.samplePhotoId && !it.sampleImageDataUri) ids.push(it.samplePhotoId);
+    for (const e of it?.extraPhotos ?? []) if (e?.id && !e.dataUri) ids.push(e.id);
   }
   const photos = await readOrderPhotos(db, ids);
   if (!photos.size) return orders;
   return orders.map(o => ({
     ...o,
-    items: (Array.isArray(o.items) ? o.items : []).map((it: { samplePhotoId?: string; sampleImageDataUri?: string }) =>
-      it?.samplePhotoId && !it.sampleImageDataUri && photos.has(it.samplePhotoId) ? { ...it, sampleImageDataUri: photos.get(it.samplePhotoId) } : it),
+    items: (Array.isArray(o.items) ? o.items : []).map((it: StoredItem) => {
+      if (!it) return it;
+      const first = it.samplePhotoId && !it.sampleImageDataUri && photos.has(it.samplePhotoId) ? { sampleImageDataUri: photos.get(it.samplePhotoId) } : {};
+      const extras = it.extraPhotos?.length
+        ? { extraPhotos: it.extraPhotos.map(e => (e?.id && !e.dataUri && photos.has(e.id) ? { ...e, dataUri: photos.get(e.id) } : e)) }
+        : {};
+      return { ...it, ...first, ...extras };
+    }),
   }));
 }

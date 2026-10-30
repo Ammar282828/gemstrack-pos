@@ -58,6 +58,13 @@ struct NewOrderPieceDraft: Codable, Equatable, Identifiable {
     var adminNote = ""
     /// The sample picture, JPEG, at most about 120 KB (NewOrderPhotoCodec).
     var photo: Data?
+    /// More reference pictures, after the first (up to `maxPhotos` in all), in order: ones already on the order and new JPEGs.
+    var extras: [NewOrderExtraPhoto] = []
+    /// The piece had more pictures on file, so an emptied list is sent as [] and clears them.
+    var hadExtras = false
+
+    /// Reference pictures a piece takes (lib/order-photos.ts MAX_PIECE_PHOTOS).
+    static let maxPhotos = 8
 
     init() {}
 
@@ -93,6 +100,28 @@ struct NewOrderPieceDraft: Codable, Equatable, Identifiable {
         manualPrice = c.orderField(.manualPrice, "")
         adminNote = c.orderField(.adminNote, "")
         photo = try? c.decodeIfPresent(Data.self, forKey: .photo)
+        extras = (try? c.decodeIfPresent([NewOrderExtraPhoto].self, forKey: .extras)) ?? []
+        hadExtras = c.orderField(.hadExtras, false)
+    }
+}
+
+/// One of a piece's reference pictures after the first: filed already (`storedId`, a document in `order_photos`) or new
+/// (`data`, a JPEG made by NewOrderPhotoCodec). `id` names it on this phone only (the draft's files, the list's rows).
+struct NewOrderExtraPhoto: Codable, Equatable, Identifiable, Hashable {
+    var id = UUID()
+    var storedId: String?
+    var data: Data?
+
+    init(storedId: String? = nil, data: Data? = nil) {
+        self.storedId = storedId
+        self.data = data
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = (try? c.decodeIfPresent(UUID.self, forKey: .id)) ?? UUID()
+        storedId = try? c.decodeIfPresent(String.self, forKey: .storedId)
+        data = try? c.decodeIfPresent(Data.self, forKey: .data)
     }
 }
 
@@ -412,6 +441,14 @@ enum NewOrderDraftStore {
                 for i in draft.pieces.indices where draft.pieces[i].photo == nil {
                     draft.pieces[i].photo = try? Data(contentsOf: dir.appendingPathComponent(draft.pieces[i].id.uuidString))
                 }
+                for i in draft.pieces.indices {
+                    for j in draft.pieces[i].extras.indices where draft.pieces[i].extras[j].storedId == nil && draft.pieces[i].extras[j].data == nil {
+                        let name = "\(draft.pieces[i].id.uuidString)-\(draft.pieces[i].extras[j].id.uuidString)"
+                        draft.pieces[i].extras[j].data = try? Data(contentsOf: dir.appendingPathComponent(name))
+                    }
+                    // A picture left out of the draft is gone, not an empty slot.
+                    draft.pieces[i].extras.removeAll { $0.storedId == nil && $0.data == nil }
+                }
             }
             return draft
         }
@@ -467,30 +504,32 @@ enum NewOrderDraftStore {
             return
         }
         var lite = draft
-        let total = draft.pieces.reduce(0) { $0 + ($1.photo?.count ?? 0) }
+        let total = draft.pieces.reduce(0) { $0 + ($1.photo?.count ?? 0) + $1.extras.reduce(0) { $0 + ($1.data?.count ?? 0) } }
         let keepPhotos = total <= ceiling
         if !keepPhotos { lite.photosLeftOut = true }
         if let dir {
             try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
             var kept = Set<String>()
             if keepPhotos {
-                for p in draft.pieces {
-                    guard let photo = p.photo else { continue }
-                    let name = p.id.uuidString
+                func keep(_ photo: Data, as name: String) {
                     kept.insert(name)
                     let url = dir.appendingPathComponent(name)
                     if (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) != photo.count {
                         try? photo.write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
                     }
                 }
+                for p in draft.pieces {
+                    if let photo = p.photo { keep(photo, as: p.id.uuidString) }
+                    for e in p.extras { if let data = e.data { keep(data, as: "\(p.id.uuidString)-\(e.id.uuidString)") } }
+                }
             }
             // A photo whose piece is gone (or left out) is not kept on the phone.
             for f in (try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? [] where !kept.contains(f) {
                 try? FileManager.default.removeItem(at: dir.appendingPathComponent(f))
             }
-            lite.pieces = lite.pieces.map { p in var q = p; q.photo = nil; return q }
+            lite.pieces = lite.pieces.map { p in var q = p; q.photo = nil; for j in q.extras.indices { q.extras[j].data = nil }; return q }
         } else if !keepPhotos {
-            lite.pieces = lite.pieces.map { p in var q = p; q.photo = nil; return q }
+            lite.pieces = lite.pieces.map { p in var q = p; q.photo = nil; for j in q.extras.indices { q.extras[j].data = nil }; return q }
         }
         guard let data = try? JSONEncoder().encode(lite) else { return }
         UserDefaults.standard.set(data, forKey: k)

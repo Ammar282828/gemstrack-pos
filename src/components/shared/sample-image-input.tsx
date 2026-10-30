@@ -13,7 +13,10 @@ import React, { useRef, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Images, Camera, X, Loader2 } from 'lucide-react';
+import { Images, Camera, X, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useOrderPhoto, useItemPhotos } from '@/components/order/order-photo';
+import { PhotoLightbox } from '@/components/order/photo-lightbox';
+import { MAX_PIECE_PHOTOS } from '@/lib/order-photos';
 import { readablePhoto } from '@/lib/photo-file';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -38,7 +41,7 @@ const MAX_EDGE = 1000;
  */
 const MAX_BYTES = 120 * 1024;
 
-async function compressToDataUri(source: HTMLImageElement | HTMLVideoElement, width: number, height: number): Promise<string> {
+export async function compressToDataUri(source: HTMLImageElement | HTMLVideoElement, width: number, height: number): Promise<string> {
   const scale = Math.min(1, MAX_EDGE / Math.max(width, height));
   const w = Math.round(width * scale);
   const h = Math.round(height * scale);
@@ -57,7 +60,7 @@ async function compressToDataUri(source: HTMLImageElement | HTMLVideoElement, wi
   return canvas.toDataURL('image/jpeg', 0.35);
 }
 
-function loadImage(file: File): Promise<HTMLImageElement> {
+export function loadImage(file: File): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
@@ -159,6 +162,151 @@ export const SampleImageInput: React.FC<{
         </div>
       )}
 
+      <Dialog open={cameraOpen} onOpenChange={setCameraOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Take a photo</DialogTitle></DialogHeader>
+          <video ref={videoRef} autoPlay playsInline muted className="w-full rounded-md bg-black" />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCameraOpen(false)}>Cancel</Button>
+            <Button onClick={capture} disabled={busy || !stream}>
+              {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Camera className="mr-2 h-4 w-4" />}Capture
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+
+/** One reference photo as the editor holds it: a new picture (`dataUri`) or one already filed (`id`, with its `hash`). */
+export interface PhotoEntry { id?: string; dataUri?: string; hash?: string }
+
+const Thumb: React.FC<{ entry: PhotoEntry; onOpen: () => void; onRemove: () => void; onLeft?: () => void; onRight?: () => void }> = ({ entry, onOpen, onRemove, onLeft, onRight }) => {
+  const stored = useOrderPhoto(entry.dataUri ? null : { samplePhotoId: entry.id });
+  const src = entry.dataUri || stored || '';
+  return (
+    <div className="relative h-24 w-24 flex-shrink-0">
+      <button type="button" onClick={onOpen} aria-label="Open photo" className="h-full w-full overflow-hidden rounded-md border bg-muted">
+        {src
+          // eslint-disable-next-line @next/next/no-img-element
+          ? <img src={src} alt="Reference" className="h-full w-full object-contain" loading="lazy" decoding="async" />
+          : <div className="h-full w-full animate-pulse" />}
+      </button>
+      <Button type="button" variant="destructive" size="icon" className="absolute -right-2 -top-2 h-6 w-6 rounded-full" onClick={onRemove} aria-label="Remove photo">
+        <X className="h-3 w-3" />
+      </Button>
+      <div className="absolute inset-x-0 bottom-0 flex justify-between px-0.5">
+        {onLeft ? <button type="button" onClick={onLeft} aria-label="Move earlier" className="rounded bg-black/50 text-white"><ChevronLeft className="h-4 w-4" /></button> : <span />}
+        {onRight ? <button type="button" onClick={onRight} aria-label="Move later" className="rounded bg-black/50 text-white"><ChevronRight className="h-4 w-4" /></button> : <span />}
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Several reference photos for one piece (up to MAX_PIECE_PHOTOS): pick many at once from Photos, or
+ * take them with the camera one after another; move them earlier/later, remove them, tap one to open it
+ * full screen. The first is the piece's main picture. Each is compressed as the single one always was.
+ */
+export const SampleImagesInput: React.FC<{ photos: PhotoEntry[]; onChange: (photos: PhotoEntry[]) => void }> = ({ photos, onChange }) => {
+  const { toast } = useToast();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState<number | null>(null);
+  const latest = useRef(photos);
+  latest.current = photos;
+  const viewable = useItemPhotos({ sampleImageDataUri: photos[0]?.dataUri, samplePhotoId: photos[0]?.id, extraPhotos: photos.slice(1) });
+  const room = MAX_PIECE_PHOTOS - photos.length;
+
+  const add = (uris: string[]) => onChange([...latest.current, ...uris.map(dataUri => ({ dataUri }))].slice(0, MAX_PIECE_PHOTOS));
+
+  const handleFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = '';
+    if (!files.length) return;
+    setBusy(true);
+    const done: string[] = [];
+    let failed = 0;
+    for (const file of files.slice(0, Math.max(room, 0))) {
+      if (!file.type.startsWith('image/') && !/\.(heic|heif)$/i.test(file.name)) { failed++; continue; }
+      try {
+        const img = await loadImage(await readablePhoto(file));
+        done.push(await compressToDataUri(img, img.naturalWidth, img.naturalHeight));
+      } catch { failed++; }
+    }
+    if (done.length) add(done);
+    if (failed) toast({ title: 'Could not read some photos', description: 'Try another photo.', variant: 'destructive' });
+    if (files.length > room) toast({ title: `Up to ${MAX_PIECE_PHOTOS} photos a piece`, description: `${Math.min(files.length, Math.max(room, 0))} added.` });
+    setBusy(false);
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    if (cameraOpen) {
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+        .then(s => {
+          if (cancelled) { s.getTracks().forEach(t => t.stop()); return; }
+          setStream(s);
+          if (videoRef.current) videoRef.current.srcObject = s;
+        })
+        .catch(() => {
+          toast({ title: 'Camera unavailable', description: 'Check browser permissions.', variant: 'destructive' });
+          setCameraOpen(false);
+        });
+    }
+    return () => {
+      cancelled = true;
+      setStream(prev => { prev?.getTracks().forEach(t => t.stop()); return null; });
+    };
+  }, [cameraOpen, toast]);
+
+  const capture = async () => {
+    const v = videoRef.current;
+    if (!v || !v.videoWidth) return;
+    setBusy(true);
+    try {
+      add([await compressToDataUri(v, v.videoWidth, v.videoHeight)]);
+      setCameraOpen(false);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const move = (i: number, d: number) => {
+    const next = [...photos];
+    [next[i], next[i + d]] = [next[i + d], next[i]];
+    onChange(next);
+  };
+
+  return (
+    <div className="space-y-2">
+      {photos.length > 0 && (
+        <div className="flex flex-wrap gap-3 pt-2">
+          {photos.map((p, i) => (
+            <Thumb key={p.id ?? `${i}-${(p.dataUri ?? '').length}`} entry={p}
+              onOpen={() => { if (viewable.length === photos.length) setOpen(i); }}
+              onRemove={() => onChange(photos.filter((_, j) => j !== i))}
+              onLeft={i > 0 ? () => move(i, -1) : undefined}
+              onRight={i < photos.length - 1 ? () => move(i, 1) : undefined} />
+          ))}
+        </div>
+      )}
+      {room > 0 && (
+        <div className="flex items-center gap-2">
+          <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => fileRef.current?.click()}>
+            {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Images className="mr-2 h-4 w-4" />}{photos.length ? 'Add photos' : 'From Photos'}
+          </Button>
+          <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => setCameraOpen(true)}>
+            <Camera className="mr-2 h-4 w-4" />Camera
+          </Button>
+          <Input type="file" multiple ref={fileRef} onChange={handleFiles} className="hidden" accept="image/*,.heic,.heif" />
+        </div>
+      )}
+      {open !== null && <PhotoLightbox photos={viewable} index={open} onIndex={setOpen} onClose={() => setOpen(null)} />}
       <Dialog open={cameraOpen} onOpenChange={setCameraOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Take a photo</DialogTitle></DialogHeader>

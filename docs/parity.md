@@ -37,6 +37,7 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Send Page Snapshots (Help menu, owners): the window visits every sidebar place and sends a picture of each to the ERP (`/api/app/snapshots`, Firestore `app_snapshots`) for whoever builds the Mac app | n/a | n/a | n/a | ✓ | 2026-10-25 | `Mac/MacSnapshots.swift`, `src/app/api/app/snapshots`; built on Xcode Cloud at 26a5ab2 (0 errors) |
 | Business switcher: Taheri, Mina and any business by address, a widget each | n/a | ✓ | ✓ | ✓ | 2026-10-16 | [iphone-app.md](features/iphone-app.md#one-app-many-businesses-2026-10-16), [android-app.md](features/android-app.md#one-app-many-businesses-2026-10-24); `screens/businesses`, `config/Businesses.kt`; Mina needs its Android app registered |
 | Cold start asks which business | n/a | ✓ | ✓ | ✓ | 2026-10-20 | `Nav/BusinessPicker.swift`, `screens/businesses/BusinessPicker.kt` |
+| Business picker at launch, redesigned: a large card per business in its own palette and mark, last used first, sign-in state, last opened, cards side by side on iPad/Mac | n/a | ✓ | owed | ✓ | 2026-10-30 | [iphone-app.md](features/iphone-app.md#business-picker-redesigned-2026-10-30); `Nav/BusinessPicker.swift` (shared with the Mac) |
 
 ## Sales and invoices
 
@@ -58,6 +59,7 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Feature | Web | iPhone | Android | Mac | Since | Where |
 |---|---|---|---|---|---|---|
 | Orders hub by stage, next step per card | ✓ | ✓ | ✓ | ✓ | 2026-10 | [Orders hub](decisions.md#orders-hub) |
+| Orders: several reference photos per piece (up to 8; pick many at once, camera, reorder/remove; Edit order adds/removes) and a full-screen viewer (swipe, pinch / double-tap zoom, share or save, swipe down to close; web lightbox with arrows and keys); the workshop card and the karigar page show them all | ✓ | ✓ | owed | ✓ | 2026-10-30 | [Saves are one trip](decisions.md#saves-are-one-trip); `extraPhotos` on the piece, `lib/order-photos.ts`, `components/order/photo-lightbox.tsx`; iPhone `Screens/Orders/PieceGallery.swift`, `NewOrder/NewOrderPhoto.swift`. Mac compiles the same sources (not yet run). iPhone/Mac reorder only the extras (the web reorders the main one too); a web draft's extra photos do not carry to the phone. Android owed: read `extraPhotos` (core `Sales.kt`), send it from `NewOrderMath.kt`, a viewer in `screens/orders` |
 | Order page, pieces, status, courier / Leopards / tracking | ✓ | ✓ | ✓ | ✓ | 2026-10 | `Screens/Orders`, `screens/orders` |
 | New order (scan a slip, sizes to the profile, stock picker) | ✓ | ✓ | ✓ | ✓ | 2026-10 | `Screens/NewOrder`, `screens/neworder` |
 | Edit order (keeps quoted rates, ticks, photos) | ✓ | ✓ | ✓ | ✓ | 2026-10-09 | `NewOrderEdit.swift`; Android (check) |
@@ -126,6 +128,8 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | One Analytics with sections (Sales · Website · Social · Ads) and a section picker; the marketing account sees only tabs marked `marketing` | ✓ | ✓ | ✓ | ✓ | 2026-10-23 | [The map](decisions.md#the-map) |
 | Net profit = estimated profit less expenses (not revenue less expenses) | ✓ | ✓ | ✓ | ✓ | 2026-10-25 | [Net profit](decisions.md#net-profit); `src/lib/analytics/net-profit.ts`, `AnaNet`; Android core `NetProfit`, `AnaYear.netProfit`, Overview tile |
 | Monthly PDF | ✓ | ✓ | ✓ | ✓ | 2026-10 | [Monthly PDF](features/notifications.md#monthly-pdf) |
+| Monthly PDF export: Share / Save to Files on iPhone (its own nav bar), Save as PDF on Mac, longer wait, owner-only message | ✓ | ✓ | ✓ | ✓ | 2026-10-30 | Web saves through `savePDF`; iPhone/Mac `PDFDocumentScreen`; Android `PdfDocumentScreen` (150 s wait; its share button existed, not re-run on a device) |
+| Monthly PDF trends: changes vs last month and last year, daily and 12-month charts, rankings, orders, coins, website | ✓ | ✓ | ✓ | ✓ | 2026-10-30 | One server-drawn PDF (`lib/reports/monthly-insights.ts`, `monthly-charts.ts`): every surface shows the same file |
 | Sums spoken in rupees, charts summarised for screen readers | n/a | ✓ | n/a | ✓ | 2026-10-20 | Android uses TalkBack labels (`android-app.md`) |
 
 ## Website

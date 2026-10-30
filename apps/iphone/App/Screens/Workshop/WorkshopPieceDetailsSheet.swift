@@ -14,6 +14,8 @@ struct WorkshopPieceAsk: Identifiable {
     let target: Target
     var samplePhotoId: String?
     var sampleImageDataUri: String?
+    /// Every reference picture the piece holds (the first and the rest), opened full screen from here; they are changed in Edit order.
+    var gallery: [PhotoSource] = []
     var id: String { job.id }
 
     var isOrder: Bool {
@@ -157,6 +159,11 @@ struct WorkshopPieceDetailsSheet: View {
                     SkeletonLoading().frame(height: 80)
                 }
                 Button("Remove photo", systemImage: "trash", role: .destructive) { removePhoto = true }
+            }
+            if ask.gallery.count > 1 {
+                PieceGalleryRow(sources: ask.gallery, title: ask.job.description, size: 72, all: true)
+                Text("The piece has \(ask.gallery.count) reference pictures. Add or remove them in Edit order.")
+                    .font(.footnote).foregroundStyle(.secondary)
             }
             NewOrderPhotoField(data: Binding(
                 get: { photo },

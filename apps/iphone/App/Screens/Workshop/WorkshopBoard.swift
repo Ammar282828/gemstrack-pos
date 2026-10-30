@@ -693,7 +693,8 @@ struct WorkshopBoard: View {
             }
             let item = order.items[index]
             editingPiece = WorkshopPieceAsk(job: job, target: .order(id: id, index: index),
-                                            samplePhotoId: item.samplePhotoId, sampleImageDataUri: item.sampleImageDataUri)
+                                            samplePhotoId: item.samplePhotoId, sampleImageDataUri: item.sampleImageDataUri,
+                                            gallery: item.photoSources)
         case .invoice(let id, let index):
             editingPiece = WorkshopPieceAsk(job: job, target: .invoice(id: id, index: index))
         case nil:

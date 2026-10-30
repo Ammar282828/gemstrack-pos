@@ -2,6 +2,7 @@ import SwiftUI
 import PDFKit
 #if os(macOS)
 import AppKit
+import UniformTypeIdentifiers
 #endif
 
 /// A PDF the ERP draws on its server with the browser's own builder — the invoice Print saves
@@ -15,6 +16,11 @@ struct PDFDocumentScreen: View {
     /// "Invoice - Test Buyer.pdf", "OrderSlip-ORD-000123.pdf": what Print, Files and WhatsApp call it.
     let fileName: String
     let title: String
+    /// How long the ERP may take to draw it. The monthly report reads every invoice, order and expense of the
+    /// shop before it draws, so it asks for longer than a slip does.
+    var timeout: TimeInterval = 90
+    /// A line under the spinner, for a document that takes a while ("Drawing the report…").
+    var wait: String?
 
     @State private var shown: Shown?
     @State private var failed: String?
@@ -23,6 +29,7 @@ struct PDFDocumentScreen: View {
     private struct Shown {
         let document: PDFDocument
         let file: URL
+        let data: Data
     }
 
     var body: some View {
@@ -37,7 +44,13 @@ struct PDFDocumentScreen: View {
                     Button("Try again") { self.failed = nil; attempt += 1 }.buttonStyle(.houseGlass)
                 }
             } else {
-                SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
+                VStack(spacing: 12) {
+                    SkeletonLoading().controlSize(.large)
+                    if let wait {
+                        Text(wait).font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center).padding(.horizontal, 32)
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .modifier(HouseGround())
@@ -60,6 +73,11 @@ struct PDFDocumentScreen: View {
                 Label("Print", systemImage: "printer")
             }
             #endif
+            #if os(macOS)
+            Button { Self.save(shown.data, as: shown.file.lastPathComponent) } label: {
+                Label("Save as PDF", systemImage: "square.and.arrow.down")
+            }
+            #endif
             ShareLink(item: shown.file) {
                 Label("Share or print", systemImage: "square.and.arrow.up")
             }
@@ -67,6 +85,16 @@ struct PDFDocumentScreen: View {
     }
 
     #if os(macOS)
+    /// The Mac's save panel, so the report lands where the person chooses, under its own name.
+    private static func save(_ data: Data, as name: String) {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.pdf]
+        panel.nameFieldStringValue = name
+        panel.canCreateDirectories = true
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        try? data.write(to: url, options: .atomic)
+    }
+
     private static func printDocument(_ document: PDFDocument) {
         let info = NSPrintInfo.shared.copy() as? NSPrintInfo ?? NSPrintInfo.shared
         guard let operation = document.printOperation(for: info, scalingMode: .pageScaleDownToFit, autoRotate: true) else { return }
@@ -83,17 +111,28 @@ struct PDFDocumentScreen: View {
     private func load() async {
         guard shown == nil else { return }
         do {
-            // A slip of many pieces is drawn in a second or two; the line may be slower than the ERP.
-            let data = try await ERPAPI.shared.data(path, timeout: 90)
-            guard let document = PDFDocument(data: data) else {
+            // A slip of many pieces is drawn in a second or two; the monthly report reads the whole book first.
+            let data = try await ERPAPI.shared.data(path, timeout: timeout)
+            guard let document = PDFDocument(data: data), document.pageCount > 0 else {
                 failed = "The ERP's answer was not a PDF."
                 return
             }
-            shown = Shown(document: document, file: try Self.keep(data, as: fileName))
+            shown = Shown(document: document, file: try Self.keep(data, as: fileName), data: data)
         } catch {
             if Task.isCancelled { return }
-            failed = error.localizedDescription
+            failed = Self.said(error)
         }
+    }
+
+    /// What went wrong, in words the person can act on.
+    private static func said(_ error: Error) -> String {
+        if let failure = error as? ERPAPI.Failure, failure.status == 401 || failure.status == 403 {
+            return "This one is for the owners. Sign in as an owner to open it."
+        }
+        if (error as? URLError)?.code == .timedOut {
+            return "The ERP took too long to draw it. Check the connection and try again."
+        }
+        return error.localizedDescription
     }
 
     /// A folder of its own for each PDF, so the file keeps its exact name and two never meet.

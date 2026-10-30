@@ -671,6 +671,8 @@ export interface OrderItem {
   sampleImageDataUri?: string;
   /** The sample photo's own document (`order_photos/<id>`, lib/order-photos.ts); it no longer rides in the order. */
   samplePhotoId?: string;
+  /** Reference photos 2..n of the piece, one document each (the first stays above); lib/order-photos.ts. */
+  extraPhotos?: { id?: string; dataUri?: string; hash?: string }[];
   referenceSku?: string;
   sampleGiven: boolean;
   isCompleted: boolean;

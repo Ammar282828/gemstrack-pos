@@ -14,7 +14,7 @@
  */
 
 import type { DbPort, SideEffects } from '@/lib/db-port';
-import { ORDER_PHOTOS, droppedPhotoIds, splitItemPhotos } from '@/lib/order-photos';
+import { ORDER_PHOTOS, MAX_PIECE_PHOTOS, droppedPhotoIds, splitItemPhotos, type ExtraPhoto } from '@/lib/order-photos';
 import { withItemDetails, type InvoiceItemDetails } from '@/lib/workshop-details';
 import type { InvoiceItem } from '@/lib/store';
 
@@ -26,11 +26,13 @@ export type OrderItemDetails = {
   adminNote?: string; referenceSku?: string; estimatedWeightG?: number;
   /** A new picture (a data URI) replaces whatever the piece had; '' takes it off. Absent leaves it. */
   sampleImageDataUri?: string;
+  /** The piece's other reference photos (2..n), replacing the list it had: `{ id }` keeps a stored one, `{ dataUri }` adds one. [] takes them all off. Absent leaves them. */
+  extraPhotos?: ExtraPhoto[];
 };
 
 type OrderPiece = {
   description?: string; size?: string; stoneDetails?: string; diamondDetails?: string; adminNote?: string;
-  referenceSku?: string; estimatedWeightG?: number; sampleImageDataUri?: string; samplePhotoId?: string; samplePhotoHash?: string;
+  referenceSku?: string; estimatedWeightG?: number; sampleImageDataUri?: string; samplePhotoId?: string; samplePhotoHash?: string; extraPhotos?: ExtraPhoto[];
 } & Record<string, unknown>;
 
 /** A write refused because of what is on file (the order, the invoice or the piece is gone): nothing is written. */
@@ -71,6 +73,14 @@ export function withOrderItemDetails<I extends object>(items: readonly I[], item
       delete next.samplePhotoHash;
       if (patch.sampleImageDataUri) next.sampleImageDataUri = patch.sampleImageDataUri;
       else delete next.sampleImageDataUri;
+    }
+    if (patch.extraPhotos !== undefined) {
+      // Only ids this piece already holds may be kept: a caller cannot point a piece at someone else's document.
+      const held = new Set((item as OrderPiece).extraPhotos?.map(e => e.id));
+      const extras = patch.extraPhotos.slice(0, MAX_PIECE_PHOTOS - 1)
+        .filter(e => e && (e.dataUri || (e.id && held.has(e.id))))
+        .map(e => (e.dataUri ? { dataUri: e.dataUri } : { id: e.id, ...(e.hash ? { hash: e.hash } : {}) }));
+      if (extras.length) next.extraPhotos = extras; else delete next.extraPhotos;
     }
     return next as unknown as I;
   });

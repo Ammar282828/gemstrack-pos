@@ -106,6 +106,18 @@ export const runWork2Op: OpHandler = async (op, body, ctx) => {
           if (p !== '' && (typeof p !== 'string' || !isPhoto(p))) return bad('The sample picture could not be read. Choose it again.');
           patch.sampleImageDataUri = p as string;
         }
+        if ('extraPhotos' in sent) {
+          const list = sent.extraPhotos;
+          if (!Array.isArray(list) || list.length > 7) return bad('A piece takes up to 8 reference pictures.');
+          const extras: { id?: string; dataUri?: string }[] = [];
+          for (const e of list as Record<string, unknown>[]) {
+            if (e && typeof e.dataUri === 'string' && e.dataUri) {
+              if (!isPhoto(e.dataUri)) return bad('A reference picture could not be read. Choose it again.');
+              extras.push({ dataUri: e.dataUri });
+            } else if (e && typeof e.id === 'string' && /^[\w-]{1,80}$/.test(e.id)) extras.push({ id: e.id });
+          }
+          patch.extraPhotos = extras;
+        }
         if (!Object.keys(patch).length) return bad('Nothing to change.');
         return ok(await updateOrderPieceDetails(adminPort, { orderId, itemIndex, patch }, fx));
       }

@@ -234,7 +234,7 @@ struct MacReportsAnalyticsPage: View {
     /// The month's PDF in one sheet, the month already chosen from the menu: no sheet over a sheet.
     private func monthSheet(_ m: MacReportsMonth) -> some View {
         NavigationStack {
-            PDFDocumentScreen(path: "/api/reports/monthly?month=" + m.key, fileName: "monthly-report-" + m.key + ".pdf", title: m.title)
+            PDFDocumentScreen(path: "/api/reports/monthly?month=" + m.key, fileName: "monthly-report-" + m.key + ".pdf", title: m.title, timeout: 150, wait: "Drawing the report: figures, trends and every sale. This takes a few seconds.")
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) { Button("Done") { pdf = nil } }
                 }

@@ -322,8 +322,9 @@ struct MyWorkScreen: View {
                 if j.sampleGiven {
                     Pill("Sample provided", tone: .quiet)
                 }
-                if let picture = j.sampleImage, !picture.isEmpty {
-                    WorkSamplePhoto(uri: picture, key: j.id)
+                if !j.photoSources.isEmpty {
+                    // Every reference picture; a tap opens them full screen (PieceGallery.swift).
+                    PieceGalleryRow(sources: j.photoSources, title: j.description, size: 120, all: true)
                 }
                 if let notes = j.notes, !notes.isEmpty {
                     VStack(alignment: .leading, spacing: 2) {
@@ -675,8 +676,8 @@ extension MyWorkScreen {
                     if j.sampleGiven { MacWorkFact("Sample", "Provided") }
                 }
             }
-            if let picture = j.sampleImage, !picture.isEmpty {
-                MacWorkCard("Sample") { WorkSamplePhoto(uri: picture, key: j.id) }
+            if !j.photoSources.isEmpty {
+                MacWorkCard("Sample") { PieceGalleryRow(sources: j.photoSources, title: j.description, size: 132, all: true) }
             }
             if let notes = j.notes, !notes.isEmpty {
                 MacWorkCard("Instructions") { Text(notes).textSelection(.enabled) }

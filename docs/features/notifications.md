@@ -35,6 +35,25 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   report **`monthly-report`** (`notifMonthlyReport`, off until the owner switches it on in Settings → Notifications): on the **1st at the checklist time**, the month before,
   as a PDF document (`sendWhatsAppFile` → WAHA `/api/sendFile`) with a short caption. jsPDF and its table plugin are
   `serverExternalPackages`, so the server takes jsPDF's Node build rather than bundling the browser one.
+- **Trends and analytics in it** (2026-10-30, owner: "the report should show trends etc, analytics etc."):
+  `monthly-insights.ts` (pure, tested; `report.insights`) on the same rules, and `monthly-charts.ts` draws them with jsPDF's own
+  lines and rectangles (no image, no chart library). Page 1: six figures (Revenue, **Net profit = estimated profit less expenses**,
+  Cash in, Expenses, Estimated profit, Sales), each **against last month and the same month last year**; a month still running is
+  set against the *same days* of those months, never a whole one (the caption's old "no comparison" for a running month stays).
+  Then revenue by day (bars), twelve months of revenue and net profit (lines, the running month's point hollow), sales by category,
+  top pieces, top customers (walk-ins one row), how it was paid, expenses by category, the orders (taken, where they stand now,
+  invoiced from an order, open orders with advances held and the balance to collect), **gold coins on their own card** (never in
+  revenue, profit or the rankings) and, when `site_days` has the month, the website (visitors, visits, WhatsApp enquiries, top
+  channels; read by `websiteInsights`, left out if it cannot be read). The sale tables follow as before. Colours: the document's
+  maroon, then the house's `NEXT_PUBLIC_STORE_PALETTE` accent (Mina's is the maroon itself, so a tint of it). "Revenue less expenses"
+  is still in the numbers beside Expenses, labelled as that, never as profit. Look at it without the shop's data:
+  `npx tsx scripts/monthly-sample.ts 2026-09 out.pdf` (invented data, `lib/reports/monthly-fixture.ts`; set the house's variables for Mina).
+  About 120 KB for a year of sales, far under WhatsApp's document limit; the live route answered 200 in 1.2 to 2.5 s with 380 KB.
+- **Export on the phone** (2026-10-30, owner: "I can't export the report"): the server was fine (Cloud Run: 200s, a second or two). The iPhone
+  opened the PDF in a plain sheet, and a sheet is no navigation stack, so the toolbar's **Share** button (Save to Files, Print, WhatsApp)
+  never appeared: the report could be read, not taken away. It now sits in its own `NavigationStack` with Done. `PDFDocumentScreen`
+  also takes a longer wait (150 s), says what it is doing while it draws, explains a 401/403 ("for the owners"), and on the Mac has **Save
+  as PDF** (save panel) beside Print and Share. Android asks for the same 150 s. The route is owners' only (`NEXT_PUBLIC_STORE_OWNER_EMAILS`).
 
 ### PDFs only
 

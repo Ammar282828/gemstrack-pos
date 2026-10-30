@@ -535,6 +535,18 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
   with it: the order form's schema dropped every piece's `givenAt` (the Workshop's "Given") on each edit, and the order,
   Hisaab account and product pages never loaded their own data, so opened from a link or a reload they said "not found".
 
+- **Several reference photos per piece** (2026-10-30, owner: "I should be able to upload more than one picture reference in
+  orders … and open the reference images"). Up to 8 a piece (`MAX_PIECE_PHOTOS`). The **first photo stays exactly where it was**
+  (`sampleImageDataUri` / `samplePhotoId` / `samplePhotoHash`), so older apps and every reader still show it; photos 2..n are
+  `extraPhotos: [{ id, hash }]` on the piece, **one `order_photos` document each** (Firestore's 1 MiB per document), written in
+  the **same commit** as the order (`splitItemPhotos`: create, Edit order, the Workshop's details write). A writer may send an
+  extra inline as `{ dataUri }`; a picture sent again is kept, one dropped has its document deleted in that commit, the cap and
+  empty entries are enforced there, and a piece with no first photo but extras makes the next one its main picture. A legacy
+  single-photo order reads as a list of one (`itemPhotoRefs`). Drafts follow the one-photo pattern (data URLs over 20 KB are
+  left out of a web draft; the phone keeps them as files per piece). The reference photos open full screen from the order page,
+  Edit order, New order, the workshop card and the karigar page (web `photo-lightbox.tsx`, iPhone `PieceGallery.swift`). An
+  older app that edits a piece and writes its items back whole will drop `extraPhotos` it does not know (the first photo survives).
+
 ## Money and analytics
 
 ### Invoice credit

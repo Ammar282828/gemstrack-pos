@@ -2,7 +2,7 @@
 import type { AdditionalRevenue, Invoice, Order } from '@/lib/store';
 import { invoiceSaleValue } from './sale-value';
 import { bookedAsSale } from '@/lib/order-stage';
-import { revenueDate } from '@/lib/reports/monthly';
+import { revenueDate } from '@/lib/reports/monthly-time';
 import { splitAllCoinSales } from './coins';
 
 const makeWithin = (from: Date, to: Date) => (iso: string | undefined) => {

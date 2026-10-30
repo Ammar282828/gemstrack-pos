@@ -90,6 +90,8 @@ public struct KarigarPortalJob: Decodable, Identifiable, Hashable {
     public let sampleGiven: Bool
     /// A picture as a data address ("data:image/jpeg;base64,…").
     public let sampleImage: String?
+    /// The piece's other reference pictures (photos 2...n), as data addresses.
+    public let extraSampleImages: [String]
     public let plating: String?
     public let orderId: String?
     /// "pending", "in-progress" or "completed".
@@ -103,7 +105,7 @@ public struct KarigarPortalJob: Decodable, Identifiable, Hashable {
 
     private enum K: String, CodingKey {
         case id, source, description, category, metalType, karat, weightG, quantity, size, referenceSku
-        case sampleGiven, sampleImage, plating, orderId, status, assignedDate, ageDays, urgency, notes
+        case sampleGiven, sampleImage, extraSampleImages, plating, orderId, status, assignedDate, ageDays, urgency, notes
     }
 
     public init(from decoder: Decoder) throws {
@@ -120,6 +122,7 @@ public struct KarigarPortalJob: Decodable, Identifiable, Hashable {
         referenceSku = c.string(.referenceSku)
         sampleGiven = c.bool(.sampleGiven, default: false)
         sampleImage = c.string(.sampleImage)
+        extraSampleImages = c.strings(.extraSampleImages)
         plating = c.string(.plating)
         orderId = c.string(.orderId)
         status = c.string(.status, default: "pending")

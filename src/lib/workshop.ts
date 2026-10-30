@@ -58,6 +58,8 @@ export interface WorkshopJob {
   sampleImage?: string;
   /** The sample photo's own document (lib/order-photos.ts), when it is not inline. */
   samplePhotoId?: string;
+  /** Reference photos 2..n of the piece (their documents), for the workshop slip and the viewer. */
+  extraPhotoIds?: string[];
   /** When the piece physically went to the karigar. Unset until the Given box is ticked. */
   givenAt?: string;
   plating?: string;
@@ -149,6 +151,7 @@ export function buildWorkshopJobs(
         sampleGiven: !!item.sampleGiven,
         sampleImage: item.sampleImageDataUri || undefined,
         samplePhotoId: item.samplePhotoId || undefined,
+        extraPhotoIds: item.extraPhotos?.map(e => e?.id).filter((v): v is string => !!v).slice(0, 7) || undefined,
         givenAt: item.givenAt || undefined,
         plating: describePlating(item),
         value: item.totalEstimate ?? 0,

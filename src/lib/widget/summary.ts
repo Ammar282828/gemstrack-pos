@@ -10,7 +10,7 @@
 import type { Invoice, Order, Repair, AdditionalRevenue, Expense } from '@/lib/store';
 import { mainRate, ratesSetToday, whenSet, type Rates } from '@/lib/rates';
 import { revenueForPeriod } from '@/lib/analytics/revenue-period';
-import { karachiMonth, monthBounds } from '@/lib/reports/monthly';
+import { karachiMonth, monthBounds } from '@/lib/reports/monthly-time';
 import { karachiDayPeriod, todaysCash } from '@/lib/analytics/todays-cash';
 import { owedToYou, type LedgerRow } from '@/lib/owed';
 import { isActiveOrder, orderTiming } from '@/lib/order-timing';

@@ -22,6 +22,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Loader2, Hammer, LogOut, CheckCircle2, Flame, Clock, Scale, Banknote, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { ItemPhotos } from '@/components/order/order-photo';
 import { format, parseISO } from 'date-fns';
 import { groupJobsByOrder, type JobOrderGroup } from '@/lib/workshop';
 import { ListSkeleton } from '@/components/shared/skeletons';
@@ -30,7 +31,7 @@ interface Job {
   id: string; source: 'order' | 'manual';
   description: string; category?: string; metalType?: string; karat?: string;
   weightG?: number; quantity?: number;
-  size?: string; referenceSku?: string; sampleGiven?: boolean; sampleImage?: string; plating?: string;
+  size?: string; referenceSku?: string; sampleGiven?: boolean; sampleImage?: string; extraSampleImages?: string[]; plating?: string;
   orderId?: string;
   status: 'pending' | 'in-progress' | 'completed';
   assignedDate: string; ageDays: number; urgency: 'ok' | 'warning' | 'critical';
@@ -195,9 +196,9 @@ export default function MyWorkPage() {
 
           {job.sampleGiven && <Badge variant="outline" className="text-xs mt-2">Sample provided</Badge>}
 
-          {job.sampleImage && (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={job.sampleImage} alt="Sample" className="mt-2 rounded-md border max-h-56 object-contain bg-muted" loading="lazy" decoding="async" />
+          {(job.sampleImage || job.extraSampleImages?.length) && (
+            <ItemPhotos className="mt-2" size={112} title={job.description}
+              item={{ sampleImageDataUri: job.sampleImage, extraPhotos: job.extraSampleImages?.map(dataUri => ({ dataUri })) }} />
           )}
 
           {job.notes && (

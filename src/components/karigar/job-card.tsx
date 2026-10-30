@@ -7,7 +7,7 @@
  * workshop surface uses; `BoardJobCard` is the board tile.
  */
 
-import { OrderPhoto } from '@/components/order/order-photo';
+import { ItemPhotos } from '@/components/order/order-photo';
 import React from 'react';
 import Link from 'next/link';
 import { WorkshopJob, UNASSIGNED_ID } from '@/lib/workshop';
@@ -67,10 +67,8 @@ const BoardJobCard: React.FC<{
       done && 'opacity-60',
       job.isOnline && 'bg-tone-settled/[.06]',
     )}>
-      <OrderPhoto item={{ sampleImageDataUri: job.sampleImage, samplePhotoId: job.samplePhotoId }}>{src => (
-        // eslint-disable-next-line @next/next/no-img-element -- data: URI, no loader
-        <img src={src} alt="" className="h-28 w-full object-cover bg-muted" loading="lazy" decoding="async" />
-      )}</OrderPhoto>
+      <ItemPhotos className="p-2 pb-0" size={112} cover title={job.description}
+        item={{ sampleImageDataUri: job.sampleImage, samplePhotoId: job.samplePhotoId, extraPhotos: job.extraPhotoIds?.map(id => ({ id })) }} />
 
       <CardContent className="p-3 flex flex-col gap-1.5 flex-1">
         <div className="flex items-start justify-between gap-2">

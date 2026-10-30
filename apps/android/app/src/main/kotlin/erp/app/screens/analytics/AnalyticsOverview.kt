@@ -325,7 +325,7 @@ private fun MonthlyReportSheet(onDismiss: () -> Unit) {
             PdfDocumentScreen(
                 title = picked.label,
                 fileName = "monthly-report-${picked.key}.pdf",
-                load = { ErpApi.shared.bytes(monthlyPath(picked.key)) },
+                load = { ErpApi.shared.bytes(monthlyPath(picked.key), timeoutMs = 150_000) },
                 onBack = { opened = false },
             )
         }

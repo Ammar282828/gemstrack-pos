@@ -436,3 +436,21 @@ From the blind-spot audit (App Store, platform, security):
   takes a key back; `WidgetKeys.revoke(business:)` calls it, capped at 3 s.
 - **Pasteboard:** `SecretPasteboard.copy` (this device only, gone in 5 minutes) is for links that carry a key and for tokens.
 - **Minimum build:** `/api/app/business` carries `minBuild` (`APP_MIN_BUILD`, default 0); `Business.needsUpdate` is true below it. The Android app has its own floor in the same answer, `minAndroidBuild` (`APP_MIN_ANDROID_BUILD`, a versionCode), because the two stores number builds apart.
+
+### Business picker, redesigned (2026-10-30)
+
+Owner: "Redo the initial business selection page of the app." `Nav/BusinessPicker.swift` (one body for iPhone, iPad and Mac;
+`LaunchPicker` and the fast start are untouched: the picker paints first, `launch.ready` builds the open business's books
+underneath, Settings › Businesses › "Ask which business on opening" still turns it off, the lock cover still sits above it).
+- **Before:** a grouped-grey page, a bare "Open" title and plain rows (badge, name, email, chevron); the Mac had a second copy of the layout; nothing
+  of a business's own look but a small badge; the current business only said "Last opened" in grey text; no sign-in warning.
+- **Now:** one large card per business drawn from *its* palette for the current appearance (card colour, an accent wash from the corner,
+  its badge, its whole wordmark via `BusinessLogo`, name, one quiet line, an accent arrow), on the open business's ground. The business used last
+  comes first with a "Last opened" capsule. The quiet line is local only: the signed-in email, else "Sign-in needed" (only when its Firebase app
+  already exists; the picker never makes one), else "Opened 3 hr. ago" from a per-business stamp (`erp.business.lastOpened.<id>`, written
+  on choose), else its address. No figure ("today PKR x") is shown: none is cached locally per business.
+- **Layout:** an adaptive grid (300-440 pt columns, 900 pt max, centred; one column on a phone, side by side on iPad/Mac, scrolls with many); "Add a
+  business" and "Manage" (both open the Businesses sheet) sit at the foot. Mac and iPad keep Return for the last-used business and ⌘1... for the rest.
+- **Motion:** cards rise in on `Motion.enter`, staggered; the tapped card grows and the others fade on `Motion.travel` while the host's existing
+  transition takes the app in (a crossfade under Reduce Motion). Not a matched-geometry zoom: the app is built in another view tree. One selection haptic.
+- VoiceOver reads "Open <name>", with last opened and the status line as its value.

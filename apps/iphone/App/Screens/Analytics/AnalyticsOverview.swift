@@ -348,8 +348,20 @@ private struct AnaMonthlyReportSheet: View {
             // The one action of the sheet is pinned, not a button inside the form.
             .actionBar(primary: .init("Open report") { opened = true })
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
+            // The report needs a bar of its own: a sheet is no navigation stack, so without one the Share button
+            // (Save to Files, Print, WhatsApp) never showed and the report could be read but not taken away.
             .sheet(isPresented: $opened) {
-                PDFDocumentScreen(path: "/api/reports/monthly?month=" + key(months[selected]), fileName: "monthly-report-" + key(months[selected]) + ".pdf", title: label(months[selected]))
+                NavigationStack {
+                    PDFDocumentScreen(
+                        path: "/api/reports/monthly?month=" + key(months[selected]),
+                        fileName: "monthly-report-" + key(months[selected]) + ".pdf",
+                        title: label(months[selected]),
+                        // It reads every invoice, order and expense, then draws the charts: a few seconds, more on a slow line.
+                        timeout: 150,
+                        wait: "Drawing the report: figures, trends and every sale. This takes a few seconds."
+                    )
+                    .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Done") { opened = false } } }
+                }
             }
         }.presentationDetents([.medium, .large])
         .presentationSizing(.form)

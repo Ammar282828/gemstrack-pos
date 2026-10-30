@@ -214,6 +214,16 @@ enum NewOrderMath {
             // A piece whose picture is already a document keeps it: resending the bytes only makes the server compare them.
             o["sampleImageDataUri"] = uri
         }
+        // The other reference pictures, in order: a filed one by its document, a new one inline (splitItemPhotos moves it
+        // out in the same commit). An emptied list on an edit is sent as [] so the pictures on file go.
+        if photo {
+            let more: [[String: Any]] = p.extras.compactMap { e -> [String: Any]? in
+                if let id = e.storedId, !id.isEmpty { return ["id": id] }
+                if let data = e.data { return ["dataUri": "data:image/jpeg;base64," + data.base64EncodedString()] }
+                return nil
+            }
+            if !more.isEmpty || p.hadExtras { o["extraPhotos"] = more }
+        }
         return o
     }
 

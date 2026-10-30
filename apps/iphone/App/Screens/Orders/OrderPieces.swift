@@ -26,14 +26,11 @@ struct OrderPieceRow: View {
 
     @State private var priceOpen = false
     private var done: Bool { doneOverride ?? item.isCompleted }
-    /// The sample photo kept in its own document, once read (OrderPiecePhoto.stored).
-    @State private var storedPhoto: String?
 
     var body: some View {
         HStack(alignment: .top, spacing: pt(12)) {
-            if let uri = OrderPiecePhoto.inline(item) ?? storedPhoto {
-                OrderPiecePhoto(uri: uri, item: item)
-            }
+            // The first reference picture, "+n" for the rest; a tap opens them all full screen (PieceGallery.swift).
+            OrderPiecePhotos(item: item)
             VStack(alignment: .leading, spacing: pt(8)) {
                 heading
                 factLine
@@ -47,7 +44,6 @@ struct OrderPieceRow: View {
             tick
         }
         .padding(.vertical, pt(6))
-        .task(id: item.samplePhotoId) { storedPhoto = await OrderPiecePhoto.stored(item) }
     }
 
     // MARK: What it is
@@ -282,34 +278,4 @@ struct OrderPieceAssign {
     /// A pick on its way: the menu waits for it.
     let busy: Bool
     let pick: (String) -> Void
-}
-
-/// A piece's sample photo, wherever it is kept (components/order/order-photo.tsx): inline on the piece (a stock
-/// piece's address, or an older order's data URI) or in its own document (`order_photos/<id>`, lib/order-photos.ts),
-/// read once the piece is shown. Nothing when the piece has none, or the photo cannot be read (the shop floor's
-/// accounts read no Firestore of their own).
-struct OrderPiecePhoto: View {
-    let uri: String
-    let item: OrderItem
-
-    var body: some View {
-        StockImage(imageUrl: uri, name: item.description, key: item.samplePhotoId ?? uri, decodeDataURI: true)
-            .frame(width: 64, height: 64)
-            .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
-            .accessibilityLabel("Sample photo")
-    }
-
-    static func inline(_ item: OrderItem) -> String? {
-        let s = (item.sampleImageDataUri ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        return s.isEmpty ? nil : s
-    }
-
-    /// The photo's own document, when the piece keeps it there; nil when it has none or it cannot be read.
-    @MainActor
-    static func stored(_ item: OrderItem) async -> String? {
-        guard inline(item) == nil, let id = item.samplePhotoId, !id.isEmpty, !House.isDemo,
-              let db = Businesses.shared.firestore,
-              let snapshot = try? await db.collection("order_photos").document(id).getDocument() else { return nil }
-        return snapshot.data()?["dataUri"] as? String
-    }
 }

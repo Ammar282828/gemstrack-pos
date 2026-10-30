@@ -3,7 +3,7 @@
 "use client";
 
 import { authedFetch } from '@/lib/voice/authed-fetch';
-import { OrderPhoto } from '@/components/order/order-photo';
+import { ItemPhotos } from '@/components/order/order-photo';
 import React, { useState, useEffect, useRef } from 'react';
 import { ListSkeleton } from '@/components/shared/skeletons';
 import { whatsAppLink } from '@/lib/whatsapp';
@@ -15,7 +15,6 @@ import { categorySingular } from '@/lib/categories';
 import { KarigarAssign, KarigarBulkAssign } from '@/components/karigar/karigar-assign';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useAppStore, Order, OrderStatus, ORDER_STATUSES, KaratValue, OrderItem, Settings, Invoice, Product, MetalType, Karigar, CUSTOMER_SOURCE_LABELS, PAYMENT_TYPES } from '@/lib/store';
 import { orderExchanges, describeExchangeEntry } from '@/lib/exchange';
 import { getOrderPaymentStatus, orderAdvanceLines, type PaymentStatus as OrderPaymentStatus } from '@/lib/order-payment';
@@ -934,11 +933,7 @@ export default function OrderDetailPage() {
                           return (
                           <div key={index} className="p-4 rounded-tile flex flex-col md:flex-row gap-4 bg-muted/50">
                               <div className="flex items-start gap-4 flex-grow min-w-0">
-                                  <OrderPhoto item={item}>{src => (
-                                      <div className="relative w-24 h-24 flex-shrink-0">
-                                          <Image src={src} alt={`Sample for ${item.description}`} fill className="object-contain rounded-md border bg-muted" />
-                                      </div>
-                                  )}</OrderPhoto>
+                                  <ItemPhotos item={item} size={96} title={item.description} className="max-w-[13rem]" />
                                   <div className="flex-grow min-w-0">
                                       {item.itemCategory && (
                                           <span className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">{categorySingular(item.itemCategory) || item.itemCategory}</span>

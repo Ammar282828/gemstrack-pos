@@ -106,6 +106,7 @@ export async function GET(req: NextRequest) {
           sampleImage: item.sampleImageDataUri || undefined,
           // A photo in its own document is put back below (lib/order-photos-server.ts).
           ...(!item.sampleImageDataUri && item.samplePhotoId ? { samplePhotoId: item.samplePhotoId } : {}),
+          ...(item.extraPhotos?.length ? { extraPhotoIds: item.extraPhotos.map((e: { id?: string }) => e?.id).filter((v: string | undefined): v is string => !!v).slice(0, 7) } : {}),
           plating: describePlating(item),
           status: done ? 'completed' : (o.status === 'In Progress' ? 'in-progress' : 'pending'),
           assignedDate: o.createdAt,
@@ -176,11 +177,17 @@ export async function GET(req: NextRequest) {
     const active = jobs.filter(j => j.status !== 'completed');
 
     // Photos kept in their own documents, back inline for the portal (one read for all of them).
-    const photoIds = jobs.map(j => (j as { samplePhotoId?: string }).samplePhotoId).filter((v): v is string => !!v);
+    type PhotoJob = typeof jobs[number] & { samplePhotoId?: string; extraPhotoIds?: string[]; extraSampleImages?: string[] };
+    const photoIds = (jobs as PhotoJob[]).flatMap(j => [j.samplePhotoId, ...(j.extraPhotoIds ?? [])]).filter((v): v is string => !!v);
     if (photoIds.length) {
       const photos = await readOrderPhotos(adminDb, photoIds);
-      for (const j of jobs as (typeof jobs[number] & { samplePhotoId?: string })[]) {
+      for (const j of jobs as PhotoJob[]) {
         if (j.samplePhotoId) { j.sampleImage = photos.get(j.samplePhotoId) || undefined; delete j.samplePhotoId; }
+        if (j.extraPhotoIds) {
+          const more = j.extraPhotoIds.map(id => photos.get(id)).filter((v): v is string => !!v);
+          if (more.length) j.extraSampleImages = more;
+          delete j.extraPhotoIds;
+        }
       }
     }
 

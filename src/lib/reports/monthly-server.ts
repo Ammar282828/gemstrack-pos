@@ -9,7 +9,9 @@ import path from 'node:path';
 import { adminDb } from '@/lib/firebase-admin';
 import { STORE_LOGO_URL } from '@/lib/store-config';
 import type { AdditionalRevenue, Expense, Invoice, Order } from '@/lib/store';
-import { buildMonthlyReport, type MonthlyReport, type MonthRef } from './monthly';
+import { addMonths, buildMonthlyReport, karachiMonth, monthKey, type MonthlyReport, type MonthRef } from './monthly';
+import { changeOf, type WebInsights } from './monthly-insights';
+import { SITE_DAYS, summarize, type DayDoc } from '@/lib/website/site-analytics';
 import { buildMonthlyPdf, monthlyPdfName, type ReportLogo } from './monthly-pdf';
 
 const rows = async <T>(name: string): Promise<T[]> =>
@@ -41,15 +43,45 @@ export function serverLogo(): Promise<ReportLogo | null> {
   return logoPending;
 }
 
+/** The website's day counters for a month as Karachi counted them (site_days, one doc a day); none is fine. */
+async function websiteMonth(m: MonthRef): Promise<ReturnType<typeof summarize> | null> {
+  const p = monthKey(m);
+  const snap = await adminDb.collection(SITE_DAYS).where('day', '>=', `${p}-01`).where('day', '<=', `${p}-31`).get();
+  return snap.empty ? null : summarize(snap.docs.map(d => d.data() as DayDoc));
+}
+
+/** Visitors, visits and WhatsApp enquiries against last month; null when the site has no counters yet or they cannot be read. */
+export async function websiteInsights(month: MonthRef, now = new Date()): Promise<WebInsights | null> {
+  try {
+    const [cur, prev] = await Promise.all([websiteMonth(month), websiteMonth(addMonths(month, -1))]);
+    if (!cur) return null;
+    // A month still running is not set against a whole one.
+    const running = karachiMonth(now).year === month.year && karachiMonth(now).month === month.month;
+    const base = running || !prev ? null : prev;
+    return {
+      visitors: changeOf(cur.visitors, base?.visitors ?? 0),
+      sessions: changeOf(cur.sessions, base?.sessions ?? 0),
+      enquiries: changeOf(cur.funnel.enquire, base?.funnel.enquire ?? 0),
+      saves: cur.funnel.save,
+      channels: cur.channels.slice(0, 3).map(c => ({ name: c.key, sessions: c.value })),
+    };
+  } catch (e) {
+    console.warn('[monthly report] website counters unavailable', e);
+    return null;
+  }
+}
+
 export async function monthlyReportPdf(month: MonthRef, now = new Date()): Promise<{ report: MonthlyReport; bytes: Uint8Array; fileName: string }> {
-  const [invoices, orders, expenses, extraRevenues, logo] = await Promise.all([
+  const [invoices, orders, expenses, extraRevenues, logo, web] = await Promise.all([
     rows<Invoice>('invoices'),
     rows<Order>('orders'),
     rows<Expense>('expenses'),
     rows<AdditionalRevenue>('additional_revenue'),
     serverLogo(),
+    websiteInsights(month, now),
   ]);
   const report = buildMonthlyReport({ invoices, orders, expenses, extraRevenues }, month, now);
+  if (web) report.insights.web = web;
   const doc = buildMonthlyPdf(report, logo);
   return { report, bytes: new Uint8Array(doc.output('arraybuffer')), fileName: monthlyPdfName(report) };
 }

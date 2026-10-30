@@ -117,6 +117,12 @@ extension NewOrderPieceDraft {
         isCompleted = item.isCompleted
         samplePhotoId = item.samplePhotoId
         sampleImageDataUri = item.sampleImageDataUri
+        extras = item.extraPhotos.compactMap { e -> NewOrderExtraPhoto? in
+            if let id = e.id, !id.isEmpty { return NewOrderExtraPhoto(storedId: id) }
+            if let uri = e.dataUri, let comma = uri.firstIndex(of: ","), let data = Data(base64Encoded: String(uri[uri.index(after: comma)...])) { return NewOrderExtraPhoto(data: data) }
+            return nil
+        }
+        hadExtras = !extras.isEmpty
         manual = item.isManualPrice
         manualPrice = item.isManualPrice ? NewOrderFormat.rupeeBox(item.manualPrice) : ""
         adminNote = item.adminNote ?? ""

@@ -21,7 +21,17 @@ export const isInlinePhoto = (v: unknown): v is string => typeof v === 'string' 
 
 export const newPhotoId = () => `photo-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
-type PhotoItem = { sampleImageDataUri?: string; samplePhotoId?: string; samplePhotoHash?: string };
+/**
+ * Several reference photos per piece (2026-10-30, owner: "more than one picture reference in orders").
+ * The FIRST photo stays exactly where it always was (`sampleImageDataUri` / `samplePhotoId` /
+ * `samplePhotoHash`), so every older app and reader keeps showing it; photos 2..n are `extraPhotos`,
+ * each `{ id, hash }` pointing at a document of its own (one per photo: Firestore's 1 MiB limit).
+ * Writers may send an extra inline as `{ dataUri }`; it is split out in the same commit.
+ */
+export const MAX_PIECE_PHOTOS = 8;
+export interface ExtraPhoto { id?: string; dataUri?: string; hash?: string }
+
+type PhotoItem = { sampleImageDataUri?: string; samplePhotoId?: string; samplePhotoHash?: string; extraPhotos?: ExtraPhoto[] };
 
 /**
  * A fingerprint of a photo's bytes (two 53-bit cyrb53 passes and the length), synchronous so the
@@ -42,6 +52,8 @@ export function photoHash(s: string): string {
   return `${pass(0)}${pass(7)}-${s.length.toString(36)}`;
 }
 
+export type SplitPhoto = { id: string; dataUri: string; hash: string };
+
 /**
  * Items with each inline photo swapped for the id of a document of its own, and those documents to
  * write — written with the order, in the same commit. Items without one are returned as they are.
@@ -50,23 +62,59 @@ export function photoHash(s: string): string {
  * the same picture again (`samplePhotoHash` matches — an old inline copy of it, the staff copy, a
  * phone that holds the picture) keeps its document and writes nothing. A different picture gets a
  * new document, and the id it replaced is returned in `replaced` for the caller to delete in the
- * same commit.
+ * same commit. The same goes for each of `extraPhotos` (photos 2..n of the piece, at most
+ * MAX_PIECE_PHOTOS in all; an empty entry is dropped).
  */
-export function splitItemPhotos<I extends PhotoItem>(items: readonly I[], makeId: () => string = newPhotoId): { items: I[]; photos: { id: string; dataUri: string; hash: string }[]; replaced: string[] } {
-  const photos: { id: string; dataUri: string; hash: string }[] = [];
+export function splitItemPhotos<I extends PhotoItem>(items: readonly I[], makeId: () => string = newPhotoId): { items: I[]; photos: SplitPhoto[]; replaced: string[] } {
+  const photos: SplitPhoto[] = [];
   const replaced: string[] = [];
-  const out = items.map(item => {
-    if (!item || !isInlinePhoto(item.sampleImageDataUri)) return item;
-    const hash = photoHash(item.sampleImageDataUri);
-    const { sampleImageDataUri: uri, ...rest } = item;
-    if (item.samplePhotoId && item.samplePhotoHash === hash) return rest as unknown as I;
-    if (item.samplePhotoId) replaced.push(item.samplePhotoId);
-    const id = makeId();
-    photos.push({ id, dataUri: uri as string, hash });
-    return { ...rest, samplePhotoId: id, samplePhotoHash: hash } as unknown as I;
+  const out = items.map(original => {
+    if (!original) return original;
+    // No first picture but others: the next one becomes the main one, which is where older readers look
+    // (a phone takes the first off and sends only that).
+    let item: I = original;
+    const spare = (Array.isArray(original.extraPhotos) ? original.extraPhotos : []).filter(e => e && (e.id || e.dataUri));
+    if (!original.sampleImageDataUri && !original.samplePhotoId && spare.length) {
+      const [head, ...tail] = spare;
+      item = { ...original, extraPhotos: tail, ...(head.id ? { sampleImageDataUri: undefined, samplePhotoId: head.id, samplePhotoHash: head.hash } : { sampleImageDataUri: head.dataUri, samplePhotoId: undefined, samplePhotoHash: undefined }) };
+    }
+    let next: PhotoItem = item;
+    if (isInlinePhoto(item.sampleImageDataUri)) {
+      const hash = photoHash(item.sampleImageDataUri);
+      const { sampleImageDataUri: uri, ...rest } = item;
+      if (item.samplePhotoId && item.samplePhotoHash === hash) next = rest;
+      else {
+        if (item.samplePhotoId) replaced.push(item.samplePhotoId);
+        const id = makeId();
+        photos.push({ id, dataUri: uri as string, hash });
+        next = { ...rest, samplePhotoId: id, samplePhotoHash: hash };
+      }
+    }
+    if (Array.isArray(item.extraPhotos)) {
+      const extras: ExtraPhoto[] = [];
+      for (const ex of item.extraPhotos) {
+        if (!ex || extras.length >= MAX_PIECE_PHOTOS - 1) continue;
+        if (isInlinePhoto(ex.dataUri)) {
+          const hash = photoHash(ex.dataUri);
+          if (ex.id && ex.hash === hash) { extras.push({ id: ex.id, hash }); continue; }
+          if (ex.id) replaced.push(ex.id);
+          const id = makeId();
+          photos.push({ id, dataUri: ex.dataUri, hash });
+          extras.push({ id, hash });
+        } else if (ex.id) extras.push(ex.hash ? { id: ex.id, hash: ex.hash } : { id: ex.id });
+        else if (typeof ex.dataUri === 'string' && ex.dataUri) extras.push({ dataUri: ex.dataUri }); // a URL (a stock piece's picture)
+      }
+      const { extraPhotos: _drop, ...rest } = next;
+      next = extras.length ? { ...rest, extraPhotos: extras } : rest;
+    }
+    return next as unknown as I;
   });
   return { items: out, photos, replaced };
 }
+
+/** Every photo document an item points at: the first photo's, then the extras'. */
+export const itemPhotoIds = (item: PhotoItem | null | undefined): string[] =>
+  !item ? [] : [item.samplePhotoId, ...(Array.isArray(item.extraPhotos) ? item.extraPhotos.map(e => e?.id) : [])].filter((v): v is string => !!v);
 
 /**
  * Photo documents the order pointed at before an edit and no longer does (the picture was replaced
@@ -74,10 +122,23 @@ export function splitItemPhotos<I extends PhotoItem>(items: readonly I[], makeId
  * and never shared between orders, so an id an order let go of is nobody else's.
  */
 export function droppedPhotoIds(before: readonly PhotoItem[] | null | undefined, after: readonly PhotoItem[]): string[] {
-  const kept = new Set(after.map(i => i?.samplePhotoId).filter(Boolean));
-  return [...new Set((before ?? []).map(i => i?.samplePhotoId).filter((id): id is string => !!id && !kept.has(id)))];
+  const kept = new Set(after.flatMap(itemPhotoIds));
+  return [...new Set((before ?? []).flatMap(itemPhotoIds).filter(id => !kept.has(id)))];
 }
 
 /** What to show for an item: its own image (URL, or a photo not yet moved), else its photo document's. */
 export const itemPhotoRef = (item: PhotoItem | null | undefined): { src?: string; id?: string } =>
   !item ? {} : item.sampleImageDataUri ? { src: item.sampleImageDataUri } : item.samplePhotoId ? { id: item.samplePhotoId } : {};
+
+/**
+ * All of a piece's reference photos, in order: the first as `itemPhotoRef` has it, then the extras.
+ * An order with one photo (every order made before 2026-10-30) is a list of one.
+ */
+export const itemPhotoRefs = (item: PhotoItem | null | undefined): { src?: string; id?: string }[] => {
+  if (!item) return [];
+  const first = itemPhotoRef(item);
+  const rest = (Array.isArray(item.extraPhotos) ? item.extraPhotos : [])
+    .map((e): { src?: string; id?: string } => (e?.dataUri ? { src: e.dataUri } : e?.id ? { id: e.id } : {}))
+    .filter(r => r.src || r.id);
+  return [...(first.src || first.id ? [first] : []), ...rest].slice(0, MAX_PIECE_PHOTOS);
+};

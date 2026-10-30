@@ -163,20 +163,13 @@ struct MacOrdersPieceDetail: View {
     /// The price broken into metal, wastage, making, diamonds and stones: owners only.
     let showBreakdown: Bool
 
-    /// The sample photo kept in its own document, once read (OrderPiecePhoto.stored).
-    @State private var storedPhoto: String?
-
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(item.description.isEmpty ? "Piece \(index + 1)" : item.description)
                 .font(.headline)
                 .textSelection(.enabled)
-            if let uri = OrderPiecePhoto.inline(item) ?? storedPhoto {
-                StockImage(imageUrl: uri, name: item.description, key: item.samplePhotoId ?? uri, decodeDataURI: true)
-                    .frame(width: 132, height: 132)
-                    .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
-                    .accessibilityLabel("Sample photo")
-            }
+            // Every reference picture in a row; a click opens them full screen (PieceGallery.swift).
+            OrderPiecePhotos(item: item, size: 132, all: true)
             let facts = OrderPieceRow.facts(item)
             if !facts.isEmpty {
                 VStack(alignment: .leading, spacing: 2) {
@@ -188,7 +181,6 @@ struct MacOrdersPieceDetail: View {
             notes
             breakdown
         }
-        .task(id: item.samplePhotoId) { storedPhoto = await OrderPiecePhoto.stored(item) }
     }
 
     @ViewBuilder

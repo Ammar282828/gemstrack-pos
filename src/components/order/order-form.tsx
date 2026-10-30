@@ -1,14 +1,13 @@
 
 "use client";
 
-import { useOrderPhoto } from '@/components/order/order-photo';
 import { useLingering } from '@/hooks/use-lingering';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm, useFieldArray, Control } from 'react-hook-form';
+import { useForm, useFieldArray, Control, type UseFormReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { SampleImageInput } from '@/components/shared/sample-image-input';
+import { SampleImagesInput, type PhotoEntry } from '@/components/shared/sample-image-input';
 import { PLATING_TYPES } from '@/lib/store';
 import { describeMetal } from '@/lib/materials';
 import { SizePicker } from '@/components/shared/size-picker';
@@ -97,6 +96,8 @@ const orderItemSchema = z.object({
   // (the Workshop's "Given") used to vanish on every save of the order form.
   samplePhotoId: z.string().optional(),
   samplePhotoHash: z.string().optional(),
+  // Reference photos 2..n of the piece (lib/order-photos.ts), kept through an edit like the first.
+  extraPhotos: z.array(z.object({ id: z.string().optional(), dataUri: z.string().optional(), hash: z.string().optional() })).optional(),
   givenAt: z.string().optional(),
   referenceSku: z.string().optional(),
   sampleGiven: z.boolean().default(false),
@@ -1501,22 +1502,8 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
                             {/* ── References ────────────────────────────────────────── */}
                             <FormSection title="References" hint="optional" />
                             <div>
-                                <FormLabel>Sample picture</FormLabel>
-                                <FormField control={form.control} name={`items.${index}.sampleImageDataUri`} render={({ field }) => (
-                                    <ItemSampleInput
-                                        value={field.value}
-                                        photoId={form.watch(`items.${index}.samplePhotoId`)}
-                                        onChange={(dataUri) => {
-                                            // A new photo replaces the stored one; it is moved out of the order on save.
-                                            form.setValue(`items.${index}.samplePhotoId`, undefined, { shouldDirty: true });
-                                            form.setValue(`items.${index}.sampleImageDataUri`, dataUri, { shouldValidate: true, shouldDirty: true });
-                                        }}
-                                        onRemove={() => {
-                                            form.setValue(`items.${index}.samplePhotoId`, undefined, { shouldDirty: true });
-                                            form.setValue(`items.${index}.sampleImageDataUri`, '', { shouldValidate: true, shouldDirty: true });
-                                        }}
-                                    />
-                                )}/>
+                                <FormLabel>Reference pictures</FormLabel>
+                                <ItemSamplesField form={form} index={index} />
                             </div>
                             <FormField control={form.control} name={`items.${index}.referenceSku`} render={({ field }) => (
                                <FormItem><FormLabel>Reference SKU</FormLabel><FormControl><Input placeholder="e.g. RIN-123456" {...field} /></FormControl><FormMessage /></FormItem>
@@ -1775,8 +1762,28 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
   );
 };
 
-/** The sample picture field, showing a photo kept in its own document (lib/order-photos.ts) until it is replaced. */
-function ItemSampleInput({ value, photoId, onChange, onRemove }: { value?: string; photoId?: string; onChange: (dataUri: string) => void; onRemove: () => void }) {
-  const stored = useOrderPhoto(value ? null : { samplePhotoId: photoId });
-  return <SampleImageInput value={value || stored || ''} onChange={onChange} onRemove={onRemove} />;
+/**
+ * The piece's reference pictures (up to 8). The first stays in the legacy fields (`sampleImageDataUri` /
+ * `samplePhotoId` / `samplePhotoHash`) and the rest in `extraPhotos`, so older readers still see the first
+ * (lib/order-photos.ts); a new picture is moved out of the order on save, in the same commit.
+ */
+function ItemSamplesField({ form, index }: { form: UseFormReturn<OrderFormData>; index: number }) {
+  const first = form.watch(`items.${index}.sampleImageDataUri`);
+  const firstId = form.watch(`items.${index}.samplePhotoId`);
+  const firstHash = form.watch(`items.${index}.samplePhotoHash`);
+  const extras = form.watch(`items.${index}.extraPhotos`);
+  const photos: PhotoEntry[] = [
+    ...(first || firstId ? [{ dataUri: first || undefined, id: firstId, hash: firstHash }] : []),
+    ...(extras ?? []),
+  ];
+  const opts = { shouldValidate: true, shouldDirty: true };
+  return (
+    <SampleImagesInput photos={photos} onChange={(list) => {
+      const [head, ...rest] = list;
+      form.setValue(`items.${index}.sampleImageDataUri`, head?.dataUri ?? '', opts);
+      form.setValue(`items.${index}.samplePhotoId`, head?.dataUri ? undefined : head?.id, opts);
+      form.setValue(`items.${index}.samplePhotoHash`, head?.dataUri ? undefined : head?.hash, opts);
+      form.setValue(`items.${index}.extraPhotos`, rest.map(e => (e.dataUri ? { dataUri: e.dataUri } : { id: e.id, hash: e.hash }))  /* [] clears: absent means "keep" */, opts);
+    }} />
+  );
 }
