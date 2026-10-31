@@ -157,8 +157,8 @@ android {
     defaultConfig {
         minSdk = 26
         targetSdk = 37
-        versionCode = 10 // above the interim web app (apps/android-twa, 1), so this installs over it
-        versionName = "0.4.3"
+        versionCode = 11 // above the interim web app (apps/android-twa, 1), so this installs over it
+        versionName = "0.4.4"
     }
 
     buildFeatures {
