@@ -45,7 +45,7 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 |---|---|---|---|---|---|---|
 | Invoices list, three-figure strip, Shopify chip | ✓ | ✓ | ✓ | ✓ | 2026-10 | `Screens/Invoices`, `screens/invoices` |
 | Order WhatsApp (Mina's web orders messaged by payment type; COD reply 1 / 2; replies tag Shopify and alert the phones) | ✓ | ✓ | ✓ | ✓ | 2026-10-30 | server (`lib/shopify-whatsapp*.ts`); every surface gets its push alerts |
-| Order WhatsApp chip on the invoice (`whatsappOrder`: Confirmed on WhatsApp, Cancel requested, …) | ✓ | owed | owed | owed | 2026-10-30 | web: Invoices list and the invoice; `whatsappOrderChip` in `lib/shopify-whatsapp.ts` has the labels and tones |
+| Order WhatsApp chip on the invoice (`whatsappOrder`: Confirmed on WhatsApp, Cancel requested, …) | ✓ | ✓ | owed | ✓ | 2026-10-30 | web: Invoices list and the invoice; `whatsappOrderChip` in `lib/shopify-whatsapp.ts` has the labels and tones; iPhone and Mac: `whatsappOrderChip` in ERPCore, a Pill on the invoice (iPhone) and " · label" in the list row |
 | Invoice and customer totals count exchanged gold (list rows, month/today strip, customer spend) | ✓ | ✓ | ✓ | ✓ | 2026-10-26 | `invoiceSaleValue` in `Screens/Invoices`, `screens/invoices`, `Customers`; Android's customer page has no "billed" line (Mac only) |
 | Invoice page, payments, discount, refund, delete, customer named | ✓ | ✓ | ✓ | ✓ | 2026-10 | [Invoice pages](decisions.md#invoice-pages) |
 | New sale (scan a bill, scan a tag, line editor) | ✓ | ✓ | ✓ | ✓ | 2026-10 | `Screens/Sale`, `screens/sale` |

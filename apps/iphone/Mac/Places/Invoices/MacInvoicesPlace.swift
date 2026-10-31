@@ -30,6 +30,8 @@ struct MacInvoicesPlaceRow: Identifiable {
     let sold: String
     let timeText: String
     let heading: String
+    /// The online order's WhatsApp step, said after the number and time (empty when none).
+    var whatsapp: String = ""
 }
 
 /// How the list is ordered: by day as the iPhone's is (newest first, under each day's heading), or flat by a column's old sort.
@@ -329,7 +331,8 @@ struct MacInvoicesPlace: View {
                 dateText: ShopDate.say(inv.createdAt), pieces: inv.items.count, total: invoiceSaleValue(inv), paid: inv.amountPaid,
                 due: due, statusText: status.text, statusRank: status.rank, tone: status.tone,
                 takenBy: inv.takenBy ?? "", source: channel, sold: InvoiceFacts.whatSold(inv) ?? "",
-                timeText: InvoiceFacts.time(inv.createdAt), heading: dayHeading(inv.createdAt, now: now)))
+                timeText: InvoiceFacts.time(inv.createdAt), heading: dayHeading(inv.createdAt, now: now),
+                whatsapp: whatsappOrderChip(inv.whatsappOrder?.state)?.label ?? ""))
         }
         var out = MacInvoicesPlaceTable()
         out.rows = rows
@@ -417,7 +420,7 @@ struct MacInvoiceListRow: View {
                     Text(row.sold).font(.callout).foregroundStyle(.secondary).lineLimit(1)
                 }
                 HStack(spacing: pt(6)) {
-                    Text([row.id, dated ? row.dateText : row.timeText].filter { !$0.isEmpty }.joined(separator: " \u{00B7} "))
+                    Text([row.id, dated ? row.dateText : row.timeText, row.whatsapp].filter { !$0.isEmpty }.joined(separator: " \u{00B7} "))
                         .font(.caption).foregroundStyle(.secondary).lineLimit(1)
                     if mine { MineTag() }
                 }
