@@ -55,11 +55,9 @@ struct MacInvoiceHead: View {
                         .font(customerTitleFont).lineLimit(2).textSelection(.enabled)
                     Text(MacInvoiceWords.subtitle(invoice, withTaker: false))
                         .font(.callout).foregroundStyle(.secondary).lineLimit(2).textSelection(.enabled)
-                    // A web order's WhatsApp: confirmed, cancel asked, awaiting the transfer (the ERP's invoice shows it
-                    // as a pill beside the customer).
-                    if let w = MacWhatsAppChip.of(invoice) {
-                        Pill(w.label, tone: w.tone, symbol: "message.fill").padding(.top, 2)
-                    }
+                    // A web order's WhatsApp: confirmed, cancel asked, awaiting the transfer (the iPhone's invoice pill;
+                    // the list row only says it in words).
+                    InvoiceWhatsAppPill(invoice: invoice).padding(.top, 2)
                 }
                 Spacer(minLength: 0)
             }

@@ -30,24 +30,8 @@ struct MacInvoicesPlaceRow: Identifiable {
     let sold: String
     let timeText: String
     let heading: String
-    /// A web order's WhatsApp, as the ERP's invoices list says it ("Confirmed on WhatsApp", "Cancel requested").
-    let whatsapp: (label: String, tone: Tone)?
-}
-
-/// A web order's WhatsApp state in the house's tones (`WhatsAppOrder.chip`, the web's `whatsappOrderChip`).
-enum MacWhatsAppChip {
-    static func of(_ invoice: Invoice) -> (label: String, tone: Tone)? {
-        guard let chip = invoice.whatsappOrder?.chip else { return nil }
-        let tone: Tone
-        switch chip.tone {
-        case "late": tone = .late
-        case "owed": tone = .owed
-        case "settled": tone = .settled
-        case "working": tone = .working
-        default: tone = .quiet
-        }
-        return (chip.label, tone)
-    }
+    /// The online order's WhatsApp step, said after the number and time (empty when none).
+    var whatsapp: String = ""
 }
 
 /// How the list is ordered: by day as the iPhone's is (newest first, under each day's heading), or flat by a column's old sort.
@@ -348,7 +332,7 @@ struct MacInvoicesPlace: View {
                 due: due, statusText: status.text, statusRank: status.rank, tone: status.tone,
                 takenBy: inv.takenBy ?? "", source: channel, sold: InvoiceFacts.whatSold(inv) ?? "",
                 timeText: InvoiceFacts.time(inv.createdAt), heading: dayHeading(inv.createdAt, now: now),
-                whatsapp: MacWhatsAppChip.of(inv)))
+                whatsapp: whatsappOrderChip(inv.whatsappOrder?.state)?.label ?? ""))
         }
         var out = MacInvoicesPlaceTable()
         out.rows = rows
@@ -436,15 +420,9 @@ struct MacInvoiceListRow: View {
                     Text(row.sold).font(.callout).foregroundStyle(.secondary).lineLimit(1)
                 }
                 HStack(spacing: pt(6)) {
-                    Text([row.id, dated ? row.dateText : row.timeText].filter { !$0.isEmpty }.joined(separator: " \u{00B7} "))
+                    Text([row.id, dated ? row.dateText : row.timeText, row.whatsapp].filter { !$0.isEmpty }.joined(separator: " \u{00B7} "))
                         .font(.caption).foregroundStyle(.secondary).lineLimit(1)
                     if mine { MineTag() }
-                    // Where a web order's WhatsApp stands, in its tone, as the ERP's list adds it to the line (one pill a
-                    // row: the balance keeps the pill).
-                    if let w = row.whatsapp {
-                        Label(w.label, systemImage: "message.fill")
-                            .font(.caption.weight(.medium)).foregroundStyle(w.tone.color).lineLimit(1)
-                    }
                 }
             }
             Spacer(minLength: 8)

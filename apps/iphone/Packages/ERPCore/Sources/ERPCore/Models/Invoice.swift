@@ -59,8 +59,7 @@ public struct Invoice: Decodable, Identifiable, Hashable {
     public let costRate24k: Double?
     public let sentOnWhatsApp: SentOnWhatsApp?
     public let acquisitionSource: CustomerSource?
-    /// Where a web order's WhatsApp stands (confirmed, cancel asked, awaiting the transfer…), written by the ERP's
-    /// WhatsApp line (src/lib/shopify-whatsapp.ts); nil on a sale made in the shop.
+    /// An online order's WhatsApp step, written by the server (`whatsappOrderChip` has its words).
     public let whatsappOrder: WhatsAppOrder?
 
     private enum K: String, CodingKey {
@@ -70,8 +69,7 @@ public struct Invoice: Decodable, Identifiable, Hashable {
         case paymentHistory, sourceOrderId, source, notes
         case shopifyFulfillment, shopifyFinancialStatus, shopifyCancelledAt, shopifyTransactionIds
         case shopifySyncedAt, shopifyOrderName, shopifyOrderId, shopifyOrderNumber, shopifyDraftOrderId
-        case shopifyCheckoutUrl, status, refundedAt, shareToken, costRate24k, sentOnWhatsApp, acquisitionSource
-        case whatsappOrder
+        case shopifyCheckoutUrl, status, refundedAt, shareToken, costRate24k, sentOnWhatsApp, acquisitionSource, whatsappOrder
     }
 
     public init(from decoder: Decoder) throws {
@@ -119,44 +117,6 @@ public struct Invoice: Decodable, Identifiable, Hashable {
         acquisitionSource = c.word(.acquisitionSource)
         whatsappOrder = c.object(.whatsappOrder)
     }
-}
-
-/// Where a web order's WhatsApp stands (`Invoice.whatsappOrder`, src/lib/store.ts): its state and when it got there.
-public struct WhatsAppOrder: Decodable, Hashable {
-    public let state: String
-    public let at: String
-
-    private enum K: String, CodingKey { case state, at }
-
-    public init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: K.self)
-        state = c.string(.state, default: "")
-        at = c.string(.at, default: "")
-    }
-
-    public init(state: String, at: String = "") {
-        self.state = state
-        self.at = at
-    }
-
-    /// The chip the invoice shows, as the web's `whatsappOrderChip` words it: the label and the tone's name
-    /// ("late", "owed", "settled", "working", "quiet"); nil for a state the ERP does not show.
-    public static func chip(_ state: String?) -> (label: String, tone: String)? {
-        switch state {
-        case "awaiting-confirmation": return ("Awaiting confirmation", "working")
-        case "confirmed": return ("Confirmed on WhatsApp", "settled")
-        case "declined": return ("Cancel requested", "late")
-        case "awaiting-payment": return ("Awaiting transfer", "working")
-        case "slip-received": return ("Screenshot sent", "owed")
-        case "paid": return ("Paid \u{00B7} thanked on WhatsApp", "settled")
-        case "sent": return ("Thanked on WhatsApp", "quiet")
-        case "failed": return ("WhatsApp did not send", "late")
-        case "no-whatsapp": return ("No WhatsApp", "late")
-        default: return nil
-        }
-    }
-
-    public var chip: (label: String, tone: String)? { Self.chip(state) }
 }
 
 /// The last time an invoice's PDF went to the customer from the shop's WhatsApp line

@@ -63,3 +63,4 @@ cloud session cannot press that button, but it can push. One line per build, new
 - 2026-10-30: the business picker slimmed: one slim card per business with just its wordmark and one quiet line.
 - 2026-10-30: the business picker: big airy cards, small refined wordmarks, one quiet line.
 - 2026-10-30: the business picker from scratch: one full-width band per business in its own colours, the wordmark small in the middle, tap to open.
+- 2026-10-31: online orders' WhatsApp step on the invoice (Confirmed on WhatsApp, Cancel requested, Screenshot sent…).
