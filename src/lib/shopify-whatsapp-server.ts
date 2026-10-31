@@ -14,11 +14,11 @@
 import { adminDb } from '@/lib/firebase-admin';
 import { STORE_CONFIG } from '@/lib/store-config';
 import { pushToShop } from '@/lib/push/send';
-import { sendWhatsAppMessage, toWhatsAppNumber, whatsAppNumberExists } from '@/lib/whatsapp';
+import { sendWhatsAppMessage, sendWhatsAppPoll, toWhatsAppNumber, whatsAppNumberExists } from '@/lib/whatsapp';
 import { shopifyRequest } from '@/app/api/shopify/_lib';
 import {
   BANK_PAID_REPLY, COD_CONFIRMED_REPLY, COD_DECLINED_REPLY, SLIP_RECEIVED_REPLY,
-  messageKey, orderFlowKind, orderMessage, orderPhone, readCodReply, readPollVote, withTag,
+  codPoll, messageKey, orderFlowKind, orderMessage, orderPhone, readCodReply, readPollVote, withTag,
   type OrderFlowKind, type ShopifyOrderLike, type WhatsAppOrderState,
 } from '@/lib/shopify-whatsapp';
 
@@ -119,6 +119,19 @@ export async function startOrderFlow(order: ShopifyOrderLike): Promise<{ started
       return { started: false, kind, state: 'no-whatsapp' };
     }
     await sendWhatsAppMessage(phone, orderMessage(kind, order, { bankLine: STORE_CONFIG.bankLine, iban: STORE_CONFIG.iban }));
+    if (kind === 'cod') {
+      // The tap-to-answer question (owner, 2026-10-30: "add the button confirm or cancel rather than reply with 1").
+      // A linked line cannot send buttons; a poll is tappable everywhere. If it fails, the message still says 1 or 2.
+      try {
+        const p = codPoll({ name });
+        const pollKey = messageKey(await sendWhatsAppPoll(phone, p.name, p.options));
+        if (pollKey) await ref.set({ pollKey }, { merge: true });
+      } catch (e) {
+        // Buttons only (owner): the message points at them, so without the poll the customer is told how else to answer.
+        console.error('[shopify-whatsapp] poll', name, (e as Error)?.message);
+        await sendWhatsAppMessage(phone, 'Reply *1* to confirm ✅ or *2* to cancel ❌').catch(() => undefined);
+      }
+    }
     return { started: true, kind, state: first };
   } catch (e) {
     await fail('failed', (e as Error)?.message?.slice(0, 200) || 'send failed', 'Order WhatsApp did not send');
@@ -190,10 +203,7 @@ async function answerCod(flow: OrderFlow, answer: 'confirm' | 'decline', creds: 
   return to;
 }
 
-/**
- * A tap on a COD order's poll (WAHA's `poll.vote`, app/api/whatsapp/inbound), matched by the poll's message key. Polls were
- * sent on 2026-10-30 only (the owner went back to "reply 1 / 2" the same day); kept so a tap on one of those still counts.
- */
+/** A tap on a COD order's poll (WAHA's `poll.vote`, app/api/whatsapp/inbound), matched by the poll's message key. */
 export async function handlePollVote(pollId: string, selected: string[], creds: () => Promise<{ shop: string; token: string }>): Promise<string> {
   if (!shopifyOrderWhatsAppOn()) return 'off';
   const answer = readPollVote(selected);

@@ -141,7 +141,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Orders hub](docs/decisions.md#orders-hub) — by stage, a next step per card; pieces set status
 - [Online orders](docs/decisions.md#online-orders) — a person confirms; no sale until the transfer
 - [Shopify notices](docs/decisions.md#shopify-notices) — read back; kept current, never rewritten
-- [Order WhatsApp](docs/decisions.md#order-whatsapp) — Mina's web orders messaged from its line: COD reply 1/2 → Confirm tag (buttons need Meta's paid API: declined), bank → IBAN + screenshot, paid → thanks
+- [Order WhatsApp](docs/decisions.md#order-whatsapp) — Mina's web orders messaged from its line: COD Confirm/Cancel poll (or 1/2) → Confirm tag, bank → IBAN + screenshot, paid → thanks
 - [Name a sale](docs/decisions.md#name-a-sale) — on the invoice
 - [Advance method](docs/decisions.md#advance-method) — `.nullish()`, `onInvalid` toasts
 - [Exchange line](docs/decisions.md#exchange-line) — what + amount
