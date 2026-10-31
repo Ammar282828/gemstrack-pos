@@ -39,6 +39,7 @@ import erp.app.ui.Tone
 import erp.app.ui.color
 import erp.app.ui.theme.TabularDigits
 import erp.core.logic.Money
+import erp.core.logic.PieceGallery
 import erp.core.logic.describeMetal
 import erp.core.logic.describePlating
 import erp.core.models.MetalType
@@ -64,6 +65,8 @@ fun OrderPieceRow(
     modifier: Modifier = Modifier,
 ) {
     Row(modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
+        // The first reference picture, "+n" for the rest; a tap opens them all full screen (PieceGallery.kt).
+        PieceGalleryRow(remember(item) { PieceGallery.sources(item) }, title = item.description)
         // A finished piece sits quieter than one still to make.
         Column(Modifier.weight(1f).alpha(if (item.isCompleted) 0.7f else 1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Heading(index, item)

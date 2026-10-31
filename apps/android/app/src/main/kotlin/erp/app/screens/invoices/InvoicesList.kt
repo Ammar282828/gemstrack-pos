@@ -89,6 +89,7 @@ import erp.app.ui.Note
 import erp.app.ui.NotAvailableState
 import erp.app.ui.NumericText
 import erp.app.ui.Pill
+import erp.core.logic.WhatsAppOrderChip
 import erp.app.ui.Radius
 import erp.app.ui.RowAmount
 import erp.app.ui.ShelfState
@@ -506,7 +507,24 @@ private fun Reference(invoice: Invoice, mine: Boolean, dated: Boolean) {
         )
         if (mine) MineTag()
         if (InvoiceFacts.isShopify(invoice)) Pill("Shopify")
+        WhatsAppOrderPill(invoice)
     }
+}
+
+/**
+ * Where a Mina web order's WhatsApp stands ("Confirmed on WhatsApp", "Cancel requested", ...), as the web's Invoices list and invoice
+ * show it (`whatsappOrderChip`): nothing for an invoice with no known state.
+ */
+@Composable
+internal fun WhatsAppOrderPill(invoice: Invoice, modifier: Modifier = Modifier) {
+    val chip = WhatsAppOrderChip.chip(invoice.whatsappOrder?.state) ?: return
+    Pill(chip.label, modifier, tone = when (chip.tone) {
+        WhatsAppOrderChip.Tone.late -> Tone.late
+        WhatsAppOrderChip.Tone.owed -> Tone.owed
+        WhatsAppOrderChip.Tone.settled -> Tone.settled
+        WhatsAppOrderChip.Tone.working -> Tone.working
+        WhatsAppOrderChip.Tone.quiet -> Tone.quiet
+    })
 }
 
 /** The iPad's card: the row, then Take payment and the actions menu in plain view (no swipe on a tablet). */

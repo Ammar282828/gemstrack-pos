@@ -62,13 +62,17 @@ class NewOrderPieceDraft(
     var adminNote: String = "",
     /** The sample picture, JPEG, at most about 120 KB (NewOrderPhotoCodec). */
     var photo: ByteArray? = null,
+    /** More reference pictures, after the first (up to [MAX_PHOTOS] in all), in order: ones already on the order and new JPEGs. */
+    var extras: MutableList<NewOrderExtraPhoto> = mutableListOf(),
+    /** The piece had more pictures on file, so an emptied list is sent as [] and clears them. */
+    var hadExtras: Boolean = false,
 ) {
     /** A copy of this piece (Swift's struct copy), with its own id unless kept. */
     fun copy(): NewOrderPieceDraft = NewOrderPieceDraft(
         id, category, description, metal, karat, weight, hasStones, stoneWeight, stoneDetails, hasDiamonds, diamond,
         diamondDetails, wastage, making, stones, size, platingType, platingNote, nickelFree, karigarId, referenceSku,
         sampleGiven, isCompleted, samplePhotoId, sampleImageDataUri, removePhoto, manual, manualPrice, adminNote,
-        photo?.copyOf(),
+        photo?.copyOf(), extras.map { it.copy() }.toMutableList(), hadExtras,
     )
 
     /**
@@ -121,10 +125,15 @@ class NewOrderPieceDraft(
         o["manualPrice"] = manualPrice
         o["adminNote"] = adminNote
         photo?.let { o["photo"] = base64(it) }
+        if (extras.isNotEmpty()) o["extras"] = extras.map { it.toMap() }
+        o["hadExtras"] = hadExtras
         return o
     }
 
     companion object {
+        /** Reference pictures a piece takes (lib/order-photos.ts MAX_PIECE_PHOTOS). */
+        const val MAX_PHOTOS = 8
+
         /**
          * A saved draft must open after an update that added a field: whatever is missing or odd takes its default
          * instead of throwing the whole order away.
@@ -162,6 +171,44 @@ class NewOrderPieceDraft(
                 manualPrice = c.string("manualPrice", ""),
                 adminNote = c.string("adminNote", ""),
                 photo = c.bytes("photo"),
+                extras = c.list("extras", emptyList()) { NewOrderExtraPhoto.fromMap(it) }
+                    // A picture left out of the draft is gone, not an empty slot.
+                    .filter { it.storedId != null || it.data != null }.toMutableList(),
+                hadExtras = c.bool("hadExtras", false),
+            )
+        }
+    }
+}
+
+/**
+ * One of a piece's reference pictures after the first: filed already ([storedId], a document in `order_photos`) or new ([data], a JPEG
+ * made by the photo codec). [id] names it on this phone only (the list's rows). (NewOrderExtraPhoto.)
+ */
+data class NewOrderExtraPhoto(
+    val storedId: String? = null,
+    val data: ByteArray? = null,
+    val id: UUID = UUID.randomUUID(),
+) {
+    fun toMap(): Map<String, Any?> {
+        val o = LinkedHashMap<String, Any?>()
+        o["id"] = id.toString().uppercase()
+        storedId?.let { o["storedId"] = it }
+        data?.let { o["data"] = base64(it) }
+        return o
+    }
+
+    override fun equals(other: Any?): Boolean =
+        other is NewOrderExtraPhoto && id == other.id && storedId == other.storedId && data.contentEquals(other.data)
+
+    override fun hashCode(): Int = id.hashCode()
+
+    companion object {
+        fun fromMap(m: Map<String, Any?>): NewOrderExtraPhoto {
+            val c = DraftReader(m)
+            return NewOrderExtraPhoto(
+                storedId = c.string("storedId"),
+                data = c.bytes("data"),
+                id = c.string("id")?.let { runCatching { UUID.fromString(it) }.getOrNull() } ?: UUID.randomUUID(),
             )
         }
     }
@@ -486,7 +533,7 @@ object NewOrderDraftStore {
         var text = EntryJson.write(draft.toMap())
         if (text.toByteArray(Charsets.UTF_8).size > ceiling) {
             val lite = draft.copy()
-            lite.pieces.forEach { it.photo = null }
+            lite.pieces.forEach { p -> p.photo = null; p.extras = p.extras.map { it.copy(data = null) }.toMutableList() }
             lite.photosLeftOut = true
             text = EntryJson.write(lite.toMap())
         }

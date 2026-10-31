@@ -254,6 +254,20 @@ object NewOrderMath {
             // A piece whose picture is already a document keeps it: resending the bytes only makes the server compare them.
             o["sampleImageDataUri"] = uri
         }
+        // The other reference pictures, in order: a filed one by its document, a new one inline (splitItemPhotos moves it
+        // out in the same commit). An emptied list on an edit is sent as [] so the pictures on file go.
+        if (photo) {
+            val more = p.extras.mapNotNull { e ->
+                val stored = e.storedId
+                val data = e.data
+                when {
+                    !stored.isNullOrEmpty() -> linkedMapOf<String, Any?>("id" to stored)
+                    data != null -> linkedMapOf<String, Any?>("dataUri" to "data:image/jpeg;base64," + base64(data))
+                    else -> null
+                }
+            }
+            if (more.isNotEmpty() || p.hadExtras) o["extraPhotos"] = more
+        }
         return o
     }
 

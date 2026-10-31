@@ -198,7 +198,7 @@ fun WorkshopBoard(path: String) {
                     is WorkshopLogic.WriteTarget.Order -> {
                         val item = book.orders.item(t.id)?.items?.getOrNull(t.index)
                         if (item == null) failure = "This piece is no longer on the order."
-                        else editingPiece = WorkshopPieceAsk(job, WorkshopPieceAsk.Target.Order(t.id, t.index), item.samplePhotoId, item.sampleImageDataUri)
+                        else editingPiece = WorkshopPieceAsk(job, WorkshopPieceAsk.Target.Order(t.id, t.index), item.samplePhotoId, item.sampleImageDataUri, erp.core.logic.PieceGallery.sources(item))
                     }
                     is WorkshopLogic.WriteTarget.Invoice -> editingPiece = WorkshopPieceAsk(job, WorkshopPieceAsk.Target.Invoice(t.id, t.index))
                     null -> Unit

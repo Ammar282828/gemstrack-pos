@@ -86,6 +86,7 @@ import erp.core.logic.KarigarPortalAccount
 import erp.core.logic.KarigarPortalGoldLine
 import erp.core.logic.KarigarPortalGroup
 import erp.core.logic.KarigarPortalJob
+import erp.core.logic.PieceGallery
 import erp.core.logic.KarigarPortalPayment
 import erp.core.logic.KarigarPortalRules
 import erp.core.logic.KarigarPortalSummary
@@ -383,7 +384,9 @@ private fun PieceRow(j: KarigarPortalJob, readOnly: Boolean, busy: String?, togg
             )
             Specs(j)
             if (j.sampleGiven) Pill("Sample provided", tone = Tone.quiet)
-            j.sampleImage?.takeIf { it.isNotEmpty() }?.let { SamplePhoto(it, j.id) }
+            // Every reference picture; a tap opens them full screen (PieceGallery.kt).
+            val pictures = remember(j) { PieceGallery.sources(j.id, j.sampleImages) }
+            if (pictures.isNotEmpty()) erp.app.screens.orders.PieceGalleryRow(pictures, title = j.description, size = 120.dp, all = true)
             j.notes?.takeIf { it.isNotEmpty() }?.let { notes ->
                 Column(
                     Modifier.fillMaxWidth().clip(Radius.thumbShape).background(Tone.owed.color().copy(alpha = 0.1f)).padding(8.dp),
@@ -442,20 +445,6 @@ private fun Specs(j: KarigarPortalJob) {
                 )
             }
         }
-    }
-}
-
-/** A piece's sample picture as the ERP holds it, a base64 data address: decoded once, off the main thread, shrunk to the screen. */
-@Composable
-private fun SamplePhoto(uri: String, key: String) {
-    val bitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, key, uri.length) {
-        value = withContext(kotlinx.coroutines.Dispatchers.Default) { StockImageDecoder.bitmap(uri, 1200)?.asImageBitmap() }
-    }
-    bitmap?.let {
-        Image(
-            it, contentDescription = "Sample picture", contentScale = ContentScale.Fit,
-            modifier = Modifier.heightIn(max = 220.dp).clip(Radius.thumbShape),
-        )
     }
 }
 
