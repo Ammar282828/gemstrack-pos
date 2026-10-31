@@ -31,3 +31,15 @@ export const EXPENSE_CATEGORIES: readonly string[] = [...new Set([
 ])];
 
 export type ExpenseCategory = string;
+
+/**
+ * The categories that are the cost of the goods themselves — stock, karigars, stones, plating — which the estimated
+ * profit already allows for (its margin is what is left after them), so net profit must not take them off again
+ * (owner, 2026-10-31: "why isnt net profit revenue - expenses", Mina's net reading -1.15 crore). House of Mina files
+ * them as expenses (NEXT_PUBLIC_STORE_GOODS_EXPENSE_CATEGORIES); Taheri's expenses are running costs, so none.
+ */
+export const GOODS_EXPENSE_CATEGORIES: readonly string[] = (process.env.NEXT_PUBLIC_STORE_GOODS_EXPENSE_CATEGORIES ?? '')
+  .split(',').map((c) => c.trim()).filter((c) => c && c !== 'none');
+
+export const isGoodsExpense = (e: { category?: string | null }): boolean =>
+  !!e.category && GOODS_EXPENSE_CATEGORIES.some((c) => c.toLowerCase() === String(e.category).trim().toLowerCase());

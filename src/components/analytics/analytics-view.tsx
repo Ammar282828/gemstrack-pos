@@ -40,7 +40,8 @@ import { MonthlyReportButton } from '@/components/reports/monthly-report-button'
 import { bookedAsSale } from '@/lib/order-stage';
 import { chartMotion } from '@/lib/chart-motion';
 import { lineCategory } from '@/lib/categories';
-import { netProfit as netProfitOf, netMarginPercent } from '@/lib/analytics/net-profit';
+import { netProfit as netProfitOf, netMarginPercent, isRunningCost } from '@/lib/analytics/net-profit';
+import { isGoodsExpense } from '@/lib/expense-categories';
 
 // Helper types for chart data
 type SalesOverTimeData = { date: string; sales: number; orders: number; itemsSold: number };
@@ -150,8 +151,9 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
     });
     expenses.forEach(exp => {
       if (!exp?.date) return;
-      // Drawings are a distribution of profit, not a cost of earning it.
-      if (!isBusinessCost(exp)) return;
+      // Drawings are a distribution of profit, not a cost of earning it; the goods (Mina's stock and karigars) are
+      // already inside the estimated profit's margin (lib/analytics/net-profit.ts `isRunningCost`).
+      if (!isRunningCost(exp)) return;
       const yr = getYear(parseISO(exp.date));
       if (!yearMap[yr]) yearMap[yr] = blank();
       yearMap[yr].expenses += exp.amount || 0;
@@ -312,6 +314,8 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
         salesByCategory: [] as SalesByCategoryData[],
         topCustomers: [] as TopCustomerData[],
         totalExpenses: 0,
+        runningExpenses: 0,
+        goodsExpenses: 0,
         expensesByCategory: [] as ExpenseByCategoryData[],
         // ── Cash flow ───────────────────────────────────────────────────────
         cashIn: 0,
@@ -494,6 +498,8 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
     filteredExpenses.forEach(expense => {
       if (!expense) return;
       calcData.totalExpenses += expense.amount || 0;
+      if (isRunningCost(expense)) calcData.runningExpenses += expense.amount || 0;
+      else if (isGoodsExpense(expense)) calcData.goodsExpenses += expense.amount || 0;
       if (expense.category) {
         if (!expenseByCategoryMap[expense.category]) {
           expenseByCategoryMap[expense.category] = 0;
@@ -809,7 +815,8 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
               One flat five-across strip read as cramped — everything shouting
               at the same volume is the same problem as nine full Cards. */}
           {(() => {
-            const netProfit = netProfitOf(analyticsData.estProfit, analyticsData.totalExpenses);
+            // Less the running costs only: not drawings, not the goods the margin already allows for (isRunningCost).
+            const netProfit = netProfitOf(analyticsData.estProfit, analyticsData.runningExpenses);
             // Each sale at its own margin — worked out from the 24k rate typed when it was made, 10%
             // where none was (everything before 2026-10-05) — and extra revenue at 10% (lib/margin.ts).
             const estProfit = analyticsData.estProfit;
@@ -830,13 +837,19 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
                   analyticsData.extraRevenue > 0 ? `Extra ${money(analyticsData.extraRevenue)}` : null,
                 ].filter(Boolean).join(' · '),
               },
-              { label: 'Expenses', value: money(analyticsData.totalExpenses), tone: 'text-destructive', icon: <CreditCard className="h-4 w-4" />, sub: 'paid out in this period' },
+              {
+                label: 'Expenses', value: money(analyticsData.totalExpenses), tone: 'text-destructive', icon: <CreditCard className="h-4 w-4" />,
+                sub: analyticsData.goodsExpenses > 0 || analyticsData.runningExpenses !== analyticsData.totalExpenses
+                  ? [`Running ${money(analyticsData.runningExpenses)}`, analyticsData.goodsExpenses > 0 ? `goods ${money(analyticsData.goodsExpenses)}` : null,
+                     analyticsData.totalExpenses - analyticsData.runningExpenses - analyticsData.goodsExpenses > 0 ? `drawings ${money(analyticsData.totalExpenses - analyticsData.runningExpenses - analyticsData.goodsExpenses)}` : null].filter(Boolean).join(' · ')
+                  : 'paid out in this period',
+              },
               { label: 'Est. profit', value: money(estProfit), tone: 'text-blue-600', icon: <TrendingUp className="h-4 w-4" />, sub: estSub },
               {
                 label: 'Net profit', value: money(netProfit),
                 tone: netProfit >= 0 ? 'text-success' : 'text-destructive',
                 icon: netProfit >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />,
-                sub: analyticsData.totalSales > 0 ? `${margin.toFixed(1)}% margin` : 'no revenue in period',
+                sub: analyticsData.totalSales > 0 ? `${margin.toFixed(1)}% margin · est. profit less running costs` : 'no revenue in period',
                 border: netProfit >= 0 ? 'border-success/40' : 'border-destructive/40',
               },
             ];

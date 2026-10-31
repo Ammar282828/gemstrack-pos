@@ -666,6 +666,14 @@ balance below zero is the customer's credit (`lib/invoice-credit.ts`).
   an estimate of 55 lac). Revenue less expenses ignored what the goods cost. The margin is net ÷ revenue. Analytics'
   Overview tile and its yearly table (web `src/lib/analytics/net-profit.ts`, tested; iPhone `AnaNet`). The Home "Net"
   (revenue less expenses) and the monthly PDF's `net` are labelled revenue less expenses, not profit, and are unchanged.
+- **Only running costs come off** (owner, 2026-10-31: "why isnt net profit revenue - expenses", Mina reading Net -1.15 crore
+  on revenue 1.84 crore). House of Mina files the cost of its goods as expenses ("Stock & Karigars", "Custom Orders",
+  "Stones & Pearls", "Plating & Finishing"), and its estimated profit (revenue × 40%) already allows for them, so they were
+  taken off twice; and the Overview tile counted Partner Drawings, which the yearly table and the PDF already left out.
+  `isRunningCost` (`lib/analytics/net-profit.ts`) is business cost (not drawings) and not a goods category
+  (`NEXT_PUBLIC_STORE_GOODS_EXPENSE_CATEGORIES`, Mina's four; Taheri none). The Expenses tile still shows all paid out,
+  split "Running · goods · drawings". Revenue less expenses stays wrong for Mina too: stock bought and not yet sold is
+  money spent, not a loss.
 
 ### Exchange as cash
 
