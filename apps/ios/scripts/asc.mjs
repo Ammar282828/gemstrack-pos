@@ -807,6 +807,7 @@ async function ciRuns(name, { workflow, commit, wait, start, branch }) {
   if (!run) { say(`::warning::No run of "${flow.attributes.name}" for ${commit || 'it'}.`); return; }
   const a = run.attributes;
   say(`"${flow.attributes.name}" #${a.number} on ${a.sourceCommit?.commitSha?.slice(0, 7)}: ${a.executionProgress} ${a.completionStatus || ''} (started ${a.startedDate || '-'}, finished ${a.finishedDate || '-'})`);
+  if (a.completionStatus === 'CANCELED' && !a.startedDate) say(`Cancelled before it started; the run says: ${JSON.stringify(a)}`);
   if (a.executionProgress !== 'COMPLETE') { say('::warning::Still running when the wait ran out.'); return; }
   const actions = (await api('GET', `/v1/ciBuildRuns/${run.id}/actions?limit=20`)).data;
   let errors = 0;
