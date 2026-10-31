@@ -2,7 +2,7 @@ name: TestFlight status
 
 # Why a build is or is not in TestFlight (docs/features/iphone-app.md, Xcode Cloud): each house's newest builds,
 # their processing and beta state, and whether the "Shop" group has them (apps/ios/scripts/asc.mjs builds).
-# A cloud session cannot dispatch it (403): a push that changes this file runs it (last: start a fresh run of main for the WhatsApp chip).
+# A cloud session cannot dispatch it (403): a push that changes this file runs it (last: retry the fresh run, Apple answered 500).
 # With fix (the default, and on a push to this file): the newest valid build joins Shop, export compliance answered.
 
 # Every day (schedule): the same pass, and keep-fresh: a build 60 days old starts an Xcode Cloud build of main, so
@@ -46,7 +46,7 @@ jobs:
           # one ERP app is put in TestFlight, and Mina's Xcode Cloud workflows are kept switched off.
           node apps/ios/scripts/asc.mjs builds taheri ${FIX:+--fix} || echo "::warning::taheri failed"
           # Whether Xcode Cloud ran the iPhone release for the newest release line (none came for 10-30's).
-          node apps/ios/scripts/asc.mjs ci-runs taheri --workflow 'Taheri Release' --commit 1020045 --start --branch main --wait 4 || echo "::warning::ci-runs failed"
+          node apps/ios/scripts/asc.mjs ci-runs taheri --workflow 'Taheri Release' --commit 11b3ae3 --start --branch main --wait 4 || echo "::warning::ci-runs failed"
           # Not on a push to this file (that run only reports); the daily run and "Run workflow" keep the build fresh.
           if [ "$EVENT" != "push" ]; then node apps/ios/scripts/asc.mjs keep-fresh taheri --days 60 || echo "::warning::keep-fresh failed"; fi
           node apps/ios/scripts/asc.mjs ci-off mina || echo "::warning::Mina's Xcode Cloud workflows not switched off"
