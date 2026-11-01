@@ -40,9 +40,10 @@ jobs:
           - app: Mac
             scheme: ERP Mac
             destination: generic/platform=macOS
+          # A device build, as Xcode Cloud's iOS actions are (ANY_IOS_DEVICE), not the simulator.
           - app: iPhone
             scheme: ERP
-            destination: generic/platform=iOS Simulator
+            destination: generic/platform=iOS
     defaults:
       run:
         working-directory: apps/iphone
@@ -51,6 +52,15 @@ jobs:
       HOMEBREW_NO_INSTALL_CLEANUP: '1'
     steps:
       - uses: actions/checkout@v4
+      # The newest released Xcode on the runner, as Xcode Cloud picks the newest release. On the image's default Xcode the
+      # type checker gave up on two expressions Xcode Cloud compiles (the first run, 63bcfac). The notice names the one used.
+      - name: The newest Xcode
+        run: |
+          ls -d /Applications/Xcode*.app
+          x=$( (ls -d /Applications/Xcode_*.app 2>/dev/null || true) | grep -v -i -E 'beta|_rc|release_candidate' | sort -V | tail -1 || true)
+          [ -n "$x" ] || x=$(xcode-select -p | sed 's|/Contents/Developer$||')
+          echo "DEVELOPER_DIR=$x/Contents/Developer" >> "$GITHUB_ENV"
+          echo "::notice title=Xcode::$(DEVELOPER_DIR="$x/Contents/Developer" xcodebuild -version | tr '\n' ' ')($x)"
       - name: Make the project as Xcode Cloud does (ci_scripts/ci_post_clone.sh)
         run: |
           command -v xcodegen >/dev/null || brew install xcodegen

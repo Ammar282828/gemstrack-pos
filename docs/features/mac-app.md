@@ -99,9 +99,12 @@ How a tag reaches Label LIVE (`App/Device/LabelLivePrinter.swift`):
   every release line is cancelled before it starts, with no check on the commit.
 - **`.github/workflows/swift-compile.yml`, "Swift compile", compiles both apps on every deploy, free.** GitHub bills macOS
   minutes ten to one only on a private repository; gemstrack-pos is public and every deploy pushes this history to its
-  `main`, so the workflow runs there (on taheri-pos it is skipped). Two jobs, Mac ("ERP Mac") and iPhone ("ERP"),
-  unsigned, Debug (only `WebScreen.swift` differs under DEBUG), packages only from the committed `Package.resolved`, as
-  Xcode Cloud builds. Read it at `https://github.com/Ammar282828/gemstrack-pos/actions/workflows/swift-compile.yml`
+  `main`, so the workflow runs there (on taheri-pos it is skipped). Two jobs, Mac ("ERP Mac") and iPhone ("ERP", for a
+  device as Xcode Cloud's iOS actions are), unsigned, Debug (only `WebScreen.swift` differs under DEBUG), packages only
+  from the committed `Package.resolved`, on the newest released Xcode on the runner (a notice names it). Its first run
+  (63bcfac, on the image's default Xcode) failed only on "unable to type-check this expression in reasonable time", in
+  code Xcode Cloud had built (`ArtworkEditor.swift:142` iPhone, `BusinessesScreen.swift:366` Mac): such an expression is a
+  compiler-version cliff and slows every build, so split it (the Mac one was). Read it at `https://github.com/Ammar282828/gemstrack-pos/actions/workflows/swift-compile.yml`
   (WebFetch; the session's GitHub API does not reach gemstrack-pos): runs are by commit, the same SHAs as taheri-pos's
   `main`, and each run's summary lists every error with its file and line.
 - **What each proves.** A green Swift compile says the code compiles; ✓ in `docs/parity.md` still waits for a Mac release

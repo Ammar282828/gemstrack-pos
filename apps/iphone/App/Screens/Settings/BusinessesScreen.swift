@@ -362,16 +362,30 @@ extension BusinessesScreen {
         .task { refreshWho() }
         .onChange(of: store.list) { _, _ in refreshWho() }
         .sheet(isPresented: $macAdding) { macAddSheet }
-        .confirmationDialog(removing.map { ($0.art != nil ? "Hide " : "Remove ") + $0.displayName + " on this Mac?" } ?? "",
-                            isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }),
-                            titleVisibility: .visible) {
+        .confirmationDialog(macRemoveTitle, isPresented: macRemoveShown, titleVisibility: .visible) {
             Button(removing?.art != nil ? "Hide on this Mac" : "Remove from this Mac", role: .destructive) {
                 if let b = removing { remove(b) }
             }
         } message: {
-            Text("You are signed out of it here and its books are cleared from this Mac. Nothing in the ERP itself changes."
-                 + (removing?.art != nil ? " You can add it back by its address." : ""))
+            Text(macRemoveMessage)
         }
+    }
+
+    // The remove dialog's words and binding, worked out outside the modifier chain: inside it, the joined strings were more
+    // than a GitHub runner's Xcode would type-check in one expression ("Swift compile", 63bcfac).
+    fileprivate var macRemoveTitle: String {
+        guard let b = removing else { return "" }
+        let verb = b.art != nil ? "Hide " : "Remove "
+        return verb + b.displayName + " on this Mac?"
+    }
+
+    fileprivate var macRemoveMessage: String {
+        let base = "You are signed out of it here and its books are cleared from this Mac. Nothing in the ERP itself changes."
+        return removing?.art != nil ? base + " You can add it back by its address." : base
+    }
+
+    fileprivate var macRemoveShown: Binding<Bool> {
+        Binding(get: { removing != nil }, set: { if !$0 { removing = nil } })
     }
 
     @ViewBuilder private func macStatus(_ b: Business) -> some View {
