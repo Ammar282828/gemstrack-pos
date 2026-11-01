@@ -1,5 +1,5 @@
 import { isBusinessCost } from '@/lib/partnership';
-import { isGoodsExpense } from '@/lib/expense-categories';
+import { isGoodsExpense, GOODS_EXPENSE_CATEGORIES } from '@/lib/expense-categories';
 
 /**
  * Net profit = the estimated profit less the expenses (owner, 2026-10-25: "5.51 crore, 100.0% margin" with the
@@ -23,3 +23,17 @@ export function netMarginPercent(net: number, revenue: number): number {
  * profit's margin already allows for — counting it again made Mina's net -1.15 crore on 2026-10-31.
  */
 export const isRunningCost = (e: { category?: string | null }): boolean => isBusinessCost(e) && !isGoodsExpense(e);
+
+/**
+ * A house that files what its goods cost as expenses (Mina: stock and karigars, stones, plating) knows that cost; a
+ * guessed margin does not. The owner, 2026-11-01, on Mina's all-time 39.96 lac net ("isnt this still wrong?"):
+ * revenue 1.84 crore at an assumed 40% beside 1.55 crore of goods actually bought (84% of revenue). So where goods
+ * are recorded, profit before running costs is revenue less those goods (gross profit), and net is that less the
+ * running costs. Goods bought but not yet sold count as spent: the figure is what came in less what went out.
+ * Taheri records no goods (they are costed per sale from the 24k rate), so it keeps the estimate.
+ */
+export const RECORDS_GOODS = GOODS_EXPENSE_CATEGORIES.length > 0;
+
+export function profitBeforeRunning(p: { estimated: number; revenue: number; goods: number }, recordsGoods = RECORDS_GOODS): number {
+  return recordsGoods ? (p.revenue || 0) - (p.goods || 0) : (p.estimated || 0);
+}

@@ -31,4 +31,12 @@ final class NetProfitTests: XCTestCase {
         XCTAssertEqual(running, 1_800_000)
         XCTAssertEqual(7_360_000 - running, 5_560_000)
     }
+
+    func testBeforeRunningUsesRecordedGoods() {
+        // Mina all time, 2026-11-01: 1.84 crore revenue, 1.55 crore goods, 33.56 lac running, 73.52 lac at 40%.
+        let gross = NetProfit.beforeRunning(estimated: 7_352_000, revenue: 18_400_000, goods: 15_500_000, recordsGoods: true)
+        XCTAssertEqual(gross, 2_900_000)
+        XCTAssertEqual(gross - 3_356_000, -456_000)
+        XCTAssertEqual(NetProfit.beforeRunning(estimated: 7_352_000, revenue: 18_400_000, goods: 0, recordsGoods: false), 7_352_000)
+    }
 }

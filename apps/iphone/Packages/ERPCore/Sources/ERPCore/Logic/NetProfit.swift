@@ -24,6 +24,13 @@ public enum NetProfit {
     }
 
     public static func isRunningCost(_ e: Expense, goods: [String]) -> Bool { isRunningCost(category: e.category, goods: goods) }
+
+    /// Profit before the running costs (net-profit.ts `profitBeforeRunning`). A house that files its goods as expenses
+    /// (Mina) knows what they cost, so it is revenue less those goods (gross profit; unsold stock counts as spent);
+    /// otherwise the estimated profit. The owner, 2026-11-01: an assumed 40% beside goods at 84% of revenue was wrong.
+    public static func beforeRunning(estimated: Double, revenue: Double, goods: Double, recordsGoods: Bool) -> Double {
+        recordsGoods ? revenue - goods : estimated
+    }
 }
 
 /// `isRunningCost(expense, goods:)`: the rule as a free function, as the web names it.
