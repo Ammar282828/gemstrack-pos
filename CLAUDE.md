@@ -245,7 +245,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [One app, many businesses](docs/features/iphone-app.md#one-app-many-businesses-2026-10-16) — `shop.taheri.erp` "ERP": Taheri, Mina and any business by its address (`/api/app/business`), each its own sign-in, data, push, widget; Mina's own app retired 2026-10-20; Mina needs `shop.taheri.erp` in its Firebase
 
 **Mac app** (`docs/features/mac-app.md`)
-- [Mac app](docs/features/mac-app.md#mac-app) — the `ERPMac` target in `apps/iphone/project.yml`, native SwiftUI, the iPhone's screens through `App/Platform/MacPlatform.swift`; same bundle `shop.taheri.erp`; Label LIVE native (localhost API, else the link; iPhone via MQTT); Xcode Cloud "Mac release" by `apps/iphone/MAC-RELEASES.md`, its errors in the "Mac build" workflow's log
+- [Mac app](docs/features/mac-app.md#mac-app) — the `ERPMac` target in `apps/iphone/project.yml`, native SwiftUI, the iPhone's screens through `App/Platform/MacPlatform.swift`; same bundle `shop.taheri.erp`; Label LIVE native (localhost API, else the link; iPhone via MQTT); Xcode Cloud "Mac release" by `apps/iphone/MAC-RELEASES.md`, its errors in the "Mac build" workflow's log; every deploy also compiles the Mac and iPhone apps free ("Swift compile" on public gemstrack-pos; Xcode Cloud's 25 h renew about the 17th, [how](docs/features/mac-app.md#how-a-mac-change-is-checked-2026-11-01))
 
 **Android app** (`docs/features/android-app.md`)
 - [Android app](docs/features/android-app.md#android-app) — `apps/android`, Kotlin/Compose port of `apps/iphone`, two flavors; money in `core` to the iPhone's contract; Play internal testing
