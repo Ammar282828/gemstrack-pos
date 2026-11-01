@@ -150,6 +150,11 @@ abstract class BusinessArt : DefaultTask() {
 
 // ---- The app ---------------------------------------------------------------------------------------
 
+// `core` has no Compose compiler, so its models read as unstable here; compose_stability.conf declares them stable.
+composeCompiler {
+    stabilityConfigurationFiles.add(layout.projectDirectory.file("compose_stability.conf"))
+}
+
 android {
     namespace = "erp.app"
     compileSdk { version = release(37) }

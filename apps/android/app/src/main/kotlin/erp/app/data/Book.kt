@@ -84,21 +84,22 @@ class Book private constructor(val business: Business) {
      * Where a shelf's documents come from; the shelf calls it on its first `need()` and keeps the returned
      * stop for `reset()`. `deliver` is called on the main thread.
      */
-    fun <T : Any> attach(name: String, model: Decodable<T>, docId: String?, deliver: (Delivery<T>) -> Unit): () -> Unit = when (source) {
+    fun <T : Any> attach(name: String, model: Decodable<T>, docId: String?, order: Comparator<T>? = null, deliver: (Delivery<T>) -> Unit): () -> Unit = when (source) {
         Source.Demo -> {
             // Decoded off the main thread, as the owners' Firestore answers are.
             val job = ErpApp.scope.launch {
                 val items = withContext(Dispatchers.Default) {
                     val docs = Demo.docs(name)
-                    if (docId != null) docs.filter { it["id"] == docId }.map { decodeDoc(model, docId, it) }
+                    val list = if (docId != null) docs.filter { it["id"] == docId }.map { decodeDoc(model, docId, it) }
                     else docs.map { decodeDoc(model, it["id"] as? String ?: "", it) }
+                    if (order != null) list.sortedWith(order) else list
                 }
-                deliver(Delivery.All(items, offline = false))
+                deliver(Delivery.All(items, offline = false, sorted = order != null))
             }
             ({ job.cancel() })
         }
-        Source.Server -> ServerShelf.poll(ErpApi.forBusiness(business), if (name == Collections.settings) "settings" else name, docId != null, model, deliver)
-        Source.Firestore -> FirestoreSource.listen(business, name, model, docId, deliver)
+        Source.Server -> ServerShelf.poll(ErpApi.forBusiness(business), if (name == Collections.settings) "settings" else name, docId != null, model, order, deliver)
+        Source.Firestore -> FirestoreSource.listen(business, name, model, docId, order, deliver)
     }
 
     companion object {
@@ -131,8 +132,8 @@ class Book private constructor(val business: Business) {
 
 /** What a source hands a shelf. */
 sealed interface Delivery<out T> {
-    /** Everything there is (a first answer, a poll, the demo). */
-    data class All<T>(val items: List<T>, val offline: Boolean) : Delivery<T>
+    /** Everything there is (a first answer, a poll, the demo). `sorted`: already in the shelf's order, sorted off the main thread by the source. */
+    data class All<T>(val items: List<T>, val offline: Boolean, val sorted: Boolean = false) : Delivery<T>
 
     /** What changed since the last answer (Firestore's document changes). */
     data class Changes<T>(val upserts: List<T>, val removed: List<String>, val offline: Boolean) : Delivery<T>
@@ -175,7 +176,7 @@ class Shelf<T : Any>(
     fun need() {
         if (stop != null) return
         val b = book ?: return
-        stop = b.attach(name, model, null) { take(it) }
+        stop = b.attach(name, model, null, before) { take(it) }
     }
 
     /** One document by id. Read `items` too so a screen showing one document recomposes when it changes. */
@@ -197,7 +198,7 @@ class Shelf<T : Any>(
         when (d) {
             is Delivery.All -> {
                 byId = LinkedHashMap<String, T>().also { m -> d.items.forEach { m.putIfAbsent(idOf(it), it) } }
-                publish(d.offline)
+                publish(d.offline, d.sorted)
                 stamp(d.offline)
             }
             is Delivery.Changes -> {
@@ -248,8 +249,9 @@ class Shelf<T : Any>(
         if (!liveMarked && !off) { liveMarked = true; erp.app.device.LaunchClock.mark("shelf:$name:live", detail) }
     }
 
-    private fun publish(off: Boolean) {
-        _items.value = byId.values.sortedWith(before)
+    /** `presorted`: the source already sorted what it sent, so byId (first of each id, in that order) is in order as it stands. */
+    private fun publish(off: Boolean, presorted: Boolean = false) {
+        _items.value = if (presorted) byId.values.toList() else byId.values.sortedWith(before)
         _revision.value += 1
         _offline.value = off
         _loaded.value = true

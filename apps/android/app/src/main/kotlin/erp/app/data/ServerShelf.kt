@@ -22,14 +22,14 @@ object ServerShelf {
     fun wake() { nudges.incrementAndGet() }
 
     /** `api` is the business's own: the poll goes to its server whichever business is open. */
-    fun <T : Any> poll(api: ErpApi, name: String, single: Boolean, model: Decodable<T>, deliver: (Delivery<T>) -> Unit): () -> Unit {
+    fun <T : Any> poll(api: ErpApi, name: String, single: Boolean, model: Decodable<T>, order: Comparator<T>?, deliver: (Delivery<T>) -> Unit): () -> Unit {
         val job = ErpApp.scope.launch {
             while (isActive) {
                 try {
                     val text = api.data("/api/staff/collections?name=$name")
                     // Read and decoded off the main thread: staff's whole copy arrives every 25 seconds.
-                    val items = withContext(Dispatchers.Default) { decode(model, text, single) }
-                    deliver(Delivery.All(items, offline = false))
+                    val items = withContext(Dispatchers.Default) { decode(model, text, single).let { if (order != null) it.sortedWith(order) else it } }
+                    deliver(Delivery.All(items, offline = false, sorted = order != null))
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: ErpApi.Failure) {

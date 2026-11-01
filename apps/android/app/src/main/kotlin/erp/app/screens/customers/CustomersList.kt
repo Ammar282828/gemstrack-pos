@@ -26,6 +26,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.Composable
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -117,7 +118,10 @@ fun CustomersList() {
         val stats = CustomerKit.stats(invoices.items, orders.items, owed)
         Reckoned(live, owed, stats, live.fold(0.0) { sum, c -> sum + (stats[c.id]?.spent ?: 0.0) })
     }
-    val matched = remember(reckoned, search) { reckoned.live.filter { CustomerKit.matches(it, search) } }
+    // The list is worked out from the text 200 ms after the last keystroke (the box itself stays instant); clearing applies at once.
+    var appliedSearch by remember { mutableStateOf(search) }
+    LaunchedEffect(search) { if (search.isNotEmpty()) delay(200); appliedSearch = search }
+    val matched = remember(reckoned, appliedSearch) { reckoned.live.filter { CustomerKit.matches(it, appliedSearch) } }
     val groups = remember(matched, reckoned) { CustomerKit.groups(matched, reckoned.stats) }
     val shown = when (showing) {
         CustomersShowing.everyone -> groups
@@ -167,7 +171,7 @@ fun CustomersList() {
                 }
             }
             if (shown.owing.isEmpty() && shown.active.isEmpty() && shown.quiet.isEmpty()) {
-                animatedItem(key = "empty") { Box(Modifier.padding(bottom = GAP)) { Empty(matched.size, search, showing) } }
+                animatedItem(key = "empty") { Box(Modifier.padding(bottom = GAP)) { Empty(matched.size, appliedSearch, showing) } }
             } else {
                 group("Owing money", "most owed first", shown.owing, reckoned.stats) { navigator.open(CustomerKit.path(it)) }
                 group("Recent", "bought in the last ${CustomerKit.dormantAfterMonths} months", shown.active, reckoned.stats) { navigator.open(CustomerKit.path(it)) }

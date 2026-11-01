@@ -41,6 +41,7 @@ import erp.app.ui.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import erp.app.ui.TextButton
 import androidx.compose.runtime.Composable
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -145,7 +146,10 @@ fun OrdersHub() {
         Prefs.putString(GROUPING_KEY, g.raw)
     }
 
-    val searching = query.trim().isNotEmpty()
+    // The list is worked out from the text 200 ms after the last keystroke (the box itself stays instant); clearing applies at once.
+    var appliedQuery by remember { mutableStateOf(query) }
+    LaunchedEffect(query) { if (query.isNotEmpty()) delay(200); appliedQuery = query }
+    val searching = appliedQuery.trim().isNotEmpty()
     val narrowed = statusFilter != "All" || month.isNotEmpty() || takenBy.isNotEmpty() || payment != "All"
     /** Anything narrowing the list: the folded stages and the empty state both ask. */
     val anyFilter = searching || narrowed
@@ -155,10 +159,10 @@ fun OrdersHub() {
     }
 
     // The hub's sums, once per change of the books or of what narrows them.
-    val view = remember(orders.revision, invoices.revision, query, statusFilter, month, takenBy, payment, grouping, localStatus.entries) {
+    val view = remember(orders.revision, invoices.revision, appliedQuery, statusFilter, month, takenBy, payment, grouping, localStatus.entries) {
         val now = AppClock.now()
         val owedOn = OrdersLogic.owedOnInvoices(invoices.items)
-        val scoped = OrdersLogic.scope(orders.items, query, month, takenBy, payment)
+        val scoped = OrdersLogic.scope(orders.items, appliedQuery, month, takenBy, payment)
         val shown = if (statusFilter == "All") scoped else scoped.filter { it.status.rawValue == statusFilter }
         HubView(now, owedOn, shown, OrdersLogic.sections(shown, grouping, owedOn, now) { o -> OrdersLocal.stage(stageOf(o, OrdersLogic.owed(o, owedOn)), OrdersLogic.hasInvoice(o), localStatus[o.id]) })
     }

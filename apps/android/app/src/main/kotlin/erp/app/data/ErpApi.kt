@@ -231,7 +231,19 @@ class ErpApi private constructor(private val initial: Business) {
                 .cache(null)
                 .followRedirects(true)
                 .followSslRedirects(false)
-                .connectTimeout(20, TimeUnit.SECONDS)
+                .connectTimeout(10, TimeUnit.SECONDS)
+                // One more try for a read that hit a dead or slow line; a write is never sent twice.
+                .addInterceptor { chain ->
+                    val request = chain.request()
+                    if (request.method != "GET") return@addInterceptor chain.proceed(request)
+                    try {
+                        chain.proceed(request)
+                    } catch (e: IOException) {
+                        // Our own refusal of a redirect off the ERP's host is not a flaky line; a cancelled call is not either.
+                        if (chain.call().isCanceled() || e.message?.startsWith("Redirected away") == true) throw e
+                        chain.proceed(request)
+                    }
+                }
                 .build()
         }
 
