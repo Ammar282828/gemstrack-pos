@@ -3,6 +3,7 @@ import { NextRequest } from 'next/server';
 
 const MINA = {
   NEXT_PUBLIC_STORE_BRAND: 'mina', NEXT_PUBLIC_STORE_NAME: 'House of Mina', NEXT_PUBLIC_STORE_DEFAULT_METAL: 'silver',
+  NEXT_PUBLIC_STORE_GOODS_EXPENSE_CATEGORIES: 'Stock & Karigars,Custom Orders,Stones & Pearls,Plating & Finishing',
   NEXT_PUBLIC_STORE_COST_RATTI_LESS: 'none', NEXT_PUBLIC_STORE_EST_MARGIN: '0.40', NEXT_PUBLIC_STORE_PARTNERSHIP: '1',
   NEXT_PUBLIC_STORE_INVOICE_BY_CUSTOMER: '0', NEXT_PUBLIC_STORE_WORKSHOP_START: 'anyone',
   NEXT_PUBLIC_STORE_LOGO_URL: '/house-of-mina-logo.png', NEXT_PUBLIC_STORE_LOGO_LIGHT_URL: '/house-of-mina-logo-light.png',
@@ -64,6 +65,12 @@ describe('/api/app/business', () => {
       ios: { googleClientId: 'mina-client', firebase: { apiKey: 'mina-key', appId: '1:2:ios:3', projectId: 'hom-pos', senderId: '288366939838', storageBucket: 'hom-pos.firebasestorage.app' } },
       flags: { partnership: true, invoiceByCustomer: false, workshopStart: 'anyone' },
     });
+  });
+
+  it('lists the goods expense categories: none for Taheri, the variable for Mina', async () => {
+    expect((await get()).body.goodsExpenseCategories).toEqual([]);
+    expect((await get(MINA, 'erp.houseofmina.store')).body.goodsExpenseCategories)
+      .toEqual(['Stock & Karigars', 'Custom Orders', 'Stones & Pearls', 'Plating & Finishing']);
   });
 
   it('says which Android app signs in: Taheri\'s by default, from the variables otherwise', async () => {

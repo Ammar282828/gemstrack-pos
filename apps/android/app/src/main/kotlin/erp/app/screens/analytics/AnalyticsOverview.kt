@@ -94,10 +94,19 @@ fun AnaOverviewPage(figures: AnaFigures, period: AnaPeriodState, showCosts: Bool
 
 @Composable
 private fun MoneySection(f: AnaFigures, showCosts: Boolean, margin: MarginSettings) {
-    val net = NetProfit.of(f.estProfit, f.totalExpenses)
+    // Less the running costs only: not drawings, not the goods the margin already allows for (NetProfit.isRunningCost).
+    val net = NetProfit.of(f.estProfit, f.runningExpenses)
     val netPct = NetProfit.marginPercent(net, f.totalSales)
-    val netDetail = if (f.totalSales > 0) "${AnaFormat.fixed(netPct, 1)}% margin" else "No revenue in period"
+    val netDetail = if (f.totalSales > 0) "${AnaFormat.fixed(netPct, 1)}% margin · est. profit less running costs" else "No revenue in period"
     val netTint = if (net >= 0) Tone.settled.color() else Tone.owed.color()
+    // Split running · goods · drawings where any is not running (the web's Expenses tile).
+    val expensesDetail = if (f.goodsExpenses > 0 || f.runningExpenses != f.totalExpenses) {
+        listOfNotNull(
+            "Running ${Money.pkrLac(f.runningExpenses)}",
+            if (f.goodsExpenses > 0) "goods ${Money.pkrLac(f.goodsExpenses)}" else null,
+            if (f.drawingsExpenses > 0) "drawings ${Money.pkrLac(f.drawingsExpenses)}" else null,
+        ).joinToString(" · ")
+    } else "Paid out in this period"
     val assumed = (margin.assumedMargin * 100).roundToInt()
     val costedByGold = margin.rattiLess != null && f.salesCosted > 0
     val estDetail = if (!costedByGold || f.totalSales <= 0) "Revenue × $assumed%"
@@ -108,7 +117,7 @@ private fun MoneySection(f: AnaFigures, showCosts: Boolean, margin: MarginSettin
     FigureGrid {
         FigureTile("Revenue", Money.pkrLac(f.totalSales), detail = "Sales in this period", tint = Tone.settled.color(), number = f.totalSales)
         if (showCosts) {
-            FigureTile("Expenses", Money.pkrLac(f.totalExpenses), detail = "Paid out in this period", tint = Tone.owed.color(), number = f.totalExpenses)
+            FigureTile("Expenses", Money.pkrLac(f.totalExpenses), detail = expensesDetail, tint = Tone.owed.color(), number = f.totalExpenses)
             FigureTile("Est. profit", Money.pkrLac(f.estProfit), detail = estDetail, tint = ErpColors.accent, number = f.estProfit)
             FigureTile("Net profit", Money.pkrLac(net), detail = netDetail, tint = netTint, number = net)
         }

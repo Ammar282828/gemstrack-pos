@@ -122,6 +122,11 @@ class AnaFigures {
     var topCustomers: List<AnaTopCustomer> = emptyList()
 
     var totalExpenses = 0.0
+
+    /** Of [totalExpenses]: what net profit takes off (NetProfit.isRunningCost), and the goods the margin already allows for; the rest is drawings. */
+    var runningExpenses = 0.0
+    var goodsExpenses = 0.0
+    val drawingsExpenses: Double get() = totalExpenses - runningExpenses - goodsExpenses
     var expensesByCategory: List<AnaExpenseCategory> = emptyList()
 
     /** Cash flow (cash-in.ts); null when nothing at all was in the period. */
@@ -143,7 +148,7 @@ class AnaFigures {
 
     companion object {
         /** [margin] null is a non-owner: no margin is worked out for them at all. */
-        fun of(books: AnaBooks, range: AnaRange?, margin: MarginSettings?): AnaFigures {
+        fun of(books: AnaBooks, range: AnaRange?, margin: MarginSettings?, goods: List<String> = emptyList()): AnaFigures {
             val f = AnaFigures()
             val scope = AnaScope(range)
             val ordersById = books.ordersById
@@ -170,7 +175,7 @@ class AnaFigures {
 
             if (filteredInvoices.isEmpty() && filteredOrders.isEmpty() && filteredExpenses.isEmpty() && filteredExtra.isEmpty()) return f
 
-            val gather = AnaGather(books, margin, revenueDate)
+            val gather = AnaGather(books, margin, revenueDate, goods)
             for (inv in filteredInvoices) gather.invoice(inv)
             for (o in filteredOrders) gather.order(o)
             for (r in filteredExtra) gather.extra(r)
@@ -202,7 +207,7 @@ private class CustomerAcc(val resolvedName: String?, var spent: Double = 0.0, va
 private class SourceAcc(var revenue: Double = 0.0, var count: Int = 0)
 
 /** One pass over what is in the period. A class so the running totals are not passed around by hand. */
-private class AnaGather(val books: AnaBooks, val margin: MarginSettings?, val revenueDate: (Invoice) -> String) {
+private class AnaGather(val books: AnaBooks, val margin: MarginSettings?, val revenueDate: (Invoice) -> String, val goods: List<String>) {
     /** The book's name for a customer id, so a walk-in renamed since to a real person counts as that person. */
     val nameOf: (String) -> String? = { id -> books.customersById[id]?.name }
 
@@ -227,6 +232,8 @@ private class AnaGather(val books: AnaBooks, val margin: MarginSettings?, val re
     val sources = HashMap<String, SourceAcc>()
     val sourceByDate = HashMap<String, HashMap<String, Double>>()
     var expenseTotal = 0.0
+    var runningTotal = 0.0
+    var goodsTotal = 0.0
     val expenseByCategory = LinkedHashMap<String, Double>()
 
     private fun day(key: String): AnaDay = days.getOrPut(key) { AnaDay(key) }
@@ -354,6 +361,8 @@ private class AnaGather(val books: AnaBooks, val margin: MarginSettings?, val re
     /** Every logged expense is cash out; the ones with a category also make the category chart. */
     fun expense(e: Expense) {
         expenseTotal += e.amount
+        if (NetProfit.isRunningCost(e.category, goods)) runningTotal += e.amount
+        else if (NetProfit.isGoodsExpense(e.category, goods)) goodsTotal += e.amount
         if (e.category.isNotEmpty()) expenseByCategory[e.category] = (expenseByCategory[e.category] ?: 0.0) + e.amount
     }
 
@@ -404,6 +413,8 @@ private class AnaGather(val books: AnaBooks, val margin: MarginSettings?, val re
         f.topCustomers = AnaSort.descending(customerRows) { it.totalSpent }.take(10)
 
         f.totalExpenses = expenseTotal
+        f.runningExpenses = runningTotal
+        f.goodsExpenses = goodsTotal
         val expenseRows = expenseByCategory.map { (c, amount) -> AnaExpenseCategory(c, amount) }
         f.expensesByCategory = AnaSort.descending(expenseRows) { it.amount }
 
@@ -539,7 +550,7 @@ class AnaHistory(
     private class YearAcc(var revenue: Double = 0.0, var expenses: Double = 0.0, var unpaid: Double = 0.0, var profit: Double = 0.0)
 
     companion object {
-        fun of(books: AnaBooks, margin: MarginSettings?): AnaHistory {
+        fun of(books: AnaBooks, margin: MarginSettings?, goods: List<String> = emptyList()): AnaHistory {
             val (jewellery, _) = AnaCoins.splitAll(books.invoices)
             val ordersById = books.ordersById
 
@@ -581,9 +592,9 @@ class AnaHistory(
                 if (margin != null) acc.profit += r.amount * margin.assumedMargin
                 addMonth(r.date, r.amount)
             }
-            // Drawings are a distribution of profit, not a cost of earning it.
+            // Drawings are a distribution of profit, not a cost of earning it; the goods are already inside the margin (isRunningCost).
             for (e in books.expenses) {
-                if (e.date.isEmpty() || !AnaRules.isBusinessCost(e)) continue
+                if (e.date.isEmpty() || !NetProfit.isRunningCost(e.category, goods)) continue
                 val d = AnaDate.parseISO(e.date) ?: continue
                 years.getOrPut(AnaDate.year(d)) { YearAcc() }.expenses += e.amount
             }

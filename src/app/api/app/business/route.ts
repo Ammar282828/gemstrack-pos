@@ -12,6 +12,7 @@ import {
 } from '@/lib/store-config';
 import { COST_RATTI_LESS } from '@/lib/margin';
 import { shopFlags } from '@/lib/app-shop';
+import { GOODS_EXPENSE_CATEGORIES } from '@/lib/expense-categories';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,6 +57,8 @@ export async function GET(req: NextRequest) {
     // The Android app's sign-in; null until this house has registered shop.taheri.erp in its Firebase project.
     android: storeAppAndroid(),
     flags: shopFlags(),
+    // The expense categories that are the cost of the goods (Mina's four, Taheri none): the apps' net profit leaves them out, as the web's does (isRunningCost).
+    goodsExpenseCategories: [...GOODS_EXPENSE_CATEGORIES],
     // The oldest app build this ERP takes (APP_MIN_BUILD, a CFBundleVersion number); 0: any. The app says "Update from TestFlight" below it.
     minBuild: Math.max(0, Math.floor(Number(process.env.APP_MIN_BUILD) || 0)),
     // The same for the Android app (APP_MIN_ANDROID_BUILD, a versionCode): the two stores number their builds apart, so one floor

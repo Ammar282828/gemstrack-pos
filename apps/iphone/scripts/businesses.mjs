@@ -33,11 +33,14 @@ const own = {
     name: 'TAHERI', margin: { kind: 'rattiLess', ratti: 6 },
     logo: { light: '/taheri-logo.png', dark: '/taheri-logo-light.png', aspect: 1528 / 383 },
     flags: { partnership: false, websiteSelling: true, invoiceByCustomer: true, invoiceWhatsappPdf: true, sizeToProfile: true },
+    goodsExpenseCategories: [],
   },
   mina: {
     name: 'MINA', margin: { kind: 'percent', percent: 40 },
     logo: { light: '/house-of-mina-logo.png', dark: '/house-of-mina-logo-light.png', aspect: 4.9458 },
     flags: { partnership: true, websiteSelling: false, invoiceByCustomer: false, invoiceWhatsappPdf: false, sizeToProfile: false },
+    // apphosting.mina.yaml NEXT_PUBLIC_STORE_GOODS_EXPENSE_CATEGORIES: the cost of the goods, filed as expenses.
+    goodsExpenseCategories: ['Stock & Karigars', 'Custom Orders', 'Stones & Pearls', 'Plating & Finishing'],
   },
 };
 
@@ -59,6 +62,7 @@ const out = Object.entries(houses).map(([id, h]) => ({
     firebase: { apiKey: h.oneApp?.firebase?.apiKey || h.firebase.apiKey, appId: h.oneApp?.firebase?.iosAppId || h.firebase.iosAppId, projectId: h.firebase.projectId, senderId: h.firebase.senderId, storageBucket: h.firebase.storageBucket },
   },
   flags: own[id].flags,
+  goodsExpenseCategories: own[id].goodsExpenseCategories,
 }));
 
 const file = path.join(dir, 'App/Resources/businesses.json');

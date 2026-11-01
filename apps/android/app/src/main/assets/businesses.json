@@ -50,6 +50,7 @@
       "invoiceWhatsappPdf": true,
       "sizeToProfile": true
     },
+    "goodsExpenseCategories": [],
     "android": {
       "googleWebClientId": "948018742883-q27leh2et2p8948jadblbg6skpdhjcea.apps.googleusercontent.com",
       "firebase": {
@@ -112,6 +113,12 @@
       "invoiceWhatsappPdf": false,
       "sizeToProfile": false
     },
+    "goodsExpenseCategories": [
+      "Stock & Karigars",
+      "Custom Orders",
+      "Stones & Pearls",
+      "Plating & Finishing"
+    ],
     "android": null
   }
 ]
