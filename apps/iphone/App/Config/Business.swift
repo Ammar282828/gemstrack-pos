@@ -29,6 +29,9 @@ struct Business: Codable, Sendable, Equatable, Identifiable {
     var flags: Flags?
     /// The oldest build (CFBundleVersion) the ERP still takes (`APP_MIN_BUILD`); 0 or absent: any.
     var minBuild: Int?
+    /// The expense categories that are the cost of the goods (`NEXT_PUBLIC_STORE_GOODS_EXPENSE_CATEGORIES`); net profit takes
+    /// off the running costs only. Absent from an older ERP: none (Taheri's).
+    var goodsExpenseCategories: [String]?
 
     /// This app is older than the ERP allows: the UI says "Update from TestFlight" and keeps money screens shut.
     var needsUpdate: Bool {
@@ -144,6 +147,7 @@ struct Business: Codable, Sendable, Equatable, Identifiable {
         ios = try c.decode(IOS.self, forKey: .ios)
         flags = try? c.decode(Flags.self, forKey: .flags)
         minBuild = try? c.decode(Int.self, forKey: .minBuild)
+        goodsExpenseCategories = try? c.decode([String].self, forKey: .goodsExpenseCategories)
     }
 
     // MARK: Derived

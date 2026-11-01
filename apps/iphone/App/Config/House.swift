@@ -29,6 +29,10 @@ enum House {
     /// Shop screens only: a customer never sees a margin.
     static var margin: MarginSettings { business.margin.settings }
 
+    /// The expense categories that are the cost of the goods (the descriptor's `goodsExpenseCategories`; Taheri none): net
+    /// profit leaves them out, the margin already allows for them (NetProfit.isRunningCost).
+    static var goodsExpenseCategories: [String] { business.goodsExpenseCategories ?? [] }
+
     /// Launched with `-ERPDemo YES` (the simulator check): made-up data, no sign-in, no Firebase. A launch flag,
     /// not a business to switch to: the demo's one business wears Taheri's look (Businesses.demo).
     static let isDemo = UserDefaults.standard.bool(forKey: "ERPDemo")

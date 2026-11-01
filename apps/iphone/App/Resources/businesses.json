@@ -49,7 +49,8 @@
       "invoiceByCustomer": true,
       "invoiceWhatsappPdf": true,
       "sizeToProfile": true
-    }
+    },
+    "goodsExpenseCategories": []
   },
   {
     "version": 1,
@@ -101,6 +102,12 @@
       "invoiceByCustomer": false,
       "invoiceWhatsappPdf": false,
       "sizeToProfile": false
-    }
+    },
+    "goodsExpenseCategories": [
+      "Stock & Karigars",
+      "Custom Orders",
+      "Stones & Pearls",
+      "Plating & Finishing"
+    ]
   }
 ]

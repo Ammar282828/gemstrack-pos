@@ -54,7 +54,7 @@ struct MacReportsOverview: View {
         MacReportsChange.figure(label, value, now: now, before: before, words: c.words, upIsGood: up, plain: plain, tone: tone)
     }
 
-    private var net: Double { AnaNet.profit(estimated: f.estProfit, expenses: f.totalExpenses) }
+    private var net: Double { AnaNet.profit(estimated: f.estProfit, expenses: f.runningExpenses) }
 
     /// Ten figures in one grid, five and five on a wide page: the sales and what came in on top, what went out and what is
     /// left under. (The iPhone has them as two groups, four and six.)
@@ -72,7 +72,7 @@ struct MacReportsOverview: View {
         guard c.showCosts else { return out }
         out.append(fig("Expenses", Money.pkrLac(f.totalExpenses), f.totalExpenses, p?.totalExpenses, up: false, plain: "Paid out in this period"))
         out.append(fig("Estimated profit", Money.pkrLac(f.estProfit), f.estProfit, p?.estProfit, plain: estDetail))
-        let prevNet: Double? = p.map { AnaNet.profit(estimated: $0.estProfit, expenses: $0.totalExpenses) }
+        let prevNet: Double? = p.map { AnaNet.profit(estimated: $0.estProfit, expenses: $0.runningExpenses) }
         let netTone: Tone? = net < 0 ? Tone.owed : nil
         out.append(fig("Net profit", Money.pkrLac(net), net, prevNet, plain: netDetail, tone: netTone))
         return out

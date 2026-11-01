@@ -14,7 +14,7 @@ const MINA = {
   NEXT_PUBLIC_FIREBASE_PROJECT_ID: 'hom-pos', NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '288366939838',
   NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: 'hom-pos.firebasestorage.app',
 };
-const KEYS = [...Object.keys(MINA), 'APP_ANDROID_FIREBASE_APP_ID', 'APP_ANDROID_GOOGLE_WEB_CLIENT_ID', 'APP_MIN_BUILD', 'APP_MIN_ANDROID_BUILD'];
+const KEYS = [...Object.keys(MINA), 'NEXT_PUBLIC_STORE_GOODS_EXPENSE_CATEGORIES', 'APP_ANDROID_FIREBASE_APP_ID', 'APP_ANDROID_GOOGLE_WEB_CLIENT_ID', 'APP_MIN_BUILD', 'APP_MIN_ANDROID_BUILD'];
 
 async function get(env: Record<string, string> = {}, host = 'erp.taheri.shop') {
   vi.resetModules();
@@ -87,6 +87,13 @@ describe('/api/app/business', () => {
     }
     // The iOS block is untouched by it.
     expect((await get(MINA, 'erp.houseofmina.store')).body.ios.firebase.appId).toBe('1:2:ios:3');
+  });
+
+  it('lists the goods expense categories net profit leaves out: none for Taheri, the variable for Mina', async () => {
+    expect((await get()).body.goodsExpenseCategories).toEqual([]);
+    const { body } = await get({ ...MINA, NEXT_PUBLIC_STORE_GOODS_EXPENSE_CATEGORIES: 'Stock & Karigars, Custom Orders ,Plating & Finishing' }, 'erp.houseofmina.store');
+    expect(body.goodsExpenseCategories).toEqual(['Stock & Karigars', 'Custom Orders', 'Plating & Finishing']);
+    expect((await get({ NEXT_PUBLIC_STORE_GOODS_EXPENSE_CATEGORIES: 'none' })).body.goodsExpenseCategories).toEqual([]);
   });
 
   it('falls back to Taheri\'s colours for a malformed palette', async () => {

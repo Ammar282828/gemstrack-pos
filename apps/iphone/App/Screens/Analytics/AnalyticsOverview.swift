@@ -60,16 +60,16 @@ struct AnaOverviewPage: View {
 
     private func tiles(wide: Bool) -> some View {
         let f = figures
-        let net = AnaNet.profit(estimated: f.estProfit, expenses: f.totalExpenses)
+        let net = AnaNet.profit(estimated: f.estProfit, expenses: f.runningExpenses)
         let netPct = AnaNet.marginPercent(net: net, revenue: f.totalSales)
-        let netDetail = f.totalSales > 0 ? "\(AnaFormat.fixed(netPct, 1))% margin" : "No revenue in period"
+        let netDetail = f.totalSales > 0 ? "\(AnaFormat.fixed(netPct, 1))% margin · est. profit less running costs" : "No revenue in period"
         let netTint: Color = net >= 0 ? Tone.settled.color : Tone.owed.color
         let layout = wide ? AnyLayout(HStackLayout(alignment: .top, spacing: pt(10))) : AnyLayout(VStackLayout(spacing: pt(10)))
         return layout {
             FigureRow(alignment: .top, spacing: pt(10)) {
                 FigureTile(label: "Revenue", value: Money.pkrLac(f.totalSales), detail: "Sales in this period", tint: Tone.settled.color)
                 if showCosts {
-                    FigureTile(label: "Expenses", value: Money.pkrLac(f.totalExpenses), detail: "Paid out in this period")
+                    FigureTile(label: "Expenses", value: Money.pkrLac(f.totalExpenses), detail: expensesDetail)
                 }
             }
             if showCosts {
@@ -80,6 +80,16 @@ struct AnaOverviewPage: View {
             }
         }
         .padding(.vertical, pt(4))
+    }
+
+    /// "Running 1.8 lac · goods 1.4 crore · drawings 31 lac" where any of it was goods or drawings (the web's tile), else the plain line.
+    private var expensesDetail: String {
+        let f = figures
+        guard f.goodsExpenses > 0 || f.runningExpenses != f.totalExpenses else { return "Paid out in this period" }
+        var parts = ["Running \(Money.pkrLac(f.runningExpenses))"]
+        if f.goodsExpenses > 0 { parts.append("goods \(Money.pkrLac(f.goodsExpenses))") }
+        if f.drawingsExpenses > 0 { parts.append("drawings \(Money.pkrLac(f.drawingsExpenses))") }
+        return parts.joined(separator: " · ")
     }
 
     @ViewBuilder private var trendSection: some View {
