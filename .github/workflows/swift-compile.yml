@@ -1,0 +1,96 @@
+name: Swift compile
+
+# The native apps (apps/iphone: the iPhone's "ERP" scheme and the Mac's "ERP Mac") compiled on every deploy, at no cost.
+#
+# Why here: GitHub bills macOS minutes ten to one only on a PRIVATE repository. gemstrack-pos is public and every deploy
+# pushes this same history to its main (scripts/cloud/deploy.sh), and Actions on a public repository is free, macOS
+# runners included. So this runs on gemstrack-pos only; on taheri-pos the job is skipped and bills nothing. Until
+# 2026-11-01 the only Swift compiler was Xcode Cloud, whose 25 hours a month ran out on 10-31 (its period renews about
+# the 17th, not the 1st; docs/features/mac-app.md "How a Mac change is checked").
+#
+# It compiles, unsigned, for the simulator and for the Mac; it does not archive or sign. TestFlight still comes from
+# Xcode Cloud's release workflows (RELEASES.md, MAC-RELEASES.md). If gemstrack-pos is ever made private, this stops being
+# free: switch it off then (docs/security.md).
+#
+# Reading it from a cloud session: the run page is public, so
+#   https://github.com/Ammar282828/gemstrack-pos/actions/workflows/swift-compile.yml
+# lists runs by commit (the same SHAs as taheri-pos's main), and each run's summary lists every error with its file and line.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/iphone/**'
+      - '.github/workflows/swift-compile.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compile:
+    if: github.repository == 'Ammar282828/gemstrack-pos'
+    name: ${{ matrix.app }}
+    runs-on: macos-26
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: Mac
+            scheme: ERP Mac
+            destination: generic/platform=macOS
+          - app: iPhone
+            scheme: ERP
+            destination: generic/platform=iOS Simulator
+    defaults:
+      run:
+        working-directory: apps/iphone
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+      HOMEBREW_NO_INSTALL_CLEANUP: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Make the project as Xcode Cloud does (ci_scripts/ci_post_clone.sh)
+        run: |
+          command -v xcodegen >/dev/null || brew install xcodegen
+          node scripts/house.mjs taheri >/dev/null
+          xcodegen generate --spec project.yml
+          mkdir -p ERP.xcodeproj/project.xcworkspace/xcshareddata/swiftpm
+          cp Package.resolved ERP.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+      - uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/spm
+          key: spm-${{ hashFiles('apps/iphone/Package.resolved') }}
+      - name: Compile ${{ matrix.app }}
+        env:
+          SCHEME: ${{ matrix.scheme }}
+          DEST: ${{ matrix.destination }}
+          APP: ${{ matrix.app }}
+        run: |
+          xcodebuild -version
+          set +e
+          # Package versions only from the committed Package.resolved, as Xcode Cloud builds: a stale file fails here too.
+          xcodebuild build -project ERP.xcodeproj -scheme "$SCHEME" -configuration Debug -destination "$DEST" \
+            -derivedDataPath "$RUNNER_TEMP/dd" -clonedSourcePackagesDirPath "$RUNNER_TEMP/spm" \
+            -disableAutomaticPackageResolution -skipPackagePluginValidation -skipMacroValidation \
+            ARCHS=arm64 ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO > "$RUNNER_TEMP/build.log" 2>&1
+          status=$?
+          set -e
+          root="$GITHUB_WORKSPACE/"
+          grep -E ': (error|fatal error):' "$RUNNER_TEMP/build.log" | sed "s|$root||" | sort -u > "$RUNNER_TEMP/errors.txt" || true
+          n=$(wc -l < "$RUNNER_TEMP/errors.txt" | tr -d ' ')
+          {
+            if [ "$status" -eq 0 ]; then echo "### $APP compiles (commit ${GITHUB_SHA:0:8})"
+            else echo "### $APP does not compile: $n error(s) (commit ${GITHUB_SHA:0:8})"; fi
+            if [ "$n" -gt 0 ]; then echo; echo '```'; head -150 "$RUNNER_TEMP/errors.txt"; echo '```'; fi
+            if [ "$status" -ne 0 ] && [ "$n" -eq 0 ]; then echo; echo 'No compiler error line; the end of the log:'; echo '```'; tail -30 "$RUNNER_TEMP/build.log"; echo '```'; fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          # The first errors as annotations, on the file and line (GitHub shows ten per step).
+          head -10 "$RUNNER_TEMP/errors.txt" | while IFS= read -r l; do
+            f=$(printf '%s' "$l" | cut -d: -f1); ln=$(printf '%s' "$l" | cut -d: -f2); msg=$(printf '%s' "$l" | sed -E 's/^[^:]*:[0-9]+:[0-9]*:? *(fatal )?error: //')
+            case "$ln" in ''|*[!0-9]*) echo "::error::$l" ;; *) echo "::error file=$f,line=$ln::$msg" ;; esac
+          done
+          echo "::group::every error"; cat "$RUNNER_TEMP/errors.txt"; echo "::endgroup::"
+          tail -15 "$RUNNER_TEMP/build.log"
+          exit $status

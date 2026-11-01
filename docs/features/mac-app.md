@@ -90,6 +90,24 @@ How a tag reaches Label LIVE (`App/Device/LabelLivePrinter.swift`):
   Mac build that passes reaches TestFlight even when this job cannot run.
 - `keep-fresh` leaves the Mac workflow alone (it picks the iPhone's release line only).
 
+### How a Mac change is checked (2026-11-01)
+
+- **Xcode Cloud's 25 hours renew about the 17th of each month, not the 1st.** They ran out on 10-31 at 04:00 UTC; summing
+  the builds back from then reaches 25 hours at 10-17 08:56, October's calendar total (about 32.6 h) is more than the plan
+  holds, and a build made on 11-01 at 04:03 was still cancelled before it started (Taheri Release #159, `cancelReason`
+  null). Apple pegs the period to the subscription ("a new billing period" when a plan is upgraded). Until it renews,
+  every release line is cancelled before it starts, with no check on the commit.
+- **`.github/workflows/swift-compile.yml`, "Swift compile", compiles both apps on every deploy, free.** GitHub bills macOS
+  minutes ten to one only on a private repository; gemstrack-pos is public and every deploy pushes this history to its
+  `main`, so the workflow runs there (on taheri-pos it is skipped). Two jobs, Mac ("ERP Mac") and iPhone ("ERP"),
+  unsigned, Debug (only `WebScreen.swift` differs under DEBUG), packages only from the committed `Package.resolved`, as
+  Xcode Cloud builds. Read it at `https://github.com/Ammar282828/gemstrack-pos/actions/workflows/swift-compile.yml`
+  (WebFetch; the session's GitHub API does not reach gemstrack-pos): runs are by commit, the same SHAs as taheri-pos's
+  `main`, and each run's summary lists every error with its file and line.
+- **What each proves.** A green Swift compile says the code compiles; ✓ in `docs/parity.md` still waits for a Mac release
+  on Xcode Cloud (the build in TestFlight is what "in the app" means). So compile first, free, and spend a release line
+  only on code that compiles. If gemstrack-pos is made private (docs/security.md), switch the workflow off.
+
 ## Labels and Zebra (2026-10-24)
 
 Owner: "use something to be able to directly print from mac app, for any zebra printer like i do through label live",
