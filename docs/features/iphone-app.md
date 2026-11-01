@@ -186,6 +186,10 @@ package's links); every other Swift change is compiled by Xcode Cloud's release.
 retired Capacitor shell), run only by hand. That day the month's 2,000 Actions minutes ran out (about 1,400 Linux
 plus 340 Mac minutes at ten to one; the native app's test job alone about 5 billed minutes a push), and every
 deploy stopped until the allowance resets.
+- **A free compile first (2026-11-01).** "Swift compile" (`.github/workflows/swift-compile.yml`) compiles the "ERP" and
+  "ERP Mac" schemes on every deploy, on gemstrack-pos (public, so its macOS minutes are free); Xcode Cloud's 25 hours renew
+  about the 17th, not the 1st ([Mac app](mac-app.md#how-a-mac-change-is-checked-2026-11-01)). A release line is for code
+  that compiles there.
 - **How a build starts.** A new line in `apps/iphone/RELEASES.md` on a `claude/` branch: each house's "release"
   workflow archives and hands the build to TestFlight's internal "Shop" group. A new line in
   `apps/iphone/CHECKS.md`: the "UI check" workflow runs `ERPUITests` in the simulator. The result shows on the
