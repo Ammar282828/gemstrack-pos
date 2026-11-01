@@ -75,6 +75,8 @@ data class Invoice(
     val costRate24k: Double?,
     val sentOnWhatsApp: SentOnWhatsApp?,
     val acquisitionSource: CustomerSource?,
+    /** House of Mina's order WhatsApp (src/lib/shopify-whatsapp-server.ts): where the customer's conversation stands. */
+    val whatsappOrder: WhatsAppOrder? = null,
 ) {
     companion object : Decodable<Invoice> {
         override fun fromMap(m: Map<String, Any?>): Invoice {
@@ -121,7 +123,18 @@ data class Invoice(
                 costRate24k = c.double("costRate24k"),
                 sentOnWhatsApp = c.obj("sentOnWhatsApp", SentOnWhatsApp),
                 acquisitionSource = c.word("acquisitionSource", CustomerSource),
+                whatsappOrder = c.obj("whatsappOrder", WhatsAppOrder),
             )
+        }
+    }
+}
+
+/** `Invoice.whatsappOrder`: the state of the order's WhatsApp conversation (see [erp.core.logic.WhatsAppOrderChip]) and when it last moved. */
+data class WhatsAppOrder(val state: String, val at: String) {
+    companion object : Decodable<WhatsAppOrder> {
+        override fun fromMap(m: Map<String, Any?>): WhatsAppOrder {
+            val c = Container(m)
+            return WhatsAppOrder(state = c.string("state", ""), at = c.string("at", ""))
         }
     }
 }
@@ -369,6 +382,8 @@ data class OrderItem(
     override val nickelFree: Boolean,
     /** Internal only; never printed on estimates or invoices. */
     val adminNote: String?,
+    /** The other reference photos (2...n) in order; the first is `samplePhotoId` / `sampleImageDataUri`, as ever. */
+    val extraPhotos: List<OrderExtraPhoto> = emptyList(),
 ) : PieceMaterial {
     companion object : Decodable<OrderItem> {
         override fun fromMap(m: Map<String, Any?>): OrderItem {
@@ -405,7 +420,21 @@ data class OrderItem(
                 platingNote = c.string("platingNote"),
                 nickelFree = c.bool("nickelFree", false),
                 adminNote = c.string("adminNote"),
+                extraPhotos = c.list("extraPhotos", OrderExtraPhoto).filter { !it.id.isNullOrEmpty() || !it.dataUri.isNullOrEmpty() },
             )
+        }
+    }
+}
+
+/**
+ * A piece's reference photo after the first (photos 2...n, `OrderItem.extraPhotos`): the document that holds it (`order_photos/<id>`),
+ * or its bytes inline when the ERP's server hands the order to an account that reads no Firestore of its own (the staff copy).
+ */
+data class OrderExtraPhoto(val id: String?, val dataUri: String?) {
+    companion object : Decodable<OrderExtraPhoto> {
+        override fun fromMap(m: Map<String, Any?>): OrderExtraPhoto {
+            val c = Container(m)
+            return OrderExtraPhoto(id = c.string("id"), dataUri = c.string("dataUri"))
         }
     }
 }

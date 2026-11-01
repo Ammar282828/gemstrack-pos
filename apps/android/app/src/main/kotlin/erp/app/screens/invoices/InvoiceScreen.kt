@@ -412,6 +412,7 @@ private fun WhoBlock(inv: Invoice, whenSaid: String, modifier: Modifier) {
             Text(InvoiceFacts.piecesLine(inv), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, modifier = Modifier.weight(1f, fill = false))
             if (InvoiceFacts.isShopify(inv)) Pill("Shopify")
         }
+        WhatsAppOrderPill(inv)
     }
 }
 

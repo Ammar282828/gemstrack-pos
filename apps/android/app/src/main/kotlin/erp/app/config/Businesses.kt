@@ -343,6 +343,19 @@ object Businesses {
         return auth(b)?.currentUser?.let { it.email ?: "Signed in" }
     }
 
+    /** Whether the business's Firebase app already exists (the picker never makes one: a business without it is unknown, not signed out). */
+    fun firebaseAppMade(b: Business): Boolean {
+        val context = app ?: return false
+        return !House.isDemo && FirebaseApp.getApps(context).any { it.name == appName(b) }
+    }
+
+    private const val LAST_OPENED = "erp.business.lastOpened"
+
+    /** When the picker last opened this business (epoch millis), a plain local stamp per business; null if never. */
+    fun lastOpenedAt(b: Business): Long? = Prefs.string(LAST_OPENED, b.id)?.toLongOrNull()
+
+    fun stampOpened(b: Business, millis: Long = System.currentTimeMillis()) = Prefs.putString(LAST_OPENED, millis.toString(), b.id)
+
     /** Businesses with somebody signed in on this phone (their push registration, their widget). */
     fun signedInBusinesses(): List<Business> = _list.value.filter { auth(it)?.currentUser != null }
 }

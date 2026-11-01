@@ -197,8 +197,13 @@ data class KarigarPortalJob(
     val urgency: String,
     /** The making instructions, merged. */
     val notes: String?,
+    /** The piece's other reference pictures (photos 2...n), as data addresses. */
+    val extraSampleImages: List<String> = emptyList(),
 ) {
     val isDone: Boolean get() = status == "completed"
+
+    /** Every reference picture the portal hands over, in order: the first, then the rest (empty ones dropped). */
+    val sampleImages: List<String> get() = (listOf(sampleImage ?: "") + extraSampleImages).filter { it.isNotEmpty() }.take(8)
 
     companion object : Decodable<KarigarPortalJob> {
         override fun fromMap(m: Map<String, Any?>): KarigarPortalJob {
@@ -223,6 +228,7 @@ data class KarigarPortalJob(
                 ageDays = c.int("ageDays") ?: 0,
                 urgency = c.string("urgency", "ok"),
                 notes = c.string("notes"),
+                extraSampleImages = c.strings("extraSampleImages"),
             )
         }
     }

@@ -140,6 +140,16 @@ fun NewOrderPieceDraft.Companion.onFile(item: OrderItem): NewOrderPieceDraft {
     p.isCompleted = item.isCompleted
     p.samplePhotoId = item.samplePhotoId
     p.sampleImageDataUri = item.sampleImageDataUri
+    p.extras = item.extraPhotos.mapNotNull { e ->
+        val id = e.id
+        val uri = e.dataUri
+        when {
+            !id.isNullOrEmpty() -> NewOrderExtraPhoto(storedId = id)
+            uri != null && uri.contains(',') -> runCatching { java.util.Base64.getDecoder().decode(uri.substringAfter(',')) }.getOrNull()?.let { NewOrderExtraPhoto(data = it) }
+            else -> null
+        }
+    }.toMutableList()
+    p.hadExtras = p.extras.isNotEmpty()
     p.manual = item.isManualPrice
     p.manualPrice = if (item.isManualPrice) NewOrderFormat.rupeeBox(item.manualPrice) else ""
     p.adminNote = item.adminNote ?: ""
