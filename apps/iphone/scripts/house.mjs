@@ -27,7 +27,7 @@ const name = process.argv[2];
 const h = houses[name];
 if (!h) { console.error(`usage: node scripts/house.mjs <${Object.keys(houses).join('|')}> [--sign team appProfile widgetProfile]`); process.exit(1); }
 if (h.deprecated) console.error(`note: the ${name} app is deprecated. ${h.deprecated}`);
-const sign = process.argv[3] === '--sign' ? { team: process.argv[4], app: process.argv[5], widget: process.argv[6] } : null;
+const sign = process.argv[3] === '--sign' ? { team: process.argv[4], app: process.argv[5], widget: process.argv[6], mac: process.argv[7] || '' } : null;
 const auto = process.argv[3] === '--auto' ? { team: process.argv[4] || '', build: process.argv[5] || '' } : null;
 
 const s = {
@@ -58,6 +58,7 @@ for (const [k, v] of Object.entries(s)) text += `${k} = ${esc(v)}\n`;
 if (sign) {
   text += `CODE_SIGN_STYLE = Manual\nDEVELOPMENT_TEAM = ${sign.team}\nCODE_SIGN_IDENTITY = Apple Distribution\n`;
   text += `ERP_APP_PROFILE = ${sign.app}\nERP_WIDGET_PROFILE = ${sign.widget}\n`;
+  if (sign.mac) text += `ERP_MAC_PROFILE = ${sign.mac}\n`;
 }
 if (auto) {
   text += `CODE_SIGN_STYLE = Automatic\n`;

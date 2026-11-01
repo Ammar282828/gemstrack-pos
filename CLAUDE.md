@@ -241,7 +241,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Mina's ad style](docs/features/ad-studio.md#house-of-mina-ad-style) — named designs: italic name + pink caps; benefit ads: red SHOP NOW pill + wordmark; a deep shade; in `brand.ts`
 
 **iPhone app** (`docs/features/iphone-app.md`)
-- [iPhone app](docs/features/iphone-app.md#iphone-app) — `apps/ios`, Capacitor over the live ERP; TestFlight by `ios.yml`
+- [iPhone app](docs/features/iphone-app.md#iphone-app) — `apps/iphone` native; TestFlight (iPhone and Mac) from `testflight-free.yml` on gemstrack-pos's free macOS runners since 2026-11-01 (a line in `apps/iphone/RELEASES.md` / `MAC-RELEASES.md`, or Run workflow); Xcode Cloud's 25 hours ran out
 - [One app, many businesses](docs/features/iphone-app.md#one-app-many-businesses-2026-10-16) — `shop.taheri.erp` "ERP": Taheri, Mina and any business by its address (`/api/app/business`), each its own sign-in, data, push, widget; Mina's own app retired 2026-10-20; Mina needs `shop.taheri.erp` in its Firebase
 
 **Mac app** (`docs/features/mac-app.md`)

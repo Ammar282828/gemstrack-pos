@@ -66,3 +66,4 @@ cloud session cannot press that button, but it can push. One line per build, new
 - 2026-10-31: online orders' WhatsApp step on the invoice (Confirmed on WhatsApp, Cancel requested, Screenshot sent…).
 - 2026-10-31: the same build again (the WhatsApp step on the invoice; the earlier run was cancelled).
 - 2026-11-01: net profit takes off running costs only (not drawings, not the cost of the goods).
+- 2026-11-01: the first free build from GitHub (testflight-free.yml): Mina's Gross profit, the WhatsApp order chip, Home and Analytics reckoned off the main thread, debounced searches.

@@ -1,0 +1,248 @@
+name: TestFlight (free)
+
+# The native app (apps/iphone: the iPhone's "ERP" and the Mac's "ERP Mac") archived, signed and sent to TestFlight on
+# GitHub's macOS runners, at no cost. Owner, 2026-11-01, choosing this over waiting for Xcode Cloud's hours (25 a month,
+# spent by 10-31) or buying more.
+#
+# Why here: Actions on a PUBLIC repository is free, macOS runners included. gemstrack-pos is public and every deploy pushes
+# this same history to its main (scripts/cloud/deploy.sh), so this runs on gemstrack-pos only; on taheri-pos it is skipped.
+# If gemstrack-pos is ever made private this stops being free: switch it off then (docs/security.md).
+#
+# What starts it: the same lines as Xcode Cloud's releases. A new line in apps/iphone/RELEASES.md builds the iPhone app, one
+# in apps/iphone/MAC-RELEASES.md the Mac app; "Run workflow" builds either or both. One run at a time; pushes made while one
+# runs wait as ONE further run (GitHub keeps only the newest waiting), so many chats' lines become one build, not many.
+#
+# Signing: this run's own Apple Distribution certificate (and, for the Mac, an installer certificate), made through the
+# App Store Connect key and revoked at the end, with App Store profiles for the app, its widget and the Mac. The key's three
+# secrets (ASC_ISSUER_ID, ASC_KEY_ID, ASC_PRIVATE_KEY) are set on gemstrack-pos. Secrets never reach a pull request from a
+# fork, and this runs only on a push to main or by hand, so nothing outside the owner's account can run it.
+#
+# The build number is one above every build App Store Connect holds (asc.mjs next-build), iPhone and Mac alike.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/iphone/RELEASES.md'
+      - 'apps/iphone/MAC-RELEASES.md'
+  workflow_dispatch:
+    inputs:
+      iphone:
+        description: Send the iPhone app to TestFlight
+        type: boolean
+        default: true
+      mac:
+        description: Send the Mac app to TestFlight
+        type: boolean
+        default: true
+
+concurrency:
+  group: testflight-free
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    if: github.repository == 'Ammar282828/gemstrack-pos'
+    runs-on: macos-26
+    timeout-minutes: 150
+    defaults:
+      run:
+        working-directory: apps/iphone
+    env:
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+      HOMEBREW_NO_INSTALL_CLEANUP: '1'
+      HOUSE: taheri
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: What to build
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+          IN_IPHONE: ${{ inputs.iphone }}
+          IN_MAC: ${{ inputs.mac }}
+        run: |
+          if [ -z "$ASC_PRIVATE_KEY" ] || [ -z "$ASC_KEY_ID" ] || [ -z "$ASC_ISSUER_ID" ]; then
+            echo "::error::The App Store Connect key is not set on this repository: add ASC_ISSUER_ID, ASC_KEY_ID and ASC_PRIVATE_KEY (the same values as taheri-pos's) under Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            iphone=$IN_IPHONE; mac=$IN_MAC
+          else
+            if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+              changed=$(git diff --name-only HEAD~1 HEAD)
+            else
+              changed=$(git diff --name-only "$BEFORE" "$AFTER")
+            fi
+            iphone=false; mac=false
+            echo "$changed" | grep -qx 'apps/iphone/RELEASES.md' && iphone=true
+            echo "$changed" | grep -qx 'apps/iphone/MAC-RELEASES.md' && mac=true
+          fi
+          echo "IPHONE=$iphone" >> "$GITHUB_ENV"
+          echo "MAC=$mac" >> "$GITHUB_ENV"
+          echo "::notice title=TestFlight::iPhone $iphone, Mac $mac (commit ${GITHUB_SHA:0:8}): $(git log -1 --format=%s)"
+      # The newest released Xcode on the runner, as Xcode Cloud picks the newest release (swift-compile.yml).
+      - name: The newest Xcode
+        run: |
+          x=$( (ls -d /Applications/Xcode_*.app 2>/dev/null || true) | grep -v -i -E 'beta|_rc|release_candidate' | sort -V | tail -1 || true)
+          [ -n "$x" ] || x=$(xcode-select -p | sed 's|/Contents/Developer$||')
+          echo "DEVELOPER_DIR=$x/Contents/Developer" >> "$GITHUB_ENV"
+          echo "::notice title=Xcode::$(DEVELOPER_DIR="$x/Contents/Developer" xcodebuild -version | tr '\n' ' ')"
+      # Before anything is signed: a missing tool must not cost a certificate.
+      - name: XcodeGen
+        run: command -v xcodegen >/dev/null || brew install xcodegen
+      - uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/spm
+          key: spm-release-${{ hashFiles('apps/iphone/Package.resolved') }}
+      - name: The build number
+        run: node ../ios/scripts/asc.mjs next-build "$HOUSE" | tee -a "$GITHUB_ENV"
+      - name: Certificates and profiles for this run
+        run: |
+          mkdir -p "$RUNNER_TEMP/signing"
+          node ../ios/scripts/asc.mjs sign-native "$HOUSE" "$RUNNER_TEMP/signing" > "$RUNNER_TEMP/sign.env"
+          cat "$RUNNER_TEMP/sign.env" >> "$GITHUB_ENV"
+          if [ "$MAC" = "true" ]; then
+            set -a; . "$RUNNER_TEMP/sign.env"; set +a
+            node ../ios/scripts/asc.mjs sign-mac "$HOUSE" "$RUNNER_TEMP/signing" >> "$GITHUB_ENV"
+          fi
+      - name: Into a keychain of its own
+        run: |
+          KC="$RUNNER_TEMP/erp.keychain-db"; KCPW=$(openssl rand -hex 16)
+          echo "::add-mask::$KCPW"
+          echo "KEYCHAIN=$KC" >> "$GITHUB_ENV"
+          security create-keychain -p "$KCPW" "$KC"
+          security set-keychain-settings -lut 21600 "$KC"
+          security unlock-keychain -p "$KCPW" "$KC"
+          curl -fsSL -o "$RUNNER_TEMP/wwdr.cer" https://www.apple.com/certificateauthority/AppleWWDRCAG3.cer
+          security import "$RUNNER_TEMP/wwdr.cer" -k "$KC" -T /usr/bin/codesign || true
+          security import "$RUNNER_TEMP/signing/dist.p12" -k "$KC" -P "$P12_PASSWORD" -f pkcs12 -T /usr/bin/codesign -T /usr/bin/security -T /usr/bin/productbuild
+          if [ -f "$RUNNER_TEMP/signing/installer.p12" ]; then
+            security import "$RUNNER_TEMP/signing/installer.p12" -k "$KC" -P "$INSTALLER_P12_PASSWORD" -f pkcs12 -T /usr/bin/productbuild -T /usr/bin/security
+            echo "INSTALLER_SHA1=$(openssl x509 -in "$RUNNER_TEMP/signing/installer.pem" -noout -fingerprint -sha1 | sed 's/.*=//; s/://g')" >> "$GITHUB_ENV"
+          fi
+          echo "DIST_SHA1=$(openssl x509 -in "$RUNNER_TEMP/signing/dist.pem" -noout -fingerprint -sha1 | sed 's/.*=//; s/://g')" >> "$GITHUB_ENV"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KCPW" "$KC" >/dev/null
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          for d in "$HOME/Library/MobileDevice/Provisioning Profiles" "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"; do
+            mkdir -p "$d"
+            for p in app.mobileprovision widget.mobileprovision mac.provisionprofile; do
+              f="$RUNNER_TEMP/signing/$p"; [ -f "$f" ] || continue
+              U=$(security cms -D -i "$f" | plutil -extract UUID raw -)
+              cp "$f" "$d/$U.${p##*.}"
+            done
+          done
+          node ../ios/scripts/asc.mjs key-file "$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8"
+
+      - name: iPhone, archived
+        if: env.IPHONE == 'true'
+        run: |
+          node scripts/house.mjs "$HOUSE" --sign "$TEAM_ID" "$APP_PROFILE_NAME" "$WIDGET_PROFILE_NAME" "${MAC_PROFILE_NAME:-}" >/dev/null
+          xcodegen generate --spec project.yml
+          mkdir -p ERP.xcodeproj/project.xcworkspace/xcshareddata/swiftpm
+          cp Package.resolved ERP.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+          echo "iPhone 2.2 ($NEXT_BUILD)"
+          set +e
+          xcodebuild archive -project ERP.xcodeproj -scheme ERP -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/ERP.xcarchive" \
+            -clonedSourcePackagesDirPath "$RUNNER_TEMP/spm" -disableAutomaticPackageResolution \
+            -skipPackagePluginValidation -skipMacroValidation \
+            CURRENT_PROJECT_VERSION="$NEXT_BUILD" OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN" > "$RUNNER_TEMP/archive-iphone.log" 2>&1
+          status=$?
+          set -e
+          grep -E ': (error|fatal error):|error: ' "$RUNNER_TEMP/archive-iphone.log" | sed "s|$GITHUB_WORKSPACE/||" | sort -u | head -80 || true
+          tail -15 "$RUNNER_TEMP/archive-iphone.log"
+          [ $status -eq 0 ] && test -d "$RUNNER_TEMP/ERP.xcarchive"
+      - name: iPhone, to TestFlight
+        if: env.IPHONE == 'true'
+        run: |
+          BUNDLE=$(node -p "require('./houses.json')['$HOUSE'].bundleId")
+          cat > "$RUNNER_TEMP/export-iphone.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>teamID</key><string>$TEAM_ID</string>
+            <key>signingCertificate</key><string>$DIST_SHA1</string>
+            <key>provisioningProfiles</key><dict>
+              <key>$BUNDLE</key><string>$APP_PROFILE_NAME</string>
+              <key>$BUNDLE.widget</key><string>$WIDGET_PROFILE_NAME</string>
+            </dict>
+            <key>testFlightInternalTestingOnly</key><true/>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+            <key>uploadSymbols</key><true/>
+          </dict></plist>
+          EOF
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/ERP.xcarchive" -exportOptionsPlist "$RUNNER_TEMP/export-iphone.plist" \
+            -exportPath "$RUNNER_TEMP/export-iphone" \
+            -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+          echo "::notice title=iPhone::2.2 ($NEXT_BUILD) uploaded; TestFlight's Shop group gets it once Apple has processed it (10 to 30 minutes)"
+
+      - name: Mac, archived
+        if: env.MAC == 'true'
+        run: |
+          node scripts/house.mjs "$HOUSE" --sign "$TEAM_ID" "$APP_PROFILE_NAME" "$WIDGET_PROFILE_NAME" "$MAC_PROFILE_NAME" >/dev/null
+          xcodegen generate --spec project.yml
+          mkdir -p ERP.xcodeproj/project.xcworkspace/xcshareddata/swiftpm
+          cp Package.resolved ERP.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+          echo "Mac 2.2 ($NEXT_BUILD)"
+          set +e
+          xcodebuild archive -project ERP.xcodeproj -scheme "ERP Mac" -configuration Release \
+            -destination 'generic/platform=macOS' -archivePath "$RUNNER_TEMP/ERPMac.xcarchive" \
+            -clonedSourcePackagesDirPath "$RUNNER_TEMP/spm" -disableAutomaticPackageResolution \
+            -skipPackagePluginValidation -skipMacroValidation \
+            CURRENT_PROJECT_VERSION="$NEXT_BUILD" OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN" > "$RUNNER_TEMP/archive-mac.log" 2>&1
+          status=$?
+          set -e
+          grep -E ': (error|fatal error):|error: ' "$RUNNER_TEMP/archive-mac.log" | sed "s|$GITHUB_WORKSPACE/||" | sort -u | head -80 || true
+          tail -15 "$RUNNER_TEMP/archive-mac.log"
+          [ $status -eq 0 ] && test -d "$RUNNER_TEMP/ERPMac.xcarchive"
+      - name: Mac, to TestFlight
+        if: env.MAC == 'true'
+        run: |
+          BUNDLE=$(node -p "require('./houses.json')['$HOUSE'].bundleId")
+          cat > "$RUNNER_TEMP/export-mac.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>teamID</key><string>$TEAM_ID</string>
+            <key>signingCertificate</key><string>$DIST_SHA1</string>
+            <key>installerSigningCertificate</key><string>$INSTALLER_SHA1</string>
+            <key>provisioningProfiles</key><dict>
+              <key>$BUNDLE</key><string>$MAC_PROFILE_NAME</string>
+            </dict>
+            <key>testFlightInternalTestingOnly</key><true/>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+            <key>uploadSymbols</key><true/>
+          </dict></plist>
+          EOF
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/ERPMac.xcarchive" -exportOptionsPlist "$RUNNER_TEMP/export-mac.plist" \
+            -exportPath "$RUNNER_TEMP/export-mac" \
+            -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+          echo "::notice title=Mac::2.2 ($NEXT_BUILD) uploaded; TestFlight's Shop group gets it once Apple has processed it"
+
+      - name: Revoke this run's certificates and profiles
+        if: always()
+        run: |
+          node ../ios/scripts/asc.mjs revoke || true
+          [ -n "$KEYCHAIN" ] && security delete-keychain "$KEYCHAIN" || true
+          rm -rf "$RUNNER_TEMP/keys" "$RUNNER_TEMP/signing"
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: testflight-logs
+          path: ${{ runner.temp }}/archive-*.log
+          retention-days: 7
