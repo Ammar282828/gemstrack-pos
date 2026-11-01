@@ -14,6 +14,22 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.ui.graphics.Color
+import erp.app.screens.orders.PhotoThumb
+import erp.app.screens.orders.PhotoViewer
+import erp.app.ui.IconButton
+import erp.core.entry.NewOrderPieceDraft
+import erp.core.logic.PhotoSource
+import erp.core.logic.PieceGallery
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -194,30 +210,110 @@ internal fun hasCamera(context: Context): Boolean = context.packageManager.hasSy
 
 // MARK: The sample field
 
-/** Stored samples stay visible while editing; choosing or removing a photo is explicit. */
+/**
+ * A piece's reference pictures (components/shared/sample-image-input.tsx `SampleImagesInput`): up to eight, picked several at a time
+ * from Photos or taken with the camera one after another, each shrunk as the single one always was. The first stays the piece's main
+ * picture (`photo` / `samplePhotoId`, which older apps read); the rest are `extras`. Stored pictures stay visible while editing; adding,
+ * moving or removing one is explicit, and a tap opens them full screen. (NewOrderSampleField.)
+ */
 @Composable
 internal fun SampleField(holder: DraftHolder, pieceId: UUID) {
     val piece = holder.read().pieces.firstOrNull { it.id == pieceId } ?: return
-    val hasStored = !piece.samplePhotoId.isNullOrEmpty() || !piece.sampleImageDataUri.isNullOrEmpty()
-    // The filed picture is read from its own document when the piece only holds its id.
-    val stored by produceState<StoredSample>(StoredSample.Loading, piece.samplePhotoId, piece.sampleImageDataUri) {
-        val id = piece.samplePhotoId
-        value = if (id.isNullOrEmpty() || piece.sampleImageDataUri != null) StoredSample.Loading else readStoredSample(id)
-    }
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        if (piece.photo == null && !piece.removePhoto && hasStored) {
-            val uri = piece.sampleImageDataUri ?: (stored as? StoredSample.Ready)?.uri
-            when {
-                !uri.isNullOrEmpty() -> StoredImage(uri, piece.description.ifEmpty { "Sample photo" }, Modifier.heightIn(max = 160.dp).clip(Radius.tileShape))
-                stored is StoredSample.Failed -> Text((stored as StoredSample.Failed).words, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                else -> SkeletonLoading(Modifier.heightIn(min = 80.dp))
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var busy by remember { mutableStateOf(false) }
+    var problem by remember { mutableStateOf<String?>(null) }
+    var openAt by remember { mutableStateOf<Int?>(null) }
+    val list = PieceGallery.sources(piece)
+    val room = PieceGallery.room(piece)
+    val hasFirst = PieceGallery.hasFirst(piece)
+
+    fun take(images: List<Bitmap>, unreadable: Boolean = false) {
+        busy = true
+        scope.launch {
+            val jpegs = withContext(Dispatchers.Default) { images.mapNotNull { NewOrderPhotoCodec.jpeg(it) } }
+            busy = false
+            problem = when {
+                jpegs.isEmpty() -> "Couldn't use that photo."
+                unreadable -> "Couldn't read some of those photos."
+                else -> null
             }
-            TextButton(onClick = { holder.editPiece(pieceId) { removePhoto = true } }) {
-                Icon(Symbols.DeleteOutline, null, Modifier.size(18.dp), tint = Tone.problem.color())
-                Text("Remove photo", Modifier.padding(start = 6.dp), color = Tone.problem.color())
+            if (jpegs.isNotEmpty()) {
+                var leftOut = false
+                holder.editPiece(pieceId) { leftOut = PieceGallery.add(this, jpegs) }
+                if (leftOut) problem = "A piece takes up to ${NewOrderPieceDraft.MAX_PHOTOS} pictures; the rest were left out."
             }
         }
-        PhotoField(piece.photo) { bytes -> holder.editPiece(pieceId) { photo = bytes; removePhoto = bytes == null } }
+    }
+
+    val library = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(maxOf(room, 2))) { uris ->
+        if (uris.isEmpty()) return@rememberLauncherForActivityResult
+        busy = true
+        problem = null
+        scope.launch {
+            val images = withContext(Dispatchers.Default) { uris.take(room).mapNotNull { NewOrderPhotoCodec.decode(context, it) } }
+            if (images.isEmpty()) { busy = false; problem = "Couldn't read that photo. Try another." } else take(images, unreadable = images.size < uris.take(room).size)
+        }
+    }
+    val camera = rememberCameraCapture(onProblem = { problem = it }) { image -> if (image != null) { problem = null; take(listOf(image)) } }
+
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        if (list.isNotEmpty()) {
+            Row(Modifier.horizontalScroll(rememberScrollState()).padding(vertical = 2.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                list.forEachIndexed { i, source -> PhotoTile(source, i, list.size, hasFirst, piece, holder, pieceId) { openAt = i } }
+            }
+        }
+        if (room > 0) {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                OutlinedButton(onClick = { library.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, Modifier.heightIn(min = MinTouchTarget)) {
+                    Icon(Symbols.PhotoLibrary, null, Modifier.size(18.dp))
+                    Text(if (list.isEmpty()) "Photos" else "Add photos", Modifier.padding(start = 6.dp))
+                }
+                if (hasCamera(context)) {
+                    OutlinedButton(onClick = camera, Modifier.heightIn(min = MinTouchTarget)) {
+                        Icon(Symbols.CameraAlt, null, Modifier.size(18.dp))
+                        Text("Camera", Modifier.padding(start = 6.dp))
+                    }
+                }
+                if (busy) SkeletonLoading(compact = true)
+            }
+        } else {
+            Text("A piece takes up to ${NewOrderPieceDraft.MAX_PHOTOS} reference pictures.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        problem?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = Tone.problem.color()) }
+    }
+    openAt?.let { PhotoViewer(list, piece.description, it) { openAt = null } }
+}
+
+/** One picture in the row: a tap opens it, the corner menu moves it earlier or later (the extras; the main one stays first) or takes it off. */
+@Composable
+private fun PhotoTile(source: PhotoSource, i: Int, total: Int, hasFirst: Boolean, piece: NewOrderPieceDraft, holder: DraftHolder, pieceId: UUID, open: () -> Unit) {
+    var menu by remember { mutableStateOf(false) }
+    val extraAt = i - (if (hasFirst) 1 else 0)
+    val isExtra = extraAt >= 0
+    Box {
+        PhotoThumb(source, Modifier.clickable(onClickLabel = "Open full screen", onClick = open).semantics { contentDescription = "Reference photo ${i + 1} of $total" }, size = 84.dp)
+        Box(Modifier.align(Alignment.TopEnd)) {
+            IconButton(
+                { menu = true },
+                Modifier.size(MinTouchTarget).semantics { contentDescription = "Photo ${i + 1} options" },
+                colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White),
+            ) { Icon(Symbols.MoreVert, null, Modifier.clip(CircleShape).background(Color.Black.copy(alpha = 0.55f)).padding(2.dp)) }
+            DropdownMenu(menu, { menu = false }) {
+                if (isExtra && extraAt > 0) DropdownMenuItem(
+                    text = { Text("Move earlier") }, leadingIcon = { Icon(Symbols.ArrowBack, null) },
+                    onClick = { menu = false; holder.editPiece(pieceId) { PieceGallery.move(this, extraAt, -1) } },
+                )
+                if (isExtra && extraAt < piece.extras.size - 1) DropdownMenuItem(
+                    text = { Text("Move later") }, leadingIcon = { Icon(Symbols.ArrowForward, null) },
+                    onClick = { menu = false; holder.editPiece(pieceId) { PieceGallery.move(this, extraAt, 1) } },
+                )
+                DropdownMenuItem(
+                    text = { Text("Remove", color = Tone.problem.color()) }, leadingIcon = { Icon(Symbols.DeleteOutline, null, tint = Tone.problem.color()) },
+                    onClick = { menu = false; holder.editPiece(pieceId) { PieceGallery.remove(this, i) } },
+                )
+            }
+        }
     }
 }
 

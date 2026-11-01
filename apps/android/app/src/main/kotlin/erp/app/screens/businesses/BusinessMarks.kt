@@ -42,7 +42,7 @@ private fun markGround(art: String): Color = if (art == "mina") Color(0xFFFAF7F2
 
 private fun badgeRes(art: String): Int = if (art == "mina") R.drawable.badge_mark_mina else R.drawable.badge_mark_taheri
 
-private fun logoRes(art: String): Int = if (art == "mina") R.drawable.brand_logo_mina else R.drawable.brand_logo_taheri
+internal fun logoRes(art: String): Int = if (art == "mina") R.drawable.brand_logo_mina else R.drawable.brand_logo_taheri
 
 /**
  * A business's mark: the bundled badge for a built-in (the "t", the MINA wordmark, centred on its own ground), else its icon from

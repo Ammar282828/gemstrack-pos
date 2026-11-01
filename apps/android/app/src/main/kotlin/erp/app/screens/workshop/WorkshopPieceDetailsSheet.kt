@@ -25,6 +25,8 @@ import erp.app.screens.customers.FormSection
 import erp.app.screens.neworder.FieldRow
 import erp.app.screens.neworder.PhotoField
 import erp.app.screens.neworder.StoredImage
+import erp.app.screens.orders.PieceGalleryRow
+import erp.core.logic.PhotoSource
 import erp.app.screens.neworder.StoredSample
 import erp.app.screens.neworder.WideFieldRow
 import erp.app.screens.neworder.readStoredSample
@@ -50,6 +52,8 @@ class WorkshopPieceAsk(
     val target: Target,
     val samplePhotoId: String? = null,
     val sampleImageDataUri: String? = null,
+    /** Every reference picture the piece holds (the first and the rest), opened full screen from here; they are changed in Edit order. */
+    val gallery: List<PhotoSource> = emptyList(),
 ) {
     sealed interface Target {
         class Order(val id: String, val index: Int) : Target
@@ -139,6 +143,13 @@ private fun SamplePicture(ask: WorkshopPieceAsk, hasStored: Boolean, photo: Byte
         }
     }
     Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (ask.gallery.size > 1) {
+            PieceGalleryRow(ask.gallery, title = ask.job.description, size = 72.dp, all = true)
+            Text(
+                "The piece has ${ask.gallery.size} reference pictures. Add or remove them in Edit order.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         if (photo == null && !removed && hasStored) {
             when (val s = stored) {
                 is StoredSample.Ready -> StoredImage(s.uri, ask.job.description, Modifier.heightIn(max = 160.dp).clip(Radius.tileShape))
