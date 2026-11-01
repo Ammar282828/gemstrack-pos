@@ -28,6 +28,80 @@ final class Diagnostics: NSObject, MXMetricManagerSubscriber {
         Task { await self.flush() }
     }
 
+    #if os(iOS)
+    /// The day's numbers (MetricKit sends one payload a day): how fast the app draws, how long it hangs, how many
+    /// frames hitch while scrolling, how much memory it peaks at. A summary, sent as a "metrics" report with the
+    /// crash and hang ones; the screens that speed matters on are judged by these, not by a guess.
+    func didReceive(_ payloads: [MXMetricPayload]) {
+        let made = payloads.compactMap { Self.metrics($0) }
+        guard !made.isEmpty else { return }
+        Self.queue(made)
+        Task { await self.flush() }
+    }
+
+    private static func metrics(_ p: MXMetricPayload) -> [String: Any]? {
+        var r: [String: Any] = ["kind": "metrics"]
+        let m: MXMetaData? = p.metaData
+        r["appVersion"] = m?.applicationBuildVersion ?? ""
+        r["osVersion"] = m?.osVersion ?? ""
+        r["device"] = m?.deviceType ?? ""
+        var out: [String: Any] = [:]
+        if let launch = p.applicationLaunchMetrics {
+            if let v = percentileMs(launch.histogrammedTimeToFirstDrawKey, 0.5) { out["firstDrawP50Ms"] = v }
+            if let v = percentileMs(launch.histogrammedTimeToFirstDrawKey, 0.9) { out["firstDrawP90Ms"] = v }
+            if let v = buckets(launch.histogrammedTimeToFirstDrawKey) { out["firstDrawBuckets"] = v }
+            if let v = percentileMs(launch.histogrammedResumeTime, 0.5) { out["resumeP50Ms"] = v }
+            if let v = percentileMs(launch.histogrammedResumeTime, 0.9) { out["resumeP90Ms"] = v }
+        }
+        if let hang = p.applicationResponsivenessMetrics?.histogrammedApplicationHangTime {
+            if let v = percentileMs(hang, 0.5) { out["hangP50Ms"] = v }
+            if let v = percentileMs(hang, 0.9) { out["hangP90Ms"] = v }
+            if let v = buckets(hang) { out["hangBuckets"] = v }
+        }
+        if let hitch = p.animationMetrics?.scrollHitchTimeRatio {
+            // Milliseconds of hitch per second scrolled, as MetricKit reports it (a ratio, rounded to 0.01).
+            out["scrollHitchRatio"] = (hitch.value * 100).rounded() / 100
+        }
+        if let peak = p.memoryMetrics?.peakMemoryUsage {
+            out["peakMemoryMb"] = Int(peak.converted(to: .megabytes).value.rounded())
+        }
+        guard !out.isEmpty else { return nil }
+        r["metrics"] = out
+        r["periodHours"] = Int((p.timeStampEnd.timeIntervalSince(p.timeStampBegin) / 3600).rounded())
+        return r
+    }
+
+    /// The bucket the given share of the samples falls in, as its midpoint in milliseconds.
+    private static func percentileMs(_ h: MXHistogram<UnitDuration>, _ share: Double) -> Int? {
+        let all = sortedBuckets(h)
+        let total = all.reduce(0) { $0 + $1.bucketCount }
+        guard total > 0 else { return nil }
+        var seen = 0
+        for b in all {
+            seen += b.bucketCount
+            if Double(seen) >= Double(total) * share {
+                let lo = b.bucketStart.converted(to: .milliseconds).value
+                let hi = b.bucketEnd.converted(to: .milliseconds).value
+                return Int(((lo + hi) / 2).rounded())
+            }
+        }
+        return nil
+    }
+
+    /// The histogram as [startMs, endMs, count], at most twelve buckets: the shape of the day beside its median.
+    private static func buckets(_ h: MXHistogram<UnitDuration>) -> [[Int]]? {
+        let all = sortedBuckets(h).filter { $0.bucketCount > 0 }.prefix(12)
+        guard !all.isEmpty else { return nil }
+        return all.map { [Int($0.bucketStart.converted(to: .milliseconds).value.rounded()),
+                          Int($0.bucketEnd.converted(to: .milliseconds).value.rounded()), $0.bucketCount] }
+    }
+
+    private static func sortedBuckets(_ h: MXHistogram<UnitDuration>) -> [MXHistogramBucket<UnitDuration>] {
+        ((h.bucketEnumerator.allObjects as? [MXHistogramBucket<UnitDuration>]) ?? [])
+            .sorted { $0.bucketStart < $1.bucketStart }
+    }
+    #endif
+
     // MARK: Reading a payload
 
     private static func reports(_ p: MXDiagnosticPayload) -> [[String: Any]] {

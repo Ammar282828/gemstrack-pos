@@ -11,6 +11,8 @@ struct CustomersList: View {
     @Environment(Session.self) private var session
     @Environment(\.openURL) private var openURL
     @State private var search = ""
+    /// `search` after a 150 ms pause in typing: the list narrows on this, not on every keystroke.
+    @State private var query = ""
     @State private var showing: Showing = .everyone
     @State private var merging = false
     @State private var cleaning = false
@@ -57,6 +59,13 @@ struct CustomersList: View {
         .navigationTitle("Customers")
         .hubTitleDisplay()
         .searchable(text: $search, prompt: "Search by name, phone, or email")
+        .task(id: search) {
+            let next = search
+            if CustomerKit.trim(next).isEmpty { query = ""; return }
+            try? await Task.sleep(for: .milliseconds(150))
+            if Task.isCancelled { return }
+            query = next
+        }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 NavigationLink(value: Route(path: "/customers/add")) {
@@ -107,6 +116,8 @@ struct CustomersList: View {
     }
 
     @State private var reckoned = Memo<Reckoned>()
+    /// The search applied and grouped: kept until the books, the query or the day change.
+    @State private var narrowed = Memo<Figures>()
 
     private func figures() -> Figures {
         let key = [book.customers.revision, book.invoices.revision, book.orders.revision, book.hisaab.revision, session.isOwner ? 1 : 0]
@@ -118,9 +129,13 @@ struct CustomersList: View {
             for c in live { lifetime += stats[c.id]?.spent ?? 0 }
             return Reckoned(live: live, owed: owed, stats: stats, lifetime: lifetime)
         }
-        let matched = r.live.filter { CustomerKit.matches($0, search) }
-        return Figures(customerCount: r.live.count, owed: r.owed, stats: r.stats,
-                       groups: CustomerKit.groups(matched, stats: r.stats), lifetime: r.lifetime, matchedCount: matched.count)
+        // The groups read the clock only by months, so the day is the finest the key needs.
+        let day = Int(Date().timeIntervalSince1970 / 86_400)
+        return narrowed(key + [query.hashValue, day]) {
+            let matched = r.live.filter { CustomerKit.matches($0, query) }
+            return Figures(customerCount: r.live.count, owed: r.owed, stats: r.stats,
+                           groups: CustomerKit.groups(matched, stats: r.stats), lifetime: r.lifetime, matchedCount: matched.count)
+        }
     }
 
     private func visible(_ g: CustomerKit.Groups) -> CustomerKit.Groups {

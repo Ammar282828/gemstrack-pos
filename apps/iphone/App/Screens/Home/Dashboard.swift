@@ -35,11 +35,11 @@ struct Dashboard: View {
     private var inbox: OnlineInbox { .shared }
 
     var body: some View {
-        ShelfState(loaded: ready, error: book.orders.error ?? book.invoices.error, offline: book.orders.offline) {
+        ShelfState(loaded: ready && figures != nil, error: book.orders.error ?? book.invoices.error, offline: book.orders.offline) {
             #if os(macOS)
-            macPage(makeFigures())
+            if let f = figures { macPage(f) }
             #else
-            page(makeFigures())
+            if let f = figures { page(f) }
             #endif
         }
         .safeAreaInset(edge: .top, spacing: 0) { UpdateBanner() }
@@ -54,6 +54,7 @@ struct Dashboard: View {
             }
         }
         .task { await keepTime() }
+        .task(id: figuresKey) { await reckonFigures() }
         // The count itself is polled once for the whole app (RootView); coming here asks again at once.
         .task { await askOnline() }
         #if os(macOS)
@@ -108,24 +109,33 @@ struct Dashboard: View {
         return core && book.hisaab.loaded && book.expenses.loaded && book.revenue.loaded
     }
 
-    /// Reckoned once per change of the books it reads (or of the minute), never per drawing: the timer,
-    /// the online count and the rate chip redraw this screen far more often than the books change.
-    @State private var figures = Memo<DashFigures>()
+    /// Reckoned off the main thread once per change of the books it reads, never per drawing: the timer, the online
+    /// count and the rate chip redraw this screen far more often than the books change. The last result stays on
+    /// screen while the next is worked out. Lateness and "due today" turn over at Karachi's midnight, but a bench
+    /// job's age counts whole 24-hour spans (`DashBench.daysSince`), so the clock enters in 15-minute steps (which
+    /// also carry the day's turn: Karachi's midnight falls on one).
+    @State private var figures: DashFigures?
 
-    private func makeFigures() -> DashFigures {
-        let key = [book.orders.revision, book.invoices.revision, book.revenue.revision, book.expenses.revision,
-                   book.karigars.revision, book.karigarJobs.revision, book.repairs.revision, book.customers.revision,
-                   book.hisaab.revision, Int(now.timeIntervalSince1970 / 60)]
-        return figures(key) { reckonFigures() }
+    private var figuresKey: [Int] {
+        [book.orders.revision, book.invoices.revision, book.revenue.revision, book.expenses.revision,
+         book.karigars.revision, book.karigarJobs.revision, book.repairs.revision, book.customers.revision,
+         book.hisaab.revision, Int(now.timeIntervalSince1970 / 900), ready ? 1 : 0]
     }
 
-    private func reckonFigures() -> DashFigures {
-        DashFigures(
-            orders: book.orders.items, invoices: book.invoices.items,
-            revenues: book.revenue.items, expenses: book.expenses.items,
-            karigars: book.karigars.items, karigarJobs: book.karigarJobs.items,
-            repairs: book.repairs.items, customers: book.customers.items,
-            hisaab: book.hisaab.items, now: now)
+    private func reckonFigures() async {
+        guard ready else { return }
+        // Arrays of value types, copied on the main actor; the background task touches no shelf.
+        let orders = book.orders.items, invoices = book.invoices.items, revenues = book.revenue.items
+        let expenses = book.expenses.items, karigars = book.karigars.items, karigarJobs = book.karigarJobs.items
+        let repairs = book.repairs.items, customers = book.customers.items, hisaab = book.hisaab.items
+        let at = now
+        let made = await Task.detached(priority: .userInitiated) {
+            DashFigures(orders: orders, invoices: invoices, revenues: revenues, expenses: expenses,
+                        karigars: karigars, karigarJobs: karigarJobs, repairs: repairs, customers: customers,
+                        hisaab: hisaab, now: at)
+        }.value
+        guard !Task.isCancelled else { return }
+        figures = made
     }
 
     // MARK: The page

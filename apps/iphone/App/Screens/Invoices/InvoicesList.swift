@@ -101,6 +101,22 @@ struct InvoiceSummary {
     }
 }
 
+/// Each invoice's createdAt read once: the date and Karachi's day, by invoice id. Built per change of the invoices.
+struct InvoiceStamps {
+    var date: [String: Date] = [:]
+    var day: [String: String] = [:]
+
+    init(_ invoices: [Invoice]) {
+        date.reserveCapacity(invoices.count)
+        day.reserveCapacity(invoices.count)
+        for inv in invoices {
+            guard let d = ERPDate.parse(inv.createdAt) else { continue }
+            date[inv.id] = d
+            day[inv.id] = ERPDate.karachiDay(d)
+        }
+    }
+}
+
 /// Karachi's days, weeks (from Monday) and months: what the shop means by "today" and "this week".
 enum InvoiceCalendar {
     static let karachi: Calendar = {
@@ -219,6 +235,14 @@ struct InvoicesList: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var search = ""
+    /// `search` after a 150 ms pause in typing: the list filters on this, so a keystroke does not re-search every invoice.
+    @State private var query = ""
+    /// The list's width, for the iPad's grid (kept in state: a GeometryReader around the whole list re-ran it on every pass).
+    @State private var width: CGFloat = 0
+    /// Each invoice's parsed date and Karachi day, read once per change of the invoices, not once per invoice per drawing.
+    @State private var stamps = Memo<InvoiceStamps>()
+    /// The search, Taken by, Month and range applied to the invoices: kept until one of them (or the books) changes.
+    @State private var scoped = Memo<[Invoice]>()
     @State private var chip: InvoiceChip = .all
     @State private var grouping: InvoiceGrouping = .day
     /// "" is Anyone.
@@ -253,6 +277,14 @@ struct InvoicesList: View {
         .navigationTitle("Invoices")
         .hubTitleDisplay()
         .searchable(text: $search, prompt: "Search invoices")
+        // Debounced like the search page; clearing the box clears the list at once.
+        .task(id: search) {
+            let next = search.trimmingCharacters(in: .whitespacesAndNewlines)
+            if next.isEmpty { query = ""; return }
+            try? await Task.sleep(for: .milliseconds(150))
+            if Task.isCancelled { return }
+            query = next
+        }
         .toolbar {
             ToolbarItem(placement: .primaryAction) { filterMenu(all) }
         }
@@ -290,11 +322,12 @@ struct InvoicesList: View {
 
     @ViewBuilder
     private func content(_ all: [Invoice]) -> some View {
-        let scoped = scope(all)
+        let stamped = stamps([book.invoices.revision]) { InvoiceStamps(all) }
+        let scoped = scope(all, stamped)
         let shown = scoped.filter { chip.matches($0) }
-        let groups = sections(shown)
-        GeometryReader { geometry in
-          if geometry.size.width >= 760 && !typeSize.isAccessibilitySize {
+        let groups = sections(shown, stamped)
+        Group {
+          if width >= 760 && !typeSize.isAccessibilitySize {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: pt(24)) {
                     chipRow(scoped)
@@ -302,7 +335,7 @@ struct InvoicesList: View {
                     summaryStrip(all)
                     ForEach(groups) { group in
                         InvoiceSectionHeader(section: group)
-                        LazyVGrid(columns: CardColumns.grid(geometry.size.width - 48), alignment: .leading, spacing: pt(20)) {
+                        LazyVGrid(columns: CardColumns.grid(width - 48), alignment: .leading, spacing: pt(20)) {
                             ForEach(group.rows) { inv in
                                 VStack(alignment: .leading, spacing: pt(12)) {
                                     row(inv).buttonStyle(.plain)
@@ -349,6 +382,7 @@ struct InvoicesList: View {
         .listStyle(.insetGrouped)
           }
         }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
         // Nothing to show is an overlay of the list, never a row inside it (rule 16).
         .overlay {
             if groups.isEmpty { emptyState.padding(.top, pt(120)) }
@@ -626,33 +660,39 @@ struct InvoicesList: View {
 
     /// Search, Taken by, Month and the date range: everything but the chip, so the chips can count what
     /// they would show.
-    private func scope(_ all: [Invoice]) -> [Invoice] {
-        var out = all
-        if !takenBy.isEmpty { out = out.filter { $0.takenBy == takenBy } }
-        if !month.isEmpty { out = out.filter { InvoiceCalendar.monthKey($0.createdAt) == month } }
-        if let start = rangeFrom {
-            // The last day included; open, it runs to the end of today (isWithinInterval, invoices/page.tsx).
-            let end = rangeTo ?? ERPDate.karachiDay(Date())
-            out = out.filter { inv in
-                guard let made = ERPDate.parse(inv.createdAt) else { return false }
-                let day = ERPDate.karachiDay(made)
-                return day >= start && day <= end
-            }
-        }
-        let q = search.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !q.isEmpty {
-            // The customer's own number, for an invoice that does not carry one.
-            let digits = q.filter { $0 >= "0" && $0 <= "9" }
-            let wanted = String(digits.drop(while: { $0 == "0" }))
-            var phones: [String: String] = [:]
-            if wanted.count >= 3 {
-                for c in book.customers.items {
-                    if let p = c.phone, !p.isEmpty { phones[c.id] = p }
+    private func scope(_ all: [Invoice], _ stamped: InvoiceStamps) -> [Invoice] {
+        let q = query
+        let today = ERPDate.karachiDay(Date())
+        // Customers' numbers matter only to a search by digits; the key carries their revision only then.
+        let digits = q.filter { $0 >= "0" && $0 <= "9" }
+        let wanted = String(digits.drop(while: { $0 == "0" }))
+        let key = [book.invoices.revision, wanted.count >= 3 ? book.customers.revision : 0, takenBy.hashValue,
+                   month.hashValue, (rangeFrom ?? "").hashValue, (rangeTo ?? "").hashValue, q.hashValue,
+                   rangeFrom != nil && rangeTo == nil ? today.hashValue : 0]
+        return scoped(key) {
+            var out = all
+            if !takenBy.isEmpty { out = out.filter { $0.takenBy == takenBy } }
+            if !month.isEmpty { out = out.filter { stamped.day[$0.id].map { String($0.prefix(7)) } == month } }
+            if let start = rangeFrom {
+                // The last day included; open, it runs to the end of today (isWithinInterval, invoices/page.tsx).
+                let end = rangeTo ?? today
+                out = out.filter { inv in
+                    guard let day = stamped.day[inv.id] else { return false }
+                    return day >= start && day <= end
                 }
             }
-            out = out.filter { matches($0, query: q, digits: wanted, phones: phones) }
+            if !q.isEmpty {
+                // The customer's own number, for an invoice that does not carry one.
+                var phones: [String: String] = [:]
+                if wanted.count >= 3 {
+                    for c in book.customers.items {
+                        if let p = c.phone, !p.isEmpty { phones[c.id] = p }
+                    }
+                }
+                out = out.filter { matches($0, query: q, digits: wanted, phones: phones) }
+            }
+            return out
         }
-        return out
     }
 
     /// Customer, phone, invoice id, a piece's SKU or its name ("drop earrings": the counter remembers what was sold).
@@ -671,7 +711,7 @@ struct InvoicesList: View {
         return false
     }
 
-    private func sections(_ rows: [Invoice]) -> [InvoiceSection] {
+    private func sections(_ rows: [Invoice], _ stamped: InvoiceStamps) -> [InvoiceSection] {
         if grouping == .status { return statusSections(rows) }
         let now = Date()
         var order: [String] = []
@@ -679,8 +719,10 @@ struct InvoicesList: View {
         var members: [String: [Invoice]] = [:]
         for inv in rows {
             let key: String
-            if let d = ERPDate.parse(inv.createdAt) {
-                key = InvoiceCalendar.bucket(d, by: grouping, now: now).key
+            if let d = stamped.date[inv.id] {
+                // By day the key is the stamped day itself (what `bucket` makes of it), with no date maths per invoice.
+                if grouping == .day, let day = stamped.day[inv.id] { key = "d" + day }
+                else { key = InvoiceCalendar.bucket(d, by: grouping, now: now).key }
                 if titles[key] == nil { titles[key] = InvoiceCalendar.heading(d, by: grouping, now: now) }
             } else {
                 key = "undated"
