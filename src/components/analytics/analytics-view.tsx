@@ -40,7 +40,7 @@ import { MonthlyReportButton } from '@/components/reports/monthly-report-button'
 import { bookedAsSale } from '@/lib/order-stage';
 import { chartMotion } from '@/lib/chart-motion';
 import { lineCategory } from '@/lib/categories';
-import { netProfit as netProfitOf, netMarginPercent, isRunningCost } from '@/lib/analytics/net-profit';
+import { netProfit as netProfitOf, netMarginPercent, isRunningCost, profitBeforeRunning, RECORDS_GOODS } from '@/lib/analytics/net-profit';
 import { isGoodsExpense } from '@/lib/expense-categories';
 
 // Helper types for chart data
@@ -122,8 +122,8 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
     () => splitAllCoinSales(generatedInvoices), [generatedInvoices]);
 
   const yearlySummary = useMemo(() => {
-    const yearMap: Record<number, { revenue: number; expenses: number; unpaid: number; profit: number }> = {};
-    const blank = () => ({ revenue: 0, expenses: 0, unpaid: 0, profit: 0 });
+    const yearMap: Record<number, { revenue: number; expenses: number; unpaid: number; profit: number; goods: number }> = {};
+    const blank = () => ({ revenue: 0, expenses: 0, unpaid: 0, profit: 0, goods: 0 });
     jewelleryInvoices.forEach(inv => {
       if (!inv?.createdAt || inv.status === 'Refunded') return;
       const yr = getYear(parseISO(getInvoiceRevenueDate(inv, ordersById)));
@@ -153,21 +153,27 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
       if (!exp?.date) return;
       // Drawings are a distribution of profit, not a cost of earning it; the goods (Mina's stock and karigars) are
       // already inside the estimated profit's margin (lib/analytics/net-profit.ts `isRunningCost`).
-      if (!isRunningCost(exp)) return;
+      // Where a house records its goods (Mina), they come off the revenue as the gross profit (profitBeforeRunning).
+      const goods = isGoodsExpense(exp);
+      if (!goods && !isRunningCost(exp)) return;
       const yr = getYear(parseISO(exp.date));
       if (!yearMap[yr]) yearMap[yr] = blank();
-      yearMap[yr].expenses += exp.amount || 0;
+      if (goods) yearMap[yr].goods += exp.amount || 0;
+      else yearMap[yr].expenses += exp.amount || 0;
     });
     return Object.entries(yearMap)
-      .map(([year, data]) => ({
-        year: parseInt(year),
-        revenue: data.revenue,
-        expenses: data.expenses,
-        unpaid: data.unpaid,
-        profit: data.profit,
-        // Estimated profit less expenses, never revenue less expenses (lib/analytics/net-profit.ts).
-        netProfit: netProfitOf(data.profit, data.expenses),
-      }))
+      .map(([year, data]) => {
+        const profit = profitBeforeRunning({ estimated: data.profit, revenue: data.revenue, goods: data.goods });
+        return {
+          year: parseInt(year),
+          revenue: data.revenue,
+          expenses: data.expenses,
+          unpaid: data.unpaid,
+          profit,
+          // That profit less the running costs, never revenue less every expense (lib/analytics/net-profit.ts).
+          netProfit: netProfitOf(profit, data.expenses),
+        };
+      })
       .sort((a, b) => b.year - a.year);
   }, [jewelleryInvoices, orders, ordersById, expenses, additionalRevenues]);
 
@@ -816,12 +822,15 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
               at the same volume is the same problem as nine full Cards. */}
           {(() => {
             // Less the running costs only: not drawings, not the goods the margin already allows for (isRunningCost).
-            const netProfit = netProfitOf(analyticsData.estProfit, analyticsData.runningExpenses);
             // Each sale at its own margin — worked out from the 24k rate typed when it was made, 10%
             // where none was (everything before 2026-10-05) — and extra revenue at 10% (lib/margin.ts).
-            const estProfit = analyticsData.estProfit;
+            // A house that records its goods (Mina) takes revenue less those goods instead (profitBeforeRunning).
+            const estProfit = profitBeforeRunning({ estimated: analyticsData.estProfit, revenue: analyticsData.totalSales, goods: analyticsData.goodsExpenses });
+            const netProfit = netProfitOf(estProfit, analyticsData.runningExpenses);
             const estPct = analyticsData.totalSales > 0 ? Math.round(estProfit / analyticsData.totalSales * 1000) / 10 : 0;
-            const estSub = COST_RATTI_LESS === null || analyticsData.salesCosted === 0
+            const estSub = RECORDS_GOODS
+              ? `${estPct}% of revenue · revenue less goods bought (unsold stock counts as spent) · at ${Math.round(STORE_EST_MARGIN * 100)}% it would be ${pkrLac(analyticsData.estProfit)}`
+              : COST_RATTI_LESS === null || analyticsData.salesCosted === 0
               ? `revenue × ${Math.round(STORE_EST_MARGIN * 100)}%, before expenses`
               : `${estPct}% of revenue · ${analyticsData.salesCosted} of ${analyticsData.salesCount} sales from their 24k rate, the rest at ${Math.round(ASSUMED_MARGIN * 100)}% · before expenses`;
             const margin = netMarginPercent(netProfit, analyticsData.totalSales);
@@ -844,12 +853,12 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
                      analyticsData.totalExpenses - analyticsData.runningExpenses - analyticsData.goodsExpenses > 0 ? `drawings ${money(analyticsData.totalExpenses - analyticsData.runningExpenses - analyticsData.goodsExpenses)}` : null].filter(Boolean).join(' · ')
                   : 'paid out in this period',
               },
-              { label: 'Est. profit', value: money(estProfit), tone: 'text-blue-600', icon: <TrendingUp className="h-4 w-4" />, sub: estSub },
+              { label: RECORDS_GOODS ? 'Gross profit' : 'Est. profit', value: money(estProfit), tone: 'text-blue-600', icon: <TrendingUp className="h-4 w-4" />, sub: estSub },
               {
                 label: 'Net profit', value: money(netProfit),
                 tone: netProfit >= 0 ? 'text-success' : 'text-destructive',
                 icon: netProfit >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />,
-                sub: analyticsData.totalSales > 0 ? `${margin.toFixed(1)}% margin · est. profit less running costs` : 'no revenue in period',
+                sub: analyticsData.totalSales > 0 ? `${margin.toFixed(1)}% margin · ${RECORDS_GOODS ? 'gross' : 'est.'} profit less running costs` : 'no revenue in period',
                 border: netProfit >= 0 ? 'border-success/40' : 'border-destructive/40',
               },
             ];

@@ -10,7 +10,9 @@
  *   invoices and cancelled orders count nothing. Gold coins are a line of their own.
  * - Estimated profit: each sale at its own margin (`lib/margin.ts`: the typed 24k rate, else
  *   the house's assumed share), other income at the assumed share.
- * - Net profit = estimated profit less the running costs (`lib/analytics/net-profit.ts` `isRunningCost`) —
+ * - Where a house records its goods as expenses (Mina), profit is revenue less those goods (gross profit),
+ *   not the assumed share (`profitBeforeRunning`).
+ * - Net profit = that profit less the running costs (`lib/analytics/net-profit.ts` `isRunningCost`) —
  *   never revenue less expenses; the margin is net / revenue.
  * - Karachi's days and months.
  *
@@ -21,7 +23,8 @@
 
 import { cashInForPeriod, invoicedOrderIds } from '@/lib/analytics/cash-in';
 import { splitAllCoinSales, isCoinItem } from '@/lib/analytics/coins';
-import { isRunningCost, netMarginPercent, netProfit } from '@/lib/analytics/net-profit';
+import { isRunningCost, netMarginPercent, netProfit, profitBeforeRunning, RECORDS_GOODS } from '@/lib/analytics/net-profit';
+import { isGoodsExpense } from '@/lib/expense-categories';
 import { invoiceSaleValue } from '@/lib/analytics/sale-value';
 import { categoryTitle, lineCategory } from '@/lib/categories';
 import { ASSUMED_MARGIN, invoiceMargin, orderMargin } from '@/lib/margin';
@@ -112,7 +115,7 @@ export interface MonthlyInsights {
 }
 
 /** One thing that counted on a day: revenue (with its profit), a coin sale, or an expense. */
-interface Ev { day: string; revenue: number; profit: number; coin: number; expense: number; running: number; sale: number }
+interface Ev { day: string; revenue: number; profit: number; coin: number; expense: number; running: number; goods: number; sale: number }
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -123,7 +126,7 @@ export function buildInsights(input: InsightsInput, month: MonthRef, now = new D
 
   // ── Every dated event, once; the months and the days are sums of these.
   const evs: Ev[] = [];
-  const ev = (day: string, e: Partial<Ev>) => { if (day) evs.push({ day, revenue: 0, profit: 0, coin: 0, expense: 0, running: 0, sale: 0, ...e }); };
+  const ev = (day: string, e: Partial<Ev>) => { if (day) evs.push({ day, revenue: 0, profit: 0, coin: 0, expense: 0, running: 0, goods: 0, sale: 0, ...e }); };
   for (const inv of jewellery) {
     if (!inv?.createdAt || inv.status === 'Refunded') continue;
     const v = invoiceSaleValue(inv);
@@ -142,17 +145,19 @@ export function buildInsights(input: InsightsInput, month: MonthRef, now = new D
   }
   for (const e of input.expenses) {
     // Expenses shown are the business's (not drawings); net takes off only the running costs (isRunningCost).
-    if (e?.date && isBusinessCost(e)) ev(karachiDay(e.date), { expense: n(e.amount), running: isRunningCost(e) ? n(e.amount) : 0 });
+    if (e?.date && isBusinessCost(e)) ev(karachiDay(e.date), { expense: n(e.amount), running: isRunningCost(e) ? n(e.amount) : 0, goods: isGoodsExpense(e) ? n(e.amount) : 0 });
   }
 
   const sum = (m: MonthRef, upto?: number) => {
     const p = monthKey(m);
-    const t = { revenue: 0, profit: 0, coin: 0, expense: 0, running: 0, sale: 0 };
+    const t = { revenue: 0, profit: 0, coin: 0, expense: 0, running: 0, goods: 0, sale: 0 };
     for (const e of evs) {
       if (!e.day.startsWith(p) || (upto !== undefined && Number(e.day.slice(8, 10)) > upto)) continue;
-      t.revenue += e.revenue; t.profit += e.profit; t.coin += e.coin; t.expense += e.expense; t.running += e.running; t.sale += e.sale;
+      t.revenue += e.revenue; t.profit += e.profit; t.coin += e.coin; t.expense += e.expense; t.running += e.running; t.goods += e.goods; t.sale += e.sale;
     }
-    return { ...t, net: netProfit(t.profit, t.running) };
+    // Where goods are recorded, profit is revenue less them, not the assumed margin (net-profit.ts profitBeforeRunning).
+    const profit = profitBeforeRunning({ estimated: t.profit, revenue: t.revenue, goods: t.goods });
+    return { ...t, profit, net: netProfit(profit, t.running) };
   };
 
   const current = karachiMonth(now);
@@ -182,7 +187,7 @@ export function buildInsights(input: InsightsInput, month: MonthRef, now = new D
     fig('net', 'Net profit', true, cur.net, lastT.net, yearT.net),
     fig('cashIn', 'Cash in', true, cashNow, cashLast, cashYear),
     fig('expenses', 'Expenses', true, cur.expense, lastT.expense, yearT.expense),
-    fig('profit', 'Estimated profit', true, cur.profit, lastT.profit, yearT.profit),
+    fig('profit', RECORDS_GOODS ? 'Gross profit' : 'Estimated profit', true, cur.profit, lastT.profit, yearT.profit),
     fig('sales', 'Sales', false, cur.sale, lastT.sale, yearT.sale),
   ];
   const marginOf = (t: { net: number; revenue: number }) => netMarginPercent(t.net, t.revenue);

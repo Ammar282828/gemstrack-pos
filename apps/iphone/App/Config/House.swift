@@ -33,6 +33,9 @@ enum House {
     /// profit leaves them out, the margin already allows for them (NetProfit.isRunningCost).
     static var goodsExpenseCategories: [String] { business.goodsExpenseCategories ?? [] }
 
+    /// This house files its goods as expenses, so its profit is revenue less them (NetProfit.beforeRunning), shown as "Gross profit".
+    static var recordsGoods: Bool { !goodsExpenseCategories.isEmpty }
+
     /// Launched with `-ERPDemo YES` (the simulator check): made-up data, no sign-in, no Firebase. A launch flag,
     /// not a business to switch to: the demo's one business wears Taheri's look (Businesses.demo).
     static let isDemo = UserDefaults.standard.bool(forKey: "ERPDemo")

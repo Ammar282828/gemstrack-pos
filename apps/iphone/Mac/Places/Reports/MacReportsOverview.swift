@@ -54,7 +54,7 @@ struct MacReportsOverview: View {
         MacReportsChange.figure(label, value, now: now, before: before, words: c.words, upIsGood: up, plain: plain, tone: tone)
     }
 
-    private var net: Double { AnaNet.profit(estimated: f.estProfit, expenses: f.runningExpenses) }
+    private var net: Double { AnaNet.profit(estimated: f.profit, expenses: f.runningExpenses) }
 
     /// Ten figures in one grid, five and five on a wide page: the sales and what came in on top, what went out and what is
     /// left under. (The iPhone has them as two groups, four and six.)
@@ -71,8 +71,8 @@ struct MacReportsOverview: View {
         out.append(fig("Revenue", Money.pkrLac(f.totalSales), f.totalSales, p?.totalSales, plain: "Sales in this period"))
         guard c.showCosts else { return out }
         out.append(fig("Expenses", Money.pkrLac(f.totalExpenses), f.totalExpenses, p?.totalExpenses, up: false, plain: expensesDetail))
-        out.append(fig("Estimated profit", Money.pkrLac(f.estProfit), f.estProfit, p?.estProfit, plain: estDetail))
-        let prevNet: Double? = p.map { AnaNet.profit(estimated: $0.estProfit, expenses: $0.runningExpenses) }
+        out.append(fig(House.recordsGoods ? "Gross profit" : "Estimated profit", Money.pkrLac(f.profit), f.profit, p?.profit, plain: estDetail))
+        let prevNet: Double? = p.map { AnaNet.profit(estimated: $0.profit, expenses: $0.runningExpenses) }
         let netTone: Tone? = net < 0 ? Tone.owed : nil
         out.append(fig("Net profit", Money.pkrLac(net), net, prevNet, plain: netDetail, tone: netTone))
         return out
@@ -101,6 +101,7 @@ struct MacReportsOverview: View {
     private var costedByGold: Bool { House.margin.rattiLess != nil && f.salesCosted > 0 }
 
     private var estDetail: String {
+        if House.recordsGoods { return "Revenue less goods bought" }
         guard costedByGold, f.totalSales > 0 else { return "Revenue × \(assumedPercent)%" }
         let pct = (f.estProfit / f.totalSales * 1000).rounded() / 10
         return "\(AnaFormat.number(pct, maxDigits: 1))% of revenue"
@@ -120,7 +121,7 @@ struct MacReportsOverview: View {
     private var costsNote: String? {
         guard f.goodsExpenses > 0 || f.drawingsExpenses > 0 else { return nil }
         var left: [String] = []
-        if f.goodsExpenses > 0 { left.append("the goods (\(Money.pkrLac(f.goodsExpenses))), which the estimated profit\u{2019}s margin already allows for") }
+        if f.goodsExpenses > 0 { left.append(House.recordsGoods ? "the goods (\(Money.pkrLac(f.goodsExpenses))), already off the gross profit" : "the goods (\(Money.pkrLac(f.goodsExpenses))), which the estimated profit\u{2019}s margin already allows for") }
         if f.drawingsExpenses > 0 { left.append("partners\u{2019} drawings (\(Money.pkrLac(f.drawingsExpenses))), a share of the profit rather than a cost") }
         return "Net profit takes off the running costs only (\(Money.pkrLac(f.runningExpenses))), not " + left.joined(separator: " or ") + "."
     }
@@ -131,6 +132,7 @@ struct MacReportsOverview: View {
     }
 
     private var estNote: String {
+        if House.recordsGoods { return "Gross profit is revenue less the goods bought (\(Money.pkrLac(f.goodsExpenses))); goods not yet sold count as spent. At \(assumedPercent)% it would be \(Money.pkrLac(f.estProfit))." }
         guard costedByGold else { return "Estimated profit is revenue × \(assumedPercent)%, before expenses." }
         return "Estimated profit: \(f.salesCosted) of \(f.salesCount) sales from their 24k rate, the rest at \(assumedPercent)%, before expenses."
     }
