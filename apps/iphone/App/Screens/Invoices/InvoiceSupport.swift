@@ -368,6 +368,31 @@ struct InvoiceBalancePill: View {
     }
 }
 
+/// An online order's WhatsApp step ("Confirmed on WhatsApp", "Cancel requested"...) as the web's chip beside Shopify's:
+/// nothing when the invoice has none (`whatsappOrderChip`).
+struct InvoiceWhatsAppPill: View {
+    let invoice: Invoice
+
+    var body: some View {
+        if let chip = whatsappOrderChip(invoice.whatsappOrder?.state) {
+            Pill(chip.label, tone: Tone(chip.tone))
+        }
+    }
+}
+
+extension Tone {
+    /// The tone a WhatsApp chip names (ERPCore knows the word, not the colour).
+    init(_ word: WhatsAppOrderTone) {
+        switch word {
+        case .late: self = .late
+        case .owed: self = .owed
+        case .settled: self = .settled
+        case .working: self = .working
+        case .quiet: self = .quiet
+        }
+    }
+}
+
 // MARK: Send on WhatsApp, from the page or a swipe
 
 /// The ERP page's Send via WhatsApp, by house (STORE_INVOICE_WHATSAPP_PDF), the same from the invoice page and

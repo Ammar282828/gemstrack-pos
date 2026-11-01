@@ -189,6 +189,14 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  # Of those, the cost of the goods themselves, which the estimated profit's 40% already allows for: Analytics'
+  # net profit takes off only the rest (lib/expense-categories.ts; owner, 2026-10-31: "why isnt net profit revenue -
+  # expenses", net read -1.15 crore with these counted twice).
+  - variable: NEXT_PUBLIC_STORE_GOODS_EXPENSE_CATEGORIES
+    value: "Stock & Karigars,Custom Orders,Stones & Pearls,Plating & Finishing"
+    availability:
+      - BUILD
+      - RUNTIME
   # Settings → Restore shop defaults writes this and CONTACT1_NUMBER (it used to write Mina's into both houses).
   - variable: NEXT_PUBLIC_STORE_ADDRESS
     value: "272-B, SHABBIRABAD, BLOCK B, SYEDNA FAKHRUDDIN ROAD, KARACHI"

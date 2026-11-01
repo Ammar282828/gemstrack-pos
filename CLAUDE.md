@@ -141,7 +141,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Orders hub](docs/decisions.md#orders-hub) — by stage, a next step per card; pieces set status
 - [Online orders](docs/decisions.md#online-orders) — a person confirms; no sale until the transfer
 - [Shopify notices](docs/decisions.md#shopify-notices) — read back; kept current, never rewritten
-- [Order WhatsApp](docs/decisions.md#order-whatsapp) — Mina's web orders messaged from its line: COD reply 1/2 → Confirm tag (buttons need Meta's paid API: declined), bank → IBAN + screenshot, paid → thanks
+- [Order WhatsApp](docs/decisions.md#order-whatsapp) — Mina's web orders messaged from its line: COD Confirm/Cancel poll (or 1/2) → Confirm tag, bank → IBAN + screenshot, paid → thanks
 - [Name a sale](docs/decisions.md#name-a-sale) — on the invoice
 - [Advance method](docs/decisions.md#advance-method) — `.nullish()`, `onInvalid` toasts
 - [Exchange line](docs/decisions.md#exchange-line) — what + amount
@@ -155,7 +155,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Lac and crore](docs/decisions.md#lac-and-crore) — `lib/money.ts`
 - [Invoice credit](docs/decisions.md#invoice-credit) — overpaid is a named customer's credit, on their hisaab; the owner gives it back with "Give back" (`payBackCredit`, not a refund)
 - [Margin](docs/decisions.md#margin) — typed 24k less 6 ratti, else 10%; never the customer's
-- [Net profit](docs/decisions.md#net-profit) — estimated profit less expenses, never revenue less expenses; margin = net ÷ revenue
+- [Net profit](docs/decisions.md#net-profit) — estimated profit less running costs (not drawings, not the goods categories the margin covers), never revenue less expenses; margin = net ÷ revenue
 - [Exchange as cash](docs/decisions.md#exchange-as-cash) — in Cash In and in revenue (`invoiceSaleValue`)
 - [Analytics default: this month](docs/decisions.md#analytics-default-this-month) — the 1st to today, not a rolling 30 days; Home's ledger too
 

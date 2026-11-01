@@ -244,6 +244,8 @@ struct InvoiceScreen: View {
         return layout {
             VStack(alignment: .leading, spacing: pt(4)) {
                 leadFigure(inv)
+                // Beside Shopify's own status: where the order's WhatsApp stands (web: the chip by Paid in full).
+                InvoiceWhatsAppPill(invoice: inv)
                 // Paid in full says it once, in the lead; the sums are under Pieces and Payments (rule 15).
                 if balanceLine(inv.balanceDue).state != .paid || inv.status == .refunded {
                     Text("Total \(Money.pkr(inv.grandTotal)) · Paid \(Money.pkr(inv.amountPaid))")

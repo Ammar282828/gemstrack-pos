@@ -478,11 +478,13 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
   order there is a separate automation … for cod there is confirm decline, for bank transfer it is bank account details etc and
   requesting screenshot, for paid orders just a nice message telling them details"). `lib/shopify-whatsapp.ts` (the rules and
   words), `lib/shopify-whatsapp-server.ts` (sending, replies), started by the orders notice once the ERP has the order:
-  - **Cash on delivery**: the order (pieces, delivery, total, address) and "Reply 1 to confirm, 2 to cancel" (a typed yes / cancel
-    counts too). On 2026-10-30 the owner asked for buttons; a linked line cannot send them (WhatsApp keeps them for its Business
-    API; WAHA's GOWS answers 501), a Confirm / Cancel poll was tried and not liked, and real buttons through Meta's API on this
-    number (coexistence, via a partner at about €49 a month, unlinking the ERP's line) were turned down: "i prefer the old route".
-    A tap on one of that day's polls is still read (`poll.vote`, `pollKey`). 1 adds Shopify's
+  - **Cash on delivery**: the order (pieces, delivery, total, address), then a **Confirm / Cancel poll to tap** (owner, same day:
+    "add the button confirm or cancel rather than reply with 1"; a linked line cannot send buttons, WhatsApp keeps them for its
+    Business API and WAHA's GOWS refuses them, while a poll is tappable in every WhatsApp; its tap comes back as `poll.vote`,
+    matched by the poll's message key `pollKey`). Buttons only (owner: "i want button only"): the message says "tap Confirm order
+    below" and nothing about replying; only if the poll fails to send does a line ask for 1 or 2 (a typed 1/2/yes/cancel is still
+    read). Settled on 2026-10-31 after a day back on "reply 1 / 2" (the owner: "lets just do the poll"; real buttons through
+    Meta's paid API on this number were declined). Confirm adds Shopify's
     **Confirm** tag — the word the shop already tags confirmed orders with — and tells the shop's phones; 2 adds **Cancel
     requested** and tells them to cancel it in Shopify (a person cancels: nothing is cancelled by a text).
   - **Bank deposit**: the order, Mina's bank and IBAN (`NEXT_PUBLIC_STORE_BANK_LINE`, `_IBAN`) and a request for the screenshot.
@@ -664,6 +666,14 @@ balance below zero is the customer's credit (`lib/invoice-credit.ts`).
   an estimate of 55 lac). Revenue less expenses ignored what the goods cost. The margin is net ÷ revenue. Analytics'
   Overview tile and its yearly table (web `src/lib/analytics/net-profit.ts`, tested; iPhone `AnaNet`). The Home "Net"
   (revenue less expenses) and the monthly PDF's `net` are labelled revenue less expenses, not profit, and are unchanged.
+- **Only running costs come off** (owner, 2026-10-31: "why isnt net profit revenue - expenses", Mina reading Net -1.15 crore
+  on revenue 1.84 crore). House of Mina files the cost of its goods as expenses ("Stock & Karigars", "Custom Orders",
+  "Stones & Pearls", "Plating & Finishing"), and its estimated profit (revenue × 40%) already allows for them, so they were
+  taken off twice; and the Overview tile counted Partner Drawings, which the yearly table and the PDF already left out.
+  `isRunningCost` (`lib/analytics/net-profit.ts`) is business cost (not drawings) and not a goods category
+  (`NEXT_PUBLIC_STORE_GOODS_EXPENSE_CATEGORIES`, Mina's four; Taheri none). The Expenses tile still shows all paid out,
+  split "Running · goods · drawings". Revenue less expenses stays wrong for Mina too: stock bought and not yet sold is
+  money spent, not a loss.
 
 ### Exchange as cash
 

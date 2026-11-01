@@ -59,6 +59,8 @@ public struct Invoice: Decodable, Identifiable, Hashable {
     public let costRate24k: Double?
     public let sentOnWhatsApp: SentOnWhatsApp?
     public let acquisitionSource: CustomerSource?
+    /// An online order's WhatsApp step, written by the server (`whatsappOrderChip` has its words).
+    public let whatsappOrder: WhatsAppOrder?
 
     private enum K: String, CodingKey {
         case id, delivery, customerId, customerName, customerContact, items, subtotal, discountAmount
@@ -67,7 +69,7 @@ public struct Invoice: Decodable, Identifiable, Hashable {
         case paymentHistory, sourceOrderId, source, notes
         case shopifyFulfillment, shopifyFinancialStatus, shopifyCancelledAt, shopifyTransactionIds
         case shopifySyncedAt, shopifyOrderName, shopifyOrderId, shopifyOrderNumber, shopifyDraftOrderId
-        case shopifyCheckoutUrl, status, refundedAt, shareToken, costRate24k, sentOnWhatsApp, acquisitionSource
+        case shopifyCheckoutUrl, status, refundedAt, shareToken, costRate24k, sentOnWhatsApp, acquisitionSource, whatsappOrder
     }
 
     public init(from decoder: Decoder) throws {
@@ -113,6 +115,7 @@ public struct Invoice: Decodable, Identifiable, Hashable {
         costRate24k = c.double(.costRate24k)
         sentOnWhatsApp = c.object(.sentOnWhatsApp)
         acquisitionSource = c.word(.acquisitionSource)
+        whatsappOrder = c.object(.whatsappOrder)
     }
 }
 

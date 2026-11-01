@@ -791,7 +791,8 @@ private struct InvoiceListRow: View {
 
     private var referenceText: some View {
         let when = dated ? ShopDate.say(invoice.createdAt) : InvoiceFacts.time(invoice.createdAt)
-        return Text([invoice.id, when].filter { !$0.isEmpty }.joined(separator: " · "))
+        let whatsapp = whatsappOrderChip(invoice.whatsappOrder?.state)?.label
+        return Text([invoice.id, when, whatsapp ?? ""].filter { !$0.isEmpty }.joined(separator: " · "))
             .font(.caption).foregroundStyle(.secondary)
             .lineLimit(1)
     }
