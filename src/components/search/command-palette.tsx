@@ -15,7 +15,7 @@
  * assistant uses to pin a spoken name to a row does the same work here for a typed one.
  */
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { nameScore } from '@/lib/voice/phonetics';
@@ -81,6 +81,8 @@ export function CommandPalette() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
+  // The list follows typing, never holds it up.
+  const dq = useDeferredValue(q);
   const [cursor, setCursor] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -124,7 +126,7 @@ export function CommandPalette() {
   }, [open, loadOrders, loadInvoices, loadKarigars, loadRepairs]);
 
   const items = useMemo<Item[]>(() => {
-    const needle = q.trim().toLowerCase();
+    const needle = dq.trim().toLowerCase();
 
     const destinations = destinationsFor(isStaff);
 
@@ -271,9 +273,9 @@ export function CommandPalette() {
       .map((x, i) => ({ x, i }))
       .sort((a, b) => (groupRank.get(a.x.item.group)! - groupRank.get(b.x.item.group)!) || (a.i - b.i))
       .map(({ x }) => x.item);
-  }, [q, orders, invoices, repairs, karigars, products, isStaff]);
+  }, [dq, orders, invoices, repairs, karigars, products, isStaff]);
 
-  useEffect(() => setCursor(0), [q]);
+  useEffect(() => setCursor(0), [dq]);
 
   // ⌘Return / Ctrl+Return opens it in a new window (a tab), as on the Mac; Return here.
   const run = useCallback((item: Item | undefined, newWindow = false) => {

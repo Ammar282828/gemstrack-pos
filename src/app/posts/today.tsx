@@ -98,7 +98,7 @@ export function TodayCard({ sent, investments, now, thumbOf, placeName }: {
             const wa = s.destinations.filter(d => d.startsWith('whatsapp'));
             return (
               <li key={s.key + s.at} className="flex items-center gap-2.5 py-1.5">
-                {thumb ? <img src={thumb} alt="" className="h-9 w-9 rounded-md object-cover shrink-0" /> : <span className="h-9 w-9 rounded-md bg-muted shrink-0 flex items-center justify-center">{s.destinations.includes('instagram-story') && !wa.length ? <Instagram className="h-4 w-4 text-muted-foreground" /> : <MessageCircle className="h-4 w-4 text-muted-foreground" />}</span>}
+                {thumb ? <img loading="lazy" decoding="async" src={thumb} alt="" className="h-9 w-9 rounded-md object-cover shrink-0" /> : <span className="h-9 w-9 rounded-md bg-muted shrink-0 flex items-center justify-center">{s.destinations.includes('instagram-story') && !wa.length ? <Instagram className="h-4 w-4 text-muted-foreground" /> : <MessageCircle className="h-4 w-4 text-muted-foreground" />}</span>}
                 <div className="min-w-0 flex-1">
                   <p className="text-sm truncate leading-tight">{s.title || (s.destinations.includes('instagram-story') ? 'A story' : 'A post')}</p>
                   <p className="text-[11px] text-muted-foreground truncate flex items-center gap-1">

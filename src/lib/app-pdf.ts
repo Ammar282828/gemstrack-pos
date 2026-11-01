@@ -69,7 +69,7 @@ export async function invoicePdf(id: string, viewer: PdfViewer, opts: { perPiece
   const invoice = (await read('invoices', id, viewer)) as Invoice | null;
   if (!invoice) return null;
   const [customer, images] = await Promise.all([customerOf(invoice, viewer), serverPdfImages()]);
-  const doc = drawInvoicePdf(invoice, { customer, perPiece: opts.perPiece, images, dates: KARACHI_DATES });
+  const doc = await drawInvoicePdf(invoice, { customer, perPiece: opts.perPiece, images, dates: KARACHI_DATES });
   return { bytes: new Uint8Array(doc.output('arraybuffer')), fileName: invoicePdfFileName(invoice, opts) };
 }
 

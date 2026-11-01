@@ -13,6 +13,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { gzipJsonText } from '@/lib/http/gzip-json';
 import { adminDb } from '@/lib/firebase-admin';
 import { verifyRequestEmail } from '@/lib/karigar-auth';
 import { roleForEmail } from '@/lib/roles';
@@ -34,7 +35,7 @@ export async function GET(req: NextRequest) {
     const snap = await adminDb.collection(name).get();
     const docs: Record<string, unknown> = {};
     snap.forEach((d) => { docs[d.id] = d.data(); });
-    return new NextResponse(JSON.stringify(docs, backupReplacer), {
+    return gzipJsonText(req, JSON.stringify(docs, backupReplacer), {
       headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' },
     });
   }

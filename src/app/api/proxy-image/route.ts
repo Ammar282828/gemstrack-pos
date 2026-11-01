@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
 
   let response: Response;
   try {
-    response = await fetch(target.toString(), { redirect: 'error' });
+    response = await fetch(target.toString(), { redirect: 'error', signal: AbortSignal.timeout(15000) });
   } catch {
     return NextResponse.json({ error: 'Failed to fetch image' }, { status: 502 });
   }

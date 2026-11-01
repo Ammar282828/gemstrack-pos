@@ -59,6 +59,11 @@ const nextConfig: NextConfig = {
         source: '/((?!view-invoice|links|api/public).*)',
         headers: [{ key: 'X-Frame-Options', value: 'SAMEORIGIN' }],
       },
+      // public/'s pictures and fonts are not fingerprinted, so a day fresh and a week stale-while-revalidating, never immutable.
+      ...['/brand/:path*', '/icons/:path*', '/fonts/:path*', '/:file([^/]+\\.(?:png|jpe?g|svg|ico|woff2))'].map(source => ({
+        source,
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=86400, stale-while-revalidate=604800' }],
+      })),
     ];
   },
   // A browser, bookmark or preview asking for the root icons gets this house's

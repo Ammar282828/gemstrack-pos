@@ -196,7 +196,7 @@ export function PiecePhotosStrip({ photos, piece, pieces, mainThumb, siteName, i
       <div className="flex gap-1.5 overflow-x-auto pb-0.5">
         {photos.list.map((x, i) => (
           <div key={x.id} className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border bg-muted">
-            <img src={thumbOf(x)} alt="" className="h-full w-full object-cover" />
+            <img loading="lazy" decoding="async" src={thumbOf(x)} alt="" className="h-full w-full object-cover" />
             <span className="absolute left-0.5 top-0.5 rounded-full bg-black/60 px-1 text-[10px] leading-4 text-white">{i + 1}</span>
             {n > 1 && !locked && (<>
               {/* The card's own photo stays: its weight and design are made above. */}

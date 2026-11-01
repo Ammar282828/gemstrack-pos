@@ -13,7 +13,7 @@ import { invoiceSaleValue } from '@/lib/analytics/sale-value';
  */
 const docTotal = (d: { docType: string; grandTotal?: number }) =>
   d.docType === 'invoice' ? invoiceSaleValue(d as unknown as Invoice) : (Number(d.grandTotal) || 0);
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useDeferredValue } from 'react';
 import { authedFetch } from '@/lib/voice/authed-fetch';
 import { ListSkeleton } from '@/components/shared/skeletons';
 import Link from 'next/link';
@@ -261,6 +261,8 @@ function monthLabel(key: string): string {
 
 export default function DocumentsPage() {
   const [searchTerm, setSearchTerm] = useState('');
+  // Filtering follows typing, never holds it up.
+  const deferredSearch = useDeferredValue(searchTerm);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [monthFilter, setMonthFilter] = useState<string>('All');
   // Starts on whoever is signed in (lib/people.ts); Anyone is one tap away.
@@ -450,8 +452,8 @@ export default function DocumentsPage() {
       });
     }
 
-    if (searchTerm) {
-      const lowerSearchTerm = searchTerm.toLowerCase();
+    if (deferredSearch) {
+      const lowerSearchTerm = deferredSearch.toLowerCase();
       docs = docs.filter(doc =>
         doc.id.toLowerCase().includes(lowerSearchTerm) ||
         (doc.customerName && doc.customerName.toLowerCase().includes(lowerSearchTerm))
@@ -459,7 +461,7 @@ export default function DocumentsPage() {
     }
 
     return docs;
-  }, [combinedDocuments, dateRange, searchTerm, monthFilter, takenByFilter]);
+  }, [combinedDocuments, dateRange, deferredSearch, monthFilter, takenByFilter]);
 
   /** One section of the list, with what it is worth and what is still owed. */
   const buildSections = React.useCallback((docs: DocumentType[]) => {

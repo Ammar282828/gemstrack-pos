@@ -188,7 +188,7 @@ export function PicturesPanel({ design, adsOk, onAnother }: { design: DesignApi;
     <div className="space-y-3">
       <div className="flex items-center gap-3">
         <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-muted">
-          {photo ? <img src={photo.url} alt={photo.label} className="h-full w-full object-cover" /> : <ImagePlus className="h-5 w-5 text-muted-foreground" />}
+          {photo ? <img loading="lazy" decoding="async" src={photo.url} alt={photo.label} className="h-full w-full object-cover" /> : <ImagePlus className="h-5 w-5 text-muted-foreground" />}
         </div>
         <div className="min-w-0 flex-1 space-y-1.5">
           <p className="truncate text-sm font-medium">{photo?.label ?? 'No photograph'}</p>
@@ -216,7 +216,7 @@ export function PicturesPanel({ design, adsOk, onAnother }: { design: DesignApi;
           <ul className="flex flex-wrap gap-1.5">
             {design.moreIds.map(id => (
               <li key={id} className="relative">
-                <img src={design.extra[id]?.url} alt={design.extra[id]?.label ?? ''} className="h-12 w-12 rounded-md border object-cover" />
+                <img loading="lazy" decoding="async" src={design.extra[id]?.url} alt={design.extra[id]?.label ?? ''} className="h-12 w-12 rounded-md border object-cover" />
                 <button type="button" aria-label="Take this photo out" onClick={() => design.removeMore(id)} className="absolute -right-1 -top-1 flex h-4 min-h-0 w-4 items-center justify-center rounded-full bg-foreground text-[10px] text-background">×</button>
               </li>
             ))}

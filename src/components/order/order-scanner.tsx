@@ -226,7 +226,7 @@ export function OrderScanner({
               {photos.map((p, i) => (
                 <div key={i} className="relative">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={p.dataUri} alt={`Photo ${i + 1} of the slip`} className="w-full rounded-lg border" />
+                  <img loading="lazy" decoding="async" src={p.dataUri} alt={`Photo ${i + 1} of the slip`} className="w-full rounded-lg border" />
                   {photos.length > 1 && (
                     <span className="absolute left-2 top-2 rounded bg-background/85 px-1.5 py-0.5 text-xs font-medium">
                       {i + 1}

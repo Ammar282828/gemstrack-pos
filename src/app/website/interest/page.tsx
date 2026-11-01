@@ -14,14 +14,14 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Line, ComposedChart } from 'recharts';
+import dynamic from 'next/dynamic';
+import { Skeleton } from '@/components/ui/skeleton';
 import { auth as firebaseAuth } from '@/lib/firebase';
 import { PageShell } from '@/components/shared/page-shell';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Heart, Loader2, MessageCircle, Eye, Clock, RefreshCw, ExternalLink, Radio } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { chartMotion } from '@/lib/chart-motion';
 import { STORE_LINKS } from '@/lib/store-config';
 import { Delta, Tile } from '@/app/insights/insights-kit';
 import type { Summary } from '@/lib/website/site-analytics';
@@ -58,7 +58,8 @@ type PeriodKey = typeof PERIODS[number]['key'];
 const PERIOD_KEY = 'erp.websiteInterest.period';
 
 const secs = (ms: number) => (ms >= 60_000 ? `${Math.floor(ms / 60_000)}m ${Math.round((ms % 60_000) / 1000)}s` : `${Math.round(ms / 1000)}s`);
-const tip = { background: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 };
+// recharts is heavy: fetched when the chart is first drawn.
+const SessionsChart = dynamic(() => import('./sessions-chart').then(m => m.SessionsChart), { ssr: false, loading: () => <Skeleton className="h-full w-full" /> });
 const shortDay = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 const site = (STORE_LINKS.website || '').replace(/\/+$/, '');
 
@@ -161,28 +162,7 @@ export default function InterestPage() {
           {chart.length > 0 && (
             <Card title={report.hours ? 'Sessions by the hour' : 'Sessions, day by day'} note={report.hours ? 'Karachi time; the faint bars are the day before' : 'with visitors and WhatsApp enquiries'}>
               <div className="h-56">
-                <ResponsiveContainer width="100%" height="100%">
-                  {report.hours ? (
-                    <BarChart data={chart} margin={{ left: -18, right: 0, top: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                      <XAxis dataKey="label" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} interval={2} />
-                      <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} allowDecimals={false} />
-                      <Tooltip contentStyle={tip} cursor={{ fill: 'hsl(var(--muted))' }} />
-                      <Bar {...chartMotion()} dataKey="before" name="Day before" fill="hsl(var(--muted-foreground) / 0.25)" radius={[3, 3, 0, 0]} maxBarSize={14} />
-                      <Bar {...chartMotion()} dataKey="sessions" name="Sessions" fill="hsl(var(--chart-1))" radius={[3, 3, 0, 0]} maxBarSize={14} />
-                    </BarChart>
-                  ) : (
-                    <ComposedChart data={chart} margin={{ left: -18, right: 0, top: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                      <XAxis dataKey="label" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} minTickGap={14} />
-                      <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} allowDecimals={false} />
-                      <Tooltip contentStyle={tip} cursor={{ fill: 'hsl(var(--muted))' }} />
-                      <Bar {...chartMotion()} dataKey="sessions" name="Sessions" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} maxBarSize={24} />
-                      <Line {...chartMotion()} dataKey="visitors" name="Visitors" stroke="hsl(var(--muted-foreground))" strokeWidth={1.5} dot={false} type="monotone" />
-                      <Line {...chartMotion()} dataKey="enquiries" name="WhatsApp" stroke="hsl(var(--success))" strokeWidth={2} dot={false} type="monotone" />
-                    </ComposedChart>
-                  )}
-                </ResponsiveContainer>
+                <SessionsChart data={chart} hours={!!report.hours} />
               </div>
             </Card>
           )}

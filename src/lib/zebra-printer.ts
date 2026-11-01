@@ -116,6 +116,24 @@ export function generateDumbbellTagZpl(sku: string): string {
 let zebraBrowserPrint: ZebraBrowserPrint | null = null;
 let selected_device: ZebraDevice | null = null;
 
+const ZEBRA_WRAPPER_SRC = 'https://unpkg.com/zebra-browser-print-wrapper@3.0.0/js/zebra_browser_print_wrapper.js';
+let zebraScript: Promise<void> | null = null;
+
+/** The Browser Print wrapper, fetched the first time a tag is sent rather than on every page. */
+function loadZebraScript(): Promise<void> {
+  if (!zebraScript) {
+    zebraScript = new Promise<void>((resolve, reject) => {
+      const el = document.createElement('script');
+      el.src = ZEBRA_WRAPPER_SRC;
+      el.async = true;
+      el.onload = () => resolve();
+      el.onerror = () => { zebraScript = null; el.remove(); reject(new Error("Zebra Browser Print script could not be loaded.")); };
+      document.head.appendChild(el);
+    });
+  }
+  return zebraScript;
+}
+
 export function checkZebraBrowserPrint(): Promise<void> {
   return new Promise((resolve, reject) => {
     if (typeof window === 'undefined') {
@@ -123,7 +141,8 @@ export function checkZebraBrowserPrint(): Promise<void> {
     }
     
     // Check if the Browser Print application is running
-    fetch('http://127.0.0.1:9100/available')
+    loadZebraScript()
+        .then(() => fetch('http://127.0.0.1:9100/available'))
         .then(response => {
             if (!response.ok) {
                 throw new Error("Zebra Browser Print application not found or not running.");

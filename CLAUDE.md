@@ -104,6 +104,7 @@ Owner, 2026-10-24: web, Android and iPhone stay aligned at all times. The ledger
 
 - taheri.shop, the Mina catalogue and the ERP (`/api/public/*`, website routes), WhatsApp via WAHA: `docs/features/site-and-erp.md` (runbook `ops/waha/README.md`).
 - House of Mina's catalogue (catalogue.houseofmina.store): `docs/features/mina-catalogue.md`.
+- Speed: what was audited and what is open: `docs/performance.md`.
 - In progress (website edits, Meta app settings, Meta's Ads connector) and open items: `docs/in-progress.md`.
 - The AI copies and a proposed merge: `docs/ai-merge-proposal.md`.
 

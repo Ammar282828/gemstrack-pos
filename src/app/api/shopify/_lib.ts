@@ -47,7 +47,7 @@ function firestoreBase(collection: string, docId?: string) {
 }
 
 export async function firestoreGet(collection: string, docId: string) {
-  const res = await fetch(firestoreBase(collection, docId));
+  const res = await fetch(firestoreBase(collection, docId), { signal: AbortSignal.timeout(15000) });
   if (!res.ok) return null;
   return res.json();
 }
@@ -57,6 +57,7 @@ export async function firestoreSet(collection: string, docId: string, fields: Re
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ fields }),
+    signal: AbortSignal.timeout(15000),
   });
 }
 
@@ -75,7 +76,7 @@ export async function firestoreQuery(collection: string, field: string, value: s
       },
     },
   };
-  const res = await fetch(base, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const res = await fetch(base, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(15000) });
   if (!res.ok) return [];
   const rows: any[] = await res.json();
   return rows.filter(r => r.document?.fields).map(r => r.document);
@@ -109,6 +110,7 @@ export async function fetchAllPages(shop: string, token: string, endpoint: strin
   while (url) {
     const res = await fetch(`https://${shop}/admin/api/${SHOPIFY_API_VERSION}${url}`, {
       headers: { 'X-Shopify-Access-Token': token, 'Content-Type': 'application/json' },
+      signal: AbortSignal.timeout(15000),
     });
     if (!res.ok) break;
     const data = await res.json();
@@ -223,6 +225,7 @@ export async function shopifyRequest(
       method,
       headers: { 'X-Shopify-Access-Token': token, 'Content-Type': 'application/json' },
       ...(body && { body: JSON.stringify(body) }),
+      signal: AbortSignal.timeout(15000),
     }
   );
   if (!res.ok) {
@@ -239,6 +242,7 @@ export async function shopifyGraphQL(shop: string, token: string, query: string,
     method: 'POST',
     headers: { 'X-Shopify-Access-Token': token, 'Content-Type': 'application/json' },
     body: JSON.stringify({ query, variables }),
+    signal: AbortSignal.timeout(30000),
   });
   if (!res.ok) {
     const t = await res.text();

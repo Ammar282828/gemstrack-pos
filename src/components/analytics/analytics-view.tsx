@@ -15,7 +15,8 @@ import { useAppStore, Invoice, Order, Product, Category, Customer, Expense, Invo
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { stockSku } from '@/lib/sku';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, ReferenceLine, Cell } from 'recharts';
+import dynamic from 'next/dynamic';
+import { Skeleton } from '@/components/ui/skeleton';
 import { format, parseISO, startOfDay, endOfDay, subDays, isWithinInterval, startOfYear, endOfYear, getYear, eachMonthOfInterval, startOfMonth } from 'date-fns';
 import type { DateRange } from "react-day-picker";
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -38,7 +39,6 @@ import { saleCustomerKey, WALK_IN_ENTITY, WALK_IN_NAME } from '@/lib/walk-in';
 import { toTola, formatWeight } from '@/lib/units';
 import { MonthlyReportButton } from '@/components/reports/monthly-report-button';
 import { bookedAsSale } from '@/lib/order-stage';
-import { chartMotion } from '@/lib/chart-motion';
 import { lineCategory } from '@/lib/categories';
 import { netProfit as netProfitOf, netMarginPercent, isRunningCost, profitBeforeRunning, RECORDS_GOODS } from '@/lib/analytics/net-profit';
 import { isGoodsExpense } from '@/lib/expense-categories';
@@ -57,6 +57,13 @@ type SourceTrendData = { date: string } & Record<string, number | string>;
 // "unclassified" catch-all for sales with no source on the record or customer.
 const UNCLASSIFIED_KEY = 'unclassified';
 const SOURCE_KEYS: string[] = [...CUSTOMER_SOURCES, UNCLASSIFIED_KEY];
+// recharts is heavy: fetched when a chart is first drawn.
+const ExpensesByCategoryChart = dynamic(() => import('./analytics-charts').then(m => m.ExpensesByCategoryChart), { ssr: false, loading: () => <Skeleton className="h-[350px] w-full" /> });
+const SalesOverTimeChart = dynamic(() => import('./analytics-charts').then(m => m.SalesOverTimeChart), { ssr: false, loading: () => <Skeleton className="h-[350px] w-full" /> });
+const MonthlyRevenueChart = dynamic(() => import('./analytics-charts').then(m => m.MonthlyRevenueChart), { ssr: false, loading: () => <Skeleton className="h-[340px] w-full" /> });
+const SalesByCategoryChart = dynamic(() => import('./analytics-charts').then(m => m.SalesByCategoryChart), { ssr: false, loading: () => <Skeleton className="h-[350px] w-full" /> });
+const SourceTrendChart = dynamic(() => import('./analytics-charts').then(m => m.SourceTrendChart), { ssr: false, loading: () => <Skeleton className="h-[320px] w-full" /> });
+
 const SOURCE_LABELS: Record<string, string> = { ...CUSTOMER_SOURCE_LABELS, [UNCLASSIFIED_KEY]: 'Unclassified' };
 // Stable colors for the trend chart, one per source key.
 const SOURCE_COLORS: Record<string, string> = {
@@ -1069,21 +1076,7 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
               </CardHeader>
               <CardContent className="pl-2">
                 {analyticsData.expensesByCategory.length > 0 ? (
-                    <ResponsiveContainer width="100%" height={350}>
-                    <BarChart data={analyticsData.expensesByCategory} layout="vertical" margin={{ right: 10, left: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                        <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(value) => axisLac(Number(value))} />
-                        <YAxis dataKey="category" type="category" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} width={85} interval={0} />
-                        <Tooltip
-                            contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
-                            labelStyle={{ color: 'hsl(var(--foreground))' }}
-                            itemStyle={{ color: 'hsl(var(--foreground))' }}
-                            formatter={(value: number) => [`${pkrLac(value)}`, "Amount"]}
-                        />
-                        <Legend wrapperStyle={{ color: 'hsl(var(--muted-foreground))' }} />
-                        <Bar {...chartMotion()} dataKey="amount" name="Amount" fill="hsl(var(--chart-5))" radius={[0, 4, 4, 0]} barSize={20} />
-                    </BarChart>
-                    </ResponsiveContainer>
+                    <ExpensesByCategoryChart data={analyticsData.expensesByCategory} />
                 ) : (
                     <p className="text-muted-foreground text-center py-10">No expenses recorded for the selected period.</p>
                 )}
@@ -1101,27 +1094,7 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
               </CardHeader>
               <CardContent className="pl-2">
                  {analyticsData.salesOverTime.length > 0 ? (
-                <ResponsiveContainer width="100%" height={350}>
-                  <LineChart data={analyticsData.salesOverTime}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))"/>
-                    <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
-                    <YAxis yAxisId="left" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => axisLac(Number(value))} />
-                    <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}`} />
-                    <Tooltip
-                        contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
-                        labelStyle={{ color: 'hsl(var(--foreground))' }}
-                        itemStyle={{ color: 'hsl(var(--foreground))' }}
-                        formatter={(value: number, name: string) => {
-                             if (name === 'Sales') return [`${pkrLac(value)}`, name];
-                             if (name === 'Orders') return [value.toLocaleString(), name];
-                             return [value, name];
-                        }}
-                    />
-                    <Legend wrapperStyle={{ color: 'hsl(var(--muted-foreground))' }} />
-                    <Line {...chartMotion()} yAxisId="left" type="monotone" dataKey="sales" name="Sales" stroke="hsl(var(--chart-1))" strokeWidth={2} dot={{ r: 4, fill: 'hsl(var(--chart-1))', strokeWidth:0 }} activeDot={{ r: 6, fill: 'hsl(var(--chart-1))', strokeWidth:0 }}/>
-                    <Line {...chartMotion()} yAxisId="right" type="monotone" dataKey="orders" name="Orders" stroke="hsl(var(--chart-2))" strokeWidth={2} dot={{ r: 4, fill: 'hsl(var(--chart-2))', strokeWidth:0 }} activeDot={{ r: 6, fill: 'hsl(var(--chart-2))', strokeWidth:0 }} />
-                  </LineChart>
-                </ResponsiveContainer>
+                <SalesOverTimeChart data={analyticsData.salesOverTime} />
                  ) : (
                     <p className="text-muted-foreground text-center py-10">No sales data available to display chart for the selected period.</p>
                  )}
@@ -1143,51 +1116,7 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
                 </CardDescription>
               </CardHeader>
               <CardContent className="pl-2">
-                <ResponsiveContainer width="100%" height={340}>
-                  <BarChart data={monthlyRevenue.data} margin={{ top: 8, right: 12, left: 4, bottom: 4 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                    <XAxis
-                      dataKey="month"
-                      stroke="hsl(var(--muted-foreground))"
-                      fontSize={11}
-                      tickLine={false}
-                      axisLine={false}
-                      interval="preserveStartEnd"
-                      minTickGap={8}
-                    />
-                    <YAxis
-                      stroke="hsl(var(--muted-foreground))"
-                      fontSize={12}
-                      tickLine={false}
-                      axisLine={false}
-                      tickFormatter={(v) => axisLac(Number(v))}
-                    />
-                    <Tooltip
-                      cursor={{ fill: 'hsl(var(--muted))', opacity: 0.35 }}
-                      contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
-                      labelStyle={{ color: 'hsl(var(--foreground))' }}
-                      itemStyle={{ color: 'hsl(var(--foreground))' }}
-                      formatter={(value: number, _name: string, entry: { payload?: { sales?: number } }) => [
-                        `${pkrLac(value)}${entry?.payload?.sales ? ` · ${entry.payload.sales} sale${entry.payload.sales === 1 ? '' : 's'}` : ''}`,
-                        'Revenue',
-                      ]}
-                    />
-                    {monthlyRevenue.average > 0 && (
-                      <ReferenceLine
-                        y={monthlyRevenue.average}
-                        stroke="hsl(var(--muted-foreground))"
-                        strokeDasharray="4 4"
-                        label={{ value: 'avg', position: 'right', fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
-                      />
-                    )}
-                    <Bar {...chartMotion()} dataKey="revenue" name="Revenue" radius={[4, 4, 0, 0]}>
-                      {/* The best month is picked out so the peak is findable at a glance. */}
-                      {monthlyRevenue.data.map(d => (
-                        <Cell key={d.key} fill={d.key === monthlyRevenue.best ? 'hsl(var(--chart-2))' : 'hsl(var(--chart-1))'} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+                <MonthlyRevenueChart data={monthlyRevenue.data} average={monthlyRevenue.average} best={monthlyRevenue.best} />
               </CardContent>
             </Card>
           )}
@@ -1331,21 +1260,7 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
               </CardHeader>
               <CardContent className="pl-2">
                 {analyticsData.salesByCategory.filter(c => c.sales > 0).length > 0 ? (
-                    <ResponsiveContainer width="100%" height={350}>
-                    <BarChart data={analyticsData.salesByCategory.filter(c => c.sales > 0)} layout="vertical" margin={{ right: 10, left: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                        <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(value) => axisLac(Number(value))} />
-                        <YAxis dataKey="categoryName" type="category" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} width={85} interval={0} />
-                        <Tooltip
-                            contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
-                            labelStyle={{ color: 'hsl(var(--foreground))' }}
-                            itemStyle={{ color: 'hsl(var(--foreground))' }}
-                            formatter={(value: number) => [`${pkrLac(value)}`, "Sales"]}
-                        />
-                        <Legend wrapperStyle={{ color: 'hsl(var(--muted-foreground))' }} />
-                        <Bar {...chartMotion()} dataKey="sales" name="Sales" fill="hsl(var(--chart-1))" radius={[0, 4, 4, 0]} barSize={20} />
-                    </BarChart>
-                    </ResponsiveContainer>
+                    <SalesByCategoryChart data={analyticsData.salesByCategory.filter(c => c.sales > 0)} />
                 ) : (
                     <p className="text-muted-foreground text-center py-10">No category sales data available for the selected period.</p>
                 )}
@@ -1449,33 +1364,7 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
                   {/* Trend chart */}
                   <div className="pl-2">
                     {analyticsData.sourceTrend.length > 0 ? (
-                      <ResponsiveContainer width="100%" height={320}>
-                        <LineChart data={analyticsData.sourceTrend}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                          <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(value) => format(parseISO(value), 'MMM d')} />
-                          <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(value) => axisLac(Number(value))} />
-                          <Tooltip
-                            contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
-                            labelStyle={{ color: 'hsl(var(--foreground))' }}
-                            itemStyle={{ color: 'hsl(var(--foreground))' }}
-                            labelFormatter={(label) => format(parseISO(label as string), 'EEE, MMM d, yyyy')}
-                            formatter={(value: number, name: string) => [`${pkrLac(value)}`, name]}
-                          />
-                          <Legend wrapperStyle={{ color: 'hsl(var(--muted-foreground))' }} />
-                          {analyticsData.sourceActiveKeys.map((key) => (
-                            <Line {...chartMotion()}
-                              key={key}
-                              type="monotone"
-                              dataKey={key}
-                              name={SOURCE_LABELS[key]}
-                              stroke={SOURCE_COLORS[key]}
-                              strokeWidth={2}
-                              dot={false}
-                              activeDot={{ r: 5, fill: SOURCE_COLORS[key], strokeWidth: 0 }}
-                            />
-                          ))}
-                        </LineChart>
-                      </ResponsiveContainer>
+                      <SourceTrendChart data={analyticsData.sourceTrend} keys={analyticsData.sourceActiveKeys} labels={SOURCE_LABELS} colors={SOURCE_COLORS} />
                     ) : (
                       <p className="text-muted-foreground text-center py-10">No source trend data for the selected period.</p>
                     )}

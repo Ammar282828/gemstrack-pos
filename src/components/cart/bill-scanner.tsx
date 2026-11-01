@@ -183,7 +183,7 @@ export function BillScanner({
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={photo} alt="The bill that was read" className="w-full rounded-lg border" />
+              <img loading="lazy" decoding="async" src={photo} alt="The bill that was read" className="w-full rounded-lg border" />
               <PhotoPick paper variant="buttons" onFiles={(files) => void scan(files[0])} takeLabel="Retake" pickLabel="From Photos" />
             </div>
 

@@ -25,6 +25,7 @@
  */
 
 import { GoogleAuth } from 'google-auth-library';
+import { timeoutSignal } from '@/lib/http/timeout';
 
 const APP_ID = () => process.env.INSTAGRAM_APP_ID?.trim() || '';
 const APP_SECRET = () => process.env.INSTAGRAM_APP_SECRET?.trim() || '';
@@ -51,6 +52,7 @@ async function sm(path: string, init?: RequestInit): Promise<Response> {
   return fetch(`https://secretmanager.googleapis.com/v1/projects/${PROJECT()}/secrets/${SECRET()}${path}`, {
     ...init,
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...(init?.headers || {}) },
+    signal: timeoutSignal(15000, init?.signal),
   });
 }
 
@@ -116,6 +118,7 @@ async function exchangeCode(origin: string, code: string): Promise<Record<string
     return await igJson(await fetch('https://api.instagram.com/oauth/access_token', {
       method: 'POST',
       body: new URLSearchParams({ client_id: APP_ID(), client_secret: APP_SECRET(), grant_type: 'authorization_code', redirect_uri: redirectUri(origin), code }),
+      signal: AbortSignal.timeout(15000),
     }));
   } catch (e) {
     console.warn('[instagram] code exchange refused:', e instanceof Error ? e.message : e);
@@ -127,9 +130,9 @@ async function exchangeCode(origin: string, code: string): Promise<Record<string
 export async function completeConnection(origin: string, rawCode: string): Promise<Connection> {
   const code = rawCode.replace(/#_$/, '');
   const short = await exchangeCode(origin, code);
-  const long = await igJson(await fetch(`${GRAPH}/access_token?${new URLSearchParams({ grant_type: 'ig_exchange_token', client_secret: APP_SECRET(), access_token: String(short.access_token) })}`));
+  const long = await igJson(await fetch(`${GRAPH}/access_token?${new URLSearchParams({ grant_type: 'ig_exchange_token', client_secret: APP_SECRET(), access_token: String(short.access_token) })}`, { signal: AbortSignal.timeout(15000) }));
   const token = String(long.access_token);
-  const me = await igJson(await fetch(`${GRAPH}/${VERSION()}/me?${new URLSearchParams({ fields: 'user_id,username,account_type', access_token: token })}`));
+  const me = await igJson(await fetch(`${GRAPH}/${VERSION()}/me?${new URLSearchParams({ fields: 'user_id,username,account_type', access_token: token })}`, { signal: AbortSignal.timeout(15000) }));
   const username = String(me.username || '');
   if (USERNAME() && username.toLowerCase() !== USERNAME()) {
     throw new InstagramError(`That was @${username}. Only @${USERNAME()} can be connected here — sign in to Instagram as the shop and try again.`, 403);
@@ -153,7 +156,7 @@ export async function freshConnection(): Promise<Connection> {
   if (left <= 0) throw new InstagramError('The Instagram connection has expired. Connect it again.', 409);
   if (left < RENEW_BEFORE_MS) {
     try {
-      const r = await igJson(await fetch(`${GRAPH}/refresh_access_token?${new URLSearchParams({ grant_type: 'ig_refresh_token', access_token: conn.token })}`));
+      const r = await igJson(await fetch(`${GRAPH}/refresh_access_token?${new URLSearchParams({ grant_type: 'ig_refresh_token', access_token: conn.token })}`, { signal: AbortSignal.timeout(15000) }));
       const renewed = { ...conn, token: String(r.access_token), expiresAt: new Date(Date.now() + Number(r.expires_in || 5_184_000) * 1000).toISOString() };
       await saveConnection(renewed);
       return renewed;
@@ -176,6 +179,7 @@ export async function publishStory(imageUrl: string): Promise<string> {
   const container = await igJson(await fetch(`${GRAPH}/${VERSION()}/${conn.userId}/media`, {
     method: 'POST',
     body: new URLSearchParams({ image_url: imageUrl, media_type: 'STORIES', access_token: conn.token }),
+    signal: AbortSignal.timeout(30000),
   }));
   return publishContainer(conn, container);
 }
@@ -193,6 +197,7 @@ export async function publishPhoto(imageUrl: string, caption = ''): Promise<stri
   const container = await igJson(await fetch(`${GRAPH}/${VERSION()}/${conn.userId}/media`, {
     method: 'POST',
     body: new URLSearchParams({ image_url: imageUrl, ...(text ? { caption: text } : {}), access_token: conn.token }),
+    signal: AbortSignal.timeout(30000),
   }));
   return publishContainer(conn, container);
 }
@@ -219,6 +224,7 @@ export async function publishCarousel(imageUrls: string[], caption = ''): Promis
       const child = await igJson(await fetch(`${GRAPH}/${v}/${conn.userId}/media`, {
         method: 'POST',
         body: new URLSearchParams({ image_url: imageUrls[i], is_carousel_item: 'true', access_token: conn.token }),
+        signal: AbortSignal.timeout(30000),
       }));
       await waitForContainer(conn, String(child.id));
       children.push(String(child.id));
@@ -230,6 +236,7 @@ export async function publishCarousel(imageUrls: string[], caption = ''): Promis
   const container = await igJson(await fetch(`${GRAPH}/${v}/${conn.userId}/media`, {
     method: 'POST',
     body: new URLSearchParams({ media_type: 'CAROUSEL', children: children.join(','), ...(text ? { caption: text } : {}), access_token: conn.token }),
+    signal: AbortSignal.timeout(30000),
   }));
   return publishContainer(conn, container);
 }
@@ -238,7 +245,7 @@ export async function publishCarousel(imageUrls: string[], caption = ''): Promis
 async function waitForContainer(conn: Connection, id: string): Promise<void> {
   const v = VERSION();
   for (let i = 0; i < 15; i++) {
-    const s = await igJson(await fetch(`${GRAPH}/${v}/${id}?${new URLSearchParams({ fields: 'status_code,status', access_token: conn.token })}`));
+    const s = await igJson(await fetch(`${GRAPH}/${v}/${id}?${new URLSearchParams({ fields: 'status_code,status', access_token: conn.token })}`, { signal: AbortSignal.timeout(15000) }));
     if (s.status_code === 'FINISHED') return;
     if (s.status_code === 'ERROR' || s.status_code === 'EXPIRED') throw new InstagramError(`Instagram could not take the image: ${String(s.status || s.status_code)}`, 422);
     await new Promise(r => setTimeout(r, 2000));
@@ -256,6 +263,7 @@ async function publishContainer(conn: Connection, container: Record<string, unkn
   const published = await igJson(await fetch(`${GRAPH}/${v}/${conn.userId}/media_publish`, {
     method: 'POST',
     body: new URLSearchParams({ creation_id: id, access_token: conn.token }),
+    signal: AbortSignal.timeout(60000),
   }));
   return String(published.id);
 }

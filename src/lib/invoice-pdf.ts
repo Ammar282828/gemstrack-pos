@@ -18,8 +18,7 @@
  * each one its own paper.
  */
 
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import type { jsPDF } from 'jspdf';
 import { metalLabel, describeSettings, describeDelivery } from '@/lib/materials';
 import { categorySingular } from '@/lib/categories';
 import { STORE_INVOICE_BY_CUSTOMER, STORE_LOGO_ASPECT } from '@/lib/store-config';
@@ -37,6 +36,15 @@ import { drawDocHeader, tableStyles, drawRowRule, alignHeadCell, label, drawTota
 import { describeExchangeEntry } from '@/lib/exchange';
 import { invoiceFileName, invoiceTitle } from '@/lib/invoice-share';
 import { balanceLine } from '@/lib/invoice-credit';
+
+// jspdf + autotable are heavy: loaded on first use, not with the page that merely links here.
+let JsPDF: typeof import('jspdf').jsPDF;
+async function loadPdfLibs(): Promise<void> {
+  if (JsPDF) return;
+  const mod = await import('jspdf');
+  await import('jspdf-autotable');
+  JsPDF = mod.jsPDF ?? (mod as any).default;
+}
 
 declare module 'jspdf' {
   interface jsPDF {
@@ -341,7 +349,7 @@ function drawInvoice(doc: jsPDF, inv: PieceInvoice, customer: Customer | null | 
   let splitLast = false;
   const n = tableRows.length;
   if (n > 1) {
-    const scratch = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a5' });
+    const scratch = new JsPDF({ orientation: 'portrait', unit: 'mm', format: 'a5' });
     drawItems(scratch, 0, n, tableStartY, false);
     const endY = scratch.lastAutoTable.finalY || 0;
     const limit = pageHeight - margin;
@@ -393,7 +401,7 @@ function drawInvoice(doc: jsPDF, inv: PieceInvoice, customer: Customer | null | 
   });
   let beside = false, besideH = 0;
   if (history.length > 0 && history.length <= BESIDE_MAX_ROWS && besideW >= BESIDE_MIN_W && notesW >= BESIDE_MIN_NOTES) {
-    const scratch = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [pageWidth, pageHeight] });
+    const scratch = new JsPDF({ orientation: 'portrait', unit: 'mm', format: [pageWidth, pageHeight] });
     besideTable(scratch, 0);
     besideH = BESIDE_TITLE + 2 + (scratch.lastAutoTable.finalY || 0);
     beside = scratch.getNumberOfPages() === 1;
@@ -462,8 +470,9 @@ function drawInvoice(doc: jsPDF, inv: PieceInvoice, customer: Customer | null | 
  * The finished document, not yet saved, from what it is given: no page, no fetch, so the server
  * draws the same paper (lib/app-pdf.ts).
  */
-export function drawInvoicePdf(invoice: Invoice, opts: InvoicePdfOptions & { images: PdfImages }): jsPDF {
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a5' });
+export async function drawInvoicePdf(invoice: Invoice, opts: InvoicePdfOptions & { images: PdfImages }): Promise<jsPDF> {
+  await loadPdfLibs();
+  const doc = new JsPDF({ orientation: 'portrait', unit: 'mm', format: 'a5' });
   const { images, dates } = opts;
   const chrome: Chrome = {
     pageWidth: doc.internal.pageSize.getWidth(),
@@ -489,7 +498,7 @@ export function drawInvoicePdf(invoice: Invoice, opts: InvoicePdfOptions & { ima
 export async function buildInvoicePdf(invoice: Invoice, opts: InvoicePdfOptions = {}): Promise<jsPDF> {
   // The logo once per session, not once per print — see pdf-logo.ts.
   const images = opts.images ?? await browserPdfImages();
-  return drawInvoicePdf(invoice, { ...opts, images });
+  return await drawInvoicePdf(invoice, { ...opts, images });
 }
 
 /**

@@ -30,8 +30,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Loader2, DollarSign, Weight, Zap, Diamond, Gem as GemIcon, FileText, Printer, PencilRuler, PlusCircle, Trash2, Camera, Link as LinkIcon, Hand, List, Upload, X, User, Phone, MessageSquare, Percent, Save, Ban, Search, Briefcase, Lock , ChevronRight, TicketPercent, Truck, CalendarClock, ScanLine } from 'lucide-react';
 import { CustomerAutocomplete } from '@/components/customer/customer-autocomplete';
 import { useToast } from '@/hooks/use-toast';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
 import QRCode from 'qrcode.react';
 import Image from 'next/image';
 import 'react-phone-number-input/style.css'

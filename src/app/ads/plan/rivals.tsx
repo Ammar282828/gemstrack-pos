@@ -131,7 +131,7 @@ function RivalCard({ c, open, onToggle, onChange, onRemove, canLook }: { c: Row;
   return (
     <div className="rounded-xl border overflow-hidden">
       <button type="button" onClick={onToggle} className="w-full flex items-center gap-3 p-3 text-left hover:bg-muted/40">
-        {p?.picture ? <img src={p.picture} alt="" className="h-10 w-10 rounded-full object-cover shrink-0" /> : <span className="h-10 w-10 rounded-full bg-muted grid place-items-center shrink-0"><Users className="h-4 w-4 text-muted-foreground" /></span>}
+        {p?.picture ? <img loading="lazy" decoding="async" src={p.picture} alt="" className="h-10 w-10 rounded-full object-cover shrink-0" /> : <span className="h-10 w-10 rounded-full bg-muted grid place-items-center shrink-0"><Users className="h-4 w-4 text-muted-foreground" /></span>}
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium truncate">{c.name} <span className="text-xs text-muted-foreground font-normal">@{c.username}</span></p>
           <p className="text-[11px] text-muted-foreground truncate">{p ? `${k(p.followers)} followers · ${p.mediaCount} posts` : c.why || (c.city ? c.city : 'Not looked up yet')}{r ? ' · read' : ''}</p>

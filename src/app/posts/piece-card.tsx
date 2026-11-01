@@ -241,7 +241,7 @@ export function PieceCard({ piece, pieces, igPost, shown, siteName, posted, phot
       {/* The photo, or — while it is being designed — the editor in its place. */}
       {design.open
         ? <PieceDesignPanel d={design} piece={p} siteName={siteName} />
-        : <a href={p.url} target="_blank" rel="noopener" className="block bg-muted"><img src={goingPhoto ?? p.image} alt={p.name} className="w-full aspect-square object-contain" /></a>}
+        : <a href={p.url} target="_blank" rel="noopener" className="block bg-muted"><img loading="lazy" decoding="async" src={goingPhoto ?? p.image} alt={p.name} className="w-full aspect-square object-contain" /></a>}
       <div className="p-3 space-y-3">
         {failed && <p className="rounded-md border border-destructive/40 bg-destructive/5 px-2.5 py-1.5 text-xs text-destructive">Didn’t go: {failed}</p>}
         {!design.open && (

@@ -409,7 +409,7 @@ export function httpSenders(headers: () => Promise<Record<string, string>>, fetc
   async function call<T extends Record<string, unknown>>(path: string, init: { method?: string; form?: FormData; json?: unknown } = {}): Promise<T> {
     const h = await headers();
     if (init.json !== undefined) h['Content-Type'] = 'application/json';
-    const res = await fetchFn(path, { method: init.method ?? (init.form || init.json !== undefined ? 'POST' : 'GET'), headers: h, body: init.form ?? (init.json !== undefined ? JSON.stringify(init.json) : undefined), cache: 'no-store' });
+    const res = await fetchFn(path, { method: init.method ?? (init.form || init.json !== undefined ? 'POST' : 'GET'), headers: h, body: init.form ?? (init.json !== undefined ? JSON.stringify(init.json) : undefined), cache: 'no-store', signal: AbortSignal.timeout(60000) });
     const d = await res.json().catch(() => ({})) as T & { error?: string };
     if (!res.ok) throw new PublishError(d.error || `Failed (${res.status})`, res.status);
     return d;

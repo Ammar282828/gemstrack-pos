@@ -9,13 +9,13 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ResponsiveContainer, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
+import dynamic from 'next/dynamic';
+import { Skeleton } from '@/components/ui/skeleton';
 import { PageShell } from '@/components/shared/page-shell';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, BarChart3, CheckCircle2, Info, Loader2, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { STORE_META_ADS } from '@/lib/store-config';
-import { chartMotion } from '@/lib/chart-motion';
 import { compact, count, money, actionLabel, headlineActions, type Metrics } from '@/lib/ads/shape';
 import { surfaceLabel, type Finding, type Split } from '@/lib/social-insights/shape';
 import type { DailySnapshot, FacebookOverview, InstagramOverview, PlatformSpend } from '@/lib/social-insights/fetch';
@@ -24,7 +24,10 @@ import { Delta, InsightRangePicker, MissingNote, Tile, useInsightRange, useInsig
 
 interface OverviewData { instagram: InstagramOverview | null; facebook: FacebookOverview | null; paid: { now: PlatformSpend[]; before: PlatformSpend[] } | null; history: DailySnapshot[]; currency: string }
 
-const tip = { background: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 };
+// recharts is heavy: fetched when a chart is first drawn.
+const ReachBars = dynamic(() => import('./charts').then(m => m.ReachBars), { ssr: false, loading: () => <Skeleton className="h-full w-full" /> });
+const FollowerLine = dynamic(() => import('./charts').then(m => m.FollowerLine), { ssr: false, loading: () => <Skeleton className="h-full w-full" /> });
+const PageViewBars = dynamic(() => import('./charts').then(m => m.PageViewBars), { ssr: false, loading: () => <Skeleton className="h-full w-full" /> });
 const PLATFORM: Record<string, string> = { instagram: 'Instagram', facebook: 'Facebook', messenger: 'Messenger', audience_network: 'Audience Network', threads: 'Threads', whatsapp: 'WhatsApp' };
 
 export default function InsightsRoute() {
@@ -107,7 +110,7 @@ function InsightsOverview() {
 
           {ig && (
             <section className="space-y-2.5">
-              <h2 className="text-sm font-semibold flex items-center gap-2">Instagram{ig.account.picture && <img src={ig.account.picture} alt="" className="h-5 w-5 rounded-full" />}<span className="font-normal text-muted-foreground">@{ig.account.username}</span></h2>
+              <h2 className="text-sm font-semibold flex items-center gap-2">Instagram{ig.account.picture && <img loading="lazy" decoding="async" src={ig.account.picture} alt="" className="h-5 w-5 rounded-full" />}<span className="font-normal text-muted-foreground">@{ig.account.username}</span></h2>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
                 <Tile label="Followers" value={count(ig.account.followers)}
                   sub={ig.follows ? `${ig.follows.net >= 0 ? '+' : '−'}${count(Math.abs(ig.follows.net))} · ${count(ig.follows.follows)} in, ${count(ig.follows.unfollows)} out` : undefined}
@@ -136,15 +139,7 @@ function InsightsOverview() {
                   <div className="rounded-xl border p-3">
                     <p className="text-sm font-semibold mb-2">Accounts reached, day by day <span className="font-normal text-muted-foreground text-xs">— ads included</span></p>
                     <div className="h-48">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={reachDays} margin={{ left: -10, right: 0, top: 5 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                          <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} minTickGap={12} />
-                          <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} tickFormatter={v => compact(Number(v))} />
-                          <Tooltip contentStyle={tip} cursor={{ fill: 'hsl(var(--muted))' }} formatter={(v: number) => [count(v), 'Reached']} />
-                          <Bar {...chartMotion()} dataKey="reach" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} maxBarSize={24} />
-                        </BarChart>
-                      </ResponsiveContainer>
+                      <ReachBars data={reachDays} />
                     </div>
                   </div>
                 )}
@@ -152,15 +147,7 @@ function InsightsOverview() {
                   <p className="text-sm font-semibold mb-2">Followers over time</p>
                   {followerDays.length > 1 ? (
                     <div className="h-48">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={followerDays} margin={{ left: -4, right: 6, top: 5 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                          <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} minTickGap={12} />
-                          <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} domain={['dataMin - 5', 'dataMax + 5']} tickFormatter={v => compact(Number(v))} />
-                          <Tooltip contentStyle={tip} formatter={(v: number) => [count(v), 'Followers']} />
-                          <Line {...chartMotion()} dataKey="followers" stroke="hsl(var(--chart-1))" strokeWidth={2} dot={false} type="monotone" />
-                        </LineChart>
-                      </ResponsiveContainer>
+                      <FollowerLine data={followerDays} />
                     </div>
                   ) : <p className="text-xs text-muted-foreground">Meta keeps no follower history, so the ERP writes the count down every day from {d.history[0]?.date ?? 'today'}. The line fills in from there.</p>}
                 </div>
@@ -205,15 +192,7 @@ function InsightsOverview() {
                 <div className="rounded-xl border p-3">
                   <p className="text-sm font-semibold mb-2">Page views, day by day</p>
                   <div className="h-40">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={fbDays} margin={{ left: -10, right: 0, top: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                        <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} minTickGap={12} />
-                        <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} tickFormatter={v => compact(Number(v))} />
-                        <Tooltip contentStyle={tip} cursor={{ fill: 'hsl(var(--muted))' }} formatter={(v: number) => [count(v), 'Views']} />
-                        <Bar {...chartMotion()} dataKey="views" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} maxBarSize={24} />
-                      </BarChart>
-                    </ResponsiveContainer>
+                    <PageViewBars data={fbDays} />
                   </div>
                 </div>
               )}

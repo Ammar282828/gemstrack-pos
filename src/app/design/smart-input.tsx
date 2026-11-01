@@ -263,7 +263,7 @@ export function SmartInput({ onParsed, layers, onLayers, onDriveFolder, classNam
               {i.photos.map((p, n) => (
                 <div key={p.id} className="relative">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={p.url} alt={p.name} className={cn('h-20 w-20 cursor-pointer rounded-lg object-cover ring-2', n === i.main ? 'ring-primary' : 'ring-transparent')} onClick={() => set(i.key, x => ({ ...x, main: n }))} />
+                  <img loading="lazy" decoding="async" src={p.url} alt={p.name} className={cn('h-20 w-20 cursor-pointer rounded-lg object-cover ring-2', n === i.main ? 'ring-primary' : 'ring-transparent')} onClick={() => set(i.key, x => ({ ...x, main: n }))} />
                   {n === i.main && <span className="absolute left-1 top-1 rounded bg-primary px-1 text-[10px] text-primary-foreground">main</span>}
                   {layers && onLayers && n === i.main && (
                     <button type="button" disabled={!!busy} title="Split into layers" aria-label="Split into layers" onClick={() => void split(p)} className="absolute bottom-1 right-1 min-h-0 rounded bg-background/90 p-1 shadow"><Layers className="h-3.5 w-3.5" /></button>

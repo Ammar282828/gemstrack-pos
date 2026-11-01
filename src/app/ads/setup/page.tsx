@@ -280,7 +280,7 @@ function AdsSetup() {
                   return (
                     <button key={i.id} type="button" disabled={!!busy} onClick={() => save({ instagramUserId: i.id, instagramUsername: i.username, ...(page ? { pageId: page.id, pageName: page.name } : {}) }, 'ig')}
                       className={cn('flex items-center gap-3 rounded-lg border p-3 text-left', on ? 'border-primary ring-1 ring-primary' : 'hover:border-primary/50')}>
-                      {i.picture ? <img src={i.picture} alt="" className="h-9 w-9 rounded-full object-cover" /> : <Instagram className="h-9 w-9 p-2 rounded-full bg-muted" />}
+                      {i.picture ? <img loading="lazy" decoding="async" src={i.picture} alt="" className="h-9 w-9 rounded-full object-cover" /> : <Instagram className="h-9 w-9 p-2 rounded-full bg-muted" />}
                       <span className="min-w-0 flex-1">
                         <span className="block font-medium truncate">@{i.username || i.id}</span>
                         <span className="block text-xs text-muted-foreground">{page ? `Linked to the Page “${page.name}”` : i.via === 'ad account' ? 'Added to the ad account' : 'Business account'}{house && i.username.toLowerCase() !== house ? ' · not this shop’s' : ''}</span>
@@ -307,7 +307,7 @@ function AdsSetup() {
                       return (
                         <button key={p.id} type="button" disabled={!!busy} onClick={() => save({ pageId: p.id, pageName: p.name }, 'page')}
                           className={cn('flex items-center gap-3 rounded-lg border p-3 text-left', on ? 'border-primary ring-1 ring-primary' : 'hover:border-primary/50')}>
-                          {p.picture ? <img src={p.picture} alt="" className="h-9 w-9 rounded-md object-cover" /> : <Facebook className="h-9 w-9 p-2 rounded-md bg-muted" />}
+                          {p.picture ? <img loading="lazy" decoding="async" src={p.picture} alt="" className="h-9 w-9 rounded-md object-cover" /> : <Facebook className="h-9 w-9 p-2 rounded-md bg-muted" />}
                           <span className="min-w-0 flex-1">
                             <span className="block font-medium truncate">{p.name}</span>
                             <span className="block text-xs text-muted-foreground">{[p.instagram ? `@${p.instagram.username}` : 'no Instagram linked', p.whatsapp ? `WhatsApp ${p.whatsapp}` : 'no WhatsApp linked', p.canAdvertise ? '' : 'can’t advertise'].filter(Boolean).join(' · ')}</span>

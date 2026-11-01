@@ -295,7 +295,7 @@ export default function StoryDraftsPage() {
             <div className="relative aspect-[9/16] bg-muted">
               {previews[d.id]
                 // eslint-disable-next-line @next/next/no-img-element
-                ? <img src={previews[d.id]} alt={d.name} className="h-full w-full object-cover" />
+                ? <img loading="lazy" decoding="async" src={previews[d.id]} alt={d.name} className="h-full w-full object-cover" />
                 : <div className="flex h-full items-center justify-center p-3 text-center text-xs text-muted-foreground">{d.missing ? 'Not on the website now' : failed[d.id] ? `Couldn’t draw it: ${failed[d.id]}` : <Loader2 className="h-4 w-4 animate-spin" />}</div>}
               {d.state && (
                 <span className={cn('absolute left-2 top-2 rounded-full px-2 py-0.5 text-[11px] font-semibold', d.state.status === 'posted' ? 'bg-emerald-600 text-white' : 'bg-black/60 text-white')}>

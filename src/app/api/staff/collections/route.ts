@@ -14,6 +14,7 @@
 import { withInlinePhotos } from '@/lib/order-photos-server';
 import { createHash } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
+import { gzipJson } from '@/lib/http/gzip-json';
 import { adminDb } from '@/lib/firebase-admin';
 import { verifyRequestEmail } from '@/lib/karigar-auth';
 import { roleForEmail, isStaffCollection, STAFF_COLLECTIONS, MARKETING_COLLECTIONS } from '@/lib/roles';
@@ -104,7 +105,8 @@ export async function GET(req: NextRequest) {
     const raw = snap.docs.map(d => ({ ...d.data(), id: d.id }) as { id: string; items?: unknown });
     // Staff can't read photo documents themselves: orders go out with their photos inline.
     const docs = name === 'orders' ? await withInlinePhotos(adminDb, raw) : raw;
-    return NextResponse.json(
+    return gzipJson(
+      req,
       { collection: name, docs: staffViewAll(name, docs) },
       // Never cached: an order taken thirty seconds ago has to be there.
       { headers: { 'Cache-Control': 'no-store', ETag: etag } },

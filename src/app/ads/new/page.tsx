@@ -521,7 +521,7 @@ function NewAd() {
                       {vid.phase === 'ready' && <p className="text-success flex items-center gap-1"><Check className="h-3 w-3" /> Ready, with Meta’s cover frame</p>}
                       {vid.phase === 'error' && <p className="text-destructive">{vid.error}</p>}
                     </div>
-                    {vid.thumb && <img src={vid.thumb} alt="Cover" className="h-14 w-14 rounded-md object-cover shrink-0" />}
+                    {vid.thumb && <img loading="lazy" decoding="async" src={vid.thumb} alt="Cover" className="h-14 w-14 rounded-md object-cover shrink-0" />}
                     <button type="button" className="p-1.5 min-h-0 text-muted-foreground" onClick={() => setVid(null)} aria-label="Remove"><X className="h-4 w-4" /></button>
                   </div>
                 )}
@@ -539,7 +539,7 @@ function NewAd() {
                 </div>
                 {codeCheck && codeCheck.code === adCode.trim() && (
                   <div className={cn('flex items-center gap-2 rounded-lg border p-2 text-xs', codeCheck.ok ? 'border-success/40' : 'border-warning/40')}>
-                    {codeCheck.thumb && <img src={codeCheck.thumb} alt="" className="h-14 w-14 rounded-md object-cover shrink-0" />}
+                    {codeCheck.thumb && <img loading="lazy" decoding="async" src={codeCheck.thumb} alt="" className="h-14 w-14 rounded-md object-cover shrink-0" />}
                     <span className="min-w-0">
                       {codeCheck.ok ? <span className="text-success">Ready{codeCheck.creator ? ` — @${codeCheck.creator}’s post` : ''}.</span> : <span className="text-warning">{codeCheck.why}</span>}
                       {codeCheck.permalink && <a className="block text-primary truncate" href={codeCheck.permalink} target="_blank" rel="noopener">See the post</a>}
@@ -591,7 +591,7 @@ function NewAd() {
                   <ul className="space-y-1.5">
                     {photos.map((p, i) => (
                       <li key={p.key} className="flex items-center gap-2 rounded-lg border p-1.5">
-                        <img src={p.url || p.local} alt="" className="h-14 w-14 rounded-md object-cover bg-muted shrink-0" />
+                        <img loading="lazy" decoding="async" src={p.url || p.local} alt="" className="h-14 w-14 rounded-md object-cover bg-muted shrink-0" />
                         <div className="min-w-0 flex-1 space-y-1">
                           {p.uploading ? <span className="text-xs text-muted-foreground flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Sending to Meta…</span>
                             : p.error ? <span className="text-xs text-destructive">{p.error}</span>
@@ -637,7 +637,7 @@ function NewAd() {
                 )}
                 {vertical && photos.length === 1 && (
                   <div className="flex items-center gap-2 rounded-lg border p-2 text-xs">
-                    {vertical.url && <img src={vertical.url} alt="" className="h-14 w-8 rounded object-cover" />}
+                    {vertical.url && <img loading="lazy" decoding="async" src={vertical.url} alt="" className="h-14 w-8 rounded object-cover" />}
                     <span className="flex-1">With its 9:16 version for stories, reels and WhatsApp Status — one ad, each place its own size.</span>
                     <button type="button" className="p-1.5 min-h-0 text-muted-foreground" onClick={() => setVertical(null)} aria-label="Drop the story size"><X className="h-4 w-4" /></button>
                   </div>

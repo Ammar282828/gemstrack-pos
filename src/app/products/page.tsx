@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useDeferredValue } from 'react';
 import { ListSkeleton } from '@/components/shared/skeletons';
 import { FilterBar } from '@/components/shared/filter-bar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -192,6 +192,8 @@ const ProductRow: React.FC<ProductCardProps> = ({ product, categoryTitle, settin
 
 export default function ProductsPage() {
   const [searchTerm, setSearchTerm] = useState('');
+  // Filtering follows typing, never holds it up.
+  const deferredSearch = useDeferredValue(searchTerm);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedProductSkus, setSelectedProductSkus] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
@@ -263,10 +265,10 @@ export default function ProductsPage() {
     return allStoreProducts
       .filter(product => selectedCategory ? product.categoryId === selectedCategory : true)
       .filter(product =>
-        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.sku.toLowerCase().includes(searchTerm.toLowerCase())
+        product.name.toLowerCase().includes(deferredSearch.toLowerCase()) ||
+        product.sku.toLowerCase().includes(deferredSearch.toLowerCase())
       );
-  }, [allStoreProducts, selectedCategory, searchTerm, appReady]);
+  }, [allStoreProducts, selectedCategory, deferredSearch, appReady]);
 
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = {};

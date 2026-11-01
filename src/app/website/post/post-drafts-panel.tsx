@@ -21,7 +21,7 @@ function Thumb({ blob }: { blob?: Blob | null }) {
   }, [blob]);
   return (
     <span className="flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted">
-      {url ? <img src={url} alt="" className="h-full w-full object-cover" /> : <ImageIcon className="h-5 w-5 text-muted-foreground" />}
+      {url ? <img loading="lazy" decoding="async" src={url} alt="" className="h-full w-full object-cover" /> : <ImageIcon className="h-5 w-5 text-muted-foreground" />}
     </span>
   );
 }

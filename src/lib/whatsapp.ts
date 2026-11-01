@@ -109,6 +109,7 @@ export async function sendWhatsAppMessage(to: string, body: string): Promise<voi
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ chatId: `${digitsOnly(to)}@c.us`, message: body }),
+    signal: AbortSignal.timeout(30000),
   });
   if (!res.ok) {
     throw new Error(`Green API ${res.status}: ${(await res.text()).slice(0, 200)}`);
@@ -153,7 +154,7 @@ export async function whatsAppStatus(): Promise<{
   const creds = credentials();
   if (!creds) return { configured: false, ok: false, detail: 'No WhatsApp gateway is set (WAHA or Green API).' };
   try {
-    const res = await fetch(`${creds.base}/waInstance${creds.id}/getStateInstance/${creds.token}`);
+    const res = await fetch(`${creds.base}/waInstance${creds.id}/getStateInstance/${creds.token}`, { signal: AbortSignal.timeout(15000) });
     if (!res.ok) {
       return { configured: true, provider: 'greenapi', ok: false, detail: `Green API ${res.status}` };
     }
@@ -242,7 +243,7 @@ async function sendFileToChat(chatId: string, file: Blob, fileName: string, capt
   form.set('fileName', fileName);
   form.set('file', file, fileName);
   if (cap) form.set('caption', cap);
-  const res = await fetch(`${media}/waInstance${creds.id}/sendFileByUpload/${creds.token}`, { method: 'POST', body: form });
+  const res = await fetch(`${media}/waInstance${creds.id}/sendFileByUpload/${creds.token}`, { method: 'POST', body: form, signal: AbortSignal.timeout(60000) });
   const text = await res.text();
   if (!res.ok) throw new Error(`Green API ${res.status}: ${text.slice(0, 200)}`);
   let data: { idMessage?: string } = {};
@@ -267,6 +268,7 @@ export async function sendWhatsAppTextToGroup(chatId: string, text: string): Pro
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ chatId, message: text }),
+    signal: AbortSignal.timeout(30000),
   });
   const body = await res.text();
   if (!res.ok) throw new Error(`Green API ${res.status}: ${body.slice(0, 200)}`);

@@ -71,7 +71,7 @@ async function render(inv: Invoice, name: string) {
   const tables: { pages: number; finalY: number }[] = [];
   tap.texts = texts; tap.tables = tables; tap.owner = null;
   let doc: any;
-  doc = drawInvoicePdf(inv, { images, dates: KARACHI_DATES });
+  doc = await drawInvoicePdf(inv, { images, dates: KARACHI_DATES });
   tap.texts = tap.tables = tap.owner = null;
   if (OUT) { fs.mkdirSync(OUT, { recursive: true }); fs.writeFileSync(`${OUT}/${name}.pdf`, Buffer.from(doc.output('arraybuffer'))); }
   return { doc, texts, tables, pages: doc.getNumberOfPages() as number, pageHeight: doc.internal.pageSize.getHeight() as number };

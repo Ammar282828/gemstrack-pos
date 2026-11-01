@@ -23,6 +23,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { gzipJson } from '@/lib/http/gzip-json';
 import { postGate } from '@/lib/social/gate';
 import { STORE_SITE_EDIT } from '@/lib/store-config';
 import { forgetSitePieces, getSitePiece, getSitePieces, siteOrigin, type SitePiece } from '@/lib/website/site-pieces';
@@ -47,7 +48,7 @@ export async function GET(req: NextRequest) {
         getSitePieces({ all: true, fresh: req.nextUrl.searchParams.has('fresh') }),
         recentChanges().catch(() => []),
       ]);
-      return NextResponse.json({ site, pieces, recent }, { headers: { 'Cache-Control': 'no-store' } });
+      return gzipJson(req, { site, pieces, recent }, { headers: { 'Cache-Control': 'no-store' } });
     }
     const piece = await getSitePiece(id, { all: true, fresh: true });
     if (!piece) return NextResponse.json({ error: 'No such piece on the website.' }, { status: 404 });
