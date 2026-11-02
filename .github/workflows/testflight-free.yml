@@ -116,6 +116,7 @@ jobs:
             node ../ios/scripts/asc.mjs sign-mac "$HOUSE" "$RUNNER_TEMP/signing" >> "$GITHUB_ENV"
           fi
       - name: Into a keychain of its own
+        id: keychain
         run: |
           KC="$RUNNER_TEMP/erp.keychain-db"; KCPW=$(openssl rand -hex 16)
           echo "::add-mask::$KCPW"
@@ -194,7 +195,9 @@ jobs:
           echo "::notice title=iPhone::2.2 ($NEXT_BUILD) uploaded; TestFlight's Shop group gets it once Apple has processed it (10 to 30 minutes)"
 
       - name: Mac, archived
-        if: env.MAC == 'true'
+        id: macarchive
+        # Even when the iPhone half failed: the two are independent, and one run should say everything that is wrong.
+        if: ${{ !cancelled() && env.MAC == 'true' && steps.keychain.outcome == 'success' }}
         run: |
           node scripts/house.mjs "$HOUSE" --sign "$TEAM_ID" "$APP_PROFILE_NAME" "$WIDGET_PROFILE_NAME" "$MAC_PROFILE_NAME" >/dev/null
           xcodegen generate --spec project.yml
@@ -217,7 +220,7 @@ jobs:
           tail -15 "$RUNNER_TEMP/archive-mac.log"
           [ $status -eq 0 ] && test -d "$RUNNER_TEMP/ERPMac.xcarchive"
       - name: Mac, to TestFlight
-        if: env.MAC == 'true'
+        if: ${{ !cancelled() && env.MAC == 'true' && steps.macarchive.outcome == 'success' }}
         run: |
           BUNDLE=$(node -p "require('./houses.json')['$HOUSE'].bundleId")
           cat > "$RUNNER_TEMP/export-mac.plist" <<EOF

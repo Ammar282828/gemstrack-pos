@@ -1,0 +1,1 @@
+- 2026-11-02: again from GitHub (the Mac half now runs even when the iPhone half fails).

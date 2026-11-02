@@ -1,0 +1,1 @@
+- 2026-11-02: again from GitHub, with the archive's errors published on the run page.
