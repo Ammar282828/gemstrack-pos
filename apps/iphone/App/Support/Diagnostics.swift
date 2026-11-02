@@ -47,11 +47,11 @@ final class Diagnostics: NSObject, MXMetricManagerSubscriber {
         r["device"] = m?.deviceType ?? ""
         var out: [String: Any] = [:]
         if let launch = p.applicationLaunchMetrics {
-            if let v = percentileMs(launch.histogrammedTimeToFirstDrawKey, 0.5) { out["firstDrawP50Ms"] = v }
-            if let v = percentileMs(launch.histogrammedTimeToFirstDrawKey, 0.9) { out["firstDrawP90Ms"] = v }
-            if let v = buckets(launch.histogrammedTimeToFirstDrawKey) { out["firstDrawBuckets"] = v }
-            if let v = percentileMs(launch.histogrammedResumeTime, 0.5) { out["resumeP50Ms"] = v }
-            if let v = percentileMs(launch.histogrammedResumeTime, 0.9) { out["resumeP90Ms"] = v }
+            if let v = percentileMs(launch.histogrammedTimeToFirstDraw, 0.5) { out["firstDrawP50Ms"] = v }
+            if let v = percentileMs(launch.histogrammedTimeToFirstDraw, 0.9) { out["firstDrawP90Ms"] = v }
+            if let v = buckets(launch.histogrammedTimeToFirstDraw) { out["firstDrawBuckets"] = v }
+            if let v = percentileMs(launch.histogrammedApplicationResumeTime, 0.5) { out["resumeP50Ms"] = v }
+            if let v = percentileMs(launch.histogrammedApplicationResumeTime, 0.9) { out["resumeP90Ms"] = v }
         }
         if let hang = p.applicationResponsivenessMetrics?.histogrammedApplicationHangTime {
             if let v = percentileMs(hang, 0.5) { out["hangP50Ms"] = v }
