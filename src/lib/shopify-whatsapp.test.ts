@@ -24,6 +24,8 @@ describe('which flow an order gets', () => {
     expect(orderFlowKind(order({ source_name: 'shopify_draft_order' }), NOW)).toBeNull();
     expect(orderFlowKind(order({ source_name: '338070634497', payment_gateway_names: ['manual'] }), NOW)).toBeNull();
     expect(orderFlowKind(order({ cancelled_at: '2026-10-30T09:00:00Z' }), NOW)).toBeNull();
+    // Confirmed already, by the shop or Whatomation.
+    expect(orderFlowKind(order({ tags: 'TCS, Confirm' }), NOW)).toBeNull();
     expect(orderFlowKind(order({ total_price: '0.0', payment_gateway_names: [] }), NOW)).toBeNull();
     expect(orderFlowKind(order({ created_at: '2026-10-20T08:00:00Z' }), NOW)).toBeNull();
     expect(orderFlowKind(order({ payment_gateway_names: ['Safepay Checkout Onsite'], financial_status: 'pending' }), NOW)).toBeNull();

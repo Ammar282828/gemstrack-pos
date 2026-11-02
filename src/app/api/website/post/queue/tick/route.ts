@@ -34,6 +34,7 @@ import { runDueReports } from '@/lib/notifications/dispatch';
 import { refreshReviews } from '@/lib/reviews-server';
 import { onlineOrdersPossible, sweepOnline } from '@/lib/website/online';
 import { snapshotIfDue } from '@/lib/social-insights/snapshot';
+import { sweepShopifyOrders } from '@/lib/shopify-order-sweep';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -69,10 +70,14 @@ export async function POST(req: NextRequest) {
   // The link page's reviews, read again every six hours (reviews-server.ts); never in the way.
   if (!dry) await refreshReviews().then(r => { if (r.status === 'failed') console.warn('[queue/tick] reviews:', r.error); }).catch(() => undefined);
   const onlineOrders = await online(dry);
+  // House of Mina's Shopify orders, read from Shopify every tick (lib/shopify-order-sweep.ts): imported and their
+  // WhatsApp started even when Shopify's notices are refused. Never in the way of the rest.
+  const shopifyOrders = dry ? null : await sweepShopifyOrders().catch(e => ({ error: e instanceof Error ? e.message : String(e) }));
+  if (shopifyOrders && 'imported' in shopifyOrders && (shopifyOrders.imported.length || shopifyOrders.whatsapp.length || shopifyOrders.errors.length)) console.log('[queue/tick] shopify orders', JSON.stringify(shopifyOrders));
   // Insights' hourly snapshot (stories die after a day); in every house with Meta, never in the way.
   const insights = dry ? null : await snapshotIfDue().catch(() => null);
   // The reports ride this tick in every house, so they come before the Post a Piece gate.
-  if (!STORE_POST_PIECE) return NextResponse.json({ ok: true, onlineOrders, insights, notifications: await reports(dry) });
+  if (!STORE_POST_PIECE) return NextResponse.json({ ok: true, onlineOrders, shopifyOrders, insights, notifications: await reports(dry) });
   const started = Date.now();
   const due = await dueItems(new Date(started));
   if (dry) return NextResponse.json({ ok: true, dry: true, onlineOrders, due: due.map(d => ({ id: d.id, headline: d.headline, dueAt: d.dueAt, status: d.status })), notifications: await reports(true) });

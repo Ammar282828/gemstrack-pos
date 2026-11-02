@@ -38,6 +38,9 @@ export interface ShopifyOrderLike {
 export function orderFlowKind(o: ShopifyOrderLike, now = Date.now()): OrderFlowKind | null {
   if (String(o.source_name || '') !== 'web') return null;
   if (o.cancelled_at) return null;
+  // Already seen to (owner, 2026-11-02: "only … orders that haven't been catered to by me or whatomation"): the shop
+  // and Whatomation tag an order Confirm once the customer has confirmed it.
+  if (String(o.tags || '').split(',').some(t => t.trim().toLowerCase() === 'confirm')) return null;
   if (!(Number(o.total_price) > 0)) return null;
   const placed = Date.parse(String(o.created_at || ''));
   if (!Number.isFinite(placed) || now - placed > 2 * 24 * 3600 * 1000) return null;

@@ -531,6 +531,12 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
     (`whatsappOrder: { state, at }` on `SHOPIFY-<n>`, else the invoice with that `shopifyOrderId`) and shown as a chip beside
     Shopify's in Invoices and on the invoice: Awaiting confirmation, Confirmed on WhatsApp, Cancel requested, Awaiting transfer,
     Screenshot sent, Paid · thanked on WhatsApp, Thanked on WhatsApp, WhatsApp did not send, No WhatsApp.
+  - **Read from Shopify every five minutes too** (2026-11-02): Shopify's notices had been refused since at least 2026-10-20
+    (checked against `SHOPIFY_API_SECRET`, another app's; "HOM POS"'s secret isn't held), so no web order reached the ERP on
+    its own and no order WhatsApp went out. The tick (`queue/tick`, `lib/shopify-order-sweep.ts`) now reads the last two
+    days' orders with the token and imports, mirrors, starts the WhatsApp and thanks paid transfers itself, idempotently. An
+    order tagged **Confirm** (the shop or Whatomation saw to it) gets nothing. Whatomation is to be switched off by the owner
+    in Shopify (owner: keep the ERP's).
   - Replies arrive at `/api/whatsapp/inbound` from WAHA's session webhook, signed (SHA-512 HMAC) with a key derived from
     `WAHA_API_KEY`; set by `scripts/waha-inbound-webhook.ts`. On only where `SHOPIFY_ORDER_WHATSAPP=1` (Mina).
 
