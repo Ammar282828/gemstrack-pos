@@ -50,16 +50,8 @@ extension SearchFieldPlacement {
         .toolbar
         #endif
     }
-    /// iOS's own search (owner, 2026-11-02: "scroll down to search like ios natively does"): tucked under the title and
-    /// pulled down into view, on the iPhone and the iPad alike (iOS 26 otherwise puts a list's search in the toolbar).
-    /// A Mac keeps it in the window's toolbar.
-    static var pullDownSearch: SearchFieldPlacement {
-        #if os(iOS)
-        .navigationBarDrawer(displayMode: .automatic)
-        #else
-        .toolbar
-        #endif
-    }
+    // Lists do not use a placement for the pull-down search: it is the `.pullDownSearch(text:prompt:)` modifier
+    // (App/UI/PullDownSearch.swift), hidden until the list is pulled past its top. This one is for pickers only.
 }
 
 #if os(macOS)

@@ -133,8 +133,8 @@ struct DesignSavedView: View {
             else { designs }
         }
         .listStyle(.insetGrouped).modifier(HouseGround())
+        .pullDownSearch(text: $q, prompt: "Find a design")
         .readableColumn(900)
-        .searchable(text: $q, placement: .pullDownSearch, prompt: "Find a design")
         .refreshable { await shelf.load(); await shelf.loadDrafts() }
         .task { await shelf.load(); await shelf.loadDrafts() }
         .sheet(item: $detail) { r in

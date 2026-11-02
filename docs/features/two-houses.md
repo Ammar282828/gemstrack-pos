@@ -18,9 +18,11 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   catalogue has neither, so its file sets both to "0" at go-live); **Post a Piece** and **Investments** follow
   `NEXT_PUBLIC_STORE_POST_PIECE` / `_INVESTMENTS` (Taheri's accounts and series; Mina sets both "0", which hides the menu
   entries and pages and makes their routes answer 404 — owner, 2026-09-25: "why are taheri features in mina pos").
-  Invoices: `NEXT_PUBLIC_STORE_INVOICE_BY_CUSTOMER` ("Invoice - <customer>.pdf", never the number) and
-  `_INVOICE_WHATSAPP_PDF` (Send via WhatsApp sends the PDF from the shop's line) are Taheri's (owner, 2026-10-05: "these
-  are instructions for taheri pos"); Mina sets both "0" and keeps `Invoice-INV-….pdf` and the wa.me message with its link.
+  Invoices: `NEXT_PUBLIC_STORE_INVOICE_BY_CUSTOMER` ("Invoice - <customer>.pdf", never the number) is Taheri's (owner,
+  2026-10-05: "these are instructions for taheri pos"); Mina sets "0" and keeps `Invoice-INV-….pdf` / `Order-ORD-….pdf`.
+  Sending an invoice's or order's PDF to the customer is **both houses'**, each from its own WhatsApp line (`WAHA_SESSION`:
+  Taheri's default, Mina's `mina`), gated on the line being connected, not a variable (`_INVOICE_WHATSAPP_PDF` removed
+  2026-11-02; decisions.md#invoice-pdf). With no line, the wa.me message with its link is the fallback.
   The margin (`NEXT_PUBLIC_STORE_COST_RATTI_LESS`, default 6: gold costs the 24k rate less 6 ratti; decisions.md#margin) is
   Taheri's; Mina sets "none" — no 24k ask, no margin shown, Analytics keeps its `NEXT_PUBLIC_STORE_EST_MARGIN`.
   The order form's *save this size to the profile?* (`NEXT_PUBLIC_STORE_SIZE_TO_PROFILE`) is Taheri's; Mina sets "0".

@@ -12,6 +12,7 @@ import { generateOrderSlipPDF } from '@/lib/order-slip-pdf';
 import { STORE_CONFIG, storeLinksUrl, STORE_LOGO_URL } from '@/lib/store-config';
 import { METAL_TYPES as metalTypeValues, describeMetal, describeDelivery } from '@/lib/materials';
 import { categorySingular } from '@/lib/categories';
+import { SendToKarigarDialog } from '@/components/karigar/send-to-karigar';
 import { KarigarAssign, KarigarBulkAssign } from '@/components/karigar/karigar-assign';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -27,7 +28,7 @@ import { MarginFigure } from '@/components/shared/shop-margin';
 import { orderMargin } from '@/lib/margin';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, DollarSign, Calendar, Edit, Loader2, Diamond, Gem, MessageSquare, FileText, Weight, Percent, Printer, Briefcase, CreditCard, RotateCcw, Truck, PackageSearch, ExternalLink, Trash2, Lock, ShoppingBag, MoreHorizontal } from 'lucide-react';
+import { ArrowLeft, User, DollarSign, Calendar, Edit, Loader2, Diamond, Gem, MessageSquare, FileText, Weight, Percent, Printer, Briefcase, CreditCard, RotateCcw, Truck, PackageSearch, ExternalLink, Trash2, Lock, ShoppingBag, MoreHorizontal, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import { cn, normalizePhoneNumber } from '@/lib/utils';
@@ -65,7 +66,11 @@ import QRCode from 'qrcode.react';
 import { AmountInput } from '@/components/ui/amount-input';
 import { PageBack } from '@/components/shared/page-back';
 import { PromiseLine } from '@/components/shared/promise-line';
-import { ContactActions, Monogram, MoneySplit, Pill, StageTrack, toneClasses, type Tone } from '@/components/ledger';
+import { Monogram, MoneySplit, Pill, StageTrack, toneClasses, type Tone } from '@/components/ledger';
+import { CustomerContact } from '@/components/customer/contact-actions';
+import { contactHrefs } from '@/lib/customer-contact';
+import { orderCustomerMessage } from '@/lib/order-message';
+import { saveOrderPdf } from '@/lib/order-pdf';
 import { stageOf } from '@/lib/order-stage';
 import { isWalkInName } from '@/lib/walk-in';
 import { PhoneField } from '@/components/ui/phone-field';
@@ -264,6 +269,7 @@ export default function OrderDetailPage() {
   // (print, Files, WhatsApp): lib/native-app.ts, savePDF.
   const slipAsked = useRef(false);
   const [isAdvanceDialogOpen, setIsAdvanceDialogOpen] = useState(false);
+  const [isSendKarigarOpen, setIsSendKarigarOpen] = useState(false);
   const [isRevertDialogOpen, setIsRevertDialogOpen] = useState(false);
   const [isReverting, setIsReverting] = useState(false);
   const [isRevertAndEditDialogOpen, setIsRevertAndEditDialogOpen] = useState(false);
@@ -610,6 +616,7 @@ export default function OrderDetailPage() {
         </AlertDialogContent>
       </AlertDialog>
       {order && <RecordAdvanceDialog order={order} open={isAdvanceDialogOpen} onOpenChange={setIsAdvanceDialogOpen} />}
+      {order && <SendToKarigarDialog order={order} open={isSendKarigarOpen} onOpenChange={setIsSendKarigarOpen} />}
       {order && <BookCourierDialog order={order} open={isBookCourierOpen} onOpenChange={setIsBookCourierOpen} />}
 
       <AlertDialog open={isRevertDialogOpen} onOpenChange={setIsRevertDialogOpen}>
@@ -702,7 +709,19 @@ export default function OrderDetailPage() {
                             total={moneyTotal} paid={moneyPaid} due={moneyDue}
                             totalLabel={linkedInvoice ? 'Invoice' : 'Total'}
                           />
-                          <ContactActions phone={order.customerContact} />
+                          {/* The one Contact row (components/customer/contact-actions.tsx): Call, WhatsApp, Message,
+                              the customer's order PDF from the shop's line, More. Not the workshop slip. */}
+                          <CustomerContact
+                            phone={order.customerContact}
+                            customerId={order.customerId}
+                            customerName={order.customerName}
+                            doc={{
+                              kind: 'order', id: order.id,
+                              sentAt: order.sentOnWhatsApp?.at ?? null,
+                              onShare: () => { saveOrderPdf(order).catch((e) => toast({ title: 'Could not create the PDF', description: e instanceof Error ? e.message : String(e), variant: 'destructive' })); },
+                              onLinkFallback: (n) => { const h = contactHrefs(n, orderCustomerMessage(order, 'summary', settings.shopName)); if (h) window.open(h.whatsapp, '_blank'); },
+                            }}
+                          />
                         </div>
 
                         {/* Three controls, not seven. Status was being said
@@ -754,6 +773,9 @@ export default function OrderDetailPage() {
                             <DropdownMenuContent align="end" className="w-56">
                               <DropdownMenuItem onClick={handlePrintOrderSlip}>
                                 <Printer className="mr-2 h-4 w-4" />Print slip
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setIsSendKarigarOpen(true)}>
+                                <Send className="mr-2 h-4 w-4" />Send to karigar
                               </DropdownMenuItem>
                               {!order.invoiceId && order.status !== 'Cancelled' && order.status !== 'Refunded' && (
                                 <DropdownMenuItem onClick={() => setIsAdvanceDialogOpen(true)}>

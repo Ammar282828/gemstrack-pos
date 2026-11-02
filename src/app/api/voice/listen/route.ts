@@ -76,6 +76,8 @@ export async function POST(req: NextRequest) {
     today?: string;
     orderKarat?: string | number;
     screens?: string[];
+    /** The record open on the phone (/api/voice/native, context.ts); the web sends none. */
+    looking?: string[];
   };
   try {
     body = await req.json();
@@ -83,7 +85,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Bad request body.' }, { status: 400 });
   }
 
-  const { audio, mimeType, text, roster = [], documents = [], shopName = 'the shop', today, orderKarat, screens = [] } = body;
+  const { audio, mimeType, text, roster = [], documents = [], shopName = 'the shop', today, orderKarat, screens = [], looking = [] } = body;
 
   if (!audio && !text) {
     return NextResponse.json({ error: 'Nothing to listen to.' }, { status: 400 });
@@ -108,6 +110,7 @@ export async function POST(req: NextRequest) {
         orderKarat,
         documents: documentLines(documents.slice(0, 200)),
         screens: (Array.isArray(screens) ? screens : []).slice(0, 150).map(x => String(x).slice(0, 60)),
+        looking: (Array.isArray(looking) ? looking : []).slice(0, 60).map(x => String(x).slice(0, 300)),
       }),
       parts,
       schema: READING_SCHEMA as unknown as Record<string, unknown>,

@@ -744,6 +744,8 @@ export interface Order {
   advanceInExchangeDescription?: string; // For gold/diamonds given by customer
   advanceInExchangeValue?: number; // Estimated value of the exchange
   invoiceId?: string; // Set when order is finalized into an invoice
+  /** The last time its customer PDF (lib/order-pdf.ts) went to the customer from the shop's line (/api/app/whatsapp/send-doc). */
+  sentOnWhatsApp?: { at: string; to: string; by: string };
   tcsConsignmentNo?: string; // TCS Envio courier consignment number
   /** Set only on orders placed from taheri.shop — see lib/website/types.ts. */
   website?: import('@/lib/website/types').WebsiteOrderMeta;

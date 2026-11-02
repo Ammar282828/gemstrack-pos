@@ -43,7 +43,6 @@ struct HisaabAccountPicker: View {
             }
             .navigationTitle("Add or choose an account")
             .navigationBarTitleDisplayMode(.inline)
-            .searchable(text: $search, placement: .pullDownSearch, prompt: "Search by name, or type a new karigar")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(role: .cancel) { dismiss() }
@@ -112,6 +111,8 @@ struct HisaabAccountPicker: View {
         }
         .listStyle(.insetGrouped)
         .scrollDismissesKeyboard(.interactively)
+        // Pulled down from the top, as iOS's own search (PullDownSearch.swift); on the List so the pull is read there.
+        .searchable(text: $search, placement: .alwaysShownSearch, prompt: "Search by name, or type a new karigar")
         .disabled(creating)
     }
 

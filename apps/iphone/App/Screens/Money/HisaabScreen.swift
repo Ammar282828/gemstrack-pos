@@ -114,7 +114,6 @@ struct HisaabScreen: View {
         }
         .navigationTitle("Hisaab")
         .hubTitleDisplay()
-        .searchable(text: $search, placement: .pullDownSearch, prompt: "Search by name")
         .toolbar {
             #if !os(macOS)
             ToolbarItem(placement: .topBarTrailing) { filterMenu }
@@ -194,6 +193,8 @@ struct HisaabScreen: View {
         }.houseRows()
         }
         .listStyle(.insetGrouped)
+        // Pulled down from the top, as iOS's own search (PullDownSearch.swift); on the List so the pull is read there.
+        .pullDownSearch(text: $search, prompt: "Search by name")
         .motion(chip, Motion.travel)
         .motion(kind, Motion.travel)
         .motion(order, Motion.travel)

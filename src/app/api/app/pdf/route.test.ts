@@ -42,6 +42,8 @@ vi.mock('@/lib/whatsapp', async (actual) => ({
 const { GET: invoiceGET } = await import('./invoice/[id]/route');
 const { GET: slipGET } = await import('./order-slip/[id]/route');
 const { POST: whatsappPOST } = await import('./invoice/[id]/whatsapp/route');
+const { GET: orderGET } = await import('./order/[id]/route');
+const { POST: sendDocPOST } = await import('../whatsapp/send-doc/route');
 
 const headers = (email: string | null): Record<string, string> => (email ? { authorization: `Bearer ${email}` } : {});
 
@@ -149,11 +151,11 @@ describe('/api/app/pdf/order-slip/[id]', () => {
     expect(res.headers.get('content-type')).toBe('application/pdf');
     expect(res.headers.get('content-disposition')).toContain('filename="OrderSlip-ORD-1.pdf"');
     const t = await text(res);
-    expect(t).toContain('Order ID: ORD-1');
-    expect(t).toContain('Date: Oct 9, 2026');
-    expect(t).toContain('Promised: Oct 20, 2026');
-    // jsPDF escapes a bracket in its text.
-    expect(t).toContain('Gold Rates \\(PKR\\): 21k: 30,000/g');
+    expect(t).toContain('Order #: ORD-1');
+    // The estimate's block (2026-11-02): its short day, the rates under the details.
+    expect(t).toContain('Date: 09/10/2026');
+    expect(t).toContain('Promised: 20/10/2026');
+    expect(t).toContain('21k: 30,000/g');
     expect(t).toContain('Owner only: use the old stock');
     expect(t).toContain('Bench: polish twice');
   });
@@ -206,5 +208,64 @@ describe('/api/app/pdf/invoice/[id]/whatsapp', () => {
     expect((await post({ to: '03001234567' }, 'mkt@example.com')).status).toBe(403);
     expect((await post({ to: '03001234567' }, 'staff@example.com')).status).toBe(200);
     expect(sent).toHaveLength(1);
+  });
+});
+
+describe('/api/app/pdf/order/[id]', () => {
+  it("the customer's order: pieces, price and balance, never the bench's notes", async () => {
+    const res = await orderGET(new NextRequest('https://erp.example.com/api/app/pdf/order/ORD-1', { headers: headers('owner@example.com') }), { params: Promise.resolve({ id: 'ORD-1' }) });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-disposition')).toContain('Order - Test Buyer.pdf');
+    const pdf = await text(res);
+    expect(pdf).toContain('Test band');
+    expect(pdf).toContain('Balance Due');
+    expect(pdf).not.toContain('Owner only');
+    expect(pdf).not.toContain('Bench: polish');
+  });
+  it('no such order; owners and staff only', async () => {
+    const get = (id: string, email: string | null) => orderGET(new NextRequest(`https://erp.example.com/api/app/pdf/order/${id}`, { headers: headers(email) }), { params: Promise.resolve({ id }) });
+    expect((await get('ORD-404', 'owner@example.com')).status).toBe(404);
+    expect((await get('ORD-1', null)).status).toBe(401);
+    expect((await get('ORD-1', 'mkt@example.com')).status).toBe(403);
+  });
+});
+
+describe('/api/app/whatsapp/send-doc', () => {
+  const post = (body: unknown, email: string | null = 'owner@example.com') =>
+    sendDocPOST(new NextRequest('https://erp.example.com/api/app/whatsapp/send-doc', {
+      method: 'POST', headers: { 'content-type': 'application/json', ...headers(email) }, body: JSON.stringify(body),
+    }));
+
+  it("an invoice to the customer's number on file, the number masked in the answer", async () => {
+    const res = await post({ kind: 'invoice', id: 'INV-1' });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ sent: true, to: '+92 300 ••• 4567', fileName: 'Invoice - Test Buyer.pdf' });
+    expect(sent[0].to).toBe('923001234567');
+    expect(col('invoices')['INV-1'].sentOnWhatsApp).toMatchObject({ to: '+923001234567', by: 'owner@example.com' });
+  });
+
+  it("an order's customer PDF, to the number typed, with its own words", async () => {
+    const res = await post({ kind: 'order', id: 'ORD-1', to: '0321 7654321' });
+    expect(res.status).toBe(200);
+    expect(sent[0].to).toBe('923217654321');
+    expect(sent[0].name).toBe('Order - Test Buyer.pdf');
+    expect(sent[0].caption).toContain('Your order with');
+    expect(sent[0].caption).toContain('*Balance due:* PKR 150,000');
+    const pdf = new TextDecoder('latin1').decode(new Uint8Array(await sent[0].file.arrayBuffer()));
+    expect(pdf).not.toContain('Owner only');
+    expect(col('orders')['ORD-1'].sentOnWhatsApp).toMatchObject({ to: '+923217654321' });
+  });
+
+  it('an order with no number anywhere asks for one; a bad request says so', async () => {
+    expect((await post({ kind: 'order', id: 'ORD-1' })).status).toBe(400);
+    expect((await post({ kind: 'slip', id: 'ORD-1' })).status).toBe(400);
+    expect((await post({ kind: 'order', id: 'ORD-404', to: '03001234567' })).status).toBe(404);
+    expect(sent).toHaveLength(0);
+  });
+
+  it('owners and staff only', async () => {
+    expect((await post({ kind: 'invoice', id: 'INV-1' }, null)).status).toBe(401);
+    expect((await post({ kind: 'invoice', id: 'INV-1' }, 'mkt@example.com')).status).toBe(403);
+    expect((await post({ kind: 'invoice', id: 'INV-1' }, 'staff@example.com')).status).toBe(200);
   });
 });

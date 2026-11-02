@@ -26,8 +26,7 @@ struct AnaProductsPage: View {
             categorySection
         }, right: { (_: Bool) in
             allSection
-        })
-        .searchable(text: $search, placement: .pullDownSearch, prompt: "Search every piece by name or SKU")
+        }, search: $search, searchPrompt: "Search every piece by name or SKU")
     }
 
     // MARK: Top ten

@@ -60,7 +60,10 @@ struct OrdersHub: View {
         }
         .navigationTitle("Orders")
         .hubTitleDisplay()
-        .searchable(text: $query, placement: .pullDownSearch, prompt: "Order, customer, phone or piece")
+        #if os(macOS)
+        // The Mac keeps the window toolbar's search; the phone and iPad pull theirs down on the list (hub).
+        .searchable(text: $query, placement: .toolbar, prompt: "Order, customer, phone or piece")
+        #endif
         .toolbar { hubToolbar }
         .ordersWebDestination($web)
         .sheet(item: $advancing) { order in advanceSheet(order).presentationSizing(.form) }
@@ -147,6 +150,8 @@ struct OrdersHub: View {
                 }
                 .padding(pt(24))
             }
+            // Pulled down from the top, as iOS's own search (PullDownSearch.swift); on the ScrollView so the pull is read there.
+            .pullDownSearch(text: $query, prompt: "Order, customer, phone or piece")
           } else {
             List {
             listControls()
@@ -155,6 +160,7 @@ struct OrdersHub: View {
             }
             }
             .listStyle(.insetGrouped)
+            .pullDownSearch(text: $query, prompt: "Order, customer, phone or piece")
             .overlay {
                 if groups.isEmpty { emptyState(nothingOpen: grouping == .due && !shown.isEmpty) }
             }

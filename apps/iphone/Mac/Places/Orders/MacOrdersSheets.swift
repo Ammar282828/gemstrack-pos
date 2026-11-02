@@ -11,6 +11,7 @@ enum MacOrdersSheet: Identifiable {
     case courier(Order)
     case tracking(Order)
     case notify(Order)
+    case sendKarigar(Order)
     case leopards(Order)
     case transfer(Order)
     case lapse(Order)
@@ -21,6 +22,7 @@ enum MacOrdersSheet: Identifiable {
         case .courier(let o): return "courier-" + o.id
         case .tracking(let o): return "tracking-" + o.id
         case .notify(let o): return "notify-" + o.id
+        case .sendKarigar(let o): return "send-karigar-" + o.id
         case .leopards(let o): return "leopards-" + o.id
         case .transfer(let o): return "transfer-" + o.id
         case .lapse(let o): return "lapse-" + o.id
@@ -65,6 +67,8 @@ struct MacOrdersSheetContent: View {
             OrderTrackingSheet(order: o)
         case .notify(let o):
             OrderNotifySheet(order: o)
+        case .sendKarigar(let o):
+            SendToKarigarSheet(order: o)
         case .leopards(let o):
             OrderLeopardsSheet(order: o)
         case .transfer(let o):

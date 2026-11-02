@@ -1,23 +1,24 @@
 /**
- * Send an invoice's PDF to its customer on WhatsApp, from the shop's own line (WAHA, lib/whatsapp.ts):
- * the owner, 2026-10-05 — "directly send a pdf of the invoice to the customer instead of a link".
- * Owners and staff, signed in (staff-gate.ts).
+ * Send an invoice's PDF to its customer on WhatsApp, from the shop's own line: the owner, 2026-10-05 —
+ * "directly send a pdf of the invoice to the customer instead of a link". Owners and staff, signed in.
  *
- *   POST { to: '+923…', pdf: '<base64>' }
+ *   POST { to?: '+923…', pdf?: '<base64>', perPiece?: boolean }
  *
- * The browser draws the PDF — the same one Print saves (lib/invoice-pdf.ts), which needs the page's
- * logo and QR codes. Its name and the words under it are made here from the invoice itself
- * (lib/invoice-share.ts): "Invoice - <customer>", never the number.
+ * Kept for callers from before /api/app/whatsapp/send-doc, which every surface now uses: the send is
+ * that one (lib/customer-doc-server.ts) — both houses, from each house's own line, `to` defaulting to
+ * the customer's number on file. A browser may still hand in the PDF it drew; without one the server
+ * draws it. Answers as it always did: { ok, fileName, to: '+92…', at, by }.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { staffGate } from '@/lib/website/staff-gate';
+import { roleForEmail } from '@/lib/roles';
+import { parseSendDoc } from '@/lib/customer-doc';
+import { sendCustomerDoc } from '@/lib/customer-doc-server';
+import { invoicePdfFileName } from '@/lib/invoice-pdf';
 import { adminDb } from '@/lib/firebase-admin';
-import { staffFail, staffGate } from '@/lib/website/staff-gate';
-import { sendWhatsAppFile, toWhatsAppNumber, whatsAppNumberExists, whatsAppProvider } from '@/lib/whatsapp';
-import { invoiceFileName, invoiceWhatsAppCaption } from '@/lib/invoice-share';
-import { STORE_CONFIG, STORE_INVOICE_BY_CUSTOMER, STORE_INVOICE_WHATSAPP_PDF } from '@/lib/store-config';
 import type { Invoice } from '@/lib/store';
-import { dailyCap, dailyCapForRequest, AI_PER_DAY, WHATSAPP_PER_DAY, INSTAGRAM_PER_DAY } from '@/lib/daily-cap';
+import { dailyCap, WHATSAPP_PER_DAY } from '@/lib/daily-cap';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -26,43 +27,35 @@ export const maxDuration = 120;
 const MAX_BYTES = 8 * 1024 * 1024;
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const who = await staffGate(req);
-  if (who instanceof NextResponse) return who;
-  const capped = await dailyCap('whatsapp', who, req, WHATSAPP_PER_DAY);
+  const email = await staffGate(req);
+  if (email instanceof NextResponse) return email;
+  const capped = await dailyCap('whatsapp', email, req, WHATSAPP_PER_DAY);
   if (capped) return capped;
   const { id } = await params;
-  const body = (await req.json().catch(() => ({}))) as { to?: string; pdf?: string };
+  const body = (await req.json().catch(() => ({}))) as { to?: string; pdf?: string; perPiece?: boolean };
+  const parsed = parseSendDoc({ kind: 'invoice', id, to: body.to, perPiece: body.perPiece });
+  if ('error' in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 });
 
-  // Taheri's (NEXT_PUBLIC_STORE_INVOICE_WHATSAPP_PDF); House of Mina sends a link from the device.
-  if (!STORE_INVOICE_WHATSAPP_PDF) return NextResponse.json({ error: 'This house sends invoices as a link.' }, { status: 404 });
-  const to = toWhatsAppNumber(body.to);
-  if (to.length < 11 || to.length > 15) return NextResponse.json({ error: "Enter the customer's WhatsApp number." }, { status: 400 });
-  if (!whatsAppProvider()) return NextResponse.json({ error: "This shop's WhatsApp line isn't connected to the ERP." }, { status: 503 });
-  const bytes = Buffer.from(String(body.pdf || ''), 'base64');
-  if (bytes.length < 5 || bytes.length > MAX_BYTES || bytes.subarray(0, 4).toString('latin1') !== '%PDF') {
-    return NextResponse.json({ error: 'That is not an invoice PDF.' }, { status: 400 });
+  // The browser's own drawing, when it sent one.
+  let pdf;
+  if (body.pdf) {
+    const bytes = Buffer.from(String(body.pdf), 'base64');
+    if (bytes.length < 5 || bytes.length > MAX_BYTES || bytes.subarray(0, 4).toString('latin1') !== '%PDF') {
+      return NextResponse.json({ error: 'That is not an invoice PDF.' }, { status: 400 });
+    }
+    const snap = await adminDb.collection('invoices').doc(id).get().catch(() => null);
+    if (!snap?.exists) return NextResponse.json({ error: `No invoice ${id}.` }, { status: 404 });
+    pdf = { bytes: new Uint8Array(bytes), fileName: invoicePdfFileName({ ...(snap.data() as Invoice), id }, { perPiece: parsed.perPiece }) };
   }
 
   try {
-    const ref = adminDb.collection('invoices').doc(id);
-    const snap = await ref.get();
-    if (!snap.exists) return NextResponse.json({ error: `No invoice ${id}.` }, { status: 404 });
-    const inv = snap.data() as Invoice;
-
-    // A number that isn't on WhatsApp swallows the file and reports success.
-    if ((await whatsAppNumberExists(to)) === false) {
-      return NextResponse.json({ error: `+${to} isn't on WhatsApp — check the number.` }, { status: 422 });
-    }
-    // The name the shop gave itself in Settings ("Taheri"), as the counter's own message used.
-    const shopName = String((await adminDb.doc('app_settings/global').get().catch(() => null))?.get('shopName') || '').trim() || STORE_CONFIG.name;
-    const fileName = STORE_INVOICE_BY_CUSTOMER ? invoiceFileName(inv) : `Invoice-${id}.pdf`;
-    await sendWhatsAppFile(to, new Blob([new Uint8Array(bytes)], { type: 'application/pdf' }), fileName, invoiceWhatsAppCaption(inv, shopName));
-
-    const sent = { at: new Date().toISOString(), to: `+${to}`, by: who };
-    // The record is a courtesy (the viewer's "Sent"); the customer already has the file.
-    await ref.set({ sentOnWhatsApp: sent }, { merge: true }).catch(e => console.warn('[invoice whatsapp] could not note the send', e));
-    return NextResponse.json({ ok: true, fileName, ...sent });
+    const role = roleForEmail(email) === 'owner' || email === 'dev-bypass' ? 'owner' : 'staff';
+    const r = await sendCustomerDoc(parsed, { email, role }, pdf);
+    if (!r.ok) return NextResponse.json(r.body, { status: r.status });
+    const { fileName, at, by, toFull } = r.body;
+    return NextResponse.json({ ok: true, fileName, at, by, to: toFull });
   } catch (e) {
-    return staffFail(e, 'invoice whatsapp');
+    console.error('[invoice whatsapp]', id, e);
+    return NextResponse.json({ error: 'Something went wrong. Try again; if it keeps happening, tell the shop admin.' }, { status: 500 });
   }
 }

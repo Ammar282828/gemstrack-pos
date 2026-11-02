@@ -43,7 +43,6 @@ struct PostPiecesScreen: View {
         .navigationTitle(tray.map { (t: PostTrayModel) in t.cards.isEmpty ? "Pick pieces" : "\(t.cards.count) picked" } ?? "Pieces")
         .navigationBarTitleDisplayMode(.inline)
         .failureAlert($refused, title: "Not now")
-        .searchable(text: $search, placement: .pullDownSearch, prompt: "Search: ruby, kara, jhumka…")
         #if os(macOS)
         .navigationSubtitle(store.piecesPhase == .loaded ? "\(filtered.count) of \(store.pieces.count) pieces" : "")
         .toolbar {
@@ -157,6 +156,8 @@ struct PostPiecesScreen: View {
             .padding(.bottom, pt(16))
         }
         .refreshable { await store.load() }
+        // Pulled down from the top, as iOS's own search (PullDownSearch.swift); on the ScrollView so the pull is read there.
+        .pullDownSearch(text: $search, prompt: "Search: ruby, kara, jhumka…")
     }
 
     /// Its place in the tray, the order they go in.

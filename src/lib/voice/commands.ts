@@ -23,7 +23,7 @@ import type {
 } from '@/lib/store';
 import { staticCategories } from '@/lib/categories';
 import { EXPENSE_CATEGORIES } from '@/lib/expense-categories';
-import { STORE_CONFIG, STORE_INVOICE_WHATSAPP_PDF } from '@/lib/store-config';
+import { STORE_CONFIG } from '@/lib/store-config';
 import { ORDER_CATEGORIES, type OrderDraft, type DraftItem } from '@/lib/vision/order-draft';
 import type { BillLine } from '@/lib/vision/bill-draft';
 import { orderAdvanceLines } from '@/lib/order-payment';
@@ -31,6 +31,7 @@ import { PAYMENT_METHOD_WORDS } from './documents';
 import type { ArgSpec, ArgType } from './args';
 import type { HandoffKind } from './handoff';
 import type { RankedName } from './phonetics';
+import { applyRecordEdit, EDIT_KINDS, planRecordEdit } from './record-edit';
 
 /** A person as args.ts pins one. */
 type Who = Pick<RankedName, 'id' | 'name' | 'kind'>;
@@ -173,13 +174,13 @@ export const COMMANDS: CommandDef[] = [
     run: async (v, x) => go(`/invoices/${(v.invoice as Invoice).id}?do=print`, `Printing ${(v.invoice as Invoice).id}.`)(v, x),
   },
   {
-    // Where the PDF goes from the shop's line straight away (Taheri) it is confirmed first; where it
-    // only opens WhatsApp on the device (Mina), a person still presses send there.
-    id: 'send_invoice', label: 'Send an invoice on WhatsApp', readOnly: !STORE_INVOICE_WHATSAPP_PDF,
+    // The PDF goes from the house's own line straight away (both houses since 2026-11-02), so it is
+    // confirmed first; with no line connected the page falls back to WhatsApp on the device.
+    id: 'send_invoice', label: 'Send an invoice on WhatsApp', readOnly: false,
     say: "Send an invoice to its customer on WhatsApp.", args: [A.invoice()],
     describe: l => `Send ${l.invoice} to the customer on WhatsApp.`,
     run: async (v, x) => go(`/invoices/${(v.invoice as Invoice).id}?do=share`,
-      STORE_INVOICE_WHATSAPP_PDF ? `Sending ${(v.invoice as Invoice).id} to the customer on WhatsApp.` : `Opening WhatsApp for ${(v.invoice as Invoice).id}.`)(v, x),
+      `Sending ${(v.invoice as Invoice).id} to the customer on WhatsApp.`)(v, x),
   },
   {
     id: 'finalize_order', label: 'Finalize an order into an invoice', readOnly: true,
@@ -687,6 +688,36 @@ export const COMMANDS: CommandDef[] = [
     say: 'Remove a karigar.', args: [A.karigar()],
     describe: l => `Delete the karigar ${l.karigar}.`,
     run: async (v, x) => { const k = v.karigar as Who; await x.s.deleteKarigar(k.id); return { said: `${k.name} removed.`, href: '/karigars', undo: () => x.s.restoreKarigar(k.id) }; },
+  },
+  // ── One detail of one record (record-edit.ts), most often the one open on the phone (context.ts) ──
+  {
+    id: 'edit', label: 'Change one detail',
+    say: 'Change ONE detail of a record: kind, its id (number, SKU or name), piece (1 = first) for a piece of an order or invoice, the field and its new value. Never money (advances, payments, discounts have their own commands).',
+    args: [
+      { name: 'kind', type: 'enum', label: 'What', required: true, options: EDIT_KINDS, synonyms: { piece: 'product', stock: 'product', bill: 'invoice', sale: 'invoice', job: 'job', workshop: 'job' } },
+      A.text('id', 'Which', true), A.piece(), A.text('field', 'Field', true), A.text('value', 'New value', true),
+    ],
+    describe: l => `${l.kind ? l.kind[0].toUpperCase() + l.kind.slice(1) : 'Record'} ${l.id}${l.piece ? `, piece ${l.piece}` : ''}: ${l.field} to ${l.value}.`,
+    run: async (v, x) => {
+      const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Karachi', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(x.now));
+      const plan = planRecordEdit({ kind: v.kind, id: v.id, piece: v.piece, field: v.field, value: v.value }, x.s, today);
+      if (!plan.ok) throw new Error(plan.reason);
+      const undo = await applyRecordEdit(plan, x.s);
+      return { said: plan.said, href: plan.href, undo };
+    },
+  },
+  {
+    id: 'call', label: 'Call someone', readOnly: true,
+    say: 'Ring a customer or karigar on the phone ("call her", "phone Fatema").', args: [A.person()],
+    describe: l => `Call ${l.person}.`,
+    run: async (v, x) => {
+      const who = v.person as Who;
+      const row = who.kind === 'karigar' ? x.s.karigars.find(k => k.id === who.id) : x.s.customers.find(c => c.id === who.id);
+      const number = String((row as { phone?: string; contact?: string } | undefined)?.[who.kind === 'karigar' ? 'contact' : 'phone'] ?? '').replace(/[^\d+]/g, '');
+      if (number.replace(/\D/g, '').length < 7) throw new Error(`${who.name} has no phone number on file.`);
+      x.go(`tel:${number}`);
+      return { said: `Calling ${who.name}.`, href: `tel:${number}` };
+    },
   },
   {
     id: 'merge_customers', label: 'Merge two customers', danger: true,

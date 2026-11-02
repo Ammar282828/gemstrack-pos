@@ -16,6 +16,7 @@ import { QUERY_KINDS } from './answers';
 import { commandLines } from './commands';
 import { EXPENSE_CATEGORIES } from '@/lib/expense-categories';
 import type { RosterEntry } from './phonetics';
+import { lookingSection } from './context';
 
 export interface PromptContext {
   shopName: string;
@@ -27,9 +28,11 @@ export interface PromptContext {
   documents?: string[];
   /** Every screen of the ERP by name (nav.ts), for "go". */
   screens?: string[];
+  /** The record open on the phone's screen, described from the book (context.ts contextLines); none on the web. */
+  looking?: string[];
 }
 
-export function systemPrompt({ shopName, today, roster, orderKarat, documents = [], screens = [] }: PromptContext): string {
+export function systemPrompt({ shopName, today, roster, orderKarat, documents = [], screens = [], looking = [] }: PromptContext): string {
   return `You are the voice of ${shopName || 'the shop'}, a jewellery shop in Karachi. The
 owner talks to you across the counter while a customer stands in front of him. You write
 down what he says.
@@ -314,5 +317,5 @@ For "do", \`summary\` is one short sentence of what will be done.
 COMMANDS (id — what (args: * needed, [...] a list of pieces)):
 ${commandLines().join('\n')}
 
-SCREENS: ${screens.join(', ') || '(the usual ones)'}`;
+SCREENS: ${screens.join(', ') || '(the usual ones)'}${looking.length ? `\n\n${lookingSection(looking)}` : ''}`;
 }

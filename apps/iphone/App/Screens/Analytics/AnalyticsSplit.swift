@@ -9,6 +9,11 @@ struct AnaSplit<Head: View, Left: View, Right: View>: View {
     @ViewBuilder let head: (Bool) -> Head
     @ViewBuilder let left: (Bool) -> Left
     @ViewBuilder let right: (Bool) -> Right
+    /// A tab with a table to search (Products, Customers): the words, and the prompt of the pull-down field. On the
+    /// phone the field is pulled down on the page's List; a wide iPad puts it on the right-hand List (the full table);
+    /// a Mac gets the window toolbar's search.
+    var search: Binding<String>?
+    var searchPrompt: LocalizedStringKey = "Search"
 
     @Environment(\.layoutWidthClass) private var sizeClass
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -35,7 +40,7 @@ struct AnaSplit<Head: View, Left: View, Right: View>: View {
                         .padding(.vertical, pt(8))
                     HStack(alignment: .top, spacing: 0) {
                         List { left(true) }.listStyle(.insetGrouped)
-                        List { right(true) }.listStyle(.insetGrouped)
+                        List { right(true) }.listStyle(.insetGrouped).pullSearch(search, searchPrompt)
                     }
                 }
             } else {
@@ -50,6 +55,7 @@ struct AnaSplit<Head: View, Left: View, Right: View>: View {
                     right(false)
                 }
                 .listStyle(.insetGrouped)
+                .pullSearch(search, searchPrompt)
             }
         }
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
@@ -72,6 +78,15 @@ extension AnaSplit {
                 List { right(true) }.listStyle(.inset)
             }
         }
+        .pullSearch(search, searchPrompt)
     }
 }
 #endif
+
+private extension View {
+    /// The pull-down search (the window toolbar's on a Mac) when the tab has one.
+    @ViewBuilder
+    func pullSearch(_ text: Binding<String>?, _ prompt: LocalizedStringKey) -> some View {
+        if let text { pullDownSearch(text: text, prompt: prompt) } else { self }
+    }
+}

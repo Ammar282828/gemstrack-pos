@@ -269,7 +269,8 @@ export function VoiceBubble() {
   /** The context every step runs in. The store is read afresh as each step goes. */
   const runCtx = useCallback((): RunCtx => ({
     get s() { return useAppStore.getState(); },
-    go: (href: string) => router.push(href),
+    // "Call her" (commands.ts `call`) is a tel: link, which the router cannot open.
+    go: (href: string) => { if (href.startsWith('tel:')) window.location.href = href; else router.push(href); },
     handOff,
     now: new Date().toISOString(),
     me,

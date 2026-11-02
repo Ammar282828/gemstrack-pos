@@ -5,11 +5,12 @@ import { NextRequest } from 'next/server';
 let email: string | null = 'owner@example.com';
 let role = 'owner';
 const reads = vi.fn();
+const heard = vi.fn();
 
 vi.mock('@/lib/firebase-admin', () => ({
   adminDb: {
     collection: () => ({
-      get: async () => { reads(); return { docs: [] }; },
+      get: async () => { reads(); return { docs: [{ id: 'ORD-000123', data: () => ({ customerName: 'Sara Testwala', status: 'Pending', items: [{ description: 'Ring' }] }) }] }; },
       doc: () => ({ get: async () => ({ data: () => ({ shopName: 'Test shop' }) }) }),
     }),
   },
@@ -19,14 +20,14 @@ vi.mock('@/lib/roles', () => ({ roleForEmail: () => role }));
 vi.mock('@/lib/nav', () => ({ paletteFor: () => [] }));
 vi.mock('@/lib/voice/documents', () => ({ documentsFor: () => [] }));
 vi.mock('@/lib/voice/native-plan', () => ({ nativeVoicePlan: async () => ({ ops: [] }) }));
-vi.mock('../listen/route', () => ({ POST: async () => Response.json({ ok: true }) }));
+vi.mock('../listen/route', () => ({ POST: async (req: Request) => { heard(await req.json()); return Response.json({ ok: true }); } }));
 
 import { POST } from './route';
 
 const call = (body: unknown) => POST(new NextRequest('http://localhost/api/voice/native', { method: 'POST', body: JSON.stringify(body) }));
 
 describe('/api/voice/native', () => {
-  beforeEach(() => { email = 'owner@example.com'; role = 'owner'; reads.mockClear(); });
+  beforeEach(() => { email = 'owner@example.com'; role = 'owner'; reads.mockClear(); heard.mockClear(); });
 
   it('turns away the signed-out and anyone who is not an owner, before reading anything', async () => {
     email = null;
@@ -49,5 +50,17 @@ describe('/api/voice/native', () => {
     expect(afterFirst).toBeGreaterThan(0);
     expect((await call({ text: 'second' })).status).toBe(200);
     expect(reads.mock.calls.length).toBe(afterFirst);
+  });
+
+  it('tells the listener what is open on the phone, read from the book, and nothing when nothing is', async () => {
+    expect((await call({ text: 'change the size to 7', context: { kind: 'order', id: 'ORD-000123', label: 'Order of 999 pieces' } })).status).toBe(200);
+    const looking = heard.mock.calls[0][0].looking as string[];
+    expect(looking[0]).toContain('ORDER ORD-000123');
+    expect(looking[0]).toContain('Sara Testwala');
+    expect(looking.join(' ')).not.toContain('999');
+    expect((await call({ text: 'hello' })).status).toBe(200);
+    expect(heard.mock.calls[1][0].looking).toBeUndefined();
+    expect((await call({ text: 'hello', context: { kind: 'order', id: 'a/b' } })).status).toBe(200);
+    expect(heard.mock.calls[2][0].looking).toBeUndefined();
   });
 });

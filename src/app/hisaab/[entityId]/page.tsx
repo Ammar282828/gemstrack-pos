@@ -43,6 +43,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { SwipeToDelete } from '@/components/ui/swipe-to-delete';
 import { AmountInput } from '@/components/ui/amount-input';
 import { PhoneField } from '@/components/ui/phone-field';
+import { ContactMenu } from '@/components/customer/contact-actions';
 import { deleteErrorText } from '@/lib/delete-code';
 
 
@@ -298,6 +299,10 @@ export default function EntityHisaabPage() {
           </div>
         </div>
         <div className="flex gap-2 flex-shrink-0">
+          {/* The one Contact menu (components/customer/contact-actions.tsx), for a customer's book. */}
+          {entityType === 'customer' && (
+            <ContactMenu phone={(entity as Customer).phone || (entity as Customer).altPhone} customerId={entity.id} customerName={entity.name} />
+          )}
           <Button size="sm" variant="outline" onClick={handlePrintLedger} disabled={!settings}>
             <FileText className="h-4 w-4 md:mr-2"/><span className="hidden md:inline">PDF</span>
           </Button>

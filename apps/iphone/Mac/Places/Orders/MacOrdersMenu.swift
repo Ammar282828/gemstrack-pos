@@ -32,6 +32,7 @@ struct MacOrdersMenuRun {
     var openInvoice: () -> Void = {}
     var printSlip: () -> Void = {}
     var message: () -> Void = {}
+    var sendToKarigar: () -> Void = {}
     var call: () -> Void = {}
     var whatsApp: () -> Void = {}
     var bookCourier: () -> Void = {}
@@ -125,6 +126,7 @@ enum MacOrdersMenu {
         out.append(MacAction("Print Slip", symbol: "printer", shortcut: KeyboardShortcut("p", modifiers: .command),
                              enabled: o != nil, id: "slip", perform: r.printSlip))
         out.append(MacAction("Message the Customer\u{2026}", symbol: "message", enabled: o != nil, id: "message", perform: r.message))
+        out.append(MacAction("Send to Karigar\u{2026}", symbol: "paperplane", enabled: o != nil, id: "sendToKarigar", perform: r.sendToKarigar))
         out.append(MacAction("Call", symbol: "phone", enabled: hasPhone, id: "call", perform: r.call))
         out.append(MacAction("WhatsApp Chat", symbol: "bubble.left.and.text.bubble.right", enabled: hasPhone, id: "whatsapp", perform: r.whatsApp))
         out.append(MacAction("Book Courier\u{2026}", symbol: "truck.box", enabled: canBook, id: "courier", perform: r.bookCourier))

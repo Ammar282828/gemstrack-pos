@@ -10,6 +10,7 @@ import { Monogram, Pill, RowAmount, type Tone } from '@/components/ledger';
 import { REPAIR_STATUS_LABELS, repairBalance, repairPaid, repairTotal, type RepairStatus } from '@/lib/repairs';
 import type { Repair } from '@/lib/store';
 import { cn } from '@/lib/utils';
+import { ContactMenu } from '@/components/customer/contact-actions';
 
 /** In the shop (with us), Ready (settled), Collected (quiet): each in its one tone. */
 export const REPAIR_STATUS_TONE: Record<RepairStatus, Tone> = {
@@ -80,6 +81,8 @@ export function RepairCard({ repair: r, late, whatsappHref, onEdit, onReady, onH
                 <a href={whatsappHref} target="_blank" rel="noopener noreferrer" aria-label="Tell the customer on WhatsApp"><MessageCircle className="mr-1.5 h-3.5 w-3.5" />Tell them</a>
               </Button>
             )}
+            {/* The one Contact menu (components/customer/contact-actions.tsx): Call, WhatsApp, Message, Copy number. */}
+            <ContactMenu phone={r.customerContact} customerId={r.customerId} customerName={r.customerName} />
             {r.status === 'ready' && <Button size="sm" className="h-8" onClick={onHandBack}><PackageCheck className="mr-1.5 h-3.5 w-3.5" />Hand back</Button>}
             <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="Print the receipt" onClick={onPrint}><Printer className="h-4 w-4" /></Button>
             <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="Edit" onClick={onEdit}><Edit className="h-4 w-4" /></Button>

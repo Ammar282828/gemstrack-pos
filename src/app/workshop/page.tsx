@@ -16,6 +16,7 @@ import { detailsTarget } from '@/lib/workshop-details';
 import { STORE_CONFIG, STORE_WORKSHOP_START } from '@/lib/store-config';
 import { KarigarAssign } from '@/components/karigar/karigar-assign';
 import { KarigarGlance } from '@/components/karigar/karigar-glance';
+import { SendToKarigarButton } from '@/components/karigar/send-to-karigar';
 import { AgeBadge, BoardJobCard, TakenByTag } from '@/components/karigar/job-card';
 import { SampleImageInput } from '@/components/shared/sample-image-input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -151,6 +152,7 @@ const JobRow: React.FC<{
                 <Pencil className="h-3 w-3 mr-1.5" />Details
               </Button>
             )}
+            {job.orderId && job.karigarId !== UNASSIGNED_ID && <SendToKarigarButton orderId={job.orderId} itemIndex={job.itemIndex} karigarId={job.karigarId} />}
             {job.source !== 'manual' && job.itemIndex !== undefined && job.status !== 'completed' && (
               <KarigarAssign
                 orderId={job.orderId}
@@ -837,6 +839,7 @@ const JobCardMobile: React.FC<{
               <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => onEdit(job)}>
                 <Pencil className="h-3 w-3 mr-1.5" />Details
               </Button>
+              {job.orderId && job.karigarId !== UNASSIGNED_ID && <SendToKarigarButton orderId={job.orderId} itemIndex={job.itemIndex} karigarId={job.karigarId} />}
             </div>
           </div>
         </div>
@@ -1382,6 +1385,7 @@ export default function WorkshopPage() {
                           <Button variant="outline" size="sm" className="h-8" onClick={() => openEdit(j)}>
                             <Pencil className="h-3.5 w-3.5 mr-1.5" />Details
                           </Button>
+                          {j.orderId && j.karigarId !== UNASSIGNED_ID && <SendToKarigarButton orderId={j.orderId} itemIndex={j.itemIndex} karigarId={j.karigarId} className="h-8 ml-1.5" />}
                         </TableCell>
                       </TableRow>
                     );

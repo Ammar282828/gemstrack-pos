@@ -19,21 +19,22 @@ import { useAppStore, Invoice as InvoiceType, PAYMENT_TYPES, PaymentType } from 
 import { useAppReady } from '@/hooks/use-store';
 import { describeMetal, describeSettings, describeDelivery, describePlating } from '@/lib/materials';
 import { categorySingular } from '@/lib/categories';
-import { STORE_CONFIG, storeLinksUrl, STORE_LOGO_URL, STORE_INVOICE_BY_CUSTOMER, STORE_INVOICE_WHATSAPP_PDF } from '@/lib/store-config';
+import { STORE_CONFIG, storeLinksUrl, STORE_LOGO_URL, STORE_INVOICE_BY_CUSTOMER } from '@/lib/store-config';
 import { doc as fsDoc, getDoc as fsGetDoc, setDoc as fsSetDoc } from 'firebase/firestore';
 import { db as fsDb } from '@/lib/firebase';
 import { invoiceShareUrl, newShareToken } from '@/lib/share-token';
-import { whatsAppLink } from '@/lib/whatsapp';
+import { toWhatsAppNumber, whatsAppLink } from '@/lib/whatsapp';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Monogram, Pill, HeroAmount, MoneySplit, ContactActions } from '@/components/ledger';
+import { Monogram, Pill, HeroAmount, MoneySplit } from '@/components/ledger';
+import { CustomerContact } from '@/components/customer/contact-actions';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, MessageSquare, Check, Banknote, DollarSign, Edit, PlusCircle, CalendarIcon, List, RotateCcw, CheckCircle, Lock, XCircle, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { buildInvoicePdf, saveInvoicePdf } from '@/lib/invoice-pdf';
+import { saveInvoicePdf } from '@/lib/invoice-pdf';
 import { invoiceWhatsAppCaption } from '@/lib/invoice-share';
 import { authedFetch } from '@/lib/voice/authed-fetch';
 import { ToastAction } from '@/components/ui/toast';
@@ -219,10 +220,10 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
   /**
    * Send the invoice's PDF to the customer on WhatsApp, from the shop's own line (the owner,
    * 2026-10-05: "directly send a pdf of the invoice to the customer instead of a link"). The PDF is
-   * the one Print saves, drawn here; /api/invoices/[id]/whatsapp names it "Invoice - <customer>"
-   * and sends it through the ERP's WhatsApp gateway. If that can't (the line unlinked, no
-   * gateway), the toast offers the old way: WhatsApp opened on this device with a link.
-   * Taheri's (STORE_INVOICE_WHATSAPP_PDF); House of Mina keeps the link.
+   * the one Print saves, drawn by the server (/api/app/whatsapp/send-doc, the same send as the apps'
+   * and the Contact row's), named "Invoice - <customer>" and sent from this house's own line — both
+   * houses since 2026-11-02. If that can't (the line unlinked, no gateway), the toast offers the old
+   * way: WhatsApp opened on this device with a link.
    */
   const [sending, setSending] = useState(false);
   const handleSendWhatsApp = async (invoiceToSend: InvoiceType, opts: { sameTab?: boolean } = {}) => {
@@ -230,23 +231,19 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
       toast({ title: "No phone number", description: "Enter the customer's WhatsApp number.", variant: "destructive" });
       return;
     }
-    if (!STORE_INVOICE_WHATSAPP_PDF) { openWhatsAppWithLink(invoiceToSend, opts); return; }
+    void opts;
     if (sending) return;
     setSending(true);
     try {
-      const customer = invoiceToSend.customerId ? customers.find(c => c.id === invoiceToSend.customerId) : null;
-      const pdf = await buildInvoicePdf(invoiceToSend, { customer });
-      const bytes = new Uint8Array(pdf.output('arraybuffer'));
-      let bin = '';
-      for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-      const res = await authedFetch(`/api/invoices/${encodeURIComponent(invoiceToSend.id)}/whatsapp`, {
+      const res = await authedFetch('/api/app/whatsapp/send-doc', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: phone, pdf: btoa(bin) }),
+        body: JSON.stringify({ kind: 'invoice', id: invoiceToSend.id, to: phone }),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string; to?: string; at?: string; by?: string; fileName?: string };
       if (!res.ok) throw new Error(res.status === 401 ? 'Sign in with Google to send from the shop’s WhatsApp.' : data.error || `Failed (${res.status})`);
-      setLatest({ ...invoiceToSend, sentOnWhatsApp: { at: data.at!, to: data.to!, by: data.by! } });
+      // The answer masks the number; the page shows the one typed, as the server noted it.
+      setLatest({ ...invoiceToSend, sentOnWhatsApp: { at: data.at!, to: `+${toWhatsAppNumber(phone)}`, by: data.by! } });
       toast({ title: `Sent to ${invoiceToSend.customerName && !isWalkInName(invoiceToSend.customerName) ? invoiceToSend.customerName : data.to}`, description: `${data.fileName} — on WhatsApp, from the shop’s number.` });
     } catch (e) {
       toast({
@@ -265,7 +262,8 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
    * written, the invoice linked (wa.me cannot carry a file). Synchronous, so the tap's activation is
    * still there when window.open asks for it.
    */
-  const openWhatsAppWithLink = (invoiceToSend: InvoiceType, opts: { sameTab?: boolean } = {}) => {
+  const openWhatsAppWithLink = (invoiceToSend: InvoiceType, opts: { sameTab?: boolean; phone?: string } = {}) => {
+    const to = opts.phone || phone;
     // Taheri's words carry no number (STORE_INVOICE_BY_CUSTOMER); Mina's are the counter's own, ID and all.
     let message = STORE_INVOICE_BY_CUSTOMER
       ? invoiceWhatsAppCaption(invoiceToSend, settings.shopName).replace(' is attached.', ' is at the link below.')
@@ -283,8 +281,8 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
     }
     message += `\n\n${STORE_INVOICE_BY_CUSTOMER ? '' : 'View estimate: '}${invoiceShareUrl(appUrl, invoiceToSend.id, key)}`;
     // From voice there is no tap to open a new tab with, so it opens in this one.
-    if (opts.sameTab) window.location.assign(whatsAppLink(phone, message));
-    else window.open(whatsAppLink(phone, message), '_blank');
+    if (opts.sameTab) window.location.assign(whatsAppLink(to, message));
+    else window.open(whatsAppLink(to, message), '_blank');
     toast({ title: "Opening WhatsApp", description: "The message is written — press send." });
   };
 
@@ -419,7 +417,21 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
               </div>
             </div>
             <MoneySplit total={invoice.grandTotal} paid={invoice.amountPaid} due={invoice.balanceDue} />
-            <ContactActions phone={phoneFor} className="max-w-sm" />
+            {/* The one Contact row (components/customer/contact-actions.tsx): Call, WhatsApp, Message, Send PDF, More. */}
+            <CustomerContact
+              phone={phoneFor}
+              customerId={invoice.customerId}
+              customerName={invoice.customerName}
+              className="max-w-md"
+              doc={{
+                kind: 'invoice', id: invoice.id,
+                pieces: Array.isArray(invoice.items) ? invoice.items.length : Object.keys(invoice.items || {}).length,
+                sentAt: invoice.sentOnWhatsApp?.at ?? null,
+                onShare: () => void printInvoice(invoice),
+                onLinkFallback: (n) => { setPhone(n); openWhatsAppWithLink(invoice, { phone: n }); },
+                onSent: (s) => setLatest({ ...invoice, sentOnWhatsApp: { at: s.at, to: s.to, by: s.by } }),
+              }}
+            />
             <div className="flex flex-wrap gap-2">
                     <Button asChild variant="outline">
                       <Link href={`/invoices/${invoice.id}/edit`}><Edit className="mr-2 h-4 w-4"/> Edit invoice</Link>

@@ -22,6 +22,16 @@ struct WorkshopPieceAsk: Identifiable {
         if case .order = target { return true }
         return false
     }
+
+    /// The order or invoice this piece is on, and which piece, as voice is told it.
+    var voiceFocus: VoiceFocus {
+        switch target {
+        case .order(let id, let index):
+            return VoiceFocus(kind: "order", id: id, label: "Order \(id), piece \(index + 1)", piece: index)
+        case .invoice(let id, let index):
+            return VoiceFocus(kind: "invoice", id: id, label: "Invoice \(id), piece \(index + 1)", piece: index)
+        }
+    }
 }
 
 /// "Making details": only the fields the karigar sees. The name (never cleared; it prints on the customer's estimate and
@@ -141,6 +151,8 @@ struct WorkshopPieceDetailsSheet: View {
         .frame(minWidth: 520, idealWidth: 560, minHeight: 440, idealHeight: 520)
         #endif
         .interactiveDismissDisabled(saving)
+        // Voice is told which piece is open: "size 7" is this one's (VoiceContext).
+        .voiceFocus(ask.voiceFocus)
         // A picture kept in its own document (lib/order-photos.ts) is read for the editor, as the web's dialog reads it.
         .task { await loadStoredPhoto() }
     }

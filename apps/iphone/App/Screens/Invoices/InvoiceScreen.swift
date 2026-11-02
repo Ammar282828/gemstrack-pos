@@ -73,6 +73,7 @@ struct InvoiceScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         // The page grows out of its row on the list (the row's id is this route's path).
         .zoomDestination(id: InvoiceFacts.path(id))
+        .voiceFocus(invoice.map(VoiceFocus.invoice))
         .task {
             book.invoices.need()
             book.customers.need()
@@ -307,20 +308,20 @@ struct InvoiceScreen: View {
 
     // MARK: What is done most, one tap away
 
-    /// Ring, write or message the customer, and the PDF: the things the counter does after a sale. Taking the
-    /// money is the bar at the foot, so it has no tile here.
+    /// The one Contact row (CustomerContact.swift): Call, WhatsApp, Message, Send PDF (this page's own send, from
+    /// the shop's line), then More: Share PDF… (the PDF screen) and Copy number. Taking the money is the bar at the
+    /// foot, so it has no tile here.
     private func quickSection(_ inv: Invoice) -> some View {
-        let phone = whatsAppPhone(inv)
-        let reachable = !CustomerKit.dialable(phone).isEmpty
+        let target = InvoiceFacts.pdfTarget(inv, byCustomer: session.shop.invoiceByCustomer)
         return Section {
-            HStack(alignment: .top, spacing: pt(10)) {
-                if reachable { ContactActions(phone: phone) }
-                QuickAction(title: "PDF", symbol: "doc.richtext") {
-                    pdf = InvoiceFacts.pdfTarget(inv, byCustomer: session.shop.invoiceByCustomer)
-                }
-                .frame(maxWidth: reachable ? 88 : 110)
-                if !reachable { Spacer(minLength: 0) }
-            }
+            CustomerContactActions(
+                phone: whatsAppPhone(inv),
+                customerId: linkableCustomer(inv),
+                customerName: inv.customerName,
+                doc: CustomerDoc(kind: .invoice, id: inv.id, pieces: inv.items.count, fileName: target.fileName),
+                onSend: { sending = inv },
+                onShare: { pdf = target }
+            )
             .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
             .listRowBackground(Color.clear)
             .listRowSeparator(.hidden)
@@ -1000,6 +1001,7 @@ extension InvoiceScreen {
             }
         }
         .navigationTitle(id)
+        .voiceFocus(invoice.map(VoiceFocus.invoice))
         .task {
             book.invoices.need()
             book.customers.need()

@@ -59,7 +59,10 @@ struct WebsiteWeightsScreen: View {
         }
         .navigationTitle("Photo weights")
         .navigationBarTitleDisplayMode(.inline)
-        .searchable(text: $search, placement: .pullDownSearch, prompt: "Find a photo…")
+        #if os(macOS)
+        // The Mac keeps the window toolbar's search; the phone's is pulled down on its List (phonePage).
+        .searchable(text: $search, placement: .toolbar, prompt: "Find a photo…")
+        #endif
         .task {
             await site.loadSettings()
             if pieces == nil { await load() }
@@ -177,6 +180,8 @@ struct WebsiteWeightsScreen: View {
             .houseRows()
         }
         .listStyle(.insetGrouped)
+        // Pulled down from the top, as iOS's own search (PullDownSearch.swift); on the List so the pull is read there.
+        .pullDownSearch(text: $search, prompt: "Find a photo…")
         .readableColumn(780)
         .scrollDismissesKeyboard(.interactively)
         .refreshable { await load() }

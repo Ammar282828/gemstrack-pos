@@ -13,7 +13,10 @@ struct SearchView: View {
     @Environment(\.layoutWidthClass) private var sizeClass
     @Environment(\.accessibilityReduceMotion) private var reduce
     let map: NavMap
-    @State private var text = ""
+    /// Home's pull-down search lends its words and gets only the results back, drawn here and nowhere else: the same
+    /// matching, sections and rows as this tab, none of its page (no title, no field, no idle map). nil: the Search tab.
+    var embedded: Binding<String>?
+    @State private var ownText = ""
     /// `text` after a pause in typing: what the results are worked out from.
     @State private var query = ""
     @State private var confirmingSignOut = false
@@ -27,17 +30,28 @@ struct SearchView: View {
     @State private var picked: String?
     #endif
 
+    private var text: String { embedded?.wrappedValue ?? ownText }
     private var typed: String { text.trimmingCharacters(in: .whitespaces).lowercased() }
     /// Marketing has no Firestore and the server refuses it the books: nothing to read for them.
     private var readsBooks: Bool { session.role != "marketing" }
 
     var body: some View {
+        if embedded != nil { embeddedBody } else { tabBody }
+    }
+
+    /// Only the results, for Home to show in place of its page while something is typed.
+    private var embeddedBody: some View {
+        found
+            .task(id: text) { await settle() }
+    }
+
+    private var tabBody: some View {
         Group {
             if typed.isEmpty { idle } else { found }
         }
         .navigationTitle("Search")
         .hubTitleDisplay()
-        .searchable(text: $text, prompt: "Customers, invoices, orders, stock, places")
+        .searchable(text: $ownText, prompt: "Customers, invoices, orders, stock, places")
         .searchFocused($searchFocused)
         #if os(macOS)
         .onSubmit(of: .search) { macOpenPicked() }
@@ -56,14 +70,16 @@ struct SearchView: View {
             focusIfWanted(ShellCommands.shared.searchWanted)
         }
         // Debounced; the shelves are asked for only once someone types.
-        .task(id: text) {
-            let next = typed
-            if next.isEmpty { query = ""; expanded = []; return }
-            if readsBooks { needShelves() }
-            try? await Task.sleep(for: .milliseconds(150))
-            if Task.isCancelled { return }
-            query = next
-        }
+        .task(id: text) { await settle() }
+    }
+
+    private func settle() async {
+        let next = typed
+        if next.isEmpty { query = ""; expanded = []; return }
+        if readsBooks { needShelves() }
+        try? await Task.sleep(for: .milliseconds(150))
+        if Task.isCancelled { return }
+        query = next
     }
 
     private func focusIfWanted(_ wanted: Bool) {

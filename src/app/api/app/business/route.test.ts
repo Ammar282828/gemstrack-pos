@@ -20,6 +20,8 @@ const KEYS = [...Object.keys(MINA), 'NEXT_PUBLIC_STORE_GOODS_EXPENSE_CATEGORIES'
 async function get(env: Record<string, string> = {}, host = 'erp.taheri.shop') {
   vi.resetModules();
   for (const k of KEYS) vi.stubEnv(k, undefined);
+  // Both houses' lines are connected in production (WAHA, apphosting.yaml): the PDF goes from the line.
+  vi.stubEnv('WAHA_URL', 'https://waha.example.com'); vi.stubEnv('WAHA_API_KEY', 'test-key');
   for (const [k, v] of Object.entries(env)) vi.stubEnv(k, v);
   const { GET } = await import('./route');
   const res = await GET(new NextRequest('http://internal:8080/api/app/business', { headers: { 'x-forwarded-host': host } }));
@@ -106,6 +108,11 @@ describe('/api/app/business', () => {
   it('falls back to Taheri\'s colours for a malformed palette', async () => {
     const { body } = await get({ NEXT_PUBLIC_STORE_PALETTE: '{"light":{"accent":"red"}' });
     expect(body.palette.light.accent).toBe('#8A6B42');
+  });
+
+  it('sends PDFs from the line only where one is connected', async () => {
+    expect((await get(MINA, 'erp.houseofmina.store')).body.flags.invoiceWhatsappPdf).toBe(true);
+    expect((await get({ WAHA_URL: '', WAHA_API_KEY: '', GREENAPI_ID_INSTANCE: '', GREENAPI_API_TOKEN: '' })).body.flags.invoiceWhatsappPdf).toBe(false);
   });
 
   it('agrees with /api/app/me on the flags', async () => {

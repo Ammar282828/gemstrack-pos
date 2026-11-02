@@ -44,7 +44,6 @@ struct ExtraRevenueScreen: View {
         }
         .navigationTitle("Extra revenue")
         .hubTitleDisplay()
-        .searchable(text: $search, placement: .pullDownSearch, prompt: "Search by description")
         .toolbar {
             ToolbarItem(placement: .trailingAction) {
                 Button { adding = true } label: { Label("Add extra revenue", systemImage: "plus") }
@@ -107,6 +106,8 @@ struct ExtraRevenueScreen: View {
         }.houseRows()
         }
         .listStyle(.insetGrouped)
+        // Pulled down from the top, as iOS's own search (PullDownSearch.swift); on the List so the pull is read there.
+        .pullDownSearch(text: $search, prompt: "Search by description")
         #endif
     }
 

@@ -196,6 +196,12 @@ struct HisaabLedgerScreen: View {
             #if os(macOS)
             macLedgerToolbar(name: name, id: id, isCustomer: isCustomer, onFile: onFile)
             #else
+            // The one Contact menu (CustomerContact.swift) for a customer on file: Call, WhatsApp, Message, Copy number.
+            if isCustomer && id != WALK_IN_ENTITY, let c = book.customers.item(id) {
+                ToolbarItem(placement: .primaryAction) {
+                    CustomerContactMenu(phone: CustomerKit.filled(c.phone) ?? c.altPhone, customerId: c.id, customerName: c.name)
+                }
+            }
             ToolbarItem(placement: .primaryAction) {
                 Menu {
                     Button {

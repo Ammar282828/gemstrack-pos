@@ -24,8 +24,8 @@ final class MacShellModel {
     @ObservationIgnored private var retracing = false
     /// New sale, New order, Scan, a repair: opened in a window of its own (`MacPlaceWindow`).
     var creating: Route?
+    /// Voice Assistant… was chosen (MacCommands): the shell opens the app's voice overlay and lowers it again.
     var voice = false
-    var pendingRoute: Route?
     /// ⌘K's panel is over the window (MacQuickOpen).
     var quickOpen = false
     /// Help › Send Page Snapshots… was chosen for this window (MacSnapshots).
@@ -210,13 +210,19 @@ struct MacShell: View {
             openWindow(id: MacWindows.place, value: MacWindows.fresh(r))
             model.creating = nil
         }
-        .sheet(isPresented: $model.voice, onDismiss: {
-            if let p = model.pendingRoute { model.pendingRoute = nil; model.creating = p }
-        }) {
-            NavigationStack {
-                NativeVoiceScreen { path in model.pendingRoute = Route(path: path); model.voice = false }
-            }
-            .frame(minWidth: 560, minHeight: 520)
+        // Voice at the foot of the main window, not a sheet (VoiceOverlay): the window keeps working beneath it. A page
+        // the plan opens is pushed here; a filled sale, order or piece opens in a window of its own, as any new one does.
+        .overlay(alignment: .bottom) {
+            VoiceOverlay(open: { path in
+                if ["/orders/add", "/invoices/new", "/products/add"].contains(ScreenRoute.bare(path)) { model.creating = Route(path: path) }
+                else { model.stack.append(Route(path: path)) }
+            }, bottomInset: 16)
+        }
+        // The Window menu's Voice Assistant… asks through the model; the session is the app's one.
+        .onChange(of: model.voice) { _, asked in
+            guard asked else { return }
+            model.voice = false
+            VoiceSession.shared.present()
         }
         .task(id: watchesOnline) {
             if watchesOnline { await OnlineInbox.shared.keep() }
@@ -236,9 +242,9 @@ struct MacShell: View {
             let s = model.selection ?? "/"
             if allowed.contains(s) || s == Self.searchID { model.stack = [] } else { model.go(Self.home(sections)) }
         }
-        // Locked: nothing of the books stays drawn over the lock (the ⌘K panel, the voice sheet).
+        // Locked: nothing of the books stays drawn over the lock (the ⌘K panel, the voice overlay).
         .onChange(of: AppLock.shared.locked) { _, locked in
-            if locked { model.quickOpen = false; model.voice = false }
+            if locked { model.quickOpen = false; VoiceSession.shared.dismiss(force: true) }
         }
         .onChange(of: model.selection) { _, s in
             guard restored else { return }

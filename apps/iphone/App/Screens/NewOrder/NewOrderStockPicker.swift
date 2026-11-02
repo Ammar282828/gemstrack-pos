@@ -43,6 +43,8 @@ struct NewOrderStockPicker: View {
                     }
                 }
             }
+            // Always in view, on purpose: this sheet is a picker, and finding a piece is its whole job. Every list screen
+            // pulls its search down (PullDownSearch.swift); a picker that hid its one control behind a pull would be a worse picker.
             .searchable(text: $query, placement: .alwaysShownSearch, prompt: "SKU or name")
             .navigationTitle("Add from stock")
             .navigationBarTitleDisplayMode(.inline)

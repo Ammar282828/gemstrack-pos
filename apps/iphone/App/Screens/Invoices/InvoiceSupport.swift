@@ -214,16 +214,13 @@ enum InvoiceFacts {
                          title: perPiece ? "\(inv.id) per piece" : inv.id)
     }
 
-    /// Taheri's Send on WhatsApp from the phone: the ERP draws the PDF Print saves and sends it from the shop's
-    /// line through the browser's own send (/api/app/pdf/invoice/[id]/whatsapp → /api/invoices/[id]/whatsapp),
-    /// which notes it on the invoice. Answers the file's name and the number it went to.
+    /// Send on WhatsApp from the phone, both houses from their own line (since 2026-11-02): the ERP draws the PDF
+    /// Print saves and sends it (/api/app/whatsapp/send-doc, the web's and Android's send too), noting it on the
+    /// invoice. Answers the file's name and the number it went to (masked).
     @MainActor
-    static func sendPDF(_ inv: Invoice, to phone: String) async throws -> (fileName: String, to: String) {
-        // The send asks WAHA first whether the number is on WhatsApp, then sends: the ERP gives it two minutes.
-        let out = try await ERPAPI.shared.send(pdfPath(inv.id) + "/whatsapp", ["to": phone], timeout: 130)
-        // Staff read the books every 25 seconds: fetch them now, so "sent" shows under the button.
-        ServerShelf.wake()
-        return (out["fileName"] as? String ?? "The PDF", out["to"] as? String ?? phone)
+    static func sendPDF(_ inv: Invoice, to phone: String, perPiece: Bool = false) async throws -> (fileName: String, to: String) {
+        try await CustomerDocSend.send(CustomerDoc(kind: .invoice, id: inv.id, pieces: inv.items.count, fileName: inv.id + ".pdf"),
+                                       to: phone, perPiece: perPiece)
     }
 
     /// The link's key for an invoice from before keys existed, given as the page gives it when it first sends the
@@ -435,6 +432,10 @@ private struct InvoiceWhatsAppSend: ViewModifier {
             .confirmationDialog(confirming.map(title) ?? "", isPresented: confirmingShown,
                                 titleVisibility: .visible, presenting: confirming) { (inv: Invoice) in
                 Button(inv.sentOnWhatsApp == nil ? "Send the PDF" : "Send it again") { Task { await sendPDF(inv) } }
+                // As Print's choice: one invoice per piece, each on its own page (Contact, 2026-11-02).
+                if inv.items.count > 1 {
+                    Button("Send one per piece") { Task { await sendPDF(inv, perPiece: true) } }
+                }
                 // The ERP page's box takes another number; its Send goes to whatever is typed there.
                 Button("Another number…") { typing = inv }
             } message: { (inv: Invoice) in
@@ -506,12 +507,12 @@ private struct InvoiceWhatsAppSend: ViewModifier {
 
     /// invoice-viewer.tsx `handleSendWhatsApp`: sent, said as its toast says it; refused, the ERP's words.
     @MainActor
-    private func sendPDF(_ inv: Invoice) async {
+    private func sendPDF(_ inv: Invoice, perPiece: Bool = false) async {
         guard !sendingPDF else { return }
         Motion.run(reduce: reduceMotion) { sendingPDF = true }
         defer { Motion.run(Motion.exit, reduce: reduceMotion) { sendingPDF = false } }
         do {
-            let out = try await InvoiceFacts.sendPDF(inv, to: phone(inv))
+            let out = try await InvoiceFacts.sendPDF(inv, to: phone(inv), perPiece: perPiece)
             let name = InvoiceFacts.customerName(inv, walkIn: "")
             sent(InvoiceNote(title: "Sent to \(name.isEmpty ? out.to : name)",
                              detail: "\(out.fileName) — on WhatsApp, from the shop's number."))

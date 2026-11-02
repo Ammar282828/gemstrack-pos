@@ -54,7 +54,6 @@ struct WebsiteEditScreen: View {
         }
         .navigationTitle("Edit a piece")
         .hubTitleDisplay()
-        .searchable(text: $search, placement: .pullDownSearch, prompt: "Name, collection, ruby, Ring 12…")
         .task { await store.load() }
         .onChange(of: search) { _, _ in shown = WebsiteEditScreen.pageSize }
         .onChange(of: filter) { _, _ in shown = WebsiteEditScreen.pageSize }
@@ -141,6 +140,8 @@ struct WebsiteEditScreen: View {
             .padding(.bottom, pt(16))
         }
         .refreshable { await store.load(fresh: true) }
+        // Pulled down from the top, as iOS's own search (PullDownSearch.swift); on the ScrollView so the pull is read there.
+        .pullDownSearch(text: $search, prompt: "Name, collection, ruby, Ring 12…")
     }
 
     private func macGrid(items: [WebsiteEditPiece], changedCount: Int, hiddenCount: Int) -> some View {

@@ -42,6 +42,7 @@ struct StockPieceScreen: View {
         .navigationTitle(sku)
         .navigationBarTitleDisplayMode(.inline)
         .zoomDestination(id: StockKit.piecePath(sku))
+        .voiceFocus(book.products.item(sku).map(VoiceFocus.product))
         .stockDestination($go)
         .sheet(item: $tagging) { (p: Product) in
             StockPieceTagSheet(product: p)

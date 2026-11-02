@@ -236,6 +236,9 @@ final class Businesses {
         WorkDraftSync.order.reset()
         WorkDraftSync.sale.reset()
         NavMap.invalidate()
+        // Voice talks to one business: its plan and the record it was told about go with the switch.
+        VoiceSession.reset()
+        VoiceContext.reset()
     }
 
     // MARK: Refreshing

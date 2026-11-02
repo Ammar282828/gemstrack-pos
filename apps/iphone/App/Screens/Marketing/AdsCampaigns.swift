@@ -84,9 +84,6 @@ struct AdsCampaignsScreen: View {
         #if !os(macOS)
         .readableColumn(1040)
         #endif
-        #if !os(macOS)
-        .searchable(text: $search, placement: .pullDownSearch, prompt: "Search campaigns, ad sets, ads")
-        #endif
         #if os(macOS)
         .toolbar { macToolbar }
         #else
@@ -274,6 +271,8 @@ struct AdsCampaignsScreen: View {
         }
         .listStyle(.insetGrouped)
         .scrollDismissesKeyboard(.interactively)
+        // Pulled down from the top, as iOS's own search (PullDownSearch.swift); on the List so the pull is read there.
+        .pullDownSearch(text: $search, prompt: "Search campaigns, ad sets, ads")
         .overlay {
             if list.isEmpty {
                 if d.campaigns.isEmpty {

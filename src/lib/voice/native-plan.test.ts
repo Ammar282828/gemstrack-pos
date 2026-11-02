@@ -47,8 +47,13 @@ describe('the native voice review', () => {
     expect(p.cards[0].problem).toContain('delete code');
     expect(p.cards[0].href).toBe('/orders/ORD-000041');
   });
-  it('does not half-prepare an unsupported change or silently drop an unknown command', async () => {
+  it('moves an order\'s promise through the order form\'s write, each piece kept by its place', async () => {
     const p = await plan({ action: 'do', steps: ['order_promise | order=41 | date=2026-10-20'] });
+    expect(p.cards[0].operations).toEqual([{ op: 'updateOrder', fields: { orderId: 'ORD-000041', order: { promisedDate: '2026-10-20', items: [{ editIndex: 0 }] } } }]);
+  });
+  it('does not half-prepare an unsupported change or silently drop an unknown command', async () => {
+    // A discount is money: never sent through the order form's write from voice.
+    const p = await plan({ action: 'do', steps: ['order_discount | order=41 | amount=5000'] });
     expect(p.cards[0].operations).toEqual([]);
     expect(p.cards[0].problem).toBeTruthy();
     expect((await plan({ action: 'do', steps: ['launch_rocket'] })).answer).toContain('Not recognised');

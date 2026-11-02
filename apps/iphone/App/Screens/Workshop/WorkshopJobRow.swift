@@ -365,6 +365,11 @@ struct WorkshopJobRow: View {
                 Label("Details", systemImage: "pencil")
             }
         }
+        if job.source == .order && !job.isUnassigned {
+            Button { actions.send(job) } label: {
+                Label("Send to karigar", systemImage: "paperplane")
+            }
+        }
         if canWrite && !busy {
             Button { actions.done(job, !job.isDone) } label: {
                 Label(job.isDone ? "Mark not done" : "Mark done", systemImage: job.isDone ? "circle" : "checkmark.circle")

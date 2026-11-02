@@ -70,6 +70,7 @@ struct CustomerScreen: View {
         .navigationTitle(customer.map { CustomerKit.shown($0) } ?? "Customer")
         .navigationBarTitleDisplayMode(.inline)
         .zoomDestination(id: CustomerKit.path(id))
+        .voiceFocus(customer.map(VoiceFocus.customer))
         #if !os(macOS)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -203,29 +204,12 @@ struct CustomerScreen: View {
                     Text(phone).font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
                 }
             }
-            HStack(spacing: pt(10)) {
-                contact("Call", "phone.fill", CustomerKit.callURL(c.phone))
-                contact("WhatsApp", "message.fill", CustomerKit.whatsAppURL(c.phone))
-                contact("Message", "text.bubble.fill", CustomerKit.messageURL(c.phone))
-            }
+            // The one Contact row (CustomerContact.swift): Call, WhatsApp, Message, More (Copy number); with no
+            // number, "Add phone".
+            CustomerContactActions(phone: CustomerKit.filled(c.phone) ?? c.altPhone, customerId: c.id, customerName: CustomerKit.shown(c))
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, pt(4))
-    }
-
-    private func contact(_ title: String, _ symbol: String, _ url: URL?) -> some View {
-        Button {
-            if let url { openURL(url) }
-        } label: {
-            VStack(spacing: pt(4)) {
-                Image(systemName: symbol).font(.title3)
-                Text(title).font(.caption)
-            }
-            .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.bordered)
-        .largeOnPhone()
-        .disabled(url == nil)
     }
 
     // MARK: Owed

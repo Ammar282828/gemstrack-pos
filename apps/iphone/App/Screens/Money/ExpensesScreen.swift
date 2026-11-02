@@ -52,7 +52,6 @@ struct ExpensesScreen: View {
         }
         .navigationTitle("Expenses")
         .hubTitleDisplay()
-        .searchable(text: $search, placement: .pullDownSearch, prompt: "Description, category or karigar")
         .toolbar {
             #if !os(macOS)
             ToolbarItem(placement: .topBarTrailing) { filterMenu }
@@ -147,6 +146,8 @@ struct ExpensesScreen: View {
         }.houseRows()
         }
         .listStyle(.insetGrouped)
+        // Pulled down from the top, as iOS's own search (PullDownSearch.swift); on the List so the pull is read there.
+        .pullDownSearch(text: $search, prompt: "Description, category or karigar")
         .motion(category, Motion.travel)
         .motion(grouping, Motion.travel)
         .motion(period, Motion.travel)

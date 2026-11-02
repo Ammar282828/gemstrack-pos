@@ -33,15 +33,15 @@ struct Dashboard: View {
     @State private var width: CGFloat = 0
     /// Online orders waiting to be confirmed, and whether selling waits on today's rate (the server says).
     private var inbox: OnlineInbox { .shared }
+    #if os(iOS)
+    /// Home's pull-down search (owner, 2026-11-02): pulled down from the top it looks through the whole ERP, here, in place
+    /// of the page; the Search tab's own matching and rows (SearchView, embedded). A Mac has the Search place and ⌘F instead.
+    @State private var homeSearch = ""
+    @State private var homePull = PullDownSearchState()
+    #endif
 
     var body: some View {
-        ShelfState(loaded: ready && figures != nil, error: book.orders.error ?? book.invoices.error, offline: book.orders.offline) {
-            #if os(macOS)
-            if let f = figures { macPage(f) }
-            #else
-            if let f = figures { page(f) }
-            #endif
-        }
+        screenBody
         .safeAreaInset(edge: .top, spacing: 0) { UpdateBanner() }
         .navigationTitle("Today")
         .onAppear { needAll() }
@@ -81,6 +81,33 @@ struct Dashboard: View {
             }
         }
         #endif
+    }
+
+    /// The page, or (iPhone and iPad, while something is typed in the pull-down field) the whole ERP's results.
+    @ViewBuilder
+    private var screenBody: some View {
+        #if os(macOS)
+        shelfPage
+        #else
+        Group {
+            if homeSearch.trimmingCharacters(in: .whitespaces).isEmpty {
+                shelfPage
+            } else {
+                SearchView(map: NavMap.current.visible(to: session.role), embedded: $homeSearch)
+            }
+        }
+        .pullDownSearchField(text: $homeSearch, prompt: "Customers, invoices, orders, stock, places", state: $homePull)
+        #endif
+    }
+
+    private var shelfPage: some View {
+        ShelfState(loaded: ready && figures != nil, error: book.orders.error ?? book.invoices.error, offline: book.orders.offline) {
+            #if os(macOS)
+            if let f = figures { macPage(f) }
+            #else
+            if let f = figures { page(f) }
+            #endif
+        }
     }
 
     // MARK: Shelves
@@ -170,6 +197,10 @@ struct Dashboard: View {
             .frame(maxWidth: .infinity)
         }
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+        #if os(iOS)
+        // The pull is read on this ScrollView itself; the field is Home's (screenBody).
+        .pullDownSearchReader($homePull, hasText: !homeSearch.isEmpty)
+        #endif
         .motion(needs.count)
     }
 

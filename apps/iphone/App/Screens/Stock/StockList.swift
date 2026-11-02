@@ -38,7 +38,7 @@ struct StockList: View {
 
     @Environment(\.layoutWidthClass) private var sizeClass
     @State private var width: CGFloat = 0
-    @FocusState private var searching: Bool
+    @State private var searching = false
 
     /// A window wide enough for cards (measured, not the size class alone: this screen is also a split view's ~400 pt
     /// content column, which stays a List).
@@ -59,8 +59,6 @@ struct StockList: View {
         }
         .navigationTitle("Stock")
         .hubTitleDisplay()
-        .searchable(text: $search, placement: .pullDownSearch, prompt: "Search by name or SKU")
-        .searchFocused($searching)
         .task(id: search) {
             let next = search.trimmingCharacters(in: .whitespacesAndNewlines)
             if next.isEmpty { query = ""; return }
@@ -173,6 +171,8 @@ struct StockList: View {
         }.houseRows()
         }
         .listStyle(.insetGrouped)
+        // Pulled down from the top, as iOS's own search (PullDownSearch.swift); on the List so the pull is read there.
+        .pullDownSearch(text: $search, prompt: "Search by name or SKU", summon: $searching)
         .overlay { if shown.isEmpty { emptyState } }
     }
 
@@ -192,6 +192,7 @@ struct StockList: View {
             .padding(.horizontal, wide ? 24 : 16)
             .padding(.bottom, pt(16))
         }
+        .pullDownSearch(text: $search, prompt: "Search by name or SKU", summon: $searching)
         .overlay { if shown.isEmpty { emptyState } }
     }
 

@@ -53,7 +53,6 @@ struct WorkshopKarigarsList: View {
         #if os(macOS)
         .macSearchable(text: $query, prompt: "Search Karigars")
         #else
-        .searchable(text: $query, placement: .pullDownSearch, prompt: "Name or contact")
         .toolbar {
             if session.isOwner {
                 ToolbarItem(placement: .primaryAction) {
@@ -134,6 +133,8 @@ struct WorkshopKarigarsList: View {
         }.houseRows()
         }
         .listStyle(.insetGrouped)
+        // Pulled down from the top, as iOS's own search (PullDownSearch.swift); on the List so the pull is read there.
+        .pullDownSearch(text: $query, prompt: "Name or contact")
         .overlay {
             if (show == .working && working.isEmpty) || (show == .free && free.isEmpty) || matched.isEmpty {
                 emptyState.allowsHitTesting(false)

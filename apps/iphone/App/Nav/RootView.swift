@@ -81,9 +81,8 @@ struct RootView: View {
     // The simulator check opens each tab in turn (`-ERPDemoTab orders`).
     @State private var tab = UserDefaults.standard.string(forKey: "ERPDemoTab") ?? "home"
     @State private var creating: Route?
-    @State private var voice = false
-    /// The page the voice assistant chose, opened once its sheet has gone (two sheets in one update can drop the second).
-    @State private var pendingRoute: Route?
+    /// Voice: an overlay over the tabs (and over a page sheet), never a sheet of its own (VoiceOverlay).
+    @State private var voice = VoiceSession.shared
 
     private var map: NavMap { NavMap.current.visible(to: session.role) }
     private static let primary = ["home", "orders", "invoices", "customers"]
@@ -114,24 +113,23 @@ struct RootView: View {
         session.shop.websiteSelling && (session.role == "owner" || session.role == "staff")
     }
 
-    /// Opens the voice sheet when Siri, the Action button or a control asked for it. Only an owner has voice; for anyone
-    /// else the request is dropped (the app simply opened). Another sheet is closed first: two in one update can drop one.
+    /// Opens voice, listening, when Siri, the Action button or a control asked for it. Only an owner has voice; for
+    /// anyone else the request is dropped (the app simply opened). Whatever is open stays open: the overlay sits over it.
     private func openVoiceIfAsked() {
         guard VoiceLaunch.requested, !AppLock.shared.locked else { return }
         VoiceLaunch.requested = false
-        guard session.isOwner, !voice else { return }
-        Task {
-            if creating != nil {
-                creating = nil
-                try? await Task.sleep(for: .milliseconds(450))
-            }
-            voice = true
-        }
+        guard session.isOwner else { return }
+        voice.present()
+    }
+
+    /// A page the voice assistant opened: over the tabs as any created page is, with the overlay still over it.
+    private func openFromVoice(_ path: String) {
+        creating = Route(path: path)
     }
 
     /// A menu command or shortcut (⌘1…⌘5, ⌘N, ⇧⌘N, ⌘F).
     private func perform(_ kind: ShellCommands.Kind, entries: [NavEntry], map: NavMap) {
-        guard creating == nil, !voice else { return }
+        guard creating == nil else { return }
         switch kind {
         case .tab(let i):
             if entries.indices.contains(i) { tab = entries[i].id }
@@ -156,18 +154,13 @@ struct RootView: View {
                         HubSplit(prompt: prompt) {
                             PlaceScreen(path: e.href, isRoot: true)
                                 .modifier(CreateAccessory(map: map, shown: true, voiceShown: session.isOwner,
-                                                          open: { creating = Route(path: $0) }, talk: { voice = true }))
+                                                          open: { creating = Route(path: $0) }, talk: { voice.present() }))
                         }
                     } else {
                         NavigationStack {
                             PlaceScreen(path: e.href, isRoot: true)
                                 .modifier(CreateAccessory(map: map, shown: session.role != "marketing", voiceShown: session.isOwner,
-                                                          open: { creating = Route(path: $0) }, talk: { voice = true }))
-                                // Home has no list of its own to search: pulled down, its field opens the whole ERP's search.
-                                .modifier(PullDownToSearch(enabled: e.id == "home") {
-                                    ShellCommands.shared.searchWanted = true
-                                    tab = "search"
-                                })
+                                                          open: { creating = Route(path: $0) }, talk: { voice.present() }))
                                 .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
                         }
                         // Outside the stack, so its pages see the same namespace as the rows they zoom from.
@@ -183,7 +176,7 @@ struct RootView: View {
                 NavigationStack {
                     SearchView(map: map).modifier(TeamNotePresentation())
                         .modifier(CreateAccessory(map: map, shown: session.role != "marketing", voiceShown: session.isOwner,
-                                                  open: { creating = Route(path: $0) }, talk: { voice = true }))
+                                                  open: { creating = Route(path: $0) }, talk: { voice.present() }))
                         .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
                 }
                 .zoomScope()
@@ -205,16 +198,10 @@ struct RootView: View {
         .onChange(of: entries.map(\.id)) { _, _ in
             ShellCommands.shared.tabTitles = entries.prefix(5).map { $0.id == "home" ? "Home" : $0.label }
         }
-        .sheet(isPresented: $voice, onDismiss: {
-            if let p = pendingRoute { pendingRoute = nil; creating = p }
-        }) {
-            NavigationStack {
-                NativeVoiceScreen { path in pendingRoute = Route(path: path); voice = false }
-            }
-            // The whole height: a voice surface, not a form (the orb, the words, then the plan). An iPad keeps the form's width.
-            .presentationSizing(.form)
-            .presentationDetents([.large])
-            .presentationDragIndicator(.visible)
+        // Voice over the tabs: just above the tab bar on a phone (the + and the mic step aside while it is up), at the
+        // foot of the window on an iPad. The page under it keeps working.
+        .overlay(alignment: .bottom) {
+            VoiceOverlay(open: openFromVoice, active: creating == nil, bottomInset: sizeClass.isPadLayout ? pt(16) : pt(58))
         }
         .sheet(item: $creating) { r in
             NavigationStack {
@@ -226,6 +213,8 @@ struct RootView: View {
                         }
                     }
             }
+            // A page opened over the tabs keeps voice over it too, above the page's own action bar.
+            .overlay(alignment: .bottom) { VoiceOverlay(open: openFromVoice, bottomInset: pt(76)) }
             // No zoomScope here: a page opened inside the sheet has no row to grow from (it would zoom out of a bubble).
             .presentationSizing(.page)
         }
@@ -239,7 +228,7 @@ struct RootView: View {
             if session.isOwner, !House.isDemo { VoiceEngine.shared.warm() }
         }
         // "Talk to ERP" from Siri, the Action button, Spotlight or Control Center (Shared/VoiceLaunch.swift): the
-        // request waits for Face ID, then the voice sheet opens listening. Cold starts find it set already.
+        // request waits for Face ID, then voice opens listening over whatever is open. Cold starts find it set already.
         .onReceive(NotificationCenter.default.publisher(for: VoiceLaunch.notification)) { _ in openVoiceIfAsked() }
         .onChange(of: AppLock.shared.locked) { _, locked in if !locked { openVoiceIfAsked() } }
         .task { openVoiceIfAsked() }
@@ -369,7 +358,8 @@ private struct CreateAccessory: ViewModifier {
                 }
             }
             .overlay(alignment: .bottomTrailing) {
-                if shown {
+                // While voice is up its capsule holds this corner: the + and the mic come back when it is put away.
+                if shown && !VoiceSession.shared.shown {
                     let side: CGFloat = compact ? 44 : 52
                     GlassEffectContainer(spacing: pt(12)) {
                         VStack(alignment: .trailing, spacing: pt(10)) {
@@ -750,32 +740,6 @@ struct TeamNoteEditor: View {
                 dismiss()
             } catch { failure = error.localizedDescription }
             saving = false
-        }
-    }
-}
-
-
-/// Home's pull-down search, as the iPhone's Home Screen pulls down into Spotlight (owner, 2026-11-02: "scroll down to
-/// search like ios natively does"): the field sits tucked under the title, and touching it opens the Search tab, focused.
-private struct PullDownToSearch: ViewModifier {
-    let enabled: Bool
-    let open: () -> Void
-    @State private var text = ""
-    @State private var presented = false
-
-    func body(content: Content) -> some View {
-        if enabled {
-            content
-                .searchable(text: $text, isPresented: $presented, placement: .pullDownSearch,
-                            prompt: "Customers, invoices, orders, stock, places")
-                .onChange(of: presented) { _, now in
-                    guard now else { return }
-                    presented = false
-                    text = ""
-                    open()
-                }
-        } else {
-            content
         }
     }
 }

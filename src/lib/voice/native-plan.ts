@@ -93,8 +93,14 @@ export async function nativeVoicePlan(raw: Raw, book: Book, settings: Record<str
       setKarigarJobGiven: (jobId, givenAt) => add('setStockJobGiven', { jobId, given: !!givenAt, givenAt }),
       addGivenItem: item => add('addGivenItem', { item }, { ...item, id: 'new' }),
       markGivenItemReturned: (id, returnedDate) => add('markGivenReturned', { id, returnedDate }),
+      // One detail of a record (record-edit.ts, and the order/stock piece commands), as the record's page writes it.
+      updateOrder: (orderId, patch) => add('updateOrder', { orderId, order: orderEditBody(book, orderId, patch) }),
+      updateOrderItemDetails: (orderId, itemIndex, patch) => add('updateOrderPieceDetails', { orderId, itemIndex, patch: pieceDetailsBody(patch, true) }),
+      updateInvoiceItemDetails: (invoiceId, itemIndex, patch) => add('updateInvoicePieceDetails', { invoiceId, itemIndex, patch: pieceDetailsBody(patch, false) }),
+      updateProduct: (sku, patch) => add('updateProduct', { sku, piece: productFormBody(book, sku, patch) }),
+      updateKarigarJobDetails: (jobId, patch) => add('updateStockJobDetails', { jobId, patch }),
     };
-    const data = { settings, orders: book.orders, generatedInvoices: book.invoices, repairs: book.repairs, products: book.products, customers: book.customers, karigars: book.karigars };
+    const data = { settings, orders: book.orders, generatedInvoices: book.invoices, repairs: book.repairs, products: book.products, customers: book.customers, karigars: book.karigars, karigarJobs: book.karigarJobs };
     const store = new Proxy(data, {
       get(target, key: string) {
         if (key in target) return target[key as keyof typeof target];
@@ -110,4 +116,60 @@ export async function nativeVoicePlan(raw: Raw, book: Book, settings: Record<str
     plan.cards.push(card);
   }
   return plan;
+}
+
+/** Fields of an order voice may change through the order form's write (`updateOrder`): never its money. */
+const ORDER_VOICE_FIELDS = new Set(['promisedDate', 'notes', 'items']);
+
+/**
+ * The body /api/app/write's updateOrder takes: the fields changed, and every piece by its place (`editIndex`) with
+ * only what changed on it, so the server lays each over the piece it has on file (a photo or a karigar is never
+ * sent back stale). Money (advance, discount, totals) is refused: those are their own confirmed steps.
+ */
+export function orderEditBody(book: Book, orderId: string, patch: Record<string, unknown>): Record<string, unknown> {
+  const o = book.orders.find(x => x.id === orderId);
+  if (!o) throw new Error('Order not found.');
+  if (Object.keys(patch).some(k => !ORDER_VOICE_FIELDS.has(k))) throw new Error('This change needs its record or form.');
+  const stored = (o.items ?? []) as unknown as Record<string, unknown>[];
+  const sent = Array.isArray(patch.items) ? (patch.items as Record<string, unknown>[]) : stored;
+  if (sent.length !== stored.length) throw new Error('This change needs its record or form.');
+  const items = sent.map((it, i) => {
+    const changed = Object.fromEntries(Object.entries(it ?? {}).filter(([k, v]) => JSON.stringify(v) !== JSON.stringify(stored[i]?.[k])));
+    return { ...changed, editIndex: i };
+  });
+  const { items: _items, ...rest } = patch;
+  return { ...rest, items };
+}
+
+/** The Workshop's Details write: its name, size, weight (an order's piece only) and instructions. */
+export function pieceDetailsBody(patch: Record<string, unknown>, order: boolean): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(patch)) {
+    if (k === 'description' || k === 'name') out.name = v;
+    else if (k === 'size') out.size = v;
+    else if (k === 'adminNote') out.instructions = v;
+    else if (k === 'estimatedWeightG' && order) out.estimatedWeightG = Number(v) || 0;
+    // Stones, diamonds and a sold piece's weight are changed on the record's own page.
+    else throw new Error('This change needs its record or form.');
+  }
+  return out;
+}
+
+const PRODUCT_FORM_FIELDS = ['name', 'categoryId', 'metalType', 'karat', 'metalWeightG', 'silverRatePerGram', 'secondaryMetalType', 'secondaryMetalKarat',
+  'secondaryMetalWeightG', 'wastagePercentage', 'makingCharges', 'hasDiamonds', 'hasStones', 'stoneWeightG', 'diamondCharges', 'stoneCharges',
+  'miscCharges', 'stoneDetails', 'diamondDetails', 'isCustomPrice', 'customPrice', 'description', 'size', 'platingType', 'platingNote', 'nickelFree'] as const;
+const PRODUCT_FIGURES = new Set(['metalWeightG', 'wastagePercentage', 'makingCharges', 'stoneWeightG', 'diamondCharges', 'stoneCharges', 'miscCharges']);
+
+/** The stock form's whole piece, as the phone's form sends it (updateProduct checks it strictly), with the change laid over it. */
+export function productFormBody(book: Book, sku: string, patch: Record<string, unknown>): Record<string, unknown> {
+  const p = book.products.find(x => x.sku === sku) as unknown as Record<string, unknown> | undefined;
+  if (!p) throw new Error(`No piece ${sku} is in stock.`);
+  const merged: Record<string, unknown> = { ...p, ...patch };
+  const out: Record<string, unknown> = {};
+  for (const k of PRODUCT_FORM_FIELDS) {
+    const v = merged[k];
+    if (PRODUCT_FIGURES.has(k)) out[k] = Number(v) || 0;
+    else if (v !== undefined && v !== null) out[k] = v;
+  }
+  return out;
 }

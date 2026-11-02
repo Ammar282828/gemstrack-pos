@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { MessageCircle, MessageSquare, Phone } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { whatsAppLink } from '@/lib/whatsapp';
+import { contactHrefs as sharedHrefs } from '@/lib/customer-contact';
 
 export interface QuickActionProps {
   icon: React.ReactNode;
@@ -34,12 +34,10 @@ export function QuickAction({ icon, label, prominent, href, className }: QuickAc
   );
 }
 
-/** Hrefs for a phone number; null when there is no usable number. */
+/** Hrefs for a phone number (lib/customer-contact.ts, the one normaliser); null when there is no usable number. */
 export function contactHrefs(phone: string | null | undefined) {
-  const digits = String(phone ?? '').replace(/[^\d+]/g, '');
-  const wa = whatsAppLink(phone);
-  if (!digits || !wa) return null;
-  return { tel: `tel:${digits}`, whatsapp: wa, sms: `sms:${digits}` };
+  const h = sharedHrefs(phone);
+  return h ? { tel: h.tel, whatsapp: h.whatsapp, sms: h.sms } : null;
 }
 
 /** Call / WhatsApp / Message. Renders nothing without a number. */

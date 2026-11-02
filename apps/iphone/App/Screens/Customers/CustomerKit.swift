@@ -148,20 +148,13 @@ enum CustomerKit {
         return out
     }
 
-    static func callURL(_ phone: String?) -> URL? {
-        let d = dialable(phone)
-        return d.isEmpty ? nil : URL(string: "tel:" + d)
-    }
+    // The links: CustomerContactLinks (App/UI/CustomerContact.swift), the one normaliser for every surface's
+    // Contact: 0300 1234567 dials, messages and WhatsApps +923001234567.
+    static func callURL(_ phone: String?) -> URL? { CustomerContactLinks.callURL(phone) }
 
-    static func messageURL(_ phone: String?) -> URL? {
-        let d = dialable(phone)
-        return d.isEmpty ? nil : URL(string: "sms:" + d)
-    }
+    static func messageURL(_ phone: String?) -> URL? { CustomerContactLinks.messageURL(phone) }
 
-    static func whatsAppURL(_ phone: String?) -> URL? {
-        let n = whatsAppNumber(phone)
-        return n.isEmpty ? nil : URL(string: "https://wa.me/" + n)
-    }
+    static func whatsAppURL(_ phone: String?) -> URL? { CustomerContactLinks.whatsAppURL(phone) }
 
     /// Digits with the country code, Pakistan's when the number is written the Pakistani way: 0300 1234567 ->
     /// 923001234567; a number written with its "+" or "00" is international and stays as written.

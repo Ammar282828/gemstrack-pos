@@ -180,14 +180,13 @@ struct OnlineOrdersScreen: View {
 
     @ViewBuilder
     private func customerRows(_ r: OnlineOrderRow) -> some View {
-        if let call = OnlineOrdersLogic.callURL(r.customer.phone) {
-            Button { openURL(call) } label: {
-                Label(r.customer.phone, systemImage: "phone")
-            }
-        }
-        if let chat = OnlineOrdersLogic.chatURL(r.customer.phone) {
-            Button { openURL(chat) } label: {
-                Label("WhatsApp", systemImage: "message")
+        // The number, and the one Contact menu (CustomerContact.swift): Call, WhatsApp, Message, Copy number.
+        if !CustomerContactLinks.e164(r.customer.phone).isEmpty {
+            HStack {
+                Label(r.customer.phone, systemImage: "phone").monospacedDigit()
+                Spacer(minLength: pt(8))
+                CustomerContactMenu(phone: r.customer.phone, customerName: r.customer.name)
+                    .buttonStyle(.bordered)
             }
         }
         VStack(alignment: .leading, spacing: 2) {

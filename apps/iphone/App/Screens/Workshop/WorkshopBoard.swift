@@ -31,6 +31,8 @@ struct WorkshopBoard: View {
     @State private var assigning: WorkshopStockJobAsk?
     @State private var editing: KarigarJob?
     @State private var editingPiece: WorkshopPieceAsk?
+    /// An order's piece being sent to its karigar.
+    @State private var sendingPiece: SendPieceAsk?
     @State private var deletion: OwnerDeletion?
     @State private var note: Note?
     /// Bumped when a piece's write goes through (done, given, a karigar): the success tap.
@@ -57,15 +59,16 @@ struct WorkshopBoard: View {
 
     var body: some View {
         Group {
+            #if os(macOS)
             if orderId == nil {
-                #if os(macOS)
                 screen.macSearchable(text: $filter.query, prompt: "Search Workshop")
-                #else
-                screen.searchable(text: $filter.query, placement: .pullDownSearch, prompt: "Item, karigar, customer, order")
-                #endif
             } else {
                 screen
             }
+            #else
+            // The search is pulled down on the board's List (board); giving out one order has none.
+            screen
+            #endif
         }
     }
 
@@ -99,6 +102,11 @@ struct WorkshopBoard: View {
         }
         .sheet(item: $editingPiece) { (ask: WorkshopPieceAsk) in
             WorkshopPieceDetailsSheet(ask: ask) { (said: Note) in
+                Note.show(said, in: $note, reduce: reduceMotion)
+            }
+        }
+        .sheet(item: $sendingPiece) { (ask: SendPieceAsk) in
+            SendToKarigarSheet(order: ask.order, pieces: [ask.index], karigarId: ask.karigarId) { (said: Note) in
                 Note.show(said, in: $note, reduce: reduceMotion)
             }
         }
@@ -178,6 +186,8 @@ struct WorkshopBoard: View {
         }.houseRows()
         }
         .listStyle(.insetGrouped)
+        // Pulled down from the top, as iOS's own search (PullDownSearch.swift); on the List so the pull is read there.
+        .pullDownSearch(text: $filter.query, prompt: "Item, karigar, customer, order", enabled: orderId == nil)
         .overlay {
             if focused.isEmpty {
                 // Centred over the list, not a row in it; nothing in it is pressed, so the chips stay reachable.
@@ -462,6 +472,7 @@ struct WorkshopBoard: View {
             assign: { job, karigarId in setKarigar(job, karigarId) },
             status: { job, status in setStatus(job, status) },
             details: { job in openDetails(job) },
+            send: { job in openSend(job) },
             delete: { job in askDelete(job) },
             open: { place in opened = place }
         )
@@ -674,6 +685,16 @@ struct WorkshopBoard: View {
         guard case .stock(let id) = WorkshopLogic.writeTarget(job) else { return }
         write(job, "setStockJobStatus", ["jobId": id, "status": status.rawValue],
               status: status == .completed ? .completed : (status == .inProgress ? .inProgress : .pending))
+    }
+
+    /// An order's piece to its karigar on WhatsApp: the sheet opens on that piece and that karigar.
+    private func openSend(_ job: WorkshopJob) {
+        guard case .order(let id, let index) = WorkshopLogic.writeTarget(job),
+              let order = book.orders.item(id), order.items.indices.contains(index) else {
+            failure = "This piece is no longer on the order."
+            return
+        }
+        sendingPiece = SendPieceAsk(order: order, index: index, karigarId: job.isUnassigned ? nil : job.karigarId)
     }
 
     /// A stock job as it is on file: its sheet edits its own fields (the board's line merges the instructions). An order's
@@ -1356,6 +1377,9 @@ extension WorkshopBoard {
                 MacWorkCard("") {
                     HStack(spacing: 8) {
                         Button("Making Details\u{2026}") { openDetails(job) }
+                        if job.source == .order && !job.isUnassigned {
+                            Button("Send to Karigar\u{2026}") { openSend(job) }
+                        }
                         if job.source == .manual {
                             Button("Delete Job\u{2026}", role: .destructive) { askDelete(job) }
                         }

@@ -207,14 +207,8 @@ enum RepairsKit {
 
     static func normalizePhone(_ phone: String) -> String { normalizePhoneNumber(phone) }
 
-    /// What can be dialled: digits, and a leading "+".
-    static func callURL(_ phone: String?) -> URL? {
-        var out = ""
-        for ch in (phone ?? "").trimmingCharacters(in: .whitespacesAndNewlines) {
-            if ch == "+" && out.isEmpty { out.append(ch) } else if ch >= "0" && ch <= "9" { out.append(ch) }
-        }
-        return out.isEmpty ? nil : URL(string: "tel:" + out)
-    }
+    /// The number dialled, from the one normaliser (CustomerContactLinks): 0300… → tel:+92300….
+    static func callURL(_ phone: String?) -> URL? { CustomerContactLinks.callURL(phone) }
 
     static func whatsAppNumber(_ phone: String?) -> String { toWhatsAppNumber(phone) }
 

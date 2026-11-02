@@ -38,6 +38,7 @@ struct RepairsSheet: View {
         NavigationStack {
             content
                 .navigationTitle(id)
+                .voiceFocus(current.map(VoiceFocus.repair))
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar { sheetToolbar }
                 // The customer's page, and the receipt.
@@ -124,6 +125,12 @@ struct RepairsSheet: View {
     private var sheetToolbar: some ToolbarContent {
         ToolbarItem(placement: .cancellationAction) {
             Button(role: .close) { dismiss() }
+        }
+        // The one Contact menu (CustomerContact.swift): Call, WhatsApp, Message, Copy number.
+        ToolbarItem(placement: .trailingAction) {
+            if let r = current {
+                CustomerContactMenu(phone: r.customerContact, customerId: r.customerId, customerName: r.customerName)
+            }
         }
         ToolbarItem(placement: .trailingAction) { ticketMenu }
     }
@@ -364,6 +371,7 @@ extension RepairsSheet {
     @ViewBuilder
     var macBody: some View {
         MacRepairsTicketWindow(id: id, seed: seed)
+            .voiceFocus(current.map(VoiceFocus.repair))
     }
 }
 #endif

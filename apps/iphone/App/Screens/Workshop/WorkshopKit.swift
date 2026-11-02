@@ -103,6 +103,8 @@ struct WorkshopActions {
     let status: (WorkshopJob, KarigarJobStatus) -> Void
     /// A piece's making details, in a sheet: a stock job's own, or an order's piece or a sold piece's.
     let details: (WorkshopJob) -> Void
+    /// An order's piece sent to its karigar on WhatsApp (SendToKarigarSheet): photos, weight, instructions, no prices.
+    let send: (WorkshopJob) -> Void
     /// A stock job deleted, once the delete code is typed.
     let delete: (WorkshopJob) -> Void
     let open: (WorkshopPlace) -> Void

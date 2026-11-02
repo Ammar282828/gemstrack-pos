@@ -124,6 +124,39 @@ Owner: "The voice function on iOS should be as smooth and continuous and immedia
 - **Not done / owed:** Urdu-script listening (the language picker went; en-IN only), barge-in over the spoken confirmation, web
   auto end-of-speech and follow-ups.
 
+#### Voice over the screen, and what is open (iPhone and Mac, 2026-11-02)
+
+Owner: "The voice feature should work in the background and not have me have to open a whole ass screen. It should also be smart
+enough to know what im referring to and change small details from there." The sheet above is gone; everything else in it stays.
+
+- **The capsule.** `App/Device/VoiceOverlay.swift` draws the one `VoiceSession` (`NativeVoice.swift`, app-wide, `static let shared`,
+  reset on a business switch) as a glass capsule at the foot of the screen: a 44 pt orb, the words as heard (two lines, the newest
+  kept), then the answer or the plan's one line and "Say “yes” to save". Several steps, a problem, a form to fill or a record to open
+  show above that line in the same capsule (scrolling past ~220 pt), never a sheet. Do it / Not now sit in it when the plan is ready.
+  ✕, Escape, a swipe down on the row, or "no" with nothing on it put it away; ⋯ holds Type instead and Read answers aloud.
+- **Where.** iPhone: `RootView` overlays it on the tabs just above the tab bar (the + and the mic step aside while it is up), and a
+  second copy inside the page sheet, so a page the plan opens ("open Fatema's order", "analytics kholo") opens beneath with the
+  capsule still on top; "call her" rings (`tel:`). iPad: the foot of the window. Mac: `MacShell` overlays the main window; a page is
+  pushed in it, a filled sale, order or piece opens its own window. Its glass appears without a transition (rule 16); inside, the
+  house's curves; Reduce Motion as before. VoiceOver: a container named "Voice assistant", the answer announced, Escape closes.
+- **What is open.** `.voiceFocus(...)` (`Device/VoiceContext.swift`) on the order, invoice, customer, stock piece, repair, karigar and
+  the Workshop's piece details; a stack, so a pushed page or a closing sheet leaves the right record on top. Each request carries it
+  as `context: { kind, id, label, pieces, piece? }`; `lib/voice/context.ts` takes only the kind and id, describes the record from the
+  server's book (the phone's label only for a record the book does not have yet), and the model reads it as section 8 of the prompt
+  (`prompt.ts` `looking`, passed through `/api/voice/listen`). Nothing open: the prompt is as before (the web sends none).
+- **Small changes.** `edit | kind | id | piece | field | value` (`lib/voice/record-edit.ts`, a command in `commands.ts`) against an
+  allow-list per kind, checked against the book (the record, the piece, a karat only on gold, nothing on a refunded order) and written
+  by the record's own store write, which on the phone is `/api/app/write`: an order's due date and note through `updateOrder` (each
+  piece sent by its place, only what changed), a piece's description, size, weight and instructions through
+  `updateOrderPieceDetails`, its karat through `updateOrder`, status through `setOrderStatus`, an invoice piece through
+  `updateInvoicePieceDetails`, a customer or karigar through `updateCustomer` / `updateKarigar`, a stock piece through `updateProduct`
+  with the whole form, a repair's or job's status. The same mapping makes `order_promise`, `order_note`, `order_piece_change` and
+  `piece_change` work on the phone, which refused them before. Money is never an edit (the money fields of `updateOrder` are refused):
+  "add 5000 advance" is `order_advance`, saved awaited as before. `call | person` rings a customer or karigar.
+- **Not done / owed:** a tap outside does not close it (the page beneath must stay usable; ✕ / swipe / "no" do); an invoice's notes and
+  a repair's date have no write the phone can send piecemeal, so they are not editable by voice; web context (its bubble sends none)
+  and Android's overlay are owed (docs/parity.md). Not yet run on a phone or a Mac (Linux parse only).
+
 ##### Android (2026-10-26)
 
 The same conversation on `apps/android` (`screens/voice/VoiceModel.kt`; ears in `device/VoiceEars.kt`), same server calls and

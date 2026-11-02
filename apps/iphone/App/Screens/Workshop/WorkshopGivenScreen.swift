@@ -57,7 +57,6 @@ struct WorkshopGivenScreen: View {
         .macSearchable(text: $query, prompt: "Search Given Items")
         .navigationSubtitle(macSubtitle)
         #else
-        .searchable(text: $query, placement: .pullDownSearch, prompt: "Item or recipient")
         .toolbar { givenToolbar }
         #endif
         .sheet(isPresented: $adding) {
@@ -117,6 +116,8 @@ struct WorkshopGivenScreen: View {
             .houseRows()
         }
         .listStyle(.insetGrouped)
+        // Pulled down from the top, as iOS's own search (PullDownSearch.swift); on the List so the pull is read there.
+        .pullDownSearch(text: $query, prompt: "Item or recipient")
         .overlay {
             if shown.isEmpty { emptyState.allowsHitTesting(false) }
         }

@@ -12,7 +12,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Monogram, Pill, HeroAmount, ContactActions, LedgerSection, EmptyState, type Tone } from '@/components/ledger';
+import { Monogram, Pill, HeroAmount, LedgerSection, EmptyState, type Tone } from '@/components/ledger';
+import { CustomerContact } from '@/components/customer/contact-actions';
 import { owedToYou } from '@/lib/owed';
 import { GiveBackCredit, creditHeld } from '@/components/invoice/give-back-credit';
 import { Edit3, Trash2, Phone, Mail, MapPin, BookUser, ClipboardList, FileText, Ruler, Cake, CalendarHeart, Heart, StickyNote } from 'lucide-react';
@@ -195,7 +196,8 @@ export default function CustomerDetailPage() {
                   ))}
                 </div>
               )}
-              <ContactActions phone={customer.phone} className="max-w-sm" />
+              {/* The one Contact row (components/customer/contact-actions.tsx); "Add phone" when there is none. */}
+              <CustomerContact phone={customer.phone || customer.altPhone} customerId={customer.id} customerName={customer.name} className="max-w-sm" />
             </CardHeader>
             <CardContent className="divide-y divide-separator py-0">
               <DetailItem label="Phone" value={customer.phone} icon={<Phone className="w-4 h-4" />} />

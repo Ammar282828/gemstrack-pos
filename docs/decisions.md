@@ -505,6 +505,22 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
   - Replies arrive at `/api/whatsapp/inbound` from WAHA's session webhook, signed (SHA-512 HMAC) with a key derived from
     `WAHA_API_KEY`; set by `scripts/waha-inbound-webhook.ts`. On only where `SHOPIFY_ORDER_WHATSAPP=1` (Mina).
 
+### Send to karigar
+
+- **An order's pieces go to a karigar on WhatsApp from the shop's line** (2026-11-02, owner: "send the karigar the order details
+  from the order page or from the workshop page"). `POST /api/app/orders/send-to-karigar` (owners and staff): each chosen
+  piece's reference photos as images (the first of a piece captioned with its details), then one text with the order number,
+  the due date and every piece in the slip's own words. The words come from `lib/karigar-message.ts`, built on
+  `buildOrderItemBlocks` (`lib/order-slip.ts`), so the slip and the message agree; the phones ask the route for them
+  (`preview: true`) instead of porting them.
+- **Never a price.** No estimate, balance, advance, making, rate or customer phone; the customer only by first name. For the same
+  reason the slip PDF is not attached: it prints the estimate and the balance. Wastage is in grams, as the slip has it.
+  Staff send from their own copy of the order, so the owner's note (`adminNote`) never leaves with them.
+- Pieces default to the ones assigned to that karigar, else all; with no karigar named, each piece goes to its own. No number on file
+  is a 400, "Add a phone number for <name> first" (the sheet takes one typed). One photo failing does not stop the rest. Each send
+  is a line in the activity log. iPhone/Mac also have "Share…": the photos and the same words to the system share sheet, to send
+  from the owner's own WhatsApp.
+
 ### Advance method
 
 - **An order's advance method is optional, and a refused save is never silent** (2026-09-28, owner: "paid by how? causing
@@ -973,6 +989,9 @@ their standing "do everything yourself": `docs/features/design-studio-plan.md`; 
 - **It listens like a conversation.** A second of quiet ends a sentence by itself; the microphone stays open for a change ("make it 50,000") or a "yes" / "haan" / "no" to the plan on screen. Only a whole utterance of yes or no answers a plan.
 - **Words, not audio, go to the model** (on-device words as text); one model, thinking off. Money saves stay awaited, the rest go through the Outbox.
 - **Siri, the Action button, Spotlight and Control Center open it** straight into listening, for an owner, behind the lock, on the open business.
+- **Over the screen, not a screen** (2026-11-02, the owner: "should work in the background and not have me have to open a whole ass screen. It should also be smart enough to know what im referring to and change small details from there"). Voice is a small glass capsule over whatever is open (`Device/VoiceOverlay.swift`, one `VoiceSession` app-wide): the orb, the words as heard, then the answer or what will be saved with Do it / Not now (or "yes" / "no"); several steps open it a little upward, never into a sheet. The page beneath keeps scrolling and working: a page the plan opens is opened beneath it (iPhone: over the tabs, with the capsule still on top; Mac: pushed in the main window), a saved change shows there as its shelf updates. ✕, Escape, a swipe down or "no" with nothing on it put it away; the + and the mic step aside while it is up. Siri, the Action button and Control Center open the same capsule.
+- **It knows what is open.** Each detail screen says what it shows (`.voiceFocus`, `Device/VoiceContext.swift`: order, invoice, customer, karigar, stock piece, repair, a workshop piece), and every sentence carries it as `context`; the server reads that record from its own book (`lib/voice/context.ts`, never the phone's figures) and tells the model as section 8 of its prompt. "Change the weight to 12 grams", "make it 22 karat", "second piece size 7", "change the due date to Friday", "mark it ready", "call her" land on it unnamed.
+- **Small changes are one `edit` step** (`lib/voice/record-edit.ts`): `{kind, id, piece?, field, value}` against an allow-list per kind (an order's due date, note, status and a piece's description, size, weight, karat, instructions; an invoice piece's description, size, instructions; a customer's or karigar's details; a stock piece's weight, making, wastage, size, description, price; a repair's or job's status), checked against the book and written by the record's own store write (on the phone, `/api/app/write`'s updateOrder / updateOrderPieceDetails / updateInvoicePieceDetails / updateCustomer / updateProduct …). Money is never an edit: an advance, a payment or a discount stays its own confirmed step.
 
 ## Android app
 

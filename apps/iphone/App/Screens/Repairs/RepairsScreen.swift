@@ -40,7 +40,6 @@ struct RepairsScreen: View {
         }
         .navigationTitle("Repairs")
         .hubTitleDisplay()
-        .searchable(text: $query, placement: .pullDownSearch, prompt: "Name, phone, piece or REP no.")
         .toolbar { newRepairButton }
         // A ticket and the form are whole pages: over an iPad's sheet the system's default shrank them to a card
         // with the money under the Mark ready / Take payment bar.
@@ -108,6 +107,8 @@ struct RepairsScreen: View {
             .houseRows()
         }
         .listStyle(.insetGrouped)
+        // Pulled down from the top, as iOS's own search (PullDownSearch.swift); on the List so the pull is read there.
+        .pullDownSearch(text: $query, prompt: "Name, phone, piece or REP no.")
         // A ticket moving to another group slides there instead of jumping.
         .motion(shown.map { "\($0.id)-\(desk.status($0))" })
         .overlay {
@@ -218,6 +219,8 @@ struct RepairsScreen: View {
         if desk.status(r) == .ready, let url = RepairsKit.whatsAppURL(for: r, shopName: session.shop.name) {
             Button { openURL(url) } label: { Label("Tell them it's ready", systemImage: "message") }
         }
+        // The one Contact menu (CustomerContact.swift), as a submenu: Call, WhatsApp, Message, Copy number.
+        CustomerContactMenu(phone: r.customerContact, customerName: r.customerName)
         if session.isOwner && desk.status(r) != .cancelled && RepairsKit.repairBalance(r) > 0 {
             Button { desk.taking = r } label: { Label("Take payment", systemImage: "banknote") }
         }

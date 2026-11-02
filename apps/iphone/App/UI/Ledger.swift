@@ -577,29 +577,26 @@ extension View {
 
 // MARK: Reaching the customer
 
-/// Call, WhatsApp and Message for a number, as the round buttons under a contact's name in Contacts.
-/// Nothing is shown without a number.
+/// Call, WhatsApp and Message for a number, as the round buttons under a contact's name in Contacts: a karigar's.
+/// A customer's is `CustomerContactActions` (CustomerContact.swift), which adds the document's PDF and Copy number.
+/// One number for all three (CustomerContactLinks, ERPCore `toWhatsAppNumber`). Nothing is shown without a number.
 struct ContactActions: View {
     let phone: String?
     @Environment(\.openURL) private var openURL
 
     var body: some View {
-        let raw = (phone ?? "").trimmingCharacters(in: .whitespaces)
-        let digits = raw.filter { $0.isNumber || $0 == "+" }
-        if !digits.isEmpty {
+        let number = CustomerContactLinks.e164(phone)
+        if !number.isEmpty {
             HStack(spacing: 10) {
-                QuickAction(title: "Call", symbol: "phone.fill") { open("tel:" + digits) }
-                QuickAction(title: "WhatsApp", symbol: "message.fill") {
-                    let wa = CustomerKit.whatsAppNumber(raw)
-                    open("https://wa.me/" + (wa.isEmpty ? digits.filter(\.isNumber) : wa))
-                }
-                QuickAction(title: "Message", symbol: "text.bubble.fill") { open("sms:" + digits) }
+                QuickAction(title: "Call", symbol: "phone.fill") { open(CustomerContactLinks.callURL(number)) }
+                QuickAction(title: "WhatsApp", symbol: "message.fill") { open(CustomerContactLinks.whatsAppURL(number)) }
+                QuickAction(title: "Message", symbol: "text.bubble.fill") { open(CustomerContactLinks.messageURL(number)) }
             }
         }
     }
 
-    private func open(_ s: String) {
-        if let url = URL(string: s) { openURL(url) }
+    private func open(_ url: URL?) {
+        if let url { openURL(url) }
     }
 }
 

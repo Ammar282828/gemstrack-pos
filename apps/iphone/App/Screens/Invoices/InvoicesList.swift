@@ -276,7 +276,6 @@ struct InvoicesList: View {
         }
         .navigationTitle("Invoices")
         .hubTitleDisplay()
-        .searchable(text: $search, placement: .pullDownSearch, prompt: "Search invoices")
         // Debounced like the search page; clearing the box clears the list at once.
         .task(id: search) {
             let next = search.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -361,6 +360,8 @@ struct InvoicesList: View {
                     }
                 }.padding(pt(24))
             }
+            // Pulled down from the top, as iOS's own search (PullDownSearch.swift); on the ScrollView so the pull is read there.
+            .pullDownSearch(text: $search, prompt: "Search invoices")
           } else {
         List {
             // The chips, the filter line and the figures are the list's first rows (a bar pinned over the list greyed
@@ -380,6 +381,7 @@ struct InvoicesList: View {
             }
         }
         .listStyle(.insetGrouped)
+        .pullDownSearch(text: $search, prompt: "Search invoices")
           }
         }
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }

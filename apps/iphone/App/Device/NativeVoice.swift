@@ -6,272 +6,16 @@ import ERPCore
 import UIKit
 #endif
 
-/// Voice is a native sheet that listens the way Siri does (owner, 2026-10-25: "as smooth and continuous and immediate
-/// and snappy as Siri"). The microphone is live within a moment of the tap (VoiceEngine.warm has done the waiting),
+/// Voice listens the way Siri does (owner, 2026-10-25: "as smooth and continuous and immediate and snappy as Siri"),
+/// and since 2026-11-02 it does so over whatever screen is open rather than on a screen of its own (owner: "should
+/// work in the background and not have me have to open a whole ass screen"): `VoiceOverlay` is a small glass capsule
+/// above the tab bar, driven by the one `VoiceSession` below, which the mic button, ⌘-menu and Siri / the Action
+/// button / Control Center all open. The microphone is live within a moment (VoiceEngine.warm has done the waiting),
 /// the words stream in as they are said, a second of quiet after speech starts the reading without a tap, the plan
 /// appears while the microphone stays open, and the next sentence ("change the amount to 50,000", "also add tea 300",
-/// "yes") refines the same plan. Speech only prepares a reading; writes still go through ERPAPI (money awaited) or the
-/// Outbox (everything else).
-struct NativeVoiceScreen: View {
-    let open: (String) -> Void
-    @Environment(Book.self) private var book
-    @Environment(Session.self) private var session
-    @Environment(\.dismiss) private var dismiss
-    @Environment(\.scenePhase) private var scenePhase
-    @State private var lock = AppLock.shared
-    @State private var voice = NativeVoiceSession()
-    @State private var typing = false
-    @State private var typed = ""
-    @FocusState private var typingFocused: Bool
-
-    private var away: Bool { lock.locked || lock.covered }
-    private var listeningNow: Bool { voice.phase == .listening || voice.phase == .thinking }
-
-    var body: some View {
-        VStack(spacing: 0) {
-            hero
-            ScrollView {
-                VStack(spacing: pt(12)) {
-                    if typing || voice.phase == .unavailable { typedField }
-                    if let message = voice.failure { failureCard(message) }
-                    if let plan = voice.plan { planCards(plan) }
-                }
-                .padding(.horizontal).padding(.bottom, pt(16))
-                .opacity(voice.phase == .thinking && voice.plan != nil ? 0.45 : 1)
-            }
-            .scrollDismissesKeyboard(.interactively)
-        }
-        .modifier(VoiceDoIt(primary: doIt, secondary: notNow, summary: doItSummary))
-        .navigationTitle("Voice").navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("Close", systemImage: "xmark") { dismiss() }.disabled(voice.phase == .saving)
-            }
-            ToolbarItemGroup(placement: .trailingAction) {
-                Button(typing ? "Hide keyboard" : "Type instead", systemImage: "keyboard") {
-                    typing.toggle()
-                    typingFocused = typing
-                }
-                Button(voice.speakAnswers ? "Reading aloud is on" : "Reading aloud is off",
-                       systemImage: voice.speakAnswers ? "speaker.wave.2.fill" : "speaker.slash") {
-                    voice.setSpeaking(!voice.speakAnswers)
-                }
-            }
-        }
-        .interactiveDismissDisabled(voice.phase == .saving)
-        // One tick as the microphone opens (the sheet itself is the first sign); a saved plan or a refusal has its own.
-        .sensoryFeedback(.start, trigger: voice.startTick)
-        .moneyFeedback(success: voice.savedTick, failure: voice.refusedTick)
-        .onDisappear { voice.close() }
-        // Behind the lock or the app switcher's photograph the microphone is closed, and opens again with the app.
-        .onChange(of: away) { _, now in now ? voice.pause() : voice.resume() }
-        .onChange(of: scenePhase) { _, phase in
-            if phase == .background { voice.pause() } else if phase == .active, !away { voice.resume() }
-        }
-        .task {
-            book.customers.need(); book.products.need(); book.settings.need()
-            voice.open()
-        }
-    }
-
-    // MARK: The orb, the words
-
-    private var hero: some View {
-        VStack(spacing: pt(10)) {
-            Button {
-                if voice.phase == .paused { voice.resume() } else { voice.finishNow() }
-            } label: {
-                VoiceOrb(tap: VoiceEngine.shared.tap, mode: orbMode, compact: voice.plan != nil)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .allowsHitTesting(listeningNow || voice.phase == .paused)
-            .accessibilityLabel(orbLabel)
-
-            Group {
-                if voice.phase == .thinking {
-                    VStack(spacing: pt(4)) {
-                        Text(voice.heard).font(.title3.weight(.medium)).multilineTextAlignment(.center)
-                        Text("Reading it…").font(.subheadline).foregroundStyle(.secondary).modifier(VoiceShimmer())
-                    }
-                } else if !voice.liveWords.isEmpty {
-                    Text(liveText).font(.title2.weight(.medium)).multilineTextAlignment(.center)
-                        .accessibilityAddTraits(.updatesFrequently)
-                } else {
-                    Text(statusLine).font(.title3).foregroundStyle(.secondary).multilineTextAlignment(.center)
-                }
-            }
-            .padding(.horizontal, pt(24)).frame(maxWidth: .infinity, minHeight: 56)
-
-            if !voice.liveWords.isEmpty && voice.phase == .listening {
-                Button("Done", systemImage: "checkmark") { voice.finishNow() }
-                    .buttonStyle(.houseGlass).largeOnPhone()
-                    .transition(.opacity)
-            }
-        }
-        .padding(.top, pt(8)).padding(.bottom, pt(12))
-        .motion(voice.liveWords.isEmpty)
-        .motion(voice.phase)
-    }
-
-    private var orbMode: VoiceOrb.Mode {
-        switch voice.phase {
-        case .listening: return .listening
-        case .thinking, .saving: return .thinking
-        default: return .idle
-        }
-    }
-
-    private var orbLabel: String {
-        switch voice.phase {
-        case .paused: return "Listen again"
-        case .listening: return voice.liveWords.isEmpty ? "Listening" : "Finish speaking"
-        case .thinking: return "Reading what you said"
-        default: return "Voice"
-        }
-    }
-
-    private var statusLine: String {
-        switch voice.phase {
-        case .starting: return "Getting ready…"
-        case .paused: return "Tap to listen again"
-        case .unavailable: return voice.unavailable ?? "Voice isn't available. You can type."
-        case .saving: return "Saving…"
-        default:
-            guard let plan = voice.plan else { return "Say what you need" }
-            if voice.completed > 0 && voice.completed == plan.operations.count { return "Saved. Say what's next." }
-            if plan.operations.isEmpty { return "Ask another question, or say what to do" }
-            return plan.ready ? "Say “yes” to save, or what to change" : "Say what to change"
-        }
-    }
-
-    /// Settled words firm, the ones still changing quieter: they settle as the recogniser decides.
-    private var liveText: AttributedString {
-        var text = AttributedString(voice.settled)
-        text.foregroundColor = .primary
-        if !voice.volatile.isEmpty {
-            var rest = AttributedString((voice.settled.isEmpty ? "" : " ") + voice.volatile)
-            rest.foregroundColor = .secondary
-            text.append(rest)
-        }
-        return text
-    }
-
-    // MARK: Typed, failed
-
-    private var typedField: some View {
-        HStack(alignment: .bottom, spacing: pt(8)) {
-            TextField("Type what you need…", text: $typed, axis: .vertical)
-                .lineLimit(1...4).focused($typingFocused).submitLabel(.send)
-                .onSubmit(sendTyped)
-            Button("Send", systemImage: "arrow.up") { sendTyped() }
-                .labelStyle(.iconOnly).buttonStyle(.borderedProminent).buttonBorderShape(.circle)
-                .disabled(typed.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || voice.phase == .thinking || voice.phase == .saving)
-        }
-        .ledgerCard()
-    }
-
-    private func sendTyped() {
-        let words = typed.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !words.isEmpty else { return }
-        typed = ""
-        voice.submitTyped(words)
-    }
-
-    private func failureCard(_ message: String) -> some View {
-        VStack(alignment: .leading, spacing: pt(10)) {
-            Label(message, systemImage: "exclamationmark.triangle").foregroundStyle(Tone.problem.color)
-                .fixedSize(horizontal: false, vertical: true)
-            if voice.canRetry { Button("Try again", systemImage: "arrow.clockwise") { voice.retry() }.buttonStyle(.bordered) }
-        }
-        .ledgerCard()
-        .transition(.opacity.combined(with: .move(edge: .top)))
-    }
-
-    // MARK: The plan
-
-    @ViewBuilder
-    private func planCards(_ plan: NativeVoicePlan) -> some View {
-        if let answer = plan.answer {
-            VStack(alignment: .leading, spacing: pt(10)) {
-                LedgerHeading(title: "Answer")
-                Text(answer).fixedSize(horizontal: false, vertical: true)
-                if let path = plan.href { Button("Open page", systemImage: "arrow.up.right") { open(path) }.buttonStyle(.bordered) }
-            }
-            .ledgerCard().transition(cardTransition)
-        }
-        ForEach(Array(plan.cards.enumerated()), id: \.offset) { _, card in
-            VStack(alignment: .leading, spacing: pt(8)) {
-                LedgerHeading(title: card.title.capitalized)
-                Text(card.summary).fixedSize(horizontal: false, vertical: true)
-                if let problem = card.problem {
-                    Label(problem, systemImage: "exclamationmark.circle").font(.subheadline).foregroundStyle(Tone.owed.color)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                if card.operations.isEmpty, let path = card.href {
-                    Button(card.handoff == nil ? "Open record" : "Fill the form", systemImage: "arrow.up.right") {
-                        do { try NativeVoiceHandoff.apply(card.handoff, book: book, person: session.shop.person); open(card.handoff == nil ? path : NativeVoiceHandoff.resuming(path)) }
-                        catch { voice.failure = error.localizedDescription }
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(voice.phase == .saving || !book.customers.loaded || !book.products.loaded || !book.settings.loaded)
-                }
-            }
-            .ledgerCard().transition(cardTransition)
-        }
-        if !plan.operations.isEmpty && voice.completed == plan.operations.count {
-            VStack(alignment: .leading, spacing: pt(10)) {
-                Label("Saved", systemImage: "checkmark.circle.fill").foregroundStyle(Tone.settled.color)
-                if let path = plan.cards.last?.href { Button("Open record", systemImage: "arrow.up.right") { open(path) }.buttonStyle(.bordered) }
-            }
-            .ledgerCard().transition(cardTransition)
-        } else if voice.completed > 0 {
-            Text("\(voice.completed) of \(plan.operations.count) changes saved.").font(.footnote).foregroundStyle(.secondary)
-        }
-    }
-
-    private var cardTransition: AnyTransition { .opacity.combined(with: .offset(y: 14)) }
-
-    // MARK: Do it
-
-    private var savable: Bool {
-        guard let plan = voice.plan else { return false }
-        return plan.ready && !plan.operations.isEmpty && voice.completed < plan.operations.count
-    }
-
-    private var doIt: ActionBar.Action? {
-        guard savable else { return nil }
-        return ActionBar.Action(voice.completed > 0 ? "Save the rest" : "Do it", systemImage: "checkmark",
-                                isBusy: voice.phase == .saving, isDisabled: voice.phase == .thinking) { voice.save() }
-    }
-
-    private var notNow: [ActionBar.Action] {
-        guard savable, voice.completed == 0 else { return [] }
-        return [ActionBar.Action("Not now", isDisabled: voice.phase == .saving) { voice.dismissPlan() }]
-    }
-
-    private var doItSummary: String? { savable && voice.phase != .saving ? "Or say “yes”" : nil }
-}
-
-/// The page's one primary action when there is one, and nothing (no empty bar) when there is not: the content is
-/// the same view either way, so the orb, the scroll and the keyboard are not rebuilt as a plan comes and goes.
-private struct VoiceDoIt: ViewModifier {
-    let primary: ActionBar.Action?
-    let secondary: [ActionBar.Action]
-    let summary: String?
-
-    func body(content: Content) -> some View {
-        #if os(macOS)
-        content.safeAreaInset(edge: .bottom, spacing: 0) {
-            if let primary { MacActionFooter(primary: primary, secondary: secondary, summary: summary) }
-        }
-        #else
-        content.safeAreaBar(edge: .bottom, spacing: 0) {
-            if let primary { ActionBar(primary: primary, secondary: secondary, summary: summary) }
-        }
-        #endif
-    }
-}
+/// "yes") refines the same plan. Each sentence carries the record on screen (VoiceContext), so "make it 22 karat" needs
+/// no name. Speech only prepares a reading; writes still go through ERPAPI (money awaited) or the Outbox (the rest),
+/// and the screen beneath shows them as its shelves update.
 
 // MARK: The orb
 
@@ -283,6 +27,8 @@ struct VoiceOrb: View {
     let tap: VoiceAudioTap
     let mode: Mode
     var compact = false
+    /// The overlay's orb: a fixed circle this wide (nil: the full-width orb, 96 or 220 high).
+    var diameter: CGFloat?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -293,10 +39,10 @@ struct VoiceOrb: View {
                 TimelineView(.animation) { context in orb(at: context.date, animated: true) }
             }
         }
-        .frame(height: compact ? 96 : 220)
+        .frame(width: diameter, height: diameter ?? (compact ? 96 : 220))
         .overlay {
             Image(systemName: mode == .thinking ? "ellipsis" : "mic.fill")
-                .font(compact ? .title3 : .title)
+                .font(diameter != nil ? .callout.weight(.semibold) : compact ? .title3 : .title)
                 .foregroundStyle(Theme.onAccent)
                 .contentTransition(.symbolEffect(.replace))
         }
@@ -310,7 +56,7 @@ struct VoiceOrb: View {
         let accent = Theme.accent
         return Canvas { context, size in
             let center = CGPoint(x: size.width / 2, y: size.height / 2)
-            let base = min(size.width, size.height) * (compact ? 0.2 : 0.26)
+            let base = min(size.width, size.height) * (diameter != nil ? 0.3 : compact ? 0.2 : 0.26)
             for i in 0..<3 {
                 let wobble = animated ? CGFloat(sin(t * (0.9 + Double(i) * 0.4) + Double(i) * 2.0)) * 0.05 : 0
                 let grow = animated ? level * (0.5 + 0.2 * CGFloat(i)) : 0
@@ -331,7 +77,7 @@ struct VoiceOrb: View {
 }
 
 /// A band of light across waiting words; plain under Reduce Motion.
-private struct VoiceShimmer: ViewModifier {
+struct VoiceShimmer: ViewModifier {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func body(content: Content) -> some View {
@@ -386,10 +132,19 @@ final class VoiceSpeaker: NSObject, AVSpeechSynthesizerDelegate {
     }
 }
 
+/// The one voice conversation, app-wide: the overlay draws it, and the mic button, the menus and the Siri / Action
+/// button / Control Center launch (Shared/VoiceLaunch.swift) open it. One instance, so a second launch while it is
+/// up only brings it back to listening, and the plan on it survives a page opened beneath it.
 @MainActor @Observable
-final class NativeVoiceSession {
+final class VoiceSession {
     enum Phase: Equatable { case starting, listening, paused, thinking, saving, unavailable }
 
+    /// App-wide; a business's plan, so closed on a switch (Businesses.resetPerBusinessState).
+    static let shared = VoiceSession()
+    static func reset() { shared.dismiss(force: true) }
+
+    /// The overlay is up.
+    private(set) var shown = false
     private(set) var phase: Phase = .starting
     /// The sentence being said: words the recogniser has settled, then the ones it is still deciding.
     private(set) var settled = ""
@@ -403,15 +158,19 @@ final class NativeVoiceSession {
     private(set) var savedTick = 0
     private(set) var refusedTick = 0
     private(set) var speakAnswers = UserDefaults.standard.object(forKey: "erp.voice.speak") as? Bool ?? true
-    /// Why the last request failed; the screen offers Try again where `canRetry`.
+    /// A page the plan opened by itself ("open Fatema's order", "call her"): the overlay's host opens `openPath` each
+    /// time the tick moves, and the overlay stays over it.
+    private(set) var openPath: String?
+    private(set) var openTick = 0
+    /// Why the last request failed; the overlay offers Try again where `canRetry`.
     var failure: String?
     private(set) var canRetry = false
 
     var liveWords: String { [settled, volatile].filter { !$0.isEmpty }.joined(separator: " ") }
 
-    /// The business open when the sheet opened: every request and save of this sheet goes to it, whatever happens
-    /// to the switcher meanwhile (the sheet itself closes on a switch).
-    private let business = House.business
+    /// The business open when the overlay opened: every request and save of this conversation goes to it, whatever
+    /// happens to the switcher meanwhile (a switch closes the overlay).
+    @ObservationIgnored private var business = House.business
     @ObservationIgnored private var turn: VoiceRecognizing?
     @ObservationIgnored private var turnToken = UUID()
     @ObservationIgnored private var failures = 0
@@ -422,7 +181,7 @@ final class NativeVoiceSession {
     @ObservationIgnored private var sent: (words: String, audio: Data?)?
     /// What was said while the last request was out: read next, in order.
     @ObservationIgnored private var queued: String?
-    @ObservationIgnored private var closed = false
+    @ObservationIgnored private var closed = true
     @ObservationIgnored private lazy var speaker: VoiceSpeaker = {
         let s = VoiceSpeaker()
         s.onFinish = { [weak self] in self?.voiceFinished() }
@@ -432,14 +191,40 @@ final class NativeVoiceSession {
 
     // MARK: Opening and closing
 
-    /// The sheet is up. Everything slow was done when the mic first appeared (`VoiceEngine.warm`).
-    func open() {
-        guard phase == .starting, startTask == nil else { return }
+    /// The overlay comes up listening (or, already up, listens again).
+    func present() {
+        if shown {
+            if phase == .paused { resume() }
+            return
+        }
+        settled = ""; volatile = ""; heard = ""; plan = nil; completed = 0
+        failure = nil; canRetry = false; unavailable = nil; queued = nil; sent = nil
+        failures = 0; closed = false; phase = .starting
+        business = House.business
+        shown = true
+        open()
+    }
+
+    /// Closed with its button, Escape, a swipe down, "no" with nothing on it, the lock or a switch. A save already
+    /// under way finishes first (a money write is never cut off); `force` is for the switch and the lock, where the
+    /// save's own Task still finishes in the background.
+    func dismiss(force: Bool = false) {
+        guard shown, force || phase != .saving else { return }
+        close()
+        shown = false
+        settled = ""; volatile = ""; heard = ""; plan = nil; completed = 0; failure = nil
+        openPath = nil
+    }
+
+    /// Everything slow was done when the mic first appeared (`VoiceEngine.warm`).
+    private func open() {
+        guard phase == .starting, !closed else { return }
         startTick += 1
         engine.warm()
         // The server reads the book's dozen collections in the background now, so the first sentence does not wait for them.
         let business = business
         Task { _ = try? await ERPAPI.shared.send("/api/voice/native", ["warm": true], timeout: 10, business: business) }
+        startTask?.cancel()
         startTask = Task { await listen() }
     }
 
@@ -463,10 +248,9 @@ final class NativeVoiceSession {
         if phase == .starting || phase == .paused { phase = .listening }
     }
 
-    func close() {
-        guard phase != .saving else { return }
+    private func close() {
         closed = true
-        startTask?.cancel(); request?.cancel()
+        startTask?.cancel(); startTask = nil; request?.cancel()
         turnToken = UUID(); turn?.cancel(); turn = nil
         speaker.stop()
         engine.onInterruption = nil
@@ -474,7 +258,7 @@ final class NativeVoiceSession {
     }
 
     /// The app went behind the lock, the switcher or another app: the microphone closes. A request already out
-    /// finishes; its answer waits on screen.
+    /// finishes; its answer waits on the overlay.
     func pause() {
         guard !closed, engine.running || phase == .listening else { return }
         turnToken = UUID(); turn?.cancel(); turn = nil
@@ -576,7 +360,8 @@ final class NativeVoiceSession {
 
     // MARK: Reading
 
-    /// "Yes" and "no" answer a plan on screen; anything else is read (and, with a plan on screen, changes it).
+    /// "Yes" and "no" answer a plan on the overlay; anything else is read (and, with a plan up, changes it). "No"
+    /// with nothing on it puts the overlay away, as a person waves Siri off.
     private func route(_ words: String, audio: Data?) {
         if audio == nil, plan != nil, completed == 0 {
             switch voiceReply(words) {
@@ -584,6 +369,8 @@ final class NativeVoiceSession {
             case .no: dismissPlan(); return
             case .other: break
             }
+        } else if audio == nil, plan == nil, failure == nil, voiceReply(words) == .no {
+            dismiss(); return
         }
         interpret(words, audio: audio)
     }
@@ -595,14 +382,16 @@ final class NativeVoiceSession {
         heard = words.isEmpty ? "Your recording" : words
         phase = .thinking
 
-        // With a plan not yet saved on screen the sentence is a change to it: the earlier words and the model's own
-        // reading of them go with it (src/lib/voice/refine.ts).
+        // With a plan not yet saved on the overlay the sentence is a change to it: the earlier words and the model's
+        // own reading of them go with it (src/lib/voice/refine.ts).
         let refining = audio == nil && completed == 0 ? plan : nil
         var body: [String: Any]
         if let audio { body = ["audio": audio.base64EncodedString()] } else { body = ["text": words] }
         if let refining, let reading = refining.reading {
             body["previous"] = ["words": String(refining.reviewedWords.suffix(800)), "reading": reading]
         }
+        // What is open beneath the overlay: "change the weight to 12 grams" is about this order (context.ts).
+        if let focus = VoiceContext.shared.focus { body["context"] = focus.payload }
         let cumulative = refining.map { "\($0.reviewedWords), \(words)" } ?? words
         let token = UUID()
         requestToken = token
@@ -622,6 +411,8 @@ final class NativeVoiceSession {
                 }
                 settle()
                 announce(Self.spoken(next))
+                // A page the plan only opens is opened at once, beneath the overlay, which stays for what comes next.
+                if let path = next.opensAlone { openPath = path; openTick += 1 }
                 // A "yes" said while this was being read was about the plan before it: never carried onto this one.
                 if let more = queued { queued = nil; if voiceReply(more) == .other { route(more, audio: nil) } }
             } catch {
@@ -629,6 +420,7 @@ final class NativeVoiceSession {
                 failure = Self.said(error); canRetry = true; refusedTick += 1
                 queued = nil
                 settle()
+                announce(failure ?? "")
             }
         }
     }
@@ -650,11 +442,11 @@ final class NativeVoiceSession {
     }
 
     /// One short line: the answer, the first thing wrong, or what is about to be saved.
-    private static func spoken(_ plan: NativeVoicePlan) -> String {
+    static func spoken(_ plan: NativeVoicePlan) -> String {
         func short(_ text: String) -> String { text.count > 220 ? String(text.prefix(220)) + "…" : text }
         if let answer = plan.answer { return short(answer) }
         if let problem = plan.cards.compactMap(\.problem).first { return short(problem) }
-        guard !plan.operations.isEmpty else { return "" }
+        guard !plan.operations.isEmpty else { return plan.opensAlone != nil ? (plan.cards.first?.summary ?? "") : "" }
         if plan.cards.count == 1 { return short(plan.cards[0].summary) + ". Save it?" }
         return "\(plan.cards.count) changes. Save them?"
     }
@@ -668,7 +460,7 @@ final class NativeVoiceSession {
     // MARK: Saving
 
     /// Money is awaited, as everywhere (the ERP's answer is the person's); the rest leaves through the Outbox and
-    /// finishes in the background.
+    /// finishes in the background, and the screen beneath updates as its shelf does.
     func save() {
         guard let plan, plan.ready, !plan.operations.isEmpty, completed < plan.operations.count,
               phase == .listening || phase == .paused else { return }
@@ -697,6 +489,7 @@ final class NativeVoiceSession {
             } catch {
                 failure = Self.said(error); canRetry = false; refusedTick += 1
                 settle()
+                announce(failure ?? "")
             }
         }
     }
@@ -751,6 +544,13 @@ struct NativeVoicePlan {
     let reading: [String: Any]?
     var operations: [(op: String, fields: [String: Any])] { cards.flatMap(\.operations) }
     var ready: Bool { cards.allSatisfy { $0.problem == nil && $0.handoff == nil } }
+    /// The page a plan only opens ("open Fatema's order", "analytics kholo", "call her"): one card, nothing to save,
+    /// nothing wrong, no form to fill. Opened at once beneath the overlay.
+    var opensAlone: String? {
+        guard answer == nil, cards.count == 1, let card = cards.first, card.operations.isEmpty, card.problem == nil,
+              card.handoff == nil, let path = card.href, path.hasPrefix("/") || path.hasPrefix("tel:") else { return nil }
+        return path
+    }
     init(_ raw: [String: Any], words: String) {
         reviewedWords = words
         reading = raw["reading"] as? [String: Any]

@@ -143,6 +143,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Online orders](docs/decisions.md#online-orders) — a person confirms; no sale until the transfer
 - [Shopify notices](docs/decisions.md#shopify-notices) — read back; kept current, never rewritten
 - [Order WhatsApp](docs/decisions.md#order-whatsapp) — Mina's web orders messaged from its line: COD Confirm/Cancel poll (or 1/2) → Confirm tag, bank → IBAN + screenshot, paid → thanks
+- [Send to karigar](docs/decisions.md#send-to-karigar) — an order's pieces (photos, weight, wastage in grams, instructions, due date) to a karigar on WhatsApp from the shop's line; never a price, so no slip PDF; `lib/karigar-message.ts`
 - [Name a sale](docs/decisions.md#name-a-sale) — on the invoice
 - [Advance method](docs/decisions.md#advance-method) — `.nullish()`, `onInvalid` toasts
 - [Exchange line](docs/decisions.md#exchange-line) — what + amount
@@ -184,7 +185,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Vertex AI key](docs/features/ai.md#vertex-ai-key) — `vertex-ai-key` in gemstrack-pos Secret Manager, read at run time; tiny per-minute quota
 - [Scanners](docs/features/ai.md#scanners) — wastage in grams, weight before stones, the bill's rate and discount; never 3.8-flash
 - [Voice](docs/features/ai.md#voice) — live words; every part editable; anything, several steps
-- [Voice, Siri-grade](docs/decisions.md#voice-siri-grade) — iPhone/Mac: warm at launch, on-device words, end of speech by itself, keeps listening for changes and "yes"; Siri / Action button / Control Center open it listening
+- [Voice, Siri-grade](docs/decisions.md#voice-siri-grade) — iPhone/Mac: warm at launch, on-device words, end of speech by itself, keeps listening for changes and "yes"; Siri / Action button / Control Center open it listening; a glass capsule over the open screen (never a sheet), told the record on screen (`context`) so "make it 22 karat" needs no name; small changes are one allow-listed `edit` step, never money
 
 **Design** (`docs/features/design.md`) — replaced Post a piece and the Ads Studio tab (2026-10-12)
 - [Design](docs/decisions.md#design) — Posts › Design: one editor, one Publish sheet, one shelf; Ads → Plan; old URLs redirect, every `/api` route kept

@@ -58,7 +58,6 @@ struct CustomersList: View {
         }
         .navigationTitle("Customers")
         .hubTitleDisplay()
-        .searchable(text: $search, placement: .pullDownSearch, prompt: "Search by name, phone, or email")
         .task(id: search) {
             let next = search
             if CustomerKit.trim(next).isEmpty { query = ""; return }
@@ -178,6 +177,8 @@ struct CustomersList: View {
             }
         }
         .listStyle(.insetGrouped)
+        // Pulled down from the top, as iOS's own search (PullDownSearch.swift); on the List so the pull is read there.
+        .pullDownSearch(text: $search, prompt: "Search by name, phone, or email")
         .motion(showing, Motion.travel)
     }
 

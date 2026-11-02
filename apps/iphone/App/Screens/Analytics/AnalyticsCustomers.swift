@@ -24,8 +24,7 @@ struct AnaCustomersPage: View {
             sourceSection
         }, right: { (_: Bool) in
             allSection
-        })
-        .searchable(text: $search, placement: .pullDownSearch, prompt: "Search everyone by name")
+        }, search: $search, searchPrompt: "Search everyone by name")
     }
 
     // MARK: Top ten

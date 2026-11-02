@@ -32,6 +32,8 @@ struct OrderScreen: View {
     @State private var tracking = false
     @State private var leopardsOpen = false
     @State private var notifying = false
+    /// Send to karigar: the pieces' photos and details to a karigar on WhatsApp (SendToKarigarSheet).
+    @State private var sendingToKarigar = false
     /// The bar's Check transfer: the transfer's own sheet, as the online section's Transfer received opens it.
     @State private var checkingTransfer = false
     /// What was said once a transfer was booked or an order let lapse, and what an advance, Ready or a cancel did.
@@ -82,6 +84,8 @@ struct OrderScreen: View {
         .navigationTitle(id)
         .navigationBarTitleDisplayMode(.inline)
         .zoomDestination(id: "/orders/\(id)")
+        // Voice is told this order is open: "make it 22 karat" needs no number (VoiceContext).
+        .voiceFocus(book.orders.item(id).map(VoiceFocus.order))
         .ordersWebDestination($web)
         .orderUndo($undo, open: $web)
         .ordersFailureAlert($failure)
@@ -133,6 +137,9 @@ struct OrderScreen: View {
         .sheet(isPresented: $tracking) { OrderTrackingSheet(order: order) }
         .sheet(isPresented: $leopardsOpen) { OrderLeopardsSheet(order: order) }
         .sheet(isPresented: $notifying) { OrderNotifySheet(order: order) }
+        .sheet(isPresented: $sendingToKarigar) {
+            SendToKarigarSheet(order: order) { sent in Note.show(sent, in: $note, reduce: reduceMotion) }
+        }
         .sheet(isPresented: $checkingTransfer) {
             OnlineMoveSheet(order: order, kind: .paid) { t in
                 onlineMoved(.paid, t)
@@ -166,13 +173,21 @@ struct OrderScreen: View {
                 heroFigure(order, stage: stage, owed: owed, invoice: invoice)
                 promiseRow(order, now: now)
                 standingRow(order, stage: stage)
-                if !CustomerKit.dialable(phone).isEmpty {
-                    ContactActions(phone: phone)
-                }
+                // The one Contact row (CustomerContact.swift): Call, WhatsApp, Message, the customer's order PDF
+                // from the shop's line (never the workshop slip), More.
+                orderContact(order, phone: phone)
             }
             .heroSheen()
             .ordersCardRow()
         }
+    }
+
+    private func orderContact(_ order: Order, phone: String) -> some View {
+        CustomerContactActions(
+            phone: phone, customerId: order.customerId, customerName: order.customerName,
+            doc: .order(order, byCustomer: session.shop.invoiceByCustomer),
+            sent: { words in Note.show(Note(title: words), in: $note, reduce: reduceMotion) }
+        )
     }
 
     private func who(_ order: Order, phone: String) -> some View {
@@ -695,6 +710,7 @@ struct OrderScreen: View {
                 // The workshop slip: printed, saved or sent from the share sheet.
                 Button { web = .slip(order.id) } label: { Label("Print slip", systemImage: "printer") }
                 Button { notifying = true } label: { Label("Message the customer", systemImage: "message") }
+                Button { sendingToKarigar = true } label: { Label("Send to karigar", systemImage: "paperplane") }
             }
             if tcs != nil || canBook {
                 Section("Shipping") {
@@ -936,8 +952,8 @@ extension OrderScreen {
                 StageTrack(stage: stage, labels: true)
                 PaidBar(paid: paid, total: worth)
             }
-            ContactActions(phone: phone)
-                .frame(maxWidth: 360, alignment: .leading)
+            orderContact(order, phone: phone)
+                .frame(maxWidth: 440, alignment: .leading)
         }
         .padding(Metrics.cardPadding + 4)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1228,6 +1244,7 @@ extension OrderScreen {
         r.openInvoice = { if let id = order.invoiceId, !id.isEmpty { macOpenRoute("/invoices/\(id)") } }
         r.printSlip = { web = .slip(order.id) }
         r.message = { macSheet = .notify(order) }
+        r.sendToKarigar = { macSheet = .sendKarigar(order) }
         r.call = { if let url = CustomerKit.callURL(order.customerContact) { openURL(url) } }
         r.whatsApp = { if let url = CustomerKit.whatsAppURL(order.customerContact) { openURL(url) } }
         r.bookCourier = { macSheet = .courier(order) }

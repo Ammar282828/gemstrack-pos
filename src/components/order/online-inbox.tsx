@@ -12,7 +12,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { formatDistanceToNowStrict, parseISO } from 'date-fns';
-import { Check, Globe, Loader2, MapPin, MessageCircle, Phone, Send, X } from 'lucide-react';
+import { Check, Globe, Loader2, MapPin, Phone, Send, X } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { bankDetailsWhatsApp, listOnline, refreshWaiting, staffFetch, useOnlineWaiting } from '@/lib/website/online-client';
 import type { OnlineOrderRow } from '@/lib/website/types';
@@ -20,6 +20,7 @@ import { STORE_WEBSITE_SELLING } from '@/lib/store-config';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Pill } from '@/components/ledger';
+import { ContactMenu } from '@/components/customer/contact-actions';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
@@ -78,7 +79,6 @@ function OnlineCard({ row, onDone }: { row: OnlineOrderRow; onDone: () => void }
   const [confirmed, setConfirmed] = useState<{ orderId: string; notified: string | null } | null>(null);
   const moved = row.todayTotal != null ? row.todayTotal - row.grandTotal : 0;
   const movedPct = row.grandTotal ? (moved / row.grandTotal) * 100 : 0;
-  const phone = row.customer.phone.replace(/[^\d]/g, '');
   const confirming = row.state === 'confirming';
 
   const confirm = async () => {
@@ -134,10 +134,11 @@ function OnlineCard({ row, onDone }: { row: OnlineOrderRow; onDone: () => void }
 
       <div className="space-y-0.5 text-ios-sub">
         <p className="truncate font-semibold">{row.customer.name}</p>
-        <p className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
-          <a href={`tel:+${phone}`} className="inline-flex items-center gap-1 hover:text-foreground"><Phone className="h-3 w-3" />{row.customer.phone}</a>
-          <a href={`https://wa.me/${phone}`} target="_blank" rel="noopener" className="inline-flex items-center gap-1 hover:text-foreground"><MessageCircle className="h-3 w-3" />WhatsApp</a>
-        </p>
+        {/* The one Contact menu (components/customer/contact-actions.tsx): Call, WhatsApp, Message, Copy number. */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1 tabular-nums"><Phone className="h-3 w-3" />{row.customer.phone}</span>
+          <ContactMenu phone={row.customer.phone} customerName={row.customer.name} className="h-7" />
+        </div>
         <p className="flex items-start gap-1 text-xs text-muted-foreground"><MapPin className="mt-0.5 h-3 w-3 flex-shrink-0" /><span>{row.delivery.address}, <span className="font-medium text-foreground">{row.delivery.city}</span></span></p>
         {row.delivery.notes && <p className="text-xs italic text-muted-foreground">“{row.delivery.notes}”</p>}
       </div>

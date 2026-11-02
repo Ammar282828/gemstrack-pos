@@ -266,9 +266,8 @@ export const STORE_WEBSITE_SELLING = process.env.NEXT_PUBLIC_STORE_WEBSITE_SELLI
  *  every download, print and send (Taheri, 2026-10-05; lib/invoice-share.ts). House of Mina sets "0": "Invoice-INV-….pdf". */
 export const STORE_INVOICE_BY_CUSTOMER = process.env.NEXT_PUBLIC_STORE_INVOICE_BY_CUSTOMER !== '0';
 
-/** Send via WhatsApp sends the invoice's PDF from the shop's own line (/api/invoices/[id]/whatsapp; Taheri,
- *  2026-10-05). House of Mina sets "0": WhatsApp opens on the device with the message and a link, as before. */
-export const STORE_INVOICE_WHATSAPP_PDF = process.env.NEXT_PUBLIC_STORE_INVOICE_WHATSAPP_PDF !== '0';
+/* NEXT_PUBLIC_STORE_INVOICE_WHATSAPP_PDF is gone (2026-11-02): both houses send an invoice's or order's PDF from their
+ * own WhatsApp line wherever one is connected (lib/customer-doc.ts); the link is only the fallback when it is not. */
 
 /** The order form offers to keep a ring, bangle or bracelet size in the customer's profile when the profile
  *  doesn't hold it (Taheri, 2026-10-05; lib/customer-sizes.ts). House of Mina sets "0". */

@@ -238,6 +238,7 @@ struct MacOrdersPlace: View {
         r.openInvoice = { if let id = order.invoiceId, !id.isEmpty { openRoute("/invoices/\(id)") } }
         r.printSlip = { open(.slip(order.id)) }
         r.message = { sheet = .notify(order) }
+        r.sendToKarigar = { sheet = .sendKarigar(order) }
         r.call = { reach(order, call: true) }
         r.whatsApp = { reach(order, call: false) }
         r.bookCourier = { sheet = .courier(order) }

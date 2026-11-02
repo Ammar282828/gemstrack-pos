@@ -52,6 +52,7 @@ struct WorkshopKarigarScreen: View {
             .hubTitleDisplay()
             .modifier(HouseGround())
             .zoomDestination(id: WorkshopLogic.karigarPath(id))
+            .voiceFocus(book.karigars.item(id).map(VoiceFocus.karigar))
             .sheet(item: $ask) { (a: WorkshopPayAsk) in
                 paySheet(a)
             }

@@ -9,6 +9,7 @@ import type { HisaabEntry } from '@/lib/store';
 import { DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL } from '@/lib/pricing';
 import { POST as listen } from '../listen/route';
 import { previousFrom, refinedText } from '@/lib/voice/refine';
+import { contextFrom, contextLines } from '@/lib/voice/context';
 import { dailyCap, dailyCapForRequest, AI_PER_DAY, WHATSAPP_PER_DAY, INSTAGRAM_PER_DAY } from '@/lib/daily-cap';
 
 export const runtime = 'nodejs';
@@ -62,6 +63,8 @@ export async function POST(req: NextRequest) {
   if ((!text && !audio) || text.length > 4000 || audio.length > 12_000_000) return NextResponse.json({ error: 'Use a sentence or a recording of up to one minute.' }, { status: 400 });
   // A follow-up to the plan on screen. Words only: a recording stands alone.
   const previous = text && !audio ? previousFrom(input.previous) : null;
+  // What is open on the phone's screen: only its kind and id are taken, the record is read from the book (context.ts).
+  const context = contextFrom(input.context);
   try {
     const { rows, settings } = await loadBook();
     const destinations = paletteFor('owner').map(d => ({ label: d.label, href: d.href, keywords: d.keywords }));
@@ -75,7 +78,8 @@ export async function POST(req: NextRequest) {
       method: 'POST', headers: req.headers,
       body: JSON.stringify({ ...(audio ? { audio, mimeType: 'audio/mp4' } : { text: previous ? refinedText(previous, text) : text }), roster,
         documents: documentsFor(book.orders, book.invoices), shopName: settings.shopName, today,
-        orderKarat: DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL.replace('k', ''), screens: destinations.map(d => d.label) }),
+        orderKarat: DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL.replace('k', ''), screens: destinations.map(d => d.label),
+        ...(context ? { looking: contextLines(context, book) } : {}) }),
     }));
     const raw = await response.json();
     if (!response.ok) return NextResponse.json(raw, { status: response.status });

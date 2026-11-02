@@ -83,7 +83,7 @@ describe('money display', () => {
 
 describe('contactHrefs', () => {
   it('builds tel, wa.me and sms; nothing without a number', () => {
-    expect(contactHrefs('0300 1234567')).toEqual({ tel: 'tel:03001234567', whatsapp: 'https://wa.me/923001234567', sms: 'sms:03001234567' });
+    expect(contactHrefs('0300 1234567')).toEqual({ tel: 'tel:+923001234567', whatsapp: 'https://wa.me/923001234567', sms: 'sms:+923001234567' });
     expect(contactHrefs('')).toBeNull();
     expect(contactHrefs(undefined)).toBeNull();
   });
