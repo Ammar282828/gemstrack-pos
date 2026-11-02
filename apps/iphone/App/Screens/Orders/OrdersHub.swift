@@ -7,8 +7,10 @@ import ERPCore
 /// and Cancelled fold away: they are history, not work. The signed-in person's own cards are lit in place,
 /// not sorted or filtered.
 ///
-/// The switcher and the status chips are the list's first rows, not a bar pinned over it: pinned, they
-/// sat over the large title and greyed it out (2026-10-09).
+/// Laid out as every record list is (RecordList.swift, owner 2026-11-02): the figures, the status chips and the filter
+/// line as the list's first rows (pinned, they sat over the large title and greyed it out, 2026-10-09), then a section
+/// per group of order rows. Day, Stage, Due, Week or Month is the Filter menu's Group by (the Mac keeps its toolbar
+/// switcher).
 struct OrdersHub: View {
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
@@ -48,6 +50,8 @@ struct OrdersHub: View {
     /// Read once per change of the orders / the invoices, not once per drawing.
     @State private var signature = Memo<Int>()
     @State private var owedMemo = Memo<[String: Double]>()
+    /// The strip's figures, per change of the books, Taken by or the day.
+    @State private var figuresMemo = Memo<OrdersFigures>()
 
     var body: some View {
         ShelfState(
@@ -129,43 +133,51 @@ struct OrdersHub: View {
         let groups = makeSections(shown, owedOn: owedOn, now: now)
         // A search or a filter must reach the folded stages too, or its hits hide behind "Show".
         let forceOpen = filtering
+        #if os(macOS)
         GeometryReader { geometry in
-          if showsBoard(geometry.size.width) {
-            stageBoard(groups, owedOn: owedOn, now: now, forceOpen: forceOpen)
-          } else if geometry.size.width >= 760 && !typeSize.isAccessibilitySize {
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: pt(24)) {
-                    gridControls()
-                    ForEach(groups) { g in
-                        VStack(alignment: .leading, spacing: pt(16)) {
-                            groupHeading(g)
-                            if g.folds {
-                                DisclosureGroup(isExpanded: expansion(g.id, forceOpen: forceOpen)) {
-                                    cardGrid(g.orders, owedOn: owedOn, now: now, width: geometry.size.width - 48)
-                                } label: { Text("\(g.orders.count) orders").font(.subheadline).foregroundStyle(.secondary) }
-                            } else { cardGrid(g.orders, owedOn: owedOn, now: now, width: geometry.size.width - 48) }
-                        }
-                    }
-                    if groups.isEmpty { emptyState(nothingOpen: grouping == .due && !shown.isEmpty) }
-                }
-                .padding(pt(24))
+            if showsBoard(geometry.size.width) {
+                stageBoard(groups, owedOn: owedOn, now: now, forceOpen: forceOpen)
+            } else {
+                list(all: all, scoped: scoped, shown: shown, groups: groups, owedOn: owedOn, now: now, forceOpen: forceOpen)
             }
-            // Pulled down from the top, as iOS's own search (PullDownSearch.swift); on the ScrollView so the pull is read there.
-            .pullDownSearch(text: $query, prompt: "Order, customer, phone or piece")
-          } else {
-            List {
-            listControls()
+        }
+        #else
+        list(all: all, scoped: scoped, shown: shown, groups: groups, owedOn: owedOn, now: now, forceOpen: forceOpen)
+        #endif
+    }
+
+    /// The record lists' one layout: rows on a phone, a grid of cards on a wide iPad.
+    private func list(all: [Order], scoped: [Order], shown: [Order], groups: [OrdersSection], owedOn: [String: Double],
+                      now: Date, forceOpen: Bool) -> some View {
+        let figures = summaryFigures(all, owedOn: owedOn, now: now)
+        return RecordListScaffold(search: $query, prompt: "Order, customer, phone or piece", isEmpty: groups.isEmpty) {
+            emptyState(nothingOpen: grouping == .due && !shown.isEmpty)
+        } rows: {
+            head(scoped, figures, inList: true)
             ForEach(groups) { g in
                 section(g, owedOn: owedOn, now: now, forceOpen: forceOpen)
             }
+        } cards: { width in
+            head(scoped, figures, inList: false)
+            ForEach(groups) { g in
+                let open = isOpen(g, forceOpen: forceOpen)
+                VStack(alignment: .leading, spacing: pt(16)) {
+                    groupHeading(g)
+                    if g.folds && !forceOpen { foldToggle(g, open: open) }
+                    if open {
+                        RecordGrid(items: g.orders, width: width) { order in
+                            card(order, owedOn: owedOn, now: now, standalone: true)
+                        }
+                    }
+                }
             }
-            .listStyle(.insetGrouped)
-            .pullDownSearch(text: $query, prompt: "Order, customer, phone or piece")
-            .overlay {
-                if groups.isEmpty { emptyState(nothingOpen: grouping == .due && !shown.isEmpty) }
-            }
-          }
         }
+    }
+
+    /// The strip, the chips and the filter line: the list's first rows, or the grid page's head.
+    private func head(_ scoped: [Order], _ figures: [ListFigure], inList: Bool) -> some View {
+        RecordListHead(figures: figures, chips: chips(scoped), caption: menuNarrowed ? captionText : nil,
+                       clear: { clearMenuFilters() }, inList: inList)
     }
 
     /// The Mac's stage view is a board of columns; the phone and the iPad keep their lists and card grids.
@@ -272,30 +284,38 @@ struct OrdersHub: View {
         }
     }
 
+    /// A group's rows. Done and Cancelled fold away in the stage view (history, not work) behind one Show row.
     @ViewBuilder
     private func section(_ g: OrdersSection, owedOn: [String: Double], now: Date, forceOpen: Bool) -> some View {
-        if g.folds {
-            Section {
-                DisclosureGroup(isExpanded: expansion(g.id, forceOpen: forceOpen)) {
-                    VStack(spacing: pt(16)) {
-                        ForEach(g.orders) { order in card(order, owedOn: owedOn, now: now, standalone: true) }
-                    }.padding(.top, pt(12))
-                } label: {
-                    Text("\(g.orders.count) order\(g.orders.count == 1 ? "" : "s")")
-                        .foregroundStyle(.secondary)
-                }
-                .houseRows()
-                .listRowBackground(Theme.ground)
-            } header: { groupHeading(g) }
-        } else {
-            ForEach(Array(g.orders.enumerated()), id: \.element.id) { index, order in
-                Section {
-                    card(order, owedOn: owedOn, now: now)
-                } header: {
-                    if index == 0 { groupHeading(g) }
-                }
+        let open = isOpen(g, forceOpen: forceOpen)
+        Section {
+            if g.folds && !forceOpen { foldToggle(g, open: open) }
+            if open {
+                ForEach(g.orders) { order in card(order, owedOn: owedOn, now: now) }
             }
+        } header: {
+            groupHeading(g)
         }
+        .houseRows()
+    }
+
+    private func isOpen(_ g: OrdersSection, forceOpen: Bool) -> Bool {
+        !g.folds || forceOpen || opened.contains(g.id)
+    }
+
+    /// "Show 12 orders" on a folded stage, "Fold away" once it is open.
+    private func foldToggle(_ g: OrdersSection, open: Bool) -> some View {
+        Button {
+            Motion.run(Motion.enter, reduce: reduceMotion) {
+                if open { opened.remove(g.id) } else { opened.insert(g.id) }
+            }
+        } label: {
+            Label(open ? "Fold away" : "Show \(g.orders.count) order\(g.orders.count == 1 ? "" : "s")",
+                  systemImage: open ? "chevron.up" : "chevron.down")
+                .font(.subheadline)
+        }
+        .buttonStyle(.borderless)
+        .frame(minHeight: Metrics.tap)
     }
 
     private func groupHeading(_ g: OrdersSection) -> some View {
@@ -306,20 +326,6 @@ struct OrdersHub: View {
                 value: g.orders.reduce(0) { $0 + $1.subtotal },
                 tone: g.tone
         )
-    }
-
-    /// The same columns for every group, so a day with one order keeps a card's width rather than the window's.
-    private func cardGrid(_ orders: [Order], owedOn: [String: Double], now: Date, width: CGFloat) -> some View {
-        LazyVGrid(columns: CardColumns.grid(width), alignment: .leading, spacing: pt(20)) {
-            ForEach(orders) { order in card(order, owedOn: owedOn, now: now, standalone: true) }
-        }
-    }
-
-    @ViewBuilder
-    private func cards(_ orders: [Order], owedOn: [String: Double], now: Date) -> some View {
-        ForEach(orders) { order in
-            card(order, owedOn: owedOn, now: now)
-        }
     }
 
     private func card(_ order: Order, owedOn: [String: Double], now: Date, standalone: Bool = false) -> some View {
@@ -337,44 +343,17 @@ struct OrdersHub: View {
             )
     }
 
-    private func expansion(_ id: String, forceOpen: Bool) -> Binding<Bool> {
-        Binding(
-            get: { forceOpen || opened.contains(id) },
-            set: { open in
-                if open { opened.insert(id) } else { opened.remove(id) }
-            }
-        )
-    }
-
+    /// The record lists' one empty state: a search with no hits, filters with Clear, nothing open in the Due view, or
+    /// no orders at all with New order.
     private func emptyState(nothingOpen: Bool) -> some View {
-        Group {
-            if !nothingOpen && !query.trimmingCharacters(in: .whitespaces).isEmpty && !narrowed {
-                ContentUnavailableView.search(text: query)
-            } else if nothingOpen {
-                ContentUnavailableView(
-                    "Nothing to chase",
-                    systemImage: "calendar",
-                    description: Text("Every order here is invoiced or closed. Day and Stage show them all.")
-                )
-            } else {
-                ContentUnavailableView {
-                    Label("No orders found", systemImage: "list.clipboard")
-                } description: {
-                    Text(filtering ? "Try adjusting the search or filters." : "Create a custom order to begin.")
-                } actions: {
-                    if filtering {
-                        Button("Clear filters") { clearFilters() }
-                            .buttonStyle(.houseGlass)
-                    }
-                    Button("New order") {
-                        web = .newOrder
-                    }
-                    .buttonStyle(.houseProminent)
-                }
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.top, pt(40))
+        RecordEmptyState(
+            search: nothingOpen ? "" : query,
+            clear: !nothingOpen && narrowed ? { clearFilters() } : nil,
+            title: nothingOpen ? "Nothing to chase" : "No orders yet",
+            symbol: nothingOpen ? "calendar" : "list.clipboard",
+            message: nothingOpen ? "Every order here is invoiced or closed. Day and Stage show them all." : "Create a custom order to begin.",
+            action: nothingOpen ? nil : .run("New order", { web = .newOrder })
+        )
     }
 
     /// Everything that narrows the list, put back: the search, the status, the month, whose and how paid.
@@ -388,7 +367,7 @@ struct OrdersHub: View {
 
     // MARK: Grouping and active filters
 
-    /// Day / Stage / Due: always visible; status and the other filters share the toolbar menu.
+    /// Day / Stage / Due: the Mac window toolbar's own switcher (the phone and iPad have it as the Filter menu's Group by).
     private var groupingPicker: some View {
         let cut = grouping.calendarCut
         let picker = Picker("Show by", selection: groupingChoice) {
@@ -410,46 +389,89 @@ struct OrdersHub: View {
 
     private var narrowed: Bool { statusFilter != "All" || !month.isEmpty || !takenBy.isEmpty || payment != "All" }
 
-    /// What the menu has narrowed the list to, with the way back.
+    /// What the Filter menu (not the chips) narrows the list by: the caption's business.
+    private var menuNarrowed: Bool { !month.isEmpty || !takenBy.isEmpty || payment != "All" }
+
+    private var captionText: String {
+        [month.isEmpty ? nil : InvoiceCalendar.monthLabel(month),
+         takenBy.isEmpty ? nil : takenBy,
+         payment == "All" ? nil : payment].compactMap { $0 }.joined(separator: " \u{00B7} ")
+    }
+
+    private func clearMenuFilters() {
+        Motion.run(Motion.enter, reduce: reduceMotion) { month = ""; takenBy = ""; payment = "All" }
+    }
+
+    /// What the menu has narrowed the list to, with the way back: the Mac's stage board, which has no list head.
     private var filterSummary: some View {
-        HStack(alignment: .firstTextBaseline, spacing: pt(12)) {
-            Text([statusFilter == "All" ? nil : statusFilter,
-                  month.isEmpty ? nil : InvoiceCalendar.monthLabel(month),
-                  takenBy.isEmpty ? nil : takenBy,
-                  payment == "All" ? nil : payment].compactMap { $0 }.joined(separator: " \u{00B7} "))
-                .font(.footnote).foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 0)
-            Button("Clear") { statusFilter = "All"; month = ""; takenBy = ""; payment = "All" }
-                .font(.footnote.weight(.medium)).buttonStyle(.borderless)
-                .frame(minWidth: Metrics.tap, minHeight: Metrics.tap)
+        ListFilterCaption(text: [statusFilter == "All" ? nil : statusFilter,
+                                 month.isEmpty ? nil : InvoiceCalendar.monthLabel(month),
+                                 takenBy.isEmpty ? nil : takenBy,
+                                 payment == "All" ? nil : payment].compactMap { $0 }.joined(separator: " \u{00B7} ")) {
+            statusFilter = "All"; month = ""; takenBy = ""; payment = "All"
         }
     }
 
-    /// The controls as the list's first rows.
-    private func listControls() -> some View {
-        Section {
-            #if !os(macOS)
-            groupingPicker
-                .padding(.horizontal, pt(16))
-                .chipRowInList()
-            #endif
-            if narrowed {
-                filterSummary
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
+    // MARK: The figures and the chips
+
+    /// Owed on the orders (invoiced ones by what their invoice still has owing), how many are open, and how many are
+    /// due this week (Late included, in red while any are): the whole book's, or the chosen person's (Taken by), so
+    /// they hold still while the list is searched. Due this week taps to the Due view.
+    private func summaryFigures(_ all: [Order], owedOn: [String: Double], now: Date) -> [ListFigure] {
+        let day = ERPDate.karachiDay(now)
+        let f = figuresMemo([book.orders.revision, book.invoices.revision, takenBy.hashValue, day.hashValue]) {
+            let base = takenBy.isEmpty ? all : all.filter { $0.takenBy == takenBy }
+            var f = OrdersFigures()
+            for o in base where o.status != .cancelled && o.status != .refunded {
+                if OrdersLogic.isOpen(o) { f.open += 1 }
+                let due = OrdersLogic.stillOwed(o, invoiceOwed: OrdersLogic.owed(o, owedOn))
+                if due >= 1 { f.owed += due; f.owedCount += 1 }
             }
+            for g in OrdersLogic.dueGroups(base, now: now) {
+                switch g.bucket {
+                case .late: f.late += g.orders.count; f.dueSoon += g.orders.count
+                case .today, .week: f.dueSoon += g.orders.count
+                case .later, .undated: break
+                }
+            }
+            return f
         }
+        let dueChosen = grouping == .due
+        return [
+            ListFigure(id: "owed", title: "Owed on orders", text: Money.pkrLac(f.owed, digits: 1), value: f.owed,
+                       tone: f.owed >= 1 ? .owed : nil,
+                       spoken: "Owed on orders, \(Money.pkr(f.owed)), \(f.owedCount) order\(f.owedCount == 1 ? "" : "s")"),
+            ListFigure(id: "open", title: "Open", text: "\(f.open)", value: Double(f.open),
+                       spoken: "\(f.open) open order\(f.open == 1 ? "" : "s")"),
+            ListFigure(id: "due", title: "Due this week", text: "\(f.dueSoon)", value: Double(f.dueSoon),
+                       tone: f.late > 0 ? .late : nil, chosen: dueChosen,
+                       spoken: "Due this week, \(f.dueSoon), \(f.late) late") {
+                Motion.run(Motion.enter, reduce: reduceMotion) {
+                    groupingRaw = (dueChosen ? OrdersGrouping.day : OrdersGrouping.due).rawValue
+                }
+            },
+        ]
     }
 
-    /// The same controls on the wide window's page: no list rows, so no list modifiers, and the page's own padding.
-    private func gridControls() -> some View {
-        VStack(alignment: .leading, spacing: pt(12)) {
-            #if !os(macOS)
-            groupingPicker
-            #endif
-            if narrowed { filterSummary }
+    /// All and the open statuses always; Cancelled and Refunded while there are any (or one is chosen). The counts are
+    /// what each would show under the search and the menu's filters.
+    private func chips(_ scoped: [Order]) -> [ListChip] {
+        var counts: [String: Int] = [:]
+        for o in scoped { counts[o.status.rawValue, default: 0] += 1 }
+        var out = [ListChip(id: "All", title: "All", count: scoped.count, chosen: statusFilter == "All") { pickStatus("All") }]
+        for status in OrdersLogic.filterStatuses {
+            let n = counts[status] ?? 0
+            let always = status == "Pending" || status == "In Progress" || status == "Completed"
+            guard always || n > 0 || statusFilter == status else { continue }
+            // Sentence case for what a person reads; the filter keeps the ERP's own word.
+            let title = status == "In Progress" ? "In progress" : status
+            out.append(ListChip(id: status, title: title, count: n, chosen: statusFilter == status) { pickStatus(status) })
         }
+        return out
+    }
+
+    private func pickStatus(_ status: String) {
+        Motion.run(Motion.enter, reduce: reduceMotion) { statusFilter = status }
     }
 
     // MARK: The filter menu: how it is grouped, which month, whose, how paid
@@ -458,8 +480,7 @@ struct OrdersHub: View {
         let months = Array(Set(all.compactMap { InvoiceCalendar.monthKey($0.createdAt) })).sorted(by: >)
         // The house's counter names (the web's Taken by list), not whoever happens to appear in the book.
         let people = session.shop.takenBy
-        let narrowed = statusFilter != "All" || !month.isEmpty || !takenBy.isEmpty || payment != "All"
-        return Menu {
+        return RecordFilterMenu(filtering: narrowed) {
             Picker("Status", selection: $statusFilter) {
                 Text("All orders (\(all.count))").tag("All")
                 ForEach(OrdersLogic.filterStatuses, id: \.self) { status in
@@ -483,8 +504,9 @@ struct OrdersHub: View {
                 Text("Any payment").tag("All")
                 ForEach(OrdersLogic.filterPayments, id: \.self) { p in Text(p).tag(p) }
             }
-        } label: {
-            Label("Filter", systemImage: narrowed ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+            if narrowed {
+                Button("Clear filters", systemImage: "xmark.circle") { clearFilters() }
+            }
         }
     }
 
@@ -498,6 +520,10 @@ struct OrdersHub: View {
             groupingPicker
         }
         #endif
+        // The record lists' one toolbar: Filter, then +.
+        ToolbarItem(placement: .trailingAction) {
+            filterMenu(book.orders.items)
+        }
         // The tab's own create menu already offers New order beside the rate chip (iPad): one "+" is enough.
         if !createMenuShown {
             ToolbarItem(placement: .trailingAction) {
@@ -506,13 +532,10 @@ struct OrdersHub: View {
                 }
             }
         }
-        ToolbarItem(placement: .topBarTrailing) {
-            filterMenu(book.orders.items)
-        }
         // Online orders wait here until a person confirms them (docs/decisions.md "Online orders"): one tap from
         // the hub while any wait, with how many. A house whose website takes no orders (Mina) has none.
         if session.shop.websiteSelling && inbox.waiting > 0 {
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItem(placement: .trailingAction) {
                 NavigationLink(value: Route(path: "/orders/online")) {
                     // The count is words in the item, never a badge laid over its glass.
                     Text("Online \(inbox.waiting > 99 ? "99+" : "\(inbox.waiting)")")
@@ -614,8 +637,17 @@ private struct OrdersSection: Identifiable {
     let orders: [Order]
 }
 
-/// A section's name in the serif with how many orders it holds beside it and what they come to on the right,
-/// and its hint under it ("finished: invoice it", "past the day promised").
+/// The strip's figures: owed on the orders, open, due this week (late among them).
+private struct OrdersFigures {
+    var owed = 0.0
+    var owedCount = 0
+    var open = 0
+    var dueSoon = 0
+    var late = 0
+}
+
+/// An Orders section's heading: the record lists' one heading (ListSectionHeader), with what its orders are worth.
+/// Kept by name for the Mac's stage board (OrdersMacKit).
 struct OrdersSectionHeader: View {
     let title: String
     let hint: String
@@ -624,19 +656,7 @@ struct OrdersSectionHeader: View {
     var tone: Tone = .quiet
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            LedgerHeading(title: title, count: count, trailing: "worth " + Money.pkrLac(value), tone: tone)
-                .accessibilityLabel("\(title), \(count) order\(count == 1 ? "" : "s"), worth \(Money.pkrLac(value))")
-            if !hint.isEmpty {
-                Text(hint)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-        }
-        .textCase(nil)
-        .padding(.top, pt(4))
-        .contentTransition(.numericText(value: value))
-        .motion(value)
+        ListSectionHeader(title: title, hint: hint, count: count, trailing: "worth " + Money.pkrLac(value), value: value,
+                          tone: tone, spoken: "\(title), \(count) order\(count == 1 ? "" : "s"), worth \(Money.pkrLac(value))")
     }
 }

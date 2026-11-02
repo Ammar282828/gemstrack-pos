@@ -1,13 +1,13 @@
 import SwiftUI
 import ERPCore
 
-// An order on the hub: a card of two List rows. The first (who it is for, when it was promised, what it
-// is, where it stands and what is owed) opens the order; the second carries the card's one next step
+// An order on the hub: the record lists' row (RecordRow, RecordList.swift: the same anatomy as an invoice's and a
+// customer's, owner 2026-11-02), then a second List row with the order's one next step
 // (components/order/next-step.tsx). Two rows rather than one, because a row that holds both a link
 // and buttons answers every tap with all of them; here each row has one kind of control.
 //
-// The customer and order number lead. Status, money and the promise get separate space, so a narrow
-// phone never squeezes progress counts into ellipses. The detail page holds the complete stage track.
+// The customer and order number lead. The stage is the capsule, the money the trailing column, the promise the
+// quiet line (in its colour once it needs someone). The detail page holds the complete stage track.
 
 /// Calling or writing to the customer from a card's swipe.
 enum OrderContactKind {
@@ -25,11 +25,12 @@ struct OrderCardActions {
     var contact: (Order, OrderContactKind) -> Void
 }
 
-/// The card's own leading edge, which the next-step row lines up under: the row's inset, the monogram, the gap.
+/// The row's own leading edge, which the next-step row lines up under: the row's inset, the monogram, the gap.
 private enum OrderCardMetrics {
     static let inset: CGFloat = 16
-    static let monogram: CGFloat = Monogram.Size.row
+    static var monogram: CGFloat { RecordRow<EmptyView>.monogram }
     static let gap: CGFloat = 12
+    static var stepLeading: CGFloat { inset + monogram + gap }
 }
 
 struct OrderCardRows: View {
@@ -64,47 +65,38 @@ struct OrderCardRows: View {
 
     var body: some View {
       if standalone {
-        VStack(spacing: pt(12)) {
+        // The iPad's grid card and the Mac's board card: the row's anatomy, then the next step and the actions menu.
+        RecordCard(mine: mine) {
             NavigationLink(value: Route(path: "/orders/\(order.id)")) {
                 OrderCardHead(order: order, stage: stage, owed: owed, now: now, greyed: greyed, mine: mine, showsStage: showsStage)
             }
             .buttonStyle(.plain)
             .zoomSource(id: "/orders/\(order.id)")
-            Divider()
-            HStack(spacing: pt(8)) {
+        } footer: {
+            RecordCardFooter(label: "Actions for \(order.id)") {
                 if let step {
                     OrderNextStepRow(order: order, step: step, canAdvance: canAdvance, busy: busy, actions: actions, showsAdvanceMenu: false)
-                } else { Spacer(minLength: 0) }
-                Menu { menu } label: { Image(systemName: "ellipsis").frame(width: Metrics.tap, height: Metrics.tap) }
-                    .buttonStyle(.borderless).accessibilityLabel("Actions for \(order.id)")
+                }
+            } actions: {
+                menu
             }
         }
-        .ledgerCard(padding: 20)
-        .overlay {
-            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                .strokeBorder(Theme.accent.opacity(mine ? 0.22 : 0.08), lineWidth: 1)
-                .allowsHitTesting(false)
-        }
-        .pointerHover(.rect(cornerRadius: Radius.card, style: .continuous))
         .contextMenu { menu }
       } else {
         NavigationLink(value: Route(path: "/orders/\(order.id)")) {
             OrderCardHead(order: order, stage: stage, owed: owed, now: now, greyed: greyed, mine: mine, showsStage: showsStage)
         }
         .zoomSource(id: "/orders/\(order.id)")
-        // The row's own leading inset, so the step row below lines up under the name on every width.
-        .listRowInsets(EdgeInsets(top: 16, leading: OrderCardMetrics.inset, bottom: 12, trailing: 16))
         .listRowSeparator(step != nil ? .hidden : .automatic, edges: .bottom)
-        .listRowBackground(Theme.card)
         .swipeActions(edge: .leading, allowsFullSwipe: false) { reach }
         .swipeActions(edge: .trailing, allowsFullSwipe: false) { swipe }
         .contextMenu { menu }
 
         if let step {
+            // Under the name, as a quiet second line of the same record.
             OrderNextStepRow(order: order, step: step, canAdvance: canAdvance, busy: busy, actions: actions)
                 .listRowSeparator(.hidden, edges: .top)
-                .listRowInsets(EdgeInsets(top: 4, leading: OrderCardMetrics.inset, bottom: 12, trailing: 16))
-                .listRowBackground(Theme.card)
+                .listRowInsets(EdgeInsets(top: 0, leading: OrderCardMetrics.stepLeading, bottom: 8, trailing: 16))
         }
       }
     }
@@ -165,7 +157,10 @@ struct OrderCardRows: View {
     }
 }
 
-/// The card's summary. Complete piece, payment and contact details remain on the order.
+/// The order as the record lists' row: who; its number, its promise and how far its pieces are (or what it is); the
+/// estimate with what is still owed under it (Paid once nothing is: the owner keeps an order's Paid, 2026-10-17); the
+/// stage's words in their colour as the capsule unless the heading already says it. Complete piece, payment and
+/// contact details remain on the order.
 struct OrderCardHead: View {
     let order: Order
     let stage: OrderStage
@@ -174,74 +169,35 @@ struct OrderCardHead: View {
     let greyed: Bool
     let mine: Bool
     var showsStage = true
-    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
+        RecordRow(name: OrdersLogic.customerName(order), title: OrdersLogic.customerName(order), subtitle: subtitle,
+                  mine: mine, muted: greyed, money: money, status: status) {
+            if OrdersLogic.isOnline(order) { OrdersOnlineBadge() }
+        }
+    }
+
+    /// "ORD-123 · Due Thu 12 Nov · 2 of 4 done": the promise in its colour once it is late, today or close.
+    private var subtitle: Text {
         let counts = pieceCounts(order.items)
-        let wide = !typeSize.isAccessibilitySize
-        VStack(alignment: .leading, spacing: pt(10)) {
-            // Who first, and what is owed beside them; the name takes two lines before the sum gives way.
-            let layout = wide
-                ? AnyLayout(HStackLayout(alignment: .top, spacing: pt(12)))
-                : AnyLayout(VStackLayout(alignment: .leading, spacing: pt(8)))
-            layout {
-                HStack(alignment: .top, spacing: pt(12)) {
-                    Monogram(name: OrdersLogic.customerName(order), size: Monogram.Size.row)
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(OrdersLogic.customerName(order))
-                            .font(.headline)
-                            .foregroundStyle(greyed ? Color.secondary : Color.primary)
-                            .lineLimit(2)
-                        HStack(spacing: pt(6)) {
-                            Text(order.id).font(.caption).foregroundStyle(.secondary)
-                            if mine { MineTag() }
-                            if OrdersLogic.isOnline(order) { OrdersOnlineBadge() }
-                        }
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                money
-                    .layoutPriority(1)
-            }
-            let what = OrdersLogic.cardWhat(order)
-            // One line: the order's page has the pieces in full.
-            Text(what.text + (what.extra.map { " \u{00B7} " + $0 } ?? ""))
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-            stateRow(counts)
+        let lead = order.id
+        let tail: String
+        if counts.total > 0, !greyed, stage != .closed, stage != .done {
+            tail = counts.unassigned > 0 ? "\(counts.unassigned) unassigned" : "\(counts.done) of \(counts.total) done"
+        } else {
+            tail = OrdersLogic.cardWhat(order).text
         }
-        .padding(.vertical, pt(2))
-        .accessibilityElement(children: .combine)
-    }
-
-    /// Where it stands (the four bars, and the stage's word unless the heading says it) and the promise.
-    @ViewBuilder
-    private func stateRow(_ counts: PieceCounts) -> some View {
-        let layout = typeSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(alignment: .leading, spacing: pt(6)))
-            : AnyLayout(HStackLayout(alignment: .center, spacing: pt(12)))
-        layout {
-            if stage != .closed {
-                StageTrack(stage: stage)
-                    .frame(width: typeSize.isAccessibilitySize ? nil : 88)
-            }
-            if showsStage || stage == .closed {
-                Text(stageWords(counts))
-                    .font(.footnote.weight(.medium))
-                    .foregroundStyle(stageTone.color)
-                    .lineLimit(2)
-                    .contentTransition(.numericText())
-            }
-            if !typeSize.isAccessibilitySize { Spacer(minLength: 0) }
-            promise
+        let timing = orderTiming(order, now: now)
+        let promise = OrdersLogic.promise(order, now: now)
+        guard OrdersLogic.isOpen(order), let due = timing.due else {
+            return Text(verbatim: [lead, tail].filter { !$0.isEmpty }.joined(separator: " \u{00B7} "))
         }
-    }
-
-    private func stageWords(_ counts: PieceCounts) -> String {
-        let title = stage == .closed ? order.status.rawValue : (STAGES[stage]?.title ?? stage.rawValue)
-        guard counts.total > 0, !greyed, stage != .closed, stage != .done else { return title }
-        return title + " \u{00B7} " + (counts.unassigned > 0 ? "\(counts.unassigned) unassigned" : "\(counts.done) of \(counts.total) done")
+        let urgent = promise.chase && (timing.state == .late || timing.state == .today || promise.urgent)
+        let words = PromiseWords.say(timing)
+        let when = Text(verbatim: urgent ? words.text : "Due " + OrdersLogic.dueDay(due))
+            .foregroundStyle(urgent ? words.tone.color : Color.secondary)
+        let after = tail.isEmpty ? "" : " \u{00B7} " + tail
+        return Text("\(Text(verbatim: lead + " \u{00B7} "))\(when)\(Text(verbatim: after))")
     }
 
     private var stageTone: Tone {
@@ -253,38 +209,27 @@ struct OrderCardHead: View {
         }
     }
 
-    /// Late is red, today amber, anything else a quiet date.
-    @ViewBuilder private var promise: some View {
-        let timing = orderTiming(order, now: now)
-        let promise = OrdersLogic.promise(order, now: now)
-        if OrdersLogic.isOpen(order), let due = timing.due {
-            let urgent = promise.chase && (timing.state == .late || timing.state == .today || promise.urgent)
-            let words = PromiseWords.say(timing)
-            Text(urgent ? words.text : "Due " + OrdersLogic.dueDay(due))
-                .font(.caption.weight(urgent ? .semibold : .regular))
-                .foregroundStyle(urgent ? words.tone.color : Color.secondary)
-                .fixedSize()
-        }
+    private var status: RecordStatus? {
+        guard showsStage || stage == .closed else { return nil }
+        let title = stage == .closed ? order.status.rawValue : (STAGES[stage]?.title ?? stage.rawValue)
+        return RecordStatus(text: title, tone: stageTone)
     }
 
-    /// What is still owed (amber), what is in credit (teal), or Paid in a pill once nothing is.
-    @ViewBuilder private var money: some View {
-        if stage != .closed {
-            let due = OrdersLogic.stillOwed(order, invoiceOwed: owed)
-            if abs(due) >= 1 {
-                VStack(alignment: wideAlignment, spacing: 2) {
-                    RowAmount(amount: abs(due), tone: due < 0 ? Tone.credit.color : Tone.owed.color)
-                    Text(due < 0 ? "In credit" : "Owed")
-                        .font(.caption2).foregroundStyle(.secondary)
-                }
-                .fixedSize(horizontal: !typeSize.isAccessibilitySize, vertical: true)
-            } else {
-                Pill("Paid", tone: .settled)
-            }
+    /// The estimate, and under it what is still owed (amber), in credit (teal), or Paid once nothing is.
+    private var money: RecordMoney? {
+        guard stage != .closed else { return nil }
+        let estimate = OrdersLogic.subtotal(order)
+        var m = RecordMoney(amount: estimate >= 1 ? estimate : nil)
+        let due = OrdersLogic.stillOwed(order, invoiceOwed: owed)
+        if abs(due) >= 1 {
+            m.detail = due < 0 ? "\(Money.pkr(abs(due))) credit" : "\(Money.pkr(due)) owed"
+            m.detailTone = due < 0 ? .credit : .owed
+        } else {
+            m.detail = "Paid"
+            m.detailTone = .settled
         }
+        return m
     }
-
-    private var wideAlignment: HorizontalAlignment { typeSize.isAccessibilitySize ? .leading : .trailing }
 }
 
 /// One visible next action, with secondary money actions in the overflow menu. An invoiced order
