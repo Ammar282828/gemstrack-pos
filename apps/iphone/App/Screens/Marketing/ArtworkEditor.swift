@@ -93,62 +93,7 @@ struct ArtworkEditor: View {
         macBody
         #else
         NavigationStack {
-            Form {
-                Section {
-                    Menu("Add") { addMenu }
-                    Menu("Layout") {
-                        let group = layoutGroup ?? (ad ? "templates" : (height < 1400 ? "squares" : "presets"))
-                        let action = layoutGroup != nil ? "square" : ad ? "ad" : (height < 1400 ? "square" : "preset")
-                        ForEach(catalogue[group].array, id: \.text) { i in Button(i.s("label")) { act(action, i.s("id")) } }
-                    }
-                    Menu("Colours") { ForEach(catalogue["palettes"].array, id: \.text) { p in Button(p.s("label")) { act("palette", "", ["palette": p.s("id")]) } } }
-                    if !selected.isEmpty { selectionTools }
-                    if !clipboard.layers.isEmpty { Button("Paste copied layers") { act("carry", "", ["layers": clipboard.layers.map(\.any), "fromFrame": clipboard.frame.any]) } }
-                }.houseRows()
-                if let layer { controls(layer) }
-                else if let style = selectionStyle {
-                    Section { ArtworkEffectsRows(layer: style, fold: fold) } header: { LedgerHeading(title: "Blend and effects · \(selected.count) selected") }.houseRows()
-                }
-                Section {
-                    DisclosureGroup("Background and crop") {
-                        Picker("Photo", selection: Binding(get: { doc["bg"].s("photoId") }, set: { var d = doc; d["bg"]["photoId"] = $0.isEmpty ? .null : .string($0); change(d) })) {
-                            Text("No photo").tag(""); ForEach(photos.keys.sorted(), id: \.self) { Text(photoName($0)).tag($0) }
-                        }
-                        ArtworkProperties(value: nested("bg"), keys: ["color", "color2", "dim", "gradient"])
-                        ArtworkProperties(value: placement, keys: ["mode", "zoom", "focusX", "focusY"])
-                        if !doc["bg"].s("photoId").isEmpty {
-                            ArtworkShadeControls(shade: doc["bg"]["shade"]) { v, key in var d = doc; d["bg"]["shade"] = v; change(d, key: key.map { "bg-shade-" + $0 }) }
-                        }
-                        filters(nested("bg"))
-                        Button("Add background gradient") { var d = doc; d["bg"]["color2"] = .string("#111111"); change(d) }
-                        Toggle("Multi-colour gradient base", isOn: Binding(get: { doc["bg"]["fill"] != .null }, set: { on in
-                            var d = doc
-                            if on { d["bg"]["fill"] = ArtworkGradients.make(angle: 180, [ArtworkStop(at: 0, color: doc["bg"].s("color", "#EDE6DA"), alpha: nil), ArtworkStop(at: 1, color: doc["bg"].s("color2", "#111111"), alpha: nil)]) }
-                            else { var bg = d["bg"]; bg.artworkDrop("fill"); d["bg"] = bg }
-                            change(d)
-                        }))
-                        if doc["bg"]["fill"] != .null {
-                            ArtworkGradientRows(gradient: Binding(get: { doc["bg"]["fill"] }, set: { g in var d = doc; d["bg"]["fill"] = g; change(d) }), fold: fold)
-                        }
-                    }
-                }.houseRows()
-                Section {
-                    DisclosureGroup("Guides and grid") { ArtworkGuideRows(doc: Binding(get: { doc }, set: { change($0) })) }
-                }.houseRows()
-                Section {
-                    DisclosureGroup("Layers · \(layers.count)") {
-                        ForEach(layers.reversed(), id: \.text) { l in
-                            Button { select(l.s("id"), multiple: false) } label: {
-                                HStack { Image(systemName: selected.contains(l.s("id")) ? "checkmark.circle.fill" : "circle"); Text(name(l)).foregroundStyle(.primary); Spacer(); if l["locked"].bool { Image(systemName: "lock") }; if l["hidden"].bool { Image(systemName: "eye.slash") } }
-                            }.contextMenu {
-                                Button("Select together") { select(l.s("id"), multiple: true) }
-                                Button(l["locked"].bool ? "Unlock" : "Lock") { patch(l.s("id"), ["locked": .bool(!l["locked"].bool)]) }
-                                Button(l["hidden"].bool ? "Show" : "Hide") { patch(l.s("id"), ["hidden": .bool(!l["hidden"].bool)]) }
-                            }
-                        }
-                    }
-                }.houseRows()
-            }.modifier(HouseGround()).navigationTitle("Design").navigationBarTitleDisplayMode(.inline)
+            mobileForm.modifier(HouseGround()).navigationTitle("Design").navigationBarTitleDisplayMode(.inline)
                 .scrollDismissesKeyboard(.interactively)
                 // The artwork stays on screen while a property is changed: it is pinned above the Form, never a row that scrolls away.
                 .safeAreaInset(edge: .top, spacing: 0) {
@@ -203,6 +148,89 @@ struct ArtworkEditor: View {
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { sheetWidth = $0 }
         #endif
     }
+    #if !os(macOS)
+    // Keep each Form section separate so the SwiftUI type checker handles the editor in small expressions.
+    private var mobileForm: some View {
+        Form {
+            mobileTools
+            mobileSelection
+            mobileBackground
+            mobileGuides
+            mobileLayers
+        }
+    }
+
+    private var mobileTools: some View {
+        Section {
+            Menu("Add") { addMenu }
+            Menu("Layout") {
+                let group = layoutGroup ?? (ad ? "templates" : (height < 1400 ? "squares" : "presets"))
+                let action = layoutGroup != nil ? "square" : ad ? "ad" : (height < 1400 ? "square" : "preset")
+                ForEach(catalogue[group].array, id: \.text) { i in Button(i.s("label")) { act(action, i.s("id")) } }
+            }
+            Menu("Colours") { ForEach(catalogue["palettes"].array, id: \.text) { p in Button(p.s("label")) { act("palette", "", ["palette": p.s("id")]) } } }
+            if !selected.isEmpty { selectionTools }
+            if !clipboard.layers.isEmpty { Button("Paste copied layers") { act("carry", "", ["layers": clipboard.layers.map(\.any), "fromFrame": clipboard.frame.any]) } }
+        }.houseRows()
+    }
+
+    @ViewBuilder
+    private var mobileSelection: some View {
+        if let layer { controls(layer) }
+        else if let style = selectionStyle {
+            Section { ArtworkEffectsRows(layer: style, fold: fold) } header: { LedgerHeading(title: "Blend and effects · \(selected.count) selected") }.houseRows()
+        }
+    }
+
+    private var mobileBackground: some View {
+        Section {
+            DisclosureGroup("Background and crop") {
+                Picker("Photo", selection: Binding(get: { doc["bg"].s("photoId") }, set: { var d = doc; d["bg"]["photoId"] = $0.isEmpty ? .null : .string($0); change(d) })) {
+                    Text("No photo").tag(""); ForEach(photos.keys.sorted(), id: \.self) { Text(photoName($0)).tag($0) }
+                }
+                ArtworkProperties(value: nested("bg"), keys: ["color", "color2", "dim", "gradient"])
+                ArtworkProperties(value: placement, keys: ["mode", "zoom", "focusX", "focusY"])
+                if !doc["bg"].s("photoId").isEmpty {
+                    ArtworkShadeControls(shade: doc["bg"]["shade"]) { v, key in var d = doc; d["bg"]["shade"] = v; change(d, key: key.map { "bg-shade-" + $0 }) }
+                }
+                filters(nested("bg"))
+                Button("Add background gradient") { var d = doc; d["bg"]["color2"] = .string("#111111"); change(d) }
+                Toggle("Multi-colour gradient base", isOn: Binding(get: { doc["bg"]["fill"] != .null }, set: { on in
+                    var d = doc
+                    if on { d["bg"]["fill"] = ArtworkGradients.make(angle: 180, [ArtworkStop(at: 0, color: doc["bg"].s("color", "#EDE6DA"), alpha: nil), ArtworkStop(at: 1, color: doc["bg"].s("color2", "#111111"), alpha: nil)]) }
+                    else { var bg = d["bg"]; bg.artworkDrop("fill"); d["bg"] = bg }
+                    change(d)
+                }))
+                if doc["bg"]["fill"] != .null {
+                    ArtworkGradientRows(gradient: Binding(get: { doc["bg"]["fill"] }, set: { g in var d = doc; d["bg"]["fill"] = g; change(d) }), fold: fold)
+                }
+            }
+        }.houseRows()
+    }
+
+    private var mobileGuides: some View {
+        Section {
+            DisclosureGroup("Guides and grid") { ArtworkGuideRows(doc: Binding(get: { doc }, set: { change($0) })) }
+        }.houseRows()
+    }
+
+    private var mobileLayers: some View {
+        Section {
+            DisclosureGroup("Layers · \(layers.count)") {
+                ForEach(layers.reversed(), id: \.text) { l in
+                    Button { select(l.s("id"), multiple: false) } label: {
+                        HStack { Image(systemName: selected.contains(l.s("id")) ? "checkmark.circle.fill" : "circle"); Text(name(l)).foregroundStyle(.primary); Spacer(); if l["locked"].bool { Image(systemName: "lock") }; if l["hidden"].bool { Image(systemName: "eye.slash") } }
+                    }.contextMenu {
+                        Button("Select together") { select(l.s("id"), multiple: true) }
+                        Button(l["locked"].bool ? "Unlock" : "Lock") { patch(l.s("id"), ["locked": .bool(!l["locked"].bool)]) }
+                        Button(l["hidden"].bool ? "Show" : "Hide") { patch(l.s("id"), ["hidden": .bool(!l["hidden"].bool)]) }
+                    }
+                }
+            }
+        }.houseRows()
+    }
+    #endif
+
     private var preview: some View {
         GeometryReader { g in
             let scale = g.size.width / pageWidth

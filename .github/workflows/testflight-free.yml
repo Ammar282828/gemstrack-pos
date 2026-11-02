@@ -111,7 +111,8 @@ jobs:
           node ../ios/scripts/asc.mjs sign-native "$HOUSE" "$RUNNER_TEMP/signing" > "$RUNNER_TEMP/sign.env"
           cat "$RUNNER_TEMP/sign.env" >> "$GITHUB_ENV"
           if [ "$MAC" = "true" ]; then
-            set -a; . "$RUNNER_TEMP/sign.env"; set +a
+            # Profile names contain spaces; GITHUB_ENV is data, not a shell script.
+            export ASC_CERT_ID="$(sed -n 's/^ASC_CERT_ID=//p' "$RUNNER_TEMP/sign.env")"
             node ../ios/scripts/asc.mjs sign-mac "$HOUSE" "$RUNNER_TEMP/signing" >> "$GITHUB_ENV"
           fi
       - name: Into a keychain of its own
