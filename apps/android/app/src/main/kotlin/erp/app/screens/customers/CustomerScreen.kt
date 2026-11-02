@@ -217,7 +217,7 @@ private fun Page(f: Facts, owner: Boolean, onGiveBack: (Invoice) -> Unit, onRemo
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 32.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
-        item { Header(f.customer) }
+        item { Header(f.customer) { navigator.open(CustomerKit.path(f.customer.id, "/edit")) } }
         item { OwedCard(f.owing) }
         item { InvoicesSection(f.invoices, owner, onGiveBack) { navigator.open(CustomerKit.place("/invoices/", it)) } }
         item { OrdersSection(f.orders) { navigator.open(CustomerKit.place("/orders/", it)) } }
@@ -254,7 +254,7 @@ private fun Page(f: Facts, owner: Boolean, onGiveBack: (Invoice) -> Unit, onRemo
 // MARK: Who, and how to reach them
 
 @Composable
-private fun Header(c: Customer) {
+private fun Header(c: Customer, addPhone: () -> Unit) {
     val context = LocalContext.current
     Column(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -264,11 +264,10 @@ private fun Header(c: Customer) {
                 Text(it, style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Contact("Call", Symbols.Call, CustomerKit.callUri(c.phone) != null, Modifier.weight(1f)) { CustomerLinks.call(context, c.phone) }
-            Contact("WhatsApp", Symbols.Chat, CustomerKit.whatsAppUri(c.phone) != null, Modifier.weight(1f)) { CustomerLinks.whatsApp(context, c.phone) }
-            Contact("Message", Symbols.Sms, CustomerKit.messageUri(c.phone) != null, Modifier.weight(1f)) { CustomerLinks.message(context, c.phone) }
-        }
+        // The one Contact row (ui/CustomerContact.kt): Call, WhatsApp, Message, More (Copy number); no number, "Add phone".
+        erp.app.ui.CustomerContactActions(
+            CustomerKit.filled(c.phone) ?: c.altPhone, customerId = c.id, customerName = CustomerKit.shown(c), onAddPhone = addPhone,
+        )
     }
 }
 

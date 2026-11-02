@@ -331,9 +331,22 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
   the invoice screen (`/invoices/<id>`) and `/view-invoice`. `perPiece` prints a multi-piece invoice as one invoice per piece on its
   own page ("Piece 2 of 3"); discount, exchange and adjustments are shared pro rata by piece price, the last piece
   absorbs rounding. Per-piece pages never split the advance; the last page cuts it from the whole bill's total and carries the payment history (owner, 2026-11-02). The split button is `components/shared/print-button.tsx`.
-- **Taheri's, not Mina's** (owner, the same day: "these are instructions for taheri pos"): the next two follow
-  `NEXT_PUBLIC_STORE_INVOICE_BY_CUSTOMER` and `_INVOICE_WHATSAPP_PDF`, which Mina's file sets to "0" — its invoices keep
-  `Invoice-INV-….pdf` and its Send via WhatsApp the device's wa.me message with the estimate's ID and link.
+- **Naming is Taheri's, not Mina's** (owner, the same day: "these are instructions for taheri pos"): the next point follows
+  `NEXT_PUBLIC_STORE_INVOICE_BY_CUSTOMER`, which Mina's file sets to "0" — its invoices keep `Invoice-INV-….pdf` (orders
+  `Order-ORD-….pdf`).
+- **Both houses send PDFs from their own line, orders too** (owner, 2026-11-02: "allow me to send the pdf (order or invoice)
+  directly to the customer on whatsapp (use my number whatsapp api for this)"). One send for web, iPhone and Android:
+  `POST /api/app/whatsapp/send-doc {kind: 'invoice'|'order', id, to?, perPiece?}` (`lib/customer-doc.ts` pure,
+  `lib/customer-doc-server.ts` the send). The server draws the PDF (`lib/app-pdf.ts`, for the caller's role), so every surface
+  sends the same file; `to` defaults to the number on the document, then the customer's (`phone`, `altPhone`); the answer masks
+  it. The gate is the house's WhatsApp line being connected (`whatsAppProvider()`; Taheri's WAHA session `default`, Mina's
+  `mina`), not a variable: `NEXT_PUBLIC_STORE_INVOICE_WHATSAPP_PDF` was removed. With no line the route answers 503
+  `{fallback: 'link'}` and the page offers the old wa.me message. The apps' `shop.invoiceWhatsappPdf` now says "a line is
+  connected". An order goes as **the customer's order PDF** (`lib/order-pdf.ts`, "Order - <customer>.pdf"): Bill to / Order
+  details as the estimate and the slip print them, then each piece (description, metal, estimated weight, wastage in grams,
+  size, stones and finish), its estimated price, the advances, the balance and the ready-by day — never the shop's notes, the
+  karigar or the sample (the workshop slip is the karigar's, not the customer's). Its caption: total, advance paid, balance,
+  ready by (`orderWhatsAppCaption`). The order keeps `sentOnWhatsApp` as the invoice does.
 - **The customer never gets the number as its name** (owner, 2026-10-05: "don't give the invoice numbered name to the
   customer … say invoice and then customer name"): every download, print and send is **`Invoice - <customer>.pdf`** (a
   walk-in's carries its day), and the PDF's own title says the same, so WhatsApp's preview does too (`lib/invoice-share.ts`).
@@ -345,6 +358,22 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
   and reports success). The invoice keeps `sentOnWhatsApp` {at, to, by}, shown under the button so nobody sends it twice;
   an edit drops it. If the line can't send, the error toast offers **Send a link** — the old wa.me message. Voice's "send
   the invoice" now asks before it runs, because it really sends.
+
+### Customer contact
+
+- **One Contact control, everywhere a customer appears** (owner, 2026-11-02: "organize the pdf and whatsapp and phone and
+  messaging for customers properly"): the customer's page, an invoice, an order, a repair ticket, an online order, a hisaab.
+  Always in this order: **Call, WhatsApp, Message**, then on an invoice or order **Send <invoice|order> PDF on WhatsApp** (from
+  the shop's line, after a confirm that shows the number, changeable, and offers one invoice per piece for a bill of several)
+  and **Share PDF…**, then **Copy number**. On a hero card it is a row of round actions (the last is More: Share, Copy); in a
+  list row or a toolbar it is one "Contact" menu (person.crop.circle). No number: **Add phone** (the customer's edit). A
+  walk-in has nobody to call: only the document's actions.
+- **One number for all of them**: `toWhatsAppNumber` (web `lib/whatsapp.ts`, ERPCore `Phones.swift`, Android `ui/Phones.kt`):
+  0300 1234567 dials, messages and WhatsApps +923001234567; a "+" or "00" number from abroad stays as written.
+- **One place per surface**: web `components/customer/contact-actions.tsx` (`CustomerContact`, `ContactMenu`) over
+  `lib/customer-contact.ts`; iPhone/iPad/Mac `App/UI/CustomerContact.swift` (`CustomerContactActions`, `CustomerContactMenu`,
+  `SendDocSheet`); Android `ui/CustomerContact.kt`. Karigars keep the plain Call/WhatsApp/Message row (`ContactActions`).
+  Status messages with words in them ("Tell them it's ready", the hisaab reminder, the order's notify sheet) stay where they are.
 
 ### Exchange rows
 
