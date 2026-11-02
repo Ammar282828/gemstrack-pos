@@ -75,7 +75,7 @@ describe('the builders without a page', () => {
   it("draw the slip, its advances on the shop's day", async () => {
     const doc = drawOrderSlipPdf(order, { images: await serverPdfImages(), dates: KARACHI_DATES });
     const t = pdfText(doc);
-    expect(t).toContain('Order ID: ORD-T1');
+    expect(t).toContain('Order #: ORD-T1');
     // 01:00 on the 10th in Karachi.
     expect(t).toContain('Advance 10 Oct 2026');
     expect(t).toContain('Balance Due');

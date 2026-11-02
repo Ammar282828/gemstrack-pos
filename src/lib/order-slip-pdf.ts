@@ -17,8 +17,7 @@ import 'jspdf-autotable';
 import { format, parseISO } from 'date-fns';
 import type { Order, Settings } from '@/lib/store';
 import { openPDFWindowForIOS, savePDF } from '@/lib/utils';
-import { fitText } from '@/lib/pdf-text';
-import { drawDocHeader, tableStyles, drawRowRule, alignHeadCell } from '@/lib/pdf-chrome';
+import { drawDocHeader, tableStyles, drawRowRule, alignHeadCell, label } from '@/lib/pdf-chrome';
 import { browserPdfImages, drawFooter, type PdfDates, type PdfImages } from '@/lib/pdf-inputs';
 import { drawItemCell, itemCellHeight } from '@/lib/invoice-item-cell';
 import { buildOrderItemBlocks, drawOrderTotals } from '@/lib/order-slip';
@@ -65,31 +64,28 @@ export function drawOrderSlipPdf(order: Order, opts: OrderSlipOptions): jsPDF {
   });
   drawHeader(1);
 
+  // The block above the table is the estimate's own (lib/invoice-pdf.ts drawInvoice): BILL TO on the left, the
+  // document's details on the right, same labels, sizes and spacing (owner, 2026-11-02: the estimate and the slip
+  // "have discrepancies in format of the header and customer details"). The pieces below are unchanged.
+  const shortDay = dates?.short ?? ((iso: string) => new Date(iso).toLocaleDateString());
   let infoY = 28;
-  pdfDoc.setFontSize(7).setTextColor(100).setFont('helvetica', 'bold');
-  pdfDoc.text('ORDER DETAILS:', margin, infoY);
-  pdfDoc.setLineWidth(0.2).line(margin, infoY + 1.5, pageWidth - margin, infoY + 1.5);
-  infoY += 6;
-  pdfDoc.setFont('helvetica', 'normal').setTextColor(0).setFontSize(8.5);
-  // The money moved to a totals block under the table, the way the invoice
-  // does it, so the whole width is the left column now. Still capped: jsPDF
-  // will draw a long name straight off the page.
-  const leftW = pageWidth - margin * 2;
-  fitText(pdfDoc, `Order ID: ${order.id}`, margin, infoY, leftW);
-  fitText(pdfDoc, `Date: ${day(order.createdAt)}`, margin, infoY + 5, leftW);
-  fitText(pdfDoc, `Customer: ${order.customerName || 'Walk-in'}`, margin, infoY + 10, leftW);
-  // What the customer was told, printed so the slip can be held to it.
-  // The rule under this block follows whatever the last line turned out to
-  // be. A silver order has no gold-rate line and most have no promised date
-  // yet, and a fixed offset left a hand's width of blank above the table.
-  let lastLine = infoY + 10;
-  if (order.promisedDate) {
-    lastLine += 5;
-    fitText(pdfDoc, `Promised: ${day(order.promisedDate)}`, margin, lastLine, leftW);
-  }
+  label(pdfDoc, 'Bill to', margin, infoY);
+  label(pdfDoc, 'Order details', pageWidth / 2, infoY);
+  infoY += 5;
+  pdfDoc.setFont('helvetica', 'normal').setFontSize(8).setTextColor(0);
+  const halfW = pageWidth / 2 - margin - 2;
+  const customer = [order.customerName || 'Walk-in Customer', ...(order.customerContact ? [`Phone: ${order.customerContact}`] : [])]
+    .map(line => pdfDoc.splitTextToSize(line, halfW)[0] as string);
+  pdfDoc.text(customer.join('\n'), margin, infoY, { lineHeightFactor: 1.4 });
+  const details = [
+    `Order #: ${order.id}`,
+    `Date: ${shortDay(order.createdAt)}`,
+    // What the customer was told, printed so the slip can be held to it.
+    ...(order.promisedDate ? [`Promised: ${shortDay(order.promisedDate)}`] : []),
+  ];
+  pdfDoc.text(details.join('\n'), pageWidth / 2, infoY, { lineHeightFactor: 1.4 });
 
-  // Staff's copy of an order has no rates (roles.ts), so a gold order's slip used to stop on
-  // them; it prints without the line instead.
+  // Staff's copy of an order has no rates (roles.ts), so a gold order's slip prints without the line.
   const rates = (order.ratesApplied || {}) as Record<string, number>;
   const usedKarats = new Set(order.items.filter(i => i.metalType === 'gold').map(i => i.karat).filter(Boolean));
   const ratesApplied: string[] = [];
@@ -100,10 +96,14 @@ export function drawOrderSlipPdf(order: Order, opts: OrderSlipOptions): jsPDF {
     if (usedKarats.has('21k') && rates.goldRatePerGram21k) ratesApplied.push(`21k: ${rates.goldRatePerGram21k.toLocaleString()}/g`);
     if (usedKarats.has('18k') && rates.goldRatePerGram18k) ratesApplied.push(`18k: ${rates.goldRatePerGram18k.toLocaleString()}/g`);
   }
-  if (ratesApplied.length > 0) { pdfDoc.setFontSize(6.5).setTextColor(150); pdfDoc.text(`Gold Rates (PKR): ${ratesApplied.join(' | ')}`, margin, (lastLine += 5), { maxWidth: leftW }); }
-
-  const infoBottom = lastLine + 5;
-  pdfDoc.setLineWidth(0.3).line(margin, infoBottom, pageWidth - margin, infoBottom);
+  // Under the details block, as the estimate places it (one line lower when a promised date is printed).
+  const extra = details.length > 2 ? 4 : 0;
+  if (ratesApplied.length > 0) {
+    pdfDoc.setFontSize(6.5).setTextColor(150);
+    pdfDoc.text(ratesApplied.join(' | '), pageWidth / 2 + 2, infoY + 10 + extra, { lineHeightFactor: 1.4 });
+  }
+  // The table starts where the estimate's does (its startY is infoBottom + 7).
+  const infoBottom = infoY + (ratesApplied.length > 0 ? 18 : 13) + extra - 7;
 
   // Items, drawn the way the invoice draws them: the piece leads, its specification sits
   // under it in grey, and what has to be set into it is darker because that is what the
