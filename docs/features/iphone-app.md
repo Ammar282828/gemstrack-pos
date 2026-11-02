@@ -473,6 +473,7 @@ and Apple then cancels every run seconds after creating it. The owner chose (202
   widget and the Mac). Needs `ASC_ISSUER_ID`, `ASC_KEY_ID`, `ASC_PRIVATE_KEY` set on gemstrack-pos (the same values as
   taheri-pos's). Secrets never reach a fork's pull request; the workflow runs only on a push to main or by hand.
 - **Build number:** `asc.mjs next-build`: one above every build App Store Connect holds, iPhone and Mac alike.
-- **Xcode Cloud:** once a free run has reached TestFlight, switch off Taheri's Xcode Cloud workflows (`asc.mjs ci-off
-  taheri`): when its hours renew it would build the same lines again with lower numbers, which TestFlight would not offer.
+- **First success 2026-11-02:** iPhone and Mac 2.2 (146) from run #5. Taheri's Xcode Cloud workflows are switched off
+  (`asc.mjs ci-off taheri`, in testflight-status.yml): when its hours renewed it would have built the same lines with lower
+  numbers. The 1st of every month a scheduled run rebuilds both apps against TestFlight's 90-day expiry (keep-fresh's old job).
 - If gemstrack-pos is ever made private this stops being free (docs/security.md).

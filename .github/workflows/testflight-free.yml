@@ -25,6 +25,9 @@ on:
     paths:
       - 'apps/iphone/RELEASES.md'
       - 'apps/iphone/MAC-RELEASES.md'
+  # The 1st of every month: both apps rebuilt, so TestFlight's 90-day expiry never reaches the shop's phones.
+  schedule:
+    - cron: '17 4 1 * *'
   workflow_dispatch:
     inputs:
       iphone:
@@ -74,7 +77,9 @@ jobs:
             echo "::error::The App Store Connect key is not set on this repository: add ASC_ISSUER_ID, ASC_KEY_ID and ASC_PRIVATE_KEY (the same values as taheri-pos's) under Settings → Secrets and variables → Actions."
             exit 1
           fi
-          if [ "$EVENT" = "workflow_dispatch" ]; then
+          if [ "$EVENT" = "schedule" ]; then
+            iphone=true; mac=true
+          elif [ "$EVENT" = "workflow_dispatch" ]; then
             iphone=$IN_IPHONE; mac=$IN_MAC
           else
             if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
