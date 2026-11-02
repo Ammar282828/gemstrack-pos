@@ -159,7 +159,11 @@ jobs:
             CURRENT_PROJECT_VERSION="$NEXT_BUILD" OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN" > "$RUNNER_TEMP/archive-iphone.log" 2>&1
           status=$?
           set -e
-          grep -E ': (error|fatal error):|error: ' "$RUNNER_TEMP/archive-iphone.log" | sed "s|$GITHUB_WORKSPACE/||" | sort -u | head -80 || true
+          grep -E ': (error|fatal error):|error: ' "$RUNNER_TEMP/archive-iphone.log" | sed "s|$GITHUB_WORKSPACE/||" | sort -u | head -80 > "$RUNNER_TEMP/errors-iphone.txt" || true
+          cat "$RUNNER_TEMP/errors-iphone.txt"
+          # As annotations and in the summary too: the run page is public, so a cloud session can read why without the log.
+          head -10 "$RUNNER_TEMP/errors-iphone.txt" | while IFS= read -r l; do echo "::error title=iphone archive::$l"; done
+          { echo "### iphone archive (commit ${GITHUB_SHA:0:8})"; echo '```'; head -60 "$RUNNER_TEMP/errors-iphone.txt"; tail -20 "$RUNNER_TEMP/archive-iphone.log"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
           tail -15 "$RUNNER_TEMP/archive-iphone.log"
           [ $status -eq 0 ] && test -d "$RUNNER_TEMP/ERP.xcarchive"
       - name: iPhone, to TestFlight
@@ -205,7 +209,11 @@ jobs:
             CURRENT_PROJECT_VERSION="$NEXT_BUILD" OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN" > "$RUNNER_TEMP/archive-mac.log" 2>&1
           status=$?
           set -e
-          grep -E ': (error|fatal error):|error: ' "$RUNNER_TEMP/archive-mac.log" | sed "s|$GITHUB_WORKSPACE/||" | sort -u | head -80 || true
+          grep -E ': (error|fatal error):|error: ' "$RUNNER_TEMP/archive-mac.log" | sed "s|$GITHUB_WORKSPACE/||" | sort -u | head -80 > "$RUNNER_TEMP/errors-mac.txt" || true
+          cat "$RUNNER_TEMP/errors-mac.txt"
+          # As annotations and in the summary too: the run page is public, so a cloud session can read why without the log.
+          head -10 "$RUNNER_TEMP/errors-mac.txt" | while IFS= read -r l; do echo "::error title=mac archive::$l"; done
+          { echo "### mac archive (commit ${GITHUB_SHA:0:8})"; echo '```'; head -60 "$RUNNER_TEMP/errors-mac.txt"; tail -20 "$RUNNER_TEMP/archive-mac.log"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
           tail -15 "$RUNNER_TEMP/archive-mac.log"
           [ $status -eq 0 ] && test -d "$RUNNER_TEMP/ERPMac.xcarchive"
       - name: Mac, to TestFlight

@@ -2,7 +2,7 @@ name: TestFlight status
 
 # Why a build is or is not in TestFlight (docs/features/iphone-app.md, Xcode Cloud): each house's newest builds,
 # their processing and beta state, and whether the "Shop" group has them (apps/ios/scripts/asc.mjs builds).
-# A cloud session cannot dispatch it (403): a push that changes this file runs it (last: did the free GitHub build reach TestFlight, 11-02).
+# A cloud session cannot dispatch it (403): a push that changes this file runs it (last: why the free iPhone archive failed, 11-02).
 # With fix (the default, and on a push to this file): the newest valid build joins Shop, export compliance answered.
 
 # Every day (schedule): the same pass, and keep-fresh: a build 60 days old starts an Xcode Cloud build of main, so
@@ -57,5 +57,12 @@ jobs:
                 console.log(`testflight-free #${r.run_number} ${r.head_sha.slice(0,8)} ${r.event} ${r.status}/${r.conclusion||"-"} ${r.created_at} ${r.html_url}`);
                 const j = await (await fetch(r.jobs_url)).json();
                 for (const job of j.jobs||[]) for (const st of job.steps||[]) if (st.conclusion==="failure"||st.status==="in_progress") console.log(`   ${st.status}/${st.conclusion||"-"}: ${st.name}`);
+                if (r.run_number === (JSON.parse(d).workflow_runs[0]||{}).run_number) for (const job of j.jobs||[]) {
+                  const an = await (await fetch(`https://api.github.com/repos/Ammar282828/gemstrack-pos/check-runs/${job.id}/annotations`)).json().catch(()=>[]);
+                  for (const a of (Array.isArray(an)?an:[]).slice(0,30)) console.log(`   annotation ${a.annotation_level}: ${a.path}:${a.start_line} ${a.message}`.slice(0,400));
+                  const lg = await fetch(`https://api.github.com/repos/Ammar282828/gemstrack-pos/actions/jobs/${job.id}/logs`);
+                  if (lg.ok) { const t=(await lg.text()).split("\n"); console.log(t.filter(l=>/error:|fatal error|BUILD FAILED|ARCHIVE FAILED|\*\*/.test(l)).slice(-60).join("\n")); }
+                  else console.log(`   (job log: HTTP ${lg.status})`);
+                }
               }
             });' || echo "::warning::could not read gemstrack-pos runs"
