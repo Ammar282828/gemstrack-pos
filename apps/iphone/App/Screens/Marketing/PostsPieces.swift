@@ -43,7 +43,7 @@ struct PostPiecesScreen: View {
         .navigationTitle(tray.map { (t: PostTrayModel) in t.cards.isEmpty ? "Pick pieces" : "\(t.cards.count) picked" } ?? "Pieces")
         .navigationBarTitleDisplayMode(.inline)
         .failureAlert($refused, title: "Not now")
-        .searchable(text: $search, prompt: "Search: ruby, kara, jhumka…")
+        .searchable(text: $search, placement: .pullDownSearch, prompt: "Search: ruby, kara, jhumka…")
         #if os(macOS)
         .navigationSubtitle(store.piecesPhase == .loaded ? "\(filtered.count) of \(store.pieces.count) pieces" : "")
         .toolbar {

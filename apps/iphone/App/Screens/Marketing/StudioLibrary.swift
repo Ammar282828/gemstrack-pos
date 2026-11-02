@@ -66,7 +66,7 @@ struct StudioLibrary: View {
             drive
         }
         .scrollDismissesKeyboard(.interactively)
-        .searchable(text: $q, prompt: "Name, subject or collection")
+        .searchable(text: $q, placement: .pullDownSearch, prompt: "Name, subject or collection")
         .task(id: queryKey) { if !House.isDemo { do { try await Task.sleep(for: .milliseconds(250)); await load() } catch {} } }
         .refreshable { await load(fresh: true) }
         .sheet(item: $opened) { choice in StudioAssetSheet(item: choice.item, placement: placement, model: model) { await load() }.presentationSizing(.page) }

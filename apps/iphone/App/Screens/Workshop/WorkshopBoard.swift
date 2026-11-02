@@ -61,7 +61,7 @@ struct WorkshopBoard: View {
                 #if os(macOS)
                 screen.macSearchable(text: $filter.query, prompt: "Search Workshop")
                 #else
-                screen.searchable(text: $filter.query, prompt: "Item, karigar, customer, order")
+                screen.searchable(text: $filter.query, placement: .pullDownSearch, prompt: "Item, karigar, customer, order")
                 #endif
             } else {
                 screen

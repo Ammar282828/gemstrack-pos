@@ -43,7 +43,7 @@ struct HisaabAccountPicker: View {
             }
             .navigationTitle("Add or choose an account")
             .navigationBarTitleDisplayMode(.inline)
-            .searchable(text: $search, prompt: "Search by name, or type a new karigar")
+            .searchable(text: $search, placement: .pullDownSearch, prompt: "Search by name, or type a new karigar")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(role: .cancel) { dismiss() }

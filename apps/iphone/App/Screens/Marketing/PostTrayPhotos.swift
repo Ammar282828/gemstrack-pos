@@ -288,7 +288,7 @@ struct PostAlbumSitePicker: View {
                 if shown.isEmpty { ContentUnavailableView.search(text: search) }
             }
             .scrollDismissesKeyboard(.interactively)
-            .searchable(text: $search, prompt: "Search: ruby, kara, jhumka…")
+            .searchable(text: $search, placement: .pullDownSearch, prompt: "Search: ruby, kara, jhumka…")
             .navigationTitle("Add a photo")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }

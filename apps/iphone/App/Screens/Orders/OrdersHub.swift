@@ -60,7 +60,7 @@ struct OrdersHub: View {
         }
         .navigationTitle("Orders")
         .hubTitleDisplay()
-        .searchable(text: $query, prompt: "Order, customer, phone or piece")
+        .searchable(text: $query, placement: .pullDownSearch, prompt: "Order, customer, phone or piece")
         .toolbar { hubToolbar }
         .ordersWebDestination($web)
         .sheet(item: $advancing) { order in advanceSheet(order).presentationSizing(.form) }

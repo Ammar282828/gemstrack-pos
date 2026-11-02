@@ -40,7 +40,7 @@ struct RepairsScreen: View {
         }
         .navigationTitle("Repairs")
         .hubTitleDisplay()
-        .searchable(text: $query, prompt: "Name, phone, piece or REP no.")
+        .searchable(text: $query, placement: .pullDownSearch, prompt: "Name, phone, piece or REP no.")
         .toolbar { newRepairButton }
         // A ticket and the form are whole pages: over an iPad's sheet the system's default shrank them to a card
         // with the money under the Mark ready / Take payment bar.

@@ -53,7 +53,7 @@ struct WorkshopKarigarsList: View {
         #if os(macOS)
         .macSearchable(text: $query, prompt: "Search Karigars")
         #else
-        .searchable(text: $query, prompt: "Name or contact")
+        .searchable(text: $query, placement: .pullDownSearch, prompt: "Name or contact")
         .toolbar {
             if session.isOwner {
                 ToolbarItem(placement: .primaryAction) {

@@ -52,7 +52,7 @@ struct ExpensesScreen: View {
         }
         .navigationTitle("Expenses")
         .hubTitleDisplay()
-        .searchable(text: $search, prompt: "Description, category or karigar")
+        .searchable(text: $search, placement: .pullDownSearch, prompt: "Description, category or karigar")
         .toolbar {
             #if !os(macOS)
             ToolbarItem(placement: .topBarTrailing) { filterMenu }

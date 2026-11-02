@@ -92,7 +92,7 @@ struct DesignSitePieces: View {
             }
             .padding(.vertical, pt(8))
         }
-        .searchable(text: $q, prompt: "Ruby, kara, jhumka")
+        .searchable(text: $q, placement: .pullDownSearch, prompt: "Ruby, kara, jhumka")
         .onChange(of: q) { _, _ in shown = 60 }
         .onChange(of: collection) { _, _ in shown = 60 }
         .task { await load() }
@@ -177,7 +177,7 @@ struct DesignLibraryPhotos: View {
             }
             .padding(.vertical, pt(8))
         }
-        .searchable(text: $q, prompt: "Name, subject or collection")
+        .searchable(text: $q, placement: .pullDownSearch, prompt: "Name, subject or collection")
         .task(id: key) {
             do { try await Task.sleep(for: .milliseconds(250)) } catch { return }
             await load(more: false)

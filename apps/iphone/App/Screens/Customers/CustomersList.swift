@@ -58,7 +58,7 @@ struct CustomersList: View {
         }
         .navigationTitle("Customers")
         .hubTitleDisplay()
-        .searchable(text: $search, prompt: "Search by name, phone, or email")
+        .searchable(text: $search, placement: .pullDownSearch, prompt: "Search by name, phone, or email")
         .task(id: search) {
             let next = search
             if CustomerKit.trim(next).isEmpty { query = ""; return }

@@ -299,7 +299,7 @@ private struct HisaabPersonPicker: View {
                 .houseRows()
             }
             .modifier(HouseGround())
-            .searchable(text: $query, prompt: "Name")
+            .searchable(text: $query, placement: .pullDownSearch, prompt: "Name")
             .navigationTitle("Whose hisaab?")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

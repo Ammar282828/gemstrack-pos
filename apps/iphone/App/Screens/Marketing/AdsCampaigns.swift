@@ -85,7 +85,7 @@ struct AdsCampaignsScreen: View {
         .readableColumn(1040)
         #endif
         #if !os(macOS)
-        .searchable(text: $search, prompt: "Search campaigns, ad sets, ads")
+        .searchable(text: $search, placement: .pullDownSearch, prompt: "Search campaigns, ad sets, ads")
         #endif
         #if os(macOS)
         .toolbar { macToolbar }

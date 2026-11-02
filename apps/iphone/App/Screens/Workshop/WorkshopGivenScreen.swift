@@ -57,7 +57,7 @@ struct WorkshopGivenScreen: View {
         .macSearchable(text: $query, prompt: "Search Given Items")
         .navigationSubtitle(macSubtitle)
         #else
-        .searchable(text: $query, prompt: "Item or recipient")
+        .searchable(text: $query, placement: .pullDownSearch, prompt: "Item or recipient")
         .toolbar { givenToolbar }
         #endif
         .sheet(isPresented: $adding) {

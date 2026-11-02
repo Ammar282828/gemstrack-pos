@@ -54,7 +54,7 @@ struct WebsiteEditScreen: View {
         }
         .navigationTitle("Edit a piece")
         .hubTitleDisplay()
-        .searchable(text: $search, prompt: "Name, collection, ruby, Ring 12…")
+        .searchable(text: $search, placement: .pullDownSearch, prompt: "Name, collection, ruby, Ring 12…")
         .task { await store.load() }
         .onChange(of: search) { _, _ in shown = WebsiteEditScreen.pageSize }
         .onChange(of: filter) { _, _ in shown = WebsiteEditScreen.pageSize }

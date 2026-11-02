@@ -276,7 +276,7 @@ struct InvoicesList: View {
         }
         .navigationTitle("Invoices")
         .hubTitleDisplay()
-        .searchable(text: $search, prompt: "Search invoices")
+        .searchable(text: $search, placement: .pullDownSearch, prompt: "Search invoices")
         // Debounced like the search page; clearing the box clears the list at once.
         .task(id: search) {
             let next = search.trimmingCharacters(in: .whitespacesAndNewlines)

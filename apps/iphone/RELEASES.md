@@ -67,3 +67,4 @@ cloud session cannot press that button, but it can push. One line per build, new
 - 2026-10-31: the same build again (the WhatsApp step on the invoice; the earlier run was cancelled).
 - 2026-11-01: net profit takes off running costs only (not drawings, not the cost of the goods).
 - 2026-11-01: the first free build from GitHub (testflight-free.yml): Mina's Gross profit, the WhatsApp order chip, Home and Analytics reckoned off the main thread, debounced searches.
+- 2026-11-02: search pulls down from under the title on every list (iPhone and iPad), and pulling down on Home opens the search for everything.

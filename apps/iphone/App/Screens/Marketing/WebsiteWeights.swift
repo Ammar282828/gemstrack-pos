@@ -59,7 +59,7 @@ struct WebsiteWeightsScreen: View {
         }
         .navigationTitle("Photo weights")
         .navigationBarTitleDisplayMode(.inline)
-        .searchable(text: $search, prompt: "Find a photo…")
+        .searchable(text: $search, placement: .pullDownSearch, prompt: "Find a photo…")
         .task {
             await site.loadSettings()
             if pieces == nil { await load() }

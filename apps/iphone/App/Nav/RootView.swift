@@ -163,6 +163,11 @@ struct RootView: View {
                             PlaceScreen(path: e.href, isRoot: true)
                                 .modifier(CreateAccessory(map: map, shown: session.role != "marketing", voiceShown: session.isOwner,
                                                           open: { creating = Route(path: $0) }, talk: { voice = true }))
+                                // Home has no list of its own to search: pulled down, its field opens the whole ERP's search.
+                                .modifier(PullDownToSearch(enabled: e.id == "home") {
+                                    ShellCommands.shared.searchWanted = true
+                                    tab = "search"
+                                })
                                 .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
                         }
                         // Outside the stack, so its pages see the same namespace as the rows they zoom from.
@@ -745,6 +750,32 @@ struct TeamNoteEditor: View {
                 dismiss()
             } catch { failure = error.localizedDescription }
             saving = false
+        }
+    }
+}
+
+
+/// Home's pull-down search, as the iPhone's Home Screen pulls down into Spotlight (owner, 2026-11-02: "scroll down to
+/// search like ios natively does"): the field sits tucked under the title, and touching it opens the Search tab, focused.
+private struct PullDownToSearch: ViewModifier {
+    let enabled: Bool
+    let open: () -> Void
+    @State private var text = ""
+    @State private var presented = false
+
+    func body(content: Content) -> some View {
+        if enabled {
+            content
+                .searchable(text: $text, isPresented: $presented, placement: .pullDownSearch,
+                            prompt: "Customers, invoices, orders, stock, places")
+                .onChange(of: presented) { _, now in
+                    guard now else { return }
+                    presented = false
+                    text = ""
+                    open()
+                }
+        } else {
+            content
         }
     }
 }

@@ -44,7 +44,7 @@ struct ExtraRevenueScreen: View {
         }
         .navigationTitle("Extra revenue")
         .hubTitleDisplay()
-        .searchable(text: $search, prompt: "Search by description")
+        .searchable(text: $search, placement: .pullDownSearch, prompt: "Search by description")
         .toolbar {
             ToolbarItem(placement: .trailingAction) {
                 Button { adding = true } label: { Label("Add extra revenue", systemImage: "plus") }

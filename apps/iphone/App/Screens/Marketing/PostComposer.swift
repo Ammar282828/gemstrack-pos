@@ -351,7 +351,7 @@ struct NativeSitePhotoPicker: View {
             ForEach(shown, id: \.text) { p in
                 Button { Task { await take(p) } } label: { HStack(spacing: pt(12)) { MarketingPhoto(path: p.s("thumb", p.s("image"))).frame(width: 64, height: 64); VStack(alignment: .leading, spacing: pt(4)) { Text(p.s("name")).foregroundStyle(.primary); Text(p.s("collection")).font(.caption).foregroundStyle(.secondary) } } }
             }
-        }.houseRows().modifier(HouseGround()).searchable(text: $q).navigationTitle("From the website").navigationBarTitleDisplayMode(.inline)
+        }.houseRows().modifier(HouseGround()).searchable(text: $q, placement: .pullDownSearch).navigationTitle("From the website").navigationBarTitleDisplayMode(.inline)
             .overlay { if loaded && shown.isEmpty { if q.isEmpty { EmptyState("No pieces on the website", symbol: "globe") } else { ContentUnavailableView.search(text: q) } } }
             .failureAlert($error)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }

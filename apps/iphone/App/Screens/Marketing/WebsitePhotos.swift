@@ -964,7 +964,7 @@ struct WebsiteCollectionSheet: View {
             }
             .overlay { if shelves.isEmpty { ContentUnavailableView.search(text: search) } }
             .listStyle(.insetGrouped)
-            .searchable(text: $search, prompt: "Find a collection")
+            .searchable(text: $search, placement: .pullDownSearch, prompt: "Find a collection")
             .navigationTitle("Collection")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

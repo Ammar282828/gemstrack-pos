@@ -59,7 +59,7 @@ struct StockList: View {
         }
         .navigationTitle("Stock")
         .hubTitleDisplay()
-        .searchable(text: $search, prompt: "Search by name or SKU")
+        .searchable(text: $search, placement: .pullDownSearch, prompt: "Search by name or SKU")
         .searchFocused($searching)
         .task(id: search) {
             let next = search.trimmingCharacters(in: .whitespacesAndNewlines)

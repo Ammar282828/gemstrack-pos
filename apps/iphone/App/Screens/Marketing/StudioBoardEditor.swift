@@ -1433,7 +1433,7 @@ struct StudioBoardPhotoPicker: View {
                 .padding(pt(20))
             }
             .background(Theme.ground)
-            .searchable(text: $q, prompt: "Search — ring, emerald, bangles…")
+            .searchable(text: $q, placement: .pullDownSearch, prompt: "Search — ring, emerald, bangles…")
             .navigationTitle(title).navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } } }
             .onChange(of: device) { _, item in

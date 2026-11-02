@@ -114,7 +114,7 @@ struct HisaabScreen: View {
         }
         .navigationTitle("Hisaab")
         .hubTitleDisplay()
-        .searchable(text: $search, prompt: "Search by name")
+        .searchable(text: $search, placement: .pullDownSearch, prompt: "Search by name")
         .toolbar {
             #if !os(macOS)
             ToolbarItem(placement: .topBarTrailing) { filterMenu }
