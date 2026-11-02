@@ -29,6 +29,15 @@ class NetProfitTests {
 class NetProfitRunningTests {
     private val mina = listOf("Stock & Karigars", "Custom Orders", "Stones & Pearls", "Plating & Finishing")
 
+    // NetProfitTests.swift testBeforeRunningUsesRecordedGoods: Mina all time, 2026-11-01: 1.84 crore revenue, 1.55 crore goods,
+    // 33.56 lac running, 73.52 lac at 40%.
+    @Test fun beforeRunningUsesRecordedGoods() {
+        val gross = NetProfit.beforeRunning(estimated = 7_352_000.0, revenue = 18_400_000.0, goods = 15_500_000.0, recordsGoods = true)
+        kotlin.test.assertEquals(2_900_000.0, gross)
+        kotlin.test.assertEquals(-456_000.0, gross - 3_356_000.0)
+        kotlin.test.assertEquals(7_352_000.0, NetProfit.beforeRunning(estimated = 7_352_000.0, revenue = 18_400_000.0, goods = 0.0, recordsGoods = false))
+    }
+
     @Test fun leavesOutTheGoodsTheMarginAllowsForAndThePartnersDrawings() {
         assertTrue(NetProfit.isRunningCost("Rent", mina))
         assertTrue(NetProfit.isRunningCost("Ad Spend", mina))

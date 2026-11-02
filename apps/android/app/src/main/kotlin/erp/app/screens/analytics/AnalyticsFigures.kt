@@ -127,6 +127,12 @@ class AnaFigures {
     var runningExpenses = 0.0
     var goodsExpenses = 0.0
     val drawingsExpenses: Double get() = totalExpenses - runningExpenses - goodsExpenses
+
+    /** Whether this business files its goods as expenses (Mina): then its profit is revenue less those goods. */
+    var recordsGoods = false
+
+    /** Profit before running costs: revenue less recorded goods where the house records them (Mina), else [estProfit]. */
+    val profit: Double get() = NetProfit.beforeRunning(estProfit, totalSales, goodsExpenses, recordsGoods)
     var expensesByCategory: List<AnaExpenseCategory> = emptyList()
 
     /** Cash flow (cash-in.ts); null when nothing at all was in the period. */
@@ -415,6 +421,7 @@ private class AnaGather(val books: AnaBooks, val margin: MarginSettings?, val re
         f.totalExpenses = expenseTotal
         f.runningExpenses = runningTotal
         f.goodsExpenses = goodsTotal
+        f.recordsGoods = goods.isNotEmpty()
         val expenseRows = expenseByCategory.map { (c, amount) -> AnaExpenseCategory(c, amount) }
         f.expensesByCategory = AnaSort.descending(expenseRows) { it.amount }
 
@@ -547,7 +554,7 @@ class AnaHistory(
     /** The month with the most revenue (the first, if tied). */
     val bestMonth: String? = null,
 ) {
-    private class YearAcc(var revenue: Double = 0.0, var expenses: Double = 0.0, var unpaid: Double = 0.0, var profit: Double = 0.0)
+    private class YearAcc(var revenue: Double = 0.0, var expenses: Double = 0.0, var unpaid: Double = 0.0, var profit: Double = 0.0, var goods: Double = 0.0)
 
     companion object {
         fun of(books: AnaBooks, margin: MarginSettings?, goods: List<String> = emptyList()): AnaHistory {
@@ -592,14 +599,21 @@ class AnaHistory(
                 if (margin != null) acc.profit += r.amount * margin.assumedMargin
                 addMonth(r.date, r.amount)
             }
-            // Drawings are a distribution of profit, not a cost of earning it; the goods are already inside the margin (isRunningCost).
+            // Drawings are a distribution of profit, not a cost of earning it. Where the house records its goods (Mina),
+            // they come off the revenue as the gross profit (NetProfit.beforeRunning); elsewhere they are inside the margin.
             for (e in books.expenses) {
-                if (e.date.isEmpty() || !NetProfit.isRunningCost(e.category, goods)) continue
+                if (e.date.isEmpty()) continue
+                val isGoods = NetProfit.isGoodsExpense(e.category, goods)
+                if (!isGoods && !NetProfit.isRunningCost(e.category, goods)) continue
                 val d = AnaDate.parseISO(e.date) ?: continue
-                years.getOrPut(AnaDate.year(d)) { YearAcc() }.expenses += e.amount
+                val acc = years.getOrPut(AnaDate.year(d)) { YearAcc() }
+                if (isGoods) acc.goods += e.amount else acc.expenses += e.amount
             }
 
-            val yearly = years.map { (y, a) -> AnaYear(y, a.revenue, a.expenses, a.unpaid, a.profit) }.sortedByDescending { it.year }
+            val recordsGoods = goods.isNotEmpty()
+            val yearly = years.map { (y, a) ->
+                AnaYear(y, a.revenue, a.expenses, a.unpaid, NetProfit.beforeRunning(a.profit, a.revenue, a.goods, recordsGoods))
+            }.sortedByDescending { it.year }
 
             // Walk every month between the first and the last, so a quiet month shows as a gap.
             val keys = revenueOf.keys.sorted()

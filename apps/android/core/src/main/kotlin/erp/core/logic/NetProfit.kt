@@ -24,6 +24,14 @@ object NetProfit {
 
     fun of(estimatedProfit: Double, expenses: Double): Double = estimatedProfit - expenses
 
+    /**
+     * Profit before the running costs (net-profit.ts `profitBeforeRunning`): a house that files its goods as expenses (Mina)
+     * knows what they cost, so it is revenue less those goods (gross profit; unsold stock counts as spent); otherwise the
+     * estimated profit. The owner, 2026-11-01: an assumed 40% beside goods at 84% of revenue was wrong.
+     */
+    fun beforeRunning(estimated: Double, revenue: Double, goods: Double, recordsGoods: Boolean): Double =
+        if (recordsGoods) revenue - goods else estimated
+
     /** Net profit as a share of revenue, in percent; 0 where there was no revenue. */
     fun marginPercent(net: Double, revenue: Double): Double = if (revenue > 0) net / revenue * 100 else 0.0
 }

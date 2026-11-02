@@ -95,9 +95,10 @@ fun AnaOverviewPage(figures: AnaFigures, period: AnaPeriodState, showCosts: Bool
 @Composable
 private fun MoneySection(f: AnaFigures, showCosts: Boolean, margin: MarginSettings) {
     // Less the running costs only: not drawings, not the goods the margin already allows for (NetProfit.isRunningCost).
-    val net = NetProfit.of(f.estProfit, f.runningExpenses)
+    // Before them: the estimate, or revenue less the goods bought where the house records them (Mina: f.profit).
+    val net = NetProfit.of(f.profit, f.runningExpenses)
     val netPct = NetProfit.marginPercent(net, f.totalSales)
-    val netDetail = if (f.totalSales > 0) "${AnaFormat.fixed(netPct, 1)}% margin · est. profit less running costs" else "No revenue in period"
+    val netDetail = if (f.totalSales > 0) "${AnaFormat.fixed(netPct, 1)}% margin · ${if (f.recordsGoods) "gross" else "est."} profit less running costs" else "No revenue in period"
     val netTint = if (net >= 0) Tone.settled.color() else Tone.owed.color()
     // Split running · goods · drawings where any is not running (the web's Expenses tile).
     val expensesDetail = if (f.goodsExpenses > 0 || f.runningExpenses != f.totalExpenses) {
@@ -109,16 +110,18 @@ private fun MoneySection(f: AnaFigures, showCosts: Boolean, margin: MarginSettin
     } else "Paid out in this period"
     val assumed = (margin.assumedMargin * 100).roundToInt()
     val costedByGold = margin.rattiLess != null && f.salesCosted > 0
-    val estDetail = if (!costedByGold || f.totalSales <= 0) "Revenue × $assumed%"
+    val estDetail = if (f.recordsGoods) "Revenue less goods bought"
+    else if (!costedByGold || f.totalSales <= 0) "Revenue × $assumed%"
     else AnaFormat.number((f.estProfit / f.totalSales * 1000).let { Math.floor(it + 0.5) } / 10, 1) + "% of revenue"
-    val estNote = if (!costedByGold) "Est. profit is revenue × $assumed%, before expenses."
+    val estNote = if (f.recordsGoods) "Gross profit is revenue less the goods bought (${Money.pkrLac(f.goodsExpenses)}); goods not yet sold count as spent. At $assumed% it would be ${Money.pkrLac(f.estProfit)}."
+    else if (!costedByGold) "Est. profit is revenue × $assumed%, before expenses."
     else "Est. profit: ${f.salesCosted} of ${f.salesCount} sales from their 24k rate, the rest at $assumed%, before expenses."
 
     FigureGrid {
         FigureTile("Revenue", Money.pkrLac(f.totalSales), detail = "Sales in this period", tint = Tone.settled.color(), number = f.totalSales)
         if (showCosts) {
             FigureTile("Expenses", Money.pkrLac(f.totalExpenses), detail = expensesDetail, tint = Tone.owed.color(), number = f.totalExpenses)
-            FigureTile("Est. profit", Money.pkrLac(f.estProfit), detail = estDetail, tint = ErpColors.accent, number = f.estProfit)
+            FigureTile(if (f.recordsGoods) "Gross profit" else "Est. profit", Money.pkrLac(f.profit), detail = estDetail, tint = ErpColors.accent, number = f.profit)
             FigureTile("Net profit", Money.pkrLac(net), detail = netDetail, tint = netTint, number = net)
         }
     }

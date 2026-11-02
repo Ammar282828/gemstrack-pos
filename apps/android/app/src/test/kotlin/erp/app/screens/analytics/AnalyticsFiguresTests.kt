@@ -272,7 +272,9 @@ class AnalyticsFiguresTests {
         val ex = listOf(expense("E1", "2026-10-03", 14000.0, "Stock & Karigars"), expense("E2", "2026-10-04", 600.0, "Rent"), expense("E3", "2026-10-05", 3100.0, "Partner Drawings"))
         val y = AnaHistory.of(books(invoices = listOf(inv), expenses = ex), MarginSettings.mina, listOf("Stock & Karigars")).yearly.first()
         assertEquals(600.0, y.expenses, 0.0)
-        assertEquals(40000.0 - 600.0, y.netProfit, 1e-6)
+        // A house that records its goods takes their real cost (2026-11-01): gross 100,000 - 14,000, less the 600 of rent.
+        assertEquals(86000.0, y.profit, 1e-6)
+        assertEquals(86000.0 - 600.0, y.netProfit, 1e-6)
     }
 
     @Test fun cashInIsPaymentsOnTheirOwnDayAndNetIsCashInLessExpenses() {
