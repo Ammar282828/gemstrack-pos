@@ -248,7 +248,7 @@ private fun InvoiceDetail(inv: Invoice, customers: List<erp.core.models.Customer
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
                 item { Hero(inv, owner) { settingCustomer = true } }
-                item { QuickRow(inv, customers, byCustomer) { pdf = it } }
+                item { QuickRow(inv, customers, byCustomer, send = { sending = inv }) { pdf = it } }
                 item {
                     PiecesCard(inv, owner, allPieces) { allPieces = true }
                 }
@@ -462,15 +462,20 @@ private fun LeadFigure(inv: Invoice) {
 
 // MARK: What is done most, one tap away
 
-/** Ring, write or message the customer, and the PDF: the things the counter does after a sale. Taking the money is the bar at the foot. */
+/**
+ * The one Contact row (ui/CustomerContact.kt): Call, WhatsApp, Message, Send PDF (this page's own send, from the shop's
+ * line), More (Share PDF: the PDF screen; Copy number). Taking the money is the bar at the foot.
+ */
 @Composable
-private fun QuickRow(inv: Invoice, customers: List<erp.core.models.Customer>, byCustomer: Boolean, openPdf: (InvoicePdfTarget) -> Unit) {
-    val phone = InvoiceFacts.whatsAppPhone(inv, inv.customerId?.let { id -> customers.firstOrNull { it.id == id } })
-    val reachable = InvoiceFacts.dialable(phone).isNotEmpty()
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
-        if (reachable) ContactActions(phone, Modifier.weight(1f))
-        QuickAction("PDF", Symbols.PictureAsPdf, { openPdf(InvoiceFacts.pdfTarget(inv, byCustomer)) }, Modifier.width(if (reachable) 88.dp else 110.dp))
-    }
+private fun QuickRow(inv: Invoice, customers: List<erp.core.models.Customer>, byCustomer: Boolean, send: () -> Unit, openPdf: (InvoicePdfTarget) -> Unit) {
+    val customer = inv.customerId?.let { id -> customers.firstOrNull { it.id == id } }
+    val phone = InvoiceFacts.whatsAppPhone(inv, customer)
+    val target = InvoiceFacts.pdfTarget(inv, byCustomer)
+    erp.app.ui.CustomerContactActions(
+        phone, customerId = customer?.id, customerName = inv.customerName,
+        doc = erp.app.ui.CustomerDoc(erp.app.ui.CustomerDoc.Kind.Invoice, inv.id, inv.items.size, target.fileName),
+        onSend = send, onShare = { openPdf(target) },
+    )
 }
 
 // MARK: The pieces, as the bill reads them

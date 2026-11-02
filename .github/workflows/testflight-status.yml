@@ -2,7 +2,7 @@ name: TestFlight status
 
 # Why a build is or is not in TestFlight (docs/features/iphone-app.md, Xcode Cloud): each house's newest builds,
 # their processing and beta state, and whether the "Shop" group has them (apps/ios/scripts/asc.mjs builds).
-# A cloud session cannot dispatch it (403): a push that changes this file runs it (last: Xcode Cloud off, the free builds took over, 11-02).
+# A cloud session cannot dispatch it (403): a push that changes this file runs it (last: compile check of the checkpoint, 11-02).
 # With fix (the default, and on a push to this file): the newest valid build joins Shop, export compliance answered.
 
 # Every day (schedule): the same pass. (Until 2026-11-02 keep-fresh started an Xcode Cloud build of a 60-day-old build, so
@@ -53,10 +53,10 @@ jobs:
           # or when its hours renew they would build the same release lines again with lower numbers.
           node apps/ios/scripts/asc.mjs ci-off taheri || echo "::warning::Taheri's Xcode Cloud workflows not switched off"
           # The free release on gemstrack-pos (testflight-free.yml, public): its newest runs and, for each, the failed step.
-          curl -fsS "https://api.github.com/repos/Ammar282828/gemstrack-pos/actions/workflows/testflight-free.yml/runs?per_page=5" | node -e '
+          for wf in swift-compile.yml testflight-free.yml; do echo "== $wf"; curl -fsS "https://api.github.com/repos/Ammar282828/gemstrack-pos/actions/workflows/$wf/runs?per_page=3" | node -e '
             let d=""; process.stdin.on("data",c=>d+=c).on("end",async()=>{
               for (const r of JSON.parse(d).workflow_runs||[]) {
-                console.log(`testflight-free #${r.run_number} ${r.head_sha.slice(0,8)} ${r.event} ${r.status}/${r.conclusion||"-"} ${r.created_at} ${r.html_url}`);
+                console.log(`#${r.run_number} ${r.head_sha.slice(0,8)} ${r.event} ${r.status}/${r.conclusion||"-"} ${r.created_at} ${r.html_url}`);
                 const j = await (await fetch(r.jobs_url)).json();
                 for (const job of j.jobs||[]) for (const st of job.steps||[]) if (st.conclusion==="failure"||st.status==="in_progress") console.log(`   ${st.status}/${st.conclusion||"-"}: ${st.name}`);
                 if (r.run_number === (JSON.parse(d).workflow_runs[0]||{}).run_number) for (const job of j.jobs||[]) {
@@ -67,4 +67,4 @@ jobs:
                   else console.log(`   (job log: HTTP ${lg.status})`);
                 }
               }
-            });' || echo "::warning::could not read gemstrack-pos runs"
+            });' || echo "::warning::could not read gemstrack-pos runs"; done

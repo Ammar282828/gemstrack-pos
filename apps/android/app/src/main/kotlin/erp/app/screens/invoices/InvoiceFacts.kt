@@ -279,7 +279,8 @@ object InvoiceFacts {
      */
     suspend fun sendPdf(inv: Invoice, phone: String): Pair<String, String> {
         // The send asks WAHA first whether the number is on WhatsApp, then sends: the ERP gives it two minutes.
-        val out = ErpApi.shared.send(pdfPath(inv.id) + "/whatsapp", body = sendPdfFields(phone), timeoutMs = 130_000)
+        // One send for every surface since 2026-11-02 (/api/app/whatsapp/send-doc): both houses, each from its own line.
+        val out = ErpApi.shared.send("/api/app/whatsapp/send-doc", body = mapOf("kind" to "invoice", "id" to inv.id) + sendPdfFields(phone), timeoutMs = 130_000)
         return (out["fileName"] as? String ?: "The PDF") to (out["to"] as? String ?: phone)
     }
 

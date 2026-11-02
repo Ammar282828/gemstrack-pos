@@ -47,17 +47,14 @@ import erp.app.ui.theme.ErpColors
  */
 @Composable
 fun ContactActions(phone: String?, modifier: Modifier = Modifier) {
-    val raw = (phone ?: "").trim()
-    val digits = raw.filter { it.isDigit() || it == '+' }
-    if (digits.isEmpty()) return
+    // One number for all three (CustomerContactLinks): 0300… dials +92300…. A customer's row is CustomerContactActions.
+    val number = CustomerContactLinks.e164(phone)
+    if (number.isEmpty()) return
     val context = LocalContext.current
     Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        QuickAction("Call", Symbols.Call, { open(context, Intent.ACTION_DIAL, "tel:$digits") }, Modifier.weight(1f))
-        QuickAction("WhatsApp", Symbols.Chat, {
-            val wa = toWhatsAppNumber(raw)
-            open(context, Intent.ACTION_VIEW, "https://wa.me/" + wa.ifEmpty { digits.filter { it.isDigit() } })
-        }, Modifier.weight(1f))
-        QuickAction("Message", Symbols.Sms, { open(context, Intent.ACTION_SENDTO, "smsto:$digits") }, Modifier.weight(1f))
+        QuickAction("Call", Symbols.Call, { open(context, Intent.ACTION_DIAL, "tel:$number") }, Modifier.weight(1f))
+        QuickAction("WhatsApp", Symbols.Chat, { open(context, Intent.ACTION_VIEW, CustomerContactLinks.whatsApp(number)!!) }, Modifier.weight(1f))
+        QuickAction("Message", Symbols.Sms, { open(context, Intent.ACTION_SENDTO, "smsto:$number") }, Modifier.weight(1f))
     }
 }
 
