@@ -110,6 +110,14 @@ jobs:
           key: spm-release-${{ hashFiles('apps/iphone/Package.resolved') }}
       - name: The build number
         run: node ../ios/scripts/asc.mjs next-build "$HOUSE" | tee -a "$GITHUB_ENV"
+      - name: The version and the release notes
+        run: |
+          # The version people see (project.yml MARKETING_VERSION); the build number stays Apple's bookkeeping.
+          echo "VERSION=$(grep -m1 'MARKETING_VERSION:' project.yml | grep -oE '[0-9]+(\.[0-9]+)+')" >> "$GITHUB_ENV"
+          # TestFlight's "What to Test": the newest line of each release file, without its date.
+          note() { tail -n 1 "$1" | sed -E 's/^- *[0-9]{4}-[0-9]{2}-[0-9]{2}: *//'; }
+          { echo "IPHONE_NOTES<<NOTES_EOF"; note RELEASES.md; echo "NOTES_EOF"; } >> "$GITHUB_ENV"
+          { echo "MAC_NOTES<<NOTES_EOF"; note MAC-RELEASES.md; echo "NOTES_EOF"; } >> "$GITHUB_ENV"
       - name: Certificates and profiles for this run
         run: |
           mkdir -p "$RUNNER_TEMP/signing"
@@ -156,7 +164,7 @@ jobs:
           xcodegen generate --spec project.yml
           mkdir -p ERP.xcodeproj/project.xcworkspace/xcshareddata/swiftpm
           cp Package.resolved ERP.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
-          echo "iPhone 2.2 ($NEXT_BUILD)"
+          echo "iPhone ERP $VERSION (build $NEXT_BUILD)"
           set +e
           xcodebuild archive -project ERP.xcodeproj -scheme ERP -configuration Release \
             -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/ERP.xcarchive" \
@@ -197,7 +205,7 @@ jobs:
           xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/ERP.xcarchive" -exportOptionsPlist "$RUNNER_TEMP/export-iphone.plist" \
             -exportPath "$RUNNER_TEMP/export-iphone" \
             -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID"
-          echo "::notice title=iPhone::2.2 ($NEXT_BUILD) uploaded; TestFlight's Shop group gets it once Apple has processed it (10 to 30 minutes)"
+          echo "::notice title=iPhone::ERP $VERSION uploaded; TestFlight's Shop group gets it once Apple has processed it (10 to 30 minutes)"
 
       - name: Mac, archived
         id: macarchive
@@ -208,7 +216,7 @@ jobs:
           xcodegen generate --spec project.yml
           mkdir -p ERP.xcodeproj/project.xcworkspace/xcshareddata/swiftpm
           cp Package.resolved ERP.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
-          echo "Mac 2.2 ($NEXT_BUILD)"
+          echo "Mac ERP $VERSION (build $NEXT_BUILD)"
           set +e
           xcodebuild archive -project ERP.xcodeproj -scheme "ERP Mac" -configuration Release \
             -destination 'generic/platform=macOS' -archivePath "$RUNNER_TEMP/ERPMac.xcarchive" \
@@ -249,8 +257,18 @@ jobs:
           xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/ERPMac.xcarchive" -exportOptionsPlist "$RUNNER_TEMP/export-mac.plist" \
             -exportPath "$RUNNER_TEMP/export-mac" \
             -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID"
-          echo "::notice title=Mac::2.2 ($NEXT_BUILD) uploaded; TestFlight's Shop group gets it once Apple has processed it"
+          echo "::notice title=Mac::ERP $VERSION uploaded; TestFlight's Shop group gets it once Apple has processed it"
 
+      # Testers read what changed, in words (owner, 2026-11-02: "be professional"). Apple lists a build a few minutes
+      # after its upload; a missing note never fails the release.
+      - name: What to Test (iPhone)
+        if: ${{ !cancelled() && env.IPHONE == 'true' }}
+        continue-on-error: true
+        run: node ../ios/scripts/asc.mjs whats-new "$HOUSE" --build "$NEXT_BUILD" --platform IOS --text "ERP $VERSION — $IPHONE_NOTES" --wait 40
+      - name: What to Test (Mac)
+        if: ${{ !cancelled() && env.MAC == 'true' && steps.macarchive.outcome == 'success' }}
+        continue-on-error: true
+        run: node ../ios/scripts/asc.mjs whats-new "$HOUSE" --build "$NEXT_BUILD" --platform MAC_OS --text "ERP $VERSION — $MAC_NOTES" --wait 40
       - name: Revoke this run's certificates and profiles
         if: always()
         run: |

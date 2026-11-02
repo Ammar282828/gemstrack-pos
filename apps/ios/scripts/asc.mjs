@@ -289,6 +289,35 @@ async function nextBuild(name) {
   say(`${h.storeName}: newest build number ${max}; this one is ${max + 1}`);
 }
 
+/**
+ * TestFlight's "What to Test" for one uploaded build (iPhone or Mac), so testers read what changed in words, not a
+ * build number (owner, 2026-11-02: "be professional"). Waits for Apple to list the build (up to `waitMin` minutes).
+ */
+async function whatsNew(name, { build, platform, text, waitMin }) {
+  const nativeHouses = JSON.parse(fs.readFileSync(path.join(dir, '..', 'iphone', 'houses.json'), 'utf8'));
+  const h = nativeHouses[name];
+  if (!h) throw new Error(`no house ${name} in apps/iphone/houses.json`);
+  const app = await appFor({ bundleId: h.bundleId });
+  if (!app) throw new Error(`${h.storeName} has no app in App Store Connect`);
+  const notes = String(text || '').trim().slice(0, 3900);
+  if (!notes) throw new Error('no release notes given');
+  const until = Date.now() + (Number(waitMin) || 0) * 60_000;
+  for (;;) {
+    const res = await api('GET', `/v1/builds?filter[app]=${app.id}&filter[version]=${q(String(build))}&filter[preReleaseVersion.platform]=${platform}&limit=5`);
+    const b = res.data[0];
+    if (b) {
+      const bl = (await api('GET', `/v1/builds/${b.id}/betaBuildLocalizations?limit=50`)).data;
+      const loc = bl.find((l) => l.attributes.locale === 'en-US') || bl[0];
+      if (loc) await api('PATCH', `/v1/betaBuildLocalizations/${loc.id}`, { data: { type: 'betaBuildLocalizations', id: loc.id, attributes: { whatsNew: notes } } });
+      else await api('POST', '/v1/betaBuildLocalizations', { data: { type: 'betaBuildLocalizations', attributes: { locale: 'en-US', whatsNew: notes }, relationships: { build: { data: { type: 'builds', id: b.id } } } } });
+      say(`${platform} build ${build}: What to Test set`);
+      return;
+    }
+    if (Date.now() > until) throw new Error(`${platform} build ${build} not listed yet`);
+    await new Promise((r) => setTimeout(r, 30_000));
+  }
+}
+
 async function revoke() {
   const { ASC_CERT_ID, ASC_INSTALLER_CERT_ID, ASC_PROFILE_ID, ASC_PROFILE_IDS, ASC_MAC_PROFILE_ID } = process.env;
   const profiles = [ASC_PROFILE_ID, ASC_MAC_PROFILE_ID, ...String(ASC_PROFILE_IDS || '').split(',')].filter(Boolean);
@@ -885,6 +914,10 @@ try {
   else if (cmd === 'sign-native') await signNative(args[0], args[1]);
   else if (cmd === 'sign-mac') await signMac(args[0], args[1]);
   else if (cmd === 'next-build') await nextBuild(args[0]);
+  else if (cmd === 'whats-new') {
+    const opt = (k) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : undefined; };
+    await whatsNew(args[0], { build: opt('--build'), platform: opt('--platform') || 'IOS', text: opt('--text'), waitMin: opt('--wait') });
+  }
   else if (cmd === 'revoke') await revoke();
   else if (cmd === 'key-file') { fs.mkdirSync(path.dirname(args[0]), { recursive: true }); fs.writeFileSync(args[0], ASC_PRIVATE_KEY, { mode: 0o600 }); }
   else if (cmd === 'builds') await builds(args[0], args.includes('--fix'));
