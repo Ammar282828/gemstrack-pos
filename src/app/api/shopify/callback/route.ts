@@ -51,6 +51,7 @@ export async function GET(request: NextRequest) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ client_id: SHOPIFY_API_KEY, client_secret: SHOPIFY_API_SECRET, code }),
+    signal: AbortSignal.timeout(15000),
   });
   const tokenData = await tokenRes.json();
   const accessToken = tokenData.access_token;
@@ -72,6 +73,7 @@ export async function GET(request: NextRequest) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...(process.env.CRON_SECRET ? { Authorization: `Bearer ${process.env.CRON_SECRET}` } : {}) },
     body: JSON.stringify({ shop, token: accessToken }),
+    signal: AbortSignal.timeout(15000),
   });
 
   const response = NextResponse.redirect(`${appUrl}/settings?shopify=connected`);

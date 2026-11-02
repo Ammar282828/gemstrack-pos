@@ -45,6 +45,10 @@ struct OrdersHub: View {
 
     private var inbox: OnlineInbox { .shared }
 
+    /// Read once per change of the orders / the invoices, not once per drawing.
+    @State private var signature = Memo<Int>()
+    @State private var owedMemo = Memo<[String: Double]>()
+
     var body: some View {
         ShelfState(
             loaded: book.orders.loaded && book.invoices.loaded,
@@ -52,7 +56,7 @@ struct OrdersHub: View {
             offline: book.orders.offline
         ) {
             // A new grouping or filter settles in on the enter curve rather than jumping.
-            hub.motion([groupingRaw, statusFilter, month, takenBy, payment, stageSignature, localStatus.values.joined()])
+            hub.motion([groupingRaw, statusFilter, month, takenBy, payment, String(stageSignature), localStatus.values.joined()])
         }
         .navigationTitle("Orders")
         .hubTitleDisplay()
@@ -85,8 +89,17 @@ struct OrdersHub: View {
     }
 
     /// Every order's status and invoice, so a stage move (Ready, Cancelled, invoiced) settles in on the enter curve.
-    private var stageSignature: String {
-        book.orders.items.map { $0.id + ($0.status.rawValue) + ($0.invoiceId ?? "") }.joined(separator: "|")
+    /// Hashed (not joined into a string) and kept per `orders.revision`, so it costs one pass per change of the orders.
+    private var stageSignature: Int {
+        signature([book.orders.revision]) {
+            var h = Hasher()
+            for o in book.orders.items {
+                h.combine(o.id)
+                h.combine(o.status.rawValue)
+                h.combine(o.invoiceId ?? "")
+            }
+            return h.finalize()
+        }
     }
 
     private var grouping: OrdersGrouping { OrdersGrouping(rawValue: groupingRaw) ?? .day }
@@ -106,7 +119,7 @@ struct OrdersHub: View {
     @ViewBuilder
     private var hub: some View {
         let all = book.orders.items
-        let owedOn = OrdersLogic.owedOnInvoices(book.invoices.items)
+        let owedOn = owedMemo([book.invoices.revision]) { OrdersLogic.owedOnInvoices(book.invoices.items) }
         let scoped = scope(all)
         let shown = statusFilter == "All" ? scoped : scoped.filter { $0.status.rawValue == statusFilter }
         let now = Date()

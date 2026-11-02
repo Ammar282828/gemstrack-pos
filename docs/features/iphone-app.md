@@ -186,6 +186,10 @@ package's links); every other Swift change is compiled by Xcode Cloud's release.
 retired Capacitor shell), run only by hand. That day the month's 2,000 Actions minutes ran out (about 1,400 Linux
 plus 340 Mac minutes at ten to one; the native app's test job alone about 5 billed minutes a push), and every
 deploy stopped until the allowance resets.
+- **A free compile first (2026-11-01).** "Swift compile" (`.github/workflows/swift-compile.yml`) compiles the "ERP" and
+  "ERP Mac" schemes on every deploy, on gemstrack-pos (public, so its macOS minutes are free); Xcode Cloud's 25 hours renew
+  about the 17th, not the 1st ([Mac app](mac-app.md#how-a-mac-change-is-checked-2026-11-01)). A release line is for code
+  that compiles there.
 - **How a build starts.** A new line in `apps/iphone/RELEASES.md` on a `claude/` branch: each house's "release"
   workflow archives and hands the build to TestFlight's internal "Shop" group. A new line in
   `apps/iphone/CHECKS.md`: the "UI check" workflow runs `ERPUITests` in the simulator. The result shows on the
@@ -454,3 +458,21 @@ underneath, Settings › Businesses › "Ask which business on opening" still tu
 - **Motion:** cards rise in on `Motion.enter`, staggered; the tapped card grows and the others fade on `Motion.travel` while the host's existing
   transition takes the app in (a crossfade under Reduce Motion). Not a matched-geometry zoom: the app is built in another view tree. One selection haptic.
 - VoiceOver reads "Open <name>", with last opened and the status line as its value.
+
+## TestFlight from GitHub, free (2026-11-01)
+
+Xcode Cloud's 25 hours a month ran out on 2026-10-31 (six iPhone archives on 10-30 alone; its period renews about the 17th),
+and Apple then cancels every run seconds after creating it. The owner chose (2026-11-01) to build on GitHub instead:
+`.github/workflows/testflight-free.yml` runs only on **gemstrack-pos**, which is public, so its macOS runners cost nothing.
+
+- **Trigger:** the same lines as before. A new line in `apps/iphone/RELEASES.md` sends the iPhone app, one in
+  `apps/iphone/MAC-RELEASES.md` the Mac app; Actions → "TestFlight (free)" → Run workflow sends either. One run at a time,
+  and pushes during a run wait as one further run, so several chats' lines make one build.
+- **Signing:** a certificate made for the run through the App Store Connect key and revoked at its end
+  (`asc.mjs sign-native`, `sign-mac`: Apple Distribution, a Mac installer certificate, App Store profiles for the app, the
+  widget and the Mac). Needs `ASC_ISSUER_ID`, `ASC_KEY_ID`, `ASC_PRIVATE_KEY` set on gemstrack-pos (the same values as
+  taheri-pos's). Secrets never reach a fork's pull request; the workflow runs only on a push to main or by hand.
+- **Build number:** `asc.mjs next-build`: one above every build App Store Connect holds, iPhone and Mac alike.
+- **Xcode Cloud:** once a free run has reached TestFlight, switch off Taheri's Xcode Cloud workflows (`asc.mjs ci-off
+  taheri`): when its hours renew it would build the same lines again with lower numbers, which TestFlight would not offer.
+- If gemstrack-pos is ever made private this stops being free (docs/security.md).

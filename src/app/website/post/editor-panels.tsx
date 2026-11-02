@@ -277,7 +277,7 @@ function ImageControls({ ed, l }: { ed: Editor; l: ImageLayer }) {
     {!l.src && (
       <Row label="Photo">
         <div className="flex gap-1.5 overflow-x-auto">{ed.p.photos.map(p => (
-          <button key={p.id} type="button" onClick={() => set({ photoId: p.id })} className={cn('h-10 w-10 shrink-0 rounded overflow-hidden border-2', l.photoId === p.id ? 'border-primary' : 'border-transparent')}><img src={p.url} alt="" className="h-full w-full object-cover" /></button>
+          <button key={p.id} type="button" onClick={() => set({ photoId: p.id })} className={cn('h-10 w-10 shrink-0 rounded overflow-hidden border-2', l.photoId === p.id ? 'border-primary' : 'border-transparent')}><img loading="lazy" decoding="async" src={p.url} alt="" className="h-full w-full object-cover" /></button>
         ))}</div>
       </Row>
     )}
@@ -359,7 +359,7 @@ export function BackgroundInspector({ ed, bare }: { ed: Editor; bare?: boolean }
       {!bare && <p className="text-sm font-medium">{square ? 'Photos & crop' : 'Photo & colours'}</p>}
       <Row label={square ? 'Editing' : 'Photo'}>
         <div className="flex gap-1.5 overflow-x-auto">{photos.map(p => (
-          <button key={p.id} type="button" onClick={() => square ? setBg({ photoId: p.id }) : change(d => withPlacement({ ...d, bg: { ...d.bg, photoId: p.id } }, freshPlacement(placementOf(d))))} className={cn('h-10 w-10 shrink-0 rounded overflow-hidden border-2', bg.photoId === p.id ? 'border-primary' : 'border-transparent')}><img src={p.url} alt="" className="h-full w-full object-cover" /></button>
+          <button key={p.id} type="button" onClick={() => square ? setBg({ photoId: p.id }) : change(d => withPlacement({ ...d, bg: { ...d.bg, photoId: p.id } }, freshPlacement(placementOf(d))))} className={cn('h-10 w-10 shrink-0 rounded overflow-hidden border-2', bg.photoId === p.id ? 'border-primary' : 'border-transparent')}><img loading="lazy" decoding="async" src={p.url} alt="" className="h-full w-full object-cover" /></button>
         ))}</div>
       </Row>
       {square && <p className="text-[11px] text-muted-foreground">{ed.p.photoNote ?? 'Every photo going to WhatsApp or the website is shown here. The words and marks are shared; each photo keeps its own crop — drag or pinch it to choose what shows.'}</p>}
@@ -607,7 +607,7 @@ export function TemplatesPanel({ ed }: { ed: Editor }) {
           {presets.map(p => (
             <button key={p.id} type="button" onClick={() => ed.preset(p.id)} className="group space-y-1 text-left">
               <span className={cn('block overflow-hidden rounded-md border bg-muted group-hover:ring-2 group-hover:ring-primary', aspect)}>
-                {thumbs[`p:${p.id}`] ? <img src={thumbs[`p:${p.id}`]} alt="" className="h-full w-full object-cover" /> : null}
+                {thumbs[`p:${p.id}`] ? <img loading="lazy" decoding="async" src={thumbs[`p:${p.id}`]} alt="" className="h-full w-full object-cover" /> : null}
               </span>
               <span className="block text-[11px] text-muted-foreground">{p.label}</span>
             </button>
@@ -620,7 +620,7 @@ export function TemplatesPanel({ ed }: { ed: Editor }) {
             {ed.templates.map(t => (
               <div key={t.name} className="group relative space-y-1">
                 <button type="button" onClick={() => ed.useTemplate(t)} className={cn('block w-full overflow-hidden rounded-md border bg-muted group-hover:ring-2 group-hover:ring-primary', aspect)}>
-                  {thumbs[`t:${t.name}`] && <img src={thumbs[`t:${t.name}`]} alt="" className="h-full w-full object-cover" />}
+                  {thumbs[`t:${t.name}`] && <img loading="lazy" decoding="async" src={thumbs[`t:${t.name}`]} alt="" className="h-full w-full object-cover" />}
                 </button>
                 <span className="flex items-center justify-between text-[11px] text-muted-foreground">{t.name}
                   <button type="button" title="Delete template" onClick={() => ed.dropTemplate(t.name)} className="hover:text-destructive"><Trash className="h-3 w-3" /></button>
@@ -772,7 +772,7 @@ export function PhotosPanel({ ed }: { ed: Editor }) {
             {sessionUploads.map(src => (
               <button key={src.slice(-40)} type="button" className="aspect-square overflow-hidden rounded-md border bg-[conic-gradient(#ddd_25%,#fff_0_50%,#ddd_0_75%,#fff_0)] bg-[length:12px_12px] hover:ring-2 hover:ring-primary"
                 onClick={() => { const img = uploadedImage(src); if (img) ed.add(newUploadLayer(src, img, F)); }}>
-                <img src={src} alt="" className="h-full w-full object-contain" />
+                <img loading="lazy" decoding="async" src={src} alt="" className="h-full w-full object-contain" />
               </button>
             ))}
           </div>
@@ -784,7 +784,7 @@ export function PhotosPanel({ ed }: { ed: Editor }) {
             {ed.p.photos.map(p => (
               <div key={p.id} className="space-y-1">
                 <button type="button" onClick={() => ed.add(newImageLayer(p.id))} className="block aspect-square w-full overflow-hidden rounded-md border hover:ring-2 hover:ring-primary" title="Add on top">
-                  <img src={p.url} alt="" className="h-full w-full object-cover" />
+                  <img loading="lazy" decoding="async" src={p.url} alt="" className="h-full w-full object-cover" />
                 </button>
                 <div className="flex gap-1">
                   <button type="button" className="flex-1 rounded border px-1 py-0.5 text-[10px] hover:bg-muted" onClick={() => ed.api.change(d => withPlacement({ ...d, bg: { ...d.bg, photoId: p.id } }, freshPlacement(placementOf(d))))}>Background</button>

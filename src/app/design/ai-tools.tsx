@@ -406,7 +406,7 @@ export function AiCandidateBanner({ design, actions }: { design: DesignApi; acti
   return (
     <div className="space-y-2 rounded-xl border border-primary/40 bg-primary/5 p-3" role="region" aria-label="An AI picture to look at">
       <div className="flex flex-wrap items-start gap-3">
-        <img src={c.url} alt={c.label} className="h-40 w-auto max-w-[45%] rounded-md border object-contain sm:h-48" />
+        <img loading="lazy" decoding="async" src={c.url} alt={c.label} className="h-40 w-auto max-w-[45%] rounded-md border object-contain sm:h-48" />
         <div className="min-w-[10rem] flex-1 space-y-1.5 text-xs">
           <p className="text-sm font-semibold">{c.why === 'paint' ? 'The painted ad' : `${c.label} — to look at`}</p>
           {c.lettering && (
@@ -500,7 +500,7 @@ export function AiDialogs({ design, actions }: { design: DesignApi; actions: AiA
             <DialogTitle>Ask AI to change this photo</DialogTitle>
             <DialogDescription>Say it the way you’d tell a photographer. The piece itself is protected, and the result is checked against the original.</DialogDescription>
           </DialogHeader>
-          {design.photo && <img src={design.photo.url} alt="" className="mx-auto h-28 w-28 rounded-md object-cover" />}
+          {design.photo && <img loading="lazy" decoding="async" src={design.photo.url} alt="" className="mx-auto h-28 w-28 rounded-md object-cover" />}
           <Textarea value={askText} onChange={e => setAskText(e.target.value)} rows={3} autoFocus className="text-base sm:text-sm"
             placeholder="e.g. put it on white marble with a few rose petals · remove the hand · warmer evening light · make the background deep green velvet" />
           <div className="flex flex-wrap gap-1.5">

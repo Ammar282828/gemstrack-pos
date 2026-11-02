@@ -57,7 +57,7 @@ export function OldDraftView({ id, onClose }: { id: string | null; onClose: () =
             <div className="grid grid-cols-3 gap-2">
               {got.urls.map(p => (
                 <div key={p.id} className="space-y-1">
-                  <img src={p.url} alt="" className="aspect-square w-full rounded-md object-cover" />
+                  <img loading="lazy" decoding="async" src={p.url} alt="" className="aspect-square w-full rounded-md object-cover" />
                   <Button size="sm" variant="outline" className="h-7 w-full px-1 text-[11px]" onClick={() => downloadBlob(p.blob, p.name || `${p.id}.jpg`)}><Download className="mr-1 h-3 w-3" /> Save</Button>
                 </div>
               ))}

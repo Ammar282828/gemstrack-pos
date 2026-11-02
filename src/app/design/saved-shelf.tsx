@@ -148,7 +148,7 @@ export function SavedShelf({ adsOk, onOpen, onOpenDraft }: { adsOk: boolean; onO
                 {shown.map(d => (
                   <button key={d.id} type="button" onClick={() => setOpen(d)} className="min-h-0 overflow-hidden rounded-card bg-card text-left">
                     <div className="grid place-items-center bg-muted" style={{ aspectRatio: '4 / 5' }}>
-                      {d.thumb ? <img src={d.thumb} alt="" className="max-h-full max-w-full object-contain" /> : null}
+                      {d.thumb ? <img loading="lazy" decoding="async" src={d.thumb} alt="" className="max-h-full max-w-full object-contain" /> : null}
                     </div>
                     <p className="truncate px-3 pt-2 text-ios-sub font-medium">{d.name}</p>
                     <p className="truncate px-3 pb-2.5 text-ios-foot text-muted-foreground">{kindLabel(d.kind)} · {d.pages.length} size{d.pages.length === 1 ? '' : 's'} · {when(d.updated)}</p>
@@ -235,7 +235,7 @@ function DraftRow({ draft, onOpen, onChanged }: { draft: PostDraft; onOpen: (id:
   const mine = isDesignDraft(draft.state);
   const body = (
     <>
-      <span className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted">{thumb ? <img src={thumb} alt="" className="h-full w-full object-cover" /> : <Smartphone className="h-5 w-5 text-muted-foreground" />}</span>
+      <span className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted">{thumb ? <img loading="lazy" decoding="async" src={thumb} alt="" className="h-full w-full object-cover" /> : <Smartphone className="h-5 w-5 text-muted-foreground" />}</span>
       <span className="min-w-0 flex-1 text-left">
         <span className="block truncate text-ios-sub font-medium">{draft.title || 'Untitled'}</span>
         <span className="block truncate text-ios-foot text-muted-foreground">{mine ? 'Design draft' : 'Earlier Post a piece draft — opens as a design'} · {when(draft.updatedAt)}</span>
@@ -292,7 +292,7 @@ function AccountAds({ folders, onKept }: { folders: AdFolder[]; onKept: () => vo
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {shown.map(a => (
           <div key={a.id} className="overflow-hidden rounded-card bg-card">
-            {a.image ? <img src={a.image} alt="" className="aspect-square w-full object-cover" /> : <div className="aspect-square bg-muted" />}
+            {a.image ? <img loading="lazy" decoding="async" src={a.image} alt="" className="aspect-square w-full object-cover" /> : <div className="aspect-square bg-muted" />}
             <p className="truncate px-3 pt-2 text-ios-sub font-medium" title={a.where}>{a.name}</p>
             <div className="flex items-center justify-between px-2 pb-1.5">
               <span className="pl-1 text-ios-foot text-muted-foreground">{a.status === 'ACTIVE' ? 'Running' : a.status.toLowerCase().replace(/_/g, ' ')}</span>

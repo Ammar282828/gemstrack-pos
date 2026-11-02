@@ -53,7 +53,7 @@ describe('the builders without a page', () => {
   it('draw the invoice with the server codes, as one file per invoice', async () => {
     const imgs = await serverPdfImages();
     expect(String(imgs.linksQr)).toMatch(/^data:image\/png;base64,/);
-    const doc = drawInvoicePdf(invoice, { images: imgs, dates: KARACHI_DATES });
+    const doc = await drawInvoicePdf(invoice, { images: imgs, dates: KARACHI_DATES });
     // The code is drawn (jsPDF adds its alpha mask as a second image object).
     expect(images(doc)).toBeGreaterThan(0);
     const t = pdfText(doc);
@@ -66,8 +66,8 @@ describe('the builders without a page', () => {
     expect(invoicePdfFileName(invoice, { perPiece: true })).toBe('Invoice - Test Customer.pdf');
   });
 
-  it('draw with no pictures at all', () => {
-    const doc = drawInvoicePdf(invoice, { images: {} });
+  it('draw with no pictures at all', async () => {
+    const doc = await drawInvoicePdf(invoice, { images: {} });
     expect(images(doc)).toBe(0);
     expect(pdfText(doc)).toContain('Estimate #: INV-T1');
   });

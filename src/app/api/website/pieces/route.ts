@@ -18,6 +18,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { gzipJson } from '@/lib/http/gzip-json';
 import { z } from 'zod';
 import { verifyRequestEmail } from '@/lib/karigar-auth';
 import { roleForEmail } from '@/lib/roles';
@@ -76,7 +77,7 @@ export async function GET(req: NextRequest) {
   // Newest first (owner: "show me the newest stuff first"); the undated after, by name.
   const pieces = [...fresh, ...listed].sort((x, y) => (y.added ?? 0) - (x.added ?? 0) || x.key.localeCompare(y.key, undefined, { numeric: true }));
   const withWeight = pieces.filter(p => p.weightGrams).length;
-  return NextResponse.json({ total: pieces.length, withWeight, missing: pieces.length - withWeight, pieces }, { headers: { 'Cache-Control': 'no-store' } });
+  return gzipJson(req, { total: pieces.length, withWeight, missing: pieces.length - withWeight, pieces }, { headers: { 'Cache-Control': 'no-store' } });
 }
 
 const Put = z.object({ key: z.string().min(3).max(300), weightGrams: z.number().positive().max(5000).nullable() });

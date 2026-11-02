@@ -529,7 +529,7 @@ function PostsHub() {
                     return (
                       <button key={id} type="button" onClick={() => setActive(id)} title={p?.name}
                         className={cn('relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border-2', active === id ? 'border-primary' : 'border-transparent opacity-80 hover:opacity-100')}>
-                        {p && <img src={p.thumb} alt="" className="h-full w-full object-cover" />}
+                        {p && <img loading="lazy" decoding="async" src={p.thumb} alt="" className="h-full w-full object-cover" />}
                         <span className="absolute left-0.5 top-0.5 rounded-full bg-black/60 px-1 text-[10px] leading-4 text-white">{i + 1}</span>
                         {st?.s === 'sending' && <span className="absolute inset-0 flex items-center justify-center bg-background/60"><Loader2 className="h-5 w-5 animate-spin text-primary" /></span>}
                         {st?.s === 'failed' && <span className="absolute inset-x-0 bottom-0 bg-destructive py-0.5 text-center text-[9px] font-medium text-destructive-foreground">didn’t go</span>}
@@ -649,7 +649,7 @@ function PostsHub() {
       {n > 0 && !sendInView && (
         <div className="glass-bar lg:hidden fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 px-4 py-2.5 pr-20 pb-[calc(0.625rem+env(safe-area-inset-bottom))]">
           <button type="button" onClick={() => sendRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })} className="flex w-full items-center gap-2.5 text-left">
-            <span className="flex shrink-0 -space-x-3">{picked.slice(0, 2).map(id => <img key={id} src={byId.get(id)?.thumb} alt="" className="h-8 w-8 rounded-md border-2 border-background object-cover" />)}</span>
+            <span className="flex shrink-0 -space-x-3">{picked.slice(0, 2).map(id => <img loading="lazy" decoding="async" key={id} src={byId.get(id)?.thumb} alt="" className="h-8 w-8 rounded-md border-2 border-background object-cover" />)}</span>
             <span className="min-w-0 flex-1 whitespace-nowrap text-sm font-medium">{n} picked</span>
             <span className="shrink-0 whitespace-nowrap rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground">{busy === 'send' ? 'Sending…' : 'Send…'}</span>
           </button>
@@ -667,7 +667,7 @@ function PostsHub() {
                     const p = byId.get(id), card = cards.current.get(id);
                     return p ? (
                       <li key={id} className="flex items-center gap-2.5">
-                        <img src={card?.preview() ?? p.thumb} alt="" className="h-11 w-11 rounded-md object-cover shrink-0" />
+                        <img loading="lazy" decoding="async" src={card?.preview() ?? p.thumb} alt="" className="h-11 w-11 rounded-md object-cover shrink-0" />
                         <div className="min-w-0"><p className="font-medium text-foreground truncate">{p.name}</p><p className="text-xs truncate">{card?.going()}{posted[id] ? ` · ${agoLabel(posted[id])}` : ''}</p></div>
                       </li>
                     ) : null;

@@ -48,6 +48,7 @@ async function call<T>(c: LeopardsConfig, path: string, body: Record<string, unk
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ api_key: c.apiKey, api_password: c.apiPassword, ...body }),
+    signal: AbortSignal.timeout(30000),
   });
   const data = (await res.json().catch(() => ({}))) as T & { status?: number; error?: string };
   if (!res.ok || data.status === 0) throw new Error(`Leopards ${path}: ${data.error || res.status}`);

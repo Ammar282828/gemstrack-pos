@@ -251,7 +251,7 @@ fun PdfPages(source: PdfSource, modifier: Modifier = Modifier) {
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                itemsIndexed(source.pageSizes) { index, size ->
+                itemsIndexed(source.pageSizes, key = { index, _ -> index }) { index, size ->
                     // At most 2400 px wide: a page is a bitmap, and a zoomed invoice should not be hundreds of MB.
                     val widthPx = ((viewport - 2 * 12f) * drawnZoom).coerceIn(200f, 2400f).roundToInt()
                     val bitmap by produceState<ImageBitmap?>(null, index, widthPx) {

@@ -25,7 +25,14 @@ final class ERPAPI {
     func data(_ path: String, method: String = "GET", json: [String: Any]? = nil, timeout: TimeInterval? = nil, business: Business? = nil) async throws -> Data {
         // A page load that has not answered in 15 s is a dead line, not a slow server: say so and let it retry.
         // Writes and sends keep a minute. None of this is serialized: each call is its own task on the shared session.
-        try await raw(path, method: method, json: json, timeout: timeout ?? (method == "GET" ? 15 : 60), business: business, ifNoneMatch: nil).data
+        let seconds = timeout ?? (method == "GET" ? 15 : 60)
+        do {
+            return try await raw(path, method: method, json: json, timeout: seconds, business: business, ifNoneMatch: nil).data
+        } catch let e as URLError where method == "GET" && (e.code == .timedOut || e.code == .networkConnectionLost) {
+            // A read can be asked twice without harm: one more try after a line that dropped or stalled (a phone
+            // moving between Wi-Fi and mobile data). A write is never repeated here; it has its own request id.
+            return try await raw(path, method: method, json: json, timeout: seconds, business: business, ifNoneMatch: nil).data
+        }
     }
 
     /// A read the ERP may answer "unchanged" (304) when `ifNoneMatch` is the ETag of the last answer: `data` is
@@ -90,11 +97,29 @@ final class ERPAPI {
     }()
 
     func get<T: Decodable>(_ path: String, as type: T.Type = T.self, business: Business? = nil) async throws -> T {
-        try JSONDecoder().decode(T.self, from: try await data(path, business: business))
+        try await Self.decode(T.self, from: try await data(path, business: business))
     }
 
     func post<T: Decodable>(_ path: String, _ json: [String: Any], as type: T.Type = T.self) async throws -> T {
-        try JSONDecoder().decode(T.self, from: try await data(path, method: "POST", json: json))
+        try await Self.decode(T.self, from: try await data(path, method: "POST", json: json))
+    }
+
+    /// Answers bigger than this are read off the main actor (a list of the books is hundreds of KB); a small one is
+    /// quicker read where it is than hopped to another thread and back.
+    private static let offMainBytes = 16 * 1024
+
+    /// Decoding a response is work for a background thread: it never holds up a frame.
+    nonisolated private static func decode<T: Decodable>(_ type: T.Type, from data: Data) async throws -> T {
+        if data.count < offMainBytes { return try JSONDecoder().decode(T.self, from: data) }
+        return try await Task.detached(priority: .userInitiated) { try JSONDecoder().decode(T.self, from: data) }.value
+    }
+
+    /// The same for a JSON object read loosely.
+    nonisolated private static func object(from data: Data) async -> [String: Any] {
+        if data.count < offMainBytes { return ((try? JSONSerialization.jsonObject(with: data)) as? [String: Any]) ?? [:] }
+        return await Task.detached(priority: .userInitiated) {
+            ((try? JSONSerialization.jsonObject(with: data)) as? [String: Any]) ?? [:]
+        }.value
     }
 
     /// The person switched business: ids are kept per business on disk (below), so nothing is held here.
@@ -149,7 +174,7 @@ final class ERPAPI {
     @discardableResult
     func send(_ path: String, method: String = "POST", _ json: [String: Any] = [:], timeout: TimeInterval? = nil, business: Business? = nil) async throws -> [String: Any] {
         let d = try await data(path, method: method, json: json, timeout: timeout, business: business)
-        return ((try? JSONSerialization.jsonObject(with: d)) as? [String: Any]) ?? [:]
+        return await Self.object(from: d)
     }
 }
 

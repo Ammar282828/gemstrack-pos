@@ -39,7 +39,6 @@ const own = {
     name: 'MINA', margin: { kind: 'percent', percent: 40 },
     logo: { light: '/house-of-mina-logo.png', dark: '/house-of-mina-logo-light.png', aspect: 4.9458 },
     flags: { partnership: true, websiteSelling: false, invoiceByCustomer: false, invoiceWhatsappPdf: false, sizeToProfile: false },
-    // apphosting.mina.yaml NEXT_PUBLIC_STORE_GOODS_EXPENSE_CATEGORIES: the cost of the goods, filed as expenses.
     goodsExpenseCategories: ['Stock & Karigars', 'Custom Orders', 'Stones & Pearls', 'Plating & Finishing'],
   },
 };

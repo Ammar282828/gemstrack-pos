@@ -88,7 +88,7 @@ export function AdjustControls({ value, onChange, img, onCompare, openByDefault 
       <div className="flex gap-1.5 overflow-x-auto pb-1">{FILTERS.map(f => (
         <button key={f.id} type="button" onClick={() => onChange(f.adjust)} className="shrink-0 space-y-0.5 text-center">
           <span className={cn('block h-14 w-14 overflow-hidden rounded-md border-2 bg-muted', current === f.id ? 'border-primary' : 'border-transparent')}>
-            {thumbs[f.id] && <img src={thumbs[f.id]} alt="" className="h-full w-full object-cover" />}
+            {thumbs[f.id] && <img loading="lazy" decoding="async" src={thumbs[f.id]} alt="" className="h-full w-full object-cover" />}
           </span>
           <span className="block text-[10px] text-muted-foreground">{f.label}</span>
         </button>

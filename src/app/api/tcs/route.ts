@@ -26,6 +26,7 @@ async function getTcsTokens(): Promise<{ bearerToken: string; accessToken: strin
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ clientid: clientId, clientsecret: clientSecret }),
+    signal: AbortSignal.timeout(15000),
   });
   if (!authRes.ok) {
     throw new Error(`TCS Authorization failed: HTTP ${authRes.status}`);
@@ -44,6 +45,7 @@ async function getTcsTokens(): Promise<{ bearerToken: string; accessToken: strin
   const ecomRes = await fetch(ecomUrl.toString(), {
     method: 'GET',
     headers: { Authorization: `Bearer ${bearerToken}` },
+    signal: AbortSignal.timeout(15000),
   });
 
   if (!ecomRes.ok) {
@@ -151,6 +153,7 @@ export async function POST(req: NextRequest) {
         method: 'POST',
         headers: authHeaders,
         body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(30000),
       });
       const data = await res.json();
       return NextResponse.json(data, { status: res.ok ? 200 : 400 });
@@ -166,6 +169,7 @@ export async function POST(req: NextRequest) {
       const res = await fetch(trackUrl.toString(), {
         method: 'GET',
         headers: { Authorization: `Bearer ${bearerToken}` },
+        signal: AbortSignal.timeout(15000),
       });
       const data = await res.json();
       return NextResponse.json(data);
@@ -178,6 +182,7 @@ export async function POST(req: NextRequest) {
         method: 'POST',
         headers: authHeaders,
         body: JSON.stringify({ consignmentnumber: consignmentNo, accesstoken: accessToken }),
+        signal: AbortSignal.timeout(15000),
       });
       const data = await res.json();
       return NextResponse.json(data);
@@ -194,6 +199,7 @@ export async function POST(req: NextRequest) {
       const res = await fetch(labelUrl.toString(), {
         method: 'GET',
         headers: { Authorization: `Bearer ${bearerToken}` },
+        signal: AbortSignal.timeout(30000),
       });
       const data = await res.json();
       return NextResponse.json(data);

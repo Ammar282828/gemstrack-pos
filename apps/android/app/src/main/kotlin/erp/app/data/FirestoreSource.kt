@@ -64,8 +64,8 @@ object FirestoreSource {
      * A collection unordered (sorted on the phone, so a document missing the sort field is still shown), or one
      * document. Every change after the first answer arrives as just that change. `deliver` runs on the main thread.
      */
-    fun <T : Any> listen(business: Business, name: String, model: Decodable<T>, docId: String?, deliver: (Delivery<T>) -> Unit): () -> Unit {
-        val l = Listening(business, name, model, docId) { d -> ErpApp.scope.launch { deliver(d) } }
+    fun <T : Any> listen(business: Business, name: String, model: Decodable<T>, docId: String?, order: Comparator<T>?, deliver: (Delivery<T>) -> Unit): () -> Unit {
+        val l = Listening(business, name, model, docId, order) { d -> ErpApp.scope.launch { deliver(d) } }
         queue.execute { l.start() }
         return { queue.execute { l.stop() } }
     }
@@ -80,6 +80,7 @@ private class Listening<T : Any>(
     val name: String,
     val model: Decodable<T>,
     val docId: String?,
+    val order: Comparator<T>?,
     val send: (Delivery<T>) -> Unit,
 ) {
     private var registration: ListenerRegistration? = null
@@ -128,7 +129,9 @@ private class Listening<T : Any>(
             // Even an empty collection is an answer: "loaded, nothing in it".
             first = false
             lastOffline = off
-            send(Delivery.All(snap.documents.mapNotNull { decode(it) }, offline = off))
+            val docs = snap.documents.mapNotNull { decode(it) }
+            // Sorted here, on the Firestore thread, so the shelf does not sort thousands of documents on the main one.
+            send(Delivery.All(if (order != null) docs.sortedWith(order) else docs, offline = off, sorted = order != null))
             return
         }
         // Metadata alone (pending write acknowledged, cache -> server) has no changes: it matters only when

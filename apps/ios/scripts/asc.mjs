@@ -145,35 +145,41 @@ async function plan(mode) {
   console.log(`simulator=${out.simulator}`);
 }
 
-/** A distribution certificate for this one build, as a .p12 in outDir; revoked at the end of the run. */
-async function newCertificate(outDir) {
+/**
+ * A certificate for this one build, as a .p12 in outDir; revoked at the end of the run. DISTRIBUTION ("Apple Distribution")
+ * signs the iPhone and the Mac app alike; MAC_INSTALLER_DISTRIBUTION signs the Mac's upload package. `env` prefixes what is
+ * printed for $GITHUB_ENV (ASC_CERT_ID / P12_PASSWORD, or ASC_INSTALLER_CERT_ID / INSTALLER_P12_PASSWORD).
+ */
+async function newCertificate(outDir, certificateType = 'DISTRIBUTION', base = 'dist', env = '') {
   fs.mkdirSync(outDir, { recursive: true });
   const file = (f) => path.join(outDir, f);
   const ssl = (...args) => execFileSync('/usr/bin/openssl', args, { stdio: ['ignore', 'pipe', 'inherit'] });
 
-  ssl('genrsa', '-out', file('key.pem'), '2048');
-  ssl('req', '-new', '-key', file('key.pem'), '-subj', '/CN=ERP build/O=ERP', '-out', file('csr.pem'));
+  ssl('genrsa', '-out', file(`${base}-key.pem`), '2048');
+  ssl('req', '-new', '-key', file(`${base}-key.pem`), '-subj', '/CN=ERP build/O=ERP', '-out', file(`${base}-csr.pem`));
   const cert = (await api('POST', '/v1/certificates', {
-    data: { type: 'certificates', attributes: { certificateType: 'DISTRIBUTION', csrContent: fs.readFileSync(file('csr.pem'), 'utf8') } },
+    data: { type: 'certificates', attributes: { certificateType, csrContent: fs.readFileSync(file(`${base}-csr.pem`), 'utf8') } },
   })).data;
   // Recorded before anything else can fail, so the end of the run can revoke it.
-  console.log(`ASC_CERT_ID=${cert.id}`);
-  fs.writeFileSync(file('cert.cer'), Buffer.from(cert.attributes.certificateContent, 'base64'));
-  ssl('x509', '-inform', 'DER', '-in', file('cert.cer'), '-out', file('cert.pem'));
+  console.log(`ASC_${env}CERT_ID=${cert.id}`);
+  fs.writeFileSync(file(`${base}.cer`), Buffer.from(cert.attributes.certificateContent, 'base64'));
+  ssl('x509', '-inform', 'DER', '-in', file(`${base}.cer`), '-out', file(`${base}.pem`));
   const p12Password = crypto.randomBytes(12).toString('hex');
   say(`::add-mask::${p12Password}`);
-  ssl('pkcs12', '-export', '-inkey', file('key.pem'), '-in', file('cert.pem'), '-out', file('dist.p12'), '-passout', `pass:${p12Password}`);
-  fs.rmSync(file('key.pem'));
-  console.log(`P12_PASSWORD=${p12Password}`);
+  // -legacy where OpenSSL 3 has it: macOS's `security import` cannot read OpenSSL 3's default p12 encryption.
+  const legacy = (() => { try { execFileSync('/usr/bin/openssl', ['pkcs12', '-help'], { stdio: 'pipe' }); return false; } catch (e) { return /-legacy/.test(String(e.stderr || '')); } })();
+  ssl('pkcs12', '-export', ...(legacy ? ['-legacy'] : []), '-inkey', file(`${base}-key.pem`), '-in', file(`${base}.pem`), '-out', file(`${base}.p12`), '-passout', `pass:${p12Password}`);
+  fs.rmSync(file(`${base}-key.pem`));
+  console.log(`${env}P12_PASSWORD=${p12Password}`);
   return cert;
 }
 
 /** An App Store profile for one bundle ID and the build's certificate, written to outDir/<fileName>. */
-async function newProfile(bundle, cert, profileName, outDir, fileName) {
+async function newProfile(bundle, cert, profileName, outDir, fileName, profileType = 'IOS_APP_STORE') {
   const profile = (await api('POST', '/v1/profiles', {
     data: {
       type: 'profiles',
-      attributes: { name: profileName, profileType: 'IOS_APP_STORE' },
+      attributes: { name: profileName, profileType },
       relationships: {
         bundleId: { data: { type: 'bundleIds', id: bundle.id } },
         certificates: { data: [{ type: 'certificates', id: cert.id }] },
@@ -242,10 +248,51 @@ async function signNative(name, outDir) {
   say(`Signing ${h.storeName} (native): team ${a.team}, the app and its widget`);
 }
 
+/**
+ * The Mac app's signing, after sign-native has made this run's Apple Distribution certificate (ASC_CERT_ID): a Mac
+ * installer certificate for the upload package and a Mac App Store profile for the same bundle ID (one app record,
+ * iPhone and Mac). Revoked with the rest at the end of the run.
+ */
+async function signMac(name, outDir) {
+  const nativeHouses = JSON.parse(fs.readFileSync(path.join(dir, '..', 'iphone', 'houses.json'), 'utf8'));
+  const h = nativeHouses[name];
+  if (!h) throw new Error(`no house ${name} in apps/iphone/houses.json`);
+  if (!process.env.ASC_CERT_ID) throw new Error('sign-mac needs this run\'s Apple Distribution certificate (run sign-native first)');
+  const cert = { id: process.env.ASC_CERT_ID };
+  const app = await bundleIdFor({ bundleId: h.bundleId, storeName: h.storeName }, false);
+  if (!app) throw new Error(`the bundle ID ${h.bundleId} is not registered`);
+  await newCertificate(outDir, 'MAC_INSTALLER_DISTRIBUTION', 'installer', 'INSTALLER_');
+  const run = process.env.GITHUB_RUN_ID || Date.now();
+  const m = await newProfile(app, cert, `ERP ${name} mac ${run}`, outDir, 'mac.provisionprofile', 'MAC_APP_STORE');
+  console.log(`ASC_MAC_PROFILE_ID=${m.profile.id}`);
+  console.log(`MAC_PROFILE_NAME=${m.profile.attributes.name}`);
+  say(`Signing ${h.storeName} for the Mac: team ${m.team}`);
+}
+
+/** The next build number for the app: one above every build uploaded so far, iPhone and Mac alike (Xcode Cloud's included). */
+async function nextBuild(name) {
+  const nativeHouses = JSON.parse(fs.readFileSync(path.join(dir, '..', 'iphone', 'houses.json'), 'utf8'));
+  const h = nativeHouses[name];
+  if (!h) throw new Error(`no house ${name} in apps/iphone/houses.json`);
+  const app = await appFor({ bundleId: h.bundleId });
+  if (!app) throw new Error(`${h.storeName} has no app in App Store Connect`);
+  let max = 0;
+  for (const platform of ['IOS', 'MAC_OS']) {
+    const res = await api('GET', `/v1/builds?filter[app]=${app.id}&filter[preReleaseVersion.platform]=${platform}&sort=-uploadedDate&limit=50`);
+    for (const b of res.data) {
+      // Only plain counts: 2.0's date-shaped numbers (20261009.1200) belong to an older version.
+      const v = String(b.attributes.version);
+      if (/^\d+$/.test(v)) max = Math.max(max, Number(v));
+    }
+  }
+  console.log(`NEXT_BUILD=${max + 1}`);
+  say(`${h.storeName}: newest build number ${max}; this one is ${max + 1}`);
+}
+
 async function revoke() {
-  const { ASC_CERT_ID, ASC_PROFILE_ID, ASC_PROFILE_IDS } = process.env;
-  const profiles = [ASC_PROFILE_ID, ...String(ASC_PROFILE_IDS || '').split(',')].filter(Boolean);
-  for (const [kind, id] of [...profiles.map((p) => ['profiles', p]), ['certificates', ASC_CERT_ID]]) {
+  const { ASC_CERT_ID, ASC_INSTALLER_CERT_ID, ASC_PROFILE_ID, ASC_PROFILE_IDS, ASC_MAC_PROFILE_ID } = process.env;
+  const profiles = [ASC_PROFILE_ID, ASC_MAC_PROFILE_ID, ...String(ASC_PROFILE_IDS || '').split(',')].filter(Boolean);
+  for (const [kind, id] of [...profiles.map((p) => ['profiles', p]), ['certificates', ASC_CERT_ID], ['certificates', ASC_INSTALLER_CERT_ID]]) {
     if (!id) continue;
     try { await api('DELETE', `/v1/${kind}/${id}`); say(`Removed ${kind} ${id}`); }
     catch (e) { say(`::warning::Could not remove ${kind} ${id}: ${e.message}`); }
@@ -836,6 +883,8 @@ try {
   else if (!haveKey) throw new Error('The App Store Connect key is not in the repository secrets (ASC_ISSUER_ID, ASC_KEY_ID, ASC_PRIVATE_KEY).');
   else if (cmd === 'sign') await sign(args[0], args[1]);
   else if (cmd === 'sign-native') await signNative(args[0], args[1]);
+  else if (cmd === 'sign-mac') await signMac(args[0], args[1]);
+  else if (cmd === 'next-build') await nextBuild(args[0]);
   else if (cmd === 'revoke') await revoke();
   else if (cmd === 'key-file') { fs.mkdirSync(path.dirname(args[0]), { recursive: true }); fs.writeFileSync(args[0], ASC_PRIVATE_KEY, { mode: 0o600 }); }
   else if (cmd === 'builds') await builds(args[0], args.includes('--fix'));

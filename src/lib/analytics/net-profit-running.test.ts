@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 // House of Mina's setting (apphosting.mina.yaml), set before the modules read it.
 vi.stubEnv('NEXT_PUBLIC_STORE_GOODS_EXPENSE_CATEGORIES', 'Stock & Karigars,Custom Orders,Stones & Pearls,Plating & Finishing');
-const { isRunningCost, netProfit } = await import('./net-profit');
+const { isRunningCost, netProfit, profitBeforeRunning } = await import('./net-profit');
 
 describe('net profit takes off the running costs only', () => {
   it("leaves out the goods the margin allows for, and the partners' drawings", () => {
@@ -24,5 +24,16 @@ describe('net profit takes off the running costs only', () => {
     const running = expenses.filter(isRunningCost).reduce((t, e) => t + e.amount, 0);
     expect(running).toBe(1_800_000);
     expect(netProfit(7_360_000, running)).toBe(5_560_000);
+  });
+});
+
+describe('profitBeforeRunning', () => {
+  it('takes the recorded goods off the revenue where a house records them (Mina, 2026-11-01)', () => {
+    const gross = profitBeforeRunning({ estimated: 7_352_000, revenue: 18_400_000, goods: 15_500_000 }, true);
+    expect(gross).toBe(2_900_000);
+    expect(netProfit(gross, 3_356_000)).toBe(-456_000);
+  });
+  it('keeps the estimate where a house records no goods (Taheri)', () => {
+    expect(profitBeforeRunning({ estimated: 5_500_000, revenue: 55_000_000, goods: 0 }, false)).toBe(5_500_000);
   });
 });

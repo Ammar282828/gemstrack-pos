@@ -13,6 +13,7 @@ const WEBHOOK_TOPICS = [
 async function getExistingWebhooks(shop: string, token: string) {
   const res = await fetch(`https://${shop}/admin/api/${SHOPIFY_API_VERSION}/webhooks.json`, {
     headers: { 'X-Shopify-Access-Token': token },
+    signal: AbortSignal.timeout(15000),
   });
   const data = await res.json();
   return (data.webhooks || []) as { id: number; topic: string; address: string }[];
@@ -23,6 +24,7 @@ async function registerWebhook(shop: string, token: string, topic: string, addre
     method: 'POST',
     headers: { 'X-Shopify-Access-Token': token, 'Content-Type': 'application/json' },
     body: JSON.stringify({ webhook: { topic, address, format: 'json' } }),
+    signal: AbortSignal.timeout(15000),
   });
   return res.json();
 }

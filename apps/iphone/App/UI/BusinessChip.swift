@@ -9,6 +9,7 @@ struct BusinessBadge: View {
     let business: Business
     var size: CGFloat = 28
     @Environment(\.colorScheme) private var scheme
+    @State private var iconImage: UIImage?
 
     /// The ground each bundled BadgeMark-<art> is drawn on (its corner colour), so the circle and the art are one.
     private static let markGround = ["taheri": "0A1111", "mina": "FAF7F2"]
@@ -32,19 +33,22 @@ struct BusinessBadge: View {
                 if let icon = business.icon.flatMap(URL.init(string:)), icon.scheme == "https" {
                     // The ERP's icon, fitted with ~14% padding on the business's card colour.
                     let card = Color(hex: side.card) ?? accent
-                    AsyncImage(url: icon) { phase in
-                        if let image = phase.image {
-                            image.renderingMode(.original).resizable().scaledToFit().padding(size * 0.14)
-                                .frame(width: size, height: size).background(card).transition(.opacity)
-                        }
+                    // Through the shared image store (disk-cached), not AsyncImage, which fetches again at every redraw.
+                    if let image = iconImage {
+                        Image(uiImage: image).renderingMode(.original).resizable().scaledToFit().padding(size * 0.14)
+                            .frame(width: size, height: size).background(card).transition(.opacity)
+                            .clipShape(Circle())
                     }
-                    .clipShape(Circle())
                 }
             }
         }
         .frame(width: size, height: size)
         .overlay { Circle().strokeBorder(.primary.opacity(0.12), lineWidth: 0.5) }
         .accessibilityHidden(true)
+        .task(id: business.icon) {
+            guard business.art == nil, let text = business.icon, let url = URL(string: text), url.scheme == "https" else { return }
+            iconImage = await RemoteImageStore.shared.image(url, maxPixel: Int(size * 3))
+        }
     }
 }
 

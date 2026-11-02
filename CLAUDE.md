@@ -104,6 +104,7 @@ Owner, 2026-10-24: web, Android and iPhone stay aligned at all times. The ledger
 
 - taheri.shop, the Mina catalogue and the ERP (`/api/public/*`, website routes), WhatsApp via WAHA: `docs/features/site-and-erp.md` (runbook `ops/waha/README.md`).
 - House of Mina's catalogue (catalogue.houseofmina.store): `docs/features/mina-catalogue.md`.
+- Speed: what was audited and what is open: `docs/performance.md`.
 - In progress (website edits, Meta app settings, Meta's Ads connector) and open items: `docs/in-progress.md`.
 - The AI copies and a proposed merge: `docs/ai-merge-proposal.md`.
 
@@ -155,7 +156,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Lac and crore](docs/decisions.md#lac-and-crore) — `lib/money.ts`
 - [Invoice credit](docs/decisions.md#invoice-credit) — overpaid is a named customer's credit, on their hisaab; the owner gives it back with "Give back" (`payBackCredit`, not a refund)
 - [Margin](docs/decisions.md#margin) — typed 24k less 6 ratti, else 10%; never the customer's
-- [Net profit](docs/decisions.md#net-profit) — estimated profit less running costs (not drawings, not the goods categories the margin covers), never revenue less expenses; margin = net ÷ revenue
+- [Net profit](docs/decisions.md#net-profit) — profit less running costs (not drawings), never revenue less expenses; profit is the per-sale estimate, or revenue less recorded goods where a house records them (Mina: Gross profit); margin = net ÷ revenue
 - [Exchange as cash](docs/decisions.md#exchange-as-cash) — in Cash In and in revenue (`invoiceSaleValue`)
 - [Analytics default: this month](docs/decisions.md#analytics-default-this-month) — the 1st to today, not a rolling 30 days; Home's ledger too
 
@@ -240,11 +241,11 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Mina's ad style](docs/features/ad-studio.md#house-of-mina-ad-style) — named designs: italic name + pink caps; benefit ads: red SHOP NOW pill + wordmark; a deep shade; in `brand.ts`
 
 **iPhone app** (`docs/features/iphone-app.md`)
-- [iPhone app](docs/features/iphone-app.md#iphone-app) — `apps/ios`, Capacitor over the live ERP; TestFlight by `ios.yml`
+- [iPhone app](docs/features/iphone-app.md#iphone-app) — `apps/iphone` native; TestFlight (iPhone and Mac) from `testflight-free.yml` on gemstrack-pos's free macOS runners since 2026-11-01 (a line in `apps/iphone/RELEASES.md` / `MAC-RELEASES.md`, or Run workflow); Xcode Cloud's 25 hours ran out
 - [One app, many businesses](docs/features/iphone-app.md#one-app-many-businesses-2026-10-16) — `shop.taheri.erp` "ERP": Taheri, Mina and any business by its address (`/api/app/business`), each its own sign-in, data, push, widget; Mina's own app retired 2026-10-20; Mina needs `shop.taheri.erp` in its Firebase
 
 **Mac app** (`docs/features/mac-app.md`)
-- [Mac app](docs/features/mac-app.md#mac-app) — the `ERPMac` target in `apps/iphone/project.yml`, native SwiftUI, the iPhone's screens through `App/Platform/MacPlatform.swift`; same bundle `shop.taheri.erp`; Label LIVE native (localhost API, else the link; iPhone via MQTT); Xcode Cloud "Mac release" by `apps/iphone/MAC-RELEASES.md`, its errors in the "Mac build" workflow's log
+- [Mac app](docs/features/mac-app.md#mac-app) — the `ERPMac` target in `apps/iphone/project.yml`, native SwiftUI, the iPhone's screens through `App/Platform/MacPlatform.swift`; same bundle `shop.taheri.erp`; Label LIVE native (localhost API, else the link; iPhone via MQTT); Xcode Cloud "Mac release" by `apps/iphone/MAC-RELEASES.md`, its errors in the "Mac build" workflow's log; every deploy also compiles the Mac and iPhone apps free ("Swift compile" on public gemstrack-pos; Xcode Cloud's 25 h renew about the 17th, [how](docs/features/mac-app.md#how-a-mac-change-is-checked-2026-11-01))
 
 **Android app** (`docs/features/android-app.md`)
 - [Android app](docs/features/android-app.md#android-app) — `apps/android`, Kotlin/Compose port of `apps/iphone`, two flavors; money in `core` to the iPhone's contract; Play internal testing

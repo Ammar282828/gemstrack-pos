@@ -191,7 +191,7 @@ function PhotoWeightsPage() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] gap-6 items-start">
           <div className="relative rounded-xl overflow-hidden bg-muted aspect-square">
-            <img key={current.key} src={current.thumb} alt="" className="absolute inset-0 w-full h-full object-cover" />
+            <img loading="lazy" decoding="async" key={current.key} src={current.thumb} alt="" className="absolute inset-0 w-full h-full object-cover" />
             {/* Where the site will draw it — so what you type appears where it will land. */}
             {(value || current.weightGrams) && current.source !== 'label' && (
               // The site's own geometry (WeightLabel.jsx): Futura LT Light at

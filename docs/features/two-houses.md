@@ -36,7 +36,7 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   app (bundle `shop.taheri.erp`) asks any ERP address who it is before sign-in. It answers `{version:1, id, name, shortName,
   serverURL (the request's own https origin), metal, margin ({kind:"rattiLess",ratti} when `NEXT_PUBLIC_STORE_COST_RATTI_LESS`
   is a number, else {kind:"percent"} from `_EST_MARGIN`), palette {light,dark}{accent,ground,card,onAccent}, logo {light,dark,aspect},
-  icon, ios {googleClientId, firebase}, flags}`. `flags` is `shopFlags()` (`lib/app-shop.ts`), the same function `/api/app/me`'s
+  icon, ios {googleClientId, firebase}, flags, goodsExpenseCategories}`. `goodsExpenseCategories` is the list net profit leaves out (`[]` for Taheri). `flags` is `shopFlags()` (`lib/app-shop.ts`), the same function `/api/app/me`'s
   `shop` block spreads, so the two agree. New variables: `NEXT_PUBLIC_STORE_PALETTE` (compact JSON, `{"light":{…},"dark":{…}}`, each side accent / ground / card / elevated / onAccent as #RRGGBB (elevated added 2026-10-25: sheets, popovers, rows inside cards);
   Taheri's colours are the code's defaults, a missing or malformed colour falls back to them) and, run time only,
   `APP_IOS_GOOGLE_CLIENT_ID`, `APP_IOS_FIREBASE_API_KEY`, `APP_IOS_FIREBASE_APP_ID` (the iOS sign-in identifiers; defaults are Taheri's;

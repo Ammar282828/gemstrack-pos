@@ -77,8 +77,9 @@ enum PieceGalleryStore {
                 StockImageDecoder.image(text, key: key, maxPixel: maxPixel)
             }.value
         }
-        guard let url = URL(string: text), let (bytes, _) = try? await URLSession.shared.data(from: url) else { return nil }
-        return UIImage(data: bytes)
+        // Through the shared store: cached on disk and in memory, shrunk off the main thread.
+        guard let url = URL(string: text) else { return nil }
+        return await RemoteImageStore.shared.image(url, maxPixel: maxPixel)
     }
 }
 

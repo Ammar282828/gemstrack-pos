@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Html5Qrcode, QrcodeSuccessCallback } from 'html5-qrcode';
+import type { Html5Qrcode, QrcodeSuccessCallback } from 'html5-qrcode';
 import { useAppStore } from '@/lib/store';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -122,6 +122,8 @@ export default function QrScanner({ isActive }: QrScannerProps) {
     try {
       const file = await readablePhoto(picked);
       if (!fileReaderRef.current) {
+        // The library is fetched when it is first needed, not with the page.
+        const { Html5Qrcode } = await import('html5-qrcode');
         fileReaderRef.current = new Html5Qrcode(qrFileElementId, {
           verbose: false,
           experimentalFeatures: { useBarCodeDetectorIfSupported: true },
@@ -143,22 +145,29 @@ export default function QrScanner({ isActive }: QrScannerProps) {
         return;
     }
 
-    if (!html5QrCodeRef.current) {
-        html5QrCodeRef.current = new Html5Qrcode(qrReaderElementId, {
-            verbose: false,
-            experimentalFeatures: { useBarCodeDetectorIfSupported: true },
-        });
-    }
-    const qrCode = html5QrCodeRef.current;
+    // html5-qrcode is imported when the scanner first starts, not with the page.
+    const getQrCode = async (): Promise<Html5Qrcode> => {
+        if (!html5QrCodeRef.current) {
+            const { Html5Qrcode } = await import('html5-qrcode');
+            if (!html5QrCodeRef.current) {
+                html5QrCodeRef.current = new Html5Qrcode(qrReaderElementId, {
+                    verbose: false,
+                    experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+                });
+            }
+        }
+        return html5QrCodeRef.current;
+    };
 
     const startScanner = async () => {
-        if (operationLock.current || qrCode.isScanning) return;
+        if (operationLock.current || html5QrCodeRef.current?.isScanning) return;
         operationLock.current = true;
         
         setScannerState('starting');
         setErrorMessage(null);
 
         try {
+            const qrCode = await getQrCode();
             await qrCode.start(
                 { facingMode: "environment" },
                 {
@@ -203,7 +212,8 @@ export default function QrScanner({ isActive }: QrScannerProps) {
     };
 
     const stopScanner = async () => {
-        if (operationLock.current || !qrCode.isScanning) return;
+        const qrCode = html5QrCodeRef.current;
+        if (operationLock.current || !qrCode || !qrCode.isScanning) return;
         operationLock.current = true;
         
         try {
@@ -228,7 +238,7 @@ export default function QrScanner({ isActive }: QrScannerProps) {
     }
 
     return () => {
-        if (qrCode && qrCode.isScanning) {
+        if (html5QrCodeRef.current?.isScanning) {
             stopScanner();
         }
     };

@@ -130,7 +130,7 @@ export function StartScreen({ adsOk, initialKind, play, onClearPlay, photo, onPh
             <p className="text-ios-sub font-medium">{waiting.length} more piece{waiting.length === 1 ? '' : 's'} found — one design each</p>
             {waiting.map((r, i) => (
               <div key={i} className="flex items-center gap-2">
-                {r.photos[0] ? <img src={r.photos[0].url} alt="" className="h-9 w-9 shrink-0 rounded-md object-cover" /> : <span className="h-9 w-9 shrink-0 rounded-md bg-muted" />}
+                {r.photos[0] ? <img loading="lazy" decoding="async" src={r.photos[0].url} alt="" className="h-9 w-9 shrink-0 rounded-md object-cover" /> : <span className="h-9 w-9 shrink-0 rounded-md bg-muted" />}
                 <span className="min-w-0 flex-1 truncate text-ios-sub">{r.name || r.fields.headline || 'Untitled piece'}</span>
                 <Button size="sm" variant="outline" onClick={() => { use(r); keep(waiting.filter((_, n) => n !== i)); }}>Use this one</Button>
                 <Button size="icon" variant="ghost" className="h-8 w-8 min-h-0" aria-label="Leave it out" onClick={() => keep(waiting.filter((_, n) => n !== i))}><X className="h-4 w-4" /></Button>
@@ -242,7 +242,7 @@ export function StartScreen({ adsOk, initialKind, play, onClearPlay, photo, onPh
           ))}
           {recent.map(r => (
             <button key={r.id} type="button" onClick={() => onOpenSaved(r)} className="flex min-h-0 w-full items-center gap-3 py-3 text-left">
-              {r.thumb ? <img src={r.thumb} alt="" className="h-10 w-10 shrink-0 rounded-md object-cover" /> : <span className="h-10 w-10 shrink-0 rounded-md bg-muted" />}
+              {r.thumb ? <img loading="lazy" decoding="async" src={r.thumb} alt="" className="h-10 w-10 shrink-0 rounded-md object-cover" /> : <span className="h-10 w-10 shrink-0 rounded-md bg-muted" />}
               <span className="min-w-0 flex-1 truncate text-ios-sub font-medium">{r.name}</span>
               <span className="shrink-0 text-ios-foot text-muted-foreground">{kindLabel(r.kind)}</span>
             </button>
@@ -275,7 +275,7 @@ function PlanReviewCard({ review, onCancel, onStart }: { review: PlanReview; onC
     <div className="space-y-2 rounded-card bg-card p-3" aria-label="Split into layers">
       <p className="text-ios-sub font-medium">{cut ? 'Cut out, with the lettering as layers' : 'Lettering as layers'}</p>
       <div className="flex gap-3">
-        <img src={photo.url} alt="" className="h-24 w-24 shrink-0 rounded-md object-cover" />
+        <img loading="lazy" decoding="async" src={photo.url} alt="" className="h-24 w-24 shrink-0 rounded-md object-cover" />
         <div className="min-w-0 flex-1 space-y-1">
           {layers.length === 0 && <p className="text-ios-foot text-muted-foreground">No lettering was found.</p>}
           {layers.map(l => (

@@ -31,6 +31,7 @@ async function scrapeGoldPk(): Promise<{ k24: number; k22: number; k21: number; 
       'Accept': 'text/html',
     },
     next: { revalidate: 0 },
+    signal: AbortSignal.timeout(15000),
   });
 
   if (!res.ok) return null;

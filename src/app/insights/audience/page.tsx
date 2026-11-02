@@ -8,18 +8,21 @@
  */
 
 import React, { useState } from 'react';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts';
+import dynamic from 'next/dynamic';
+import { Skeleton } from '@/components/ui/skeleton';
 import { PageShell } from '@/components/shared/page-shell';
 import { Button } from '@/components/ui/button';
 import { Loader2, RefreshCw, UsersRound } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { STORE_META_ADS } from '@/lib/store-config';
-import { chartMotion } from '@/lib/chart-motion';
 import { count } from '@/lib/ads/shape';
 import { bestHours, countryLabel, genderLabel, hourLabel, sharesOf, type Part } from '@/lib/social-insights/shape';
 import type { Audience } from '@/lib/social-insights/fetch';
 import { ErrorLine } from '@/app/ads/ads-kit';
 import { InsightRangePicker, MissingNote, ShareBars, useInsightRange, useInsights } from '../insights-kit';
+
+// recharts is heavy: fetched when the chart is first drawn.
+const OnlineHoursBars = dynamic(() => import('../charts').then(m => m.OnlineHoursBars), { ssr: false, loading: () => <Skeleton className="h-full w-full" /> });
 
 const GROUPS = [
   { key: 'followers', label: 'Followers', note: 'everyone following now' },
@@ -86,14 +89,7 @@ function InsightsAudience() {
               <>
                 {best && <p className="text-xs text-muted-foreground mb-2">Busiest: {hourLabel(best.start)}–{hourLabel((best.start + 2) % 24)} ({Math.round(best.share * 100)}% of the day’s online followers). Post just before.</p>}
                 <div className="h-40">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={hourRows} margin={{ left: -16, right: 0, top: 5 }}>
-                      <XAxis dataKey="hour" stroke="hsl(var(--muted-foreground))" fontSize={9} tickLine={false} axisLine={false} interval={2} />
-                      <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} />
-                      <Tooltip contentStyle={{ background: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }} cursor={{ fill: 'hsl(var(--muted))' }} formatter={(v: number) => [count(v), 'Followers online']} />
-                      <Bar {...chartMotion()} dataKey="online" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  <OnlineHoursBars data={hourRows} />
                 </div>
               </>
             )}

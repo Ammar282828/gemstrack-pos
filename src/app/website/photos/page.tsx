@@ -329,7 +329,7 @@ export default function AddPhotosPage() {
             {items.map(item => (
               <li key={item.id} className="relative rounded-lg overflow-hidden border bg-muted/30">
                 <div className="relative aspect-square">
-                  <img src={item.preview} alt="" className={cn('w-full h-full object-cover transition-opacity', item.status === 'done' && 'opacity-60')}
+                  <img loading="lazy" decoding="async" src={item.preview} alt="" className={cn('w-full h-full object-cover transition-opacity', item.status === 'done' && 'opacity-60')}
                     onError={e => { const el = e.currentTarget; el.style.display = 'none'; el.nextElementSibling?.classList.remove('hidden'); }} />
                   <div className="hidden absolute inset-0 flex flex-col items-center justify-center text-muted-foreground bg-muted">
                     <ImagePlus className="h-7 w-7 mb-1" />

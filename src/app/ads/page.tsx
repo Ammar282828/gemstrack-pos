@@ -10,7 +10,8 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
+import dynamic from 'next/dynamic';
+import { Skeleton } from '@/components/ui/skeleton';
 import { PageShell } from '@/components/shared/page-shell';
 import { Button } from '@/components/ui/button';
 import { Megaphone, Plus, RefreshCw, Loader2, ArrowUpRight, ArrowDownRight, AlertTriangle, ExternalLink, Wallet, Pause, Play, Lightbulb, CheckCircle2 } from 'lucide-react';
@@ -24,7 +25,9 @@ import {
 } from '@/lib/ads/shape';
 import { api, useAdsStatus, useRange, RangePicker, NotReady, AccountAlerts, AccountPill, ErrorLine, StatusPill } from './ads-kit';
 import { Readiness } from './readiness';
-import { chartMotion } from '@/lib/chart-motion';
+
+// recharts is heavy: fetched when the chart is first drawn.
+const SpendChart = dynamic(() => import('./spend-chart').then(m => m.SpendChart), { ssr: false, loading: () => <Skeleton className="h-full w-full" /> });
 
 interface Breakdown { key: string; label: string; metrics: Metrics }
 interface Overview {
@@ -223,18 +226,7 @@ function AdsOverview() {
                 <div className="rounded-xl border p-3">
                   <p className="text-sm font-semibold mb-2">Day by day <span className="font-normal text-muted-foreground text-xs">— spend{main ? ` and ${main.label.toLowerCase()}` : ''}</span></p>
                   <div className="h-56">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <ComposedChart data={chart} margin={{ left: -10, right: 0, top: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                        <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} minTickGap={12} />
-                        <YAxis yAxisId="s" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} tickFormatter={v => compact(Number(v))} />
-                        <YAxis yAxisId="r" orientation="right" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} tickFormatter={v => compact(Number(v))} />
-                        <Tooltip contentStyle={{ background: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }}
-                          formatter={(v: number, name: string) => (name === 'spend' ? [money(v, cur), 'Spent'] : [count(v), main?.label ?? 'Results'])} />
-                        <Bar {...chartMotion()} yAxisId="s" dataKey="spend" fill="hsl(var(--chart-1))" radius={[3, 3, 0, 0]} maxBarSize={28} />
-                        <Line {...chartMotion()} yAxisId="r" dataKey="result" stroke="hsl(var(--chart-2))" strokeWidth={2} dot={false} type="monotone" />
-                      </ComposedChart>
-                    </ResponsiveContainer>
+                    <SpendChart data={chart} cur={cur} resultLabel={main?.label} />
                   </div>
                 </div>
               )}
@@ -251,7 +243,7 @@ function AdsOverview() {
                       return (
                         <li key={a.id} className="flex items-center gap-3 py-2">
                           <Link href={`/ads/campaigns?ad=${a.id}`} className="shrink-0">
-                            {a.thumbnail ? <img src={a.thumbnail} alt="" className="h-12 w-12 rounded-md object-cover bg-muted" /> : <span className="block h-12 w-12 rounded-md bg-muted" />}
+                            {a.thumbnail ? <img loading="lazy" decoding="async" src={a.thumbnail} alt="" className="h-12 w-12 rounded-md object-cover bg-muted" /> : <span className="block h-12 w-12 rounded-md bg-muted" />}
                           </Link>
                           <Link href={`/ads/campaigns?ad=${a.id}`} className="min-w-0 flex-1">
                             <span className="block text-sm font-medium truncate">{a.name}</span>

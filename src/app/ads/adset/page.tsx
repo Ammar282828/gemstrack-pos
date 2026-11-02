@@ -203,7 +203,7 @@ function AdSetDesigner() {
                       const on = adIds.includes(a.id);
                       return (
                         <button key={a.id} type="button" onClick={() => setAdIds(v => (on ? v.filter(x => x !== a.id) : [...v, a.id]))} className={cn('relative rounded-lg border overflow-hidden text-left min-h-0', on && 'ring-2 ring-primary')}>
-                          {a.image || a.thumbnail ? <img src={a.image ?? a.thumbnail!} alt="" className="aspect-square w-full object-cover" /> : <div className="aspect-square bg-muted" />}
+                          {a.image || a.thumbnail ? <img loading="lazy" decoding="async" src={a.image ?? a.thumbnail!} alt="" className="aspect-square w-full object-cover" /> : <div className="aspect-square bg-muted" />}
                           <p className="px-1.5 py-1 text-[10px] leading-tight line-clamp-2">{a.name}</p>
                           {on && <Check className="absolute top-1 right-1 h-4 w-4 rounded-full bg-primary text-primary-foreground p-0.5" />}
                         </button>
@@ -218,7 +218,7 @@ function AdSetDesigner() {
                   <div className="grid grid-cols-4 gap-1.5 max-h-72 overflow-y-auto">
                     {media.filter(m => m.boostable !== false).map(m => (
                       <button key={m.id} type="button" onClick={() => setPost(m.id)} className={cn('rounded-lg overflow-hidden border min-h-0', post === m.id && 'ring-2 ring-primary')}>
-                        {m.thumb ? <img src={m.thumb} alt="" className="aspect-square w-full object-cover" /> : <div className="aspect-square bg-muted" />}
+                        {m.thumb ? <img loading="lazy" decoding="async" src={m.thumb} alt="" className="aspect-square w-full object-cover" /> : <div className="aspect-square bg-muted" />}
                       </button>
                     ))}
                   </div>

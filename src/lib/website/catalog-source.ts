@@ -49,7 +49,7 @@ export async function getCatalogAttributes(opts: { own?: boolean } = {}): Promis
 
 async function ownAttributes(): Promise<Record<string, PieceAttrs>> {
   if (cache && Date.now() - cache.at < TTL_MS) return cache.images;
-  const res = await fetch(catalogUrl(), { cache: 'no-store' });
+  const res = await fetch(catalogUrl(), { cache: 'no-store', signal: AbortSignal.timeout(15000) });
   if (!res.ok) {
     if (cache) return cache.images;               // serve stale over serving nothing
     throw new Error(`catalog attributes unavailable: ${res.status} from ${catalogUrl()}`);

@@ -26,6 +26,10 @@ struct StockList: View {
 
     @AppStorage("stock.layout") private var layoutRaw = StockLayout.list.rawValue
     @State private var search = ""
+    /// `search` after a 150 ms pause in typing: the list narrows on this, not on every keystroke.
+    @State private var query = ""
+    /// The pieces shown (category, search, priced at today's rates): kept until the stock, the rates or those change.
+    @State private var shownRows = Memo<[StockRowModel]>()
     /// nil is every category; "" is the pieces with none.
     @State private var category: String?
     @State private var go: Route?
@@ -57,6 +61,13 @@ struct StockList: View {
         .hubTitleDisplay()
         .searchable(text: $search, prompt: "Search by name or SKU")
         .searchFocused($searching)
+        .task(id: search) {
+            let next = search.trimmingCharacters(in: .whitespacesAndNewlines)
+            if next.isEmpty { query = ""; return }
+            try? await Task.sleep(for: .milliseconds(150))
+            if Task.isCancelled { return }
+            query = next
+        }
         .background {
             Button("Search") { searching = true }
                 .keyboardShortcut("f", modifiers: .command).opacity(0).accessibilityHidden(true)
@@ -127,16 +138,19 @@ struct StockList: View {
 
     /// Category and search, then each piece priced at today's rates.
     private func rows(_ all: [Product], _ rates: PricingRates?) -> [StockRowModel] {
-        var kept: [Product] = all
-        if let category {
-            kept = kept.filter { $0.categoryId == category }
-        }
-        let q = search.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !q.isEmpty {
-            kept = kept.filter { StockKit.matches($0, q) }
-        }
-        return kept.map { (p: Product) -> StockRowModel in
-            StockRowModel(product: p, price: rates.map { StockKit.costs(p, $0).totalPrice })
+        let q = query
+        let key = [book.products.revision, book.settings.revision, (category ?? "").hashValue, category == nil ? 0 : 1, q.hashValue]
+        return shownRows(key) {
+            var kept: [Product] = all
+            if let category {
+                kept = kept.filter { $0.categoryId == category }
+            }
+            if !q.isEmpty {
+                kept = kept.filter { StockKit.matches($0, q) }
+            }
+            return kept.map { (p: Product) -> StockRowModel in
+                StockRowModel(product: p, price: rates.map { StockKit.costs(p, $0).totalPrice })
+            }
         }
     }
 

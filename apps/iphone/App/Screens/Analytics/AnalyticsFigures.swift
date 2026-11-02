@@ -161,6 +161,13 @@ struct AnaFigures {
     var topCustomers: [AnaTopCustomer] = []
 
     var totalExpenses = 0.0
+    /// Of those, the running costs (net profit takes off only these: `NetProfit.isRunningCost`) and the goods categories
+    /// the margin already allows for; the rest are partner drawings.
+    var runningExpenses = 0.0
+    var goodsExpenses = 0.0
+    var drawingsExpenses: Double { max(0, totalExpenses - runningExpenses - goodsExpenses) }
+    /// Profit before running costs: revenue less recorded goods where the house records them (Mina), else `estProfit`.
+    var profit: Double { NetProfit.beforeRunning(estimated: estProfit, revenue: totalSales, goods: goodsExpenses, recordsGoods: House.recordsGoods) }
     var expensesByCategory: [AnaExpenseCategory] = []
 
     /// Cash flow (cash-in.ts); nil when nothing at all was in the period.
@@ -181,7 +188,7 @@ struct AnaFigures {
 
 extension AnaFigures {
     /// `margin` nil is a non-owner: no margin is worked out for them at all.
-    init(_ books: AnaBooks, range: AnaRange?, margin: MarginSettings?) {
+    init(_ books: AnaBooks, range: AnaRange?, margin: MarginSettings?, goods: [String] = House.goodsExpenseCategories) {
         self.init()
         let scope = AnaScope(range: range)
         let ordersById = books.ordersById
@@ -208,7 +215,7 @@ extension AnaFigures {
 
         if filteredInvoices.isEmpty && filteredOrders.isEmpty && filteredExpenses.isEmpty && filteredExtra.isEmpty { return }
 
-        let gather = AnaGather(books: books, margin: margin, revenueDate: revenueDate)
+        let gather = AnaGather(books: books, margin: margin, goods: goods, revenueDate: revenueDate)
         for inv in filteredInvoices { gather.invoice(inv) }
         for o in filteredOrders { gather.order(o) }
         for r in filteredExtra { gather.extra(r) }
@@ -282,12 +289,16 @@ private final class AnaGather {
     var sources: [String: AnaSourceAcc] = [:]
     var sourceByDate: [String: [String: Double]] = [:]
     var expenseTotal = 0.0
+    var runningTotal = 0.0
+    var goodsTotal = 0.0
+    let goods: [String]
     var expenseOrder: [String] = []
     var expenseByCategory: [String: Double] = [:]
 
-    init(books: AnaBooks, margin: MarginSettings?, revenueDate: @escaping (Invoice) -> String) {
+    init(books: AnaBooks, margin: MarginSettings?, goods: [String], revenueDate: @escaping (Invoice) -> String) {
         self.books = books
         self.margin = margin
+        self.goods = goods
         self.revenueDate = revenueDate
         let byId = books.customersById
         nameOf = { (id: String) -> String? in byId[id]?.name }
@@ -428,6 +439,7 @@ private final class AnaGather {
     /// Every logged expense is cash out; the ones with a category also make the category chart.
     func expense(_ e: Expense) {
         expenseTotal += e.amount
+        if NetProfit.isRunningCost(e, goods: goods) { runningTotal += e.amount } else if NetProfit.isGoodsExpense(e, goods: goods) { goodsTotal += e.amount }
         if !e.category.isEmpty {
             if expenseByCategory[e.category] == nil {
                 expenseOrder.append(e.category)
@@ -492,6 +504,8 @@ private final class AnaGather {
         f.topCustomers = Array(AnaSort.descending(customerRows) { (c: AnaTopCustomer) -> Double in c.totalSpent }.prefix(10))
 
         f.totalExpenses = expenseTotal
+        f.runningExpenses = runningTotal
+        f.goodsExpenses = goodsTotal
         let expenseRows: [AnaExpenseCategory] = expenseOrder.map { (c: String) -> AnaExpenseCategory in
             AnaExpenseCategory(category: c, amount: expenseByCategory[c] ?? 0)
         }
@@ -662,7 +676,8 @@ struct AnaYear: Identifiable {
     let unpaid: Double
     /// The estimated profit; owners only (0 where no margin was worked out).
     let profit: Double
-    /// Estimated profit less expenses, never revenue less expenses (decision "Net profit"; lib/analytics/net-profit.ts).
+    /// Estimated profit less the running costs (`expenses` here is running costs only), never revenue less expenses
+    /// (decision "Net profit"; lib/analytics/net-profit.ts).
     var netProfit: Double { AnaNet.profit(estimated: profit, expenses: expenses) }
     var id: Int { year }
 }
@@ -694,10 +709,11 @@ private struct AnaYearAcc {
     var expenses = 0.0
     var unpaid = 0.0
     var profit = 0.0
+    var goods = 0.0
 }
 
 extension AnaHistory {
-    init(_ books: AnaBooks, margin: MarginSettings?) {
+    init(_ books: AnaBooks, margin: MarginSettings?, goods: [String] = House.goodsExpenseCategories) {
         self.init()
         let split = AnaCoins.splitAll(books.invoices)
         let ordersById = books.ordersById
@@ -742,15 +758,21 @@ extension AnaHistory {
             if let margin { years[yr, default: AnaYearAcc()].profit += r.amount * margin.assumedMargin }
             addMonth(r.date, r.amount)
         }
-        // Drawings are a distribution of profit, not a cost of earning it.
-        for e in books.expenses where !e.date.isEmpty && AnaRules.isBusinessCost(e) {
-            guard let d = AnaDate.parseISO(e.date) else { continue }
-            years[AnaDate.year(of: d), default: AnaYearAcc()].expenses += e.amount
+        // Drawings are a distribution of profit, not a cost of earning it; the goods are already inside the estimated
+        // profit's margin (NetProfit.isRunningCost).
+        // Where the house records its goods (Mina), they come off the revenue as the gross profit (NetProfit.beforeRunning).
+        for e in books.expenses where !e.date.isEmpty {
+            let isGoods = NetProfit.isGoodsExpense(e, goods: goods)
+            guard isGoods || NetProfit.isRunningCost(e, goods: goods), let d = AnaDate.parseISO(e.date) else { continue }
+            if isGoods { years[AnaDate.year(of: d), default: AnaYearAcc()].goods += e.amount }
+            else { years[AnaDate.year(of: d), default: AnaYearAcc()].expenses += e.amount }
         }
 
         let yearRows: [AnaYear] = years.map { (pair: (key: Int, value: AnaYearAcc)) -> AnaYear in
             AnaYear(year: pair.key, revenue: pair.value.revenue, expenses: pair.value.expenses,
-                    unpaid: pair.value.unpaid, profit: pair.value.profit)
+                    unpaid: pair.value.unpaid,
+                    profit: NetProfit.beforeRunning(estimated: pair.value.profit, revenue: pair.value.revenue,
+                                                    goods: pair.value.goods, recordsGoods: !goods.isEmpty))
         }
         yearly = yearRows.sorted { (a: AnaYear, b: AnaYear) -> Bool in a.year > b.year }
 
@@ -796,8 +818,8 @@ extension AnaHistory {
     }
 }
 
-/// Net profit as the ERP works it (src/lib/analytics/net-profit.ts): the estimated profit, which already carries the
-/// cost of the goods, less the expenses. Revenue less expenses read ~100% margin for a jewellery shop.
+/// Net profit as the ERP works it (src/lib/analytics/net-profit.ts): `AnaFigures.profit` (the estimated profit, or revenue
+/// less the recorded goods where a house records them), less the running costs (`NetProfit.isRunningCost`: not drawings, not the goods categories). Revenue less expenses read ~100% margin for a jewellery shop.
 enum AnaNet {
     static func profit(estimated: Double, expenses: Double) -> Double { estimated - expenses }
     static func marginPercent(net: Double, revenue: Double) -> Double { revenue > 0 ? net / revenue * 100 : 0 }

@@ -429,7 +429,7 @@ function DayCard({ post: p, isToday, targets, schedule, now, onChanged }: { post
             <div className="grid grid-cols-2 gap-2">
               {(['square', 'story'] as const).map(k => p.cards.includes(k) ? (
                 <a key={k} href={card(k)} target="_blank" rel="noopener" className="block">
-                  <img src={card(k)} alt={`${k} card`} className={cn('w-full rounded-md border object-cover', k === 'square' ? 'aspect-square' : 'aspect-[9/16]')} />
+                  <img loading="lazy" decoding="async" src={card(k)} alt={`${k} card`} className={cn('w-full rounded-md border object-cover', k === 'square' ? 'aspect-square' : 'aspect-[9/16]')} />
                   <span className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5"><Download className="h-3 w-3" /> {k === 'square' ? 'Square' : 'Story'}</span>
                 </a>
               ) : <div key={k} className="rounded-md border-2 border-dashed text-[11px] text-muted-foreground flex items-center justify-center aspect-square">No {k} card</div>)}

@@ -48,6 +48,8 @@ import erp.app.ui.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import kotlinx.coroutines.delay
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -150,7 +152,10 @@ fun InvoicesList() {
     var sending by remember { mutableStateOf<Invoice?>(null) }
     var pdf by remember { mutableStateOf<InvoicePdfTarget?>(null) }
 
-    val filter = InvoiceFilter(search, takenBy, month, rangeFrom, rangeTo)
+    // The list is worked out from the text 200 ms after the last keystroke (the box itself stays instant); clearing applies at once.
+    var appliedSearch by remember { mutableStateOf(search) }
+    LaunchedEffect(search) { if (search.isNotEmpty()) delay(200); appliedSearch = search }
+    val filter = InvoiceFilter(appliedSearch, takenBy, month, rangeFrom, rangeTo)
     val now = remember(status.revision) { AppClock.now() }
     val all = status.items
     val scoped = remember(all, filter, customers) {

@@ -30,3 +30,5 @@ app archived for TestFlight's "Shop" group, and the iPhone app built beside it a
 - 2026-10-27: Return and double-click open the picked record in every list; ⌘K types at once; Live's and Plan's icons; the window reopens on its last place.
 - 2026-10-27: every Mac check green (unit and UI, every page light and dark): Return in Stock opens the picked piece.
 - 2026-10-31: the order's WhatsApp on the invoice (Confirmed on WhatsApp, Cancel requested, Awaiting transfer…) in the Invoices row and as a pill in the inspector, as the ERP shows it.
+- 2026-11-01: rebuild of the 10-31 WhatsApp pill (its build was cancelled when Xcode Cloud's hours ran out), with net profit on the running costs and the Expenses split.
+- 2026-11-01: the first free build from GitHub (testflight-free.yml): Gross profit for Mina, the speed work, and everything since 10-26.

@@ -10,7 +10,6 @@ import { MainApp } from '@/components/layout/main-app';
 import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
 import React, { useEffect } from 'react';
-import Script from 'next/script';
 import { GoogleAuthGate } from '@/components/auth/google-auth-gate';
 import { DeleteCodeDialog } from '@/components/shared/delete-code-dialog';
 import { STORE_CONFIG, STORE_BRAND, STORE_THEME_COLOR, STORE_ICONS, STORE_LINKS_PAGE, LINKS_DRESS, isLinksHost, storeLinksUrl } from '@/lib/store-config';
@@ -253,8 +252,6 @@ export default function RootLayout({
             }catch(e){document.documentElement.classList.add('boot-light');document.documentElement.classList.remove('dark');}})();`,
           }}
         />
-        {/* The label printer is the ERP's; a customer's page never fetches it. */}
-        {!head.share && <Script src="https://unpkg.com/zebra-browser-print-wrapper@3.0.0/js/zebra_browser_print_wrapper.js" type="text/javascript"></Script>}
       </head>
       <AppBody>
         {children}

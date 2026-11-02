@@ -213,6 +213,9 @@ struct StockImage: View {
     /// Names this piece's photo, so a view reused for another piece decodes again.
     let key: String
     var decodeDataURI = false
+    /// The frame's long side in pixels (0 until it is measured), in the steps `StockRemoteImage.pixels` rounds to, so
+    /// it changes only when the frame grows to the next step. Measured on the square, not by a GeometryReader per photo.
+    @State private var pixels = 0
 
     var body: some View {
         let source = (imageUrl ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
@@ -220,6 +223,7 @@ struct StockImage: View {
         Rectangle()
             .fill(.quaternary)
             .overlay { picture(source) }
+            .onGeometryChange(for: Int.self) { StockRemoteImage.pixels(for: $0.size) } action: { pixels = $0 }
             .clipped()
     }
 
@@ -234,9 +238,7 @@ struct StockImage: View {
         } else if source.hasPrefix("http"), let url = URL(string: source) {
             // Drawn at the size it is shown, from the phone's memory once seen (AsyncImage kept nothing and decoded
             // every photo whole on the main thread: lists of pieces stuttered as they scrolled).
-            GeometryReader { geo in
-                StockRemoteImage(url: url, name: name, maxPixel: StockRemoteImage.pixels(for: geo.size))
-            }
+            if pixels > 0 { StockRemoteImage(url: url, name: name, maxPixel: pixels) }
         } else {
             StockInitial(name: name)
         }

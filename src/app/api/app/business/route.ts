@@ -57,7 +57,8 @@ export async function GET(req: NextRequest) {
     // The Android app's sign-in; null until this house has registered shop.taheri.erp in its Firebase project.
     android: storeAppAndroid(),
     flags: shopFlags(),
-    // The expense categories that are the cost of the goods (Mina's four, Taheri none): the apps' net profit leaves them out, as the web's does (isRunningCost).
+    // The expense categories that are the cost of the goods (NEXT_PUBLIC_STORE_GOODS_EXPENSE_CATEGORIES; Taheri none): net profit
+    // does not take them off, the estimated profit's margin already has (lib/analytics/net-profit.ts isRunningCost).
     goodsExpenseCategories: [...GOODS_EXPENSE_CATEGORIES],
     // The oldest app build this ERP takes (APP_MIN_BUILD, a CFBundleVersion number); 0: any. The app says "Update from TestFlight" below it.
     minBuild: Math.max(0, Math.floor(Number(process.env.APP_MIN_BUILD) || 0)),

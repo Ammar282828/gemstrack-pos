@@ -5,7 +5,7 @@
 import { owedToYou } from '@/lib/owed';
 import { lacCrore } from '@/lib/money';
 import { WALK_IN_ENTITY } from '@/lib/walk-in';
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useDeferredValue } from 'react';
 import { ListSkeleton } from '@/components/shared/skeletons';
 import { format, parseISO, subMonths } from 'date-fns';
 import Link from 'next/link';
@@ -462,6 +462,8 @@ const MergeCustomersDialog: React.FC<{
 
 export default function CustomersPage() {
   const [searchTerm, setSearchTerm] = useState('');
+  // Filtering follows typing, never holds it up.
+  const deferredSearch = useDeferredValue(searchTerm);
   const [mergeOpen, setMergeOpen] = useState(false);
   const [view, setView] = useState<'all' | 'owing' | 'active'>('all');
   const [spamOpen, setSpamOpen] = useState(false);
@@ -560,14 +562,14 @@ export default function CustomersPage() {
 
   const matched = useMemo(() => {
     if (!appReady) return [];
-    const q = searchTerm.trim().toLowerCase();
+    const q = deferredSearch.trim().toLowerCase();
     if (!q) return customers;
     return customers.filter(c =>
       c.name.toLowerCase().includes(q) ||
-      (c.phone && c.phone.includes(searchTerm)) ||
+      (c.phone && c.phone.includes(deferredSearch)) ||
       (c.email && c.email.toLowerCase().includes(q))
     );
-  }, [customers, searchTerm, appReady]);
+  }, [customers, deferredSearch, appReady]);
 
   /**
    * Grouped by the reason you would be looking someone up: money outstanding

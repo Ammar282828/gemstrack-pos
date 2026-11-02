@@ -194,12 +194,15 @@ struct MarketingPhoto: View {
         .task(id: path) {
             image = nil; problem = nil
             do {
-                let data: Data
-                if path.hasPrefix("/api/") { data = try await ERPAPI.shared.data(path) }
-                else if let url = URL(string: path), url.scheme == "https" { data = try await URLSession.shared.data(from: url).0 }
-                else { throw ERPAPI.Failure(status: 0, message: "The picture has no usable address.") }
-                guard let made = WebsitePhoto.thumbnail(data, maxPixel: 1200) else { throw ERPAPI.Failure(status: 0, message: "The picture could not be read.") }
-                image = made
+                if path.hasPrefix("/api/") {
+                    let data = try await ERPAPI.shared.data(path)
+                    guard let made = WebsitePhoto.thumbnail(data, maxPixel: 1200) else { throw ERPAPI.Failure(status: 0, message: "The picture could not be read.") }
+                    image = made
+                } else if let url = URL(string: path), url.scheme == "https" {
+                    // A public picture: the shared store keeps it on disk and in memory.
+                    guard let made = await RemoteImageStore.shared.image(url, maxPixel: 1200) else { throw ERPAPI.Failure(status: 0, message: "The picture could not be read.") }
+                    image = made
+                } else { throw ERPAPI.Failure(status: 0, message: "The picture has no usable address.") }
             } catch { problem = error.localizedDescription }
         }
     }

@@ -1071,7 +1071,7 @@ function FrameCard({ frame: f, x, y, selected, fresh, marks, ready, boardId, dra
         <span className="truncate">{f.label || 'Design'}</span>
       </p>
       <div className={cn('relative overflow-hidden rounded-sm bg-background shadow-sm ring-1 ring-border transition-shadow duration-700', fresh && 'ring-8 ring-sky-400/80 shadow-[0_0_60px_rgba(56,189,248,0.6)]', selected && 'ring-4 ring-primary')} style={{ width: w, height: h }}>
-        {url ? <img src={url} alt={f.label} draggable={false} className="h-full w-full object-cover pointer-events-none" />
+        {url ? <img loading="lazy" decoding="async" src={url} alt={f.label} draggable={false} className="h-full w-full object-cover pointer-events-none" />
           : <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground p-4 text-center">{err ? `Couldn’t draw it: ${err}` : <Loader2 className="h-5 w-5 animate-spin" />}</div>}
       </div>
     </div>
@@ -1728,7 +1728,7 @@ function FrameStrip({ order, current, group, thumbs, onPick }: { order: BoardFra
             className={cn('relative shrink-0 overflow-hidden rounded-[3px] bg-muted min-h-0 transition-[box-shadow,opacity]', gap && 'ml-2.5',
               on ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : sib ? 'ring-1 ring-primary/60 opacity-95' : 'opacity-75 hover:opacity-100')}
             style={{ width: w, height: H }}>
-            {thumbs[x.id] ? <img src={thumbs[x.id]} alt="" draggable={false} className="h-full w-full object-cover" /> : null}
+            {thumbs[x.id] ? <img loading="lazy" decoding="async" src={thumbs[x.id]} alt="" draggable={false} className="h-full w-full object-cover" /> : null}
           </button>
         );
       })}
@@ -1776,7 +1776,7 @@ function PicturesPanel({ slots, urlOf, selected, busy, checks, restorable, hasMa
           return (
             <button key={s.target} type="button" onClick={() => onChoose(s.target)} title={s.label}
               className={cn('relative h-16 w-16 shrink-0 overflow-hidden rounded-md border-2 bg-muted min-h-0', selected === s.target ? 'border-primary ring-2 ring-primary/30' : 'border-transparent hover:border-border')}>
-              {url ? <img src={url} alt={s.label} className="h-full w-full object-cover" /> : <Loader2 className="m-auto h-4 w-4 animate-spin text-muted-foreground" />}
+              {url ? <img loading="lazy" decoding="async" src={url} alt={s.label} className="h-full w-full object-cover" /> : <Loader2 className="m-auto h-4 w-4 animate-spin text-muted-foreground" />}
               {restorable(s.target) && <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-primary" title="Changed" />}
             </button>
           );

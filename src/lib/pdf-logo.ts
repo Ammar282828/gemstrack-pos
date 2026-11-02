@@ -34,7 +34,7 @@ async function fetchLogo(): Promise<PdfLogo | null> {
     const url = STORE_LOGO_URL.startsWith('/')
       ? STORE_LOGO_URL
       : `/api/proxy-image?url=${encodeURIComponent(STORE_LOGO_URL)}`;
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
     if (!res.ok) return null;
     const blob = await res.blob();
     const format: PdfLogo['format'] = /jpe?g/i.test(blob.type) ? 'JPEG' : 'PNG';

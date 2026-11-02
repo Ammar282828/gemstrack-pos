@@ -99,7 +99,7 @@ export function SetOfTheDayCard({ variant = 'full', emptyHint }: { variant?: 'fu
   if (variant === 'compact') {
     return (
       <div className="flex items-center gap-2 min-w-0 text-xs text-muted-foreground">
-        {featured ? <img src={featured.thumb} alt="" className="h-7 w-7 rounded object-cover flex-shrink-0" /> : <Star className="h-3.5 w-3.5 flex-shrink-0" />}
+        {featured ? <img loading="lazy" decoding="async" src={featured.thumb} alt="" className="h-7 w-7 rounded object-cover flex-shrink-0" /> : <Star className="h-3.5 w-3.5 flex-shrink-0" />}
         <span className="truncate">
           {featured === undefined ? '…' : featured ? <>Now: <span className="text-foreground">{featured.file}</span> · {featured.collection}</> : 'Nothing is the set of the day'}
         </span>
@@ -111,7 +111,7 @@ export function SetOfTheDayCard({ variant = 'full', emptyHint }: { variant?: 'fu
   return (
     <div className="rounded-lg border bg-amber-500/[0.04] border-amber-500/30 p-3 md:p-4 flex flex-col sm:flex-row sm:items-center gap-3">
       <div className="flex items-center gap-3 min-w-0 flex-1">
-        {featured ? <img src={featured.thumb} alt="" className="h-14 w-14 rounded-md object-cover flex-shrink-0" /> : <div className="h-14 w-14 rounded-md bg-muted flex items-center justify-center flex-shrink-0"><Star className="h-5 w-5 text-muted-foreground" /></div>}
+        {featured ? <img loading="lazy" decoding="async" src={featured.thumb} alt="" className="h-14 w-14 rounded-md object-cover flex-shrink-0" /> : <div className="h-14 w-14 rounded-md bg-muted flex items-center justify-center flex-shrink-0"><Star className="h-5 w-5 text-muted-foreground" /></div>}
         <div className="min-w-0">
           <p className="text-xs uppercase tracking-wider text-muted-foreground">Set of the day · on the home page</p>
           {featured === undefined ? <p className="text-sm text-muted-foreground">…</p>

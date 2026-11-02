@@ -40,9 +40,18 @@ struct AnalyticsScreen: View {
 
     /// The instant the period is worked out against; it turns over at Karachi's midnight on a screen left open.
     @State private var now = Date()
-    /// The books and figures, worked out once per change of the books, the period or the day, not once per drawing
-    /// (coming back to the app or a window coming forward redraws this screen).
-    @State private var reckoned = Memo<(AnaBooks, AnaFigures)>()
+    /// The books and figures, worked out off the main thread once per change of the books, the period or the day,
+    /// never per drawing. The last result stays on screen while the next is reckoned (`reckon()`).
+    @State private var reckoned: Reckoned?
+
+    /// One reckoning: the books, the figures, and the period they were worked out for (so a page never mixes
+    /// the old figures with a new period's label).
+    struct Reckoned {
+        let books: AnaBooks
+        let figures: AnaFigures
+        let period: AnaPeriodState
+        let margin: MarginSettings?
+    }
 
     var body: some View {
         if session.isOwner { owners } else {
@@ -51,8 +60,8 @@ struct AnalyticsScreen: View {
     }
 
     private var owners: some View {
-        titled(ShelfState(loaded: ready, error: firstError, offline: book.invoices.offline) {
-            pages()
+        titled(ShelfState(loaded: ready && reckoned != nil, error: firstError, offline: book.invoices.offline) {
+            if let r = reckoned { pages(r) }
         })
         .navigationTitle(section.title)
         .onAppear { needAll() }
@@ -61,6 +70,7 @@ struct AnalyticsScreen: View {
             if phase == .active { turnOver() }
         }
         .task { await keepTime() }
+        .task(id: reckonKey) { await reckon() }
     }
 
     /// The Overview is the hub (large title); the four tabs drilled into from it are inline.
@@ -112,28 +122,41 @@ struct AnalyticsScreen: View {
 
     // MARK: The pages
 
-    private func pages() -> some View {
+    /// What the reckoning depends on. The period reads `now` by the day only, so the key carries Karachi's day, not the minute.
+    private var reckonKey: [Int] {
+        [book.invoices.revision, book.orders.revision, book.products.revision, book.customers.revision,
+         book.expenses.revision, book.revenue.revision, session.isOwner ? 1 : 0, rangeKey.hashValue, customFrom.hashValue,
+         customTo.hashValue, AnaDate.karachi.ordinality(of: .day, in: .era, for: now) ?? 0, book.settings.revision,
+         ready ? 1 : 0]
+    }
+
+    /// Snapshots the shelves on the main actor (arrays of value types), then works the figures out on a background
+    /// task; a newer key cancels the wait and the stale result is dropped.
+    private func reckon() async {
+        guard ready, session.isOwner else { return }
         let isOwner = session.isOwner
         let period = AnaPeriod.read(key: rangeKey, from: customFrom, to: customTo, now: now)
         // Margin is worked out for owners alone; a customer or a staff account never sees it.
         let margin: MarginSettings? = isOwner ? House.margin : nil
-        let key = [book.invoices.revision, book.orders.revision, book.products.revision, book.customers.revision,
-                   book.expenses.revision, book.revenue.revision, isOwner ? 1 : 0, rangeKey.hashValue, customFrom.hashValue,
-                   customTo.hashValue, Int(now.timeIntervalSince1970 / 60), book.settings.revision]
-        let (books, figures) = reckoned(key) {
-            let live = book.customers.items.filter { (c: Customer) -> Bool in (c.deletedAt ?? "").isEmpty }
-            let books = AnaBooks(
-                invoices: book.invoices.items,
-                orders: book.orders.items,
-                products: book.products.items,
-                customers: live,
-                expenses: isOwner ? book.expenses.items : [],
-                extraRevenue: isOwner ? book.revenue.items : []
-            )
-            return (books, AnaFigures(books, range: period.range, margin: margin))
-        }
-        return AnaPages(section: section, books: books, figures: figures, period: period, margin: margin,
-                        rangeKey: $rangeKey, customFrom: $customFrom, customTo: $customTo)
+        // House is read here, on the main actor: the business can be switched while the background works.
+        let goods = House.goodsExpenseCategories
+        let customers = book.customers.items.filter { (c: Customer) -> Bool in (c.deletedAt ?? "").isEmpty }
+        let invoices = book.invoices.items, orders = book.orders.items, products = book.products.items
+        let expenses = isOwner ? book.expenses.items : []
+        let extra = isOwner ? book.revenue.items : []
+        let range = period.range
+        let made = await Task.detached(priority: .userInitiated) { () -> (AnaBooks, AnaFigures) in
+            let books = AnaBooks(invoices: invoices, orders: orders, products: products, customers: customers,
+                                 expenses: expenses, extraRevenue: extra)
+            return (books, AnaFigures(books, range: range, margin: margin, goods: goods))
+        }.value
+        guard !Task.isCancelled else { return }
+        reckoned = Reckoned(books: made.0, figures: made.1, period: period, margin: margin)
+    }
+
+    private func pages(_ r: Reckoned) -> some View {
+        AnaPages(section: section, books: r.books, figures: r.figures, period: r.period, margin: r.margin,
+                 rangeKey: $rangeKey, customFrom: $customFrom, customTo: $customTo)
     }
 }
 
