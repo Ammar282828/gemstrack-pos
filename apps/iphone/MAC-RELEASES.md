@@ -33,3 +33,4 @@ app archived for TestFlight's "Shop" group, and the iPhone app built beside it a
 - 2026-11-01: rebuild of the 10-31 WhatsApp pill (its build was cancelled when Xcode Cloud's hours ran out), with net profit on the running costs and the Expenses split.
 - 2026-11-01: the first free build from GitHub (testflight-free.yml): Gross profit for Mina, the speed work, and everything since 10-26.
 - 2026-11-02: with the iPhone build: Gross profit for Mina, the speed work, everything since 10-26.
+- 2026-11-02: Voice in the window, aware of the record you have open. Send order details to a karigar and invoice or order PDFs to customers on WhatsApp. One Contact menu for every customer. A simpler business picker.
