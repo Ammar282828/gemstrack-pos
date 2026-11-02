@@ -32,3 +32,4 @@ app archived for TestFlight's "Shop" group, and the iPhone app built beside it a
 - 2026-10-31: the order's WhatsApp on the invoice (Confirmed on WhatsApp, Cancel requested, Awaiting transfer…) in the Invoices row and as a pill in the inspector, as the ERP shows it.
 - 2026-11-01: rebuild of the 10-31 WhatsApp pill (its build was cancelled when Xcode Cloud's hours ran out), with net profit on the running costs and the Expenses split.
 - 2026-11-01: the first free build from GitHub (testflight-free.yml): Gross profit for Mina, the speed work, and everything since 10-26.
+- 2026-11-02: with the iPhone build: Gross profit for Mina, the speed work, everything since 10-26.

@@ -92,62 +92,81 @@ struct ArtworkEditor: View {
         #if os(macOS)
         macBody
         #else
-        NavigationStack {
-            mobileForm.modifier(HouseGround()).navigationTitle("Design").navigationBarTitleDisplayMode(.inline)
-                .scrollDismissesKeyboard(.interactively)
-                // The artwork stays on screen while a property is changed: it is pinned above the Form, never a row that scrolls away.
-                .safeAreaInset(edge: .top, spacing: 0) {
-                    if !sideBySide {
-                        preview.frame(maxWidth: .infinity)
-                            .containerRelativeFrame(.vertical) { length, _ in length * 0.36 }
-                            .padding(.vertical, 8)
-                            .background(Theme.ground)
-                    }
-                }
-                // An iPad: the artwork on the left at its own size, the tools in the column beside it.
-                .safeAreaInset(edge: .leading, spacing: 0) {
-                    if sideBySide {
-                        preview.padding(24)
-                            .frame(width: max(360, sheetWidth * 0.56))
-                            .frame(maxHeight: .infinity)
-                            .background(Theme.ground)
-                    }
-                }
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) { Button("Cancel") { if let original, original != doc { confirmingDiscard = true } else { dismiss() } } }
-                    ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
-                    ToolbarItemGroup(placement: .primaryAction) {
-                        Button { history(true) } label: { Label("Undo", systemImage: "arrow.uturn.backward") }.disabled(undo.isEmpty)
-                        Button { history(false) } label: { Label("Redo", systemImage: "arrow.uturn.forward") }.disabled(redo.isEmpty)
-                        Menu {
-                            Button { Task { await export() } } label: { Label("Share", systemImage: "square.and.arrow.up") }.disabled(busy)
-                        } label: { Label("More", systemImage: "ellipsis") }
-                    }
-                }
-                .sensoryFeedback(.alignment, trigger: snapX) { _, now in now != nil }
-                .sensoryFeedback(.alignment, trigger: snapY) { _, now in now != nil }
-                .confirmDestructive(isPresented: $confirmingDiscard, title: "Discard your changes?", message: "The design goes back to how it was when you opened it.",
-                                    action: "Discard changes") { if let original { doc = original }; dismiss() }
-                .failureAlert($problem, title: "Could not finish").task(id: doc.text + fields.sorted(by: { $0.key < $1.key }).description) { await render() }
-                .onChange(of: importing) { _, item in if let item { Task { await take(item) } } }
-                .fileImporter(isPresented: $logoOpen, allowedContentTypes: [.svg, .png]) { takeLogo($0) }
-                .onAppear { if original == nil { original = doc } }
-                .onChange(of: selected) { _, new in picks = picks.filter { new.contains($0) } + new.subtracting(picks).sorted() }
-                .interactiveDismissDisabled(original != nil && original != doc)
-                .sheet(item: $share) { MarketingShareSheet(items: $0.items) }.websiteBusy(busy ? "Preparing…" : nil)
-                .alert("QR code", isPresented: $qrOpen) {
-                    TextField("Link or words", text: $qrText)
-                    Button("Add") {
-                        let text = qrText.trimmingCharacters(in: .whitespacesAndNewlines)
-                        if let why = ArtworkQR.problem(text) { problem = why } else { addLayer(ArtworkQR.layer(text, frame: CGSize(width: pageWidth, height: height))) }
-                    }
-                    Button("Cancel", role: .cancel) {}
-                } message: { Text("What the code opens: a link, a number or any words. Dark on light reads on every phone.") }
-        }
+        NavigationStack { mobileWired }
         .presentationSizing(.page)
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { sheetWidth = $0 }
         #endif
     }
+    #if !os(macOS)
+    // The editor's chain in three parts: as one expression the Release compiler gave up type-checking it
+    // ("unable to type-check this expression in reasonable time", the free TestFlight build of 2026-11-02).
+    private var renderKey: String {
+        let sorted: [(key: String, value: String)] = fields.sorted { $0.key < $1.key }
+        return doc.text + sorted.description
+    }
+
+    private var mobileFramed: some View {
+        mobileForm.modifier(HouseGround()).navigationTitle("Design").navigationBarTitleDisplayMode(.inline)
+            .scrollDismissesKeyboard(.interactively)
+            // The artwork stays on screen while a property is changed: it is pinned above the Form, never a row that scrolls away.
+            .safeAreaInset(edge: .top, spacing: 0) {
+                if !sideBySide {
+                    preview.frame(maxWidth: .infinity)
+                        .containerRelativeFrame(.vertical) { length, _ in length * 0.36 }
+                        .padding(.vertical, 8)
+                        .background(Theme.ground)
+                }
+            }
+            // An iPad: the artwork on the left at its own size, the tools in the column beside it.
+            .safeAreaInset(edge: .leading, spacing: 0) {
+                if sideBySide {
+                    preview.padding(24)
+                        .frame(width: max(360, sheetWidth * 0.56))
+                        .frame(maxHeight: .infinity)
+                        .background(Theme.ground)
+                }
+            }
+    }
+
+    private var mobileToolbarred: some View {
+        mobileFramed
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { if let original, original != doc { confirmingDiscard = true } else { dismiss() } } }
+                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+                ToolbarItemGroup(placement: .primaryAction) {
+                    Button { history(true) } label: { Label("Undo", systemImage: "arrow.uturn.backward") }.disabled(undo.isEmpty)
+                    Button { history(false) } label: { Label("Redo", systemImage: "arrow.uturn.forward") }.disabled(redo.isEmpty)
+                    Menu {
+                        Button { Task { await export() } } label: { Label("Share", systemImage: "square.and.arrow.up") }.disabled(busy)
+                    } label: { Label("More", systemImage: "ellipsis") }
+                }
+            }
+            .sensoryFeedback(.alignment, trigger: snapX) { _, now in now != nil }
+            .sensoryFeedback(.alignment, trigger: snapY) { _, now in now != nil }
+    }
+
+    private var mobileWired: some View {
+        mobileToolbarred
+            .confirmDestructive(isPresented: $confirmingDiscard, title: "Discard your changes?", message: "The design goes back to how it was when you opened it.",
+                                action: "Discard changes") { if let original { doc = original }; dismiss() }
+            .failureAlert($problem, title: "Could not finish").task(id: renderKey) { await render() }
+            .onChange(of: importing) { _, item in if let item { Task { await take(item) } } }
+            .fileImporter(isPresented: $logoOpen, allowedContentTypes: [.svg, .png]) { takeLogo($0) }
+            .onAppear { if original == nil { original = doc } }
+            .onChange(of: selected) { _, new in picks = picks.filter { new.contains($0) } + new.subtracting(picks).sorted() }
+            .interactiveDismissDisabled(original != nil && original != doc)
+            .sheet(item: $share) { MarketingShareSheet(items: $0.items) }.websiteBusy(busy ? "Preparing…" : nil)
+            .alert("QR code", isPresented: $qrOpen) {
+                TextField("Link or words", text: $qrText)
+                Button("Add") {
+                    let text = qrText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if let why = ArtworkQR.problem(text) { problem = why } else { addLayer(ArtworkQR.layer(text, frame: CGSize(width: pageWidth, height: height))) }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: { Text("What the code opens: a link, a number or any words. Dark on light reads on every phone.") }
+    }
+    #endif
+
     #if !os(macOS)
     // Keep each Form section separate so the SwiftUI type checker handles the editor in small expressions.
     private var mobileForm: some View {

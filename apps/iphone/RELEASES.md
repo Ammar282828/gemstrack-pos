@@ -68,3 +68,4 @@ cloud session cannot press that button, but it can push. One line per build, new
 - 2026-11-01: net profit takes off running costs only (not drawings, not the cost of the goods).
 - 2026-11-01: the first free build from GitHub (testflight-free.yml): Mina's Gross profit, the WhatsApp order chip, Home and Analytics reckoned off the main thread, debounced searches.
 - 2026-11-02: search pulls down from under the title on every list (iPhone and iPad), and pulling down on Home opens the search for everything.
+- 2026-11-02: the Design editor's long modifier chain split in three (the Release compiler gave up on it): pull-down search, Gross profit, the speed work.
