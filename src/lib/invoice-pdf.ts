@@ -12,9 +12,10 @@
  * `perPiece` prints a multi-item invoice as one invoice per piece, each on
  * its own page: the same number, "Piece 2 of 3" beside the date, and only
  * that piece's figures. The invoice-level amounts (discount, exchange,
- * adjustments, what has been paid) are shared out in proportion to each
+ * adjustments) are shared out in proportion to each
  * piece's price, the last piece taking any rounding, so the pages add back
- * up to the bill. A customer buying three pieces for three people can hand
+ * up to the bill; what has been paid is not shared out: the last page cuts it
+ * from the whole bill's total. A customer buying three pieces for three people can hand
  * each one its own paper.
  */
 
@@ -94,14 +95,19 @@ export function allocate(total: number, weights: number[]): number[] {
 }
 
 /** An invoice for one piece of a larger bill, and where it sits in the set. */
-export type PieceInvoice = Invoice & { piece?: { index: number; count: number } };
+export type PieceInvoice = Invoice & {
+  piece?: { index: number; count: number };
+  /** The whole bill, on the last page only: the advance is cut once, from the final total. */
+  bill?: { total: number; paid: number; balance: number };
+};
 
 /**
  * One invoice per piece. A one-piece invoice comes back as itself.
  *
- * Payment history is left off the pieces: a payment was made against the
- * bill, not against a piece, and a table of it repeated on every page would
- * read as three payments.
+ * Payments are never split across pieces (owner, 2026-11-02: "the advance should
+ * always be cut from a final total"). Every piece page shows what that piece costs,
+ * with nothing deducted; the last page also carries `bill`: the total of all pieces,
+ * the advance paid, and the balance, and it alone keeps the payment history.
  */
 export function splitInvoicePerPiece(inv: Invoice): PieceInvoice[] {
   const items = itemsOf(inv);
@@ -111,11 +117,12 @@ export function splitInvoicePerPiece(inv: Invoice): PieceInvoice[] {
   const exchange1 = allocate(inv.exchangeAmount1 || 0, weights);
   const exchange2 = allocate(inv.exchangeAmount2 || 0, weights);
   const adjustments = allocate(getInvoiceAdjustmentsAmount(inv), weights);
-  const paid = allocate(inv.amountPaid || 0, weights);
-  return items.map((item, i) => {
+  const pieces: PieceInvoice[] = [];
+  items.forEach((item, i) => {
+    const last = i === items.length - 1;
     const subtotal = round2(Number(item.itemTotal) || 0);
     const grandTotal = round2(subtotal - discount[i] - exchange1[i] - exchange2[i] + adjustments[i]);
-    return {
+    const piece: PieceInvoice = {
       ...inv,
       items: [item],
       subtotal,
@@ -127,12 +134,19 @@ export function splitInvoicePerPiece(inv: Invoice): PieceInvoice[] {
       exchanges: undefined,
       adjustmentsAmount: adjustments[i] || undefined,
       grandTotal,
-      amountPaid: paid[i],
-      balanceDue: round2(grandTotal - paid[i]),
-      paymentHistory: [],
+      amountPaid: 0,
+      balanceDue: grandTotal,
+      paymentHistory: last ? inv.paymentHistory || [] : [],
       piece: { index: i + 1, count: items.length },
     };
+    if (last) {
+      const total = round2(pieces.reduce((a, p) => a + p.grandTotal, grandTotal));
+      const paid = round2(inv.amountPaid || 0);
+      piece.bill = { total, paid, balance: round2(total - paid) };
+    }
+    pieces.push(piece);
   });
+  return pieces;
 }
 
 interface Chrome {
@@ -296,8 +310,12 @@ function drawInvoice(doc: jsPDF, inv: PieceInvoice, customer: Customer | null | 
     pageWidth, pageHeight, margin, onNewPage: drawHeader,
     rows: totalRows,
     total: { label: 'Grand Total', value: pkr(inv.grandTotal) },
-    after: inv.amountPaid > 0 ? [{ label: 'Amount Paid', value: `- ${pkr(inv.amountPaid)}` }] : [],
-    closing: inv.amountPaid > 0 ? { label: balanceLine(inv.balanceDue).state === 'credit' ? 'Credit to Customer' : 'Balance Due', value: pkr(Math.abs(inv.balanceDue)) } : undefined,
+    after: inv.bill
+      ? [{ label: 'Total of all pieces', value: pkr(inv.bill.total) }, { label: 'Advance / paid', value: `- ${pkr(inv.bill.paid)}` }]
+      : inv.amountPaid > 0 ? [{ label: 'Amount Paid', value: `- ${pkr(inv.amountPaid)}` }] : [],
+    closing: inv.bill
+      ? { label: inv.bill.balance < 0 ? 'Credit to Customer' : 'Balance Due', value: pkr(Math.abs(inv.bill.balance)) }
+      : inv.amountPaid > 0 ? { label: balanceLine(inv.balanceDue).state === 'credit' ? 'Credit to Customer' : 'Balance Due', value: pkr(Math.abs(inv.balanceDue)) } : undefined,
     // Nothing here reserves the footer: it is drawn once, after the last block, shrinking into
     // whatever room the last page has left (it never adds a page).
     bottomReserve: margin,

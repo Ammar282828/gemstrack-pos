@@ -329,8 +329,8 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
 
 - **One invoice PDF builder**: `src/lib/invoice-pdf.ts` (`saveInvoicePdf`) draws the customer's copy for the invoices list,
   the invoice screen (`/invoices/<id>`) and `/view-invoice`. `perPiece` prints a multi-piece invoice as one invoice per piece on its
-  own page ("Piece 2 of 3"); discount, exchange, adjustments and paid are shared pro rata by piece price, the last piece
-  absorbs rounding, payment history is left off the pieces. The split button is `components/shared/print-button.tsx`.
+  own page ("Piece 2 of 3"); discount, exchange and adjustments are shared pro rata by piece price, the last piece
+  absorbs rounding. Per-piece pages never split the advance; the last page cuts it from the whole bill's total and carries the payment history (owner, 2026-11-02). The split button is `components/shared/print-button.tsx`.
 - **Taheri's, not Mina's** (owner, the same day: "these are instructions for taheri pos"): the next two follow
   `NEXT_PUBLIC_STORE_INVOICE_BY_CUSTOMER` and `_INVOICE_WHATSAPP_PDF`, which Mina's file sets to "0" — its invoices keep
   `Invoice-INV-….pdf` and its Send via WhatsApp the device's wa.me message with the estimate's ID and link.
