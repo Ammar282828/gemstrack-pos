@@ -250,6 +250,33 @@ class AnalyticsFiguresTests {
         assertEquals(-f.totalExpenses, f.netCashFlow, 0.0)
     }
 
+    @Test fun netProfitTakesOffRunningCostsOnlyButTheExpensesTileKeepsAll() {
+        val goods = listOf("Stock & Karigars")
+        val ex = listOf(
+            expense("E1", "2026-10-03", 14000.0, "Stock & Karigars"), expense("E2", "2026-10-04", 600.0, "Rent"),
+            expense("E3", "2026-10-05", 3100.0, "Partner Drawings"),
+        )
+        val f = AnaFigures.of(books(expenses = ex), thisMonth, null, goods)
+        assertEquals(17700.0, f.totalExpenses, 0.0)
+        assertEquals(600.0, f.runningExpenses, 0.0)
+        assertEquals(14000.0, f.goodsExpenses, 0.0)
+        assertEquals(3100.0, f.drawingsExpenses, 0.0)
+        // Without a list (Taheri) stock is a running cost; drawings still are not.
+        val t = AnaFigures.of(books(expenses = ex), thisMonth, null)
+        assertEquals(14600.0, t.runningExpenses, 0.0)
+        assertEquals(0.0, t.goodsExpenses, 0.0)
+    }
+
+    @Test fun theYearlyNetTakesOffRunningCostsOnly() {
+        val inv = invoice("I1", "2026-10-02", listOf(item("A", 100000.0)))
+        val ex = listOf(expense("E1", "2026-10-03", 14000.0, "Stock & Karigars"), expense("E2", "2026-10-04", 600.0, "Rent"), expense("E3", "2026-10-05", 3100.0, "Partner Drawings"))
+        val y = AnaHistory.of(books(invoices = listOf(inv), expenses = ex), MarginSettings.mina, listOf("Stock & Karigars")).yearly.first()
+        assertEquals(600.0, y.expenses, 0.0)
+        // A house that records its goods takes their real cost (2026-11-01): gross 100,000 - 14,000, less the 600 of rent.
+        assertEquals(86000.0, y.profit, 1e-6)
+        assertEquals(86000.0 - 600.0, y.netProfit, 1e-6)
+    }
+
     @Test fun cashInIsPaymentsOnTheirOwnDayAndNetIsCashInLessExpenses() {
         // Paid in September, billed in October: the payment is September's cash.
         val inv = invoice("I1", "2026-10-05", listOf(item("A", 100000.0)), paid = 0.0, extra = mapOf(

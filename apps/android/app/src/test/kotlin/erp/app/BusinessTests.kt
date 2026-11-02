@@ -285,6 +285,21 @@ class BundledBusinessesTests {
         }
     }
 
+    @Test fun `the goods expense categories are Mina's four from its yaml, Taheri none`() {
+        val list = Business.decodeList(read("src/main/assets/businesses.json"))
+        assertEquals(emptyList(), list[0].goodsExpenseCategories)
+        // One source: the bundled copy is apphosting.mina.yaml's variable, not a second list.
+        val yaml = read("../../../apphosting.mina.yaml")
+        val value = Regex("NEXT_PUBLIC_STORE_GOODS_EXPENSE_CATEGORIES\\s+value: \"([^\"]*)\"").find(yaml)!!.groupValues[1]
+        assertEquals(value.split(",").map { it.trim() }, list[1].goodsExpenseCategories)
+        assertEquals(list[1].goodsExpenseCategories, Business.decode(list[1].toJson())!!.goodsExpenseCategories)
+    }
+
+    @Test fun `an older ERP that sends no goods list is none`() {
+        val b = Business.decodeList(read("src/main/assets/businesses.json")).first().toMap().filterKeys { it != "goodsExpenseCategories" }
+        assertEquals(emptyList(), Business.from(b)!!.goodsExpenseCategories)
+    }
+
     @Test fun `the server's descriptor has the same block under the same names`() {
         // src/lib/store-config.ts storeAppAndroid: { googleWebClientId, firebase: { appId, apiKey, projectId, senderId, storageBucket } }
         val b = assertNotNull(Business.decodeList(read("src/main/assets/businesses.json")).first().android)

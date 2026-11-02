@@ -96,12 +96,14 @@ private fun AnalyticsBoard(section: AnaSection) {
         val period = AnaPeriod.read(AnaPeriodStore.key, AnaPeriodStore.from, AnaPeriodStore.to, now)
         // Margin is worked out for owners alone; a customer or a staff account never sees it.
         val margin = erp.app.config.House.margin
+        // The goods a house files as expenses, which net profit does not take off again (Business.goodsExpenseCategories).
+        val goods = erp.app.config.House.goodsExpenseCategories
         val data by produceState<AnaPageData?>(
             null, section, period, invoices.revision, orders.revision, products.revision, customers.revision, expenses.revision, revenue.revision,
         ) {
             val live = customers.items.filter { (it.deletedAt ?: "").isEmpty() }
             val books = AnaBooks(invoices.items, orders.items, products.items, live, expenses.items, revenue.items)
-            value = withContext(Dispatchers.Default) { AnaPageData.of(section, books, period, margin) }
+            value = withContext(Dispatchers.Default) { AnaPageData.of(section, books, period, margin, goods) }
         }
         val d = data
         if (d == null) SkeletonLoading(Modifier.fillMaxSize()) else AnaPages(section, d)
@@ -120,12 +122,12 @@ class AnaPageData(
     val categoryRows: List<AnaBreakdown.CategoryRow>,
 ) {
     companion object {
-        fun of(section: AnaSection, books: AnaBooks, period: AnaPeriodState, margin: MarginSettings?): AnaPageData {
+        fun of(section: AnaSection, books: AnaBooks, period: AnaPeriodState, margin: MarginSettings?, goods: List<String> = emptyList()): AnaPageData {
             val range = period.range
             return AnaPageData(
                 books, period, margin,
-                figures = AnaFigures.of(books, range, margin),
-                history = if (section == AnaSection.sales) AnaHistory.of(books, margin) else null,
+                figures = AnaFigures.of(books, range, margin, goods),
+                history = if (section == AnaSection.sales) AnaHistory.of(books, margin, goods) else null,
                 productRows = if (section == AnaSection.products) AnaBreakdown.products(books, range) else emptyList(),
                 customerRows = if (section == AnaSection.customers) AnaBreakdown.customers(books, range) else emptyList(),
                 categoryRows = if (section == AnaSection.categories) AnaBreakdown.categories(books, range) else emptyList(),

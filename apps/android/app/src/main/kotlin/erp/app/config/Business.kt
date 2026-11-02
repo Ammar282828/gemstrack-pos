@@ -35,6 +35,8 @@ data class Business(
     val minBuild: Int?,
     /** The oldest Android build (versionCode) the ERP still takes (APP_MIN_ANDROID_BUILD); 0 or absent: any. */
     val minAndroidBuild: Int? = null,
+    /** The expense categories that are the cost of the goods (NEXT_PUBLIC_STORE_GOODS_EXPENSE_CATEGORIES): net profit leaves them out. Taheri none; an older ERP sends none. */
+    val goodsExpenseCategories: List<String> = emptyList(),
 ) {
     /** lib/margin.ts: Taheri costs a sale at 24K less so many ratti; a house with no costing has a percent. */
     sealed interface Margin {
@@ -167,6 +169,7 @@ data class Business(
         }
         minBuild?.let { put("minBuild", it) }
         minAndroidBuild?.let { put("minAndroidBuild", it) }
+        put("goodsExpenseCategories", goodsExpenseCategories)
     }
 
     fun toJson(): String = JsonText.of(toMap(), sorted = true) ?: "{}"
@@ -219,6 +222,7 @@ data class Business(
                 },
                 minBuild = (m["minBuild"] as? Number)?.toInt(),
                 minAndroidBuild = (m["minAndroidBuild"] as? Number)?.toInt(),
+                goodsExpenseCategories = (m["goodsExpenseCategories"] as? List<*>)?.mapNotNull { (it as? String)?.trim()?.takeIf(String::isNotEmpty) }.orEmpty(),
             )
         }
 

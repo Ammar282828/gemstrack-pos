@@ -674,6 +674,7 @@ balance below zero is the customer's credit (`lib/invoice-credit.ts`).
   (`NEXT_PUBLIC_STORE_GOODS_EXPENSE_CATEGORIES`, Mina's four; Taheri none). The Expenses tile still shows all paid out,
   split "Running · goods · drawings". Revenue less expenses stays wrong for Mina too: stock bought and not yet sold is
   money spent, not a loss.
+  The apps read the list from `GET /api/app/business` (`goodsExpenseCategories`) and carry it in their bundled businesses.json; Android has it (2026-11-01).
 - **A house that records its goods takes their real cost, not the assumed margin** (owner, 2026-11-01, on Mina's all-time
   net of 39.96 lac: "isnt this still wrong?"). The 40% said 73.52 lac of profit on 1.84 crore while Mina had actually paid
   1.55 crore for goods (84% of revenue). Where `NEXT_PUBLIC_STORE_GOODS_EXPENSE_CATEGORIES` is set, profit before running

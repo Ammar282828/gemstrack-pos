@@ -121,7 +121,7 @@ private fun YearRow(y: AnaYear, showCosts: Boolean, onClick: () -> Unit) {
     parts.add(if (y.unpaid > 0) "Unpaid ${Money.lacCrore(y.unpaid)}" else "Nothing unpaid")
     if (showCosts) {
         parts.add("Expenses ${Money.lacCrore(y.expenses)}")
-        parts.add("Est. profit ${Money.lacCrore(y.profit)}")
+        parts.add("${if (erp.app.config.House.goodsExpenseCategories.isNotEmpty()) "Gross" else "Est."} profit ${Money.lacCrore(y.profit)}")
     }
     Column(
         Modifier.fillMaxWidth().clickable(role = Role.Button, onClickLabel = "Show ${y.year}", onClick = onClick).ledgerRow(),
