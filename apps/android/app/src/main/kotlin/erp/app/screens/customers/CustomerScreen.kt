@@ -272,14 +272,6 @@ private fun Header(c: Customer, addPhone: () -> Unit) {
     }
 }
 
-@Composable
-private fun Contact(title: String, icon: ImageVector, enabled: Boolean, modifier: Modifier, onClick: () -> Unit) {
-    QuickAction(
-        title, icon, onClick = { if (enabled) onClick() },
-        modifier = modifier.alpha(if (enabled) 1f else 0.38f).semantics { if (!enabled) disabled() },
-    )
-}
-
 // MARK: Owed
 
 @Composable
