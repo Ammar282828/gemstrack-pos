@@ -1,5 +1,6 @@
 package erp.app.screens.invoices
 
+import erp.app.screens.voice.voiceClearance
 import erp.app.ui.rememberErpMotion
 import erp.app.ui.icons.Symbols
 import androidx.compose.animation.animateContentSize
@@ -269,7 +270,7 @@ private fun InvoiceDetail(inv: Invoice, customers: List<erp.core.models.Customer
             if (canPay && owing) {
                 Button(
                     onClick = { paying = inv },
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).defaultMinSize(minHeight = 52.dp),
+                    modifier = Modifier.fillMaxWidth().voiceClearance().padding(horizontal = 16.dp, vertical = 8.dp).defaultMinSize(minHeight = 52.dp),
                 ) {
                     Icon(Symbols.Payments, contentDescription = null)
                     Spacer(Modifier.width(8.dp))

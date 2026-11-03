@@ -1,5 +1,6 @@
 package erp.app.screens.voice
 
+import androidx.compose.ui.layout.onGloballyPositioned
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.animation.animateContentSize
@@ -156,10 +157,33 @@ object VoiceOverlay {
 
 /** Room under the capsule for what the screen keeps at its foot (the tab bar); set per Activity by the tabs. */
 class VoiceInset {
+    /** Above the shell's own bar (the tabs), set by the scaffold. */
     var bottom: Dp by mutableStateOf(72.dp)
+
+    /** A page's bar at its foot (voiceClearance); the capsule clears the higher of the two. */
+    var footer: Dp by mutableStateOf(0.dp)
+
+    val clearance: Dp get() = if (footer > bottom) footer else bottom
 }
 
 val LocalVoiceInset = androidx.compose.runtime.compositionLocalOf { VoiceInset() }
+
+/**
+ * A page's own bar at its foot (an order's next step, an invoice's Take payment): the voice capsule rises above it instead of
+ * covering its buttons (2026-11-03 screenshot), and goes back down when the bar leaves.
+ */
+@Composable
+fun Modifier.voiceClearance(): Modifier {
+    val inset = LocalVoiceInset.current
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    androidx.compose.runtime.DisposableEffect(inset) {
+        onDispose { inset.footer = 0.dp }
+    }
+    return this.then(Modifier.onGloballyPositioned { c ->
+        val needed = with(density) { c.size.height.toDp() } + 8.dp
+        if (inset.footer != needed) inset.footer = needed
+    })
+}
 
 /**
  * The capsule over whatever is open, drawn by every Activity's shell (AppShell). The page beneath stays live: it scrolls, its
@@ -200,13 +224,13 @@ fun VoiceOverlayHost() {
             }
         },
         onClose = { VoiceOverlay.dismiss() },
-        modifier = Modifier.fillMaxSize().navigationBarsPadding().imePadding().padding(bottom = inset.bottom),
+        modifier = Modifier.fillMaxSize().navigationBarsPadding().imePadding().padding(bottom = inset.clearance),
     )
 }
 
 /**
  * The capsule itself: the orb, the words as they are heard, then the answer or what is about to be saved and its yes. Several
- * steps open it a little upward. surfaceContainerHigh, the expressive extraLarge corner, no shadow (tone is the lift). Closed
+ * steps open it a little upward. surfaceContainerHighest, the expressive extraLarge corner, a floating toolbar's shadow. Closed
  * with ✕, a swipe down, or "no".
  */
 @Composable
@@ -257,9 +281,12 @@ fun VoiceCapsule(
 
     Box(modifier.fillMaxWidth().padding(horizontal = 12.dp), contentAlignment = Alignment.BottomCenter) {
         Surface(
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            // Highest, with a floating toolbar's shadow: it floats over the page's own tonal cards, and at the same tone with no
+            // shadow it read as one more card (2026-11-03 screenshot). M3 lets floating controls (FAB, floating toolbar) cast one.
+            color = MaterialTheme.colorScheme.surfaceContainerHighest,
             contentColor = MaterialTheme.colorScheme.onSurface,
             shape = MaterialTheme.shapes.extraLarge,
+            shadowElevation = 6.dp,
             modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth().offset { IntOffset(0, drag.roundToInt().coerceAtLeast(0)) }
                 .animateContentSize()
                 // A container a screen reader enters and leaves, named for what it is; the page beneath is still the person's.

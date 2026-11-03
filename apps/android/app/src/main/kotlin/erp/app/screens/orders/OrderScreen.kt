@@ -1,5 +1,6 @@
 package erp.app.screens.orders
 
+import erp.app.screens.voice.voiceClearance
 import erp.app.ui.SegmentedColumn
 import erp.app.ui.ledgerRow
 import erp.app.ui.icons.Symbols
@@ -690,7 +691,7 @@ private fun ActionBar(
         }
     }
     // A bottom bar is its own tone (surfaceContainer), not a rule over the page.
-    Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainer).padding(horizontal = 16.dp, vertical = 8.dp)) {
+    Column(Modifier.fillMaxWidth().voiceClearance().background(MaterialTheme.colorScheme.surfaceContainer).padding(horizontal = 16.dp, vertical = 8.dp)) {
         if (isLargeText()) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) { buttons(Modifier.fillMaxWidth()) }
         } else {

@@ -67,10 +67,12 @@ class DeviceShots(config: ShotConfig) : ShotBase(config) {
     /** The capsule over a live page (an order), as a shell draws it: the page beneath is not covered, only its foot. */
     private fun over(m: VoiceModel, label: String? = "Order ORD-D0002 · Test Buyer · 2 pieces") = show {
         val stack = rememberNavBackStack(Route("/orders/ORD-D0002", 0))
-        CompositionLocalProvider(LocalNavigator provides noNavigator) {
+        // The page's own foot bar lifts the capsule above it (voiceClearance), as the shell does.
+        val inset = androidx.compose.runtime.remember { erp.app.screens.voice.VoiceInset().apply { bottom = 16.dp } }
+        CompositionLocalProvider(LocalNavigator provides noNavigator, erp.app.screens.voice.LocalVoiceInset provides inset) {
             Box(Modifier.fillMaxSize()) {
                 StackHost(stack, Modifier.fillMaxSize())
-                VoiceCapsule(m, label, "en-PK", {}, {}, {}, Modifier.fillMaxSize().padding(bottom = 16.dp))
+                VoiceCapsule(m, label, "en-PK", {}, {}, {}, Modifier.fillMaxSize().padding(bottom = inset.clearance))
             }
         }
     }
