@@ -139,10 +139,12 @@ struct BusinessPicker: View {
         let columns = sideBySide
             ? [GridItem(.adaptive(minimum: pt(240), maximum: pt(380)), spacing: pt(16), alignment: .top)]
             : [GridItem(.flexible())]
-        return LazyVGrid(columns: columns, spacing: pt(16)) {
-            ForEach(Array(ordered.enumerated()), id: \.element.id) { (index: Int, b: Business) in
-                card(b, store: store, sideBySide: sideBySide)
-                    .opacity(chosen == nil || chosen == b.id ? 1 : 0)
+        return GlassGroup {
+            LazyVGrid(columns: columns, spacing: pt(16)) {
+                ForEach(Array(ordered.enumerated()), id: \.element.id) { (index: Int, b: Business) in
+                    card(b, store: store, sideBySide: sideBySide)
+                        .opacity(chosen == nil || chosen == b.id ? 1 : 0)
+                }
             }
         }
         .motion(chosen)
@@ -169,9 +171,9 @@ struct BusinessPicker: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .frame(height: sideBySide ? nil : pt(130))
             .aspectRatio(sideBySide ? 1.6 : nil, contentMode: .fit)
-            .background(id.ground, in: shape)
             // Mina's blush card sits close to the launch colour in light mode: a hairline in its own ink keeps its edge.
-            .overlay { shape.strokeBorder(id.ink.opacity(0.14), lineWidth: 0.5) }
+            // Under Liquid Glass the card is glass tinted with its own colour (a handful of cards, in one GlassGroup).
+            .modifier(PickerCardSurface(ground: id.ground, ink: id.ink))
             .overlay(alignment: .topTrailing) {
                 if last {
                     Circle().fill(id.ink).frame(width: 6, height: 6).padding(pt(14)).accessibilityHidden(true)
@@ -314,5 +316,29 @@ private struct CardWordmark: View {
             }
         }
         .accessibilityHidden(true)
+    }
+}
+
+/// A picker card's surface: its own colour and edge (Standard), or Liquid Glass tinted with that colour.
+private struct PickerCardSurface: ViewModifier {
+    let ground: Color
+    let ink: Color
+    private var mode = GlassMode()
+
+    init(ground: Color, ink: Color) {
+        self.ground = ground
+        self.ink = ink
+    }
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+        if mode.live {
+            content.glassEffect(.regular.tint(ground.opacity(0.7)), in: shape)
+        } else {
+            content
+                .background(ground, in: shape)
+                .overlay { shape.strokeBorder(ink.opacity(0.14), lineWidth: 0.5) }
+        }
     }
 }

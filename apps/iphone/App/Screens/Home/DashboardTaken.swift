@@ -270,6 +270,8 @@ struct DashTakenSheet: View {
             .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
             .onChange(of: range) { _, _ in selectedKey = nil }
         }
+        // The sheet is glass: nothing in it is glass again (HIG), its cards take the cheap look.
+        .onGlassSheet()
         #if !os(macOS)
         .presentationSizing(.page)
         #endif
@@ -378,7 +380,8 @@ struct DashTakenSheet: View {
                         if e.id != d.entries.last?.id { Divider() }
                     }
                 }
-                .ledgerCard()
+                // In a sheet (glass already) and a list of entries: the cheap glass look, never a second pane of glass.
+                .ledgerCard(glass: .row)
             }
         }
     }
@@ -412,7 +415,7 @@ struct DashTakenSheet: View {
                 }
             }
         }
-        .ledgerCard()
+        .ledgerCard(glass: .row)
     }
 
     private func entryRow(_ e: DashTakenEntry) -> some View {

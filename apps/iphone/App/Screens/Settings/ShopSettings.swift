@@ -98,7 +98,7 @@ private struct ShopForm: View {
             } header: {
                 LedgerHeading(title: "Appearance")
             } footer: {
-                Text("For every device that has not chosen its own, on the ERP’s web pages.")
+                Text("Liquid Glass makes the cards and the page glass too, on the iPhone and iPad (Reduce Transparency keeps them solid). For every device that has not chosen its own, on the ERP’s web pages.")
             }
 
             numbering

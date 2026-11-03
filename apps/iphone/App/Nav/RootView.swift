@@ -68,7 +68,13 @@ struct RootGate: View {
         .onChange(of: book.settings.value?.theme) { _, theme in
             if let theme { lastShopTheme = theme }
         }
+        // The shop's interface style, kept per business for the cards and the ground (GlassSurface.swift's UIStyle).
+        .onChange(of: uiStyleToken) { _, _ in UIStyle.remember(book.settings.value?.uiStyle) }
+        .onAppear { UIStyle.remember(book.settings.value?.uiStyle) }
     }
+
+    /// Changes with the business and with its style, so a switch to a business that chose the same style still writes its own key.
+    private var uiStyleToken: String { "\(House.id)|\(book.settings.value?.uiStyle ?? "")" }
 }
 
 #if os(iOS)

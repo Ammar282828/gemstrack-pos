@@ -566,6 +566,16 @@ extension View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .houseCard()
     }
+
+    /// `ledgerCard` where the Liquid Glass style makes it glass (GlassSurface.swift): `.card` true glass (for the few cards of a
+    /// screen), `.row` the cheap glass look (a card in a sheet). Every other style, Reduce Transparency and a Mac draw the
+    /// house card exactly as `ledgerCard` does.
+    func ledgerCard(padding: CGFloat = Metrics.cardPadding, glass: CardGlass) -> some View {
+        self
+            .padding(padding)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .modifier(CardGlassSurface(glass: glass))
+    }
 }
 
 extension View {
@@ -701,14 +711,33 @@ struct FilterChip: View {
             .padding(.horizontal, Self.horizontal)
             .padding(.vertical, Self.vertical)
             .frame(minHeight: Metrics.tap)
-            .background(chosen ? Theme.accent : Theme.card, in: .capsule)
-            .overlay(Capsule().strokeBorder(Color.secondary.opacity(chosen ? 0 : 0.18), lineWidth: 1))
+            .modifier(ChipFill(chosen: chosen))
         }
         .buttonStyle(.pressable)
         .accessibilityAddTraits(chosen ? .isSelected : [])
         // A light tick as a chip is chosen (never as the old one lets go), and its fill eases over.
         .sensoryFeedback(.selection, trigger: chosen) { _, now in now }
         .motion(chosen, Motion.exit)
+    }
+}
+
+/// A filter chip's fill. Chosen: the accent. Not chosen: the house card with its hairline; under Liquid Glass the cheap glass
+/// row look (chips come by the dozen across a screen's filters, so no true glass).
+private struct ChipFill: ViewModifier {
+    let chosen: Bool
+    private var mode = GlassMode()
+
+    init(chosen: Bool) { self.chosen = chosen }
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if mode.live && !chosen {
+            content.background { GlassRowBackground(radius: 1000) }
+        } else {
+            content
+                .background(chosen ? Theme.accent : Theme.card, in: .capsule)
+                .overlay(Capsule().strokeBorder(Color.secondary.opacity(chosen ? 0 : 0.18), lineWidth: 1))
+        }
     }
 }
 

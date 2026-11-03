@@ -65,17 +65,19 @@ struct AnaOverviewPage: View {
         let netDetail = f.totalSales > 0 ? "\(AnaFormat.fixed(netPct, 1))% margin · \(House.recordsGoods ? "gross" : "est.") profit less running costs" : "No revenue in period"
         let netTint: Color = net >= 0 ? Tone.settled.color : Tone.owed.color
         let layout = wide ? AnyLayout(HStackLayout(alignment: .top, spacing: pt(10))) : AnyLayout(VStackLayout(spacing: pt(10)))
-        return layout {
-            FigureRow(alignment: .top, spacing: pt(10)) {
-                FigureTile(label: "Revenue", value: Money.pkrLac(f.totalSales), detail: "Sales in this period", tint: Tone.settled.color)
-                if showCosts {
-                    FigureTile(label: "Expenses", value: Money.pkrLac(f.totalExpenses), detail: expensesDetail)
-                }
-            }
-            if showCosts {
+        return GlassGroup {
+            layout {
                 FigureRow(alignment: .top, spacing: pt(10)) {
-                    FigureTile(label: House.recordsGoods ? "Gross profit" : "Estimated profit", value: Money.pkrLac(f.profit), detail: estDetail, tint: Theme.accent)
-                    FigureTile(label: "Net profit", value: Money.pkrLac(net), detail: netDetail, tint: netTint)
+                    FigureTile(label: "Revenue", value: Money.pkrLac(f.totalSales), detail: "Sales in this period", tint: Tone.settled.color)
+                    if showCosts {
+                        FigureTile(label: "Expenses", value: Money.pkrLac(f.totalExpenses), detail: expensesDetail)
+                    }
+                }
+                if showCosts {
+                    FigureRow(alignment: .top, spacing: pt(10)) {
+                        FigureTile(label: House.recordsGoods ? "Gross profit" : "Estimated profit", value: Money.pkrLac(f.profit), detail: estDetail, tint: Theme.accent)
+                        FigureTile(label: "Net profit", value: Money.pkrLac(net), detail: netDetail, tint: netTint)
+                    }
                 }
             }
         }

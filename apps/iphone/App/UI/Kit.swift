@@ -122,7 +122,8 @@ struct FigureTile: View {
         }
         // A tile grows with its words rather than clipping the detail or shrinking the amount.
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .ledgerCard()
+        // Glass under Liquid Glass: a screen has a handful of figures, in one GlassGroup (FigureGrid / FigureRow).
+        .ledgerCard(glass: .card)
         #endif
     }
 
@@ -152,7 +153,7 @@ struct FigureRow<Content: View>: View {
         let layout = typeSize.isAccessibilitySize
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: spacing))
             : AnyLayout(HStackLayout(alignment: alignment, spacing: spacing))
-        layout { content() }
+        GlassGroup { layout { content() } }
         #endif
     }
 }
@@ -176,9 +177,12 @@ struct FigureGrid<Content: View>: View {
         #if os(macOS)
         MacEvenLayout(minimum: 200, spacing: spacing) { content() }
         #else
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: spacing),
-                                 count: columns), spacing: spacing) {
-            content()
+        // The figures' glass is sampled together, one container for the grid.
+        GlassGroup {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: spacing),
+                                     count: columns), spacing: spacing) {
+                content()
+            }
         }
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { availableWidth = $0 }
         #endif

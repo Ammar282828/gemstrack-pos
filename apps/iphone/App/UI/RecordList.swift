@@ -347,7 +347,8 @@ struct RecordCard<Row: View, Footer: View>: View {
                 footer()
             }
         }
-        .ledgerCard(padding: 20)
+        // Glass under Liquid Glass, grouped by RecordGrid so a page of cards is sampled once.
+        .ledgerCard(padding: 20, glass: .card)
         .overlay {
             // The signed-in person's own card is lit in place, never sorted or filtered.
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
@@ -391,8 +392,10 @@ struct RecordGrid<Item: Identifiable, Card: View>: View {
     @ViewBuilder let card: (Item) -> Card
 
     var body: some View {
-        LazyVGrid(columns: CardColumns.grid(width), alignment: .leading, spacing: pt(20)) {
-            ForEach(items) { item in card(item) }
+        GlassGroup {
+            LazyVGrid(columns: CardColumns.grid(width), alignment: .leading, spacing: pt(20)) {
+                ForEach(items) { item in card(item) }
+            }
         }
     }
 }

@@ -52,6 +52,9 @@ struct HeroSheen: ViewModifier {
     var padding: CGFloat = Metrics.cardPadding
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorSchemeContrast) private var contrast
+    private var mode = GlassMode()
+
+    private var glassLive: Bool { mode.live }
 
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
@@ -59,17 +62,21 @@ struct HeroSheen: ViewModifier {
         content
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .houseCard(hairline: false)
+            // Liquid Glass: the hero is true glass with a little more of the accent in it, and the wash and edge below are
+            // the glass's own job; Standard is the card it was.
+            .glassCard(hairline: false, tint: 0.10)
             .overlay {
-                if !flat {
+                if !flat && !glassLive {
                     shape.fill(LinearGradient(colors: [Theme.accent.opacity(0.10), .clear],
                                               startPoint: .topLeading, endPoint: .center))
                         .allowsHitTesting(false)
                 }
             }
             .overlay {
-                shape.strokeBorder(Theme.accent.opacity(contrast == .increased ? 0.4 : 0.18), lineWidth: 0.5)
-                    .allowsHitTesting(false)
+                if !glassLive {
+                    shape.strokeBorder(Theme.accent.opacity(contrast == .increased ? 0.4 : 0.18), lineWidth: 0.5)
+                        .allowsHitTesting(false)
+                }
             }
     }
 }

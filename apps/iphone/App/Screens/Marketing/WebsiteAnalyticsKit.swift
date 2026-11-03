@@ -545,7 +545,8 @@ struct SiteTile: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .ledgerCard()
+        // A KPI tile: glass under Liquid Glass, sampled with its block's others (FigureGrid's GlassGroup).
+        .ledgerCard(glass: .card)
         #endif
     }
 }

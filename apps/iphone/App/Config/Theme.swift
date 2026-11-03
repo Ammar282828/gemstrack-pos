@@ -178,8 +178,15 @@ extension View {
 
 /// A list's rows on the house's card colour (apply to each Section, or to the List's content).
 struct HouseRows: ViewModifier {
+    private var mode = GlassMode()
+
     func body(content: Content) -> some View {
-        content.listRowBackground(Theme.card)
+        // Liquid Glass: the cheap glass row (GlassSurface.swift), List rows being the things that scroll by the dozen.
+        content.listRowBackground(rowBackground)
+    }
+
+    @ViewBuilder private var rowBackground: some View {
+        if mode.live { GlassRowBackground(radius: nil) } else { Theme.card }
     }
 }
 
@@ -199,7 +206,7 @@ extension View {
             .scrollContentBackground(.hidden).background(Theme.ground)
             .frame(minWidth: 520, idealWidth: 640, minHeight: 420, idealHeight: 620)
         #else
-        self.scrollContentBackground(.hidden).background(Theme.ground)
+        self.scrollContentBackground(.hidden).background { HouseGroundFill().ignoresSafeArea() }
         #endif
     }
 }
@@ -223,7 +230,7 @@ struct HouseGround: ViewModifier {
             .scrollContentBackground(.hidden)
             .environment(\.defaultMinListRowHeight, Self.rowHeight)
             .sectionSpacing24()
-            .background(Theme.ground.ignoresSafeArea())
+            .background(HouseGroundFill().ignoresSafeArea())
         #endif
     }
 }

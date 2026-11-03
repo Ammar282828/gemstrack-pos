@@ -233,10 +233,12 @@ struct Dashboard: View {
     private enum HomeList: Hashable { case needs, due, sales }
 
     private func wideFigureRow(_ f: DashFigures) -> some View {
-        HStack(alignment: .top, spacing: pt(10)) {
-            owedTile(f); benchTile(f); monthTile(f); dueTile(f)
+        GlassGroup {
+            HStack(alignment: .top, spacing: pt(10)) {
+                owedTile(f); benchTile(f); monthTile(f); dueTile(f)
+            }
+            .fixedSize(horizontal: false, vertical: true)
         }
-        .fixedSize(horizontal: false, vertical: true)
     }
 
     @ViewBuilder
@@ -310,18 +312,22 @@ struct Dashboard: View {
     @ViewBuilder
     private func figureGrid(_ f: DashFigures) -> some View {
         if typeSize.isAccessibilitySize {
-            VStack(spacing: pt(10)) {
-                owedTile(f)
-                benchTile(f)
-                monthTile(f)
-                dueTile(f)
+            GlassGroup {
+                VStack(spacing: pt(10)) {
+                    owedTile(f)
+                    benchTile(f)
+                    monthTile(f)
+                    dueTile(f)
+                }
             }
         } else {
-            VStack(spacing: pt(10)) {
-                HStack(alignment: .top, spacing: pt(10)) { owedTile(f); benchTile(f) }
-                    .fixedSize(horizontal: false, vertical: true)
-                HStack(alignment: .top, spacing: pt(10)) { monthTile(f); dueTile(f) }
-                    .fixedSize(horizontal: false, vertical: true)
+            GlassGroup {
+                VStack(spacing: pt(10)) {
+                    HStack(alignment: .top, spacing: pt(10)) { owedTile(f); benchTile(f) }
+                        .fixedSize(horizontal: false, vertical: true)
+                    HStack(alignment: .top, spacing: pt(10)) { monthTile(f); dueTile(f) }
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
     }

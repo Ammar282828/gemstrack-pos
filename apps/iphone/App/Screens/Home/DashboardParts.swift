@@ -140,7 +140,8 @@ struct DashStat<Content: View>: View {
             content()
         }
         .frame(maxHeight: .infinity, alignment: .topLeading)
-        .ledgerCard(padding: 12)
+        // One of Home's four figures: glass under Liquid Glass (Dashboard groups them in a GlassGroup).
+        .ledgerCard(padding: 12, glass: .card)
         .accessibilityElement(children: .combine)
     }
 }
@@ -278,7 +279,8 @@ extension View {
     func dashRowsCard() -> some View {
         VStack(spacing: 0) { self }
             .padding(.horizontal, pt(14))
-            .ledgerCard(padding: 0)
+            // A list of rows scrolls by the dozen: the cheap glass look under Liquid Glass, never true glass.
+            .ledgerCard(padding: 0, glass: .row)
     }
 }
 
@@ -564,7 +566,7 @@ struct DashMonthCard: View {
             if figures.monthCoins > 0 { DashStatNote(text: "+ \(Money.pkrLac(figures.monthCoins)) in gold coins") }
             if figures.revenueMonth > 0 && figures.monthDays.count > 1 { chart }
         }
-        .ledgerCard()
+        .ledgerCard(glass: .card)
     }
 
     private func stat(_ label: String, _ value: Double, _ tint: Color) -> some View {
