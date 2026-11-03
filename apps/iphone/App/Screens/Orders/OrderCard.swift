@@ -74,6 +74,8 @@ struct OrderCardRows: View {
             .zoomSource(id: "/orders/\(order.id)")
         } footer: {
             RecordCardFooter(label: "Actions for \(order.id)") {
+                // One tap to the printer: the order's slip, straight to the share sheet (OrdersHub, .pdfQuickShare).
+                QuickPrintButton(label: "Print slip \(order.id)") { actions.open(.slip(order.id)) }
                 if let step {
                     OrderNextStepRow(order: order, step: step, canAdvance: canAdvance, busy: busy, actions: actions, showsAdvanceMenu: false)
                 }
@@ -83,10 +85,14 @@ struct OrderCardRows: View {
         }
         .contextMenu { menu }
       } else {
-        NavigationLink(value: Route(path: "/orders/\(order.id)")) {
-            OrderCardHead(order: order, stage: stage, owed: owed, now: now, greyed: greyed, mine: mine, showsStage: showsStage)
+        HStack(spacing: pt(8)) {
+            NavigationLink(value: Route(path: "/orders/\(order.id)")) {
+                OrderCardHead(order: order, stage: stage, owed: owed, now: now, greyed: greyed, mine: mine, showsStage: showsStage)
+            }
+            .zoomSource(id: "/orders/\(order.id)")
+            // One tap to the printer: the order's slip, straight to the share sheet (OrdersHub, .pdfQuickShare).
+            QuickPrintButton(label: "Print slip \(order.id)") { actions.open(.slip(order.id)) }
         }
-        .zoomSource(id: "/orders/\(order.id)")
         .listRowSeparator(step != nil ? .hidden : .automatic, edges: .bottom)
         .swipeActions(edge: .leading, allowsFullSwipe: false) { reach }
         .swipeActions(edge: .trailing, allowsFullSwipe: false) { swipe }

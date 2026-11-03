@@ -476,9 +476,15 @@ struct InvoicesList: View {
     }
 
     private func row(_ inv: Invoice) -> some View {
-        InvoiceListRow(invoice: inv, mine: isMine(inv), dated: grouping != .day)
-            // The page grows out of its row (the id is the route's path).
-            .zoomSource(id: InvoiceFacts.path(inv.id))
+        HStack(spacing: pt(8)) {
+            InvoiceListRow(invoice: inv, mine: isMine(inv), dated: grouping != .day)
+                // The page grows out of its row (the id is the route's path).
+                .zoomSource(id: InvoiceFacts.path(inv.id))
+            // One tap to the printer (owner, 2026-11-03), beside the row rather than inside its link.
+            QuickPrintButton(label: "Print \(inv.id)") {
+                quickPDF = InvoiceFacts.pdfTarget(inv, byCustomer: session.shop.invoiceByCustomer)
+            }
+        }
             // The bill to the customer: the commonest thing after a sale, the same send as the invoice page's.
             .swipeActions(edge: .leading, allowsFullSwipe: false) {
                 Button { sending = inv } label: { Label("Send on WhatsApp", systemImage: "message") }
@@ -505,6 +511,9 @@ struct InvoicesList: View {
                 .zoomSource(id: InvoiceFacts.path(inv.id))
         } footer: {
             RecordCardFooter(label: "Actions for \(inv.id)") {
+                QuickPrintButton(label: "Print \(inv.id)") {
+                    quickPDF = InvoiceFacts.pdfTarget(inv, byCustomer: session.shop.invoiceByCustomer)
+                }
                 if canPay && isOwing(inv) {
                     Button("Take payment", systemImage: "banknote") { paying = inv }
                         .buttonStyle(.borderless).font(.subheadline.weight(.medium))

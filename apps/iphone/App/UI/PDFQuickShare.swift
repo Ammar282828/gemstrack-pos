@@ -137,3 +137,26 @@ enum PDFQuickShareFiles {
     }
     #endif
 }
+
+/// The printer on every invoice and order card (owner, 2026-11-03: "quick print buttons on every order and an invoice
+/// card"): one tap and the share sheet opens with Print first in line, via `.pdfQuickShare`. Borderless, so a List
+/// row's own tap (open the record) and this one stay apart.
+struct QuickPrintButton: View {
+    /// "Print INV-000123": what VoiceOver says.
+    let label: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "printer")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Theme.accent)
+                .frame(width: 36, height: 36)
+                .contentShape(Circle())
+        }
+        .buttonStyle(.borderless)
+        .glassEffect(.regular.interactive(), in: .circle)
+        .accessibilityLabel(label)
+        .help(label)
+    }
+}
