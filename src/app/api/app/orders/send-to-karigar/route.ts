@@ -128,8 +128,12 @@ export async function POST(req: NextRequest) {
       const refs = indexes.map(i => itemPhotoRefs(order.items[i]));
       const docs = await readOrderPhotos(adminDb, refs.flat().map(r => r.id || ''));
       let photoCount = 0;
+      /** Pieces whose details went with a photo: the text after is only for the ones that had none. */
+      const captioned = new Set<number>();
       for (let n = 0; n < indexes.length; n++) {
-        const caption = buildPhotoCaption(order, indexes[n], `${order.id} · ${indexes.length > 1 ? `piece ${n + 1}` : 'new work'}`);
+        // The piece's details ride on its first photo (owner, 2026-11-03: "make the message very simple"): one
+        // message per piece, never the same details again in a text after it.
+        const caption = buildPhotoCaption(order, indexes[n], `Order ${order.id}`);
         let first = true;
         for (const r of refs[n]) {
           try {
@@ -137,6 +141,7 @@ export async function POST(req: NextRequest) {
             const p = src ? await photoBlob(src) : null;
             if (!p) { failedPhotos.push(`${order.id} piece ${indexes[n] + 1}`); continue; }
             await sendWhatsAppFile(to, p.blob, p.name, first ? caption : '');
+            if (first) captioned.add(indexes[n]);
             first = false;
             photoCount++;
             sent++;
@@ -146,8 +151,12 @@ export async function POST(req: NextRequest) {
           }
         }
       }
-      await sendWhatsAppMessage(to, buildKarigarMessage(order, indexes, { karigarName: name, shopName, photoCount }));
-      sent++;
+      // Only the pieces without a photo still need their words sent.
+      const uncaptioned = indexes.filter(i => !captioned.has(i));
+      if (uncaptioned.length) {
+        await sendWhatsAppMessage(to, buildKarigarMessage(order, uncaptioned, { karigarName: name, shopName, photoCount }));
+        sent++;
+      }
       try {
         await adminDb.collection('activity_log').add({
           action: 'order.update', title: `Sent order ${order.id} to ${name}`, detail: `${indexes.length} piece(s), ${photoCount} photo(s) · WhatsApp`,
