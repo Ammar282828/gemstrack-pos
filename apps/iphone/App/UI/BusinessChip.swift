@@ -85,11 +85,8 @@ struct BusinessLogo: View {
 struct BusinessChip: View {
     /// The iPad sidebar's row is wider and says the ERP's whole name.
     var wide = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    /// When the chip was last tapped, and the sheet a single tap has waiting: a second tap inside the window is a
-    /// double tap and takes the sheet's place.
-    @State private var lastTap = Date.distantPast
-    @State private var opening: Task<Void, Never>?
+    /// The taps, kept outside the view's state so a tap re-evaluates nothing.
+    @State private var taps = ChipTaps()
 
     var body: some View {
         let store = Businesses.shared
@@ -130,35 +127,56 @@ struct BusinessChip: View {
     }
 
     /// One tap opens the businesses sheet; a double tap (owner, 2026-11-03) goes to the next business, as the menu's
-    /// pick does. With one business there is nothing to switch to, so the sheet opens at once. The sheet waits a
-    /// moment for a second tap, which `Menu`'s primary action cannot tell apart on its own.
+    /// pick does. With one business there is nothing to switch to, so the sheet opens at once.
+    ///
+    /// Why the primary action and a timer rather than `onTapGesture(count: 2)` beside `onTapGesture(count: 1)`: a `Menu`
+    /// owns its touch (tap = primary action, hold = the list), and a tap gesture added to it either never fires or
+    /// swallows the menu's hold; both single and double tap gestures wait out the same window anyway. So the second tap
+    /// is recognised on touch-up of the second primary action, the haptic is fired that instant (the generator is
+    /// prepared at the first tap, so it does not lag), and the wait before a lone tap opens the sheet is the shortest a
+    /// double tap allows (0.25 s, as UIKit's own), down from 0.33 s.
     private func tapped(many: Bool) {
         let store = Businesses.shared
         guard many else { store.switcherOpen = true; return }
         let now = Date()
-        if now.timeIntervalSince(lastTap) < 0.32 {
-            lastTap = .distantPast
-            opening?.cancel()
-            opening = nil
+        if now.timeIntervalSince(taps.last) < ChipTaps.window {
+            taps.cancel()
             let list = store.list
             guard let at = list.firstIndex(where: { $0.id == store.current.id }), list.count > 1 else { return }
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            taps.haptic.impactOccurred()
             switchTo(list[(at + 1) % list.count], haptic: false)
             return
         }
-        lastTap = now
-        opening?.cancel()
-        opening = Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(330))
+        taps.last = now
+        taps.haptic.prepare()
+        taps.opening?.cancel()
+        taps.opening = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(Int(ChipTaps.window * 1000)))
             guard !Task.isCancelled else { return }
-            opening = nil
+            taps.opening = nil
             Businesses.shared.switcherOpen = true
         }
     }
 
+    /// The switch itself is one veiled change (SwitchVeil, in `Businesses.switch`), not an animation of the rebuild.
     private func switchTo(_ b: Business, haptic: Bool = true) {
         guard b.id != Businesses.shared.current.id else { return }
         if haptic { UISelectionFeedbackGenerator().selectionChanged() }
-        Motion.run(Motion.travel, reduce: reduceMotion) { Businesses.shared.switch(to: b.id) }
+        Businesses.shared.switch(to: b.id)
+    }
+}
+
+/// The chip's last tap and the sheet a lone tap has waiting. A class, so writing it is not a state change.
+@MainActor
+private final class ChipTaps {
+    static let window: TimeInterval = 0.25
+    var last = Date.distantPast
+    var opening: Task<Void, Never>?
+    let haptic = UIImpactFeedbackGenerator(style: .light)
+
+    func cancel() {
+        last = .distantPast
+        opening?.cancel()
+        opening = nil
     }
 }

@@ -26,6 +26,7 @@ struct Dashboard: View {
     /// "Set today's gold rate" opens the rate sheet here: the form for owners, the rates to read for anyone else.
     @State private var rateSheet = false
     @State private var noteSheet = false
+    @State private var takenSheet = false
     @State private var allNeeds = false
     @State private var allDue = false
     @State private var allSales = false
@@ -285,12 +286,19 @@ struct Dashboard: View {
         }
     }
 
-    /// Taken today, as the web's headline links it: the invoices.
+    /// Taken today opens the days, one bar each, with every entry of the chosen day (owner, 2026-11-03); the invoices
+    /// themselves are a tap away in the sheet and on the Invoices tab.
     private func hero(_ f: DashFigures) -> some View {
-        linked("/invoices") {
+        Button { takenSheet = true } label: {
             DashHero(amount: f.todayRevenue, invoices: f.todayInvoiceCount,
                      lastSale: f.lastSaleToday.map { DashDate.clock(iso: $0.createdAt) },
                      week: f.week, linked: true)
+        }
+        .buttonStyle(.plain)
+        .pointerHover()
+        .accessibilityHint("Shows each day's money and its entries")
+        .sheet(isPresented: $takenSheet) {
+            DashTakenSheet(days: f.takenDays, monthLength: f.monthDays.count)
         }
     }
 

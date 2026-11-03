@@ -272,7 +272,7 @@ struct BusinessPicker: View {
         // host's transition (a scale and fade; a plain fade under Reduce Motion) carries the app in.
         Motion.run(Motion.travel, reduce: reduceMotion) {
             chosen = b.id
-            if b.id != Businesses.shared.current.id { Businesses.shared.switch(to: b.id) }
+            if b.id != Businesses.shared.current.id { Businesses.shared.switch(to: b.id, veiled: false) }
             launch.dismiss()
         }
     }

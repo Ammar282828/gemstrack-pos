@@ -201,8 +201,26 @@ final class Businesses {
     /// Opens another business. Everything that belonged to the one left is let go (the books, the shared
     /// stores, the router, the change names), and the root view is rebuilt on the new id (ERPApp), so every
     /// screen starts from nothing. Each business's sign-in stays: coming back needs no Google sheet.
-    func `switch`(to id: String) {
+    ///
+    /// `veiled`: a picture of the window covers the change and fades out once the new business has drawn (SwitchVeil), so
+    /// it reads as one smooth cross-fade; the rebuild underneath runs with animations off. The launch picker, which animates
+    /// itself away, passes false.
+    func `switch`(to id: String, veiled: Bool = true) {
         guard !House.isDemo, id != current.id, let next = business(id) else { return }
+        let veil = veiled ? SwitchVeil.cover() : nil
+        if veil != nil {
+            // Not a transition of its own: the caller's `withAnimation` would animate the half-built screens under the picture.
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) { perform(switchTo: next) }
+        } else {
+            perform(switchTo: next)
+        }
+        veil?.reveal(reduce: UIAccessibility.isReduceMotionEnabled)
+    }
+
+    private func perform(switchTo next: Business) {
+        let id = next.id
         let left = current
         // Open work is saved under the business it was typed in, before the open business changes.
         BusinessSwitchPin.leaving(left)

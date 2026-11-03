@@ -224,7 +224,8 @@ struct OrderCardHead: View {
     /// The estimate, and under it what is still owed (amber), in credit (teal), or Paid once nothing is.
     private var money: RecordMoney? {
         guard stage != .closed else { return nil }
-        let estimate = OrdersLogic.subtotal(order)
+        // The whole order, never less the advance (owner, 2026-11-03): the owed line under it says what is left.
+        let estimate = OrdersLogic.fullAmount(order)
         var m = RecordMoney(amount: estimate >= 1 ? estimate : nil)
         let due = OrdersLogic.stillOwed(order, invoiceOwed: owed)
         if abs(due) >= 1 {

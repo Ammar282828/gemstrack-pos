@@ -78,7 +78,8 @@ public func shopCalendarDays(invoices: [Invoice], orders: [Order]) -> [String: S
         }
         days[key, default: ShopCalendarDay()].events.append(ShopCalendarEvent(
             id: "o:" + o.id, docId: o.id, isInvoice: false, createdAt: o.createdAt,
-            customerName: o.customerName ?? "", grandTotal: o.grandTotal, at: placed.timeIntervalSince1970))
+            // The whole order, not the stored grandTotal (net of advances: the balance); owner, 2026-11-03.
+            customerName: o.customerName ?? "", grandTotal: max(0, o.subtotal - (o.discountAmount ?? 0)), at: placed.timeIntervalSince1970))
     }
 
     // Newest first inside a day.

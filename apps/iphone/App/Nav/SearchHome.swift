@@ -331,7 +331,11 @@ struct SearchView: View {
                     Text(o.status.rawValue).font(.caption).foregroundStyle(Tone(status: o.status).color)
                 }
                 Spacer(minLength: 8)
-                if due > 0 { RowAmount(amount: due, tone: Tone.owed.color) }
+                // The whole order (owner, 2026-11-03: "the full order amount, don't minus advance"); what is owed under it.
+                VStack(alignment: .trailing, spacing: 2) {
+                    RowAmount(amount: OrdersLogic.fullAmount(o))
+                    if due > 0 { Text("\(Money.pkr(due)) due").font(.caption).foregroundStyle(Tone.owed.color) }
+                }
             }
         }
     }

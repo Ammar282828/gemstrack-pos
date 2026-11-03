@@ -244,6 +244,14 @@ enum OrdersLogic {
 
     static func discount(_ order: Order) -> Double { order.discountAmount ?? 0 }
 
+    /// What the order comes to in full: the pieces (or the saved subtotal when they carry no estimate) less any discount,
+    /// never less the advances or exchange (owner, 2026-11-03: a card's amount is the whole order, not the balance).
+    static func fullAmount(_ order: Order) -> Double {
+        let pieces = subtotal(order)
+        let base = pieces >= 1 ? pieces : order.subtotal
+        return max(0, base - discount(order))
+    }
+
     static func exchangeValue(_ order: Order) -> Double { order.advanceInExchangeValue ?? 0 }
 
     /// Pieces − discount − advances − exchange: the big "Balance Due" on the order page.

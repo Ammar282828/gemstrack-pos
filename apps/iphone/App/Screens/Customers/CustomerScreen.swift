@@ -397,9 +397,9 @@ private struct CustOrderRow: View {
     }
 
     var body: some View {
-        // The order's total is stored net of its advances, so it is the balance still to pay (order-payment.ts).
+        // The whole order, not the stored grandTotal (net of advances: the balance); owner, 2026-11-03.
         HStack(spacing: pt(8)) {
-            TwoLine(title: order.id, subtitle: subtitle, trailing: Money.pkr(order.grandTotal),
+            TwoLine(title: order.id, subtitle: subtitle, trailing: Money.pkr(OrdersLogic.fullAmount(order) >= 1 ? OrdersLogic.fullAmount(order) : order.grandTotal),
                     trailingTint: (closed || invoiced) ? .secondary : .primary)
             // Completed is the expected end: no badge for it (rule 15). Open, cancelled and refunded keep theirs.
             if order.status != .completed { StatusBadge(order: order.status) }

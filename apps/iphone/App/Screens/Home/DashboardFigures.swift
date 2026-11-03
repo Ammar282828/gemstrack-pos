@@ -449,6 +449,8 @@ struct DashFigures {
     private(set) var monthDays: [DashDay] = []
     /// The trailing 30 days, kept for the week of bars under "Taken today" (which must not shrink at a month's start).
     private(set) var days: [DashDay] = []
+    /// The last 90 days of what was taken, day by day with every entry: the sheet "Taken today" opens (DashTakenSheet).
+    private(set) var takenDays: [DashTakenDay] = []
 
     var netMonth: Double { revenueMonth - expensesMonth }
     var lateDue: [DashDue] { due.filter { $0.isLate } }
@@ -464,7 +466,7 @@ struct DashFigures {
         self.now = now
         let liveKarigars = karigars.filter { ($0.deletedAt ?? "").isEmpty }
         karigarIds = Set(liveKarigars.map { $0.id })
-        gatherRevenue(orders: orders, invoices: invoices, revenues: revenues, expenses: expenses)
+        gatherRevenue(orders: orders, invoices: invoices, revenues: revenues, expenses: expenses, repairs: repairs)
         gatherOwed(invoices: invoices, hisaab: hisaab)
         gatherBench(orders: orders, karigarJobs: karigarJobs, karigars: liveKarigars, invoices: invoices)
         gatherDue(orders: orders, repairs: repairs)
@@ -483,7 +485,7 @@ struct DashFigures {
         return sum
     }
 
-    private mutating func gatherRevenue(orders: [Order], invoices: [Invoice], revenues: [AdditionalRevenue], expenses: [Expense]) {
+    private mutating func gatherRevenue(orders: [Order], invoices: [Invoice], revenues: [AdditionalRevenue], expenses: [Expense], repairs: [Repair]) {
         let todayStart = DashDate.startOfDay(now)
         let monthStart = DashDate.startOfMonth(now)
         // Today plus the 29 before: the bars under "Taken today" read the last seven of these.
@@ -496,7 +498,6 @@ struct DashFigures {
         // Revenue is recognised on the source order's date, and counts an exchange as payment (invoiceSaleValue).
         // Gold coins are split out first, exactly as Analytics does (AnaCoins.splitAll; lib/analytics/coins.ts), so Home's
         // revenue and Analytics' are one figure; the month's coins are noted beside it. An invoice with no createdAt counts nowhere.
-        var events: [Event] = []
         var coinEvents: [Event] = []
         var invoicesToday = 0
         for inv in invoices where inv.status != .refunded {
@@ -504,23 +505,14 @@ struct DashFigures {
             if at >= todayStart { invoicesToday += 1 }
         }
         let split = AnaCoins.splitAll(invoices)
-        for inv in split.jewellery where inv.status != .refunded && !inv.createdAt.isEmpty {
-            guard let at = DashDate.parseISO(DashRules.revenueDate(of: inv, orders: ordersById)) else { continue }
-            events.append(Event(at: at, amount: invoiceSaleValue(inv)))
-        }
         for inv in split.coins where inv.status != .refunded && !inv.createdAt.isEmpty {
             guard let at = DashDate.parseISO(DashRules.revenueDate(of: inv, orders: ordersById)) else { continue }
             coinEvents.append(Event(at: at, amount: invoiceSaleValue(inv)))
         }
-        // A counter order not yet invoiced is a sale once taken (bookedAsSale); an online one waits for its transfer.
-        for o in orders where bookedAsSale(o) {
-            guard let at = DashDate.parseISO(o.createdAt) else { continue }
-            events.append(Event(at: at, amount: o.subtotal.isNaN ? 0 : o.subtotal))
-        }
-        for r in revenues {
-            guard let at = DashDate.parseISO(r.date) else { continue }
-            events.append(Event(at: at, amount: r.amount.isNaN ? 0 : r.amount))
-        }
+        // The jewellery sales, a counter order not yet invoiced (bookedAsSale; an online one waits for its transfer) and
+        // Extra revenue: one list, which "Taken today" opens day by day (DashTaken), so the two can never disagree.
+        let entries = DashTaken.entries(jewellery: split.jewellery, orders: orders, ordersById: ordersById, revenues: revenues, repairs: repairs)
+        let events = entries.map { (e: DashTakenEntry) -> Event in Event(at: e.at, amount: e.amount) }
 
         todayInvoiceCount = invoicesToday
         // Capped at the end of today, like Analytics' "this month" (the 1st to today), so a future-dated row reads the same in both.
@@ -530,6 +522,8 @@ struct DashFigures {
         monthCoins = Self.total(coinEvents, from: monthStart, before: tomorrowStart)
         lastMonthRevenue = Self.total(events, from: lastMonthStart, before: monthStart)
         revenueMonth = monthRevenue
+        // The day-by-day sheet: the last 90 days of those same entries, worked out here with the rest of Home.
+        takenDays = DashTaken.days(entries, endingOn: now, count: 90)
 
         func series(from start: Date, count: Int) -> [DashDay] {
             var perDay = [Double](repeating: 0, count: count)
