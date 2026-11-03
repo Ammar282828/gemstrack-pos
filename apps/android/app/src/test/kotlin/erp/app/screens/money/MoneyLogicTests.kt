@@ -465,4 +465,24 @@ class MoneyLogicTests {
         assertEquals("This month · 1 Oct – 12 Oct 2026", periodLine(ExpensePeriod.thisMonth, ExpensePeriod.thisMonth.range(now = now)))
         assertEquals("All time", periodLine(ExpensePeriod.all, ExpensePeriod.all.range(now = now)))
     }
+
+    @Test fun theServerPdfPathsMatchTheIPhones() {
+        assertEquals(
+            "/api/app/pdf/expenses?period=this-month&grouping=day&category=All&search=",
+            MoneyPaths.expenseReport(ExpensePeriod.thisMonth, null, null, ExpenseGrouping.day, "", " "),
+        )
+        assertEquals(
+            "/api/app/pdf/expenses?period=custom&grouping=week&category=Gold%20rate&search=a%26b&start=2026-10-01&end=2026-10-09",
+            MoneyPaths.expenseReport(ExpensePeriod.custom, "2026-10-01", "2026-10-09", ExpenseGrouping.week, "Gold rate", "a&b"),
+        )
+        // A custom span with no start sends no bounds, as the page does.
+        assertEquals(
+            "/api/app/pdf/expenses?period=custom&grouping=month&category=All&search=",
+            MoneyPaths.expenseReport(ExpensePeriod.custom, "", "2026-10-09", ExpenseGrouping.month, "", ""),
+        )
+        assertEquals("/api/app/pdf/hisaab", MoneyPaths.hisaabSummary("  "))
+        assertEquals("/api/app/pdf/hisaab?q=Test%20Buyer", MoneyPaths.hisaabSummary(" Test Buyer "))
+        assertEquals("/api/app/pdf/hisaab/CUST-1?type=customer", MoneyPaths.ledgerPdf("CUST-1", true))
+        assertEquals("/api/app/pdf/hisaab/K%2F1?type=karigar", MoneyPaths.ledgerPdf("K/1", false))
+    }
 }

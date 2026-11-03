@@ -55,7 +55,9 @@ class VoiceModel(
     private val queue: (String, Map<String, Any?>, String) -> Unit = { op, fields, label -> Outbox.enqueue(op, fields, label) },
     /** The ears, or null where the phone cannot recognise speech. */
     private val earsFor: () -> VoiceEars? = { VoiceEars.shared(context).takeIf { VoiceEars.available(context) } },
-) {
+    /** The record open on the screen beneath, told with every sentence (VoiceContext). */
+    private val focus: () -> VoiceFocus? = { VoiceContext.focus },
+) : VoiceDriver {
     /** What the plan on screen answers: the words read, which a typed edit may change before "Read again". */
     var words by mutableStateOf("")
 
@@ -122,7 +124,7 @@ class VoiceModel(
     // MARK: Opening and closing
 
     /** The sheet is up: the ERP is told to read its book, permission is checked, and the microphone opens. */
-    fun open(language: String) {
+    override fun open(language: String) {
         if (opened) return
         opened = true
         closed = false
@@ -246,13 +248,13 @@ class VoiceModel(
      * The app went behind the lock, the switcher or another app: the microphone closes. A request already out finishes; its
      * answer waits on screen. [resume] opens it again.
      */
-    fun pause() {
+    override fun pause() {
         if (clipMode || !listening) return
         stopEars()
         pausedByApp = true
     }
 
-    fun resume() {
+    override fun resume() {
         if (closed || !pausedByApp) return
         ears?.let { hear(it) }
     }
@@ -320,6 +322,13 @@ class VoiceModel(
         interpret(said, audio = null, fresh = false)
     }
 
+    /** A sentence typed into the overlay: read like a spoken one (a "yes" answers the plan, anything else changes it). */
+    fun submitTyped(text: String) {
+        val said = text.trim()
+        if (said.isEmpty() || writing || clipMode && listening) return
+        route(said)
+    }
+
     /** The typed field's "Review" / "Read again": the words as they stand, as a request of their own. */
     fun readText(speak: Boolean) {
         if (busy || completed != 0) return
@@ -342,7 +351,8 @@ class VoiceModel(
         thinking = true
         // With a plan not yet saved on screen the sentence is a change to it.
         val refining = if (audio == null && !fresh && completed == 0) plan else null
-        val body = audio ?: VoiceLogic.requestBody(said, refining)
+        // What is open beneath the overlay goes with the sentence (and with a recording): "make it 22 karat" is about it.
+        val body = if (audio != null) VoiceLogic.withContext(audio, focus()) else VoiceLogic.requestBody(said, refining, focus())
         val cumulative = VoiceLogic.cumulative(refining, said)
         val id = generation
         work = scope.launch {
@@ -430,7 +440,7 @@ class VoiceModel(
         queued = null
     }
 
-    fun close() {
+    override fun close() {
         if (writing) return
         closed = true
         generation = UUID.randomUUID()

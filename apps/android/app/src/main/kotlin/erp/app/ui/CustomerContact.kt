@@ -30,7 +30,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import erp.app.data.ErpApi
 import erp.app.data.ServerShelf
-import erp.app.device.shareBytes
+import erp.app.nav.LocalNavigator
 import erp.app.ui.icons.Symbols
 import erp.core.logic.isWalkInName
 import kotlinx.coroutines.CancellationException
@@ -65,6 +65,28 @@ object CustomerContactLinks {
     fun isWalkIn(customerId: String?, customerName: String?): Boolean {
         val name = (customerName ?: "").trim()
         return customerId.isNullOrBlank() && (name.isEmpty() || isWalkInName(name))
+    }
+}
+
+/**
+ * What the Contact menu offers and in which order (decisions.md "Customer contact"). Pure, so the order is a JVM test:
+ * Call, WhatsApp, Message; then Send <noun> PDF on WhatsApp and Share PDF…; then Copy number. No number: "Add phone
+ * number" when the customer is on file; a walk-in has only the document's actions.
+ */
+object ContactMenuPlan {
+    enum class Kind { Call, WhatsApp, Message, AddPhone, SendPdf, SharePdf, CopyNumber }
+    data class Item(val kind: Kind, val label: String)
+
+    fun items(number: String, walkIn: Boolean, customerId: String?, docNoun: String?): List<Item> = buildList {
+        if (number.isNotEmpty()) {
+            add(Item(Kind.Call, "Call")); add(Item(Kind.WhatsApp, "WhatsApp")); add(Item(Kind.Message, "Message"))
+        } else if (!walkIn && !customerId.isNullOrEmpty()) {
+            add(Item(Kind.AddPhone, "Add phone number"))
+        }
+        if (docNoun != null) {
+            add(Item(Kind.SendPdf, "Send $docNoun PDF on WhatsApp")); add(Item(Kind.SharePdf, "Share PDF…"))
+        }
+        if (number.isNotEmpty()) add(Item(Kind.CopyNumber, "Copy number"))
     }
 }
 
@@ -126,20 +148,13 @@ fun CustomerContactActions(
     val number = if (walkIn) "" else CustomerContactLinks.e164(phone)
     var asking by remember { mutableStateOf(false) }
     var more by remember { mutableStateOf(false) }
-    var failure by remember { mutableStateOf<String?>(null) }
     if (number.isEmpty() && doc == null && onAddPhone == null) return
 
+    // Share PDF goes straight to the system share sheet (Print, WhatsApp, Files), never a viewer first.
+    val quick = rememberQuickPdf()
     fun share(d: CustomerDoc) {
         if (onShare != null) { onShare(); return }
-        scope.launch {
-            try {
-                shareBytes(context, ErpApi.shared.bytes(d.pdfPath), d.fileName, "application/pdf", d.fileName)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                failure = e.message ?: e.toString()
-            }
-        }
+        quick.share(d.pdfPath, d.fileName, d.fileName)
     }
 
     Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
@@ -174,10 +189,7 @@ fun CustomerContactActions(
         SendDocDialog(doc, if (number.isNotEmpty()) number else if (walkIn) phone.orEmpty() else "", if (walkIn) null else customerName,
             onDismiss = { asking = false }, sent = { asking = false; sent?.invoke(it) })
     }
-    failure?.let { why ->
-        AlertDialog(onDismissRequest = { failure = null }, title = { Text("Could not open the PDF") }, text = { Text(why) },
-            confirmButton = { TextButton(onClick = { failure = null }) { Text("OK") } })
-    }
+    QuickPdfBusy(quick)
 }
 
 /**
@@ -246,4 +258,86 @@ fun SendDocDialog(doc: CustomerDoc, phone: String, customerName: String?, onDism
             dismissButton = { TextButton(onClick = { noLine = false }) { Text("OK") } },
         )
     }
+}
+
+/**
+ * The same actions as a menu (the iPhone's `CustomerContactMenu`, web `ContactMenu`): "Contact" with a person icon, for a
+ * toolbar, a row's trailing side or a card. Shows nothing when there is nothing to offer.
+ */
+@Composable
+fun CustomerContactMenu(
+    phone: String?,
+    modifier: Modifier = Modifier,
+    customerId: String? = null,
+    customerName: String? = null,
+    doc: CustomerDoc? = null,
+    message: String = "",
+) {
+    var open by remember { mutableStateOf(false) }
+    val walkIn = CustomerContactLinks.isWalkIn(customerId, customerName)
+    val number = if (walkIn) "" else CustomerContactLinks.e164(phone)
+    if (ContactMenuPlan.items(number, walkIn, customerId, doc?.kind?.noun).isEmpty()) return
+    Box(modifier) {
+        IconButton(onClick = { open = true }) { Icon(Symbols.AccountCircle, contentDescription = "Contact ${customerName ?: "the customer"}") }
+        CustomerContactDropdown(open, { open = false }, phone, customerId, customerName, doc, message)
+    }
+}
+
+/** The menu's body, for a caller that has its own anchor (a row whose long press or swipe opens it). */
+@Composable
+fun CustomerContactDropdown(
+    expanded: Boolean,
+    onDismiss: () -> Unit,
+    phone: String?,
+    customerId: String? = null,
+    customerName: String? = null,
+    doc: CustomerDoc? = null,
+    message: String = "",
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val navigator = LocalNavigator.current
+    val note = LocalNoteState.current
+    val walkIn = CustomerContactLinks.isWalkIn(customerId, customerName)
+    val number = if (walkIn) "" else CustomerContactLinks.e164(phone)
+    var asking by remember { mutableStateOf(false) }
+    val quick = rememberQuickPdf()
+
+    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+        for (item in ContactMenuPlan.items(number, walkIn, customerId, doc?.kind?.noun)) {
+            DropdownMenuItem(
+                text = { Text(item.label) },
+                leadingIcon = {
+                    Icon(
+                        when (item.kind) {
+                            ContactMenuPlan.Kind.Call -> Symbols.Call
+                            ContactMenuPlan.Kind.WhatsApp -> Symbols.Chat
+                            ContactMenuPlan.Kind.Message -> Symbols.Sms
+                            ContactMenuPlan.Kind.AddPhone -> Symbols.PersonAdd
+                            ContactMenuPlan.Kind.SendPdf -> Symbols.Send
+                            ContactMenuPlan.Kind.SharePdf -> Symbols.IosShare
+                            ContactMenuPlan.Kind.CopyNumber -> Symbols.ContentCopy
+                        }, null,
+                    )
+                },
+                onClick = {
+                    onDismiss()
+                    when (item.kind) {
+                        ContactMenuPlan.Kind.Call -> openUri(context, Intent.ACTION_DIAL, CustomerContactLinks.tel(number))
+                        ContactMenuPlan.Kind.WhatsApp -> openUri(context, Intent.ACTION_VIEW, CustomerContactLinks.whatsApp(number, message))
+                        ContactMenuPlan.Kind.Message -> openUri(context, Intent.ACTION_SENDTO, CustomerContactLinks.sms(number))
+                        ContactMenuPlan.Kind.AddPhone -> customerId?.let { navigator.open("/customers/$it/edit") }
+                        ContactMenuPlan.Kind.SendPdf -> asking = true
+                        ContactMenuPlan.Kind.SharePdf -> doc?.let { d -> quick.share(d.pdfPath, d.fileName, d.fileName) }
+                        ContactMenuPlan.Kind.CopyNumber -> copyNumber(context, number)
+                    }
+                },
+            )
+        }
+    }
+    if (asking && doc != null) {
+        SendDocDialog(doc, if (number.isNotEmpty()) number else if (walkIn) phone.orEmpty() else "", if (walkIn) null else customerName,
+            onDismiss = { asking = false }, sent = { asking = false; note.show(Note(it)) })
+    }
+    QuickPdfBusy(quick)
 }

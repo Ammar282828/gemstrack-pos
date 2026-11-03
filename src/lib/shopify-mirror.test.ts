@@ -7,6 +7,10 @@ describe('which invoice a Shopify order speaks for', () => {
     const pushed = { tags: 'pos-import, pos-inv-INV-000228', note: 'POS Invoice INV-000228' };
     expect(isPosPushedOrder(pushed)).toBe(true);
     expect(isPosPushedOrder({ tags: 'pos-inv-INV-1' })).toBe(true);
+    // A POS order sent to Shopify (push/from-order's 'pos-order,courier'; the order sync's pos-order-<id>).
+    expect(isPosPushedOrder({ tags: 'pos-order,courier' })).toBe(true);
+    expect(isPosPushedOrder({ tags: 'WhatsApp, pos-order-ORD-000175' })).toBe(true);
+    expect(isPosPushedOrder({ tags: 'WhatsApp, COD' })).toBe(false);
     expect(isPosPushedOrder({ tags: '' })).toBe(false);
     expect(isPosPushedOrder({ tags: null })).toBe(false);
   });
