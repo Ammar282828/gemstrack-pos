@@ -44,9 +44,10 @@ object CustomerLinks {
         }
     }
 
-    fun call(context: Context, phone: String?) = open(context, Intent.ACTION_DIAL, CustomerKit.callUri(phone))
-    fun whatsApp(context: Context, phone: String?) = open(context, Intent.ACTION_VIEW, CustomerKit.whatsAppUri(phone))
-    fun message(context: Context, phone: String?) = open(context, Intent.ACTION_SENDTO, CustomerKit.messageUri(phone))
+    // The Contact menu's one number (0300… dials +92300…), so a list swipe reaches the same phone it does.
+    fun call(context: Context, phone: String?) = open(context, Intent.ACTION_DIAL, erp.app.ui.CustomerContactLinks.tel(phone))
+    fun whatsApp(context: Context, phone: String?) = open(context, Intent.ACTION_VIEW, erp.app.ui.CustomerContactLinks.whatsApp(phone))
+    fun message(context: Context, phone: String?) = open(context, Intent.ACTION_SENDTO, erp.app.ui.CustomerContactLinks.sms(phone))
 }
 
 /** A label and what it says, the value wrapping at the right (SwiftUI's `LabeledContent`). */

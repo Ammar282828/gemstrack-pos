@@ -152,6 +152,7 @@ fun InvoicesList() {
     var paying by remember { mutableStateOf<Invoice?>(null) }
     var sending by remember { mutableStateOf<Invoice?>(null) }
     var pdf by remember { mutableStateOf<InvoicePdfTarget?>(null) }
+    val quick = erp.app.ui.rememberQuickPdf()
 
     // The list is worked out from the text 200 ms after the last keystroke (the box itself stays instant); clearing applies at once.
     var appliedSearch by remember { mutableStateOf(search) }
@@ -182,7 +183,9 @@ fun InvoicesList() {
     fun actions(inv: Invoice): List<RowAction> = buildList {
         if (canPay && isOwing(inv)) add(RowAction("Take payment", Symbols.Payments, Tone.settled) { paying = inv })
         add(RowAction(if (inv.sentOnWhatsApp == null) "Send on WhatsApp" else "Send again on WhatsApp", Symbols.Message, Tone.credit) { sending = inv })
-        add(RowAction("Print / PDF", Symbols.Print, Tone.quiet) { pdf = InvoiceFacts.pdfTarget(inv, byCustomer) })
+        // Straight to the share sheet (Print, WhatsApp, Files); View PDF opens it for looking.
+        add(RowAction("Print or share PDF", Symbols.Print, Tone.quiet) { InvoiceFacts.pdfTarget(inv, byCustomer).let { quick.share(it.path, it.fileName, it.title) } })
+        add(RowAction("View PDF", Symbols.PictureAsPdf, Tone.quiet) { pdf = InvoiceFacts.pdfTarget(inv, byCustomer) })
     }
 
     ScreenTitle("Invoices")
@@ -270,6 +273,7 @@ fun InvoicesList() {
         })
     }
     pdf?.let { InvoicePdfDialog(it, onDismiss = { pdf = null }) }
+    erp.app.ui.QuickPdfBusy(quick)
     if (filtering) {
         InvoiceFilterSheet(
             all = all, scoped = scoped, filter = filter, chip = chip, grouping = grouping,
