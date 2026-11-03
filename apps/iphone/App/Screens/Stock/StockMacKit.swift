@@ -57,7 +57,7 @@ struct StockPhotoDrop: ViewModifier {
                         .overlay { Label("Drop to replace the photo", systemImage: "photo.badge.arrow.down").font(.headline) }
                         .allowsHitTesting(false)
                 } else if busy {
-                    ProgressView("Uploading the photo…").padding(14).background(.regularMaterial, in: .rect(cornerRadius: 12))
+                    ProgressView("Uploading the photo…").padding(14).background(.regularMaterial, in: .rect(cornerRadius: Radius.tile, style: .continuous))
                 }
             }
             .dropDestination(for: URL.self) { urls, _ in

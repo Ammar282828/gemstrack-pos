@@ -63,7 +63,7 @@ struct StudioAgentSettings: View {
                         ForEach(keys.map { $0.s("tail") }, id: \.self) { tail in
                             let k = keys.first { $0.s("tail") == tail } ?? .null
                             HStack(alignment: .firstTextBaseline) {
-                                VStack(alignment: .leading, spacing: 2) {
+                                VStack(alignment: .leading, spacing: pt(2)) {
                                     Text(k.s("label", "Claude Code") + " ··" + tail)
                                     Text(line(k)).font(.caption).foregroundStyle(.secondary)
                                 }

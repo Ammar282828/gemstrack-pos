@@ -48,14 +48,14 @@ struct StudioLibrary: View {
                                 VStack(alignment: .leading, spacing: pt(5)) {
                                     Text(item.s("name")).foregroundStyle(.primary)
                                     Text(item.s("collection")).font(.caption).foregroundStyle(.secondary)
-                                    if item["adScore"] != .null { Text("Ad score · \(Int(item.n("adScore")))").font(.caption).foregroundStyle(.secondary) }
+                                    if item["adScore"] != .null { Text("Ad score · \(Int(clamped: item.n("adScore")))").font(.caption).foregroundStyle(.secondary) }
                                     else { Text("Not assessed").font(.caption).foregroundStyle(.secondary) }
                                     if item["usedInAds"].bool { Text("Used in an ad").font(.caption).foregroundStyle(.secondary) }
                                 }
                             }.padding(.vertical, pt(5))
                         }
                     }
-                    if rows.count < Int(answer.n("total")) { Button("Show more") { Task { await load(more: true) } } }
+                    if rows.count < Int(clamped: answer.n("total")) { Button("Show more") { Task { await load(more: true) } } }
                 }.houseRows()
             } else if House.isDemo {
                 Section { Text("The demo has no photo library.").foregroundStyle(.secondary) }.houseRows()
@@ -143,7 +143,7 @@ extension StudioLibrary {
                                         .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
                                     Text(item.s("name")).font(.subheadline.weight(.medium)).lineLimit(2).foregroundStyle(.primary)
                                     Text(item.s("collection")).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                                    Text(item["adScore"] != .null ? "Ad score · \(Int(item.n("adScore")))" : "Not assessed")
+                                    Text(item["adScore"] != .null ? "Ad score · \(Int(clamped: item.n("adScore")))" : "Not assessed")
                                         .font(.caption).foregroundStyle(.secondary)
                                 }
                                 .padding(6)
@@ -161,7 +161,7 @@ extension StudioLibrary {
                         }
                     }
                     .padding(20)
-                    if rows.count < Int(answer.n("total")) {
+                    if rows.count < Int(clamped: answer.n("total")) {
                         Button("Show more") { Task { await load(more: true) } }
                             .buttonStyle(.bordered).frame(maxWidth: .infinity).padding(.bottom, 20)
                     }
@@ -170,7 +170,7 @@ extension StudioLibrary {
         }
         .macSearchable(text: $q, prompt: "Name, subject or collection")
         .macRefresh { Task { await load(fresh: true) } }
-        .navigationSubtitle(answer.n("total") > 0 ? "\(Int(answer.n("total"))) photos" : "")
+        .navigationSubtitle(answer.n("total") > 0 ? "\(Int(clamped: answer.n("total"))) photos" : "")
         .toolbar {
             ToolbarItemGroup(placement: .automatic) {
                 // One menu for every way to narrow the library; View › Refresh (⌘R) reads it again.

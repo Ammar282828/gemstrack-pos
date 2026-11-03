@@ -637,7 +637,7 @@ struct QuickAction: View {
             }
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable)
         .accessibilityLabel(title)
     }
 }
@@ -704,7 +704,7 @@ struct FilterChip: View {
             .background(chosen ? Theme.accent : Theme.card, in: .capsule)
             .overlay(Capsule().strokeBorder(Color.secondary.opacity(chosen ? 0 : 0.18), lineWidth: 1))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable)
         .accessibilityAddTraits(chosen ? .isSelected : [])
         // A light tick as a chip is chosen (never as the old one lets go), and its fill eases over.
         .sensoryFeedback(.selection, trigger: chosen) { _, now in now }

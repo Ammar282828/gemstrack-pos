@@ -249,6 +249,8 @@ struct InvoicesList: View {
     @State private var scoped = Memo<[Invoice]>()
     /// The Filter menu's people and months, per change of the invoices.
     @State private var menuFacts = Memo<InvoiceMenuFacts>()
+    /// Not the screen on display (another tab, or a page over it): the memos hand back what they have.
+    @State private var covered = false
     @State private var chip: InvoiceChip = .all
     @State private var grouping: InvoiceGrouping = .day
     /// "" is Anyone.
@@ -283,6 +285,7 @@ struct InvoicesList: View {
             content(all)
         }
         .navigationTitle("Invoices")
+        .trackCovered($covered)
         .hubTitleDisplay()
         // Debounced like the search page; clearing the box clears the list at once.
         .task(id: search) {
@@ -333,7 +336,7 @@ struct InvoicesList: View {
     /// (or a week, a month, a status), as rows on a phone and as a grid of cards on a wide iPad.
     @ViewBuilder
     private func content(_ all: [Invoice]) -> some View {
-        let stamped = stamps([book.invoices.revision]) { InvoiceStamps(all) }
+        let stamped = stamps([book.invoices.revision], resting: covered) { InvoiceStamps(all) }
         let scoped = scope(all, stamped)
         let shown = scoped.filter { chip.matches($0) }
         let groups = sections(shown, stamped)
@@ -498,7 +501,7 @@ struct InvoicesList: View {
             // The bill to the customer: the commonest thing after a sale, the same send as the invoice page's.
             .swipeActions(edge: .leading, allowsFullSwipe: false) {
                 Button { sending = inv } label: { Label("Send on WhatsApp", systemImage: "message") }
-                    .tint(.green)
+                    .tint(Tone.settled.color)
             }
             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                 if canPay && isOwing(inv) {
@@ -517,7 +520,7 @@ struct InvoicesList: View {
     private func card(_ inv: Invoice) -> some View {
         RecordCard(mine: isMine(inv)) {
             InvoiceListRow(invoice: inv, mine: isMine(inv), dated: grouping != .day)
-                .buttonStyle(.plain)
+                .buttonStyle(.pressable)
                 .zoomSource(id: InvoiceFacts.path(inv.id))
         } footer: {
             RecordCardFooter(label: "Actions for \(inv.id)") {
@@ -578,8 +581,8 @@ struct InvoicesList: View {
     private func filterMenu(_ all: [Invoice]) -> some View {
         // The people and months of the whole book, per change of the invoices: the toolbar is rebuilt with the body, and
         // reading every date again for each of those passes is what the stamps already hold.
-        let stamped = stamps([book.invoices.revision]) { InvoiceStamps(all) }
-        let facts = menuFacts([book.invoices.revision]) {
+        let stamped = stamps([book.invoices.revision], resting: covered) { InvoiceStamps(all) }
+        let facts = menuFacts([book.invoices.revision], resting: covered) {
             InvoiceMenuFacts(people: Array(Set(all.compactMap { $0.takenBy }.filter { !$0.isEmpty })).sorted(),
                              months: Array(Set(stamped.day.values.map { String($0.prefix(7)) })).sorted(by: >))
         }
@@ -634,7 +637,7 @@ struct InvoicesList: View {
         let key = [book.invoices.revision, wanted.count >= 3 ? book.customers.revision : 0, takenBy.hashValue,
                    month.hashValue, (rangeFrom ?? "").hashValue, (rangeTo ?? "").hashValue, q.hashValue,
                    rangeFrom != nil && rangeTo == nil ? today.hashValue : 0]
-        return scoped(key) {
+        return scoped(key, resting: covered) {
             var out = all
             if !takenBy.isEmpty { out = out.filter { $0.takenBy == takenBy } }
             if !month.isEmpty { out = out.filter { stamped.day[$0.id].map { String($0.prefix(7)) } == month } }

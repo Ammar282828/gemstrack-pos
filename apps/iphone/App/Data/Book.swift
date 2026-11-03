@@ -371,8 +371,11 @@ final class Memo<Value> {
     private var key: [Int]?
     private var value: Value?
 
-    func callAsFunction(_ key: [Int], _ make: () -> Value) -> Value {
-        if let value, self.key == key { return value }
+    /// `resting`: the screen is not the one on display (another tab, or a page pushed over it, see `trackCovered`). A figure
+    /// already made is handed back as it is, however the books moved, so nothing is sorted or grouped for a screen nobody sees;
+    /// the first time, or on coming back (the key is looked at again), it is worked out as ever.
+    func callAsFunction(_ key: [Int], resting: Bool = false, _ make: () -> Value) -> Value {
+        if let value, resting || self.key == key { return value }
         let made = make()
         self.key = key
         value = made

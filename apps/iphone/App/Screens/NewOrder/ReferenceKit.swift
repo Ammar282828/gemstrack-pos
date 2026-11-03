@@ -177,7 +177,7 @@ struct ReferencePrintRows: View {
                 StockRemoteImage(url: url, name: "", maxPixel: 320)
                     .frame(width: 64, height: 64)
                     .clipShape(RoundedRectangle(cornerRadius: Radius.thumb, style: .continuous))
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: pt(2)) {
                     Text("From the catalogue")
                     if printIt {
                         Text("Printed beside the piece").font(.caption).foregroundStyle(.secondary)

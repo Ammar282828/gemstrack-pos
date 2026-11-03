@@ -179,7 +179,7 @@ private struct BackupPage: View {
                         set: { on in if on { selected.insert(c.id) } else { selected.remove(c.id) } }
                     )) {
                         HStack {
-                            VStack(alignment: .leading, spacing: 2) {
+                            VStack(alignment: .leading, spacing: pt(2)) {
                                 Text(c.label)
                                 Text(c.description).font(.caption).foregroundStyle(.secondary)
                             }

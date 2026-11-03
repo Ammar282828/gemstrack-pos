@@ -616,7 +616,7 @@ struct NewOrderTotalsSection: View {
 
     private func minus(_ title: String, _ amount: Double) -> some View {
         LabeledContent(title) {
-            HStack(spacing: 3) {
+            HStack(spacing: pt(3)) {
                 Text("−")
                 MoneyText(amount: amount, exact: true)
             }

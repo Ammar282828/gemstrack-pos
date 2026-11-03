@@ -337,7 +337,7 @@ struct DesignResizeSheet: View {
     private var runBar: some View {
         VStack(alignment: .leading, spacing: pt(10)) {
             Toggle(isOn: bind(\.smart)) {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: pt(2)) {
                     Label("Smart", systemImage: "sparkles")
                     Text(r.smart ? "Asks the AI once for all sizes; used only where it does better." : "Instant, no AI.").font(.footnote).foregroundStyle(.secondary)
                 }

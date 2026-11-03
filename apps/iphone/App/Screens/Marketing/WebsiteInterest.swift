@@ -533,7 +533,7 @@ struct WebsiteInterestScreen: View {
                 StockImage(imageUrl: r.thumb, name: r.name, key: r.piece)
                     .frame(width: 44, height: 44)
                     .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: pt(2)) {
                     Text(r.name.isEmpty ? r.piece : r.name).foregroundStyle(.primary)
                     Text(list.say(r)).font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
                     if !r.collection.isEmpty {

@@ -34,7 +34,7 @@ struct TodaysCashScreen: View {
                     })
                 }
                 .onAppear { needAll() }
-                .task { await keepTime() }
+                .whileActive { await keepTime() }
             } else {
                 NotAvailableState("Owners only", why: "Today’s cash is worked out from the owners’ books.")
             }

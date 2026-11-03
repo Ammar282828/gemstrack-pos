@@ -160,7 +160,7 @@ struct ScanTag: View {
                         .frame(width: 72, height: 72)
                         .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
                 }
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: pt(3)) {
                     Text(p.name).font(.headline)
                     Text(p.sku).font(.subheadline.monospaced()).foregroundStyle(.secondary)
                     Text(spec(p)).font(.subheadline).foregroundStyle(.secondary)

@@ -196,7 +196,7 @@ struct ActivityLogScreen: View {
         let who = s.displayName.isEmpty ? s.email : s.displayName
         // Two lines: who and when; then their address and the device, quiet.
         let quiet = [s.email != who ? s.email : "", s.os, s.browser].filter { !$0.isEmpty }.joined(separator: " · ")
-        return VStack(alignment: .leading, spacing: 3) {
+        return VStack(alignment: .leading, spacing: pt(3)) {
             HStack(alignment: .firstTextBaseline, spacing: pt(8)) {
                 Text(who.isEmpty ? "—" : who).font(.subheadline.weight(.semibold)).lineLimit(1)
                 Spacer(minLength: 8)
@@ -310,7 +310,7 @@ struct ActivityLogScreen: View {
             Image(systemName: symbol(e.eventType))
                 .foregroundStyle(tint)
                 .frame(width: 24)
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: pt(2)) {
                 Text(e.description).font(.subheadline.weight(.semibold))
                 if !e.details.isEmpty {
                     Text(e.details).font(.footnote).foregroundStyle(.secondary)

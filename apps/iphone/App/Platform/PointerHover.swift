@@ -65,7 +65,7 @@ struct MacHoverHighlight: ViewModifier {
         content
             .overlay { shape.fill(Color.primary.opacity(hovering ? 0.05 : 0)).allowsHitTesting(false) }
             .onHover { hovering = $0 }
-            .animation(.easeOut(duration: 0.12), value: hovering)
+            .animation(Motion.exit, value: hovering)
     }
 }
 #endif

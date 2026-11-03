@@ -423,7 +423,7 @@ struct DashTakenSheet: View {
                 .foregroundStyle(.secondary)
                 .frame(width: 24)
                 .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: pt(2)) {
                 Text(label).font(.subheadline.weight(.semibold)).lineLimit(2)
                 Text(e.customer.isEmpty ? e.methodText : [e.what, e.ref].filter { !$0.isEmpty }.joined(separator: " \u{00B7} "))
                     .font(.caption).foregroundStyle(.secondary).lineLimit(2)
@@ -440,7 +440,7 @@ struct DashTakenSheet: View {
         .accessibilityLabel("\(label), \(e.what), \(Spoken.rupees(e.amount, lac: false)), \(e.methodText)")
         return Group {
             if let path = e.path {
-                NavigationLink(value: Route(path: path)) { content }.buttonStyle(.plain).zoomSource(id: path)
+                NavigationLink(value: Route(path: path)) { content }.buttonStyle(.pressable).zoomSource(id: path)
             } else {
                 content
             }

@@ -265,7 +265,7 @@ struct PostAlbumSitePicker: View {
                             StockImage(imageUrl: p.thumb, name: p.name, key: p.id)
                                 .frame(width: 52, height: 52)
                                 .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
-                            VStack(alignment: .leading, spacing: 2) {
+                            VStack(alignment: .leading, spacing: pt(2)) {
                                 Text(p.name)
                                 if !p.collection.isEmpty { Text(p.collection).font(.caption).foregroundStyle(.secondary) }
                             }

@@ -56,7 +56,7 @@ struct DesignAccountAds: View {
                                 if a.image.isEmpty { Rectangle().fill(Theme.ground) } else { MarketingPhoto(path: a.image) }
                             }
                             .frame(width: 52, height: 52).background(Theme.ground).clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
-                            VStack(alignment: .leading, spacing: 2) {
+                            VStack(alignment: .leading, spacing: pt(2)) {
                                 Text(a.name).font(.subheadline.weight(.medium)).lineLimit(1)
                                 Text(a.place).font(.footnote).foregroundStyle(.secondary).lineLimit(1)
                                 Text(a.status == "ACTIVE" ? "Running" : a.status.lowercased().replacingOccurrences(of: "_", with: " ")).font(.caption).foregroundStyle(.secondary)

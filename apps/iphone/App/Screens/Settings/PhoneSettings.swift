@@ -67,7 +67,7 @@ struct PhoneSettings: View {
                     }
                     if loaded { ForEach(Self.kinds, id: \.id) { k in
                         Toggle(isOn: binding(k.id)) {
-                            VStack(alignment: .leading, spacing: 2) {
+                            VStack(alignment: .leading, spacing: pt(2)) {
                                 Text(k.title)
                                 Text(k.detail).font(.caption).foregroundStyle(.secondary)
                             }
@@ -195,7 +195,7 @@ struct PhoneSettings: View {
         let signedIn = Businesses.shared.auth(for: b)?.currentUser != nil
         return HStack(spacing: pt(12)) {
             BusinessBadge(business: b, size: 30)
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: pt(1)) {
                 Text(b.displayName).lineLimit(1)
                 if b.id == House.id { Text("Open now").font(.caption).foregroundStyle(.secondary) }
             }

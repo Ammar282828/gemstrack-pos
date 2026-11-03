@@ -157,7 +157,7 @@ struct CustomerMergeSheet: View {
     }
 
     private func person(_ role: String, _ c: Customer, tint: Color, moves: CustomerMergeCounts? = nil) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: pt(3)) {
             Text(role.uppercased()).font(.caption.weight(.semibold)).foregroundStyle(tint)
             Text(CustomerKit.shown(c)).font(.body.weight(.medium))
             if let phone = CustomerKit.filled(c.phone) {
@@ -210,7 +210,7 @@ struct CustomerMergeSheet: View {
                          choose: @escaping (String) -> Void) -> some View {
         if let c = picked {
             HStack(spacing: pt(10)) {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: pt(2)) {
                     Text(title).font(.caption.weight(.semibold)).foregroundStyle(tint)
                     Text(CustomerKit.shown(c)).font(.body.weight(.medium))
                     if let phone = CustomerKit.filled(c.phone) {

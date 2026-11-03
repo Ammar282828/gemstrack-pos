@@ -40,7 +40,7 @@ private struct PDFQuickShare: ViewModifier {
                     .accessibilityElement(children: .combine)
                 }
             }
-            .animation(reduce ? nil : .spring(duration: 0.3), value: preparing)
+            .animation(reduce ? nil : Motion.travel, value: preparing)
             .onChange(of: target) { _, wanted in
                 guard let wanted else { return }
                 target = nil

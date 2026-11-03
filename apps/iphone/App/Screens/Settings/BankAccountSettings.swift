@@ -216,7 +216,7 @@ private struct BankAccountSheet: View {
                         Task {
                             saving = true
                             error = nil
-                            if let said = await save(draft) { error = said } else { dismiss() }
+                            if let said = await save(draft) { error = said } else { SaveTap.play(); dismiss() }
                             saving = false
                         }
                     }
@@ -364,7 +364,7 @@ extension BankAccountSheet {
         Task {
             saving = true
             error = nil
-            if let said = await save(draft) { error = said } else { dismiss() }
+            if let said = await save(draft) { error = said } else { SaveTap.play(); dismiss() }
             saving = false
         }
     }

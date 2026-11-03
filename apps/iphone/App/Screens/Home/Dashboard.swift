@@ -23,6 +23,8 @@ struct Dashboard: View {
 
     /// The instant the page is worked out against; it turns over at Karachi's midnight on a screen left open.
     @State private var now = Date()
+    /// Not the screen on display (another tab, or a page over it): nothing is reckoned for nobody; once, on return.
+    @State private var covered = false
     /// "Set today's gold rate" opens the rate sheet here: the form for owners, the rates to read for anyone else.
     @State private var rateSheet = false
     @State private var noteSheet = false
@@ -45,6 +47,7 @@ struct Dashboard: View {
         screenBody
         .safeAreaInset(edge: .top, spacing: 0) { UpdateBanner() }
         .navigationTitle("Today")
+        .trackCovered($covered)
         .onAppear { needAll() }
         .onChange(of: session.role) { _, _ in needAll() }
         .onChange(of: ready, initial: true) { _, isReady in if isReady { LaunchClock.finish("home") } }
@@ -54,7 +57,7 @@ struct Dashboard: View {
                 Task { await askOnline() }
             }
         }
-        .task { await keepTime() }
+        .whileActive { await keepTime() }
         .task(id: figuresKey) { await reckonFigures() }
         // The count itself is polled once for the whole app (RootView); coming here asks again at once.
         .task { await askOnline() }
@@ -147,17 +150,18 @@ struct Dashboard: View {
     private var figuresKey: [Int] {
         [book.orders.revision, book.invoices.revision, book.revenue.revision, book.expenses.revision,
          book.karigars.revision, book.karigarJobs.revision, book.repairs.revision, book.customers.revision,
-         book.hisaab.revision, Int(now.timeIntervalSince1970 / 900), ready ? 1 : 0]
+         book.hisaab.revision, Int(now.timeIntervalSince1970 / 900), ready ? 1 : 0, covered ? 1 : 0]
     }
 
     private func reckonFigures() async {
-        guard ready else { return }
+        guard ready, !covered || figures == nil else { return }
         // Arrays of value types, copied on the main actor; the background task touches no shelf.
         let orders = book.orders.items, invoices = book.invoices.items, revenues = book.revenue.items
         let expenses = book.expenses.items, karigars = book.karigars.items, karigarJobs = book.karigarJobs.items
         let repairs = book.repairs.items, customers = book.customers.items, hisaab = book.hisaab.items
         let at = now
-        let made = await Task.detached(priority: .userInitiated) {
+        // The first figures are what the person is waiting for; a refresh after the books moved is not.
+        let made = await Task.detached(priority: figures == nil ? TaskPriority.userInitiated : TaskPriority.utility) {
             DashFigures(orders: orders, invoices: invoices, revenues: revenues, expenses: expenses,
                         karigars: karigars, karigarJobs: karigarJobs, repairs: repairs, customers: customers,
                         hisaab: hisaab, now: at)
@@ -280,7 +284,7 @@ struct Dashboard: View {
     private func linked<C: View>(_ path: String?, @ViewBuilder _ label: () -> C) -> some View {
         let content = label()
         if let path {
-            NavigationLink(value: Route(path: path)) { content }.buttonStyle(.plain).pointerHover()
+            NavigationLink(value: Route(path: path)) { content }.buttonStyle(.pressable).pointerHover()
         } else {
             content
         }
@@ -294,7 +298,7 @@ struct Dashboard: View {
                      lastSale: f.lastSaleToday.map { DashDate.clock(iso: $0.createdAt) },
                      week: f.week, linked: true)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable)
         .pointerHover()
         .accessibilityHint("Shows each day's money and its entries")
         .sheet(isPresented: $takenSheet) {

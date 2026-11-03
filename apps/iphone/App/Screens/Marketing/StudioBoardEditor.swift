@@ -276,7 +276,7 @@ struct StudioBoardEditor: View {
                 HStack(spacing: 0) {
                     ForEach(Pane.allCases) { p in
                         Button { show(p) } label: {
-                            VStack(spacing: 3) {
+                            VStack(spacing: pt(3)) {
                                 // Add is the one obvious way to put something new on the design.
                                 if p == .add { Image(systemName: "plus").font(.body.weight(.bold)).foregroundStyle(Theme.onAccent).frame(width: 30, height: 30).background(Theme.accent, in: Circle()) }
                                 else { Image(systemName: p.symbol).font(.body.weight(.medium)).frame(height: 30) }
@@ -777,7 +777,7 @@ struct StudioBoardEditor: View {
 
     private func slider(_ title: String, _ value: Binding<Double>, _ range: ClosedRange<Double>, step: Double = 1, format: String = "%.0f") -> some View {
         let clamped = Binding(get: { min(range.upperBound, max(range.lowerBound, value.wrappedValue)) }, set: { value.wrappedValue = $0 })
-        return VStack(alignment: .leading, spacing: 2) {
+        return VStack(alignment: .leading, spacing: pt(2)) {
             HStack { Text(title); Spacer(); Text(String(format: format, value.wrappedValue)).monospacedDigit().foregroundStyle(.secondary) }
             Slider(value: clamped, in: range, step: step) { Text(title) }
         }
@@ -1280,14 +1280,14 @@ struct StudioBoardQueueSheet: View {
                         ForEach(places.map { $0.s("key") }, id: \.self) { key in
                             let p = places.first { $0.s("key") == key } ?? .null
                             Toggle(isOn: Binding(get: { chosen.contains(key) }, set: { if $0 { chosen.insert(key) } else { chosen.remove(key) } })) {
-                                VStack(alignment: .leading, spacing: 2) {
+                                VStack(alignment: .leading, spacing: pt(2)) {
                                     Text(p.s("name"))
-                                    if p["size"] != .null { Text("\(Int(p.n("size"))) people").font(.caption).foregroundStyle(.secondary) }
+                                    if p["size"] != .null { Text("\(Int(clamped: p.n("size"))) people").font(.caption).foregroundStyle(.secondary) }
                                 }
                             }
                         }
                         Toggle(isOn: $instagram) {
-                            VStack(alignment: .leading, spacing: 2) {
+                            VStack(alignment: .leading, spacing: pt(2)) {
                                 Text("Instagram story")
                                 Text("The same design at 9:16").font(.caption).foregroundStyle(.secondary)
                             }

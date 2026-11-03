@@ -242,7 +242,7 @@ struct WorkshopKarigarsList: View {
                 }
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable)
         .zoomSource(id: WorkshopLogic.karigarPath(k.id))
         // The same actions as the page, on a long press (the cards share one list row, so no swipe).
         .contextMenu {

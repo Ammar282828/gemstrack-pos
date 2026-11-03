@@ -40,6 +40,8 @@ struct AnalyticsScreen: View {
 
     /// The instant the period is worked out against; it turns over at Karachi's midnight on a screen left open.
     @State private var now = Date()
+    /// Not the screen on display (another tab, or a page over it): nothing is reckoned for nobody; once, on return.
+    @State private var covered = false
     /// The books and figures, worked out off the main thread once per change of the books, the period or the day,
     /// never per drawing. The last result stays on screen while the next is reckoned (`reckon()`).
     @State private var reckoned: Reckoned?
@@ -64,12 +66,13 @@ struct AnalyticsScreen: View {
             if let r = reckoned { pages(r) }
         })
         .navigationTitle(section.title)
+        .trackCovered($covered)
         .onAppear { needAll() }
         .onChange(of: session.role) { _, _ in needAll() }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { turnOver() }
         }
-        .task { await keepTime() }
+        .whileActive { await keepTime() }
         .task(id: reckonKey) { await reckon() }
     }
 
@@ -127,13 +130,13 @@ struct AnalyticsScreen: View {
         [book.invoices.revision, book.orders.revision, book.products.revision, book.customers.revision,
          book.expenses.revision, book.revenue.revision, session.isOwner ? 1 : 0, rangeKey.hashValue, customFrom.hashValue,
          customTo.hashValue, AnaDate.karachi.ordinality(of: .day, in: .era, for: now) ?? 0, book.settings.revision,
-         ready ? 1 : 0]
+         ready ? 1 : 0, covered ? 1 : 0]
     }
 
     /// Snapshots the shelves on the main actor (arrays of value types), then works the figures out on a background
     /// task; a newer key cancels the wait and the stale result is dropped.
     private func reckon() async {
-        guard ready, session.isOwner else { return }
+        guard ready, session.isOwner, !covered || reckoned == nil else { return }
         let isOwner = session.isOwner
         let period = AnaPeriod.read(key: rangeKey, from: customFrom, to: customTo, now: now)
         // Margin is worked out for owners alone; a customer or a staff account never sees it.
@@ -145,7 +148,7 @@ struct AnalyticsScreen: View {
         let expenses = isOwner ? book.expenses.items : []
         let extra = isOwner ? book.revenue.items : []
         let range = period.range
-        let made = await Task.detached(priority: .userInitiated) { () -> (AnaBooks, AnaFigures) in
+        let made = await Task.detached(priority: reckoned == nil ? TaskPriority.userInitiated : TaskPriority.utility) { () -> (AnaBooks, AnaFigures) in
             let books = AnaBooks(invoices: invoices, orders: orders, products: products, customers: customers,
                                  expenses: expenses, extraRevenue: extra)
             return (books, AnaFigures(books, range: range, margin: margin, goods: goods))

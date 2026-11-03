@@ -68,7 +68,7 @@ struct AdsGoalLabel: View {
             Image(systemName: AdsNewAdWords.symbol(goal.key))
                 .foregroundStyle(chosen ? Theme.accent : Color.secondary)
                 .frame(width: 24)
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: pt(2)) {
                 Text(goal.label).foregroundStyle(.primary)
                 Text(goal.hint).font(.caption).foregroundStyle(.secondary)
             }

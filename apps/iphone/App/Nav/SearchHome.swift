@@ -282,7 +282,7 @@ struct SearchView: View {
     private func placesSection(_ r: SearchResults) -> some View {
         page("Places", r.places, path: { $0.place.href }) { h in
             Label {
-                VStack(alignment: .leading, spacing: 1) {
+                VStack(alignment: .leading, spacing: pt(1)) {
                     Text(h.place.label)
                     if let e = h.entry, e.label != h.place.label {
                         Text(e.label).font(.caption).foregroundStyle(.secondary)
@@ -296,7 +296,7 @@ struct SearchView: View {
         page("Customers", r.customers, path: { "/customers/" + SearchPath.encode($0.id) }) { c in
             HStack(spacing: pt(12)) {
                 Monogram(name: c.name, size: Monogram.Size.row)
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: pt(2)) {
                     Text(c.name)
                     if let p = c.phone, !p.isEmpty { Text(p).font(.caption).foregroundStyle(.secondary) }
                 }
@@ -307,7 +307,7 @@ struct SearchView: View {
     private func invoicesSection(_ r: SearchResults) -> some View {
         page("Invoices", r.invoices, path: { "/invoices/" + SearchPath.encode($0.id) }) { i in
             HStack(spacing: pt(8)) {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: pt(2)) {
                     Text(i.id)
                     Text(invoiceLine(i)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 }
@@ -325,14 +325,14 @@ struct SearchView: View {
         page("Orders", r.orders, path: { "/orders/" + SearchPath.encode($0.id) }) { o in
             let due = OrdersLogic.balance(o)
             HStack(spacing: pt(8)) {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: pt(2)) {
                     Text(o.id)
                     Text(o.customerName ?? "").font(.caption).foregroundStyle(.secondary).lineLimit(1)
                     Text(o.status.rawValue).font(.caption).foregroundStyle(Tone(status: o.status).color)
                 }
                 Spacer(minLength: 8)
                 // The whole order (owner, 2026-11-03: "the full order amount, don't minus advance"); what is owed under it.
-                VStack(alignment: .trailing, spacing: 2) {
+                VStack(alignment: .trailing, spacing: pt(2)) {
                     RowAmount(amount: OrdersLogic.fullAmount(o))
                     if due > 0 { Text("\(Money.pkr(due)) due").font(.caption).foregroundStyle(Tone.owed.color) }
                 }
@@ -342,7 +342,7 @@ struct SearchView: View {
 
     private func stockSection(_ r: SearchResults) -> some View {
         page("Stock", r.stock, path: { "/products/" + SearchPath.encode($0.sku) }) { p in
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: pt(2)) {
                 Text(p.name.isEmpty ? p.sku : p.name)
                 if !p.name.isEmpty { Text(p.sku).font(.caption).foregroundStyle(.secondary) }
             }
@@ -351,7 +351,7 @@ struct SearchView: View {
 
     private func repairsSection(_ r: SearchResults) -> some View {
         page("Repairs", r.repairs, path: { "/repairs?id=" + SearchPath.encode($0.id) }) { x in
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: pt(2)) {
                 Text(x.id)
                 Text(x.customerName).font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
@@ -607,7 +607,7 @@ private struct MacSearchSection<Item: Identifiable, Row: View>: View {
                             row(item)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(.horizontal, 10).padding(.vertical, 7)
-                                .background(picked == p ? Theme.accent.opacity(0.16) : Color.clear, in: .rect(cornerRadius: 8, style: .continuous))
+                                .background(picked == p ? Theme.accent.opacity(0.16) : Color.clear, in: .rect(cornerRadius: Radius.thumb, style: .continuous))
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)

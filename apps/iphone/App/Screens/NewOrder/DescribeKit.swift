@@ -349,7 +349,7 @@ struct DescribeHistorySheet: View {
                 Section {
                     ForEach(rows) { e in
                         Button { choose(e.text) } label: {
-                            VStack(alignment: .leading, spacing: 2) {
+                            VStack(alignment: .leading, spacing: pt(2)) {
                                 Text(e.text).foregroundStyle(.primary)
                                 Text(line(e)).font(.caption).foregroundStyle(.secondary)
                             }
@@ -412,7 +412,7 @@ struct StoneComboSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 104), spacing: 8)], spacing: 8) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 104), spacing: pt(8))], spacing: pt(8)) {
                         ForEach(Self.stones, id: \.self) { s in
                             NewOrderChip(title: s, on: picked.contains(s)) {
                                 if let i = picked.firstIndex(of: s) { picked.remove(at: i) } else { picked.append(s) }

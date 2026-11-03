@@ -151,7 +151,7 @@ struct AdsTestsScreen: View {
                                 if let i { Text(["A", "B", "C", "D", "E"][min(i, 4)]).font(.caption.weight(.bold)).foregroundStyle(Theme.accent) }
                             }
                             .frame(width: 26, height: 26)
-                            VStack(alignment: .leading, spacing: 2) {
+                            VStack(alignment: .leading, spacing: pt(2)) {
                                 Text(a.name).foregroundStyle(.primary)
                                 Text("\(a.campaign) · \(a.status.lowercased().replacingOccurrences(of: "_", with: " "))").font(.caption).foregroundStyle(.secondary)
                             }

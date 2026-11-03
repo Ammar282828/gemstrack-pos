@@ -534,8 +534,8 @@ final class PostTrayModel {
         let bytes = try await WebsiteForm.send("/api/instagram/post", fields: fields, files: files, timeout: 300)
         let answer = (try? JSONDecoder().decode(MarketingValue.self, from: bytes)) ?? .null
         // The answer's own count wins; a one-photo post says neither.
-        let took = answer["photos"] == .null ? plan.take : Int(answer.n("photos"))
-        let left = answer["dropped"] == .null ? plan.dropped : Int(answer.n("dropped"))
+        let took = answer["photos"] == .null ? plan.take : Int(clamped: answer.n("photos"))
+        let left = answer["dropped"] == .null ? plan.dropped : Int(clamped: answer.n("dropped"))
         return (took, left)
     }
 

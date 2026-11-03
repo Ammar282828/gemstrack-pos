@@ -120,12 +120,18 @@ struct BusinessPicker: View {
         }
     }
 
-    /// The system's own page colour, light or dark by the device.
+    /// The page colour: the launch screen's own (Info.plist `UILaunchScreen` → `Launch-<house>`, the house's ground in light and in
+    /// dark), so the first frame after the launch screen is the same colour and nothing flashes white (or black) between them.
+    /// Where that colour cannot be read, the system's own page colour, light or dark by the device.
     private static var ground: Color {
         #if os(macOS)
         Color(nsColor: .windowBackgroundColor)
         #else
-        Color(uiColor: .systemBackground)
+        if let launch = Bundle.main.object(forInfoDictionaryKey: "UILaunchScreen") as? [String: Any],
+           let name = launch["UIColorName"] as? String, UIColor(named: name) != nil {
+            return Color(name)
+        }
+        return Color(uiColor: .systemBackground)
         #endif
     }
 
@@ -164,6 +170,8 @@ struct BusinessPicker: View {
             .frame(height: sideBySide ? nil : pt(130))
             .aspectRatio(sideBySide ? 1.6 : nil, contentMode: .fit)
             .background(id.ground, in: shape)
+            // Mina's blush card sits close to the launch colour in light mode: a hairline in its own ink keeps its edge.
+            .overlay { shape.strokeBorder(id.ink.opacity(0.14), lineWidth: 0.5) }
             .overlay(alignment: .topTrailing) {
                 if last {
                     Circle().fill(id.ink).frame(width: 6, height: 6).padding(pt(14)).accessibilityHidden(true)
@@ -171,7 +179,7 @@ struct BusinessPicker: View {
             }
             .contentShape(shape)
         }
-        .buttonStyle(CardPress())
+        .buttonStyle(.pressable)
         .keyboardShortcut(last ? KeyEquivalent.return : KeyEquivalent(Character(String(min(slot, 9)))),
                           modifiers: last ? [] : .command)
         #if os(macOS)
@@ -275,17 +283,6 @@ struct BusinessPicker: View {
             if b.id != Businesses.shared.current.id { Businesses.shared.switch(to: b.id, veiled: false) }
             launch.dismiss()
         }
-    }
-}
-
-/// Pressed, a card settles to 0.97 on the app's enter curve (none under Reduce Motion).
-private struct CardPress: ButtonStyle {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1)
-            .animation(reduceMotion ? nil : Motion.enter, value: configuration.isPressed)
     }
 }
 

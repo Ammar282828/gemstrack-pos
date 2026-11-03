@@ -118,7 +118,7 @@ final class GoogleAuth: NSObject, ASWebAuthenticationPresentationContextProvidin
             let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
             if let key = scenes.flatMap(\.windows).first(where: \.isKeyWindow) { return key }
             // Sign-in is only ever started from a screen, so there is always a scene to anchor to.
-            return UIWindow(windowScene: scenes[0])
+            return scenes.first.map { UIWindow(windowScene: $0) } ?? UIWindow()
             #endif
         }
     }

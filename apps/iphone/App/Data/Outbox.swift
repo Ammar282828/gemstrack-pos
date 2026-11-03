@@ -520,6 +520,8 @@ private struct OutboxPresenter: ViewModifier {
                 }
             }
             .motion(outbox.failure)
+            // A kept change refused: the error tap, once as the banner comes up (the banner is not a Note, which taps itself).
+            .sensoryFeedback(.error, trigger: outbox.failure?.id) { _, now in now != nil }
             .noteToast($said)
             .onChange(of: outbox.notice) { _, n in
                 guard let n else { return }

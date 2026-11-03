@@ -94,7 +94,7 @@ struct MacDayHover: ViewModifier {
                             Text(say(h.value)).font(.caption).monospacedDigit()
                         }
                         .padding(8)
-                        .background(Theme.card, in: .rect(cornerRadius: 8, style: .continuous))
+                        .background(Theme.card, in: .rect(cornerRadius: Radius.thumb, style: .continuous))
                         .shadow(color: .black.opacity(0.12), radius: 6, y: 2)
                         .offset(x: min(max(box.origin.x + x + 8, 0), max(0, geo.size.width - 120)), y: box.origin.y)
                         .allowsHitTesting(false)

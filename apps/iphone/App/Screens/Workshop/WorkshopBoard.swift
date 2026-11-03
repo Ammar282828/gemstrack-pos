@@ -52,6 +52,8 @@ struct WorkshopBoard: View {
     /// toast or busy flag the body runs for. (The Mac has the same two memos above.)
     @State private var jobsMemo = Memo<[WorkshopJob]>()
     @State private var snapMemo = Memo<WorkshopSnapshot>()
+    /// Not the screen on display (another tab, or a page over it): the memos hand back what they have.
+    @State private var covered = false
 
     /// `?karigar=<id>` (the karigar page's "On his bench") opens on his whole bench.
     init(path: String) {
@@ -82,6 +84,7 @@ struct WorkshopBoard: View {
             content
         }
         .navigationTitle(orderId == nil ? "Workshop" : "Give out")
+        .trackCovered($covered)
         .hubTitleDisplay()
         #if os(macOS)
         .navigationSubtitle(macSubtitle)
@@ -165,7 +168,7 @@ struct WorkshopBoard: View {
         // The hour is in the key because a piece's age counts from the clock; the books and the patches are the rest.
         let jobsKey: [Int] = [book.orders.revision, book.invoices.revision, book.karigars.revision, book.karigarJobs.revision,
                               patchStamp, Int(Date().timeIntervalSince1970 / 3600)]
-        let all: [WorkshopJob] = jobsMemo(jobsKey) {
+        let all: [WorkshopJob] = jobsMemo(jobsKey, resting: covered) {
             let jobs = WorkshopLogic.buildJobs(
                 orders: book.orders.items,
                 karigarJobs: book.karigarJobs.items,
@@ -177,7 +180,7 @@ struct WorkshopBoard: View {
         }
         let filterStamp: Int = [filter.query, filter.status.rawValue, filter.type.rawValue, filter.takenBy, filter.karigarId]
             .joined(separator: "\u{1}").hashValue
-        let snap: WorkshopSnapshot = snapMemo(jobsKey + [filterStamp]) { WorkshopSnapshot(all: all, filter: filter) }
+        let snap: WorkshopSnapshot = snapMemo(jobsKey + [filterStamp], resting: covered) { WorkshopSnapshot(all: all, filter: filter) }
         board(snap, live)
         #endif
     }
@@ -279,7 +282,7 @@ struct WorkshopBoard: View {
     }
 
     private func karigarHeader(_ load: WorkshopLoad) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: pt(2)) {
             AdaptiveStack(spacing: pt(8), alignment: .center) {
                 HStack(spacing: pt(6)) {
                     Image(systemName: load.isUnassigned ? "exclamationmark.triangle.fill" : "hammer")
@@ -368,7 +371,7 @@ struct WorkshopBoard: View {
         Section {
             Button { opened = WorkshopPlace.karigar(load.karigarId) } label: {
                 HStack {
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: pt(2)) {
                         Text(load.isUnassigned ? "Unassigned work" : load.karigarName).font(.title3.weight(.semibold))
                         let sentence = focusedSentence(load, orders: orders)
                         if !sentence.isEmpty {
@@ -379,7 +382,7 @@ struct WorkshopBoard: View {
                     if !load.isUnassigned { Image(systemName: "chevron.right").font(.footnote).foregroundStyle(.tertiary) }
                 }
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.pressable)
             .disabled(load.isUnassigned)
             FocusedCells(load: load, showValue: session.isOwner)
         }
@@ -788,7 +791,7 @@ private struct FocusedCells: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: pt(20)) {
                 ForEach(cells) { c in
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: pt(2)) {
                         Text(c.label.uppercased()).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
                         Text(c.value).font(.title3.weight(.bold)).monospacedDigit().foregroundStyle(c.tint)
                     }

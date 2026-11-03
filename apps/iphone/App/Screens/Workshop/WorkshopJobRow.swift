@@ -125,7 +125,7 @@ struct WorkshopJobRow: View {
         if let place = referencePlace {
             VStack(alignment: .leading, spacing: pt(6)) {
                 Button { actions.open(place) } label: {
-                    HStack(spacing: 2) {
+                    HStack(spacing: pt(2)) {
                         Text(job.invoiceId ?? job.orderId ?? "")
                             .font(.caption.monospaced().weight(.medium))
                         Image(systemName: "chevron.right").font(.caption2.weight(.semibold))

@@ -164,7 +164,7 @@ struct ShopRankSection: View {
             AdaptiveStack(spacing: pt(8)) {
                 HStack(spacing: pt(6)) {
                     if let lead = row.lead { Text(lead).accessibilityHidden(true) }
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: pt(2)) {
                         Text(row.label)
                         if let sub = row.sub {
                             Text(sub).font(.footnote).foregroundStyle(.secondary)

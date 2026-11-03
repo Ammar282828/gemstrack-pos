@@ -278,7 +278,7 @@ struct DesignStartView: View {
             LazyVGrid(columns: columns, spacing: pt(10)) {
                 ForEach(cards) { c in
                     Button { start.choose(c.kind) } label: {
-                        VStack(alignment: .leading, spacing: 3) {
+                        VStack(alignment: .leading, spacing: pt(3)) {
                             Text(c.title).font(.headline)
                             Text(c.note).font(.footnote).opacity(0.8)
                         }
@@ -294,7 +294,7 @@ struct DesignStartView: View {
             VStack(alignment: .leading, spacing: pt(8)) {
                 HStack { Text("Sizes").font(.subheadline.weight(.medium)); Text(start.summary).font(.subheadline).foregroundStyle(.secondary) }
                 ForEach(DesignSizes.groups) { g in
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: pt(2)) {
                         Text(g.title).font(.caption).foregroundStyle(.secondary)
                         #if os(macOS)
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 64), spacing: 8)], alignment: .leading, spacing: 8) {
@@ -309,7 +309,7 @@ struct DesignStartView: View {
                         #endif
                     }
                 }
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: pt(2)) {
                     Text("Your own").font(.caption).foregroundStyle(.secondary)
                     HStack(spacing: pt(8)) {
                         FilterChip(title: "W:H", chosen: start.sizes.contains("custom")) { start.toggle("custom") }
@@ -392,10 +392,10 @@ struct DesignStartView: View {
         if !drafts.isEmpty || !recent.isEmpty {
             SectionCard("Where you left off") {
                 ForEach(drafts) { d in
-                    Button { onOpenDraft(d) } label: { DesignDraftLine(row: d) }.buttonStyle(.plain)
+                    Button { onOpenDraft(d) } label: { DesignDraftLine(row: d) }.buttonStyle(.pressable)
                 }
                 ForEach(recent) { r in
-                    Button { onOpenSaved(r) } label: { DesignRecordLine(record: r) }.buttonStyle(.plain)
+                    Button { onOpenSaved(r) } label: { DesignRecordLine(record: r) }.buttonStyle(.pressable)
                 }
                 Button("See all saved", action: onSeeAll).font(.subheadline)
             }
@@ -431,7 +431,7 @@ struct DesignDraftLine: View {
                 else { Image(systemName: "iphone").foregroundStyle(.secondary) }
             }
             .frame(width: 44, height: 44).background(Theme.ground).clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: pt(2)) {
                 Text(row.title).font(.subheadline.weight(.medium)).lineLimit(1)
                 Text((row.old == nil ? "Draft on \(Self.device)" : "Earlier Post a piece draft") + " · " + ShopDate.stamp(row.updated, withTime: false))
                     .font(.footnote).foregroundStyle(.secondary)
@@ -453,7 +453,7 @@ struct DesignRecordLine: View {
                 else { Image(systemName: "photo").foregroundStyle(.secondary) }
             }
             .frame(width: 44, height: 44).background(Theme.ground).clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: pt(2)) {
                 Text(record.name).font(.subheadline.weight(.medium)).lineLimit(1)
                 Text(DesignKinds.label(record.kind) + " · \(record.pages.count) size" + (record.pages.count == 1 ? "" : "s") + " · " + ShopDate.say(record.updated))
                     .font(.footnote).foregroundStyle(.secondary)
@@ -630,11 +630,11 @@ extension DesignStartView {
         if !drafts.isEmpty || !recent.isEmpty {
             SectionCard("Where you left off") {
                 ForEach(drafts) { d in
-                    Button { onOpenDraft(d) } label: { DesignDraftLine(row: d) }.buttonStyle(.plain)
+                    Button { onOpenDraft(d) } label: { DesignDraftLine(row: d) }.buttonStyle(.pressable)
                         .contextMenu { Button("Open", systemImage: "folder") { onOpenDraft(d) } }
                 }
                 ForEach(recent) { r in
-                    Button { onOpenSaved(r) } label: { DesignRecordLine(record: r) }.buttonStyle(.plain)
+                    Button { onOpenSaved(r) } label: { DesignRecordLine(record: r) }.buttonStyle(.pressable)
                         .contextMenu { Button("Open", systemImage: "folder") { onOpenSaved(r) } }
                 }
                 Button("See all saved", action: onSeeAll).font(.subheadline)

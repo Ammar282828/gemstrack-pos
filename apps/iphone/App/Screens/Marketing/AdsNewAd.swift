@@ -980,7 +980,7 @@ struct AdsNewAdScreen: View {
         if !q.isEmpty {
             Section {
                 ForEach(Array(q.prefix(6))) { (d: AdsQuietDay) in
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: pt(2)) {
                         Text("\(ShopDate.say(d.date)) · \(d.hijri)").font(.subheadline.weight(.medium))
                         Text(d.name + (d.near ? " (the days before)" : "")).font(.caption).foregroundStyle(.secondary)
                     }

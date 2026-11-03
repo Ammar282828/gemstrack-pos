@@ -692,7 +692,7 @@ struct InsightsOverviewScreen: View {
                     Text("ads \(AdsFormat.compact(s.ads)) · own \(AdsFormat.compact(s.organic))").font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
                 }
                 GeometryReader { (g: GeometryProxy) in
-                    HStack(spacing: 2) {
+                    HStack(spacing: pt(2)) {
                         Capsule().fill(Theme.accent).frame(width: max(0, (g.size.width - 2) * share))
                         Capsule().fill(Theme.accent.opacity(0.35))
                     }

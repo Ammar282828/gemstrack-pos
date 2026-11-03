@@ -205,7 +205,7 @@ struct TagPrinterSettingsScreen: View {
             }
             .disabled(checking || currentRoute == nil)
             if let statusLine {
-                Text(statusLine).foregroundStyle(statusLine == "Ready." ? Color.secondary : Color.orange)
+                Text(statusLine).foregroundStyle(statusLine == "Ready." ? Color.secondary : Tone.owed.color)
             }
         } footer: {
             Text("A small tag: the shop's name, today's date and a QR of TEST, on the tag's size and the printer options below.")

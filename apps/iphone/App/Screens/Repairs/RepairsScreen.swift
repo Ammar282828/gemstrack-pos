@@ -180,7 +180,7 @@ struct RepairsScreen: View {
             RepairsRow(repair: r, status: desk.status(r), now: now, busy: desk.isBusy(r.id))
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable)
         .swipeActions(edge: .trailing, allowsFullSwipe: false) { trailingSwipe(r) }
         .swipeActions(edge: .leading, allowsFullSwipe: false) { leadingSwipe(r) }
         .contextMenu { menu(r) }
@@ -204,7 +204,7 @@ struct RepairsScreen: View {
     private func leadingSwipe(_ r: Repair) -> some View {
         if desk.status(r) == .ready, let url = RepairsKit.whatsAppURL(for: r, shopName: session.shop.name) {
             Button { openURL(url) } label: { Label("Tell them", systemImage: "message") }
-                .tint(.green)
+                .tint(Tone.settled.color)
         }
     }
 

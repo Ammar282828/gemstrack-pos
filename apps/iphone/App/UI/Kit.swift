@@ -218,6 +218,68 @@ extension View {
     }
 }
 
+// MARK: Feel: press, and work that rests
+
+/// `.buttonStyle(.pressable)`: what a tappable card, row or chip does under a finger. It settles to 0.97 and dims a little
+/// (as Apple's own cards do), fast going in (`Motion.exit`'s 150 ms) and easing back out (`Motion.enter`), and does neither
+/// under Reduce Motion. It replaces `.plain` wherever `.plain` stood on a card, a row or a chip that opens something: `.plain`
+/// has no pressed state at all. Not for a button inside a Form or a toolbar (the system draws those), nor for glass.
+struct PressableStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1)
+            .opacity(configuration.isPressed ? 0.85 : 1)
+            .animation(reduceMotion ? nil : (configuration.isPressed ? Motion.exit : Motion.enter), value: configuration.isPressed)
+    }
+}
+
+extension ButtonStyle where Self == PressableStyle {
+    static var pressable: PressableStyle { PressableStyle() }
+}
+
+/// `.whileActive { … }`: work that repeats (a poll, a minute's clock) and rests when nobody is looking. It runs while the view
+/// is on screen (a `.task`, so it ends when the view goes) **and** the scene is active: not in the background, not behind
+/// Control Center, a call or the app switcher. It starts again by itself on return (a phase change restarts the task), so a
+/// loop written "sleep, then do" never fires twice at once with the return's own refresh.
+private struct WhileActive: ViewModifier {
+    @Environment(\.scenePhase) private var scenePhase
+    let work: @MainActor () async -> Void
+
+    func body(content: Content) -> some View {
+        content.task(id: scenePhase) {
+            guard scenePhase == .active else { return }
+            await work()
+        }
+    }
+}
+
+extension View {
+    func whileActive(_ work: @escaping @MainActor () async -> Void) -> some View {
+        modifier(WhileActive(work: work))
+    }
+}
+
+extension View {
+    /// Keeps `covered` true while this screen is not the one on display: another tab is selected, or a page is pushed over it.
+    /// A tab that has been opened stays alive and its body runs for every change of the books it reads; the heavy figures of a
+    /// hub (`Memo`'s `resting:`) are not worked out again for a screen nobody is looking at, and once, on return.
+    func trackCovered(_ covered: Binding<Bool>) -> some View {
+        self
+            .onAppear { if covered.wrappedValue { covered.wrappedValue = false } }
+            .onDisappear { if !covered.wrappedValue { covered.wrappedValue = true } }
+    }
+}
+
+extension Int {
+    /// A whole number from a figure the server or a typed field gave: NaN, infinity and anything past Int's range (which
+    /// `Int(_:)` traps on) become 0 or the nearest end.
+    init(clamped value: Double) {
+        if value.isNaN { self = 0 } else if value >= 9.0e18 { self = Int.max } else if value <= -9.0e18 { self = Int.min } else { self = Int(value) }
+    }
+}
+
 /// Whether the tab's create menu (New sale, New order, Scan) is in this page's toolbar, so a page's own
 /// "New order" does not stand beside it twice (iPad).
 private struct CreateMenuShownKey: EnvironmentKey { static let defaultValue = false }

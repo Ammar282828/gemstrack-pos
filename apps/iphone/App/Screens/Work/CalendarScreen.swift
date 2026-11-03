@@ -213,7 +213,7 @@ struct CalendarScreen: View {
         let isSelected = key == selected
         let isToday = key == today
         return Button { Motion.run(reduce: reduceMotion) { selected = key } } label: {
-            VStack(spacing: 1) {
+            VStack(spacing: pt(1)) {
                 Text("\(day)")
                     .font(.caption.weight(isToday ? .bold : .medium))
                     .foregroundStyle(isToday ? Theme.accent : Color.primary)
@@ -227,11 +227,11 @@ struct CalendarScreen: View {
                 } else {
                     Text(" ").font(.caption2)
                 }
-                HStack(spacing: 3) {
+                HStack(spacing: pt(3)) {
                     if let data, data.invoices > 0 { count(data.invoices, color: Tone.settled.color) }
                     if let data, data.orders > 0 { count(data.orders, color: Tone.working.color) }
                     if due > 0 {
-                        HStack(spacing: 1) {
+                        HStack(spacing: pt(1)) {
                             Image(systemName: "calendar.badge.clock")
                             Text("\(due)")
                         }
@@ -248,12 +248,12 @@ struct CalendarScreen: View {
             }
             .contentShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable)
         .accessibilityLabel(spoken(key, data, due))
     }
 
     private func count(_ n: Int, color: Color) -> some View {
-        HStack(spacing: 2) {
+        HStack(spacing: pt(2)) {
             Circle().fill(color).frame(width: 5, height: 5)
             Text("\(n)").font(.caption2).foregroundStyle(color)
         }
@@ -294,7 +294,7 @@ struct CalendarScreen: View {
                 Image(systemName: e.isInvoice ? "receipt" : "list.clipboard")
                     .foregroundStyle(e.isInvoice ? Tone.settled.color : Tone.working.color)
                     .frame(width: 24)
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: pt(2)) {
                     Text(e.docId).font(.subheadline.monospaced().weight(.semibold)).lineLimit(1)
                     Text(e.customerName.isEmpty ? "Walk-in" : e.customerName)
                         .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
@@ -323,7 +323,7 @@ struct CalendarScreen: View {
                     NavigationLink(value: Route(path: WorkPaths.order(o.id))) {
                         HStack(alignment: .top, spacing: pt(12)) {
                             Image(systemName: "calendar.badge.clock").foregroundStyle(Tone.owed.color).frame(width: 24)
-                            VStack(alignment: .leading, spacing: 2) {
+                            VStack(alignment: .leading, spacing: pt(2)) {
                                 Text(o.id).font(.subheadline.monospaced().weight(.semibold)).lineLimit(1)
                                 Text((o.customerName ?? "").isEmpty ? "Walk-in" : (o.customerName ?? ""))
                                     .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
@@ -517,7 +517,7 @@ extension CalendarScreen {
             }
             .contentShape(.rect(cornerRadius: Radius.chip, style: .continuous))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable)
         .pointerHover(.rect(cornerRadius: Radius.chip, style: .continuous), highlight: true)
         .accessibilityLabel(spoken(key, data, due))
     }

@@ -113,14 +113,14 @@ struct ArtworkEditor: View {
                 if !sideBySide {
                     preview.frame(maxWidth: .infinity)
                         .containerRelativeFrame(.vertical) { length, _ in length * 0.36 }
-                        .padding(.vertical, 8)
+                        .padding(.vertical, pt(8))
                         .background(Theme.ground)
                 }
             }
             // An iPad: the artwork on the left at its own size, the tools in the column beside it.
             .safeAreaInset(edge: .leading, spacing: 0) {
                 if sideBySide {
-                    preview.padding(24)
+                    preview.padding(pt(24))
                         .frame(width: max(360, sheetWidth * 0.56))
                         .frame(maxHeight: .infinity)
                         .background(Theme.ground)
@@ -1000,7 +1000,7 @@ extension ArtworkEditor {
         }
         .padding(.vertical, 2)
         .padding(.horizontal, 4)
-        .background(on ? Theme.accent.opacity(0.18) : Color.clear, in: RoundedRectangle(cornerRadius: 5, style: .continuous))
+        .background(on ? Theme.accent.opacity(0.18) : Color.clear, in: RoundedRectangle(cornerRadius: Radius.thumb, style: .continuous))
         .contentShape(Rectangle())
         .onTapGesture { macClick(id) }
         .contextMenu { macLayerMenu(id, l) }

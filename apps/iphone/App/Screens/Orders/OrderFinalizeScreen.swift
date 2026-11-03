@@ -182,7 +182,7 @@ struct OrderFinalizeScreen: View {
             Section {
                 ForEach(rateRows, id: \.field) { r in
                     LabeledContent(r.label) {
-                        VStack(alignment: .trailing, spacing: 2) {
+                        VStack(alignment: .trailing, spacing: pt(2)) {
                             TextField("0", text: rateBinding(r.field))
                                 .keyboardType(.decimalPad)
                                 .multilineTextAlignment(.trailing)
@@ -219,12 +219,12 @@ struct OrderFinalizeScreen: View {
     private func header(_ order: Order, due: Double) -> some View {
         HStack(alignment: .center, spacing: pt(12)) {
             Monogram(name: OrdersLogic.customerName(order), size: Monogram.Size.row)
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: pt(2)) {
                 Text(OrdersLogic.customerName(order)).font(.headline).lineLimit(2)
                 Text(order.id).font(.caption).foregroundStyle(.secondary)
             }
             Spacer(minLength: 8)
-            VStack(alignment: .trailing, spacing: 2) {
+            VStack(alignment: .trailing, spacing: pt(2)) {
                 if abs(due) >= 1 {
                     RowAmount(amount: abs(due), tone: due < 0 ? Tone.credit.color : Tone.owed.color)
                     Text(due < 0 ? "In credit" : "Due").font(.caption).foregroundStyle(.secondary)
@@ -254,7 +254,7 @@ struct OrderFinalizeScreen: View {
                 field("Final weight (g)", row.weight, keyboard: .decimalPad)
                 if takes {
                     LabeledContent("Wastage %") {
-                        VStack(alignment: .trailing, spacing: 2) {
+                        VStack(alignment: .trailing, spacing: pt(2)) {
                             TextField("0", text: row.wastage)
                                 .keyboardType(.decimalPad)
                                 .multilineTextAlignment(.trailing)

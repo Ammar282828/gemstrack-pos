@@ -191,7 +191,7 @@ private struct WebsiteSellingForm: View {
         Form { Group {
             Section {
                 Toggle(isOn: $draft.enabled) {
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: pt(2)) {
                         Text("Show prices and take orders")
                         Text(draft.enabled ? "On. The site shows prices for every piece with a readable weight." : "Off. The site shows no prices; every piece is enquiry-only.")
                             .font(.caption).foregroundStyle(.secondary)

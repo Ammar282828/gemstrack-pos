@@ -225,12 +225,12 @@ struct WebsiteLiveScreen: View {
         HStack(alignment: .top, spacing: pt(12)) {
             Text(SiteWords.flag(v.cc)).font(.title3).accessibilityHidden(true)
             AdaptiveStack(spacing: pt(8), alignment: .top) {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: pt(2)) {
                     Text(SiteWords.page(v.path))
                     Text(detail(v)).font(.footnote).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 8)
-                VStack(alignment: .trailing, spacing: 2) {
+                VStack(alignment: .trailing, spacing: pt(2)) {
                     Text(stay(v))
                     Text(SiteWords.ago(v.ago))
                 }

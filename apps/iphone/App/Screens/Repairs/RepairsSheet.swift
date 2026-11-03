@@ -238,7 +238,7 @@ struct RepairsSheet: View {
 
     private func pieceRow(_ p: RepairPiece) -> some View {
         HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: pt(2)) {
                 Text(p.item.isEmpty ? "Piece" : p.item)
                     .fontWeight(.medium)
                 if !p.work.isEmpty {
@@ -331,7 +331,7 @@ struct RepairsSheet: View {
     @ViewBuilder
     private func noteRow(_ r: Repair) -> some View {
         if session.isOwner, let note = RepairsKit.filled(r.internalNote) {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: pt(2)) {
                 Text("Note for the shop")
                     .font(.caption)
                     .foregroundStyle(.secondary)

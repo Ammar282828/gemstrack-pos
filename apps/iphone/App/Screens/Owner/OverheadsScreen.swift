@@ -248,7 +248,7 @@ private struct OverheadsBoard: View {
         let symbol = r.inProgress ? "minus.circle.fill" : (r.met ? "checkmark.circle.fill" : "arrow.down.right.circle.fill")
         return HStack(spacing: pt(12)) {
             Image(systemName: symbol).foregroundStyle(tone)
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: pt(2)) {
                 Text(r.inProgress ? "\(r.label) · so far" : r.label).lineLimit(1)
                 Text("\(OwnerText.pkr(r.earned)) of \(OwnerText.pkr(r.target))")
                     .font(.caption)

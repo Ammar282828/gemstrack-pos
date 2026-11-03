@@ -184,7 +184,7 @@ struct DesignSavedView: View {
             Section {
                 ForEach(shown) { r in
                     Button { detail = r } label: { DesignRecordLine(record: r) }
-                        .buttonStyle(.plain).zoomSource(id: "design:" + r.id)
+                        .buttonStyle(.pressable).zoomSource(id: "design:" + r.id)
                         .swipeActions { Button("Delete", role: .destructive) { deletingRecord = r } }
                         .contextMenu {
                             Button { detail = r } label: { Label("Details", systemImage: "info.circle") }
@@ -201,7 +201,7 @@ struct DesignSavedView: View {
         if !shelf.draftRows.isEmpty {
             Section {
                 ForEach(shelf.draftRows) { d in
-                    Button { onOpenDraft(d) } label: { DesignDraftLine(row: d) }.buttonStyle(.plain)
+                    Button { onOpenDraft(d) } label: { DesignDraftLine(row: d) }.buttonStyle(.pressable)
                         .swipeActions { Button("Delete", role: .destructive) { deletingDraft = d } }
                 }
             } footer: { Text("Earlier Post a piece drafts open here as designs.") }.houseRows()

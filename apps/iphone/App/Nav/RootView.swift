@@ -77,6 +77,7 @@ struct RootGate: View {
 /// Liquid Glass comes with the system's TabView, toolbars and sheets (CONVENTIONS.md rule 4).
 struct RootView: View {
     @Environment(Session.self) private var session
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(\.layoutWidthClass) private var sizeClass
     // The simulator check opens each tab in turn (`-ERPDemoTab orders`).
     // After a business switch the tab the person was on (BusinessCarry); `selection` falls back to Home when this
@@ -226,8 +227,9 @@ struct RootView: View {
             .presentationSizing(.page)
         }
         // The one poll of the online-orders count (the dashboard and the Orders badge both read it).
-        .task(id: watchesOnline) {
-            if watchesOnline { await OnlineInbox.shared.keep() }
+        // It rests with the app (not active: background, Control Center, a call) and asks again at once on return.
+        .task(id: watchesOnline && scenePhase == .active) {
+            if watchesOnline && scenePhase == .active { await OnlineInbox.shared.keep() }
         }
         // The mic is on this screen for an owner: the speech model, the audio session and the engine are made ready
         // now, so the tap only starts them (VoiceEngine.warm). Permissions are asked at the first use, not here.
@@ -485,7 +487,10 @@ struct PlaceScreen: View {
             }
             .onAppear {
                 if isRoot { BusinessCarry.noteSub(root: path, chosen: chosen) }
+                Breadcrumb.note(current)
             }
+            // Where the app was, for a crash or a hang report (Support/Diagnostics.swift `Breadcrumb`).
+            .onChange(of: current) { _, now in Breadcrumb.note(now) }
             // The sub-tab swap fades rather than cuts (the `.id` stays: it is the routing).
             .transition(.opacity)
             .motion(current, Motion.enter)
@@ -755,21 +760,21 @@ struct TeamNoteEditor: View {
         text = Self.current(book); loaded = true
     }
 
+    /// Leaves at once: the Outbox sends it in the background (the widget is asked to read it once it is in), and a refusal is
+    /// said app-wide with Retry (CONVENTIONS "Saves: Outbox").
     private func save(_ value: String) {
         guard session.isOwner, loaded, !saving else { return }
-        saving = true
-        Task { @MainActor in
-            do {
-                if House.isDemo {
-                    DemoTeamNote.shared.text = value
-                } else {
-                    _ = try await ERPAPI.shared.write("updateSettings", ["patch": ["teamNote": value]])
-                }
+        if House.isDemo {
+            DemoTeamNote.shared.text = value
+            WidgetCenter.shared.reloadAllTimelines()
+        } else {
+            Outbox.shared.post(label: "Team note") {
+                _ = try await ERPAPI.shared.write("updateSettings", ["patch": ["teamNote": value]])
                 WidgetCenter.shared.reloadAllTimelines()
-                saved += 1
-                dismiss()
-            } catch { failure = error.localizedDescription }
-            saving = false
+                return "Team note saved"
+            }
         }
+        saved += 1
+        dismiss()
     }
 }

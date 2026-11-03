@@ -148,7 +148,7 @@ struct SettingToggle: View {
 
     var body: some View {
         Toggle(isOn: Binding(get: { writer.isOn(key, stored) }, set: { writer.set(key, $0) })) {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: pt(2)) {
                 Text(title)
                 if let detail { Text(detail).font(.caption).foregroundStyle(.secondary) }
             }

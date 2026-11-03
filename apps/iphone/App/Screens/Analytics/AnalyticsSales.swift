@@ -81,7 +81,7 @@ struct AnaSalesPage: View {
                                 .accessibilityHidden(true)
                         }
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.pressable)
                     #if os(macOS)
                     .contextMenu { Button("Show Analytics for \(String(y.year))") { pick("year-\(y.year)") } }
                     #endif
@@ -105,7 +105,7 @@ struct AnaSalesPage: View {
     }
 
     private func yearRow(_ y: AnaYear) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: pt(3)) {
             AdaptiveStack(spacing: pt(8)) {
                 Text(String(y.year)).font(.headline)
                 Spacer(minLength: 8)
@@ -153,7 +153,7 @@ struct AnaSalesPage: View {
                                 .accessibilityHidden(true)
                         }
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.pressable)
                     #if os(macOS)
                     .contextMenu { Button("Open day's report") { day = d } }
                     #endif

@@ -170,7 +170,7 @@ struct WebsitePhotosScreen: View {
         Section {
             Button { choosing = true } label: {
                 HStack {
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: pt(2)) {
                         Text(chosen.map { (c: WebsiteCollection) in "\(c.category) → \(c.collection)" } ?? "Choose where these photographs go…")
                             .foregroundStyle(chosen == nil ? Color.secondary : Color.primary)
                         if let c = chosen {

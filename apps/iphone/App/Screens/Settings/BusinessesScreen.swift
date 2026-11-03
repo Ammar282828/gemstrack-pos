@@ -108,7 +108,7 @@ struct BusinessesScreen: View {
         Button { choose(b) } label: {
             HStack(spacing: pt(14)) {
                 BusinessBadge(business: b, size: 44)
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: pt(2)) {
                     Text(b.displayName).font(.headline).foregroundStyle(.primary).lineLimit(1)
                     Text(b.host).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
                     status(b)
@@ -120,7 +120,7 @@ struct BusinessesScreen: View {
             }
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable)
         .deleteDisabled(Businesses.shared.list.count <= 1)
         .contextMenu {
             if Businesses.shared.list.count > 1 {
@@ -228,7 +228,7 @@ struct BusinessesScreen: View {
             SectionCard("Found") {
                 HStack(spacing: pt(14)) {
                     BusinessBadge(business: b, size: 52)
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: pt(2)) {
                         Text(b.displayName).font(.headline)
                         Text(b.host).font(.subheadline).foregroundStyle(.secondary)
                     }

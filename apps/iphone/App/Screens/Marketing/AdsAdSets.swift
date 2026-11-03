@@ -411,7 +411,7 @@ struct AdsAdSetsScreen: View {
                         StockImage(imageUrl: r.ad.image, name: r.ad.name, key: r.ad.id)
                             .frame(width: 44, height: 44)
                             .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: pt(2)) {
                             Text(r.ad.name).foregroundStyle(.primary).lineLimit(2)
                             Text(r.place).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                         }

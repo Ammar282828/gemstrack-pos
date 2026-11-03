@@ -493,7 +493,7 @@ struct SiteDelta: View {
             let up = change > 0
             let good = invert ? !up : up
             let tone: Tone = good ? .settled : .problem
-            HStack(spacing: 2) {
+            HStack(spacing: pt(2)) {
                 Image(systemName: up ? "arrow.up.right" : "arrow.down.right").imageScale(.small)
                 Text(text).monospacedDigit()
             }
@@ -760,7 +760,7 @@ struct SiteRankSection: View {
             AdaptiveStack(spacing: pt(8)) {
                 HStack(spacing: pt(6)) {
                     if let lead = row.lead { Text(lead).accessibilityHidden(true) }
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: pt(2)) {
                         Text(row.label)
                         if let sub = row.sub {
                             Text(sub).font(.footnote).foregroundStyle(.secondary)

@@ -82,7 +82,7 @@ struct NewChooser: View {
         return NavigationLink(value: SaleLinks.continueSale) {
             HStack(spacing: pt(12)) {
                 Image(systemName: "cart").font(.title3).foregroundStyle(Tone.owed.color)
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: pt(2)) {
                     Text("A sale in progress").font(.headline)
                     Text("\(n) piece\(n == 1 ? "" : "s")" + (subtotal > 0 ? " · \(Money.pkr(subtotal))" : ""))
                         .font(.subheadline)
@@ -113,7 +113,7 @@ struct NewChooser: View {
                     .foregroundStyle(tint == Theme.accent ? Theme.onAccent : Color.white)
                     .frame(width: 36, height: 36)
                     .background(tint.gradient, in: .rect(cornerRadius: Radius.thumb, style: .continuous))
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: pt(2)) {
                     Text(title).font(.headline)
                     Text(blurb)
                         .font(.subheadline)

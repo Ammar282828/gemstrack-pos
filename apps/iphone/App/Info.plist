@@ -13,6 +13,9 @@
 			</array>
 		</dict>
 	</array>
+	<!-- ProMotion: without this key an iPhone's Core Animation (and so SwiftUI) draws at 60 Hz at most; an iPad Pro needs none. -->
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>

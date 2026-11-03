@@ -219,14 +219,14 @@ private struct HisaabImportPage: View {
                         .foregroundStyle(Tone.problem.color)
                         .opacity(row.isValidDate ? 0 : 1)
                         .accessibilityHidden(row.isValidDate)
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: pt(2)) {
                         Text(row.description.isEmpty ? "—" : row.description).lineLimit(2)
                         Text(row.isValidDate ? OwnerText.shortDate(row.date) : "Invalid date")
                             .font(.caption)
                             .foregroundStyle(row.isValidDate ? Color.secondary : Tone.problem.color)
                     }
                     Spacer(minLength: 8)
-                    VStack(alignment: .trailing, spacing: 2) {
+                    VStack(alignment: .trailing, spacing: pt(2)) {
                         if row.cashIn != 0 { Text("IN \(PaymentText.pkr(row.cashIn))").font(.subheadline).monospacedDigit() }
                         if row.cashOut != 0 { Text("OUT \(PaymentText.pkr(row.cashOut))").font(.subheadline).monospacedDigit() }
                         if row.cashIn == 0 && row.cashOut == 0 { Text("No amount").font(.caption).foregroundStyle(Tone.problem.color) }

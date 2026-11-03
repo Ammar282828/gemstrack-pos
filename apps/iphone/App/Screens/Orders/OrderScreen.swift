@@ -392,7 +392,7 @@ struct OrderScreen: View {
 
     private func advanceLine(_ l: OrdersLogic.AdvanceLine) -> some View {
         let words = [ShopDate.say(l.date), l.method, l.note].filter { !$0.isEmpty }.joined(separator: " \u{00B7} ")
-        return VStack(alignment: .leading, spacing: 2) {
+        return VStack(alignment: .leading, spacing: pt(2)) {
             HStack(alignment: .firstTextBaseline) {
                 Text(words)
                 Spacer(minLength: 8)

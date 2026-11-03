@@ -151,7 +151,7 @@ struct DashStatAmount: View {
     var tint: Color = .primary
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 3) {
+        HStack(alignment: .firstTextBaseline, spacing: pt(3)) {
             Text("PKR")
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(.secondary)
@@ -240,7 +240,7 @@ struct DashHeader: View {
             LedgerHeading(title: title, count: count)
             if let allPath {
                 NavigationLink(value: Route(path: allPath)) {
-                    HStack(spacing: 2) {
+                    HStack(spacing: pt(2)) {
                         Text("All")
                         Image(systemName: "chevron.right").font(.caption2.weight(.semibold))
                     }
@@ -371,9 +371,9 @@ struct DashNeedRow: View {
 
     var body: some View {
         if need.opensRates, let onRates {
-            Button(action: onRates) { content }.buttonStyle(.plain)
+            Button(action: onRates) { content }.buttonStyle(.pressable)
         } else {
-            NavigationLink(value: Route(path: need.path)) { content }.buttonStyle(.plain)
+            NavigationLink(value: Route(path: need.path)) { content }.buttonStyle(.pressable)
                 .zoomSource(id: need.path)
         }
     }
@@ -385,7 +385,7 @@ struct DashNeedRow: View {
                 .foregroundStyle(tone.color)
                 .frame(width: side, height: side)
                 .background(tone.color.opacity(0.13), in: .rect(cornerRadius: Radius.thumb, style: .continuous))
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: pt(2)) {
                 Text(need.title)
                     .font(.subheadline.weight(.semibold))
                     .lineLimit(2)
@@ -445,7 +445,7 @@ struct DashDueRow: View {
         NavigationLink(value: Route(path: due.path)) {
             HStack(spacing: pt(12)) {
                 DateLeaf(date: due.timing.due, tone: leafTone, size: Self.leaf)
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: pt(2)) {
                     Text(due.customer)
                         .font(.subheadline.weight(.semibold))
                         .lineLimit(1)
@@ -464,7 +464,7 @@ struct DashDueRow: View {
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(spoken)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable)
         .zoomSource(id: due.path)
     }
 
@@ -508,7 +508,7 @@ struct DashSaleRow: View {
         NavigationLink(value: Route(path: DashPath.invoice(invoice.id))) {
             HStack(spacing: pt(12)) {
                 Monogram(name: invoice.customerName, size: Self.monogram)
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: pt(2)) {
                     Text(name)
                         .font(.subheadline.weight(.semibold))
                         .lineLimit(1)
@@ -518,7 +518,7 @@ struct DashSaleRow: View {
                         .lineLimit(1)
                 }
                 Spacer(minLength: 8)
-                VStack(alignment: .trailing, spacing: 3) {
+                VStack(alignment: .trailing, spacing: pt(3)) {
                     RowAmount(amount: invoiceSaleValue(invoice), lac: true)
                     if let standing { Pill(standing.text, tone: standing.tone) }
                 }
@@ -529,7 +529,7 @@ struct DashSaleRow: View {
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("\(name), \(when), \(Spoken.rupees(invoiceSaleValue(invoice), lac: true)), \(Spoken.text(standing?.text ?? "Paid"))")
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable)
         .zoomSource(id: DashPath.invoice(invoice.id))
     }
 }
@@ -568,7 +568,7 @@ struct DashMonthCard: View {
     }
 
     private func stat(_ label: String, _ value: Double, _ tint: Color) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: pt(3)) {
             DashLabel(label)
             Text(Money.pkrLac(value))
                 .font(.subheadline.weight(.semibold))

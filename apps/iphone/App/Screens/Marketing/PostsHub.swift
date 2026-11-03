@@ -121,7 +121,7 @@ struct PostsHub: View {
                     ForEach(failing) { (c: PostCheck) in
                         HStack(alignment: .top, spacing: pt(10)) {
                             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Tone.owed.color)
-                            VStack(alignment: .leading, spacing: 2) {
+                            VStack(alignment: .leading, spacing: pt(2)) {
                                 Text("\(c.group): \(c.label)").font(.body.weight(.medium))
                                 Text(c.fix ?? c.detail).font(.subheadline).foregroundStyle(.secondary)
                             }
@@ -208,7 +208,7 @@ struct PostsHub: View {
         if hasInvestments {
             Section {
                 NavigationLink(value: Route(path: "/website/investments")) {
-                    VStack(alignment: .leading, spacing: 3) {
+                    VStack(alignment: .leading, spacing: pt(3)) {
                         Label("Gold post", systemImage: "chart.line.uptrend.xyaxis")
                         Text(goldLine).font(.subheadline).foregroundStyle(.secondary)
                     }
@@ -294,7 +294,7 @@ struct PostsHub: View {
             }
             .contentShape(.rect)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable)
     }
 
     private func queueNote(_ e: PostQueueEntry) -> String {
@@ -354,7 +354,7 @@ struct PostsHub: View {
                         Button { go = Route(path: MarketingKit.piecePath(p.id)) } label: {
                             PostPieceTile(piece: p, posted: store.posted[p.id])
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.pressable)
                         .pointerHover()
                     }
                 }
@@ -368,7 +368,7 @@ struct PostsHub: View {
                             Button { go = Route(path: MarketingKit.piecePath(p.id)) } label: {
                                 PostPieceTile(piece: p, posted: store.posted[p.id]).frame(width: 112)
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(.pressable)
                         }
                     }
                     .padding(.horizontal, pt(16))

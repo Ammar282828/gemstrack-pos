@@ -220,7 +220,7 @@ struct NewOrderScanScreen: View {
                         Text(ex.from == .unpriced ? "No figure" : "− " + Money.pkr(ex.value))
                             .foregroundStyle(ex.from == .unpriced ? Tone.problem.color : Color.primary)
                     } label: {
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: pt(2)) {
                             Text("Taken in exchange")
                             Text(exchangeWords(x, ex.from)).font(.caption).foregroundStyle(.secondary)
                         }

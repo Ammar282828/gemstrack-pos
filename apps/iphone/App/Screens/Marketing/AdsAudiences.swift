@@ -204,7 +204,7 @@ struct AdsAudiencesScreen: View {
                 ForEach(data?.segments ?? []) { (seg: AdsHinted) in
                     Button { segment = seg.key } label: {
                         HStack(alignment: .top, spacing: pt(10)) {
-                            VStack(alignment: .leading, spacing: 2) {
+                            VStack(alignment: .leading, spacing: pt(2)) {
                                 Text(seg.label).foregroundStyle(.primary)
                                 Text(seg.hint).font(.caption).foregroundStyle(.secondary)
                             }
@@ -256,7 +256,7 @@ struct AdsAudiencesScreen: View {
                 ForEach(data?.websiteEvents ?? []) { (e: AdsHinted) in
                     Button { webEvent = e.key } label: {
                         HStack(alignment: .top, spacing: pt(10)) {
-                            VStack(alignment: .leading, spacing: 2) {
+                            VStack(alignment: .leading, spacing: pt(2)) {
                                 Text(e.label).foregroundStyle(.primary)
                                 Text(e.hint).font(.caption).foregroundStyle(.secondary)
                             }
@@ -326,7 +326,7 @@ struct AdsAudiencesScreen: View {
         let made = a.created.map { (c: String) in ShopDate.say(c) } ?? ""
         let line = [a.kind, size, made].filter { (s: String) in !s.isEmpty }.joined(separator: " · ")
         return HStack(spacing: pt(10)) {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: pt(2)) {
                 Text(a.name)
                 Text(line).font(.caption).foregroundStyle(.secondary)
                 if let st = a.status { Text(st).font(.caption).foregroundStyle(Tone.owed.color) }

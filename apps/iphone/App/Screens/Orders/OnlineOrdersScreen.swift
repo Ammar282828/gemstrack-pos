@@ -135,7 +135,7 @@ struct OnlineOrdersScreen: View {
     private func whoRow(_ r: OnlineOrderRow) -> some View {
         HStack(alignment: .top, spacing: pt(12)) {
             Monogram(name: r.customer.name, size: Monogram.Size.row)
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: pt(3)) {
                 Text(r.customer.name.isEmpty ? "Customer" : r.customer.name)
                     .font(.headline)
                     .lineLimit(2)
@@ -145,7 +145,7 @@ struct OnlineOrdersScreen: View {
                     .monospacedDigit()
             }
             Spacer(minLength: 8)
-            VStack(alignment: .trailing, spacing: 2) {
+            VStack(alignment: .trailing, spacing: pt(2)) {
                 RowAmount(amount: r.grandTotal)
                 Text(r.deliveryCharge > 0 ? "incl. \(Money.pkr(r.deliveryCharge)) delivery" : "free delivery")
                     .font(.caption2)
@@ -161,7 +161,7 @@ struct OnlineOrdersScreen: View {
             StockImage(imageUrl: l.image, name: l.description, key: l.key)
                 .frame(width: 48, height: 48)
                 .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: pt(2)) {
                 Text(OnlineOrdersLogic.pieceName(l.description))
                     .font(.subheadline)
                     .lineLimit(2)
@@ -189,7 +189,7 @@ struct OnlineOrdersScreen: View {
                     .buttonStyle(.bordered)
             }
         }
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: pt(2)) {
             Label {
                 Text([r.delivery.address, r.delivery.city].filter { !$0.isEmpty }.joined(separator: ", "))
             } icon: {

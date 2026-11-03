@@ -426,7 +426,7 @@ private struct ShopifyInnerForm: View {
                 Image(systemName: on ? "checkmark.circle.fill" : "circle")
                     .foregroundStyle(on ? Theme.accent : .secondary)
                     .imageScale(.large)
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: pt(2)) {
                     HStack(alignment: .firstTextBaseline) {
                         Text(o.title).font(.body.monospaced().weight(.medium))
                         Spacer(minLength: 8)
@@ -508,8 +508,8 @@ private struct ShopifyInnerForm: View {
                 return PullOrder(id: id, title: o.s("title"), subtitle: o.s("subtitle"), date: o.s("date"), amount: o.n("amount"))
             }.filter { !$0.id.isEmpty && $0.id != "0" }
             orders = list
-            since = v["since"] == .null ? nil : Int(v.n("since"))
-            olderSkipped = Int(v.n("olderSkipped"))
+            since = v["since"] == .null ? nil : Int(clamped: v.n("since"))
+            olderSkipped = Int(clamped: v.n("olderSkipped"))
             let ids = Set(list.map(\.id))
             picked = picked.intersection(ids)
             listFailure = nil

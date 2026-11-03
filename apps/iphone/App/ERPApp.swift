@@ -15,8 +15,8 @@ struct ERPApp: App {
         LaunchClock.armTimeout()
         LaunchClock.mark("app:init")
         _ = Businesses.shared
-        // Crash and hang reports from MetricKit go to the ERP (app_diagnostics): no personal data in them.
-        Diagnostics.start()
+        // Crash and hang reports from MetricKit go to the ERP (app_diagnostics): no personal data in them. Subscribed once the
+        // first frame is out (BusinessHost's task), not before it.
         if Sessions.shared.current.state == .signedIn { AppLock.shared.launched(signedIn: true) }
     }
 
@@ -49,6 +49,9 @@ private struct BusinessHost: View {
         BusinessRoot(session: Sessions.shared.session(for: business), launch: launch)
             .id(business.id)
             .onAppear { LaunchClock.mark("frame:first") }
+            // After the first frame, at background priority: MetricKit delivers what it kept for the last run as soon as it is
+            // subscribed, and the report's upload can wait.
+            .task(priority: .utility) { Diagnostics.start() }
             // The businesses describe themselves again once the launch is under way, not racing its first frame.
             .task {
                 try? await Task.sleep(for: .seconds(2))

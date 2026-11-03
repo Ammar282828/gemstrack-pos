@@ -667,7 +667,7 @@ extension SaleDraft {
         let others = payments.filter { $0.id != id }.reduce(0.0) { $0 + rupees(SaleNumber.value($1.amount)) }
         let rest = max(0, (total - others).rounded())
         if let i = payments.firstIndex(where: { $0.id == id }) {
-            payments[i].amount = rest > 0 ? String(Int(rest)) : ""
+            payments[i].amount = rest > 0 ? String(Int(clamped: rest)) : ""
         }
     }
 }

@@ -124,7 +124,7 @@ struct WebsiteEditPieceScreen: View {
                 weightSection(p)
                 Section {
                     Toggle(isOn: $hidden) {
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: pt(2)) {
                             Text("Hide from the website")
                             Text("Off every page; its links go to the collection. Show it again any time.")
                                 .font(.caption).foregroundStyle(.secondary)
@@ -185,7 +185,7 @@ struct WebsiteEditPieceScreen: View {
                 }
                 Button { Task { await beginPhoto(p) } } label: {
                     Label {
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: pt(2)) {
                             Text(photo?.loading == true ? "Fetching the photo…" : "Re-make the photo")
                             Text("Crop it, put the weight and the logo on, fix the light").font(.caption).foregroundStyle(.secondary)
                         }

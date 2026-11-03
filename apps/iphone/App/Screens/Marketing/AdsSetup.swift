@@ -497,7 +497,7 @@ struct AdsSetupScreen: View {
                     .frame(width: 36, height: 36)
                     .clipShape(Circle())
             }
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: pt(2)) {
                 Text(title).foregroundStyle(.primary)
                 if !line.isEmpty { Text(line).font(.caption).foregroundStyle(.secondary) }
             }
@@ -644,7 +644,7 @@ struct AdsSetupScreen: View {
         }
         ForEach(p.pixels) { (x: AdsPixelRow) in
             HStack(spacing: pt(8)) {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: pt(2)) {
                     Text(x.name)
                     Text("\(x.id) · \(x.lastFired.map { (l: String) in "last \(ShopDate.say(l))" } ?? "never fired")").font(.caption).foregroundStyle(.secondary)
                 }

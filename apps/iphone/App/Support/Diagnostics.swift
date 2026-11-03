@@ -144,7 +144,7 @@ final class Diagnostics: NSObject, MXMetricManagerSubscriber {
             out.append(r)
         }
         #endif
-        return out
+        return out.map { Breadcrumb.attached(to: $0) }
     }
 
     /// The call stack that carries the most samples, root to leaf, as "Binary+offset" (twelve frames at most).
@@ -188,5 +188,45 @@ final class Diagnostics: NSObject, MXMetricManagerSubscriber {
         if (try? await ERPAPI.shared.send("/api/app/diagnostics", body, timeout: 15)) != nil {
             UserDefaults.standard.removeObject(forKey: Self.pendingKey)
         }
+    }
+}
+
+/// Where the person was when the app last stopped: the screen and the business, kept as they change and read at the next launch,
+/// so a crash or a hang in `app_diagnostics` says "on /orders/·, mina" and not only a code address (owner, 2026-11-03: fewer
+/// crashes). Nothing the person typed and no record's id: a path keeps its first word and a known verb (`add`, `edit`…), every
+/// other part is "·". It rides in the report's `terminationReason`, the one free-text field the ERP's route keeps for every kind.
+enum Breadcrumb {
+    private static let key = "erp.breadcrumb"
+    /// What the previous run left, read before this run writes its own.
+    static let lastRun: String = UserDefaults.standard.string(forKey: key) ?? ""
+    @MainActor private static var written = ""
+
+    private static let verbs: Set<String> = ["add", "new", "edit", "refund", "print", "scan", "pay", "list", "drafts", "all"]
+
+    /// The path without its ids: "/orders/ORD-12/edit" -> "/orders/·/edit".
+    static func plain(_ path: String) -> String {
+        let bare = path.split(separator: "?", maxSplits: 1, omittingEmptySubsequences: false).first.map(String.init) ?? path
+        let parts = bare.split(separator: "/", omittingEmptySubsequences: true).map(String.init)
+        guard let first = parts.first else { return "/" }
+        let rest = parts.dropFirst().map { verbs.contains($0) ? $0 : "·" }
+        return "/" + ([first] + rest).joined(separator: "/")
+    }
+
+    /// A screen came to the front.
+    @MainActor static func note(_ path: String) {
+        _ = lastRun
+        let text = "\(plain(path)), \(House.business.id)"
+        guard text != written else { return }
+        written = text
+        UserDefaults.standard.set(text, forKey: key)
+    }
+
+    /// The report with the last run's screen added to its reason (200 characters at most, as the route keeps).
+    static func attached(to report: [String: Any]) -> [String: Any] {
+        guard !lastRun.isEmpty else { return report }
+        var r = report
+        let reason = (r["terminationReason"] as? String).map { String($0.prefix(120)) } ?? ""
+        r["terminationReason"] = String(((reason.isEmpty ? "" : reason + " | ") + "last screen: " + lastRun).prefix(200))
+        return r
     }
 }

@@ -75,13 +75,13 @@ private struct WebView: UIViewRepresentable {
         let refresh = UIRefreshControl()
         refresh.addTarget(context.coordinator, action: #selector(Coordinator.reload(_:)), for: .valueChanged)
         web.scrollView.refreshControl = refresh
-        web.load(URLRequest(url: URL(string: path, relativeTo: House.serverURL)!))
+        web.load(URLRequest(url: (URL(string: path, relativeTo: House.serverURL) ?? House.serverURL)))
         return web
     }
 
     func updateUIView(_ web: WKWebView, context: Context) {
         if failed == nil, loading, !web.isLoading, web.url == nil {
-            web.load(URLRequest(url: URL(string: path, relativeTo: House.serverURL)!))
+            web.load(URLRequest(url: (URL(string: path, relativeTo: House.serverURL) ?? House.serverURL)))
         }
     }
 
@@ -189,13 +189,13 @@ private struct WebView: NSViewRepresentable {
         #if DEBUG
         web.isInspectable = true
         #endif
-        web.load(URLRequest(url: URL(string: path, relativeTo: House.serverURL)!))
+        web.load(URLRequest(url: (URL(string: path, relativeTo: House.serverURL) ?? House.serverURL)))
         return web
     }
 
     func updateNSView(_ web: WKWebView, context: Context) {
         if failed == nil, loading, !web.isLoading, web.url == nil {
-            web.load(URLRequest(url: URL(string: path, relativeTo: House.serverURL)!))
+            web.load(URLRequest(url: (URL(string: path, relativeTo: House.serverURL) ?? House.serverURL)))
         }
     }
 

@@ -68,7 +68,7 @@ struct ListSummaryStrip: View {
     private func cell(_ f: ListFigure) -> some View {
         if let pick = f.pick {
             Button(action: pick) { face(f) }
-                .buttonStyle(.plain)
+                .buttonStyle(.pressable)
                 .accessibilityLabel(f.spoken ?? "\(f.title), \(f.text)")
                 .accessibilityAddTraits(f.chosen ? .isSelected : [])
         } else {

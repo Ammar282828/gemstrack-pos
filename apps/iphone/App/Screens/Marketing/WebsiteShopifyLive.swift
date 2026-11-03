@@ -183,14 +183,14 @@ struct ShopifyLiveView: View {
                 .frame(width: 22)
                 .accessibilityHidden(true)
             AdaptiveStack(spacing: pt(8), alignment: .top) {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: pt(2)) {
                     Text(a.kind == "order" ? "Order " + a.label : a.label)
                     if !detail.isEmpty {
                         Text(detail).font(.footnote).foregroundStyle(.secondary)
                     }
                 }
                 Spacer(minLength: 8)
-                VStack(alignment: .trailing, spacing: 2) {
+                VStack(alignment: .trailing, spacing: pt(2)) {
                     if let amount = a.amount {
                         Text(ShopWords.money(amount, a.currency)).monospacedDigit()
                     }

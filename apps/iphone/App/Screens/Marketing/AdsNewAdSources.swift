@@ -318,7 +318,7 @@ struct AdsPartnerSection: View {
                             .frame(width: 48, height: 48)
                             .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
                     }
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: pt(2)) {
                         if c.ok {
                             Text(c.creator.map { (who: String) in "Ready: @\(who)'s post" } ?? "Ready")
                         } else {

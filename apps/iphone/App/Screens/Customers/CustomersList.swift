@@ -57,6 +57,7 @@ struct CustomersList: View {
             list
         }
         .navigationTitle("Customers")
+        .trackCovered($covered)
         .hubTitleDisplay()
         .task(id: search) {
             let next = search
@@ -117,10 +118,12 @@ struct CustomersList: View {
     @State private var reckoned = Memo<Reckoned>()
     /// The search applied and grouped: kept until the books, the query or the day change.
     @State private var narrowed = Memo<Figures>()
+    /// Not the screen on display (another tab, or a page over it): the memos hand back what they have.
+    @State private var covered = false
 
     private func figures() -> Figures {
         let key = [book.customers.revision, book.invoices.revision, book.orders.revision, book.hisaab.revision, session.isOwner ? 1 : 0]
-        let r = reckoned(key) {
+        let r = reckoned(key, resting: covered) {
             let live = book.customers.items.filter { !CustomerKit.isRemoved($0) }
             let owed = CustomerKit.owed(invoices: book.invoices.items, customers: book.customers.items, ledger: ledger)
             let stats = CustomerKit.stats(invoices: book.invoices.items, orders: book.orders.items, owed: owed)
@@ -130,7 +133,7 @@ struct CustomersList: View {
         }
         // The groups read the clock only by months, so the day is the finest the key needs.
         let day = Int(Date().timeIntervalSince1970 / 86_400)
-        return narrowed(key + [query.hashValue, day]) {
+        return narrowed(key + [query.hashValue, day], resting: covered) {
             let matched = r.live.filter { CustomerKit.matches($0, query) }
             return Figures(customerCount: r.live.count, owed: r.owed, stats: r.stats,
                            groups: CustomerKit.groups(matched, stats: r.stats), lifetime: r.lifetime, matchedCount: matched.count)
@@ -272,7 +275,7 @@ struct CustomersList: View {
             NavigationLink(value: CustomerKit.route(c.id)) {
                 record(c, s)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.pressable)
             .zoomSource(id: CustomerKit.path(c.id))
         } footer: {
             RecordCardFooter(label: "Contact \(CustomerKit.shown(c))") {

@@ -169,7 +169,7 @@ struct OrderOnlineSection: View {
 
     private func slipLine(_ s: WebsiteSlip) -> some View {
         let wrong = (s.amount ?? 0) > 0 && abs((s.amount ?? 0) - OrdersLogic.onlineTotal(order)) > 0.5
-        return VStack(alignment: .leading, spacing: 2) {
+        return VStack(alignment: .leading, spacing: pt(2)) {
             HStack {
                 Label("Slip " + ShopDate.say(s.at, withTime: true), systemImage: "doc.text")
                     .foregroundStyle(mayAct ? Theme.accent : Color.primary)

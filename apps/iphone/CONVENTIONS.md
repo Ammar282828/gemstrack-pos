@@ -194,3 +194,32 @@ Reach for these before writing a screen's own. Files: `App/UI/Ledger.swift`, `Ki
   `EmptyState(title, symbol:, message:, action:)`; `LoadingRow(label)` (an action's spinner and words; a list or page that is loading is a skeleton, rule 18); `.confirmDestructive(isPresented:, title:,
   message:, action:, perform:)`; `.savedFeedback(trigger:)` / `.refusedFeedback(trigger:)` /
   `.selectionFeedback(trigger:)`; `.keyboardDone()`; `AdaptiveStack { }` (HStack, VStack at AX sizes).
+
+## Feel of the app (2026-11-03)
+
+The owner's checklist of why the best apps feel smooth, held against this one. Rules that came out of it:
+
+- **Press.** A card, row, tile or chip that opens something and sits in a button is `.buttonStyle(.pressable)` (`UI/Kit.swift`: 0.97 and a
+  little dimmer while held, `Motion.exit` in and `Motion.enter` out, nothing under Reduce Motion), never `.plain`, which has no pressed
+  state. Not for a button inside a Form or a toolbar (the system draws those), nor for glass (`.glass` presses itself).
+- **Haptics are the five of the platform and nothing else.** success (`.savedFeedback`, `.moneyFeedback`, `SaveTap.play()` for a sheet that
+  closes in the same breath), warning (`.destructiveFeedback`), error (`.refusedFeedback`, `failureAlert`, the Outbox's failure banner),
+  selection (`.selectionFeedback`, `FilterChip`, the picker's choice), light impact (the pull-down search's threshold). A system `Toggle`,
+  `Picker`, `refreshable` and `Menu` already tap: add nothing. Never on a keystroke; never twice for one event (a `Note` taps itself).
+- **Work rests when nobody looks.** A poll or a clock that repeats is `.whileActive { … }` (`UI/Kit.swift`): it runs while its screen is on
+  display and the scene is `.active`, and comes back by itself. A loop is "sleep, then do", so the return's own refresh and the loop never
+  ask twice. A loop in a model (not a view) checks `scenePhase`/`foreground` itself (`ServerShelf`) and is nudged on return.
+- **A hub does not reckon for nobody.** An opened tab stays alive and its body runs for every change of the books it reads. A hub that
+  holds `Memo`s keeps `@State covered`, sets it with `.trackCovered($covered)` (on the title), and passes `resting: covered` to each
+  memo; a hub that reckons in a `.task(id:)` puts `covered` in the key and returns early while covered (`Dashboard`, `AnalyticsScreen`).
+  Reckoning that gates the first paint is `.userInitiated`; every later refresh of it is `.utility`.
+- **Spacing is `pt(n)`**, in every padding and stack/grid spacing of a screen (a Mac scales it; a phone is unchanged). A literal is for a
+  glyph inside a fixed shape and for the Mac's own `#if os(macOS)` code, which is already in Mac points.
+- **The first frame is the launch screen's colour.** `UILaunchScreen`'s `Launch-<house>` equals the house's `Ground` in light and dark; the
+  business picker reads that same colour (not `systemBackground`), so nothing flashes between the two. Change them together.
+- **Crashes name their place.** `Breadcrumb.note(path)` (`Support/Diagnostics.swift`, called by `PlaceScreen`) keeps the screen and the
+  business; the next launch adds "last screen: /orders/·, mina" to every MetricKit report's `terminationReason`. Ids are never kept
+  (a path keeps its first word and a known verb). A number from the server that becomes an `Int` goes through `Int(clamped:)`.
+- **Release is built for speed.** `project.yml` states the release settings (`-O`, whole module, dead-code stripping, no testability,
+  stripped product, dSYM) so the iPhone, iPad and Mac archives do not depend on Xcode's defaults. `CADisableMinimumFrameDurationOnPhone`
+  stays in `App/Info.plist`: without it an iPhone draws at 60 Hz.

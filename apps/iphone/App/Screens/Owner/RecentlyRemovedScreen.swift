@@ -189,7 +189,7 @@ private struct RecentlyRemovedList: View {
         let when = ShopDate.say(removedAt)
         return HStack(spacing: pt(12)) {
             Image(systemName: kind == .customer ? "person.2" : "hammer").foregroundStyle(.secondary)
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: pt(2)) {
                 Text(name.isEmpty ? id : name).fontWeight(.medium).lineLimit(1)
                 Text(line).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
                 if !when.isEmpty {

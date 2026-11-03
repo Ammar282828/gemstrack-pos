@@ -251,7 +251,7 @@ struct DraftsScreen: View {
                     }
                 }
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.pressable)
             .disabled(continuing != nil)
             .swipeActions(edge: .trailing, allowsFullSwipe: false) { discardButton(row) }
             .contextMenu { discardButton(row) }
@@ -264,7 +264,7 @@ struct DraftsScreen: View {
 
     private func draftCard(_ row: DraftRow) -> some View {
         let d = row.draft
-        return VStack(alignment: .leading, spacing: 3) {
+        return VStack(alignment: .leading, spacing: pt(3)) {
             HStack(alignment: .firstTextBaseline) {
                 Text(d.title).font(.headline).lineLimit(1)
                 Spacer(minLength: 8)

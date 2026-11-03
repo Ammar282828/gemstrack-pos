@@ -75,7 +75,7 @@ struct HisaabAccountPicker: View {
                     Button { pick(c) } label: {
                         HStack(spacing: pt(12)) {
                             Monogram(name: c.name.isEmpty ? c.id : c.name, size: Monogram.Size.row)
-                            VStack(alignment: .leading, spacing: 2) {
+                            VStack(alignment: .leading, spacing: pt(2)) {
                                 Text(c.name.isEmpty ? c.id : c.name).font(.body.weight(.medium))
                                 // Told apart only while searching: the list otherwise says the obvious on every row.
                                 if !typed.isEmpty {
@@ -91,7 +91,7 @@ struct HisaabAccountPicker: View {
                     Button { Task { await createKarigar() } } label: {
                         HStack(spacing: pt(12)) {
                             Image(systemName: "plus.circle").busy(creating)
-                            VStack(alignment: .leading, spacing: 2) {
+                            VStack(alignment: .leading, spacing: pt(2)) {
                                 Text("\(creating ? "Adding" : "Add karigar") \u{201C}\(typed)\u{201D}").font(.body.weight(.medium))
                                 Text("Opens a new hisaab").font(.caption).foregroundStyle(.secondary)
                             }

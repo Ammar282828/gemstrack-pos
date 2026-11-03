@@ -59,6 +59,8 @@ struct OrdersHub: View {
     @State private var listMemo = Memo<OrdersListSnapshot>()
     /// The Filter menu's months and per-status counts, per change of the orders (each is a pass that parses every date).
     @State private var menuMemo = Memo<OrdersMenuFacts>()
+    /// Not the screen on display (another tab, or a page over it): the memos above hand back what they have.
+    @State private var covered = false
 
     var body: some View {
         ShelfState(
@@ -71,6 +73,7 @@ struct OrdersHub: View {
             hub.motion([groupingRaw, statusFilter, month, takenBy, payment, String(stageSignature), localStatus.values.joined()])
         }
         .navigationTitle("Orders")
+        .trackCovered($covered)
         .hubTitleDisplay()
         #if os(macOS)
         // The Mac keeps the window toolbar's search; the phone and iPad pull theirs down on the list (hub).
@@ -107,7 +110,7 @@ struct OrdersHub: View {
     /// Every order's status and invoice, so a stage move (Ready, Cancelled, invoiced) settles in on the enter curve.
     /// Hashed (not joined into a string) and kept per `orders.revision`, so it costs one pass per change of the orders.
     private var stageSignature: Int {
-        signature([book.orders.revision]) {
+        signature([book.orders.revision], resting: covered) {
             var h = Hasher()
             for o in book.orders.items {
                 h.combine(o.id)
@@ -135,11 +138,11 @@ struct OrdersHub: View {
     @ViewBuilder
     private var hub: some View {
         let all = book.orders.items
-        let owedOn = owedMemo([book.invoices.revision]) { OrdersLogic.owedOnInvoices(book.invoices.items) }
+        let owedOn = owedMemo([book.invoices.revision], resting: covered) { OrdersLogic.owedOnInvoices(book.invoices.items) }
         let now = Date()
         let snapshot = listMemo([book.orders.revision, book.invoices.revision, query.hashValue, statusFilter.hashValue, month.hashValue,
                                  takenBy.hashValue, payment.hashValue, groupingRaw.hashValue, localStatus.hashValue,
-                                 ERPDate.karachiDay(now).hashValue]) {
+                                 ERPDate.karachiDay(now).hashValue], resting: covered) {
             let scoped = scope(all)
             let shown = statusFilter == "All" ? scoped : scoped.filter { $0.status.rawValue == statusFilter }
             return OrdersListSnapshot(scoped: scoped, shown: shown, groups: makeSections(shown, owedOn: owedOn, now: now))
@@ -441,7 +444,7 @@ struct OrdersHub: View {
     /// they hold still while the list is searched. Due this week taps to the Due view.
     private func summaryFigures(_ all: [Order], owedOn: [String: Double], now: Date) -> [ListFigure] {
         let day = ERPDate.karachiDay(now)
-        let f = figuresMemo([book.orders.revision, book.invoices.revision, takenBy.hashValue, day.hashValue]) {
+        let f = figuresMemo([book.orders.revision, book.invoices.revision, takenBy.hashValue, day.hashValue], resting: covered) {
             let base = takenBy.isEmpty ? all : all.filter { $0.takenBy == takenBy }
             var f = OrdersFigures()
             for o in base where o.status != .cancelled && o.status != .refunded {
@@ -499,7 +502,7 @@ struct OrdersHub: View {
     // MARK: The filter menu: how it is grouped, which month, whose, how paid
 
     private func filterMenu(_ all: [Order]) -> some View {
-        let facts = menuMemo([book.orders.revision]) {
+        let facts = menuMemo([book.orders.revision], resting: covered) {
             var counts: [String: Int] = [:]
             for o in all { counts[o.status.rawValue, default: 0] += 1 }
             return OrdersMenuFacts(months: Array(Set(all.compactMap { InvoiceCalendar.monthKey($0.createdAt) })).sorted(by: >), counts: counts)

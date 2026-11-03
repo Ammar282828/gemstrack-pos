@@ -162,7 +162,7 @@ struct AnaOverviewPage: View {
             let weighed = grams + noun + " weighed"
             Section {
                 LabeledContent("Total") {
-                    VStack(alignment: .trailing, spacing: 2) {
+                    VStack(alignment: .trailing, spacing: pt(2)) {
                         Text(tolaText)
                             .fontWeight(.semibold)
                             .monospacedDigit()
@@ -174,7 +174,7 @@ struct AnaOverviewPage: View {
                 DisclosureGroup("By karat") {
                 ForEach(f.goldByKarat) { (k: AnaKarat) in
                     LabeledContent(k.karat.uppercased()) {
-                        VStack(alignment: .trailing, spacing: 2) {
+                        VStack(alignment: .trailing, spacing: pt(2)) {
                             Text(AnaFormat.number(AnaFormat.tola(k.grams), maxDigits: 3) + " tola").monospacedDigit()
                             Text(AnaFormat.number(k.grams, maxDigits: 2) + " g · " + AnaFormat.count(k.pieces))
                                 .font(.caption)

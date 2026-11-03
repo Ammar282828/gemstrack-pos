@@ -147,7 +147,7 @@ struct StudioBoards: View {
                     .accessibilityLabel("Board")
                     Button("Add a photo", systemImage: "photo.badge.plus") { sheet = .picker }.labelStyle(.iconOnly).disabled(board.current.isEmpty)
                     Button("Add a note", systemImage: "note.text.badge.plus") { Task { if let id = await board.addNote() { selected = id } } }.labelStyle(.iconOnly).disabled(board.current.isEmpty)
-                    HStack(spacing: 2) {
+                    HStack(spacing: pt(2)) {
                         Button("Zoom out", systemImage: "minus.magnifyingglass") { zoom = max(0.08, zoom / 1.25) }.labelStyle(.iconOnly)
                         Text("\(Int((z * 100).rounded()))%").font(.caption).monospacedDigit().frame(minWidth: 40)
                         Button("Zoom in", systemImage: "plus.magnifyingglass") { zoom = min(1.5, zoom * 1.25) }.labelStyle(.iconOnly)

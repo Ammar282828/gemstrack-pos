@@ -262,7 +262,7 @@ struct WebsiteGoldScheduleSheet: View {
         let plan = draft?.plan(t.id) ?? WebsiteGoldSchedule.Plan(on: false, at: "11:30")
         return VStack(alignment: .leading, spacing: pt(8)) {
             Toggle(isOn: onBinding(t.id)) {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: pt(2)) {
                     Text(t.label)
                     Text("to " + t.to).font(.caption).foregroundStyle(.secondary)
                 }
@@ -348,6 +348,7 @@ struct WebsiteGoldScheduleSheet: View {
         defer { busy = nil }
         do {
             try await gold.saveSchedule(d)
+            SaveTap.play()
             dismiss()
         } catch {
             failure = error.localizedDescription
@@ -499,6 +500,7 @@ struct WebsiteGoldAddSheet: View {
         do {
             try await gold.file(date: day, post: post.trimmingCharacters(in: .whitespacesAndNewlines),
                                 teaser: teaser.trimmingCharacters(in: .whitespacesAndNewlines), square: square, story: story)
+            SaveTap.play()
             dismiss()
         } catch {
             failure = error.localizedDescription

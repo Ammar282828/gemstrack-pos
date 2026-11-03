@@ -373,7 +373,7 @@ struct DesignSmartSheet: View {
                     HStack(spacing: pt(8)) {
                         Toggle("", isOn: Binding(get: { item.accept[k] == true }, set: { on in set(item.id) { $0.accept[k] = on } })).labelsHidden().tint(Theme.accent)
                             .accessibilityLabel(DesignSmartModel.fieldLabel[k] ?? k)
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: pt(2)) {
                             Text(DesignSmartModel.fieldLabel[k] ?? k).font(.caption).foregroundStyle(.secondary)
                             TextField("", text: Binding(get: { item.fields[k] ?? "" }, set: { v in set(item.id) { $0.fields[k] = v; $0.accept[k] = true } }), axis: .vertical)
                                 .lineLimit(1...3)
@@ -387,7 +387,7 @@ struct DesignSmartSheet: View {
                 HStack(spacing: pt(8)) {
                     Toggle("", isOn: Binding(get: { item.accept["price"] == true }, set: { on in set(item.id) { $0.accept["price"] = on } })).labelsHidden().tint(Theme.accent)
                         .accessibilityLabel("Price")
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: pt(2)) {
                         Text("Price").font(.caption).foregroundStyle(.secondary)
                         Text(item.parsed["price"].s("text", "PKR " + String(Int(item.parsed["price"].n("amount"))))).font(.subheadline)
                     }

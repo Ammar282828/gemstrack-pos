@@ -173,7 +173,7 @@ private struct TaheriBookImportPage: View {
     private func halfMatchSection(_ p: SettingsBookPreview) -> some View {
         Section {
             ForEach(p.halfMatches) { (h: SettingsBookHalfMatch) in
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: pt(2)) {
                     Text(h.name).fontWeight(.medium).lineLimit(1)
                     Text(h.line).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 }

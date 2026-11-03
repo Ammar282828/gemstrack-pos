@@ -245,7 +245,7 @@ private struct ShareholdersBoard: View {
     }
 
     private func smallFigure(_ label: String, _ amount: Double, symbol: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: pt(2)) {
             Label(label, systemImage: symbol).font(.caption2).foregroundStyle(.secondary)
             Text(ShareholderMoney.fmt(amount)).font(.subheadline.weight(.semibold)).monospacedDigit()
                 .contentTransition(.numericText(value: amount)).minimumScaleFactor(0.8)
@@ -388,7 +388,7 @@ private struct ShareholdersBoard: View {
                 LabeledContent("Held back as working capital") { RowAmount(amount: abs(d.workingCapitalFloor.rounded())) }
                 LabeledContent("Available to distribute") { RowAmount(amount: abs(d.distributableCash.rounded())) }
                 ForEach(d.perPartner, id: \.name) { (pr: PartnerDistributionResult) in
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: pt(2)) {
                         HStack {
                             Text(pr.name).fontWeight(.medium)
                             Spacer(minLength: 8)
@@ -502,7 +502,7 @@ extension ShareholdersBoard {
                 MacEvenLayout(minimum: 200, spacing: 16) {
                     MacDashFigureCard(title: "Revenue", symbol: "banknote", tint: Theme.accent,
                                       value: ShareholderMoney.fmt(f.totals.totalRevenue), detail: "The partnership's", open: nil) { EmptyView() }
-                    MacDashFigureCard(title: "Expenses", symbol: "arrow.up.circle", tint: Color.orange,
+                    MacDashFigureCard(title: "Expenses", symbol: "arrow.up.circle", tint: Tone.owed.color,
                                       value: ShareholderMoney.fmt(f.totals.totalExpenses), detail: "The partnership's", open: nil) { EmptyView() }
                     MacDashFigureCard(title: "Each partner's share", symbol: "person.2", tint: share >= 0 ? Tone.settled.color : Tone.owed.color,
                                       value: ShareholderMoney.signed(share), detail: "Revenue less expenses, halved",

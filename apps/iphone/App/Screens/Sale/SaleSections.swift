@@ -443,7 +443,7 @@ extension SaleForm {
         Section {
             takenByRow
             Toggle(isOn: $draft.hideRates) {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: pt(2)) {
                     Text("Leave rates off the printed bill")
                     Text("Prices stay the same. The invoice just won't show the per-gram rate.")
                         .font(.caption)
@@ -558,7 +558,7 @@ extension SaleForm {
                 Spacer(minLength: 8)
                 summaryDue(due, f)
             }
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: pt(2)) {
                 total
                 summaryDue(due, f)
             }

@@ -386,7 +386,7 @@ struct InvoiceScreen: View {
 
     private func exchangeRow(_ e: ExchangeEntry) -> some View {
         let said = describeExchangeEntry(e)
-        return VStack(alignment: .leading, spacing: 2) {
+        return VStack(alignment: .leading, spacing: pt(2)) {
             if e.value > 0 {
                 MoneyRow("Exchange", -e.value, signed: true)
             } else {
@@ -784,7 +784,7 @@ private struct InvoicePaymentRow: View {
                 .frame(width: iconSize, height: iconSize)
                 .background(tone.color.opacity(0.12), in: .circle)
                 .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: pt(2)) {
                 Text(title).font(.subheadline.weight(.medium))
                 Text(detail)
                     .font(.caption)

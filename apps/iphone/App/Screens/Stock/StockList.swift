@@ -30,6 +30,8 @@ struct StockList: View {
     @State private var query = ""
     /// The pieces shown (category, search, priced at today's rates): kept until the stock, the rates or those change.
     @State private var shownRows = Memo<[StockRowModel]>()
+    /// Not the screen on display (another tab, or a page over it): the memo hands back what it has.
+    @State private var covered = false
     /// nil is every category; "" is the pieces with none.
     @State private var category: String?
     @State private var go: Route?
@@ -58,6 +60,7 @@ struct StockList: View {
             content
         }
         .navigationTitle("Stock")
+        .trackCovered($covered)
         .hubTitleDisplay()
         .task(id: search) {
             let next = search.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -138,7 +141,7 @@ struct StockList: View {
     private func rows(_ all: [Product], _ rates: PricingRates?) -> [StockRowModel] {
         let q = query
         let key = [book.products.revision, book.settings.revision, (category ?? "").hashValue, category == nil ? 0 : 1, q.hashValue]
-        return shownRows(key) {
+        return shownRows(key, resting: covered) {
             var kept: [Product] = all
             if let category {
                 kept = kept.filter { $0.categoryId == category }
@@ -336,7 +339,7 @@ private struct StockRow: View {
                     .frame(width: 52, height: 52)
                     .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
                     .zoomSource(id: StockKit.piecePath(p.sku))
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: pt(2)) {
                     Text(p.name).font(.body.weight(.medium)).lineLimit(2)
                     Text(p.sku).font(.caption.monospaced()).foregroundStyle(.secondary).lineLimit(1)
                     Text(detail(p)).font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
@@ -393,7 +396,7 @@ private struct StockCard: View {
             }
             .ledgerCard(padding: 10)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable)
         .pointerHover()
     }
 }

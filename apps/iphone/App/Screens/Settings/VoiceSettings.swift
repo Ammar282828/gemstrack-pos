@@ -183,7 +183,7 @@ private struct VoiceSettingsPage: View {
         let day = OwnerText.shortDate(a.createdAt)
         if !day.isEmpty { sub += " · \(day)" }
         return HStack(spacing: pt(12)) {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: pt(2)) {
                 HStack(spacing: pt(6)) {
                     Text("“\(a.heard)”").italic().foregroundStyle(.secondary).lineLimit(1)
                     Image(systemName: "arrow.right").font(.caption).foregroundStyle(.secondary)

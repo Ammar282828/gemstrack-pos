@@ -181,7 +181,7 @@ struct PostQueueSheet: View {
                 .foregroundStyle(Theme.onAccent)
                 .frame(width: 32, height: 32)
                 .background(Theme.accent, in: .rect(cornerRadius: Radius.thumb, style: .continuous))
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: pt(2)) {
                 Text(p.title)
                 Text(problem ?? p.detail)
                     .font(.caption)

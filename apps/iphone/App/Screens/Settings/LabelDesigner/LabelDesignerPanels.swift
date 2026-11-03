@@ -144,7 +144,7 @@ struct LabelLayersList: View {
                 .help(f.hidden ? "Show on the tag" : "Hide (not printed)")
             Button { model.setLocked(f.id, !f.locked) } label: { Image(systemName: f.locked ? "lock.fill" : "lock.open") }
                 .buttonStyle(.borderless)
-                .foregroundStyle(f.locked ? Color.orange : Color.secondary)
+                .foregroundStyle(f.locked ? Tone.owed.color : Color.secondary)
                 .accessibilityLabel(f.locked ? "Unlock" : "Lock")
                 .help(f.locked ? "Unlock" : "Lock in place")
         }

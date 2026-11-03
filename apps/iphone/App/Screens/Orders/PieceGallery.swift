@@ -121,9 +121,9 @@ struct PhotoThumb: View {
             .overlay(alignment: .bottomTrailing) {
                 if more > 0 {
                     Text("+\(more)").font(.caption2.weight(.semibold)).foregroundStyle(.white)
-                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .padding(.horizontal, pt(6)).padding(.vertical, pt(2))
                         .background(.black.opacity(0.6), in: .capsule)
-                        .padding(4)
+                        .padding(pt(4))
                 }
             }
             .task(id: source.id) {

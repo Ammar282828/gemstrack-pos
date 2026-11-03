@@ -747,7 +747,7 @@ private struct HisaabMacInspector: View {
                         }
                         .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.pressable)
                 }
             }
             .padding(14)
@@ -805,7 +805,7 @@ private struct HisaabAccountRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: pt(12)) {
             Monogram(name: account.name, size: Monogram.Size.row)
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: pt(3)) {
                 top
                 middle
                 if account.gold != 0 { goldLine }

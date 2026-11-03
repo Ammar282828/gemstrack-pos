@@ -272,7 +272,7 @@ struct DesignWorkspaceView: View {
         SectionCard("The photograph") {
             HStack(spacing: pt(12)) {
                 DesignPhotoThumb(model: model)
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: pt(2)) {
                     Text(model.photos["photo"] == nil ? "No photograph" : "The design’s photograph").font(.subheadline.weight(.medium))
                     Text("Your layouts stay; the new picture shows in them.").font(.footnote).foregroundStyle(.secondary)
                 }
@@ -360,7 +360,7 @@ private struct PageCell: View {
                 .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
             }.buttonStyle(.plain)
             Text(page.label).font(.caption2).lineLimit(1).frame(maxWidth: 96)
-            HStack(spacing: 3) {
+            HStack(spacing: pt(3)) {
                 if page.id == work.master { Image(systemName: "star.fill").imageScale(.small) }
                 Text(work.stripNote(page)).font(.caption2)
             }

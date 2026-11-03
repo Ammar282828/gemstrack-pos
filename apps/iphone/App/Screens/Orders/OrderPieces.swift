@@ -49,7 +49,7 @@ struct OrderPieceRow: View {
     // MARK: What it is
 
     private var heading: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: pt(2)) {
             if let category = OrdersLogic.categorySingular(item.itemCategory) {
                 Text(category.uppercased())
                     .font(.caption2.weight(.semibold))
@@ -171,7 +171,7 @@ struct OrderPieceRow: View {
     }
 
     private func noteBox(_ title: String, _ text: String, symbol: String, tint: Color) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: pt(2)) {
             Label(title, systemImage: symbol)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(tint)
@@ -218,7 +218,7 @@ struct OrderPieceRow: View {
     }
 
     private var breakdown: some View {
-        VStack(spacing: 2) {
+        VStack(spacing: pt(2)) {
             line("Metal", item.metalCost ?? 0, always: true)
             line("Wastage", item.wastageCost ?? 0)
             line("Making", item.makingCharges)

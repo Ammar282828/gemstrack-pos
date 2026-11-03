@@ -351,7 +351,7 @@ struct CustomerSpamSheet: View {
         if !r.failed.isEmpty {
             Section {
                 ForEach(r.failed.indices, id: \.self) { (i: Int) in
-                    VStack(alignment: .leading, spacing: 3) {
+                    VStack(alignment: .leading, spacing: pt(3)) {
                         Text(r.failed[i].name).font(.body.weight(.medium))
                         Text(r.failed[i].why).font(.caption).foregroundStyle(Tone.problem.color)
                     }

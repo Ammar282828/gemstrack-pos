@@ -190,12 +190,12 @@ struct LabelLiveSettingsScreen: View {
         Section {
             ForEach(history.prefix(20)) { e in
                 HStack {
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: pt(2)) {
                         Text(e.sku).font(.body.monospaced())
                         Text(e.message).font(.caption).foregroundStyle(.secondary).lineLimit(2)
                     }
                     Spacer()
-                    VStack(alignment: .trailing, spacing: 2) {
+                    VStack(alignment: .trailing, spacing: pt(2)) {
                         Text(ShopDate.say(e.timestamp)).font(.caption).foregroundStyle(.secondary)
                         if !e.ok { Pill("Not printed", tone: .problem) }
                     }
@@ -211,18 +211,14 @@ struct LabelLiveSettingsScreen: View {
 
     private func save() async {
         guard let config else { return }
-        saving = true
-        defer { saving = false }
         let stored = LabelLive.toStored(config)
         let patch: [String: Any] = ["labelLive": [
             "design": stored.design, "printer": stored.printer, "copies": Int(stored.copies), "hideWindow": stored.hideWindow,
             "vars": stored.vars.map { ["name": $0.name, "field": $0.field] },
         ]]
-        if await writer.save(patch) {
-            Note.show(Note(title: "Label LIVE saved"), in: $note, reduce: reduce)
-        } else {
-            problem = writer.error ?? "Not saved. Check the connection and try again."
-        }
+        // Not money: it leaves at once through the Outbox, and a refusal is said app-wide with Retry.
+        writer.queue(patch, label: "Label LIVE")
+        Note.show(Note(title: "Label LIVE saved"), in: $note, reduce: reduce)
     }
 
     /// The newest piece in stock, or made-up values when the stock is empty: what the saved set-up prints.

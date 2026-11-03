@@ -180,8 +180,8 @@ struct PostQueueEntry: Decodable, Identifiable, Hashable {
         private enum N: String, CodingKey { case site, wa }
         init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: N.self)
-            site = Int(c.double(.site, default: 0))
-            wa = Int(c.double(.wa, default: 0))
+            site = Int(clamped: c.double(.site, default: 0))
+            wa = Int(clamped: c.double(.wa, default: 0))
         }
     }
 

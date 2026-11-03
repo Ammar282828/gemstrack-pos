@@ -164,7 +164,7 @@ struct AdsOverviewScreen: View {
     private func accountSection(_ d: AdOverview) -> some View {
         Section {
             HStack {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: pt(2)) {
                     Text(d.account.name).font(.headline)
                     if let funding = d.account.funding, !funding.isEmpty {
                         Text(funding).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
@@ -416,12 +416,12 @@ struct AdsOverviewScreen: View {
             StockImage(imageUrl: a.thumbnail, name: a.name, key: a.id)
                 .frame(width: 48, height: 48)
                 .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: pt(2)) {
                 Text(a.name).lineLimit(1)
                 Text(a.campaign).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer(minLength: 8)
-            VStack(alignment: .trailing, spacing: 2) {
+            VStack(alignment: .trailing, spacing: pt(2)) {
                 Text(AdsFormat.money(a.metrics.spend, cur)).font(.subheadline.weight(.semibold)).monospacedDigit()
                     .contentTransition(.numericText(value: a.metrics.spend))
                 Text(resultLine(a, cur)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
@@ -507,7 +507,7 @@ struct AdsDailyHoverChart: View {
                             Text(AdsFormat.money(d.spend, currency)).font(.caption).monospacedDigit()
                         }
                         .padding(8)
-                        .background(Theme.card, in: .rect(cornerRadius: 8, style: .continuous))
+                        .background(Theme.card, in: .rect(cornerRadius: Radius.thumb, style: .continuous))
                         .shadow(color: .black.opacity(0.12), radius: 6, y: 2)
                     }
             }

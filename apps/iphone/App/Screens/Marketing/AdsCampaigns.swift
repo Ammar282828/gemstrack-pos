@@ -378,7 +378,7 @@ struct AdsCampaignsScreen: View {
                         }
                         .frame(width: 84)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.pressable)
                 }
             }
         }
@@ -438,7 +438,7 @@ struct AdsCampaignsScreen: View {
                     StockImage(imageUrl: ad.image, name: ad.name, key: ad.id).aspectRatio(1, contentMode: .fit).clipShape(.rect(cornerRadius: Radius.chip, style: .continuous))
                     Text(ad.name).font(.headline).foregroundStyle(.primary).fixedSize(horizontal: false, vertical: true)
                 }
-            }.buttonStyle(.plain)
+            }.buttonStyle(.pressable)
             AdsStatusBadge(status: ad.effectiveStatus)
             numbers(ad.metrics, goal: nil, before: nil, cur)
             issues(ad.issues)

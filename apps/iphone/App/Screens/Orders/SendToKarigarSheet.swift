@@ -74,7 +74,7 @@ struct SendToKarigarSheet: View {
                         Toggle(isOn: Binding(get: { ticked.contains(i) }, set: { on in
                             if on { ticked.insert(i) } else { ticked.remove(i) }
                         })) {
-                            VStack(alignment: .leading, spacing: 2) {
+                            VStack(alignment: .leading, spacing: pt(2)) {
                                 Text("\(i + 1). " + pieceTitle(order.items[i]))
                                 if order.items[i].karigarId == chosen && !chosen.isEmpty {
                                     Text("Assigned to him").font(.caption).foregroundStyle(.secondary)
@@ -82,7 +82,7 @@ struct SendToKarigarSheet: View {
                             }
                         }
                         if ticked.contains(i) {
-                            VStack(alignment: .leading, spacing: 4) {
+                            VStack(alignment: .leading, spacing: pt(4)) {
                                 TextEditor(text: Binding(get: { words(i) }, set: { edits[i] = $0 }))
                                     .font(.subheadline)
                                     .frame(minHeight: 96)

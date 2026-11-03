@@ -336,14 +336,14 @@ private struct ContactImportPage: View {
         let chosen = choices[c.id] ?? "skip"
         return VStack(alignment: .leading, spacing: pt(10)) {
             HStack(alignment: .top, spacing: pt(12)) {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: pt(2)) {
                     Text("IN THE BOOK").font(.caption2).foregroundStyle(.secondary)
                     Text(target.name).font(.subheadline.weight(.medium))
                     Text([target.phone, target.altPhone].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ").ifEmpty("no number"))
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: pt(2)) {
                     Text("ON THE PHONE").font(.caption2).foregroundStyle(.secondary)
                     Text(c.name).font(.subheadline.weight(.medium))
                     Text(c.phone ?? "no number").font(.caption).foregroundStyle(.secondary)
@@ -370,7 +370,7 @@ private struct ContactImportPage: View {
                 let off = dropped.contains(f.id)
                 HStack(spacing: pt(12)) {
                     Image(systemName: f.kind == "karigar" ? "hammer" : "person.2").foregroundStyle(.secondary)
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: pt(2)) {
                         Text(f.name).fontWeight(.medium).strikethrough(off).lineLimit(1)
                         Text("\(f.phone ?? "no number")\(f.extraPhones.isEmpty ? "" : " (+\(f.extraPhones.count) more)")")
                             .font(.caption).foregroundStyle(.secondary).lineLimit(1)

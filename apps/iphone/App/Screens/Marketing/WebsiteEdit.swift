@@ -162,7 +162,7 @@ struct WebsiteEditScreen: View {
         SectionCard("Recent changes") {
             ForEach(store.recent.prefix(15)) { (r: WebsiteEditRecent) in
                 NavigationLink(value: Route(path: WebsiteEditScreen.piecePath(r.key))) {
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: pt(2)) {
                         Text(r.name.isEmpty ? "A piece" : r.name).foregroundStyle(Theme.accent)
                         Text(WebsiteEditScreen.recentWords(r))
                             .font(.caption)

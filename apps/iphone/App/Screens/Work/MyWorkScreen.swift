@@ -101,6 +101,10 @@ struct MyWorkScreen: View {
         .task {
             await load()
             LaunchClock.finish("work")
+        }
+        // The minute timer rests when the screen is not in front or the app is not active (`whileActive`); it waits first, so
+        // coming back (below) and the timer never ask twice.
+        .whileActive {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(60))
                 if Task.isCancelled { break }
@@ -294,7 +298,7 @@ struct MyWorkScreen: View {
         let handed = given.isEmpty ? "" : " · given " + given
         let age = " · \(g.ageDays) day" + (g.ageDays == 1 ? "" : "s") + " ago"
         return HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: pt(2)) {
                 if g.isStock {
                     Text("Stock piece").font(.headline)
                 } else {
@@ -327,7 +331,7 @@ struct MyWorkScreen: View {
                     PieceGalleryRow(sources: j.photoSources, title: j.description, size: 120, all: true)
                 }
                 if let notes = j.notes, !notes.isEmpty {
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: pt(2)) {
                         Text("INSTRUCTIONS").font(.caption2).foregroundStyle(.secondary)
                         Text(notes).font(.subheadline)
                     }
@@ -373,7 +377,7 @@ struct MyWorkScreen: View {
         if !list.isEmpty {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: pt(6))], alignment: .leading, spacing: pt(6)) {
                 ForEach(list, id: \.self) { (spec: KarigarPortalRules.Spec) in
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: pt(2)) {
                         Text(spec.label.uppercased()).font(.caption2).foregroundStyle(.secondary)
                         Text(spec.value)
                             .font(.subheadline.weight(.semibold))
@@ -411,7 +415,7 @@ struct MyWorkScreen: View {
         .houseRows()
 
         Section {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: pt(2)) {
                 HeroAmount(amount: a.totalPaid)
                 Text("total paid to you").font(.caption).foregroundStyle(.secondary)
             }
@@ -426,7 +430,7 @@ struct MyWorkScreen: View {
 
     private func goldRow(_ l: KarigarPortalGoldLine) -> some View {
         HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: pt(1)) {
                 Text(KarigarPortalRules.date(l.date, shortYear: true)).font(.caption).foregroundStyle(.secondary)
                 Text(l.description).font(.subheadline)
             }
@@ -441,7 +445,7 @@ struct MyWorkScreen: View {
 
     private func paymentRow(_ p: KarigarPortalPayment) -> some View {
         HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: pt(1)) {
                 Text(KarigarPortalRules.date(p.date, shortYear: true)).font(.caption).foregroundStyle(.secondary)
                 Text(p.description).font(.subheadline)
             }

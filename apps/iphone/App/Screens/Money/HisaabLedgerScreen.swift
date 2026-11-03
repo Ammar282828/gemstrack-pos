@@ -397,7 +397,7 @@ private struct HisaabLedgerRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: pt(12)) {
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: pt(3)) {
                 Text(line.entry.description.isEmpty ? "No description" : line.entry.description)
                     .font(.body.weight(.medium))
                     .lineLimit(2)
@@ -406,7 +406,7 @@ private struct HisaabLedgerRow: View {
                     .foregroundStyle(.secondary)
             }
             Spacer(minLength: 8)
-            VStack(alignment: .trailing, spacing: 2) {
+            VStack(alignment: .trailing, spacing: pt(2)) {
                 moves
                 balances
             }

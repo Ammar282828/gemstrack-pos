@@ -30,6 +30,20 @@ settings:
     # CURRENT_PROJECT_VERSION is House.xcconfig's (scripts/house.mjs): Xcode Cloud's build number there.
     TARGETED_DEVICE_FAMILY: "1,2"
     ENABLE_USER_SCRIPT_SANDBOXING: YES
+  configs:
+    # The release (archive, TestFlight; iPhone, iPad and Mac) is built for speed and size, stated here instead of left to
+    # Xcode's defaults (2026-11-03, "precompile for a hassle-free startup": Swift is ahead-of-time, so the launch is won by
+    # what the compiler is told). Debug (tests, the CI compile check) keeps Xcode's own: unoptimised, testable.
+    Release:
+      SWIFT_OPTIMIZATION_LEVEL: "-O"
+      SWIFT_COMPILATION_MODE: wholemodule
+      GCC_OPTIMIZATION_LEVEL: s
+      DEAD_CODE_STRIPPING: YES
+      ENABLE_TESTABILITY: NO
+      ENABLE_NS_ASSERTIONS: NO
+      STRIP_INSTALLED_PRODUCT: YES
+      # Symbols stay in the .dSYM, so MetricKit's "Binary+offset" frames (Support/Diagnostics.swift) can be read.
+      DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
 targets:
   App:
     type: application

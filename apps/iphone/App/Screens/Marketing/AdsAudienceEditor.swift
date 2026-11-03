@@ -167,7 +167,7 @@ struct AdsAudienceSheet: View {
             }
             ForEach(hits) { (h: AdsPlace) in
                 Button { add(h) } label: {
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: pt(2)) {
                         Text(h.name).foregroundStyle(.primary)
                         Text([h.detail ?? "", h.type].filter { (s: String) in !s.isEmpty }.joined(separator: " · "))
                             .font(.caption).foregroundStyle(.secondary)
@@ -180,7 +180,7 @@ struct AdsAudienceSheet: View {
     private func placeRow(_ p: AdsPlace) -> some View {
         HStack(spacing: pt(10)) {
             Image(systemName: p.type == "pin" ? "mappin.and.ellipse" : "mappin").foregroundStyle(Theme.accent)
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: pt(2)) {
                 Text(p.name)
                 if let d = p.detail, !d.isEmpty { Text(d).font(.caption).foregroundStyle(.secondary) }
             }
@@ -349,7 +349,7 @@ struct AdsAudienceSheet: View {
                     if !on { draft.interests.append(AdsNamed(id: h.id, name: h.name)) }
                 } label: {
                     HStack(spacing: pt(8)) {
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: pt(2)) {
                             Text(h.name).foregroundStyle(.primary)
                             if let path = h.path, !path.isEmpty { Text(path).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
                         }

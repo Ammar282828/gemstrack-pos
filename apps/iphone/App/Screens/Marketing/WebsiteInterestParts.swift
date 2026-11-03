@@ -161,7 +161,7 @@ extension SiteChartSection {
         }
         .padding(8)
         .frame(minWidth: 130)
-        .background(Theme.card, in: .rect(cornerRadius: 8, style: .continuous))
+        .background(Theme.card, in: .rect(cornerRadius: Radius.thumb, style: .continuous))
         .shadow(color: .black.opacity(0.12), radius: 6, y: 2)
     }
 }

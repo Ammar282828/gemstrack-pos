@@ -195,7 +195,7 @@ struct AlertConnectionSections: View {
                     .fill(checking || health == nil ? Color.secondary : (health?.ok == true ? Tone.settled.color : Tone.problem.color))
                     .frame(width: 8, height: 8)
                     .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: pt(2)) {
                     Text(statusLine).font(.body.weight(.medium))
                     if let detail = health?.detail, !detail.isEmpty {
                         Text(detail).font(.caption).foregroundStyle(.secondary)
@@ -270,7 +270,7 @@ struct AlertConnectionSections: View {
                 let on = settings[keyPath: r.toggle]
                 let last = on && runs != nil ? AlertReport.lastLine(runs?[r.id]) : nil
                 HStack(alignment: .firstTextBaseline, spacing: pt(12)) {
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: pt(2)) {
                         Text(r.title)
                         Text(r.when(settings) + (on ? "" : " · off"))
                             .font(.caption).foregroundStyle(.secondary)

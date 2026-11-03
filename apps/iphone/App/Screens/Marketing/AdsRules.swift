@@ -195,7 +195,7 @@ struct AdsRulesScreen: View {
             ForEach(data?.kinds ?? []) { (k: AdsHinted) in
                 Button { kind = k.key } label: {
                     HStack(alignment: .top, spacing: pt(10)) {
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: pt(2)) {
                             Text(k.label).foregroundStyle(.primary)
                             Text(k.hint).font(.caption).foregroundStyle(.secondary)
                         }
@@ -238,7 +238,7 @@ struct AdsRulesScreen: View {
                 }
                 ForEach(data.rules) { (r: AdsRuleRow) in
                     HStack(spacing: pt(10)) {
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: pt(2)) {
                             Text(r.name)
                             Text(r.summary).font(.caption).foregroundStyle(.secondary)
                         }
@@ -284,7 +284,7 @@ struct AdsRulesScreen: View {
                     Text("Nothing yet.").foregroundStyle(.secondary)
                 }
                 ForEach(data.log) { (r: AdsLogRow) in
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: pt(2)) {
                         Text(r.words(currency)).font(.subheadline.weight(.medium))
                         Text([ShopDate.say(r.at, withTime: true), r.name ?? r.target ?? "", r.by].filter { (s: String) in !s.isEmpty }.joined(separator: " · "))
                             .font(.caption)

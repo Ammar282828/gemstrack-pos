@@ -31,7 +31,7 @@ struct NewOrderPieceRow: View {
             Text("#\(number)")
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: pt(2)) {
                 Text(title.isEmpty ? "Untitled piece" : title)
                     .foregroundStyle(title.isEmpty ? Color.secondary : Color.primary)
                     .lineLimit(1)

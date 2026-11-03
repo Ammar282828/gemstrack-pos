@@ -148,7 +148,7 @@ struct MarketingLink: View {
 
     private var label: some View {
         Label {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: pt(2)) {
                 Text(title)
                 if let subtitle, !subtitle.isEmpty {
                     Text(subtitle).font(.subheadline).foregroundStyle(.secondary)

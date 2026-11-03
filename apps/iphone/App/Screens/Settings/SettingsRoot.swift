@@ -105,7 +105,7 @@ struct SettingsRoot: View {
                     .foregroundStyle(Theme.onAccent)
             }
             .frame(width: 56, height: 56)
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: pt(2)) {
                 Text(name).font(.headline).lineLimit(1)
                 if session.shop.person != nil, !email.isEmpty {
                     Text(email).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)

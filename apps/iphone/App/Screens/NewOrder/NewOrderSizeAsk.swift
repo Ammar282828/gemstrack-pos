@@ -47,7 +47,7 @@ struct NewOrderSizeAskSheet: View {
                 Section {
                     ForEach(ask.rows) { row in
                         Toggle(isOn: isChosen(row)) {
-                            VStack(alignment: .leading, spacing: 2) {
+                            VStack(alignment: .leading, spacing: pt(2)) {
                                 Text("\(row.field.label): \(row.value)")
                                 Text(words(row)).font(.footnote).foregroundStyle(.secondary)
                             }

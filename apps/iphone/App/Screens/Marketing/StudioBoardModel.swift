@@ -166,7 +166,7 @@ final class StudioBoardModel {
         if ticks % 2 == 0 || force { await loadList() }
         guard !current.isEmpty, !House.isDemo, pending == 0 || force else { return }
         if force { await load(); return }
-        let asked = generation, id = current, rev = Int(value.n("rev"))
+        let asked = generation, id = current, rev = Int(clamped: value.n("rev"))
         do {
             let r = try await MarketingRequest.get("/api/ads/studio/boards/" + AdsQuery.escape(id) + "?since=\(rev)")
             guard asked == generation, pending == 0, r["board"] != .null else { return }
@@ -521,7 +521,7 @@ final class StudioBoardModel {
             let asked = generation, board = current
             for f in frames {
                 guard asked == generation else { return }
-                let id = f.s("id"), rev = Int(f.n("rev"))
+                let id = f.s("id"), rev = Int(clamped: f.n("rev"))
                 if pictureRevs[id] == rev && (f["doc"] == .null || Int(drawn[id] ?? -1) == rev || sendingView[id] == rev) { continue }
                 do {
                     let set = try await photoSet(f)
@@ -671,7 +671,7 @@ final class StudioBoardModel {
                 do {
                     let doc = try await layOut(f, photos: [:])
                     let shown = try await engine.run(doc: doc, photos: [:], fields: fields(f), options: ["px": Self.showPx, "quality": 0.86])
-                    if let image = NativeArtwork.image(shown) { pictures[f.s("id")] = image; pictureRevs[f.s("id")] = Int(f.n("rev")) }
+                    if let image = NativeArtwork.image(shown) { pictures[f.s("id")] = image; pictureRevs[f.s("id")] = Int(clamped: f.n("rev")) }
                 } catch { problems[f.s("id")] = error.localizedDescription }
             }
         }

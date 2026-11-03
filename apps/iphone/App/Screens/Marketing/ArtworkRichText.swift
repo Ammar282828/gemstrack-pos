@@ -167,7 +167,7 @@ struct ArtworkRunsRows: View {
                     ForEach(Array(wordTokens.enumerated()), id: \.offset) { pair in
                         let on = picked.contains(pair.offset)
                         Button { toggleWord(pair.offset) } label: {
-                            Text(pair.element.text).padding(.horizontal, 8).padding(.vertical, 5)
+                            Text(pair.element.text).padding(.horizontal, pt(8)).padding(.vertical, pt(5))
                                 .background(on ? Theme.accent : Color(uiColor: .secondarySystemFill), in: Capsule())
                                 .foregroundStyle(on ? Theme.onAccent : Color.primary)
                         }.buttonStyle(.borderless)
@@ -228,7 +228,7 @@ struct ArtworkRunsRows: View {
             ForEach(Array(runs.enumerated()), id: \.offset) { pair in
                 let r = pair.element
                 HStack {
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: pt(2)) {
                         Text((words as NSString).substring(with: NSRange(location: r.from, length: r.to - r.from))).lineLimit(1)
                         Text(summary(r)).font(.footnote).foregroundStyle(.secondary)
                     }
@@ -394,7 +394,7 @@ struct ArtworkGradientRows: View {
                             .frame(minWidth: Metrics.tap, minHeight: Metrics.tap).contentShape(Rectangle())
                     }.buttonStyle(.borderless).accessibilityLabel("Stop \(pair.offset + 1)")
                 }
-            }.padding(.vertical, 2)
+            }.padding(.vertical, pt(2))
         }
         Text("Stop \(at + 1) of \(stops.count)").font(.footnote).foregroundStyle(.secondary)
         ArtworkColour(title: "Stop colour", hex: stops[at].color, fallback: .white) { c in fold("g-colour") { setStop { $0.color = c } } }

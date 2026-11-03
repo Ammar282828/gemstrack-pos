@@ -289,7 +289,7 @@ struct DesignLayerReviewCard: View {
                 .font(.footnote).foregroundStyle(.secondary)
             ForEach(plan["layers"].array, id: \.text) { l in
                 Toggle(isOn: Binding(get: { keep.contains(l.s("id")) }, set: { on in if on { keep.insert(l.s("id")) } else { keep.remove(l.s("id")) } })) {
-                    VStack(alignment: .leading, spacing: 1) {
+                    VStack(alignment: .leading, spacing: pt(1)) {
                         Text(l.s("text")).font(.subheadline).lineLimit(2)
                         Text(l.s("role")).font(.caption2).foregroundStyle(.secondary)
                     }
@@ -459,7 +459,7 @@ struct DesignSettingSheet: View {
                     ForEach(scenes, id: \.text) { s in
                         Button { sceneId = s.s("id"); custom = "" } label: {
                             HStack {
-                                VStack(alignment: .leading, spacing: 2) {
+                                VStack(alignment: .leading, spacing: pt(2)) {
                                     Text(s.s("label")).foregroundStyle(.primary)
                                     Text(s.s("suits")).font(.caption).foregroundStyle(.secondary)
                                 }

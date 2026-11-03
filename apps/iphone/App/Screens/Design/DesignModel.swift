@@ -453,7 +453,7 @@ struct DesignRecord: Identifiable, Equatable {
         copy = strings(v["copy"])
         pages = v["pages"].array.map { p in
             Page(id: p.s("id"), label: p.s("label"), format: p.s("format", "square"), w: p["frame"].n("w", 1080), h: p["frame"].n("h", 1080),
-                 origin: p.s("origin", "master"), syncedFrom: p.s("syncedFrom").isEmpty ? nil : p.s("syncedFrom"), rev: Int(p.n("rev")))
+                 origin: p.s("origin", "master"), syncedFrom: p.s("syncedFrom").isEmpty ? nil : p.s("syncedFrom"), rev: Int(clamped: p.n("rev")))
         }
         master = v.s("master")
         var f: [String: Int] = [:]

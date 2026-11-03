@@ -119,7 +119,7 @@ struct DesignPublishSheet: View {
                 Label("Every connection is fine", systemImage: "checkmark.circle").font(.subheadline).foregroundStyle(Tone.settled.color)
             } else {
                 ForEach(failing, id: \.text) { c in
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: pt(2)) {
                         Label(c.s("label"), systemImage: "xmark.circle").font(.subheadline.weight(.medium)).foregroundStyle(Tone.problem.color)
                         if !c.s("fix").isEmpty { Text(c.s("fix")).font(.footnote).foregroundStyle(.secondary) }
                     }
@@ -128,7 +128,7 @@ struct DesignPublishSheet: View {
             if !p.checks.isEmpty {
                 DisclosureGroup("Every check") {
                     ForEach(p.checks, id: \.text) { c in
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: pt(2)) {
                             Label(c.s("label"), systemImage: c.s("status") == "ok" ? "checkmark.circle" : "exclamationmark.triangle").font(.footnote)
                             Text(c.s("detail")).font(.caption).foregroundStyle(.secondary)
                         }.padding(.vertical, pt(2))
@@ -199,7 +199,7 @@ struct DesignPublishSheet: View {
                     }.pickerStyle(.menu)
                 }
                 if p.renaming || p.isMaison {
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: pt(2)) {
                         Text(p.isMaison ? "Official name, as the house names it" : "Name on the website").font(.caption).foregroundStyle(.secondary)
                         TextField(p.work?.fields["headline"] ?? p.work?.displayName ?? "", text: bind(\.siteName))
                             .padding(.horizontal, pt(12)).padding(.vertical, pt(8))
@@ -351,7 +351,7 @@ struct DesignPublishSheet: View {
                 VStack(alignment: .leading, spacing: pt(6)) {
                     HStack(alignment: .firstTextBaseline, spacing: pt(8)) {
                         icon(st.status).motion(st.status)
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: pt(2)) {
                             Text(s.label).font(.subheadline)
                             if let e = st.error { Text(e).font(.footnote).foregroundStyle(Tone.problem.color) }
                         }

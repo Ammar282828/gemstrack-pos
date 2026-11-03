@@ -70,7 +70,7 @@ struct OrderCardRows: View {
             NavigationLink(value: Route(path: "/orders/\(order.id)")) {
                 OrderCardHead(order: order, stage: stage, owed: owed, now: now, greyed: greyed, mine: mine, showsStage: showsStage)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.pressable)
             .zoomSource(id: "/orders/\(order.id)")
         } footer: {
             RecordCardFooter(label: "Actions for \(order.id)") {

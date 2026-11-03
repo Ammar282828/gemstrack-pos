@@ -205,7 +205,7 @@ struct TagScanner: View {
             .padding(.horizontal, 12)
             // A photo of a tag dropped here is read; the dashed edge says where.
             .overlay {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                RoundedRectangle(cornerRadius: Radius.thumb, style: .continuous)
                     .strokeBorder(.tertiary, style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
             }
             .contentShape(Rectangle())

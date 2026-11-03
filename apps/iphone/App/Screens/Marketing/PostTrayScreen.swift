@@ -518,7 +518,7 @@ struct PostTrayCardSections: View {
             if let failed = card.failed {
                 Label("Didn't go: \(failed)", systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color)
             }
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: pt(2)) {
                 Text(p.name).font(.headline)
                 Text([p.collection, p.weightGrams.map { (g: Double) in WebsiteNumber.grams(g) + "g" } ?? ""].filter { !$0.isEmpty }.joined(separator: " · "))
                     .font(.subheadline).foregroundStyle(.secondary)

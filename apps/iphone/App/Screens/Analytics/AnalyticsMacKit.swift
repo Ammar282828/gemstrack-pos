@@ -37,7 +37,7 @@ struct MacChartReadout: ViewModifier {
                             .font(.caption.weight(.medium))
                             .monospacedDigit()
                             .padding(.horizontal, 8).padding(.vertical, 4)
-                            .background(.regularMaterial, in: .rect(cornerRadius: 6))
+                            .background(.regularMaterial, in: .rect(cornerRadius: Radius.thumb, style: .continuous))
                             .fixedSize()
                             .offset(x: min(max(plot.minX, plot.minX + x + 8), max(plot.minX, geo.size.width - 190)), y: plot.minY)
                             .allowsHitTesting(false)

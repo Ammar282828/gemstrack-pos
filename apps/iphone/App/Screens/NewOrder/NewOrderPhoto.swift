@@ -58,7 +58,7 @@ struct NewOrderSampleField: View {
                             tile(source, at: i, of: list.count)
                         }
                     }
-                    .padding(.vertical, 2)
+                    .padding(.vertical, pt(2))
                 }
             }
             if room > 0 {
@@ -136,7 +136,7 @@ struct NewOrderSampleField: View {
                         .symbolRenderingMode(.palette)
                         .foregroundStyle(.white, .black.opacity(0.55))
                         .font(.title3)
-                        .padding(3)
+                        .padding(pt(3))
                 }
                 .menuStyle(.button)
                 .buttonStyle(.plain)

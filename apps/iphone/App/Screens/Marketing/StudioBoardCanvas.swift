@@ -84,7 +84,7 @@ struct StudioBoardCanvas: View {
                 if chosen {
                     // A light edge under the house's colour, so the outline reads on a dark design and a light one.
                     Rectangle().strokeBorder(.white.opacity(0.9), lineWidth: 4)
-                        .overlay(Rectangle().strokeBorder(Theme.accent, style: StrokeStyle(lineWidth: 2, dash: locked ? [6, 4] : [])).padding(1))
+                        .overlay(Rectangle().strokeBorder(Theme.accent, style: StrokeStyle(lineWidth: 2, dash: locked ? [6, 4] : [])).padding(pt(1)))
                 }
             }
             // Handles sit just outside the box, so they never cover the words or the line above them.

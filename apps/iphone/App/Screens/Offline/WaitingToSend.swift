@@ -108,7 +108,7 @@ struct WaitingToSendSheet: View {
     private func row(_ item: Outbox.Item) -> some View {
         VStack(alignment: .leading, spacing: pt(6)) {
             HStack(alignment: .firstTextBaseline, spacing: pt(8)) {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: pt(2)) {
                     Text(item.label).font(.headline)
                     if let s = item.summary, !s.detail.isEmpty || s.amount != nil {
                         Text([s.detail, s.amount.map { Money.pkr($0) } ?? ""].filter { !$0.isEmpty }.joined(separator: " · "))

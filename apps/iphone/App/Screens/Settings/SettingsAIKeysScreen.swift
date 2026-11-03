@@ -262,7 +262,7 @@ private struct AIKeysPage: View {
                     Toggle(isOn: Binding(get: { picked.contains(s.id) }, set: { on in
                         if on { picked.insert(s.id) } else { picked.remove(s.id) }
                     })) {
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: pt(2)) {
                             Text(s.label)
                             Text(s.detail).font(.caption).foregroundStyle(.secondary)
                         }

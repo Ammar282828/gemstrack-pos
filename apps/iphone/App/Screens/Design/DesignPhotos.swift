@@ -167,7 +167,7 @@ struct DesignLibraryPhotos: View {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: DesignPhotoGrid.cell), spacing: pt(10))], spacing: pt(10)) {
                         ForEach(rows, id: \.text) { item in
                             Button { onPick(DesignPhotoSources.library(item)) } label: {
-                                PieceCell(name: item.s("name"), sub: item["adScore"] == .null ? item.s("collection") : "Ad score \(Int(item.n("adScore")))", thumb: item.s("thumb"))
+                                PieceCell(name: item.s("name"), sub: item["adScore"] == .null ? item.s("collection") : "Ad score \(Int(clamped: item.n("adScore")))", thumb: item.s("thumb"))
                             }.buttonStyle(.plain)
                                 .designPieceMenu { onPick(DesignPhotoSources.library(item)) }
                         }
@@ -194,7 +194,7 @@ struct DesignLibraryPhotos: View {
             let r = try await MarketingRequest.get(path)
             guard !Task.isCancelled else { return }
             rows = more ? rows + r["items"].array : r["items"].array
-            total = Int(r.n("total"))
+            total = Int(clamped: r.n("total"))
             error = nil
         } catch { if !Task.isCancelled { self.error = error.localizedDescription } }
         loaded = true
@@ -425,7 +425,7 @@ extension DesignLibraryPhotos {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 150, maximum: 220), spacing: 14, alignment: .top)], spacing: 14) {
                 ForEach(list) { (item: DesignPhotosMacItem) in
                     designPhotosMacCell(item, name: item.value.s("name"),
-                                        sub: item.value["adScore"] == .null ? item.value.s("collection") : "Ad score \(Int(item.value.n("adScore")))",
+                                        sub: item.value["adScore"] == .null ? item.value.s("collection") : "Ad score \(Int(clamped: item.value.n("adScore")))",
                                         thumb: item.value.s("thumb"), on: chosen == item.id)
                         .onTapGesture { chosen = item.id; galleryFocus = true }
                         .simultaneousGesture(TapGesture(count: 2).onEnded { onPick(DesignPhotoSources.library(item.value)) })
