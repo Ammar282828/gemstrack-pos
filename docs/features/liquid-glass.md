@@ -47,3 +47,14 @@ a capsule in both looks, so the glass rule that made `h-11`/`h-12` buttons 0.875
 `justify-start`, keeps the field's corner). A phone dialog is a bottom sheet in Standard (`.dialog-sheet`, `body.app-look`, grabber,
 the sheet curve) and stays the floating inset window under glass. The phone's bottom tab bar (WP-C) takes the `.glass-bar` recipe
 here, inset 0.75rem with a capsule behind the lit tab; in Standard it is `bg-card/90 backdrop-blur-xl` with a hairline.
+
+**Cards are glass too** (2026-11-03, owner: "also for the UI and cards — search and add glassmorphism"; this reopens the "never on
+content" line above on the owner's say-so). Two weights, all in `src/app/glass-cards.css` under `html.ui-glass`, Standard untouched:
+`.glass-card` is true glass (blur 16 px, saturate, the popover colour at low alpha, a masked specular ring) for the few cards a page
+shows — Home's hero and figure tiles, KPI tiles (Insights, Shopify, Ads, Today), the customer and order header cards, Analytics' cards;
+`.glass-lite` (translucent card colour, hairline and top highlight, no blur — a blur is paid per element per frame, so dozens of rows
+would jank) is every other `.card` and row card automatically, and anything inside a `.cv-list`, a dialog, sheet, popover, bar or
+another glass card (never glass in glass). The ground is a static mesh of the house colours so the glass has something to show
+through. Reduce Transparency, Increase Contrast and no `backdrop-filter` get the solid card. iPhone/iPad/Mac: the same two weights
+(`.glassCard()` in a `GlassEffectContainer`, `.glassRow()`), Android: a backdrop-blur on the same few surfaces. Judged on a mock
+page at 1280 dark and 390 light; the real routes and a real phone's scroll are still to see.

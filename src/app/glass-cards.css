@@ -61,8 +61,9 @@ html.ui-glass.ui-glass body::before {
 }
 html.ui-glass.ui-glass.dark body::before {
   background-image:
-    radial-gradient(52rem 38rem at 6% -8%, hsl(var(--primary) / 0.34), transparent 62%),
-    radial-gradient(46rem 34rem at 98% 20%, hsl(var(--chart-2) / 0.24), transparent 62%),
+    radial-gradient(52rem 38rem at 6% -8%, hsl(var(--primary) / 0.4), transparent 62%),
+    radial-gradient(46rem 34rem at 98% 30%, hsl(var(--chart-2) / 0.3), transparent 62%),
+    radial-gradient(38rem 30rem at 22% 62%, hsl(var(--primary) / 0.16), transparent 62%),
     radial-gradient(54rem 38rem at 40% 108%, hsl(var(--chart-3) / 0.2), transparent 62%),
     radial-gradient(40rem 30rem at 62% 46%, hsl(var(--foreground) / 0.04), transparent 60%);
 }
