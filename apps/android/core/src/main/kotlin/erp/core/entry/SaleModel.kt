@@ -105,6 +105,9 @@ class SaleLine(
     var silverRatePerGram: Double? = null,
     var shopifyProductId: String? = null,
     var shopifyVariantId: String? = null,
+    /** A catalogue picture (https) picked to print beside the piece on the bill, and whether to print one. */
+    var referenceImage: String? = null,
+    var printReference: Boolean = false,
 ) {
     val id: String get() = sku
 
@@ -113,6 +116,7 @@ class SaleLine(
         secondaryMetalWeightG, hasStones, stoneWeightG, wastagePercentage, makingCharges, hasDiamonds, diamondCharges,
         stoneCharges, miscCharges, imageUrl, stoneDetails, diamondDetails, isCustomPrice, customPrice, billDescription,
         size, platingType, platingNote, nickelFree, silverRatePerGram, shopifyProductId, shopifyVariantId,
+        referenceImage, printReference,
     )
 
     /** What the rules price (`PricedPiece(product)` for a piece in stock, with this sale's edits). */
@@ -187,6 +191,9 @@ class SaleLine(
         if (rate != null && rate > 0) o["silverRatePerGram"] = rate
         put("shopifyProductId", shopifyProductId)
         put("shopifyVariantId", shopifyVariantId)
+        put("referenceImage", referenceImage)
+        // The iPhone always sends the flag; until its contract file is rewritten with it, only a set flag is sent (the ERP reads a missing one as off).
+        if (printReference) o["printReference"] = true
         return o
     }
 
@@ -223,6 +230,8 @@ class SaleLine(
         silverRatePerGram?.let { o["silverRatePerGram"] = it }
         shopifyProductId?.let { o["shopifyProductId"] = it }
         shopifyVariantId?.let { o["shopifyVariantId"] = it }
+        referenceImage?.let { o["referenceImage"] = it }
+        if (printReference) o["printReference"] = true
         return o
     }
 
@@ -341,6 +350,8 @@ class SaleLine(
                 silverRatePerGram = c.double("silverRatePerGram"),
                 shopifyProductId = c.string("shopifyProductId"),
                 shopifyVariantId = c.string("shopifyVariantId"),
+                referenceImage = c.string("referenceImage"),
+                printReference = c.bool("printReference", false),
             )
         }
     }
@@ -682,6 +693,8 @@ class SaleLineFields(l: SaleLine) {
     var silverRate: String = SaleNumber.text(l.silverRatePerGram)
     var fixed: Boolean = l.isCustomPrice
     var customPrice: String = SaleNumber.text(l.customPrice)
+    var referenceImage: String? = l.referenceImage
+    var printReference: Boolean = l.printReference
 
     private fun nilIfBlank(s: String): String? {
         val t = swiftTrimNewlines(s)
@@ -717,6 +730,8 @@ class SaleLineFields(l: SaleLine) {
         out.silverRatePerGram = if (silver && rate > 0) rate else null
         out.isCustomPrice = fixed
         out.customPrice = if (fixed) SaleNumber.value(customPrice) else null
+        out.referenceImage = nilIfBlank(referenceImage ?: "")
+        out.printReference = printReference
         return out
     }
 }

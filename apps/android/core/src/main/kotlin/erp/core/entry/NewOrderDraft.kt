@@ -33,7 +33,10 @@ class NewOrderPieceDraft(
     var metal: String = EntryHouse.metal,
     var karat: String = "21k",
     var weight: String = "",
-    /** A new piece is priced from the rate with stones counted: that is almost every piece here. */
+    /**
+     * The class default stays on (the contract file the iPhone wrote holds the cases it priced with stones counted); a piece the
+     * person adds is made with [blankPiece], where "Add stone details" is off (owner, 2026-11-03).
+     */
     var hasStones: Boolean = true,
     var stoneWeight: String = "",
     var stoneDetails: String = "",
@@ -66,13 +69,18 @@ class NewOrderPieceDraft(
     var extras: MutableList<NewOrderExtraPhoto> = mutableListOf(),
     /** The piece had more pictures on file, so an emptied list is sent as [] and clears them. */
     var hadExtras: Boolean = false,
+    /** A catalogue picture (https) picked to print on the bill; null when none. Without one, [printReference] prints the piece's own first photo. */
+    var referenceImage: String? = null,
+    var printReference: Boolean = false,
+    /** The order on file had a catalogue picture, so taking it off sends null. */
+    var hadReference: Boolean = false,
 ) {
     /** A copy of this piece (Swift's struct copy), with its own id unless kept. */
     fun copy(): NewOrderPieceDraft = NewOrderPieceDraft(
         id, category, description, metal, karat, weight, hasStones, stoneWeight, stoneDetails, hasDiamonds, diamond,
         diamondDetails, wastage, making, stones, size, platingType, platingNote, nickelFree, karigarId, referenceSku,
         sampleGiven, isCompleted, samplePhotoId, sampleImageDataUri, removePhoto, manual, manualPrice, adminNote,
-        photo?.copyOf(), extras.map { it.copy() }.toMutableList(), hadExtras,
+        photo?.copyOf(), extras.map { it.copy() }.toMutableList(), hadExtras, referenceImage, printReference, hadReference,
     )
 
     /**
@@ -127,6 +135,9 @@ class NewOrderPieceDraft(
         photo?.let { o["photo"] = base64(it) }
         if (extras.isNotEmpty()) o["extras"] = extras.map { it.toMap() }
         o["hadExtras"] = hadExtras
+        referenceImage?.let { o["referenceImage"] = it }
+        if (printReference) o["printReference"] = true
+        if (hadReference) o["hadReference"] = true
         return o
     }
 
@@ -175,6 +186,9 @@ class NewOrderPieceDraft(
                     // A picture left out of the draft is gone, not an empty slot.
                     .filter { it.storedId != null || it.data != null }.toMutableList(),
                 hadExtras = c.bool("hadExtras", false),
+                referenceImage = c.string("referenceImage"),
+                printReference = c.bool("printReference", false),
+                hadReference = c.bool("hadReference", false),
             )
         }
     }

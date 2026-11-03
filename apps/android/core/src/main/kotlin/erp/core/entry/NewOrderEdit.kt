@@ -121,7 +121,8 @@ fun NewOrderPieceDraft.Companion.onFile(item: OrderItem): NewOrderPieceDraft {
     val kept = item.karat?.rawValue ?: ""
     p.karat = if (karats.isEmpty()) kept else (if (karats.contains(kept)) kept else (if (karats.contains("21k")) "21k" else (karats.lastOrNull() ?: "")))
     p.weight = NewOrderFormat.boxText(item.estimatedWeightG, digits = 3)
-    p.hasStones = item.hasStones
+    // The switch opens whenever there is stone data to show ("Add stone details" is off only for a piece that has none).
+    p.hasStones = item.hasStones || item.stoneWeightG > 0 || NewOrderFormat.trim(item.stoneDetails ?: "").isNotEmpty()
     p.stoneWeight = NewOrderFormat.boxText(item.stoneWeightG, digits = 3)
     p.stoneDetails = item.stoneDetails ?: ""
     p.hasDiamonds = item.hasDiamonds
@@ -153,6 +154,9 @@ fun NewOrderPieceDraft.Companion.onFile(item: OrderItem): NewOrderPieceDraft {
     p.manual = item.isManualPrice
     p.manualPrice = if (item.isManualPrice) NewOrderFormat.rupeeBox(item.manualPrice) else ""
     p.adminNote = item.adminNote ?: ""
+    p.referenceImage = item.referenceImage
+    p.printReference = item.printReference ?: false
+    p.hadReference = !(item.referenceImage ?: "").isEmpty()
     return p
 }
 

@@ -3,6 +3,7 @@ package erp.app.screens.invoices
 import erp.app.ui.animatedItem
 import erp.app.nav.LocalFabClearance
 import erp.app.ui.icons.Symbols
+import erp.app.screens.offline.pendingRecords
 import erp.app.ui.SearchBarField
 import erp.app.ui.appearOnce
 import erp.app.ui.AppClock
@@ -137,6 +138,8 @@ fun InvoicesList() {
     val customers by rememberShelf(book.customers)
     val connectionLost by Connection.isOffline.collectAsStateWithLifecycle()
     val note = LocalNoteState.current
+    // Sales taken with no line, kept on this phone until the ERP has them: "Waiting to send" at the top.
+    val pendingSales = erp.app.screens.offline.rememberPendingRecords(session.business, "invoice")
     val byCustomer = session.shop.invoiceByCustomer
     val canPay = InvoiceFacts.mayTakePayments(session.role)
 
@@ -213,7 +216,8 @@ fun InvoicesList() {
                         scoped = scoped, chip = chip, onChip = { chip = it },
                         caption = if (filterOn) InvoicesListRules.caption(filter, chip) else null, onClear = ::clearFilters,
                     )
-                    if (groups.isEmpty()) {
+                    pendingRecords(pendingSales)
+                    if (groups.isEmpty() && pendingSales.isEmpty()) {
                         item(span = FULL_WIDTH) {
                             EmptyState(InvoicesListRules.filtering(filter, chip), onClear = { search = ""; clearFilters() }, onNewSale = { navigator.open("/invoices/new") })
                         }

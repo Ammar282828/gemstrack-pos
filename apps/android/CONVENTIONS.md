@@ -24,6 +24,12 @@ iPhone app, `apps/iphone` (read `apps/iphone/CONVENTIONS.md` too: its rules hold
    `ErpApi.shared.write(op, fields)` (`/api/app/write`) with **exactly the iPhone's payloads** (same op names, field
    names, types, rounding) — read the Swift call site and match it key for key. Other ERP routes go through
    `ErpApi.shared.send/get/post/data`, the same paths and bodies as the iPhone.
+   **Offline (2026-11-03):** money writes are awaited, except the creations and payments in `OutboxEngine.queueableOps` (createOrder,
+   createInvoice, recordPayment, recordOrderAdvance, addRepair, recordRepairPayment, addExpense, the hisaab/shareholder/extra-revenue
+   entries and plain updates): with no line `ErpApi.write` keeps them on the phone under the request name of the first tap
+   (`Outbox.queueForLater`, stamped `clientAt`) and answers `{queued: true}` (`ErpApi.wasQueued`: a screen that needs the new record's
+   number checks it first). Deletes, refunds, settlements and finalising say "Needs a connection" (`ErpApi.Failure.needsConnection`).
+   GET answers are kept by `ReadCache` and served when the line is gone.
 2. **Parity with the iPhone.** Each Swift screen, sheet, action, menu item, empty state, error and word has its
    Compose counterpart. Port pure screen logic (`*Logic.swift`, `*Model.swift`, `*Figures.swift`) as plain Kotlin in
    the group's folder with JVM unit tests (port the Swift tests where they exist). Where the iPhone opens the ERP's

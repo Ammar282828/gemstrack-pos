@@ -59,6 +59,10 @@ import erp.app.ui.PickerRow
 import erp.app.ui.FieldRow
 import erp.app.ui.FormSection
 import erp.app.ui.FullScreenSheet
+import erp.app.screens.neworder.DescribeSuggestions
+import erp.app.screens.neworder.ReferencePrintRows
+import erp.app.screens.neworder.WastageChips
+import erp.app.screens.neworder.WastagePicks
 
 /**
  * Every attribute of a line on the sale, not only its price (components/cart/edit-cart-item-dialog.tsx): the name,
@@ -106,7 +110,7 @@ internal fun SaleLineEditor(line: SaleLine, rates: PricingRates, onApply: (SaleL
                     SizeSection(fields, rev, ::edit)
                     PriceSection(fields, rev, ::edit)
                     StonesSection(fields, rev, ::edit)
-                    BillSection(fields, rev, ::edit)
+                    BillSection(fields, line, rev, ::edit)
                     TotalSection(preview, create)
                 }
             },
@@ -140,6 +144,8 @@ private fun PieceSection(f: SaleLineFields, create: Boolean, rev: Int, edit: (Sa
         }
         PickerRow("Category", f.categoryId, categories) { v -> edit { categoryId = v } }
         FieldRow("Item name", f.name, { v -> edit { name = v } }, placeholder = "What is being sold", capitalization = KeyboardCapitalization.Words)
+        // What this shop has already written for this category, and its stone combos: tap to fill.
+        DescribeSuggestions(f.name, f.categoryId) { t -> edit { name = t } }
         val metals = METAL_TYPES.map { it.rawValue to metalLabel(it) }.let { m ->
             if (METAL_TYPES.none { it.rawValue == f.metalType }) m + (f.metalType to f.metalType) else m
         }
@@ -242,14 +248,22 @@ private fun PriceSection(f: SaleLineFields, rev: Int, edit: (SaleLineFields.() -
             if (silver) {
                 NumberRow("Rate per gram (PKR)", f.silverRate, { v -> edit { silverRate = v } }, prompt = "e.g. 150")
             } else {
-                NumberRow("Wastage (%)", f.wastage, { v -> edit { wastage = v } })
+                WastageRows(f, edit)
             }
             NumberRow("Making (PKR)", f.making, { v -> edit { making = v } }, rupees = true)
             NumberRow("Stones (PKR)", f.stoneCharges, { v -> edit { stoneCharges = v } }, rupees = true)
             NumberRow("Misc (PKR)", f.miscCharges, { v -> edit { miscCharges = v } }, rupees = true)
-            if (silver) NumberRow("Wastage (%)", f.wastage, { v -> edit { wastage = v } })
+            if (silver) WastageRows(f, edit)
         }
     }
+}
+
+/** 10 / 12 / 15 / 25 or Other; Other opens the percentage box. */
+@Composable
+private fun WastageRows(f: SaleLineFields, edit: (SaleLineFields.() -> Unit) -> Unit) {
+    var other by remember { mutableStateOf(false) }
+    WastageChips(f.wastage, other, { v -> edit { wastage = v } }, { other = it })
+    if (WastagePicks.reveals(f.wastage, other)) NumberRow("Wastage (%)", f.wastage, { v -> edit { wastage = v } })
 }
 
 @Composable
@@ -262,7 +276,7 @@ private fun StonesSection(f: SaleLineFields, rev: Int, edit: (SaleLineFields.() 
             if (!f.fixed) NumberRow("Diamonds (PKR)", f.diamondCharges, { v -> edit { diamondCharges = v } }, rupees = true)
             FieldRow("Diamond details", f.diamondDetails, { v -> edit { diamondDetails = v } }, placeholder = "e.g. 0.5ct round")
         }
-        ToggleRow("Has other stones", f.hasStones, { v -> edit { hasStones = v } })
+        ToggleRow("Add stone details", f.hasStones, { v -> edit { hasStones = v } })
         if (f.hasStones) {
             NumberRow("Stone weight (g)", f.stoneWeight, { v -> edit { stoneWeight = v } })
             FieldRow("Stone details", f.stoneDetails, { v -> edit { stoneDetails = v } }, placeholder = "e.g. 4 rubies")
@@ -272,12 +286,16 @@ private fun StonesSection(f: SaleLineFields, rev: Int, edit: (SaleLineFields.() 
 
 @Composable
 @NonSkippableComposable
-private fun BillSection(f: SaleLineFields, rev: Int, edit: (SaleLineFields.() -> Unit) -> Unit) {
+private fun BillSection(f: SaleLineFields, line: SaleLine, rev: Int, edit: (SaleLineFields.() -> Unit) -> Unit) {
     FormSection("On the bill") {
         FieldRow(
             "Description", f.billDescription, { v -> edit { billDescription = v } },
             placeholder = "Additional details to appear on the invoice", singleLine = false, minLines = 2, maxLines = 5,
             capitalization = KeyboardCapitalization.Sentences,
+        )
+        ReferencePrintRows(
+            f.referenceImage, f.printReference, f.categoryId, { img, on -> edit { referenceImage = img; printReference = on } },
+            fallbackNote = if (line.imageUrl.isNullOrEmpty()) "" else "The piece's own photo is printed.",
         )
     }
 }

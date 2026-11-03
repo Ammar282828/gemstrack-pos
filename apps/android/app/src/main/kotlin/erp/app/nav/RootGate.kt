@@ -16,6 +16,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -140,10 +143,23 @@ fun AppShell(session: Session, content: @Composable BoxScope.() -> Unit) {
             val note = rememberNoteState()
             CompositionLocalProvider(LocalSession provides session, LocalBook provides book, LocalNoteState provides note) {
                 Box(Modifier.fillMaxSize()) {
-                    content()
-                    NoteHost(note)
-                    // What a save that left its screen could not do, with Retry (Outbox).
-                    erp.app.ui.OutboxHost(Modifier.align(androidx.compose.ui.Alignment.BottomCenter))
+                    Column(Modifier.fillMaxSize()) {
+                        // Offline, or something still to send: one slim band over the app, whatever screen is open. It takes the
+                        // status bar's inset while it is up, so the screens under it do not pad for the bar twice.
+                        erp.app.screens.offline.OfflineBanner()
+                        val banner = erp.app.screens.offline.rememberOfflineBannerShowing()
+                        Box(
+                            Modifier.weight(1f).fillMaxWidth()
+                                .then(if (banner) Modifier.consumeWindowInsets(WindowInsets.statusBars) else Modifier),
+                        ) {
+                            content()
+                            NoteHost(note)
+                            // What a save that left its screen could not do, with Retry (Outbox).
+                            erp.app.ui.OutboxHost(Modifier.align(androidx.compose.ui.Alignment.BottomCenter))
+                        }
+                    }
+                    // Waiting to send: every kept change, with Retry and Discard.
+                    erp.app.screens.offline.WaitingToSendHost()
                 }
                 LockLayer()
             }

@@ -42,6 +42,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -88,7 +89,9 @@ fun PlaceScreen(
     val role = me?.role ?: "none"
     val map = remember(role) { NavMap.current.visible(role) }
     val navigator = LocalNavigator.current
-    var chosen by rememberSaveable(path) { mutableStateOf<String?>(null) }
+    // A tab's chosen page, as it was in the business just left (BusinessCarry), when this one has it too.
+    var chosen by rememberSaveable(path) { mutableStateOf<String?>(if (isRoot) BusinessCarry.carriedSub(path) else null) }
+    if (isRoot) LaunchedEffect(path, chosen) { BusinessCarry.noteSub(path, chosen) }
 
     val bare = ScreenRoute.bare(path)
     // The map as this person sees it: staff are not offered Today's cash among Home's tabs.

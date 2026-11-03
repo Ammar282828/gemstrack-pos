@@ -161,6 +161,7 @@ private fun PieceEditorBody(
     val metal = MetalType.of(piece.metal)
     val price = NewOrderMath.price(piece, rates)
     var confirmRemove by remember { mutableStateOf(false) }
+    var wastageOther by remember { mutableStateOf(false) }
     fun edit(block: erp.core.entry.NewOrderPieceDraft.() -> Unit) = holder.editPiece(pieceId, block)
 
     TransactionWorkspace(
@@ -173,6 +174,8 @@ private fun PieceEditorBody(
                 FormCard(title = "The piece") {
                     PickerRow("Category", piece.category, listOf("" to "None") + NewOrderWords.categories.map { it.id to it.label }) { c -> edit { category = c } }
                     WideFieldRow("Description", piece.description, { t -> edit { description = t } }, prompt = "e.g. Custom ring with ruby stone", minLines = 2, maxLines = 5)
+                    // What this shop has already written for this category, and its stone combos: tap to fill.
+                    DescribeSuggestions(piece.description, piece.category) { t -> edit { description = t } }
                     PickerRow("Metal", piece.metal, METAL_TYPES.map { it.rawValue to metalLabel(it) }) { m -> edit { setMetal(m) } }
                     val karats = karatsFor(metal)
                     if (karats.isNotEmpty()) {
@@ -240,7 +243,11 @@ private fun PieceEditorBody(
                         // holds its making and wastage, so silver asks for neither (decisions.md "Order to invoice").
                         NumberRow("Weight", piece.weight, { t -> edit { weight = t } }, unit = "g")
                         if (takesWastageAndMaking(metal)) {
-                            WastageRow(piece.wastage, { t -> edit { wastage = t } }, piece.weightValue, piece.stoneWeightValue)
+                            // 10 / 12 / 15 / 25 or Other: Other opens the percentage and grams boxes.
+                            WastageChips(piece.wastage, wastageOther, { t -> edit { wastage = t } }, { wastageOther = it })
+                            if (WastagePicks.reveals(piece.wastage, wastageOther)) {
+                                WastageRow(piece.wastage, { t -> edit { wastage = t } }, piece.weightValue, piece.stoneWeightValue)
+                            }
                             NumberRow("Making (PKR)", piece.making, { t -> edit { making = t } }, rupees = true)
                         }
                         NumberRow("Stones (PKR)", piece.stones, { t -> edit { stones = t } }, rupees = true)
@@ -249,7 +256,7 @@ private fun PieceEditorBody(
                             NumberRow("Diamonds (PKR)", piece.diamond, { t -> edit { diamond = t } }, rupees = true)
                             WideFieldRow("Diamond details", piece.diamondDetails, { t -> edit { diamondDetails = t } }, prompt = "e.g. Centre 1ct VVS1, sides 12 × 0.05ct VS2", minLines = 2, maxLines = 4)
                         }
-                        ToggleRow("Has other stones", piece.hasStones) { on -> edit { hasStones = on } }
+                        ToggleRow("Add stone details", piece.hasStones) { on -> edit { hasStones = on } }
                         if (piece.hasStones) {
                             NumberRow("Stone weight", piece.stoneWeight, { t -> edit { stoneWeight = t } }, prompt = "e.g. 0.5", unit = "g")
                             WideFieldRow("Stone details", piece.stoneDetails, { t -> edit { stoneDetails = t } }, prompt = "e.g. 1 × ruby 2ct, 4 × sapphire 0.5ct", minLines = 2, maxLines = 4)
@@ -276,6 +283,10 @@ private fun PieceEditorBody(
                         capitalization = KeyboardCapitalization.Characters,
                     )
                     ToggleRow("Customer provided a physical sample", piece.sampleGiven) { on -> edit { sampleGiven = on } }
+                    ReferencePrintRows(
+                        piece.referenceImage, piece.printReference, piece.category, { img, on -> edit { referenceImage = img; printReference = on } },
+                        fallbackNote = "The piece's own first reference photo is printed.",
+                    )
                 }
 
                 // Total

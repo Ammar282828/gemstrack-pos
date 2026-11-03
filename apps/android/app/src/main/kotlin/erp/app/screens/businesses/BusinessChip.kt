@@ -35,7 +35,7 @@ import erp.app.ui.Radius
 import erp.app.ui.rememberHaptics
 
 /**
- * The open business at the top of the app: its mark and name (BusinessChip.swift). Tap opens the Businesses sheet; touch and hold lists the
+ * The open business at the top of the app: its mark and name (BusinessChip.swift). Tap opens the Businesses sheet; a double tap switches to the next business; touch and hold lists the
  * businesses to switch between at once. With only one business it stays, quietly (no arrows, the secondary colour): it is still the way
  * to add another. The wide navigation rail's header says the ERP's whole name.
  */
@@ -61,6 +61,10 @@ fun BusinessChip(modifier: Modifier = Modifier, wide: Boolean = false) {
                     onClickLabel = if (many) "List the businesses" else "Add a business",
                     onLongClickLabel = if (many) "Switch business" else null,
                     onLongClick = { if (many) { haptics.selection(); menu = true } else Businesses.openSheet() },
+                    // A double tap (owner, 2026-11-03) goes to the next business, as the menu's pick does, landing on the same page; one tap
+                    // opens the Businesses sheet (after the double-tap window). With one business there is nothing to switch to, so the sheet
+                    // opens at once.
+                    onDoubleClick = if (many) ({ haptics.selection(); Businesses.switchToNext() }) else null,
                     onClick = { Businesses.openSheet() },
                 )
                 .padding(horizontal = if (wide) 16.dp else 6.dp)

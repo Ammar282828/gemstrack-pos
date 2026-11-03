@@ -347,6 +347,20 @@ private fun NewOrderForm(readsSlip: Boolean, edit: NewOrderEdit?, ratesFirst: Bo
                 val request = NewOrderMath.request(draft, s, people)
                 try {
                     val out = ErpApi.shared.write("createOrder", request)
+                    if (ErpApi.wasQueued(out)) {
+                        // The ERP could not be reached: the order is kept on this phone under its request name, shows as
+                        // "Waiting to send" at the top of Orders and goes by itself when the line is back. The form ends as it does
+                        // after a save.
+                        NewOrderPhoneStore.clear(biz)
+                        WorkDraftSync.order.drop(biz)
+                        if (draft.fromSale) {
+                            Prefs.remove(SaleDraftStore.key, biz)
+                            WorkDraftSync.sale.drop(biz)
+                        }
+                        holder.replace(NewOrderDraft.fresh())
+                        leaveTo(null)
+                        return@launch
+                    }
                     val made = out["order"] as? Map<*, *>
                     val id = made?.get("id") as? String
                     if (made == null || id.isNullOrEmpty()) {
@@ -437,7 +451,8 @@ private fun NewOrderForm(readsSlip: Boolean, edit: NewOrderEdit?, ratesFirst: Bo
                                 holder, totals,
                                 onOpen = { editingId = it },
                                 onAdd = {
-                                    val p = NewOrderPieceDraft()
+                                    // "Add stone details" is off for a new piece (owner, 2026-11-03).
+                                    val p = NewOrderPieceDraft().also { it.hasStones = false }
                                     holder.edit { pieces.add(p) }
                                     editingId = p.id
                                 },

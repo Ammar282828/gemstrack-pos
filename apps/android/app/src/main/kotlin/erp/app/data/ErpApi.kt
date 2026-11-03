@@ -34,7 +34,18 @@ import okhttp3.Response
  * registration), so nothing of one business's reaches another's server.
  */
 class ErpApi private constructor(private val initial: Business) {
-    class Failure(val status: Int, override val message: String) : Exception(message)
+    /**
+     * `offline`: the ERP could not be reached at all (no line): not a refusal, and not an answer. A write waits for it in the
+     * Outbox; a read is answered from [ReadCache] where there is a last answer. `neverLeft`: the request certainly never left
+     * the phone (no line at all), so even a send that must never go twice may wait for it.
+     */
+    class Failure(val status: Int, override val message: String, val offline: Boolean = false, val neverLeft: Boolean = false) : Exception(message) {
+        companion object {
+            /** What an action that needs the ERP says with no line. Plain, and the same everywhere. */
+            fun needsConnection(what: String = "This"): Failure =
+                Failure(0, "Needs a connection. $what will work when you're back online.", offline = true, neverLeft = true)
+        }
+    }
 
     private val id = initial.id
 
@@ -46,12 +57,29 @@ class ErpApi private constructor(private val initial: Business) {
      * long the ERP may take to answer: a page load that has not answered in 15 s is a dead line, not a slow server, so
      * it says so and lets the screen retry; writes and sends keep a minute.
      */
-    suspend fun data(path: String, method: String = "GET", json: Map<String, Any?>? = null, timeoutMs: Long? = null): String =
-        open(path, method, json, timeoutMs ?: if (method == "GET") GET_TIMEOUT_MS else SEND_TIMEOUT_MS, "application/json").use { r ->
-            val text = r.body.string()
-            if (r.code !in 200..299) throw Failure(r.code, said(text) ?: "The ERP answered ${r.code}.")
-            text
+    suspend fun data(path: String, method: String = "GET", json: Map<String, Any?>? = null, timeoutMs: Long? = null): String {
+        val readsFromCache = method == "GET" && !House.isDemo
+        try {
+            val text = open(path, method, json, timeoutMs ?: if (method == "GET") GET_TIMEOUT_MS else SEND_TIMEOUT_MS, "application/json").use { r ->
+                // An answer cut off half way is a lost line too: the change may or may not have been recorded.
+                val text = try {
+                    r.body.string()
+                } catch (e: IOException) {
+                    throw Failure(0, e.message?.takeIf { it.isNotBlank() } ?: "No connection to the ERP.", offline = true)
+                }
+                if (r.code !in 200..299) throw Failure(r.code, said(text) ?: "The ERP answered ${r.code}.")
+                text
+            }
+            if (readsFromCache) ReadCache.store(text, path, id)
+            return text
+        } catch (e: Failure) {
+            if (!Connection.lost(e)) throw e
+            // No line: a read paints the last answer it had (nothing blocks on the network), anything else says so plainly.
+            if (readsFromCache) ReadCache.load(path, id)?.let { return it }
+            if (Connection.neverLeft(e)) throw Failure.needsConnection()
+            throw e
         }
+    }
 
     /**
      * A file from the ERP whole (a PDF, a slip's picture): `data` answers text, which would damage the bytes. The same
@@ -99,7 +127,9 @@ class ErpApi private constructor(private val initial: Business) {
         return try {
             call.await()
         } catch (e: IOException) {
-            throw Failure(0, e.message?.takeIf { it.isNotBlank() } ?: "No connection to the ERP.")
+            // Our own refusal of a redirect off the ERP's host is not a lost line.
+            val ours = e.message?.startsWith("Redirected away") == true
+            throw Failure(0, e.message?.takeIf { it.isNotBlank() } ?: "No connection to the ERP.", offline = !ours, neverLeft = !ours && (Connection.neverLeftIo(e) || Connection.isOffline.value))
         }
     }
 
@@ -157,25 +187,48 @@ class ErpApi private constructor(private val initial: Business) {
      * on disk, against what the change is, until the ERP has answered: a retry after a timeout, or after the app was
      * killed, goes with the same name, and the ERP replays its first answer (money ops require a name).
      *
+     * Offline (owner, 2026-11-03): a creation or a payment (`OutboxEngine.queueableOps`: createOrder, createInvoice, recordPayment,
+     * recordOrderAdvance…) that cannot reach the ERP is kept on this phone with its name and sent by the Outbox when the line is
+     * back; the answer is then `{queued: true, requestId}`, with no record in it. A screen that needs the new record's number
+     * checks [wasQueued] first. `pending` says what the waiting row in the list reads. The Outbox's own sends pass
+     * `queueOffline = false`: they are the queue. Deletes, refunds and settlements are never queued: they fail at once with
+     * "Needs a connection".
+     *
      * The request is not cut off when the screen that asked goes away (the iPhone lends a few seconds in the
      * background): the person may have left the sheet, and the write is already on its way.
      */
-    suspend fun write(op: String, fields: Map<String, Any?>, requestId: String? = null): Map<String, Any?> {
+    suspend fun write(
+        op: String, fields: Map<String, Any?>, requestId: String? = null,
+        queueOffline: Boolean = true, pending: PendingSummary? = null,
+    ): Map<String, Any?> {
         // A build older than this ERP's minimum writes nothing (its rules for money may be out of date).
         if (UpdateGate.blocked(biz)) throw Failure(426, UpdateGate.words)
         val body = LinkedHashMap(fields)
         body["op"] = op
         val intents = WriteIntents.forBusiness(id)
         val intent = if (requestId == null) intents.key(body) else null
-        body["requestId"] = requestId ?: intents.id(intent!!)
-        val out = withContext(NonCancellable) {
-            try {
-                send("/api/app/write", body = body)
-            } catch (e: Failure) {
-                // "Already sent and recorded": the earlier try went through. The intent is done.
-                if (e.status == 409 && intent != null) intents.clear(intent)
-                throw e
+        val name = requestId ?: intents.id(intent!!)
+        body["requestId"] = name
+        val mayQueue = queueOffline && op in OutboxEngine.queueableOps && !House.isDemo
+        // No line at all: no need to wait for a request to fail.
+        if (mayQueue && Connection.isOffline.value) return Outbox.of(biz).queueForLater(op, fields, name, intent, pending)
+        val out = try {
+            withContext(NonCancellable) {
+                try {
+                    send("/api/app/write", body = body)
+                } catch (e: Failure) {
+                    // "Already sent and recorded": the earlier try went through. The intent is done.
+                    if (e.status == 409 && intent != null) intents.clear(intent)
+                    throw e
+                } catch (e: IOException) {
+                    throw Failure(0, e.message?.takeIf { it.isNotBlank() } ?: "No connection to the ERP.", offline = true)
+                }
             }
+        } catch (e: Failure) {
+            // The line dropped, or no answer came: the change may or may not have been recorded. It is kept with its name, so
+            // sending it again is never a second one.
+            if (mayQueue && Connection.lost(e)) return Outbox.of(biz).queueForLater(op, fields, name, intent, pending)
+            throw e
         }
         if (intent != null) intents.clear(intent)
         // Staff read the books every 25 seconds: fetch them now, so the balance just paid is never
@@ -212,6 +265,9 @@ class ErpApi private constructor(private val initial: Business) {
         /** The business's own: its address and its sign-in, whichever business is open. */
         @Synchronized
         fun forBusiness(b: Business): ErpApi = all.getOrPut(b.id) { ErpApi(b) }
+
+        /** The write was kept to be sent later (see `write`): there is no record in the answer yet. */
+        fun wasQueued(answer: Map<String, Any?>): Boolean = answer["queued"] == true
 
         /** The open business's. */
         val shared: ErpApi get() = forBusiness(Businesses.current)

@@ -102,9 +102,13 @@ fun RootScaffold() {
         }
     }
     val ids = tabs.map { it.id } + SEARCH_TAB
-    var chosen by rememberSaveable { mutableStateOf(PRIMARY.first()) }
+    // After a business switch, the tab the person was on (BusinessCarry); `selected` falls back to the first when this business has no such tab.
+    var chosen by rememberSaveable { mutableStateOf(BusinessCarry.carriedTab() ?: PRIMARY.first()) }
     // The chosen tab, or the first one when the remembered choice is not this person's (no Home for marketing).
     val selected = if (chosen in ids) chosen else (tabs.firstOrNull()?.id ?: SEARCH_TAB)
+    // The tab is kept outside the composition so a business switch can open the next business on it; the new business's screens have been made from what was carried.
+    LaunchedEffect(selected) { BusinessCarry.noteTab(selected) }
+    LaunchedEffect(Unit) { BusinessCarry.settled() }
     val stacks = ids.associateWith { id ->
         key(id) { rememberNavBackStack(Route(if (id == SEARCH_TAB) SEARCH_PATH else tabs.first { it.id == id }.href)) }
     }

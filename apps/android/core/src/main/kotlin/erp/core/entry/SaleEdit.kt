@@ -117,6 +117,8 @@ fun SaleLine.Companion.billed(item: InvoiceItem): SaleLine {
     l.platingType = item.platingType
     l.platingNote = item.platingNote
     l.nickelFree = item.nickelFree
+    l.referenceImage = item.referenceImage
+    l.printReference = item.printReference ?: false
     return l
 }
 

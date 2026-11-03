@@ -187,6 +187,7 @@ object Businesses {
         _list.value = s.list
         Prefs.forget(id)
         erp.app.data.OutboxDisk.forget(id)
+        erp.app.data.ReadCache.erase(id)
         erp.app.data.Book.drop(id)
         erp.app.data.Outbox.drop(id)
         erp.app.auth.Sessions.drop(id)
@@ -207,6 +208,8 @@ object Businesses {
         if (House.isDemo || id == _current.value.id) return
         val next = business(id) ?: return
         val left = _current.value
+        // Where the person is now (the tab and each tab's page) is what the next business opens on, where it has the same.
+        erp.app.nav.BusinessCarry.arm()
         // Work still waiting for its moment in Drafts is sent now, to the business it was typed in.
         WorkDraftSync.flushAll(left.id)
         Prefs.putString(Prefs.BUSINESS_CURRENT, id)
@@ -219,6 +222,9 @@ object Businesses {
         erp.app.auth.Sessions.of(next)
         _generation.value += 1
     }
+
+    /** Opens the next business (the chip's double tap); nothing with only one. */
+    fun switchToNext() { BusinessRules.nextAfter(_list.value, _current.value.id)?.let { switchTo(it.id) } }
 
     /** The singletons that hold one business's data: replaced or emptied, so work still in flight for the business left lands where nobody reads. */
     private fun resetPerBusinessState() {

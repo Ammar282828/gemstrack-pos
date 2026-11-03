@@ -195,6 +195,9 @@ data class InvoiceItem(
     val isCompleted: Boolean,
     /** When the piece physically went to the karigar (ISO). */
     val givenAt: String?,
+    /** A catalogue picture (https) to print beside the piece on the bill. */
+    val referenceImage: String? = null,
+    val printReference: Boolean? = null,
 ) : PieceMaterial {
     companion object : Decodable<InvoiceItem> {
         override fun fromMap(m: Map<String, Any?>): InvoiceItem {
@@ -233,6 +236,8 @@ data class InvoiceItem(
                 karigarId = c.string("karigarId"),
                 isCompleted = c.bool("isCompleted", false),
                 givenAt = c.string("givenAt"),
+                referenceImage = c.string("referenceImage"),
+                printReference = c.bool("printReference"),
             )
         }
     }
@@ -384,6 +389,10 @@ data class OrderItem(
     val adminNote: String?,
     /** The other reference photos (2...n) in order; the first is `samplePhotoId` / `sampleImageDataUri`, as ever. */
     val extraPhotos: List<OrderExtraPhoto> = emptyList(),
+    /** A catalogue picture (https) picked to print beside the piece on the bill; null when none was picked. */
+    val referenceImage: String? = null,
+    /** Print the reference picture (the catalogue pick, else the piece's own first reference photo) on the bill. */
+    val printReference: Boolean? = null,
 ) : PieceMaterial {
     companion object : Decodable<OrderItem> {
         override fun fromMap(m: Map<String, Any?>): OrderItem {
@@ -421,6 +430,8 @@ data class OrderItem(
                 nickelFree = c.bool("nickelFree", false),
                 adminNote = c.string("adminNote"),
                 extraPhotos = c.list("extraPhotos", OrderExtraPhoto).filter { !it.id.isNullOrEmpty() || !it.dataUri.isNullOrEmpty() },
+                referenceImage = c.string("referenceImage"),
+                printReference = c.bool("printReference"),
             )
         }
     }

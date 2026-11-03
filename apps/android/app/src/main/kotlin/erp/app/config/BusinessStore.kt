@@ -16,6 +16,14 @@ class DescriptorAnswer(val status: Int, val finalHost: String, val body: String)
  * at a stranger's server.
  */
 object BusinessRules {
+    /** The business after the open one in the list (the last goes round to the first): the chip's double tap. Null with only one, or when `open` is not in the list. */
+    fun nextAfter(list: List<Business>, open: String): Business? {
+        if (list.size < 2) return null
+        val at = list.indexOfFirst { it.id == open }
+        if (at < 0) return null
+        return list[(at + 1) % list.size]
+    }
+
     /** `https://host` from what a person types; nothing else survives (path, query, port, scheme). */
     fun origin(address: String): String {
         var text = address.trim()

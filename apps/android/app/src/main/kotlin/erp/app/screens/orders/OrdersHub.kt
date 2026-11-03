@@ -3,6 +3,7 @@ package erp.app.screens.orders
 import erp.app.ui.animatedItem
 import erp.app.nav.LocalFabClearance
 import erp.app.ui.icons.Symbols
+import erp.app.screens.offline.pendingRecords
 import erp.app.ui.SearchBarField
 import erp.app.ui.appearOnce
 import androidx.compose.foundation.lazy.grid.itemsIndexed
@@ -117,6 +118,7 @@ fun OrdersHub() {
     val orders = rememberShelfStatus(book.orders)
     val invoices = rememberShelfStatus(book.invoices)
     val connectionLost by Connection.isOffline.collectAsStateWithLifecycle()
+    val pendingOrders = erp.app.screens.offline.rememberPendingRecords(session.business, "order")
     val waiting by OnlineInbox.waiting.collectAsStateWithLifecycle()
     val isOwner = me?.role == "owner"
     val person = session.shop.person
@@ -255,6 +257,8 @@ fun OrdersHub() {
                         }
                     }
                 }
+                // Orders taken with no line, kept on this phone until the ERP has them: "Waiting to send" at the top.
+                pendingRecords(pendingOrders)
                 for (g in sections) {
                     animatedItem(key = "h-" + g.id, span = { GridItemSpan(maxLineSpan) }) { OrdersSectionHeader(g) }
                     if (g.folds) {
@@ -277,7 +281,7 @@ fun OrdersHub() {
                         itemsIndexed(g.orders, key = { _, it -> "o-" + g.id + "-" + it.id }) { i, order -> Card(order, view, isOwner, person, localStatus[order.id], actions, grouping, i, Modifier.animateItem()) }
                     }
                 }
-                if (sections.isEmpty()) {
+                if (sections.isEmpty() && pendingOrders.isEmpty()) {
                     animatedItem(key = "empty", span = { GridItemSpan(maxLineSpan) }) {
                         EmptyState(nothingOpen = grouping == OrdersGrouping.due && view.shown.isNotEmpty(), filtering = anyFilter, onClear = ::clearFilters) {
                             navigator.open("/orders/add")

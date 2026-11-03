@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import erp.app.ErpApp
 import erp.app.data.Book
 import erp.app.data.ErpApi
+import erp.app.data.PendingSummary
 import erp.app.data.WorkDraftSync
 import erp.app.screens.neworder.NewOrderPhoneStore
 import erp.app.screens.work.DraftOpen
@@ -429,9 +430,23 @@ class SaleFormState(
         // A rate a written bill set is the bill's, never today's (SaleScanHeld).
         val kept = SaleStore.unheld(sent.ratesToWriteBack(f, book.settings.value.value), sent)
         try {
-            val out = ErpApi.shared.write("createInvoice", sent.payload(f, qr))
-            val id = ((out["invoice"] as? Map<*, *>)?.get("id") as? String).orEmpty()
+            // The request is built once: with no line it is kept on this phone under the request name made at this tap
+            // (Outbox.queueForLater) and the pending row at the top of Invoices reads `pending`.
+            val request = sent.payload(f, qr)
+            val pending = PendingSummary.make("createInvoice", request).copy(amount = f.total)
+            val out = ErpApi.shared.write("createInvoice", request, pending = pending)
             if (kept != null) keepRates(kept)
+            if (ErpApi.wasQueued(out)) {
+                // Saved on this phone, not yet at the ERP: the sale is done here. It shows as "Waiting to send" in Invoices
+                // and goes by itself when the line is back.
+                SaleStore.clear(biz)
+                WorkDraftSync.sale.drop(biz)
+                replaceDraft(SaleDraft())
+                saving = false
+                leave()
+                return
+            }
+            val id = ((out["invoice"] as? Map<*, *>)?.get("id") as? String).orEmpty()
             SaleStore.clear(biz)
             WorkDraftSync.sale.drop(biz)
             replaceDraft(SaleDraft())

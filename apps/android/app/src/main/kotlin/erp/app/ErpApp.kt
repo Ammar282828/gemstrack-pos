@@ -43,6 +43,7 @@ class ErpApp : Application(), SingletonImageLoader.Factory {
         ErpApp.background.launch { runCatching { NotificationChannels.create(this@ErpApp) } }
         if (!House.isDemo) ensureFirebase()
         Connection.start(this)
+        erp.app.data.Outbox.start()
     }
 
     /**

@@ -179,6 +179,8 @@ fun PhoneSettings() {
         error?.let { SettingsSection { ErrorRow(it) } }
         // Each business on the phone and whether it is linked here (alerts, widget).
         erp.app.screens.businesses.BusinessPhoneLinks()
+        // Changes kept on this phone until the ERP has them (offline).
+        erp.app.screens.offline.WaitingToSendSection()
 
         SettingsSection("Appearance", "The theme for this phone. If not chosen, it follows the shop's appearance in the ERP.") {
             PickerRow(

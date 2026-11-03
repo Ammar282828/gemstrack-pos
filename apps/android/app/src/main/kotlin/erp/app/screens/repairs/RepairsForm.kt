@@ -131,7 +131,8 @@ fun RepairsForm(editing: Repair?, onDismiss: () -> Unit, onSaved: (id: String, s
                 val out = ErpApi.shared.write("updateRepair", mapOf("repairId" to editing.id, "repair" to payload))
                 @Suppress("UNCHECKED_CAST")
                 val doc = out["repair"] as? Map<String, Any?> ?: emptyMap()
-                onSaved(editing.id, DocJSON.decode<Repair>(editing.id, doc))
+                // Kept on this phone for the line (no record in the answer yet): the ticket on file stays as it is until the ERP has it.
+                if (!ErpApi.wasQueued(out)) onSaved(editing.id, DocJSON.decode<Repair>(editing.id, doc))
             } else {
                 val out = ErpApi.shared.write("addRepair", mapOf("repair" to payload))
                 @Suppress("UNCHECKED_CAST")
