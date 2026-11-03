@@ -109,6 +109,9 @@ fun WorkshopJobRow(
                     if (showsDetails && !busy) {
                         MenuItem("Details", Symbols.Edit) { menuOpen = false; actions.details(job) }
                     }
+                    if (job.source == WorkshopJob.Source.order && !job.isUnassigned) {
+                        MenuItem("Send to karigar", Symbols.Send) { menuOpen = false; actions.send(job) }
+                    }
                     if (canWrite && !busy) {
                         MenuItem(
                             if (job.isDone) "Mark not done" else "Mark done",

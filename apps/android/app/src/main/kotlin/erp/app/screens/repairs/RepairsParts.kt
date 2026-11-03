@@ -169,6 +169,7 @@ fun RepairsField(
     minLines: Int = 1,
     end: Boolean = false,
     supporting: String? = null,
+    trailing: (@Composable () -> Unit)? = null,
 ) {
     TextField(
         value = value,
@@ -181,6 +182,7 @@ fun RepairsField(
         textStyle = MaterialTheme.typography.bodyLarge.copy(textAlign = if (end) TextAlign.End else TextAlign.Start),
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType, capitalization = capitalization),
         supportingText = supporting?.let { { Text(it) } },
+        trailingIcon = trailing,
     )
 }
 

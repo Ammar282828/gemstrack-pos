@@ -37,7 +37,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import erp.app.screens.neworder.slipTarget
 import erp.app.ui.MineTag
+import erp.app.ui.QuickPrintButton
 import erp.app.ui.Monogram
 import erp.app.ui.MonogramSize
 import erp.app.ui.Pill
@@ -144,6 +146,9 @@ fun OrderCard(
             Box(Modifier.weight(1f)) {
                 if (step != null) OrderNextStepRow(order, step, busy, actions)
             }
+            // One tap to the printer: the order's slip, straight to the share sheet (OrderCard.swift's QuickPrintButton).
+            val slip = slipTarget(order.id)
+            QuickPrintButton("Print slip ${order.id}", slip.path, slip.fileName, slip.title)
             Box {
                 IconButton(onClick = { menu = true }, modifier = Modifier.semantics { contentDescription = "Actions for ${order.id}" }) {
                     Icon(Symbols.MoreVert, null)

@@ -230,6 +230,7 @@ fun FieldRow(
     imeAction: ImeAction = if (singleLine) ImeAction.Done else ImeAction.Default,
     onImeAction: (() -> Unit)? = null,
     leading: ImageVector? = null,
+    trailing: (@Composable () -> Unit)? = null,
 ) {
     val focus = LocalFocusManager.current
     TextField(
@@ -239,6 +240,7 @@ fun FieldRow(
         label = { Text(label) },
         placeholder = placeholder?.let { { Text(it) } },
         leadingIcon = leading?.let { { Icon(it, contentDescription = null) } },
+        trailingIcon = trailing,
         enabled = enabled,
         singleLine = singleLine,
         minLines = minLines,

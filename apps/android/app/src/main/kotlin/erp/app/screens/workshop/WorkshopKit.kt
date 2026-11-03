@@ -152,6 +152,8 @@ class WorkshopActions(
     val status: (WorkshopJob, KarigarJobStatus) -> Unit,
     /** A stock job's making details, in a sheet. */
     val details: (WorkshopJob) -> Unit,
+    /** An order's piece sent to its karigar on WhatsApp (SendToKarigarSheet): photos, weight, instructions, no prices. */
+    val send: (WorkshopJob) -> Unit,
     /** A stock job deleted, once the delete code is typed. */
     val delete: (WorkshopJob) -> Unit,
     val open: (String) -> Unit,

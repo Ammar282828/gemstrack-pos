@@ -1,5 +1,6 @@
 package erp.app.screens.repairs
 
+import erp.app.ui.ContactPickButton
 import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -183,7 +184,16 @@ fun RepairsForm(editing: Repair?, onDismiss: () -> Unit, onSaved: (id: String, s
                 },
                 "Name", capitalization = KeyboardCapitalization.Words,
             )
-            RepairsField(phone, { phone = it }, "Phone", keyboardType = KeyboardType.Phone)
+            RepairsField(
+                phone, { phone = it }, "Phone", keyboardType = KeyboardType.Phone,
+                // The number from Contacts; the name too when its box is empty (a typed name is never overwritten).
+                trailing = {
+                    ContactPickButton { pick ->
+                        if (pick.phone.isNotEmpty()) phone = pick.phone
+                        pick.nameToFill(name)?.let { name = it }
+                    }
+                },
+            )
         }
 
         // The pieces
