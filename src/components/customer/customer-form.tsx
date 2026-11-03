@@ -154,6 +154,10 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onSubmitSu
                               value={field.value || undefined}
                               onChange={v => field.onChange(v || '')}
                               onBlur={field.onBlur}
+                              onPickContact={pick => {
+                                // Only an empty name is filled; one already typed is kept.
+                                if (pick.name && !(form.getValues('name') || '').trim()) form.setValue('name', pick.name, { shouldDirty: true });
+                              }}
                               aria-label="Phone number" />
                     </FormControl>
                     <FormMessage />

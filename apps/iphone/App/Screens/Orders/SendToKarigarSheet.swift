@@ -47,6 +47,7 @@ struct SendToKarigarSheet: View {
                             TextField("WhatsApp number", text: $phone, prompt: Text("0300 1234567"))
                                 .keyboardType(.phonePad)
                                 .fieldKind(.telephoneNumber)
+                                .contactPickable { if !$0.phone.isEmpty { phone = $0.phone } }
                         } else {
                             LabeledContent("Number", value: onFile)
                         }

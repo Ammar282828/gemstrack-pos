@@ -44,6 +44,7 @@ import erp.app.screens.neworder.FieldRow
 import erp.app.screens.neworder.ValueRow
 import erp.app.ui.NotAvailableState
 import erp.app.ui.ShelfState
+import erp.app.ui.ContactPickButton
 import erp.app.ui.Tone
 import erp.app.ui.color
 import erp.app.ui.readableColumn
@@ -130,8 +131,14 @@ private fun EditCustomerForm(customer: Customer) {
                 TextRow("Full name", d.name, { d = d.copy(name = it) }, capitalization = KeyboardCapitalization.Words)
             }
             FormSection(title = "Phone", footer = "The spare slot. A contact import fills this rather than overwriting the number above.") {
-                TextRow("Phone number", d.phone, { d = d.copy(phone = it) }, keyboardType = KeyboardType.Phone)
-                TextRow("Second number", d.altPhone, { d = d.copy(altPhone = it) }, keyboardType = KeyboardType.Phone)
+                TextRow(
+                    "Phone number", d.phone, { d = d.copy(phone = it) }, keyboardType = KeyboardType.Phone,
+                    trailing = { ContactPickButton { pick -> if (pick.phone.isNotEmpty()) d = d.copy(phone = pick.phone) } },
+                )
+                TextRow(
+                    "Second number", d.altPhone, { d = d.copy(altPhone = it) }, keyboardType = KeyboardType.Phone,
+                    trailing = { ContactPickButton { pick -> if (pick.phone.isNotEmpty()) d = d.copy(altPhone = pick.phone) } },
+                )
             }
             FormSection(
                 title = "Email",

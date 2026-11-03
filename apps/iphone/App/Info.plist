@@ -63,6 +63,8 @@
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSContactsUsageDescription</key>
+	<string>Choose a customer's or karigar's number from your contacts.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>To photograph pieces, bills and slips for the ERP.</string>
 	<key>NSFaceIDUsageDescription</key>

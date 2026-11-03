@@ -202,7 +202,8 @@ fun SendDocDialog(doc: CustomerDoc, phone: String, customerName: String?, onDism
                 Text("${doc.id} goes as a PDF from the shop’s own WhatsApp number${customerName?.let { " to $it" } ?: ""}.",
                     style = MaterialTheme.typography.bodyMedium)
                 TextField(to, { to = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text("WhatsApp number") },
-                    placeholder = { Text("0300 1234567") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone))
+                    placeholder = { Text("0300 1234567") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    trailingIcon = { ContactPickButton { pick -> if (pick.phone.isNotEmpty()) to = pick.phone } })
                 if (doc.kind == CustomerDoc.Kind.Invoice && doc.pieces > 1) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(perPiece, { perPiece = it })

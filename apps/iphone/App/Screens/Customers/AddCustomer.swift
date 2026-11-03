@@ -142,6 +142,7 @@ struct AddCustomer: View {
                 TextField("Phone number", text: $phone, prompt: Text("Optional"))
                     .keyboardType(.phonePad)
                     .fieldKind(.telephoneNumber)
+                    .contactPickable { $0.fill(phone: &phone, name: &name) }
                 if let match = sameNumber {
                     Button {
                         opened = match.id
@@ -307,6 +308,7 @@ extension AddCustomer {
                         .foregroundStyle(Tone.problem.color)
                 }
                 TextField("Phone number", text: $phone, prompt: Text("Optional"))
+                    .contactPickable { $0.fill(phone: &phone, name: &name) }
                 if let match = sameNumber {
                     Button {
                         if let macAfterSave { macAfterSave(match.id) } else { opened = match.id }

@@ -186,8 +186,10 @@ private struct EditCustomerForm: View {
             TextField("Phone number", text: $draft.phone, prompt: Text("Optional"))
                 .keyboardType(.phonePad)
                 .fieldKind(.telephoneNumber)
+                .contactPickable { if !$0.phone.isEmpty { draft.phone = $0.phone } }
             TextField("Second number", text: $draft.altPhone, prompt: Text("Optional"))
                 .keyboardType(.phonePad)
+                .contactPickable { if !$0.phone.isEmpty { draft.altPhone = $0.phone } }
         } header: {
             LedgerHeading(title: "Phone")
         }

@@ -189,7 +189,12 @@ private struct KarigarFormBody: View {
             TextField("Contact number", text: $draft.contact, prompt: Text("Optional"))
                 .keyboardType(.phonePad)
                 .fieldKind(.telephoneNumber)
+                .contactPickable { pick in
+                    if !pick.phone.isEmpty { draft.contact = pick.phone }
+                    if let n = pick.nameToFill(over: draft.name) { draft.name = n }
+                }
             TextField("Second number", text: $draft.altPhone, prompt: Text("Workshop line, or a son's phone"))
+                .contactPickable { if !$0.phone.isEmpty { draft.altPhone = $0.phone } }
         } header: {
             LedgerHeading(title: "Phone")
         }

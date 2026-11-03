@@ -73,6 +73,8 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSContactsUsageDescription</key>
+	<string>Choose a customer's or karigar's number from your contacts.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>To photograph pieces, bills and slips for the ERP, with this Mac's camera or an iPhone's (Continuity Camera).</string>
 	<key>NSMicrophoneUsageDescription</key>

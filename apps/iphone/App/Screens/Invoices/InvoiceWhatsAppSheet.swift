@@ -40,6 +40,7 @@ struct InvoiceWhatsAppSheet: View {
                     TextField("WhatsApp number", text: $phone, prompt: Text("0300 1234567"))
                         .keyboardType(.phonePad)
                         .fieldKind(.telephoneNumber)
+                        .contactPickable { if !$0.phone.isEmpty { phone = $0.phone } }
                 } footer: {
                     if CustomerKit.whatsAppNumber(phone).isEmpty {
                         Text("Enter the customer's WhatsApp number.")
@@ -117,6 +118,7 @@ struct InvoicePDFNumberSheet: View {
                     TextField("WhatsApp number", text: $phone, prompt: Text("0300 1234567"))
                         .keyboardType(.phonePad)
                         .fieldKind(.telephoneNumber)
+                        .contactPickable { if !$0.phone.isEmpty { phone = $0.phone } }
                 } footer: {
                     if number.isEmpty {
                         Text("Enter the customer's WhatsApp number.")
@@ -183,6 +185,7 @@ extension InvoiceWhatsAppSheet {
             }
         }, cancel: { dismiss() }) {
             MacInvoiceTextField(title: "WhatsApp Number", text: $phone, prompt: "0300 1234567")
+                .contactPickable { if !$0.phone.isEmpty { phone = $0.phone } }
             macNumberNote
             if let text {
                 Text("The Message").font(.headline)
@@ -213,6 +216,7 @@ extension InvoicePDFNumberSheet {
                                     canConfirm: !number.isEmpty, busy: sending,
                                     confirm: { Task { await send() } }, cancel: { dismiss() }) {
             MacInvoiceTextField(title: "WhatsApp Number", text: $phone, prompt: "0300 1234567")
+                .contactPickable { if !$0.phone.isEmpty { phone = $0.phone } }
             macNumberNote
         }
         .failureAlert($failure, title: "Could not send the PDF")

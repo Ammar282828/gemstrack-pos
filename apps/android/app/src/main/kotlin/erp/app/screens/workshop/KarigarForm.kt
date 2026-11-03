@@ -38,6 +38,7 @@ import erp.app.screens.customers.FormSection
 import erp.app.screens.customers.TextRow
 import erp.app.ui.NotAvailableState
 import erp.app.ui.ShelfState
+import erp.app.ui.ContactPickButton
 import erp.app.ui.Tone
 import erp.app.ui.readableColumn
 import erp.core.models.Karigar
@@ -124,8 +125,21 @@ private fun KarigarFormBody(karigar: Karigar?) {
                 TextRow("Full name", d.name, { d = d.copy(name = it) }, prompt = "Required", capitalization = KeyboardCapitalization.Words)
             }
             FormSection(title = "Phone") {
-                TextRow("Contact number", d.contact, { d = d.copy(contact = it) }, prompt = "Optional", keyboardType = KeyboardType.Phone)
-                TextRow("Second number", d.altPhone, { d = d.copy(altPhone = it) }, prompt = "Workshop line, or a son's phone", keyboardType = KeyboardType.Phone)
+                TextRow(
+                    "Contact number", d.contact, { d = d.copy(contact = it) }, prompt = "Optional", keyboardType = KeyboardType.Phone,
+                    trailing = {
+                        ContactPickButton { pick ->
+                            d = d.copy(
+                                contact = pick.phone.ifEmpty { d.contact },
+                                name = pick.nameToFill(d.name) ?: d.name,
+                            )
+                        }
+                    },
+                )
+                TextRow(
+                    "Second number", d.altPhone, { d = d.copy(altPhone = it) }, prompt = "Workshop line, or a son's phone", keyboardType = KeyboardType.Phone,
+                    trailing = { ContactPickButton { pick -> if (pick.phone.isNotEmpty()) d = d.copy(altPhone = pick.phone) } },
+                )
             }
             FormSection(
                 title = "Google login",

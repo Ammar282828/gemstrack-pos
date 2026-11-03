@@ -1,5 +1,6 @@
 package erp.app.screens.orders
 
+import erp.app.ui.ContactPickButton
 import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
@@ -320,6 +321,7 @@ fun OrderNotifySheet(order: Order, onDismiss: () -> Unit, kind: OrderActions.Mes
                 value = phone, onValueChange = { phone = it }, modifier = Modifier.fillMaxWidth(), singleLine = true,
                 label = { Text("WhatsApp number") }, placeholder = { Text("0300 1234567") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                trailingIcon = { ContactPickButton { pick -> if (pick.phone.isNotEmpty()) phone = pick.phone } },
             )
         }
         OrdersFormSection(title = "The message", footer = "WhatsApp opens with it written: press send there.") {

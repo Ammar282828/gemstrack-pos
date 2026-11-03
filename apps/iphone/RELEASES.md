@@ -73,3 +73,4 @@ cloud session cannot press that button, but it can push. One line per build, new
 - 2026-11-03: ERP 2.3 again (the first attempt missed a file): pull-down search, voice over any screen, send to karigar, customer PDFs on WhatsApp, one Contact menu, a simpler business picker, and Invoices, Orders and Customers in one layout.
 - 2026-11-03: Print or share any PDF straight away (invoices, order slips, repair receipts, expense reports, hisaab statements): the share sheet opens with Print, WhatsApp and Files, without opening the PDF first.
 - 2026-11-03: A printer button on every invoice and order card: one tap prints the invoice or the order's slip.
+- 2026-11-03: Choose a number from your contacts when adding or editing a customer or karigar, and when sending a PDF or message on WhatsApp; the name fills in too.

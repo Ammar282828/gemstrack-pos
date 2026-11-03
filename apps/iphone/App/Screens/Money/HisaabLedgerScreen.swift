@@ -133,6 +133,7 @@ struct HisaabLedgerScreen: View {
                         .keyboardType(.phonePad)
                         .fieldKind(.telephoneNumber)
                         .keyboardDone()
+                        .contactPickable { if !$0.phone.isEmpty { reminderPhone = $0.phone } }
                 } header: {
                     LedgerHeading(title: "To")
                 } footer: {

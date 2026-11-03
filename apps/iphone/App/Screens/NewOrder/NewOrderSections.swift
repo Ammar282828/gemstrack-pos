@@ -500,6 +500,10 @@ struct NewOrderDeliverySection: View {
             TextField("Receiver's phone", text: $draft.deliveryPhone, prompt: Text("Optional"))
                 .fieldKind(.telephoneNumber)
                 .keyboardType(.phonePad)
+                .contactPickable { pick in
+                    if !pick.phone.isEmpty { draft.deliveryPhone = pick.phone }
+                    if let n = pick.nameToFill(over: draft.deliveryName) { draft.deliveryName = n }
+                }
         }
         NewOrderNumberRow(title: "Delivery charge (PKR)", text: $draft.deliveryCharge, prompt: "0 if free", rupees: true)
         LabeledContent("Instructions") {

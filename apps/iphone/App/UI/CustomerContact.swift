@@ -293,6 +293,7 @@ struct SendDocSheet: View {
                         .keyboardType(.phonePad)
                         .textContentType(.telephoneNumber)
                         #endif
+                        .contactPickable { if !$0.phone.isEmpty { phone = $0.phone } }
                 } footer: {
                     Text("\(doc.id) goes as a PDF from the shop’s own WhatsApp number\(customerName.map { " to \($0)" } ?? "").")
                 }

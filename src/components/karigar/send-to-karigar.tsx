@@ -17,6 +17,7 @@ import { toWhatsAppNumber } from '@/lib/whatsapp';
 import { STORE_CONFIG } from '@/lib/store-config';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ContactPickButton } from '@/components/shared/contact-pick-button';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -122,7 +123,10 @@ export const SendToKarigarDialog: React.FC<{
           {(!onFile || phone) && karigarId && (
             <div className="space-y-1.5">
               <Label htmlFor="stk-phone">WhatsApp number</Label>
-              <Input id="stk-phone" inputMode="tel" placeholder="03xx xxxxxxx" value={phone} onChange={e => setPhone(e.target.value)} />
+              <div className="flex items-center gap-1">
+                <Input id="stk-phone" inputMode="tel" placeholder="03xx xxxxxxx" value={phone} onChange={e => setPhone(e.target.value)} />
+                <ContactPickButton onPick={pick => { if (pick.phone) setPhone(pick.phone); }} />
+              </div>
             </div>
           )}
 

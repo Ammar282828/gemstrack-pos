@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -69,13 +70,26 @@ fun TextRow(
     autoCorrect: Boolean = true,
     minLines: Int = 1,
     maxLines: Int = 1,
+    /** At the trailing edge of the box, e.g. the Contacts button of a phone field. */
+    trailing: (@Composable () -> Unit)? = null,
 ) {
     Column(Modifier.fillMaxWidth().formRow()) {
-        QuietField(
-            value, onChange, Modifier.fillMaxWidth(), placeholder = prompt, keyboardType = keyboardType,
-            capitalization = capitalization, autoCorrect = autoCorrect, singleLine = maxLines == 1, minLines = minLines,
-            maxLines = maxLines, label = label,
-        )
+        if (trailing == null) {
+            QuietField(
+                value, onChange, Modifier.fillMaxWidth(), placeholder = prompt, keyboardType = keyboardType,
+                capitalization = capitalization, autoCorrect = autoCorrect, singleLine = maxLines == 1, minLines = minLines,
+                maxLines = maxLines, label = label,
+            )
+        } else {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                QuietField(
+                    value, onChange, Modifier.weight(1f), placeholder = prompt, keyboardType = keyboardType,
+                    capitalization = capitalization, autoCorrect = autoCorrect, singleLine = maxLines == 1, minLines = minLines,
+                    maxLines = maxLines, label = label,
+                )
+                trailing()
+            }
+        }
     }
 }
 

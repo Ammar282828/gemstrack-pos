@@ -38,3 +38,4 @@ app archived for TestFlight's "Shop" group, and the iPhone app built beside it a
 - 2026-11-03: Every customer, invoice, order and repair on the Mac has the iPhone's Contact actions: Call, WhatsApp, Message, the PDF on WhatsApp from the shop's line, the PDF itself, and Copy Number.
 - 2026-11-03: Print any PDF straight away (invoices, order slips, repair receipts, expense reports, hisaab statements), and every customer, invoice, order and repair has the Contact actions (Call, WhatsApp, Message, PDF on WhatsApp, Copy Number).
 - 2026-11-03: A printer button on every invoice and order card: one tap prints the invoice or the order's slip.
+- 2026-11-03: Choose a number from your contacts when adding or editing a customer or karigar, and when sending a PDF or message on WhatsApp.

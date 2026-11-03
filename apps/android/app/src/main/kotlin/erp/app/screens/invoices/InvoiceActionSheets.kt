@@ -1,5 +1,6 @@
 package erp.app.screens.invoices
 
+import erp.app.ui.ContactPickButton
 import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
@@ -661,6 +662,7 @@ fun InvoiceWhatsAppSheet(invoice: Invoice, initialPhone: String, onDismiss: () -
             placeholder = { Text("0300 1234567") },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+            trailingIcon = { ContactPickButton { pick -> if (pick.phone.isNotEmpty()) phone = pick.phone } },
         )
         if (noNumber) Footnote("Enter the customer's WhatsApp number.")
         else if (sent != null) Footnote("PDF sent to ${sent.to} · ${ShopDate.say(sent.at, withTime = true)}")

@@ -14,6 +14,7 @@ import React, { useMemo } from 'react';
 import { DeliveryInfo } from '@/lib/store';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { ContactPickButton } from '@/components/shared/contact-pick-button';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -112,8 +113,15 @@ export const DeliveryFields: React.FC<{
             </div>
             <div>
               <Label className="text-xs">Receiver phone</Label>
-              <Input value={value.contactPhone || ''} onChange={e => set('contactPhone', e.target.value)}
-                placeholder="Optional" aria-label="Receiver phone" />
+              <div className="flex items-center gap-1">
+                <Input value={value.contactPhone || ''} onChange={e => set('contactPhone', e.target.value)}
+                  placeholder="Optional" aria-label="Receiver phone" />
+                <ContactPickButton onPick={pick => {
+                  if (pick.phone) set('contactPhone', pick.phone);
+                  // Only an empty name is filled; one already typed is kept.
+                  if (pick.name && !(value.contactName || '').trim()) set('contactName', pick.name);
+                }} />
+              </div>
             </div>
           </div>
 
