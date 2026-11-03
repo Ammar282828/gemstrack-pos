@@ -1,5 +1,6 @@
 package erp.app.screens.home
 
+import erp.app.ui.glassRow
 import erp.app.ui.rememberErpMotion
 import erp.app.ui.icons.Symbols
 import erp.app.ui.morphCard
@@ -204,7 +205,7 @@ fun DashStat(label: String, onClick: (() -> Unit)?, modifier: Modifier = Modifie
     val link = onClick != null
     val tile = modifier.fillMaxHeight()
     Column(
-        (if (link && onClick != null) tile.morphCard(onClick = onClick).padding(12.dp) else tile.ledgerCard(padding = 12.dp)).semantics(mergeDescendants = true) {},
+        (if (link && onClick != null) tile.morphCard(onClick = onClick, glass = true).padding(12.dp) else tile.ledgerCard(padding = 12.dp, glass = true)).semantics(mergeDescendants = true) {},
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -311,7 +312,7 @@ fun <T> DashRowsCard(items: List<T>, inset: Dp, modifier: Modifier = Modifier, r
 /** What a section says when it has nothing: one quiet line, on its card. */
 @Composable
 fun DashEmpty(text: String) {
-    Column(Modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card).padding(horizontal = 14.dp)) {
+    Column(Modifier.fillMaxWidth().glassRow(Radius.cardShape, ErpColors.card).padding(horizontal = 14.dp)) {
         Text(
             text,
             Modifier.fillMaxWidth().padding(vertical = 16.dp),
@@ -325,7 +326,7 @@ fun DashEmpty(text: String) {
 @Composable
 fun DashAllClear() {
     Row(
-        Modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card).padding(horizontal = 14.dp, vertical = 14.dp)
+        Modifier.fillMaxWidth().glassRow(Radius.cardShape, ErpColors.card).padding(horizontal = 14.dp, vertical = 14.dp)
             .clearAndSetSemantics { contentDescription = "All clear: nothing late, unpaid or waiting" },
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -530,7 +531,7 @@ fun DashMonthCard(figures: DashFigures, showCosts: Boolean, onClick: (() -> Unit
         net < -0.5 -> Tone.late.color()
         else -> Color.Unspecified
     }
-    val base = Modifier.ledgerCard()
+    val base = Modifier.ledgerCard(glass = true)
     Column(
         (if (onClick != null) base.clickable(role = Role.Button, onClick = onClick) else base),
         verticalArrangement = Arrangement.spacedBy(14.dp),

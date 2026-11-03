@@ -103,7 +103,7 @@ fun SiteDelta(now: Double, before: Double, invert: Boolean = false, modifier: Mo
 fun SiteTile(
     label: String, value: String, modifier: Modifier = Modifier, now: Double? = null, before: Double? = null, invert: Boolean = false, detail: String? = null,
 ) {
-    Column(modifier.ledgerCard(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(modifier.ledgerCard(glass = true), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         NumericText(value, now ?: 0.0, style = ErpType.tileValue, maxLines = Int.MAX_VALUE)
         if (now != null && before != null) SiteDelta(now, before, invert)

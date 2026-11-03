@@ -1,5 +1,6 @@
 package erp.app.screens.settings
 
+import erp.app.ui.glassRowFill
 import erp.app.ui.SkeletonShape
 import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.layout.Arrangement
@@ -236,7 +237,7 @@ private fun CollectionRow(name: String, row: WebsitePricing, def: WebsitePricing
     SwipeActions(
         end = RowAction("Remove $name", Symbols.Delete, Tone.problem, onRemove),
     ) {
-        Column(Modifier.fillMaxWidth().background(ErpColors.card)) {
+        Column(Modifier.fillMaxWidth().glassRowFill()) {
             Text(name, Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp), style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold))
             PickerRow("Karat", row.karat ?: "", listOf("" to "Default (${def.karat ?: "21k"})") + WebsiteSelling.karats.map { it to it }) {
                 onChange(row.copy(karat = it.ifEmpty { null }))

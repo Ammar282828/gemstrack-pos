@@ -133,6 +133,8 @@ fun RootScaffold() {
 
     NavigationSuiteScaffold(
         navigationSuiteType = layout,
+        // Glass: the ground (drawn once, behind everything) shows between the bars.
+        containerColor = erp.app.ui.pageColor(androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffoldDefaults.containerColor),
         navigationItems = {
             if (wide) {
                 // The open business's mark and name, where the iPad's sidebar header keeps it: tap for the Businesses sheet, hold to switch.

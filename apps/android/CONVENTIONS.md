@@ -83,6 +83,16 @@ iPhone app, `apps/iphone` (read `apps/iphone/CONVENTIONS.md` too: its rules hold
      type sizes; the preview draws the same plan from the same colours.
    - **The launch window** is the business's `surface` (generated per flavor into `house_launch`/`house_ground`, light and night, by
      `generate<House>HouseRes` with the same colour library); the Android 12+ splash puts the mark on it.
+   - **Glass (2026-11-03, `ui/Glass.kt`)** is the shop's Interface style (`settings.uiStyle == "glass"`, cached per business in Prefs `erp.uiStyle` for the first frame); Standard
+     is the rules above, untouched. Under glass `AppShell` wraps the content in `GlassLayer`: a static mesh of the seed colour behind every screen (`glassGround`, so a page's
+     own container is `pageColor()`, transparent under glass) and the one `hazeSource`. Two weights, both falling back to the plain card under Standard: **`glassCard()`**
+     = haze backdrop blur 16 dp + tint + specular hairline, for the FEW cards of a page (`heroSheen`, `FigureTile`, `SiteTile`, Home's `DashStat`/month card via
+     `ledgerCard(glass = true)` / `morphCard(glass = true)`, the picker's brand cards); **`glassRow()`** = card colour at 0.72 + hairline + 1 dp highlight, NO blur (a backdrop
+     blur is paid per element per frame), which is what `ledgerCard`, `houseCardSurface`, `SegmentedColumn` tiles, `morphCard`, `cardEdges` and `mineRow` already give, so a
+     new card through the kit is glass without a line. Never a blur in a lazy item's rows, in a sheet or dialog (another view: `glassWeight` sees it), in another glass card
+     (`GlassNested`), below Android 12 or on a low-RAM phone: all of those take the row look. A swipeable row needs `glassRowFill()` (SwipeActions backs it solid while
+     dragged); a row inside a group that draws its own tile uses `groupRowFill()`. Don't use `Modifier.blur` (it blurs the content, not the backdrop). New hand-rolled
+     `clip(...).background(ErpColors.card)` is the thing to avoid anyway: say `glassRow(shape, ErpColors.card)`.
    - Filled primary buttons carry `onPrimary` words; do not hand-roll a card (`background(...).clip(RoundedCornerShape(..))`), a
      border, a shadow, a serif or a hex ground: add to the kit instead.
 6. **Screens and their places.** A group lives in `screens/<group>/` with `<Group>Routes.kt` exposing

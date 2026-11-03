@@ -1,5 +1,6 @@
 package erp.app.screens.money
 
+import erp.app.ui.groupRowFill
 import erp.app.ui.animatedItem
 import erp.app.ui.icons.Symbols
 import erp.app.ui.SegmentedColumn
@@ -315,7 +316,7 @@ private fun ExpenseRow(
     shareholders: () -> Unit,
 ) {
     val row: @Composable () -> Unit = {
-        Box(Modifier.background(ErpColors.card).fillMaxWidth().ledgerRow()) {
+        Box(Modifier.groupRowFill().fillMaxWidth().ledgerRow()) {
             TwoLine(
                 title = e.description.ifEmpty { e.category },
                 subtitle = expenseSubtitle(e, karigarNames),

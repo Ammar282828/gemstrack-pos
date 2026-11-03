@@ -1,5 +1,6 @@
 package erp.app.screens.money
 
+import erp.app.ui.glassRow
 import erp.app.ui.animatedItem
 import erp.app.ui.icons.Symbols
 import erp.app.ui.Radius
@@ -163,7 +164,7 @@ private fun HisaabBoard() {
                 }
                 animatedItem(key = "export") {
                     Column(Modifier.padding(horizontal = 16.dp).readableColumn(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Column(Modifier.fillMaxWidth().clip(erp.app.ui.Radius.cardShape).background(ErpColors.card)) {
+                        Column(Modifier.fillMaxWidth().glassRow(erp.app.ui.Radius.cardShape, ErpColors.card)) {
                             Row(
                                 Modifier.fillMaxWidth().clickable(role = Role.Button) {
                                     // Everyone outstanding whose name matches the search, straight to the share sheet.

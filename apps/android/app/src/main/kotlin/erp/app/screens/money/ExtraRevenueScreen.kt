@@ -1,5 +1,6 @@
 package erp.app.screens.money
 
+import erp.app.ui.groupRowFill
 import erp.app.ui.animatedItem
 import erp.app.ui.icons.Symbols
 import erp.app.ui.SegmentedColumn
@@ -157,7 +158,7 @@ private fun RevenueBoard() {
                             val edit = RowAction("Edit", Symbols.Edit, Tone.house) { editing = r }
                             val delete = RowAction("Delete", Symbols.Delete, Tone.problem) { deletion = askDelete(r) }
                             SwipeActions(start = edit, end = delete, menu = listOf(edit, delete)) {
-                                Box(Modifier.background(ErpColors.card).fillMaxWidth().ledgerRow()) {
+                                Box(Modifier.groupRowFill().fillMaxWidth().ledgerRow()) {
                                     TwoLine(title = r.description, subtitle = whenSaid, trailing = Money.pkr(r.amount))
                                 }
                             }

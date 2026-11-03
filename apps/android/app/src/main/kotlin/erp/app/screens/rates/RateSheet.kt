@@ -1,5 +1,6 @@
 package erp.app.screens.rates
 
+import erp.app.ui.glassRow
 import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -274,7 +275,7 @@ fun RateSheet(onDismiss: () -> Unit) {
                 // Its own card with no heading, as the Form's headerless Section is.
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(
-                        Modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card)
+                        Modifier.fillMaxWidth().glassRow(Radius.cardShape, ErpColors.card)
                             .clickable(enabled = !filling && !saving, role = Role.Button) { fillFromGoldPk() }.ledgerRow(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalAlignment = Alignment.CenterVertically,

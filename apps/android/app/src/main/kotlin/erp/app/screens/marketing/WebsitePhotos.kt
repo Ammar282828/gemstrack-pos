@@ -1,5 +1,7 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.glassRowFill
+import erp.app.ui.glassRow
 import erp.app.ui.SkeletonShape
 import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
@@ -449,7 +451,7 @@ private fun PhotosPage(
 ) {
     Column(Modifier.fillMaxSize().readableColumn(720.dp).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
         if (!m.configured) {
-            Row(Modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card).padding(16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(Modifier.fillMaxWidth().glassRow(Radius.cardShape, ErpColors.card).padding(16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Icon(Symbols.Warning, null, tint = Tone.owed.color())
                 Text("Uploads are not switched on yet: the website's upload secret isn't set on this ERP. Until it is, nothing below can be sent.", color = Tone.owed.color())
             }
@@ -520,7 +522,7 @@ private fun TraySection(m: WebsitePhotosModel, siteName: String) {
 private fun PhotoRow(m: WebsitePhotosModel, item: WebsitePhotoItem, siteName: String) {
     val scope = rememberCoroutineScope()
     val editable = item.editable && !m.sending
-    Row(Modifier.fillMaxWidth().background(ErpColors.card).padding(horizontal = 16.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
+    Row(Modifier.fillMaxWidth().glassRowFill().padding(horizontal = 16.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
         Picture(item)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(WebsitePhotosLogic.displayName(item, m.isMaison), maxLines = 2, overflow = TextOverflow.Ellipsis)

@@ -1,5 +1,6 @@
 package erp.app.screens.invoices
 
+import erp.app.ui.glassRowFill
 import erp.app.screens.voice.voiceClearance
 import erp.app.ui.rememberErpMotion
 import erp.app.ui.icons.Symbols
@@ -642,7 +643,7 @@ private fun PaymentRow(p: Payment) {
         else -> Symbols.ArrowCircleDown
     }
     Row(
-        Modifier.fillMaxWidth().background(ErpColors.card).defaultMinSize(minHeight = 56.dp).padding(horizontal = 16.dp, vertical = 10.dp).semantics(mergeDescendants = true) {},
+        Modifier.fillMaxWidth().glassRowFill().defaultMinSize(minHeight = 56.dp).padding(horizontal = 16.dp, vertical = 10.dp).semantics(mergeDescendants = true) {},
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

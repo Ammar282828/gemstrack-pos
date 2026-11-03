@@ -1,5 +1,6 @@
 package erp.app.screens.owner
 
+import erp.app.ui.glassRow
 import erp.app.ui.BusyLabel
 import erp.app.ui.animatedItem
 import erp.app.ui.TextField
@@ -227,7 +228,7 @@ private fun OverheadsBoard() {
                             Column(Modifier.padding(horizontal = 16.dp).readableColumn(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 LedgerHeading("Couldn’t read the sheet")
                                 Row(
-                                    Modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card).padding(16.dp),
+                                    Modifier.fillMaxWidth().glassRow(Radius.cardShape, ErpColors.card).padding(16.dp),
                                     horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     Icon(Symbols.CloudOff, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -414,7 +415,7 @@ private fun SaveBar(saveError: String?, saving: Boolean, monthName: String, onDi
         if (saveError != null) {
             Text(
                 saveError,
-                Modifier.fillMaxWidth().clip(Radius.chipShape).background(ErpColors.card).padding(10.dp),
+                Modifier.fillMaxWidth().glassRow(Radius.chipShape, ErpColors.card).padding(10.dp),
                 style = MaterialTheme.typography.bodySmall, color = Tone.problem.color(), textAlign = TextAlign.Center,
             )
         }

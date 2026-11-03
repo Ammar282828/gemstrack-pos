@@ -71,6 +71,10 @@ fun SegmentedColumn(
 ) {
     var tiles by remember { mutableStateOf(emptyList<Tile>()) }
     val density = LocalDensity.current
+    // Under the glass style each tile is the row look: translucent, with a specular hairline (no blur: a group has many tiles).
+    val glass = LocalGlass.current != null
+    val look = glassEdgeLookOrNull()
+    val fill = if (glass) color.copy(alpha = GlassTokens.RowAlpha) else color
     Layout(
         content = { CompositionLocalProvider(LocalInSegments provides true) { SegmentScope.content() } },
         modifier = modifier
@@ -79,7 +83,10 @@ fun SegmentedColumn(
                 val layoutDirection = layoutDirection
                 tiles.forEach { t ->
                     val outline = t.shape.createOutline(Size(size.width, t.height.toFloat()), layoutDirection, density)
-                    translate(top = t.top.toFloat()) { drawOutline(outline, color) }
+                    translate(top = t.top.toFloat()) {
+                        drawOutline(outline, fill)
+                        if (look != null) drawGlassTile(outline, Size(size.width, t.height.toFloat()), look)
+                    }
                 }
             },
     ) { measurables, constraints ->
@@ -106,4 +113,18 @@ fun SegmentedColumn(
             }
         }
     }
+}
+
+/** The tile's specular hairline and its 1 dp top highlight, in the tile's own space. */
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawGlassTile(outline: androidx.compose.ui.graphics.Outline, tile: Size, look: EdgeLook) {
+    val ring = androidx.compose.ui.graphics.Brush.linearGradient(
+        0f to look.bright, 0.5f to look.dim.copy(alpha = look.dim.alpha * 0.6f), 1f to look.dim,
+        start = androidx.compose.ui.geometry.Offset.Zero, end = androidx.compose.ui.geometry.Offset(tile.width, tile.height),
+    )
+    val line = 1.dp.toPx()
+    drawOutline(outline, ring, style = androidx.compose.ui.graphics.drawscope.Stroke(line))
+    val top = androidx.compose.ui.graphics.Brush.horizontalGradient(
+        0f to Color.Transparent, 0.2f to look.highlight, 0.8f to look.highlight.copy(alpha = look.highlight.alpha * 0.4f), 1f to Color.Transparent,
+    )
+    drawLine(top, androidx.compose.ui.geometry.Offset(line * 12f, line * 1.5f), androidx.compose.ui.geometry.Offset(tile.width - line * 12f, line * 1.5f), strokeWidth = line)
 }

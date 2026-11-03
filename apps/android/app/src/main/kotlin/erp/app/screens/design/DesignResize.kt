@@ -1,5 +1,6 @@
 package erp.app.screens.design
 
+import erp.app.ui.glassRow
 import erp.app.ui.BusyLabel
 import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
@@ -393,7 +394,7 @@ private fun ResultCard(r: DesignResizeModel, id: String) {
     val score = res.n("score")
     val zone = DesignSizes.safeZone(e.h)
     Column(
-        Modifier.clip(Radius.chipShape).background(ErpColors.card)
+        Modifier.glassRow(Radius.chipShape, ErpColors.card)
             .border(BorderStroke(if (on) 1.5.dp else 1.dp, if (on) ErpColors.accent else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.18f)), Radius.chipShape)
             .alpha(if (on) 1f else 0.7f).padding(8.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),

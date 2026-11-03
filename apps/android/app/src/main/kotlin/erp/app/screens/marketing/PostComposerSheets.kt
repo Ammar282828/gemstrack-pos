@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.glassRowFill
 import erp.app.ui.SkeletonShape
 import erp.app.ui.BusyBlock
 import erp.app.ui.Busy
@@ -75,7 +76,7 @@ fun PostDraftsSheet(model: PostComposerModel, onClose: () -> Unit) {
                             end = RowAction("Delete", Symbols.Delete, Tone.problem) { deleting = saved },
                             onClick = { scope.launch { model.open(saved); onClose() } },
                         ) {
-                            Column(Modifier.fillMaxWidth().background(ErpColors.card).ledgerRow(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Column(Modifier.fillMaxWidth().glassRowFill().ledgerRow(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(saved.title, style = MaterialTheme.typography.bodyLarge)
                                 Text(ShopDate.stamp(Instant.ofEpochMilli(saved.updated)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Text("${saved.photos.size} photo${if (saved.photos.size == 1) "" else "s"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

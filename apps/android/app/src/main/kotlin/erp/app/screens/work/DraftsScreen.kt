@@ -1,5 +1,6 @@
 package erp.app.screens.work
 
+import erp.app.ui.glassRowFill
 import erp.app.ui.animatedItem
 import erp.app.ui.icons.Symbols
 import erp.app.ui.SegmentedColumn
@@ -245,7 +246,7 @@ private fun DraftRowView(row: DraftRow, onDiscard: (DraftRow) -> Unit, open: (St
     val d = row.draft
     val discard = RowAction("Discard", Symbols.Delete, Tone.problem) { onDiscard(row) }
     SwipeActions(end = discard, menu = listOf(discard), onClick = { open(DraftsLogic.path(row)) }) {
-        Column(Modifier.fillMaxWidth().background(ErpColors.card).ledgerRow(), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Column(Modifier.fillMaxWidth().glassRowFill().ledgerRow(), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(d.title, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (d.total > 0) {

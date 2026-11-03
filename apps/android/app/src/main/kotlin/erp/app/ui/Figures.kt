@@ -45,7 +45,8 @@ fun FigureTile(
     tint: Color = Color.Unspecified,
     number: Double = 0.0,
 ) {
-    Column(modifier.ledgerCard(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    // A figure is one of the few cards a page shows: true glass under the glass style (ui/Glass.kt), the plain card otherwise.
+    Column(modifier.ledgerCard(glass = true), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         NumericText(value, number, style = ErpType.tileValue, color = tint, maxLines = Int.MAX_VALUE)
         if (!detail.isNullOrEmpty()) {

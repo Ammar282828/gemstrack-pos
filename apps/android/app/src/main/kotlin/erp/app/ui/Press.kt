@@ -36,15 +36,29 @@ fun Modifier.morphCard(
     color: Color = ErpColors.card,
     rest: Dp = Radius.card,
     pressed: Dp = Radius.chip,
+    glass: Boolean = false,
 ): Modifier {
     val source = remember { MutableInteractionSource() }
     val down by source.collectIsPressedAsState()
     val reduce = reduceMotion()
     val corner = animateDpAsState(if (down && !reduce) pressed else rest, MaterialTheme.motionScheme.fastSpatialSpec(), label = "cardMorph")
     // The corner is read when the layer draws, so the spring moves it without recomposing the card.
+    // Under the glass style the card is the translucent row look: the same morphing clip, a see-through fill and a hairline that
+    // follows the corner (a backdrop blur is never put on a pressable card: there are many of them).
+    // With [glass] (a few figure cards) it is a real backdrop blur inside the same morphing clip.
+    val env = LocalGlass.current
+    val weight = glassWeight(wantCard = glass)
+    val look = glassEdgeLookOrNull()
     return this
         .graphicsLayer { shape = RoundedCornerShape(corner.value); clip = true }
-        .background(color)
+        .then(
+            when (weight) {
+                GlassWeight.Standard -> Modifier.background(color)
+                GlassWeight.Row -> Modifier.background(color.copy(alpha = GlassTokens.RowAlpha))
+                GlassWeight.Card -> Modifier.background(color.copy(alpha = GlassTokens.RowAlpha)).glassBlur(env!!, color)
+            },
+        )
+        .then(if (look != null) Modifier.glassEdgeMorphing({ corner.value }, look) else Modifier)
         .combinedClickable(
             interactionSource = source,
             indication = LocalIndication.current,

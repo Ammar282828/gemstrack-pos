@@ -1,5 +1,6 @@
 package erp.app.screens.work
 
+import erp.app.ui.glassRow
 import erp.app.ui.icons.Symbols
 import erp.app.ui.SegmentedColumn
 import androidx.compose.foundation.BorderStroke
@@ -170,7 +171,7 @@ private fun MonthCard(
     books: Reckoned, year: Int, month: Int, today: String, selected: String,
     onSelect: (String) -> Unit, onStep: (Int) -> Unit,
 ) {
-    Column(Modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card).padding(horizontal = 8.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(Modifier.fillMaxWidth().glassRow(Radius.cardShape, ErpColors.card).padding(horizontal = 8.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = { onStep(-1) }) { Icon(Symbols.KeyboardArrowLeft, "Previous month") }
             Text(ShopCalendar.title(year, month), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)

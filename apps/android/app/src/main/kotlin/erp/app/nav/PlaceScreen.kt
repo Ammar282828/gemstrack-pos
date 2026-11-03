@@ -145,13 +145,14 @@ fun PlaceScreen(
         // The account, top right of Home as the system's own apps keep it: Settings (owners; anyone else signs out from Search).
         if (isRoot && bare == "/" && session.isOwner) AccountButton(session.shop.person ?: me?.email ?: "") { navigator.open("/settings") }
     }
+    // Under the glass style the page is the ground (a mesh of the house colour): the bar at rest and the Scaffold let it show.
     val barColors = TopAppBarDefaults.topAppBarColors(
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = erp.app.ui.pageColor(),
         scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
     )
     Scaffold(
         modifier = Modifier.nestedScroll(behavior.nestedScrollConnection),
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = erp.app.ui.pageColor(),
         contentWindowInsets = insets,
         topBar = {
             if (large) {

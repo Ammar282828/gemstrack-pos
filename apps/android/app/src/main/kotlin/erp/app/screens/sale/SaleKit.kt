@@ -1,5 +1,6 @@
 package erp.app.screens.sale
 
+import erp.app.ui.glassRow
 import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import erp.app.ui.SegmentedColumn
@@ -261,7 +262,7 @@ internal fun TagScanner(active: Boolean = true, onCode: (String) -> Unit) {
 
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Column(
-            Modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card).padding(24.dp),
+            Modifier.fillMaxWidth().glassRow(Radius.cardShape, ErpColors.card).padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
@@ -311,7 +312,7 @@ internal fun SaleScanSheet(handle: (String) -> String, onDismiss: () -> Unit) {
             if (said.isNotEmpty()) {
                 Text(
                     said,
-                    Modifier.fillMaxWidth().clip(Radius.chipShape).background(ErpColors.card).padding(14.dp)
+                    Modifier.fillMaxWidth().glassRow(Radius.chipShape, ErpColors.card).padding(14.dp)
                         .semantics { contentDescription = said },
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Medium),
                 )

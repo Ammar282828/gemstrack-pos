@@ -1,5 +1,6 @@
 package erp.app.screens.home
 
+import erp.app.ui.glassRow
 import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.background
@@ -138,7 +139,7 @@ fun TeamNoteBanner(modifier: Modifier = Modifier) {
                 .padding(horizontal = 16.dp, vertical = 6.dp),
         ) {
             Row(
-                Modifier.fillMaxWidth().height(IntrinsicSize.Min).clip(Radius.cardShape).background(ErpColors.card),
+                Modifier.fillMaxWidth().height(IntrinsicSize.Min).glassRow(Radius.cardShape, ErpColors.card),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(Modifier.width(3.dp).fillMaxHeight().padding(vertical = 12.dp).clip(CircleShape).background(ErpColors.accent))
@@ -269,7 +270,7 @@ fun TeamNoteEditor(onDismiss: () -> Unit) {
                     if (current.isNotEmpty()) {
                         Text(
                             "Clear note",
-                            Modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card)
+                            Modifier.fillMaxWidth().glassRow(Radius.cardShape, ErpColors.card)
                                 .clickable(enabled = !saving, role = Role.Button) { save("") }
                                 .defaultMinSize(minHeight = 56.dp).padding(horizontal = 16.dp, vertical = 16.dp),
                             style = MaterialTheme.typography.bodyLarge,

@@ -1,5 +1,6 @@
 package erp.app.screens.owner
 
+import erp.app.ui.groupRowFill
 import erp.app.ui.BusyLabel
 import erp.app.ui.animatedItem
 import erp.app.ui.TextField
@@ -420,7 +421,7 @@ private fun SalaryRow(e: Expense, p: ShareholderFigures.Position, onDelete: () -
     val shown = e.description.replace("${p.name} salary — ", "")
     val delete = RowAction("Delete", Symbols.Delete, Tone.problem, onDelete)
     SwipeActions(end = delete, menu = listOf(delete)) {
-        Box(Modifier.background(ErpColors.card).fillMaxWidth().ledgerRow()) {
+        Box(Modifier.groupRowFill().fillMaxWidth().ledgerRow()) {
             TwoLine(
                 title = shown,
                 subtitle = "${OwnerText.shortDate(e.date)} · Salary · recorded as a business cost",
@@ -438,7 +439,7 @@ private fun LedgerEntryRow(r: ShareholderLedgerRow, p: ShareholderFigures.Positi
     if (r.linkedExpenseId != null) sub += " · logged as an expense"
     val delete = RowAction("Delete", Symbols.Delete, Tone.problem, onDelete)
     SwipeActions(end = delete, menu = listOf(delete)) {
-        Box(Modifier.background(ErpColors.card).fillMaxWidth().ledgerRow()) {
+        Box(Modifier.groupRowFill().fillMaxWidth().ledgerRow()) {
             TwoLine(
                 title = r.description,
                 subtitle = sub,

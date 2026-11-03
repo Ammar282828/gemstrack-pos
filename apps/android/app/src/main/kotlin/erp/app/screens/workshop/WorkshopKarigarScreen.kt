@@ -1,5 +1,6 @@
 package erp.app.screens.workshop
 
+import erp.app.ui.glassRow
 import erp.app.ui.icons.Symbols
 import erp.app.ui.zoomDestination
 import androidx.compose.foundation.background
@@ -553,7 +554,7 @@ private fun HisaabSection(karigar: Karigar, p: WorkshopPosition, rows: List<Hisa
 /** The card the rows of a section sit on. */
 @Composable
 private fun Modifier.ledgerCardRows(): Modifier =
-    this.clip(Radius.cardShape).background(ErpColors.card)
+    this.glassRow(Radius.cardShape, ErpColors.card)
 
 // MARK: Pay batch (owners only)
 

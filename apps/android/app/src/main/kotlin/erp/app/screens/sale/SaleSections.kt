@@ -1,5 +1,7 @@
 package erp.app.screens.sale
 
+import erp.app.ui.glassRowFill
+import erp.app.ui.glassRow
 import erp.app.ui.BusyLabel
 import erp.app.ui.ContactPickButton
 import erp.app.ui.icons.Symbols
@@ -192,7 +194,7 @@ internal fun LineRow(s: SaleFormState, line: SaleLine, f: SaleFigures, d: SaleDa
             },
         ) {
             Column(
-                Modifier.fillMaxWidth().background(ErpColors.card)
+                Modifier.fillMaxWidth().glassRowFill()
                     .clickable(onClickLabel = "Edit this piece", role = Role.Button) { s.editing = line }
                     .semantics {
                         customActions = listOf(androidx.compose.ui.semantics.CustomAccessibilityAction("Remove") { s.remove(line.sku); true })
@@ -409,7 +411,7 @@ internal fun SwipeToRemove(onRemove: () -> Unit, content: @Composable () -> Unit
                 }
             }
         },
-    ) { Box(Modifier.fillMaxWidth().background(ErpColors.card)) { content() } }
+    ) { Box(Modifier.fillMaxWidth().glassRowFill()) { content() } }
 }
 
 // MARK: 6. Payments taken now
@@ -737,7 +739,7 @@ internal fun SaveBar(s: SaleFormState, f: SaleFigures, openPath: (String) -> Uni
         val reason = f.blockedReason
         if (failure != null) {
             Column(
-                Modifier.fillMaxWidth().clip(Radius.chipShape).background(ErpColors.card).padding(10.dp),
+                Modifier.fillMaxWidth().glassRow(Radius.chipShape, ErpColors.card).padding(10.dp),
                 horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text(failure, style = MaterialTheme.typography.bodySmall, color = Tone.problem.color(), textAlign = TextAlign.Center)
@@ -754,7 +756,7 @@ internal fun SaveBar(s: SaleFormState, f: SaleFigures, openPath: (String) -> Uni
         } else if (reason != null) {
             Text(
                 reason,
-                Modifier.fillMaxWidth().clip(Radius.chipShape).background(ErpColors.card).padding(10.dp),
+                Modifier.fillMaxWidth().glassRow(Radius.chipShape, ErpColors.card).padding(10.dp),
                 style = MaterialTheme.typography.bodySmall, color = (if (f.hasPieces) Tone.problem else Tone.quiet).color(), textAlign = TextAlign.Center,
             )
         }

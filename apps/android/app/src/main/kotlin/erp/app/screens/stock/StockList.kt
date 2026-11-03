@@ -1,5 +1,6 @@
 package erp.app.screens.stock
 
+import erp.app.ui.glassRowFill
 import erp.app.ui.animatedItem
 import erp.app.ui.icons.Symbols
 import erp.app.ui.SearchBarField
@@ -296,7 +297,7 @@ private fun ListView(
                         menu = { actions.menu(p) }, hasMenu = actions.any,
                         onClick = { onOpen(p.sku) },
                     ) {
-                        Box(Modifier.fillMaxWidth().background(ErpColors.card)) { StockRow(row, selecting, selected.contains(row.id)) }
+                        Box(Modifier.fillMaxWidth().glassRowFill()) { StockRow(row, selecting, selected.contains(row.id)) }
                     }
                 }
             }

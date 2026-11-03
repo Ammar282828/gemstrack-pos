@@ -1,5 +1,6 @@
 package erp.app.screens.money
 
+import erp.app.ui.glassRow
 import erp.app.ui.BusyLabel
 import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
@@ -121,7 +122,7 @@ fun Modifier.cardEdges(first: Boolean, last: Boolean): Modifier {
     // Android 16's grouped list: the group's outer corners large, the joints small, 2 dp between the tiles.
     val top = if (first) Radius.card else Radius.joint
     val bottom = if (last) Radius.card else Radius.joint
-    return padding(bottom = if (last) 0.dp else 2.dp).clip(RoundedCornerShape(topStart = top, topEnd = top, bottomStart = bottom, bottomEnd = bottom)).background(ErpColors.card)
+    return padding(bottom = if (last) 0.dp else 2.dp).glassRow(RoundedCornerShape(topStart = top, topEnd = top, bottomStart = bottom, bottomEnd = bottom), ErpColors.card)
 }
 
 /** Rows of one card in a lazy list: each its own item (the list stays lazy), the card's corners and hairlines drawn by place. */

@@ -1,5 +1,7 @@
 package erp.app.screens.work
 
+import erp.app.ui.glassRowFill
+import erp.app.ui.glassRow
 import erp.app.ui.animatedItem
 import erp.app.ui.icons.Symbols
 import erp.app.ui.SegmentedColumn
@@ -149,14 +151,14 @@ private fun ActivityLogPage() {
                     val bottom = if (last) Radius.card else Radius.joint
                     Column(
                         Modifier.animateItem().padding(bottom = if (i == visible.lastIndex) 12.dp else 2.dp)
-                            .clip(androidx.compose.foundation.shape.RoundedCornerShape(top, top, bottom, bottom)).background(ErpColors.card),
+                            .glassRow(androidx.compose.foundation.shape.RoundedCornerShape(top, top, bottom, bottom), ErpColors.card),
                     ) {
                         LogRow(visible[i]) { nav.open(WEB_PAGE) }
                     }
                 }
                 if (list.size > shown) {
                     animatedItem(key = "more") {
-                        Column(Modifier.padding(top = 12.dp).clip(Radius.cardShape).background(ErpColors.card)) {
+                        Column(Modifier.padding(top = 12.dp).glassRow(Radius.cardShape, ErpColors.card)) {
                             ActionRow("Show ${minOf(PAGE_SIZE, list.size - shown)} more", { shown += PAGE_SIZE })
                         }
                     }
@@ -190,7 +192,7 @@ private fun LogRow(e: ActivityLogEntry, openWeb: () -> Unit) {
     val menu = if (revert == null) emptyList() else listOf(RowAction("Revert on the ERP's page", Symbols.Undo, Tone.owed, openWeb))
     SwipeActions(end = revert, menu = menu) {
         Row(
-            Modifier.fillMaxWidth().background(ErpColors.card).ledgerRow(),
+            Modifier.fillMaxWidth().glassRowFill().ledgerRow(),
             horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top,
         ) {
             Icon(symbol(e.eventType), contentDescription = null, Modifier.size(24.dp), tint = tint)

@@ -1,5 +1,6 @@
 package erp.app.screens.ads
 
+import erp.app.ui.glassRowFill
 import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -165,7 +166,7 @@ fun AdsRulesScreen() {
                                 for (r in d.rules) {
                                     SwipeActions(end = RowAction("Delete", Symbols.Delete, Tone.problem) { deleting = r }) {
                                         Row(
-                                            Modifier.fillMaxWidth().background(ErpColors.card).ledgerRow(),
+                                            Modifier.fillMaxWidth().glassRowFill().ledgerRow(),
                                             horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically,
                                         ) {
                                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {

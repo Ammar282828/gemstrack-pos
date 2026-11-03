@@ -1,5 +1,6 @@
 package erp.app.screens.customers
 
+import erp.app.ui.glassRowFill
 import erp.app.ui.animatedItem
 import erp.app.nav.LocalFabClearance
 import erp.app.ui.icons.Symbols
@@ -273,7 +274,7 @@ private fun CustomerRow(c: Customer, stats: CustomerKit.Stats?, onClick: () -> U
         hasMenu = call || wa || CustomerKit.messageUri(c.phone) != null,
         onClick = onClick,
     ) {
-        Box(Modifier.fillMaxWidth().background(ErpColors.card).zoomSource(CustomerKit.path(c.id), Radius.tile)) {
+        Box(Modifier.fillMaxWidth().glassRowFill().zoomSource(CustomerKit.path(c.id), Radius.tile)) {
             CustRowLabel(c, stats)
         }
     }

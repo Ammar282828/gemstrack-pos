@@ -1,7 +1,9 @@
 package erp.app.ui
 
+import erp.app.ui.theme.ErpColors
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -113,8 +115,13 @@ fun SwipeActions(
             }
         },
     ) {
+        // Under the glass style a row is see-through, so while it is dragged an opaque card tone sits behind it: the action's colour
+        // must not shine through. At rest nothing is drawn and the ground shows.
+        val glass = LocalGlass.current != null
+        val solid = ErpColors.card
         Box(
             Modifier
+                .then(if (glass) Modifier.drawBehind { if (state.dismissDirection != SwipeToDismissBoxValue.Settled) drawRect(solid) } else Modifier)
                 // A card that handles its own taps (a head that opens, a button) is not made one big button.
                 .then(
                     if (onClick == null && !hasMenu) Modifier

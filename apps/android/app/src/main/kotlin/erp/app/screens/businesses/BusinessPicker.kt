@@ -1,5 +1,6 @@
 package erp.app.screens.businesses
 
+import erp.app.ui.glassCard
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeOut
@@ -177,7 +178,8 @@ internal fun BusinessPicker(list: List<Business>, last: Business) {
         LaunchPicker.dismiss()
     }
 
-    BoxWithConstraints(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
+    // Glass: the page is the ground (a mesh of the open business's colour) and each brand card a true-glass card in its identity colours.
+    BoxWithConstraints(Modifier.fillMaxSize().background(erp.app.ui.pageColor())) {
         val sideBySide = maxWidth >= 600.dp
         // Centred in the screen's height: two cards at the top would leave the lower half empty.
         Column(
@@ -235,7 +237,7 @@ private fun Card(b: Business, last: Boolean, sideBySide: Boolean, chosen: String
         modifier
             .then(if (sideBySide) Modifier.aspectRatio(1.6f) else Modifier.height(130.dp))
             .graphicsLayer { scaleX = scale; scaleY = scale; alpha = fade }
-            .clip(shape).background(ground)
+            .glassCard(shape, ground, tintAlpha = 0.84f)
             .clickable(interactionSource = source, indication = null, onClickLabel = "Open ${b.displayName}", role = Role.Button, enabled = chosen == null, onClick = onPick)
             .semantics(mergeDescendants = true) { contentDescription = "Open ${b.displayName}"; stateDescription = status },
     ) {

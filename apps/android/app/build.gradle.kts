@@ -317,6 +317,8 @@ dependencies {
     implementation(libs.compose.material3.window.size)
     implementation(libs.compose.material3.adaptive.navigation.suite)
     implementation(libs.material.color.utilities) // the business's colour as a whole Material 3 scheme (ui/theme/Scheme.kt)
+    implementation(libs.haze) // backdrop blur for the glass style's few true-glass cards (ui/Glass.kt)
+    implementation(libs.haze.blur)
     implementation(libs.compose.adaptive)
     implementation(libs.compose.adaptive.layout)
     implementation(libs.compose.adaptive.navigation)

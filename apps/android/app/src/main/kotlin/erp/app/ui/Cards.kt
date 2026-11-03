@@ -55,13 +55,18 @@ import erp.app.ui.theme.ErpType
  * order or sale): a short bar of the primary at the leading edge, as a list row has it (`mineRow`), never an outline or a wash.
  */
 @Composable
-fun Modifier.ledgerCard(padding: Dp = 16.dp, lit: Boolean = false): Modifier =
-    fillMaxWidth().houseCardSurface(lit).padding(padding)
+fun Modifier.ledgerCard(padding: Dp = 16.dp, lit: Boolean = false, glass: Boolean = false): Modifier =
+    fillMaxWidth().houseCardSurface(lit, glass).padding(padding)
 
-/** The card's surface: the extraLarge shape on `surfaceContainer`. Flat: lifted by tone, not by a shadow. */
+/**
+ * The card's surface: the extraLarge shape on `surfaceContainer`. Flat: lifted by tone, not by a shadow. Under the glass style
+ * (ui/Glass.kt) it is the translucent row look, or with [glass] true glass (a backdrop blur: only for the few cards a page shows,
+ * never inside a lazy item); under Standard both are the plain card.
+ */
 @Composable
-fun Modifier.houseCardSurface(lit: Boolean = false): Modifier =
-    clip(Radius.cardShape).background(ErpColors.card).then(if (lit) Modifier.mineBar() else Modifier)
+fun Modifier.houseCardSurface(lit: Boolean = false, glass: Boolean = false): Modifier =
+    (if (glass) glassCard(Radius.cardShape, ErpColors.card) else glassRow(Radius.cardShape, ErpColors.card))
+        .then(if (lit) Modifier.mineBar() else Modifier)
 
 /**
  * A titled card: [LedgerHeading] over the content, on the scheme's card tone. Use it for a block of figures or free
@@ -87,7 +92,7 @@ fun SectionCard(
  */
 @Composable
 fun Modifier.heroSheen(padding: Dp = 16.dp): Modifier =
-    fillMaxWidth().clip(Radius.cardShape).background(MaterialTheme.colorScheme.primaryContainer).padding(padding)
+    fillMaxWidth().glassCard(Radius.cardShape, MaterialTheme.colorScheme.primaryContainer).padding(padding)
 
 /** A dashed hairline, like the tear on a receipt: between a bill's lines and its totals. */
 @Composable
@@ -144,7 +149,7 @@ fun LedgerSection(
     }
     if (collapsible) {
         var open by rememberSaveable(title) { mutableStateOf(true) }
-        Column(modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card)) {
+        Column(modifier.fillMaxWidth().glassRow(Radius.cardShape, ErpColors.card)) {
             Row(
                 Modifier
                     .fillMaxWidth()

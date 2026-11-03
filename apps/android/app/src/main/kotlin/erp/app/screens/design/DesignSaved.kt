@@ -1,5 +1,6 @@
 package erp.app.screens.design
 
+import erp.app.ui.glassRow
 import erp.app.ui.SkeletonShape
 import erp.app.ui.SkeletonPhoto
 import erp.app.ui.Busy
@@ -341,7 +342,7 @@ fun DesignDetailSheet(
 
     FullScreenSheet(title = record.name, onCancel = { rename(); onClose() }, cancelText = "Done") {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Box(Modifier.fillMaxWidth().heightIn(min = 160.dp, max = 360.dp).clip(Radius.cardShape).background(ErpColors.card), contentAlignment = Alignment.Center) {
+            Box(Modifier.fillMaxWidth().heightIn(min = 160.dp, max = 360.dp).glassRow(Radius.cardShape, ErpColors.card), contentAlignment = Alignment.Center) {
                 when {
                     full != null -> DesignPicture(full, Modifier.fillMaxSize(), ContentScale.Fit, "The design")
                     thumb != null -> DesignPicture(thumb, Modifier.fillMaxSize(), ContentScale.Fit)

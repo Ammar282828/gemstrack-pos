@@ -131,7 +131,7 @@ fun MineTag(modifier: Modifier = Modifier) {
  * 2026-10-05). The whole row tinted made a day's card look like a warning.
  */
 @Composable
-fun Modifier.mineRow(mine: Boolean): Modifier = background(ErpColors.card).then(if (mine) Modifier.mineBar() else Modifier)
+fun Modifier.mineRow(mine: Boolean): Modifier = glassRowFill().then(if (mine) Modifier.mineBar() else Modifier)
 
 /** The short bar of the primary at a row's or card's leading edge that says "yours". */
 @Composable
@@ -142,3 +142,15 @@ fun Modifier.mineBar(): Modifier {
         drawRoundRect(accent, Offset(0f, inset), Size(3.dp.toPx(), size.height - 2 * inset), CornerRadius(1.5.dp.toPx()))
     }
 }
+
+/** A row's fill: the card colour, or under the glass style its translucent twin (the edge is the clip's job, as the fill had no clip of its own). */
+@Composable
+fun Modifier.glassRowFill(): Modifier =
+    if (LocalGlass.current == null) background(ErpColors.card) else background(ErpColors.card.copy(alpha = GlassTokens.RowAlpha))
+
+/**
+ * A row's fill inside a group that already draws the glass tile (a [cardEdges] row): the card colour under Standard, nothing under
+ * glass, so two see-through fills never stack into a darker one.
+ */
+@Composable
+fun Modifier.groupRowFill(): Modifier = if (LocalGlass.current == null) background(ErpColors.card) else this

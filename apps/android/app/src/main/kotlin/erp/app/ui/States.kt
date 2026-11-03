@@ -111,7 +111,7 @@ fun SkeletonBlock(modifier: Modifier = Modifier, shape: androidx.compose.ui.grap
 @Composable
 private fun SkeletonCard(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     Box(
-        modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card).padding(horizontal = 16.dp),
+        modifier.fillMaxWidth().glassRow(Radius.cardShape, ErpColors.card).padding(horizontal = 16.dp),
         contentAlignment = Alignment.CenterStart,
     ) { content() }
 }
@@ -163,7 +163,7 @@ fun SkeletonFigures(count: Int = 4, modifier: Modifier = Modifier) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 for (i in rowStart until minOf(count, rowStart + 2)) {
                     Column(
-                        Modifier.weight(1f).clip(Radius.cardShape).background(ErpColors.card).padding(16.dp).defaultMinSize(minHeight = 88.dp),
+                        Modifier.weight(1f).glassRow(Radius.cardShape, ErpColors.card).padding(16.dp).defaultMinSize(minHeight = 88.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) { SkeletonBar(70.dp, 9.dp); SkeletonBar(110.dp, 22.dp) }
                 }

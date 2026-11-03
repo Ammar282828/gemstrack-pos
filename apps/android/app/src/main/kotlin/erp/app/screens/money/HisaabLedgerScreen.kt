@@ -1,5 +1,7 @@
 package erp.app.screens.money
 
+import erp.app.ui.groupRowFill
+import erp.app.ui.glassRow
 import erp.app.ui.animatedItem
 import erp.app.ui.icons.Symbols
 import erp.app.ui.SegmentedColumn
@@ -164,7 +166,7 @@ private fun LedgerBoard(path: String) {
                             Column(Modifier.padding(horizontal = 16.dp).readableColumn()) {
                                 Text(
                                     "No transactions found.",
-                                    Modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card).ledgerRow(),
+                                    Modifier.fillMaxWidth().glassRow(Radius.cardShape, ErpColors.card).ledgerRow(),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
@@ -179,7 +181,7 @@ private fun LedgerBoard(path: String) {
                                 menu = if (onFile) listOf(delete) else emptyList(),
                                 onClick = if (!invoiceId.isNullOrEmpty()) ({ navigator.open(MoneyPaths.invoice(invoiceId)) }) else null,
                             ) {
-                                Box(Modifier.background(ErpColors.card)) { LedgerRow(line, result.hasGold) }
+                                Box(Modifier.groupRowFill()) { LedgerRow(line, result.hasGold) }
                             }
                         }
                         if (onFile) animatedItem(key = "swipe") {

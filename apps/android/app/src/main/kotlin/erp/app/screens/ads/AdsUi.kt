@@ -1,5 +1,6 @@
 package erp.app.screens.ads
 
+import erp.app.ui.glassRow
 import erp.app.ui.BusyBlock
 import erp.app.ui.icons.Symbols
 import erp.app.ui.SegmentedColumn
@@ -124,7 +125,7 @@ fun AdsSection(
         if (header != null) Box(Modifier.padding(horizontal = 16.dp)) { header() }
         else if (title != null) LedgerHeading(title, Modifier.padding(horizontal = 16.dp), count = count)
         if (divided) SegmentedColumn { content() }
-        else Column(Modifier.fillMaxWidth().clip(Radius.cardShape).background(ErpColors.card)) { content() }
+        else Column(Modifier.fillMaxWidth().glassRow(Radius.cardShape, ErpColors.card)) { content() }
         if (footer != null) {
             CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant) {
                 ProvideTextStyle(MaterialTheme.typography.bodySmall) { Column(Modifier.padding(horizontal = 16.dp)) { footer() } }

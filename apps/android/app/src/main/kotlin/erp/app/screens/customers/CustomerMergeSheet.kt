@@ -1,5 +1,6 @@
 package erp.app.screens.customers
 
+import erp.app.ui.glassRowFill
 import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.background
@@ -213,7 +214,7 @@ fun CustomerMergeSheet(onDismiss: () -> Unit) {
 }
 
 @Composable
-private fun Modifier.card(): Modifier = clip(Radius.cardShape).background(ErpColors.card)
+private fun Modifier.card(): Modifier = clip(Radius.cardShape).glassRowFill()
 
 // MARK: A pair the list found
 

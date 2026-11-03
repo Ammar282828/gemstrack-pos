@@ -1,5 +1,7 @@
 package erp.app.screens.repairs
 
+import erp.app.ui.groupRowFill
+import erp.app.ui.glassRow
 import erp.app.ui.animatedItem
 import erp.app.ui.icons.Symbols
 import erp.app.ui.AppClock
@@ -219,7 +221,7 @@ fun RepairsScreen(path: String) {
 private fun Modifier.cardEdges(first: Boolean, last: Boolean): Modifier {
     val top: Dp = if (first) erp.app.ui.Radius.card else erp.app.ui.Radius.joint
     val bottom: Dp = if (last) erp.app.ui.Radius.card else erp.app.ui.Radius.joint
-    return fillMaxWidth().padding(bottom = if (last) 0.dp else 2.dp).clip(RoundedCornerShape(topStart = top, topEnd = top, bottomStart = bottom, bottomEnd = bottom)).background(ErpColors.card)
+    return fillMaxWidth().padding(bottom = if (last) 0.dp else 2.dp).glassRow(RoundedCornerShape(topStart = top, topEnd = top, bottomStart = bottom, bottomEnd = bottom), ErpColors.card)
 }
 
 @Composable
@@ -312,7 +314,7 @@ private fun RepairRow(
 @Composable
 private fun RepairRowBody(r: Repair, now: Instant, busy: Boolean) {
     val greyed = r.status == RepairStatus.collected || r.status == RepairStatus.cancelled
-    Column(Modifier.fillMaxWidth().background(ErpColors.card).alpha(if (greyed) 0.55f else 1f).ledgerRow(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(Modifier.fillMaxWidth().groupRowFill().alpha(if (greyed) 0.55f else 1f).ledgerRow(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
             Text(
                 repairSummary(r), Modifier.weight(1f),
