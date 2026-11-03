@@ -233,7 +233,7 @@ struct StudioBoardEditor: View {
             } else if loadFailed {
                 ErrorState("This design couldn’t be opened.") { loadFailed = false; Task { await load() } }
             } else {
-                SkeletonLoading("Opening the design").frame(maxWidth: .infinity, maxHeight: .infinity)
+                SkeletonPhoto(ratio: nil, radius: Radius.card, label: "Opening the design").padding(pt(16)).frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .background { shortcuts }
@@ -1293,7 +1293,7 @@ struct StudioBoardQueueSheet: View {
                             }
                         }
                     } else if problem == nil {
-                        SkeletonLoading("Finding the WhatsApp places")
+                        BusySpinner("Finding the WhatsApp places", inline: true)
                     }
                     if let problem { Text(problem).font(.footnote).foregroundStyle(Tone.problem.color) }
                 } header: { LedgerHeading(title: "Where") }.houseRows()
@@ -1427,7 +1427,7 @@ struct StudioBoardPhotoPicker: View {
                             }
                         }
                     } else if problem == nil {
-                        SkeletonLoading("Loading the photos")
+                        SkeletonThumbGrid(count: 6, columns: 3, label: "Loading the photos")
                     }
                 }
                 .padding(pt(20))

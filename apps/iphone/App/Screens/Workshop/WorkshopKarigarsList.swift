@@ -41,7 +41,7 @@ struct WorkshopKarigarsList: View {
     }
 
     var body: some View {
-        ShelfState(loaded: loaded, error: firstError, offline: book.karigars.offline) {
+        ShelfState(loaded: loaded, error: firstError, offline: book.karigars.offline, shape: .list) {
             content
         }
         .navigationTitle("Karigars")

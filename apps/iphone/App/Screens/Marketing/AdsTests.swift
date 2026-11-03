@@ -167,7 +167,7 @@ struct AdsTestsScreen: View {
             Toggle("Judge on website purchases", isOn: $purchases).tint(Theme.accent)
             Button { asking = true } label: {
                 HStack(spacing: pt(8)) {
-                    if making { SkeletonLoading() }
+                    if making { ProgressView() }
                     Text("Start the test").frame(maxWidth: .infinity)
                 }
             }

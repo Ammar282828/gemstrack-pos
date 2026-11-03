@@ -267,7 +267,7 @@ private struct PhotoPage: View {
             } else if failed {
                 Text("This photo could not be loaded.").font(.subheadline).foregroundStyle(.white.opacity(0.7))
             } else {
-                ProgressView().tint(.white)
+                SkeletonPhoto(ratio: nil, radius: Radius.card, label: "Loading the photo").padding(pt(24))
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

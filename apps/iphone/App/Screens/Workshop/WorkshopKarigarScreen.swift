@@ -126,7 +126,7 @@ struct WorkshopKarigarScreen: View {
 
     @ViewBuilder
     private var content: some View {
-        ShelfState(loaded: loaded, error: firstError, offline: book.karigars.offline) {
+        ShelfState(loaded: loaded, error: firstError, offline: book.karigars.offline, shape: .record) {
             if let karigar = book.karigars.item(id), (karigar.deletedAt ?? "").isEmpty {
                 page(karigar)
             } else {

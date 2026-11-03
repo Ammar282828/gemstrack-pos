@@ -247,7 +247,7 @@ struct WebsiteLiveScreen: View {
         if live == nil, let problem {
             ErrorState(problem) { Task { await load() } }
         } else if live == nil {
-            SkeletonLoading("Loading\u{2026}").controlSize(.large)
+            SkeletonPage(shape: .figures)
         }
     }
 

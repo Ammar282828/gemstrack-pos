@@ -46,7 +46,7 @@ private struct RecentlyRemovedList: View {
     private var removedKarigars: [Karigar] { book.karigars.items.filter { RecentlyRemoved.isRemoved($0.deletedAt) } }
 
     var body: some View {
-        ShelfState(loaded: ready, error: book.customers.error ?? book.karigars.error, offline: book.customers.offline) {
+        ShelfState(loaded: ready, error: book.customers.error ?? book.karigars.error, offline: book.customers.offline, shape: .list) {
             content
         }
         .navigationTitle("Recently removed")
@@ -129,7 +129,7 @@ private struct RecentlyRemovedList: View {
                 Task { await restore(customerIds: customers.map(\.id), karigarIds: karigars.map(\.id), key: "all", name: nil) }
             } label: {
                 HStack(spacing: pt(8)) {
-                    if busy == "all" { SkeletonLoading() }
+                    if busy == "all" { ProgressView() }
                     Label("Put everything back", systemImage: "arrow.uturn.backward")
                 }
             }
@@ -202,7 +202,7 @@ private struct RecentlyRemovedList: View {
                     await restore(customerIds: kind == .customer ? [id] : [], karigarIds: kind == .karigar ? [id] : [], key: id, name: name)
                 }
             } label: {
-                if busy == id { SkeletonLoading() } else { Text("Put back") }
+                Text("Put back").busy(busy == id)
             }
             .buttonStyle(.bordered)
             .frame(minWidth: 72)

@@ -293,7 +293,7 @@ struct WebsitePhotoEditRows: View {
                     .listRowInsets(EdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8))
                     .accessibilityLabel("The photo as it will go up")
             } else {
-                SkeletonLoading().aspectRatio(1, contentMode: .fit)
+                SkeletonPhoto(label: "Preparing the photo")
             }
             if let problem = edit.problem {
                 Text(problem).font(.footnote).foregroundStyle(Tone.problem.color)

@@ -19,7 +19,7 @@ struct WebScreen: View {
         ZStack {
             WebView(path: path, loading: $loading, failed: $failed, native: $native)
                 .ignoresSafeArea(edges: .bottom)
-            if loading { SkeletonLoading().controlSize(.large) }
+            if loading { BusySpinner("Opening…") }
             if let failed {
                 ContentUnavailableView {
                     Label("Couldn't open this page", systemImage: "wifi.exclamationmark")

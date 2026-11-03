@@ -50,7 +50,7 @@ struct AdsSetupScreen: View {
             } else if let problem {
                 AdsNotReady(status: nil, problem: problem, retry: { await load(fresh: true) })
             } else {
-                SkeletonLoading("Checking…").frame(maxWidth: .infinity, maxHeight: .infinity)
+                BusySpinner("Checking…").frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .navigationTitle("Setup")

@@ -4,12 +4,13 @@ import UIKit
 #endif
 import ERPCore
 
-/// Static placeholders never obscure a page with a spinning activity indicator.
+/// A page whose shape is known shows this, never a spinner (CONVENTIONS.md "Loading"; the spinner is `BusySpinner`, for
+/// an action). Its pieces for a list, cards, figures, a record, thumbs, a chart are in `Skeletons.swift`.
 ///
 /// `.controlSize(.large)` is a whole page still loading: the ledger page's own shape (a date line, the hero
 /// card, a folded card, then a section of rows) on the page's own cards and margins, pinned to the top, so
 /// the page arrives where its outline already stood rather than the outline floating mid-screen and jumping.
-/// Nothing moves in it: a cold start shows one steady frame until the books are in.
+/// A soft pulse, still under Reduce Motion. Without `.large` it is a short list's rows (use `SkeletonRows` by name).
 struct SkeletonLoading: View {
     @Environment(\.controlSize) private var size
     private let label: String
@@ -18,18 +19,11 @@ struct SkeletonLoading: View {
     var body: some View {
         Group {
             if size == .large {
-                page
+                page.skeletonShimmer()
             } else {
-                VStack(alignment: .leading, spacing: pt(5)) {
-                    ForEach(0..<3, id: \.self) { index in
-                        Capsule()
-                            .fill(.secondary.opacity(0.12))
-                            .frame(width: index == 1 ? 54 : 76, height: 5)
-                    }
-                }
+                SkeletonRows(count: 2, label: label)
             }
         }
-        .allowsHitTesting(false)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(label)
     }
@@ -373,6 +367,8 @@ struct ShelfState<Content: View>: View {
     let loaded: Bool
     let error: String?
     var offline = false
+    /// The outline shown until the books are in: the screen's own shape (default: the ledger page's).
+    var shape: SkeletonShape = .page
     @ViewBuilder let content: () -> Content
 
     private var showingOfflineCopy: Bool { offline && Connection.shared.isOffline }
@@ -381,7 +377,7 @@ struct ShelfState<Content: View>: View {
         // The books arriving cross-fade over the outline (none under Reduce Motion).
         Group {
             if !loaded {
-                SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                SkeletonPage(shape: shape).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .transition(.opacity)
             } else if let error, !error.isEmpty, !showingOfflineCopy {
                 ContentUnavailableView("Couldn't read the books", systemImage: "exclamationmark.icloud", description: Text(error))

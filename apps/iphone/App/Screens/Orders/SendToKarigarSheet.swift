@@ -114,7 +114,7 @@ struct SendToKarigarSheet: View {
                 ToolbarItem(placement: .cancellationAction) { Button(role: .cancel) { dismiss() } }
                 ToolbarItem(placement: .primaryAction) {
                     Button { Task { await prepareShare() } } label: {
-                        if preparingShare { ProgressView() } else { Label("Share\u{2026}", systemImage: "square.and.arrow.up") }
+                        Label("Share\u{2026}", systemImage: "square.and.arrow.up").busy(preparingShare)
                     }
                     .disabled(preparingShare || indexes.isEmpty || sharedWords.isEmpty)
                 }

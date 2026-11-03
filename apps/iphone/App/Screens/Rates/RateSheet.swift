@@ -277,7 +277,7 @@ struct RateSheet: View {
                         Button { Task { await fillFromGoldPk() } } label: {
                             HStack {
                                 Label("Fill gold from gold.pk", systemImage: "globe")
-                                if filling { Spacer(); SkeletonLoading() }
+                                if filling { Spacer(); ProgressView() }
                             }
                         }
                         .disabled(filling || saving)
@@ -396,7 +396,7 @@ extension RateSheet {
                                 Label("Fill gold from gold.pk", systemImage: "globe")
                             }
                             .disabled(filling || saving)
-                            if filling { SkeletonLoading() }
+                            if filling { ProgressView() }
                         }
                     } footer: {
                         if let note { Text(note) }

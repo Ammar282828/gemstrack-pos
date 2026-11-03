@@ -53,7 +53,7 @@ struct CustomersList: View {
         // The Mac's Customers is its own place: a table with the picked customer in the inspector (MacCustomersPlace).
         MacCustomersPlace(path: "/customers")
         #else
-        ShelfState(loaded: loaded, error: failure, offline: offline) {
+        ShelfState(loaded: loaded, error: failure, offline: offline, shape: .list) {
             list
         }
         .navigationTitle("Customers")

@@ -47,7 +47,7 @@ struct WorkshopGivenScreen: View {
     }
 
     var body: some View {
-        ShelfState(loaded: book.givenItems.loaded, error: book.givenItems.error, offline: book.givenItems.offline) {
+        ShelfState(loaded: book.givenItems.loaded, error: book.givenItems.error, offline: book.givenItems.offline, shape: .list) {
             content
         }
         .navigationTitle("Given items")

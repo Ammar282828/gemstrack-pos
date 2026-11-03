@@ -108,7 +108,7 @@ struct WorkSamplePhoto: View {
                     .frame(maxHeight: 220)
                     .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
             } else if !failed {
-                SkeletonLoading().frame(maxWidth: .infinity, minHeight: 60)
+                SkeletonPhoto(ratio: nil, label: "Loading the photo").frame(maxWidth: .infinity, minHeight: 60)
             }
         }
         .task(id: key) {

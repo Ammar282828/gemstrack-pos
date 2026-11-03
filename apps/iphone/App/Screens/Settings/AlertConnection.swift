@@ -284,7 +284,7 @@ struct AlertConnectionSections: View {
                     Button {
                         asking = r
                     } label: {
-                        if sending == r.id { ProgressView() } else { Text("Send now") }
+                        Text("Send now").busy(sending == r.id)
                     }
                     .buttonStyle(.borderless)
                     .disabled(sending != nil || phones.isEmpty)

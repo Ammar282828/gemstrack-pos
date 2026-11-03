@@ -61,7 +61,7 @@ struct NewOrderScanScreen: View {
             if busy {
                 Section {
                     HStack(spacing: pt(12)) {
-                        SkeletonLoading()
+                        ProgressView()
                         Text(photos.count > 1 ? "Reading \(photos.count) photos…" : "Reading it…")
                         Spacer(minLength: 8)
                         Button("Cancel", role: .cancel) { cancelRead() }
@@ -358,7 +358,7 @@ extension NewOrderScanScreen {
                     if busy {
                         Section {
                             HStack(spacing: 12) {
-                                SkeletonLoading()
+                                ProgressView()
                                 Text(photos.count > 1 ? "Reading \(photos.count) photos\u{2026}" : "Reading it\u{2026}")
                                 Spacer(minLength: 8)
                                 Button("Cancel", role: .cancel) { cancelRead() }

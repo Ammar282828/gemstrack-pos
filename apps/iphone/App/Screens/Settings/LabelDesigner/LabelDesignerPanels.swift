@@ -258,7 +258,7 @@ struct LabelPreviewSections: View {
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
             if !search.trimmingCharacters(in: .whitespaces).isEmpty {
-                if !book.products.loaded { SkeletonLoading() }
+                if !book.products.loaded { SkeletonRows(count: 3, monogram: false, trailing: false, label: "Loading the stock") }
                 else if hits.isEmpty { Text("No pieces found.").foregroundStyle(.secondary) }
                 ForEach(hits) { (p: Product) in
                     Button {
@@ -318,7 +318,7 @@ struct LabelCsvSection: View {
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                 if !search.trimmingCharacters(in: .whitespaces).isEmpty {
-                    if !book.products.loaded { SkeletonLoading() }
+                    if !book.products.loaded { SkeletonRows(count: 3, monogram: false, trailing: false, label: "Loading the stock") }
                     else if hits.isEmpty { Text("No pieces found.").foregroundStyle(.secondary) }
                     ForEach(hits) { (p: Product) in
                         Button { picked = p; search = ""; csv = nil } label: {
@@ -328,10 +328,7 @@ struct LabelCsvSection: View {
                 }
             }
             Button { Task { await makeCsv() } } label: {
-                HStack(spacing: 8) {
-                    if making { SkeletonLoading() }
-                    Label("Download CSV for this piece", systemImage: "arrow.down.doc")
-                }
+                Label("Download CSV for this piece", systemImage: "arrow.down.doc").busy(making)
             }
             .disabled(picked == nil || making)
             if let csv {

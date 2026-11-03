@@ -267,7 +267,7 @@ struct StockRemoteImage: View {
             } else if failed {
                 StockInitial(name: name)
             } else {
-                SkeletonLoading()
+                SkeletonPhoto(ratio: nil, radius: 0, label: "Loading the photo")
             }
         }
         .task(id: "\(url.absoluteString)#\(maxPixel)") {
@@ -350,7 +350,7 @@ private struct StockDataImage: View {
             } else if failed {
                 StockInitial(name: name)
             } else {
-                SkeletonLoading()
+                SkeletonPhoto(ratio: nil, radius: 0, label: "Loading the photo")
             }
         }
         .task(id: key) {

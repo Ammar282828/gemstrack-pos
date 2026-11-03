@@ -189,7 +189,7 @@ private struct ShopifyInnerForm: View {
                 Text(statusFailure).font(.footnote).foregroundStyle(.secondary)
                 retryButton("Check connection again", busyWith: .status) { await loadStatus() }
             } else {
-                SkeletonLoading()
+                ProgressView()
             }
             if status != nil {
                 retryButton("Check connection", busyWith: .status) { await loadStatus() }
@@ -367,7 +367,7 @@ private struct ShopifyInnerForm: View {
             } else if let listFailure {
                 Text(listFailure).font(.footnote).foregroundStyle(.secondary)
             } else {
-                SkeletonLoading()
+                ProgressView()
             }
             retryButton(orders == nil ? "Check for new orders" : "Re-check", busyWith: .list) { await loadOrders() }
         } header: {
@@ -656,7 +656,7 @@ extension ShopifyInnerForm {
             } else if let listFailure {
                 Text(listFailure).font(.footnote).foregroundStyle(.secondary)
             } else {
-                SkeletonLoading()
+                ProgressView()
             }
             Button(orders == nil ? "Check for new orders" : "Re-check") { Task { await loadOrders() } }
                 .disabled(busy.contains(.list) || writing)

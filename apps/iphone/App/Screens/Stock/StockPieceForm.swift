@@ -41,7 +41,7 @@ struct StockPieceForm: View {
                 .navigationTitle(sku == nil ? "Add piece" : "Edit piece")
                 .navigationBarTitleDisplayMode(.inline)
         } else if let sku {
-            ShelfState(loaded: book.products.loaded, error: book.products.error, offline: book.products.offline) {
+            ShelfState(loaded: book.products.loaded, error: book.products.error, offline: book.products.offline, shape: .form) {
                 if let p = book.products.item(sku) {
                     StockPieceEditor(original: p)
                 } else {

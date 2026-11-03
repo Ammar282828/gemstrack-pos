@@ -96,7 +96,7 @@ struct AddCustomer: View {
             if saved == nil {
                 ToolbarItem(placement: .confirmationAction) {
                     Button { Task { await save() } } label: {
-                        if saving { ProgressView() } else { Text("Save") }
+                        Text("Save").busy(saving)
                     }
                     .disabled(!canSave)
                     .keyboardShortcut("s", modifiers: .command)

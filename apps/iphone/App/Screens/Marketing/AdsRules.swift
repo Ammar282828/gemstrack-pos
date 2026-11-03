@@ -212,7 +212,7 @@ struct AdsRulesScreen: View {
             }
             Button { making = true } label: {
                 HStack(spacing: pt(8)) {
-                    if busy == "new" { SkeletonLoading() }
+                    if busy == "new" { ProgressView() }
                     Text("Make the rule")
                 }
             }
@@ -244,7 +244,7 @@ struct AdsRulesScreen: View {
                         }
                         Spacer(minLength: 8)
                         if busy == r.id {
-                            SkeletonLoading()
+                            ProgressView()
                         } else {
                             Toggle("On", isOn: ruleSwitch(r)).labelsHidden().tint(Theme.accent).disabled(busy != nil)
                         }
@@ -375,7 +375,7 @@ extension AdsRulesScreen {
             .width(min: 160, ideal: 420)
             TableColumn("On") { (r: AdsRuleRow) in
                 if busy == r.id {
-                    SkeletonLoading()
+                    ProgressView()
                 } else {
                     Toggle("On", isOn: ruleSwitch(r)).labelsHidden().toggleStyle(.switch).controlSize(.small).disabled(busy != nil)
                 }

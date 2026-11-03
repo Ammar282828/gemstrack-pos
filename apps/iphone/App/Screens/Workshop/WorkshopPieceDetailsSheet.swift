@@ -168,7 +168,7 @@ struct WorkshopPieceDetailsSheet: View {
                 } else if let photoProblem {
                     Text(photoProblem).font(.footnote).foregroundStyle(.secondary)
                 } else {
-                    SkeletonLoading().frame(height: 80)
+                    SkeletonPhoto(ratio: nil, label: "Loading the photo").frame(height: 80)
                 }
                 Button("Remove photo", systemImage: "trash", role: .destructive) { removePhoto = true }
             }

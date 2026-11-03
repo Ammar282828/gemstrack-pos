@@ -66,7 +66,7 @@ struct OnlineOrdersScreen: View {
         } else {
             switch store.phase {
             case .idle, .loading:
-                SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
+                SkeletonPage(shape: .cards).frame(maxWidth: .infinity, maxHeight: .infinity)
             case .failed(let message):
                 ErrorState(message) { Task { await store.load() } }
             case .loaded:

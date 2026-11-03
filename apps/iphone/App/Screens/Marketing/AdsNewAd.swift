@@ -1014,7 +1014,7 @@ struct AdsNewAdScreen: View {
         Section {
             Button { Task { await showPreview() } } label: {
                 HStack(spacing: pt(8)) {
-                    if previewBusy { SkeletonLoading() }
+                    if previewBusy { ProgressView() }
                     Label(previewBusy ? "Asking Meta…" : "See it as Instagram will show it", systemImage: "eye")
                 }
             }

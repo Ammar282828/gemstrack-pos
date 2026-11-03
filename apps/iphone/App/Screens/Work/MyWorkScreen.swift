@@ -64,7 +64,7 @@ struct MyWorkScreen: View {
         Group {
             switch phase {
             case .loading:
-                SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
+                SkeletonPage(shape: .cards).frame(maxWidth: .infinity, maxHeight: .infinity)
             case .noAccount:
                 noAccount
             case .failed(let message):
@@ -343,7 +343,7 @@ struct MyWorkScreen: View {
     @ViewBuilder
     private func tick(_ j: KarigarPortalJob, readOnly: Bool) -> some View {
         if busy == j.id {
-            SkeletonLoading().frame(width: 44, height: 44)
+            ProgressView().frame(width: 44, height: 44)
         } else if readOnly {
             Image(systemName: j.isDone ? "checkmark.circle.fill" : "circle")
                 .font(.title2)

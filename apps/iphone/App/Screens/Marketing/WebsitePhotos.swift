@@ -62,7 +62,7 @@ struct WebsitePhotosScreen: View {
             } else if let problem, collections == nil {
                 ErrorState(problem) { Task { await load() } }
             } else if collections == nil {
-                SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
+                SkeletonPage(shape: .grid).frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 page
             }
@@ -283,7 +283,7 @@ struct WebsitePhotosScreen: View {
             }
             if item.status == .uploading || item.retouching {
                 Rectangle().fill(Theme.card.opacity(0.7))
-                SkeletonLoading()
+                ProgressView()
             }
         }
         .frame(width: 72, height: 72)

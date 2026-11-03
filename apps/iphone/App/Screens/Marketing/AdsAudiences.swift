@@ -193,7 +193,7 @@ struct AdsAudiencesScreen: View {
 
     private func busyLabel(_ title: String, _ what: String, _ symbol: String) -> some View {
         HStack(spacing: pt(8)) {
-            if busy == what { SkeletonLoading() } else { Image(systemName: symbol) }
+            Image(systemName: symbol).busy(busy == what)
             Text(title)
         }
     }
@@ -333,7 +333,7 @@ struct AdsAudiencesScreen: View {
             }
             Spacer(minLength: 8)
             if busy == a.id {
-                SkeletonLoading()
+                ProgressView()
             } else {
                 if a.kind == "Customer list" && isOwner {
                     Button { Task { await refresh(a) } } label: { Image(systemName: "arrow.clockwise") }

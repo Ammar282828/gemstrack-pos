@@ -71,7 +71,7 @@ struct AdsCampaignsScreen: View {
             } else if let problem {
                 failed(problem)
             } else {
-                SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
+                SkeletonPage(shape: .cards).frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         #if os(macOS)

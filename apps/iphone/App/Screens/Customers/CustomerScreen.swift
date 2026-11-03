@@ -64,7 +64,7 @@ struct CustomerScreen: View {
     }
 
     var body: some View {
-        ShelfState(loaded: loaded, error: failure, offline: book.customers.offline) {
+        ShelfState(loaded: loaded, error: failure, offline: book.customers.offline, shape: .record) {
             content
         }
         .navigationTitle(customer.map { CustomerKit.shown($0) } ?? "Customer")

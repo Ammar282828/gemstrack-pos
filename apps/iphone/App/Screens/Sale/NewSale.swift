@@ -111,7 +111,7 @@ struct SaleForm: View {
                 InvoiceScreen(id: id)
                     .environment(\.zoomNamespace, nil)  // swapped in place after a save: no row to zoom from
             } else if !book.settings.loaded {
-                SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
+                SkeletonPage(shape: .form).frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 #if os(macOS)
                 macPage
@@ -579,10 +579,7 @@ extension SaleForm {
                 macFooterStatus(f)
                 Spacer(minLength: 12)
                 Button { actions.save.perform() } label: {
-                    HStack(spacing: 8) {
-                        if saving { ProgressView().controlSize(.small) }
-                        Text(macSaveTitle(f))
-                    }
+                    Text(macSaveTitle(f)).busy(saving)
                     .frame(minWidth: 140)
                 }
                 .buttonStyle(.houseProminent)

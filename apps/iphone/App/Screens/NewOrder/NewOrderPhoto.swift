@@ -80,7 +80,7 @@ struct NewOrderSampleField: View {
                         .buttonStyle(.bordered)
                     }
                     #endif
-                    if busy { SkeletonLoading() }
+                    if busy { ProgressView() }
                 }
             } else {
                 Text("A piece takes up to \(NewOrderPieceDraft.maxPhotos) reference pictures.").font(.footnote).foregroundStyle(.secondary)
@@ -391,7 +391,7 @@ struct NewOrderPhotoField: View {
                     .buttonStyle(.bordered)
                 }
                 #endif
-                if busy { SkeletonLoading() }
+                if busy { ProgressView() }
             }
             if let problem {
                 Text(problem).font(.footnote).foregroundStyle(Tone.problem.color)

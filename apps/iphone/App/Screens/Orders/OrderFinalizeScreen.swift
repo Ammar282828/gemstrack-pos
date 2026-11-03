@@ -49,7 +49,7 @@ struct OrderFinalizeScreen: View {
             } else if book.orders.loaded && order == nil {
                 ContentUnavailableView("No such order", systemImage: "questionmark.folder", description: Text("\(id) isn't in the book."))
             } else {
-                SkeletonLoading()
+                SkeletonPage(shape: .form)
             }
         }
         .navigationTitle(made == nil ? "Make invoice" : (made ?? ""))

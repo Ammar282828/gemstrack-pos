@@ -189,7 +189,7 @@ struct ReferencePickerSheet: View {
                 if let failure, pieces.isEmpty {
                     ErrorState(failure) { Task { await load() } }
                 } else if loading && pieces.isEmpty {
-                    ProgressView()
+                    SkeletonThumbGrid(count: 12, columns: 3, label: "Loading the pictures").padding(.horizontal, pt(16)).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 } else if pieces.isEmpty {
                     if query.isEmpty {
                         ContentUnavailableView("No pictures here", systemImage: "photo.on.rectangle.angled",

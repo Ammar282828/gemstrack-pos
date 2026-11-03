@@ -54,7 +54,7 @@ struct StockList: View {
         // The Mac's Stock is its own place (Mac/Places/Stock): a table or a gallery, an inspector, the Piece menu.
         MacStockPlace(path: "/products")
         #else
-        ShelfState(loaded: book.products.loaded, error: book.products.error, offline: book.products.offline) {
+        ShelfState(loaded: book.products.loaded, error: book.products.error, offline: book.products.offline, shape: .list) {
             content
         }
         .navigationTitle("Stock")

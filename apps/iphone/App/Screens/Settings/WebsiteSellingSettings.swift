@@ -151,7 +151,7 @@ private struct WebsiteSellingForm: View {
     var body: some View {
         Group {
             if !doc.loaded {
-                SkeletonLoading().frame(maxWidth: .infinity, maxHeight: .infinity)
+                SkeletonPage(shape: .form).frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let error = doc.error, doc.value == nil, !taken {
                 NotAvailableState("Couldn’t read the website settings", why: error, symbol: "exclamationmark.icloud")
             } else {

@@ -47,7 +47,7 @@ struct WebsiteEditScreen: View {
             case .failed(let message):
                 ErrorState(message) { Task { await store.load(fresh: true) } }
             case .idle, .loading:
-                SkeletonLoading("Reading \(store.siteName)…").controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
+                SkeletonPage(shape: .grid).frame(maxWidth: .infinity, maxHeight: .infinity)
             case .loaded:
                 grid
             }
@@ -305,7 +305,7 @@ extension WebsiteEditScreen {
                 case .failed(let message):
                     ErrorState(message) { Task { await store.load(fresh: true) } }
                 case .idle, .loading:
-                    SkeletonLoading("Reading \(store.siteName)…").frame(maxWidth: .infinity, maxHeight: .infinity)
+                    SkeletonPage(shape: .list).frame(maxWidth: .infinity, maxHeight: .infinity)
                 case .loaded:
                     macTable
                 }

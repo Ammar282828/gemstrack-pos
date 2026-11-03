@@ -160,7 +160,7 @@ private struct VoiceSettingsPage: View {
     private var namesSection: some View {
         Section {
             if !aliases.loaded {
-                HStack { Spacer(); SkeletonLoading(); Spacer() }
+                SkeletonRows(count: 3, monogram: false, trailing: false, label: "Loading the names")
             } else if let error = aliases.error, aliases.items.isEmpty {
                 Label(error, systemImage: "exclamationmark.icloud").foregroundStyle(.secondary)
             } else if aliases.items.isEmpty {
@@ -192,7 +192,7 @@ private struct VoiceSettingsPage: View {
                 Text(sub).font(.caption).foregroundStyle(.secondary)
             }
             Spacer(minLength: 8)
-            if busy == a.id { SkeletonLoading() }
+            if busy == a.id { ProgressView() }
             #if os(macOS)
             Button("Forget…") { askToForget(a) }
                 .buttonStyle(.borderless)

@@ -45,7 +45,7 @@ struct DesignWorkspaceView: View {
     var body: some View {
         Group {
             if let w = model.work {
-                if w.fresh { SkeletonLoading("Laying it out").controlSize(.large).padding(pt(16)).frame(maxHeight: .infinity, alignment: .top) }
+                if w.fresh { SkeletonCards(count: 2, height: 220, label: "Laying it out").padding(pt(16)).frame(maxHeight: .infinity, alignment: .top) }
                 else { content(w) }
             }
         }
@@ -224,7 +224,7 @@ struct DesignWorkspaceView: View {
                 if let image = model.previews[page.id] {
                     Image(uiImage: image).resizable().scaledToFit()
                         .overlay { if safe && zone.top > 0 { SafeZones(top: zone.top / page.h, bottom: zone.bottom / page.h) } }
-                } else { SkeletonLoading("Drawing the page").frame(maxWidth: .infinity, minHeight: 220) }
+                } else { SkeletonPhoto(ratio: nil, label: "Drawing the page").frame(maxWidth: .infinity, minHeight: 220) }
             }
             .frame(maxWidth: .infinity)
             .clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))

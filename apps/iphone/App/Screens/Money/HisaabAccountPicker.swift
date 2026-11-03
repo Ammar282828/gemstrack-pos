@@ -38,7 +38,7 @@ struct HisaabAccountPicker: View {
     var body: some View {
         NavigationStack {
             ShelfState(loaded: book.customers.loaded && book.karigars.loaded,
-                       error: book.customers.error ?? book.karigars.error, offline: book.customers.offline) {
+                       error: book.customers.error ?? book.karigars.error, offline: book.customers.offline, shape: .list) {
                 list
             }
             .navigationTitle("Add or choose an account")
@@ -90,7 +90,7 @@ struct HisaabAccountPicker: View {
                 if canCreate || creating {
                     Button { Task { await createKarigar() } } label: {
                         HStack(spacing: pt(12)) {
-                            if creating { ProgressView() } else { Image(systemName: "plus.circle") }
+                            Image(systemName: "plus.circle").busy(creating)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("\(creating ? "Adding" : "Add karigar") \u{201C}\(typed)\u{201D}").font(.body.weight(.medium))
                                 Text("Opens a new hisaab").font(.caption).foregroundStyle(.secondary)

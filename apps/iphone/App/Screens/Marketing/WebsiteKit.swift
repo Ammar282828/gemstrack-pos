@@ -313,7 +313,7 @@ struct WebsiteFeatureButton: View {
             Button { asking = true } label: {
                 HStack {
                     Label(on ? "Set of the day: on the home page" : "Feature today", systemImage: on ? "star.fill" : "star")
-                    if busy { Spacer(); SkeletonLoading() }
+                    if busy { Spacer(); ProgressView() }
                 }
             }
             .disabled(busy || !store.featuredRead)
@@ -369,7 +369,7 @@ struct WebsiteSetOfTheDay: View {
                             .frame(width: 52, height: 52)
                             .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
                         TwoLine(title: f.file, subtitle: f.collection)
-                        if busy { SkeletonLoading() }
+                        if busy { ProgressView() }
                     }
                     if withNote {
                         TextField("A line about it (optional)", text: $note)
@@ -453,7 +453,7 @@ struct WebsiteBusy: ViewModifier {
     func body(content: Content) -> some View {
         content
             .disabled(doing != nil)
-            .overlay { if let doing { SkeletonLoading(doing).padding(pt(20)).glassEffect(.regular, in: .rect(cornerRadius: Radius.chip, style: .continuous)) } }
+            .overlay { if let doing { BusySpinner(doing).padding(pt(20)).glassEffect(.regular, in: .rect(cornerRadius: Radius.chip, style: .continuous)) } }
     }
 }
 

@@ -59,7 +59,7 @@ struct MacSheetFooter: View {
                 Button(cancel, role: .cancel, action: onCancel)
                     .keyboardShortcut(.cancelAction)
                 Button(action: onConfirm) {
-                    if busy { ProgressView().controlSize(.small) } else { Text(confirm) }
+                    Text(confirm).busy(busy)
                 }
                 .keyboardShortcut(.defaultAction)
                 .buttonStyle(.borderedProminent)

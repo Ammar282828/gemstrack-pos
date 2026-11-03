@@ -43,7 +43,7 @@ struct DesignAccountAds: View {
             if let error {
                 Section { ErrorState(error) { self.error = nil; Task { await load() } } }.listRowBackground(Color.clear)
             } else if ads == nil {
-                Section { SkeletonLoading("Reading the ad account") }.houseRows()
+                Section { SkeletonRows(count: 3, label: "Reading the ad account") }.houseRows()
             } else if shown.isEmpty {
                 Section {
                     ContentUnavailableView("No ads", systemImage: "megaphone", description: Text("The ad account has none that match."))
@@ -63,7 +63,7 @@ struct DesignAccountAds: View {
                             }
                             Spacer(minLength: 0)
                             Button { Task { await keep(a) } } label: {
-                                if busy == a.id { ProgressView() } else { Image(systemName: "square.and.arrow.down") }
+                                Image(systemName: "square.and.arrow.down").busy(busy == a.id)
                             }
                             .buttonStyle(.borderless).frame(minWidth: Metrics.tap, minHeight: Metrics.tap).disabled(busy != nil).accessibilityLabel("Keep in a folder")
                         }

@@ -73,7 +73,7 @@ struct WorkshopBoard: View {
     }
 
     private var screen: some View {
-        ShelfState(loaded: loaded, error: firstError, offline: book.orders.offline) {
+        ShelfState(loaded: loaded, error: firstError, offline: book.orders.offline, shape: .cards) {
             content
         }
         .navigationTitle(orderId == nil ? "Workshop" : "Give out")

@@ -347,7 +347,7 @@ struct NativeSitePhotoPicker: View {
     private var shown: [MarketingValue] { pieces.filter { q.isEmpty || ($0.s("name") + " " + $0.s("collection")).localizedCaseInsensitiveContains(q) } }
     var body: some View {
         NavigationStack { List {
-            if !loaded && error == nil { SkeletonLoading("Loading the website’s pieces") }
+            if !loaded && error == nil { SkeletonRows(count: 6, label: "Loading the website’s pieces") }
             ForEach(shown, id: \.text) { p in
                 Button { Task { await take(p) } } label: { HStack(spacing: pt(12)) { MarketingPhoto(path: p.s("thumb", p.s("image"))).frame(width: 64, height: 64); VStack(alignment: .leading, spacing: pt(4)) { Text(p.s("name")).foregroundStyle(.primary); Text(p.s("collection")).font(.caption).foregroundStyle(.secondary) } } }
             }

@@ -29,7 +29,7 @@ struct StudioRivals: View {
             Button("Find competitors") { action("Searching…") { found = try await MarketingRequest.send("/api/ads/studio/competitors", ["action": "find", "brief": brief])["found"].array } }
             TextField("@username or Instagram link", text: $username).textInputAutocapitalization(.never)
             Button("Add account") { add(MarketingValue(["username": username, "source": "owner"])) }.disabled(username.isEmpty)
-            if let busy { SkeletonLoading(busy) }
+            if let busy { BusySpinner(busy, inline: true) }
         }.houseRows().task { if !House.isDemo { await load() } }.disabled(busy != nil).failureAlert($error)
         .confirmationDialog("Remove @\(removing?.s("username") ?? "") and its readings?", isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }), titleVisibility: .visible) {
             Button("Remove account", role: .destructive) { if let item = removing { action("Removing…") { _ = try await MarketingRequest.send("/api/ads/studio/competitors", ["action": "remove", "username": item.s("username")]); await load() } } }

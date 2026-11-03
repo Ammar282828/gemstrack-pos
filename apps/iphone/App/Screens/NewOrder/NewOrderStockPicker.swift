@@ -34,7 +34,7 @@ struct NewOrderStockPicker: View {
             }
             .overlay {
                 if !book.products.loaded {
-                    SkeletonLoading()
+                    SkeletonRows(count: 6, label: "Loading the stock").padding(.horizontal, pt(16)).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 } else if found.isEmpty {
                     if query.trimmingCharacters(in: .whitespaces).isEmpty {
                         EmptyState("No stock yet", symbol: "shippingbox")

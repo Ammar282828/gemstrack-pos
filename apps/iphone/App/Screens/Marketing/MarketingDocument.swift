@@ -189,7 +189,7 @@ struct MarketingPhoto: View {
         Group {
             if let image { Image(uiImage: image).resizable().scaledToFit() }
             else if let problem { Label(problem, systemImage: "photo.badge.exclamationmark").font(.caption) }
-            else { SkeletonLoading() }
+            else { SkeletonPhoto(label: "Loading the picture") }
         }
         .task(id: path) {
             image = nil; problem = nil

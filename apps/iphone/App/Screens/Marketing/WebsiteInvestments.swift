@@ -31,7 +31,7 @@ struct WebsiteInvestmentsScreen: View {
             case .failed(let message):
                 ErrorState(message) { Task { await gold.load() } }
             case .idle, .loading:
-                SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
+                SkeletonPage(shape: .figures).frame(maxWidth: .infinity, maxHeight: .infinity)
             case .loaded:
                 page
             }

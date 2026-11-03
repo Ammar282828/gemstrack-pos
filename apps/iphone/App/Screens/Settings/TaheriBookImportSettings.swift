@@ -111,7 +111,7 @@ private struct TaheriBookImportPage: View {
                     }
                 }
             } else if error == nil {
-                Section { SkeletonLoading("Reading the book") }
+                Section { BusySpinner("Reading the book", inline: true) }
             }
             }
             .houseRows()

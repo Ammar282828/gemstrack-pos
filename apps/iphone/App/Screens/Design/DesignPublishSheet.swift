@@ -25,7 +25,7 @@ struct DesignPublishSheet: View {
                 if let err = p.loadError {
                     ErrorState(err) { Task { await p.load() } }
                 } else if !p.loaded {
-                    SkeletonLoading("Looking at where this can go").padding(pt(16)).frame(maxHeight: .infinity, alignment: .top)
+                    SkeletonCards(count: 3, height: 80, label: "Looking at where this can go").padding(pt(16)).frame(maxHeight: .infinity, alignment: .top)
                 } else {
                     content
                 }
@@ -112,7 +112,7 @@ struct DesignPublishSheet: View {
         let failing = p.checks.filter { $0.s("status") == "fail" }
         return SectionCard("Connections") {
             if p.healthLoading && p.checks.isEmpty {
-                SkeletonLoading("Checking the connections")
+                BusySpinner("Checking the connections", inline: true)
             } else if let f = p.healthFailed {
                 Text(f).font(.footnote).foregroundStyle(Tone.owed.color)
             } else if failing.isEmpty {
@@ -264,7 +264,7 @@ struct DesignPublishSheet: View {
     private var captions: some View {
         SectionCard("Captions") {
             Button { Task { await p.writeCaptions() } } label: {
-                HStack { if p.aiBusy { ProgressView() } else { Image(systemName: "sparkles") }; Text("Write with AI") }.frame(maxWidth: .infinity)
+                HStack { Image(systemName: "sparkles").busy(p.aiBusy); Text("Write with AI") }.frame(maxWidth: .infinity)
             }.buttonStyle(.bordered).disabled(p.aiBusy)
             if p.waOn { captionField("WhatsApp caption", bind(\.wa)) }
             if p.postOn { captionField("Instagram caption", bind(\.ig)) }
@@ -591,7 +591,7 @@ extension DesignPublishSheet {
                 Task { await p.writeCaptions() }
             } label: {
                 HStack(spacing: 6) {
-                    if p.aiBusy { ProgressView().controlSize(.small) } else { Image(systemName: "sparkles") }
+                    Image(systemName: "sparkles").busy(p.aiBusy)
                     Text("Write with AI")
                 }
             }

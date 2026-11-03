@@ -44,13 +44,9 @@ struct PDFDocumentScreen: View {
                     Button("Try again") { self.failed = nil; attempt += 1 }.buttonStyle(.houseGlass)
                 }
             } else {
-                VStack(spacing: 12) {
-                    SkeletonLoading().controlSize(.large)
-                    if let wait {
-                        Text(wait).font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center).padding(.horizontal, 32)
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                BusySpinner(wait ?? "Preparing PDF…")
+                    .padding(.horizontal, 32)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .modifier(HouseGround())

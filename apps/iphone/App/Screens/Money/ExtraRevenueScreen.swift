@@ -39,7 +39,7 @@ struct ExtraRevenueScreen: View {
     }
 
     private var owners: some View {
-        ShelfState(loaded: book.revenue.loaded, error: book.revenue.error, offline: book.revenue.offline) {
+        ShelfState(loaded: book.revenue.loaded, error: book.revenue.error, offline: book.revenue.offline, shape: .list) {
             content
         }
         .navigationTitle("Extra revenue")
@@ -239,7 +239,7 @@ private struct ExtraRevenueMacData {
 extension ExtraRevenueScreen {
     @ViewBuilder
     var macOwners: some View {
-        ShelfState(loaded: book.revenue.loaded, error: book.revenue.error, offline: book.revenue.offline) {
+        ShelfState(loaded: book.revenue.loaded, error: book.revenue.error, offline: book.revenue.offline, shape: .list) {
             macContent
         }
         .navigationTitle("Extra revenue")

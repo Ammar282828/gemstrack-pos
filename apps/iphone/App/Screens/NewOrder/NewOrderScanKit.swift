@@ -82,7 +82,7 @@ struct PaperPicker: View {
                 Label("From Photos", systemImage: "photo.on.rectangle")
             }
             .buttonStyle(.bordered)
-            if loading { SkeletonLoading() }
+            if loading { ProgressView() }
             #if os(macOS)
             Text("or drop a photo or PDF here").font(.footnote).foregroundStyle(.secondary)
             #endif

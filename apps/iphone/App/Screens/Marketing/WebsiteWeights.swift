@@ -54,7 +54,7 @@ struct WebsiteWeightsScreen: View {
             } else if let problem {
                 ErrorState(problem) { Task { await load() } }
             } else {
-                SkeletonLoading("Loading the catalogue…").controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
+                SkeletonPage(shape: .figures).frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .navigationTitle("Photo weights")

@@ -517,7 +517,7 @@ struct WebsiteInterestScreen: View {
         if report == nil, let problem {
             ErrorState(problem) { Task { await load() } }
         } else if report == nil {
-            SkeletonLoading("Loading…").controlSize(.large)
+            SkeletonPage(shape: .list)
         }
     }
 

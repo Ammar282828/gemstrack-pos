@@ -73,7 +73,7 @@ struct WebsiteEditPieceScreen: View {
             } else if let problem {
                 ErrorState(problem) { Task { await load() } }
             } else {
-                SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
+                SkeletonPage(shape: .record).frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .navigationTitle(piece?.words.name ?? "Edit a piece")

@@ -35,7 +35,7 @@ struct PostPiecesScreen: View {
             case .failed(let message):
                 ErrorState(message) { Task { await store.load() } }
             case .idle, .loading:
-                SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
+                SkeletonPage(shape: .grid).frame(maxWidth: .infinity, maxHeight: .infinity)
             case .loaded:
                 grid
             }
@@ -227,7 +227,7 @@ struct PostPieceScreen: View {
             } else if store.piecesPhase == .loaded {
                 ContentUnavailableView("That piece is not on the website any more", systemImage: "photo")
             } else {
-                SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
+                SkeletonPage(shape: .record).frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .navigationTitle(store.piece(id)?.name ?? "Piece")

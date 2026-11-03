@@ -39,7 +39,7 @@ struct StudioBoardCanvas: View {
                         .onTapGesture { selected = nil }
                         .accessibilityHidden(true)
                 } else {
-                    SkeletonLoading("Drawing").frame(width: g.size.width, height: g.size.height)
+                    SkeletonPhoto(ratio: nil, radius: 0, label: "Drawing").frame(width: g.size.width, height: g.size.height)
                 }
                 // The chosen layer last, so its handles sit above whatever it overlaps.
                 ForEach(order, id: \.self) { id in

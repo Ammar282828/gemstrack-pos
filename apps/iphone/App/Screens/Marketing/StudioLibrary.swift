@@ -60,7 +60,7 @@ struct StudioLibrary: View {
             } else if House.isDemo {
                 Section { Text("The demo has no photo library.").foregroundStyle(.secondary) }.houseRows()
             } else if !loaded {
-                Section { SkeletonLoading("Loading the photos") }.houseRows()
+                Section { SkeletonThumbGrid(count: 9, columns: 3, label: "Loading the photos") }.houseRows()
             } else { Section { Text("No photos match these filters.").foregroundStyle(.secondary) }.houseRows() }
             assessment
             drive
@@ -129,7 +129,7 @@ extension StudioLibrary {
                 if rows.isEmpty {
                     Group {
                         if House.isDemo { Text("The demo has no photo library.").foregroundStyle(.secondary) }
-                        else if !loaded { SkeletonLoading("Loading the photos") }
+                        else if !loaded { SkeletonThumbGrid(count: 12, columns: 3, label: "Loading the photos").padding(.horizontal, pt(16)) }
                         else { ContentUnavailableView("No photos match these filters", systemImage: "photo.on.rectangle") }
                     }
                     .frame(maxWidth: .infinity).padding(40)

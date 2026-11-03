@@ -372,7 +372,7 @@ struct DesignResizeSheet: View {
                         if let image = r.images[id] {
                             Image(uiImage: image).resizable().scaledToFit()
                                 .overlay { if r.safe && zone.top > 0 { ResizeSafeZones(top: zone.top / e.h, bottom: zone.bottom / e.h) } }
-                        } else { SkeletonLoading().frame(maxWidth: .infinity, minHeight: 90) }
+                        } else { SkeletonPhoto(ratio: nil, label: "Drawing the size").frame(maxWidth: .infinity, minHeight: 90) }
                     }
                     .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
                     .frame(maxWidth: .infinity)
@@ -388,7 +388,7 @@ struct DesignResizeSheet: View {
                 if res["needsExtend"].bool && r.extras[id] == nil {
                     Text("The piece doesn’t fill this shape; the photo is shown whole.").font(.caption2).foregroundStyle(Tone.owed.color)
                     Button { Task { await r.extend(id) } } label: {
-                        HStack { if r.extending == id { ProgressView() } else { Image(systemName: "sparkles") }; Text("Extend the photo") }.font(.caption)
+                        HStack { Image(systemName: "sparkles").busy(r.extending == id); Text("Extend the photo") }.font(.caption)
                     }
                     .buttonStyle(.bordered).disabled(r.extending != nil || r.busy != nil)
                 }

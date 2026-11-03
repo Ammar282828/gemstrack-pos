@@ -31,10 +31,7 @@ struct OnlineMessageSection: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
-                HStack(spacing: pt(10)) {
-                    ProgressView().controlSize(.small)
-                    Text("Reading what is sent…").foregroundStyle(.secondary)
-                }
+                SkeletonRows(count: 2, monogram: false, trailing: false, label: "Reading what is sent")
             }
         } header: {
             LedgerHeading(title: "WhatsApp to the customer")
@@ -490,7 +487,7 @@ struct OnlineSlipSheet: View {
                         Task { await load() }
                     }
                 } else {
-                    SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
+                    SkeletonPage(shape: .record).frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
             .navigationTitle("Slip " + ShopDate.say(slip.at, withTime: true))

@@ -54,7 +54,8 @@ struct ActivityLogScreen: View {
                 ShelfState(
                     loaded: House.isDemo || shelf.loaded,
                     error: House.isDemo ? nil : shelf.error,
-                    offline: !House.isDemo && shelf.offline
+                    offline: !House.isDemo && shelf.offline,
+                    shape: .list
                 ) {
                     #if os(macOS)
                     macPage
@@ -181,7 +182,7 @@ struct ActivityLogScreen: View {
                 }
                 .buttonStyle(.borderless)
             } else {
-                SkeletonLoading("Loading…").frame(height: 44)
+                SkeletonRows(count: 2, monogram: false, label: "Loading the sign-ins")
             }
         } header: {
             LedgerHeading(title: "Sign-in activity")
@@ -628,7 +629,7 @@ extension ActivityLogScreen {
                 }
             }
         } else {
-            ProgressView("Loading\u{2026}").frame(maxWidth: .infinity, maxHeight: .infinity)
+            SkeletonPage(shape: .list).frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 }

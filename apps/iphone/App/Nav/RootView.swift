@@ -29,9 +29,9 @@ struct RootGate: View {
             switch session.state {
             case .starting:
                 // Only while the ERP is asked who a new account is (Session opens on its last answer otherwise):
-                // the page's outline under an empty bar, on the ground the launch screen was drawn in.
+                // signing in is an action of unknown length, so the circle (CONVENTIONS rule 18), on the launch screen's ground.
                 NavigationStack {
-                    SkeletonLoading().controlSize(.large)
+                    BusySpinner("Signing in…").frame(maxWidth: .infinity, maxHeight: .infinity)
                         .background(Theme.ground.ignoresSafeArea())
                         .navigationBarTitleDisplayMode(.inline)
                 }

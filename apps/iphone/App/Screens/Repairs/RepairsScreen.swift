@@ -35,7 +35,7 @@ struct RepairsScreen: View {
         #if os(macOS)
         macBody
         #else
-        ShelfState(loaded: book.repairs.loaded, error: book.repairs.error, offline: book.repairs.offline) {
+        ShelfState(loaded: book.repairs.loaded, error: book.repairs.error, offline: book.repairs.offline, shape: .cards) {
             list
         }
         .navigationTitle("Repairs")

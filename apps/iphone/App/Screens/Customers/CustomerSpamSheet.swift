@@ -55,7 +55,7 @@ struct CustomerSpamSheet: View {
 
     var body: some View {
         NavigationStack {
-            ShelfState(loaded: ready, error: failure, offline: book.customers.offline) {
+            ShelfState(loaded: ready, error: failure, offline: book.customers.offline, shape: .list) {
                 #if os(macOS)
                 macList
                 #else

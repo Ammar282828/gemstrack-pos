@@ -40,7 +40,7 @@ struct KarigarForm: View {
     }
 
     private func editing(_ id: String) -> some View {
-        ShelfState(loaded: book.karigars.loaded, error: book.karigars.error, offline: book.karigars.offline) {
+        ShelfState(loaded: book.karigars.loaded, error: book.karigars.error, offline: book.karigars.offline, shape: .form) {
             // `items`, not `item(_:)`: the shelf's lookup is not observed.
             if let k = book.karigars.items.first(where: { $0.id == id }), (k.deletedAt ?? "").isEmpty {
                 KarigarFormBody(karigar: k)

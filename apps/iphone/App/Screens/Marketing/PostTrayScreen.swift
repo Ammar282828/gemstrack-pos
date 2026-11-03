@@ -653,7 +653,7 @@ extension PostTrayScreen {
             } else if let card = model.activeCard {
                 macPanes(card)
             } else {
-                SkeletonLoading().frame(maxWidth: .infinity, maxHeight: .infinity)
+                SkeletonPage(shape: .record).frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .navigationTitle(model.cards.count > 1 ? "\(model.cards.count) to send" : "Send a piece")

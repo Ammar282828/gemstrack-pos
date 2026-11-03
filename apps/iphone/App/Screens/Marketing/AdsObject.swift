@@ -36,7 +36,7 @@ struct AdsObjectScreen: View {
             else if let failure {
                 ErrorState(failure) { self.failure = nil; Task { await load() } }
             }
-            else { SkeletonLoading().frame(maxWidth: .infinity, maxHeight: .infinity) }
+            else { SkeletonPage(shape: .record).frame(maxWidth: .infinity, maxHeight: .infinity) }
         }
         .modifier(HouseGround()).navigationTitle(name.isEmpty ? "Ad details" : name).navigationBarTitleDisplayMode(.inline)
         #if !os(macOS)
@@ -85,7 +85,7 @@ struct AdsObjectScreen: View {
 
     var form: some View {
         Form {
-            if busy { Section { SkeletonLoading("Saving…") }.houseRows() }
+            if busy { Section { BusySpinner("Saving…", inline: true) }.houseRows() }
             LedgerSection("Status") {
                 AdsStatusBadge(status: object["effective_status"] as? String ?? "")
                 Button(object["status"] as? String == "ACTIVE" ? "Pause" : "Run") {
@@ -300,7 +300,7 @@ extension AdsObjectScreen {
 
     private var macForm: some View {
         Form {
-            if busy { Section { SkeletonLoading("Saving…") } }
+            if busy { Section { BusySpinner("Saving…", inline: true) } }
             macStatusAndName
             if level != "ad" { macBudgetAndDates }
             if level == "adset" { macAudience }

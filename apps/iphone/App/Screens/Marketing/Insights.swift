@@ -554,7 +554,7 @@ struct InsightsOverviewScreen: View {
             } else if let problem {
                 ErrorState(problem, retry: House.isDemo ? nil : { Task { await load(fresh: true) } })
             } else {
-                SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
+                SkeletonPage(shape: .figures).frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         #if os(macOS)
@@ -856,7 +856,7 @@ struct InsightsPostsScreen: View {
             } else if let problem {
                 ContentUnavailableView("Couldn't read the posts", systemImage: "square.grid.2x2", description: Text(problem))
             } else {
-                SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
+                SkeletonPage(shape: .figures).frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .navigationTitle("Posts")
@@ -1045,7 +1045,7 @@ struct InsightsAudienceScreen: View {
             } else if let problem {
                 ContentUnavailableView("Couldn't read the audience", systemImage: "person.2", description: Text(problem))
             } else {
-                SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
+                SkeletonPage(shape: .figures).frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .navigationTitle("Audience")

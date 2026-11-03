@@ -72,7 +72,7 @@ struct StudioAgentSettings: View {
                             }
                         }
                     } else if !House.isDemo {
-                        SkeletonLoading("Loading the keys")
+                        SkeletonRows(count: 2, label: "Loading the keys")
                     }
                 } header: { LedgerHeading(title: "Keys") }.houseRows()
             }

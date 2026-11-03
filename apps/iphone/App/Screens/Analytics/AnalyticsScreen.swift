@@ -60,7 +60,7 @@ struct AnalyticsScreen: View {
     }
 
     private var owners: some View {
-        titled(ShelfState(loaded: ready && reckoned != nil, error: firstError, offline: book.invoices.offline) {
+        titled(ShelfState(loaded: ready && reckoned != nil, error: firstError, offline: book.invoices.offline, shape: .figures) {
             if let r = reckoned { pages(r) }
         })
         .navigationTitle(section.title)

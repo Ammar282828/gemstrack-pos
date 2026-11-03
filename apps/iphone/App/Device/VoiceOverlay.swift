@@ -325,7 +325,7 @@ struct VoiceOverlay: View {
             Button {
                 voice.save()
             } label: {
-                if action.busy { ProgressView().frame(minWidth: 72) } else { Label(action.title, systemImage: "checkmark") }
+                Label(action.title, systemImage: "checkmark").frame(minWidth: 72).busy(action.busy)
             }
             .buttonStyle(.houseProminent)
             .disabled(action.busy || voice.phase == .thinking)

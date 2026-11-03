@@ -225,7 +225,7 @@ private struct ContactImportPage: View {
         Section {
             Button { picking = true } label: {
                 HStack(spacing: pt(8)) {
-                    if reading { SkeletonLoading() }
+                    if reading { ProgressView() }
                     Label(fileName.isEmpty ? "Choose a .vcf file" : fileName, systemImage: "doc.badge.plus")
                 }
             }

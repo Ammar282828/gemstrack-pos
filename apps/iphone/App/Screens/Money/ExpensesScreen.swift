@@ -47,7 +47,7 @@ struct ExpensesScreen: View {
     }
 
     private var owners: some View {
-        ShelfState(loaded: book.expenses.loaded, error: book.expenses.error, offline: book.expenses.offline) {
+        ShelfState(loaded: book.expenses.loaded, error: book.expenses.error, offline: book.expenses.offline, shape: .list) {
             content
         }
         .navigationTitle("Expenses")
@@ -402,7 +402,7 @@ private struct ExpensesMacData {
 extension ExpensesScreen {
     @ViewBuilder
     var macOwners: some View {
-        ShelfState(loaded: book.expenses.loaded, error: book.expenses.error, offline: book.expenses.offline) {
+        ShelfState(loaded: book.expenses.loaded, error: book.expenses.error, offline: book.expenses.offline, shape: .list) {
             macContent
         }
         .navigationTitle("Expenses")

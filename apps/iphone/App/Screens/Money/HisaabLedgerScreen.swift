@@ -43,7 +43,7 @@ struct HisaabLedgerScreen: View {
     }
 
     private var owners: some View {
-        ShelfState(loaded: ready, error: book.hisaab.error, offline: book.hisaab.offline) {
+        ShelfState(loaded: ready, error: book.hisaab.error, offline: book.hisaab.offline, shape: .record) {
             page
         }
         .task {
@@ -220,7 +220,7 @@ struct HisaabLedgerScreen: View {
                         .disabled(reminderBusy)
                     }
                 } label: {
-                    if reminderBusy { ProgressView() } else { Label("More", systemImage: "ellipsis.circle") }
+                    Label("More", systemImage: "ellipsis.circle").busy(reminderBusy)
                 }
             }
             #endif

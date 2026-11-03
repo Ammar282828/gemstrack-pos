@@ -57,7 +57,7 @@ struct DraftsScreen: View {
     var body: some View {
         Group {
             if session.role == "owner" || session.role == "staff" {
-                ShelfState(loaded: ready, error: nil, offline: readsDrafts && shelf.offline) {
+                ShelfState(loaded: ready, error: nil, offline: readsDrafts && shelf.offline, shape: .list) {
                     #if os(macOS)
                     macPage
                     #else

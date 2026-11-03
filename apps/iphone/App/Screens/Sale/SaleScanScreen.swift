@@ -57,7 +57,7 @@ struct SaleScanScreen: View {
             if busy {
                 Section {
                     HStack(spacing: pt(12)) {
-                        SkeletonLoading()
+                        ProgressView()
                         Text("Reading it…")
                     }
                 }
@@ -319,7 +319,7 @@ extension SaleScanScreen {
                     if busy {
                         Section {
                             HStack(spacing: 12) {
-                                SkeletonLoading()
+                                ProgressView()
                                 Text("Reading it…")
                             }
                         }

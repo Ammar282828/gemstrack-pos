@@ -66,7 +66,7 @@ struct InvoiceScreen: View {
             if let invoice {
                 detail(invoice)
             } else {
-                ShelfState(loaded: book.invoices.loaded, error: book.invoices.error, offline: book.invoices.offline) {
+                ShelfState(loaded: book.invoices.loaded, error: book.invoices.error, offline: book.invoices.offline, shape: .record) {
                     notFound
                 }
             }
@@ -998,7 +998,7 @@ extension InvoiceScreen {
             if let invoice {
                 macDocument(invoice)
             } else {
-                ShelfState(loaded: book.invoices.loaded, error: book.invoices.error, offline: book.invoices.offline) {
+                ShelfState(loaded: book.invoices.loaded, error: book.invoices.error, offline: book.invoices.offline, shape: .record) {
                     ContentUnavailableView {
                         Label("Invoice \(id) Not Found", systemImage: "doc.questionmark")
                     } description: {

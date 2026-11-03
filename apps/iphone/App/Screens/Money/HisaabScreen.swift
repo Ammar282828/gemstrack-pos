@@ -109,7 +109,7 @@ struct HisaabScreen: View {
     }
 
     private var owners: some View {
-        ShelfState(loaded: ready, error: book.hisaab.error, offline: book.hisaab.offline) {
+        ShelfState(loaded: ready, error: book.hisaab.error, offline: book.hisaab.offline, shape: .list) {
             content
         }
         .navigationTitle("Hisaab")
@@ -376,7 +376,7 @@ extension HisaabScreen {
     @ViewBuilder
     var macOwners: some View {
         let data = macData()
-        ShelfState(loaded: ready, error: book.hisaab.error, offline: book.hisaab.offline) {
+        ShelfState(loaded: ready, error: book.hisaab.error, offline: book.hisaab.offline, shape: .list) {
             macContent
         }
         .navigationTitle("Hisaab")

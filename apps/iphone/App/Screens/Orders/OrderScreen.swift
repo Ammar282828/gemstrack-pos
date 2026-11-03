@@ -71,7 +71,7 @@ struct OrderScreen: View {
     }
 
     private var screen: some View {
-        ShelfState(loaded: book.orders.loaded, error: book.orders.error, offline: book.orders.offline) {
+        ShelfState(loaded: book.orders.loaded, error: book.orders.error, offline: book.orders.offline, shape: .record) {
             // Read through `items`: the shelf's lookup is not observed, so a change would not redraw.
             if let order = book.orders.item(id) {
                 #if os(macOS)

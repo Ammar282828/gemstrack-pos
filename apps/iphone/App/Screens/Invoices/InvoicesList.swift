@@ -271,7 +271,7 @@ struct InvoicesList: View {
         macBody
         #else
         let all = book.invoices.items
-        ShelfState(loaded: book.invoices.loaded, error: book.invoices.error, offline: book.invoices.offline) {
+        ShelfState(loaded: book.invoices.loaded, error: book.invoices.error, offline: book.invoices.offline, shape: .list) {
             content(all)
         }
         .navigationTitle("Invoices")

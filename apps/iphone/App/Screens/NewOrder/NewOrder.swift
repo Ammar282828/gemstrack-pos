@@ -735,18 +735,15 @@ struct NewOrderLanding: View {
             OrderScreen(id: id)
                 .environment(\.zoomNamespace, nil)  // swapped in place after a save: no row to zoom from
         } else {
-            VStack(spacing: pt(12)) {
-                SkeletonLoading().controlSize(.large)
-                Text("Opening \(id)…").foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .navigationTitle(id)
-            .navigationBarTitleDisplayMode(.inline)
-            .task {
-                book.orders.need()
-                try? await Task.sleep(for: .seconds(4))
-                waited = true
-            }
+            SkeletonRecord(rows: 3, label: "Opening \(id)")
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .navigationTitle(id)
+                .navigationBarTitleDisplayMode(.inline)
+                .task {
+                    book.orders.need()
+                    try? await Task.sleep(for: .seconds(4))
+                    waited = true
+                }
         }
     }
 }

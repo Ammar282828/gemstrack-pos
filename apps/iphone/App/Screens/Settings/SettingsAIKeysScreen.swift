@@ -280,7 +280,7 @@ private struct AIKeysPage: View {
             }
             Section {
                 if let problem { Text(problem).foregroundStyle(Tone.problem.color) }
-                if keys == nil { LoadingRow("Loading…") }
+                if keys == nil { SkeletonRows(count: 2, monogram: false, label: "Loading the keys") }
                 if keys?.isEmpty == true, problem == nil { Text("No keys yet.").foregroundStyle(.secondary) }
                 ForEach(keys ?? []) { k in
                     VStack(alignment: .leading, spacing: pt(4)) {
@@ -481,7 +481,7 @@ extension AIKeysPage {
             .onDeleteCommand { revoking = (keys ?? []).first { selection.contains($0.id) } }
             .overlay {
                 if keys == nil {
-                    ProgressView()
+                    SkeletonRows(count: 3, monogram: false, label: "Loading the keys").padding(.horizontal, 16).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 } else if keys?.isEmpty == true {
                     if let problem {
                         EmptyState("Couldn’t read the keys", symbol: "exclamationmark.icloud", message: problem,

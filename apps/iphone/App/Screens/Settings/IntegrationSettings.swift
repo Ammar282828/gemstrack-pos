@@ -47,7 +47,7 @@ private struct IntegrationsForm: View {
                         Text(shopifyFailure).font(.footnote).foregroundStyle(.secondary)
                         Button("Check connection again") { Task { await checkShopify() } }
                     } else {
-                        SkeletonLoading()
+                        ProgressView()
                     }
                     // The native Shopify screen says "not configured" itself, and is where the store is connected.
                     NavigationLink(value: Route(path: "/app/settings/shopify")) {

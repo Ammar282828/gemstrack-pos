@@ -75,7 +75,7 @@ private struct OverheadsBoard: View {
     private var ready: Bool { (answer != nil || loadError != nil) && book.invoices.loaded && book.orders.loaded }
 
     var body: some View {
-        ShelfState(loaded: ready, error: book.invoices.error ?? book.orders.error, offline: book.invoices.offline) {
+        ShelfState(loaded: ready, error: book.invoices.error ?? book.orders.error, offline: book.invoices.offline, shape: .figures) {
             content
         }
         .navigationTitle("Overheads")

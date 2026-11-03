@@ -53,7 +53,7 @@ struct LabelDesigner: View {
             } else if book.settings.loaded, book.settings.error != nil, book.settings.value == nil {
                 ErrorState(book.settings.error ?? "The tag could not be read.") { book.settings.reset(); book.settings.need() }
             } else {
-                SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
+                SkeletonPage(shape: .form).frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .navigationTitle("Labels")

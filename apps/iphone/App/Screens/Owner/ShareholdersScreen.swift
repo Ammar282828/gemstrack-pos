@@ -88,7 +88,7 @@ private struct ShareholdersBoard: View {
     }
 
     var body: some View {
-        ShelfState(loaded: ready, error: readError, offline: book.expenses.offline) {
+        ShelfState(loaded: ready, error: readError, offline: book.expenses.offline, shape: .figures) {
             content
         }
         .navigationTitle("Shareholders")
@@ -445,7 +445,7 @@ private struct ShareholdersBoard: View {
                 Button {
                     Task { await saveFloor(parsed) }
                 } label: {
-                    if savingFloor { SkeletonLoading() } else { Text("Save") }
+                    Text("Save").busy(savingFloor)
                 }
                 // Inside a row: a plain bordered button, not glass (rule 16).
                 .buttonStyle(.bordered)

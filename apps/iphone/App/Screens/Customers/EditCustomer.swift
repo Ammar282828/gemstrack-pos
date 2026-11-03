@@ -29,7 +29,7 @@ struct EditCustomer: View {
     private var customer: Customer? { book.customers.item(id) ?? seed }
 
     var body: some View {
-        ShelfState(loaded: seed != nil || book.customers.loaded, error: book.customers.error, offline: book.customers.offline) {
+        ShelfState(loaded: seed != nil || book.customers.loaded, error: book.customers.error, offline: book.customers.offline, shape: .form) {
             if !session.isOwner {
                 NotAvailableState("Only an owner can change a customer", why: "Ask an owner to make the change.")
             } else if let c = customer, !CustomerKit.isRemoved(c) {
@@ -160,7 +160,7 @@ private struct EditCustomerForm: View {
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button { Task { await save() } } label: {
-                    if saving { ProgressView() } else { Text("Save") }
+                    Text("Save").busy(saving)
                 }
                 .disabled(!canSave)
                 .keyboardShortcut("s", modifiers: .command)
@@ -320,7 +320,7 @@ extension EditCustomerForm {
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button { Task { await save() } } label: {
-                    if saving { ProgressView() } else { Text("Save") }
+                    Text("Save").busy(saving)
                 }
                 .disabled(!canSave)
                 .keyboardShortcut("s", modifiers: .command)

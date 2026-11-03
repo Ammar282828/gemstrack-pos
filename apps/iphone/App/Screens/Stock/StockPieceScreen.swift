@@ -32,7 +32,7 @@ struct StockPieceScreen: View {
     private var twoColumns: Bool { sizeClass.isPadLayout && width >= 820 && !typeSize.isAccessibilitySize }
 
     var body: some View {
-        ShelfState(loaded: book.products.loaded, error: book.products.error, offline: book.products.offline) {
+        ShelfState(loaded: book.products.loaded, error: book.products.error, offline: book.products.offline, shape: .record) {
             if let product = book.products.item(sku) {
                 detail(product)
             } else {
@@ -278,7 +278,7 @@ private struct StockSoldView: View {
     @ViewBuilder
     private var content: some View {
         if !book.invoices.loaded {
-            SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
+            SkeletonPage(shape: .record).frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             let sales: [Invoice] = found([book.invoices.revision, sku.hashValue]) {
                 book.invoices.items.filter { (inv: Invoice) -> Bool in

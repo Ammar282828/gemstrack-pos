@@ -76,7 +76,7 @@ struct DesignSitePieces: View {
                     ForEach(collections, id: \.self) { c in FilterChip(title: c, chosen: showing == c) { collection = c } }
                 }
                 if let error { ErrorState(error) { Task { await load() } } }
-                else if !loaded { SkeletonLoading("Reading the website").padding(.horizontal, pt(16)) }
+                else if !loaded { SkeletonThumbGrid(count: 9, columns: 3, label: "Reading the website").padding(.horizontal, pt(16)) }
                 else if filtered.isEmpty { EmptyState("No pieces", symbol: "globe", message: "Nothing on the website matches.") }
                 else {
                     Text("\(filtered.count) of \(pieces.count) pieces. \(DesignPhotoGrid.pickVerb) one to design it.").font(.footnote).foregroundStyle(.secondary).padding(.horizontal, pt(16))
@@ -161,7 +161,7 @@ struct DesignLibraryPhotos: View {
                     Text("Feed 4:5").tag("portrait"); Text("Feed 1:1").tag("square"); Text("Stories 9:16").tag("story")
                 }.pickerStyle(.segmented).padding(.horizontal, pt(16))
                 if let error { ErrorState(error) { Task { await load(more: false) } } }
-                else if !loaded { SkeletonLoading("Loading the photos").padding(.horizontal, pt(16)) }
+                else if !loaded { SkeletonThumbGrid(count: 9, columns: 3, label: "Loading the photos").padding(.horizontal, pt(16)) }
                 else if rows.isEmpty { EmptyState("No photos", symbol: "photo", message: "No photos match.") }
                 else {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: DesignPhotoGrid.cell), spacing: pt(10))], spacing: pt(10)) {
@@ -307,7 +307,7 @@ extension DesignSitePieces {
             if let error {
                 ErrorState(error) { Task { await load() } }
             } else if !loaded {
-                SkeletonLoading("Reading the website").frame(maxWidth: .infinity, maxHeight: .infinity)
+                SkeletonPage(shape: .grid).frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if list.isEmpty {
                 ContentUnavailableView("No pieces", systemImage: "globe", description: Text("Nothing on the website matches."))
             } else {
@@ -386,7 +386,7 @@ extension DesignLibraryPhotos {
             if let error {
                 ErrorState(error) { Task { await load(more: false) } }
             } else if !loaded {
-                SkeletonLoading("Loading the photos").frame(maxWidth: .infinity, maxHeight: .infinity)
+                SkeletonPage(shape: .grid).frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if list.isEmpty {
                 ContentUnavailableView("No photos", systemImage: "photo", description: Text("No photos match."))
             } else {

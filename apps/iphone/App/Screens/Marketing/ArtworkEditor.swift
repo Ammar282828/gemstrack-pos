@@ -254,7 +254,7 @@ struct ArtworkEditor: View {
         GeometryReader { g in
             let scale = g.size.width / pageWidth
             ZStack(alignment: .topLeading) {
-                if let image = NativeArtwork.image(response) { Image(uiImage: image).resizable().scaledToFit().onTapGesture { selected = [] } } else { SkeletonLoading().frame(maxWidth: .infinity, maxHeight: .infinity) }
+                if let image = NativeArtwork.image(response) { Image(uiImage: image).resizable().scaledToFit().onTapGesture { selected = [] } } else { SkeletonPhoto(ratio: nil, radius: Radius.card, label: "Drawing").frame(maxWidth: .infinity, maxHeight: .infinity) }
                 ArtworkGuideOverlay(width: pageWidth, scale: scale, guideX: ArtworkSnap.guides(doc, "x"), guideY: ArtworkSnap.guides(doc, "y"), grid: ArtworkSnap.grid(doc), snapX: snapX, snapY: snapY)
                 ForEach(response["boxes"].array, id: \.text) { b in
                     let id = b.s("id"), l = layers.first { $0.s("id") == id } ?? .null

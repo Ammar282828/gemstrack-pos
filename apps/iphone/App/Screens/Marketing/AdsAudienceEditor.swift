@@ -101,7 +101,7 @@ struct AdsAudienceSheet: View {
                     Text("Meta gave no estimate for this audience.").foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 8)
-                if estimating && estimate != nil { SkeletonLoading() }
+                if estimating && estimate != nil { ProgressView() }
             }
         } footer: {
             Text(draft.words)

@@ -154,7 +154,7 @@ private struct HisaabImportPage: View {
         LedgerSection("1. Upload the CSV file") {
             Button { picking = true } label: {
                 HStack(spacing: pt(8)) {
-                    if reading { SkeletonLoading() }
+                    if reading { ProgressView() }
                     Label(fileName.isEmpty ? "Choose file" : "Change file", systemImage: "doc.badge.plus")
                 }
             }

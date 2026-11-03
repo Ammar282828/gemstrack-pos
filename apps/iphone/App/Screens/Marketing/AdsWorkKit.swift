@@ -247,7 +247,7 @@ struct AdsNotReady: View {
                 NavigationLink(value: Route(path: "/ads/setup")) { Text("Open Setup") }.buttonStyle(.bordered)
             }
         } else {
-            SkeletonLoading("Checking the Meta connection…").frame(maxWidth: .infinity, maxHeight: .infinity)
+            BusySpinner("Checking the Meta connection…").frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 

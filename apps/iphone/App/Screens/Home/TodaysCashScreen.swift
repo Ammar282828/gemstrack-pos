@@ -23,7 +23,7 @@ struct TodaysCashScreen: View {
     var body: some View {
         Group {
             if session.isOwner {
-                ShelfState(loaded: ready, error: book.invoices.error ?? book.orders.error, offline: book.invoices.offline) {
+                ShelfState(loaded: ready, error: book.invoices.error ?? book.orders.error, offline: book.invoices.offline, shape: .figures) {
                     page(todaysCash(invoices: book.invoices.items, orders: book.orders.items, repairs: book.repairs.items,
                                     extraRevenues: book.revenue.items, expenses: book.expenses.items, now: now))
                 }

@@ -173,7 +173,7 @@ struct StudioBoards: View {
     @ViewBuilder private var banners: some View {
         VStack(spacing: pt(6)) {
             if let working = board.working {
-                banner(HStack(spacing: pt(10)) { SkeletonLoading(working); Text(working) })
+                banner(HStack(spacing: pt(10)) { ProgressView(); Text(working) })
             }
             if let offer = board.offer, offer.s("id") != board.current {
                 banner(HStack {
@@ -203,7 +203,7 @@ struct StudioBoards: View {
         ScrollView([.horizontal, .vertical]) {
             if board.current.isEmpty {
                 VStack(spacing: pt(16)) {
-                    if !board.loaded { SkeletonLoading("Loading the boards") }
+                    if !board.loaded { SkeletonCards(count: 3, height: 140, label: "Loading the boards").padding(.horizontal, pt(16)) }
                     else if let problem = board.listProblem {
                         ErrorState(problem) { Task { await board.loadList(initial: true) } }
                     } else {
@@ -213,7 +213,7 @@ struct StudioBoards: View {
                 }
                 .frame(width: viewport.width, height: max(viewport.height, 300))
             } else if board.value == .null {
-                SkeletonLoading("Opening the board").frame(width: viewport.width, height: max(viewport.height, 300))
+                SkeletonPhoto(ratio: nil, radius: Radius.card, label: "Opening the board").padding(pt(24)).frame(width: viewport.width, height: max(viewport.height, 300))
             } else {
                 let b = board.bounds
                 ZStack(alignment: .topLeading) {
@@ -280,7 +280,7 @@ struct StudioBoards: View {
                 Rectangle().fill(Theme.card)
                 if let image = board.pictures[id] { Image(uiImage: image).resizable().scaledToFill() }
                 else if let problem = board.problems[id] { Text("Couldn’t draw it: " + problem).font(.caption2).foregroundStyle(.secondary).padding(pt(6)) }
-                else { SkeletonLoading("Drawing") }
+                else { SkeletonPhoto(ratio: nil, radius: 0, label: "Drawing") }
             }
             .frame(width: w, height: h).clipped()
             .overlay {

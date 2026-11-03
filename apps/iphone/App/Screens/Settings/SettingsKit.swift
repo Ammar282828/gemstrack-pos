@@ -85,11 +85,11 @@ struct SettingsGate<Content: View>: View {
         Group {
             if session.isOwner {
                 // A passing read error keeps the form that has already arrived; only no document at all is a failure.
-                ShelfState(loaded: book.settings.loaded, error: book.settings.value == nil ? book.settings.error : nil) {
+                ShelfState(loaded: book.settings.loaded, error: book.settings.value == nil ? book.settings.error : nil, shape: .form) {
                     if let s = book.settings.value ?? Settings.blank {
                         content(s).macSettingsPage()
                     } else {
-                        SkeletonLoading().frame(maxWidth: .infinity, maxHeight: .infinity)
+                        SkeletonPage(shape: .form).frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                 }
             } else {

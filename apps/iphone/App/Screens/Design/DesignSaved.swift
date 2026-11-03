@@ -179,7 +179,7 @@ struct DesignSavedView: View {
         if shelf.error != nil {
             EmptyView()
         } else if !shelf.loaded {
-            Section { SkeletonLoading("Opening the shelf") }.houseRows()
+            Section { SkeletonThumbGrid(count: 6, columns: 3, label: "Opening the shelf") }.houseRows()
         } else if !shown.isEmpty {
             Section {
                 ForEach(shown) { r in
@@ -259,7 +259,7 @@ struct DesignDetailSheet: View {
                     Group {
                         if let picture { Image(uiImage: picture).resizable().scaledToFit() }
                         else if let thumb = record.thumbImage { Image(uiImage: thumb).resizable().scaledToFit().opacity(0.7) }
-                        else { SkeletonLoading("Opening the picture") }
+                        else { SkeletonPhoto(ratio: nil, label: "Opening the picture") }
                     }
                     .frame(maxWidth: .infinity, minHeight: 160, maxHeight: 360)
                     TextField("Name", text: $name).submitLabel(.done).onSubmit { rename() }
@@ -502,7 +502,7 @@ extension DesignSavedView {
         } else if let error = shelf.error {
             ErrorState(error) { Task { await shelf.load() } }
         } else if !shelf.loaded {
-            SkeletonLoading("Opening the shelf").frame(maxWidth: .infinity, maxHeight: .infinity)
+            SkeletonPage(shape: .grid).frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if macShown.isEmpty {
             ContentUnavailableView(shelf.items.isEmpty ? "Nothing saved yet" : "Nothing here", systemImage: "folder",
                                    description: Text(shelf.items.isEmpty ? "Save a design from the workspace and it waits here, in any folder you make." : "No design in this folder matches."))

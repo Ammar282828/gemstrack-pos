@@ -55,7 +55,7 @@ struct SaleEditLoader: View {
             } else if book.invoices.loaded && book.invoices.item(id) == nil {
                 ContentUnavailableView("No such invoice", systemImage: "questionmark.folder", description: Text("\(id) isn't in the book. It may have been deleted."))
             } else {
-                SkeletonLoading()
+                SkeletonPage(shape: .form)
             }
         }
         .onAppear {

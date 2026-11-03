@@ -166,7 +166,7 @@ private struct BackupPage: View {
                 if let listError {
                     Label(listError, systemImage: "exclamationmark.icloud").foregroundStyle(.secondary)
                 } else {
-                    HStack { Spacer(); SkeletonLoading(); Spacer() }
+                    SkeletonRows(count: 3, monogram: false, label: "Loading the backups")
                 }
             } else {
                 Button(selected.count == collections.count ? "Deselect all" : "Select all") {
@@ -194,7 +194,7 @@ private struct BackupPage: View {
                 if exporting { ProgressView(value: progress) }
                 Button { Task { await export() } } label: {
                     HStack(spacing: pt(8)) {
-                        if exporting { SkeletonLoading() }
+                        if exporting { ProgressView() }
                         Label(exporting ? "Exporting… \(Int(progress * 100))%" : "Download backup", systemImage: "doc.badge.arrow.up")
                     }
                 }
@@ -366,7 +366,7 @@ private struct BackupPage: View {
                 .autocorrectionDisabled()
             if !search.trimmingCharacters(in: .whitespaces).isEmpty {
                 if !sold.loaded {
-                    HStack { Spacer(); SkeletonLoading(); Spacer() }
+                    HStack { Spacer(); ProgressView(); Spacer() }
                 } else if let error = sold.error, sold.items.isEmpty {
                     Label(error, systemImage: "exclamationmark.icloud").foregroundStyle(.secondary)
                 } else if soldHits.isEmpty {
@@ -378,7 +378,7 @@ private struct BackupPage: View {
                             Button {
                                 Task { await reAdd(p) }
                             } label: {
-                                if recovering == p.sku { SkeletonLoading() } else { Label("Re-add", systemImage: "plus.circle") }
+                                Label("Re-add", systemImage: "plus.circle").busy(recovering == p.sku)
                             }
                             .buttonStyle(.bordered)
                             .frame(minHeight: Metrics.tap)

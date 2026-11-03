@@ -59,7 +59,8 @@ struct OrdersHub: View {
         ShelfState(
             loaded: book.orders.loaded && book.invoices.loaded,
             error: book.orders.error ?? book.invoices.error,
-            offline: book.orders.offline
+            offline: book.orders.offline,
+            shape: .cards
         ) {
             // A new grouping or filter settles in on the enter curve rather than jumping.
             hub.motion([groupingRaw, statusFilter, month, takenBy, payment, String(stageSignature), localStatus.values.joined()])

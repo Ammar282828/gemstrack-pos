@@ -306,7 +306,7 @@ struct AdsPartnerSection: View {
                         checking = false
                     }
                 } label: {
-                    if checking { SkeletonLoading() } else { Text("Check") }
+                    Text("Check").busy(checking)
                 }
                 .buttonStyle(.borderless)
                 .disabled(trimmed.isEmpty || checking)

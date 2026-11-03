@@ -144,6 +144,19 @@ Read before adding anything here. The why is in `docs/features/iphone-app.md`.
    Waiting to send (`WaitingToSendSheet`, opened by the offline capsule or Settings → This phone). A new money op that
    may wait is added to `Outbox.queueableOps` only if its callers never read the answer's record.
 
+18. **Loading: a skeleton for a known shape, a circle for an unknown one** (owner, 2026-11-03: "fix all loading states").
+   - **Known shape** (a list of records, a record's page, cards, figure tiles, a form's fields, a chart frame, a photo of a
+     known frame, a settings section): a skeleton at the real content's heights, so nothing jumps when it arrives
+     (`App/UI/Skeletons.swift`: `SkeletonRows`, `SkeletonCards`, `SkeletonFigures`, `SkeletonRecord`, `SkeletonThumbGrid`,
+     `SkeletonChart`, `SkeletonPhoto`, `SkeletonForm`; a whole page is `SkeletonPage(shape:)`, and `ShelfState(shape:)`
+     takes the screen's own shape). The shimmer is one soft pulse on the group and stops under Reduce Motion.
+   - **Unknown shape** (an action under way: sending, saving, preparing a PDF, an AI scan, signing in, connecting, a
+     search on the server, "checking…"): the system's circular `ProgressView`, with a few words when it lasts
+     (`BusySpinner("Preparing PDF…")`, `inline:` in a row). In a button the spinner takes the label's place and the button
+     keeps its size: `label.busy(isBusy)` with `.disabled(isBusy)` on the button.
+   - Never a spinner for a list or page whose shape is known; never a skeleton for an action. A page that could not load
+     is still `ErrorState`, offline is still `ShelfState`'s copy.
+
 ## Kit components
 
 Reach for these before writing a screen's own. Files: `App/UI/Ledger.swift`, `KitComponents.swift`, `Note.swift`.
@@ -178,6 +191,6 @@ Reach for these before writing a screen's own. Files: `App/UI/Ledger.swift`, `Ki
   `ShopDate.stamp(date, withTime:)`.
 - **Rule 16's pieces** (`App/UI/Surface.swift`): `.actionBar(primary:secondary:summary:)` (bottom glass bar, one
   prominent action, busy state, stacks at AX sizes, hides over the keyboard); `ErrorState(message, retry:)`;
-  `EmptyState(title, symbol:, message:, action:)`; `LoadingRow(label)`; `.confirmDestructive(isPresented:, title:,
+  `EmptyState(title, symbol:, message:, action:)`; `LoadingRow(label)` (an action's spinner and words; a list or page that is loading is a skeleton, rule 18); `.confirmDestructive(isPresented:, title:,
   message:, action:, perform:)`; `.savedFeedback(trigger:)` / `.refusedFeedback(trigger:)` /
   `.selectionFeedback(trigger:)`; `.keyboardDone()`; `AdaptiveStack { }` (HStack, VStack at AX sizes).

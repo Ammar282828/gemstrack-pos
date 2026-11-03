@@ -91,7 +91,7 @@ struct RepairsSheet: View {
         if let r = current {
             detail(r)
         } else if !book.repairs.loaded {
-            SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
+            SkeletonPage(shape: .record).frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             ContentUnavailableView(
                 "Repair not found",
