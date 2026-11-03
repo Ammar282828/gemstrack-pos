@@ -22,6 +22,8 @@ describe('what the customer sees of an invoice', () => {
     expect(c).toContain('Your invoice from Taheri is attached.');
     expect(c).toContain('*Balance due:* PKR 150,000');
     expect(c).not.toMatch(/INV|http/);
+    // The total is the full sale, with the exchange gold put back.
+    expect(invoiceWhatsAppCaption({ customerName: 'Fatima', grandTotal: 200000, exchanges: [{ description: 'chain', value: 50000 }], amountPaid: 200000, balanceDue: 0 }, 'Taheri')).toContain('*Total:* PKR 250,000');
     expect(invoiceWhatsAppCaption({ customerName: 'Walk-in Customer', grandTotal: 5000 }, 'Taheri')).not.toContain('Paid');
   });
 });

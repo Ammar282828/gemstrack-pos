@@ -21,6 +21,22 @@ export type PaymentStatus = 'Paid' | 'Partial' | 'Unpaid';
  * Lives here because the same function was copy-pasted into the orders list and
  * the order detail page, so fixing one would have left the other wrong.
  */
+/**
+ * The order's full amount: its pieces less the discount, before any advance or exchange comes off
+ * (owner, 2026-11-03: "the amount you mention on the card should be the full order amount, don't minus
+ * advance"). `grandTotal` is the balance, so lists and notifications lead with this and show the
+ * balance beside it as "Due".
+ */
+export function orderFullTotal(order: Pick<Order, 'subtotal' | 'discountAmount' | 'grandTotal' | 'advancePayment' | 'advanceInExchangeValue'>): number {
+  const subtotal = Number(order.subtotal);
+  if (Number.isFinite(subtotal) && subtotal > 0) return Math.max(0, subtotal - (Number(order.discountAmount) || 0));
+  // No subtotal kept: the balance with the advances put back.
+  return Math.max(0, (Number(order.grandTotal) || 0) + (Number(order.advancePayment) || 0) + (Number(order.advanceInExchangeValue) || 0));
+}
+
+/** The same, under the name the phones use (owner, 2026-11-03). */
+export const orderFullAmount = orderFullTotal;
+
 export function getOrderPaymentStatus(order: Order): PaymentStatus {
   const balance = typeof order.grandTotal === 'number' ? order.grandTotal : 0;
   const advancePayment = typeof order.advancePayment === 'number' ? order.advancePayment : 0;

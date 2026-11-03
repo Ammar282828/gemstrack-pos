@@ -7,12 +7,12 @@ import { authedFetch } from '@/lib/voice/authed-fetch';
 import { cleanCombos, type DescribeEntry } from '@/lib/describe';
 
 export interface DescribeData { history: DescribeEntry[]; combos: string[] }
-export interface CataloguePiece { id: string; title: string; category: string; image: string; thumb: string }
+export interface CataloguePiece { id: string; title: string; category: string; image: string; thumb: string; /** ring, bangle, earrings, … or `other` (older servers send none). */ type?: string; /** diamond, ruby, … */ stones?: string[] }
 
 const DESCRIBE_TTL = 5 * 60_000;
 const CATALOGUE_TTL = 10 * 60_000;
 let described: { at: number; data: DescribeData; pending?: Promise<DescribeData> } | null = null;
-let catalogue: { at: number; pieces: CataloguePiece[]; pending?: Promise<CataloguePiece[]> } | null = null;
+const catalogues = new Map<string, { at: number; pieces: CataloguePiece[]; pending?: Promise<CataloguePiece[]> }>();
 
 /** The description history (all categories) and the saved combinations; the last known on a failed read. */
 export function loadDescribe(force = false): Promise<DescribeData> {
@@ -31,20 +31,26 @@ export function loadDescribe(force = false): Promise<DescribeData> {
   return pending;
 }
 
-/** The website's pieces, every category (the picker filters by category and words on the device). */
-export function loadCatalogue(): Promise<CataloguePiece[]> {
-  if (catalogue && !catalogue.pending && Date.now() - catalogue.at < CATALOGUE_TTL) return Promise.resolve(catalogue.pieces);
-  if (catalogue?.pending) return catalogue.pending;
-  const prior = catalogue?.pieces ?? [];
-  const pending = authedFetch('/api/app/catalogue')
+/**
+ * The website's pieces of one category (an ERP item category; every category when empty), each with its `type` and
+ * `stones`. The picker filters by type, stone and words on the device, so this is asked again only when the category changes.
+ */
+export function loadCatalogue(category = ''): Promise<CataloguePiece[]> {
+  const key = category;
+  const hit = catalogues.get(key);
+  if (hit && !hit.pending && Date.now() - hit.at < CATALOGUE_TTL) return Promise.resolve(hit.pieces);
+  if (hit?.pending) return hit.pending;
+  const prior = hit?.pieces ?? [];
+  const url = category ? `/api/app/catalogue?category=${encodeURIComponent(category)}` : '/api/app/catalogue';
+  const pending = authedFetch(url)
     .then(r => (r.ok ? r.json() : Promise.reject(new Error('catalogue'))))
     .then((d: { pieces?: CataloguePiece[] }) => {
       const pieces = Array.isArray(d.pieces) ? d.pieces : [];
-      catalogue = { at: Date.now(), pieces };
+      catalogues.set(key, { at: Date.now(), pieces });
       return pieces;
     })
-    .catch(() => { catalogue = { at: Date.now() - CATALOGUE_TTL + 30_000, pieces: prior }; return prior; });
-  catalogue = { at: catalogue?.at ?? 0, pieces: prior, pending };
+    .catch(() => { catalogues.set(key, { at: Date.now() - CATALOGUE_TTL + 30_000, pieces: prior }); return prior; });
+  catalogues.set(key, { at: hit?.at ?? 0, pieces: prior, pending });
   return pending;
 }
 

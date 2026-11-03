@@ -224,7 +224,7 @@ export async function createOrder(
   await fx.log?.(
     'order.create',
     `Created order: ${order.id}`,
-    `Customer: ${customerName || 'Walk-in'} | Total: ${grandTotal.toLocaleString()}`,
+    `Customer: ${customerName || 'Walk-in'} | Total: ${Math.max(0, subtotal - rupees(input.discountAmount)).toLocaleString()}${rupees(input.advancePayment) > 0 ? ` | Advance: ${rupees(input.advancePayment).toLocaleString()}` : ''}`,
     order.id,
   );
   fx.notify?.(order.id);

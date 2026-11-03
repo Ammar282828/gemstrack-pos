@@ -58,14 +58,32 @@ const order = {
   items: [{ description: 'Kada pair', karat: '21k', metalType: 'gold', estimatedWeightG: 20, totalEstimate: 288250, isCompleted: false, sampleGiven: false, hasStones: false, hasDiamonds: false, stoneWeightG: 0, wastagePercentage: 0, makingCharges: 0, diamondCharges: 0, stoneCharges: 0 }],
 } as unknown as Order;
 
+describe('saleDoc with exchange gold', () => {
+  it('states the full sale, not what is left after the exchange', () => {
+    const inv = { id: 'INV-9', customerName: 'Sara', createdAt: '2026-10-01T09:55:00Z', subtotal: 500000, discountAmount: 0, grandTotal: 350000, exchanges: [{ description: 'old chain', value: 150000 }], amountPaid: 350000, balanceDue: 0, items: [] } as unknown as Invoice;
+    const d = saleDoc(inv, now);
+    expect(d.headline).toBe('INV-9 · Sara · PKR 500,000');
+    expect(d.figures?.[0]).toMatchObject({ label: 'Total', value: 'PKR 500,000' });
+    const pairs = d.sections.find(s => s.title === 'The bill')!.pairs!.map(p => [p.label, p.value]);
+    expect(pairs.slice(0, 3)).toEqual([['Pieces', '500,000'], ['Total', 'PKR 500,000'], ['Exchange: old chain', '150,000']]);
+  });
+});
+
 describe('orderDoc', () => {
   it('a new order: the estimate, the advance, the promised date', () => {
     const d = orderDoc(order, 'new', now);
     expect(d.title).toBe('New order');
     expect(d.subheading).toContain('promised 5 Oct');
-    expect(d.figures?.map(f => [f.label, f.value])).toEqual([['Estimate', 'PKR 288,250'], ['Advance', 'PKR 30,000']]);
+    expect(d.figures?.map(f => [f.label, f.value])).toEqual([['Total', 'PKR 288,250'], ['Advance', 'PKR 30,000']]);
     expect(d.sections.find(s => s.title === 'Money')!.pairs!.at(-1)).toMatchObject({ label: 'Balance', value: 'PKR 258,250' });
     expect(d.sections.find(s => s.title === 'Advances')!.table!.rows).toEqual([['20 Sept', 'Cash', '30,000']]);
+  });
+  it('states the full amount (less discount only) in the headline and Money, the advance on its own line', () => {
+    const d = orderDoc({ ...order, discountAmount: 8250, grandTotal: 250000 } as Order, 'new', now);
+    expect(d.headline).toBe('ORD-000041 · Fatima Saiger · PKR 280,000');
+    expect(d.figures?.[0]).toMatchObject({ label: 'Total', value: 'PKR 280,000' });
+    const pairs = d.sections.find(s => s.title === 'Money')!.pairs!.map(p => [p.label, p.value]);
+    expect(pairs).toEqual([['Estimate', '288,250'], ['Discount', '- 8,250'], ['Total', 'PKR 280,000'], ['Advance paid', '30,000'], ['Balance', 'PKR 250,000']]);
   });
   it('a cancelled order flags what was still owed on it', () => {
     const d = orderDoc({ ...order, status: 'Cancelled' } as Order, 'Cancelled', now);

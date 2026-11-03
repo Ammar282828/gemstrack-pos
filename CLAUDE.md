@@ -133,6 +133,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 
 **Selling: invoices, orders, repairs**
 - [Drafts](docs/decisions.md#drafts) — only a new order or sale is drafted, in Firestore `drafts`; `finish()` on save; saved at every keystroke (within 300 ms, one write at a time), never auto-opened: a New sale/order is blank, the unfinished one waits in Drafts under its own id (Scan/Stock continue the sale with `?continue=1` / `?resume=1`)
+- [Full amounts](docs/decisions.md#full-amounts) — every card, alert and caption names an order/invoice by its full amount (`orderFullTotal`), never less the advance; Taken today opens the per-day chart (`lib/taken-by-day.ts`)
 - [Piece entry](docs/decisions.md#piece-entry) — descriptions suggested from history + saved stone combos (`/api/app/describe`, `setStoneCombos`); wastage chips 10/12/15/25/Other; "Add stone details" off by default; a catalogue reference photo printed beside the piece's name (`printReference`, `referenceImage`); the slip is "Order slip"
 - [Offline](docs/decisions.md#offline) — the iPad takes orders, sales and payments with no connection: queued on the phone, sent oldest first when back, dated by the tap (`clientAt`), never twice (request names kept 60 days); deletes/refunds need a connection
 - [Order actions gate](docs/decisions.md#order-actions-gate) — it moves money

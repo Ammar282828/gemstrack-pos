@@ -11,6 +11,7 @@
 
 import { todaysCash, METHODS, karachiDayPeriod } from '@/lib/analytics/todays-cash';
 import { invoiceSaleValue } from '@/lib/analytics/sale-value';
+import { orderFullTotal } from '@/lib/order-payment';
 import { isBusinessCost } from '@/lib/partnership';
 import { lateOrders, orderTiming, timingLabel, type OrderTiming } from '@/lib/order-timing';
 import { grams, longDay, plural, pkr, rs, shortDay, clock, type AlertDoc, type Section, type Table } from './doc';
@@ -34,6 +35,8 @@ export interface ShopRows {
 
 const DAY = 86_400_000;
 const who = (r: Row) => String(r.customerName || '').trim() || 'Walk-in';
+/** An order's full amount (owner, 2026-11-03): never the balance after its advance. */
+const orderValue = (o: Row) => orderFullTotal(o as Parameters<typeof orderFullTotal>[0]);
 const saleValue = (i: Row) => invoiceSaleValue(i as Parameters<typeof invoiceSaleValue>[0]);
 const at = (iso: unknown) => { const t = new Date(String(iso ?? '')).getTime(); return Number.isNaN(t) ? NaN : t; };
 const daysSince = (iso: string, now: Date) => Math.floor((now.getTime() - at(iso)) / DAY);
@@ -69,15 +72,15 @@ const salesTable = (list: Row[]): Table => ({
 
 const ordersTable = (list: Row[], valueLabel = 'Estimate'): Table => ({
   columns: [{ label: 'Order', width: 21 }, { label: 'Customer' }, { label: valueLabel, width: 19, align: 'right' }, { label: 'Advance', width: 16, align: 'right' }],
-  rows: list.map(o => [o.id, who(o), rs(o.subtotal ?? o.grandTotal), Number(o.advancePayment) > 0 ? rs(o.advancePayment) : '-']),
+  rows: list.map(o => [o.id, who(o), rs(orderValue(o)), Number(o.advancePayment) > 0 ? rs(o.advancePayment) : '-']),
   details: list.map(o => o.summary || undefined),
 });
 
 const lateTable = (rows: { order: Row; timing: OrderTiming }[]): Table => ({
-  columns: [{ label: 'Order', width: 21 }, { label: 'Customer' }, { label: 'Late', width: 18 }, { label: 'Balance', width: 16, align: 'right' }],
-  rows: rows.map(({ order: o, timing }) => [o.id, who(o), timingLabel(timing), rs(o.grandTotal)]),
+  columns: [{ label: 'Order', width: 21 }, { label: 'Customer' }, { label: 'Late', width: 18 }, { label: 'Total', width: 16, align: 'right' }],
+  rows: rows.map(({ order: o, timing }) => [o.id, who(o), timingLabel(timing), rs(orderValue(o))]),
   tones: rows.map(x => (x.timing.daysLate >= 7 ? 'flag' : undefined)),
-  details: rows.map(x => x.order.summary || undefined),
+  details: rows.map(x => [x.order.summary, Number(x.order.advancePayment) > 0 ? `advance ${rs(x.order.advancePayment)}` : ''].filter(Boolean).join(' · ') || undefined),
 });
 
 const completedTable = (rows: { order: Row; invoice: Row }[]): Table => ({
@@ -134,8 +137,8 @@ export function checklistDoc(r: ShopRows, now: Date): AlertDoc {
         title: 'Coming up',
         note: onTrack.length > 12 ? `the next 12 of ${onTrack.length}` : 'soonest first',
         table: {
-          columns: [{ label: 'Order', width: 21 }, { label: 'Customer' }, { label: 'Due', width: 18 }, { label: 'Balance', width: 16, align: 'right' }],
-          rows: onTrack.slice(0, 12).map(({ order: o, timing }) => [o.id, who(o), timingLabel(timing) || `${daysSince(o.createdAt, now)} days old`, rs(o.grandTotal)]),
+          columns: [{ label: 'Order', width: 21 }, { label: 'Customer' }, { label: 'Due', width: 18 }, { label: 'Total', width: 16, align: 'right' }],
+          rows: onTrack.slice(0, 12).map(({ order: o, timing }) => [o.id, who(o), timingLabel(timing) || `${daysSince(o.createdAt, now)} days old`, rs(orderValue(o))]),
           details: onTrack.slice(0, 12).map(x => x.order.summary || undefined),
         },
         empty: 'No other active orders.',
@@ -367,7 +370,7 @@ export function overdueDoc(orders: Row[], now: Date): AlertDoc | null {
   const rows = late(orders, now);
   if (!rows.length) return null;
   const bad = rows.filter(x => x.timing.daysLate >= 7);
-  const owed = rows.reduce((s, x) => s + (Number(x.order.grandTotal) || 0), 0);
+  const owed = rows.reduce((s, x) => s + orderValue(x.order), 0);
   return {
     kind: 'overdue-orders',
     title: 'Orders past their date',
@@ -377,7 +380,7 @@ export function overdueDoc(orders: Row[], now: Date): AlertDoc | null {
     figures: [
       { label: 'A week or more', value: String(bad.length), tone: bad.length ? 'flag' : undefined },
       { label: 'Just late', value: String(rows.length - bad.length) },
-      { label: 'Balance on them', value: pkr(owed) },
+      { label: 'Worth of them', value: pkr(owed) },
     ],
     sections: [{ title: 'Worst first', table: lateTable(rows) }],
     footnote: estimatedNote(rows),

@@ -13,6 +13,8 @@
  * sidebar. It fits one desktop screen; each list scrolls inside its own frame.
  */
 
+import { TakenByDayDialog } from '@/components/home/taken-by-day-dialog';
+import { orderFullAmount } from '@/lib/order-payment';
 import { owedToYou } from '@/lib/owed';
 import React, { useMemo } from 'react';
 import { BoardSkeleton } from '@/components/shared/skeletons';
@@ -176,6 +178,8 @@ export default function HomePage() {
   }, [appReady, loadProducts, loadOrders, loadGeneratedInvoices,
       loadAdditionalRevenues, loadExpenses, loadKarigars, loadKarigarJobs, loadCustomers, loadRepairs, loadHisaab]);
 
+  const [takenOpen, setTakenOpen] = React.useState(false);
+
   const stats = useMemo(() => {
     const now = new Date();
     const todayStart = startOfDay(now);
@@ -208,7 +212,7 @@ export default function HomePage() {
       // An online order waiting for its transfer is owed nothing yet (lib/order-stage.ts).
       ...orders.filter(o => isActiveOrder(o) && !awaitingTransfer(o)).map((o: Order): Due => ({
         key: `o${o.id}`, href: `/orders/${o.id}`, kind: 'order', id: o.id, customer: o.customerName || 'Walk-in',
-        amount: typeof o.grandTotal === 'number' ? o.grandTotal : 0, timing: orderTiming(o, now),
+        amount: orderFullAmount(o), timing: orderTiming(o, now),
       })),
       ...repairs.filter(r => r.status === 'received').map((r: Repair): Due => ({
         key: `r${r.id}`, href: `/repairs?id=${encodeURIComponent(r.id)}`, kind: 'repair', id: r.id, customer: r.customerName || 'Walk-in',
@@ -420,7 +424,7 @@ export default function HomePage() {
 
       {/* The glance: what was taken today, then three figures. Wide, they sit across in one row. */}
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.5fr_1fr_1fr_1fr]">
-        <TileLink href="/invoices" title={`PKR ${stats.todayRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}>
+        <button type="button" onClick={() => setTakenOpen(true)} aria-haspopup="dialog" title={`PKR ${stats.todayRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })} — tap for day by day`} className="block min-w-0 rounded-card text-left transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 active:opacity-80">
           <div className="h-full rounded-card bg-card p-4">
             <p className="text-ios-sub text-muted-foreground">Taken today</p>
             <HeroAmount amount={stats.todayRevenue} lac tone={stats.todayRevenue > 0 ? 'settled' : undefined} className="mt-1" />
@@ -429,7 +433,7 @@ export default function HomePage() {
               {lastSaleToday && lastSale && ` · last at ${format(parseISO(lastSale.createdAt), 'h:mm a').toLowerCase()}`}
             </p>
           </div>
-        </TileLink>
+        </button>
         <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-3 lg:col-span-3">
           <TileLink href="/analytics" title={`PKR ${stats.monthRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}>
             <FigureTile className="h-full" label="This month" value={stats.monthRevenue}
@@ -462,6 +466,10 @@ export default function HomePage() {
         <div className="space-y-5">{needs}{dueList}</div>
         <div className="space-y-5">{sales}{month}</div>
       </div>
+      {takenOpen && (
+        <TakenByDayDialog open onOpenChange={setTakenOpen}
+          data={{ invoices: generatedInvoices, orders, extraRevenues: additionalRevenues, repairs }} />
+      )}
     </div>
   );
 }

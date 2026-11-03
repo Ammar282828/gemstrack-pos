@@ -672,6 +672,17 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
   Edit order, New order, the workshop card and the karigar page (web `photo-lightbox.tsx`, iPhone `PieceGallery.swift`). An
   older app that edits a piece and writes its items back whole will drop `extraPhotos` it does not know (the first photo survives).
 
+### Full amounts
+
+- **An order or invoice is named by its full amount** (owner, 2026-11-03: "the amount … on their card on the orders page or
+  invoice page should be the full order amount, don't minus advance (also fix this logic in notifications)"). Cards, tables,
+  the calendar, customer pages, search, WhatsApp alerts, reports and share captions lead with the whole amount: an order's
+  pieces less discount (`orderFullTotal` in `lib/order-payment.ts`; iPhone `OrdersLogic.fullAmount`), an invoice's
+  `invoiceSaleValue`; never less advances or exchange. What is owed is a quiet second line ("Due X"); an advance is its own line.
+- **Taken today opens the day by day** (owner: "tapping Taken today should open the histogram of per day with all details"):
+  bars per day (7 days / this month / 30 / 90) by the same rule as the figure (sale value, `revenueForPeriod`;
+  `lib/taken-by-day.ts`, iPhone `DashTaken`), each day split cash / bank / card / other / not paid yet, with its entries.
+
 ### Piece entry
 
 Owner, 2026-11-03 ("iPad is our main order taker"):
@@ -687,6 +698,8 @@ Owner, 2026-11-03 ("iPad is our main order taker"):
   prints its own first reference photo). Picked from the website catalogue (`GET /api/app/catalogue?category=<id>&q=`),
   only that category's pieces by default, searchable; images through `/api/app/catalogue/image` (the site's host only).
   Drawn in the item row, 16 mm, on the invoice (combined and per piece) and the order estimate; never on the slip.
+  Off unless switched on: picking a catalogue photo does not print it (owner, 2026-11-03). The picker filters by type and
+  stones (`type`, `stones`, `facets` on `GET /api/app/catalogue`; `lib/website/catalogue-facets.ts`).
 - **The slip is "Order slip"** (owner: "stop printing for the workshop on the order slip").
 
 ### Offline

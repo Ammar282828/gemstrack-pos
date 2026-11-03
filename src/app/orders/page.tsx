@@ -6,7 +6,7 @@ import { ListSkeleton } from '@/components/shared/skeletons';
 import { FilterBar } from '@/components/shared/filter-bar';
 import Link from 'next/link';
 import { useAppStore, Order, ORDER_STATUSES, OrderStatus } from '@/lib/store';
-import { getOrderPaymentStatus, type PaymentStatus as OrderPaymentStatus } from '@/lib/order-payment';
+import { getOrderPaymentStatus, orderFullTotal, type PaymentStatus as OrderPaymentStatus } from '@/lib/order-payment';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -196,6 +196,8 @@ const OrderCard: React.FC<{ order: Order; owed: number; mine?: boolean }> = ({ o
   // What the customer still owes as the list shows it: the order's own balance until it is invoiced, then the invoice's.
   const due = order.invoiceId ? owed : (typeof order.grandTotal === 'number' ? order.grandTotal : 0);
   const timing = orderTiming(order, now);
+  // The card leads with the order's full amount, never less the advance (owner, 2026-11-03); what is owed is the quiet line under it.
+  const fullTotal = orderFullTotal(order);
 
   const leading: SwipeAction[] = hrefs ? [
     { label: 'Call', icon: <Phone className="h-5 w-5" />, tone: 'settled', onSelect: () => { window.location.href = hrefs.tel; } },
@@ -225,18 +227,14 @@ const OrderCard: React.FC<{ order: Order; owed: number; mine?: boolean }> = ({ o
                 )}
               </div>
             </div>
-            {stage !== 'closed' && (
-              <div className="shrink-0 text-right">
-                {Math.abs(due) >= 1 ? (
-                  <>
-                    <RowAmount amount={Math.abs(due)} tone={due < 0 ? 'credit' : undefined} />
-                    <p className="text-ios-cap text-muted-foreground">{due < 0 ? 'In credit' : 'Owed'}</p>
-                  </>
-                ) : (
-                  <Pill tone="settled">Paid</Pill>
-                )}
-              </div>
-            )}
+            <div className="shrink-0 text-right">
+              <RowAmount amount={fullTotal} />
+              {stage !== 'closed' && (
+                Math.abs(due) >= 1
+                  ? <p className={cn('text-ios-cap', due < 0 ? 'text-tone-settled-ink' : 'text-muted-foreground')}>{due < 0 ? 'In credit' : 'Due'} <span className="tabular-nums">{Math.round(Math.abs(due)).toLocaleString()}</span></p>
+                  : <p className="text-ios-cap text-tone-settled-ink">Paid</p>
+              )}
+            </div>
           </div>
 
           <p className="text-ios-sub text-muted-foreground">{cardWhat(order)}</p>
@@ -310,7 +308,7 @@ const OrderTableRow: React.FC<{ order: Order; owed: number; mine?: boolean }> = 
   const unassignedItems = safeItems.filter(item => !item.karigarId || item.karigarId === 'none').length;
   const grandTotal = typeof order.grandTotal === 'number' ? order.grandTotal : 0;
   const advancePayment = typeof order.advancePayment === 'number' ? order.advancePayment : 0;
-  const subtotal = typeof order.subtotal === 'number' ? order.subtotal : 0;
+  const fullTotal = orderFullTotal(order);
   const greyed = !!order.invoiceId || stageOf(order, owed) === 'done';
   const tone = statusTone(order.status);
   const pay = getPaymentStatus(order);
@@ -353,7 +351,7 @@ const OrderTableRow: React.FC<{ order: Order; owed: number; mine?: boolean }> = 
               {/* Where the Financials column is hidden, the one thing it said that you chase: payment and what is left. */}
               <div className="mt-1 flex items-center gap-1.5 min-[1400px]:hidden">
                 <Pill tone={PAYMENT_TONE[pay]}>{pay}</Pill>
-                <span className="text-ios-cap text-muted-foreground tabular-nums whitespace-nowrap">Bal <span className="font-semibold text-foreground">{grandTotal.toLocaleString()}</span></span>
+                <span className="text-ios-cap text-muted-foreground tabular-nums whitespace-nowrap">Total <span className="font-semibold text-foreground">{fullTotal.toLocaleString()}</span>{grandTotal > 0 && <> · Due {grandTotal.toLocaleString()}</>}</span>
               </div>
             </div>
           </div>
@@ -361,9 +359,9 @@ const OrderTableRow: React.FC<{ order: Order; owed: number; mine?: boolean }> = 
         <TableCell className="hidden min-[1400px]:table-cell text-right align-top">
           <div className="flex flex-col items-end gap-0.5 leading-tight whitespace-nowrap">
             <Pill tone={PAYMENT_TONE[pay]}>{pay}</Pill>
-            <div className="text-ios-cap text-muted-foreground">Bal: <span className="font-semibold text-foreground tabular-nums">{grandTotal.toLocaleString()}</span></div>
+            <div className="text-ios-cap text-muted-foreground">Total: <span className="font-semibold text-foreground tabular-nums">{fullTotal.toLocaleString()}</span></div>
             <div className="text-ios-cap text-muted-foreground">Adv: <span className="font-semibold text-foreground tabular-nums">{advancePayment.toLocaleString()}</span></div>
-            <div className="text-ios-cap text-muted-foreground border-t border-separator mt-1 pt-1">Total: <span className="font-semibold text-foreground tabular-nums">{subtotal.toLocaleString()}</span></div>
+            <div className="text-ios-cap text-muted-foreground border-t border-separator mt-1 pt-1">Due: <span className="font-semibold text-foreground tabular-nums">{grandTotal.toLocaleString()}</span></div>
           </div>
         </TableCell>
         <TableCell className="align-top">

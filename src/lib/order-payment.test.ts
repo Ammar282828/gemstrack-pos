@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { orderAdvancePayments, withoutOrderAdvance } from './order-payment';
+import { orderAdvancePayments, orderFullTotal, withoutOrderAdvance } from './order-payment';
 
 const base = { id: 'ORD-000123', createdAt: '2026-09-01T10:00:00.000Z' };
 
@@ -51,5 +51,14 @@ describe('withoutOrderAdvance', () => {
   });
   it('nothing for a line that is not there', () => {
     expect(withoutOrderAdvance(order, 9)).toBeNull();
+  });
+});
+
+describe('orderFullTotal', () => {
+  it('is the pieces less the discount, never less the advance or exchange', () => {
+    expect(orderFullTotal({ subtotal: 100000, discountAmount: 5000, advancePayment: 40000, advanceInExchangeValue: 5000, grandTotal: 50000 })).toBe(95000);
+  });
+  it('puts the advances back on the balance when no subtotal was kept', () => {
+    expect(orderFullTotal({ subtotal: 0, advancePayment: 40000, advanceInExchangeValue: 0, grandTotal: 60000 } as never)).toBe(100000);
   });
 });

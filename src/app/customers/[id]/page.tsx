@@ -2,6 +2,7 @@
 
 "use client";
 
+import { orderFullAmount } from '@/lib/order-payment';
 import React, { useEffect, useState } from 'react';
 import { DetailSkeleton } from '@/components/shared/skeletons';
 import { useParams, useRouter } from 'next/navigation';
@@ -158,7 +159,7 @@ export default function CustomerDetailPage() {
         <p className="text-ios-cap text-muted-foreground">{format(parseISO(order.createdAt), 'PP')}</p>
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1">
-        <span className="font-serif text-ios-title3 font-semibold tabular-nums">PKR {order.grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+        <span className="font-serif text-ios-title3 font-semibold tabular-nums">PKR {orderFullAmount(order).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
         <Pill tone={STATUS_TONE[order.status] ?? 'quiet'}>{order.status}</Pill>
       </div>
     </Link>
@@ -307,7 +308,7 @@ export default function CustomerDetailPage() {
                         <TableCell>
                             <Pill tone={STATUS_TONE[order.status] ?? 'quiet'}>{order.status}</Pill>
                         </TableCell>
-                        <TableCell className="text-right tabular-nums">{order.grandTotal.toLocaleString()}</TableCell>
+                        <TableCell className="text-right tabular-nums">{orderFullAmount(order).toLocaleString()}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

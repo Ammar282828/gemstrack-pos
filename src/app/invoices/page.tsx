@@ -3,16 +3,18 @@
 
 import { isOwing } from '@/lib/owed';
 import { invoiceSaleValue } from '@/lib/analytics/sale-value';
+import { orderFullTotal } from '@/lib/order-payment';
 
 /**
  * What a row shows as its total. An invoice's `grandTotal` is what was left to settle after the
  * exchange, so a sale paid partly in old gold showed less than it was worth and one paid wholly in
  * gold showed PKR 0 (owner, 2026-10-26: "if someone has given gold as exchange it shows the total as
  * the amount minus the exchange value"). The sale's worth is that plus the exchange (lib/analytics/
- * sale-value.ts, as Analytics counts it); the balance pill beside it still shows what is owed.
+ * sale-value.ts, as Analytics counts it); the balance pill beside it still shows what is owed. An order's
+ * `grandTotal` is its balance after the advance, so an order shows its full amount (`orderFullTotal`, 2026-11-03).
  */
 const docTotal = (d: { docType: string; grandTotal?: number }) =>
-  d.docType === 'invoice' ? invoiceSaleValue(d as unknown as Invoice) : (Number(d.grandTotal) || 0);
+  d.docType === 'invoice' ? invoiceSaleValue(d as unknown as Invoice) : orderFullTotal(d as unknown as Order);
 import React, { useState, useMemo, useEffect, useRef, useDeferredValue } from 'react';
 import { authedFetch } from '@/lib/voice/authed-fetch';
 import { ListSkeleton } from '@/components/shared/skeletons';

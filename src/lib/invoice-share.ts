@@ -9,6 +9,7 @@
 
 import { isWalkInName } from '@/lib/walk-in';
 import { balanceLine } from '@/lib/invoice-credit';
+import { invoiceSaleValue } from '@/lib/analytics/sale-value';
 
 type Named = { customerName?: string | null; createdAt?: string | null };
 
@@ -33,12 +34,13 @@ const pkr = (n: unknown) => `PKR ${Math.round(Number(n) || 0).toLocaleString('en
 
 /** The words under the PDF on WhatsApp: who it is for and what is owed — no number, no link. */
 export function invoiceWhatsAppCaption(
-  inv: Named & { grandTotal?: number; amountPaid?: number; balanceDue?: number },
+  inv: Named & { grandTotal?: number; amountPaid?: number; balanceDue?: number } & Parameters<typeof invoiceSaleValue>[0],
   shopName: string,
 ): string {
   const name = clean(String(inv.customerName || ''));
   const lines = [`Dear ${name && !isWalkInName(name) ? name : 'Customer'},`, '', `Your invoice from ${shopName} is attached.`, ''];
-  lines.push(`*Total:* ${pkr(inv.grandTotal)}`);
+  // The full sale, not what is left after the exchange gold (owner, 2026-11-03).
+  lines.push(`*Total:* ${pkr(invoiceSaleValue(inv))}`);
   if ((inv.amountPaid || 0) > 0) {
     lines.push(`*Paid:* ${pkr(inv.amountPaid)}`);
     const b = balanceLine(inv.balanceDue);

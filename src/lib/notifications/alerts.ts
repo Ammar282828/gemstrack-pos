@@ -6,7 +6,8 @@
  */
 
 import type { Invoice, InvoiceItem, Order, OrderItem, Payment } from '@/lib/store';
-import { orderAdvancePayments } from '@/lib/order-payment';
+import { orderAdvancePayments, orderFullTotal } from '@/lib/order-payment';
+import { invoiceSaleValue } from '@/lib/analytics/sale-value';
 import { describeExchanges, exchangeTotal, invoiceExchanges, orderExchanges } from '@/lib/exchange';
 import type { OrderSummaryForMessage } from '@/lib/website/notify';
 import { clock, longDay, plural, pkr, rs, shortDay, stamp, type AlertDoc, type Section, type Table } from './doc';
@@ -44,8 +45,9 @@ function invoiceBill(inv: Invoice): Section {
   const pairs: NonNullable<Section['pairs']> = [{ label: 'Pieces', value: rs(inv.subtotal) }];
   if (Number(inv.discountAmount) > 0) pairs.push({ label: 'Discount', value: `- ${rs(inv.discountAmount)}` });
   if (Number(inv.adjustmentsAmount)) pairs.push({ label: 'Adjustments', value: rs(inv.adjustmentsAmount) });
-  if (exTotal > 0) pairs.push({ label: `Exchange: ${describeExchanges(ex)}`, value: `- ${rs(exTotal)}` });
-  pairs.push({ label: 'Total', value: pkr(inv.grandTotal), strong: true });
+  // The full amount first, never less the exchange (owner, 2026-11-03); the gold given and the cash paid come after it.
+  pairs.push({ label: 'Total', value: pkr(invoiceSaleValue(inv)), strong: true });
+  if (exTotal > 0) pairs.push({ label: `Exchange: ${describeExchanges(ex)}`, value: rs(exTotal) });
   pairs.push({ label: 'Paid', value: rs(inv.amountPaid) });
   pairs.push({ label: 'Balance', value: owesMoney(inv.balanceDue) ? pkr(inv.balanceDue) : 'Paid in full', strong: true, tone: owesMoney(inv.balanceDue) ? 'flag' : undefined });
   return { title: 'The bill', pairs };
@@ -61,9 +63,9 @@ export function saleDoc(inv: Invoice, now = new Date()): AlertDoc {
     title: 'New sale',
     heading: inv.id,
     subheading: join([who(inv.customerName), inv.customerContact, inv.sourceOrderId ? `from ${inv.sourceOrderId}` : '', inv.takenBy ? `by ${inv.takenBy}` : '', inv.createdAt ? clock(inv.createdAt) : '']),
-    headline: join([inv.id, who(inv.customerName), pkr(inv.grandTotal)]),
+    headline: join([inv.id, who(inv.customerName), pkr(invoiceSaleValue(inv))]),
     figures: [
-      { label: 'Total', value: pkr(inv.grandTotal), note: plural(items.length, 'piece') },
+      { label: 'Total', value: pkr(invoiceSaleValue(inv)), note: plural(items.length, 'piece') },
       owed
         ? { label: 'Balance', value: pkr(inv.balanceDue), note: `paid ${rs(inv.amountPaid)}`, tone: 'flag' }
         : { label: 'Paid', value: pkr(inv.amountPaid), note: 'in full' },
@@ -93,8 +95,8 @@ export function paymentDoc(inv: Invoice, index: number, now = new Date()): Alert
     figures: [
       { label: 'Received', value: pkr(p.amount), note: join([p.method, p.reference ? `ref ${p.reference}` : '']) },
       owed
-        ? { label: 'Still owed', value: pkr(inv.balanceDue), tone: 'flag', note: `of ${rs(inv.grandTotal)}` }
-        : { label: 'Balance', value: 'Paid in full', note: `total ${rs(inv.grandTotal)}` },
+        ? { label: 'Still owed', value: pkr(inv.balanceDue), tone: 'flag', note: `of ${rs(invoiceSaleValue(inv))}` }
+        : { label: 'Balance', value: 'Paid in full', note: `total ${rs(invoiceSaleValue(inv))}` },
     ],
     sections: [
       { title: 'Payments on this invoice', table: paymentsTable(payments, payments.indexOf(p)) },
@@ -121,10 +123,13 @@ export function orderDoc(order: Order, kind: OrderAlert, now = new Date()): Aler
   const ex = orderExchanges(order);
   const exTotal = exchangeTotal(ex);
   const balance = Number(order.grandTotal) || 0;
+  // The order's full amount leads (owner, 2026-11-03); the advance is its own line, never taken off the headline.
+  const full = orderFullTotal(order);
   const pairs: NonNullable<Section['pairs']> = [{ label: 'Estimate', value: rs(order.subtotal) }];
   if (Number(order.discountAmount) > 0) pairs.push({ label: 'Discount', value: `- ${rs(order.discountAmount)}` });
-  if (Number(order.advancePayment) > 0) pairs.push({ label: 'Advance', value: `- ${rs(order.advancePayment)}` });
-  if (exTotal > 0) pairs.push({ label: `Exchange: ${describeExchanges(ex)}`, value: `- ${rs(exTotal)}` });
+  pairs.push({ label: 'Total', value: pkr(full), strong: true });
+  if (Number(order.advancePayment) > 0) pairs.push({ label: 'Advance paid', value: rs(order.advancePayment) });
+  if (exTotal > 0) pairs.push({ label: `Exchange: ${describeExchanges(ex)}`, value: rs(exTotal) });
   if (order.advanceGoldDetails) pairs.push({ label: `Gold given: ${order.advanceGoldDetails}`, value: '' });
   pairs.push({ label: kind === 'Completed' ? 'Balance at completion' : 'Balance', value: pkr(balance), strong: true, tone: kind === 'new' || balance <= 0 ? undefined : 'flag' });
 
@@ -137,9 +142,9 @@ export function orderDoc(order: Order, kind: OrderAlert, now = new Date()): Aler
       kind === 'new' ? (order.promisedDate ? `promised ${shortDay(order.promisedDate)}` : 'no promised date') : `taken ${shortDay(order.createdAt)}`,
       kind === 'Completed' && order.invoiceId ? `invoice ${order.invoiceId}` : '',
     ]),
-    headline: join([order.id, who(order.customerName), pkr(order.subtotal)]),
+    headline: join([order.id, who(order.customerName), pkr(full)]),
     figures: [
-      { label: 'Estimate', value: pkr(order.subtotal), note: plural(items.length, 'piece') },
+      { label: 'Total', value: pkr(full), note: plural(items.length, 'piece') },
       { label: kind === 'new' ? 'Advance' : 'Balance', value: kind === 'new' ? pkr((Number(order.advancePayment) || 0) + exTotal) : pkr(balance), tone: kind !== 'new' && balance > 0 ? 'flag' : undefined, note: kind === 'new' ? `balance ${rs(balance)}` : undefined },
     ],
     sections: [
