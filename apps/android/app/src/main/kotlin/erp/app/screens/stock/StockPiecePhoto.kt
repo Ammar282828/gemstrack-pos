@@ -111,7 +111,7 @@ fun StockPiecePhotoField(sku: String, name: String, imageUrl: String?, modifier:
         }
         busy?.let {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                LinearProgressIndicator(Modifier.fillMaxWidth())
+                erp.app.ui.Loading(Modifier.size(24.dp))
                 Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }

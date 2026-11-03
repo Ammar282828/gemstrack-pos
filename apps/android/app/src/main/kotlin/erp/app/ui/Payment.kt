@@ -265,8 +265,7 @@ fun PaymentSheet(
                     textAlign = TextAlign.Center,
                 )
                 Button(onClick = { send(null) }, enabled = (amount > 0 || exchangeValue > 0) && problem == null && !saving && !taken) {
-                    if (saving) Loading(Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
-                    else Text("Save")
+                    BusyLabel(saving) { Text("Save") }
                 }
             }
 

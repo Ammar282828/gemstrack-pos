@@ -1,5 +1,6 @@
 package erp.app.screens.ads
 
+import erp.app.ui.BusyBlock
 import erp.app.ui.icons.Symbols
 import erp.app.ui.SegmentedColumn
 import erp.app.ui.SearchBarField
@@ -303,7 +304,7 @@ fun AdsNotReady(status: AdsStatusAnswer?, problem: String?, retry: () -> Unit) {
         status != null -> AdsUnavailable(notReadyTitle(status), notReadyDetail(status), icon = Symbols.Power) {
             AdsTonalButton("Open Setup", { navigator.open("/ads/setup") })
         }
-        else -> Box(Modifier.fillMaxSize()) { SkeletonLoading(Modifier.fillMaxSize(), label = "Checking the Meta connection…") }
+        else -> Box(Modifier.fillMaxSize()) { BusyBlock("Checking the Meta connection…", Modifier.fillMaxSize()) }
     }
 }
 

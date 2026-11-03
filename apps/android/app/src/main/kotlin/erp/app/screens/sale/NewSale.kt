@@ -1,5 +1,6 @@
 package erp.app.screens.sale
 
+import erp.app.ui.SkeletonShape
 import androidx.compose.animation.AnimatedContent
 import erp.app.ui.icons.Symbols
 import androidx.compose.animation.Crossfade
@@ -165,7 +166,7 @@ fun SaleForm(edit: SaleEdit? = null, startsReading: Boolean = false, ratesFirst:
                 s.made?.let { ScreenRegistry.Screen(SaleLinks.invoice(it)) }
                 RatesNoteBanner(s, Modifier.align(Alignment.TopCenter))
             }
-            1 -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { SkeletonLoading() }
+            1 -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { SkeletonLoading(shape = SkeletonShape.Form) }
             else -> Page(s)
         }
     }

@@ -1,5 +1,6 @@
 package erp.app.screens.orders
 
+import erp.app.ui.SkeletonShape
 import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
 import android.content.Intent
@@ -44,7 +45,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.compose.AsyncImage
+import erp.app.ui.SkeletonAsyncImage
 import erp.app.auth.LocalSession
 import erp.app.data.OnlineInbox
 import erp.app.nav.LocalNavigator
@@ -105,7 +106,7 @@ fun OnlineOrdersScreen() {
             !session.shop.websiteSelling -> NotAvailableState("No online orders here", why = "This house's website takes no orders.", icon = Symbols.Public)
             !mayAct -> NotAvailableState("Owners and staff only", why = "Only owner and staff accounts can act on online orders.")
             else -> when (val p = phase) {
-                OnlineOrdersStore.Phase.Idle, OnlineOrdersStore.Phase.Loading -> SkeletonLoading(Modifier.fillMaxSize())
+                OnlineOrdersStore.Phase.Idle, OnlineOrdersStore.Phase.Loading -> SkeletonLoading(Modifier.fillMaxSize(), shape = SkeletonShape.Cards)
                 is OnlineOrdersStore.Phase.Failed -> Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                     NotAvailableState("Couldn't read the online orders", why = p.message, icon = Symbols.CloudOff)
                     Button(
@@ -295,7 +296,7 @@ fun OrdersThumb(image: String, name: String, modifier: Modifier = Modifier) {
     val source = image.trim()
     Box(modifier.clip(shape).background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f)), contentAlignment = Alignment.Center) {
         if (source.startsWith("http")) {
-            AsyncImage(model = source, contentDescription = name, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            SkeletonAsyncImage(model = source, contentDescription = name, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         } else {
             Text(
                 name.trim().take(1).uppercase(),

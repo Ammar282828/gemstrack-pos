@@ -136,7 +136,7 @@ private fun LedgerBoard(path: String) {
     }
 
     Box(Modifier.fillMaxSize().zoomDestination(path)) {
-        ShelfState(loaded = ready, error = hisaab.error, offline = hisaab.offline, connectionLost = connectionLost) {
+        ShelfState(shape = erp.app.ui.SkeletonShape.Rows, loaded = ready, error = hisaab.error, offline = hisaab.offline, connectionLost = connectionLost) {
             if (notFound) {
                 // The web says "Entity not found. It may have been deleted."
                 NotAvailableState("Not found", why = "It may have been deleted.", icon = Symbols.PersonSearch)

@@ -1,5 +1,6 @@
 package erp.app.screens.orders
 
+import erp.app.ui.BusyLabel
 import erp.app.ui.SegmentedColumn
 import erp.app.ui.ledgerRow
 import erp.app.ui.icons.Symbols
@@ -142,7 +143,7 @@ fun OrderScreen(id: String) {
     val connectionLost by Connection.isOffline.collectAsStateWithLifecycle()
     val order = rememberShelfItem(book.orders, id)
     Box(Modifier.fillMaxSize().zoomDestination(OrderPaths.order(id))) {
-        ShelfState(loaded = orders.loaded, error = orders.error, offline = orders.offline, connectionLost = connectionLost) {
+        ShelfState(shape = erp.app.ui.SkeletonShape.Record, loaded = orders.loaded, error = orders.error, offline = orders.offline, connectionLost = connectionLost) {
             // Read through `items`: the shelf's lookup alone would not redraw on a change.
             if (order != null) Detail(order) else NotAvailableState("Order not found", why = "$id is not in the book.", icon = Symbols.ListAlt)
         }
@@ -669,9 +670,7 @@ private fun ActionBar(
                 enabled = !updatingStatus || step is OrderNextStep.Invoice,
                 modifier = m.defaultMinSize(minHeight = 52.dp), colors = prominent,
             ) {
-                if (updatingStatus && step == OrderNextStep.MarkReady) {
-                    Loading(Modifier.size(26.dp), color = ErpColors.onAccent)
-                } else {
+                BusyLabel(updatingStatus && step == OrderNextStep.MarkReady) {
                     Icon(stepIcon(step), null, Modifier.size(18.dp))
                     Text(step.title, Modifier.padding(start = 8.dp))
                 }

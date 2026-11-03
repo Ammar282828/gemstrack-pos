@@ -1,5 +1,7 @@
 package erp.app.screens.design
 
+import erp.app.ui.SkeletonShape
+import erp.app.ui.Loading
 import erp.app.ui.icons.Symbols
 import erp.app.ui.SearchBarField
 import androidx.compose.foundation.background
@@ -115,7 +117,7 @@ fun DesignSitePieces(onPick: (DesignStartPhoto) -> Unit) {
         )
         when {
             error != null -> NotAvailableState("Couldn’t read the website", why = error, icon = Symbols.Language)
-            !loaded -> SkeletonLoading(Modifier.fillMaxSize(), label = "Reading the website")
+            !loaded -> SkeletonLoading(Modifier.fillMaxSize(), label = "Reading the website", shape = SkeletonShape.ThumbGrid)
             filtered.isEmpty() -> NotAvailableState("No pieces", why = "Nothing on the website matches.", icon = Symbols.Language)
             else -> LazyVerticalGrid(
                 GridCells.Adaptive(minSize = 104.dp), Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
@@ -194,7 +196,7 @@ fun DesignLibraryPhotos(all: Boolean, onPick: (DesignStartPhoto) -> Unit) {
         }
         when {
             error != null -> NotAvailableState("Couldn’t read the library", why = error, icon = Symbols.PhotoLibrary)
-            !loaded -> SkeletonLoading(Modifier.fillMaxSize(), label = "Loading the photos")
+            !loaded -> SkeletonLoading(Modifier.fillMaxSize(), label = "Loading the photos", shape = SkeletonShape.ThumbGrid)
             rows.isEmpty() -> NotAvailableState("No photos", why = "No photos match.", icon = Symbols.PhotoLibrary)
             else -> LazyVerticalGrid(
                 GridCells.Adaptive(minSize = 104.dp), Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),

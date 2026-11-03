@@ -1,5 +1,6 @@
 package erp.app.screens.ads
 
+import erp.app.ui.SkeletonShape
 import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -152,7 +153,7 @@ fun AdsOverviewScreen() {
             if (!House.isDemo) AdsTonalButton("Try again", { scope.launch { load(fresh = true) } })
             AdsTonalButton("Open Setup", { navigator.open("/ads/setup") })
         }
-        else -> Box(Modifier.fillMaxSize()) { SkeletonLoading(Modifier.fillMaxSize(), label = "Reading the ads") }
+        else -> Box(Modifier.fillMaxSize()) { SkeletonLoading(Modifier.fillMaxSize(), label = "Reading the ads", shape = SkeletonShape.Chart) }
     }
 
     asking?.let { a ->

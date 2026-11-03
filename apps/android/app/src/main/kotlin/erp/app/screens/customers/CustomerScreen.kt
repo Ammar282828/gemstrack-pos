@@ -190,7 +190,7 @@ fun CustomerScreen(id: String) {
     }
 
     Box(Modifier.fillMaxSize().zoomDestination(CustomerKit.path(id))) {
-        ShelfState(loaded = loaded, error = failure, offline = customers.offline, connectionLost = connectionLost) {
+        ShelfState(shape = erp.app.ui.SkeletonShape.Record, loaded = loaded, error = failure, offline = customers.offline, connectionLost = connectionLost) {
             when {
                 customer == null -> NotAvailableState(
                     "Customer not found", why = "They are not in the book on this phone.", icon = Symbols.QuestionMark,

@@ -1,5 +1,6 @@
 package erp.app.screens.sale
 
+import erp.app.ui.BusyLabel
 import erp.app.ui.ContactPickButton
 import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
@@ -767,8 +768,7 @@ internal fun SaveBar(s: SaleFormState, f: SaleFigures, openPath: (String) -> Uni
             enabled = f.canSave && !s.saving && !erp.app.ui.rememberUpdateBlocked(),
             modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 52.dp),
         ) {
-            if (s.saving) Loading(Modifier.size(24.dp), color = ErpColors.onAccent)
-            Text(label, Modifier.padding(start = if (s.saving) 8.dp else 0.dp))
+            BusyLabel(s.saving) { Text(label) }
         }
     }
 }

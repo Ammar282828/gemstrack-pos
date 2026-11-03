@@ -169,7 +169,7 @@ private fun DraftsPage() {
         }
     }
 
-    ShelfState(loaded = ready, error = null, offline = readsDrafts && status.offline) {
+    ShelfState(shape = erp.app.ui.SkeletonShape.Cards, loaded = ready, error = null, offline = readsDrafts && status.offline) {
         LazyColumn(
             Modifier.fillMaxSize(),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),

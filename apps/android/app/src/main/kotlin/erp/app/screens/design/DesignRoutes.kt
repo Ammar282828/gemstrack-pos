@@ -1,5 +1,6 @@
 package erp.app.screens.design
 
+import erp.app.ui.BusyBlock
 import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -239,7 +240,7 @@ fun DesignScreen(path: String, preset: DesignWorkspaceModel? = null) {
         }
         if (workspace.starting) {
             Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.12f)), contentAlignment = Alignment.Center) {
-                Box(Modifier.clip(Radius.cardShape).background(ErpColors.card).padding(20.dp)) { SkeletonLoading(label = "Opening…") }
+                Box(Modifier.clip(Radius.cardShape).background(ErpColors.card).padding(20.dp)) { BusyBlock("Opening…") }
             }
         }
     }

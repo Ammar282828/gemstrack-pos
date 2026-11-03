@@ -146,7 +146,7 @@ fun InvoiceScreen(id: String) {
         if (invoice != null) {
             InvoiceDetail(invoice, customers)
         } else {
-            ShelfState(loaded = status.loaded, error = status.error, offline = status.offline, connectionLost = connectionLost) { InvoiceNotFound(id) }
+            ShelfState(shape = erp.app.ui.SkeletonShape.Record, loaded = status.loaded, error = status.error, offline = status.offline, connectionLost = connectionLost) { InvoiceNotFound(id) }
         }
     }
 }

@@ -93,7 +93,7 @@ private fun RevenueBoard() {
     ScreenActions { IconButton(onClick = { adding = true }) { Icon(Symbols.Add, contentDescription = "Add extra revenue") } }
 
     Box(Modifier.fillMaxSize()) {
-        ShelfState(loaded = revenue.loaded, error = revenue.error, offline = revenue.offline, connectionLost = connectionLost) {
+        ShelfState(shape = erp.app.ui.SkeletonShape.Rows, loaded = revenue.loaded, error = revenue.error, offline = revenue.offline, connectionLost = connectionLost) {
             val now = remember(revenue.revision, dates) { Instant.now() }
             val shown = remember(revenue.revision, search, dates) { revenueLines(revenue.items, search, dates, now) }
             val months = remember(shown, now) { MoneyMonths.group(shown, now) { it.amount } }

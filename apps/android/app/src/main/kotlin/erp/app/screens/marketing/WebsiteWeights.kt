@@ -1,5 +1,7 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.SkeletonShape
+import erp.app.ui.Loading
 import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import erp.app.ui.SearchBarField
@@ -197,7 +199,7 @@ fun WebsiteWeightsScreen() {
             }
         }
         problem != null -> MarketingErrorState(problem ?: "") { scope.launch { problem = null; load() } }
-        else -> SkeletonLoading(Modifier.fillMaxSize(), label = "Loading the catalogue…")
+        else -> SkeletonLoading(Modifier.fillMaxSize(), label = "Loading the catalogue…", shape = SkeletonShape.Rows)
     }
 
     confirming?.let { p ->

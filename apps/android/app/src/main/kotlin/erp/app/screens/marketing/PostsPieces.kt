@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.SkeletonShape
 import erp.app.ui.icons.Symbols
 import erp.app.ui.SearchBarField
 import erp.app.ui.zoomDestination
@@ -145,7 +146,7 @@ fun PostPiecesScreen(tray: PostTrayModel? = null) {
     when (val phase = state.piecesPhase) {
         PostsPhase.Off -> NotAvailableState("This shop doesn't post its website's pieces", why = "Its website has no pieces for the ERP to post from, so there is nothing to choose here.", icon = Symbols.Public)
         is PostsPhase.Failed -> MarketingErrorState(phase.message) { scope.launch { PostsStore.load() } }
-        PostsPhase.Idle, PostsPhase.Loading -> SkeletonLoading(Modifier.fillMaxSize())
+        PostsPhase.Idle, PostsPhase.Loading -> SkeletonLoading(Modifier.fillMaxSize(), shape = SkeletonShape.ThumbGrid)
         PostsPhase.Loaded -> {
             val items = PostPiecesLogic.filtered(state.pieces, state.posted, search, collection, freshOnly, erp.app.ui.AppClock.now())
             val showing = PostPiecesLogic.showing(collection, state.pieces)
@@ -241,7 +242,7 @@ fun PostPieceScreen(id: String) {
         when {
             piece != null -> Box(Modifier.fillMaxSize().readableColumn(720.dp)) { PieceDetail(piece, state) }
             state.piecesPhase == PostsPhase.Loaded -> NotAvailableState("That piece is not on the website any more", icon = Symbols.GridView)
-            else -> SkeletonLoading(Modifier.fillMaxSize())
+            else -> SkeletonLoading(Modifier.fillMaxSize(), shape = SkeletonShape.ThumbGrid)
         }
     }
 }

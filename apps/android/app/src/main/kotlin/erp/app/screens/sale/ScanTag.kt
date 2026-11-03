@@ -30,7 +30,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
-import coil3.compose.AsyncImage
+import erp.app.ui.SkeletonAsyncImage
 import erp.app.auth.LocalSession
 import erp.app.data.LocalBook
 import erp.app.data.rememberShelf
@@ -174,7 +174,7 @@ private fun PieceCard(
     Card {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
             p.imageUrl?.takeIf { it.isNotEmpty() }?.let { url ->
-                AsyncImage(url, contentDescription = p.name, Modifier.size(72.dp).clip(Radius.tileShape), contentScale = ContentScale.Crop)
+                SkeletonAsyncImage(url, contentDescription = p.name, Modifier.size(72.dp).clip(Radius.tileShape), contentScale = ContentScale.Crop)
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(p.name, style = MaterialTheme.typography.titleMedium)

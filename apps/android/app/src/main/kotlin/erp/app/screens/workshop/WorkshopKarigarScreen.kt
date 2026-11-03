@@ -226,6 +226,7 @@ fun WorkshopKarigarScreen(id: String) {
     ScreenTitle(karigar?.name?.ifEmpty { null } ?: "Karigar")
 
     ShelfState(
+            shape = erp.app.ui.SkeletonShape.Record,
         loaded = loaded, error = firstError, offline = karigars.offline, connectionLost = connectionLost,
         modifier = Modifier.fillMaxSize().zoomDestination(WorkshopLogic.karigarPath(id)),
     ) {

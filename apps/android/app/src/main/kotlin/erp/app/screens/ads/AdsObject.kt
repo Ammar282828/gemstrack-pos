@@ -1,5 +1,6 @@
 package erp.app.screens.ads
 
+import erp.app.ui.SkeletonShape
 import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.layout.Box
 import erp.app.data.Outbox
@@ -176,7 +177,7 @@ private fun AdsObjectBody(path: String) {
                 AdsProminentButton("Try again", { failure = null; scope.launch { load() } })
             }
         } else {
-            SkeletonLoading(Modifier.fillMaxSize(), label = "Reading")
+            SkeletonLoading(Modifier.fillMaxSize(), label = "Reading", shape = SkeletonShape.Record)
         }
     } else {
         AdsPage {

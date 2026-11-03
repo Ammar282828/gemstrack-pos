@@ -1,5 +1,8 @@
 package erp.app.screens.design
 
+import erp.app.ui.SkeletonShape
+import erp.app.ui.SkeletonPhoto
+import erp.app.ui.Busy
 import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import erp.app.ui.SearchBarField
@@ -210,7 +213,7 @@ fun DesignSavedView(
                 }
                 view == ACCOUNT && adsOk -> DesignAccountAds(shelf.folders) { scope.launch { shelf.load() } }
                 shelf.error != null -> NotAvailableState("Couldn’t read the shelf", why = shelf.error, icon = Symbols.Info)
-                !shelf.loaded -> SkeletonLoading(Modifier.fillMaxSize(), label = "Opening the shelf")
+                !shelf.loaded -> SkeletonLoading(Modifier.fillMaxSize(), label = "Opening the shelf", shape = SkeletonShape.ThumbGrid)
                 shown.isEmpty() -> NotAvailableState(
                     if (shelf.items.isEmpty()) "Nothing saved yet" else "Nothing here",
                     why = if (shelf.items.isEmpty()) "Save a design from the workspace and it waits here, in any folder you make." else "No design in this folder matches.",
@@ -342,7 +345,7 @@ fun DesignDetailSheet(
                 when {
                     full != null -> DesignPicture(full, Modifier.fillMaxSize(), ContentScale.Fit, "The design")
                     thumb != null -> DesignPicture(thumb, Modifier.fillMaxSize(), ContentScale.Fit)
-                    else -> SkeletonLoading(label = "Opening the picture")
+                    else -> SkeletonPhoto(Modifier.fillMaxSize())
                 }
             }
             FormSection("Design") {
@@ -372,7 +375,7 @@ fun DesignDetailSheet(
                 ActionRow("Delete", { confirmDelete = true }, icon = Symbols.Delete, tone = Tone.problem)
             }
         }
-        busy?.let { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { SkeletonLoading(label = it) } }
+        busy?.let { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Busy(label = it, size = 36.dp) } }
     }
     if (confirmDelete) {
         ConfirmDestructive("Delete “${record.name}”?", null, "Delete", { confirmDelete = false }) {

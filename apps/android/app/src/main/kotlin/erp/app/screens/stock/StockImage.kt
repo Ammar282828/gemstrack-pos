@@ -1,5 +1,7 @@
 package erp.app.screens.stock
 
+import erp.app.ui.SkeletonPhoto
+import erp.app.ui.Loading
 import android.graphics.BitmapFactory
 import android.util.Base64
 import androidx.compose.foundation.Image
@@ -49,7 +51,7 @@ fun StockImage(imageUrl: String?, name: String, key: String, modifier: Modifier 
             source.startsWith("data:") -> if (decodeDataUri) StockDataImage(source, key, name) else StockInitial(name)
             source.startsWith("http") -> SubcomposeAsyncImage(
                 model = source, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop,
-                loading = { SkeletonLoading(compact = true) },
+                loading = { SkeletonPhoto(Modifier.fillMaxSize()) },
                 error = { StockInitial(name) },
             )
             else -> StockInitial(name)
@@ -68,7 +70,7 @@ private fun StockDataImage(uri: String, key: String, name: String) {
     when (val s = state) {
         is Decoded.Ready -> Image(s.bitmap, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         Decoded.Failed -> StockInitial(name)
-        Decoded.Loading -> SkeletonLoading(compact = true)
+        Decoded.Loading -> SkeletonPhoto(Modifier.fillMaxSize())
     }
 }
 

@@ -242,7 +242,7 @@ fun WorkshopBoard(path: String) {
         }
     }
 
-    ShelfState(loaded = loaded, error = firstError, offline = orders.offline, connectionLost = connectionLost) {
+    ShelfState(shape = erp.app.ui.SkeletonShape.Cards, loaded = loaded, error = firstError, offline = orders.offline, connectionLost = connectionLost) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val large = isLargeText()
             val columns = workshopColumns((maxWidth - 32.dp).value, large, 420f)

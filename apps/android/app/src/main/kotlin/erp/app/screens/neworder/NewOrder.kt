@@ -1,5 +1,7 @@
 package erp.app.screens.neworder
 
+import erp.app.ui.SkeletonShape
+import erp.app.ui.BusyLabel
 import erp.app.ui.icons.Symbols
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
@@ -618,7 +620,7 @@ private fun SaveBar(balance: Double, saving: Boolean, editing: Boolean, onSave: 
                 MoneyText(balance, exact = true, style = MaterialTheme.typography.titleMedium)
             }
             Button(onClick = onSave, enabled = !saving && !blocked, modifier = Modifier.defaultMinSize(minWidth = 120.dp, minHeight = MinTouchTarget)) {
-                if (saving) SkeletonLoading(compact = true) else Text(if (editing) "Save changes" else "Save order")
+                BusyLabel(saving) { Text(if (editing) "Save changes" else "Save order") }
             }
         }
     }
@@ -670,7 +672,7 @@ private fun NewOrderLanding(id: String, waiting: Boolean, onOpen: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        SkeletonLoading()
+        SkeletonLoading(shape = SkeletonShape.Form)
         Text("Opening $id…", color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

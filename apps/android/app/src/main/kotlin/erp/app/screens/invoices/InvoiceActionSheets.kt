@@ -1,5 +1,6 @@
 package erp.app.screens.invoices
 
+import erp.app.ui.BusyLabel
 import erp.app.ui.ContactPickButton
 import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
@@ -151,7 +152,7 @@ private fun ErrorLine(text: String) {
 @Composable
 private fun SaveAction(label: String, saving: Boolean, enabled: Boolean, onClick: () -> Unit) {
     Button(onClick = onClick, enabled = enabled && !saving) {
-        if (saving) Loading(Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary) else Text(label)
+        BusyLabel(saving) { Text(label) }
     }
 }
 

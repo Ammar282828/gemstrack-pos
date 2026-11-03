@@ -1,5 +1,6 @@
 package erp.app.screens.repairs
 
+import erp.app.ui.SkeletonShape
 import erp.app.ui.icons.Symbols
 import erp.app.ui.AppClock
 import androidx.compose.foundation.clickable
@@ -133,7 +134,7 @@ fun RepairsSheet(id: String, seed: Repair?, onDismiss: () -> Unit) {
     ) { close ->
         when {
             current != null -> Detail(current, session.isOwner, session.shop.name, onCustomer = { cid -> close(); navigator.open("/customers/$cid") }, context = context)
-            !loaded -> SkeletonLoading(Modifier.fillMaxWidth())
+            !loaded -> SkeletonLoading(Modifier.fillMaxWidth(), shape = SkeletonShape.Rows)
             else -> NotAvailableState("Repair not found", why = "$id is not in the book. It may have been deleted.", icon = Symbols.Build)
         }
     }

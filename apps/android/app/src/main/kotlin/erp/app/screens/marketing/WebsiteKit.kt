@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.Busy
 import erp.app.ui.icons.Symbols
 import erp.app.ui.SegmentedColumn
 import androidx.compose.foundation.background
@@ -223,7 +224,7 @@ fun WebsiteConfirm(title: String, message: String, choices: List<WebsiteChoice>,
 fun WebsiteBusy(doing: String?) {
     if (doing == null) return
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.15f)), contentAlignment = Alignment.Center) {
-        Box(Modifier.clip(Radius.cardShape).background(ErpColors.card).padding(20.dp)) { SkeletonLoading(label = doing) }
+        Box(Modifier.clip(Radius.cardShape).background(ErpColors.card).padding(20.dp)) { Busy(label = doing, size = 36.dp) }
     }
 }
 

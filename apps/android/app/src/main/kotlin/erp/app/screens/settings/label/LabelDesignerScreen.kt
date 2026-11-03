@@ -1,5 +1,6 @@
 package erp.app.screens.settings.label
 
+import erp.app.ui.SkeletonShape
 import erp.app.ui.icons.Symbols
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -182,7 +183,7 @@ private fun LabelDesigner() {
             NotAvailableState("Couldn't load the tag", why = error, icon = Symbols.LocalOffer)
             Button(onClick = { book.settings.reset(); book.settings.need() }) { Text("Try again") }
         }
-        else -> SkeletonLoading()
+        else -> SkeletonLoading(shape = SkeletonShape.Form)
     }
 }
 

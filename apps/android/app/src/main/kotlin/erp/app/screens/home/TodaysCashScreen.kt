@@ -103,6 +103,7 @@ fun TodaysCashScreen() {
     }
 
     ShelfState(
+            shape = erp.app.ui.SkeletonShape.Figures,
         loaded = ready && cash != null,
         error = invoices.error ?: orders.error,
         offline = invoices.offline,

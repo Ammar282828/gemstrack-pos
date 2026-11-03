@@ -200,7 +200,7 @@ fun InvoicesList() {
     }
 
     Box(Modifier.fillMaxSize()) {
-        ShelfState(loaded = status.loaded, error = status.error, offline = status.offline, connectionLost = connectionLost) {
+        ShelfState(shape = erp.app.ui.SkeletonShape.Rows, loaded = status.loaded, error = status.error, offline = status.offline, connectionLost = connectionLost) {
             BoxWithConstraints(Modifier.fillMaxSize()) {
                 val wide = maxWidth >= 760.dp && !isLargeText()
                 val columns = if (wide) CardColumns.count(maxWidth - 48.dp) else 1

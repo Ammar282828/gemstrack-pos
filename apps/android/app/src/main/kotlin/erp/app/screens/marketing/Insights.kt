@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.SkeletonShape
 import erp.app.ui.icons.Symbols
 import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
@@ -188,7 +189,7 @@ fun InsightsOverviewScreen() {
             InsightsOverviewContent(d, found, rangeKey)
         }
         problem != null -> MarketingErrorState(problem ?: "", if (House.isDemo) null else ({ scope.launch { load(true) } }))
-        else -> Box(Modifier.fillMaxSize()) { SkeletonLoading(Modifier.fillMaxSize(), label = "Reading Insights") }
+        else -> Box(Modifier.fillMaxSize()) { SkeletonLoading(Modifier.fillMaxSize(), label = "Reading Insights", shape = SkeletonShape.Chart) }
     }
 }
 
@@ -430,7 +431,7 @@ fun InsightsPostsScreen() {
         problem != null -> AdsUnavailable("Couldn't read the posts", problem ?: "", icon = Symbols.GridView) {
             if (!House.isDemo) AdsTonalButton("Try again", { scope.launch { load(true) } })
         }
-        else -> Box(Modifier.fillMaxSize()) { SkeletonLoading(Modifier.fillMaxSize(), label = "Reading the posts") }
+        else -> Box(Modifier.fillMaxSize()) { SkeletonLoading(Modifier.fillMaxSize(), label = "Reading the posts", shape = SkeletonShape.ThumbGrid) }
     }
 }
 
@@ -564,7 +565,7 @@ fun InsightsAudienceScreen() {
         problem != null -> AdsUnavailable("Couldn't read the audience", problem ?: "", icon = Symbols.People) {
             if (!House.isDemo) AdsTonalButton("Try again", { scope.launch { load(true) } })
         }
-        else -> Box(Modifier.fillMaxSize()) { SkeletonLoading(Modifier.fillMaxSize(), label = "Reading the audience") }
+        else -> Box(Modifier.fillMaxSize()) { SkeletonLoading(Modifier.fillMaxSize(), label = "Reading the audience", shape = SkeletonShape.Chart) }
     }
 }
 

@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.SkeletonShape
 import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.layout.Arrangement
@@ -198,7 +199,7 @@ fun WebsiteEditPieceScreen(id: String) {
             }
             missing -> NotAvailableState("That piece isn't on the website's list", why = "It may have been taken off the site, or renamed there.", icon = Symbols.Image)
             problem != null -> MarketingErrorState(problem ?: "") { scope.launch { problem = null; load() } }
-            else -> SkeletonLoading(Modifier.fillMaxSize())
+            else -> SkeletonLoading(Modifier.fillMaxSize(), shape = SkeletonShape.Form)
         }
         WebsiteBusy(busy)
     }

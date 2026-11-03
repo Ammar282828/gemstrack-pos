@@ -1,5 +1,8 @@
 package erp.app.screens.orders
 
+import erp.app.ui.BusyLabel
+import erp.app.ui.SkeletonShape
+import erp.app.ui.BusyBlock
 import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
@@ -134,7 +137,7 @@ fun OrderFinalizeScreen(id: String) {
 
     val s = settings
     when {
-        made != null -> SkeletonLoading(Modifier.fillMaxSize())
+        made != null -> BusyBlock("Opening the invoice…", Modifier.fillMaxSize())
         !isOwner -> NotAvailableState("Only an owner can invoice an order", why = "Ask an owner to finalize it.")
         order != null && s != null -> {
             val inv = order.invoiceId
@@ -174,7 +177,7 @@ fun OrderFinalizeScreen(id: String) {
             }
         }
         orders.loaded && order == null -> NotAvailableState("No such order", why = "$id isn't in the book.")
-        else -> SkeletonLoading(Modifier.fillMaxSize())
+        else -> SkeletonLoading(Modifier.fillMaxSize(), shape = SkeletonShape.Record)
     }
 }
 
@@ -257,8 +260,7 @@ private fun FinalizeForm(
                     enabled = !saving, modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(containerColor = ErpColors.accent, contentColor = ErpColors.onAccent),
                 ) {
-                    if (saving) Loading(Modifier.size(24.dp), color = ErpColors.onAccent)
-                    Text("Make invoice · ${Money.pkr(f.total)}", Modifier.padding(start = if (saving) 8.dp else 0.dp))
+                    BusyLabel(saving) { Text("Make invoice · ${Money.pkr(f.total)}") }
                 }
             }
         },

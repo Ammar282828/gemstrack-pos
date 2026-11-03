@@ -128,7 +128,7 @@ fun RepairsScreen(path: String) {
         }
     }
 
-    ShelfState(loaded = repairs.loaded, error = repairs.error, offline = repairs.offline, connectionLost = connectionLost) {
+    ShelfState(shape = erp.app.ui.SkeletonShape.Cards, loaded = repairs.loaded, error = repairs.error, offline = repairs.offline, connectionLost = connectionLost) {
         val q = query.trim().lowercase()
         val now = remember(repairs.revision) { AppClock.now() }
         val groups = remember(repairs.revision, q) {

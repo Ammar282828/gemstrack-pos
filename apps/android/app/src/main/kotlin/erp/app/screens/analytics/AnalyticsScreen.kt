@@ -1,5 +1,6 @@
 package erp.app.screens.analytics
 
+import erp.app.ui.SkeletonShape
 import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -92,7 +93,7 @@ private fun AnalyticsBoard(section: AnaSection) {
         }
     }
 
-    ShelfState(loaded = loaded, error = error, offline = invoices.offline, connectionLost = connectionLost) {
+    ShelfState(shape = erp.app.ui.SkeletonShape.Chart, loaded = loaded, error = error, offline = invoices.offline, connectionLost = connectionLost) {
         val period = AnaPeriod.read(AnaPeriodStore.key, AnaPeriodStore.from, AnaPeriodStore.to, now)
         // Margin is worked out for owners alone; a customer or a staff account never sees it.
         val margin = erp.app.config.House.margin
@@ -106,7 +107,7 @@ private fun AnalyticsBoard(section: AnaSection) {
             value = withContext(Dispatchers.Default) { AnaPageData.of(section, books, period, margin, goods) }
         }
         val d = data
-        if (d == null) SkeletonLoading(Modifier.fillMaxSize()) else AnaPages(section, d)
+        if (d == null) SkeletonLoading(Modifier.fillMaxSize(), shape = SkeletonShape.Chart) else AnaPages(section, d)
     }
 }
 

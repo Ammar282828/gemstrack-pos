@@ -162,7 +162,7 @@ fun StockList() {
         }
     }
 
-    ShelfState(loaded = products.loaded, error = products.error, offline = products.offline, connectionLost = connectionLost) {
+    ShelfState(shape = erp.app.ui.SkeletonShape.ThumbGrid, loaded = products.loaded, error = products.error, offline = products.offline, connectionLost = connectionLost) {
         Column(Modifier.fillMaxSize()) {
             SearchBarField(
                 value = search,

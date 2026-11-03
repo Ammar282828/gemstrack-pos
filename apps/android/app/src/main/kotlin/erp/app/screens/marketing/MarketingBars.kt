@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.BusyLabel
 import erp.app.ui.Loading
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -48,9 +49,10 @@ fun MarketingActionBar(title: String, icon: ImageVector, onClick: () -> Unit, bu
         modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 52.dp),
         colors = ButtonDefaults.buttonColors(containerColor = ErpColors.accent, contentColor = ErpColors.onAccent),
     ) {
-        if (busy) Loading(Modifier.size(26.dp), color = ErpColors.onAccent)
-        else Icon(icon, null, Modifier.size(18.dp))
-        Text(title, Modifier.padding(start = 8.dp))
+        BusyLabel(busy) {
+            Icon(icon, null, Modifier.size(18.dp))
+            Text(title, Modifier.padding(start = 8.dp))
+        }
     }
     if (!summary.isNullOrEmpty()) {
         Text(summary, Modifier.fillMaxWidth(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)

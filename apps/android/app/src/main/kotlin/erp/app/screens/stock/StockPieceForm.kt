@@ -120,7 +120,7 @@ fun StockPieceForm(sku: String?, onCreated: ((Product) -> Unit)? = null) {
         }
         sku != null -> {
             ScreenTitle("Edit piece")
-            ShelfState(loaded = products.loaded, error = products.error, offline = products.offline, connectionLost = connectionLost) {
+            ShelfState(shape = erp.app.ui.SkeletonShape.Form, loaded = products.loaded, error = products.error, offline = products.offline, connectionLost = connectionLost) {
                 if (product != null) StockPieceEditor(product) else NotInStock(sku)
             }
         }

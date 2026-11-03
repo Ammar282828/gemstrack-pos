@@ -1,5 +1,6 @@
 package erp.app.screens.owner
 
+import erp.app.ui.BusyLabel
 import erp.app.ui.animatedItem
 import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
@@ -196,6 +197,7 @@ private fun OverheadsBoard() {
 
     Box(Modifier.fillMaxSize()) {
         ShelfState(
+            shape = erp.app.ui.SkeletonShape.Figures,
             loaded = ready, error = invoices.error ?: orders.error, offline = invoices.offline, connectionLost = connectionLost,
         ) {
             val revenue by produceState<Map<String, erp.core.logic.OverheadRevenue>?>(null, invoices.revision, orders.revision) {
@@ -422,8 +424,7 @@ private fun SaveBar(saveError: String?, saving: Boolean, monthName: String, onDi
                 Text("  Discard")
             }
             Button(onClick = onSave, enabled = !saving, modifier = Modifier.weight(1f)) {
-                if (saving) Loading(Modifier.size(24.dp), color = ErpColors.onAccent)
-                Text("Save from $monthName")
+                BusyLabel(saving) { Text("Save from $monthName") }
             }
         }
     }

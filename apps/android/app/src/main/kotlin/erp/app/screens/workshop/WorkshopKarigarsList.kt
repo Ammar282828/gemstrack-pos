@@ -169,7 +169,7 @@ fun WorkshopKarigarsList() {
         }
     }
 
-    ShelfState(loaded = loaded, error = firstError, offline = karigars.offline, connectionLost = connectionLost) {
+    ShelfState(shape = erp.app.ui.SkeletonShape.Rows, loaded = loaded, error = firstError, offline = karigars.offline, connectionLost = connectionLost) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val columns = workshopColumns((maxWidth - 32.dp).value, isLargeText(), 340f)
             val matchedCount = working.size + free.size

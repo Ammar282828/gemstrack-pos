@@ -1,5 +1,6 @@
 package erp.app.screens.ads
 
+import erp.app.ui.SkeletonShape
 import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import android.net.Uri
@@ -259,7 +260,7 @@ fun AdsSetupScreen() {
             }
         }
         problem != null -> AdsNotReady(null, problem) { scope.launch { load(fresh = true) } }
-        else -> SkeletonLoading(Modifier.fillMaxSize(), label = "Checking…")
+        else -> SkeletonLoading(Modifier.fillMaxSize(), label = "Checking…", shape = SkeletonShape.Form)
     }
 
     if (confirmOff) {

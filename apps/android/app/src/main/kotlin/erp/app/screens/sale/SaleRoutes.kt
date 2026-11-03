@@ -1,5 +1,6 @@
 package erp.app.screens.sale
 
+import erp.app.ui.SkeletonShape
 import erp.app.ui.icons.Symbols
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -86,6 +87,6 @@ fun SaleEditLoader(id: String, ratesFirst: Boolean = false) {
             ScreenTitle("Edit invoice")
             NotAvailableState("No such invoice", why = "$id isn't in the book. It may have been deleted.", icon = Symbols.FolderOff)
         }
-        else -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { SkeletonLoading() }
+        else -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { SkeletonLoading(shape = SkeletonShape.Form) }
     }
 }

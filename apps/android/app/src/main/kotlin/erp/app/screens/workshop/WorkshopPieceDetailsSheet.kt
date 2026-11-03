@@ -1,5 +1,9 @@
 package erp.app.screens.workshop
 
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import erp.app.ui.SkeletonPhoto
 import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -154,7 +158,7 @@ private fun SamplePicture(ask: WorkshopPieceAsk, hasStored: Boolean, photo: Byte
             when (val s = stored) {
                 is StoredSample.Ready -> StoredImage(s.uri, ask.job.description, Modifier.heightIn(max = 160.dp).clip(Radius.tileShape))
                 is StoredSample.Failed -> Text(s.words, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                StoredSample.Loading -> SkeletonLoading(Modifier.heightIn(min = 80.dp))
+                StoredSample.Loading -> SkeletonPhoto(Modifier.fillMaxWidth().height(160.dp))
             }
             TextButton(onClick = { change(null, true) }) {
                 Icon(Symbols.DeleteOutline, null, Modifier.size(18.dp), tint = Tone.problem.color())

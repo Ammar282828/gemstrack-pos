@@ -1,5 +1,6 @@
 package erp.app.screens.orders
 
+import erp.app.ui.BusyLabel
 import erp.app.ui.ContactPickButton
 import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
@@ -217,9 +218,10 @@ fun OrderCourierSheet(order: Order, onDismiss: () -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = ErpColors.accent, contentColor = ErpColors.onAccent),
             ) {
-                if (busy != null) Loading(Modifier.size(24.dp), color = ErpColors.onAccent)
-                Icon(if (sent != null) Symbols.CheckCircle else Symbols.LocalShipping, null, Modifier.padding(start = 8.dp).size(18.dp))
-                Text(buttonWords, Modifier.padding(start = 8.dp))
+                BusyLabel(busy != null) {
+                    Icon(if (sent != null) Symbols.CheckCircle else Symbols.LocalShipping, null, Modifier.size(18.dp))
+                    Text(buttonWords, Modifier.padding(start = 8.dp))
+                }
             }
         },
     ) {

@@ -39,11 +39,11 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
+import erp.app.ui.SkeletonAsyncImage
 import erp.app.data.ErpApi
 import erp.app.ui.ChipRow
 import erp.app.ui.FilterChip
-import erp.app.ui.Loading
+import erp.app.ui.SkeletonThumbGrid
 import erp.app.ui.NotAvailableState
 import erp.app.ui.Radius
 import erp.app.ui.SearchBarField
@@ -77,7 +77,7 @@ internal fun ReferencePrintRows(
             Modifier.fillMaxWidth().formRow(), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            AsyncImage(
+            SkeletonAsyncImage(
                 model = picked, contentDescription = "The picked reference photo", contentScale = ContentScale.Crop,
                 modifier = Modifier.size(64.dp).clip(RoundedCornerShape(Radius.thumb)).background(MaterialTheme.colorScheme.surfaceContainerHighest),
             )
@@ -149,7 +149,7 @@ internal fun ReferencePickerSheet(category: String, current: String, onPick: (St
                         NotAvailableState(failure.orEmpty(), icon = Symbols.CloudOff)
                         TextButton(onClick = { attempt += 1 }) { Text("Try again") }
                     }
-                    loading && pieces.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Loading(Modifier.size(48.dp)) }
+                    loading && pieces.isEmpty() -> SkeletonThumbGrid(12)
                     pieces.isEmpty() -> NotAvailableState(
                         if (query.isEmpty()) "No pictures here" else "No results",
                         why = if (query.isEmpty()) (if (scope.isEmpty()) "The catalogue has no pieces yet." else "Try All pieces.") else "Nothing matches “${query.trim()}”.",
@@ -166,7 +166,7 @@ internal fun ReferencePickerSheet(category: String, current: String, onPick: (St
                                     .semantics { contentDescription = piece.title.ifEmpty { "Catalogue piece" } },
                                 verticalArrangement = Arrangement.spacedBy(6.dp),
                             ) {
-                                AsyncImage(
+                                SkeletonAsyncImage(
                                     model = piece.thumb, contentDescription = null, contentScale = ContentScale.Crop,
                                     modifier = Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(Radius.thumb))
                                         .background(MaterialTheme.colorScheme.surfaceContainerHighest)

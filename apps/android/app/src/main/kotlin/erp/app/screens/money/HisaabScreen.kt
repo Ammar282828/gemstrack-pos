@@ -125,7 +125,7 @@ private fun HisaabBoard() {
     }
 
     Box(Modifier.fillMaxSize()) {
-        ShelfState(loaded = ready, error = hisaab.error, offline = hisaab.offline, connectionLost = connectionLost) {
+        ShelfState(shape = erp.app.ui.SkeletonShape.Rows, loaded = ready, error = hisaab.error, offline = hisaab.offline, connectionLost = connectionLost) {
             val customerIds = remember(customers.revision) { customers.items.mapTo(HashSet()) { it.id } }
             val summary = remember(hisaab.revision, invoices.revision, customerIds) {
                 HisaabBook.summary(hisaab.items, invoices.items, customerIds)

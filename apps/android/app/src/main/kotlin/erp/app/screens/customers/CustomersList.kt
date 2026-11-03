@@ -134,7 +134,7 @@ fun CustomersList() {
         IconButton(onClick = { navigator.open("/customers/add") }) { Icon(Symbols.Add, contentDescription = "Add customer") }
     }
 
-    ShelfState(loaded = loaded, error = failure, offline = offline, connectionLost = connectionLost) {
+    ShelfState(shape = erp.app.ui.SkeletonShape.Rows, loaded = loaded, error = failure, offline = offline, connectionLost = connectionLost) {
         LazyColumn(
             Modifier.fillMaxSize().readableColumn(),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = maxOf(24.dp, LocalFabClearance.current)),

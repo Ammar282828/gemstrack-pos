@@ -1,5 +1,8 @@
 package erp.app.screens.marketing
 
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import erp.app.ui.SkeletonPhoto
 import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.Image
@@ -66,7 +69,7 @@ fun WebsitePhotoEditRows(
             Image(image, contentDescription = "The photo as it will go up", Modifier.widthIn(max = 520.dp).fillMaxWidth().clip(Radius.chipShape), contentScale = ContentScale.FillWidth)
         }
     } else {
-        Box(Modifier.fillMaxWidth().padding(8.dp).aspectRatio(1f)) { SkeletonLoading(Modifier.fillMaxWidth()) }
+        Box(Modifier.fillMaxWidth().padding(8.dp).aspectRatio(1f)) { SkeletonPhoto(Modifier.fillMaxSize()) }
     }
     edit.problem?.let { Text(it, Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), style = MaterialTheme.typography.bodySmall, color = Tone.problem.color()) }
     if (shapes) {

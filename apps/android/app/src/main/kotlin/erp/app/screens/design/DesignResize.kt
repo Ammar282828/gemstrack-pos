@@ -1,5 +1,6 @@
 package erp.app.screens.design
 
+import erp.app.ui.BusyLabel
 import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
@@ -417,7 +418,7 @@ private fun ResultCard(r: DesignResizeModel, id: String) {
         if (res["needsExtend"].bool && r.extras[id] == null) {
             Text("The piece doesn’t fill this shape; the photo is shown whole.", style = MaterialTheme.typography.labelSmall, color = Tone.owed.color())
             OutlinedButton(onClick = { scope.launch { r.extend(id) } }, enabled = r.extending == null && r.busy == null) {
-                if (r.extending == id) Loading(Modifier.size(22.dp)) else Icon(Symbols.AutoAwesome, null, Modifier.size(16.dp))
+                BusyLabel(r.extending == id) { Icon(Symbols.AutoAwesome, null, Modifier.size(16.dp)) }
                 Text("Extend the photo", Modifier.padding(start = 6.dp), style = MaterialTheme.typography.labelMedium)
             }
         }

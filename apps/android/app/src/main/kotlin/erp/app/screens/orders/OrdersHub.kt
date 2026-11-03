@@ -224,6 +224,7 @@ fun OrdersHub() {
     }
 
     ShelfState(
+            shape = erp.app.ui.SkeletonShape.Cards,
         loaded = orders.loaded && invoices.loaded,
         error = orders.error ?: invoices.error,
         offline = orders.offline,

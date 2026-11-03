@@ -1,5 +1,6 @@
 package erp.app.screens.neworder
 
+import erp.app.ui.SkeletonShape
 import erp.app.ui.icons.Symbols
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -87,7 +88,7 @@ internal fun NewOrderEditLoader(id: String, ratesFirst: Boolean = false) {
         }
         else -> {
             ScreenTitle("Edit $id")
-            SkeletonLoading()
+            SkeletonLoading(shape = SkeletonShape.Form)
         }
     }
 }

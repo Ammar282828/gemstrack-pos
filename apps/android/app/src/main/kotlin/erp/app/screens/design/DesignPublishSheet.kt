@@ -1,5 +1,7 @@
 package erp.app.screens.design
 
+import erp.app.ui.BusyLabel
+import erp.app.ui.SkeletonShape
 import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
 import android.content.ClipData
@@ -115,7 +117,7 @@ fun DesignPublishSheet(model: DesignWorkspaceModel, dismiss: () -> Unit) {
     DesignSheetBody(note) {
         when {
             p.loadError != null -> erp.app.ui.NotAvailableState("Couldn’t look at where this can go", why = p.loadError, icon = Symbols.ErrorOutline)
-            !p.loaded -> SkeletonLoading(Modifier.fillMaxSize().padding(16.dp), label = "Looking at where this can go")
+            !p.loaded -> SkeletonLoading(Modifier.fillMaxSize().padding(16.dp), label = "Looking at where this can go", shape = SkeletonShape.Form)
             else -> {
                 BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
                     val wide = maxWidth >= 840.dp
@@ -420,7 +422,7 @@ private fun InstagramBlock(p: DesignPublishModel, scope: kotlinx.coroutines.Coro
 private fun Captions(p: DesignPublishModel, scope: kotlinx.coroutines.CoroutineScope) {
     SectionCard("Captions") {
         OutlinedButton(onClick = { scope.launch { p.writeCaptions() } }, Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp), enabled = !p.aiBusy) {
-            if (p.aiBusy) Loading(Modifier.size(24.dp)) else Icon(Symbols.AutoAwesome, null, Modifier.size(18.dp))
+            BusyLabel(p.aiBusy) { Icon(Symbols.AutoAwesome, null, Modifier.size(18.dp)) }
             Text("Write with AI", Modifier.padding(start = 8.dp))
         }
         if (p.waOn) DesignField("WhatsApp caption", p.wa, { p.wa = it }, minLines = 3, maxLines = 8)

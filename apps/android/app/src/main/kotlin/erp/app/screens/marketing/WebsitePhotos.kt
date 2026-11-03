@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.SkeletonShape
 import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import erp.app.ui.SearchBarField
@@ -415,7 +416,7 @@ fun WebsitePhotosScreen() {
     when {
         model.denied -> NotAvailableState("This account can't add photographs", why = "Only owner, staff and marketing accounts can write to the website.", icon = Symbols.Lock)
         model.problem != null && model.collections == null -> MarketingErrorState(model.problem ?: "") { scope.launch { model.problem = null; model.load() } }
-        model.collections == null -> SkeletonLoading(Modifier.fillMaxSize())
+        model.collections == null -> SkeletonLoading(Modifier.fillMaxSize(), shape = SkeletonShape.ThumbGrid)
         // The page's one action is pinned: where the photographs go is said in the confirmation it opens.
         else -> MarketingPinned(bar = if (model.items.isNotEmpty()) ({
             val unnamed = model.unnamed

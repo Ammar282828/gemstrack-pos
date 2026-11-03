@@ -95,7 +95,7 @@ fun WebScreen(path: String, modifier: Modifier = Modifier) {
                     },
                 )
             }
-            if (loading && failed == null) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (loading && failed == null) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { erp.app.ui.Busy(label = "Opening the page…", size = 36.dp) }
             failed?.let { why ->
                 Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     Column(

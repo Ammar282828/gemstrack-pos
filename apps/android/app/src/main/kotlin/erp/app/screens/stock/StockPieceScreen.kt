@@ -1,5 +1,6 @@
 package erp.app.screens.stock
 
+import erp.app.ui.SkeletonShape
 import erp.app.ui.icons.Symbols
 import erp.app.ui.SegmentedColumn
 import androidx.compose.foundation.background
@@ -91,7 +92,7 @@ fun StockPieceScreen(sku: String) {
     val connectionLost by Connection.isOffline.collectAsStateWithLifecycle()
     ScreenTitle(sku)
     Box(Modifier.fillMaxSize().zoomDestination(StockKit.piecePath(sku))) {
-        ShelfState(loaded = products.loaded, error = products.error, offline = products.offline, connectionLost = connectionLost) {
+        ShelfState(shape = erp.app.ui.SkeletonShape.Record, loaded = products.loaded, error = products.error, offline = products.offline, connectionLost = connectionLost) {
             if (product != null) Detail(product, settings) else StockSoldView(sku)
         }
     }
@@ -326,7 +327,7 @@ private fun StockSoldView(sku: String) {
     val navigator = LocalNavigator.current
     val invoices = rememberShelfStatus(book.invoices)
     if (!invoices.loaded) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { SkeletonLoading() }
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { SkeletonLoading(shape = SkeletonShape.Record) }
         return
     }
     val sales = remember(invoices.revision, sku) { salesOf(sku, invoices.items) }

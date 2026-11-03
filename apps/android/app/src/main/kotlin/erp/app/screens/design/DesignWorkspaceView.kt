@@ -1,5 +1,6 @@
 package erp.app.screens.design
 
+import erp.app.ui.BusyBlock
 import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -113,7 +114,7 @@ fun DesignWorkspaceView(
     }
 
     if (w.fresh) {
-        SkeletonLoading(Modifier.fillMaxSize().padding(16.dp), label = "Laying it out")
+        BusyBlock("Laying it out…", Modifier.fillMaxSize().padding(16.dp))
         return
     }
 
@@ -283,7 +284,7 @@ private fun Stage(model: DesignWorkspaceModel, w: DesignWork, safe: Boolean, onS
                         DesignPicture(image, Modifier.fillMaxSize(), ContentScale.Fit, "${page.label} as it will look")
                         if (safe && zone.first > 0) SafeZones(zone.first / page.h, zone.second / page.h)
                     }
-                } else SkeletonLoading(Modifier.fillMaxSize(), label = "Drawing the page")
+                } else BusyBlock("Drawing the page…", Modifier.fillMaxSize())
             }
         } else {
             Box(Modifier.fillMaxWidth().clip(Radius.tileShape), contentAlignment = Alignment.Center) {
@@ -292,7 +293,7 @@ private fun Stage(model: DesignWorkspaceModel, w: DesignWork, safe: Boolean, onS
                         DesignPicture(image, Modifier.fillMaxSize(), ContentScale.Fit, "${page.label} as it will look")
                         if (safe && zone.first > 0) SafeZones(zone.first / page.h, zone.second / page.h)
                     }
-                } else SkeletonLoading(Modifier.fillMaxWidth().defaultMinSize(minHeight = 220.dp), label = "Drawing the page")
+                } else BusyBlock("Drawing the page…", Modifier.fillMaxWidth().defaultMinSize(minHeight = 220.dp))
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {

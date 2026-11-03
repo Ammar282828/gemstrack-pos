@@ -152,7 +152,7 @@ fun CustomerMergeSheet(onDismiss: () -> Unit) {
                     Box(Modifier.padding(horizontal = 36.dp))
                 }
                 Box(Modifier.weight(1f)) {
-                    ShelfState(loaded = ready, error = failure, offline = customers.offline, connectionLost = connectionLost) {
+                    ShelfState(shape = erp.app.ui.SkeletonShape.Rows, loaded = ready, error = failure, offline = customers.offline, connectionLost = connectionLost) {
                         val byId = remember(live) { live.associateBy { it.id } }
                         val visible = (found ?: emptyList()).filter { it.id !in dismissed && byId[it.a] != null && byId[it.b] != null }
                         LazyColumn(

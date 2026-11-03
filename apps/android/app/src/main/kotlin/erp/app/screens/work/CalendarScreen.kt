@@ -123,7 +123,7 @@ private fun CalendarPage() {
         year = next.year; month = next.month
     }
 
-    ShelfState(loaded = orders.loaded && invoices.loaded, error = orders.error ?: invoices.error, offline = orders.offline) {
+    ShelfState(shape = erp.app.ui.SkeletonShape.Rows, loaded = orders.loaded && invoices.loaded, error = orders.error ?: invoices.error, offline = orders.offline) {
         val wide = LocalConfiguration.current.screenWidthDp >= WIDE_DP
         val monthPane: @Composable () -> Unit = {
             Tiles(figures, year, month)

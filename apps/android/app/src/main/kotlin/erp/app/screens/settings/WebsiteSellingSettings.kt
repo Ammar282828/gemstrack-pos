@@ -1,5 +1,6 @@
 package erp.app.screens.settings
 
+import erp.app.ui.SkeletonShape
 import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -82,7 +83,7 @@ private fun WebsiteSellingLoader() {
     val loaded by doc.loaded.collectAsStateWithLifecycle()
     val error by doc.error.collectAsStateWithLifecycle()
     when {
-        !loaded -> SkeletonLoading(Modifier.fillMaxWidth().padding(16.dp))
+        !loaded -> SkeletonLoading(Modifier.fillMaxWidth().padding(16.dp), shape = SkeletonShape.Form)
         error != null && value == null ->
             NotAvailableState("Couldn’t read the website settings", why = error, icon = Symbols.CloudOff)
         // No document yet reads as the page's defaults.

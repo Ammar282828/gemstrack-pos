@@ -145,7 +145,7 @@ fun PdfDocumentScreen(
                     NotAvailableState("Couldn't draw the PDF", why = problem, icon = Symbols.Warning)
                     Button(onClick = { failed = null; attempt++ }) { Text("Try again") }
                 }
-                else -> SkeletonLoading(Modifier.fillMaxSize())
+                else -> BusyBlock("Preparing the PDF…", Modifier.fillMaxSize())
             }
         }
     }

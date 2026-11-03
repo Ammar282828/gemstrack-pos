@@ -2,6 +2,8 @@ package erp.app.ui
 
 import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -94,18 +96,22 @@ fun SearchBarField(
 }
 
 /**
- * Material 3 Expressive's loading indicator (the morphing shape) in place of the plain arc, for a wait the person sees:
- * a save in a button, a page being made. Size it with the modifier; [color] follows the button's label when inside one.
+ * The wait of unknown length (decisions.md "Loading"): Material's circular progress indicator, spinning. Size it with the modifier;
+ * [color] follows the button's label when inside one. Stroke scales with the size.
  */
-@OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun Loading(modifier: Modifier = Modifier, color: Color = Color.Unspecified) {
-    androidx.compose.material3.LoadingIndicator(modifier, if (color == Color.Unspecified) MaterialTheme.colorScheme.primary else color)
+    androidx.compose.material3.CircularProgressIndicator(
+        modifier = modifier,
+        color = if (color == Color.Unspecified) MaterialTheme.colorScheme.primary else color,
+        strokeWidth = 2.5.dp,
+    )
 }
 
-/** The same on its own round container, for a wait that fills a place (a form saving, a list on its way). */
-@OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+/** The same, larger and centred in a round container, for a wait that fills a place (a form saving). */
 @Composable
 fun ContainedLoading(modifier: Modifier = Modifier) {
-    androidx.compose.material3.ContainedLoadingIndicator(modifier)
+    androidx.compose.material3.Surface(modifier, shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+        Box(Modifier.padding(10.dp)) { Loading(Modifier.size(32.dp)) }
+    }
 }

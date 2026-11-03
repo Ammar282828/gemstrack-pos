@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.SkeletonShape
 import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.background
@@ -224,7 +225,7 @@ fun WebsiteInvestmentsScreen() {
         when (val phase = gold.phase) {
             PostsPhase.Off -> NotAvailableState("Investments by Taheri isn't part of this shop", why = "Its daily post belongs to Taheri's own website.", icon = Symbols.ShowChart)
             is PostsPhase.Failed -> MarketingErrorState(phase.message) { scope.launch { WebsiteGold.load() } }
-            PostsPhase.Idle, PostsPhase.Loading -> SkeletonLoading(Modifier.fillMaxSize())
+            PostsPhase.Idle, PostsPhase.Loading -> SkeletonLoading(Modifier.fillMaxSize(), shape = SkeletonShape.Cards)
             PostsPhase.Loaded -> PullToRefreshBox(isRefreshing = refreshing, onRefresh = { scope.launch { refreshing = true; WebsiteGold.load(); refreshing = false } }) {
                 Box(Modifier.fillMaxSize()) {
                     Column(

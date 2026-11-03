@@ -88,7 +88,7 @@ fun EditCustomer(id: String) {
     val seed = CustomerSeeds[id]
     val customer = customers.items.firstOrNull { it.id == id } ?: seed
     ScreenTitle("Edit customer")
-    ShelfState(loaded = seed != null || customers.loaded, error = customers.error, offline = customers.offline, connectionLost = connectionLost) {
+    ShelfState(shape = erp.app.ui.SkeletonShape.Form, loaded = seed != null || customers.loaded, error = customers.error, offline = customers.offline, connectionLost = connectionLost) {
         when {
             !session.isOwner -> NotAvailableState("Only an owner can change a customer", why = "Ask an owner to make the change.")
             customer != null && !CustomerKit.isRemoved(customer) -> EditCustomerForm(customer)

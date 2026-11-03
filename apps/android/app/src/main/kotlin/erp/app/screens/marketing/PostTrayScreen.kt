@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.BusyLabel
 import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
@@ -366,14 +367,14 @@ private fun TrayBar(
 ) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
         OutlinedButton(onClick = onSecondary, enabled = enabled && !secondaryBusy, modifier = Modifier.heightIn(min = 52.dp)) {
-            if (secondaryBusy) Loading(Modifier.size(24.dp)) else Icon(Symbols.Schedule, null, Modifier.size(18.dp))
+            BusyLabel(secondaryBusy) { Icon(Symbols.Schedule, null, Modifier.size(18.dp)) }
             Text("Later", Modifier.padding(start = 8.dp))
         }
         Button(
             onClick = onPrimary, enabled = enabled && !primaryBusy, modifier = Modifier.weight(1f).heightIn(min = 52.dp),
             colors = ButtonDefaults.buttonColors(containerColor = ErpColors.accent, contentColor = ErpColors.onAccent),
         ) {
-            if (primaryBusy) Loading(Modifier.size(26.dp), color = ErpColors.onAccent) else Icon(Symbols.Send, null, Modifier.size(18.dp))
+            BusyLabel(primaryBusy) { Icon(Symbols.Send, null, Modifier.size(18.dp)) }
             Text(primary, Modifier.padding(start = 8.dp))
         }
     }

@@ -1,5 +1,9 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.SkeletonShape
+import erp.app.ui.BusyBlock
+import erp.app.ui.Busy
+import erp.app.ui.Loading
 import erp.app.ui.icons.Symbols
 import erp.app.ui.SearchBarField
 import androidx.compose.foundation.background
@@ -144,7 +148,7 @@ fun PostAISheet(request: PostAIRequest, model: PostComposerModel, onClose: () ->
             MarketingDisclosure("Edit the full prompt") { FieldRow("Full prompt (optional)", rawPrompt, { rawPrompt = it }, singleLine = false, minLines = 4, maxLines = 14) }
             Button(onClick = ::run, enabled = !running, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = ErpColors.accent, contentColor = ErpColors.onAccent)) { Text("Make ${request.target}") }
             Text("A new version is kept beside the original. Check the piece and words before it goes out.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (running) SkeletonLoading(label = model.busy ?: "Working…")
+            if (running) BusyBlock(model.busy ?: "Working…")
         }
     }
 }
@@ -195,7 +199,7 @@ fun SitePhotoPicker(picked: suspend (MarketingValue, ByteArray) -> Unit, onClose
                 )
                 error?.let { Text(it, Modifier.padding(horizontal = 16.dp), color = Tone.problem.color()) }
                 when {
-                    !loaded && error == null -> SkeletonLoading(Modifier.fillMaxSize(), label = "Loading the website’s pieces")
+                    !loaded && error == null -> SkeletonLoading(Modifier.fillMaxSize(), label = "Loading the website’s pieces", shape = SkeletonShape.ThumbGrid)
                     loaded && shown.isEmpty() -> NotAvailableState(if (q.isEmpty()) "No pieces on the website" else "Nothing matches “$q”", icon = Symbols.Public)
                     else -> LazyColumn(Modifier.fillMaxSize()) {
                         items(shown, key = { it.s("id") }) { p ->
@@ -210,7 +214,7 @@ fun SitePhotoPicker(picked: suspend (MarketingValue, ByteArray) -> Unit, onClose
                     }
                 }
             }
-            busy?.let { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { SkeletonLoading(label = it) } }
+            busy?.let { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Busy(label = it, size = 36.dp) } }
         }
     }
 }

@@ -1,5 +1,6 @@
 package erp.app.screens.design
 
+import erp.app.ui.BusyLabel
 import erp.app.ui.TextField
 import erp.app.ui.Loading
 import android.content.Context
@@ -74,18 +75,20 @@ fun DesignActionBar(primary: DesignAction, modifier: Modifier = Modifier, second
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                 for (s in secondary) {
                     OutlinedButton(onClick = s.onClick, enabled = !s.disabled && !s.busy, modifier = Modifier.weight(1f).heightIn48()) {
-                        if (s.busy) Loading(Modifier.size(24.dp))
-                        else if (s.icon != null) Icon(s.icon, contentDescription = null, Modifier.size(18.dp))
-                        Text(s.label, Modifier.padding(start = 6.dp), maxLines = 1)
+                        BusyLabel(s.busy) {
+                            if (s.icon != null) Icon(s.icon, contentDescription = null, Modifier.size(18.dp))
+                            Text(s.label, Modifier.padding(start = 6.dp), maxLines = 1)
+                        }
                     }
                 }
                 Button(
                     onClick = primary.onClick, enabled = !primary.disabled && !primary.busy, modifier = Modifier.weight(if (secondary.isEmpty()) 1f else 1.4f).heightIn48(),
                     colors = ButtonDefaults.buttonColors(containerColor = ErpColors.accent, contentColor = ErpColors.onAccent),
                 ) {
-                    if (primary.busy) Loading(Modifier.size(24.dp), color = ErpColors.onAccent)
-                    else if (primary.icon != null) Icon(primary.icon, contentDescription = null, Modifier.size(18.dp))
-                    Text(primary.label, Modifier.padding(start = 6.dp), maxLines = 1)
+                    BusyLabel(primary.busy) {
+                        if (primary.icon != null) Icon(primary.icon, contentDescription = null, Modifier.size(18.dp))
+                        Text(primary.label, Modifier.padding(start = 6.dp), maxLines = 1)
+                    }
                 }
             }
         }

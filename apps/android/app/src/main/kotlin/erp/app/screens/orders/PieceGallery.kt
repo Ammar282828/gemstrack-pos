@@ -55,7 +55,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import coil3.compose.AsyncImage
+import erp.app.ui.SkeletonAsyncImage
 import erp.app.config.Businesses
 import erp.app.config.House
 import erp.app.device.shareBytes
@@ -136,7 +136,7 @@ internal fun PhotoImage(
 ) {
     val web = source.uri?.startsWith("http") == true
     if (web) {
-        AsyncImage(model = source.uri, contentDescription = description, modifier = modifier, contentScale = contentScale)
+        SkeletonAsyncImage(model = source.uri, contentDescription = description, modifier = modifier, contentScale = contentScale)
         return
     }
     val bitmap by produceState<ImageBitmap?>(null, source.id, source.data?.size) {

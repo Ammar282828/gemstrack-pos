@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.SkeletonShape
 import erp.app.ui.icons.Symbols
 import erp.app.ui.SearchBarField
 import androidx.compose.foundation.background
@@ -162,7 +163,7 @@ fun WebsiteEditScreen() {
     when (val phase = state.phase) {
         PostsPhase.Off -> NotAvailableState("This shop doesn't edit its website from here", icon = Symbols.Language)
         is PostsPhase.Failed -> MarketingErrorState(phase.message) { scope.launch { WebsiteEdits.load(fresh = true) } }
-        PostsPhase.Idle, PostsPhase.Loading -> SkeletonLoading(Modifier.fillMaxSize(), label = "Reading ${state.siteName}…")
+        PostsPhase.Idle, PostsPhase.Loading -> SkeletonLoading(Modifier.fillMaxSize(), label = "Reading ${state.siteName}…", shape = SkeletonShape.Form)
         PostsPhase.Loaded -> {
             val items = WebsiteEditLogic.filtered(state.pieces, search, filter, collection)
             val changedCount = state.pieces.count { it.changed }

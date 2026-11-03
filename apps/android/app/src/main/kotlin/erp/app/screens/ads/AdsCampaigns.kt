@@ -1,5 +1,6 @@
 package erp.app.screens.ads
 
+import erp.app.ui.SkeletonShape
 import erp.app.ui.icons.Symbols
 import erp.app.data.Outbox
 import erp.app.ui.zoomSource
@@ -242,7 +243,7 @@ fun AdsCampaignsScreen(path: String = "/ads/campaigns") {
             if (!House.isDemo) AdsTonalButton("Try again", { scope.launch { load() } })
             AdsTonalButton("Open Setup", { navigator.open("/ads/setup") })
         }
-        else -> SkeletonLoading(Modifier.fillMaxSize(), label = "Reading the campaigns")
+        else -> SkeletonLoading(Modifier.fillMaxSize(), label = "Reading the campaigns", shape = SkeletonShape.Cards)
     }
 
     asking?.let { t ->

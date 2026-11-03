@@ -108,6 +108,7 @@ private fun ActivityLogPage() {
     }
 
     ShelfState(
+            shape = erp.app.ui.SkeletonShape.Rows,
         loaded = House.isDemo || status.loaded,
         error = if (House.isDemo) null else status.error,
         offline = !House.isDemo && status.offline,

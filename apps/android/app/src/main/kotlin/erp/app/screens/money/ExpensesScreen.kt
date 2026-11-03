@@ -143,7 +143,7 @@ private fun ExpensesBoard() {
     }
 
     Box(Modifier.fillMaxSize()) {
-        ShelfState(loaded = expenses.loaded, error = expenses.error, offline = expenses.offline, connectionLost = connectionLost) {
+        ShelfState(shape = erp.app.ui.SkeletonShape.Rows, loaded = expenses.loaded, error = expenses.error, offline = expenses.offline, connectionLost = connectionLost) {
             val now = remember(expenses.revision, period, custom, grouping, search, category) { Instant.now() }
             val range = remember(period, custom, now) { period.range(custom.fromDay, custom.toDay, now) }
             // Search and the period: everything but the category, so each chip can count what it would show.

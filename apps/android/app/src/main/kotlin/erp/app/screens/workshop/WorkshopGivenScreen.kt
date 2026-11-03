@@ -201,7 +201,7 @@ fun WorkshopGivenScreen() {
         ScreenActions { IconButton(onClick = { adding = true }) { Icon(Symbols.Add, "Record item given") } }
     }
 
-    ShelfState(loaded = given.loaded, error = given.error, offline = given.offline, connectionLost = connectionLost) {
+    ShelfState(shape = erp.app.ui.SkeletonShape.Rows, loaded = given.loaded, error = given.error, offline = given.offline, connectionLost = connectionLost) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val columns = workshopColumns((maxWidth - 32.dp).value, isLargeText(), 340f)
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 96.dp)) {

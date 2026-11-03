@@ -153,7 +153,7 @@ fun SettingsGate(title: String, content: @Composable (Settings) -> Unit) {
     val value by book.settings.value.collectAsStateWithLifecycle()
     val loaded by book.settings.loaded.collectAsStateWithLifecycle()
     val error by book.settings.error.collectAsStateWithLifecycle()
-    ShelfState(loaded = loaded, error = if (value == null) error else null) {
+    ShelfState(shape = erp.app.ui.SkeletonShape.Form, loaded = loaded, error = if (value == null) error else null) {
         content(value ?: BlankSettings)
     }
 }

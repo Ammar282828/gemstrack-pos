@@ -1,5 +1,6 @@
 package erp.app.screens.settings
 
+import erp.app.ui.BusyBlock
 import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -145,7 +146,7 @@ internal fun TaheriBookImportPage(initial: BookPreview? = null, initialDone: Pai
                             }
                         }
                     } else if (problem == null) {
-                        SettingsSection { Column(Modifier.fillMaxWidth().ledgerRow()) { SkeletonLoading(label = "Reading the book") } }
+                        SettingsSection { Column(Modifier.fillMaxWidth().ledgerRow()) { BusyBlock("Reading the book…") } }
                     }
                 }
             }

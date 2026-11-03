@@ -1,5 +1,6 @@
 package erp.app.screens.owner
 
+import erp.app.ui.BusyLabel
 import erp.app.ui.animatedItem
 import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
@@ -235,7 +236,7 @@ private fun ShareholdersBoard() {
     val settings = floorValue ?: PartnershipSettings.none
 
     Box(Modifier.fillMaxSize()) {
-        ShelfState(loaded = ready, error = readError, offline = expenses.offline, connectionLost = connectionLost) {
+        ShelfState(shape = erp.app.ui.SkeletonShape.Rows, loaded = ready, error = readError, offline = expenses.offline, connectionLost = connectionLost) {
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = 4.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 animatedItem(key = "tiles") { Tiles(figures.totals) }
                 for (p in figures.positions) {
@@ -603,7 +604,7 @@ private fun FloorRow(s: PartnershipSettings, floorText: String?, onFloorText: (S
         )
         if (changed) {
             Button(onClick = { saveFloor(parsed) }, enabled = !saving) {
-                if (saving) Loading(Modifier.size(24.dp), color = ErpColors.onAccent) else Text("Save")
+                BusyLabel(saving) { Text("Save") }
             }
         } else {
             Icon(Symbols.CheckCircle, contentDescription = "Saved", tint = Tone.settled.color())

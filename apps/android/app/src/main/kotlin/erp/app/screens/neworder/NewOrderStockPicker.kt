@@ -1,5 +1,6 @@
 package erp.app.screens.neworder
 
+import erp.app.ui.SkeletonShape
 import erp.app.ui.icons.Symbols
 import erp.app.ui.SearchBarField
 import androidx.compose.foundation.clickable
@@ -68,7 +69,7 @@ internal fun StockPickerSheet(onPick: (Product) -> Unit, onDismiss: () -> Unit) 
             )
             Box(Modifier.fillMaxWidth().heightIn(min = 240.dp, max = 520.dp)) {
                 if (!status.loaded) {
-                    SkeletonLoading()
+                    SkeletonLoading(shape = SkeletonShape.Rows)
                 } else if (found.isEmpty()) {
                     NotAvailableState("No results", why = "Nothing in stock matches “${query.trim()}”.", icon = Symbols.Search)
                 } else {

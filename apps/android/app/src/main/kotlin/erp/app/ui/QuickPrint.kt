@@ -67,7 +67,6 @@ fun QuickPrintButton(label: String, path: String, fileName: String, title: Strin
         },
         modifier = modifier,
     ) {
-        if (preparing) Loading(Modifier.size(22.dp))
-        else Icon(Symbols.Print, contentDescription = label, tint = MaterialTheme.colorScheme.primary)
+        BusyLabel(preparing) { Icon(Symbols.Print, contentDescription = label, tint = MaterialTheme.colorScheme.primary) }
     }
 }

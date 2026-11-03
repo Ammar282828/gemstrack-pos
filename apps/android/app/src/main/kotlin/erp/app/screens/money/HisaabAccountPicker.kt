@@ -128,6 +128,7 @@ fun HisaabAccountPicker(onDismiss: () -> Unit, go: (String) -> Unit) {
             }
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 ShelfState(
+            shape = erp.app.ui.SkeletonShape.Rows,
                     loaded = customers.loaded && karigars.loaded,
                     error = customers.error ?: karigars.error,
                     offline = customers.offline,

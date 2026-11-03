@@ -1,5 +1,6 @@
 package erp.app.screens.settings.label
 
+import erp.app.ui.SkeletonShape
 import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -162,7 +163,7 @@ fun TagPrinterSettings() {
                 }
             }
             val l = layout
-            if (l == null) SkeletonLoading() else PrinterOptions(l.effectivePrinter, canEdit, ::edit)
+            if (l == null) SkeletonLoading(shape = SkeletonShape.Form) else PrinterOptions(l.effectivePrinter, canEdit, ::edit)
         }
     }
     FailureAlert(problem, { problem = null }, "Not printed")

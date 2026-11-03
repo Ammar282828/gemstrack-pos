@@ -162,7 +162,7 @@ fun OwnerDeleteCodeSheet(deletion: OwnerDeletion, onDismiss: () -> Unit, onDone:
                     enabled = !busy && code.length >= 4,
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error, contentColor = MaterialTheme.colorScheme.onError),
                 ) {
-                    if (busy) Loading(Modifier.size(24.dp), color = MaterialTheme.colorScheme.onError) else Text("Delete")
+                    BusyLabel(busy) { Text("Delete") }
                 }
             }
             Text(deletion.what, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)

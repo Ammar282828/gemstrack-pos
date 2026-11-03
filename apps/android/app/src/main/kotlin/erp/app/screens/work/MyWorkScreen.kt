@@ -1,5 +1,7 @@
 package erp.app.screens.work
 
+import erp.app.ui.SkeletonShape
+import erp.app.ui.Loading
 import erp.app.ui.animatedItem
 import erp.app.ui.icons.Symbols
 import erp.app.ui.AppClock
@@ -207,7 +209,7 @@ fun MyWorkScreen(path: String) {
 
     Box(Modifier.fillMaxSize().background(ErpColors.ground)) {
         when (val p = phase) {
-            Phase.Loading -> SkeletonLoading(Modifier.fillMaxSize())
+            Phase.Loading -> SkeletonLoading(Modifier.fillMaxSize(), shape = SkeletonShape.Rows)
             Phase.NoAccount -> Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                 NotAvailableState("No work account found", why = "Ask the shop to add your Google address.", icon = Symbols.PersonSearch)
                 if (isKarigar) OutlinedButton(onClick = { session.signOut() }) { Text("Sign out") }
@@ -404,7 +406,7 @@ private fun PieceRow(j: KarigarPortalJob, readOnly: Boolean, busy: String?, togg
 private fun Tick(j: KarigarPortalJob, readOnly: Boolean, busy: String?, toggle: (KarigarPortalJob) -> Unit) {
     val box = Modifier.size(48.dp)
     when {
-        busy == j.id -> Box(box, contentAlignment = Alignment.Center) { SkeletonLoading(Modifier.size(28.dp), compact = true) }
+        busy == j.id -> Box(box, contentAlignment = Alignment.Center) { Loading(Modifier.size(28.dp)) }
         readOnly -> Box(box.semantics { contentDescription = if (j.isDone) "Done" else "Not done" }, contentAlignment = Alignment.Center) {
             Icon(
                 if (j.isDone) Symbols.CheckCircle else Symbols.RadioButtonUnchecked, null, Modifier.size(28.dp),

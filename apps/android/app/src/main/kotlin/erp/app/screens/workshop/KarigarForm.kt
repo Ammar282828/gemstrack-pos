@@ -74,7 +74,7 @@ fun KarigarForm(id: String? = null) {
     when {
         !session.isOwner -> NotAvailableState("Only an owner can change a karigar", why = "Ask an owner to make the change.")
         id == null -> KarigarFormBody(null)
-        else -> ShelfState(loaded = karigars.loaded, error = karigars.error, offline = karigars.offline, connectionLost = connectionLost) {
+        else -> ShelfState(shape = erp.app.ui.SkeletonShape.Form, loaded = karigars.loaded, error = karigars.error, offline = karigars.offline, connectionLost = connectionLost) {
             val k = karigars.items.firstOrNull { it.id == id }
             if (k != null && k.deletedAt.isNullOrEmpty()) {
                 KarigarFormBody(k)

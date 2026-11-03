@@ -161,6 +161,7 @@ fun Dashboard() {
         UpdateBanner()
         Box(Modifier.weight(1f)) {
             ShelfState(
+            shape = erp.app.ui.SkeletonShape.Page,
                 loaded = ready && figures != null,
                 error = orders.error ?: invoices.error,
                 offline = orders.offline,

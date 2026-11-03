@@ -1,5 +1,6 @@
 package erp.app.screens.owner
 
+import erp.app.ui.BusyLabel
 import erp.app.ui.animatedItem
 import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
@@ -126,7 +127,7 @@ private fun RecentlyRemovedList() {
     }
 
     Box(Modifier.fillMaxSize()) {
-        ShelfState(loaded = ready, error = customers.error ?: karigars.error, offline = customers.offline, connectionLost = connectionLost) {
+        ShelfState(shape = erp.app.ui.SkeletonShape.Rows, loaded = ready, error = customers.error ?: karigars.error, offline = customers.offline, connectionLost = connectionLost) {
             val history = remember(hisaab.revision, orders.revision) { RecentlyRemoved.removedHistory(hisaab.items, orders.items) }
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = 8.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (removedCustomers.isEmpty() && removedKarigars.isEmpty()) {
@@ -195,9 +196,10 @@ private fun Summary(
         LedgerHeading("$total removed", Modifier.padding(horizontal = 16.dp))
         Column(Modifier.fillMaxWidth().cardEdges(first = true, last = true).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = putAllBack, enabled = busy == null, modifier = Modifier.fillMaxWidth()) {
-                if (busy == "all") Loading(Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
-                else Icon(Symbols.Undo, contentDescription = null)
-                Text("  Put everything back")
+                BusyLabel(busy == "all") {
+                    Icon(Symbols.Undo, contentDescription = null)
+                    Text("  Put everything back")
+                }
             }
             // The sheet says what goes and what it orphans before it takes the code (the page's "Empty Recently removed?").
             OutlinedButton(onClick = empty, enabled = busy == null, modifier = Modifier.fillMaxWidth()) {
@@ -260,7 +262,7 @@ private fun PersonRow(
             }
         }
         TextButton(onClick = putBack, enabled = busy == null) {
-            if (busy == id) Loading(Modifier.size(24.dp)) else Text("Put back")
+            BusyLabel(busy == id) { Text("Put back") }
         }
     }
 }

@@ -1,5 +1,9 @@
 package erp.app.screens.marketing
 
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import erp.app.ui.SkeletonPhoto
+import erp.app.ui.Loading
 import erp.app.ui.icons.Symbols
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -245,7 +249,7 @@ fun MarketingPhoto(path: String, modifier: Modifier = Modifier, contentScale: Co
     if (path.startsWith("https://")) {
         SubcomposeAsyncImage(
             model = path, contentDescription = null, modifier = modifier, contentScale = contentScale,
-            loading = { SkeletonLoading(compact = true) },
+            loading = { SkeletonPhoto(Modifier.fillMaxSize()) },
             error = { PhotoProblem("The picture could not be read.") },
         )
         return
@@ -263,7 +267,7 @@ fun MarketingPhoto(path: String, modifier: Modifier = Modifier, contentScale: Co
         }
     }
     when (val s = state) {
-        PhotoState.Loading -> SkeletonLoading(modifier, compact = true)
+        PhotoState.Loading -> SkeletonPhoto(modifier)
         is PhotoState.Failed -> PhotoProblem(s.words)
         is PhotoState.Ready -> Image(s.bitmap, contentDescription = null, modifier = modifier, contentScale = contentScale)
     }

@@ -1,5 +1,7 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.SkeletonPhoto
+import erp.app.ui.Busy
 import erp.app.ui.icons.Symbols
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -223,7 +225,7 @@ fun PostComposerScreen(path: String) {
         // The busy veil, and nothing is touched until the drafts have been read.
         val veil = model.busy ?: if (!model.loaded) "Opening…" else null
         if (veil != null) Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.12f)), contentAlignment = Alignment.Center) {
-            Box(Modifier.clip(Radius.cardShape).background(ErpColors.card).padding(20.dp)) { SkeletonLoading(label = veil) }
+            Box(Modifier.clip(Radius.cardShape).background(ErpColors.card).padding(20.dp)) { Busy(label = veil, size = 36.dp) }
         }
     }
 
@@ -422,7 +424,7 @@ private fun DesignPreview(model: PostComposerModel, kind: String, response: Mark
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 picture?.let { Image(it.asImageBitmap(), contentDescription = if (kind == "story") "The story" else "The post", Modifier.heightIn(max = 420.dp).clip(Radius.tileShape), contentScale = ContentScale.Fit) }
-                    ?: if (model.hero != null) SkeletonLoading(Modifier.heightIn(min = 120.dp)) else Text("Add a photo to see it.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    ?: if (model.hero != null) SkeletonPhoto(Modifier.fillMaxWidth().heightIn(min = 120.dp)) else Text("Add a photo to see it.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (!model.frozen) TextButton(onClick = { onEdit(kind) }) { Text("Edit design") }

@@ -1,5 +1,6 @@
 package erp.app.screens.orders
 
+import erp.app.ui.BusyLabel
 import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
@@ -102,7 +103,7 @@ private fun OnlineBottomButton(
     val colors = if (destructive) ButtonDefaults.buttonColors(containerColor = Tone.problem.color(), contentColor = Color.White)
     else ButtonDefaults.buttonColors(containerColor = ErpColors.accent, contentColor = ErpColors.onAccent)
     Button(onClick = onClick, enabled = !disabled && !busy, modifier = Modifier.fillMaxWidth(), colors = colors) {
-        if (busy) Loading(Modifier.size(24.dp), color = colors.contentColor) else Icon(icon, null, Modifier.size(18.dp))
+        BusyLabel(busy, color = colors.contentColor) { Icon(icon, null, Modifier.size(18.dp)) }
         Text(title, Modifier.padding(start = 8.dp))
     }
 }
@@ -432,7 +433,7 @@ fun OnlineSlipSheet(orderId: String, slip: WebsiteSlip, onDismiss: () -> Unit) {
                 }
             }
             failure != null -> OrdersFormSection(title = "The slip did not open") { OrdersStatusLine(Symbols.Warning, failure ?: "", Tone.problem) }
-            else -> erp.app.ui.SkeletonLoading(Modifier.fillMaxWidth())
+            else -> erp.app.ui.SkeletonLoading(Modifier.fillMaxWidth(), shape = erp.app.ui.SkeletonShape.Rows)
         }
     }
 }

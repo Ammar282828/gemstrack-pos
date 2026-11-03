@@ -1,5 +1,7 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.SkeletonShape
+import erp.app.ui.Busy
 import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import android.graphics.Bitmap
@@ -337,7 +339,7 @@ fun ArtworkEditor(
                             Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 24.dp)) { controls() }
                         }
                     }
-                    if (busy) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { SkeletonLoading(label = "Preparing…") }
+                    if (busy) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Busy(label = "Preparing…", size = 36.dp) }
                 }
             }
         }
@@ -407,7 +409,7 @@ private fun ArtworkPreview(
                 if (bitmap != null) {
                     Image(bitmap.asImageBitmap(), contentDescription = "The design", Modifier.fillMaxSize().pointerInput(Unit) { detectTapGestures { onClear() } }, contentScale = ContentScale.FillBounds)
                 } else {
-                    SkeletonLoading(Modifier.fillMaxSize())
+                    SkeletonLoading(Modifier.fillMaxSize(), shape = SkeletonShape.Photo)
                 }
                 ArtworkGuideOverlay(scale, ArtworkSnap.guides(doc, "x"), ArtworkSnap.guides(doc, "y"), ArtworkSnap.grid(doc), snapX, snapY, Modifier.fillMaxSize())
                 for (b in response["boxes"].array) {

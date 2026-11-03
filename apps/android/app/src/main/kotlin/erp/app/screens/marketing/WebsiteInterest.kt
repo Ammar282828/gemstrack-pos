@@ -1,5 +1,7 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.SkeletonShape
+import erp.app.ui.Loading
 import erp.app.ui.icons.Symbols
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -149,7 +151,7 @@ fun WebsiteInterestScreen() {
             )
         }
         problem != null -> MarketingErrorState(problem ?: "", if (House.isDemo) null else ({ scope.launch { load() } }))
-        else -> Box(Modifier.fillMaxSize()) { SkeletonLoading(Modifier.fillMaxSize(), label = "Loading…") }
+        else -> Box(Modifier.fillMaxSize()) { SkeletonLoading(Modifier.fillMaxSize(), label = "Loading…", shape = SkeletonShape.Rows) }
     }
     if (picking) {
         val today = ERPDate.karachiDay(AppClock.now())

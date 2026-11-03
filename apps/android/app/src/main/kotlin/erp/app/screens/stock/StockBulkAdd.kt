@@ -1,5 +1,6 @@
 package erp.app.screens.stock
 
+import erp.app.ui.BusyLabel
 import erp.app.ui.icons.Symbols
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
@@ -210,7 +211,7 @@ private fun StockBulkEditor() {
             enabled = !saving && rows.isNotEmpty(),
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).defaultMinSize(minHeight = 52.dp),
         ) {
-            if (saving) erp.app.ui.SkeletonLoading(compact = true) else Text("Add ${rows.size} piece${if (rows.size == 1) "" else "s"}")
+            erp.app.ui.BusyLabel(saving) { Text("Add ${rows.size} piece${if (rows.size == 1) "" else "s"}") }
         }
     }
     if (confirmReset) {

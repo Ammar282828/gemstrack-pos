@@ -1,5 +1,6 @@
 package erp.app.screens.ads
 
+import erp.app.ui.BusyLabel
 import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import android.content.Context
@@ -144,7 +145,7 @@ fun AdsPartnerSection(
                     },
                     enabled = trimmed.isNotEmpty() && !checking,
                 ) {
-                    if (checking) SkeletonLoading(compact = true, label = "Checking") else Text("Check")
+                    erp.app.ui.BusyLabel(checking) { Text("Check") }
                 }
             }
             val c = checked

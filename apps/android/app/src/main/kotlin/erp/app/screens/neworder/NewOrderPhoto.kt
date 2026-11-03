@@ -61,7 +61,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
-import coil3.compose.AsyncImage
+import erp.app.ui.SkeletonAsyncImage
 import com.google.firebase.firestore.FirebaseFirestore
 import erp.app.config.House
 import erp.app.ui.MinTouchTarget
@@ -348,7 +348,7 @@ internal fun StoredImage(uri: String, description: String, modifier: Modifier = 
         }
         bitmap?.let { Image(it, description, modifier, contentScale = ContentScale.Fit) }
     } else {
-        AsyncImage(model = uri, contentDescription = description, modifier = modifier, contentScale = ContentScale.Fit)
+        SkeletonAsyncImage(model = uri, contentDescription = description, modifier = modifier, contentScale = ContentScale.Fit)
     }
 }
 

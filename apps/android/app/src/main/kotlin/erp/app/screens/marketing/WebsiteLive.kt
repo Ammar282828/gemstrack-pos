@@ -1,5 +1,7 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.SkeletonShape
+import erp.app.ui.Loading
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -88,7 +90,7 @@ fun WebsiteLiveScreen() {
     when {
         l != null -> ErpPullToRefreshBox(refreshing, { scope.launch { refreshing = true; load(); refreshing = false } }, Modifier.fillMaxSize()) { LiveContent(l) }
         problem != null -> MarketingErrorState(problem ?: "", if (House.isDemo) null else ({ scope.launch { load() } }))
-        else -> Box(Modifier.fillMaxSize()) { SkeletonLoading(Modifier.fillMaxSize(), label = "Loading…") }
+        else -> Box(Modifier.fillMaxSize()) { SkeletonLoading(Modifier.fillMaxSize(), label = "Loading…", shape = SkeletonShape.Chart) }
     }
 }
 

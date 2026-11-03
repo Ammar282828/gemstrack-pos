@@ -1,5 +1,6 @@
 package erp.app.screens.workshop
 
+import erp.app.ui.BusyLabel
 import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
@@ -455,8 +456,7 @@ fun WorkshopDeleteCodeSheet(deletion: WorkshopDeletion, onDismiss: () -> Unit, o
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = Tone.problem.color(), contentColor = Color.White),
             ) {
-                if (busy) Loading(Modifier.size(24.dp), color = Color.White)
-                Text("Delete")
+                BusyLabel(busy) { Text("Delete") }
             }
         }
     }

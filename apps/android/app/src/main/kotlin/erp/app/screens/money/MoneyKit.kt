@@ -1,5 +1,6 @@
 package erp.app.screens.money
 
+import erp.app.ui.BusyLabel
 import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
@@ -214,7 +215,7 @@ fun MoneySheet(
                 )
                 if (confirmText != null) {
                     Button(onClick = onConfirm, enabled = confirmEnabled && !busy) {
-                        if (busy) Loading(Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary) else Text(confirmText)
+                        BusyLabel(busy) { Text(confirmText) }
                     }
                 } else {
                     Spacer(Modifier.size(64.dp))

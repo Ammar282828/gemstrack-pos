@@ -1,5 +1,7 @@
 package erp.app.screens.design
 
+import erp.app.ui.BusyLabel
+import erp.app.ui.SkeletonShape
 import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
@@ -87,7 +89,7 @@ fun DesignAccountAds(folders: List<DesignFolder>, onKept: () -> Unit) {
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
                 error != null -> NotAvailableState("Couldn’t read the ad account", why = error, icon = Symbols.Campaign)
-                ads == null -> SkeletonLoading(Modifier.fillMaxSize(), label = "Reading the ad account")
+                ads == null -> SkeletonLoading(Modifier.fillMaxSize(), label = "Reading the ad account", shape = SkeletonShape.Cards)
                 shown.isEmpty() -> NotAvailableState("No ads", why = "The ad account has none that match.", icon = Symbols.Campaign)
                 else -> LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     items(shown, key = { it.id }) { a ->
@@ -116,7 +118,7 @@ fun DesignAccountAds(folders: List<DesignFolder>, onKept: () -> Unit) {
                                 },
                                 enabled = busy == null, modifier = Modifier.semantics { contentDescription = "Keep in a folder" },
                             ) {
-                                if (busy == a.id) Loading(Modifier.size(26.dp)) else Icon(Symbols.Download, null)
+                                BusyLabel(busy == a.id) { Icon(Symbols.Download, null) }
                             }
                         }
                     }
