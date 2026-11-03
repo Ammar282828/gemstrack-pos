@@ -918,7 +918,8 @@ extension OrderScreen {
         .toolbar { macToolbar(groups) }
         .macRecordMenu(MacRecordMenu(title: "Order", groups: groups))
         .macOrdersSheets($macSheet, advanced: { amount, exchanges in advanced(amount, exchanges) },
-                         moved: { kind, told in onlineMoved(kind, told) })
+                         moved: { kind, told in onlineMoved(kind, told) },
+                         sent: { words in Note.show(Note(title: words), in: $note, reduce: reduceMotion) })
         .confirmDestructive(isPresented: $confirmCancel, title: "Cancel order \(order.id)?",
                             message: OrdersLogic.cancelWords, action: "Cancel order") {
             setStatus(order, "Cancelled")
@@ -1252,8 +1253,8 @@ extension OrderScreen {
         r.printSlip = { web = .slip(order.id) }
         r.message = { macSheet = .notify(order) }
         r.sendToKarigar = { macSheet = .sendKarigar(order) }
-        r.call = { if let url = CustomerKit.callURL(order.customerContact) { openURL(url) } }
-        r.whatsApp = { if let url = CustomerKit.whatsAppURL(order.customerContact) { openURL(url) } }
+        r.sendPDF = { macSheet = .sendPDF(order) }
+        r.orderPDF = { macSheet = .orderPDF(order) }
         r.bookCourier = { macSheet = .courier(order) }
         r.track = { macSheet = .tracking(order) }
         r.transfer = { macSheet = .transfer(order) }

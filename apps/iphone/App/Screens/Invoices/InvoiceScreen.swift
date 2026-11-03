@@ -1032,11 +1032,17 @@ extension InvoiceScreen {
 
     private func macContext() -> MacInvoiceContext {
         let desk = macDesk
-        return MacInvoiceContext(isOwner: session.isOwner, canPay: canPay, byCustomer: session.shop.invoiceByCustomer,
-                                 desk: desk) { route in
+        var cx = MacInvoiceContext(isOwner: session.isOwner, canPay: canPay, byCustomer: session.shop.invoiceByCustomer,
+                                   desk: desk) { route in
             // This window has no neighbours to open a page in: Edit and the rest are pushed over it.
             desk.web = route
         }
+        let customers = book.customers
+        cx.number = { inv in
+            MacContact.number(InvoiceFacts.whatsAppPhone(inv, customer: inv.customerId.flatMap { customers.item($0) }),
+                              customerId: inv.customerId, customerName: inv.customerName)
+        }
+        return cx
     }
 
     /// Deleted, or refunded in full: said for a moment, then the window goes (as the phone's page does).
