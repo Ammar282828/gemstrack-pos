@@ -152,7 +152,8 @@ struct OrdersHub: View {
     /// The record lists' one layout: rows on a phone, a grid of cards on a wide iPad.
     private func list(all: [Order], scoped: [Order], shown: [Order], groups: [OrdersSection], owedOn: [String: Double],
                       now: Date, forceOpen: Bool) -> some View {
-        let figures = summaryFigures(all, owedOn: owedOn, now: now)
+        // No figures over the list (owner, 2026-11-03: "remove the upper bar with the summaries in invoices and orders").
+        let figures: [ListFigure] = []
         return RecordListScaffold(search: $query, prompt: "Order, customer, phone or piece", isEmpty: groups.isEmpty) {
             emptyState(nothingOpen: grouping == .due && !shown.isEmpty)
         } rows: {

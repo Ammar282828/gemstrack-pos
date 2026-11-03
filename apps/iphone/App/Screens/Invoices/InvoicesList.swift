@@ -329,7 +329,8 @@ struct InvoicesList: View {
         let scoped = scope(all, stamped)
         let shown = scoped.filter { chip.matches($0) }
         let groups = sections(shown, stamped)
-        let figures = summaryFigures(all)
+        // No figures over the list (owner, 2026-11-03: "remove the upper bar with the summaries in invoices and orders").
+        let figures: [ListFigure] = []
         RecordListScaffold(search: $search, prompt: "Search invoices", isEmpty: groups.isEmpty) {
             emptyState
         } rows: {
@@ -370,8 +371,7 @@ struct InvoicesList: View {
     /// whenever there are any. Parked in the toolbar menu alone (a8d9e4e) it hid them from the owner.
     private func chips(_ scoped: [Invoice]) -> [ListChip] {
         rowChips(scoped).map { c in
-            // Unpaid's count is the Owed to you figure's own "n invoices": said once (CONVENTIONS rule 15).
-            ListChip(id: c.rawValue, title: c.title, count: c == .unpaid ? nil : scoped.filter { c.matches($0) }.count,
+            ListChip(id: c.rawValue, title: c.title, count: scoped.filter { c.matches($0) }.count,
                      chosen: c == chip) {
                 Motion.run(Motion.enter, reduce: reduceMotion) { chip = c }
             }

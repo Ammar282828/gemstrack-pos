@@ -162,13 +162,13 @@ struct RecordListHead: View {
     var body: some View {
         if inList {
             Section {
-                ListSummaryStrip(figures: figures, note: note).stripRow()
+                if !figures.isEmpty { ListSummaryStrip(figures: figures, note: note).stripRow() }
                 ListChipRow(chips: chips).chipRowInList()
                 if let caption { ListFilterCaption(text: caption, clear: clear).stripRow() }
             }
         } else {
             VStack(alignment: .leading, spacing: pt(12)) {
-                ListSummaryStrip(figures: figures, note: note)
+                if !figures.isEmpty { ListSummaryStrip(figures: figures, note: note) }
                 // The chips pad themselves; on the page they line up with its edge.
                 ListChipRow(chips: chips).padding(.horizontal, -Metrics.cardPadding)
                 if let caption { ListFilterCaption(text: caption, clear: clear) }
