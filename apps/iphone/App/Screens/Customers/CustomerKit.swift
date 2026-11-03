@@ -128,12 +128,16 @@ enum CustomerKit {
         return dayFormat.string(from: d)
     }
 
-    static func grams(_ g: Double) -> String {
+    private static let gramsFormat: NumberFormatter = {
         let f = NumberFormatter()
         f.numberStyle = .decimal
         f.locale = Locale(identifier: "en_US")
         f.maximumFractionDigits = 3
-        return f.string(from: NSNumber(value: g)) ?? String(g)
+        return f
+    }()
+
+    static func grams(_ g: Double) -> String {
+        gramsFormat.string(from: NSNumber(value: g)) ?? String(g)
     }
 
     // MARK: The phone's links

@@ -307,13 +307,19 @@ enum OrdersLogic {
 
     /// A figure without trailing zeros: 4.2, 22.5, 8.
     static func number(_ x: Double, maxDigits: Int = 3) -> String {
+        let f = numberFormatters[min(max(maxDigits, 0), 10)] ?? numberFormatters[3]!
+        return f.string(from: NSNumber(value: x)) ?? String(x)
+    }
+
+    /// Made once per digit count: order cards print weights and wastage on every pass, and a NumberFormatter is costly to build.
+    private static let numberFormatters: [Int: NumberFormatter] = Dictionary(uniqueKeysWithValues: (0...10).map { (digits: Int) -> (Int, NumberFormatter) in
         let f = NumberFormatter()
         f.numberStyle = .decimal
         f.locale = Locale(identifier: "en_US")
         f.minimumFractionDigits = 0
-        f.maximumFractionDigits = maxDigits
-        return f.string(from: NSNumber(value: x)) ?? String(x)
-    }
+        f.maximumFractionDigits = digits
+        return (digits, f)
+    })
 
     static func grams(_ g: Double) -> String { number(g) + " g" }
 

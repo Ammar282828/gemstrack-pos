@@ -47,6 +47,11 @@ struct WorkshopBoard: View {
     @State private var macDataMemo = Memo<MacWorkshopData>()
     @Environment(\.openPlaceWindow) private var openPlace
     #endif
+    /// The phone's and iPad's pieces (every order's, stock job's and invoice's lines, joined and sorted) and the board made
+    /// from them: worked out once per change of the books, the patches, the filters or the hour, not for each typed letter,
+    /// toast or busy flag the body runs for. (The Mac has the same two memos above.)
+    @State private var jobsMemo = Memo<[WorkshopJob]>()
+    @State private var snapMemo = Memo<WorkshopSnapshot>()
 
     /// `?karigar=<id>` (the karigar page's "On his bench") opens on his whole bench.
     init(path: String) {
@@ -154,15 +159,25 @@ struct WorkshopBoard: View {
         macContent
         #else
         let live = workshopLive(book.karigars.items)
-        let jobs = WorkshopLogic.buildJobs(
-            orders: book.orders.items,
-            karigarJobs: book.karigarJobs.items,
-            karigars: live,
-            invoices: book.invoices.items
-        )
-        let shownJobs = patches.isEmpty ? jobs : jobs.map { patched($0) }
-        let all = orderId.map { id in shownJobs.filter { $0.orderId == id } } ?? shownJobs
-        let snap = WorkshopSnapshot(all: all, filter: filter)
+        let patchStamp: Int = patches.isEmpty ? 0 : patches
+            .map { "\($0.key)|\($0.value.to.status)|\($0.value.to.given)|\($0.value.to.karigarId)|\($0.value.toName ?? "")" }
+            .sorted().joined(separator: ",").hashValue
+        // The hour is in the key because a piece's age counts from the clock; the books and the patches are the rest.
+        let jobsKey: [Int] = [book.orders.revision, book.invoices.revision, book.karigars.revision, book.karigarJobs.revision,
+                              patchStamp, Int(Date().timeIntervalSince1970 / 3600)]
+        let all: [WorkshopJob] = jobsMemo(jobsKey) {
+            let jobs = WorkshopLogic.buildJobs(
+                orders: book.orders.items,
+                karigarJobs: book.karigarJobs.items,
+                karigars: live,
+                invoices: book.invoices.items
+            )
+            let shownJobs = patches.isEmpty ? jobs : jobs.map { patched($0) }
+            return orderId.map { id in shownJobs.filter { $0.orderId == id } } ?? shownJobs
+        }
+        let filterStamp: Int = [filter.query, filter.status.rawValue, filter.type.rawValue, filter.takenBy, filter.karigarId]
+            .joined(separator: "\u{1}").hashValue
+        let snap: WorkshopSnapshot = snapMemo(jobsKey + [filterStamp]) { WorkshopSnapshot(all: all, filter: filter) }
         board(snap, live)
         #endif
     }

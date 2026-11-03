@@ -359,8 +359,8 @@ struct PostTrayScreen: View {
             List {
                 Group {
                     Section {
-                        if let image = UIImage(data: s.data) {
-                            Image(uiImage: image).resizable().scaledToFit()
+                        if !s.data.isEmpty {
+                            DataImage(data: s.data, maxPixel: 1600)
                                 .clipShape(.rect(cornerRadius: Radius.chip, style: .continuous))
                                 .frame(maxHeight: 460)
                                 .frame(maxWidth: .infinity)

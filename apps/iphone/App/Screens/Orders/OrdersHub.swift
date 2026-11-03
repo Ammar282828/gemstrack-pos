@@ -54,6 +54,11 @@ struct OrdersHub: View {
     @State private var owedMemo = Memo<[String: Double]>()
     /// The strip's figures, per change of the books, Taken by or the day.
     @State private var figuresMemo = Memo<OrdersFigures>()
+    /// The searched, filtered and grouped list. Sorting by date parses an ISO string per order, and the body runs for every
+    /// tick, toast and busy flag, so it is worked out once per change of the books, the filters or the day.
+    @State private var listMemo = Memo<OrdersListSnapshot>()
+    /// The Filter menu's months and per-status counts, per change of the orders (each is a pass that parses every date).
+    @State private var menuMemo = Memo<OrdersMenuFacts>()
 
     var body: some View {
         ShelfState(
@@ -131,10 +136,17 @@ struct OrdersHub: View {
     private var hub: some View {
         let all = book.orders.items
         let owedOn = owedMemo([book.invoices.revision]) { OrdersLogic.owedOnInvoices(book.invoices.items) }
-        let scoped = scope(all)
-        let shown = statusFilter == "All" ? scoped : scoped.filter { $0.status.rawValue == statusFilter }
         let now = Date()
-        let groups = makeSections(shown, owedOn: owedOn, now: now)
+        let snapshot = listMemo([book.orders.revision, book.invoices.revision, query.hashValue, statusFilter.hashValue, month.hashValue,
+                                 takenBy.hashValue, payment.hashValue, groupingRaw.hashValue, localStatus.hashValue,
+                                 ERPDate.karachiDay(now).hashValue]) {
+            let scoped = scope(all)
+            let shown = statusFilter == "All" ? scoped : scoped.filter { $0.status.rawValue == statusFilter }
+            return OrdersListSnapshot(scoped: scoped, shown: shown, groups: makeSections(shown, owedOn: owedOn, now: now))
+        }
+        let scoped = snapshot.scoped
+        let shown = snapshot.shown
+        let groups = snapshot.groups
         // A search or a filter must reach the folded stages too, or its hits hide behind "Show".
         let forceOpen = filtering
         #if os(macOS)
@@ -229,14 +241,17 @@ struct OrdersHub: View {
     /// Newest first inside every group, as the web sorts before it groups; the Due view soonest first.
     private func makeSections(_ orders: [Order], owedOn: [String: Double], now: Date) -> [OrdersSection] {
         if grouping == .due { return dueSections(orders, now: now) }
-        let newest = orders.sorted { OrdersLogic.takenAt($0) > OrdersLogic.takenAt($1) }
+        // Each date is read once: the comparator would otherwise parse two ISO strings per comparison.
+        let dated = orders.map { (order: $0, at: ERPDate.parse($0.createdAt)) }
+            .sorted { ($0.at ?? .distantPast) > ($1.at ?? .distantPast) }
+        let newest = dated.map { $0.order }
         guard let cut = grouping.calendar else { return stageSections(newest, owedOn) }
         var keys: [String] = []
         var info: [String: InvoiceCalendar.Bucket] = [:]
         var members: [String: [Order]] = [:]
-        for order in newest {
+        for (order, at) in dated {
             let b: InvoiceCalendar.Bucket
-            if let d = ERPDate.parse(order.createdAt) {
+            if let d = at {
                 b = InvoiceCalendar.bucket(d, by: cut, now: now)
             } else {
                 b = InvoiceCalendar.Bucket(key: "undated", title: "No date", hint: "")
@@ -484,14 +499,19 @@ struct OrdersHub: View {
     // MARK: The filter menu: how it is grouped, which month, whose, how paid
 
     private func filterMenu(_ all: [Order]) -> some View {
-        let months = Array(Set(all.compactMap { InvoiceCalendar.monthKey($0.createdAt) })).sorted(by: >)
+        let facts = menuMemo([book.orders.revision]) {
+            var counts: [String: Int] = [:]
+            for o in all { counts[o.status.rawValue, default: 0] += 1 }
+            return OrdersMenuFacts(months: Array(Set(all.compactMap { InvoiceCalendar.monthKey($0.createdAt) })).sorted(by: >), counts: counts)
+        }
+        let months = facts.months
         // The house's counter names (the web's Taken by list), not whoever happens to appear in the book.
         let people = session.shop.takenBy
         return RecordFilterMenu(filtering: narrowed) {
             Picker("Status", selection: $statusFilter) {
                 Text("All orders (\(all.count))").tag("All")
                 ForEach(OrdersLogic.filterStatuses, id: \.self) { status in
-                    Text("\(status) (\(all.filter { $0.status.rawValue == status }.count))").tag(status)
+                    Text("\(status) (\(facts.counts[status] ?? 0))").tag(status)
                 }
             }
             Picker("Group by", selection: groupingChoice) {
@@ -635,6 +655,19 @@ struct OrdersHub: View {
             await MainActor.run { advanced(amount, exchanges) }
         }
     }
+}
+
+/// What the hub's list is made of for one state of the books and filters (see `OrdersHub.listMemo`).
+private struct OrdersListSnapshot {
+    let scoped: [Order]
+    let shown: [Order]
+    let groups: [OrdersSection]
+}
+
+/// The Filter menu's facts about the whole book.
+private struct OrdersMenuFacts {
+    let months: [String]
+    let counts: [String: Int]
 }
 
 /// One section of the hub: a stage, a day, week or month, or how soon it is due. Done and Closed fold in

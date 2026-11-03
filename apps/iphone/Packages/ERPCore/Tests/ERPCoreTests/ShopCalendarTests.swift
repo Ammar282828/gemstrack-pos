@@ -48,7 +48,8 @@ final class ShopCalendarTests: XCTestCase {
         XCTAssertEqual(day.total, 50_000)
         XCTAssertEqual(day.events.count, 3)
         // The row prints the document's own total (the balance, for an order).
-        XCTAssertEqual(day.events.first { $0.docId == "ORD-1" }!.grandTotal, 30_000)
+        // The whole order (subtotal less discount), not the stored grandTotal (the balance after the advance): owner, 2026-11-03.
+        XCTAssertEqual(day.events.first { $0.docId == "ORD-1" }!.grandTotal, 50_000)
         XCTAssertEqual(day.events.first { $0.docId == "ORD-1" }!.customerName, "Bilal")
     }
 

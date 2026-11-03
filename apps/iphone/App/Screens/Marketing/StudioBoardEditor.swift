@@ -727,7 +727,7 @@ struct StudioBoardEditor: View {
         ForEach([("Before", c.before), ("After", Optional(c.data))], id: \.0) { title, data in
             VStack(alignment: .leading, spacing: pt(6)) {
                 Text(title).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                if let data, let image = UIImage(data: data) { Image(uiImage: image).resizable().scaledToFit().clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous)) }
+                if let data, !data.isEmpty { DataImage(data: data, maxPixel: 1600).clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous)) }
             }
             .frame(maxWidth: 520)
         }

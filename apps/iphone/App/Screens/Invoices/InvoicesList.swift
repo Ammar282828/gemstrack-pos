@@ -117,6 +117,12 @@ struct InvoiceStamps {
     }
 }
 
+/// Who took the invoices and in which months: the Filter menu's lists.
+struct InvoiceMenuFacts {
+    let people: [String]
+    let months: [String]
+}
+
 /// Karachi's days, weeks (from Monday) and months: what the shop means by "today" and "this week".
 enum InvoiceCalendar {
     static let karachi: Calendar = {
@@ -241,6 +247,8 @@ struct InvoicesList: View {
     @State private var stamps = Memo<InvoiceStamps>()
     /// The search, Taken by, Month and range applied to the invoices: kept until one of them (or the books) changes.
     @State private var scoped = Memo<[Invoice]>()
+    /// The Filter menu's people and months, per change of the invoices.
+    @State private var menuFacts = Memo<InvoiceMenuFacts>()
     @State private var chip: InvoiceChip = .all
     @State private var grouping: InvoiceGrouping = .day
     /// "" is Anyone.
@@ -568,8 +576,15 @@ struct InvoicesList: View {
     }
 
     private func filterMenu(_ all: [Invoice]) -> some View {
-        let people = Array(Set(all.compactMap { $0.takenBy }.filter { !$0.isEmpty })).sorted()
-        let months = Array(Set(all.compactMap { InvoiceCalendar.monthKey($0.createdAt) })).sorted(by: >)
+        // The people and months of the whole book, per change of the invoices: the toolbar is rebuilt with the body, and
+        // reading every date again for each of those passes is what the stamps already hold.
+        let stamped = stamps([book.invoices.revision]) { InvoiceStamps(all) }
+        let facts = menuFacts([book.invoices.revision]) {
+            InvoiceMenuFacts(people: Array(Set(all.compactMap { $0.takenBy }.filter { !$0.isEmpty })).sorted(),
+                             months: Array(Set(stamped.day.values.map { String($0.prefix(7)) })).sorted(by: >))
+        }
+        let people = facts.people
+        let months = facts.months
         let filtering = !takenBy.isEmpty || !month.isEmpty || rangeFrom != nil || chip != .all
         return RecordFilterMenu(filtering: filtering) {
             Picker("Status", selection: $chip) {

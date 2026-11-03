@@ -16,6 +16,7 @@ struct TodaysCashScreen: View {
     @Environment(Session.self) private var session
 
     @State private var now = Date()
+    @State private var cashMemo = Memo<TodaysCash>()
     @State private var width: CGFloat = 0
     @Environment(\.layoutWidthClass) private var sizeClass
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -24,8 +25,13 @@ struct TodaysCashScreen: View {
         Group {
             if session.isOwner {
                 ShelfState(loaded: ready, error: book.invoices.error ?? book.orders.error, offline: book.invoices.offline, shape: .figures) {
-                    page(todaysCash(invoices: book.invoices.items, orders: book.orders.items, repairs: book.repairs.items,
-                                    extraRevenues: book.revenue.items, expenses: book.expenses.items, now: now))
+                    // Every payment of every invoice is read for its date: once per change of the books or of the minute, not
+                    // for each redraw (a resize of the window, a toast).
+                    page(cashMemo([book.invoices.revision, book.orders.revision, book.repairs.revision, book.revenue.revision,
+                                   book.expenses.revision, Int(now.timeIntervalSince1970 / 60)]) {
+                        todaysCash(invoices: book.invoices.items, orders: book.orders.items, repairs: book.repairs.items,
+                                   extraRevenues: book.revenue.items, expenses: book.expenses.items, now: now)
+                    })
                 }
                 .onAppear { needAll() }
                 .task { await keepTime() }

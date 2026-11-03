@@ -252,6 +252,13 @@ struct RootView: View {
     }
 }
 
+/// The scroll position the + keeps between frames; reading or writing it redraws nothing.
+@MainActor
+private final class ScrollReading {
+    var offsetY: CGFloat = 0
+    var openedAt: CGFloat = 0
+}
+
 /// Two floating controls leave the page itself free of repeated shortcuts.
 @MainActor
 private struct CreateAccessory: ViewModifier {
@@ -264,8 +271,9 @@ private struct CreateAccessory: ViewModifier {
     @State private var compact = false
     @State private var expanded = false
     @State private var scrolled = false
-    @State private var offsetY: CGFloat = 0
-    @State private var openedAt: CGFloat = 0
+    /// Where the page is scrolled, and where it was when the choices opened. A plain object, not @State: the scroll
+    /// callback runs on every frame of a scroll, and a state written there redraws the page's overlay each time.
+    @State private var reading = ScrollReading()
     @Namespace private var glassSpace
 
     @Environment(\.layoutWidthClass) private var sizeClass
@@ -335,7 +343,7 @@ private struct CreateAccessory: ViewModifier {
 
     private func toggle() {
         if expanded { collapse(); return }
-        openedAt = offsetY
+        reading.openedAt = reading.offsetY
         Motion.run(Motion.travel, reduce: reduceMotion) { expanded = true }
     }
 
@@ -345,13 +353,15 @@ private struct CreateAccessory: ViewModifier {
             .onScrollGeometryChange(for: CGFloat.self) { geometry in
                 (geometry.contentOffset.y + geometry.contentInsets.top).rounded()
             } action: { _, y in
-                offsetY = y
-                scrolled = y > 24
+                reading.offsetY = y
+                let away = y > 24
+                // Written only when it flips: an unchanged state still invalidates the view that owns it.
+                if scrolled != away { scrolled = away }
                 if expanded {
                     // Scrolling closes it; the size stays as it was until then, so the + never changes under a finger.
-                    if abs(y - openedAt) > 12 { collapse() }
-                } else if compact != scrolled {
-                    compact = scrolled
+                    if abs(y - reading.openedAt) > 12 { collapse() }
+                } else if compact != away {
+                    compact = away
                 }
             }
             .overlay {

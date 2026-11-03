@@ -21,7 +21,9 @@ extension OrderItem {
     var photoSources: [PhotoSource] {
         var out: [PhotoSource] = []
         func tail(_ s: String) -> String { "\(s.utf8.count)-\(s.suffix(24))" }
-        let first = (sampleImageDataUri ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        // A photo kept inline is megabytes of text: trimmed (a full copy) only when an end really is blank.
+        let raw = sampleImageDataUri ?? ""
+        let first = (raw.first?.isWhitespace ?? false) || (raw.last?.isWhitespace ?? false) ? raw.trimmingCharacters(in: .whitespacesAndNewlines) : raw
         if !first.isEmpty {
             out.append(PhotoSource(id: "m-" + tail(first), uri: first))
         } else if let id = samplePhotoId, !id.isEmpty {
@@ -67,9 +69,23 @@ enum PieceGalleryStore {
         return uri
     }
 
+    /// The picture if it is already decoded in memory (an inline data address), so a thumbnail that scrolls back paints at once.
+    static func cachedImage(of source: PhotoSource, maxPixel: Int) -> UIImage? {
+        guard let text = source.uri ?? source.storedId.flatMap({ documents[$0] }), text.hasPrefix("data:") else { return nil }
+        return StockImageDecoder.cached(text, key: source.id, maxPixel: maxPixel)
+    }
+
     /// The picture itself, no larger than `maxPixel` on its long side.
     static func image(of source: PhotoSource, maxPixel: Int) async -> UIImage? {
-        if let data = source.data { return UIImage(data: data) }
+        if let data = source.data {
+            // A thumbnail is shrunk off the main thread; UIImage(data:) alone decodes the whole photo at the first draw, on main.
+            if maxPixel <= 600 {
+                return await Task.detached(priority: .userInitiated) { () -> UIImage? in
+                    StockImageDecoder.thumbnail(data: data, maxPixel: maxPixel)
+                }.value
+            }
+            return UIImage(data: data)
+        }
         guard let text = await uri(of: source) else { return nil }
         if text.hasPrefix("data:") {
             let key = source.id
@@ -110,7 +126,11 @@ struct PhotoThumb: View {
                         .padding(4)
                 }
             }
-            .task(id: source.id) { image = await PieceGalleryStore.image(of: source, maxPixel: Int(size * 3)) }
+            .task(id: source.id) {
+                let pixels = Int(size * 3)
+                if let hit = PieceGalleryStore.cachedImage(of: source, maxPixel: pixels) { image = hit; return }
+                image = await PieceGalleryStore.image(of: source, maxPixel: pixels)
+            }
     }
 }
 

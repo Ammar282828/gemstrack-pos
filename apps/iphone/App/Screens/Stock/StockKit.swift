@@ -369,30 +369,74 @@ private struct StockDataImage: View {
 }
 
 enum StockImageDecoder {
-    private static let cache = NSCache<NSString, UIImage>()
+    /// Decoded copies, counted in bytes so a screen of order photos can never hold the phone's memory (NSCache also lets go under pressure).
+    private static let cache: NSCache<NSString, UIImage> = {
+        let c = NSCache<NSString, UIImage>()
+        c.totalCostLimit = 96 * 1024 * 1024
+        return c
+    }()
 
-    /// The picture inside a base64 data address, no larger than `maxPixel` on its long side
-    /// (ImageIO decodes it at that size, so a 12-megapixel photo never sits whole in memory).
-    /// Nil for anything that is not base64 image data.
-    static func image(_ uri: String, key: String, maxPixel: Int) -> UIImage? {
-        let cacheKey = "\(key)#\(uri.utf8.count)" as NSString
-        if let hit = cache.object(forKey: cacheKey) { return hit }
-        guard let comma = uri.firstIndex(of: ",") else { return nil }
-        guard uri[..<comma].contains("base64") else { return nil }
-        let payload = String(uri[uri.index(after: comma)...])
-        guard let data = Data(base64Encoded: payload, options: .ignoreUnknownCharacters) else { return nil }
-        let sourceOptions: [CFString: Any] = [kCGImageSourceShouldCache: false]
-        guard let source = CGImageSourceCreateWithData(data as CFData, sourceOptions as CFDictionary) else { return nil }
-        let thumbnailOptions: [CFString: Any] = [
+    /// The size is part of the key: a 192 px thumbnail must never answer the full-screen viewer's 2400 px.
+    private static func entryKey(_ uri: String, _ key: String, _ maxPixel: Int) -> NSString {
+        "\(key)#\(uri.utf8.count)#\(maxPixel)" as NSString
+    }
+
+    /// The copy already decoded, if any: lets a row that scrolls back paint on its first frame, with no hop to a background task.
+    static func cached(_ uri: String, key: String, maxPixel: Int) -> UIImage? {
+        cache.object(forKey: entryKey(uri, key, maxPixel))
+    }
+
+    /// A photo's bytes shrunk to `maxPixel` on the long side by ImageIO (a 12-megapixel picture is never decoded whole).
+    static func thumbnail(data: Data, maxPixel: Int) -> UIImage? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, [kCGImageSourceShouldCache: false] as CFDictionary) else { return nil }
+        let options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
             kCGImageSourceCreateThumbnailWithTransform: true,
             kCGImageSourceShouldCacheImmediately: true,
             kCGImageSourceThumbnailMaxPixelSize: maxPixel,
         ]
-        guard let cg = CGImageSourceCreateThumbnailAtIndex(source, 0, thumbnailOptions as CFDictionary) else { return nil }
-        let out = UIImage(cgImage: cg)
-        cache.setObject(out, forKey: cacheKey)
+        guard let cg = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
+        return UIImage(cgImage: cg)
+    }
+
+    /// The picture inside a base64 data address, no larger than `maxPixel` on its long side
+    /// (ImageIO decodes it at that size, so a 12-megapixel photo never sits whole in memory).
+    /// Nil for anything that is not base64 image data.
+    static func image(_ uri: String, key: String, maxPixel: Int) -> UIImage? {
+        let cacheKey = entryKey(uri, key, maxPixel)
+        if let hit = cache.object(forKey: cacheKey) { return hit }
+        guard let comma = uri.firstIndex(of: ",") else { return nil }
+        guard uri[..<comma].contains("base64") else { return nil }
+        let payload = String(uri[uri.index(after: comma)...])
+        guard let data = Data(base64Encoded: payload, options: .ignoreUnknownCharacters) else { return nil }
+        guard let out = thumbnail(data: data, maxPixel: maxPixel) else { return nil }
+        cache.setObject(out, forKey: cacheKey, cost: Int(out.size.width * out.size.height * 4))
         return out
+    }
+}
+
+/// A picture held as bytes (a story, an AI result), shrunk to the size it is shown and decoded once off the main thread.
+/// `UIImage(data:)` written in a body decodes the whole picture again at every redraw of the sheet; this does it once.
+struct DataImage: View {
+    let data: Data
+    var maxPixel = 1600
+    @State private var image: UIImage?
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(uiImage: image).resizable().scaledToFit()
+            } else {
+                Rectangle().fill(.quaternary).frame(height: 240)
+            }
+        }
+        .task(id: data.count) {
+            let bytes = data
+            let px = maxPixel
+            image = await Task.detached(priority: .userInitiated) { () -> UIImage? in
+                StockImageDecoder.thumbnail(data: bytes, maxPixel: px)
+            }.value
+        }
     }
 }
 

@@ -38,9 +38,34 @@ public enum ERPDate {
         return f
     }()
 
+    /// Strings already read. An ISO8601DateFormatter costs tens of microseconds a string, and a list asks for the same few
+    /// thousand `createdAt`s on every sort, filter, group and row; a read is a dictionary hit after the first. A failed read
+    /// is kept too (`.some(nil)`). Cleared whole when it grows past the limit, so it can never hold more than that.
+    private final class Parsed: @unchecked Sendable {
+        let lock = NSLock()
+        var values: [String: Date?] = [:]
+        static let limit = 8192
+    }
+    private static let parsed = Parsed()
+
     /// An ISO instant, or a bare day (its UTC midnight, as `new Date("yyyy-mm-dd")` reads it in JS).
     public static func parse(_ s: String?) -> Date? {
-        guard let s = s?.trimmingCharacters(in: .whitespaces), !s.isEmpty else { return nil }
+        guard let s else { return nil }
+        parsed.lock.lock()
+        let hit = parsed.values[s]
+        parsed.lock.unlock()
+        if let hit { return hit }
+        let made = read(s)
+        parsed.lock.lock()
+        if parsed.values.count >= Parsed.limit { parsed.values.removeAll(keepingCapacity: true) }
+        parsed.values[s] = Optional<Date?>.some(made)
+        parsed.lock.unlock()
+        return made
+    }
+
+    private static func read(_ raw: String) -> Date? {
+        let s = raw.trimmingCharacters(in: .whitespaces)
+        if s.isEmpty { return nil }
         if let d = withFraction.date(from: s) ?? plain.date(from: s) { return d }
         if s.count == 10, let d = day.date(from: s) { return d }
         return nil
