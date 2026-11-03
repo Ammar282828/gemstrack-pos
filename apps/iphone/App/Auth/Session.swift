@@ -77,6 +77,9 @@ final class Session {
         var sizeToProfile: Bool
         /// Where the Workshop starts: "you" (this account's own pieces) or "anyone" (STORE_WORKSHOP_START). Absent in an older answer: "you".
         var workshopStart: String?
+        /// The house's public store is Shopify and its analytics show in Website → Visitors and Live (NEXT_PUBLIC_STORE_SHOPIFY_ANALYTICS,
+        /// House of Mina). Absent until the ERP sends it: the Website screens then ask the route once (ShopifySwitchHost).
+        var shopifyAnalytics: Bool?
 
         /// Before the ERP has answered (the demo, an old cached answer): nothing assumed beyond the business. Its own
         /// switches are the descriptor's `flags` (the built-ins' businesses.json, an added business's /api/app/business);

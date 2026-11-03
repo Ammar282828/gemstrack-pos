@@ -12,7 +12,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveKarigar, verifyRequestEmail } from '@/lib/karigar-auth';
 import { roleForEmail } from '@/lib/roles';
-import { STORE_BRAND, STORE_CONFIG, STORE_TAKEN_BY } from '@/lib/store-config';
+import { STORE_BRAND, STORE_CONFIG, STORE_TAKEN_BY, STORE_SHOPIFY_ANALYTICS } from '@/lib/store-config';
 import { shopFlags } from '@/lib/app-shop';
 import { EXPENSE_CATEGORIES } from '@/lib/expense-categories';
 import { personFor } from '@/lib/people';
@@ -35,6 +35,8 @@ export async function GET(req: NextRequest) {
       takenBy: [...STORE_TAKEN_BY],
       expenseCategories: [...EXPENSE_CATEGORIES],
       ...shopFlags(),
+      // The house whose website is Shopify: the phones show Shopify's own analytics in Website (decision "Shopify analytics").
+      shopifyAnalytics: STORE_SHOPIFY_ANALYTICS,
     },
   });
 }
