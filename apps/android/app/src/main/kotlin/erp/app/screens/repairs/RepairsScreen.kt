@@ -296,8 +296,16 @@ private fun RepairRow(
     if (isOwner && (r.status == RepairStatus.received || r.status == RepairStatus.ready)) {
         menu.add(RowAction("Cancel repair", Symbols.Close, Tone.problem) { desk.askCancel(r) })
     }
-    SwipeActions(start = tell, end = trailing, menu = menu, onClick = onOpen) {
-        RepairRowBody(r, now, busy = desk.isBusy(r.id))
+    // The one Contact menu (ui/CustomerContact.kt) is a long-press entry that opens its own menu over the row.
+    var contacting by remember { mutableStateOf(false) }
+    if (erp.app.ui.CustomerContactLinks.e164(r.customerContact).isNotEmpty()) {
+        menu.add(RowAction("Contact", Symbols.AccountCircle, Tone.house) { contacting = true })
+    }
+    Box {
+        SwipeActions(start = tell, end = trailing, menu = menu, onClick = onOpen) {
+            RepairRowBody(r, now, busy = desk.isBusy(r.id))
+        }
+        erp.app.ui.CustomerContactDropdown(contacting, { contacting = false }, r.customerContact, r.customerId, r.customerName)
     }
 }
 

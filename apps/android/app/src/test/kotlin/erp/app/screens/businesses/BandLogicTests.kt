@@ -25,6 +25,13 @@ class BandLogicTests {
         assertEquals(false, BandLogic.identity(biz("light", accent = "#F5F5F5", onAccent = "#111111")).isDark)
     }
 
+    @Test fun cardsSitSideBySideFromSixHundredDp() {
+        assertEquals(false, BandLogic.sideBySide(411f))
+        assertEquals(false, BandLogic.sideBySide(599.9f))
+        assertEquals(true, BandLogic.sideBySide(600f))
+        assertEquals(true, BandLogic.sideBySide(1280f))
+    }
+
     @Test fun lastUsedComesFirstRestKeepOrder() {
         val l = listOf(biz("a"), biz("b"), biz("c"))
         assertEquals(listOf("b", "a", "c"), BandLogic.ordered(l, "b").map { it.id })

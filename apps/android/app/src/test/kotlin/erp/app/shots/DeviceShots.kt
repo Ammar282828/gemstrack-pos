@@ -5,13 +5,21 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.navigation3.runtime.rememberNavBackStack
 import erp.app.ErpApp
+import erp.app.nav.Route
+import erp.app.nav.StackHost
 import erp.app.config.Business
 import erp.app.nav.LocalNavigator
 import erp.app.nav.Navigator
 import erp.app.screens.voice.VoiceModel
 import erp.app.screens.voice.VoicePlan
-import erp.app.screens.voice.VoiceScreen
+import erp.app.screens.voice.VoiceCapsule
 import erp.app.ui.ReadableColumn
 import erp.app.widget.WidgetFacePreview
 import erp.app.widget.WidgetLinkData
@@ -28,7 +36,7 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /**
- * The device features' screens at phone and tablet size, light and dark: the voice sheet in its four states (idle,
+ * The device features' screens at phone and tablet size, light and dark: the voice capsule over an open order in its four states (idle,
  * listening, an answer, a plan to confirm). The widget preview is in [SettingsShots] (`settings-widgets`). Made-up
  * names and amounts only.
  */
@@ -52,53 +60,82 @@ class DeviceShots(config: ShotConfig) : ShotBase(config) {
         override val canGoBack: Boolean = false
     }
 
-    @Composable private fun sheet(content: @Composable () -> Unit) =
-        CompositionLocalProvider(LocalNavigator provides noNavigator) { ReadableColumn(maxWidth = 720.dp, content = content) }
-
     private fun model() = VoiceModel(ErpApp.instance, ErpApp.scope, ask = { emptyMap() }, write = { _, _ -> })
 
     private fun plan(json: String, words: String) = VoicePlan(@Suppress("UNCHECKED_CAST") (Json.parse(json) as Map<String, Any?>), words)
 
+    /** The capsule over a live page (an order), as a shell draws it: the page beneath is not covered, only its foot. */
+    private fun over(m: VoiceModel, label: String? = "Order ORD-D0002 · Test Buyer · 2 pieces") = show {
+        val stack = rememberNavBackStack(Route("/orders/ORD-D0002", 0))
+        // The page's own foot bar lifts the capsule above it (voiceClearance), as the shell does.
+        val inset = androidx.compose.runtime.remember { erp.app.screens.voice.VoiceInset().apply { bottom = 16.dp } }
+        CompositionLocalProvider(LocalNavigator provides noNavigator, erp.app.screens.voice.LocalVoiceInset provides inset) {
+            Box(Modifier.fillMaxSize()) {
+                StackHost(stack, Modifier.fillMaxSize())
+                VoiceCapsule(m, label, "en-PK", {}, {}, {}, Modifier.fillMaxSize().padding(bottom = inset.clearance))
+            }
+        }
+    }
+
     @Test fun voice_idle() {
         onlyTaheri()
-        showPlace("/voice", sheet = true)
+        over(model())
         shoot("voice-idle")
     }
 
     @Test fun voice_listening() {
         onlyTaheri()
-        val m = model().apply { listening = true; level = 0.6f; words = "Record a payment of five thousand from Test Buyer" }
-        show { sheet { VoiceScreen(m) } }
+        over(model().apply { listening = true; level = 0.6f; live = "Make the second piece twenty two karat" })
         shoot("voice-listening")
     }
 
     @Test fun voice_answer() {
         onlyTaheri()
         val words = "What is in the drawer today"
-        val m = model().apply {
-            this.words = words
-            plan = plan("""{"answer":"The drawer holds Rs 3.12 lac, with Rs 1.4 lac in today.","href":"/today","cards":[]}""", words)
-        }
-        show { sheet { VoiceScreen(m) } }
+        over(
+            model().apply {
+                listening = true
+                this.words = words
+                plan = plan("""{"answer":"The drawer holds Rs 3.12 lac, with Rs 1.4 lac in today.","href":"/today","cards":[]}""", words)
+            },
+        )
         shoot("voice-answer")
     }
 
     @Test fun voice_review() {
         onlyTaheri()
-        val words = "Test Buyer paid five thousand by bank transfer, and tea expense three hundred"
-        val m = model().apply {
-            this.words = words
-            plan = plan(
-                """{"cards":[
-                    {"title":"record a payment","summary":"Rs 5,000 by bank transfer from Test Buyer on INV-000128","href":"/invoices/INV-000128",
-                     "operations":[{"op":"addPayment","fields":{"invoiceId":"INV-000128","amount":5000,"method":"Bank Transfer"}}]},
-                    {"title":"add an expense","summary":"Tea, Rs 300","problem":"Which account did this come out of?","operations":[]}
-                ]}""",
-                words,
-            )
-        }
-        show { sheet { VoiceScreen(m) } }
+        val words = "Make the second piece twenty two karat, and add five thousand advance"
+        over(
+            model().apply {
+                listening = true
+                this.words = words
+                plan = plan(
+                    """{"cards":[
+                        {"title":"edit a piece","summary":"Piece 2 of ORD-D0002 becomes 22 karat","href":"/orders/ORD-D0002",
+                         "operations":[{"op":"updateOrderPiece","fields":{"orderId":"ORD-D0002","index":1,"karat":"22k"}}]},
+                        {"title":"record an advance","summary":"Rs 5,000 advance on ORD-D0002","problem":"How was it paid?","operations":[]}
+                    ]}""",
+                    words,
+                )
+            },
+        )
         shoot("voice-review")
+    }
+
+    @Test fun voice_ready() {
+        onlyTaheri()
+        val words = "Make it twenty two karat"
+        over(
+            model().apply {
+                listening = true
+                this.words = words
+                plan = plan(
+                    """{"cards":[{"title":"edit a piece","summary":"Piece 1 of ORD-D0002 becomes 22 karat","operations":[{"op":"updateOrderPiece","fields":{"orderId":"ORD-D0002","index":0,"karat":"22k"}}]}]}""",
+                    words,
+                )
+            },
+        )
+        shoot("voice-ready")
     }
 
     // The Large face alone (Settings' preview page runs below the fold): one business, then two stacked, as a launcher's 4x4 draws them.
