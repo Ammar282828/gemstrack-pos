@@ -1,5 +1,6 @@
 package erp.app.screens.work
 
+import androidx.lifecycle.repeatOnLifecycle
 import erp.app.ui.SkeletonShape
 import erp.app.ui.Loading
 import erp.app.ui.animatedItem
@@ -168,12 +169,15 @@ fun MyWorkScreen(path: String) {
     }
 
     // The web's focus handler and its minute timer: a karigar has no live link to the books.
+    val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(previewId) {
         load()
         erp.app.device.LaunchClock.finish("work")
-        while (true) {
-            delay(60_000)
-            load()
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                delay(60_000)
+                load()
+            }
         }
     }
     var firstStart by remember { mutableStateOf(true) }

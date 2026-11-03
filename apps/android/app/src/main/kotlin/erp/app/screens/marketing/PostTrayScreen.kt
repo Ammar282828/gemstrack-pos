@@ -439,7 +439,7 @@ private fun PlainPhotoSection(card: PostTrayCard, state: PostsState, posted: Str
             if (preview != null) {
                 Image(preview, card.going, Modifier.widthIn(max = 380.dp).fillMaxWidth().clip(shape), contentScale = ContentScale.Fit)
             } else {
-                StockImage(p.image, p.name, p.id, Modifier.widthIn(max = 380.dp).fillMaxWidth().aspectRatio(1f).clip(shape))
+                StockImage(p.image, p.name, p.id, Modifier.widthIn(max = 380.dp).fillMaxWidth().aspectRatio(1f).clip(shape), decodePx = 1200)
             }
         }
         ActionRow(if (card.design != null) "Fetching the photo…" else "Crop and design", onDesign, Symbols.Crop, enabled = !locked && card.design == null)

@@ -46,6 +46,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import erp.app.auth.LocalSession
 import erp.app.data.Connection
 import erp.app.data.LocalBook
+import erp.app.data.rememberOffMain
 import erp.app.data.rememberShelfStatus
 import erp.app.nav.LocalNavigator
 import erp.app.nav.ScreenActions
@@ -78,6 +79,7 @@ import erp.core.models.Customer
 enum class CustomersShowing(val title: String) { everyone("Everyone"), owing("Owing"), recent("Recent") }
 
 /** What the list reckons from the books, once per change of them, not per keystroke in the search (which only narrows). */
+private class Worked(val matched: List<Customer>, val groups: CustomerKit.Groups)
 private class Reckoned(val live: List<Customer>, val owed: Owed, val stats: Map<String, CustomerKit.Stats>, val lifetime: Double)
 
 /**
@@ -111,18 +113,24 @@ fun CustomersList() {
     val failure = customers.error ?: invoices.error ?: orders.error ?: (if (owner) hisaabError else null)
     val offline = customers.offline || invoices.offline
 
-    val reckoned = remember(customers.revision, invoices.revision, orders.revision, hisaabRevision, owner) {
+    // The list is worked out from the text 200 ms after the last keystroke (the box itself stays instant); clearing applies at once.
+    var appliedSearch by remember { mutableStateOf(search) }
+    LaunchedEffect(search) { if (search.isNotEmpty()) delay(200); appliedSearch = search }
+    // The whole-book passes (owed, stats, filter, groups) run off the main thread; the last answer stays up while the next is worked out.
+    val reckonedNow by rememberOffMain(customers.revision, invoices.revision, orders.revision, hisaabRevision, owner) {
         val ledger = if (owner) hisaabItems else null
         val live = customers.items.filter { !CustomerKit.isRemoved(it) }
         val owed = CustomerKit.owed(invoices.items, customers.items, ledger)
         val stats = CustomerKit.stats(invoices.items, orders.items, owed)
         Reckoned(live, owed, stats, live.fold(0.0) { sum, c -> sum + (stats[c.id]?.spent ?: 0.0) })
     }
-    // The list is worked out from the text 200 ms after the last keystroke (the box itself stays instant); clearing applies at once.
-    var appliedSearch by remember { mutableStateOf(search) }
-    LaunchedEffect(search) { if (search.isNotEmpty()) delay(200); appliedSearch = search }
-    val matched = remember(reckoned, appliedSearch) { reckoned.live.filter { CustomerKit.matches(it, appliedSearch) } }
-    val groups = remember(matched, reckoned) { CustomerKit.groups(matched, reckoned.stats) }
+    val reckoned = reckonedNow
+    val worked by rememberOffMain(reckoned, appliedSearch) {
+        val matched = reckoned?.live.orEmpty().filter { CustomerKit.matches(it, appliedSearch) }
+        Worked(matched, reckoned?.let { CustomerKit.groups(matched, it.stats) } ?: CustomerKit.Groups())
+    }
+    val matched = worked?.matched ?: emptyList()
+    val groups = worked?.groups ?: CustomerKit.Groups()
     val shown = when (showing) {
         CustomersShowing.everyone -> groups
         CustomersShowing.owing -> CustomerKit.Groups(owing = groups.owing)
@@ -134,12 +142,13 @@ fun CustomersList() {
         IconButton(onClick = { navigator.open("/customers/add") }) { Icon(Symbols.Add, contentDescription = "Add customer") }
     }
 
-    ShelfState(shape = erp.app.ui.SkeletonShape.Rows, loaded = loaded, error = failure, offline = offline, connectionLost = connectionLost) {
+    ShelfState(shape = erp.app.ui.SkeletonShape.Rows, loaded = loaded && reckoned != null && worked != null, error = failure, offline = offline, connectionLost = connectionLost) {
+        if (reckoned == null) return@ShelfState
         LazyColumn(
             Modifier.fillMaxSize().readableColumn(),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = maxOf(24.dp, LocalFabClearance.current)),
         ) {
-            animatedItem(key = "search") {
+            animatedItem(key = "search", contentType = "search") {
                 SearchBarField(
                     value = search,
                     onValueChange = { search = it },
@@ -154,7 +163,7 @@ fun CustomersList() {
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 )
             }
-            animatedItem(key = "summary") {
+            animatedItem(key = "summary", contentType = "summary") {
                 CustSummary(
                     modifier = Modifier.padding(bottom = GAP),
                     customerCount = reckoned.live.size,
@@ -165,13 +174,13 @@ fun CustomersList() {
                     showHisaab = owner,
                 )
             }
-            animatedItem(key = "chips") {
+            animatedItem(key = "chips", contentType = "chips") {
                 ChipRow(Modifier.padding(bottom = GAP)) {
                     for (option in CustomersShowing.values()) FilterChip(option.title, chosen = option == showing, onClick = { showing = option })
                 }
             }
             if (shown.owing.isEmpty() && shown.active.isEmpty() && shown.quiet.isEmpty()) {
-                animatedItem(key = "empty") { Box(Modifier.padding(bottom = GAP)) { Empty(matched.size, appliedSearch, showing) } }
+                animatedItem(key = "empty", contentType = "empty") { Box(Modifier.padding(bottom = GAP)) { Empty(matched.size, appliedSearch, showing) } }
             } else {
                 group("Owing money", "most owed first", shown.owing, reckoned.stats) { navigator.open(CustomerKit.path(it)) }
                 group("Recent", "bought in the last ${CustomerKit.dormantAfterMonths} months", shown.active, reckoned.stats) { navigator.open(CustomerKit.path(it)) }
@@ -179,7 +188,7 @@ fun CustomersList() {
             }
             // Clearing up the book is an owner's: the web's merge and removals are browser writes the shop floor cannot make.
             if (owner) {
-                animatedItem(key = "clean") {
+                animatedItem(key = "clean", contentType = "clean") {
                     Column(Modifier.padding(top = GAP), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         SegmentedColumn {
                             ActionLine("Merge duplicates", Symbols.Group) { merging = true }
@@ -221,13 +230,13 @@ private fun LazyListScope.group(
     open: (String) -> Unit,
 ) {
     if (people.isEmpty()) return
-    animatedItem(key = "h-$title") {
+    animatedItem(key = "h-$title", contentType = "header") {
         Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(start = 4.dp, end = 4.dp, bottom = 8.dp)) {
             LedgerHeading(title, count = people.size)
             Text(hint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
-    items(people.size, key = { "$title-${people[it].id}" }) { i ->
+    items(people.size, key = { "$title-${people[it].id}" }, contentType = { "customer" }) { i ->
         val c = people[i]
         val first = i == 0
         val last = i == people.lastIndex
@@ -250,15 +259,18 @@ private fun CustomerRow(c: Customer, stats: CustomerKit.Stats?, onClick: () -> U
     val context = LocalContext.current
     val wa = CustomerKit.whatsAppUri(c.phone) != null
     val call = CustomerKit.callUri(c.phone) != null
-    val menu = buildList {
-        if (call) add(RowAction("Call", Symbols.Call, Tone.house) { CustomerLinks.call(context, c.phone) })
-        if (wa) add(RowAction("WhatsApp", Symbols.Message, Tone.settled) { CustomerLinks.whatsApp(context, c.phone) })
-        if (CustomerKit.messageUri(c.phone) != null) add(RowAction("Message", Symbols.Sms, Tone.quiet) { CustomerLinks.message(context, c.phone) })
-    }
+    val callAction = if (call) RowAction("Call", Symbols.Call, Tone.house) { CustomerLinks.call(context, c.phone) } else null
+    val waAction = if (wa) RowAction("WhatsApp", Symbols.Message, Tone.settled) { CustomerLinks.whatsApp(context, c.phone) } else null
     SwipeActions(
-        start = menu.firstOrNull { it.label == "WhatsApp" },
-        end = menu.firstOrNull { it.label == "Call" },
-        menu = menu,
+        start = waAction,
+        end = callAction,
+        menu = {
+            listOfNotNull(
+                callAction, waAction,
+                if (CustomerKit.messageUri(c.phone) != null) RowAction("Message", Symbols.Sms, Tone.quiet) { CustomerLinks.message(context, c.phone) } else null,
+            )
+        },
+        hasMenu = call || wa || CustomerKit.messageUri(c.phone) != null,
         onClick = onClick,
     ) {
         Box(Modifier.fillMaxWidth().background(ErpColors.card).zoomSource(CustomerKit.path(c.id), Radius.tile)) {

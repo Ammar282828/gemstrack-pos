@@ -78,7 +78,7 @@ internal fun ReferencePrintRows(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             SkeletonAsyncImage(
-                model = picked, contentDescription = "The picked reference photo", contentScale = ContentScale.Crop,
+                model = picked, contentDescription = "The picked reference photo", contentScale = ContentScale.Crop, decodePx = 256,
                 modifier = Modifier.size(64.dp).clip(RoundedCornerShape(Radius.thumb)).background(MaterialTheme.colorScheme.surfaceContainerHighest),
             )
             Column(Modifier.weight(1f)) {
@@ -174,7 +174,7 @@ internal fun ReferencePickerSheet(category: String, current: String, onPick: (St
                                 verticalArrangement = Arrangement.spacedBy(6.dp),
                             ) {
                                 SkeletonAsyncImage(
-                                    model = piece.thumb, contentDescription = null, contentScale = ContentScale.Crop,
+                                    model = piece.thumb, contentDescription = null, contentScale = ContentScale.Crop, decodePx = 400,
                                     modifier = Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(Radius.thumb))
                                         .background(MaterialTheme.colorScheme.surfaceContainerHighest)
                                         .then(if (chosen) Modifier.border(3.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(Radius.thumb)) else Modifier),

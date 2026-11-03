@@ -49,6 +49,9 @@ import erp.app.auth.LocalSession
 import erp.app.config.Prefs
 import erp.app.data.Connection
 import erp.app.data.LocalBook
+import androidx.compose.runtime.LaunchedEffect
+import erp.app.data.rememberOffMain
+import kotlinx.coroutines.delay
 import erp.app.data.rememberShelfStatus
 import erp.app.data.rememberSingle
 import erp.app.nav.LocalNavigator
@@ -106,8 +109,12 @@ fun StockList() {
     var category by rememberSaveable { mutableStateOf<String?>(null) }
 
     val all = products.items
-    val q = search.trim()
-    val shown = remember(all, settings, category, q) {
+    // The list is worked out from the text 200 ms after the last keystroke (the box itself stays instant); clearing applies at once.
+    var appliedSearch by remember { mutableStateOf(search) }
+    LaunchedEffect(search) { if (search.isNotEmpty()) delay(200); appliedSearch = search }
+    val q = appliedSearch.trim()
+    // Filtering and pricing the whole stock runs off the main thread; the last list stays up while the next is worked out.
+    val shownNow by rememberOffMain(all, settings, category, q) {
         val rates = StockKit.rates(settings)
         all.asSequence()
             .filter { category == null || it.categoryId == category }
@@ -115,6 +122,7 @@ fun StockList() {
             .map { StockRowModel(it, rates?.let { r -> StockKit.costs(it, r).totalPrice }) }
             .toList()
     }
+    val shown = shownNow ?: emptyList()
     val filtering = category != null || q.isNotEmpty()
 
     // Several pieces' tags as one job: "Select" lets the rows be ticked, and Print tags opens the print job (TagPrintJobSheet).
@@ -153,16 +161,22 @@ fun StockList() {
         }
     }
 
-    fun actions(p: Product): List<RowAction> = buildList {
-        // Selling is the owners' (createInvoice): staff are not offered a sale they cannot save. Ticking pieces offers no swipe.
-        if (owner && !selecting) {
-            add(RowAction("Sell", Symbols.ShoppingCart, Tone.settled) { sell(p) })
-            add(RowAction("Edit", Symbols.Edit, Tone.house) { navigator.open(StockKit.editPath(p.sku)) })
-            add(RowAction("Delete", Symbols.Delete, Tone.problem) { navigator.open(StockKit.piecePath(p.sku, web = true)) })
-        }
-    }
+    // Selling is the owners' (createInvoice): staff are not offered a sale they cannot save. Ticking pieces offers no swipe.
+    val canAct = owner && !selecting
+    val rowActions = StockRowActions(
+        sell = { p -> if (canAct) RowAction("Sell", Symbols.ShoppingCart, Tone.settled) { sell(p) } else null },
+        edit = { p -> if (canAct) RowAction("Edit", Symbols.Edit, Tone.house) { navigator.open(StockKit.editPath(p.sku)) } else null },
+        menu = { p ->
+            if (!canAct) emptyList() else listOf(
+                RowAction("Sell", Symbols.ShoppingCart, Tone.settled) { sell(p) },
+                RowAction("Edit", Symbols.Edit, Tone.house) { navigator.open(StockKit.editPath(p.sku)) },
+                RowAction("Delete", Symbols.Delete, Tone.problem) { navigator.open(StockKit.piecePath(p.sku, web = true)) },
+            )
+        },
+        any = canAct,
+    )
 
-    ShelfState(shape = erp.app.ui.SkeletonShape.ThumbGrid, loaded = products.loaded, error = products.error, offline = products.offline, connectionLost = connectionLost) {
+    ShelfState(shape = erp.app.ui.SkeletonShape.ThumbGrid, loaded = products.loaded && shownNow != null, error = products.error, offline = products.offline, connectionLost = connectionLost) {
         Column(Modifier.fillMaxSize()) {
             SearchBarField(
                 value = search,
@@ -180,8 +194,8 @@ fun StockList() {
             CategoryChips(all, category) { category = it }
             val open: (String) -> Unit = { if (selecting) toggle(it) else navigator.open(StockKit.piecePath(it)) }
             when (layout) {
-                StockLayout.list -> ListView(all, shown, owner, filtering, ::actions, selecting, selected.toSet(), onOpen = open)
-                StockLayout.grid -> GridView(all, shown, owner, filtering, ::actions, selecting, selected.toSet(), onOpen = open)
+                StockLayout.list -> ListView(all, shown, owner, filtering, rowActions, selecting, selected.toSet(), onOpen = open)
+                StockLayout.grid -> GridView(all, shown, owner, filtering, rowActions, selecting, selected.toSet(), onOpen = open)
             }
         }
     }
@@ -242,23 +256,31 @@ private fun EmptyState(filtering: Boolean) {
 
 // MARK: List
 
+/** What a piece can do from its row: the two swipes, and the long-press menu (built only when it opens). */
+private class StockRowActions(
+    val sell: (Product) -> RowAction?,
+    val edit: (Product) -> RowAction?,
+    val menu: (Product) -> List<RowAction>,
+    val any: Boolean,
+)
+
 @Composable
 private fun ListView(
     all: List<Product>,
     shown: List<StockRowModel>,
     owner: Boolean,
     filtering: Boolean,
-    actions: (Product) -> List<RowAction>,
+    actions: StockRowActions,
     selecting: Boolean,
     selected: Set<String>,
     onOpen: (String) -> Unit,
 ) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp)) {
-        animatedItem(key = "header") { Box(Modifier.padding(bottom = 16.dp)) { Header(all, shown, owner, filtering) } }
+        animatedItem(key = "header", contentType = "header") { Box(Modifier.padding(bottom = 16.dp)) { Header(all, shown, owner, filtering) } }
         if (shown.isEmpty()) {
-            animatedItem(key = "empty") { EmptyState(filtering) }
+            animatedItem(key = "empty", contentType = "empty") { EmptyState(filtering) }
         } else {
-            items(shown.size, key = { shown[it].id }) { i ->
+            items(shown.size, key = { shown[it].id }, contentType = { "row" }) { i ->
                 val row = shown[i]
                 val p = row.product
                 val first = i == 0
@@ -267,12 +289,11 @@ private fun ListView(
                     topStart = if (first) Radius.card else Radius.joint, topEnd = if (first) Radius.card else Radius.joint,
                     bottomStart = if (last) Radius.card else Radius.joint, bottomEnd = if (last) Radius.card else Radius.joint,
                 )
-                val menu = actions(p)
                 Column(Modifier.animateItem().appearOnce(i).padding(bottom = if (last) 0.dp else 2.dp).clip(shape)) {
                     SwipeActions(
-                        start = menu.firstOrNull { it.label == "Sell" },
-                        end = menu.firstOrNull { it.label == "Edit" },
-                        menu = menu,
+                        start = actions.sell(p),
+                        end = actions.edit(p),
+                        menu = { actions.menu(p) }, hasMenu = actions.any,
                         onClick = { onOpen(p.sku) },
                     ) {
                         Box(Modifier.fillMaxWidth().background(ErpColors.card)) { StockRow(row, selecting, selected.contains(row.id)) }
@@ -325,7 +346,7 @@ private fun GridView(
     shown: List<StockRowModel>,
     owner: Boolean,
     filtering: Boolean,
-    actions: (Product) -> List<RowAction>,
+    actions: StockRowActions,
     selecting: Boolean,
     selected: Set<String>,
     onOpen: (String) -> Unit,
@@ -337,12 +358,12 @@ private fun GridView(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        animatedItem(key = "header", span = { GridItemSpan(maxLineSpan) }) { Header(all, shown, owner, filtering) }
+        animatedItem(key = "header", span = { GridItemSpan(maxLineSpan) }, contentType = "header") { Header(all, shown, owner, filtering) }
         if (shown.isEmpty()) {
-            animatedItem(key = "empty", span = { GridItemSpan(maxLineSpan) }) { EmptyState(filtering) }
+            animatedItem(key = "empty", span = { GridItemSpan(maxLineSpan) }, contentType = "empty") { EmptyState(filtering) }
         } else {
-            items(shown, key = { it.id }) { row ->
-                SwipeActions(menu = actions(row.product), onClick = { onOpen(row.product.sku) }, modifier = Modifier.animateItem().clip(Radius.cardShape)) {
+            items(shown, key = { it.id }, contentType = { "card" }) { row ->
+                SwipeActions(menu = { actions.menu(row.product) }, hasMenu = actions.any, onClick = { onOpen(row.product.sku) }, modifier = Modifier.animateItem().clip(Radius.cardShape)) {
                     StockCard(row, selecting, selected.contains(row.id))
                 }
             }

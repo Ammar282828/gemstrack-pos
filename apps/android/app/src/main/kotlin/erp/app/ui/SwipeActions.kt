@@ -43,7 +43,6 @@ class RowAction(val label: String, val icon: ImageVector, val tone: Tone, val ru
  * of them as actions. The content draws its own background so the swipe's colour shows only as it moves; give
  * [modifier] the content's shape (`clip`) so the colour does not square off a rounded card.
  */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun SwipeActions(
     modifier: Modifier = Modifier,
@@ -51,6 +50,26 @@ fun SwipeActions(
     end: RowAction? = null,
     menu: List<RowAction> = emptyList(),
     /** More moves for TalkBack's actions menu only (a swipe has room for one a side; the iPhone's has two). */
+    more: List<RowAction> = emptyList(),
+    onClick: (() -> Unit)? = null,
+    content: @Composable () -> Unit,
+) = SwipeActions(
+    menu = { menu }, hasMenu = menu.isNotEmpty(), modifier = modifier, start = start, end = end, more = more, onClick = onClick, content = content,
+)
+
+/**
+ * [SwipeActions] whose long-press menu is built only when it is wanted: when the menu opens and when TalkBack asks for the
+ * actions, never while the row is composed or swiped. A list of rows passes `menu = { actions(item) }`. [hasMenu] says whether
+ * there is a menu at all (a long press does nothing without one).
+ */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@Composable
+fun SwipeActions(
+    menu: () -> List<RowAction>,
+    modifier: Modifier = Modifier,
+    start: RowAction? = null,
+    end: RowAction? = null,
+    hasMenu: Boolean = true,
     more: List<RowAction> = emptyList(),
     onClick: (() -> Unit)? = null,
     content: @Composable () -> Unit,
@@ -67,7 +86,8 @@ fun SwipeActions(
         }
         false
     })
-    val all = (listOfNotNull(start, end) + more + menu).distinctBy { it.label }
+    val swipes = remember(start, end, more) { listOfNotNull(start, end) + more }
+    val latestMenu by rememberUpdatedState(menu)
     SwipeToDismissBox(
         state = state,
         modifier = modifier,
@@ -97,17 +117,17 @@ fun SwipeActions(
             Modifier
                 // A card that handles its own taps (a head that opens, a button) is not made one big button.
                 .then(
-                    if (onClick == null && menu.isEmpty()) Modifier
+                    if (onClick == null && !hasMenu) Modifier
                     else Modifier.combinedClickable(
                         onClick = { onClick?.invoke() },
-                        onLongClick = if (menu.isEmpty()) null else ({ haptics.selection(); menuOpen = true }),
+                        onLongClick = if (!hasMenu) null else ({ haptics.selection(); menuOpen = true }),
                     ),
                 )
-                .semantics { customActions = all.map { a -> CustomAccessibilityAction(a.label) { a.run(); true } } },
+                .semantics { customActions = (swipes + latestMenu()).distinctBy { it.label }.map { a -> CustomAccessibilityAction(a.label) { a.run(); true } } },
         ) {
             content()
             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                for (a in menu) {
+                if (menuOpen) for (a in latestMenu()) {
                     DropdownMenuItem(
                         text = { Text(a.label, color = if (a.tone == Tone.problem) Tone.problem.color() else Color.Unspecified) },
                         leadingIcon = { Icon(a.icon, contentDescription = null) },

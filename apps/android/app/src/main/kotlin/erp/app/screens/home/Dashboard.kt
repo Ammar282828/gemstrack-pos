@@ -1,5 +1,6 @@
 package erp.app.screens.home
 
+import androidx.lifecycle.repeatOnLifecycle
 import erp.app.nav.LocalFabClearance
 import erp.app.ui.icons.Symbols
 import erp.app.ui.AppClock
@@ -127,10 +128,13 @@ fun Dashboard() {
     LaunchedEffect(selling) { if (selling) OnlineInbox.refresh() }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { now = AppClock.now() }
     // Each minute, so the day turns over at Karachi's midnight.
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(60_000)
-            now = AppClock.now()
+    val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(lifecycle) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                delay(60_000)
+                now = AppClock.now()
+            }
         }
     }
 

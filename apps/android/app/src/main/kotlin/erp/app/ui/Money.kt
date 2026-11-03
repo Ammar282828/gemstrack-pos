@@ -18,6 +18,11 @@ import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -90,8 +95,6 @@ fun NumericText(
 ) {
     val motion = rememberErpMotion()
     val reduce = motion.reduce
-    val rollUp = motion.roll(up = true)
-    val rollDown = motion.roll(up = false)
     val resolved = style.copy(fontFeatureSettings = TabularDigits, textAlign = textAlign ?: style.textAlign)
     val tint = if (color == Color.Unspecified) MaterialTheme.colorScheme.onSurface else color
     val draw: @Composable (String) -> Unit = { shown ->
@@ -107,11 +110,19 @@ fun NumericText(
             Text(shown, style = resolved, color = tint, maxLines = maxLines, overflow = TextOverflow.Ellipsis)
         }
     }
-    if (reduce) {
+    // A figure at rest is plain text (a list of rows holds one per row, so no AnimatedContent each); the first time its value
+    // changes it is mounted at the value it had and rolls to the new one, and stays an AnimatedContent from then on.
+    val initial = remember { text to value }
+    var live by remember { mutableStateOf(false) }
+    if (reduce || (!live && text == initial.first)) {
         Box(modifier) { draw(text) }
     } else {
+        val rollUp = motion.roll(up = true)
+        val rollDown = motion.roll(up = false)
+        var target by remember { mutableStateOf(initial) }
+        LaunchedEffect(text) { target = text to value; live = true }
         AnimatedContent(
-            targetState = text to value,
+            targetState = target,
             modifier = modifier,
             contentKey = { it.first },
             // A figure that grew rolls up, one that fell rolls down, on the theme's springs.

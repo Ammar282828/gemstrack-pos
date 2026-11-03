@@ -1,5 +1,7 @@
 package erp.app.screens.marketing
 
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import erp.app.ui.SkeletonShape
 import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
@@ -192,11 +194,14 @@ fun WebsiteInvestmentsScreen() {
     LaunchedEffect(Unit) { WebsiteGold.load() }
     // While the schedule is on, what it sends shows up here without a pull.
     val scheduleOn = gold.schedule?.enabled ?: false
+    val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(scheduleOn) {
         if (!scheduleOn) return@LaunchedEffect
-        while (true) {
-            delay(60_000)
-            WebsiteGold.load()
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                delay(60_000)
+                WebsiteGold.load()
+            }
         }
     }
     ScreenActions {

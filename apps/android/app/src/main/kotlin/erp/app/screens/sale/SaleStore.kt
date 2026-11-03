@@ -8,6 +8,9 @@ import erp.core.entry.SaleDraft
 import erp.core.entry.SaleDraftStore
 import erp.core.entry.SaleScanHeld
 import erp.core.models.Product
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
  * Where this phone keeps the sale in progress, the order made from it and the rates a written bill set
@@ -15,13 +18,60 @@ import erp.core.models.Product
  * text; keeping it is the app's business, here as in Prefs.
  */
 object SaleStore {
-    /** This phone's unfinished sale, if it has one worth keeping. */
-    fun load(business: String? = null): SaleDraft? = Prefs.string(SaleDraftStore.key, business)?.let { SaleDraftStore.decode(it) }
+    private val lock = Any()
+    private class Waiting(val draft: SaleDraft, val gen: Long, val business: String?)
+    private val waiting = HashMap<String, Waiting>()
+    private var generation = 0L
+
+    private fun slot(business: String?): String = business ?: Prefs.scope()
+
+    /** This phone's unfinished sale, if it has one worth keeping. A change still waiting to be kept is kept first. */
+    fun load(business: String? = null): SaleDraft? {
+        flush(business)
+        return Prefs.string(SaleDraftStore.key, business)?.let { SaleDraftStore.decode(it) }
+    }
 
     /** A blank sale is not kept: what is there goes. `business` is the one a screen was opened in. */
-    fun save(draft: SaleDraft, business: String? = null) = Prefs.putString(SaleDraftStore.key, SaleDraftStore.encode(draft), business)
+    fun save(draft: SaleDraft, business: String? = null) {
+        synchronized(lock) {
+            waiting.remove(slot(business))
+            Prefs.putString(SaleDraftStore.key, SaleDraftStore.encode(draft), business)
+        }
+    }
 
-    fun clear(business: String? = null) = Prefs.remove(SaleDraftStore.key, business)
+    /**
+     * Keeps the sale 300 ms after the last change, encoded off the main thread (the form saves at every key): a newer change
+     * replaces the one waiting. The draft handed over must not be changed afterwards, so the screen hands a copy.
+     */
+    fun saveSoon(draft: SaleDraft, business: String? = null) {
+        val k = slot(business)
+        val gen: Long
+        synchronized(lock) { gen = ++generation; waiting[k] = Waiting(draft, gen, business) }
+        erp.app.ErpApp.scope.launch(Dispatchers.Default) {
+            delay(300)
+            val text = SaleDraftStore.encode(draft)
+            synchronized(lock) {
+                if (waiting[k]?.gen != gen) return@synchronized
+                waiting.remove(k)
+                Prefs.putString(SaleDraftStore.key, text, business)
+            }
+        }
+    }
+
+    /** Writes the change still waiting, now (the screen or the app is going; every read does it first). */
+    fun flush(business: String? = null) {
+        synchronized(lock) {
+            val w = waiting.remove(slot(business)) ?: return
+            Prefs.putString(SaleDraftStore.key, SaleDraftStore.encode(w.draft), w.business)
+        }
+    }
+
+    fun clear(business: String? = null) {
+        synchronized(lock) {
+            waiting.remove(slot(business))
+            Prefs.remove(SaleDraftStore.key, business)
+        }
+    }
 
     /**
      * Puts a piece on the unfinished sale (a new one if there is none). False when it is already there. The caller opens

@@ -31,6 +31,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.State
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,13 +64,21 @@ import erp.app.ui.theme.ErpType
 /** What a skeleton is shaped like. */
 enum class SkeletonShape { Page, Rows, Cards, Figures, Record, ThumbGrid, Chart, Photo, Form }
 
-/** The soft pulse every placeholder bar shares: one clock, so the whole skeleton breathes together. None under Reduce Motion. */
+/** The pulse at rest (Reduce Motion, or a placeholder outside a [SkeletonLoading]): static. */
+private val StaticPulse: State<Float> = mutableFloatStateOf(0.12f)
+
+/**
+ * The soft pulse every placeholder bar shares: ONE clock for the whole skeleton, provided by [SkeletonLoading] and read in the
+ * draw phase only (a bar never recomposes to breathe). Outside one, and under Reduce Motion, it is a still shade.
+ */
+val LocalSkeletonPulse = compositionLocalOf<State<Float>> { StaticPulse }
+
+/** The one clock (none under Reduce Motion): its value is the bar's alpha, 0.08 to 0.16. */
 @Composable
-private fun skeletonColor(): Color {
-    val base = MaterialTheme.colorScheme.onSurfaceVariant
-    if (reduceMotion()) return base.copy(alpha = 0.12f)
+fun rememberSkeletonPulse(): State<Float> {
+    if (reduceMotion()) return StaticPulse
     val pulse = androidx.compose.animation.core.rememberInfiniteTransition(label = "skeleton")
-    val alpha by pulse.animateFloat(
+    return pulse.animateFloat(
         initialValue = 0.08f, targetValue = 0.16f,
         animationSpec = androidx.compose.animation.core.infiniteRepeatable(
             androidx.compose.animation.core.tween(900, easing = androidx.compose.animation.core.FastOutSlowInEasing),
@@ -72,19 +86,26 @@ private fun skeletonColor(): Color {
         ),
         label = "skeletonPulse",
     )
-    return base.copy(alpha = alpha)
+}
+
+/** Fills a placeholder with the shared pulse, read when drawing. */
+@Composable
+private fun Modifier.skeletonFill(): Modifier {
+    val base = MaterialTheme.colorScheme.onSurfaceVariant
+    val pulse = LocalSkeletonPulse.current
+    return drawBehind { drawRect(base, alpha = pulse.value) }
 }
 
 /** A bar of text. */
 @Composable
 fun SkeletonBar(width: Dp, height: Dp = 11.dp, modifier: Modifier = Modifier) {
-    Spacer(modifier.width(width).height(height).clip(RoundedCornerShape(height / 2.5f)).background(skeletonColor()))
+    Spacer(modifier.width(width).height(height).clip(RoundedCornerShape(height / 2.5f)).skeletonFill())
 }
 
 /** A bar as wide as it is given. */
 @Composable
 fun SkeletonBlock(modifier: Modifier = Modifier, shape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(Radius.tile)) {
-    Spacer(modifier.clip(shape).background(skeletonColor()))
+    Spacer(modifier.clip(shape).skeletonFill())
 }
 
 @Composable
@@ -258,7 +279,10 @@ fun SkeletonLoading(modifier: Modifier = Modifier, label: String = "Loading", co
         Busy(modifier, label = null, description = label)
         return
     }
-    Box(modifier.clearAndSetSemantics { contentDescription = label }) { SkeletonPage(shape) }
+    val pulse = rememberSkeletonPulse()
+    CompositionLocalProvider(LocalSkeletonPulse provides pulse) {
+        Box(modifier.clearAndSetSemantics { contentDescription = label }) { SkeletonPage(shape) }
+    }
 }
 
 // MARK: The circle
@@ -391,14 +415,23 @@ fun FailureAlert(message: String?, onDismiss: () -> Unit, title: String = "Not d
     )
 }
 
-/** A picture from an address: a skeleton of its box, pulsing, while it comes (Coil's loading slot), so the box never opens blank or jumps. */
+/**
+ * A picture from an address: a still shade of its box while it comes (a static placeholder painter: no subcomposition and no
+ * pulse per picture, so a grid of them costs nothing extra), so the box never opens blank or jumps. [decodePx] fixes the decode
+ * size (a square it must fit in); null lets Coil measure the box.
+ */
 @Composable
 fun SkeletonAsyncImage(
     model: Any?, contentDescription: String?, modifier: Modifier = Modifier,
     contentScale: androidx.compose.ui.layout.ContentScale = androidx.compose.ui.layout.ContentScale.Fit,
+    decodePx: Int? = null,
 ) {
-    coil3.compose.SubcomposeAsyncImage(
-        model = model, contentDescription = contentDescription, modifier = modifier, contentScale = contentScale,
-        loading = { SkeletonPhoto(Modifier.fillMaxSize()) },
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val request = remember(model, decodePx) {
+        coil3.request.ImageRequest.Builder(context).data(model).apply { if (decodePx != null) size(coil3.size.Size(decodePx, decodePx)) }.build()
+    }
+    coil3.compose.AsyncImage(
+        model = request, contentDescription = contentDescription, modifier = modifier, contentScale = contentScale,
+        placeholder = androidx.compose.ui.graphics.painter.ColorPainter(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f)),
     )
 }

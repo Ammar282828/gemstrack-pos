@@ -357,7 +357,7 @@ private fun PhotoSection(
             )
         } else {
             Box(Modifier.fillMaxWidth().padding(8.dp)) {
-                StockImage(p.image, p.words.name, p.id + (p.change?.at ?: ""), Modifier.fillMaxWidth().aspectRatio(1f).clip(Radius.chipShape).alpha(if (p.hidden) 0.5f else 1f))
+                StockImage(p.image, p.words.name, p.id + (p.change?.at ?: ""), Modifier.fillMaxWidth().aspectRatio(1f).clip(Radius.chipShape).alpha(if (p.hidden) 0.5f else 1f), decodePx = 1200)
             }
             Text(
                 if (p.photoEdited) "The website shows a photo made here. The original is kept." else "The website's photo, unchanged.",

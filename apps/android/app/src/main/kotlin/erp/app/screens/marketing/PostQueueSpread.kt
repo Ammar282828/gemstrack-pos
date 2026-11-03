@@ -18,7 +18,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
@@ -91,7 +91,7 @@ object PostQueueSpreadLogic {
  */
 @Composable
 fun PostQueueSpreadSheet(onDone: (Note) -> Unit, onClose: () -> Unit) {
-    val state by PostsStore.state.collectAsState()
+    val state by PostsStore.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val now = AppClock.now()
     var first by remember { mutableStateOf(PostQueueSpreadLogic.localTime(PostQueueSpreadLogic.soon(10, now))) }

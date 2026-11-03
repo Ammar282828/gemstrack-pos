@@ -24,6 +24,7 @@ object OnlineInbox {
     /** Ask now, then every two minutes, until the coroutine is cancelled. */
     suspend fun keep() {
         while (true) {
+            Foreground.await()
             refresh()
             delay(120_000)
         }

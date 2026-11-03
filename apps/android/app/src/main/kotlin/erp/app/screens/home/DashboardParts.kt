@@ -32,6 +32,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.CornerRadius
@@ -354,7 +355,7 @@ fun DashReveal(expanded: Boolean, count: Int, onToggle: () -> Unit) {
 fun DashDisclosure(title: String, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     var open by rememberSaveable(title) { mutableStateOf(false) }
     val motion = rememberErpMotion()
-    val turn by animateFloatAsState(if (open) 0f else -90f, motion.spatial(), label = "disclosure")
+    val turn = animateFloatAsState(if (open) 0f else -90f, motion.spatial(), label = "disclosure")
     Column(modifier.ledgerCard().animateContentSize(motion.spatial())) {
         Row(
             Modifier
@@ -365,7 +366,7 @@ fun DashDisclosure(title: String, modifier: Modifier = Modifier, content: @Compo
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold))
-            Icon(Symbols.ExpandMore, contentDescription = null, Modifier.rotate(turn), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(Symbols.ExpandMore, contentDescription = null, Modifier.graphicsLayer { rotationZ = turn.value }, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         if (open) Column(Modifier.padding(top = 12.dp)) { content() }
     }

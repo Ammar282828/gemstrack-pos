@@ -149,6 +149,7 @@ fun SaleForm(edit: SaleEdit? = null, startsReading: Boolean = false, ratesFirst:
         s.appeared()
     }
     DisposableEffect(Unit) { onDispose { s.disappeared() } }
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_STOP) { erp.app.screens.sale.SaleStore.flush() }
     // The sale made: a tick felt as it lands.
     MoneyFeedback(success = s.made, failure = null)
 
@@ -201,8 +202,10 @@ private fun Page(s: SaleFormState) {
     val orders by book.orders.items.collectAsStateWithLifecycle()
     val customers by rememberShelf(book.customers)
     val settings by rememberSingle(book.settings)
-    val data = SaleData(products, productsLoaded, invoices, orders, customers, settings)
-    val f = SaleFigures(s.draft, settings, customers, EntryHouse.margin)
+    val data = remember(products, productsLoaded, invoices, orders, customers, settings) { SaleData(products, productsLoaded, invoices, orders, customers, settings) }
+    // The figures are worked out again only when the draft (a new copy at every change) or what they read changes.
+    val draft = s.draft
+    val f = remember(draft, settings, customers) { SaleFigures(draft, settings, customers, EntryHouse.margin) }
     val edit = s.edit
 
     ScreenTitle(edit?.let { "Edit ${it.invoiceId}" } ?: "New sale")

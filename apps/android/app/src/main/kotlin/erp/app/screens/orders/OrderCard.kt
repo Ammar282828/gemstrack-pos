@@ -37,7 +37,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import erp.app.screens.neworder.slipTarget
 import erp.app.ui.MineTag
 import erp.app.ui.QuickPrintButton
 import erp.app.ui.Monogram
@@ -82,6 +81,10 @@ class OrderCardActions(
     val open: (String) -> Unit,
     /** Call or WhatsApp the customer on the order's number. */
     val contact: (Order, OrderContactKind) -> Unit,
+    /** One tap to the printer: the order's slip to the share sheet (the screen owns the one [erp.app.ui.QuickPdf]). */
+    val print: (Order) -> Unit = {},
+    /** Whether that order's slip is being drawn now (read inside the print button, so a row recomposes alone). */
+    val printing: (Order) -> Boolean = { false },
 )
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -148,8 +151,7 @@ fun OrderCard(
                 if (step != null) OrderNextStepRow(order, step, busy, actions)
             }
             // One tap to the printer: the order's slip, straight to the share sheet (OrderCard.swift's QuickPrintButton).
-            val slip = slipTarget(order.id)
-            QuickPrintButton("Print slip ${order.id}", slip.path, slip.fileName, slip.title)
+            QuickPrintButton("Print slip ${order.id}", busy = { actions.printing(order) }, onPrint = { actions.print(order) })
             Box {
                 IconButton(onClick = { menu = true }, modifier = Modifier.semantics { contentDescription = "Actions for ${order.id}" }) {
                     Icon(Symbols.MoreVert, null)

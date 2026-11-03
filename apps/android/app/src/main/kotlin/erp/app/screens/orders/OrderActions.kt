@@ -130,7 +130,7 @@ object OrderActions {
                     message.append("  - Est. Weight: ${jsNumber(item.estimatedWeightG)}g ${if (karat.isEmpty()) "" else "($karat)"}\n")
                 }
             }
-            message.append("\n*Total Balance Due:* PKR ${amount(o.grandTotal)}\n\n")
+            message.append("\n${moneyLines(o)}\n\n")
             message.append("We are working on your order and will notify you of any updates.\n\n")
         } else {
             message.append("This is an update regarding your order *#${o.id}* from $shopName.\n\n")
@@ -138,11 +138,27 @@ object OrderActions {
                 message.append("We are happy to inform you that your order is now *In Progress*. We will notify you again once it is ready for collection.\n\n")
             } else {
                 message.append("Your custom order is now *Completed* and ready for collection.\n\n")
-                message.append("*Amount Due:* PKR ${amount(o.grandTotal)}\n\n")
+                message.append("${moneyLines(o)}\n\n")
             }
         }
         message.append("Thank you for your business.")
         return message.toString()
+    }
+
+    /**
+     * The full amount first, the advance on its own line, then what is left (owner, 2026-11-03: never the balance as the
+     * headline; lib/order-message.ts `moneyLines`). Without an advance there is only the total.
+     */
+    fun moneyLines(o: Order): String {
+        val advance = o.advancePayment + (o.advanceInExchangeValue ?: 0.0)
+        val full = OrdersLogic.fullAmount(o)
+        val total = if (full >= 1) full else o.grandTotal + advance
+        val lines = mutableListOf("*Total:* PKR ${amount(total)}")
+        if (advance > 0) {
+            lines += "*Advance paid:* PKR ${amount(advance)}"
+            lines += "*Balance due:* PKR ${amount(o.grandTotal)}"
+        }
+        return lines.joinToString("\n")
     }
 
     /** A number as JavaScript writes it into text: 3 not 3.0, 4.25 as it is. */

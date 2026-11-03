@@ -87,7 +87,7 @@ class OrderActionsTests {
             "*Item 1:* Ring\n  - Est. Weight: 5g (21k)\n" +
             "*Item 2:* Chain\n  - Est. Weight: 4.25g \n" +
             "*Item 3:* Set\n" +
-            "\n*Total Balance Due:* PKR 45,500\n\n" +
+            "\n*Total:* PKR 45,500\n\n" +
             "We are working on your order and will notify you of any updates.\n\n" +
             "Thank you for your business."
         assertEquals(expected, OrderActions.customerMessage(order(), OrderActions.MessageKind.summary, "TAHERI"))
@@ -103,7 +103,17 @@ class OrderActionsTests {
             inProgress,
         )
         val completed = OrderActions.customerMessage(o, OrderActions.MessageKind.completed, "TAHERI")
-        assertTrue(completed.contains("Your custom order is now *Completed* and ready for collection.\n\n*Amount Due:* PKR 45,500\n\n"))
+        assertTrue(completed.contains("Your custom order is now *Completed* and ready for collection.\n\n*Total:* PKR 45,500\n\n"))
+    }
+
+    @Test fun theMessageLeadsWithTheFullAmountThenTheAdvanceThenTheBalance() {
+        val o = order("subtotal" to 50_000.0, "discountAmount" to 2_000.0, "advancePayment" to 2_500.0, "advanceInExchangeValue" to 500.0, "grandTotal" to 45_000.0)
+        assertEquals("*Total:* PKR 48,000\n*Advance paid:* PKR 3,000\n*Balance due:* PKR 45,000", OrderActions.moneyLines(o))
+        val summary = OrderActions.customerMessage(o, OrderActions.MessageKind.summary, "TAHERI")
+        assertTrue(summary.contains("\n*Total:* PKR 48,000\n*Advance paid:* PKR 3,000\n*Balance due:* PKR 45,000\n\n"))
+        assertFalse(summary.contains("Balance Due:*"))
+        // No advance: the total alone, from the balance when nothing else is on the order.
+        assertEquals("*Total:* PKR 45,500", OrderActions.moneyLines(order()))
     }
 
     @Test fun numbersAreWrittenAsJavaScriptWritesThem() {

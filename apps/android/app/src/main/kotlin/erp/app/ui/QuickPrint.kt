@@ -120,13 +120,12 @@ fun QuickPdfBusy(quick: QuickPdf) {
 
 /**
  * The printer on every invoice and order card (owner, 2026-11-03: "quick print buttons on every order and an invoice card"; QuickPrintButton
- * in PDFQuickShare.swift): one tap fetches the PDF at [path] and opens the share sheet with it, named [fileName]. A second tap while it is
- * being drawn is dropped; a failure is said as the usual note.
+ * in PDFQuickShare.swift): one tap runs [onPrint], which the screen answers with its one [QuickPdf] (built in the tap, so a list of cards
+ * makes none while it composes). [busy] is read here, so only this button recomposes when its PDF is being drawn.
  */
 @Composable
-fun QuickPrintButton(label: String, path: String, fileName: String, title: String, modifier: Modifier = Modifier) {
-    val quick = rememberQuickPdf()
-    IconButton(onClick = { quick.share(path, fileName, title) }, modifier = modifier) {
-        BusyLabel(quick.preparing) { Icon(Symbols.Print, contentDescription = label, tint = MaterialTheme.colorScheme.primary) }
+fun QuickPrintButton(label: String, busy: () -> Boolean, onPrint: () -> Unit, modifier: Modifier = Modifier) {
+    IconButton(onClick = onPrint, modifier = modifier) {
+        BusyLabel(busy()) { Icon(Symbols.Print, contentDescription = label, tint = MaterialTheme.colorScheme.primary) }
     }
 }

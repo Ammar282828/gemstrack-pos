@@ -155,7 +155,7 @@ fun OrdersMarginRow(order: Order, modifier: Modifier = Modifier) {
             .fillMaxWidth()
             .heightIn(min = 48.dp)
             .clickable(onClickLabel = if (shown) "Hide our margin" else "Show our margin") { shown = !shown }
-            .semantics { contentDescription = if (shown) "We earn: ${OrdersLogic.marginWords(m!!, settings)}. Hide our margin" else "Show our margin" },
+            .semantics { contentDescription = if (shown && m != null) "We earn: ${OrdersLogic.marginWords(m, settings)}. Hide our margin" else "Show our margin" },
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

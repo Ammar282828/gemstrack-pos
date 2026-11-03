@@ -14,7 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
@@ -40,9 +40,10 @@ fun Modifier.morphCard(
     val source = remember { MutableInteractionSource() }
     val down by source.collectIsPressedAsState()
     val reduce = reduceMotion()
-    val corner by animateDpAsState(if (down && !reduce) pressed else rest, MaterialTheme.motionScheme.fastSpatialSpec(), label = "cardMorph")
+    val corner = animateDpAsState(if (down && !reduce) pressed else rest, MaterialTheme.motionScheme.fastSpatialSpec(), label = "cardMorph")
+    // The corner is read when the layer draws, so the spring moves it without recomposing the card.
     return this
-        .clip(RoundedCornerShape(corner))
+        .graphicsLayer { shape = RoundedCornerShape(corner.value); clip = true }
         .background(color)
         .combinedClickable(
             interactionSource = source,

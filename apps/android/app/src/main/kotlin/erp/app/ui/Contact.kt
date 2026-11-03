@@ -53,7 +53,7 @@ fun ContactActions(phone: String?, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         QuickAction("Call", Symbols.Call, { open(context, Intent.ACTION_DIAL, "tel:$number") }, Modifier.weight(1f))
-        QuickAction("WhatsApp", Symbols.Chat, { open(context, Intent.ACTION_VIEW, CustomerContactLinks.whatsApp(number)!!) }, Modifier.weight(1f))
+        QuickAction("WhatsApp", Symbols.Chat, { CustomerContactLinks.whatsApp(number)?.let { open(context, Intent.ACTION_VIEW, it) } }, Modifier.weight(1f))
         QuickAction("Message", Symbols.Sms, { open(context, Intent.ACTION_SENDTO, "smsto:$number") }, Modifier.weight(1f))
     }
 }

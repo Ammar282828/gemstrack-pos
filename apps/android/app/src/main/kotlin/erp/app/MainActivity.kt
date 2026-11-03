@@ -68,6 +68,8 @@ class MainActivity : FragmentActivity() {
             val book = erp.app.data.Book.shared
             combine(book.orders.loaded, book.invoices.loaded) { a, b -> a && b }.first { it }
             LaunchClock.finish("home")
+            // The system times the start to here: the first real Home frame, with its books in.
+            reportFullyDrawn()
         }
         lifecycleScope.launch {
             var before = session.state.value

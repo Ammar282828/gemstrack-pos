@@ -25,6 +25,20 @@ object ERPDate {
     fun parse(s: String?): Instant? {
         val t = s?.let { swiftTrim(it) } ?: return null
         if (t.isEmpty()) return null
+        // Every date in the books is this fixed shape: read it by position, no regex; anything else goes the long way.
+        val fast = fastIso(t)
+        if (fast !== NOT_FAST) return fast
+        return parseSlow(t)
+    }
+
+    /** The regex reading `parse` began with, kept as the reference the hand parser is tested against (and as its fallback). */
+    internal fun parseRegex(s: String?): Instant? {
+        val t = s?.let { swiftTrim(it) } ?: return null
+        if (t.isEmpty()) return null
+        return parseSlow(t)
+    }
+
+    private fun parseSlow(t: String): Instant? {
         val m = isoText.matchEntire(t)
         if (m != null) {
             val g = m.groupValues
@@ -45,6 +59,55 @@ object ERPDate {
             }
         }
         return null
+    }
+
+    /** Marks "not the fixed shape": the caller reads it with the regex. Never a real answer (it is no valid date). */
+    private val NOT_FAST: Instant = Instant.MIN
+
+    private fun digit(t: String, i: Int): Int {
+        val c = t[i]
+        return if (c in '0'..'9') c - '0' else -1
+    }
+
+    /** `yyyy-MM-ddTHH:mm:ss` then optional `.fraction` then `Z` or `±hh:mm`, by position; null when the fields are not a real date, [NOT_FAST] when the text is not this shape. */
+    private fun fastIso(t: String): Instant? {
+        val n = t.length
+        if (n < 20 || t[4] != '-' || t[7] != '-' || t[10] != 'T' || t[13] != ':' || t[16] != ':') return NOT_FAST
+        val d = intArrayOf(0, 1, 2, 3, 5, 6, 8, 9, 11, 12, 14, 15, 17, 18)
+        for (i in d) if (digit(t, i) < 0) return NOT_FAST
+        var i = 19
+        var nanos = 0
+        if (t[i] == '.') {
+            i++
+            val start = i
+            var scaled = 0
+            var kept = 0
+            while (i < n && t[i] in '0'..'9') {
+                if (kept < 9) { scaled = scaled * 10 + (t[i] - '0'); kept++ }
+                i++
+            }
+            if (i == start) return NOT_FAST
+            while (kept < 9) { scaled *= 10; kept++ }
+            nanos = scaled
+        }
+        if (i >= n) return NOT_FAST
+        val offset: ZoneOffset
+        if (t[i] == 'Z') {
+            if (i != n - 1) return NOT_FAST
+            offset = ZoneOffset.UTC
+        } else if (t[i] == '+' || t[i] == '-') {
+            if (n - i != 6 || t[i + 3] != ':' || digit(t, i + 1) < 0 || digit(t, i + 2) < 0 || digit(t, i + 4) < 0 || digit(t, i + 5) < 0) return NOT_FAST
+            offset = try { ZoneOffset.of(t.substring(i)) } catch (e: DateTimeException) { return null }
+        } else {
+            return NOT_FAST
+        }
+        fun two(at: Int) = (t[at] - '0') * 10 + (t[at + 1] - '0')
+        return try {
+            val year = (t[0] - '0') * 1000 + (t[1] - '0') * 100 + (t[2] - '0') * 10 + (t[3] - '0')
+            LocalDateTime.of(year, two(5), two(8), two(11), two(14), two(17)).withNano(nanos).toInstant(offset)
+        } catch (e: DateTimeException) {
+            null
+        }
     }
 
     /** "2026-10-08T06:00:00.000Z": how the ERP writes its own dates. */

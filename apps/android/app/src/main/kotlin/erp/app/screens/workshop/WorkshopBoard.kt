@@ -53,6 +53,7 @@ import erp.app.auth.LocalSession
 import erp.app.data.Connection
 import erp.app.data.ErpApi
 import erp.app.data.LocalBook
+import erp.app.data.rememberOffMain
 import erp.app.data.rememberShelfStatus
 import erp.app.nav.LocalNavigator
 import erp.app.nav.ScreenActions
@@ -147,17 +148,23 @@ fun WorkshopBoard(path: String) {
     val firstError = orders.error ?: invoices.error ?: karigars.error ?: stockJobs.error
 
     val live = remember(karigars.revision) { workshopLive(karigars.items) }
-    val jobs = remember(orders.revision, invoices.revision, karigars.revision, stockJobs.revision) {
-        WorkshopLogic.buildJobs(orders.items, stockJobs.items, live, invoices.items)
+    // The board's passes over every order, invoice and job run off the main thread; the last board stays up while the next is worked out.
+    val jobsNow by rememberOffMain(orders.revision, invoices.revision, karigars.revision, stockJobs.revision, patches.entries) {
+        val built = WorkshopLogic.buildJobs(orders.items, stockJobs.items, live, invoices.items)
+        built to (if (patches.isEmpty) built else built.map { WorkshopPatches.patched(it, patches[it.id]) })
     }
-    val shownJobs = remember(jobs, patches.entries) { if (patches.isEmpty) jobs else jobs.map { WorkshopPatches.patched(it, patches[it.id]) } }
+    val jobs = jobsNow?.first
     // Drop what the shelf now says too.
-    LaunchedEffect(jobs) { patches.reconcile { id, p -> jobs.firstOrNull { it.id == id }?.let { WorkshopPatches.agrees(it, p) } ?: true } }
-    val all = remember(shownJobs, orderId) { if (orderId == null) shownJobs else shownJobs.filter { it.orderId == orderId } }
-    val snap = remember(all, filter) { WorkshopSnapshot(all, filter) }
-    val focused = snap.focused(focus)
-    val busyIds = remember(snap) { snap.all.filter { !it.isDone }.map { it.karigarId }.toSet() }
-    val choices = remember(live, busyIds) { WorkshopChoices(live, busyIds) }
+    LaunchedEffect(jobs) { if (jobs != null) patches.reconcile { id, p -> jobs.firstOrNull { it.id == id }?.let { WorkshopPatches.agrees(it, p) } ?: true } }
+    val boardNow by rememberOffMain(jobsNow, orderId, filter, live) {
+        jobsNow?.let { (_, shownJobs) ->
+            val all = if (orderId == null) shownJobs else shownJobs.filter { it.orderId == orderId }
+            val snap = WorkshopSnapshot(all, filter)
+            val busyIds = snap.all.filter { !it.isDone }.map { it.karigarId }.toSet()
+            Board(snap, WorkshopChoices(live, busyIds))
+        }
+    }
+    val board = boardNow
 
     /** One write for one piece: the board shows it at once and the Outbox carries it (the shelf brings the real copy). */
     fun write(
@@ -242,14 +249,18 @@ fun WorkshopBoard(path: String) {
         }
     }
 
-    ShelfState(shape = erp.app.ui.SkeletonShape.Cards, loaded = loaded, error = firstError, offline = orders.offline, connectionLost = connectionLost) {
+    ShelfState(shape = erp.app.ui.SkeletonShape.Cards, loaded = loaded && board != null, error = firstError, offline = orders.offline, connectionLost = connectionLost) {
+        if (board == null) return@ShelfState
+        val snap = board.snap
+        val choices = board.choices
+        val focused = snap.focused(focus)
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val large = isLargeText()
             val columns = workshopColumns((maxWidth - 32.dp).value, large, 420f)
             val ctx = BoardContext(columns, owner, emptySet(), choices, actions)
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 96.dp)) {
                 if (orderId == null) {
-                    animatedItem(key = "search") {
+                    animatedItem(key = "search", contentType = "search") {
                         SearchBarField(
                             value = filter.query,
                             onValueChange = { filter = filter.copy(query = it) },
@@ -264,13 +275,13 @@ fun WorkshopBoard(path: String) {
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                         )
                     }
-                    animatedItem(key = "figures") {
+                    animatedItem(key = "figures", contentType = "figures") {
                         FigureRow(Modifier.padding(bottom = 12.dp)) {
                             FigureTile("All active pieces", "${snap.stats.active}", Modifier.share())
                             FigureTile("Benches working", "${snap.stats.workers}", Modifier.share())
                         }
                     }
-                    animatedItem(key = "controls") {
+                    animatedItem(key = "controls", contentType = "controls") {
                         ControlBar(
                             snap, focus, { focus = it }, grouping, { grouping = it }, filter,
                             karigarName = karigars.items.firstOrNull { it.id == filter.karigarId }?.name ?: "one karigar",
@@ -279,7 +290,7 @@ fun WorkshopBoard(path: String) {
                         )
                     }
                 } else {
-                    animatedItem(key = "order") {
+                    animatedItem(key = "order", contentType = "order") {
                         Column(Modifier.padding(bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(orderId, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold))
                             Text(
@@ -298,12 +309,12 @@ fun WorkshopBoard(path: String) {
                         }
                     WorkshopGrouping.stage -> stageSections(ctx, focused)
                     WorkshopGrouping.list -> if (focused.isNotEmpty()) {
-                        animatedItem(key = "pieces") { Box(Modifier.padding(bottom = 8.dp)) { LedgerHeading("Pieces", count = focused.size) } }
+                        animatedItem(key = "pieces", contentType = "pieces") { Box(Modifier.padding(bottom = 8.dp)) { LedgerHeading("Pieces", count = focused.size) } }
                         jobCards(ctx, focused, showKarigar = true, "list")
                     }
                 }
                 if (focused.isEmpty()) {
-                    animatedItem(key = "empty") { EmptyState(focus, snap.all.isNotEmpty()) }
+                    animatedItem(key = "empty", contentType = "empty") { EmptyState(focus, snap.all.isNotEmpty()) }
                 }
             }
         }
@@ -318,6 +329,9 @@ fun WorkshopBoard(path: String) {
         WorkshopDeleteCodeSheet(d, onDismiss = { deletion = null }, onDone = { note.show(Note("Job deleted")) })
     }
 }
+
+/** The worked-out board: the snapshot of the jobs under the filter, and the karigars to choose from. */
+private class Board(val snap: WorkshopSnapshot, val choices: WorkshopChoices)
 
 /** What the board's sections share. */
 private class BoardContext(
@@ -349,16 +363,16 @@ private fun LazyListScope.karigarSections(
     setFree: (Boolean) -> Unit,
 ) {
     if (focus == WorkshopFocus.all && focused.isNotEmpty()) {
-        animatedItem(key = "glance") { Glance(WorkshopLogic.groupByKarigar(snap.bench), ctx.isOwner, showTotals, setTotals) }
+        animatedItem(key = "glance", contentType = "glance") { Glance(WorkshopLogic.groupByKarigar(snap.bench), ctx.isOwner, showTotals, setTotals) }
     }
     for (load in WorkshopLogic.groupByKarigar(focused)) {
-        animatedItem(key = "head:${load.karigarId}") { KarigarHeader(load, ctx.actions) }
+        animatedItem(key = "head:${load.karigarId}", contentType = "header") { KarigarHeader(load, ctx.actions) }
         jobCards(ctx, WorkshopLogic.byOrder(load.jobs), showKarigar = false, "k:${load.karigarId}")
     }
     if (focus == WorkshopFocus.all && !filter.narrowed && filter.karigarId.isEmpty()) {
         val busyIds = snap.bench.filter { !it.isDone }.map { it.karigarId }.toSet()
         val idle = live.filter { it.id !in busyIds }
-        if (idle.isNotEmpty()) animatedItem(key = "free") { FreeSection(idle, showFree, setFree, ctx.actions) }
+        if (idle.isNotEmpty()) animatedItem(key = "free", contentType = "free") { FreeSection(idle, showFree, setFree, ctx.actions) }
     }
 }
 
@@ -477,7 +491,7 @@ private fun LazyListScope.focusedKarigar(ctx: BoardContext, focused: List<Worksh
     val onTrack = oldestFirst(active.filter { it.urgency == WorkshopJob.Urgency.ok })
     val done = load.jobs.filter { it.isDone }
     val orders = active.mapNotNull { it.orderId }.toSet().size
-    animatedItem(key = "summary") { FocusedSummary(load, orders, ctx.isOwner, ctx.actions) }
+    animatedItem(key = "summary", contentType = "summary") { FocusedSummary(load, orders, ctx.isOwner, ctx.actions) }
     urgencySection(ctx, "Critical", "sitting ${WorkshopLogic.criticalDays}+ days", Tone.late, critical)
     urgencySection(ctx, "Late", "${WorkshopLogic.warnDays}–${WorkshopLogic.criticalDays} days", Tone.owed, late)
     urgencySection(ctx, "On track", "", Tone.quiet, onTrack)
@@ -488,7 +502,7 @@ private fun LazyListScope.focusedKarigar(ctx: BoardContext, focused: List<Worksh
 
 private fun LazyListScope.urgencySection(ctx: BoardContext, title: String, hint: String, tone: Tone, jobs: List<WorkshopJob>) {
     if (jobs.isEmpty()) return
-    animatedItem(key = "u:$title") { Box(Modifier.padding(bottom = 8.dp)) { LedgerHeading(title, count = jobs.size, trailing = hint.ifEmpty { null }, tone = tone) } }
+    animatedItem(key = "u:$title", contentType = "header") { Box(Modifier.padding(bottom = 8.dp)) { LedgerHeading(title, count = jobs.size, trailing = hint.ifEmpty { null }, tone = tone) } }
     jobCards(ctx, WorkshopLogic.byOrder(jobs), showKarigar = false, "u:$title")
 }
 
@@ -559,7 +573,7 @@ private fun LazyListScope.stageSections(ctx: BoardContext, focused: List<Worksho
     for (stage in stages) {
         val jobs = focused.filter { it.status == stage.status }
         if (jobs.isEmpty()) continue
-        animatedItem(key = "stage:${stage.title}") {
+        animatedItem(key = "stage:${stage.title}", contentType = "header") {
             Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(stage.icon, null, Modifier.size(18.dp))
                 Text(stage.title, Modifier.weight(1f), style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold))

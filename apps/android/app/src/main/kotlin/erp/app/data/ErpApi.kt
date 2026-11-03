@@ -9,6 +9,7 @@ import erp.core.Json
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellableContinuation
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -57,7 +58,7 @@ class ErpApi private constructor(private val initial: Business) {
      * long the ERP may take to answer: a page load that has not answered in 15 s is a dead line, not a slow server, so
      * it says so and lets the screen retry; writes and sends keep a minute.
      */
-    suspend fun data(path: String, method: String = "GET", json: Map<String, Any?>? = null, timeoutMs: Long? = null): String {
+    suspend fun data(path: String, method: String = "GET", json: Map<String, Any?>? = null, timeoutMs: Long? = null): String = withContext(Dispatchers.IO) {
         val readsFromCache = method == "GET" && !House.isDemo
         try {
             val text = open(path, method, json, timeoutMs ?: if (method == "GET") GET_TIMEOUT_MS else SEND_TIMEOUT_MS, "application/json").use { r ->
@@ -71,13 +72,14 @@ class ErpApi private constructor(private val initial: Business) {
                 text
             }
             if (readsFromCache) ReadCache.store(text, path, id)
-            return text
+            text
         } catch (e: Failure) {
             if (!Connection.lost(e)) throw e
             // No line: a read paints the last answer it had (nothing blocks on the network), anything else says so plainly.
-            if (readsFromCache) ReadCache.load(path, id)?.let { return it }
-            if (Connection.neverLeft(e)) throw Failure.needsConnection()
-            throw e
+            val cached = if (readsFromCache) ReadCache.load(path, id) else null
+            if (cached != null) cached
+            else if (Connection.neverLeft(e)) throw Failure.needsConnection()
+            else throw e
         }
     }
 
@@ -86,7 +88,7 @@ class ErpApi private constructor(private val initial: Business) {
      * sign-in, host pinning, demo refusal and failure words as `data`. A long default timeout: a bill of many pieces
      * takes a second or two to draw.
      */
-    suspend fun bytes(path: String, method: String = "GET", timeoutMs: Long = 90_000): ByteArray =
+    suspend fun bytes(path: String, method: String = "GET", timeoutMs: Long = 90_000): ByteArray = withContext(Dispatchers.IO) {
         open(path, method, null, timeoutMs, "*/*").use { r ->
             val body = try {
                 r.body.bytes()
@@ -96,6 +98,7 @@ class ErpApi private constructor(private val initial: Business) {
             if (r.code !in 200..299) throw Failure(r.code, said(String(body, Charsets.UTF_8)) ?: "The ERP answered ${r.code}.")
             body
         }
+    }
 
     /** The one place a request is built and sent, so text and bytes cannot drift apart in auth, pinning or failure. */
     private suspend fun open(path: String, method: String, json: Map<String, Any?>?, timeoutMs: Long, accept: String, form: RequestBody? = null): Response {
@@ -140,12 +143,12 @@ class ErpApi private constructor(private val initial: Business) {
      * A multipart form to the ERP, as the web pages send theirs with FormData (Post a piece's photos and AI, Add photos,
      * Edit a piece): the same sign-in, host pinning, demo refusal and failure words as `data`. Answers the route's text.
      */
-    suspend fun upload(path: String, fields: List<Pair<String, String>>, files: List<FormFile> = emptyList(), method: String = "POST", timeoutMs: Long = 120_000): String {
+    suspend fun upload(path: String, fields: List<Pair<String, String>>, files: List<FormFile> = emptyList(), method: String = "POST", timeoutMs: Long = 120_000): String = withContext(Dispatchers.IO) {
         val form = okhttp3.MultipartBody.Builder().setType(okhttp3.MultipartBody.FORM).apply {
             for ((name, value) in fields) addFormDataPart(name, value)
             for (f in files) addFormDataPart(f.field, f.name, f.bytes.toRequestBody(f.type.toMediaType()))
         }.build()
-        return open(path, method, null, timeoutMs, "application/json", form).use { r ->
+        open(path, method, null, timeoutMs, "application/json", form).use { r ->
             val text = r.body.string()
             if (r.code !in 200..299) throw Failure(r.code, said(text) ?: "The ERP answered ${r.code}.")
             text
@@ -153,12 +156,12 @@ class ErpApi private constructor(private val initial: Business) {
     }
 
     /** [upload] for a route that answers a file (Design's remove-background answers a PNG): the bytes whole, not text. */
-    suspend fun uploadBytes(path: String, fields: List<Pair<String, String>>, files: List<FormFile> = emptyList(), timeoutMs: Long = 120_000): ByteArray {
+    suspend fun uploadBytes(path: String, fields: List<Pair<String, String>>, files: List<FormFile> = emptyList(), timeoutMs: Long = 120_000): ByteArray = withContext(Dispatchers.IO) {
         val form = okhttp3.MultipartBody.Builder().setType(okhttp3.MultipartBody.FORM).apply {
             for ((name, value) in fields) addFormDataPart(name, value)
             for (f in files) addFormDataPart(f.field, f.name, f.bytes.toRequestBody(f.type.toMediaType()))
         }.build()
-        return open(path, "POST", null, timeoutMs, "*/*", form).use { r ->
+        open(path, "POST", null, timeoutMs, "*/*", form).use { r ->
             val body = try {
                 r.body.bytes()
             } catch (e: IOException) {
@@ -170,12 +173,12 @@ class ErpApi private constructor(private val initial: Business) {
     }
 
     /** The answer, parsed (maps, lists, text, numbers); model decoding is core's (`Json.decode<T>`). */
-    suspend fun get(path: String): Any? = Json.parse(data(path))
+    suspend fun get(path: String): Any? = data(path).let { t -> withContext(Dispatchers.Default) { Json.parse(t) } }
 
-    suspend fun post(path: String, json: Map<String, Any?>): Any? = Json.parse(data(path, "POST", json))
+    suspend fun post(path: String, json: Map<String, Any?>): Any? = data(path, "POST", json).let { t -> withContext(Dispatchers.Default) { Json.parse(t) } }
 
     /** A model from the ERP's answer: null if it is not an object. */
-    suspend inline fun <reified T : Any> getModel(path: String): T? = Json.decode<T>(data(path))
+    suspend inline fun <reified T : Any> getModel(path: String): T? = data(path).let { t -> withContext(Dispatchers.Default) { Json.decode<T>(t) } }
 
     /**
      * A change to the books (/api/app/write): the ERP runs its own shared write, then names what
@@ -250,7 +253,7 @@ class ErpApi private constructor(private val initial: Business) {
     suspend fun send(path: String, method: String = "POST", body: Map<String, Any?> = emptyMap(), timeoutMs: Long? = null): Map<String, Any?> {
         val text = data(path, method, body, timeoutMs)
         @Suppress("UNCHECKED_CAST")
-        return (Json.parse(text) as? Map<String, Any?>) ?: emptyMap()
+        return withContext(Dispatchers.Default) { (Json.parse(text) as? Map<String, Any?>) ?: emptyMap() }
     }
 
     private suspend fun token(): String? = try {

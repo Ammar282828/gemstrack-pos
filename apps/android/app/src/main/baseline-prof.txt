@@ -1,0 +1,11 @@
+# A hand-written Baseline Profile (path A): wildcard rules, so the first run after an install compiles the app's own code and
+# Compose's hot path ahead of time instead of interpreting it. HSPL = hot, startup, post-startup, so every matching method is
+# compiled; the L lines keep the classes in the boot image's reach. Generate a measured one later (Macrobenchmark) and replace this.
+# AGP packages this file from src/main and androidx.profileinstaller installs it.
+
+HSPLerp/app/**;->**(**)**
+HSPLerp/core/**;->**(**)**
+HSPLandroidx/compose/**;->**(**)**
+Lerp/app/**;
+Lerp/core/**;
+Landroidx/compose/**;

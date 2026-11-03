@@ -70,6 +70,7 @@ import erp.app.ui.color
 import erp.app.ui.MinTouchTarget
 import erp.core.entry.EntryHouse
 import erp.core.entry.NewOrderDraft
+import erp.app.screens.sale.SaleStore
 import erp.core.entry.NewOrderDraftStore
 import erp.core.entry.NewOrderEdit
 import erp.core.entry.NewOrderFormat
@@ -356,7 +357,7 @@ private fun NewOrderForm(readsSlip: Boolean, edit: NewOrderEdit?, ratesFirst: Bo
                         NewOrderPhoneStore.clear(biz)
                         WorkDraftSync.order.drop(biz)
                         if (draft.fromSale) {
-                            Prefs.remove(SaleDraftStore.key, biz)
+                            SaleStore.clear(biz)
                             WorkDraftSync.sale.drop(biz)
                         }
                         holder.replace(NewOrderDraft.fresh())
@@ -374,7 +375,7 @@ private fun NewOrderForm(readsSlip: Boolean, edit: NewOrderEdit?, ratesFirst: Bo
                     // Made from the sale in progress: the pieces are the order's now, and leaving them on the sale would
                     // bill the same pieces a second time (the web clears the cart).
                     if (draft.fromSale) {
-                        Prefs.remove(SaleDraftStore.key, biz)
+                        SaleStore.clear(biz)
                         WorkDraftSync.sale.drop(biz)
                     }
                     offerSizes(made, draft)

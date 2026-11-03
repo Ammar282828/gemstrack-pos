@@ -13,6 +13,7 @@ object ShopDate {
     private val time = format("h:mm a")
     private val thisYear = format("EEE d MMM")
     private val older = format("d MMM yyyy")
+    private val meridiem = Regex("(?i)\\s*([ap])\\.?m\\.?$")
 
     fun say(iso: String?, withTime: Boolean = false, now: Instant = AppClock.now()): String {
         val d = ERPDate.parse(iso) ?: return ""
@@ -22,7 +23,7 @@ object ShopDate {
     /** The same words for an instant already in hand (a picker's value, now): "Today 4:05 pm", "Tue 6 Oct". */
     fun stamp(d: Instant, withTime: Boolean = false, now: Instant = AppClock.now()): String {
         // The clock reads "pm", not the locale's "PM" or "p.m.".
-        val t = if (withTime) " " + time.format(d).replace(Regex("(?i)\\s*([ap])\\.?m\\.?$")) { " ${it.groupValues[1].lowercase()}m" } else ""
+        val t = if (withTime) " " + time.format(d).replace(meridiem) { " ${it.groupValues[1].lowercase()}m" } else ""
         val day = ERPDate.karachiDay(d)
         if (day == ERPDate.karachiDay(now)) return "Today$t"
         if (day == ERPDate.karachiDay(now.minusSeconds(86_400))) return "Yesterday$t"

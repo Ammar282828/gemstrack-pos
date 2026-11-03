@@ -32,6 +32,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
@@ -155,10 +156,10 @@ fun LedgerSection(
             ) {
                 Text(title, Modifier.weight(1f), style = ErpType.heading, color = MaterialTheme.colorScheme.onSurface)
                 // The chevron turns on the spatial spring as the rows fold.
-                val turn by animateFloatAsState(if (open) 0f else -90f, motion.spatial(), label = "fold")
+                val turn = animateFloatAsState(if (open) 0f else -90f, motion.spatial(), label = "fold")
                 Icon(
                     Symbols.ExpandMore, contentDescription = null,
-                    Modifier.rotate(turn),
+                    Modifier.graphicsLayer { rotationZ = turn.value },
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }

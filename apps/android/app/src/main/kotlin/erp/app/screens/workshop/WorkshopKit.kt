@@ -176,7 +176,7 @@ fun <T : Any> LazyListScope.workshopCardRows(
 ) {
     val n = maxOf(1, columns)
     val rows = items.chunked(n)
-    items(rows.size, key = { "$keyPrefix:" + key(rows[it].first()) }) { r ->
+    items(rows.size, key = { "$keyPrefix:" + key(rows[it].first()) }, contentType = { "job" }) { r ->
         val row = rows[r]
         Row(Modifier.animateItem().fillMaxWidth().padding(bottom = 16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.Top) {
             for (item in row) Column(Modifier.weight(1f).let { m -> if (zoomId != null) m.zoomSource(zoomId(item)) else m }.ledgerCard()) { content(item) }

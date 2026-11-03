@@ -296,7 +296,7 @@ fun OrdersThumb(image: String, name: String, modifier: Modifier = Modifier) {
     val source = image.trim()
     Box(modifier.clip(shape).background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f)), contentAlignment = Alignment.Center) {
         if (source.startsWith("http")) {
-            SkeletonAsyncImage(model = source, contentDescription = name, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            SkeletonAsyncImage(model = source, contentDescription = name, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop, decodePx = 384)
         } else {
             Text(
                 name.trim().take(1).uppercase(),

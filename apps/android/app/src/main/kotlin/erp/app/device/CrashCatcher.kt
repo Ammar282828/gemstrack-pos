@@ -51,6 +51,7 @@ object CrashCatcher {
         append("ERP ${BuildConfig.HOUSE} ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) ${if (BuildConfig.DEBUG) "debug" else "release"}\n")
         append("Android ${android.os.Build.VERSION.RELEASE} (API ${android.os.Build.VERSION.SDK_INT}), ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}\n")
         append("At ${java.time.Instant.ofEpochMilli(at)} on thread ${thread.name}\n")
+        append("Business: ${runCatching { erp.app.config.Businesses.current.id }.getOrNull() ?: "unknown"}\n")
         append("Last screen: ${route ?: "none yet"}\n\n")
         append(error.stackTraceToString().lines().take(LINES).joinToString("\n"))
     }

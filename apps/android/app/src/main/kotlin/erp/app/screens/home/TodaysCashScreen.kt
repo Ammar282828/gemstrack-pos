@@ -1,5 +1,6 @@
 package erp.app.screens.home
 
+import androidx.lifecycle.repeatOnLifecycle
 import erp.app.ui.AppClock
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -86,10 +87,13 @@ fun TodaysCashScreen() {
     var now by remember { mutableStateOf(AppClock.now()) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { now = AppClock.now() }
     // Re-read once a minute, so a page left open turns over at Karachi's midnight.
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(60_000)
-            now = AppClock.now()
+    val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(lifecycle) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                delay(60_000)
+                now = AppClock.now()
+            }
         }
     }
     val cash by produceState<TodaysCash?>(

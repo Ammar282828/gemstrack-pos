@@ -33,6 +33,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import erp.app.ui.Button
+import erp.app.data.rememberOffMain
 import erp.app.ui.QuickPrintButton
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -163,13 +164,18 @@ fun InvoicesList() {
     val filter = InvoiceFilter(appliedSearch, takenBy, month, rangeFrom, rangeTo)
     val now = remember(status.revision) { AppClock.now() }
     val all = status.items
-    val scoped = remember(all, filter, customers) {
+    // The whole-book passes (search, chips, day sections) run off the main thread; the last answer stays up while the next is worked out.
+    val scopedNow by rememberOffMain(all, filter, customers, now) {
         InvoicesListRules.scope(all, filter, phones = {
             customers.mapNotNull { c -> c.phone?.takeIf { it.isNotEmpty() }?.let { c.id to it } }.toMap()
         }, now)
     }
-    val shown = remember(scoped, chip) { scoped.filter { chip.matches(it) } }
-    val groups = remember(shown, grouping, now) { InvoicesListRules.sections(shown, grouping, now) }
+    val scoped = scopedNow
+    val groupsNow by rememberOffMain(scoped, chip, grouping, now) {
+        InvoicesListRules.sections(scoped.orEmpty().filter { chip.matches(it) }, grouping, now)
+    }
+    val groups = groupsNow ?: emptyList()
+    val ready = scoped != null && groupsNow != null
     val filterOn = InvoicesListRules.filterActive(filter, chip)
     val anyFilter = takenBy.isNotEmpty() || month.isNotEmpty() || rangeFrom != null || chip != InvoiceChip.all
 
@@ -183,11 +189,19 @@ fun InvoicesList() {
         return inv.takenBy == person
     }
 
+    // One tap to the printer: the target is built in the tap; the one QuickPdf is the screen's.
+    var printingId by remember { mutableStateOf<String?>(null) }
+    fun print(inv: Invoice) {
+        printingId = inv.id
+        InvoiceFacts.pdfTarget(inv, byCustomer).let { quick.share(it.path, it.fileName, it.title) }
+    }
+    val printing: (Invoice) -> Boolean = { quick.preparing && printingId == it.id }
+
     fun actions(inv: Invoice): List<RowAction> = buildList {
         if (canPay && isOwing(inv)) add(RowAction("Take payment", Symbols.Payments, Tone.settled) { paying = inv })
         add(RowAction(if (inv.sentOnWhatsApp == null) "Send on WhatsApp" else "Send again on WhatsApp", Symbols.Message, Tone.credit) { sending = inv })
         // Straight to the share sheet (Print, WhatsApp, Files); View PDF opens it for looking.
-        add(RowAction("Print or share PDF", Symbols.Print, Tone.quiet) { InvoiceFacts.pdfTarget(inv, byCustomer).let { quick.share(it.path, it.fileName, it.title) } })
+        add(RowAction("Print or share PDF", Symbols.Print, Tone.quiet) { print(inv) })
         add(RowAction("View PDF", Symbols.PictureAsPdf, Tone.quiet) { pdf = InvoiceFacts.pdfTarget(inv, byCustomer) })
     }
 
@@ -203,7 +217,7 @@ fun InvoicesList() {
     }
 
     Box(Modifier.fillMaxSize()) {
-        ShelfState(shape = erp.app.ui.SkeletonShape.Rows, loaded = status.loaded, error = status.error, offline = status.offline, connectionLost = connectionLost) {
+        ShelfState(shape = erp.app.ui.SkeletonShape.Rows, loaded = status.loaded && ready, error = status.error, offline = status.offline, connectionLost = connectionLost) {
             BoxWithConstraints(Modifier.fillMaxSize()) {
                 val wide = maxWidth >= 760.dp && !isLargeText()
                 val columns = if (wide) CardColumns.count(maxWidth - 48.dp) else 1
@@ -216,7 +230,7 @@ fun InvoicesList() {
                 ) {
                     head(
                         search = search, onSearch = { search = it },
-                        scoped = scoped, chip = chip, onChip = { chip = it },
+                        scoped = scoped.orEmpty(), chip = chip, onChip = { chip = it },
                         caption = if (filterOn) InvoicesListRules.caption(filter, chip) else null, onClear = ::clearFilters,
                     )
                     pendingRecords(pendingSales)
@@ -226,19 +240,20 @@ fun InvoicesList() {
                         }
                     }
                     for (group in groups) {
-                        animatedItem(key = "h" + group.id, span = FULL_WIDTH) {
+                        animatedItem(key = "h" + group.id, contentType = "header", span = FULL_WIDTH) {
                             Box(Modifier.padding(horizontal = 20.dp).padding(top = if (wide) 4.dp else SECTION_GAP, bottom = 8.dp)) { SectionHeader(group) }
                         }
                         if (wide) {
-                            items(group.rows.size, key = { "c${group.id}${group.rows[it].id}" }) { i ->
+                            items(group.rows.size, key = { "c${group.id}${group.rows[it].id}" }, contentType = { "card" }) { i ->
                                 val inv = group.rows[i]
                                 Box(Modifier.animateItem()) { InvoiceCard(
                                     inv, mine = mine(inv), dated = grouping != InvoiceGrouping.day, canPay = canPay,
-                                    actions = actions(inv), open = { navigator.open(InvoiceFacts.path(inv.id)) }, take = { paying = inv },
+                                    actions = ::actions, open = { navigator.open(InvoiceFacts.path(inv.id)) }, take = { paying = inv },
+                                    onPrint = ::print, printing = printing,
                                 ) }
                             }
                         } else {
-                            items(group.rows.size, key = { "r${group.id}${group.rows[it].id}" }, span = { FULL_WIDTH() }) { i ->
+                            items(group.rows.size, key = { "r${group.id}${group.rows[it].id}" }, span = { FULL_WIDTH() }, contentType = { "row" }) { i ->
                                 val inv = group.rows[i]
                                 val first = i == 0
                                 val last = i == group.rows.lastIndex
@@ -251,10 +266,10 @@ fun InvoicesList() {
                                         // The bill to the customer: the commonest thing after a sale, the same send as the invoice page's.
                                         start = RowAction("Send on WhatsApp", Symbols.Message, Tone.credit) { sending = inv },
                                         end = if (canPay && isOwing(inv)) RowAction("Take payment", Symbols.Payments, Tone.settled) { paying = inv } else null,
-                                        menu = actions(inv),
+                                        menu = { actions(inv) },
                                         onClick = { navigator.open(InvoiceFacts.path(inv.id)) },
                                     ) {
-                                        InvoiceListRow(inv, mine = mine(inv), dated = grouping != InvoiceGrouping.day, modifier = Modifier.zoomSource(InvoiceFacts.path(inv.id), Radius.tile))
+                                        InvoiceListRow(inv, mine = mine(inv), dated = grouping != InvoiceGrouping.day, onPrint = ::print, printing = printing, modifier = Modifier.zoomSource(InvoiceFacts.path(inv.id), Radius.tile))
                                     }
                                 }
                             }
@@ -280,7 +295,7 @@ fun InvoicesList() {
     erp.app.ui.QuickPdfBusy(quick)
     if (filtering) {
         InvoiceFilterSheet(
-            all = all, scoped = scoped, filter = filter, chip = chip, grouping = grouping,
+            all = all, scoped = scoped.orEmpty(), filter = filter, chip = chip, grouping = grouping,
             onChip = { chip = it }, onGrouping = { grouping = it }, onTakenBy = { takenBy = it }, onMonth = { month = it },
             onPickRange = { filtering = false; pickingRange = true },
             onClearRange = { rangeFrom = null; rangeTo = null },
@@ -392,7 +407,7 @@ fun InvoiceBalancePill(invoice: Invoice, modifier: Modifier = Modifier) {
 
 /** One invoice: who it was for, what was sold, its number and time; what it came to with where its balance stands under it; the printer at the end. */
 @Composable
-private fun InvoiceListRow(invoice: Invoice, mine: Boolean, dated: Boolean, modifier: Modifier = Modifier) {
+private fun InvoiceListRow(invoice: Invoice, mine: Boolean, dated: Boolean, onPrint: (Invoice) -> Unit, printing: (Invoice) -> Boolean, modifier: Modifier = Modifier) {
     val stacked = isLargeText()
     Row(
         modifier
@@ -421,15 +436,14 @@ private fun InvoiceListRow(invoice: Invoice, mine: Boolean, dated: Boolean, modi
                 }
             }
         }
-        InvoicePrint(invoice)
+        InvoicePrint(invoice, onPrint, printing)
     }
 }
 
 /** One tap to the printer (owner, 2026-11-03): the invoice's PDF, named as Print saves it, straight to the share sheet. */
 @Composable
-private fun InvoicePrint(invoice: Invoice) {
-    val target = InvoiceFacts.pdfTarget(invoice, LocalSession.current.shop.invoiceByCustomer)
-    QuickPrintButton("Print ${invoice.id}", target.path, target.fileName, target.title)
+private fun InvoicePrint(invoice: Invoice, onPrint: (Invoice) -> Unit, printing: (Invoice) -> Boolean) {
+    QuickPrintButton("Print ${invoice.id}", busy = { printing(invoice) }, onPrint = { onPrint(invoice) })
 }
 
 @Composable
@@ -488,9 +502,11 @@ private fun InvoiceCard(
     mine: Boolean,
     dated: Boolean,
     canPay: Boolean,
-    actions: List<RowAction>,
+    actions: (Invoice) -> List<RowAction>,
     open: () -> Unit,
     take: () -> Unit,
+    onPrint: (Invoice) -> Unit,
+    printing: (Invoice) -> Boolean,
 ) {
     var menu by remember { mutableStateOf(false) }
     Column(
@@ -517,11 +533,11 @@ private fun InvoiceCard(
                 }
             }
             Spacer(Modifier.weight(1f))
-            InvoicePrint(inv)
+            InvoicePrint(inv, onPrint, printing)
             Box {
                 IconButton(onClick = { menu = true }) { Icon(Symbols.MoreHoriz, contentDescription = "Actions for ${inv.id}") }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                    for (a in actions) DropdownMenuItem(text = { Text(a.label) }, leadingIcon = { Icon(a.icon, null) }, onClick = { menu = false; a.run() })
+                    if (menu) for (a in actions(inv)) DropdownMenuItem(text = { Text(a.label) }, leadingIcon = { Icon(a.icon, null) }, onClick = { menu = false; a.run() })
                 }
             }
         }

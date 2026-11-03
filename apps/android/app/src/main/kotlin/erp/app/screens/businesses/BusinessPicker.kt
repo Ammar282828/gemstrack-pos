@@ -162,7 +162,7 @@ internal fun BusinessPicker(list: List<Business>, last: Business) {
     var chosen by remember { mutableStateOf<String?>(null) }
     var entered by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { entered = true }
-    val shown by animateFloatAsState(if (entered) 1f else 0f, motion.effects(), label = "picker")
+    val shown = animateFloatAsState(if (entered) 1f else 0f, motion.effects(), label = "picker")
 
     fun pick(b: Business) {
         if (chosen != null) return
@@ -182,7 +182,7 @@ internal fun BusinessPicker(list: List<Business>, last: Business) {
         // Centred in the screen's height: two cards at the top would leave the lower half empty.
         Column(
             Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).heightIn(min = maxHeight)
-                .windowInsetsPadding(WindowInsets.safeDrawing).padding(horizontal = 20.dp, vertical = 32.dp).alpha(shown),
+                .windowInsetsPadding(WindowInsets.safeDrawing).padding(horizontal = 20.dp, vertical = 32.dp).graphicsLayer { alpha = shown.value },
             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
         ) {
             Column(Modifier.widthIn(max = if (sideBySide) 780.dp else 480.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(24.dp)) {
@@ -205,7 +205,7 @@ internal fun BusinessPicker(list: List<Business>, last: Business) {
                 }
                 // Adding and managing both live on the Businesses sheet, which this opens above the picker.
                 Row(
-                    Modifier.fillMaxWidth().alpha(if (chosen == null) 1f else 0f),
+                    Modifier.fillMaxWidth().graphicsLayer { alpha = if (chosen == null) 1f else 0f },
                     horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.Start), verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (Businesses.canAdd) TextButton(Businesses::openSheet, enabled = chosen == null) { Text("Add a business", color = MaterialTheme.colorScheme.onSurfaceVariant) }

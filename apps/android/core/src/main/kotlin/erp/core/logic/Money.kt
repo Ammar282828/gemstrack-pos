@@ -34,8 +34,11 @@ object Money {
         if (n.isInfinite()) return if (n < 0) "-∞" else "∞"
         val r = swiftRounded(n)
         val negative = r < 0 || (r == 0.0 && 1.0 / r < 0)
-        // The shortest digits, as ICU prints a double, then padded with zeros.
-        val whole = if (r == 0.0) "0" else shortestDigits(abs(r)).let { (digits, e) -> digits + "0".repeat(maxOf(0, e - digits.length)) }
+        // Under 1e15 a whole double is exactly its integer (doubles are 1/8 apart there at worst), and the shortest digits ICU prints,
+        // padded with zeros, are that integer's own: the common case skips the digit search.
+        val whole = if (r == 0.0) "0"
+        else if (abs(r) < 1e15) abs(r).toLong().toString()
+        else shortestDigits(abs(r)).let { (digits, e) -> digits + "0".repeat(maxOf(0, e - digits.length)) }
         val out = StringBuilder()
         for ((i, ch) in whole.withIndex()) {
             if (i > 0 && (whole.length - i) % 3 == 0) out.append(',')

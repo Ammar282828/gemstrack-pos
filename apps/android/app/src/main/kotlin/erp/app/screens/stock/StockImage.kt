@@ -20,7 +20,14 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
-import coil3.compose.SubcomposeAsyncImage
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.painter.ColorPainter
+import androidx.compose.ui.platform.LocalContext
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.size.Size
 import erp.app.ui.SkeletonLoading
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -38,10 +45,12 @@ fun StockInitial(name: String) {
 /**
  * A piece's photo, filling the frame it is given. A web address loads as it scrolls. A data address (a photo kept
  * inside the document, which can be megabytes) is skipped in a list ([decodeDataUri] false: the first letter instead)
- * and decoded once, off the main thread, where a single piece is shown.
+ * and decoded once, off the main thread, where a single piece is shown. A web photo decodes at a fixed [decodePx] square (the
+ * request needs no measuring, and a list's thumbnail never holds a full-size bitmap); the placeholder is a still shade, not a
+ * subcomposed skeleton per cell.
  */
 @Composable
-fun StockImage(imageUrl: String?, name: String, key: String, modifier: Modifier = Modifier, decodeDataUri: Boolean = false) {
+fun StockImage(imageUrl: String?, name: String, key: String, modifier: Modifier = Modifier, decodeDataUri: Boolean = false, decodePx: Int = 512) {
     val source = (imageUrl ?: "").trim()
     Box(
         modifier.background(MaterialTheme.colorScheme.surfaceContainerHighest).clipToBounds(),
@@ -49,11 +58,20 @@ fun StockImage(imageUrl: String?, name: String, key: String, modifier: Modifier 
     ) {
         when {
             source.startsWith("data:") -> if (decodeDataUri) StockDataImage(source, key, name) else StockInitial(name)
-            source.startsWith("http") -> SubcomposeAsyncImage(
-                model = source, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop,
-                loading = { SkeletonPhoto(Modifier.fillMaxSize()) },
-                error = { StockInitial(name) },
-            )
+            source.startsWith("http") -> {
+                var failed by remember(source) { mutableStateOf(false) }
+                if (failed) StockInitial(name) else {
+                    val context = LocalContext.current
+                    val request = remember(source, decodePx) {
+                        ImageRequest.Builder(context).data(source).size(Size(decodePx, decodePx)).build()
+                    }
+                    AsyncImage(
+                        model = request, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop,
+                        placeholder = ColorPainter(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f)),
+                        onError = { failed = true },
+                    )
+                }
+            }
             else -> StockInitial(name)
         }
     }

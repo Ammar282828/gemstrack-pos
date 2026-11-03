@@ -146,7 +146,7 @@ private fun Hero(p: Product) {
             StockImage(
                 p.imageUrl, p.name, p.sku,
                 Modifier.widthIn(max = 340.dp).heightIn(max = 340.dp).fillMaxWidth().aspectRatio(1f).clip(Radius.chipShape),
-                decodeDataUri = true,
+                decodeDataUri = true, decodePx = 1200,
             )
         }
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {

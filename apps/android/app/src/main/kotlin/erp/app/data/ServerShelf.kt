@@ -25,6 +25,8 @@ object ServerShelf {
     fun <T : Any> poll(api: ErpApi, name: String, single: Boolean, model: Decodable<T>, order: Comparator<T>?, deliver: (Delivery<T>) -> Unit): () -> Unit {
         val job = ErpApp.scope.launch {
             while (isActive) {
+                // Nothing is asked while the app is not on screen; the first round after it returns is at once.
+                Foreground.await()
                 try {
                     val text = api.data("/api/staff/collections?name=$name")
                     // Read and decoded off the main thread: staff's whole copy arrives every 25 seconds.

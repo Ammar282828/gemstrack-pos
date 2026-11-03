@@ -120,7 +120,7 @@ class SaleFormState(
         if (edit != null || !takenByStarted || made != null) return
         // The draft just opened is not a change to it.
         baseline?.let { if (SaleDraftStore.encode(d) == it) return; baseline = null }
-        SaleStore.save(d, biz)
+        SaleStore.saveSoon(d.copy(), biz)
         sync(d)
     }
 
@@ -222,6 +222,8 @@ class SaleFormState(
 
     /** The screen is going: a change still waiting to be sent goes now. */
     fun disappeared() {
+        // The change still waiting for its 300 ms is kept now, whatever the rest decides.
+        SaleStore.flush(biz)
         if (made != null || edit != null) return
         // A draft opened and left as it was has nothing new to keep.
         baseline?.let { if (SaleDraftStore.encode(draft) == it) return }

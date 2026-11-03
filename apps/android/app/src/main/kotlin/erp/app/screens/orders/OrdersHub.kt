@@ -47,6 +47,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -65,6 +66,8 @@ import erp.app.data.Connection
 import erp.app.data.LocalBook
 import erp.app.data.OnlineInbox
 import erp.app.data.ErpApi
+import erp.app.data.rememberOffMain
+import erp.app.screens.neworder.slipTarget
 import erp.app.data.rememberShelfStatus
 import erp.app.nav.LocalNavigator
 import erp.app.nav.ScreenActions
@@ -161,13 +164,15 @@ fun OrdersHub() {
     }
 
     // The hub's sums, once per change of the books or of what narrows them.
-    val view = remember(orders.revision, invoices.revision, appliedQuery, statusFilter, month, takenBy, payment, grouping, localStatus.entries) {
+    // Worked out off the main thread; the last view stays up while the next is computed.
+    val viewNow by rememberOffMain(orders.revision, invoices.revision, appliedQuery, statusFilter, month, takenBy, payment, grouping, localStatus.entries) {
         val now = AppClock.now()
         val owedOn = OrdersLogic.owedOnInvoices(invoices.items)
         val scoped = OrdersLogic.scope(orders.items, appliedQuery, month, takenBy, payment)
         val shown = if (statusFilter == "All") scoped else scoped.filter { it.status.rawValue == statusFilter }
         HubView(now, owedOn, shown, OrdersLogic.sections(shown, grouping, owedOn, now) { o -> OrdersLocal.stage(stageOf(o, OrdersLogic.owed(o, owedOn)), OrdersLogic.hasInvoice(o), localStatus[o.id]) })
     }
+    val view = viewNow
     // Drop what the books now agree with.
     LaunchedEffect(orders.revision) { localStatus.reconcile { id, s -> orders.items.firstOrNull { it.id == id }?.let { OrdersLocal.statusAgrees(it, s) } ?: true } }
     val note = LocalNoteState.current
@@ -181,25 +186,41 @@ fun OrdersHub() {
         ErpApi.shared.enqueue("setOrderStatus", mapOf("orderId" to order.id, "status" to status), "${order.id} status")
     }
 
-    val actions = OrderCardActions(
-        advance = { advancing = it },
-        markReady = { setStatus(it, "Completed") },
-        // Cancelling asks first; every other status is one tap.
-        setStatus = { order, status ->
-            if (status != order.status.rawValue) {
-                if (status == "Cancelled") cancelling = order else setStatus(order, status)
-            }
-        },
-        open = { navigator.open(it) },
-        contact = { order, kind ->
-            // The swipe's fast path; the number is the Contact menu's one (0300… dials +92300…).
-            if (kind == OrderContactKind.call) {
-                erp.app.ui.CustomerContactLinks.tel(order.customerContact)?.let { erp.app.device.openAddress(context, Intent.ACTION_DIAL, it) }
-            } else {
-                erp.app.ui.CustomerContactLinks.whatsApp(order.customerContact)?.let { erp.app.device.openAddress(context, Intent.ACTION_VIEW, it) }
-            }
-        },
-    )
+    // One set of actions for the life of the screen: the cards compare it by identity, so a change to the books or to a filter
+    // recomposes only the cards whose own order changed. What the lambdas reach (the note, the navigator, the context) is read through
+    // rememberUpdatedState, so they never go stale.
+    val quick = erp.app.ui.rememberQuickPdf()
+    var printingId by remember { mutableStateOf<String?>(null) }
+    val applyStatus by rememberUpdatedState { order: Order, status: String -> setStatus(order, status) }
+    val currentNavigator by rememberUpdatedState(navigator)
+    val currentContext by rememberUpdatedState(context)
+    val actions = remember(quick) {
+        OrderCardActions(
+            advance = { advancing = it },
+            markReady = { applyStatus(it, "Completed") },
+            // Cancelling asks first; every other status is one tap.
+            setStatus = { order, status ->
+                if (status != order.status.rawValue) {
+                    if (status == "Cancelled") cancelling = order else applyStatus(order, status)
+                }
+            },
+            open = { currentNavigator.open(it) },
+            contact = { order, kind ->
+                // The swipe's fast path; the number is the Contact menu's one (0300… dials +92300…).
+                if (kind == OrderContactKind.call) {
+                    erp.app.ui.CustomerContactLinks.tel(order.customerContact)?.let { erp.app.device.openAddress(currentContext, Intent.ACTION_DIAL, it) }
+                } else {
+                    erp.app.ui.CustomerContactLinks.whatsApp(order.customerContact)?.let { erp.app.device.openAddress(currentContext, Intent.ACTION_VIEW, it) }
+                }
+            },
+            // One tap to the printer: the slip's target is built here, in the tap, not in every card's composition.
+            print = { order ->
+                printingId = order.id
+                slipTarget(order.id).let { quick.share(it.path, it.fileName, it.title) }
+            },
+            printing = { order -> quick.preparing && printingId == order.id },
+        )
+    }
 
     ScreenActions {
         IconButton(onClick = { filtering = true }) {
@@ -223,12 +244,13 @@ fun OrdersHub() {
     }
 
     ShelfState(
-            shape = erp.app.ui.SkeletonShape.Cards,
-        loaded = orders.loaded && invoices.loaded,
+        shape = erp.app.ui.SkeletonShape.Cards,
+        loaded = orders.loaded && invoices.loaded && view != null,
         error = orders.error ?: invoices.error,
         offline = orders.offline,
         connectionLost = connectionLost,
     ) {
+        if (view == null) return@ShelfState
         BoxWithConstraints(Modifier.fillMaxSize()) {
             // The wide window's cards sit in columns of one card width each; large text keeps the single column.
             val grid = maxWidth >= 760.dp && !isLargeText()
@@ -242,7 +264,7 @@ fun OrdersHub() {
                 horizontalArrangement = Arrangement.spacedBy(20.dp),
                 verticalArrangement = Arrangement.spacedBy(if (grid) 20.dp else 14.dp),
             ) {
-                animatedItem(key = "controls", span = { GridItemSpan(maxLineSpan) }) {
+                animatedItem(key = "controls", contentType = "controls", span = { GridItemSpan(maxLineSpan) }) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         SearchBarField(
                             value = query, onValueChange = { query = it }, modifier = Modifier.fillMaxWidth(), singleLine = true,
@@ -260,11 +282,11 @@ fun OrdersHub() {
                 // Orders taken with no line, kept on this phone until the ERP has them: "Waiting to send" at the top.
                 pendingRecords(pendingOrders)
                 for (g in sections) {
-                    animatedItem(key = "h-" + g.id, span = { GridItemSpan(maxLineSpan) }) { OrdersSectionHeader(g) }
+                    animatedItem(key = "h-" + g.id, contentType = "header", span = { GridItemSpan(maxLineSpan) }) { OrdersSectionHeader(g) }
                     if (g.folds) {
                         // A search or a filter must reach the folded stages too, or its hits hide behind "Show".
                         val open = anyFilter || opened.contains(g.id)
-                        animatedItem(key = "f-" + g.id, span = { GridItemSpan(maxLineSpan) }) {
+                        animatedItem(key = "f-" + g.id, contentType = "fold", span = { GridItemSpan(maxLineSpan) }) {
                             Row(
                                 Modifier.fillMaxWidth().clickable(enabled = !anyFilter) { opened = if (open) opened - g.id else opened + g.id }.padding(vertical = 8.dp),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
@@ -276,13 +298,13 @@ fun OrdersHub() {
                                 Icon(if (open) Symbols.ExpandLess else Symbols.ExpandMore, if (open) "Hide" else "Show", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
-                        if (open) itemsIndexed(g.orders, key = { _, it -> "o-" + g.id + "-" + it.id }) { i, order -> Card(order, view, isOwner, person, localStatus[order.id], actions, grouping, i, Modifier.animateItem()) }
+                        if (open) itemsIndexed(g.orders, key = { _, it -> "o-" + g.id + "-" + it.id }, contentType = { _, _ -> "order" }) { i, order -> Card(order, view, isOwner, person, localStatus[order.id], actions, grouping, i, Modifier.animateItem()) }
                     } else {
-                        itemsIndexed(g.orders, key = { _, it -> "o-" + g.id + "-" + it.id }) { i, order -> Card(order, view, isOwner, person, localStatus[order.id], actions, grouping, i, Modifier.animateItem()) }
+                        itemsIndexed(g.orders, key = { _, it -> "o-" + g.id + "-" + it.id }, contentType = { _, _ -> "order" }) { i, order -> Card(order, view, isOwner, person, localStatus[order.id], actions, grouping, i, Modifier.animateItem()) }
                     }
                 }
                 if (sections.isEmpty() && pendingOrders.isEmpty()) {
-                    animatedItem(key = "empty", span = { GridItemSpan(maxLineSpan) }) {
+                    animatedItem(key = "empty", contentType = "empty", span = { GridItemSpan(maxLineSpan) }) {
                         EmptyState(nothingOpen = grouping == OrdersGrouping.due && view.shown.isNotEmpty(), filtering = anyFilter, onClear = ::clearFilters) {
                             navigator.open("/orders/add")
                         }
@@ -333,6 +355,7 @@ fun OrdersHub() {
             dismissButton = { TextButton(onClick = { cancelling = null }) { Text("Keep it") } },
         )
     }
+    erp.app.ui.QuickPdfBusy(quick)
     FailureAlert(failure, onDismiss = { failure = null }, title = "Not changed")
 }
 
