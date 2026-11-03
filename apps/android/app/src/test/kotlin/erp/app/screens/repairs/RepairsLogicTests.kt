@@ -242,4 +242,10 @@ class RepairsLogicTests {
         assertTrue(RepairsFormLogic.hasPiece(listOf(RepairsDraftPiece(0, work = "polish"))))
         assertEquals(3_501.0, RepairsFormLogic.total(listOf(RepairsDraftPiece(0, price = "2,500"), RepairsDraftPiece(1, price = "1000.5"), RepairsDraftPiece(2, price = "x"))))
     }
+
+    @Test fun theReceiptIsTheServersPdfNamedLikeTheIPhones() {
+        assertEquals("/api/app/pdf/repair/REP-0001", RepairsKit.receiptPath("REP-0001"))
+        assertEquals("/api/app/pdf/repair/REP%2F2", RepairsKit.receiptPath("REP/2"))
+        assertEquals("Repair-REP-0001.pdf", RepairsKit.receiptFileName("REP-0001"))
+    }
 }

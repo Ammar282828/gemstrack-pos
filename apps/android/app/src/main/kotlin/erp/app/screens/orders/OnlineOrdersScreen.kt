@@ -307,19 +307,12 @@ fun OrdersThumb(image: String, name: String, modifier: Modifier = Modifier) {
 
 @Composable
 private fun CustomerRows(r: OnlineOrderRow) {
-    val context = LocalContext.current
-    val dial = OrdersLogic.dialable(r.customer.phone)
-    if (dial.isNotEmpty()) {
-        TextButton(onClick = { erp.app.device.openAddress(context, Intent.ACTION_DIAL, "tel:$dial") }) {
-            Icon(Symbols.Call, null, Modifier.size(18.dp))
-            Text(r.customer.phone, Modifier.padding(start = 8.dp))
-        }
-    }
-    val wa = toWhatsAppNumber(r.customer.phone)
-    if (wa.isNotEmpty()) {
-        TextButton(onClick = { erp.app.device.openAddress(context, Intent.ACTION_VIEW, "https://wa.me/$wa") }) {
-            Icon(Symbols.Chat, null, Modifier.size(18.dp))
-            Text("WhatsApp", Modifier.padding(start = 8.dp))
+    // The number, and the one Contact menu (ui/CustomerContact.kt): Call, WhatsApp, Message, Copy number.
+    if (erp.app.ui.CustomerContactLinks.e164(r.customer.phone).isNotEmpty()) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Symbols.Call, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(r.customer.phone, Modifier.weight(1f).padding(start = 8.dp), style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"))
+            erp.app.ui.CustomerContactMenu(r.customer.phone, customerName = r.customer.name)
         }
     }
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {

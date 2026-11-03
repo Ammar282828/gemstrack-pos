@@ -223,6 +223,10 @@ object RepairsKit {
         return out.toString()
     }
 
+    /** The receipt the ERP draws for a ticket (src/lib/repair-pdf.ts, /api/app/pdf/repair), named as the iPhone names it. */
+    fun receiptPath(id: String): String = "/api/app/pdf/repair/" + erp.app.screens.invoices.InvoiceFacts.encode(id)
+    fun receiptFileName(id: String): String = "Repair-$id.pdf"
+
     /** The ERP's own page for a ticket (it opens the ticket; the card under it has Print). */
     fun webPath(id: String): String = "/repairs?id=${urlQuery(id)}&web=1"
 
