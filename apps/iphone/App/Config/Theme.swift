@@ -206,7 +206,9 @@ extension View {
             .scrollContentBackground(.hidden).background(Theme.ground)
             .frame(minWidth: 520, idealWidth: 640, minHeight: 420, idealHeight: 620)
         #else
-        self.scrollContentBackground(.hidden).background { HouseGroundFill().ignoresSafeArea() }
+        // Every sheet's Form comes through here, so this is the sheet root that marks its content as sitting on glass
+        // (iOS 26 sheets are glass): a glass card below it draws as the cheap row look, never glass in glass.
+        self.scrollContentBackground(.hidden).background { HouseGroundFill().ignoresSafeArea() }.onGlassSheet()
         #endif
     }
 }

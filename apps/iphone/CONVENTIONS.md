@@ -213,6 +213,10 @@ The owner's checklist of why the best apps feel smooth, held against this one. R
   holds `Memo`s keeps `@State covered`, sets it with `.trackCovered($covered)` (on the title), and passes `resting: covered` to each
   memo; a hub that reckons in a `.task(id:)` puts `covered` in the key and returns early while covered (`Dashboard`, `AnalyticsScreen`).
   Reckoning that gates the first paint is `.userInitiated`; every later refresh of it is `.utility`.
+- **Glass in a sheet is the cheap look.** Under the Liquid Glass style a card is true glass (`.glassCard()`, `FigureTile`, `HeroSheen`,
+  `RecordCard`) only on a page, a few per screen and grouped in a `GlassGroup`; scrolling rows and chips are `.glassRow()` (no blur).
+  A sheet is glass already (HIG: no glass in glass): a sheet's Form gets `.onGlassSheet()` through `houseForm()`, and a sheet whose
+  root is a ScrollView of cards calls `.onGlassSheet()` itself (`DashTakenSheet`). Code: `UI/GlassSurface.swift`.
 - **Spacing is `pt(n)`**, in every padding and stack/grid spacing of a screen (a Mac scales it; a phone is unchanged). A literal is for a
   glyph inside a fixed shape and for the Mac's own `#if os(macOS)` code, which is already in Mac points.
 - **The first frame is the launch screen's colour.** `UILaunchScreen`'s `Launch-<house>` equals the house's `Ground` in light and dark; the
