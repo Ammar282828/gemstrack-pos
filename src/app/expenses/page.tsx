@@ -41,6 +41,7 @@ import { SHAREHOLDERS } from '@/lib/shareholders';
 import { PageShell } from '@/components/shared/page-shell';
 import { deleteErrorText } from '@/lib/delete-code';
 import { useShallow } from 'zustand/react/shallow';
+import { formatDate } from '@/lib/safe-date';
 
 const PKR = (n: number) => `PKR ${Math.round(n).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 
@@ -289,7 +290,7 @@ export default function ExpensesPage() {
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-sm truncate">{e.description}</p>
                           <p className="text-2xs text-muted-foreground mt-0.5">
-                            {format(parseISO(e.date), 'd MMM')} · {e.category}
+                            {formatDate(e.date, 'd MMM')} · {e.category}
                           </p>
                           <Meta e={e} />
                         </div>
@@ -321,7 +322,7 @@ export default function ExpensesPage() {
                     <TableBody>
                       {g.rows.map(e => (
                         <TableRow key={e.id}>
-                          <TableCell className="text-sm text-muted-foreground">{format(parseISO(e.date), 'd MMM yyyy')}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{formatDate(e.date, 'd MMM yyyy')}</TableCell>
                           <TableCell className="text-sm">{e.category}</TableCell>
                           <TableCell className="min-w-0">
                             <span className="block truncate">{e.description}</span>

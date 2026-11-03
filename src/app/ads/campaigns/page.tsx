@@ -33,6 +33,7 @@ import { campaignsCsv } from '@/lib/ads/export';
 import { api, useAdsStatus, useRange, RangePicker, NotReady, AccountAlerts, ErrorLine, StatusPill } from '../ads-kit';
 import { AudienceEditor } from '../audience-editor';
 import { FigureTilesSkeleton, ListRowsSkeleton, LinesSkeleton, ListSkeleton } from '@/components/shared/skeletons';
+import { EmptyState } from '@/components/ledger';
 
 export default function CampaignsRoute() {
   if (!STORE_META_ADS) return <p className="container mx-auto px-4 py-8 text-sm text-muted-foreground">This shop doesn’t run Meta ads from the ERP.</p>;
@@ -276,7 +277,7 @@ function Campaigns() {
           {data && (
             <>
               <p className="text-xs text-muted-foreground">{campaigns.length === data.campaigns.length ? 'All campaigns' : `${campaigns.length} of ${data.campaigns.length} campaigns`}: <b className="text-foreground">{money(shownTotal.spend, cur)}</b> spent · {compact(shownTotal.impressions)} views</p>
-              {!campaigns.length && <div className="rounded-xl border-2 border-dashed p-8 text-center text-sm text-muted-foreground">{data.campaigns.length ? 'Nothing matches.' : <>No campaigns yet. <Link href="/ads/new" className="text-primary">Make the first ad →</Link></>}</div>}
+              {!campaigns.length && <EmptyState title={data.campaigns.length ? 'Nothing matches' : 'No campaigns yet'} action={data.campaigns.length ? undefined : <Link href="/ads/new" className="text-primary">Make the first ad →</Link>} className="py-8" />}
               {view === 'gallery' ? (
                 <Gallery campaigns={campaigns} cur={cur} accountId={data.account.id} busy={busy} filter={filter}
                   onOpen={id => setDialog({ kind: 'ad', id })} onToggle={(a, on) => toggle({ level: 'ad', id: a.id, name: a.name, status: a.status }, on)} />

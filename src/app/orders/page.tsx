@@ -214,7 +214,7 @@ const OrderCard: React.FC<{ order: Order; owed: number; mine?: boolean }> = ({ o
     <SwipeRow leading={leading} trailing={trailing} className="rounded-card">
       <div className={cn('space-y-3 p-4', mine && 'ring-1 ring-inset ring-primary/25 rounded-card')} data-mine={mine ? 'true' : undefined}>
         {/* The head opens the order; the step row below has its own controls. */}
-        <Link href={`/orders/${order.id}`} className="block space-y-3 rounded-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+        <Link href={`/orders/${order.id}`} className="press block space-y-3 rounded-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
           <div className="flex items-start gap-3">
             <div className="flex min-w-0 flex-1 items-start gap-3">
               <Monogram name={customerOf(order)} size={36} />

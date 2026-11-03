@@ -19,6 +19,7 @@ import {
   METHOD_KEYS, METHOD_LABEL, TAKEN_RANGES, takenByDay, takenRange, type TakenInput, type TakenRange, type TakenKind,
 } from '@/lib/taken-by-day';
 import { barsOf, METHOD_COLOR, type DayBar } from './taken-bars';
+import { formatDate } from '@/lib/safe-date';
 
 const TakenChart = dynamic(() => import('./taken-chart').then(m => m.TakenChart), { ssr: false, loading: () => <ChartSkeleton height={220} title={false} /> });
 
@@ -26,7 +27,7 @@ const KIND_LABEL: Record<TakenKind, [string, string]> = {
   invoice: ['invoice', 'invoices'], order: ['order', 'orders'], repair: ['repair payment', 'repair payments'], extra: ['extra revenue', 'extra revenue'],
 };
 const pkr = (n: number) => `PKR ${Math.round(n).toLocaleString()}`;
-const dayLabel = (day: string) => format(parseISO(day), 'd MMM');
+const dayLabel = (day: string) => formatDate(day, 'd MMM');
 
 export function TakenByDayDialog({ open, onOpenChange, data }: { open: boolean; onOpenChange: (o: boolean) => void; data: TakenInput }) {
   const [now] = useState(() => new Date());
@@ -76,7 +77,7 @@ export function TakenByDayDialog({ open, onOpenChange, data }: { open: boolean; 
         {selected && (
           <section className="space-y-3 rounded-card border border-separator p-4" aria-live="polite">
             <div className="flex items-baseline justify-between gap-3">
-              <h3 className="text-ios-headline font-semibold">{format(parseISO(selected.day), 'EEEE, d MMMM')}</h3>
+              <h3 className="text-ios-headline font-semibold">{formatDate(selected.day, 'EEEE, d MMMM')}</h3>
               <span className="text-ios-title3 font-semibold tabular-nums">{pkr(selected.total)}</span>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
@@ -99,7 +100,7 @@ export function TakenByDayDialog({ open, onOpenChange, data }: { open: boolean; 
                 {selected.entries.map(e => {
                   const body = (
                     <>
-                      <span className="w-14 shrink-0 text-ios-cap tabular-nums text-muted-foreground">{e.at.length > 10 ? format(parseISO(e.at), 'h:mm a').toLowerCase() : ''}</span>
+                      <span className="w-14 shrink-0 text-ios-cap tabular-nums text-muted-foreground">{e.at.length > 10 ? formatDate(e.at, 'h:mm a').toLowerCase() : ''}</span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-ios-sub font-medium">{[e.customer, e.id].filter(Boolean).join(' · ')}</span>
                         <span className="block truncate text-ios-cap text-muted-foreground">{[e.what, e.who && `by ${e.who}`, e.method].filter(Boolean).join(' · ')}</span>

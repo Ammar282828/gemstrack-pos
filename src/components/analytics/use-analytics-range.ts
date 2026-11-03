@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { DateRange } from 'react-day-picker';
 import { readRange, rangeQuery } from '@/lib/analytics/range-param';
+import { visibleInterval } from '@/lib/visible-interval';
 
 export function useAnalyticsRange() {
   const params = useSearchParams();
@@ -20,10 +21,10 @@ export function useAnalyticsRange() {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const check = () => setNow(prev => (new Date().toDateString() === prev.toDateString() ? prev : new Date()));
-    const id = setInterval(check, 60_000);
+    const stop = visibleInterval(check, 60_000);
     document.addEventListener('visibilitychange', check);
     window.addEventListener('focus', check);
-    return () => { clearInterval(id); document.removeEventListener('visibilitychange', check); window.removeEventListener('focus', check); };
+    return () => { stop(); document.removeEventListener('visibilitychange', check); window.removeEventListener('focus', check); };
   }, []);
 
   const query = params.toString();

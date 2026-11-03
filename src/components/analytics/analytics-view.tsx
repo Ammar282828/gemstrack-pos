@@ -43,6 +43,9 @@ import { lineCategory } from '@/lib/categories';
 import { netProfit as netProfitOf, netMarginPercent, isRunningCost, profitBeforeRunning, RECORDS_GOODS } from '@/lib/analytics/net-profit';
 import { isGoodsExpense } from '@/lib/expense-categories';
 import { useShallow } from 'zustand/react/shallow';
+import { formatDate } from '@/lib/safe-date';
+import { SectionBoundary, withBoundary } from '@/components/shared/section-boundary';
+import { EmptyState } from '@/components/ledger';
 
 // Helper types for chart data
 type SalesOverTimeData = { date: string; sales: number; orders: number; itemsSold: number };
@@ -59,11 +62,11 @@ type SourceTrendData = { date: string } & Record<string, number | string>;
 const UNCLASSIFIED_KEY = 'unclassified';
 const SOURCE_KEYS: string[] = [...CUSTOMER_SOURCES, UNCLASSIFIED_KEY];
 // recharts is heavy: fetched when a chart is first drawn.
-const ExpensesByCategoryChart = dynamic(() => import('./analytics-charts').then(m => m.ExpensesByCategoryChart), { ssr: false, loading: () => <Skeleton className="h-[350px] w-full" /> });
-const SalesOverTimeChart = dynamic(() => import('./analytics-charts').then(m => m.SalesOverTimeChart), { ssr: false, loading: () => <Skeleton className="h-[350px] w-full" /> });
-const MonthlyRevenueChart = dynamic(() => import('./analytics-charts').then(m => m.MonthlyRevenueChart), { ssr: false, loading: () => <Skeleton className="h-[340px] w-full" /> });
-const SalesByCategoryChart = dynamic(() => import('./analytics-charts').then(m => m.SalesByCategoryChart), { ssr: false, loading: () => <Skeleton className="h-[350px] w-full" /> });
-const SourceTrendChart = dynamic(() => import('./analytics-charts').then(m => m.SourceTrendChart), { ssr: false, loading: () => <Skeleton className="h-[320px] w-full" /> });
+const ExpensesByCategoryChart = withBoundary(dynamic(() => import('./analytics-charts').then(m => m.ExpensesByCategoryChart), { ssr: false, loading: () => <Skeleton className="h-[350px] w-full" /> }), 'Expenses by category');
+const SalesOverTimeChart = withBoundary(dynamic(() => import('./analytics-charts').then(m => m.SalesOverTimeChart), { ssr: false, loading: () => <Skeleton className="h-[350px] w-full" /> }), 'Sales over time');
+const MonthlyRevenueChart = withBoundary(dynamic(() => import('./analytics-charts').then(m => m.MonthlyRevenueChart), { ssr: false, loading: () => <Skeleton className="h-[340px] w-full" /> }), 'Revenue by month');
+const SalesByCategoryChart = withBoundary(dynamic(() => import('./analytics-charts').then(m => m.SalesByCategoryChart), { ssr: false, loading: () => <Skeleton className="h-[350px] w-full" /> }), 'Sales by category');
+const SourceTrendChart = withBoundary(dynamic(() => import('./analytics-charts').then(m => m.SourceTrendChart), { ssr: false, loading: () => <Skeleton className="h-[320px] w-full" /> }), 'Source trend');
 
 const SOURCE_LABELS: Record<string, string> = { ...CUSTOMER_SOURCE_LABELS, [UNCLASSIFIED_KEY]: 'Unclassified' };
 // Stable colors for the trend chart, one per source key.
@@ -725,7 +728,7 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
           <DialogContent className="max-w-4xl">
               <DialogHeader>
                   <DialogTitle className="text-2xl">
-                      Daily Report for {selectedDayData && format(parseISO(selectedDayData.date), 'MMMM d, yyyy')}
+                      Daily Report for {selectedDayData && formatDate(selectedDayData.date, 'MMMM d, yyyy')}
                   </DialogTitle>
                   <DialogDescription>
                       A detailed breakdown of all activity for this day.
@@ -786,23 +789,10 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
       </div>
 
       {filteredInvoices.length === 0 && filteredOrders.length === 0 && dateRange?.from ? ( 
-        <Card>
-          <CardHeader>
-            <CardTitle>Nothing in this range</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">There are no invoices or orders in the selected date range. Adjust the date range to view another period.</p>
-          </CardContent>
-        </Card>
+        <Card><EmptyState icon={<CalendarDays />} title="Nothing in this range"
+          description="There are no invoices or orders in the selected date range. Adjust the date range to view another period." /></Card>
       ) : generatedInvoices.length === 0 && orders.length === 0 && expenses.length === 0 ? ( 
-        <Card>
-          <CardHeader>
-            <CardTitle>No data yet</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">There is no data available to generate analytics yet.</p>
-          </CardContent>
-        </Card>
+        <Card><EmptyState icon={<BarChart3 />} title="No data yet" description="There is no data available to generate analytics yet." /></Card>
       ) : (
         <>
           {/*
@@ -817,7 +807,7 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
             way, and a staggered slide-in on every card, which was motion for its own
             sake and made switching tabs look like a page load.
           */}
-          <div className="space-y-6">
+          <div className="space-y-6 glass-zone">
             {section === 'overview' && (<div className="space-y-6">
           {/* Key metrics in two tiers rather than nine equal tiles. The four money
               figures get the room; the counts sit underneath at half the weight.
@@ -1192,8 +1182,8 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
                       {analyticsData.salesOverTime.map((day) => (
                         <TableRow key={day.date} onClick={() => handleDayClick(day)} className="cursor-pointer hover:bg-muted/50">
                           <TableCell className="font-medium">
-                            <span className="hidden sm:inline">{format(parseISO(day.date), 'EEE, MMM d, yyyy')}</span>
-                            <span className="sm:hidden">{format(parseISO(day.date), 'MMM d')}</span>
+                            <span className="hidden sm:inline">{formatDate(day.date, 'EEE, MMM d, yyyy')}</span>
+                            <span className="sm:hidden">{formatDate(day.date, 'MMM d')}</span>
                           </TableCell>
                           <TableCell className="text-right font-semibold">{lacCrore(day.sales)}</TableCell>
                           <TableCell className="text-right">{day.orders}</TableCell>
@@ -1374,9 +1364,9 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
             </div>)}
 
             {/* The detail each used to keep on a page of its own, with its own 30 days (now the shared range). */}
-            {section === 'products' && <ProductBreakdown range={dateRange} />}
-            {section === 'customers' && <CustomerBreakdown range={dateRange} />}
-            {section === 'categories' && <CategoryBreakdown range={dateRange} />}
+            {section === 'products' && <SectionBoundary name="Products"><ProductBreakdown range={dateRange} /></SectionBoundary>}
+            {section === 'customers' && <SectionBoundary name="Customers"><CustomerBreakdown range={dateRange} /></SectionBoundary>}
+            {section === 'categories' && <SectionBoundary name="Categories"><CategoryBreakdown range={dateRange} /></SectionBoundary>}
           </div>
         </>
       )}

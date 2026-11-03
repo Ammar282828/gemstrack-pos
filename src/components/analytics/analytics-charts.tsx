@@ -10,6 +10,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { format, parseISO } from 'date-fns';
 import { chartMotion } from '@/lib/chart-motion';
 import { pkrLac, axisLac } from '@/lib/money';
+import { formatDate } from '@/lib/safe-date';
 
 const TIP = {
   contentStyle: { backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' },
@@ -126,7 +127,7 @@ export function SourceTrendChart({ data, keys, labels, colors }: { data: Rows; k
     <ResponsiveContainer width="100%" height={320}>
       <LineChart data={data}>
         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-        <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(value) => format(parseISO(value), 'MMM d')} />
+        <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(value) => formatDate(value, 'MMM d')} />
         <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(value) => axisLac(Number(value))} />
         <Tooltip
           {...TIP}

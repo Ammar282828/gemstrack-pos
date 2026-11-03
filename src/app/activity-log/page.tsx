@@ -21,6 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { deleteErrorText } from '@/lib/delete-code';
 import { useShallow } from 'zustand/react/shallow';
+import { formatDate } from '@/lib/safe-date';
 
 const eventIcons: Record<LogEventType, React.ReactNode> = {
     'product.create': <Package className="h-4 w-4" />,
@@ -180,8 +181,8 @@ export default function ActivityLogPage() {
                                             <p className="text-sm text-muted-foreground">{log.details}</p>
                                         </div>
                                         <div className="text-right text-xs text-muted-foreground flex-shrink-0">
-                                            <p>{format(parseISO(log.timestamp), 'PP')}</p>
-                                            <p>{format(parseISO(log.timestamp), 'p')}</p>
+                                            <p>{formatDate(log.timestamp, 'PP')}</p>
+                                            <p>{formatDate(log.timestamp, 'p')}</p>
                                         </div>
                                         {REVERTABLE_EVENTS.includes(log.eventType) && (
                                             <Button
@@ -214,7 +215,7 @@ export default function ActivityLogPage() {
                     <DialogDescription>
                         <span className="font-medium text-foreground">{revertTargetShown?.description}</span>
                         <br />
-                        <span className="text-muted-foreground text-xs">{revertTargetShown && format(parseISO(revertTargetShown.timestamp), 'PPp')}</span>
+                        <span className="text-muted-foreground text-xs">{revertTargetShown && formatDate(revertTargetShown.timestamp, 'PPp')}</span>
                     </DialogDescription>
                 </DialogHeader>
                 <div className="py-2 text-sm text-muted-foreground">

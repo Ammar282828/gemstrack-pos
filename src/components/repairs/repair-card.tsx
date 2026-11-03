@@ -11,6 +11,7 @@ import { REPAIR_STATUS_LABELS, repairBalance, repairPaid, repairTotal, type Repa
 import type { Repair } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import { ContactMenu } from '@/components/customer/contact-actions';
+import { formatDate } from '@/lib/safe-date';
 
 /** In the shop (with us), Ready (settled), Collected (quiet): each in its one tone. */
 export const REPAIR_STATUS_TONE: Record<RepairStatus, Tone> = {
@@ -21,7 +22,7 @@ export const REPAIR_STATUS_TONE: Record<RepairStatus, Tone> = {
 };
 
 const pkr = (n: number) => `PKR ${Math.round(n).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
-const day = (iso?: string) => { if (!iso) return ''; try { return format(parseISO(iso), 'd MMM'); } catch { return iso; } };
+const day = (iso?: string) => { if (!iso) return ''; try { return formatDate(iso, 'd MMM'); } catch { return iso; } };
 
 /** One repair ticket: who, what, the money and the next step. The page owns every action. */
 export function RepairCard({ repair: r, late, whatsappHref, onEdit, onReady, onHandBack, onPrint, onCancel, onDelete }: {

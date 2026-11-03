@@ -1,0 +1,176 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Glass cards — Settings → Appearance → Interface style → Liquid Glass.
+   Owner, 2026-11-03: "Also for the UI and cards — search and add glassmorphism."
+
+   Until now glass was the control layer only and "content stays opaque" (HIG:
+   "Don't use Liquid Glass in the content layer"). The owner has reopened that, so under
+   `html.ui-glass` cards are glass too — in two weights, because the cost of a blur is
+   per element, per frame, over whatever scrolls beneath it:
+
+   · `.glass-card`  TRUE glass: blur(16px) saturate(1.4), the house popover colour at low
+     alpha, a specular ring, a faint top highlight. For cards that are FEW on a page:
+     Home's hero and figure tiles, the dashboards' KPI tiles, Analytics' cards (the
+     `.glass-zone` wrapper), a record page's header cards.
+   · `.glass-lite` the CHEAP look: translucent house card colour + the specular hairline,
+     NO backdrop-filter. Every `.card` / `.rounded-card.bg-card` is lite by default, and
+     so is any glass-card that sits in a list that scrolls by the dozen (`.cv-list`),
+     in a window, a popover or another glass card. Why no blur: each backdrop-filter
+     makes the browser re-sample and re-blur the pixels behind it every frame they change,
+     and a page of 50 cards scrolling over the ambient glow is 50 blurs per frame — the
+     phone drops frames long before the eye can tell the difference. The mesh behind is
+     soft already; a hairline and a translucent fill read as the same material.
+
+   Rules kept: never glass inside glass (HIG: "avoid overcrowding or layering Liquid Glass
+   elements on top of each other"); the fill is alpha-high enough for AA text on the
+   ground (light ≥ 0.62, dark ≥ 0.58); Reduce Transparency, Increase Contrast and a
+   browser without backdrop-filter all get today's solid card. Standard (no `ui-glass`) is
+   untouched — everything here sits under `html.ui-glass`.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+html.ui-glass {
+  --gc-blur: 16px;
+  --gc-sat: 1.4;
+  --gc-fill: var(--popover) / 0.62;       /* true glass */
+  --gc-lite: var(--card) / 0.74;          /* lite: the house card colour */
+  --gc-edge: 0 0% 100% / 0.7;             /* specular ring, lit corner */
+  --gc-edge-dim: 0 0% 100% / 0;
+  --gc-hair: 220 30% 10% / 0.07;          /* outer hairline so white reads on a pale ground */
+  --gc-top: 0 0% 100% / 0.55;
+  --gc-shadow: 0 10px 28px -16px hsl(220 30% 10% / 0.3);
+  --gc-lite-shadow: 0 6px 18px -14px hsl(220 30% 10% / 0.22);
+}
+html.ui-glass.dark {
+  --gc-fill: var(--popover) / 0.58;
+  --gc-lite: var(--card) / 0.7;
+  --gc-edge: 0 0% 100% / 0.26;
+  --gc-hair: 0 0% 0% / 0.4;
+  --gc-top: 0 0% 100% / 0.1;
+  --gc-shadow: 0 14px 34px -16px hsl(0 0% 0% / 0.7);
+  --gc-lite-shadow: 0 8px 22px -14px hsl(0 0% 0% / 0.6);
+}
+
+/* ── The ground: a soft static mesh (never animated), on the fixed layer the control
+      glass already uses. Three wide radial gradients: the house's primary, its second
+      chart hue, a warm third. Specificity is raised so it wins over globals.css. ─── */
+html.ui-glass.ui-glass body::before {
+  background-image:
+    radial-gradient(52rem 38rem at 6% -8%, hsl(var(--primary) / 0.22), transparent 62%),
+    radial-gradient(46rem 34rem at 98% 20%, hsl(var(--chart-2) / 0.16), transparent 62%),
+    radial-gradient(54rem 38rem at 40% 108%, hsl(var(--chart-3) / 0.15), transparent 62%),
+    radial-gradient(40rem 30rem at 62% 46%, hsl(var(--foreground) / 0.025), transparent 60%);
+}
+html.ui-glass.ui-glass.dark body::before {
+  background-image:
+    radial-gradient(52rem 38rem at 6% -8%, hsl(var(--primary) / 0.34), transparent 62%),
+    radial-gradient(46rem 34rem at 98% 20%, hsl(var(--chart-2) / 0.24), transparent 62%),
+    radial-gradient(54rem 38rem at 40% 108%, hsl(var(--chart-3) / 0.2), transparent 62%),
+    radial-gradient(40rem 30rem at 62% 46%, hsl(var(--foreground) / 0.04), transparent 60%);
+}
+
+/* ── LITE: every card, the default. Fill + hairline + top highlight as inset shadows
+      (no pseudo-element, so a card that is already positioned keeps its position). ── */
+html.ui-glass .card,
+html.ui-glass .rounded-card.bg-card,
+html.ui-glass .glass-lite {
+  background-color: hsl(var(--gc-lite));
+  border-color: transparent;
+  box-shadow:
+    inset 0 1px 0 hsl(var(--gc-top)),
+    inset 0 0 0 1px hsl(var(--gc-hair)),
+    var(--gc-lite-shadow);
+}
+
+/* ── TRUE glass. `isolation` + `contain: paint` keep the blur layer to the card's own
+      box, so it does not promote the page; the prefixed property is for Safari < 18. ── */
+html.ui-glass .glass-card,
+html.ui-glass .glass-zone .card {
+  isolation: isolate;
+  contain: paint;
+  background-color: hsl(var(--gc-fill));
+  -webkit-backdrop-filter: blur(var(--gc-blur)) saturate(var(--gc-sat));
+  backdrop-filter: blur(var(--gc-blur)) saturate(var(--gc-sat));
+  box-shadow:
+    inset 0 1px 0 hsl(var(--gc-top)),
+    inset 0 0 0 1px hsl(var(--gc-hair)),
+    var(--gc-shadow);
+}
+/* A positioned card (sticky/absolute) keeps its position; the ring needs a containing block. */
+html.ui-glass .glass-card:not(.sticky):not(.absolute):not(.fixed),
+html.ui-glass .glass-zone .card:not(.sticky):not(.absolute):not(.fixed) { position: relative; }
+/* The specular ring: a masked gradient, bright at the top left, as .glass-window has. */
+html.ui-glass .glass-card::after,
+html.ui-glass .glass-zone .card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  background: linear-gradient(160deg,
+    hsl(var(--gc-edge)) 0%,
+    hsl(var(--gc-edge-dim)) 38%,
+    hsl(var(--gc-edge-dim)) 72%,
+    hsl(var(--gc-edge) / 0.4) 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+/* ── Never glass in glass, and never a blur per row: these drop to lite. ─────────── */
+html.ui-glass :is(.glass-window, .glass-popover, .glass-sheet, .glass-drawer, .glass-card, .glass-bar, .glass-toolbar, .cv-list, [role="dialog"], [role="alertdialog"]) :is(.glass-card, .card),
+html.ui-glass .cv-list .glass-card {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  contain: none;
+  background-color: hsl(var(--gc-lite));
+  box-shadow: inset 0 1px 0 hsl(var(--gc-top)), inset 0 0 0 1px hsl(var(--gc-hair)), var(--gc-lite-shadow);
+}
+html.ui-glass :is(.glass-window, .glass-popover, .glass-sheet, .glass-drawer, .glass-card, .cv-list, [role="dialog"], [role="alertdialog"]) :is(.glass-card, .glass-zone .card)::after { content: none; }
+/* Lite keeps the hairline, the ring is only for true glass; a card inside a window sits
+   on an already-opaque pane, so a touch more fill than the page-level lite. */
+html.ui-glass :is(.glass-window, [role="dialog"], [role="alertdialog"]) :is(.card, .glass-card) {
+  background-color: hsl(var(--card) / 0.8);
+}
+
+/* ── Press and focus still read on glass. `.press` sinks the card; its focus ring is
+      an outline/ring on the wrapper, outside the glass box, so the blur never hides it. */
+html.ui-glass .press:focus-visible > .glass-card,
+html.ui-glass .press:focus-visible > .rounded-card { box-shadow: inset 0 0 0 1px hsl(var(--primary) / 0.5), var(--gc-lite-shadow); }
+html.ui-glass .press-row:active { background-color: hsl(var(--muted) / 0.5); }
+html.ui-glass :is(.card, .glass-card):focus-within { outline: none; }
+
+/* ── Accessibility: today's solid card, as the HIG asks. ─────────────────────────── */
+@media (prefers-reduced-transparency: reduce) {
+  html.ui-glass .card,
+  html.ui-glass .rounded-card.bg-card,
+  html.ui-glass .glass-lite,
+  html.ui-glass .glass-card,
+  html.ui-glass .glass-zone .card {
+    background-color: hsl(var(--card));
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: none;
+    contain: none;
+  }
+  html.ui-glass .glass-card::after, html.ui-glass .glass-zone .card::after { content: none; }
+}
+@media (prefers-contrast: more) {
+  html.ui-glass .card,
+  html.ui-glass .rounded-card.bg-card,
+  html.ui-glass .glass-lite,
+  html.ui-glass .glass-card,
+  html.ui-glass .glass-zone .card {
+    background-color: hsl(var(--card));
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: none;
+    border: 1px solid hsl(var(--border));
+    contain: none;
+  }
+  html.ui-glass .glass-card::after, html.ui-glass .glass-zone .card::after { content: none; }
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  html.ui-glass .glass-card,
+  html.ui-glass .glass-zone .card { background-color: hsl(var(--card) / 0.92); contain: none; }
+  html.ui-glass .glass-card::after, html.ui-glass .glass-zone .card::after { content: none; }
+}

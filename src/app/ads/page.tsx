@@ -69,7 +69,7 @@ function Delta({ now, before, neutral }: { now: number; before: number | null | 
 
 function Tile({ label, value, sub, delta }: { label: string; value: string; sub?: React.ReactNode; delta?: React.ReactNode }) {
   return (
-    <div className="rounded-xl border p-3 min-w-0">
+    <div className="glass-card rounded-xl border p-3 min-w-0">
       <p className="text-[11px] uppercase tracking-wide text-muted-foreground truncate">{label}</p>
       <p className="text-xl md:text-2xl font-semibold tabular-nums leading-tight mt-0.5 truncate">{value}</p>
       <div className="flex items-center gap-1.5 min-h-[1rem]">{delta}{sub && <span className="text-[11px] text-muted-foreground truncate">{sub}</span>}</div>

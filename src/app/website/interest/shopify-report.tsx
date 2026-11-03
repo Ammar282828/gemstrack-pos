@@ -15,6 +15,7 @@ import { Delta, Tile } from '@/app/insights/insights-kit';
 import { Card, countryName, flag, Ranked, type RankRow } from './site-kit';
 import { Gate, int, moneyFormatter, rate, secondsLabel, useShopify, type Section } from './shopify-kit';
 import { FigureTilesSkeleton, ChartSkeleton } from '@/components/shared/skeletons';
+import { LoadError, withBoundary } from '@/components/shared/section-boundary';
 
 type Kpis = Record<string, { value: number; before: number | null }>;
 interface ListRow { key: string; label: string; code?: string; value: number; before: number | null; extra?: Record<string, number | null> }
@@ -33,7 +34,7 @@ interface Report {
 
 const PERIODS = [{ key: 'today', label: 'Today' }, { key: '7d', label: '7 days' }, { key: '30d', label: '30 days' }, { key: '90d', label: '90 days' }, { key: 'month', label: 'This month' }] as const;
 const KEY = 'erp.shopifyAnalytics.period';
-const ShopifyChart = dynamic(() => import('./shopify-chart').then(m => m.ShopifyChart), { ssr: false, loading: () => <Skeleton className="h-full w-full" /> });
+const ShopifyChart = withBoundary(dynamic(() => import('./shopify-chart').then(m => m.ShopifyChart), { ssr: false, loading: () => <Skeleton className="h-full w-full" /> }), 'Shopify chart');
 
 const shortDay = (d: string) => new Date(`${d.slice(0, 10)}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 const hourLabel = (at: string) => `${at.slice(11, 13)}:00`;
@@ -45,7 +46,7 @@ export function ShopifyReport({ siteHost }: { siteHost: string }) {
   useEffect(() => { try { const v = localStorage.getItem(KEY); if (PERIODS.some(p => p.key === v)) setPeriodState(v!); } catch { /* private mode */ } }, []);
   const setPeriod = (p: string) => { setPeriodState(p); try { localStorage.setItem(KEY, p); } catch { /* private mode */ } };
   const [mode, setMode] = useState<'sessions' | 'sales'>('sessions');
-  const { data: r, error, loading } = useShopify<Report>(`/api/website/shopify-analytics?range=${period}&compare=1`);
+  const { data: r, error, loading, reload } = useShopify<Report>(`/api/website/shopify-analytics?range=${period}&compare=1`);
   const money = moneyFormatter(r?.shop?.currency);
   const s = r?.sections;
 
@@ -57,7 +58,7 @@ export function ShopifyReport({ siteHost }: { siteHost: string }) {
             className={cn('shrink-0 rounded-full border px-3 py-1.5 text-xs whitespace-nowrap min-h-0', period === p.key ? 'bg-primary text-primary-foreground border-primary' : 'text-muted-foreground hover:text-foreground')}>{p.label}</button>
         ))}
       </div>
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && <LoadError title="Shopify’s figures could not be loaded" message={error} onRetry={reload} busy={loading} />}
       {loading && !r && <div className="space-y-4"><FigureTilesSkeleton tiles={4} /><ChartSkeleton height={220} /></div>}
       {r && s && (
         <>

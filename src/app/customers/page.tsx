@@ -38,6 +38,7 @@ import { deleteErrorText } from '@/lib/delete-code';
 import { invoiceSaleValue } from '@/lib/analytics/sale-value';
 import { detectSpamCustomers, transactedCustomerIds, type SpamCandidate as SpamOf } from '@/lib/customer-spam';
 import { useShallow } from 'zustand/react/shallow';
+import { formatDate } from '@/lib/safe-date';
 
 type SpamCandidate = SpamOf<Customer>;
 
@@ -69,7 +70,7 @@ const CustomerRow: React.FC<{ customer: Customer; stats?: CustomerStats; onDelet
           : <span className="text-muted-foreground">—</span>}
       </TableCell>
       <TableCell className="hidden lg:table-cell text-muted-foreground text-sm whitespace-nowrap">
-        {stats?.lastAt ? format(parseISO(stats.lastAt), 'd MMM yy') : '—'}
+        {stats?.lastAt ? formatDate(stats.lastAt, 'd MMM yy') : '—'}
       </TableCell>
       <TableCell className="hidden xl:table-cell text-muted-foreground truncate max-w-[14rem]" title={customer.address}>
         {customer.address || '-'}
@@ -98,7 +99,7 @@ const CustomerCard: React.FC<{ customer: Customer; stats?: CustomerStats; onDele
     const spent = !!stats && stats.spent > 0;
     return (
     <div className="py-3">
-        <Link href={`/customers/${customer.id}`} className="flex items-start gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-md">
+        <Link href={`/customers/${customer.id}`} className="press-row flex items-start gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-md">
             <Monogram name={customer.name} size={40} />
             <div className="min-w-0 flex-1">
                 <p className="truncate text-ios-headline font-semibold">{customer.name}</p>
@@ -106,7 +107,7 @@ const CustomerCard: React.FC<{ customer: Customer; stats?: CustomerStats; onDele
                 {stats && stats.count > 0 && (
                     <p className="truncate text-ios-cap text-muted-foreground">
                         {stats.count} sale{stats.count === 1 ? '' : 's'}
-                        {stats.lastAt && ` · last ${format(parseISO(stats.lastAt), 'MMM yyyy')}`}
+                        {stats.lastAt && ` · last ${formatDate(stats.lastAt, 'MMM yyyy')}`}
                     </p>
                 )}
             </div>

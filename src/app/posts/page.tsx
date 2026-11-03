@@ -53,6 +53,7 @@ import { jpegOf } from './piece-photos';
 import { IG_CAROUSEL_MAX, albumCaptions, albumFileName, carouselPlan, instagramText, photosLabel, placesFor } from '@/lib/social/album';
 import { TodayCard, type InvestmentsToday } from './today';
 import { RecordGridSkeleton } from '@/components/shared/skeletons';
+import { visibleInterval } from '@/lib/visible-interval';
 
 /** The "collection" chip for the new arrivals — what the grid opens on. */
 const NEW = '__new';
@@ -179,11 +180,12 @@ function PostsHub() {
   useEffect(() => { load(); }, [load]);
   // Today keeps itself current: the clock every half minute, what went out every two, and on coming back to the tab.
   useEffect(() => {
-    const clock = setInterval(() => setNow(karachiNow()), 30_000);
-    const data = setInterval(() => { loadSent(); loadInvestments(); }, 120_000);
+    // Both sleep while the tab is hidden (lib/visible-interval.ts); `back` is the catch-up on returning.
+    const clock = visibleInterval(() => setNow(karachiNow()), 30_000);
+    const data = visibleInterval(() => { loadSent(); loadInvestments(); }, 120_000, { catchUp: false });
     const back = () => { if (document.visibilityState === 'visible') { loadSent(); loadInvestments(); refreshDrafts(); } };
     document.addEventListener('visibilitychange', back);
-    return () => { clearInterval(clock); clearInterval(data); document.removeEventListener('visibilitychange', back); };
+    return () => { clock(); data(); document.removeEventListener('visibilitychange', back); };
   }, [loadSent, loadInvestments, refreshDrafts]);
 
   const byId = useMemo(() => new Map((pieces ?? []).map(p => [p.id, p])), [pieces]);

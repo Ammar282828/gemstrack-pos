@@ -79,6 +79,7 @@ import { deleteErrorText } from '@/lib/delete-code';
 import { owesMoney } from '@/lib/money';
 import { BusyLabel } from '@/components/ui/busy';
 import { useShallow } from 'zustand/react/shallow';
+import { formatDate } from '@/lib/safe-date';
 
 
 const STATUS_TONE: Record<string, Tone> = { Pending: 'owed', 'In Progress': 'working', Completed: 'settled', Cancelled: 'quiet', Refunded: 'quiet' };
@@ -681,7 +682,7 @@ export default function OrderDetailPage() {
 
       <PageBack fallback="/orders" label="Back to orders" />
 
-      <Card>
+      <Card className="glass-card">
               <CardHeader>
                       <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
                         <div className="min-w-0 flex-1 space-y-4 lg:max-w-xl">
@@ -693,7 +694,7 @@ export default function OrderDetailPage() {
                               <p className="text-ios-sub text-muted-foreground">
                                 {order.id}
                                 {' · '}
-                                {format(parseISO(order.createdAt), 'd MMM yyyy')}
+                                {formatDate(order.createdAt, 'd MMM yyyy')}
                                 {getRateDisplay() !== 'N/A' && <> · {getRateDisplay()}</>}
                                 {order.status !== 'Cancelled' && order.status !== 'Refunded' && (
                                   <> · <Link href={changeRateHref} className="text-primary underline-offset-2 hover:underline">Change rate</Link></>
@@ -1126,7 +1127,7 @@ export default function OrderDetailPage() {
                             <ul className="text-xs text-muted-foreground space-y-0.5 pl-3">
                               {advanceLines.map((a, i) => (
                                 <li key={i} className="flex justify-between items-center gap-3">
-                                  <span>{format(parseISO(a.date), 'dd MMM yyyy')}{a.method ? ` · ${a.method}` : ''}{a.notes ? ` · ${a.notes}` : ''}</span>
+                                  <span>{formatDate(a.date, 'dd MMM yyyy')}{a.method ? ` · ${a.method}` : ''}{a.notes ? ` · ${a.notes}` : ''}</span>
                                   <span className="tabular-nums inline-flex items-center gap-1">{[a.amount > 0 ? a.amount.toLocaleString() : '', ...(a.exchanges?.length ? [`Gold: ${a.exchanges.map(e => `${describeExchangeEntry(e)} · PKR ${e.value.toLocaleString()}`).join('; ')}`] : [])].filter(Boolean).join(' + ')}
                                     {!order.invoiceId && (
                                       <button type="button" onClick={() => handleDeleteAdvance(i, a.amount)} className="min-h-0 p-1 hover:text-destructive"

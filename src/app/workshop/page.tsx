@@ -54,6 +54,7 @@ import { Pill, ChipRow, FilterChip, Segmented, EmptyState, type Tone } from '@/c
 import { deleteErrorText } from '@/lib/delete-code';
 import { ListSkeleton } from '@/components/shared/skeletons';
 import { useShallow } from 'zustand/react/shallow';
+import { formatDate } from '@/lib/safe-date';
 
 // ── small presentational helpers ────────────────────────────────────────────
 
@@ -142,7 +143,7 @@ const JobRow: React.FC<{
           <Checkbox className="h-4 w-4" checked={!!job.givenAt} disabled={job.karigarId === UNASSIGNED_ID}
             onCheckedChange={() => onToggleGiven(job)} aria-label="Given to karigar" />
           <span className={job.givenAt ? 'text-muted-foreground' : 'text-foreground'}>
-            {job.givenAt ? `Given ${format(parseISO(job.givenAt), 'dd MMM yy')}` : 'Given to karigar'}
+            {job.givenAt ? `Given ${formatDate(job.givenAt, 'dd MMM yy')}` : 'Given to karigar'}
           </span>
         </label>
 
@@ -809,7 +810,7 @@ const JobCardMobile: React.FC<{
                   : <Pill tone="working">Stock</Pill>}
               {job.customerName && <span className="truncate">{job.customerName}</span>}
               <TakenByTag job={job} />
-              <span>· {format(parseISO(job.assignedDate), 'dd MMM yy')}</span>
+              <span>· {formatDate(job.assignedDate, 'dd MMM yy')}</span>
             </div>
 
             {/* Labelled, because the box on the left already means "done" and a second
@@ -822,7 +823,7 @@ const JobCardMobile: React.FC<{
                 <Checkbox className="h-4 w-4" checked={!!job.givenAt} disabled={job.karigarId === UNASSIGNED_ID}
                   onCheckedChange={() => onToggleGiven(job)} aria-label="Given to karigar" />
                 <span className={job.givenAt ? 'text-muted-foreground' : 'text-foreground'}>
-                  {job.givenAt ? `Given ${format(parseISO(job.givenAt), 'dd MMM')}` : 'Given to karigar'}
+                  {job.givenAt ? `Given ${formatDate(job.givenAt, 'dd MMM')}` : 'Given to karigar'}
                 </span>
               </label>
             )}
@@ -1357,7 +1358,7 @@ export default function WorkshopPage() {
                             <Checkbox checked={!!j.givenAt} disabled={j.karigarId === UNASSIGNED_ID}
                               onCheckedChange={() => handleToggleGiven(j)} aria-label="Given to karigar" />
                             {j.givenAt
-                              ? <span className="text-xs text-muted-foreground tabular-nums">{format(parseISO(j.givenAt), 'dd MMM')}</span>
+                              ? <span className="text-xs text-muted-foreground tabular-nums">{formatDate(j.givenAt, 'dd MMM')}</span>
                               : <span className="text-xs text-muted-foreground">Not yet</span>}
                           </label>
                         </TableCell>

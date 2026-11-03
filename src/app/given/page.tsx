@@ -37,6 +37,7 @@ import { deleteErrorText } from '@/lib/delete-code';
 import { TakenByPicker } from '@/components/shared/taken-by-picker';
 import { useMe } from '@/hooks/use-me';
 import { useShallow } from 'zustand/react/shallow';
+import { formatDate } from '@/lib/safe-date';
 
 // ── Schema ────────────────────────────────────────────────────────────────────
 const givenSchema = z.object({
@@ -366,7 +367,7 @@ export default function GivenItemsPage() {
                     <div className="flex-1 min-w-0">
                       <p className="text-ios-headline font-semibold truncate">{item.description}</p>
                       <p className="text-ios-foot text-muted-foreground mt-0.5">
-                        {format(parseISO(item.date), 'd MMM yy')} · {RECIPIENT_ICON[item.recipientType]} {item.recipientName}
+                        {formatDate(item.date, 'd MMM yy')} · {RECIPIENT_ICON[item.recipientType]} {item.recipientName}
                         {item.givenBy && <> · by {item.givenBy}</>}
                       </p>
                     </div>
@@ -429,7 +430,7 @@ export default function GivenItemsPage() {
                 {filtered.map(item => (
                   <TableRow key={item.id} className={item.status === 'returned' ? 'opacity-60' : ''}>
                     <TableCell className="hidden xl:table-cell whitespace-nowrap text-sm">
-                      {format(parseISO(item.date), 'd MMM yy')}
+                      {formatDate(item.date, 'd MMM yy')}
                     </TableCell>
                     <TableCell className="font-medium">{item.description}</TableCell>
                     <TableCell>
@@ -447,7 +448,7 @@ export default function GivenItemsPage() {
                           <Pill tone="settled" icon={<CheckCircle2 />}>Returned</Pill>
                           {item.returnedDate && (
                             <p className="text-2xs text-muted-foreground mt-0.5">
-                              {format(parseISO(item.returnedDate), 'd MMM yy')}
+                              {formatDate(item.returnedDate, 'd MMM yy')}
                             </p>
                           )}
                         </div>

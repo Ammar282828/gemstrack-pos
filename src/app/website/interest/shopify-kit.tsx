@@ -11,6 +11,7 @@ import { auth as firebaseAuth } from '@/lib/firebase';
 import { KeyRound } from 'lucide-react';
 import { Card } from './site-kit';
 import { ChartSkeleton, ListRowsSkeleton } from '@/components/shared/skeletons';
+import { visibleInterval } from '@/lib/visible-interval';
 
 export type Section<T> = { data: T } | { missingScope: string; note?: string } | { error: string };
 
@@ -34,8 +35,7 @@ export function useShopify<T>(url: string, everyMs = 0) {
   useEffect(() => {
     setLoading(true); load();
     if (!everyMs) return;
-    const id = setInterval(() => { if (document.visibilityState === 'visible') load(); }, everyMs);
-    return () => clearInterval(id);
+    return visibleInterval(load, everyMs, { catchUp: false });
   }, [load, everyMs]);
   return { data, error, loading, reload: load };
 }

@@ -137,7 +137,7 @@ function CataloguePickerDialog({ open, onOpenChange, category, onPick }: {
                 className="group relative aspect-square overflow-hidden rounded-lg border bg-muted focus:outline-none focus:ring-2 focus:ring-primary">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={p.thumb} alt={p.title} loading="lazy" decoding="async" className="h-full w-full object-cover" />
-                <span className="absolute inset-x-0 bottom-0 truncate bg-background/80 px-1 py-0.5 text-[10px] opacity-0 group-hover:opacity-100">{p.title}</span>
+                <span className="absolute inset-x-0 bottom-0 truncate bg-background/80 px-1 py-0.5 text-[10px] opacity-0 [@media(hover:none)]:opacity-100 group-hover:opacity-100">{p.title}</span>
               </button>
             ))}
           </div>

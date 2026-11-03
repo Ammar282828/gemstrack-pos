@@ -25,6 +25,7 @@ import {
 import { ThumbGridSkeleton } from '@/components/shared/skeletons';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BusyLabel } from '@/components/ui/busy';
+import { visibleInterval } from '@/lib/visible-interval';
 
 const PLACEMENT_KEY = 'taheri_studio_placement';
 export function usePlacement(): [Placement, (p: Placement) => void] {
@@ -83,8 +84,8 @@ export function useAssessRunner(onBatch: () => void) {
   // While it works by itself, the counts move: look again every minute the page is in view.
   useEffect(() => {
     if (!state?.background) return;
-    const t = setInterval(() => { if (document.visibilityState === 'visible') { load(); onBatch(); } }, 60_000);
-    return () => clearInterval(t);
+    const t = visibleInterval(() => { load(); onBatch(); }, 60_000, { catchUp: false });
+    return t;
   }, [state?.background, load, onBatch]);
   const run = useCallback(async (body: Record<string, unknown>) => {
     if (running) return;

@@ -206,6 +206,20 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
   checkouts). Shopify has no Live View API: Live is sessions by the minute (the hour if refused), today's places and the
   orders and checkouts of the last 30 minutes; true live visitors would need a custom pixel beacon (not built).
 
+### Feel of the app
+
+- **The app behaves like the platform's best** (owner, 2026-11-03, with a list of what makes apps feel smooth). The rules, on
+  every surface: a screen that is not on display does no work (polls and timers pause while the app or tab is hidden and
+  catch up once on return; hidden tabs hand back their last result); every non-money save leaves the screen at once and says
+  its result later (web `lib/background-save.tsx`; iPhone/Android the Outbox); a failing part shows its own card with Retry,
+  never a blank page (web `components/shared/section-boundary.tsx`, a `error.tsx` per section; unhandled rejections toasted
+  once); every tappable card and row has a pressed state and a focus ring, hover only where a pointer exists; motion, radii,
+  colours and fonts come from the shared tokens only; haptics on success, error and selection; 120 Hz allowed on iPhone
+  (`CADisableMinimumFrameDurationOnPhone`); release builds fully optimised. The web is installable: `public/sw.js` caches the
+  hashed static files and keeps the last copy of each page for when the line is gone, pages themselves always network-first
+  (a kept shell names chunks a deploy removes — the fault of the worker killed in `public/service-worker.js`); it never
+  touches `/api/*`, writes, customer pages or tokened addresses; off with `NEXT_PUBLIC_DISABLE_SW=1` or a `VERSION` bump.
+
 ### Loading
 
 - **A skeleton when the shape is known, the spinning circle when it is not** (owner, 2026-11-03: "fix all loading states,

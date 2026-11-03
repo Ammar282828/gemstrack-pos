@@ -37,6 +37,8 @@ import { useOnlineWaiting, useSellingPausedForRates } from '@/lib/website/online
 import { awaitingTransfer, bookedAsSale } from '@/lib/order-stage';
 import { owesMoney } from '@/lib/money';
 import { useShallow } from 'zustand/react/shallow';
+import { formatDate } from '@/lib/safe-date';
+import { SectionBoundary } from '@/components/shared/section-boundary';
 
 /** PKR at a glance, in lac and crore (lib/money.ts); the exact value stays on hover. */
 function compactPKR(n: number): string {
@@ -46,7 +48,7 @@ function compactPKR(n: number): string {
 /** A row's trailing disclosure: the system chevron. */
 const Chevron = () => <ChevronRight aria-hidden className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground/60" />;
 
-const ROW = 'flex min-h-[56px] items-center gap-3 py-3 transition-colors active:bg-muted/60 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40';
+const ROW = 'flex min-h-[56px] items-center gap-3 py-3 press-row hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40';
 
 /** A row in "Needs you": an icon tile in the tone, a title, a caption. One thing waiting on a decision. */
 const TaskRow: React.FC<{
@@ -107,7 +109,7 @@ const RecentInvoiceRow: React.FC<{ invoice: Invoice }> = ({ invoice }) => {
       <Monogram name={invoice.customerName || 'Walk-in'} size={40} />
       <span className="min-w-0 flex-1">
         <span className="block truncate text-ios-sub font-semibold text-foreground">{invoice.customerName || 'Walk-in'}</span>
-        <span className="block truncate text-ios-foot text-muted-foreground">{format(parseISO(invoice.createdAt), 'EEE d MMM')}</span>
+        <span className="block truncate text-ios-foot text-muted-foreground">{formatDate(invoice.createdAt, 'EEE d MMM')}</span>
       </span>
       <span className="flex flex-shrink-0 flex-col items-end gap-1">
         <span className="text-ios-sub font-semibold tabular-nums">{compactPKR(invoiceSaleValue(invoice))}</span>
@@ -129,7 +131,7 @@ const ShowMore: React.FC<{ hidden: number; onClick: () => void }> = ({ hidden, o
 
 /** A figure that opens its screen: the tile, made a link. */
 const TileLink: React.FC<{ href: string; title?: string; children: React.ReactNode }> = ({ href, title, children }) => (
-  <Link href={href} title={title} className="block min-w-0 rounded-card transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 active:opacity-80">{children}</Link>
+  <Link href={href} title={title} className="press block min-w-0 rounded-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">{children}</Link>
 );
 
 const SHOWN = 3;
@@ -314,7 +316,7 @@ export default function HomePage() {
       out.push({
         href: `/invoices/${inv.id}`, tone: 'owed', icon: Receipt,
         title: inv.customerName || 'Walk-in',
-        detail: `Unpaid since ${format(parseISO(inv.createdAt), 'd MMM')}`,
+        detail: `Unpaid since ${formatDate(inv.createdAt, 'd MMM')}`,
         amount: compactPKR(inv.balanceDue || 0),
       });
     }
@@ -331,7 +333,7 @@ export default function HomePage() {
       out.push({
         href: `/repairs?id=${encodeURIComponent(r.id)}`, tone: 'owed', icon: Wrench,
         title: `${r.customerName || 'Walk-in'}’s repair is ready`,
-        detail: `Waiting to be collected since ${format(parseISO(r.readyAt!), 'd MMM')}`,
+        detail: `Waiting to be collected since ${formatDate(r.readyAt!, 'd MMM')}`,
       });
     }
 
@@ -424,13 +426,13 @@ export default function HomePage() {
 
       {/* The glance: what was taken today, then three figures. Wide, they sit across in one row. */}
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.5fr_1fr_1fr_1fr]">
-        <button type="button" onClick={() => setTakenOpen(true)} aria-haspopup="dialog" title={`PKR ${stats.todayRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })} — tap for day by day`} className="block min-w-0 rounded-card text-left transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 active:opacity-80">
-          <div className="h-full rounded-card bg-card p-4">
+        <button type="button" onClick={() => setTakenOpen(true)} aria-haspopup="dialog" title={`PKR ${stats.todayRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })} — tap for day by day`} className="press block min-w-0 rounded-card text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+          <div className="glass-card h-full rounded-card bg-card p-4">
             <p className="text-ios-sub text-muted-foreground">Taken today</p>
             <HeroAmount amount={stats.todayRevenue} lac tone={stats.todayRevenue > 0 ? 'settled' : undefined} className="mt-1" />
             <p className="mt-1 text-ios-foot text-muted-foreground">
               {stats.todayInvoiceCount} invoice{stats.todayInvoiceCount === 1 ? '' : 's'} today
-              {lastSaleToday && lastSale && ` · last at ${format(parseISO(lastSale.createdAt), 'h:mm a').toLowerCase()}`}
+              {lastSaleToday && lastSale && ` · last at ${formatDate(lastSale.createdAt, 'h:mm a').toLowerCase()}`}
             </p>
           </div>
         </button>
@@ -463,12 +465,21 @@ export default function HomePage() {
 
       {/* Phone: one column, in the app's order. Wide: needs + due beside sales + the month. */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start">
-        <div className="space-y-5">{needs}{dueList}</div>
-        <div className="space-y-5">{sales}{month}</div>
+        {/* Each card is its own boundary: one malformed record fails one card, not the dashboard. */}
+        <div className="space-y-5">
+          <SectionBoundary name="Needs you">{needs}</SectionBoundary>
+          <SectionBoundary name="Due to customers">{dueList}</SectionBoundary>
+        </div>
+        <div className="space-y-5">
+          <SectionBoundary name="Recent sales">{sales}</SectionBoundary>
+          <SectionBoundary name="This month">{month}</SectionBoundary>
+        </div>
       </div>
       {takenOpen && (
-        <TakenByDayDialog open onOpenChange={setTakenOpen}
-          data={{ invoices: generatedInvoices, orders, extraRevenues: additionalRevenues, repairs }} />
+        <SectionBoundary name="Taken by day" fallback={() => null}>
+          <TakenByDayDialog open onOpenChange={setTakenOpen}
+            data={{ invoices: generatedInvoices, orders, extraRevenues: additionalRevenues, repairs }} />
+        </SectionBoundary>
       )}
     </div>
   );

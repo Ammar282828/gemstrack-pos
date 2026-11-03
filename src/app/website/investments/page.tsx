@@ -45,6 +45,7 @@ import {
 } from '@/lib/investments-schedule';
 import { ListRowsSkeleton } from '@/components/shared/skeletons';
 import { BusyLabel } from '@/components/ui/busy';
+import { visibleInterval } from '@/lib/visible-interval';
 
 interface Sent { at: string; by: string; ref: string }
 interface Post {
@@ -92,7 +93,7 @@ function InvestmentsPage() {
   const [destinations, setDestinations] = useState<Destinations | null>(null);
   // The clock the day cards read their "goes at 11:30" from; ticks every half minute.
   const [now, setNow] = useState<KarachiNow>(() => karachiNow());
-  useEffect(() => { const t = setInterval(() => setNow(karachiNow()), 30_000); return () => clearInterval(t); }, []);
+  useEffect(() => visibleInterval(() => setNow(karachiNow()), 30_000), []);
 
   const load = useCallback(async (quiet = false) => {
     if (!quiet) setLoading(true);
@@ -117,8 +118,7 @@ function InvestmentsPage() {
   // While the schedule is on, what it sends shows up here without a reload.
   useEffect(() => {
     if (!schedule?.enabled) return;
-    const t = setInterval(() => load(true), 60_000);
-    return () => clearInterval(t);
+    return visibleInterval(() => load(true), 60_000);
   }, [schedule?.enabled, load]);
 
   const todays = posts?.find(p => p.date === today);

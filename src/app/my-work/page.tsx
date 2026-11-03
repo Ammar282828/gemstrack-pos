@@ -26,6 +26,9 @@ import { ItemPhotos } from '@/components/order/order-photo';
 import { format, parseISO } from 'date-fns';
 import { groupJobsByOrder, type JobOrderGroup } from '@/lib/workshop';
 import { ListSkeleton } from '@/components/shared/skeletons';
+import { visibleInterval } from '@/lib/visible-interval';
+import { formatDate } from '@/lib/safe-date';
+import { LoadError } from '@/components/shared/section-boundary';
 
 interface Job {
   id: string; source: 'order' | 'manual';
@@ -58,6 +61,7 @@ export default function MyWorkPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
   const scrolled = useScrolled(); // the glass top bar's scroll edge, once the page scrolls
   const { toast } = useToast();
 
@@ -74,8 +78,9 @@ export default function MyWorkPage() {
         : null;
       const url = preview ? `/api/karigar/me?karigarId=${encodeURIComponent(preview)}` : '/api/karigar/me';
       const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) { setData(await res.json()); setUpdatedAt(new Date()); }
-    } catch { /* surfaced by the empty state */ }
+      if (res.ok) { setData(await res.json()); setUpdatedAt(new Date()); setLoadFailed(false); }
+      else if (res.status >= 500) setLoadFailed(true);   // a refusal (no account) is the empty state; a dead server is not
+    } catch { setLoadFailed(true); }
     setLoading(false);
   }, []);
 
@@ -92,11 +97,11 @@ export default function MyWorkPage() {
     const refresh = () => { if (document.visibilityState === 'visible') load(); };
     document.addEventListener('visibilitychange', refresh);
     window.addEventListener('focus', refresh);
-    const id = setInterval(refresh, 60_000);
+    const stop = visibleInterval(load, 60_000, { catchUp: false });
     return () => {
       document.removeEventListener('visibilitychange', refresh);
       window.removeEventListener('focus', refresh);
-      clearInterval(id);
+      stop();
     };
   }, [load]);
 
@@ -123,6 +128,17 @@ export default function MyWorkPage() {
 
   if (loading) {
     return <div className="container mx-auto px-4 py-5 md:py-6 max-w-7xl"><ListSkeleton rows={5} /></div>;
+  }
+
+  // The server or the network failed and nothing is on screen: say so, with a way to try again,
+  // instead of claiming the account does not exist.
+  if (!data?.karigar && loadFailed) {
+    return (
+      <div className="container mx-auto max-w-xl px-4 py-8">
+        <LoadError title="Your work could not be loaded" message="Check the connection. Nothing was changed."
+          onRetry={() => { setLoading(true); void load(); }} />
+      </div>
+    );
   }
 
   if (!data?.karigar) {
@@ -231,7 +247,7 @@ export default function MyWorkPage() {
               </h3>
               <p className="text-xs text-muted-foreground mt-0.5">
                 {group.jobs.length} piece{group.jobs.length === 1 ? '' : 's'} · given{' '}
-                {format(parseISO(group.assignedDate), 'dd MMM yyyy')} · {group.ageDays} day{group.ageDays === 1 ? '' : 's'} ago
+                {formatDate(group.assignedDate, 'dd MMM yyyy')} · {group.ageDays} day{group.ageDays === 1 ? '' : 's'} ago
               </p>
             </div>
             {!allDone && urgency !== 'ok' && (
@@ -369,7 +385,7 @@ export default function MyWorkPage() {
                                 : <Pill tone="credit">Stock</Pill>}
                             </TableCell>
                             <TableCell className="align-middle text-sm whitespace-nowrap">
-                              {format(parseISO(j.assignedDate), 'dd MMM yyyy')}
+                              {formatDate(j.assignedDate, 'dd MMM yyyy')}
                             </TableCell>
                             <TableCell className="text-right align-middle">
                               {j.urgency !== 'ok' && (
@@ -439,7 +455,7 @@ export default function MyWorkPage() {
                       {data.account.ledger.map((l, i) => (
                         <div key={i} className="flex items-center justify-between text-sm py-1.5 border-b border-border/50 last:border-0">
                           <div className="min-w-0">
-                            <span className="text-xs text-muted-foreground">{l.date ? format(parseISO(l.date), 'dd MMM yy') : ''}</span>
+                            <span className="text-xs text-muted-foreground">{l.date ? formatDate(l.date, 'dd MMM yy') : ''}</span>
                             <span className="ml-2">{l.description}</span>
                           </div>
                           <span className={cn('font-semibold tabular-nums flex-shrink-0', l.goldOut ? 'text-destructive' : 'text-success')}>
@@ -465,7 +481,7 @@ export default function MyWorkPage() {
                       {data.account.payments.map((p, i) => (
                         <div key={i} className="flex items-center justify-between text-sm py-1.5 border-b border-border/50 last:border-0">
                           <div className="min-w-0">
-                            <span className="text-xs text-muted-foreground">{p.date ? format(parseISO(p.date), 'dd MMM yy') : ''}</span>
+                            <span className="text-xs text-muted-foreground">{p.date ? formatDate(p.date, 'dd MMM yy') : ''}</span>
                             <span className="ml-2">{p.description}</span>
                           </div>
                           <span className="font-semibold tabular-nums flex-shrink-0">{fmt(p.amount)}</span>

@@ -33,6 +33,7 @@ import { AmountInput } from '@/components/ui/amount-input';
 import { PageShell } from '@/components/shared/page-shell';
 import { deleteErrorText } from '@/lib/delete-code';
 import { useShallow } from 'zustand/react/shallow';
+import { formatDate } from '@/lib/safe-date';
 
 // ── Form schema ──────────────────────────────────────────────────────────────
 const revenueSchema = z.object({
@@ -282,7 +283,7 @@ export default function AdditionalRevenuePage() {
                   <div className="flex justify-between items-start gap-2">
                     <div className="flex-1 min-w-0">
                       <p className="font-medium truncate">{r.description}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{format(parseISO(r.date), 'MMM dd, yyyy')}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{formatDate(r.date, 'MMM dd, yyyy')}</p>
                     </div>
                     <p className="font-bold text-primary flex-shrink-0">PKR {r.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
                   </div>
@@ -330,7 +331,7 @@ export default function AdditionalRevenuePage() {
               <TableBody>
                 {filtered.map((r) => (
                   <TableRow key={r.id}>
-                    <TableCell>{format(parseISO(r.date), 'MMM dd, yyyy')}</TableCell>
+                    <TableCell>{formatDate(r.date, 'MMM dd, yyyy')}</TableCell>
                     <TableCell>{r.description}</TableCell>
                     <TableCell className="text-right font-medium">{r.amount.toLocaleString()}</TableCell>
                     <TableCell className="text-right">

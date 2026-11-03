@@ -29,6 +29,7 @@ import { Delta, Tile } from '@/app/insights/insights-kit';
 import type { Summary } from '@/lib/website/site-analytics';
 import { Card, CHANNEL, cityRows, countryName, flag, DEVICE, duration, pageLabel, pct, Ranked, sourceLabel, SwitchCard, type RankRow } from './site-kit';
 import { FigureTilesSkeleton, ChartSkeleton } from '@/components/shared/skeletons';
+import { LoadError, withBoundary } from '@/components/shared/section-boundary';
 
 interface Row {
   piece: string; name: string; thumb: string; url: string; collection: string;
@@ -62,7 +63,7 @@ const PERIOD_KEY = 'erp.websiteInterest.period';
 
 const secs = (ms: number) => (ms >= 60_000 ? `${Math.floor(ms / 60_000)}m ${Math.round((ms % 60_000) / 1000)}s` : `${Math.round(ms / 1000)}s`);
 // recharts is heavy: fetched when the chart is first drawn.
-const SessionsChart = dynamic(() => import('./sessions-chart').then(m => m.SessionsChart), { ssr: false, loading: () => <Skeleton className="h-full w-full" /> });
+const SessionsChart = withBoundary(dynamic(() => import('./sessions-chart').then(m => m.SessionsChart), { ssr: false, loading: () => <Skeleton className="h-full w-full" /> }), 'Sessions chart');
 const shortDay = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 const site = (STORE_LINKS.website || '').replace(/\/+$/, '');
 
@@ -132,7 +133,7 @@ function CatalogueInterestPage({ switcher }: { switcher?: React.ReactNode } = {}
         </div>
       )}
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && <LoadError title="The website figures could not be loaded" message={error} onRetry={load} busy={loading} />}
       {loading && !report && <div className="space-y-4"><FigureTilesSkeleton tiles={4} /><ChartSkeleton height={220} /></div>}
 
       {report && n && b && (

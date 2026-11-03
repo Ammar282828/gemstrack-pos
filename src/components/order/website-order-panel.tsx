@@ -27,6 +27,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Globe, Truck, Banknote, PackageCheck, RefreshCw, ExternalLink, FileText, Loader2, Ban, Clock, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BusyLabel } from '@/components/ui/busy';
+import { visibleInterval } from '@/lib/visible-interval';
 
 const fmt = (n: number) => `Rs ${Math.round(n).toLocaleString('en-PK')}`;
 /** "4 Oct, 11:12 am". */
@@ -104,7 +105,7 @@ function Slips({ order }: { order: Order }) {
 
 function HoldLine({ w }: { w: W }) {
   const [, tick] = useState(0);
-  useEffect(() => { const t = setInterval(() => tick(n => n + 1), 60_000); return () => clearInterval(t); }, []);
+  useEffect(() => visibleInterval(() => tick(n => n + 1), 60_000), []);
   if (!w.holdUntil || w.paymentStatus === 'transfer_received' || w.paymentStatus === 'expired') return null;
   const ended = Date.parse(w.holdUntil) <= Date.now();
   return (

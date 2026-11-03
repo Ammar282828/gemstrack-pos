@@ -33,6 +33,7 @@ import { PageShell } from '@/components/shared/page-shell';
 import { deleteErrorText } from '@/lib/delete-code';
 import { LabelLiveButton } from '@/components/label-live-button';
 import { useShallow } from 'zustand/react/shallow';
+import { EmptyState } from '@/components/ledger';
 
 type ViewMode = 'grid' | 'list';
 
@@ -399,13 +400,8 @@ export default function ProductsPage() {
           </Card>
         )
       ) : (
-        <div className="text-center py-16 bg-card rounded-lg shadow">
-          <Tag className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-          <h3 className="text-xl font-semibold mb-2">No pieces found</h3>
-          <p className="text-muted-foreground">
-            {searchTerm || selectedCategory ? 'Try adjusting your search or filter.' : 'Add a piece to begin.'}
-          </p>
-        </div>
+        <Card><EmptyState icon={<Tag />} title="No pieces found"
+          description={searchTerm || selectedCategory ? 'Try adjusting your search or filter.' : 'Add a piece to begin.'} /></Card>
       )}
     </PageShell>
   );

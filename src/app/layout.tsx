@@ -15,8 +15,11 @@ import { DeleteCodeDialog } from '@/components/shared/delete-code-dialog';
 import { STORE_CONFIG, STORE_BRAND, STORE_THEME_COLOR, STORE_ICONS, STORE_LINKS_PAGE, LINKS_DRESS, isLinksHost, storeLinksUrl } from '@/lib/store-config';
 import { readCachedTheme, writeCachedTheme, LIGHT_THEME, readDeviceTheme, DEVICE_THEME_EVENT, applyThemeToDocument, readCachedUiStyle, writeCachedUiStyle, applyUiStyleToDocument } from '@/lib/theme-cache';
 import { warmPdfLogo } from '@/lib/pdf-logo';
+import { whenIdle } from '@/lib/idle';
+import { registerServiceWorker } from '@/lib/sw-register';
 import { installAppBridges, tellAppChrome } from '@/lib/native-app';
 import { toast } from '@/hooks/use-toast';
+import { installUnhandledRejectionToast } from '@/lib/global-errors';
 
 // Google's own latin Inter, kept in the repo (src/fonts) so the build never fetches from Google —
 // see src/app/website/post/fonts.ts for why.
@@ -87,12 +90,21 @@ function AppBody({ children }: { children: React.ReactNode }) {
   // Have the wordmark ready for the first print before anyone has pressed anything.
   // On iOS the share sheet is only offered for a few seconds after the tap, and the
   // logo load was being paid inside that window. See pdf-logo.ts.
-  React.useEffect(() => { warmPdfLogo(); }, []);
+  React.useEffect(() => whenIdle(warmPdfLogo), []);
 
   // In the iPhone app: files, the share sheet and live words go through the phone (lib/native-app.ts).
   React.useEffect(() => {
     installAppBridges((message) => toast({ title: 'Not shared', description: message, variant: 'destructive' }));
   }, []);
+
+  // A rejected promise nobody caught: logged, and told once (lib/global-errors.ts), never a silent nothing.
+  React.useEffect(() => {
+    if (isPublicPath) return;   // a customer's page: logged by the browser, never a toast
+    return installUnhandledRejectionToast(n => toast({ ...n, variant: 'destructive' }));
+  }, [isPublicPath]);
+
+  // A home-screen launch paints from the device: the service worker (public/sw.js). Not on a customer's page.
+  React.useEffect(() => (isPublicPath || onLinksHost ? undefined : registerServiceWorker()), [isPublicPath, onLinksHost]);
 
   // This device's own mode (the sun/moon in the top bar), when it has one, wins over
   // the shop's; see theme-cache.ts.
@@ -224,6 +236,10 @@ export default function RootLayout({
           </>
         )}
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        {/* Added to the home screen: its own window, named for the house (the manifest says the same for Android). */}
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-title" content={STORE_ICONS.short} />
         {/* The house's own icons (store-config STORE_ICONS); both ERPs showed the template's flame. */}
         <link rel="icon" href={`${STORE_ICONS.dir}/favicon.ico`} sizes="48x48" />
         <link rel="icon" type="image/png" sizes="192x192" href={`${STORE_ICONS.dir}/icon-192.png`} />

@@ -10,6 +10,7 @@ import { useSyncExternalStore } from 'react';
 import { getAuth } from 'firebase/auth';
 import { STORE_WEBSITE_SELLING } from '@/lib/store-config';
 import type { OnlineOrderRow } from './types';
+import { visibleInterval } from '@/lib/visible-interval';
 
 export async function staffFetch<T = Record<string, unknown>>(path: string, body?: Record<string, unknown> | null): Promise<T> {
   const tk = await getAuth().currentUser?.getIdToken().catch(() => undefined);
@@ -35,7 +36,7 @@ const POLL_MS = 120_000;
 let waiting = 0;
 /** Selling is on but waiting for today's rate (lib/website/price-book.ts pausedForRates). */
 let paused: { ratesUpdatedAt: string | null } | null = null;
-let timer: ReturnType<typeof setInterval> | null = null;
+let stopTimer: (() => void) | null = null;
 let unauth: (() => void) | null = null;
 let inflight: Promise<void> | null = null;
 const listeners = new Set<() => void>();
@@ -61,12 +62,12 @@ function subscribe(cb: () => void) {
     // load the account arrives after the first render.
     void refreshWaiting();
     try { unauth = getAuth().onAuthStateChanged(u => { if (u) void refreshWaiting(); }); } catch { /* no auth on this page */ }
-    timer = setInterval(() => { if (document.visibilityState === 'visible') void refreshWaiting(); }, POLL_MS);
+    stopTimer = visibleInterval(() => { void refreshWaiting(); }, POLL_MS, { catchUp: false }); // onFocus covers the return
     window.addEventListener('focus', onFocus);
   }
   return () => {
     listeners.delete(cb);
-    if (!listeners.size) { if (timer) clearInterval(timer); timer = null; unauth?.(); unauth = null; window.removeEventListener('focus', onFocus); }
+    if (!listeners.size) { stopTimer?.(); stopTimer = null; unauth?.(); unauth = null; window.removeEventListener('focus', onFocus); }
   };
 }
 const onFocus = () => { void refreshWaiting(); };

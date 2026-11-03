@@ -45,9 +45,10 @@ import { useMe } from '@/hooks/use-me';
 import { PageShell } from '@/components/shared/page-shell';
 import { RepairCard } from '@/components/repairs/repair-card';
 import { useShallow } from 'zustand/react/shallow';
+import { formatDate } from '@/lib/safe-date';
 
 const pkr = (n: number) => `PKR ${Math.round(n).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
-const day = (iso?: string) => { if (!iso) return ''; try { return format(parseISO(iso), 'd MMM'); } catch { return iso; } };
+const day = (iso?: string) => { if (!iso) return ''; try { return formatDate(iso, 'd MMM'); } catch { return iso; } };
 const emptyPiece = (): RepairPiece => ({ item: '', work: '' });
 const READY_IN = [{ days: 3, label: '3 days' }, { days: 7, label: '1 week' }, { days: 14, label: '2 weeks' }];
 

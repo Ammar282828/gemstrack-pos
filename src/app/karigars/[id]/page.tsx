@@ -41,6 +41,7 @@ import { karigarPosition } from '@/lib/karigar-position';
 import { deleteErrorText } from '@/lib/delete-code';
 import { DetailSkeleton } from '@/components/shared/skeletons';
 import { useShallow } from 'zustand/react/shallow';
+import { formatDate } from '@/lib/safe-date';
 
 const silverTransactionSchema = z.object({
   silverGrams: z.coerce.number().positive("Silver grams must be greater than 0"),
@@ -67,8 +68,8 @@ const ClosedBatchCard: React.FC<{
           <div>
             <p className="font-semibold text-sm">{batch.label}</p>
             <p className="text-xs text-muted-foreground">
-              {format(parseISO(batch.startDate), 'dd MMM yyyy')}
-              {batch.closedDate ? ` → ${format(parseISO(batch.closedDate), 'dd MMM yyyy')}` : ''}
+              {formatDate(batch.startDate, 'dd MMM yyyy')}
+              {batch.closedDate ? ` → ${formatDate(batch.closedDate, 'dd MMM yyyy')}` : ''}
             </p>
           </div>
         </div>
@@ -92,7 +93,7 @@ const ClosedBatchCard: React.FC<{
               <TableBody>
                 {expenses.map(e => (
                   <TableRow key={e.id}>
-                    <TableCell className="whitespace-nowrap text-sm">{format(parseISO(e.date), 'dd MMM yy')}</TableCell>
+                    <TableCell className="whitespace-nowrap text-sm">{formatDate(e.date, 'dd MMM yy')}</TableCell>
                     <TableCell className="text-sm">{e.description}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{e.category}</TableCell>
                     <TableCell className="text-right font-medium text-sm">{e.amount.toLocaleString()}</TableCell>
@@ -171,7 +172,7 @@ const DirectPaymentsCard: React.FC<{ expenses: Expense[] }> = ({ expenses }) => 
             <TableBody>
               {expenses.map(e => (
                 <TableRow key={e.id}>
-                  <TableCell className="whitespace-nowrap text-sm">{format(parseISO(e.date), 'dd MMM yy')}</TableCell>
+                  <TableCell className="whitespace-nowrap text-sm">{formatDate(e.date, 'dd MMM yy')}</TableCell>
                   <TableCell className="text-sm">{e.description}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{e.category}</TableCell>
                   <TableCell className="text-right font-medium text-sm">{e.amount.toLocaleString()}</TableCell>
@@ -491,7 +492,7 @@ export default function KarigarDetailPage() {
                   return (
                     <div key={e.id} className="flex items-center justify-between text-sm py-1 border-b border-border/50 last:border-0">
                       <div className="min-w-0">
-                        <span className="text-muted-foreground text-xs">{format(parseISO(e.date), 'dd MMM yy')}</span>
+                        <span className="text-muted-foreground text-xs">{formatDate(e.date, 'dd MMM yy')}</span>
                         <span className="ml-2">{e.description}</span>
                       </div>
                       <span className={cn("font-semibold flex-shrink-0 tabular-nums", isGiven ? 'text-destructive' : 'text-success')}>
@@ -612,7 +613,7 @@ export default function KarigarDetailPage() {
                 <Badge>Active</Badge>
               </div>
               <CardDescription className="mt-0.5">
-                Started {format(parseISO(openBatch.startDate), 'dd MMM yyyy')} · {openBatchExpenses.length} payment{openBatchExpenses.length !== 1 ? 's' : ''}
+                Started {formatDate(openBatch.startDate, 'dd MMM yyyy')} · {openBatchExpenses.length} payment{openBatchExpenses.length !== 1 ? 's' : ''}
               </CardDescription>
             </div>
             <div className="flex flex-col sm:flex-row gap-2 flex-shrink-0">
@@ -645,7 +646,7 @@ export default function KarigarDetailPage() {
                   <TableBody>
                     {openBatchExpenses.map(e => (
                       <TableRow key={e.id}>
-                        <TableCell className="text-sm whitespace-nowrap">{format(parseISO(e.date), 'dd MMM yy')}</TableCell>
+                        <TableCell className="text-sm whitespace-nowrap">{formatDate(e.date, 'dd MMM yy')}</TableCell>
                         <TableCell className="text-sm">{e.description}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{e.category}</TableCell>
                         <TableCell className="text-right font-medium text-sm">{e.amount.toLocaleString()}</TableCell>
@@ -715,7 +716,7 @@ export default function KarigarDetailPage() {
                 <TableBody>
                   {karigarSilver.map(t => (
                     <TableRow key={t.id}>
-                      <TableCell className="text-sm whitespace-nowrap">{format(parseISO(t.date), 'dd MMM yy')}</TableCell>
+                      <TableCell className="text-sm whitespace-nowrap">{formatDate(t.date, 'dd MMM yy')}</TableCell>
                       <TableCell className="text-sm">{t.description || '—'}</TableCell>
                       <TableCell className="text-right font-medium text-sm">{t.silverGrams.toFixed(3)}</TableCell>
                       <TableCell className="text-right text-sm text-muted-foreground">{t.surchargePerGram}</TableCell>
@@ -830,7 +831,7 @@ function NowCard({ karigarId, position, openBatch, silver }: {
                 <li key={it.id}>
                   <Link href="/given" className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-muted/50">
                     <span className="min-w-0 flex-1 truncate">{it.description}</span>
-                    <span className="text-xs text-muted-foreground flex-shrink-0">{it.date ? format(parseISO(it.date), 'dd MMM') : ''}</span>
+                    <span className="text-xs text-muted-foreground flex-shrink-0">{it.date ? formatDate(it.date, 'dd MMM') : ''}</span>
                   </Link>
                 </li>
               ))}

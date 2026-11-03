@@ -1,3 +1,4 @@
+@import './glass-cards.css';
 
 @tailwind base;
 @tailwind components;
@@ -50,6 +51,18 @@ body {
   .rdp button {
     min-height: 0;
   }
+}
+
+/* ── Motion tokens (docs/decisions.md#motion) ────────────────────────────────
+   The three curves of tailwind.config.ts (ease-enter / ease-exit / ease-sheet) as variables, so hand-written CSS
+   here uses the same ones: no `ease`, `ease-in-out` or one-off cubic-bezier. Durations: press 150, fade 200,
+   sheet 300 in / 200 out. */
+:root {
+  --ease-enter: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
+  --dur-press: 150ms;
+  --dur-fade: 200ms;
 }
 
 @layer base {
@@ -624,7 +637,7 @@ html.ui-glass .sidebar-search {
   background-color: hsl(var(--foreground) / 0.06);
   border-color: transparent;
 }
-html.ui-glass .sidebar-search:hover { background-color: hsl(var(--foreground) / 0.1); }
+@media (hover: hover) { html.ui-glass .sidebar-search:hover { background-color: hsl(var(--foreground) / 0.1); } }
 /* Section headers in title style, not capitals (HIG: Organization and layout). */
 html.ui-glass .sidebar-group-label {
   text-transform: none;
@@ -642,7 +655,7 @@ html.ui-glass .glass-prominent {
     inset 0 0 0 1px hsl(0 0% 100% / 0.12),
     0 8px 20px -10px hsl(var(--primary) / 0.6);
 }
-html.ui-glass .glass-prominent:hover { background-color: hsl(var(--primary) / 0.92); }
+@media (hover: hover) { html.ui-glass .glass-prominent:hover { background-color: hsl(var(--primary) / 0.92); } }
 
 /* ── The top bar: no bar at all, a scroll edge effect. The area is transparent;
       what scrolls beneath it is blurred and faded out towards the bar's lower
@@ -668,7 +681,7 @@ html.ui-glass .app-header::before {
      seam at the top of every page, where the ambient glow is brightest. The
      bar carries data-scrolled (useScrolled) once the page has moved. */
   opacity: 0;
-  transition: opacity 240ms ease;
+  transition: opacity var(--dur-fade) var(--ease-enter);
   background: linear-gradient(to bottom, hsl(var(--background) / 0.7) 0%, hsl(var(--background) / 0.45) 55%, hsl(var(--background) / 0) 100%);
   -webkit-backdrop-filter: blur(14px) saturate(1.3);
   backdrop-filter: blur(14px) saturate(1.3);
@@ -688,7 +701,7 @@ html.ui-glass .glass-ctl {
   justify-content: center;
   color: hsl(var(--foreground));
 }
-html.ui-glass .glass-ctl:hover { background-color: hsl(var(--popover) / calc(var(--glass-a) + 0.2)); }
+@media (hover: hover) { html.ui-glass .glass-ctl:hover { background-color: hsl(var(--popover) / calc(var(--glass-a) + 0.2)); } }
 /* The rate chip is a control on the same layer: a glass capsule, sized by its words (lib/rates.ts). */
 html.ui-glass .rate-chip {
   height: 2.25rem;
@@ -721,7 +734,7 @@ html.ui-glass .tab-underline { display: none; }
 
 /* ── Floating controls (the microphone, the Ads helper): glass discs. ───────── */
 html.ui-glass .glass-fab { border-color: transparent; color: hsl(var(--foreground)); }
-html.ui-glass .glass-fab:hover { background-color: hsl(var(--popover) / calc(var(--glass-a) + 0.2)); }
+@media (hover: hover) { html.ui-glass .glass-fab:hover { background-color: hsl(var(--popover) / calc(var(--glass-a) + 0.2)); } }
 
 /* ── Mobile bottom bars (a sale's total, an order's total, unsaved settings):
       a bar floating inset above the safe area, its rule removed. ───────────── */
@@ -835,7 +848,7 @@ html.ui-glass .glass-toast.destructive {
 html.ui-glass .glass-fab,
 html.ui-glass .glass-ctl,
 html.ui-glass .app-tab {
-  transition: background-color 180ms ease, transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 180ms ease;
+  transition: background-color var(--dur-press) var(--ease-enter), transform var(--dur-press) var(--ease-enter), box-shadow var(--dur-press) var(--ease-enter);
 }
 html.ui-glass .glass-ctl:active,
 html.ui-glass .glass-fab:active { transform: scale(0.94); }
@@ -955,10 +968,10 @@ body.app-look .ledger-rows .ui-field:focus {
     background: hsl(var(--muted-foreground) / 0.3);
   }
   html:not(.ui-glass) body.app-look .dialog-sheet[data-state="open"] {
-    animation: dialog-sheet-in 300ms cubic-bezier(0.32, 0.72, 0, 1) both;
+    animation: dialog-sheet-in 300ms var(--ease-sheet) both;
   }
   html:not(.ui-glass) body.app-look .dialog-sheet[data-state="closed"] {
-    animation: dialog-sheet-out 200ms cubic-bezier(0.4, 0, 1, 1) both;
+    animation: dialog-sheet-out 200ms var(--ease-exit) both;
   }
 }
 @keyframes dialog-sheet-in {
@@ -973,4 +986,44 @@ body.app-look .ledger-rows .ui-field:focus {
 /* A phone's top bar already has the back control (app-layout); a page's own inline one would be a second. */
 @media (max-width: 767px) {
   body:has([data-layout-back]) .page-back-inline { display: none; }
+}
+
+
+/* ── Touch and keyboard feel (2026-11-03) ─────────────────────────────────────
+   One press feedback, one focus ring, no stuck hover, for everything a hand or a key can reach.
+   - `.press` (a card, tile or row that opens something): sinks to 98% under a finger and eases back, exactly as
+     the Button does. `.press-row` (a row inside a card): a tint instead of a scale, which would shear its card.
+     Both are off under Reduce Motion (the tint stays: it is not movement).
+   - hover styles are written `hover:` and Tailwind wraps them in @media (hover: hover) (tailwind.config future flag),
+     so a tap on a phone no longer leaves a row lit.
+   - the focus ring: the brand's ring colour, on keyboard focus only, for anything interactive that a component did
+     not already style (a component's own focus-visible: classes and `outline-none` win: the :where() has no weight). */
+@layer components {
+  .press {
+    -webkit-tap-highlight-color: transparent;
+    transition: transform var(--dur-press) var(--ease-enter), opacity var(--dur-press) var(--ease-enter), background-color var(--dur-press) var(--ease-enter);
+  }
+  .press:active { transform: scale(0.98); }
+  .press-row {
+    -webkit-tap-highlight-color: transparent;
+    transition: background-color var(--dur-press) var(--ease-enter);
+  }
+  .press-row:active { background-color: hsl(var(--muted) / 0.6); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .press:active { transform: none; }
+}
+@layer base {
+  :where(a[href], button, [role="button"], [role="tab"], [role="menuitem"], summary, select, [tabindex]:not([tabindex="-1"])):focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+  /* A tap is a tap: no double-tap-to-zoom delay on controls, and a long press on a button selects nothing. */
+  a[href], button, [role="button"], [role="tab"], input, select, textarea, label, summary {
+    touch-action: manipulation;
+  }
+  button, [role="button"], [role="tab"], summary {
+    -webkit-user-select: none;
+    user-select: none;
+  }
 }

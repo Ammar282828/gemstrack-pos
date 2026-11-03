@@ -19,6 +19,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Pencil, UserRound } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
+import { formatDate } from '@/lib/safe-date';
 
 /**
  * Who took the order (or wrote the invoice) a piece came off — on every order in the Workshop
@@ -135,7 +136,7 @@ const BoardJobCard: React.FC<{
               <Checkbox className="h-3.5 w-3.5" checked={!!job.givenAt} disabled={job.karigarId === UNASSIGNED_ID}
                 onCheckedChange={() => onToggleGiven(job)} aria-label="Given to karigar" />
               <span className="text-muted-foreground">
-                {job.givenAt ? `Given ${format(parseISO(job.givenAt), 'dd MMM')}` : 'Given'}
+                {job.givenAt ? `Given ${formatDate(job.givenAt, 'dd MMM')}` : 'Given'}
               </span>
             </label>
           )}

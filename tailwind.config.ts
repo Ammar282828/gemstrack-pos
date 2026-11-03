@@ -1,6 +1,9 @@
 import type { Config } from "tailwindcss";
 
 export default {
+    // `hover:` applies only where the primary input can hover (mouse, trackpad): a tap on a phone no longer leaves
+    // a row or button lit until the next tap (Tailwind wraps every hover: in @media (hover: hover)).
+    future: { hoverOnlyWhenSupported: true },
     darkMode: ["class"],
     content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
@@ -144,6 +147,9 @@ export default {
   		// ease-in, and sheets travel on the iOS sheet curve. tailwindcss-animate reads these for its
   		// animate-in / animate-out too, so `data-[state=open]:ease-enter` sets the keyframes' timing.
   		transitionTimingFunction: {
+  			// A bare `transition-*` used to ease on Tailwind's stock (0.4, 0, 0.2, 1); it now eases on the
+  			// ERP's own arrival curve, so no transition anywhere is on a curve the app did not define.
+  			DEFAULT: 'cubic-bezier(0.22, 1, 0.36, 1)',
   			enter: 'cubic-bezier(0.22, 1, 0.36, 1)',
   			exit: 'cubic-bezier(0.4, 0, 1, 1)',
   			sheet: 'cubic-bezier(0.32, 0.72, 0, 1)',

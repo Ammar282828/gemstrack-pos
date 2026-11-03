@@ -22,6 +22,7 @@ import { normalizePhoneNumber } from '@/lib/utils';
 import { PageBack } from '@/components/shared/page-back';
 import { PhoneField } from '@/components/ui/phone-field';
 import { useShallow } from 'zustand/react/shallow';
+import { saveInBackground } from '@/lib/background-save';
 
 const NO_SOURCE_VALUE = '__none__';
 
@@ -89,6 +90,8 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onSubmitSu
   });
 
   const isEditMode = !!customer;
+  // Set once a background save has started, so a second tap on Save cannot make a second customer.
+  const leaving = React.useRef(false);
 
   const onSubmit = async (data: CustomerFormData) => {
     try {
@@ -97,11 +100,30 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onSubmitSu
         name: data.name || (data.phone ? `Customer - ${data.phone}` : 'Unnamed Customer')
       }
 
-      if (isEditMode && customer) {
+      if (isEditMode && customer && !onSubmitSuccess) {
+        // Not money: leave at once, and toast how it went (lib/background-save.tsx). Once only: a second tap does nothing.
+        if (leaving.current) return;
+        leaving.current = true;
+        saveInBackground({
+          run: async () => { await updateCustomer(customer.id, finalData); return true; },
+          saved: { title: "Success", description: "Customer updated successfully." },
+          failed: { title: "Error", description: "Failed to save customer." },
+        });
+        router.push(`/customers/${customer.id}`);
+      } else if (!isEditMode && !onSubmitSuccess && !redirectToHisaab) {
+        // A new customer needs no id to go back to the list, so the list opens now and the result follows.
+        if (leaving.current) return;
+        leaving.current = true;
+        saveInBackground({
+          run: () => addCustomer(finalData),
+          saved: { title: "Success", description: "Customer added successfully." },
+          failed: { title: "Error", description: "Failed to create customer." },
+        });
+        router.push('/customers');
+      } else if (isEditMode && customer) {
         await updateCustomer(customer.id, finalData);
         toast({ title: "Success", description: "Customer updated successfully." });
-        if (onSubmitSuccess) onSubmitSuccess();
-        else router.push(`/customers/${customer.id}`);
+        onSubmitSuccess?.();
       } else {
         const newCustomer = await addCustomer(finalData);
         if (newCustomer) {

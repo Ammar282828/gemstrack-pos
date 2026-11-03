@@ -66,7 +66,7 @@ export function Delta({ now, before, invert }: { now: number | null | undefined;
 
 export function Tile({ label, value, sub, delta, title }: { label: string; value: string; sub?: React.ReactNode; delta?: React.ReactNode; title?: string }) {
   return (
-    <div className="rounded-xl border p-3 min-w-0" title={title}>
+    <div className="glass-card rounded-xl border p-3 min-w-0" title={title}>
       <p className="text-[11px] uppercase tracking-wide text-muted-foreground truncate">{label}</p>
       <p className="text-xl md:text-2xl font-semibold tabular-nums leading-tight mt-0.5 truncate">{value}</p>
       <div className="flex items-center gap-1.5 min-h-[1rem]">{delta}{sub && <span className="text-[11px] text-muted-foreground truncate">{sub}</span>}</div>

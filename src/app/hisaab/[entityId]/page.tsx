@@ -45,6 +45,7 @@ import { PhoneField } from '@/components/ui/phone-field';
 import { ContactMenu } from '@/components/customer/contact-actions';
 import { deleteErrorText } from '@/lib/delete-code';
 import { useShallow } from 'zustand/react/shallow';
+import { formatDate } from '@/lib/safe-date';
 
 
 
@@ -386,7 +387,7 @@ export default function EntityHisaabPage() {
                                           </a>
                                         )}
                                       </div>
-                                      <p className="text-xs text-muted-foreground mt-1">{format(parseISO(entry.date), 'MMM dd, yyyy')}</p>
+                                      <p className="text-xs text-muted-foreground mt-1">{formatDate(entry.date, 'MMM dd, yyyy')}</p>
                                     </div>
                                     <div className="text-right flex-shrink-0">
                                       {entry.cashDebit > 0 && <p className="font-bold text-destructive text-sm">-PKR {entry.cashDebit.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>}
@@ -423,7 +424,7 @@ export default function EntityHisaabPage() {
                             <TableBody>
                                 {entityHisaab.map(entry => (
                                     <TableRow key={entry.id}>
-                                        <TableCell className="whitespace-nowrap text-muted-foreground text-sm">{format(parseISO(entry.date), 'dd-MMM-yy')}</TableCell>
+                                        <TableCell className="whitespace-nowrap text-muted-foreground text-sm">{formatDate(entry.date, 'dd-MMM-yy')}</TableCell>
                                         <TableCell className="max-w-xs">
                                             <div className="flex items-center gap-1.5">
                                               <span className="truncate">{entry.description}</span>

@@ -19,6 +19,7 @@ import { normalizePhoneNumber } from '@/lib/utils';
 import { PageBack } from '@/components/shared/page-back';
 import { PhoneField } from '@/components/ui/phone-field';
 import { useShallow } from 'zustand/react/shallow';
+import { saveInBackground } from '@/lib/background-save';
 
 const karigarSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -68,17 +69,37 @@ export const KarigarForm: React.FC<KarigarFormProps> = ({ karigar, onSubmitSucce
   });
 
   const isEditMode = !!karigar;
+  // Set once a background save has started, so a second tap on Save cannot make a second karigar.
+  const leaving = React.useRef(false);
 
   const onSubmit = async (rawData: KarigarFormData) => {
     // Store the login email lowercased — it is matched against the Google
     // account's address on every karigar-portal request.
     const data = { ...rawData, email: (rawData.email || '').trim().toLowerCase() };
     try {
-      if (isEditMode && karigar) {
+      if (isEditMode && karigar && !onSubmitSuccess) {
+        // Not money: leave at once, and toast how it went (lib/background-save.tsx). Once only: a second tap does nothing.
+        if (leaving.current) return;
+        leaving.current = true;
+        saveInBackground({
+          run: async () => { await updateKarigar(karigar.id, data); return true; },
+          saved: { title: "Success", description: "Karigar details updated successfully." },
+          failed: { title: "Error", description: "Failed to save karigar details." },
+        });
+        router.push(`/karigars/${karigar.id}`);
+      } else if (!isEditMode && !onSubmitSuccess && !redirectToHisaab) {
+        if (leaving.current) return;
+        leaving.current = true;
+        saveInBackground({
+          run: () => addKarigar(data),
+          saved: { title: "Success", description: `Karigar "${data.name}" added successfully.` },
+          failed: { title: "Error", description: "Failed to create new karigar." },
+        });
+        router.push('/karigars');
+      } else if (isEditMode && karigar) {
         await updateKarigar(karigar.id, data);
         toast({ title: "Success", description: "Karigar details updated successfully." });
-        if (onSubmitSuccess) onSubmitSuccess();
-        else router.push(`/karigars/${karigar.id}`);
+        onSubmitSuccess?.();
       } else {
         const newKarigar = await addKarigar(data);
         if (newKarigar) {

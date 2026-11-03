@@ -15,6 +15,7 @@ import { ListSkeleton } from '@/components/shared/skeletons';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { useShallow } from 'zustand/react/shallow';
+import { visibleInterval } from '@/lib/visible-interval';
 
 const pkr = (n: number) => `PKR ${Math.round(n).toLocaleString('en-PK')}`;
 const SOURCE = { invoice: 'Invoice', advance: 'Order advance', repair: 'Repair', extra: 'Extra revenue' } as const;
@@ -36,7 +37,7 @@ export default function TodaysCashPage() {
 
   // Re-read once a minute, so a page left open turns over at Karachi's midnight.
   const [now, setNow] = useState(() => new Date());
-  useEffect(() => { const t = setInterval(() => setNow(new Date()), 60_000); return () => clearInterval(t); }, []);
+  useEffect(() => visibleInterval(() => setNow(new Date()), 60_000), []);
 
   const t = useMemo(() => todaysCash({ invoices: s.invoices, orders: s.orders, repairs: s.repairs, extraRevenues: s.extraRevenues, expenses: s.expenses, now }),
     [s.invoices, s.orders, s.repairs, s.extraRevenues, s.expenses, now]);
@@ -109,7 +110,7 @@ export default function TodaysCashPage() {
 
 function Tile({ label, value, hint, strong, tone }: { label: string; value: string; hint: string; strong?: boolean; tone?: 'good' | 'bad' }) {
   return (
-    <div className="rounded-xl border bg-card p-3 min-w-0">
+    <div className="glass-card rounded-xl border bg-card p-3 min-w-0">
       <p className="text-2xs uppercase tracking-wide text-muted-foreground">{label}</p>
       <p className={cn('text-lg sm:text-xl font-bold tabular-nums truncate', strong && 'text-primary', tone === 'bad' && 'text-destructive')}>{value}</p>
       <p className="text-2xs text-muted-foreground truncate">{hint}</p>

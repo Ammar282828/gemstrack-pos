@@ -57,6 +57,8 @@ import { PageShell } from '@/components/shared/page-shell';
 import { Monogram, Pill, MineTag, ChipRow, FilterChip, Segmented, SearchField, EmptyState, LedgerSection, toneClasses, type Tone } from '@/components/ledger';
 import { owesMoney, isCredit } from '@/lib/money';
 import { useShallow } from 'zustand/react/shallow';
+import { usePrefetchIntent } from '@/hooks/use-prefetch-intent';
+import { formatDate } from '@/lib/safe-date';
 
 type DocumentType = (Order | Invoice) & { docType: 'order' | 'invoice' };
 
@@ -155,7 +157,7 @@ const DocumentCard: React.FC<RowProps> = ({ doc, onQuickPrint, onPrint, onPrintP
                         {mine && <MineTag />}
                     </div>
                     <p className="truncate text-ios-cap text-muted-foreground">
-                        {doc.id} · {format(parseISO(doc.createdAt), 'h:mm a')}
+                        {doc.id} · {formatDate(doc.createdAt, 'h:mm a')}
                         {doc.docType === 'order' && ' · Order'}
                         {isShopifyDoc(doc) && ' · Shopify'}
                         {(() => { const w = whatsappOrderChip((doc as { whatsappOrder?: { state?: string } }).whatsappOrder?.state); return w && ` · ${w.label}`; })()}
@@ -192,6 +194,7 @@ const DocumentRow: React.FC<RowProps> = ({ doc, onQuickPrint, onPrint, onPrintPe
     const router = useRouter();
     const status = getDocStatus(doc);
 
+    const prefetchProps = usePrefetchIntent(doc.docType === 'order' ? `/orders/${doc.id}` : `/invoices/${doc.id}`);
     const handleRowClick = () => {
         if (doc.docType === 'order') {
             router.push(`/orders/${doc.id}`);
@@ -201,7 +204,7 @@ const DocumentRow: React.FC<RowProps> = ({ doc, onQuickPrint, onPrint, onPrintPe
     };
 
     return (
-        <TableRow onClick={handleRowClick} className={cn('cursor-pointer',
+        <TableRow {...prefetchProps} onClick={handleRowClick} className={cn('cursor-pointer',
           status === 'Completed' && settledRowClass, isShopifyDoc(doc) && shopifyRowClass, mine && mineRowClass)} title={mine ? 'Taken by you' : undefined}>
             <TableCell>
                  <div className="whitespace-nowrap font-medium text-foreground hover:underline">{doc.id}</div>
@@ -213,7 +216,7 @@ const DocumentRow: React.FC<RowProps> = ({ doc, onQuickPrint, onPrint, onPrintPe
                     {mine && <MineTag />}
                 </div>
             </TableCell>
-            <TableCell className="hidden whitespace-nowrap 2xl:table-cell">{format(parseISO(doc.createdAt), 'dd MMM, yyyy')}</TableCell>
+            <TableCell className="hidden whitespace-nowrap 2xl:table-cell">{formatDate(doc.createdAt, 'dd MMM, yyyy')}</TableCell>
             <TableCell className="hidden 2xl:table-cell">
                 <div className="flex flex-wrap items-center gap-1">
                     <Pill tone={doc.docType === 'order' ? 'working' : 'quiet'} className="capitalize">{doc.docType}</Pill>
@@ -284,6 +287,9 @@ export default function DocumentsPage() {
    */
   const [groupBy, setGroupBy] = useState<'status' | Graduation>('day');
   const [activeTab, setActiveTab] = useState<'all' | 'invoices' | 'orders' | 'shopify'>('all');
+  // The chip lights at once; the list behind it re-renders as a low-priority update (the same idea as the search).
+  const deferredTab = useDeferredValue(activeTab);
+  const deferredMonth = useDeferredValue(monthFilter);
   // Phone: the finer filters fold behind one chip; from lg they sit in the row.
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -458,8 +464,8 @@ export default function DocumentsPage() {
       // Orders appear in this list too; both carry takenBy, so one filter covers both.
       docs = docs.filter(doc => (doc as { takenBy?: string }).takenBy === takenByFilter);
     }
-    if (monthFilter !== 'All') {
-      docs = docs.filter(doc => monthKeyOf(doc.createdAt) === monthFilter);
+    if (deferredMonth !== 'All') {
+      docs = docs.filter(doc => monthKeyOf(doc.createdAt) === deferredMonth);
     }
 
     if (dateRange?.from) {
@@ -479,7 +485,7 @@ export default function DocumentsPage() {
     }
 
     return docs;
-  }, [combinedDocuments, dateRange, deferredSearch, monthFilter, takenByFilter]);
+  }, [combinedDocuments, dateRange, deferredSearch, deferredMonth, takenByFilter]);
 
   /** One section of the list, with what it is worth and what is still owed. */
   const buildSections = React.useCallback((docs: DocumentType[]) => {
@@ -778,7 +784,7 @@ export default function DocumentsPage() {
         <QRCode id="insta-qr-code" value={STORE_CONFIG.instagramUrl} size={128} />
       </div>
 
-      {renderContent(byTab[activeTab])}
+      {renderContent(byTab[deferredTab])}
 
       <RecordPaymentDialog invoice={payingInvoice} open={!!payingInvoice} onOpenChange={o => { if (!o) setPayingInvoice(null); }} />
     </PageShell>

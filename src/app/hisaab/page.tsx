@@ -393,7 +393,7 @@ export default function HisaabPage() {
                     );
                     return walkIn
                       ? <div key={summary.entityId}>{card}</div>
-                      : <Link href={`/hisaab/${summary.entityId}?type=${summary.entityType}`} key={summary.entityId}>{card}</Link>;
+                      : <Link href={`/hisaab/${summary.entityId}?type=${summary.entityType}`} key={summary.entityId} className="press block rounded-card">{card}</Link>;
                   })}
               </div>
           ) : (

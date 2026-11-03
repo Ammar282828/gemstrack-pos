@@ -20,6 +20,7 @@ import { Check, Clock, Globe, Instagram, ListPlus, Loader2, MessageCircle, Radio
 import { cn } from '@/lib/utils';
 import { defaultSpreadEnd, spreadTimes, type QueueCounts, type QueueStatus, type QueueTargets } from '@/lib/social/queue-plan';
 import { IG_CAROUSEL_MAX } from '@/lib/social/album';
+import { visibleInterval } from '@/lib/visible-interval';
 
 /** A queued piece as GET /api/website/post/queue returns it. */
 export interface QueueEntry extends QueueTargets {
@@ -94,8 +95,7 @@ export function useQueue() {
   const live = items.some(e => e.status === 'scheduled' || e.status === 'sending');
   useEffect(() => {
     if (!live) return;
-    const t = setInterval(load, 30_000);
-    return () => clearInterval(t);
+    return visibleInterval(load, 30_000);
   }, [live, load]);
   const put = (e: QueueEntry) => setItems(prev => prev.map(x => x.id === e.id ? e : x));
 

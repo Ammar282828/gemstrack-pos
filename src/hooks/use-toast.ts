@@ -3,6 +3,8 @@
 // Inspired by react-hot-toast library
 import * as React from "react"
 
+import { haptic } from "@/lib/haptics"
+
 import type {
   ToastActionElement,
   ToastProps,
@@ -142,8 +144,13 @@ function dispatch(action: Action) {
 
 type Toast = Omit<ToasterToast, "id">
 
+/** How long a toast stays: a result is read in a moment, a failure is read twice (Radix's default was 5 s for both). */
+const TOAST_MS = { default: 4000, destructive: 7000 } as const
+
 function toast({ ...props }: Toast) {
   const id = genId()
+  // Success and error each get one small tick where the platform has one (lib/haptics.ts).
+  haptic(props.variant === "destructive" ? "error" : "success")
 
   const update = (props: ToasterToast) =>
     dispatch({
@@ -155,6 +162,7 @@ function toast({ ...props }: Toast) {
   dispatch({
     type: "ADD_TOAST",
     toast: {
+      duration: props.variant === "destructive" ? TOAST_MS.destructive : TOAST_MS.default,
       ...props,
       id,
       open: true,

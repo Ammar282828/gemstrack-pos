@@ -59,6 +59,15 @@ const nextConfig: NextConfig = {
         source: '/((?!view-invoice|links|api/public).*)',
         headers: [{ key: 'X-Frame-Options', value: 'SAMEORIGIN' }],
       },
+      // The service worker script is always re-checked (a stale worker is the one thing that cannot self-heal),
+      // and may control the whole origin. public/sw.js, documented at its top.
+      {
+        source: '/sw.js',
+        headers: [
+          { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
+          { key: 'Service-Worker-Allowed', value: '/' },
+        ],
+      },
       // public/'s pictures and fonts are not fingerprinted, so a day fresh and a week stale-while-revalidating, never immutable.
       ...['/brand/:path*', '/icons/:path*', '/fonts/:path*', '/:file([^/]+\\.(?:png|jpe?g|svg|ico|woff2))'].map(source => ({
         source,

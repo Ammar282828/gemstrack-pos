@@ -18,6 +18,7 @@ import { ViewSwitch, useView } from '../view-switch';
 import { Tile } from '@/app/insights/insights-kit';
 import { Card, cityRows, countryName, DEVICE, duration, flag, pageLabel, pct, Ranked, sourceLabel, SwitchCard } from '../site-kit';
 import { FigureTilesSkeleton, ListRowsSkeleton } from '@/components/shared/skeletons';
+import { visibleInterval } from '@/lib/visible-interval';
 
 interface Live {
   at: number; visitors: number; newVisitors: number;
@@ -49,10 +50,10 @@ function CatalogueLivePage({ switcher }: { switcher?: React.ReactNode } = {}) {
 
   useEffect(() => {
     load();
-    const id = setInterval(() => { if (document.visibilityState === 'visible') load(); }, 15_000);
+    const stop = visibleInterval(load, 15_000, { catchUp: false }); // onVis loads on returning
     const onVis = () => { if (document.visibilityState === 'visible') load(); };
     document.addEventListener('visibilitychange', onVis);
-    return () => { clearInterval(id); document.removeEventListener('visibilitychange', onVis); };
+    return () => { stop(); document.removeEventListener('visibilitychange', onVis); };
   }, [load]);
 
   const cities = (live?.cities ?? []).map(c => { const [cc, region, city] = c.key.split('|'); return { cc, region, city, sessions: c.value }; });

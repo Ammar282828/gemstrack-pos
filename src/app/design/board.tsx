@@ -55,6 +55,7 @@ import { AuthedImg, SITE_LABEL, downloadBlob, fetchAsset, runImageOp, safeName, 
 import { ListRowsSkeleton, ThumbGridSkeleton, LinesSkeleton } from '@/components/shared/skeletons';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BusyLabel } from '@/components/ui/busy';
+import { visibleInterval } from '@/lib/visible-interval';
 
 const LAST_KEY = 'taheri_studio_board';
 const POLL_MS = 4000;
@@ -152,7 +153,8 @@ export function BoardSection() {
   const [offer, setOffer] = useState<BoardSummary | null>(null);
   const known = useRef<Set<string> | null>(null);
   useEffect(() => {
-    const t = setInterval(async () => {
+    // Asleep while the tab is hidden; one look on returning (lib/visible-interval.ts).
+    return visibleInterval(async () => {
       try {
         const list = await loadList();
         const seen = known.current;
@@ -161,7 +163,6 @@ export function BoardSection() {
         if (fresh) { setOffer(fresh); setCurrent(c => c ?? fresh.id); }
       } catch { /* the next one */ }
     }, 6000);
-    return () => clearInterval(t);
   }, [loadList]);
 
   useEffect(() => {

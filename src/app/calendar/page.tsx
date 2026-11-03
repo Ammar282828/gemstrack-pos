@@ -27,6 +27,7 @@ import { Button } from '@/components/ui/button';
 import { invoiceSaleValue } from '@/lib/analytics/sale-value';
 import { PageShell } from '@/components/shared/page-shell';
 import { useShallow } from 'zustand/react/shallow';
+import { formatDate } from '@/lib/safe-date';
 
 type CalendarEventType = (Invoice | Order) & { eventType: 'invoice' | 'order' };
 
@@ -73,7 +74,7 @@ const EventDetails: React.FC<{ events: CalendarEventType[] | undefined, selected
                         <div className="mt-2 pl-1">
                           <p className="font-semibold text-sm">PKR {('grandTotal' in event) ? (event.eventType === 'order' ? orderFullAmount(event as never) : invoiceSaleValue(event as never)).toLocaleString(undefined, { maximumFractionDigits: 0 }) : 'N/A'}</p>
                           <p className="text-xs text-muted-foreground">{('customerName' in event && event.customerName) ? event.customerName : 'Walk-in'}</p>
-                          <p className="text-xs text-muted-foreground">{format(parseISO(event.createdAt), 'hh:mm a')}</p>
+                          <p className="text-xs text-muted-foreground">{formatDate(event.createdAt, 'hh:mm a')}</p>
                         </div>
                     </Link>
                 </div>

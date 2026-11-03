@@ -35,6 +35,7 @@ import { PageBack } from '@/components/shared/page-back';
 import { deleteErrorText } from '@/lib/delete-code';
 import { invoiceSaleValue } from '@/lib/analytics/sale-value';
 import { useShallow } from 'zustand/react/shallow';
+import { formatDate } from '@/lib/safe-date';
 
 /** An order's stage in its one tone (a.2); owed is amber, never red. */
 const STATUS_TONE: Record<Order['status'], Tone> = {
@@ -157,7 +158,7 @@ export default function CustomerDetailPage() {
     <Link key={order.id} href={`/orders/${order.id}`} className="flex items-center justify-between gap-3 py-3">
       <div className="min-w-0">
         <p className="truncate text-ios-sub font-semibold">{order.id}</p>
-        <p className="text-ios-cap text-muted-foreground">{format(parseISO(order.createdAt), 'PP')}</p>
+        <p className="text-ios-cap text-muted-foreground">{formatDate(order.createdAt, 'PP')}</p>
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1">
         <span className="font-serif text-ios-title3 font-semibold tabular-nums">PKR {orderFullAmount(order).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
@@ -172,7 +173,7 @@ export default function CustomerDetailPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
         <div className="lg:col-span-1 space-y-4">
-          <Card>
+          <Card className="glass-card">
             <CardHeader className="space-y-4">
               <div className="flex items-center gap-3">
                 <Monogram name={customer.name} size={56} />
@@ -305,7 +306,7 @@ export default function CustomerDetailPage() {
                         <TableCell className="font-medium text-foreground hover:underline">
                           <Link href={`/orders/${order.id}`}>{order.id}</Link>
                         </TableCell>
-                        <TableCell>{format(parseISO(order.createdAt), 'PP')}</TableCell>
+                        <TableCell>{formatDate(order.createdAt, 'PP')}</TableCell>
                         <TableCell>
                             <Pill tone={STATUS_TONE[order.status] ?? 'quiet'}>{order.status}</Pill>
                         </TableCell>

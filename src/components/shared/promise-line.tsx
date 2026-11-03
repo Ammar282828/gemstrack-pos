@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 import { orderTiming, timingLabel, isActiveOrder, isUrgent, type OrderTiming } from '@/lib/order-timing';
 import { toneClasses, type Tone } from '@/components/ledger';
 import type { Order } from '@/lib/store';
+import { formatDate } from '@/lib/safe-date';
 
 type Sliver = Pick<Order, 'promisedDate' | 'createdAt' | 'status'>;
 
@@ -43,7 +44,7 @@ export const PromiseLine: React.FC<{ order: Sliver; className?: string; icon?: b
 
   // A finished order's promise is history; only chase what is still open.
   const chase = isActiveOrder(order);
-  const words = chase ? promiseWords(t) : { text: `Due ${format(parseISO(order.promisedDate), 'EEE d MMM')}`, tone: 'quiet' as Tone };
+  const words = chase ? promiseWords(t) : { text: `Due ${formatDate(order.promisedDate, 'EEE d MMM')}`, tone: 'quiet' as Tone };
   const loud = chase && (words.tone === 'late' || words.tone === 'owed');
   return (
     <p

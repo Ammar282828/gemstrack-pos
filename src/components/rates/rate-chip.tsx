@@ -24,6 +24,7 @@ import { AmountInput } from '@/components/ui/amount-input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { visibleInterval } from '@/lib/visible-interval';
 
 const OPEN_EVENT = 'rate-sheet:open';
 /** Open the rate sheet from anywhere (the chip, the cart's notice, /settings?tab=rates). */
@@ -176,7 +177,7 @@ export function RateSheet() {
 /** Re-render once a minute, so "today" turns amber at midnight on a page left open. */
 function useMinute(): Date {
   const [now, setNow] = useState(() => new Date());
-  useEffect(() => { const t = setInterval(() => setNow(new Date()), 60_000); return () => clearInterval(t); }, []);
+  useEffect(() => visibleInterval(() => setNow(new Date()), 60_000), []);
   return now;
 }
 

@@ -226,6 +226,7 @@ import { STORE_CONFIG } from '@/lib/store-config';
 import { canHoldCredit, creditDescription, inCredit, isCreditRow } from '@/lib/invoice-credit';
 import { owesMoney, rupees } from '@/lib/money';
 import { withDiscount } from '@/lib/invoice-actions';
+import { visibleInterval } from '@/lib/visible-interval';
 export type { OverheadItem, OverheadPlan };
 
 export { METAL_TYPES, KARAT_VALUES, metalLabel, karatLabel, describeMetal } from './materials';
@@ -1763,9 +1764,10 @@ function attachStaffPoll(
   };
 
   void tick();
-  const id = setInterval(tick, STAFF_POLL_MS);
+  // Asleep while the page is hidden, one catch-up poll on return (lib/visible-interval.ts).
+  const stopPolling = visibleInterval(tick, STAFF_POLL_MS);
   if (typeof window !== 'undefined') {
-    window.addEventListener('beforeunload', () => { stopped = true; clearInterval(id); });
+    window.addEventListener('beforeunload', () => { stopped = true; stopPolling(); });
   }
 }
 
@@ -1950,7 +1952,7 @@ export const useAppStore = create<AppState>()(
             }
           };
           void pull();
-          setInterval(pull, STAFF_POLL_MS);
+          visibleInterval(pull, STAFF_POLL_MS);
           return;
         }
 
