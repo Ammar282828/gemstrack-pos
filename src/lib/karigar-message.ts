@@ -6,7 +6,7 @@
  */
 
 import type { Order } from '@/lib/store';
-import { describeSettings } from '@/lib/materials';
+import { describeMetal, describeSettings } from '@/lib/materials';
 import { categorySingular, staticCategories } from '@/lib/categories';
 
 export interface KarigarPiece {
@@ -24,7 +24,7 @@ export const firstName = (name?: string | null): string => (String(name || '').t
 /**
  * The text of one piece (index into order.items): only what the karigar works from (owner, 2026-11-03: "make the
  * message very simple … the name, the description, the karigar instructions, if there's a stone weight or anything,
- * send that, and also the size"). Never the metal weight's wastage, a price, a rate or the customer.
+ * send that, and also the size"). Never the wastage, a price, a rate or the customer.
  */
 export function pieceText(order: Order, index: number): string {
   const item = order.items[index];
@@ -34,6 +34,12 @@ export function pieceText(order: Order, index: number): string {
   const name = category || description || 'Piece';
   const lines = [`*${name}*`];
   if (description && description.toLowerCase() !== name.toLowerCase()) lines.push(description);
+  // The metal and its karat, and the weight to make it to (owner, 2026-11-03: "send metal weight just not wastage,
+  // send karat also"). Never the wastage.
+  const metal = describeMetal(item.metalType, item.karat);
+  if (metal) lines.push(`Metal: ${metal}`);
+  const weight = Number(item.estimatedWeightG) || 0;
+  if (weight > 0) lines.push(`Weight: ${weight % 1 === 0 ? weight : weight.toFixed(2)}g`);
   if (item.size?.trim()) lines.push(`Size: ${item.size.trim()}`);
   // Stones, diamonds, stone weight and the finish, each on its own line (lib/materials.ts).
   for (const l of describeSettings(item)) lines.push(l);

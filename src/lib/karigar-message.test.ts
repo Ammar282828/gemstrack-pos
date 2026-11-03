@@ -19,13 +19,15 @@ describe('the message to a karigar', () => {
   it('carries only the order number and each piece: name, description, size, stones and instructions', () => {
     expect(msg).toContain('Order ORD-000042');
     expect(msg).toContain('*Ring with a flat top*');
+    expect(msg).toContain('Metal: Gold (21K)');
+    expect(msg).toContain('Weight: 10g');
     expect(msg).toContain('Size: 9');
     expect(msg).toContain('Stones: 3 rubies');
     expect(msg).toContain('Stone weight: 0.40g');
     expect(msg).toContain('Instructions: Deepen the engraving');
   });
-  it('never carries wastage, weight, karat, a due date, a greeting, a price, a rate, a phone or the customer', () => {
-    expect(msg).not.toMatch(/Wastage|Est\. 10g|21K|Due|Assalam|For:|Ayesha|PKR|987|4321|33333|487654|500000|0300|Khan/i);
+  it('never carries wastage, a due date, a greeting, a price, a rate, a phone or the customer', () => {
+    expect(msg).not.toMatch(/Wastage|Due|Assalam|For:|Ayesha|PKR|987|4321|33333|487654|500000|0300|Khan/i);
   });
   it('writes a one-piece order without numbering', () => {
     expect(buildKarigarMessage(order([piece({})]), [0])).not.toMatch(/^1\. /m);

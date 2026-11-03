@@ -543,9 +543,9 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
 ### Send to karigar
 
 - **Only what the karigar works from** (owner, 2026-11-03: "why are you sending wastage to the karigars? Make the message
-  very simple"): one WhatsApp message per piece, its photo with "Order <id>", the name, description, size, stones /
-  diamonds / stone weight / finish and the instructions as the caption (more photos of it follow without words; a piece
-  with no photo gets the same lines as text). No metal weight, wastage, karat, due date, greeting or customer; never a price.
+  very simple"): one WhatsApp message per piece, its photo with "Order <id>", the name, description, metal and karat, weight,
+  size, stones / diamonds / stone weight / finish and the instructions as the caption (more photos of it follow without words; a piece
+  with no photo gets the same lines as text). No wastage, due date, greeting or customer; never a price.
 - **An order's pieces go to a karigar on WhatsApp from the shop's line** (2026-11-02, owner: "send the karigar the order details
   from the order page or from the workshop page"). `POST /api/app/orders/send-to-karigar` (owners and staff): each chosen
   piece's reference photos as images (the first of a piece captioned with its details), then one text with the order number,
