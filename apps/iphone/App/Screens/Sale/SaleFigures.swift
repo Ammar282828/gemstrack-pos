@@ -118,7 +118,7 @@ struct SaleFigures {
     let unreadable: String?
     let margin: Margin?
 
-    init(draft: SaleDraft, settings: Settings?, customers: [Customer], marginSettings: MarginSettings) {
+    init(draft: SaleDraft, settings: Settings?, customers: [Customer], marginSettings: MarginSettings, who known: SaleCustomer? = nil) {
         let book = SaleRateBook(settings: settings, typed: draft.rates)
         rateBook = book
         unreadable = draft.unreadableField
@@ -172,8 +172,9 @@ struct SaleFigures {
         paidNow = draft.payments.reduce(0) { $0 + rupees(SaleNumber.value($1.amount)) }
         balance = total - paidNow
 
-        who = resolveSaleCustomer(selectedId: draft.customerId, typedName: draft.customerName,
-                                  typedPhone: draft.customerPhone, customers: customers)
+        // Handed in by a form that keeps it between keys (the customer list is not walked at every one).
+        who = known ?? resolveSaleCustomer(selectedId: draft.customerId, typedName: draft.customerName,
+                                           typedPhone: draft.customerPhone, customers: customers)
         // generateInvoice makes a customer for a typed name or number (shouldCreateCustomer); a walk-in has none.
         let named = canHoldCredit(who.id) || shouldCreateCustomer(who)
         namedCustomer = named

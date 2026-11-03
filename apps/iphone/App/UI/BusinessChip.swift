@@ -86,6 +86,10 @@ struct BusinessChip: View {
     /// The iPad sidebar's row is wider and says the ERP's whole name.
     var wide = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// When the chip was last tapped, and the sheet a single tap has waiting: a second tap inside the window is a
+    /// double tap and takes the sheet's place.
+    @State private var lastTap = Date.distantPast
+    @State private var opening: Task<Void, Never>?
 
     var body: some View {
         let store = Businesses.shared
@@ -118,16 +122,43 @@ struct BusinessChip: View {
             .foregroundStyle(many ? Color.primary : Color.secondary)
             .contentShape(Rectangle())
         } primaryAction: {
-            store.switcherOpen = true
+            tapped(many: many)
         }
         .accessibilityLabel("Business: \(current.displayName)")
         .accessibilityHint(many ? "Opens the list of businesses. Touch and hold to switch." : "Opens the list of businesses, where you can add one.")
         .accessibilityIdentifier("business.chip")
     }
 
-    private func switchTo(_ b: Business) {
+    /// One tap opens the businesses sheet; a double tap (owner, 2026-11-03) goes to the next business, as the menu's
+    /// pick does. With one business there is nothing to switch to, so the sheet opens at once. The sheet waits a
+    /// moment for a second tap, which `Menu`'s primary action cannot tell apart on its own.
+    private func tapped(many: Bool) {
+        let store = Businesses.shared
+        guard many else { store.switcherOpen = true; return }
+        let now = Date()
+        if now.timeIntervalSince(lastTap) < 0.32 {
+            lastTap = .distantPast
+            opening?.cancel()
+            opening = nil
+            let list = store.list
+            guard let at = list.firstIndex(where: { $0.id == store.current.id }), list.count > 1 else { return }
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            switchTo(list[(at + 1) % list.count], haptic: false)
+            return
+        }
+        lastTap = now
+        opening?.cancel()
+        opening = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(330))
+            guard !Task.isCancelled else { return }
+            opening = nil
+            Businesses.shared.switcherOpen = true
+        }
+    }
+
+    private func switchTo(_ b: Business, haptic: Bool = true) {
         guard b.id != Businesses.shared.current.id else { return }
-        UISelectionFeedbackGenerator().selectionChanged()
+        if haptic { UISelectionFeedbackGenerator().selectionChanged() }
         Motion.run(Motion.travel, reduce: reduceMotion) { Businesses.shared.switch(to: b.id) }
     }
 }
