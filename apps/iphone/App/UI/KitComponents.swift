@@ -54,6 +54,9 @@ struct HeroSheen: ViewModifier {
     @Environment(\.colorSchemeContrast) private var contrast
     private var mode = GlassMode()
 
+    // Explicit: a private stored property makes the memberwise init private, and `heroSheen(padding:)` calls this.
+    init(padding: CGFloat = Metrics.cardPadding) { self.padding = padding }
+
     private var glassLive: Bool { mode.live }
 
     func body(content: Content) -> some View {
