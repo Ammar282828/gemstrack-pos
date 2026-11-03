@@ -14,7 +14,8 @@ enum MacInvoiceMenu {
     static func groups(_ inv: Invoice?, _ cx: MacInvoiceContext) -> [[MacAction]] {
         [
             [takePayment(inv, cx), changeDiscount(inv, cx), giveBackCredit(inv, cx)],
-            [sendOnWhatsApp(inv, cx), pdf(inv, cx), printBill(inv, cx), copyPaymentLink(inv, cx), copyCustomerLink(inv)],
+            contact(inv, cx),
+            [printBill(inv, cx), copyPaymentLink(inv, cx), copyCustomerLink(inv)],
             [edit(inv, cx), changeRate(inv, cx), customer(inv, cx)],
             [refund(inv, cx), delete(inv, cx)],
         ]
@@ -32,7 +33,8 @@ enum MacInvoiceMenu {
     /// A record window's More menu: what its toolbar's four do not carry, in the Invoice menu's order.
     static func more(_ inv: Invoice?, _ cx: MacInvoiceContext) -> [[MacAction]] {
         [
-            [pdf(inv, cx), copyPaymentLink(inv, cx), copyCustomerLink(inv)],
+            MacContact.actions(inv.map(cx.number) ?? "", document: [pdf(inv, cx)]),
+            [copyPaymentLink(inv, cx), copyCustomerLink(inv)],
             [changeDiscount(inv, cx), giveBackCredit(inv, cx), changeRate(inv, cx), customer(inv, cx)],
             [refund(inv, cx), delete(inv, cx)],
         ]
@@ -86,8 +88,14 @@ enum MacInvoiceMenu {
 
     // MARK: Sending
 
+    /// The one Contact order (MacContact, App/UI/CustomerContact.swift): Call, WhatsApp Chat, Message, the bill's PDF on
+    /// WhatsApp from the shop's line and the PDF itself, Copy Number.
+    static func contact(_ inv: Invoice?, _ cx: MacInvoiceContext) -> [MacAction] {
+        MacContact.actions(inv.map(cx.number) ?? "", document: [sendOnWhatsApp(inv, cx), pdf(inv, cx)])
+    }
+
     static func sendOnWhatsApp(_ inv: Invoice?, _ cx: MacInvoiceContext) -> MacAction {
-        MacAction("Send on WhatsApp", symbol: "message", shortcut: KeyboardShortcut("w", modifiers: [.command, .shift]),
+        MacAction("Send PDF on WhatsApp\u{2026}", symbol: "paperplane", shortcut: KeyboardShortcut("w", modifiers: [.command, .shift]),
                   enabled: inv != nil) {
             if let inv { cx.desk.sending = inv }
         }

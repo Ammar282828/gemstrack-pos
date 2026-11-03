@@ -18,7 +18,6 @@ struct MacOrderInspector: View {
 
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
-    @Environment(\.openURL) private var openURL
     /// What the person just did, shown before the shelf's copy catches up (dropped once the shelf agrees).
     @State private var localDone: [Int: Bool] = [:]
     @State private var localKarigar: [Int: String] = [:]
@@ -111,19 +110,11 @@ struct MacOrderInspector: View {
         invoice.map { $0.amountPaid } ?? MacOrdersLogic.paid(order)
     }
 
-    /// Call and WhatsApp, the iPhone's quick actions as a row of buttons.
-    @ViewBuilder
+    /// The one Contact row (App/UI/CustomerContact.swift), as the iPhone's order card has it: Call, WhatsApp, Message, the
+    /// customer's order PDF from the shop's line (never the workshop slip), and More (the PDF, Copy number).
     private func reach(_ order: Order) -> some View {
-        if !CustomerKit.dialable(order.customerContact).isEmpty {
-            HStack(spacing: 8) {
-                QuickAction(title: "Call", symbol: "phone.fill") { go(CustomerKit.callURL(order.customerContact)) }
-                QuickAction(title: "WhatsApp", symbol: "message.fill") { go(CustomerKit.whatsAppURL(order.customerContact)) }
-            }
-        }
-    }
-
-    private func go(_ url: URL?) {
-        if let url { openURL(url) }
+        CustomerContactActions(phone: order.customerContact, customerId: order.customerId, customerName: order.customerName,
+                               doc: .order(order, byCustomer: session.shop.invoiceByCustomer))
     }
 
     // MARK: The cards

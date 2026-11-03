@@ -163,19 +163,10 @@ struct MacRepairsTicket: View {
         .houseCard()
     }
 
-    /// Call and WhatsApp: the iPhone's quick actions as a row of buttons.
-    @ViewBuilder
+    /// The one Contact row (App/UI/CustomerContact.swift): Call, WhatsApp, Message, More (Copy number); Add phone when
+    /// the customer has none; nothing for a walk-in.
     private func reach(_ r: Repair) -> some View {
-        if let phone = RepairsKit.filled(r.customerContact) {
-            HStack(spacing: 8) {
-                if let url = RepairsKit.callURL(phone) {
-                    QuickAction(title: "Call", symbol: "phone.fill") { openURL(url) }
-                }
-                if let url = CustomerKit.whatsAppURL(phone) {
-                    QuickAction(title: "WhatsApp", symbol: "message.fill") { openURL(url) }
-                }
-            }
-        }
+        CustomerContactActions(phone: RepairsKit.filled(r.customerContact), customerId: r.customerId, customerName: r.customerName)
     }
 
     /// "REP-000012 · Sana Demo".

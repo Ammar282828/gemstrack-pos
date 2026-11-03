@@ -33,8 +33,9 @@ struct MacOrdersMenuRun {
     var printSlip: () -> Void = {}
     var message: () -> Void = {}
     var sendToKarigar: () -> Void = {}
-    var call: () -> Void = {}
-    var whatsApp: () -> Void = {}
+    /// The customer's order PDF from the shop's line (SendDocSheet), and the PDF itself to read, print or share.
+    var sendPDF: () -> Void = {}
+    var orderPDF: () -> Void = {}
     var bookCourier: () -> Void = {}
     var track: () -> Void = {}
     var transfer: () -> Void = {}
@@ -119,7 +120,7 @@ enum MacOrdersMenu {
 
     private static func share(_ i: MacOrdersMenuInput, _ r: MacOrdersMenuRun) -> [MacAction] {
         let o = i.order
-        let hasPhone = !CustomerKit.dialable(o?.customerContact).isEmpty
+        let number = MacContact.number(o?.customerContact, customerId: o?.customerId, customerName: o?.customerName)
         let cn = o.flatMap(OrderActions.tcsConsignment)
         let canBook = o.map { OrderActions.canBookCourier($0, isOwner: i.isOwner) } ?? false
         var out: [MacAction] = []
@@ -127,8 +128,13 @@ enum MacOrdersMenu {
                              enabled: o != nil, id: "slip", perform: r.printSlip))
         out.append(MacAction("Message the Customer\u{2026}", symbol: "message", enabled: o != nil, id: "message", perform: r.message))
         out.append(MacAction("Send to Karigar\u{2026}", symbol: "paperplane", enabled: o != nil, id: "sendToKarigar", perform: r.sendToKarigar))
-        out.append(MacAction("Call", symbol: "phone", enabled: hasPhone, id: "call", perform: r.call))
-        out.append(MacAction("WhatsApp Chat", symbol: "bubble.left.and.text.bubble.right", enabled: hasPhone, id: "whatsapp", perform: r.whatsApp))
+        // The one Contact order (MacContact): Call, WhatsApp Chat, Message, the customer's order PDF (never the
+        // workshop slip), Copy Number.
+        let document = [
+            MacAction("Send Order PDF on WhatsApp\u{2026}", symbol: "paperplane", enabled: o != nil, id: "sendPDF", perform: r.sendPDF),
+            MacAction("Order PDF", symbol: "doc.richtext", enabled: o != nil, id: "orderPDF", perform: r.orderPDF),
+        ]
+        out.append(contentsOf: MacContact.actions(number, document: document))
         out.append(MacAction("Book Courier\u{2026}", symbol: "truck.box", enabled: canBook, id: "courier", perform: r.bookCourier))
         out.append(MacAction(cn.map { "Track " + $0 } ?? "Track", symbol: "shippingbox", enabled: cn != nil, id: "track", perform: r.track))
         return out

@@ -59,6 +59,9 @@ struct MacInvoiceContext {
     let desk: MacInvoiceDesk
     /// Opens a record or a document in a window of its own (a page pushed where the environment has no windows).
     let open: (Route) -> Void
+    /// The number the Contact actions reach (the invoice's own, else its customer's; "" for a walk-in): set by whoever
+    /// has the book (MacContact).
+    var number: (Invoice) -> String = { _ in "" }
 }
 
 // MARK: The sheets

@@ -69,7 +69,7 @@ struct MacOrdersPlace: View {
         .toolbar { placeToolbar(base) }
         .macInspector { inspectorPanel(base) }
         .macRecordMenu(MacRecordMenu(title: "Order", groups: pickedGroups))
-        .macOrdersSheets($sheet, advanced: advanced, moved: onlineMoved)
+        .macOrdersSheets($sheet, advanced: advanced, moved: onlineMoved, sent: docSent)
         .orderUndo($undo, open: $web)
         .ordersWebDestination($web)
         .confirmDestructive(isPresented: cancelShown, title: cancelling.map { "Cancel order \($0.id)?" } ?? "Cancel order?",
@@ -239,8 +239,8 @@ struct MacOrdersPlace: View {
         r.printSlip = { open(.slip(order.id)) }
         r.message = { sheet = .notify(order) }
         r.sendToKarigar = { sheet = .sendKarigar(order) }
-        r.call = { reach(order, call: true) }
-        r.whatsApp = { reach(order, call: false) }
+        r.sendPDF = { sheet = .sendPDF(order) }
+        r.orderPDF = { sheet = .orderPDF(order) }
         r.bookCourier = { sheet = .courier(order) }
         r.track = { sheet = .tracking(order) }
         r.transfer = { sheet = .transfer(order) }
@@ -310,11 +310,6 @@ struct MacOrdersPlace: View {
         }
     }
 
-    private func reach(_ order: Order, call: Bool) {
-        let url = call ? CustomerKit.callURL(order.customerContact) : CustomerKit.whatsAppURL(order.customerContact)
-        if let url { openURL(url) }
-    }
-
     /// WhatsApp opens with the bank details written in; the person adds the account and presses send there.
     private func bankDetails(_ order: Order) {
         guard let w = order.website else { return }
@@ -381,6 +376,10 @@ struct MacOrdersPlace: View {
     }
 
     // MARK: What the sheets said
+
+    private func docSent(_ words: String) {
+        Note.show(Note(title: words), in: $note, reduce: reduceMotion)
+    }
 
     private func advanced(_ amount: Double, _ exchanges: [[String: Any]]) {
         Note.show(Note(title: "Advance recorded", detail: OrderAdvance.said(amount: amount, exchanges: exchanges)), in: $note, reduce: reduceMotion)
