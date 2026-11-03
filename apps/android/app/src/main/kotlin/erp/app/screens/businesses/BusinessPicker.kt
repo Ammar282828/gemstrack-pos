@@ -6,6 +6,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -13,6 +15,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -24,13 +27,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,26 +43,26 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import erp.app.config.Business
 import erp.app.config.Businesses
 import erp.app.config.House
 import erp.app.device.LaunchClock
 import erp.app.ui.AppClock
-import erp.app.ui.IconButton
-import erp.app.ui.icons.Symbols
+import erp.app.ui.Radius
+import erp.app.ui.TextButton
 import erp.app.ui.rememberErpMotion
 import erp.app.ui.rememberHaptics
 
@@ -145,13 +145,14 @@ fun LaunchPickerLayer(app: @Composable () -> Unit) {
 }
 
 /**
- * The picker as brand bands (BusinessPicker.swift, redone 2026-10-30 after three card versions were turned down): no cards. The screen is
- * cut into one full-bleed band per business, the colour running under the bars while the words keep to the safe area: two businesses are
- * two halves, up to four equal bands, more scroll at a quarter each. A band is the house's own identity, the same in light and dark:
- * Taheri's champagne gold wordmark on #0B1414, Mina's maroon on blush #F2E9E4, an added business's name on its dark accent. Under the
- * wordmark one tiny line (who is signed in, or "Sign in", else the address); the business used last has a dot beside it and comes first.
- * A tap grows the band over the rest while its words fade, with one haptic. Material You is in the joints only: the bands sit 4 dp apart
- * and the corners between them are extra large. Everything is read locally; nothing waits on the network.
+ * The picker as one brand card per business (BusinessPicker.swift, redone 2026-11-02 after four versions were turned down: a badge-wordmark-name
+ * triplicate, a slim list, big airy cards, full-bleed bands; owner: "more minimal for choosing businesses, add two cards"). The page is the
+ * theme's own surface, light or dark as the device is, with one quiet heading. Each business is one card in its own identity colours (the same
+ * in light and dark): Taheri's champagne gold wordmark on #0B1414, Mina's maroon on blush #F2E9E4, an added business's name on its dark accent.
+ * A card holds only the wordmark and under it one tiny line (who is signed in, or "Sign in", else the address). Cards are equal; stacked on a
+ * phone, side by side from 600 dp (a tablet, an unfolded fold). The business used last comes first and carries a 6 dp dot. A press settles a
+ * card to 0.97, one haptic, and the app takes the screen while the other cards fade. Adding and managing are two small text buttons at the foot.
+ * Everything is read locally; nothing waits on the network.
  */
 @Composable
 internal fun BusinessPicker(list: List<Business>, last: Business) {
@@ -159,50 +160,58 @@ internal fun BusinessPicker(list: List<Business>, last: Business) {
     val motion = rememberErpMotion()
     val ordered = remember(list, last.id) { BandLogic.ordered(list, last.id) }
     var chosen by remember { mutableStateOf<String?>(null) }
-    val topDark = ordered.firstOrNull()?.let { BandLogic.identity(it).isDark } ?: true
-    // The status bar sits over the top band: light icons over a dark one, dark over a light one; handed back when the picker leaves.
-    val view = LocalView.current
-    DisposableEffect(topDark) {
-        val window = (view.context as? android.app.Activity)?.window
-        val controller = window?.let { WindowCompat.getInsetsController(it, view) }
-        val before = controller?.isAppearanceLightStatusBars
-        controller?.isAppearanceLightStatusBars = !topDark
-        onDispose { if (controller != null && before != null) controller.isAppearanceLightStatusBars = before }
-    }
+    var entered by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { entered = true }
+    val show by animateFloatAsState(if (entered) 1f else 0f, motion.effects(), label = "picker")
     val insets = WindowInsets.safeDrawing.asPaddingValues()
+
+    fun pick(b: Business) {
+        if (chosen != null) return
+        haptics.selection()
+        Businesses.stampOpened(b)
+        LaunchClock.mark("picked", b.id)
+        // A launch whose books were still on their way when the person chose ends here ("picker"): the wait was theirs.
+        LaunchClock.finish("picker")
+        // One switch, then the picker leaves in the same change: the Activities are rebuilt on the new business, and this state lives above them.
+        chosen = b.id
+        if (b.id != last.id) Businesses.switchTo(b.id)
+        LaunchPicker.dismiss()
+    }
+
     BoxWithConstraints(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
-        val scrolls = ordered.size > BandLogic.FIT
-        val each = maxHeight / minOf(ordered.size, BandLogic.FIT)
+        val sideBySide = BandLogic.sideBySide(maxWidth.value)
         Column(
-            Modifier.fillMaxSize().then(if (scrolls) Modifier.verticalScroll(rememberScrollState()) else Modifier),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(insets),
+            // Centred in the screen's height: two cards at the top would leave the lower half empty.
+            verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            for ((i, b) in ordered.withIndex()) {
-                // The chosen band's share stays, the others' go to nothing: it grows over them.
-                val share by animateFloatAsState(if (chosen == null || chosen == b.id) 1f else 0.0001f, motion.spatial(), label = "band")
-                val first = i == 0
-                val end = i == ordered.size - 1
-                val shape = RoundedCornerShape(
-                    topStart = if (first) 0.dp else 28.dp, topEnd = if (first) 0.dp else 28.dp,
-                    bottomStart = if (end) 0.dp else 28.dp, bottomEnd = if (end) 0.dp else 28.dp,
+            Column(
+                Modifier.widthIn(max = if (sideBySide) 780.dp else 480.dp).fillMaxWidth().padding(horizontal = 20.dp, vertical = 32.dp).alpha(show),
+                verticalArrangement = Arrangement.spacedBy(24.dp),
+            ) {
+                Text(
+                    "Choose a business", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+                    modifier = Modifier.semantics { heading() },
                 )
-                Band(
-                    b, last = b.id == last.id, shape = shape, visible = chosen == null,
-                    top = if (first) insets.calculateTopPadding() else 0.dp,
-                    bottom = if (end) insets.calculateBottomPadding() else 0.dp,
-                    footer = end,
-                    modifier = (if (scrolls) Modifier.height(each) else Modifier.weight(share)).fillMaxWidth(),
-                ) {
-                    if (chosen != null) return@Band
-                    haptics.selection()
-                    Businesses.stampOpened(b)
-                    LaunchClock.mark("picked", b.id)
-                    // A launch whose books were still on their way when the person chose ends here ("picker"): the wait was theirs.
-                    LaunchClock.finish("picker")
-                    // One switch, then the picker leaves in the same change: the Activities are rebuilt on the new business, and this state lives above them.
-                    chosen = b.id
-                    if (b.id != last.id) Businesses.switchTo(b.id)
-                    LaunchPicker.dismiss()
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    // Side by side, up to three to a row; the last row's gaps are filled so every card keeps one width.
+                    val perRow = if (sideBySide) minOf(3, ordered.size) else 1
+                    for (row in ordered.chunked(perRow)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                            for (b in row) {
+                                BusinessCard(
+                                    b, last = b.id == last.id, sideBySide = sideBySide, faded = chosen != null && chosen != b.id,
+                                    modifier = Modifier.weight(1f),
+                                ) { pick(b) }
+                            }
+                            repeat(perRow - row.size) { Spacer(Modifier.weight(1f)) }
+                        }
+                    }
+                }
+                // Adding and managing both live on the Businesses sheet, which this opens above the picker.
+                Row(Modifier.alpha(if (chosen == null) 1f else 0f), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (Businesses.canAdd) TextButton(Businesses::openSheet) { Text("Add a business", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    TextButton(Businesses::openSheet) { Text("Manage", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 }
             }
         }
@@ -210,10 +219,7 @@ internal fun BusinessPicker(list: List<Business>, last: Business) {
 }
 
 @Composable
-private fun Band(
-    b: Business, last: Boolean, shape: RoundedCornerShape, visible: Boolean, top: Dp, bottom: Dp, footer: Boolean,
-    modifier: Modifier, onPick: () -> Unit,
-) {
+private fun BusinessCard(b: Business, last: Boolean, sideBySide: Boolean, faded: Boolean, modifier: Modifier, onPick: () -> Unit) {
     val motion = rememberErpMotion()
     val id = BandLogic.identity(b)
     val ground = hexColor(id.ground)
@@ -221,46 +227,41 @@ private fun Band(
     // Only from a Firebase app that already exists: asking would make one for a business that is not open, which is the launch's cost.
     val state = remember(b.id) { BandLogic.signIn(Businesses.firebaseAppMade(b), Businesses.signedInEmail(b, create = false)) }
     val status = BandLogic.status(b, last, state, Businesses.lastOpenedAt(b), AppClock.now())
-    var entered by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { entered = true }
-    val words by animateFloatAsState(if (entered && visible) 1f else 0f, motion.effects(), label = "words")
+    val source = remember { MutableInteractionSource() }
+    val pressed by source.collectIsPressedAsState()
+    // A press settles the card to 0.97 on the theme's springs (none under Reduce Motion: rememberErpMotion makes them instant).
+    val scale by animateFloatAsState(if (pressed) 0.97f else 1f, motion.fastSpatial(), label = "press")
+    val alpha by animateFloatAsState(if (faded) 0f else 1f, motion.effects(), label = "fade")
+    val shape = Radius.cardShape
     Box(
-        modifier.clip(shape).background(ground)
-            .clickable(onClickLabel = "Open ${b.displayName}", role = Role.Button, onClick = onPick)
+        modifier
+            .graphicsLayer { scaleX = scale; scaleY = scale; this.alpha = alpha }
+            .then(if (sideBySide) Modifier.aspectRatio(1.6f) else Modifier.height(130.dp))
+            .clip(shape).background(ground)
+            .clickable(interactionSource = source, indication = null, onClickLabel = "Open ${b.displayName}", role = Role.Button, onClick = onPick)
             .semantics(mergeDescendants = true) { contentDescription = "Open ${b.displayName}"; stateDescription = status },
+        contentAlignment = Alignment.Center,
     ) {
-        Column(
-            Modifier.align(Alignment.Center).padding(start = 24.dp, end = 24.dp, top = top, bottom = bottom).alpha(words),
-            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
+        Column(Modifier.padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Wordmark(b, ink)
-            // The dot sits beside the line, balanced by a spacer so the line stays centred under the wordmark.
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (last) Box(Modifier.size(4.dp).background(ink, CircleShape)) else Spacer(Modifier.size(4.dp))
-                Spacer(Modifier.size(6.dp))
-                Text(BandLogic.caption(b, state), style = MaterialTheme.typography.labelSmall, color = ink.copy(alpha = 0.55f), maxLines = 1, overflow = TextOverflow.MiddleEllipsis, textAlign = TextAlign.Center, modifier = Modifier.weight(1f, fill = false))
-                Spacer(Modifier.size(10.dp))
-            }
+            Text(
+                BandLogic.caption(b, state), style = MaterialTheme.typography.labelSmall, color = ink.copy(alpha = 0.6f),
+                maxLines = 1, overflow = TextOverflow.MiddleEllipsis, textAlign = TextAlign.Center,
+            )
         }
-        if (footer) {
-            // Adding and managing both live on the Businesses sheet, which this opens above the picker.
-            Row(Modifier.align(Alignment.BottomEnd).padding(bottom = bottom + 4.dp, end = 8.dp).alpha(words)) {
-                if (Businesses.canAdd) IconButton(Businesses::openSheet) { Icon(Symbols.Add, "Add a business", tint = ink.copy(alpha = 0.55f)) }
-                IconButton(Businesses::openSheet) { Icon(Symbols.Tune, "Manage businesses", tint = ink.copy(alpha = 0.55f)) }
-            }
-        }
+        if (last) Box(Modifier.align(Alignment.TopEnd).padding(14.dp).size(6.dp).background(ink, CircleShape))
     }
 }
 
-/** A business's wordmark as a single tint: the bundled art for a built-in (single-colour PNGs, the band's ink colours them), else the name. */
+/** A business's wordmark as a single tint: the bundled art for a built-in (single-colour PNGs, the card's ink colours them), else the name. */
 @Composable
 private fun Wordmark(b: Business, ink: Color) {
     val art = b.art
     if (art != null) {
-        // Taheri 28 dp, the spaced capitals of M I N A 22 dp, so the two read as the same weight.
-        val h = if (art == "mina") 22.dp else 28.dp
-        Image(painterResource(logoRes(art)), null, Modifier.heightIn(max = h).widthIn(max = 240.dp), contentScale = ContentScale.Fit, colorFilter = ColorFilter.tint(ink))
+        // Taheri 24 dp, the spaced capitals of M I N A 18 dp, so the two read as the same weight.
+        val h = if (art == "mina") 18.dp else 24.dp
+        Image(painterResource(logoRes(art)), null, Modifier.heightIn(max = h).widthIn(max = 200.dp), contentScale = ContentScale.Fit, colorFilter = ColorFilter.tint(ink))
     } else {
-        Text(b.name, style = MaterialTheme.typography.headlineSmall, color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(b.name, style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold), color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }

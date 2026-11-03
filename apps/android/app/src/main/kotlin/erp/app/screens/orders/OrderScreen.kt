@@ -179,6 +179,7 @@ private fun Detail(shelfOrder: Order) {
     var tracking by remember { mutableStateOf(false) }
     var leopardsOpen by remember { mutableStateOf(false) }
     var notifying by remember { mutableStateOf(false) }
+    var sendingToKarigar by remember { mutableStateOf(false) }
     /** The bar's Check transfer: the transfer's own sheet, as the online section's Transfer received opens it. */
     var checkingTransfer by remember { mutableStateOf(false) }
     /** What that sheet said once the transfer was booked. */
@@ -247,6 +248,7 @@ private fun Detail(shelfOrder: Order) {
             onFinalize = { navigator.open(OrderPaths.finalize(order.id)) },
             onSlip = { navigator.open(OrderPaths.slip(order.id)) },
             onMessage = { notifying = true },
+            onKarigar = { sendingToKarigar = true },
             onTrack = { tracking = true },
             onBook = { booking = true },
             onUndo = { undo = it },
@@ -309,6 +311,7 @@ private fun Detail(shelfOrder: Order) {
     if (tracking) OrderTrackingSheet(order) { tracking = false }
     if (leopardsOpen) OrderLeopardsSheet(order) { leopardsOpen = false }
     if (notifying) OrderNotifySheet(order, onDismiss = { notifying = false })
+    if (sendingToKarigar) SendToKarigarSheet(order, onDismiss = { sendingToKarigar = false })
     if (checkingTransfer) {
         OnlineMoveSheet(order, OnlineMoveKind.paid, onDismiss = { checkingTransfer = false }) { t ->
             told = t
@@ -717,6 +720,7 @@ private fun MoreMenu(
     onFinalize: () -> Unit,
     onSlip: () -> Unit,
     onMessage: () -> Unit,
+    onKarigar: () -> Unit,
     onTrack: () -> Unit,
     onBook: () -> Unit,
     onUndo: (OrderUndoAsk) -> Unit,
@@ -761,6 +765,7 @@ private fun MoreMenu(
         // The workshop slip: printed, saved or sent from the share sheet.
         item("Print slip", Symbols.Print, onClick = onSlip)()
         item("Message the customer", Symbols.Chat, onClick = onMessage)()
+        item("Send to karigar", Symbols.Send, onClick = onKarigar)()
         if (tcs != null || canBook) {
             HorizontalDivider()
             MenuHeader("Shipping")

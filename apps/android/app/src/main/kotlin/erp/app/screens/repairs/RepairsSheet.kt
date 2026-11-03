@@ -216,12 +216,11 @@ private fun HeaderCard(r: Repair, now: Instant, shopName: String, onCustomer: (S
         } else {
             RepairsLabeled("Customer", name)
         }
+        // The number, and the one Contact menu (ui/CustomerContact.kt): Call, WhatsApp, Message, Copy number.
         RepairsKit.filled(r.customerContact)?.let { phone ->
-            val uri = RepairsKit.callUri(phone)
-            if (uri != null) {
-                Box(Modifier.clickable(role = Role.Button) { openUrl(context, uri, android.content.Intent.ACTION_DIAL) }) { RepairsLabeled("Phone", phone, tint = ErpColors.accent) }
-            } else {
-                RepairsLabeled("Phone", phone)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.weight(1f)) { RepairsLabeled("Phone", phone) }
+                erp.app.ui.CustomerContactMenu(phone, customerId = r.customerId, customerName = r.customerName)
             }
         }
         // The page's "Tell them": the ready message, on WhatsApp, for a Ready ticket with a number.
