@@ -64,6 +64,10 @@ final class PullDownSearchState {
     @ObservationIgnored var revealedAt = Date.distantPast
     /// A finger is on the list. A bounce after a flick up to the top is not a pull.
     @ObservationIgnored var touching = false
+    /// The list is moving by the person's hand (dragging or still gliding). A list that got shorter under a filter
+    /// jumps its offset by itself; that is not scrolling away and must never take the bar or the keyboard
+    /// (owner, 2026-11-03: "after one letter keyboard vanishes").
+    @ObservationIgnored var scrolling = false
     /// The pull went past the line with the finger down: the bar comes out when the finger lifts, as iOS's own search
     /// does, so the list's inset never changes under the finger.
     @ObservationIgnored var armed = false
@@ -154,9 +158,9 @@ private enum PullDownSearchTuning {
     /// The bar's slot: a 40 pt field and 6 pt above and below. It never changes, so nothing is laid out by the pull.
     static let barHeight: CGFloat = 52
 
-    /// A smooth ease in (no bounce: the list is settling from its pull), nothing but a fade under Reduce Motion.
+    /// The app's travel curve (no bounce: the list is settling from its pull), the short exit curve under Reduce Motion.
     static var slide: Animation {
-        UIAccessibility.isReduceMotionEnabled ? .easeOut(duration: 0.12) : .smooth(duration: 0.3)
+        UIAccessibility.isReduceMotionEnabled ? Motion.exit : Motion.travel
     }
 }
 
@@ -221,12 +225,14 @@ private struct PullDownSearchReader: ViewModifier {
                 return Reading(pull: (pull * 2).rounded() / 2, away: y > PullDownSearchTuning.awayFrom)
             } action: { old, new in
                 if new.pull != old.pull { state.pulled(new.pull) }
-                if new.away, !old.away, state.revealed, !state.holding, !hasText,
+                // Only a scroll by hand hides it, and only with nothing typed and no keyboard up.
+                if new.away, !old.away, state.scrolling, state.revealed, !state.holding, !hasText,
                    Date().timeIntervalSince(state.revealedAt) > PullDownSearchTuning.settle {
                     state.hide()
                 }
             }
             .onScrollPhaseChange { _, phase in
+                state.scrolling = phase != .idle
                 state.touch(phase == .interacting || phase == .tracking)
             }
     }
