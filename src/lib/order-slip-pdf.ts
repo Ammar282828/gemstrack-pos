@@ -151,10 +151,10 @@ export function drawOrderSlipPdf(order: Order, opts: OrderSlipOptions): jsPDF {
 }
 
 /** The browser's Print slip: the page's logo and codes, then the share sheet or a download. */
-export async function generateOrderSlipPDF(order: Order, _settings?: Settings) {
+export async function generateOrderSlipPDF(order: Order, _settings?: Settings, preOpened?: Window | null) {
   if (typeof window === 'undefined') return;
-  // Opened before any await, or iOS treats the later open as a pop-up.
-  const iOSWin = openPDFWindowForIOS();
+  // Opened before any await, or iOS treats the later open as a pop-up (lib/pdf-lazy.ts opens it before it loads this file).
+  const iOSWin = preOpened !== undefined ? preOpened : openPDFWindowForIOS();
   // The logo once per session, not once per print — see pdf-logo.ts.
   const images = await browserPdfImages();
   const pdfDoc = drawOrderSlipPdf(order, { images });

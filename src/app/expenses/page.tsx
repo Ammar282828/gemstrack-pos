@@ -30,7 +30,6 @@ import { DateRangePicker } from '@/components/ui/date-range-picker';
 import type { DateRange } from "react-day-picker";
 import { PERIODS, GRADUATIONS, periodRange, type PeriodId, type Graduation } from '@/lib/date-grouping';
 import { expenseFilterLine, filterExpenses, groupExpenses } from '@/lib/expense-report';
-import { drawExpenseReportPdf, expenseReportFileName } from '@/lib/expense-report-pdf';
 import { cn, openPDFWindowForIOS, savePDF } from '@/lib/utils';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -41,6 +40,7 @@ import { SwipeToDelete } from '@/components/ui/swipe-to-delete';
 import { SHAREHOLDERS } from '@/lib/shareholders';
 import { PageShell } from '@/components/shared/page-shell';
 import { deleteErrorText } from '@/lib/delete-code';
+import { useShallow } from 'zustand/react/shallow';
 
 const PKR = (n: number) => `PKR ${Math.round(n).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 
@@ -54,10 +54,7 @@ export default function ExpensesPage() {
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
 
   const appReady = useAppReady();
-  const {
-    expenses, deleteExpense, isExpensesLoading, loadExpenses, settings,
-    karigars, loadKarigars, karigarBatches, loadKarigarBatches,
-  } = useAppStore();
+  const { expenses, deleteExpense, isExpensesLoading, loadExpenses, settings, karigars, loadKarigars, karigarBatches, loadKarigarBatches } = useAppStore(useShallow(s => ({ expenses: s.expenses, deleteExpense: s.deleteExpense, isExpensesLoading: s.isExpensesLoading, loadExpenses: s.loadExpenses, settings: s.settings, karigars: s.karigars, loadKarigars: s.loadKarigars, karigarBatches: s.karigarBatches, loadKarigarBatches: s.loadKarigarBatches })));
   const { toast } = useToast();
   // The shop's list, then any other name an expense carries (typed in, or from before the
   // list changed), so every expense can still be found by its category.
@@ -130,6 +127,7 @@ export default function ExpensesPage() {
     const iOSWin = openPDFWindowForIOS();
     // The one drawer, which the server also prints the iPhone app's report with (lib/expense-report-pdf.ts).
     const asOf = new Date();
+    const { drawExpenseReportPdf, expenseReportFileName } = await import('@/lib/expense-report-pdf'); // jsPDF on the press, not with the page
     const doc = drawExpenseReportPdf({
       groups,
       total: summary.total,

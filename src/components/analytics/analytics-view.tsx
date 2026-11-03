@@ -42,6 +42,7 @@ import { bookedAsSale } from '@/lib/order-stage';
 import { lineCategory } from '@/lib/categories';
 import { netProfit as netProfitOf, netMarginPercent, isRunningCost, profitBeforeRunning, RECORDS_GOODS } from '@/lib/analytics/net-profit';
 import { isGoodsExpense } from '@/lib/expense-categories';
+import { useShallow } from 'zustand/react/shallow';
 
 // Helper types for chart data
 type SalesOverTimeData = { date: string; sales: number; orders: number; itemsSold: number };
@@ -88,12 +89,7 @@ export type AnalyticsSection = 'overview' | 'sales' | 'products' | 'customers' |
  * (useAnalyticsRange) so it carries from one to the next.
  */
 export function AnalyticsView({ section }: { section: AnalyticsSection }) {
-  const { 
-    generatedInvoices, orders, products, categories, customers, expenses, additionalRevenues,
-    isInvoicesLoading, isOrdersLoading, isProductsLoading, isCustomersLoading, isExpensesLoading, isAdditionalRevenueLoading,
-    invoicesError, ordersError, productsError, customersError, expensesError,
-    loadGeneratedInvoices, loadOrders, loadProducts, loadCustomers, loadExpenses, loadAdditionalRevenues
-  } = useAppStore();
+  const { generatedInvoices, orders, products, categories, customers, expenses, additionalRevenues, isInvoicesLoading, isOrdersLoading, isProductsLoading, isCustomersLoading, isExpensesLoading, isAdditionalRevenueLoading, invoicesError, ordersError, productsError, customersError, expensesError, loadGeneratedInvoices, loadOrders, loadProducts, loadCustomers, loadExpenses, loadAdditionalRevenues } = useAppStore(useShallow(s => ({ generatedInvoices: s.generatedInvoices, orders: s.orders, products: s.products, categories: s.categories, customers: s.customers, expenses: s.expenses, additionalRevenues: s.additionalRevenues, isInvoicesLoading: s.isInvoicesLoading, isOrdersLoading: s.isOrdersLoading, isProductsLoading: s.isProductsLoading, isCustomersLoading: s.isCustomersLoading, isExpensesLoading: s.isExpensesLoading, isAdditionalRevenueLoading: s.isAdditionalRevenueLoading, invoicesError: s.invoicesError, ordersError: s.ordersError, productsError: s.productsError, customersError: s.customersError, expensesError: s.expensesError, loadGeneratedInvoices: s.loadGeneratedInvoices, loadOrders: s.loadOrders, loadProducts: s.loadProducts, loadCustomers: s.loadCustomers, loadExpenses: s.loadExpenses, loadAdditionalRevenues: s.loadAdditionalRevenues })));
 
   useEffect(() => {
     loadGeneratedInvoices();

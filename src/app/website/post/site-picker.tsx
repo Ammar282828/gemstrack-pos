@@ -119,7 +119,7 @@ export function SitePicker({ open, onOpenChange, siteName, headers, onAdd }: {
                   <button type="button" onClick={() => toggle(p.id)} aria-pressed={on}
                     className={cn('block w-full min-h-0 text-left rounded-lg border overflow-hidden', on ? 'ring-2 ring-primary border-primary' : 'hover:border-primary/60')}>
                     <span className="relative block aspect-square bg-muted">
-                      <img src={p.thumb} alt="" loading="lazy" className="h-full w-full object-cover" />
+                      <img decoding="async" src={p.thumb} alt="" loading="lazy" className="h-full w-full object-cover" />
                       {on && <span className="absolute right-1 top-1 rounded-full bg-primary p-1 text-primary-foreground"><Check className="h-3 w-3" /></span>}
                       {p.newArrival && showing !== NEW && <span className="absolute left-1 top-1 rounded-full bg-black/60 px-1.5 py-0.5 text-[10px] text-white">New</span>}
                     </span>

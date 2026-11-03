@@ -13,6 +13,7 @@
  * sidebar. It fits one desktop screen; each list scrolls inside its own frame.
  */
 
+import { newestFirst } from '@/lib/sort-by-time';
 import { TakenByDayDialog } from '@/components/home/taken-by-day-dialog';
 import { orderFullAmount } from '@/lib/order-payment';
 import { owedToYou } from '@/lib/owed';
@@ -35,6 +36,7 @@ import { revenueForPeriod, coinRevenueForPeriod } from '@/lib/analytics/revenue-
 import { useOnlineWaiting, useSellingPausedForRates } from '@/lib/website/online-client';
 import { awaitingTransfer, bookedAsSale } from '@/lib/order-stage';
 import { owesMoney } from '@/lib/money';
+import { useShallow } from 'zustand/react/shallow';
 
 /** PKR at a glance, in lac and crore (lib/money.ts); the exact value stays on hover. */
 function compactPKR(n: number): string {
@@ -147,7 +149,7 @@ export default function HomePage() {
     repairs, loadRepairs,
     hisaabEntries, loadHisaab,
     settings,
-  } = useAppStore(state => ({
+  } = useAppStore(useShallow(state => ({
     loadProducts: state.loadProducts,
     orders: state.orders,
     loadOrders: state.loadOrders,
@@ -168,7 +170,7 @@ export default function HomePage() {
     hisaabEntries: state.hisaabEntries,
     loadHisaab: state.loadHisaab,
     settings: state.settings,
-  }));
+  })));
 
   React.useEffect(() => {
     if (!appReady) return;
@@ -242,9 +244,7 @@ export default function HomePage() {
       activeJobs, criticalJobs, unassignedJobs,
       due, lateDue, todayDue, readyWaiting,
       revenueMonth, expensesMonth, netMonth: revenueMonth - expensesMonth,
-      recentInvoices: [...generatedInvoices]
-        .sort((a, b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime())
-        .slice(0, 12),
+      recentInvoices: newestFirst(generatedInvoices, i => i.createdAt).slice(0, 12),
     };
   }, [orders, generatedInvoices, additionalRevenues, expenses, karigars, karigarJobs, repairs, hisaabEntries]);
 

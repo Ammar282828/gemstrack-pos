@@ -1612,10 +1612,23 @@ const createDataLoader = <T, K extends keyof AppState>(
     const q = query(collection(db, collectionName), orderBy(orderByField, orderByDirection));
 
     const attachListener = (retryCount = 0) => {
+      // The objects the previous snapshot produced, by id. A snapshot rebuilt every row of the collection, so every
+      // memoised row and every useMemo over the list saw "new data" when one document changed (or nothing did: the
+      // cache -> server hand-over). Rows Firestore reports as unchanged now keep their object.
+      let previous: Map<string, T> | null = null;
       const unsubscribe = onSnapshot(q,
         (serverSnapshot) => {
-          const list = serverSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as T));
-          
+          const changed = previous ? new Set(serverSnapshot.docChanges().map(c => c.doc.id)) : null;
+          if (previous && changed && changed.size === 0 && previous.size === serverSnapshot.size) {
+            const st = get();
+            if (st[loadedKey] && !st[errorKey]) return; // nothing changed: no new array, no re-render
+          }
+          const list = serverSnapshot.docs.map(doc => {
+            const old = previous && !changed!.has(doc.id) ? previous.get(doc.id) : undefined;
+            return old ?? ({ ...doc.data(), id: doc.id } as T);
+          });
+          previous = new Map(list.map(row => [(row as { id: string }).id, row]));
+
           set({
             [stateKey]: list,
             ...(transform ? transform(list) : {}),
@@ -3887,15 +3900,21 @@ export const MENS_RING_CATEGORY_ID: string = MENS_RING_CATEGORY_ID_INTERNAL;
 export { calculateProductCosts };
 
 // --- SELECTOR DEFINITIONS ---
+// Memoised on the cart and settings identities: a selector that built a fresh array on every call made every
+// component using it re-render on any collection's snapshot (see docs/performance.md, 2026-11-03).
+const NO_CART_ITEMS: EnrichedCartItem[] = [];
+let cartDetailsKey: { cart: unknown; settings: unknown } | null = null;
+let cartDetailsValue: EnrichedCartItem[] = NO_CART_ITEMS;
 export const selectCartDetails = (state: AppState): EnrichedCartItem[] => {
   if (!state.cart || !Array.isArray(state.cart)) {
-    return [];
+    return NO_CART_ITEMS;
   }
   if (!state.settings) {
-    return [];
+    return NO_CART_ITEMS;
   }
+  if (cartDetailsKey && cartDetailsKey.cart === state.cart && cartDetailsKey.settings === state.settings) return cartDetailsValue;
 
-  return state.cart.map((cartItem) => {
+  const value = state.cart.map((cartItem) => {
       const costs = calculateProductCosts(cartItem, state.settings);
       return {
         ...cartItem,
@@ -3904,6 +3923,9 @@ export const selectCartDetails = (state: AppState): EnrichedCartItem[] => {
         lineItemTotal: costs.totalPrice,
       };
     });
+  cartDetailsKey = { cart: state.cart, settings: state.settings };
+  cartDetailsValue = value;
+  return value;
 };
 
 export const selectCartSubtotal = (state: AppState): number => {
@@ -3920,11 +3942,17 @@ export const selectCategoryTitleById = (categoryId: string, state: AppState): st
     return category ? category.title : 'Uncategorized';
 };
 
+let productCostsKey: { product: unknown; settings: unknown } | null = null;
+let productCostsValue: (Product & ReturnType<typeof calculateProductCosts>) | undefined;
 export const selectProductWithCosts = (sku: string, state: AppState): (Product & ReturnType<typeof calculateProductCosts>) | undefined => {
     const product = state.products.find(p => p.sku === sku);
     if (!product) return undefined;
+    // Same product object and settings as the last call: the same answer object (a new one re-rendered every listener).
+    if (productCostsKey && productCostsKey.product === product && productCostsKey.settings === state.settings && productCostsValue) return productCostsValue;
     const costs = calculateProductCosts(product, state.settings);
-    return { ...product, ...costs };
+    productCostsKey = { product, settings: state.settings };
+    productCostsValue = { ...product, ...costs };
+    return productCostsValue;
 };
 
 console.log("[GemsTrack Store] store.ts: Module fully evaluated.");

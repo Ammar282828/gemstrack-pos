@@ -46,6 +46,7 @@ import { STORE_PARTNERSHIP } from '@/lib/store-config';
 import { invoiceSaleValue } from '@/lib/analytics/sale-value';
 import { deleteErrorText } from '@/lib/delete-code';
 import { BusyLabel } from '@/components/ui/busy';
+import { useShallow } from 'zustand/react/shallow';
 
 /** Expenses from "Pearls - Studs x2" onward. */
 const EXPENSE_CUTOFF = '2025-07-02';
@@ -72,11 +73,7 @@ export default function ShareholderFinancesPage() {
   const { toast } = useToast();
   const appReady = useAppReady();
 
-  const {
-    expenses, generatedInvoices, orders, additionalRevenues, addExpense, deleteExpense,
-    isExpensesLoading, isInvoicesLoading, isOrdersLoading, isAdditionalRevenueLoading,
-    loadExpenses, loadGeneratedInvoices, loadOrders, loadAdditionalRevenues,
-  } = useAppStore();
+  const { expenses, generatedInvoices, orders, additionalRevenues, addExpense, deleteExpense, isExpensesLoading, isInvoicesLoading, isOrdersLoading, isAdditionalRevenueLoading, loadExpenses, loadGeneratedInvoices, loadOrders, loadAdditionalRevenues } = useAppStore(useShallow(s => ({ expenses: s.expenses, generatedInvoices: s.generatedInvoices, orders: s.orders, additionalRevenues: s.additionalRevenues, addExpense: s.addExpense, deleteExpense: s.deleteExpense, isExpensesLoading: s.isExpensesLoading, isInvoicesLoading: s.isInvoicesLoading, isOrdersLoading: s.isOrdersLoading, isAdditionalRevenueLoading: s.isAdditionalRevenueLoading, loadExpenses: s.loadExpenses, loadGeneratedInvoices: s.loadGeneratedInvoices, loadOrders: s.loadOrders, loadAdditionalRevenues: s.loadAdditionalRevenues })));
 
   useEffect(() => {
     if (appReady) {

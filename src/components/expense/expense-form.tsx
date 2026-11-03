@@ -31,6 +31,7 @@ import { SearchablePicker } from '@/components/shared/searchable-picker';
 import { KarigarPicker } from '@/components/karigar/karigar-picker';
 import { AmountInput } from '@/components/ui/amount-input';
 import { STORE_PARTNERSHIP } from '@/lib/store-config';
+import { useShallow } from 'zustand/react/shallow';
 
 const expenseSchema = z.object({
   date: z.date({ required_error: "A date is required." }),
@@ -56,7 +57,7 @@ interface ExpenseFormProps {
 
 export const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onSubmitSuccess, lockedKarigarId, lockedBatchId }) => {
   const { toast } = useToast();
-  const { addExpense, updateExpense, karigars, loadKarigars, karigarBatches, loadKarigarBatches } = useAppStore();
+  const { addExpense, updateExpense, karigars, loadKarigars, karigarBatches, loadKarigarBatches } = useAppStore(useShallow(s => ({ addExpense: s.addExpense, updateExpense: s.updateExpense, karigars: s.karigars, loadKarigars: s.loadKarigars, karigarBatches: s.karigarBatches, loadKarigarBatches: s.loadKarigarBatches })));
   const [selectedKarigarId, setSelectedKarigarId] = useState(expense?.karigarId || lockedKarigarId || '');
   const [batchId, setBatchId] = useState<string>(expense?.batchId || '');
   const [touchedBatch, setTouchedBatch] = useState(!!expense);

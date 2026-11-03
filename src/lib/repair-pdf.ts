@@ -144,9 +144,9 @@ export async function buildRepairPdf(r: Repair): Promise<jsPDF> {
   return drawRepairPdf(r, { images: await browserPdfImages() });
 }
 
-export async function saveRepairPdf(r: Repair): Promise<void> {
+export async function saveRepairPdf(r: Repair, preOpened?: Window | null): Promise<void> {
   if (typeof window === 'undefined') return;
-  const iOSWin = openPDFWindowForIOS();
+  const iOSWin = preOpened !== undefined ? preOpened : openPDFWindowForIOS();
   try {
     await savePDF(await buildRepairPdf(r), repairPdfFileName(r), iOSWin);
   } catch (e) {

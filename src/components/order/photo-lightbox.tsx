@@ -69,7 +69,7 @@ export function PhotoLightbox({ photos, index, onIndex, onClose, title }: {
         onClick={e => { if (e.target === e.currentTarget) onClose(); }}
         onWheel={e => setZoom(z => Math.min(4, Math.max(1, z - e.deltaY / 400)))}>
         {/* eslint-disable-next-line @next/next/no-img-element -- data: URI */}
-        <img src={src} alt={title ? `${title} ${at + 1}` : 'Reference'} draggable={false}
+        <img decoding="async" src={src} alt={title ? `${title} ${at + 1}` : 'Reference'} draggable={false}
           onDoubleClick={() => setZoom(z => (z > 1 ? 1 : 2.5))}
           style={{ transform: `scale(${zoom})`, transition: 'transform 160ms ease' }}
           className="max-h-full max-w-full select-none object-contain" />

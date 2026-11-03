@@ -61,6 +61,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import 'react-phone-number-input/style.css';
 import { owesMoney, rupees } from '@/lib/money';
 import { RoundOffChips, SettleOffer } from '@/components/shared/round-off-chips';
+import { useShallow } from 'zustand/react/shallow';
 
 /** The counter's message as it was before Taheri's PDF sends (House of Mina's): the estimate's ID and what is owed. */
 function estimateMessage(inv: InvoiceType, shopName: string): string {
@@ -85,7 +86,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
   const router = useRouter();
   const { toast } = useToast();
   const appReady = useAppReady();
-  const { customers, settings, allInvoices, hasInvoicesLoaded, updateInvoicePayment, settleInvoicePayment, refundInvoicePartial, updateInvoiceDiscount, deleteInvoice, deleteInvoicePayment, loadCustomers, loadGeneratedInvoices } = useAppStore(state => ({
+  const { customers, settings, allInvoices, hasInvoicesLoaded, updateInvoicePayment, settleInvoicePayment, refundInvoicePartial, updateInvoiceDiscount, deleteInvoice, deleteInvoicePayment, loadCustomers, loadGeneratedInvoices } = useAppStore(useShallow(state => ({
     customers: state.customers,
     settings: state.settings,
     allInvoices: state.generatedInvoices,
@@ -98,7 +99,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
     deleteInvoice: state.deleteInvoice, deleteInvoicePayment: state.deleteInvoicePayment,
     loadCustomers: state.loadCustomers,
     loadGeneratedInvoices: state.loadGeneratedInvoices,
-  }));
+  })));
 
   useEffect(() => {
     if (appReady) { loadCustomers(); loadGeneratedInvoices(); }

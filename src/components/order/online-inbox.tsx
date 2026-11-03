@@ -122,7 +122,7 @@ function OnlineCard({ row, onDone }: { row: OnlineOrderRow; onDone: () => void }
         {row.lines.map((l, i) => (
           <li key={i} className="flex items-center gap-2.5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={l.image} alt="" loading="lazy" className="h-12 w-12 flex-shrink-0 rounded-tile object-cover bg-muted" />
+            <img decoding="async" src={l.image} alt="" loading="lazy" className="h-12 w-12 flex-shrink-0 rounded-tile object-cover bg-muted" />
             <div className="min-w-0 flex-1">
               <p className="truncate text-ios-sub">{l.description.replace(/ \(size [^)]+\)$/, '')}</p>
               {l.size && <p className="text-ios-cap font-medium text-tone-owed-ink">Size {l.size}</p>}

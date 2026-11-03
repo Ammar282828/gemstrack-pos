@@ -23,6 +23,7 @@ import { LabelLiveCard } from './label-live-card';
 import { LabelLiveButton } from '@/components/label-live-button';
 import { importLsc } from '@/lib/label-lsc';
 import { cleanLabelLayout } from '@/lib/writes/label-layout';
+import { useShallow } from 'zustand/react/shallow';
 
 // --- Types --- (lib/label-layout.ts: the layout is kept in settings)
 type LabelLayout = StoredLabelLayout;
@@ -282,7 +283,7 @@ const TagEditor: React.FC<{ layout: LabelLayout; setLayout: React.Dispatch<React
 
 function PrinterPageComponent() {
   const appReady = useAppReady();
-  const { loadProducts, settings, addPrintHistory, updateSettings } = useAppStore();
+  const { loadProducts, settings, addPrintHistory, updateSettings } = useAppStore(useShallow(s => ({ loadProducts: s.loadProducts, settings: s.settings, addPrintHistory: s.addPrintHistory, updateSettings: s.updateSettings })));
   const { toast } = useToast();
   const router = useRouter();
 

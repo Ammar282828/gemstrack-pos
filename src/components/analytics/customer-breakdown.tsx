@@ -20,12 +20,13 @@ import { cn } from '@/lib/utils';
 import { lacCrore } from '@/lib/money';
 import { invoiceSaleValue } from '@/lib/analytics/sale-value';
 import { saleCustomerKey, WALK_IN_ENTITY, WALK_IN_NAME } from '@/lib/walk-in';
+import { useShallow } from 'zustand/react/shallow';
 
 type CustomerPerformanceData = { key: string; customerId?: string; customerName: string; totalSpent: number; orderCount: number; itemsPurchased: number; averageSpent: number };
 const SORTS = [['totalSpent', 'Spending'], ['orderCount', 'Number of sales'], ['averageSpent', 'Average sale']] as const;
 
 export function CustomerBreakdown({ range: dateRange }: { range: DateRange | undefined }) {
-  const { generatedInvoices, customers } = useAppStore();
+  const { generatedInvoices, customers } = useAppStore(useShallow(s => ({ generatedInvoices: s.generatedInvoices, customers: s.customers })));
   const [searchTerm, setSearchTerm] = useState('');
   // A sort, not a third row of tabs (one tab row per screen).
   const [sort, setSort] = useState<(typeof SORTS)[number][0]>('totalSpent');

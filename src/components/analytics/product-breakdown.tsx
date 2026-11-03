@@ -20,12 +20,13 @@ import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { lacCrore } from '@/lib/money';
+import { useShallow } from 'zustand/react/shallow';
 
 type ProductPerformanceData = { sku: string; name: string; quantity: number; revenue: number; orders: number };
 const SORTS = [['revenue', 'Revenue'], ['quantity', 'Quantity sold'], ['orders', 'Number of sales']] as const;
 
 export function ProductBreakdown({ range: dateRange }: { range: DateRange | undefined }) {
-  const { generatedInvoices, products } = useAppStore();
+  const { generatedInvoices, products } = useAppStore(useShallow(s => ({ generatedInvoices: s.generatedInvoices, products: s.products })));
   const [searchTerm, setSearchTerm] = useState('');
   // A sort, not a third row of tabs (one tab row per screen).
   const [sort, setSort] = useState<(typeof SORTS)[number][0]>('revenue');

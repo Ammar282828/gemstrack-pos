@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useMemo, useEffect, useDeferredValue } from 'react';
+import React, { useState, useMemo, useEffect, useDeferredValue, useCallback } from 'react';
 import { ListSkeleton, RecordGridSkeleton } from '@/components/shared/skeletons';
 import { FilterBar } from '@/components/shared/filter-bar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -32,6 +32,7 @@ import { generateProductCsv } from '@/lib/csv';
 import { PageShell } from '@/components/shared/page-shell';
 import { deleteErrorText } from '@/lib/delete-code';
 import { LabelLiveButton } from '@/components/label-live-button';
+import { useShallow } from 'zustand/react/shallow';
 
 type ViewMode = 'grid' | 'list';
 
@@ -79,8 +80,9 @@ const DeleteButton: React.FC<{ product: Product; onDelete: (sku: string) => Prom
   </AlertDialog>
 );
 
-const ProductCard: React.FC<ProductCardProps> = ({ product, categoryTitle, settings, onDelete, isSelected, onToggleSelect }) => {
-  const { addToCart } = useAppStore();
+// Memoised: with stable callbacks from the page, ticking one box or typing in the search re-renders only the cards that changed.
+const ProductCard = React.memo<ProductCardProps>(function ProductCard({ product, categoryTitle, settings, onDelete, isSelected, onToggleSelect }) {
+  const { addToCart } = useAppStore(useShallow(s => ({ addToCart: s.addToCart })));
   const { toast } = useToast();
 
   const price = useMemo(() => calculateProductPrice(product, settings), [product, settings]);
@@ -104,6 +106,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, categoryTitle, setti
             src={product.imageUrl || `https://placehold.co/160x160.png?text=${encodeURIComponent(product.name.substring(0, 1))}`}
             alt={product.name}
             fill
+            sizes="80px"
             style={{ objectFit: 'cover' }}
             data-ai-hint="jewelry item"
           />
@@ -139,10 +142,10 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, categoryTitle, setti
       </div>
     </Card>
   );
-};
+});
 
-const ProductRow: React.FC<ProductCardProps> = ({ product, categoryTitle, settings, onDelete, isSelected, onToggleSelect }) => {
-  const { addToCart } = useAppStore();
+const ProductRow = React.memo<ProductCardProps>(function ProductRow({ product, categoryTitle, settings, onDelete, isSelected, onToggleSelect }) {
+  const { addToCart } = useAppStore(useShallow(s => ({ addToCart: s.addToCart })));
   const { toast } = useToast();
   const price = useMemo(() => calculateProductPrice(product, settings), [product, settings]);
 
@@ -155,7 +158,7 @@ const ProductRow: React.FC<ProductCardProps> = ({ product, categoryTitle, settin
         <div className="relative w-10 h-10 rounded overflow-hidden border bg-muted shrink-0">
           <Image
             src={product.imageUrl || `https://placehold.co/80x80.png?text=${encodeURIComponent(product.name.substring(0, 1))}`}
-            alt={product.name} fill style={{ objectFit: 'cover' }} data-ai-hint="jewelry item"
+            alt={product.name} fill sizes="40px" style={{ objectFit: 'cover' }} data-ai-hint="jewelry item"
           />
         </div>
       </TableCell>
@@ -188,7 +191,7 @@ const ProductRow: React.FC<ProductCardProps> = ({ product, categoryTitle, settin
       </TableCell>
     </TableRow>
   );
-};
+});
 
 export default function ProductsPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -199,14 +202,14 @@ export default function ProductsPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
 
   const appReady = useAppReady();
-  const { allStoreProducts, categories, settings, deleteProductAction, isProductsLoading, loadProducts } = useAppStore(state => ({
+  const { allStoreProducts, categories, settings, deleteProductAction, isProductsLoading, loadProducts } = useAppStore(useShallow(state => ({
     allStoreProducts: state.products,
     categories: state.categories,
     settings: state.settings,
     deleteProductAction: state.deleteProduct,
     isProductsLoading: state.isProductsLoading,
     loadProducts: state.loadProducts,
-  }));
+  })));
   const { toast } = useToast();
   
   useEffect(() => {
@@ -216,12 +219,11 @@ export default function ProductsPage() {
   }, [appReady, loadProducts]);
 
 
-  const getCategoryTitle = (categoryId: string) => {
-    const category = categories.find(c => c.id === categoryId);
-    return category ? category.title : 'Uncategorized';
-  };
+  const categoryTitles = useMemo(() => new Map(categories.map(c => [c.id, c.title])), [categories]);
+  const getCategoryTitle = (categoryId: string) => categoryTitles.get(categoryId) ?? 'Uncategorized';
+  const selectedSet = useMemo(() => new Set(selectedProductSkus), [selectedProductSkus]);
   
-  const handleDeleteProduct = async (sku: string) => {
+  const handleDeleteProduct = useCallback(async (sku: string) => {
     try {
       await deleteProductAction(sku);
     } catch (e) {
@@ -230,9 +232,9 @@ export default function ProductsPage() {
     }
     setSelectedProductSkus(prev => prev.filter(s => s !== sku)); 
     toast({ title: "Product Deleted", description: `Product with SKU ${sku} has been deleted.` });
-  };
+  }, [deleteProductAction, toast]);
 
-  const handleToggleProductSelection = (sku: string, checked: boolean) => {
+  const handleToggleProductSelection = useCallback((sku: string, checked: boolean) => {
     setSelectedProductSkus(prevSelectedSkus => {
       if (checked) {
         return [...prevSelectedSkus, sku];
@@ -240,7 +242,7 @@ export default function ProductsPage() {
         return prevSelectedSkus.filter(s => s !== sku);
       }
     });
-  };
+  }, []);
 
   const handleSelectAllFiltered = () => {
     setSelectedProductSkus(filteredProducts.map(p => p.sku));
@@ -353,7 +355,7 @@ export default function ProductsPage() {
         viewMode === 'grid' ? <RecordGridSkeleton cards={8} className="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" /> : <ListSkeleton rows={8} />
       ) : filteredProducts.length > 0 ? (
         viewMode === 'grid' ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 cv-list" style={{ '--cv-size': '150px' } as React.CSSProperties}>
             {filteredProducts.map((product) => (
               <ProductCard
                 key={product.sku}
@@ -361,7 +363,7 @@ export default function ProductsPage() {
                 categoryTitle={getCategoryTitle(product.categoryId)}
                 settings={settings}
                 onDelete={handleDeleteProduct}
-                isSelected={selectedProductSkus.includes(product.sku)}
+                isSelected={selectedSet.has(product.sku)}
                 onToggleSelect={handleToggleProductSelection}
               />
             ))}
@@ -388,7 +390,7 @@ export default function ProductsPage() {
                     categoryTitle={getCategoryTitle(product.categoryId)}
                     settings={settings}
                     onDelete={handleDeleteProduct}
-                    isSelected={selectedProductSkus.includes(product.sku)}
+                    isSelected={selectedSet.has(product.sku)}
                     onToggleSelect={handleToggleProductSelection}
                   />
                 ))}

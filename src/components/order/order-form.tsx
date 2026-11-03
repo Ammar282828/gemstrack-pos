@@ -69,6 +69,7 @@ import { takeHandoff } from '@/lib/voice/handoff';
 import { TakenByPicker } from '@/components/shared/taken-by-picker';
 import { useMe } from '@/hooks/use-me';
 import { FormSkeleton } from '@/components/shared/skeletons';
+import { useShallow } from 'zustand/react/shallow';
 
 // Extend jsPDF interface for the autoTable plugin
 declare module 'jspdf' {
@@ -361,7 +362,7 @@ const PanelSection: React.FC<{
 export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draftId?: string | null; openScanner?: boolean; fromVoice?: boolean }> = ({ order, seedFromCart, draftId, openScanner, fromVoice }) => {
   const { toast } = useToast();
   const router = useRouter();
-  const { settings, customers, karigars, isSettingsLoading, isCustomersLoading, isKarigarsLoading, loadSettings, loadCustomers, loadKarigars, addOrder, updateOrder, updateCustomer, clearCart } = useAppStore();
+  const { settings, customers, karigars, isSettingsLoading, isCustomersLoading, isKarigarsLoading, loadSettings, loadCustomers, loadKarigars, addOrder, updateOrder, updateCustomer, clearCart } = useAppStore(useShallow(s => ({ settings: s.settings, customers: s.customers, karigars: s.karigars, isSettingsLoading: s.isSettingsLoading, isCustomersLoading: s.isCustomersLoading, isKarigarsLoading: s.isKarigarsLoading, loadSettings: s.loadSettings, loadCustomers: s.loadCustomers, loadKarigars: s.loadKarigars, addOrder: s.addOrder, updateOrder: s.updateOrder, updateCustomer: s.updateCustomer, clearCart: s.clearCart })));
   const cartItems = useAppStore(state => state.cart);
   // Past orders supply the addresses this customer has been delivered to.
   const orders = useAppStore(state => state.orders);

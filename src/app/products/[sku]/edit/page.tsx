@@ -7,11 +7,12 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 
 export default function EditProductPage() {
   const params = useParams();
   const sku = params.sku as string;
-  const { products, isProductsLoading, loadProducts } = useAppStore();
+  const { products, isProductsLoading, loadProducts } = useAppStore(useShallow(s => ({ products: s.products, isProductsLoading: s.isProductsLoading, loadProducts: s.loadProducts })));
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {

@@ -80,7 +80,7 @@ export function AuthedImg({ src, alt, className, fit = 'cover' }: { src: string;
   return (
     <div ref={box} className={cn('relative overflow-hidden bg-muted', className)}>
       {failed ? <div className="absolute inset-0 flex items-center justify-center text-muted-foreground"><ImageOff className="h-5 w-5" /></div>
-        : url ? <img src={url} alt={alt} loading="lazy" onError={() => setFailed(true)} className={cn('absolute inset-0 h-full w-full', fit === 'cover' ? 'object-cover' : 'object-contain')} />
+        : url ? <img decoding="async" src={url} alt={alt} loading="lazy" onError={() => setFailed(true)} className={cn('absolute inset-0 h-full w-full', fit === 'cover' ? 'object-cover' : 'object-contain')} />
           : <Skeleton className="absolute inset-0 h-full w-full rounded-none" />}
     </div>
   );

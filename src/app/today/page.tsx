@@ -14,6 +14,7 @@ import { PageShell } from '@/components/shared/page-shell';
 import { ListSkeleton } from '@/components/shared/skeletons';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { useShallow } from 'zustand/react/shallow';
 
 const pkr = (n: number) => `PKR ${Math.round(n).toLocaleString('en-PK')}`;
 const SOURCE = { invoice: 'Invoice', advance: 'Order advance', repair: 'Repair', extra: 'Extra revenue' } as const;
@@ -22,11 +23,11 @@ const hrefOf = (source: keyof typeof SOURCE, ref: string) =>
 
 export default function TodaysCashPage() {
   const appReady = useAppReady();
-  const s = useAppStore(st => ({
+  const s = useAppStore(useShallow(st => ({
     invoices: st.generatedInvoices, orders: st.orders, repairs: st.repairs, extraRevenues: st.additionalRevenues, expenses: st.expenses,
     loadInvoices: st.loadGeneratedInvoices, loadOrders: st.loadOrders, loadRepairs: st.loadRepairs, loadExtra: st.loadAdditionalRevenues, loadExpenses: st.loadExpenses,
     loading: st.isInvoicesLoading || st.isOrdersLoading || st.isRepairsLoading || st.isAdditionalRevenueLoading || st.isExpensesLoading,
-  }));
+  })));
   const { loadInvoices, loadOrders, loadRepairs, loadExtra, loadExpenses } = s;
   useEffect(() => {
     if (!appReady) return;

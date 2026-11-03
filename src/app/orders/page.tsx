@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from 'react';
+import { newestFirst } from '@/lib/sort-by-time';
+import React, { useState, useMemo, useEffect, useDeferredValue } from 'react';
 import { useLingering } from '@/hooks/use-lingering';
 import { ListSkeleton } from '@/components/shared/skeletons';
 import { FilterBar } from '@/components/shared/filter-bar';
@@ -16,7 +17,7 @@ import {
   MoreHorizontal, Phone, MessageCircle, ExternalLink, SlidersHorizontal, RefreshCw,
 } from 'lucide-react';
 import QRCode from 'qrcode.react';
-import { generateOrderSlipPDF, drawOrderSlipPdf } from '@/lib/order-slip-pdf';
+import { printOrderSlip, drawOrderSlipLazy } from '@/lib/pdf-lazy';
 import { browserPdfImages } from '@/lib/pdf-inputs';
 import { QuickPrintButton } from '@/components/shared/quick-print-button';
 import { STORE_CONFIG, storeLinksUrl } from '@/lib/store-config';
@@ -50,6 +51,7 @@ import {
   contactHrefs, toneClasses, type SwipeAction, type Tone,
 } from '@/components/ledger';
 import { owesMoney } from '@/lib/money';
+import { useShallow } from 'zustand/react/shallow';
 
 type PaymentStatus = OrderPaymentStatus;
 const getPaymentStatus = getOrderPaymentStatus;
@@ -97,7 +99,7 @@ function cardWhat(order: Order): string {
 /**
  * Print the slip from the list, without opening the order.
  *
- * generateOrderSlipPDF pre-opens the iOS window itself, synchronously, so this
+ * printOrderSlip (lib/pdf-lazy.ts) pre-opens the iOS window itself, synchronously, so this
  * must be called straight from the tap with nothing awaited before it. The one
  * await inside it is the logo, which is warmed on mount and answers from cache.
  */
@@ -109,7 +111,7 @@ function usePrintSlip(order: Order) {
     if (busy) return;
     setBusy(true);
     try {
-      await generateOrderSlipPDF(order, settings);
+      await printOrderSlip(order, settings);
     } catch (e) {
       console.error('[GemsTrack] order slip failed', e);
       toast({ title: 'Could not create the slip', description: e instanceof Error ? e.message : 'Something went wrong while drawing it.', variant: 'destructive' });
@@ -122,7 +124,7 @@ function usePrintSlip(order: Order) {
 
 /** The workshop slip for the printer icon: the one builder, handed to the print dialog rather than saved. */
 async function buildSlip(order: Order) {
-  return drawOrderSlipPdf(order, { images: await browserPdfImages() });
+  return drawOrderSlipLazy(order, { images: await browserPdfImages() });
 }
 
 /** Changing an order's status from a list: Cancelled asks first. `dialog` is the confirmation, to render once. */
@@ -442,6 +444,8 @@ const STATUS_CHIPS: (OrderStatus | 'All')[] = ['All', 'Pending', 'In Progress', 
 
 export default function OrdersPage() {
   const [searchTerm, setSearchTerm] = useState('');
+  // Filtering follows typing, never holds it up (the field stays instant; the list catches up).
+  const deferredSearch = useDeferredValue(searchTerm);
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'All'>('All');
   // Starts on whoever is signed in (lib/people.ts); Anyone is one tap away.
   // Everyone's orders to start with; the signed-in person's own are highlighted, not filtered (2026-10-05).
@@ -452,13 +456,13 @@ export default function OrdersPage() {
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   const appReady = useAppReady();
-  const { orders, isOrdersLoading, loadOrders, invoices, loadGeneratedInvoices } = useAppStore(state => ({
+  const { orders, isOrdersLoading, loadOrders, invoices, loadGeneratedInvoices } = useAppStore(useShallow(state => ({
     orders: state.orders,
     isOrdersLoading: state.isOrdersLoading,
     loadOrders: state.loadOrders,
     invoices: state.generatedInvoices,
     loadGeneratedInvoices: state.loadGeneratedInvoices,
-  }));
+  })));
 
   useEffect(() => {
     if (appReady) {
@@ -495,23 +499,24 @@ export default function OrdersPage() {
   const [now] = useState(() => new Date());
 
   /** Every filter but the status: the status chips count what they would show. */
-  const matchesExceptStatus = (order: Order) =>
-    (!takenByFilter || order.takenBy === takenByFilter) &&
-    (paymentFilter === 'All' || getPaymentStatus(order) === paymentFilter) &&
-    (monthFilter === 'All' || monthKeyOf(order.createdAt) === monthFilter) &&
-    (
-      order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (order.customerName && order.customerName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (order.customerContact && order.customerContact.includes(searchTerm)) ||
+  const matchesExceptStatus = (order: Order) => {
+    if (takenByFilter && order.takenBy !== takenByFilter) return false;
+    if (paymentFilter !== 'All' && getPaymentStatus(order) !== paymentFilter) return false;
+    if (monthFilter !== 'All' && monthKeyOf(order.createdAt) !== monthFilter) return false;
+    const q = deferredSearch.toLowerCase();
+    return (
+      order.id.toLowerCase().includes(q) ||
+      (!!order.customerName && order.customerName.toLowerCase().includes(q)) ||
+      (!!order.customerContact && order.customerContact.includes(deferredSearch)) ||
       // The customer quotes the ONL- number they were given.
-      (!!order.website?.onlineId && order.website.onlineId.toLowerCase().includes(searchTerm.toLowerCase()))
+      (!!order.website?.onlineId && order.website.onlineId.toLowerCase().includes(q))
     );
+  };
 
   const filteredOrders = useMemo(() => {
     if (!appReady) return [];
-    return orders.filter(order => (statusFilter === 'All' || order.status === statusFilter) && matchesExceptStatus(order))
-      .sort((a, b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime());
-  }, [orders, searchTerm, appReady, statusFilter, paymentFilter, monthFilter, takenByFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+    return newestFirst(orders.filter(order => (statusFilter === 'All' || order.status === statusFilter) && matchesExceptStatus(order)), o => o.createdAt);
+  }, [orders, deferredSearch, appReady, statusFilter, paymentFilter, monthFilter, takenByFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const statusCounts = useMemo(() => {
     const out: Record<string, number> = { All: 0 };
@@ -522,7 +527,7 @@ export default function OrdersPage() {
       out[o.status] = (out[o.status] ?? 0) + 1;
     }
     return out;
-  }, [orders, searchTerm, appReady, paymentFilter, monthFilter, takenByFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [orders, deferredSearch, appReady, paymentFilter, monthFilter, takenByFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filterCount = [monthFilter, statusFilter, paymentFilter].filter(v => v !== 'All').length + (takenByFilter ? 1 : 0);
   /** The sheet's own count: the status has its chips. */

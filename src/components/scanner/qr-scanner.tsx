@@ -284,7 +284,7 @@ export default function QrScanner({ isActive }: QrScannerProps) {
           id={qrReaderElementId}
           className={cn(
             // clip-path clips <video> on iOS Safari where overflow-hidden does not
-            "w-full border-4 border-transparent rounded-md bg-muted overflow-hidden [clip-path:inset(0_round_0.375rem)] mx-auto max-w-lg relative transition-all duration-300 min-h-[250px]",
+            "w-full border-4 border-transparent rounded-md bg-muted overflow-hidden [clip-path:inset(0_round_0.375rem)] mx-auto max-w-lg relative transition-[border-color,box-shadow] duration-300 min-h-[250px]",
             " [&>span]:hidden [&>video]:w-full [&>video]:h-full [&>video]:object-cover",
             scanSuccess && "border-success shadow-lg shadow-green-500/50"
           )}

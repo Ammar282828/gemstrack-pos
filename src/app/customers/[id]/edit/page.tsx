@@ -7,11 +7,12 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 
 export default function EditCustomerPage() {
   const params = useParams();
   const customerId = params.id as string;
-  const { customers, isCustomersLoading, loadCustomers } = useAppStore();
+  const { customers, isCustomersLoading, loadCustomers } = useAppStore(useShallow(s => ({ customers: s.customers, isCustomersLoading: s.isCustomersLoading, loadCustomers: s.loadCustomers })));
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {

@@ -60,7 +60,7 @@ function PostCard({ r, live }: { r: PostRow; live: boolean }) {
   return (
     <li className="rounded-xl border p-2.5 flex gap-3 min-w-0">
       <a href={r.link ?? undefined} target="_blank" rel="noopener" className="shrink-0">
-        {r.thumb ? <img src={r.thumb} alt="" loading="lazy" className={cn('rounded-lg object-cover bg-muted', r.kind === 'story' || r.kind === 'reel' ? 'h-24 w-[3.4rem]' : 'h-20 w-20')} />
+        {r.thumb ? <img decoding="async" src={r.thumb} alt="" loading="lazy" className={cn('rounded-lg object-cover bg-muted', r.kind === 'story' || r.kind === 'reel' ? 'h-24 w-[3.4rem]' : 'h-20 w-20')} />
           : <span className="h-20 w-20 rounded-lg bg-muted grid place-items-center"><ImageIcon className="h-5 w-5 text-muted-foreground" /></span>}
       </a>
       <div className="min-w-0 flex-1 space-y-1">

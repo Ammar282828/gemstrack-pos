@@ -196,7 +196,7 @@ function EditPiecePage() {
               <li key={p.id}>
                 <button type="button" onClick={() => open(p)} className="group block w-full text-left rounded-lg border overflow-hidden hover:border-primary/60">
                   <span className="relative block aspect-square bg-muted">
-                    <img src={p.thumb} alt="" loading="lazy" className={cn('h-full w-full object-cover', p.hidden && 'opacity-40')} />
+                    <img decoding="async" src={p.thumb} alt="" loading="lazy" className={cn('h-full w-full object-cover', p.hidden && 'opacity-40')} />
                     <span className="absolute left-1.5 top-1.5 flex flex-wrap gap-1">
                       {p.hidden && <span className="rounded-full bg-black/70 px-1.5 py-0.5 text-[10px] text-white inline-flex items-center gap-1"><EyeOff className="h-3 w-3" /> Hidden</span>}
                       {photoEdited(p) && <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] text-primary-foreground">New photo</span>}

@@ -21,6 +21,7 @@ import 'react-phone-number-input/style.css';
 import { normalizePhoneNumber } from '@/lib/utils';
 import { PageBack } from '@/components/shared/page-back';
 import { PhoneField } from '@/components/ui/phone-field';
+import { useShallow } from 'zustand/react/shallow';
 
 const NO_SOURCE_VALUE = '__none__';
 
@@ -56,7 +57,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onSubmitSu
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
-  const { addCustomer, updateCustomer } = useAppStore();
+  const { addCustomer, updateCustomer } = useAppStore(useShallow(s => ({ addCustomer: s.addCustomer, updateCustomer: s.updateCustomer })));
 
   const redirectToHisaab = searchParams.get('redirect_to_hisaab') === 'true';
 

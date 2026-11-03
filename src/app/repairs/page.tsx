@@ -23,7 +23,7 @@ import { useToast } from '@/hooks/use-toast';
 import { STORE_CONFIG, storeLinksUrl } from '@/lib/store-config';
 import { whatsAppLink } from '@/lib/whatsapp';
 import { normalizePhoneNumber, cn } from '@/lib/utils';
-import { saveRepairPdf } from '@/lib/repair-pdf';
+import { printRepairReceipt } from '@/lib/pdf-lazy';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -44,6 +44,7 @@ import { Wrench, Plus, PlusCircle, Printer, Edit, Trash2, MessageCircle, CheckCi
 import { useMe } from '@/hooks/use-me';
 import { PageShell } from '@/components/shared/page-shell';
 import { RepairCard } from '@/components/repairs/repair-card';
+import { useShallow } from 'zustand/react/shallow';
 
 const pkr = (n: number) => `PKR ${Math.round(n).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 const day = (iso?: string) => { if (!iso) return ''; try { return format(parseISO(iso), 'd MMM'); } catch { return iso; } };
@@ -82,7 +83,7 @@ function MethodChips({ value, onChange }: { value: PaymentType; onChange: (m: Pa
 // ── The form ────────────────────────────────────────────────────────────────
 function RepairForm({ repair, onDone }: { repair?: Repair; onDone: (saved?: Repair) => void }) {
   const { toast } = useToast();
-  const { customers, karigars, addRepair, updateRepair, loadCustomers, loadKarigars } = useAppStore();
+  const { customers, karigars, addRepair, updateRepair, loadCustomers, loadKarigars } = useAppStore(useShallow(s => ({ customers: s.customers, karigars: s.karigars, addRepair: s.addRepair, updateRepair: s.updateRepair, loadCustomers: s.loadCustomers, loadKarigars: s.loadKarigars })));
   const [name, setName] = useState(repair?.customerName || '');
   const [customerId, setCustomerId] = useState(repair?.customerId);
   const [phone, setPhone] = useState(repair?.customerContact || '');
@@ -256,7 +257,7 @@ function RepairForm({ repair, onDone }: { repair?: Repair; onDone: (saved?: Repa
 
 // ── Hand back: take the balance, done ───────────────────────────────────────
 function HandBackDialog({ repair, open, onClose }: { repair: Repair; open: boolean; onClose: () => void }) {
-  const { setRepairStatus, recordRepairPayment } = useAppStore();
+  const { setRepairStatus, recordRepairPayment } = useAppStore(useShallow(s => ({ setRepairStatus: s.setRepairStatus, recordRepairPayment: s.recordRepairPayment })));
   const { toast } = useToast();
   const balance = repairBalance(repair);
   const [amount, setAmount] = useState<number | undefined>(balance || undefined);
@@ -301,7 +302,7 @@ function HandBackDialog({ repair, open, onClose }: { repair: Repair; open: boole
 export default function RepairsPage() {
   const appReady = useAppReady();
   const { toast } = useToast();
-  const { repairs, isRepairsLoading, hasRepairsLoaded, loadRepairs, setRepairStatus, deleteRepair } = useAppStore();
+  const { repairs, isRepairsLoading, hasRepairsLoaded, loadRepairs, setRepairStatus, deleteRepair } = useAppStore(useShallow(s => ({ repairs: s.repairs, isRepairsLoading: s.isRepairsLoading, hasRepairsLoaded: s.hasRepairsLoaded, loadRepairs: s.loadRepairs, setRepairStatus: s.setRepairStatus, deleteRepair: s.deleteRepair })));
   const [tab, setTab] = useState<Tab>('received');
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState<Repair | 'new' | null>(null);
@@ -347,7 +348,7 @@ export default function RepairsPage() {
   const run = async (label: string, fn: () => Promise<unknown>) => {
     try { await fn(); } catch (e) { toast({ title: label, description: e instanceof Error ? e.message : String(e), variant: 'destructive' }); }
   };
-  const print = (r: Repair) => run('Could not print the receipt', () => saveRepairPdf(r));
+  const print = (r: Repair) => run('Could not print the receipt', () => printRepairReceipt(r));
   const markReady = (r: Repair) => run('Could not update', async () => { await setRepairStatus(r.id, 'ready'); toast({ title: `${r.id} is ready`, description: r.customerContact ? 'Tap "Tell them" to message the customer.' : undefined }); });
 
   const readyMessage = (r: Repair) => {

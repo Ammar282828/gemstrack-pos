@@ -37,6 +37,7 @@ import { PageShell } from '@/components/shared/page-shell';
 import { deleteErrorText } from '@/lib/delete-code';
 import { invoiceSaleValue } from '@/lib/analytics/sale-value';
 import { detectSpamCustomers, transactedCustomerIds, type SpamCandidate as SpamOf } from '@/lib/customer-spam';
+import { useShallow } from 'zustand/react/shallow';
 
 type SpamCandidate = SpamOf<Customer>;
 
@@ -469,7 +470,7 @@ export default function CustomersPage() {
   const [spamOpen, setSpamOpen] = useState(false);
 
   const appReady = useAppReady();
-  const { customers, orders, generatedInvoices, hisaabEntries, deleteCustomerAction, isCustomersLoading, loadCustomers, loadOrders, loadGeneratedInvoices, loadHisaab, mergeCustomers } = useAppStore(state => ({
+  const { customers, orders, generatedInvoices, hisaabEntries, deleteCustomerAction, isCustomersLoading, loadCustomers, loadOrders, loadGeneratedInvoices, loadHisaab, mergeCustomers } = useAppStore(useShallow(state => ({
     customers: state.customers,
     orders: state.orders,
     generatedInvoices: state.generatedInvoices,
@@ -481,7 +482,7 @@ export default function CustomersPage() {
     loadGeneratedInvoices: state.loadGeneratedInvoices,
     loadHisaab: state.loadHisaab,
     mergeCustomers: state.mergeCustomers,
-  }));
+  })));
   const { toast } = useToast();
 
   useEffect(() => {

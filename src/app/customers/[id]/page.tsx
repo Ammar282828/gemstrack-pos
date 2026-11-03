@@ -34,6 +34,7 @@ import { format, parseISO } from 'date-fns';
 import { PageBack } from '@/components/shared/page-back';
 import { deleteErrorText } from '@/lib/delete-code';
 import { invoiceSaleValue } from '@/lib/analytics/sale-value';
+import { useShallow } from 'zustand/react/shallow';
 
 /** An order's stage in its one tone (a.2); owed is amber, never red. */
 const STATUS_TONE: Record<Order['status'], Tone> = {
@@ -57,7 +58,7 @@ export default function CustomerDetailPage() {
   const customerId = params.id as string;
 
   const isHydrated = useIsStoreHydrated();
-  const { customer, allInvoices, allOrders, hisaabEntries, deleteCustomerAction, loadCustomers, loadGeneratedInvoices, loadOrders, loadHisaab } = useAppStore(state => ({
+  const { customer, allInvoices, allOrders, hisaabEntries, deleteCustomerAction, loadCustomers, loadGeneratedInvoices, loadOrders, loadHisaab } = useAppStore(useShallow(state => ({
     customer: state.customers.find(c => c.id === customerId),
     allInvoices: state.generatedInvoices,
     allOrders: state.orders,
@@ -67,7 +68,7 @@ export default function CustomerDetailPage() {
     loadCustomers: state.loadCustomers,
     loadGeneratedInvoices: state.loadGeneratedInvoices,
     loadOrders: state.loadOrders,
-  }));
+  })));
 
   const [customerInvoices, setCustomerInvoices] = useState<Invoice[]>([]);
   const [customerOrders, setCustomerOrders] = useState<Order[]>([]);

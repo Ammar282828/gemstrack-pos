@@ -229,7 +229,7 @@ function CatalogueInterestPage({ switcher }: { switcher?: React.ReactNode } = {}
           {ranked.map((r, i) => (
             <li key={r.piece} className="flex items-center gap-3 rounded-[22px] bg-card p-2.5 pr-4">
               <span className="w-6 text-center text-sm text-muted-foreground tabular-nums">{i + 1}</span>
-              {r.thumb ? <img src={r.thumb} alt="" className="h-14 w-14 rounded-xl object-cover bg-muted shrink-0" loading="lazy" /> : <div className="h-14 w-14 rounded-xl bg-muted shrink-0" />}
+              {r.thumb ? <img decoding="async" src={r.thumb} alt="" className="h-14 w-14 rounded-xl object-cover bg-muted shrink-0" loading="lazy" /> : <div className="h-14 w-14 rounded-xl bg-muted shrink-0" />}
               <div className="min-w-0 flex-1">
                 <p className="font-medium truncate">{r.name}</p>
                 <p className="text-xs text-muted-foreground truncate">{active.show(r)}{r.collection ? ` · ${r.collection}` : ''}</p>

@@ -24,6 +24,7 @@ import 'react-phone-number-input/style.css'
 import { Label } from '@/components/ui/label';
 import { SearchablePicker } from '@/components/shared/searchable-picker';
 import { PhoneField } from '@/components/ui/phone-field';
+import { useShallow } from 'zustand/react/shallow';
 
 const PAKISTANI_BANKS = [
     "Al Baraka Bank (Pakistan) Limited",
@@ -120,13 +121,15 @@ const PaymentMethodForm: React.FC<{
     );
 };
 
+const NO_METHODS: PaymentMethod[] = [];
+
 export default function PaymentMethodsPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { paymentMethods, updateSettings } = useAppStore(state => ({
-    paymentMethods: state.settings.paymentMethods || [],
+  const { paymentMethods, updateSettings } = useAppStore(useShallow(state => ({
+    paymentMethods: state.settings.paymentMethods ?? NO_METHODS,
     updateSettings: state.updateSettings,
-  }));
+  })));
   
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingMethod, setEditingMethod] = useState<PaymentMethod | undefined>(undefined);

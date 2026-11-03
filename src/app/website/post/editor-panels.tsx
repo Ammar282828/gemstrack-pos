@@ -703,8 +703,8 @@ export function MarksSection({ ed, upload }: { ed: Editor; upload?: boolean }) {
         <Button variant="outline" size="sm" className="mb-2 w-full" onClick={() => fileRef.current?.click()}><Upload className="h-4 w-4 mr-1.5" /> A logo file (SVG or PNG)</Button>
       </>)}
       <div className="grid grid-cols-2 gap-2">
-        {wordmark && <button type="button" className="flex h-16 items-center justify-center rounded-md border bg-neutral-800 p-3 hover:ring-2 hover:ring-primary" onClick={() => ed.add(ed.square ? newCornerMark('wordmark', ed.assets, ed.F) : newWordmark(ink))}><img src={wordmark.src} alt="Wordmark" className="max-h-full max-w-full invert" /></button>}
-        {t && <button type="button" className="flex h-16 items-center justify-center rounded-md border bg-neutral-800 p-3 hover:ring-2 hover:ring-primary" onClick={() => ed.add(ed.square ? newCornerMark('t', ed.assets, ed.F) : newMonogram(ink))}><img src={t.src} alt="t mark" className="max-h-full max-w-full invert" /></button>}
+        {wordmark && <button type="button" className="flex h-16 items-center justify-center rounded-md border bg-neutral-800 p-3 hover:ring-2 hover:ring-primary" onClick={() => ed.add(ed.square ? newCornerMark('wordmark', ed.assets, ed.F) : newWordmark(ink))}><img decoding="async" src={wordmark.src} alt="Wordmark" className="max-h-full max-w-full invert" /></button>}
+        {t && <button type="button" className="flex h-16 items-center justify-center rounded-md border bg-neutral-800 p-3 hover:ring-2 hover:ring-primary" onClick={() => ed.add(ed.square ? newCornerMark('t', ed.assets, ed.F) : newMonogram(ink))}><img decoding="async" src={t.src} alt="t mark" className="max-h-full max-w-full invert" /></button>}
       </div>
     </Section>
   );

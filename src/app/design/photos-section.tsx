@@ -127,7 +127,7 @@ function SitePieces({ onMake }: { onMake: (p: StartPhoto) => void }) {
           <li key={p.id}>
             <button type="button" onClick={() => onMake(startPhotoFromSite(p))} className="block min-h-0 w-full overflow-hidden rounded-card bg-card text-left hover:ring-2 hover:ring-primary/60">
               <span className="relative block aspect-square bg-muted">
-                <img src={p.thumb} alt="" loading="lazy" className="h-full w-full object-cover" />
+                <img decoding="async" src={p.thumb} alt="" loading="lazy" className="h-full w-full object-cover" />
                 {p.newArrival && showing !== NEW && <span className="absolute left-1 top-1 inline-flex items-center gap-0.5 rounded-full bg-black/60 px-1.5 py-0.5 text-[10px] text-white"><Sparkles className="h-2.5 w-2.5" /> New</span>}
               </span>
               <span className="block px-2 py-1.5">

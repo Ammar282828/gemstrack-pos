@@ -326,7 +326,7 @@ export default function StoryDraftsPage() {
               <div className="mx-auto aspect-[9/16] h-[min(533px,52vh)] shrink-0 overflow-hidden rounded-xl bg-muted">
                 {openUrl
                   // eslint-disable-next-line @next/next/no-img-element
-                  ? <img src={openUrl} alt={open.name} className="h-full w-full object-cover" />
+                  ? <img decoding="async" src={openUrl} alt={open.name} className="h-full w-full object-cover" />
                   : <div className="flex h-full items-center justify-center text-sm text-muted-foreground">{open.missing ? 'Not on the website now' : <Skeleton className="h-full w-full rounded-none" />}</div>}
               </div>
               {open.missing && <p className="text-sm text-muted-foreground">This piece is hidden or gone from the website, so there is no photograph to make it from.</p>}

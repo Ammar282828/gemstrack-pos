@@ -40,6 +40,7 @@ import { buildWorkshopJobs } from '@/lib/workshop';
 import { karigarPosition } from '@/lib/karigar-position';
 import { deleteErrorText } from '@/lib/delete-code';
 import { DetailSkeleton } from '@/components/shared/skeletons';
+import { useShallow } from 'zustand/react/shallow';
 
 const silverTransactionSchema = z.object({
   silverGrams: z.coerce.number().positive("Silver grams must be greater than 0"),
@@ -202,7 +203,7 @@ export default function KarigarDetailPage() {
   const karigars = useAppStore(state => state.karigars);
   const invoices = useAppStore(state => state.generatedInvoices);
   const givenItems = useAppStore(state => state.givenItems);
-  const { loadExpenses, loadKarigarBatches, createKarigarBatch, closeKarigarBatch, deleteKarigarBatch, loadKarigars, addSilverTransaction, loadSilverTransactions, deleteSilverTransaction, loadHisaab, loadOrders, loadKarigarJobs, loadGivenItems, loadGeneratedInvoices } = useAppStore();
+  const { loadExpenses, loadKarigarBatches, createKarigarBatch, closeKarigarBatch, deleteKarigarBatch, loadKarigars, addSilverTransaction, loadSilverTransactions, deleteSilverTransaction, loadHisaab, loadOrders, loadKarigarJobs, loadGivenItems, loadGeneratedInvoices } = useAppStore(useShallow(s => ({ loadExpenses: s.loadExpenses, loadKarigarBatches: s.loadKarigarBatches, createKarigarBatch: s.createKarigarBatch, closeKarigarBatch: s.closeKarigarBatch, deleteKarigarBatch: s.deleteKarigarBatch, loadKarigars: s.loadKarigars, addSilverTransaction: s.addSilverTransaction, loadSilverTransactions: s.loadSilverTransactions, deleteSilverTransaction: s.deleteSilverTransaction, loadHisaab: s.loadHisaab, loadOrders: s.loadOrders, loadKarigarJobs: s.loadKarigarJobs, loadGivenItems: s.loadGivenItems, loadGeneratedInvoices: s.loadGeneratedInvoices })));
 
   const [isPaymentFormOpen, setIsPaymentFormOpen] = useState(false);
   const [isSilverDialogOpen, setIsSilverDialogOpen] = useState(false);

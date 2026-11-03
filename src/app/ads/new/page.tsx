@@ -477,7 +477,7 @@ function NewAd() {
                         <li key={m.id}>
                           <button type="button" onClick={() => setPost(on ? null : m)} disabled={m.boostable === false} title={m.why ?? undefined}
                             className={cn('relative block w-full aspect-square overflow-hidden rounded-md bg-muted', on && 'ring-2 ring-primary', m.boostable === false && 'opacity-40')}>
-                            {m.thumb ? <img src={m.thumb} alt="" loading="lazy" className="h-full w-full object-cover" /> : <Film className="h-6 w-6 m-auto text-muted-foreground" />}
+                            {m.thumb ? <img decoding="async" src={m.thumb} alt="" loading="lazy" className="h-full w-full object-cover" /> : <Film className="h-6 w-6 m-auto text-muted-foreground" />}
                             {m.type !== 'IMAGE' && <span className="absolute left-1 top-1 rounded bg-black/60 px-1 text-[10px] text-white">{m.type === 'REEL' ? 'Reel' : m.type === 'CAROUSEL_ALBUM' ? 'Carousel' : 'Video'}</span>}
                             {on && <span className="absolute right-1 top-1 rounded-full bg-primary p-0.5 text-primary-foreground"><Check className="h-3 w-3" /></span>}
                           </button>
@@ -502,7 +502,7 @@ function NewAd() {
                 <ul className="grid grid-cols-3 sm:grid-cols-5 gap-1.5 max-h-80 overflow-y-auto">
                   {shownPieces.map(p => (
                     <li key={p.id}><button type="button" onClick={() => addPiece(p)} disabled={photos.length >= 10} className="block w-full text-left rounded-md border overflow-hidden hover:border-primary/60">
-                      <img src={p.thumb} alt="" loading="lazy" className="aspect-square w-full object-cover bg-muted" />
+                      <img decoding="async" src={p.thumb} alt="" loading="lazy" className="aspect-square w-full object-cover bg-muted" />
                       <span className="block px-1.5 py-1 text-[10px] leading-tight line-clamp-2">{p.name}</span>
                     </button></li>
                   ))}
@@ -627,7 +627,7 @@ function NewAd() {
                             return (
                               <li key={img.hash}><button type="button" disabled={used || photos.length >= 10} onClick={() => setPhotos(ph => [...ph, { key: `lib${img.hash}`, hash: img.hash, url: img.url, local: img.thumb }])}
                                 className={cn('relative block w-full aspect-square overflow-hidden rounded-md bg-muted min-h-0', used && 'ring-2 ring-primary')} title={img.name}>
-                                <img src={img.thumb} alt="" loading="lazy" className="h-full w-full object-cover" />
+                                <img decoding="async" src={img.thumb} alt="" loading="lazy" className="h-full w-full object-cover" />
                                 {used && <span className="absolute right-1 top-1 rounded-full bg-primary p-0.5 text-primary-foreground"><Check className="h-3 w-3" /></span>}
                               </button></li>
                             );

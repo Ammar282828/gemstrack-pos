@@ -14,6 +14,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { parse, isValid } from 'date-fns';
 import { PageBack } from '@/components/shared/page-back';
+import { useShallow } from 'zustand/react/shallow';
 
 type ParsedRow = {
   date: string;
@@ -26,7 +27,7 @@ type ParsedRow = {
 type ImportableHisaabEntry = Omit<HisaabEntry, 'id'>;
 
 export default function HisaabImportPage() {
-  const { customers, karigars, addHisaabEntry, addCustomer, addKarigar } = useAppStore();
+  const { customers, karigars, addHisaabEntry, addCustomer, addKarigar } = useAppStore(useShallow(s => ({ customers: s.customers, karigars: s.karigars, addHisaabEntry: s.addHisaabEntry, addCustomer: s.addCustomer, addKarigar: s.addKarigar })));
   const { toast } = useToast();
   
   const [file, setFile] = useState<File | null>(null);

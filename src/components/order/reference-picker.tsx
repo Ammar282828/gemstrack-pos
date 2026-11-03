@@ -40,7 +40,7 @@ export function ReferencePicker({ category, referenceImage, printReference, onCh
         {image && (
           <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border bg-muted">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={image} alt="Reference" className="h-full w-full object-cover" loading="lazy" />
+            <img decoding="async" src={image} alt="Reference" className="h-full w-full object-cover" loading="lazy" />
           </div>
         )}
         <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>

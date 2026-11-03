@@ -47,7 +47,7 @@ export function CreateMenu({ navRole, show }: { navRole: NavRole; show: boolean 
           type="button"
           aria-label="Close"
           onClick={() => setOpen(false)}
-          className="fixed inset-0 z-40 cursor-default bg-background/50 backdrop-blur-[2px] animate-in fade-in-0 duration-200"
+          className="fixed inset-0 z-40 cursor-default bg-background/55 animate-in fade-in-0 duration-200"
         />
       )}
       <div className="fixed bottom-[calc(49px+env(safe-area-inset-bottom)+16px)] right-20 z-50 flex flex-col items-end gap-2">

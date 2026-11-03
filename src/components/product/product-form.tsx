@@ -29,6 +29,7 @@ import { PageBack } from '@/components/shared/page-back';
 import { FormSection, PriceModeToggle } from '@/components/shared/piece-form';
 import { STORE_CONFIG } from '@/lib/store-config';
 import { readablePhoto } from '@/lib/photo-file';
+import { useShallow } from 'zustand/react/shallow';
 
 
 // Schema for the form data
@@ -156,7 +157,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 }) => {
   const router = useRouter();
   const { toast } = useToast();
-  const { categories, addProduct, updateProduct } = useAppStore();
+  const { categories, addProduct, updateProduct } = useAppStore(useShallow(s => ({ categories: s.categories, addProduct: s.addProduct, updateProduct: s.updateProduct })));
   const isEditMode = !!product;
   
   const [isSubmitting, setIsSubmitting] = useState(false);

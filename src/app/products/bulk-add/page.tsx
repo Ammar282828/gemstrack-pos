@@ -21,6 +21,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { CategoryPicker } from '@/components/shared/category-picker';
 import { AmountInput } from '@/components/ui/amount-input';
 import { FormSkeleton } from '@/components/shared/skeletons';
+import { useShallow } from 'zustand/react/shallow';
 
 // --- Schema Definition ---
 // We use a simplified schema for bulk adding, focusing on shared attributes + individual weights.
@@ -59,7 +60,7 @@ export default function BulkAddProductPage() {
   const router = useRouter();
   const { toast } = useToast();
   const appReady = useAppReady();
-  const { categories, addProduct } = useAppStore();
+  const { categories, addProduct } = useAppStore(useShallow(s => ({ categories: s.categories, addProduct: s.addProduct })));
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<BulkAddFormValues>({

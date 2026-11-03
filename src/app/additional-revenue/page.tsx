@@ -32,6 +32,7 @@ import { cn } from '@/lib/utils';
 import { AmountInput } from '@/components/ui/amount-input';
 import { PageShell } from '@/components/shared/page-shell';
 import { deleteErrorText } from '@/lib/delete-code';
+import { useShallow } from 'zustand/react/shallow';
 
 // ── Form schema ──────────────────────────────────────────────────────────────
 const revenueSchema = z.object({
@@ -50,7 +51,7 @@ function RevenueForm({
   onSubmitSuccess: () => void;
 }) {
   const { toast } = useToast();
-  const { addAdditionalRevenue, updateAdditionalRevenue } = useAppStore();
+  const { addAdditionalRevenue, updateAdditionalRevenue } = useAppStore(useShallow(s => ({ addAdditionalRevenue: s.addAdditionalRevenue, updateAdditionalRevenue: s.updateAdditionalRevenue })));
   const isEditMode = !!revenue;
 
   const form = useForm<RevenueFormData>({
@@ -166,7 +167,7 @@ export default function AdditionalRevenuePage() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
   const appReady = useAppReady();
-  const { additionalRevenues, deleteAdditionalRevenue, isAdditionalRevenueLoading, loadAdditionalRevenues } = useAppStore();
+  const { additionalRevenues, deleteAdditionalRevenue, isAdditionalRevenueLoading, loadAdditionalRevenues } = useAppStore(useShallow(s => ({ additionalRevenues: s.additionalRevenues, deleteAdditionalRevenue: s.deleteAdditionalRevenue, isAdditionalRevenueLoading: s.isAdditionalRevenueLoading, loadAdditionalRevenues: s.loadAdditionalRevenues })));
   const { toast } = useToast();
 
   useEffect(() => {

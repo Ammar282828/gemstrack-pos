@@ -22,7 +22,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import { hisaabLedger, reminderMessage } from '@/lib/hisaab-report';
-import { drawHisaabLedgerPdf, hisaabLedgerFileName } from '@/lib/hisaab-pdf';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,6 +44,7 @@ import { AmountInput } from '@/components/ui/amount-input';
 import { PhoneField } from '@/components/ui/phone-field';
 import { ContactMenu } from '@/components/customer/contact-actions';
 import { deleteErrorText } from '@/lib/delete-code';
+import { useShallow } from 'zustand/react/shallow';
 
 
 
@@ -144,7 +144,7 @@ export default function EntityHisaabPage() {
   const entityId = params.entityId as string;
   const entityType = searchParams.get('type') as 'customer' | 'karigar';
 
-  const { customers, karigars, hisaabEntries, addHisaabEntry, deleteHisaabEntry, settings, isHisaabLoading, isCustomersLoading, isKarigarsLoading, loadHisaab, loadCustomers, loadKarigars } = useAppStore();
+  const { customers, karigars, hisaabEntries, addHisaabEntry, deleteHisaabEntry, settings, isHisaabLoading, isCustomersLoading, isKarigarsLoading, loadHisaab, loadCustomers, loadKarigars } = useAppStore(useShallow(s => ({ customers: s.customers, karigars: s.karigars, hisaabEntries: s.hisaabEntries, addHisaabEntry: s.addHisaabEntry, deleteHisaabEntry: s.deleteHisaabEntry, settings: s.settings, isHisaabLoading: s.isHisaabLoading, isCustomersLoading: s.isCustomersLoading, isKarigarsLoading: s.isKarigarsLoading, loadHisaab: s.loadHisaab, loadCustomers: s.loadCustomers, loadKarigars: s.loadKarigars })));
   // Opened straight from a link (the karigar page's tiles, a reload) nothing had loaded these, and the
   // page said "Entity not found".
   const loaded = useAppStore(state => (state.hasHisaabLoaded || !!state.hisaabError)
@@ -250,6 +250,7 @@ export default function EntityHisaabPage() {
     const iOSWin = openPDFWindowForIOS();
     // The one drawer, which the server also prints the iPhone app's ledger with (lib/hisaab-pdf.ts).
     const asOf = new Date();
+    const { drawHisaabLedgerPdf, hisaabLedgerFileName } = await import('@/lib/hisaab-pdf'); // jsPDF on the press, not with the page
     const doc = drawHisaabLedgerPdf({
       name: entity.name,
       entityType,

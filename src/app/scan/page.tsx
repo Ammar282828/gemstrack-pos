@@ -15,6 +15,7 @@ import { Separator } from '@/components/ui/separator';
 import { ShoppingCart, Trash2, ExternalLink, ListPlus, Loader2, X, VideoOff, ScanLine } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import dynamic from 'next/dynamic';
+import { useShallow } from 'zustand/react/shallow';
 
 const QrScanner = dynamic(() => import('@/components/scanner/qr-scanner'), {
   ssr: false,
@@ -57,12 +58,12 @@ export default function ScanPOSPage() {
   const appReady = useAppReady();
   const [isScannerActive, setIsScannerActive] = useState(false);
 
-  const { addToCart, removeFromCart: removeFromCartAction, products, loadProducts } = useAppStore(state => ({
+  const { addToCart, removeFromCart: removeFromCartAction, products, loadProducts } = useAppStore(useShallow(state => ({
       addToCart: state.addToCart,
       removeFromCart: state.removeFromCart,
       products: state.products,
       loadProducts: state.loadProducts,
-  }));
+  })));
   const cartItems = useAppStore(selectCartDetails);
   const cartSubtotal = useAppStore(selectCartSubtotal);
 

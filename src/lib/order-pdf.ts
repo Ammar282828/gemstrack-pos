@@ -175,9 +175,9 @@ export function drawOrderPdf(order: Order, { images, dates }: OrderPdfOptions): 
 }
 
 /** The browser's: the page's logo and codes, then the share sheet or a download. */
-export async function saveOrderPdf(order: Order): Promise<void> {
+export async function saveOrderPdf(order: Order, preOpened?: Window | null): Promise<void> {
   if (typeof window === 'undefined') return;
-  const iOSWin = openPDFWindowForIOS();
+  const iOSWin = preOpened !== undefined ? preOpened : openPDFWindowForIOS();
   try {
     const images = await browserPdfImages();
     // A piece marked to print its picture: the catalogue's, or its own first photo (a miss prints without).

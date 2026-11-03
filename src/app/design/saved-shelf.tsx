@@ -198,7 +198,7 @@ function DesignDialog({ item, folders, onClose, onChanged, onOpen }: {
       <DialogContent className="max-w-lg">
         <DialogHeader><DialogTitle className="sr-only">{d.name}</DialogTitle></DialogHeader>
         <div className="space-y-3">
-          <div className="grid min-h-40 place-items-center rounded-lg bg-muted">{url ? <img src={url} alt={d.name} className="max-h-[55vh] w-auto rounded-lg" /> : d.thumb ? <img src={d.thumb} alt="" className="max-h-[40vh] w-auto rounded-lg opacity-70" /> : <Skeleton className="h-40 w-full rounded-lg" />}</div>
+          <div className="grid min-h-40 place-items-center rounded-lg bg-muted">{url ? <img decoding="async" src={url} alt={d.name} className="max-h-[55vh] w-auto rounded-lg" /> : d.thumb ? <img decoding="async" src={d.thumb} alt="" className="max-h-[40vh] w-auto rounded-lg opacity-70" /> : <Skeleton className="h-40 w-full rounded-lg" />}</div>
           <Input value={name} onChange={e => setName(e.target.value)} onBlur={() => { if (name.trim() && name !== d.name) void patch({ name }); }} className="h-9 text-base font-medium sm:text-sm" aria-label="Name" />
           <p className="text-ios-foot text-muted-foreground">{kindLabel(d.kind)} · {d.pages.map(p => p.label).join(', ')}{d.scope === 'ads' ? ' · ads' : ''}</p>
           <select value={d.folder ?? ''} onChange={e => { void patch({ folder: e.target.value || null }); onClose(); }} className="h-9 w-full rounded-md border bg-background px-3 text-base sm:text-sm" aria-label="Folder">

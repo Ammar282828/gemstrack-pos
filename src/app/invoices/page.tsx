@@ -1,6 +1,7 @@
 
 "use client";
 
+import { newestFirst } from '@/lib/sort-by-time';
 import { isOwing } from '@/lib/owed';
 import { invoiceSaleValue } from '@/lib/analytics/sale-value';
 import { orderFullTotal } from '@/lib/order-payment';
@@ -41,7 +42,7 @@ import { describePlating } from '@/lib/materials';
 import { STORE_CONFIG, storeLinksUrl, STORE_LOGO_URL } from '@/lib/store-config';
 import { saveInvoicePdf, buildInvoicePdf } from '@/lib/invoice-pdf';
 import { PrintButton } from '@/components/shared/print-button';
-import { generateOrderSlipPDF, drawOrderSlipPdf } from '@/lib/order-slip-pdf';
+import { printOrderSlip, drawOrderSlipLazy } from '@/lib/pdf-lazy';
 import { browserPdfImages } from '@/lib/pdf-inputs';
 import { QuickPrintButton } from '@/components/shared/quick-print-button';
 import { TakenByPicker } from '@/components/shared/taken-by-picker';
@@ -55,6 +56,7 @@ import { RecordPaymentDialog } from '@/components/invoice/record-payment-dialog'
 import { PageShell } from '@/components/shared/page-shell';
 import { Monogram, Pill, MineTag, ChipRow, FilterChip, Segmented, SearchField, EmptyState, LedgerSection, toneClasses, type Tone } from '@/components/ledger';
 import { owesMoney, isCredit } from '@/lib/money';
+import { useShallow } from 'zustand/react/shallow';
 
 type DocumentType = (Order | Invoice) & { docType: 'order' | 'invoice' };
 
@@ -294,7 +296,7 @@ export default function DocumentsPage() {
   const { toast } = useToast();
 
   const appReady = useAppReady();
-  const { orders, generatedInvoices, isOrdersLoading, isInvoicesLoading, loadOrders, loadGeneratedInvoices, settings, customers, updateInvoicePayment, updateOrderStatus } = useAppStore(state => ({
+  const { orders, generatedInvoices, isOrdersLoading, isInvoicesLoading, loadOrders, loadGeneratedInvoices, settings, customers, updateInvoicePayment, updateOrderStatus } = useAppStore(useShallow(state => ({
     orders: state.orders,
     generatedInvoices: state.generatedInvoices,
     isOrdersLoading: state.isOrdersLoading,
@@ -305,7 +307,7 @@ export default function DocumentsPage() {
     customers: state.customers,
     updateInvoicePayment: state.updateInvoicePayment,
     updateOrderStatus: state.updateOrderStatus,
-  }));
+  })));
 
   /** `perPiece` prints a multi-piece invoice as one invoice per piece — see lib/invoice-pdf. */
   const handlePrint = async (document: DocumentType, perPiece = false) => {
@@ -318,7 +320,7 @@ export default function DocumentsPage() {
         const customer = inv.customerId ? customers.find(c => c.id === inv.customerId) : null;
         await saveInvoicePdf(inv, { customer, perPiece });
       } else {
-        await generateOrderSlipPDF(document as Order, settings);
+        await printOrderSlip(document as Order, settings);
       }
     } catch (e) {
       console.error('[GemsTrack] PDF generation failed', e);
@@ -337,7 +339,7 @@ export default function DocumentsPage() {
       const customer = inv.customerId ? customers.find(c => c.id === inv.customerId) : null;
       return buildInvoicePdf(inv, { customer });
     }
-    return drawOrderSlipPdf(document as Order, { images: await browserPdfImages() });
+    return drawOrderSlipLazy(document as Order, { images: await browserPdfImages() });
   };
 
   // "Mark Paid" opens the payment dialog, balance filled in, method to choose. It used to record the
@@ -436,7 +438,7 @@ export default function DocumentsPage() {
     if (!appReady) return [];
     const orderDocs: DocumentType[] = (orders || []).map(o => ({ ...o, docType: 'order' }));
     const invoiceDocs: DocumentType[] = (generatedInvoices || []).map(i => ({ ...i, docType: 'invoice' }));
-    return [...orderDocs, ...invoiceDocs].sort((a,b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime());
+    return newestFirst([...orderDocs, ...invoiceDocs], d => d.createdAt);
   }, [appReady, orders, generatedInvoices]);
 
   // Months present in the data — most recent first

@@ -5,13 +5,11 @@ import React, { useEffect } from 'react';
 import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
 import { BoardSkeleton } from '@/components/shared/skeletons';
+import { useShallow } from 'zustand/react/shallow';
 
 export function MainApp({ children }: { children: React.ReactNode }) {
   const isStoreHydrated = useIsStoreHydrated();
-  const {
-    loadSettings, isSettingsLoading, hasSettingsLoaded,
-    loadProducts,
-  } = useAppStore();
+  const { loadSettings, isSettingsLoading, hasSettingsLoaded, loadProducts } = useAppStore(useShallow(s => ({ loadSettings: s.loadSettings, isSettingsLoading: s.isSettingsLoading, hasSettingsLoaded: s.hasSettingsLoaded, loadProducts: s.loadProducts })));
 
   // Auto-fetch gold rates from gold.pk once per day
   // No automatic gold-rate fetch. A hook here used to scrape gold.pk once per

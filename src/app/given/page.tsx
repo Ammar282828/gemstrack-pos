@@ -36,6 +36,7 @@ import { PageShell } from '@/components/shared/page-shell';
 import { deleteErrorText } from '@/lib/delete-code';
 import { TakenByPicker } from '@/components/shared/taken-by-picker';
 import { useMe } from '@/hooks/use-me';
+import { useShallow } from 'zustand/react/shallow';
 
 // ── Schema ────────────────────────────────────────────────────────────────────
 const givenSchema = z.object({
@@ -57,7 +58,7 @@ function GivenItemForm({
   onSubmitSuccess: () => void;
 }) {
   const { toast } = useToast();
-  const { addGivenItem, updateGivenItem, karigars, customers, loadKarigars, loadCustomers } = useAppStore();
+  const { addGivenItem, updateGivenItem, karigars, customers, loadKarigars, loadCustomers } = useAppStore(useShallow(s => ({ addGivenItem: s.addGivenItem, updateGivenItem: s.updateGivenItem, karigars: s.karigars, customers: s.customers, loadKarigars: s.loadKarigars, loadCustomers: s.loadCustomers })));
   const isEdit = !!item;
   // Who at the shop is handing it over: starts on the signed-in person, as Taken by does (lib/people.ts).
   const me = useMe();
@@ -266,7 +267,7 @@ export default function GivenItemsPage() {
   const [editingItem, setEditingItem] = useState<GivenItem | undefined>();
 
   const appReady = useAppReady();
-  const { givenItems, isGivenItemsLoading, loadGivenItems, deleteGivenItem, markGivenItemReturned } = useAppStore();
+  const { givenItems, isGivenItemsLoading, loadGivenItems, deleteGivenItem, markGivenItemReturned } = useAppStore(useShallow(s => ({ givenItems: s.givenItems, isGivenItemsLoading: s.isGivenItemsLoading, loadGivenItems: s.loadGivenItems, deleteGivenItem: s.deleteGivenItem, markGivenItemReturned: s.markGivenItemReturned })));
   const { toast } = useToast();
 
   useEffect(() => {

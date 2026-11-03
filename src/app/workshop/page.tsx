@@ -53,6 +53,7 @@ import { PageShell } from '@/components/shared/page-shell';
 import { Pill, ChipRow, FilterChip, Segmented, EmptyState, type Tone } from '@/components/ledger';
 import { deleteErrorText } from '@/lib/delete-code';
 import { ListSkeleton } from '@/components/shared/skeletons';
+import { useShallow } from 'zustand/react/shallow';
 
 // ── small presentational helpers ────────────────────────────────────────────
 
@@ -857,7 +858,7 @@ export default function WorkshopPage() {
   const karigars = useAppStore(s => s.karigars);
   const karigarJobs = useAppStore(s => s.karigarJobs);
   const invoices = useAppStore(s => s.generatedInvoices);
-  const { loadOrders, loadKarigars, loadKarigarJobs, loadGeneratedInvoices, updateOrderItemStatus, updateInvoiceItemStatus, setKarigarJobStatus, deleteKarigarJob, updateOrderItemGiven, updateInvoiceItemGiven, setKarigarJobGiven } = useAppStore();
+  const { loadOrders, loadKarigars, loadKarigarJobs, loadGeneratedInvoices, updateOrderItemStatus, updateInvoiceItemStatus, setKarigarJobStatus, deleteKarigarJob, updateOrderItemGiven, updateInvoiceItemGiven, setKarigarJobGiven } = useAppStore(useShallow(s => ({ loadOrders: s.loadOrders, loadKarigars: s.loadKarigars, loadKarigarJobs: s.loadKarigarJobs, loadGeneratedInvoices: s.loadGeneratedInvoices, updateOrderItemStatus: s.updateOrderItemStatus, updateInvoiceItemStatus: s.updateInvoiceItemStatus, setKarigarJobStatus: s.setKarigarJobStatus, deleteKarigarJob: s.deleteKarigarJob, updateOrderItemGiven: s.updateOrderItemGiven, updateInvoiceItemGiven: s.updateInvoiceItemGiven, setKarigarJobGiven: s.setKarigarJobGiven })));
   const { toast } = useToast();
 
   const [addOpen, setAddOpen] = useState(false);

@@ -8,11 +8,12 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 
 export default function EditKarigarPage() {
   const params = useParams();
   const karigarId = params.id as string;
-  const { karigars, isKarigarsLoading, loadKarigars } = useAppStore();
+  const { karigars, isKarigarsLoading, loadKarigars } = useAppStore(useShallow(s => ({ karigars: s.karigars, isKarigarsLoading: s.isKarigarsLoading, loadKarigars: s.loadKarigars })));
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {

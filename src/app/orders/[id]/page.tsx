@@ -8,7 +8,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { DetailSkeleton } from '@/components/shared/skeletons';
 import { whatsAppLink } from '@/lib/whatsapp';
 import { describePlating } from '@/lib/materials';
-import { generateOrderSlipPDF } from '@/lib/order-slip-pdf';
+import { printOrderSlip, printOrderPdf } from '@/lib/pdf-lazy';
 import { STORE_CONFIG, storeLinksUrl, STORE_LOGO_URL } from '@/lib/store-config';
 import { METAL_TYPES as metalTypeValues, describeMetal, describeDelivery } from '@/lib/materials';
 import { categorySingular } from '@/lib/categories';
@@ -70,7 +70,6 @@ import { Monogram, MoneySplit, Pill, StageTrack, toneClasses, type Tone } from '
 import { CustomerContact } from '@/components/customer/contact-actions';
 import { contactHrefs } from '@/lib/customer-contact';
 import { orderCustomerMessage } from '@/lib/order-message';
-import { saveOrderPdf } from '@/lib/order-pdf';
 import { stageOf } from '@/lib/order-stage';
 import { isWalkInName } from '@/lib/walk-in';
 import { PhoneField } from '@/components/ui/phone-field';
@@ -79,6 +78,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { deleteErrorText } from '@/lib/delete-code';
 import { owesMoney } from '@/lib/money';
 import { BusyLabel } from '@/components/ui/busy';
+import { useShallow } from 'zustand/react/shallow';
 
 
 const STATUS_TONE: Record<string, Tone> = { Pending: 'owed', 'In Progress': 'working', Completed: 'settled', Cancelled: 'quiet', Refunded: 'quiet' };
@@ -242,7 +242,7 @@ export default function OrderDetailPage() {
   const order = useAppStore(state => state.orders.find(o => o.id === orderId));
   const settings = useAppStore(state => state.settings);
   const invoices = useAppStore(state => state.generatedInvoices);
-  const { updateOrderStatus, updateOrderItemStatus, removeItemFromOrder, updateOrder, karigars, loadKarigars, revertOrderFromInvoice, refundOrder, loadGeneratedInvoices, loadOrders, deleteOrderAdvance, deleteOrder } = useAppStore();
+  const { updateOrderStatus, updateOrderItemStatus, removeItemFromOrder, updateOrder, karigars, loadKarigars, revertOrderFromInvoice, refundOrder, loadGeneratedInvoices, loadOrders, deleteOrderAdvance, deleteOrder } = useAppStore(useShallow(s => ({ updateOrderStatus: s.updateOrderStatus, updateOrderItemStatus: s.updateOrderItemStatus, removeItemFromOrder: s.removeItemFromOrder, updateOrder: s.updateOrder, karigars: s.karigars, loadKarigars: s.loadKarigars, revertOrderFromInvoice: s.revertOrderFromInvoice, refundOrder: s.refundOrder, loadGeneratedInvoices: s.loadGeneratedInvoices, loadOrders: s.loadOrders, deleteOrderAdvance: s.deleteOrderAdvance, deleteOrder: s.deleteOrder })));
   // The page loads its own orders: opened straight from a link or a reload it used to say "Order not
   // found", since only the Orders list ever started them.
   const ordersSettled = useAppStore(state => state.hasOrdersLoaded || !!state.ordersError);
@@ -500,7 +500,7 @@ export default function OrderDetailPage() {
   // this page's copy of it was folded in so the server draws the same slip for the iPhone app.
   const buildOrderSlip = async () => {
     if (!order || typeof window === 'undefined' || !settings) return;
-    await generateOrderSlipPDF(order, settings);
+    await printOrderSlip(order, settings);
   };
 
 
@@ -719,7 +719,7 @@ export default function OrderDetailPage() {
                             doc={{
                               kind: 'order', id: order.id,
                               sentAt: order.sentOnWhatsApp?.at ?? null,
-                              onShare: () => { saveOrderPdf(order).catch((e) => toast({ title: 'Could not create the PDF', description: e instanceof Error ? e.message : String(e), variant: 'destructive' })); },
+                              onShare: () => { printOrderPdf(order).catch((e) => toast({ title: 'Could not create the PDF', description: e instanceof Error ? e.message : String(e), variant: 'destructive' })); },
                               onLinkFallback: (n) => { const h = contactHrefs(n, orderCustomerMessage(order, 'summary', settings.shopName)); if (h) window.open(h.whatsapp, '_blank'); },
                             }}
                           />

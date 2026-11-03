@@ -242,9 +242,11 @@ export function GoogleAuthGate({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const handleSignOut = async () => {
+  const handleSignOut = React.useCallback(async () => {
     await firebaseSignOut(auth);
-  };
+  }, []);
+  // One value until the user changes: a new object each render re-rendered every useAuth() consumer with the gate.
+  const authValue = React.useMemo(() => ({ user: devBypass ? null : user, signOut: handleSignOut }), [user, devBypass, handleSignOut]);
 
   // Inside the native iPhone app the person has already signed in to the app: its pages sign in
   // with the app's Google token by themselves, once, with no button (the app refreshes the token
@@ -260,7 +262,7 @@ export function GoogleAuthGate({ children }: { children: React.ReactNode }) {
   // Dev-only, and only with ?dev=1 — see useDevBypass.
   if (devBypass) {
     return (
-      <AuthContext.Provider value={{ user: null, signOut: handleSignOut }}>
+      <AuthContext.Provider value={authValue}>
         {children}
       </AuthContext.Provider>
     );
@@ -328,14 +330,14 @@ export function GoogleAuthGate({ children }: { children: React.ReactNode }) {
   // bypassing this component.
   if (role === 'karigar') {
     return (
-      <AuthContext.Provider value={{ user, signOut: handleSignOut }}>
+      <AuthContext.Provider value={authValue}>
         <KarigarPortal />
       </AuthContext.Provider>
     );
   }
 
   return (
-    <AuthContext.Provider value={{ user, signOut: handleSignOut }}>
+    <AuthContext.Provider value={authValue}>
       {children}
     </AuthContext.Provider>
   );

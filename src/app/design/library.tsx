@@ -434,7 +434,7 @@ export function AssetSheet({ item, placement, onClose, onMake, onChanged }: {
 
             <div className="relative rounded-xl border bg-muted overflow-hidden">
               {photoError ? <p className="p-6 text-sm text-destructive">{photoError}</p>
-                : (current?.url ?? base?.url) ? <img src={current?.url ?? base!.url} alt={cur.name} className="w-full max-h-[60vh] object-contain" />
+                : (current?.url ?? base?.url) ? <img decoding="async" src={current?.url ?? base!.url} alt={cur.name} className="w-full max-h-[60vh] object-contain" />
                   : <Skeleton className="aspect-square w-full rounded-none" />}
               {busy && <div className="absolute inset-0 bg-background/70 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2 text-sm"><Loader2 className="h-5 w-5 animate-spin" /> {busy.startsWith('extend:') ? `Extend to ${busy.slice(7)}` : FIXES[busy as FixCode]?.label}… {FIX_OPS[(busy.startsWith('extend:') ? 'extend-portrait' : busy) as keyof typeof FIX_OPS]?.secs}</div>}
             </div>

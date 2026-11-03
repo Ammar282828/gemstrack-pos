@@ -53,6 +53,7 @@ import { useMe } from '@/hooks/use-me';
 import { CostRateField, MarginFigure, SHOP_MARGIN_ON } from '@/components/shared/shop-margin';
 import { invoiceMargin } from '@/lib/margin';
 import { owesMoney, isCredit, rupees } from '@/lib/money';
+import { useShallow } from 'zustand/react/shallow';
 
 
 type RateInputs = {
@@ -109,7 +110,7 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
   const searchParams = useSearchParams();
 
   const appReady = useAppReady();
-  const { cartItemsFromStore, customers, settings, allInvoices, hasInvoicesLoaded, products, removeFromCart, clearCart, generateInvoice: generateInvoiceAction, loadCartFromInvoice, updateCartItem, updateSettings, addToCart, addProductToCart, loadCustomers, loadGeneratedInvoices, loadProducts } = useAppStore(state => ({
+  const { cartItemsFromStore, customers, settings, allInvoices, hasInvoicesLoaded, products, removeFromCart, clearCart, generateInvoice: generateInvoiceAction, loadCartFromInvoice, updateCartItem, updateSettings, addToCart, addProductToCart, loadCustomers, loadGeneratedInvoices, loadProducts } = useAppStore(useShallow(state => ({
     cartItemsFromStore: state.cart,
     customers: state.customers,
     settings: state.settings,
@@ -128,7 +129,7 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
     loadCustomers: state.loadCustomers,
     loadGeneratedInvoices: state.loadGeneratedInvoices,
     loadProducts: state.loadProducts,
-  }));
+  })));
 
   useEffect(() => {
     if(appReady) {

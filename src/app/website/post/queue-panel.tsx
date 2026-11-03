@@ -260,7 +260,7 @@ export function QueuePanel({ api, destinationName, blockers }: {
     return (
       <li key={e.id} className="flex items-start gap-2.5 py-2">
         {e.thumb
-          ? <button type="button" title={big === e.id ? 'Smaller' : 'Look closer'} onClick={() => setBig(b => (b === e.id ? null : e.id))} className="shrink-0 min-h-0 p-0"><img loading="lazy" decoding="async" src={e.thumb} alt="" className={cn('rounded-md object-cover transition-all', big === e.id ? 'h-48 w-48' : 'h-12 w-12')} /></button>
+          ? <button type="button" title={big === e.id ? 'Smaller' : 'Look closer'} onClick={() => setBig(b => (b === e.id ? null : e.id))} className="shrink-0 min-h-0 p-0"><img loading="lazy" decoding="async" src={e.thumb} alt="" className={cn('rounded-md object-cover transition-[width,height]', big === e.id ? 'h-48 w-48' : 'h-12 w-12')} /></button>
           : <span className="h-12 w-12 rounded-md bg-muted shrink-0" />}
         <div className="flex-1 min-w-0 space-y-0.5">
           <p className="text-sm font-medium truncate">{e.headline || 'Untitled piece'}</p>

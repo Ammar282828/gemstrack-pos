@@ -49,10 +49,11 @@ import { REPORT_TOGGLE, reportWhen, type ReportTask } from '@/lib/notifications/
 import { RatesForm } from '@/components/rates/rate-chip';
 import { authedFetch } from '@/lib/voice/authed-fetch';
 import { BusyLabel } from '@/components/ui/busy';
+import { useShallow } from 'zustand/react/shallow';
 
 
 export const EmergencyLock: React.FC = () => {
-    const { settings, updateSettings } = useAppStore();
+    const { settings, updateSettings } = useAppStore(useShallow(s => ({ settings: s.settings, updateSettings: s.updateSettings })));
     const { toast } = useToast();
     const [isLocking, setIsLocking] = useState(false);
 
@@ -176,7 +177,7 @@ function lastRunLine(r: LastRun | undefined): { text: string; bad: boolean } {
 }
 
 export function NotificationsCard() {
-  const { settings, updateSettings } = useAppStore();
+  const { settings, updateSettings } = useAppStore(useShallow(s => ({ settings: s.settings, updateSettings: s.updateSettings })));
   const { toast } = useToast();
   const [saving, setSaving] = React.useState(false);
   const [newPhone, setNewPhone] = React.useState('');
@@ -487,7 +488,7 @@ export const SettingsLink: React.FC<{ href: string; icon: React.ElementType; tit
 
 /** The switch for Drafts (new orders and sales kept as they are typed) and how many are waiting. */
 export function DraftsRow() {
-  const { settings, updateSettings } = useAppStore();
+  const { settings, updateSettings } = useAppStore(useShallow(s => ({ settings: s.settings, updateSettings: s.updateSettings })));
   const { drafts } = useWorkDrafts();
 
   return (

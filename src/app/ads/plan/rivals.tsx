@@ -161,7 +161,7 @@ function RivalCard({ c, open, onToggle, onChange, onRemove, canLook }: { c: Row;
               <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
                 {posts.slice(0, 12).map(x => (
                   <a key={x.id} href={x.permalink ?? '#'} target="_blank" rel="noreferrer" className="relative block aspect-square overflow-hidden rounded-md bg-muted" title={x.caption.slice(0, 200)}>
-                    {x.image && <img src={x.image} alt="" loading="lazy" className="h-full w-full object-cover" />}
+                    {x.image && <img decoding="async" src={x.image} alt="" loading="lazy" className="h-full w-full object-cover" />}
                     <span className="absolute inset-x-0 bottom-0 bg-black/60 text-white text-[9px] px-1 py-0.5 flex items-center gap-1.5">
                       {x.likes !== null ? <><Heart className="h-2.5 w-2.5" />{k(x.likes)}</> : 'likes hidden'}
                       {x.comments !== null && <><MessageCircle className="h-2.5 w-2.5" />{k(x.comments)}</>}

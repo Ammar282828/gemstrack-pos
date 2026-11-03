@@ -18,6 +18,7 @@ import 'react-phone-number-input/style.css';
 import { normalizePhoneNumber } from '@/lib/utils';
 import { PageBack } from '@/components/shared/page-back';
 import { PhoneField } from '@/components/ui/phone-field';
+import { useShallow } from 'zustand/react/shallow';
 
 const karigarSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -43,7 +44,7 @@ export const KarigarForm: React.FC<KarigarFormProps> = ({ karigar, onSubmitSucce
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
-  const { addKarigar, updateKarigar } = useAppStore();
+  const { addKarigar, updateKarigar } = useAppStore(useShallow(s => ({ addKarigar: s.addKarigar, updateKarigar: s.updateKarigar })));
 
   const redirectToHisaab = searchParams.get('redirect_to_hisaab') === 'true';
 

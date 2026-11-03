@@ -29,6 +29,7 @@ import { useIsStoreHydrated } from '@/hooks/use-store';
 import { generateProductCsv } from '@/lib/csv';
 import { deleteErrorText } from '@/lib/delete-code';
 import { LabelLiveButton } from '@/components/label-live-button';
+import { useShallow } from 'zustand/react/shallow';
 
 
 type ProductWithCalculatedCosts = ReturnType<typeof selectProductWithCosts>;
@@ -76,7 +77,7 @@ export default function ProductDetailPage() {
   const settings = useAppStore(state => state.settings);
   const deleteProductAction = useAppStore(state => state.deleteProduct);
   const setProductQrCodeDataUrlAction = useAppStore(state => state.setProductQrCode);
-  const { addToCart, loadProducts } = useAppStore();
+  const { addToCart, loadProducts } = useAppStore(useShallow(s => ({ addToCart: s.addToCart, loadProducts: s.loadProducts })));
   // Opened from a scanned tag or a link, nothing had loaded the stock: "Product not found".
   const productsSettled = useAppStore(state => state.hasProductsLoaded || !!state.productsError);
   useEffect(() => { loadProducts(); }, [loadProducts]);

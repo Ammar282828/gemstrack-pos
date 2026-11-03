@@ -156,7 +156,7 @@ export function PiecePhotosStrip({ photos, piece, pieces, mainThumb, siteName, i
   const tile = (x: Piece) => (
     <button key={x.id} type="button" onClick={() => photos.addSite(x)} title={x.name}
       className={cn('relative aspect-square overflow-hidden rounded-lg border', picked.has(x.id) ? 'ring-2 ring-primary border-primary' : 'hover:border-primary/60')}>
-      <img src={x.thumb} alt="" loading="lazy" className="h-full w-full object-cover" />
+      <img decoding="async" src={x.thumb} alt="" loading="lazy" className="h-full w-full object-cover" />
       {picked.has(x.id) && <span className="absolute right-1 top-1 rounded-full bg-primary px-1.5 text-[10px] font-semibold leading-4 text-primary-foreground">{photos.list.findIndex(p => p.kind === 'site' && p.pieceId === x.id) + 1}</span>}
     </button>
   );
@@ -184,7 +184,7 @@ export function PiecePhotosStrip({ photos, piece, pieces, mainThumb, siteName, i
           {photos.ownLeft.map(x => (
             <button key={x.id} type="button" onClick={() => photos.addOwn([x.id])} title={`Add ${x.label}`} aria-label={`Add ${x.label}`}
               className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md border opacity-80 hover:opacity-100 hover:border-primary/60">
-              <img src={x.thumb} alt="" loading="lazy" className="h-full w-full object-cover" />
+              <img decoding="async" src={x.thumb} alt="" loading="lazy" className="h-full w-full object-cover" />
               <span className="absolute inset-0 flex items-center justify-center bg-black/25 text-sm font-semibold text-white">+</span>
             </button>
           ))}

@@ -1,6 +1,7 @@
 
 "use client";
 
+import { newestFirst } from '@/lib/sort-by-time';
 import { PageShell } from '@/components/shared/page-shell';
 import { useLingering } from '@/hooks/use-lingering';
 import { SignInActivity, EmergencyLock } from '@/components/settings/settings-sections';
@@ -19,6 +20,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { deleteErrorText } from '@/lib/delete-code';
+import { useShallow } from 'zustand/react/shallow';
 
 const eventIcons: Record<LogEventType, React.ReactNode> = {
     'product.create': <Package className="h-4 w-4" />,
@@ -82,7 +84,7 @@ const revertConsequences: Partial<Record<LogEventType, string>> = {
 };
 
 export default function ActivityLogPage() {
-    const { activityLog, isActivityLogLoading, loadActivityLog, deleteInvoice, deleteOrder, deleteExpense } = useAppStore();
+    const { activityLog, isActivityLogLoading, loadActivityLog, deleteInvoice, deleteOrder, deleteExpense } = useAppStore(useShallow(s => ({ activityLog: s.activityLog, isActivityLogLoading: s.isActivityLogLoading, loadActivityLog: s.loadActivityLog, deleteInvoice: s.deleteInvoice, deleteOrder: s.deleteOrder, deleteExpense: s.deleteExpense })));
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [typeFilter, setTypeFilter] = useState<string>('All');
     const [revertTarget, setRevertTarget] = useState<ActivityLog | null>(null);
@@ -98,8 +100,7 @@ export default function ActivityLogPage() {
         if (!Array.isArray(activityLog)) {
             return [];
         }
-        return activityLog
-            .filter(log => {
+        return newestFirst(activityLog.filter(log => {
                 if (typeFilter !== 'All' && !log.eventType.startsWith(typeFilter)) {
                     return false;
                 }
@@ -109,8 +110,7 @@ export default function ActivityLogPage() {
                     return isWithinInterval(logDate, { start: startOfDay(dateRange.from), end: toDate });
                 }
                 return true;
-            })
-            .sort((a,b) => parseISO(b.timestamp).getTime() - parseISO(a.timestamp).getTime());
+            }), log => log.timestamp);
     }, [activityLog, dateRange, typeFilter]);
 
     const handleRevert = async () => {
@@ -171,7 +171,7 @@ export default function ActivityLogPage() {
                 <CardContent className="p-0">
                     <ScrollArea className="h-[65vh]">
                        {filteredLogs.length > 0 ? (
-                            <div className="p-4 space-y-4">
+                            <div className="p-4 space-y-4 cv-list" style={{ '--cv-size': '72px' } as React.CSSProperties}>
                                 {filteredLogs.map(log => (
                                     <div key={log.id} className="flex items-start gap-4 p-3 border-b">
                                         <div className="mt-1">{eventIcons[log.eventType]}</div>

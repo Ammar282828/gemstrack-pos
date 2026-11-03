@@ -626,7 +626,7 @@ function PostsHub() {
                   <li key={p.id}>
                     <button type="button" onClick={() => toggle(p)} aria-pressed={at >= 0} className={cn('group block w-full text-left rounded-lg border overflow-hidden', at >= 0 ? 'ring-2 ring-primary border-primary' : 'hover:border-primary/60')}>
                       <span className="relative block aspect-square bg-muted">
-                        <img src={p.thumb} alt="" loading="lazy" className="h-full w-full object-cover" />
+                        <img decoding="async" src={p.thumb} alt="" loading="lazy" className="h-full w-full object-cover" />
                         {at >= 0
                           ? <span className="absolute right-1.5 top-1.5 flex h-6 min-w-6 items-center justify-center rounded-full bg-primary px-1 text-xs font-semibold text-primary-foreground">{picked.length > 1 ? at + 1 : <Check className="h-3.5 w-3.5" />}</span>
                           : <span className="absolute right-1.5 top-1.5 h-6 w-6 rounded-full border-2 border-white/80 bg-black/20 opacity-70 group-hover:opacity-100" />}

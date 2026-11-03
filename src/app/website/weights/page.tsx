@@ -250,7 +250,7 @@ function PhotoWeightsPage() {
               <div className="grid grid-cols-6 gap-1.5">
                 {queue.slice(index + 1, index + 13).map((p, i) => (
                   <button key={p.key} type="button" onClick={() => setIndex(index + 1 + i)} title={p.file} className={cn('relative aspect-square rounded-md overflow-hidden ring-1 ring-border hover:ring-primary')}>
-                    <img src={p.thumb} alt="" loading="lazy" className="w-full h-full object-cover" />
+                    <img decoding="async" src={p.thumb} alt="" loading="lazy" className="w-full h-full object-cover" />
                     {p.weightGrams && <span className="absolute bottom-0 inset-x-0 bg-black/55 text-white text-[10px] tabular-nums text-center">{p.weightGrams}g</span>}
                   </button>
                 ))}

@@ -16,10 +16,11 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { pkrLac, lacCrore } from '@/lib/money';
 import { cn } from '@/lib/utils';
 import { lineCategory } from '@/lib/categories';
+import { useShallow } from 'zustand/react/shallow';
 
 
 export function CategoryBreakdown({ range: dateRange }: { range: DateRange | undefined }) {
-  const { generatedInvoices, categories } = useAppStore();
+  const { generatedInvoices, categories } = useAppStore(useShallow(s => ({ generatedInvoices: s.generatedInvoices, categories: s.categories })));
 
   const filteredInvoices = useMemo(() => {
     // Exclude refunded invoices so they don't inflate category revenue — matches

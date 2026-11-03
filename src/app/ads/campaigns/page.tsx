@@ -196,7 +196,7 @@ function Campaigns() {
     return (
       <li key={a.id} className="flex items-center gap-2.5 py-2 pl-2">
         <button type="button" onClick={() => setDialog({ kind: 'ad', id: a.id })} className="shrink-0 min-h-0">
-          {a.image || a.thumbnail ? <img src={a.image || a.thumbnail!} alt="" loading="lazy" className="h-16 w-16 rounded-lg object-cover bg-muted" /> : <span className="block h-16 w-16 rounded-lg bg-muted" />}
+          {a.image || a.thumbnail ? <img decoding="async" src={a.image || a.thumbnail!} alt="" loading="lazy" className="h-16 w-16 rounded-lg object-cover bg-muted" /> : <span className="block h-16 w-16 rounded-lg bg-muted" />}
         </button>
         <div className="min-w-0 flex-1">
           <button type="button" onClick={() => setDialog({ kind: 'ad', id: a.id })} className="block text-left text-sm font-medium truncate max-w-full min-h-0">{a.name}</button>
@@ -500,7 +500,7 @@ function Gallery({ campaigns, cur, accountId, busy, filter, onOpen, onToggle }: 
         return (
           <li key={a.id} className="rounded-xl border overflow-hidden flex flex-col bg-card">
             <button type="button" onClick={() => onOpen(a.id)} className="relative block aspect-square bg-muted min-h-0" aria-label={`Preview ${a.name}`}>
-              {a.image || a.thumbnail ? <img src={a.image || a.thumbnail!} alt="" loading="lazy" className="h-full w-full object-cover" /> : <span className="absolute inset-0 grid place-items-center text-xs text-muted-foreground">No picture</span>}
+              {a.image || a.thumbnail ? <img decoding="async" src={a.image || a.thumbnail!} alt="" loading="lazy" className="h-full w-full object-cover" /> : <span className="absolute inset-0 grid place-items-center text-xs text-muted-foreground">No picture</span>}
               <span className="absolute left-1.5 top-1.5"><StatusPill status={a.effectiveStatus} className="bg-background/90" /></span>
             </button>
             <div className="p-2.5 space-y-1 flex-1 flex flex-col">

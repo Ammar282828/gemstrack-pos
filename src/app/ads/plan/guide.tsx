@@ -132,7 +132,7 @@ function AdStrip({ title, icon, ads }: { title: string; icon: React.ReactNode; a
       <div className="flex gap-2 overflow-x-auto pb-1">
         {ads.map(a => (
           <div key={a.id} className="w-28 shrink-0">
-            <div className="aspect-square rounded-md bg-muted overflow-hidden">{a.image && <img src={a.image} alt="" loading="lazy" className="h-full w-full object-cover" />}</div>
+            <div className="aspect-square rounded-md bg-muted overflow-hidden">{a.image && <img decoding="async" src={a.image} alt="" loading="lazy" className="h-full w-full object-cover" />}</div>
             <p className="text-[10px] truncate mt-0.5" title={a.name}>{a.name}</p>
             <p className="text-[10px] text-muted-foreground">{a.costPerResult !== null ? `${Math.round(a.costPerResult).toLocaleString('en-US')} a ${a.resultLabel.toLowerCase().replace(/s$/, '')}` : `nothing for ${Math.round(a.spend).toLocaleString('en-US')}`}</p>
           </div>

@@ -15,6 +15,7 @@ import { buildWorkshopJobs, groupByKarigar, KarigarWorkload, CRITICAL_DAYS } fro
 import { PlusCircle, Edit3, Briefcase, Phone, Eye, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PageShell } from '@/components/shared/page-shell';
+import { useShallow } from 'zustand/react/shallow';
 
 /** What this karigar is holding, in one line. */
 const BenchSummary: React.FC<{ load?: KarigarWorkload; compact?: boolean }> = ({ load, compact }) => {
@@ -103,7 +104,7 @@ export default function KarigarsPage() {
   const karigarJobs = useAppStore(state => state.karigarJobs);
   const invoices = useAppStore(state => state.generatedInvoices);
   const isKarigarsLoading = useAppStore(state => state.isKarigarsLoading);
-  const { deleteKarigar: deleteKarigarAction, loadKarigars, loadKarigarBatches, loadOrders, loadKarigarJobs, loadGeneratedInvoices } = useAppStore();
+  const { deleteKarigarAction, loadKarigars, loadKarigarBatches, loadOrders, loadKarigarJobs, loadGeneratedInvoices } = useAppStore(useShallow(s => ({ deleteKarigarAction: s.deleteKarigar, loadKarigars: s.loadKarigars, loadKarigarBatches: s.loadKarigarBatches, loadOrders: s.loadOrders, loadKarigarJobs: s.loadKarigarJobs, loadGeneratedInvoices: s.loadGeneratedInvoices })));
 
   useEffect(() => {
     if (appReady) {

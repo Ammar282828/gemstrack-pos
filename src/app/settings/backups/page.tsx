@@ -25,6 +25,7 @@ import { db } from '@/lib/firebase';
 import { format } from 'date-fns';
 import { AmountInput } from '@/components/ui/amount-input';
 import { ListRowsSkeleton } from '@/components/shared/skeletons';
+import { useShallow } from 'zustand/react/shallow';
 
 const LAST_EXPORT_KEY = 'gemstrack-last-export';
 
@@ -316,7 +317,7 @@ const ImportCard: React.FC = () => {
 
 // --- Sold Product Recovery ---
 const SoldProductRecovery: React.FC = () => {
-  const { soldProducts, isSoldProductsLoading, loadSoldProducts, reAddSoldProductToInventory } = useAppStore();
+  const { soldProducts, isSoldProductsLoading, loadSoldProducts, reAddSoldProductToInventory } = useAppStore(useShallow(s => ({ soldProducts: s.soldProducts, isSoldProductsLoading: s.isSoldProductsLoading, loadSoldProducts: s.loadSoldProducts, reAddSoldProductToInventory: s.reAddSoldProductToInventory })));
   const { toast } = useToast();
   const [searchTerm, setSearchTerm]       = useState('');
   const [recoveringSku, setRecoveringSku] = useState<string | null>(null);
@@ -381,7 +382,7 @@ const SoldProductRecovery: React.FC = () => {
 
 // --- Danger Zone ---
 const DangerZone: React.FC = () => {
-  const { deleteLatestProducts } = useAppStore();
+  const { deleteLatestProducts } = useAppStore(useShallow(s => ({ deleteLatestProducts: s.deleteLatestProducts })));
   const { toast } = useToast();
   const [deleteCount, setDeleteCount] = useState<number>(1);
   const [isDeleting, setIsDeleting]   = useState(false);

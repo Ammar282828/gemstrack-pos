@@ -26,6 +26,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { invoiceSaleValue } from '@/lib/analytics/sale-value';
 import { PageShell } from '@/components/shared/page-shell';
+import { useShallow } from 'zustand/react/shallow';
 
 type CalendarEventType = (Invoice | Order) & { eventType: 'invoice' | 'order' };
 
@@ -83,10 +84,7 @@ const EventDetails: React.FC<{ events: CalendarEventType[] | undefined, selected
 
 
 export default function CalendarPage() {
-  const { 
-    generatedInvoices, orders, isInvoicesLoading, isOrdersLoading, 
-    loadGeneratedInvoices, loadOrders
-  } = useAppStore();
+  const { generatedInvoices, orders, isInvoicesLoading, isOrdersLoading, loadGeneratedInvoices, loadOrders } = useAppStore(useShallow(s => ({ generatedInvoices: s.generatedInvoices, orders: s.orders, isInvoicesLoading: s.isInvoicesLoading, isOrdersLoading: s.isOrdersLoading, loadGeneratedInvoices: s.loadGeneratedInvoices, loadOrders: s.loadOrders })));
 
   useEffect(() => {
     loadGeneratedInvoices();

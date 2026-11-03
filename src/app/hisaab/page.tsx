@@ -4,7 +4,7 @@
 
 import { isOwing, owedToYou } from '@/lib/owed';
 import { PageShell } from '@/components/shared/page-shell';
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useDeferredValue } from 'react';
 import { ListSkeleton } from '@/components/shared/skeletons';
 import { FilterBar } from '@/components/shared/filter-bar';
 import { useAppStore, Customer, Karigar, Invoice } from '@/lib/store';
@@ -22,8 +22,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn, openPDFWindowForIOS, savePDF } from '@/lib/utils';
 import { WALK_IN_ENTITY } from '@/lib/walk-in';
 import { hisaabAccounts, searchAccounts } from '@/lib/hisaab-report';
-import { drawHisaabSummaryPdf, hisaabSummaryFileName } from '@/lib/hisaab-pdf';
 import { owesMoney } from '@/lib/money';
+import { useShallow } from 'zustand/react/shallow';
 
 
 type InvoiceBalance = {
@@ -195,8 +195,9 @@ export default function HisaabPage() {
   const appReady = useAppReady();
   const router = useRouter();
   const { toast } = useToast();
-  const { hisaabEntries, settings, customers, karigars, generatedInvoices, isHisaabLoading, isCustomersLoading, isKarigarsLoading, loadHisaab, loadCustomers, loadKarigars, loadGeneratedInvoices, syncHisaabOutstandingBalances } = useAppStore();
+  const { hisaabEntries, settings, customers, karigars, generatedInvoices, isHisaabLoading, isCustomersLoading, isKarigarsLoading, loadHisaab, loadCustomers, loadKarigars, loadGeneratedInvoices, syncHisaabOutstandingBalances } = useAppStore(useShallow(s => ({ hisaabEntries: s.hisaabEntries, settings: s.settings, customers: s.customers, karigars: s.karigars, generatedInvoices: s.generatedInvoices, isHisaabLoading: s.isHisaabLoading, isCustomersLoading: s.isCustomersLoading, isKarigarsLoading: s.isKarigarsLoading, loadHisaab: s.loadHisaab, loadCustomers: s.loadCustomers, loadKarigars: s.loadKarigars, loadGeneratedInvoices: s.loadGeneratedInvoices, syncHisaabOutstandingBalances: s.syncHisaabOutstandingBalances })));
   const [searchTerm, setSearchTerm] = useState('');
+  const deferredSearch = useDeferredValue(searchTerm); // the field stays instant; the list catches up
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   
   useEffect(() => {
@@ -256,8 +257,8 @@ export default function HisaabPage() {
   }, [hisaabEntries, unpaidInvoicesByCustomer, generatedInvoices]);
   
   const filteredSummaries = useMemo(() => {
-    return searchAccounts(accountSummaries, searchTerm);
-  }, [accountSummaries, searchTerm]);
+    return searchAccounts(accountSummaries, deferredSearch);
+  }, [accountSummaries, deferredSearch]);
 
   const handlePrintReport = async () => {
     if (!settings) {
@@ -268,6 +269,8 @@ export default function HisaabPage() {
     const iOSWin = openPDFWindowForIOS();
     // The one drawer, which the server also prints the iPhone app's summary with (lib/hisaab-pdf.ts).
     const asOf = new Date();
+    // jsPDF loads here, on the press (the window above is already open for iOS), not with the page.
+    const { drawHisaabSummaryPdf, hisaabSummaryFileName } = await import('@/lib/hisaab-pdf');
     await savePDF(drawHisaabSummaryPdf(filteredSummaries, asOf), hisaabSummaryFileName(asOf), iOSWin);
     toast({ title: "Report Downloaded", description: "Hisaab summary PDF has been generated." });
   };
@@ -338,7 +341,7 @@ export default function HisaabPage() {
           />
 
           {filteredSummaries.length > 0 ? (
-              <div className="space-y-3">
+              <div className="space-y-3 cv-list" style={{ '--cv-size': '96px' } as React.CSSProperties}>
                   {filteredSummaries.map(summary => {
                     // Walk-ins have no account page; each of their invoices is the way in.
                     const walkIn = summary.entityId === WALK_IN_ENTITY;

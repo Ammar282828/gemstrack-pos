@@ -34,6 +34,7 @@ import { CostRateField, MarginFigure, SHOP_MARGIN_ON } from '@/components/shared
 import { marginOf } from '@/lib/margin';
 import { rupees } from '@/lib/money';
 import { RoundOffChips, SettleOffer } from '@/components/shared/round-off-chips';
+import { useShallow } from 'zustand/react/shallow';
 
 // --- Finalize Order Dialog Components ---
 const finalizeOrderItemSchema = z.object({
@@ -83,7 +84,7 @@ export const FinalizeOrderDialog: React.FC<{
     open: boolean;
     onOpenChange: (open: boolean) => void;
 }> = ({ order, open, onOpenChange }) => {
-    const { generateInvoiceFromOrder, settings } = useAppStore(s => ({ generateInvoiceFromOrder: s.generateInvoiceFromOrder, settings: s.settings }));
+    const { generateInvoiceFromOrder, settings } = useAppStore(useShallow(s => ({ generateInvoiceFromOrder: s.generateInvoiceFromOrder, settings: s.settings })));
     const router = useRouter();
     const { toast } = useToast();
 
@@ -371,7 +372,7 @@ export const RecordAdvanceDialog: React.FC<{
     open: boolean;
     onOpenChange: (open: boolean) => void;
 }> = ({ order, open, onOpenChange }) => {
-    const { recordOrderAdvance, settleOrderAdvance } = useAppStore();
+    const { recordOrderAdvance, settleOrderAdvance } = useAppStore(useShallow(s => ({ recordOrderAdvance: s.recordOrderAdvance, settleOrderAdvance: s.settleOrderAdvance })));
     const { toast } = useToast();
     const form = useForm<RecordAdvanceFormData>({
       resolver: zodResolver(recordAdvanceSchema),
