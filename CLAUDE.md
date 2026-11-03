@@ -144,7 +144,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Online orders](docs/decisions.md#online-orders) — a person confirms; no sale until the transfer
 - [Shopify notices](docs/decisions.md#shopify-notices) — read back; kept current, never rewritten
 - [Order WhatsApp](docs/decisions.md#order-whatsapp) — Mina's web orders messaged from its line: COD Confirm/Cancel poll (or 1/2) → Confirm tag, bank → IBAN + screenshot, paid → thanks
-- [Send to karigar](docs/decisions.md#send-to-karigar) — an order's pieces to a karigar on WhatsApp from the shop's line: the photo, then name, description, size, stones / stone weight / finish and instructions only (no weight, wastage, karat, due date or customer); never a price, so no slip PDF; `lib/karigar-message.ts`
+- [Send to karigar](docs/decisions.md#send-to-karigar) — an order's pieces to a karigar on WhatsApp from the shop's line: the photo captioned with name, description, metal and karat, weight, size, stones / stone weight / finish and instructions (never wastage, a price, the due date or the customer); never a price, so no slip PDF; `lib/karigar-message.ts`
 - [Name a sale](docs/decisions.md#name-a-sale) — on the invoice
 - [Advance method](docs/decisions.md#advance-method) — `.nullish()`, `onInvalid` toasts
 - [Exchange line](docs/decisions.md#exchange-line) — what + amount
