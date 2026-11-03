@@ -244,16 +244,10 @@ private extension View {
             .sheet(item: sending) { (d: CustomerDoc) in
                 SendDocSheet(doc: d, phone: phone, customerName: customerName, sent: sent)
             }
-            .sheet(item: sharing) { (d: CustomerDoc) in
-                NavigationStack {
-                    PDFDocumentScreen(path: d.pdfPath, fileName: d.fileName, title: d.id)
-                        .toolbar {
-                            ToolbarItem(placement: .cancellationAction) {
-                                Button(role: .close) { sharing.wrappedValue = nil }
-                            }
-                        }
-                }
-            }
+            // Share PDF goes straight to the system's share sheet (Print, WhatsApp, Files), never a viewer first.
+            .pdfQuickShare(Binding(
+                get: { sharing.wrappedValue.map { InvoicePDFTarget(path: $0.pdfPath, fileName: $0.fileName, title: $0.id) } },
+                set: { if $0 == nil { sharing.wrappedValue = nil } }))
             .sheet(item: Binding(get: { addingPhone.wrappedValue.map(EditTarget.init) }, set: { addingPhone.wrappedValue = $0?.id })) { (t: EditTarget) in
                 NavigationStack {
                     ScreenRegistry.view(for: "/customers/\(t.id)/edit")

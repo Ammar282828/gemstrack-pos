@@ -132,7 +132,7 @@ struct OrderCardRows: View {
         Button("Open") { actions.open(.order(order.id)) }
         Button("Open in New Window") { openPlaceWindow?(Route(path: "/orders/\(order.id)")) }
             .disabled(openPlaceWindow == nil)
-        Button("Print slip") { actions.open(.slip(order.id)) }
+        Button("Print or share slip") { actions.open(.slip(order.id)) }
         Divider()
         #endif
         if canAdvance {

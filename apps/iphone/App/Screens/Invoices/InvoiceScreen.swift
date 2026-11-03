@@ -29,6 +29,8 @@ struct InvoiceScreen: View {
     /// Send on WhatsApp, by house (InvoiceWhatsAppSend): set to start it.
     @State private var sending: Invoice?
     @State private var pdf: InvoicePDFTarget?
+    /// Share or print straight away, without opening the PDF first (PDFQuickShare.swift).
+    @State private var quickPDF: InvoicePDFTarget?
     @State private var note: Note?
     @State private var acting: InvoiceAct?
     /// Past the first five pieces, shown on request.
@@ -127,6 +129,7 @@ struct InvoiceScreen: View {
                 .navigationTitle(inv.id)
                 .navigationBarTitleDisplayMode(.inline)
         }
+        .pdfQuickShare($quickPDF)
         .navigationDestination(item: $pdf) { t in
             PDFDocumentScreen(path: t.path, fileName: t.fileName, title: t.title)
         }
@@ -320,7 +323,7 @@ struct InvoiceScreen: View {
                 customerName: inv.customerName,
                 doc: CustomerDoc(kind: .invoice, id: inv.id, pieces: inv.items.count, fileName: target.fileName),
                 onSend: { sending = inv },
-                onShare: { pdf = target }
+                onShare: { quickPDF = target }
             )
             .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
             .listRowBackground(Color.clear)
@@ -573,13 +576,17 @@ struct InvoiceScreen: View {
     private func menuItems(_ inv: Invoice) -> some View {
         Section("Share") {
             // The PDF Print saves, drawn on the ERP's server and shown here: Print, Files, AirDrop from its share sheet.
+            // Straight to the share sheet (Print, WhatsApp, Files), without opening the PDF first.
+            Button { quickPDF = InvoiceFacts.pdfTarget(inv, byCustomer: session.shop.invoiceByCustomer) } label: {
+                Label("Print or share PDF", systemImage: "printer")
+            }
             Button { pdf = InvoiceFacts.pdfTarget(inv, byCustomer: session.shop.invoiceByCustomer) } label: {
-                Label("PDF", systemImage: "doc.richtext")
+                Label("View PDF", systemImage: "doc.richtext")
             }
             // The split button's other half (print-button.tsx): one invoice per piece, for pieces bought for several people.
             if inv.items.count > 1 {
-                Button { pdf = InvoiceFacts.pdfTarget(inv, byCustomer: session.shop.invoiceByCustomer, perPiece: true) } label: {
-                    Label("PDF per piece", systemImage: "doc.on.doc")
+                Button { quickPDF = InvoiceFacts.pdfTarget(inv, byCustomer: session.shop.invoiceByCustomer, perPiece: true) } label: {
+                    Label("Print or share per piece", systemImage: "doc.on.doc")
                 }
             }
             Button { sending = inv } label: {

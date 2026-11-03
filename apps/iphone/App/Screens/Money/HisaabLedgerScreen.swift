@@ -237,9 +237,8 @@ struct HisaabLedgerScreen: View {
             }
             .presentationSizing(.form)
         }
-        .navigationDestination(item: $statement) { t in
-            PDFDocumentScreen(path: t.path, fileName: t.fileName, title: t.title)
-        }
+        // Straight to the share sheet (Print, WhatsApp, Files), without opening the PDF first (PDFQuickShare.swift).
+        .pdfQuickShare($statement)
         .noteToast($note)
     }
 

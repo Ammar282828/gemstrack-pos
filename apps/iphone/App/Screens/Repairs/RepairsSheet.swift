@@ -43,9 +43,8 @@ struct RepairsSheet: View {
                 .toolbar { sheetToolbar }
                 // The customer's page, and the receipt.
                 .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
-                .navigationDestination(item: $receipt) { t in
-                    PDFDocumentScreen(path: t.path, fileName: t.fileName, title: t.title)
-                }
+                // Straight to the share sheet (Print, WhatsApp, Files), without opening the PDF first (PDFQuickShare.swift).
+                .pdfQuickShare($receipt)
         }
         .repairsDesk(desk)
         .sheet(isPresented: $editing) {

@@ -256,6 +256,8 @@ struct InvoicesList: View {
     /// Send on WhatsApp from a swipe: the invoice page's own send (InvoiceWhatsAppSend).
     @State private var sending: Invoice?
     @State private var pdf: InvoicePDFTarget?
+    /// Share or print straight away, without opening the PDF first (PDFQuickShare.swift).
+    @State private var quickPDF: InvoicePDFTarget?
     @State private var note: Note?
     /// The payment link to make (InvoicePaymentLink): set to start it.
     @State private var linking: Invoice?
@@ -306,6 +308,7 @@ struct InvoicesList: View {
                 rangeTo = from == nil ? nil : to
             }
         }
+        .pdfQuickShare($quickPDF)
         .navigationDestination(item: $pdf) { t in
             PDFDocumentScreen(path: t.path, fileName: t.fileName, title: t.title)
         }
@@ -522,8 +525,12 @@ struct InvoicesList: View {
                 Button { sending = inv } label: {
                     Label(inv.sentOnWhatsApp == nil ? "Send on WhatsApp" : "Send again on WhatsApp", systemImage: "message")
                 }
+                // Straight to the share sheet (Print, WhatsApp, Files), without opening the PDF first.
+                Button { quickPDF = InvoiceFacts.pdfTarget(inv, byCustomer: session.shop.invoiceByCustomer) } label: {
+                    Label("Print or share PDF", systemImage: "printer")
+                }
                 Button { pdf = InvoiceFacts.pdfTarget(inv, byCustomer: session.shop.invoiceByCustomer) } label: {
-                    Label("Print / PDF", systemImage: "printer")
+                    Label("View PDF", systemImage: "doc.richtext")
                 }
                 // The page's Payment link on an unpaid invoice: Shopify's checkout, copied.
                 if InvoiceFacts.offersPaymentLink(inv) {
