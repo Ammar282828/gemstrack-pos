@@ -211,47 +211,125 @@ object WastagePicks {
 
 // MARK: The catalogue
 
-/** One piece of the website catalogue: [image] is the full picture (what the bill prints), [thumb] a small one for the grid. */
-data class CataloguePiece(val id: String, val title: String, val category: String, val image: String, val thumb: String)
+/**
+ * One piece of the website catalogue: [image] is the full picture (what the bill prints), [thumb] a small one for the grid.
+ * [type] and [stones] are the facet ids the server names (empty from an older server); [haystack] is the lower-cased
+ * words the search looks through (title, category, type and stones), built once at decode.
+ */
+data class CataloguePiece(
+    val id: String, val title: String, val category: String, val image: String, val thumb: String,
+    val type: String = "", val stones: List<String> = emptyList(), val haystack: String = "",
+)
 
-/** `GET /api/app/catalogue?category=&q=`, kept in memory for the session so a chip or a search typed before is instant. */
+/** One chip of a facet row: the server's id and label, and how many pieces carry it in the loaded category. */
+data class CatalogueFacet(val id: String, val label: String, val count: Int)
+
+/** A category's pieces with the facets the server offered for them (empty from an older server: the rows hide). */
+data class CatalogueSet(val pieces: List<CataloguePiece> = emptyList(), val types: List<CatalogueFacet> = emptyList(), val stones: List<CatalogueFacet> = emptyList())
+
+/** What the picker narrows the loaded set by, instantly and on the phone: words, types (any of), stones (all of, as the server). */
+data class CatalogueFilter(val query: String = "", val types: Set<String> = emptySet(), val stones: Set<String> = emptySet()) {
+    val isEmpty: Boolean get() = query.isBlank() && types.isEmpty() && stones.isEmpty()
+
+    /** Every typed word must be somewhere in the piece's words. */
+    private val words: List<String> get() = query.lowercase().split(' ', ',').filter { it.isNotEmpty() }
+
+    /** The server's rule: one of the types, and every chosen stone (a stone chip narrows, as the web's does), and every typed word. */
+    private fun matches(p: CataloguePiece, words: List<String>, extraStone: String? = null, ignoringTypes: Boolean = false): Boolean {
+        if (!ignoringTypes && types.isNotEmpty() && p.type !in types) return false
+        for (s in stones) if (s !in p.stones) return false
+        if (extraStone != null && extraStone !in p.stones) return false
+        for (w in words) if (!p.haystack.contains(w)) return false
+        return true
+    }
+
+    fun apply(pieces: List<CataloguePiece>): List<CataloguePiece> {
+        if (isEmpty) return pieces
+        val w = words
+        return pieces.filter { matches(it, w) }
+    }
+
+    /** The facets with the count each chip would show if tapped now (the other row and the words kept), in the server's order. */
+    fun recount(facets: List<CatalogueFacet>, pieces: List<CataloguePiece>, stonesRow: Boolean): List<CatalogueFacet> {
+        val w = words
+        if (stonesRow) return facets.map { f -> f.copy(count = pieces.count { matches(it, w, extraStone = f.id) }) }
+        val counts = HashMap<String, Int>()
+        for (p in pieces) if (matches(p, w, ignoringTypes = true)) counts[p.type] = (counts[p.type] ?: 0) + 1
+        return facets.map { f -> f.copy(count = counts[f.id] ?: 0) }
+    }
+
+    fun toggleType(id: String): CatalogueFilter = copy(types = if (id in types) types - id else types + id)
+
+    fun toggleStone(id: String): CatalogueFilter = copy(stones = if (id in stones) stones - id else stones + id)
+}
+
+/**
+ * `GET /api/app/catalogue?category=`, kept in memory for the session so a category seen before is instant. The words, types
+ * and stones are filtered on the loaded set ([CatalogueFilter]), so only a new category asks the server again.
+ */
 object CatalogueStore {
-    private val cache = HashMap<String, List<CataloguePiece>>()
+    private val cache = HashMap<String, CatalogueSet>()
 
-    private fun key(category: String, q: String) = Businesses.current.id + "|" + category + "|" + q.lowercase()
+    private fun key(category: String) = Businesses.current.id + "|" + category
 
-    fun cached(category: String, q: String): List<CataloguePiece>? = cache[key(category, q)]
+    fun cached(category: String): CatalogueSet? = cache[key(category)]
 
-    fun path(category: String, q: String): String {
+    fun path(category: String, q: String = ""): String {
         val items = ArrayList<String>()
         if (category.isNotEmpty()) items.add("category=" + URLEncoder.encode(category, "UTF-8"))
         if (q.isNotEmpty()) items.add("q=" + URLEncoder.encode(q, "UTF-8"))
         return "/api/app/catalogue" + if (items.isEmpty()) "" else "?" + items.joinToString("&")
     }
 
-    suspend fun fetch(category: String, q: String): List<CataloguePiece> {
-        val k = key(category, q)
+    suspend fun fetch(category: String): CatalogueSet {
+        val k = key(category)
         cache[k]?.let { return it }
-        val pieces = parse(ErpApi.shared.data(path(category, q)))
-        cache[k] = pieces
-        return pieces
+        val set = parse(ErpApi.shared.data(path(category)))
+        cache[k] = set
+        return set
     }
 
-    fun parse(text: String): List<CataloguePiece> {
-        val root = Json.parse(text) as? Map<*, *> ?: return emptyList()
+    fun parse(text: String): CatalogueSet {
+        val root = Json.parse(text) as? Map<*, *> ?: return CatalogueSet()
         val out = ArrayList<CataloguePiece>()
         for (r in (root["pieces"] as? List<*>).orEmpty()) {
             val row = r as? Map<*, *> ?: continue
             val image = (row["image"] as? String) ?: ""
             val thumb = (row["thumb"] as? String) ?: ""
             if (!image.startsWith("http") && !thumb.startsWith("http")) continue
+            val title = (row["title"] as? String) ?: ""
+            val category = (row["category"] as? String) ?: ""
+            val type = (row["type"] as? String) ?: ""
+            val stones = (row["stones"] as? List<*>).orEmpty().filterIsInstance<String>()
             out.add(
                 CataloguePiece(
-                    id = (row["id"] as? String) ?: image.ifEmpty { thumb }, title = (row["title"] as? String) ?: "", category = (row["category"] as? String) ?: "",
+                    id = (row["id"] as? String) ?: image.ifEmpty { thumb }, title = title, category = category,
                     image = image.ifEmpty { thumb }, thumb = thumb.ifEmpty { image },
+                    type = type, stones = stones, haystack = (listOf(title, category, type) + stones).joinToString(" ").lowercase(),
                 ),
             )
         }
-        return out
+        val facets = root["facets"] as? Map<*, *>
+        val types = facetList(facets?.get("types"))
+        val stoneFacets = facetList(facets?.get("stones"))
+        // Their labels also join each piece's search words ("emerald" finds a stone id "emerald").
+        val typeLabels = types.associate { it.id to it.label.lowercase() }
+        val stoneLabels = stoneFacets.associate { it.id to it.label.lowercase() }
+        val pieces = if (types.isEmpty() && stoneFacets.isEmpty()) out else out.map { p ->
+            var h = p.haystack
+            typeLabels[p.type]?.let { h += " $it" }
+            for (s in p.stones) stoneLabels[s]?.let { h += " $it" }
+            p.copy(haystack = h)
+        }
+        return CatalogueSet(pieces, types, stoneFacets)
     }
+
+    /** The facet rows, decoded leniently: a row without an id is skipped, a missing label is the id, a missing count is 0. */
+    private fun facetList(any: Any?): List<CatalogueFacet> =
+        (any as? List<*>).orEmpty().mapNotNull { r ->
+            val row = r as? Map<*, *> ?: return@mapNotNull null
+            val id = (row["id"] as? String).orEmpty()
+            if (id.isEmpty()) return@mapNotNull null
+            CatalogueFacet(id, (row["label"] as? String) ?: id, (row["count"] as? Number)?.toInt() ?: 0)
+        }
 }

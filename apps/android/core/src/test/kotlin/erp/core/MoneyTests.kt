@@ -36,4 +36,15 @@ class MoneyTests {
         assertNotNull(ERPDate.parse("2026-10-08"))
         assertNull(ERPDate.parse("soon"))
     }
+
+    @Test
+    fun testAxisTicksAreShortWordsFor50k2Point5LAnd1Point2Cr() {
+        assertEquals("0", Money.axisLac(0.0))
+        assertEquals("950", Money.axisLac(950.0))
+        assertEquals("50k", Money.axisLac(50_000.0))
+        assertEquals("2.5L", Money.axisLac(250_000.0))
+        assertEquals("1.2Cr", Money.axisLac(12_000_000.0))
+        assertEquals("-50k", Money.axisLac(-50_000.0))
+        assertEquals("1L", Money.axisLac(99_600.0), "rounds up into the lac")
+    }
 }

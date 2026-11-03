@@ -98,7 +98,8 @@ fun shopCalendarDays(invoices: List<Invoice>, orders: List<Order>): Map<String, 
         events.getOrPut(key) { mutableListOf() }.add(
             ShopCalendarEvent(
                 id = "o:" + o.id, docId = o.id, isInvoice = false, createdAt = o.createdAt,
-                customerName = o.customerName ?: "", grandTotal = o.grandTotal, at = placed.seconds,
+                // The whole order, not the stored grandTotal (net of advances: the balance); owner, 2026-11-03.
+                customerName = o.customerName ?: "", grandTotal = maxOf(0.0, o.subtotal - (o.discountAmount ?: 0.0)), at = placed.seconds,
             ),
         )
     }

@@ -103,10 +103,52 @@ class DescribeTests {
         val pieces = CatalogueStore.parse(
             """{"pieces":[{"id":"p1","title":"Ruby ring","category":"cat001","image":"https://shop.example/a.jpg","thumb":"https://shop.example/a-s.jpg"},
                {"id":"p2","title":"No thumb","image":"https://shop.example/b.jpg"},{"id":"p3","title":"No picture"},{"title":"Thumb only","thumb":"https://shop.example/c-s.jpg"}]}""",
-        )
+        ).pieces
         assertEquals(listOf("p1", "p2", "https://shop.example/c-s.jpg"), pieces.map { it.id })
         assertEquals("https://shop.example/b.jpg", pieces[1].thumb, "a missing thumb is the picture")
         assertEquals("https://shop.example/c-s.jpg", pieces[2].image, "a missing picture is the thumb")
-        assertTrue(CatalogueStore.parse("[]").isEmpty())
+        assertTrue(CatalogueStore.parse("[]").pieces.isEmpty())
+        assertEquals("", pieces[0].type, "an older server sends no type")
+        assertTrue(CatalogueStore.parse("""{"pieces":[]}""").types.isEmpty())
+    }
+
+    private val facetted = CatalogueStore.parse(
+        """{"pieces":[
+          {"id":"a","title":"Classic band","image":"https://s.example/a.jpg","type":"ring","stones":["diamond"]},
+          {"id":"b","title":"Ruby halo","image":"https://s.example/b.jpg","type":"ring","stones":["ruby","diamond"]},
+          {"id":"c","title":"Drops","image":"https://s.example/c.jpg","type":"earrings","stones":["ruby"]},
+          {"id":"d","title":"Plain bangle","image":"https://s.example/d.jpg","type":"bangle","stones":[]}],
+          "facets":{"types":[{"id":"ring","label":"Rings","count":2},{"id":"earrings","label":"Earrings","count":1},{"id":"bangle","label":"Bangles","count":1},{"label":"no id"}],
+                    "stones":[{"id":"diamond","label":"Diamond","count":2},{"id":"ruby","label":"Ruby","count":2}]}}""",
+    )
+
+    @Test fun theFacetsAndEachPiecesTypeAndStonesAreDecoded() {
+        assertEquals(listOf("ring", "earrings", "bangle"), facetted.types.map { it.id }, "a facet with no id is skipped")
+        assertEquals(listOf("Diamond", "Ruby"), facetted.stones.map { it.label })
+        assertEquals(listOf("ruby", "diamond"), facetted.pieces[1].stones)
+        assertEquals("ring", facetted.pieces[0].type)
+    }
+
+    @Test fun typesAreAnyOfAndStonesAreAllOfAndWordsNarrowToo() {
+        val all = facetted.pieces
+        assertEquals(4, CatalogueFilter().apply(all).size)
+        assertEquals(listOf("a", "b"), CatalogueFilter(types = setOf("ring")).apply(all).map { it.id })
+        assertEquals(listOf("a", "b", "c"), CatalogueFilter(types = setOf("ring", "earrings")).apply(all).map { it.id })
+        assertEquals(listOf("b"), CatalogueFilter(stones = setOf("ruby", "diamond")).apply(all).map { it.id }, "every chosen stone")
+        assertEquals(listOf("b"), CatalogueFilter(types = setOf("ring"), stones = setOf("ruby")).apply(all).map { it.id })
+        assertEquals(listOf("b", "c"), CatalogueFilter(query = "ruby").apply(all).map { it.id }, "the stone's word is found")
+        assertEquals(listOf("b"), CatalogueFilter(query = "halo, ring").apply(all).map { it.id }, "every word, commas too")
+        assertEquals(listOf("d"), CatalogueFilter(query = "BANGLES").apply(all).map { it.id }, "the type's label is a search word")
+    }
+
+    @Test fun chipsCountWhatTappingThemWouldShow() {
+        val all = facetted.pieces
+        val ruby = CatalogueFilter(stones = setOf("ruby"))
+        // Types ignore the type choice itself: with ruby on, rings 1, earrings 1, bangles 0.
+        assertEquals(listOf(1, 1, 0), ruby.recount(facetted.types, all, stonesRow = false).map { it.count })
+        // Stones: tapping diamond with ruby already on leaves one piece; ruby stays 2 (already chosen).
+        assertEquals(listOf(1, 2), ruby.recount(facetted.stones, all, stonesRow = true).map { it.count })
+        assertEquals(setOf("ring"), CatalogueFilter().toggleType("ring").types)
+        assertTrue(CatalogueFilter(types = setOf("ring")).toggleType("ring").isEmpty)
     }
 }

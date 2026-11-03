@@ -58,6 +58,11 @@ data class Shop(
     val invoiceWhatsappPdf: Boolean,
     /** Sizes on an order are offered to the customer's profile (STORE_SIZE_TO_PROFILE). */
     val sizeToProfile: Boolean,
+    /**
+     * The house's public store is Shopify and its analytics show in Website: Visitors and Live (NEXT_PUBLIC_STORE_SHOPIFY_ANALYTICS, House of Mina).
+     * Null until the ERP has said: the Website screens then ask the route once (ShopifySwitchHost).
+     */
+    val shopifyAnalytics: Boolean? = null,
 ) {
     fun toMap(): Map<String, Any?> = buildMap {
         put("name", name)
@@ -69,6 +74,7 @@ data class Shop(
         put("invoiceByCustomer", invoiceByCustomer)
         put("invoiceWhatsappPdf", invoiceWhatsappPdf)
         put("sizeToProfile", sizeToProfile)
+        shopifyAnalytics?.let { put("shopifyAnalytics", it) }
     }
 
     companion object {
@@ -118,6 +124,7 @@ data class Shop(
                 invoiceByCustomer = m["invoiceByCustomer"] as? Boolean ?: f.invoiceByCustomer,
                 invoiceWhatsappPdf = m["invoiceWhatsappPdf"] as? Boolean ?: f.invoiceWhatsappPdf,
                 sizeToProfile = m["sizeToProfile"] as? Boolean ?: f.sizeToProfile,
+                shopifyAnalytics = m["shopifyAnalytics"] as? Boolean,
             )
         }
     }

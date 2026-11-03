@@ -364,6 +364,11 @@ class DashFigures(
     var expenses30 = 0.0; private set
     var days: List<DashDay> = emptyList(); private set
 
+    /** Home's events with their words and split: what the Taken today sheet draws (up to 90 days, today last, by [takenDays]). */
+    private var taken: List<DashTakenEntry> = emptyList()
+    val takenDays: List<DashTakenDay> by lazy { DashTaken.days(taken, now, 90) }
+    val takenMonthLength: Int get() = DashTaken.monthLength(now)
+
     val net30: Double get() = revenue30 - expenses30
     val lateDue: List<DashDue> get() = due.filter { it.isLate }
 
@@ -372,7 +377,7 @@ class DashFigures(
     init {
         val liveKarigars = karigars.filter { it.deletedAt.isNullOrEmpty() }
         karigarIds = liveKarigars.mapTo(HashSet()) { it.id }
-        gatherRevenue(orders, invoices, revenues, expenses)
+        gatherRevenue(orders, invoices, revenues, expenses, repairs)
         gatherOwed(invoices, hisaab)
         gatherBench(orders, karigarJobs, liveKarigars, invoices)
         gatherDue(orders, repairs)
@@ -390,7 +395,7 @@ class DashFigures(
         return sum
     }
 
-    private fun gatherRevenue(orders: List<Order>, invoices: List<Invoice>, revenues: List<AdditionalRevenue>, expenses: List<Expense>) {
+    private fun gatherRevenue(orders: List<Order>, invoices: List<Invoice>, revenues: List<AdditionalRevenue>, expenses: List<Expense>, repairs: List<Repair>) {
         val todayStart = DashDate.startOfDay(now)
         val monthStart = DashDate.startOfMonth(now)
         val lastMonthStart = DashDate.startOfMonth(DashDate.lastMonth(now))
@@ -433,6 +438,8 @@ class DashFigures(
             events += Event(at, if (r.amount.isNaN()) 0.0 else r.amount)
         }
 
+        // What "Taken today" opens: the same events, with their words and how each was paid.
+        taken = DashTaken.entries(jewellery, orders, ordersById, revenues, repairs)
         todayInvoiceCount = invoicesToday
         // Capped at the end of today, like Analytics' "this month" (the 1st to today), so a future-dated row reads the same in both.
         val tomorrowStart = DashDate.startOfDay(DashDate.adding(1, now))

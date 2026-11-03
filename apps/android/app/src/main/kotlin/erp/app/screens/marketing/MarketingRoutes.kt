@@ -36,9 +36,10 @@ val MarketingRoutes: List<ScreenRoute> = buildList {
     )
     add(ScreenRoute.exact("/website/weights") { WebsiteWeightsScreen() })
     add(ScreenRoute.exact("/website/investments") { WebsiteInvestmentsScreen() })
+    // Where the house's store is Shopify (Mina) these open on Shopify's own analytics, the catalogue's counters a chip away (ShopifyAnalytics.kt).
     // Interest: the site's report with the piece rankings beneath, and who is on the site now (WebsiteInterest.kt, WebsiteLive.kt).
-    add(ScreenRoute.exact("/website/interest") { WebsiteInterestScreen() })
-    add(ScreenRoute.exact("/website/interest/live") { WebsiteLiveScreen() })
+    add(ScreenRoute.exact("/website/interest") { WebsiteVisitorsHost() })
+    add(ScreenRoute.exact("/website/interest/live") { WebsiteLiveHost() })
     // Insights (Insights*.kt): Instagram and Facebook, organic beside paid.
     add(ScreenRoute.exact("/insights") { InsightsOverviewScreen() })
     add(ScreenRoute.exact("/insights/posts") { InsightsPostsScreen() })

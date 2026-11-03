@@ -51,6 +51,7 @@ import erp.app.data.LocalBook
 import erp.app.data.rememberShelf
 import erp.app.screens.money.MoneyPaths
 import erp.app.screens.orders.OrdersLogic
+import erp.core.logic.Money
 import erp.app.ui.Monogram
 import erp.app.ui.Radius
 import erp.app.ui.RowAmount
@@ -182,7 +183,11 @@ fun SearchScreen() {
             results("Orders", r.orders, expanded, { expanded += it }, { it.id }) { o ->
                 val due = OrdersLogic.balance(o)
                 Line(o.id, o.customerName.orEmpty(), null, "/orders/" + MoneyPaths.encode(o.id), status = o.status.rawValue to Tone(o.status), trailing = {
-                    if (due > 0) RowAmount(due, tone = Tone.owed.color())
+                    // The whole order (owner, 2026-11-03), what is owed under it.
+                    Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        RowAmount(OrdersLogic.fullAmount(o))
+                        if (due > 0) Text("${Money.pkr(due)} due", style = MaterialTheme.typography.bodySmall, color = Tone.owed.color())
+                    }
                 })
             }
             results("Stock", r.stock, expanded, { expanded += it }, { it.sku }) { p ->

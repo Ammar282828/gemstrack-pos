@@ -95,7 +95,8 @@ internal fun ReferencePrintRows(
     }
     ActionRow(if (picked.isEmpty()) "Pick from catalogue" else "Change from catalogue", onClick = { picking = true }, icon = Symbols.PhotoLibrary)
     if (picking) {
-        ReferencePickerSheet(category, picked, onPick = { chosen -> onChange(chosen, true) }, onDismiss = { picking = false })
+        // Picking a photo never switches printing on: the switch above is the owner's alone to turn.
+        ReferencePickerSheet(category, picked, onPick = { chosen -> onChange(chosen, printIt) }, onDismiss = { picking = false })
     }
 }
 
@@ -104,9 +105,9 @@ internal fun ReferencePrintRows(
 @Composable
 internal fun ReferencePickerSheet(category: String, current: String, onPick: (String) -> Unit, onDismiss: () -> Unit) {
     var scope by remember { mutableStateOf(category) }
-    var query by remember { mutableStateOf("") }
-    var pieces by remember { mutableStateOf<List<CataloguePiece>>(emptyList()) }
-    var loading by remember { mutableStateOf(true) }
+    var filter by remember { mutableStateOf(CatalogueFilter()) }
+    var catalogue by remember { mutableStateOf(CatalogueStore.cached(category) ?: CatalogueSet()) }
+    var loading by remember { mutableStateOf(CatalogueStore.cached(category) == null) }
     var failure by remember { mutableStateOf<String?>(null) }
     var attempt by remember { mutableStateOf(0) }
     // This piece's category leads, then the others in the shop's order.
@@ -114,15 +115,14 @@ internal fun ReferencePickerSheet(category: String, current: String, onPick: (St
         val all = NewOrderWords.categories
         all.firstOrNull { it.id == category }?.let { mine -> listOf(mine) + all.filter { it.id != category } } ?: all
     }
-    LaunchedEffect(scope, query, attempt) {
-        val q = query.trim()
-        // A pause after the last letter, so typing is one request; a chip is at once.
-        if (q.isNotEmpty()) delay(300)
-        val hit = CatalogueStore.cached(scope, q)
-        if (hit != null) { pieces = hit; failure = null; loading = false; return@LaunchedEffect }
+    // A category is the only thing that asks the server; the words and the type and stone chips filter what is loaded.
+    LaunchedEffect(scope, attempt) {
+        filter = filter.copy(types = emptySet(), stones = emptySet())
+        val hit = CatalogueStore.cached(scope)
+        if (hit != null) { catalogue = hit; failure = null; loading = false; return@LaunchedEffect }
         loading = true
         try {
-            pieces = CatalogueStore.fetch(scope, q)
+            catalogue = CatalogueStore.fetch(scope)
             failure = null
         } catch (e: CancellationException) {
             throw e
@@ -131,35 +131,42 @@ internal fun ReferencePickerSheet(category: String, current: String, onPick: (St
         }
         loading = false
     }
+    val shown = remember(catalogue, filter) { filter.apply(catalogue.pieces) }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.fillMaxWidth().navigationBarsPadding(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Reference photo", Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.titleLarge)
             SearchBarField(
-                value = query, onValueChange = { query = it }, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                placeholder = { Text("Search the catalogue") }, leadingIcon = { Icon(Symbols.Search, null) }, singleLine = true,
+                value = filter.query, onValueChange = { filter = filter.copy(query = it) }, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                placeholder = { Text("Search by name, type or stone") }, leadingIcon = { Icon(Symbols.Search, null) }, singleLine = true,
                 keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),
             )
             ChipRow {
                 FilterChip("All pieces", chosen = scope.isEmpty(), onClick = { scope = "" })
                 for (c in chips) FilterChip(c.label, chosen = scope == c.id, onClick = { scope = c.id })
             }
+            FacetRow("Types", catalogue.types, filter.types, filter.recount(catalogue.types, catalogue.pieces, stonesRow = false)) { filter = filter.toggleType(it) }
+            FacetRow("Stones", catalogue.stones, filter.stones, filter.recount(catalogue.stones, catalogue.pieces, stonesRow = true)) { filter = filter.toggleStone(it) }
             Box(Modifier.fillMaxWidth().heightIn(min = 280.dp, max = 620.dp)) {
                 when {
-                    failure != null && pieces.isEmpty() -> Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                    failure != null && catalogue.pieces.isEmpty() -> Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                         NotAvailableState(failure.orEmpty(), icon = Symbols.CloudOff)
                         TextButton(onClick = { attempt += 1 }) { Text("Try again") }
                     }
-                    loading && pieces.isEmpty() -> SkeletonThumbGrid(12)
-                    pieces.isEmpty() -> NotAvailableState(
-                        if (query.isEmpty()) "No pictures here" else "No results",
-                        why = if (query.isEmpty()) (if (scope.isEmpty()) "The catalogue has no pieces yet." else "Try All pieces.") else "Nothing matches “${query.trim()}”.",
-                        icon = Symbols.PhotoLibrary,
-                    )
+                    loading && catalogue.pieces.isEmpty() -> SkeletonThumbGrid(12)
+                    shown.isEmpty() -> when {
+                        filter.isEmpty -> NotAvailableState(
+                            "No pictures here",
+                            why = if (scope.isEmpty()) "The catalogue has no pieces yet." else "Try All pieces.",
+                            icon = Symbols.PhotoLibrary,
+                        )
+                        filter.query.isBlank() -> NotAvailableState("No pictures match", why = "Try fewer types or stones.", icon = Symbols.FilterList)
+                        else -> NotAvailableState("No results", why = "Nothing matches “${filter.query.trim()}”.", icon = Symbols.PhotoLibrary)
+                    }
                     else -> LazyVerticalGrid(
                         columns = GridCells.Adaptive(104.dp), modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
-                        items(pieces, key = { it.id }) { piece ->
+                        items(shown, key = { it.id }) { piece ->
                             val chosen = current.isNotEmpty() && piece.image == current
                             Column(
                                 Modifier.clickable(role = Role.Button) { onPick(piece.image); onDismiss() }
@@ -181,5 +188,15 @@ internal fun ReferencePickerSheet(category: String, current: String, onPick: (St
                 }
             }
         }
+    }
+}
+
+/** A row of multi-select chips (types, or stones) with how many pieces each would show now; hidden when the server sent none. */
+@Composable
+private fun FacetRow(label: String, facets: List<CatalogueFacet>, chosen: Set<String>, counted: List<CatalogueFacet>, onToggle: (String) -> Unit) {
+    if (facets.isEmpty()) return
+    ChipRow(Modifier.semantics { contentDescription = label }) {
+        // A chip that would show nothing stays only while chosen, so the way back is always there.
+        for (f in counted) if (f.count > 0 || f.id in chosen) FilterChip(f.label, chosen = f.id in chosen, onClick = { onToggle(f.id) }, count = f.count)
     }
 }

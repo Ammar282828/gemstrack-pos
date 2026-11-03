@@ -114,6 +114,8 @@ fun AppRoot(session: Session) {
         }
         // The Businesses sheet sits above the screens, not in them: a switch rebuilds those, and the sheet closes with it.
         erp.app.screens.businesses.BusinessesSheetHost()
+        // After a business switch: the picture of the screens left, fading out over the new ones.
+        BusinessSwitchVeilLayer()
     }
 }
 
@@ -124,6 +126,11 @@ fun AppRoot(session: Session) {
  */
 @Composable
 fun AppShell(session: Session, content: @Composable BoxScope.() -> Unit) {
+    // Being switched away from, under a picture of itself: nothing is composed for the new business here (BusinessSwitchVeil).
+    if (BusinessSwitchVeil.isFrozen(LocalContext.current)) {
+        Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface))
+        return
+    }
     // This business's own books (LocalBook's default is whichever business was open when it was first read).
     val book = remember(session) { erp.app.data.Book.of(session.business) }
     val settings by book.settings.value.collectAsStateWithLifecycle()

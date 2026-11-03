@@ -85,6 +85,7 @@ fun Dashboard() {
     var now by remember { mutableStateOf(AppClock.now()) }
     var rateSheet by rememberSaveable { mutableStateOf(false) }
     var noteSheet by rememberSaveable { mutableStateOf(false) }
+    var takenSheet by rememberSaveable { mutableStateOf(false) }
     var allNeeds by rememberSaveable { mutableStateOf(false) }
     var allDue by rememberSaveable { mutableStateOf(false) }
     var allSales by rememberSaveable { mutableStateOf(false) }
@@ -173,6 +174,7 @@ fun Dashboard() {
                         f, needs, owner,
                         open = navigator::open,
                         onRates = if (owner) ({ rateSheet = true }) else null,
+                        onTaken = { takenSheet = true },
                         allNeeds = allNeeds, allDue = allDue, allSales = allSales,
                         toggleNeeds = { allNeeds = !allNeeds }, toggleDue = { allDue = !allDue }, toggleSales = { allSales = !allSales },
                     )
@@ -182,6 +184,7 @@ fun Dashboard() {
     }
     if (rateSheet) RateSheet(onDismiss = { rateSheet = false })
     if (noteSheet) TeamNoteEditor(onDismiss = { noteSheet = false })
+    if (takenSheet) figures?.let { f -> DashTakenSheet(f.takenDays, f.takenMonthLength, onDismiss = { takenSheet = false }) }
 }
 
 @Composable
@@ -191,6 +194,7 @@ private fun DashboardPage(
     owner: Boolean,
     open: (String) -> Unit,
     onRates: (() -> Unit)?,
+    onTaken: () -> Unit,
     allNeeds: Boolean, allDue: Boolean, allSales: Boolean,
     toggleNeeds: () -> Unit, toggleDue: () -> Unit, toggleSales: () -> Unit,
 ) {
@@ -213,7 +217,7 @@ private fun DashboardPage(
                 if (wide) {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         DateLine(f)
-                        Hero(f, open)
+                        Hero(f, onTaken)
                         FigureGrid(f, owner, open)
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.Top) {
@@ -228,7 +232,7 @@ private fun DashboardPage(
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         DateLine(f)
-                        Hero(f, open)
+                        Hero(f, onTaken)
                         FigureGrid(f, owner, open)
                     }
                     NeedsSection(needs, allNeeds, toggleNeeds, open, onRates)
@@ -253,10 +257,11 @@ private fun DateLine(f: DashFigures) {
 
 /** Taken today, as the web's headline links it: the invoices. */
 @Composable
-private fun Hero(f: DashFigures, open: (String) -> Unit) {
+private fun Hero(f: DashFigures, onTaken: () -> Unit) {
+    // Opens the day by day (owner, 2026-11-03: "tapping Taken today should open the histogram of per day with all details").
     DashHero(
         f.todayRevenue, f.todayInvoiceCount, f.lastSaleToday?.let { DashDate.clock(it.createdAt) }, f.week,
-        onClick = { open("/invoices") },
+        onClick = onTaken,
     )
 }
 

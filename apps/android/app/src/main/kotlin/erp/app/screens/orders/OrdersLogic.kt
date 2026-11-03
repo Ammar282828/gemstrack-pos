@@ -428,6 +428,16 @@ object OrdersLogic {
 
     fun discount(order: Order): Double = order.discountAmount ?: 0.0
 
+    /**
+     * What the order comes to in full: the pieces (or the saved subtotal when they carry no estimate) less any discount,
+     * never less the advances or exchange (owner, 2026-11-03: a card's amount is the whole order, not the balance).
+     */
+    fun fullAmount(order: Order): Double {
+        val pieces = subtotal(order)
+        val base = if (pieces >= 1) pieces else order.subtotal
+        return maxOf(0.0, base - discount(order))
+    }
+
     fun exchangeValue(order: Order): Double = order.advanceInExchangeValue ?: 0.0
 
     /** Pieces − discount − advances − exchange: the big "Balance Due" on the order page. */

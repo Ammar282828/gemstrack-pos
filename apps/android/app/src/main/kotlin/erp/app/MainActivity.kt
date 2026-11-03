@@ -33,6 +33,8 @@ class MainActivity : FragmentActivity() {
         val splash = installSplashScreen() // before super: swaps the splash theme for Theme.Erp
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // Started by a business switch: the window wears the picture of the one left until the fade (BusinessSwitchVeil).
+        val switched = erp.app.nav.BusinessSwitchVeil.adopt(this)
         // Before the Session exists: the demo is decided by the launch intent.
         House.applyIntent(intent)
         // A link or a widget's tap names its business: it is switched to now, before the shell is built on it.
@@ -42,7 +44,7 @@ class MainActivity : FragmentActivity() {
         Foreground.attach(this)
         // Held only while the ERP is asked who a new account is, and no longer than a second.
         val started = System.currentTimeMillis()
-        splash.setKeepOnScreenCondition { session.state.value == Session.State.Starting && System.currentTimeMillis() - started < 1000 }
+        splash.setKeepOnScreenCondition { !switched && session.state.value == Session.State.Starting && System.currentTimeMillis() - started < 1000 }
         if (savedInstanceState == null) {
             // The page the link named, or the one a business switch kept for the shell it rebuilt.
             (route ?: AppRouter.takePending())?.let {

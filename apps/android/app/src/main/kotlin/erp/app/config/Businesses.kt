@@ -209,6 +209,8 @@ object Businesses {
         val next = business(id) ?: return
         val left = _current.value
         // Where the person is now (the tab and each tab's page) is what the next business opens on, where it has the same.
+        // A picture of the window goes over it first, so the rebuild beneath is never seen (BusinessSwitchVeil).
+        erp.app.nav.BusinessSwitchVeil.cover()
         erp.app.nav.BusinessCarry.arm()
         // Work still waiting for its moment in Drafts is sent now, to the business it was typed in.
         WorkDraftSync.flushAll(left.id)

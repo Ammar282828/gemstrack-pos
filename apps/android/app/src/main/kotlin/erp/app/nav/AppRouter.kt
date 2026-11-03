@@ -122,10 +122,13 @@ object AppRouter {
 
     /**
      * Every Activity is rebuilt on the new business: the task starts again at the tabs (no saved page of the one left), and whatever it
-     * had open goes with it. The platform draws the transition; none is added.
+     * had open goes with it. The platform draws the transition, except for a switch (the chip, the picker), which fades a picture instead.
      */
     fun restartShell(from: Activity) {
-        from.startActivity(Intent(from, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
+        val intent = Intent(from, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+        // A switch under a picture of the window (BusinessSwitchVeil) draws its own fade: the platform adds no transition on top of it.
+        if (BusinessSwitchVeil.pending) from.startActivity(intent, android.app.ActivityOptions.makeCustomAnimation(from, 0, 0).toBundle())
+        else from.startActivity(intent)
     }
 }
 

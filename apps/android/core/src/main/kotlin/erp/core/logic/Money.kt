@@ -54,6 +54,17 @@ object Money {
         return "$sign${grouped(a)}"
     }
 
+    /** Chart axis ticks, where there is no room for words: 50k · 2.5L · 1.2Cr (the iPhone's `axisLac`). */
+    fun axisLac(n: Double): String {
+        val v = if (n.isFinite()) n else 0.0
+        val sign = if (v < 0) "-" else ""
+        val a = abs(v)
+        if (a >= crore || (fixed(a / lac, 1).toDoubleOrNull() ?: 0.0) >= 100) return "$sign${trimmed(a / crore, 1)}Cr"
+        if (a >= lac || swiftRounded(a / 1000) >= 100) return "$sign${trimmed(a / lac, 1)}L"
+        if (a >= 1000) return "$sign${swiftRounded(a / 1000).toLong()}k"
+        return "$sign${swiftRounded(a).toLong()}"
+    }
+
     /** "PKR 4.5 lac". */
     fun pkrLac(n: Double, digits: Int = 2): String = "PKR ${lacCrore(n, digits)}"
 

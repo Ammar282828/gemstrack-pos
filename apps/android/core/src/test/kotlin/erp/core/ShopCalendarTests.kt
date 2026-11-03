@@ -62,7 +62,8 @@ class ShopCalendarTests {
         assertEquals(50_000.0, day.total)
         assertEquals(3, day.events.size)
         // The row prints the document's own total (the balance, for an order).
-        assertEquals(30_000.0, day.events.first { it.docId == "ORD-1" }.grandTotal)
+        // The row says the whole order (50k of pieces), not the balance (30k); owner, 2026-11-03.
+        assertEquals(50_000.0, day.events.first { it.docId == "ORD-1" }.grandTotal)
         assertEquals("Bilal", day.events.first { it.docId == "ORD-1" }.customerName)
     }
 
@@ -165,5 +166,15 @@ class ShopCalendarTests {
         assertEquals("12:05 pm", ShopCalendar.clock(iso = "2026-10-09T07:05:00Z"))
         assertEquals("4:30 pm", ShopCalendar.clock(iso = "2026-10-09T11:30:00Z"))
         assertEquals("", ShopCalendar.clock(iso = ""))
+    }
+
+    @Test
+    fun testAnOrderEventCarriesTheWholeOrderNotTheBalance() {
+        // 50k of pieces less 5k off, 20k down: the row says 45k (the balance, 25k, is not its amount); owner, 2026-11-03.
+        val o = order(mapOf("id" to "ORD-7", "createdAt" to "2026-10-05T08:00:00Z", "status" to "Pending", "subtotal" to 50_000, "discountAmount" to 5_000, "advancePayment" to 20_000, "grandTotal" to 25_000))
+        val none = order(mapOf("id" to "ORD-8", "createdAt" to "2026-10-05T09:00:00Z", "status" to "Pending", "subtotal" to 0, "discountAmount" to 5_000, "grandTotal" to 0))
+        val events = shopCalendarDays(invoices = emptyList(), orders = listOf(o, none))["2026-10-05"]!!.events
+        assertEquals(45_000.0, events.first { it.docId == "ORD-7" }.grandTotal)
+        assertEquals(0.0, events.first { it.docId == "ORD-8" }.grandTotal, "never below nothing")
     }
 }

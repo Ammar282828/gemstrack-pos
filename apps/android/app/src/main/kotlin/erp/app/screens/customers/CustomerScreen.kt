@@ -80,6 +80,7 @@ import erp.app.ui.theme.ErpType
 import erp.app.ui.zoomDestination
 import erp.core.logic.invoiceSaleValue
 import erp.core.logic.BalanceState
+import erp.app.screens.orders.OrdersLogic
 import erp.core.logic.Money
 import erp.core.logic.balanceLine
 import erp.core.models.Customer
@@ -448,7 +449,7 @@ private fun CustOrderRow(order: Order) {
     // The order's total is stored net of its advances, so it is the balance still to pay (order-payment.ts).
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
         TwoLine(
-            order.id, Modifier.weight(1f), subtitle = orderSubtitle(order), trailing = Money.pkr(order.grandTotal),
+            order.id, Modifier.weight(1f), subtitle = orderSubtitle(order), trailing = Money.pkr(OrdersLogic.fullAmount(order).let { if (it >= 1) it else order.grandTotal }),
             trailingTint = if (closed || invoiced) MaterialTheme.colorScheme.onSurfaceVariant else Color.Unspecified,
         )
         StatusBadge(order.status)

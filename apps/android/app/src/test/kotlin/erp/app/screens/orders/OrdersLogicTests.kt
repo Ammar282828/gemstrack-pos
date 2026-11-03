@@ -30,6 +30,20 @@ class OrdersLogicTests {
     private fun invoice(id: String, balance: Double, status: String = "Paid"): Invoice =
         ERPDecode.model<Invoice>(mapOf("id" to id, "balanceDue" to balance, "status" to status, "createdAt" to "2026-10-08T05:00:00.000Z"))!!
 
+    // MARK: Full amount (owner, 2026-11-03)
+
+    @Test fun theFullAmountIsThePiecesLessDiscountNeverLessTheAdvance() {
+        val o = order("discountAmount" to 2_000.0, "advancePayment" to 8_000.0, "advanceInExchangeValue" to 3_000.0, "grandTotal" to 7_000.0)
+        assertEquals(18_000.0, OrdersLogic.fullAmount(o))
+        assertEquals(7_000.0, OrdersLogic.balance(o), "the balance is the quiet second line")
+    }
+
+    @Test fun withNoPieceEstimatesTheSavedSubtotalStandsInAndItNeverGoesBelowNothing() {
+        val bare = order("items" to listOf(item(total = null)), "subtotal" to 30_000.0, "discountAmount" to 5_000.0)
+        assertEquals(25_000.0, OrdersLogic.fullAmount(bare))
+        assertEquals(0.0, OrdersLogic.fullAmount(order("items" to emptyList<Any>(), "subtotal" to 0.0, "discountAmount" to 1_000.0)))
+    }
+
     // MARK: Next step
 
     @Test fun anOrderNotStartedIsGivenOut() {

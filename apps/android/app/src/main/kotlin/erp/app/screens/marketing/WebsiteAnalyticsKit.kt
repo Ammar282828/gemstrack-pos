@@ -199,7 +199,7 @@ private fun SiteRankLine(row: SiteRankRow, parentTotal: Int, top: Int) {
 
 /** The thin bar under a row or a funnel step, in the accent. */
 @Composable
-private fun SiteBar(fraction: Double) {
+internal fun SiteBar(fraction: Double) {
     LinearProgressIndicator(
         progress = { fraction.coerceIn(0.0, 1.0).toFloat() },
         modifier = Modifier.fillMaxWidth().height(4.dp).clearAndSetSemantics {},

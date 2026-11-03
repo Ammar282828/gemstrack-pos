@@ -55,6 +55,7 @@ import erp.app.ui.isLargeText
 import erp.app.ui.ledgerCard
 import erp.app.ui.theme.ErpColors
 import erp.app.ui.zoomSource
+import erp.core.logic.Money
 import erp.core.logic.OrderStage
 import erp.core.logic.PromiseState
 import erp.core.logic.STAGES
@@ -220,12 +221,12 @@ fun OrderCardHead(order: Order, stage: OrderStage, owed: Double, now: Instant, g
         if (wide) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
                 who(Modifier.weight(1f))
-                Money(order, stage, owed, wide)
+                CardMoney(order, stage, owed, wide)
             }
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 who(Modifier.fillMaxWidth())
-                Money(order, stage, owed, wide)
+                CardMoney(order, stage, owed, wide)
             }
         }
         val what = OrdersLogic.cardWhat(order)
@@ -296,18 +297,24 @@ private fun Promise(order: Order, now: Instant) {
     )
 }
 
-/** What is still owed (amber), what is in credit (teal), or Paid in a pill once nothing is. */
+/** The whole order, never less the advance (owner, 2026-11-03); under it what is still owed (amber), in credit (teal), or Paid once nothing is. */
 @Composable
-private fun Money(order: Order, stage: OrderStage, owed: Double, wide: Boolean) {
+private fun CardMoney(order: Order, stage: OrderStage, owed: Double, wide: Boolean) {
     if (stage == OrderStage.closed) return
     val due = OrdersLogic.stillOwed(order, owed)
-    if (Math.abs(due) >= 1) {
-        Column(horizontalAlignment = if (wide) Alignment.End else Alignment.Start, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            RowAmount(Math.abs(due), tone = if (due < 0) Tone.credit.color() else Tone.owed.color())
-            Text(if (due < 0) "In credit" else "Owed", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    val full = OrdersLogic.fullAmount(order)
+    val owing = Math.abs(due) >= 1
+    Column(horizontalAlignment = if (wide) Alignment.End else Alignment.Start, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        if (full >= 1) RowAmount(full)
+        if (owing) {
+            Text(
+                if (due < 0) "${Money.pkr(Math.abs(due))} credit" else "${Money.pkr(due)} owed",
+                style = MaterialTheme.typography.bodySmall,
+                color = if (due < 0) Tone.credit.color() else Tone.owed.color(),
+            )
+        } else {
+            Pill("Paid", tone = Tone.settled)
         }
-    } else {
-        Pill("Paid", tone = Tone.settled)
     }
 }
 
