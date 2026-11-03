@@ -78,3 +78,4 @@ cloud session cannot press that button, but it can push. One line per build, new
 - 2026-11-03: Edit the words before sending an order to a karigar, and the send carries on in the background while you keep working.
 - 2026-11-03: Send to karigar never sends twice: a second tap says "Already sent", and Retry sends only what had not gone.
 - 2026-11-03: Invoices, Orders and Customers share one layout, with no summary figures over the lists.
+- 2026-11-03: Faster iPad order and sale forms (smooth with the keyboard open); descriptions suggested from your history and saved stone combos; wastage chips 10/12/15/25/Other; "Add stone details"; a catalogue reference photo printed beside the piece on the bill; orders, sales and payments taken offline wait and send themselves; double-tap the business name to switch on the same page; smoother pull-down search; skeletons while loading.
