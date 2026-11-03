@@ -84,7 +84,7 @@ fun RepairsSheet(id: String, seed: Repair?, onDismiss: () -> Unit) {
     val current: Repair? = (shelfItem ?: seed)?.let(desk::shown)
     erp.app.screens.voice.VoiceFocusEffect(current?.let { erp.app.screens.voice.VoiceFocus.repair(it) })
 
-    var web by remember { mutableStateOf<String?>(null) }
+    val quick = erp.app.ui.rememberQuickPdf()
     var editing by remember { mutableStateOf(false) }
     var deletion by remember { mutableStateOf<OwnerDeletion?>(null) }
     // The ticket is gone: the sheet leaves once the code sheet has.
@@ -99,11 +99,11 @@ fun RepairsSheet(id: String, seed: Repair?, onDismiss: () -> Unit) {
                 IconButton(onClick = { menuOpen = true }) { Icon(Symbols.MoreVert, contentDescription = "More") }
                 val cancellable = current?.let { it.status == RepairStatus.received || it.status == RepairStatus.ready } ?: false
                 DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                    // Print receipt is the ERP's page for this ticket (it draws the PDF), open to everyone who can read the ticket;
-                    // Edit, Cancel and Delete are native and owners'. Cancel keeps the record.
+                    // Print receipt is the ERP's receipt for this ticket, straight to the share sheet (Print, WhatsApp, Files), open to
+                    // everyone who can read the ticket; Edit, Cancel and Delete are native and owners'. Cancel keeps the record.
                     DropdownMenuItem(
                         text = { Text("Print receipt") }, leadingIcon = { Icon(Symbols.Print, null) },
-                        onClick = { menuOpen = false; web = RepairsKit.webPath(id) },
+                        onClick = { menuOpen = false; quick.share(RepairsKit.receiptPath(id), RepairsKit.receiptFileName(id), "Receipt $id") },
                     )
                     if (session.isOwner && current != null) {
                         DropdownMenuItem(
@@ -141,7 +141,7 @@ fun RepairsSheet(id: String, seed: Repair?, onDismiss: () -> Unit) {
 
     RepairsDeskHost(desk)
 
-    web?.let { path -> RepairsWebPage(path, onClose = { web = null }) }
+    erp.app.ui.QuickPdfBusy(quick)
     if (editing && current != null) RepairsForm(editing = current, onDismiss = { editing = false }, onSaved = { _, _ -> })
     deletion?.let { d ->
         OwnerDeleteCodeSheet(
@@ -165,22 +165,6 @@ internal fun askDelete(r: Repair): OwnerDeletion {
     return OwnerDeletion(what = "Delete repair $id", detail = detail, run = { code ->
         ErpApi.shared.write("deleteRepair", mapOf("repairId" to id, "deleteCode" to code))
     })
-}
-
-/** The ERP's own page over the sheet, with a way back (the iPhone pushes it on the sheet's own stack). */
-@Composable
-private fun RepairsWebPage(path: String, onClose: () -> Unit) {
-    Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
-        Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            Column(Modifier.fillMaxSize().statusBarsPadding()) {
-                Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onClose) { Icon(Symbols.ArrowBack, "Back") }
-                    Text("Print receipt", style = MaterialTheme.typography.titleMedium)
-                }
-                Box(Modifier.weight(1f).fillMaxWidth()) { WebScreen(erp.app.nav.ScreenRegistry.withoutWebFlag(path)) }
-            }
-        }
-    }
 }
 
 // MARK: The ticket

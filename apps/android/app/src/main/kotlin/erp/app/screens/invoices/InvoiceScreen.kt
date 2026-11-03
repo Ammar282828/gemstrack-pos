@@ -180,6 +180,8 @@ private fun InvoiceDetail(inv: Invoice, customers: List<erp.core.models.Customer
     var paying by remember { mutableStateOf<Invoice?>(null) }
     var sending by remember { mutableStateOf<Invoice?>(null) }
     var pdf by remember { mutableStateOf<InvoicePdfTarget?>(null) }
+    val quick = erp.app.ui.rememberQuickPdf()
+    fun quickPdf(t: InvoicePdfTarget) = quick.share(t.path, t.fileName, t.title)
     var settingCustomer by remember { mutableStateOf(false) }
     var acting by remember { mutableStateOf<InvoiceAct?>(null) }
     var allPieces by rememberSaveable(inv.id) { mutableStateOf(false) }
@@ -212,9 +214,11 @@ private fun InvoiceDetail(inv: Invoice, customers: List<erp.core.models.Customer
                 }
                 MenuHeading("Share")
                 // The PDF Print saves, drawn on the ERP's server and shown here: Print, Save, WhatsApp from its share sheet.
-                item("PDF", Symbols.PictureAsPdf, false) { pdf = InvoiceFacts.pdfTarget(inv, byCustomer) }
+                // Print or share goes straight to the share sheet; View PDF opens it for looking (PDFQuickShare).
+                item("Print or share PDF", Symbols.Print, false) { quickPdf(InvoiceFacts.pdfTarget(inv, byCustomer)) }
+                item("View PDF", Symbols.PictureAsPdf, false) { pdf = InvoiceFacts.pdfTarget(inv, byCustomer) }
                 // The split button's other half (print-button.tsx): one invoice per piece, for pieces bought for several people.
-                if (inv.items.size > 1) item("PDF per piece", Symbols.FileCopy, false) { pdf = InvoiceFacts.pdfTarget(inv, byCustomer, perPiece = true) }
+                if (inv.items.size > 1) item("Print or share per piece", Symbols.FileCopy, false) { quickPdf(InvoiceFacts.pdfTarget(inv, byCustomer, perPiece = true)) }
                 item(if (inv.sentOnWhatsApp == null) "WhatsApp" else "WhatsApp again", Symbols.Message, false) { sending = inv }
                 InvoiceFacts.shareUrl(inv, House.serverUrl)?.let { link ->
                     item("Customer link", Symbols.Link, false) {
@@ -250,7 +254,7 @@ private fun InvoiceDetail(inv: Invoice, customers: List<erp.core.models.Customer
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
                 item { Hero(inv, owner) { settingCustomer = true } }
-                item { QuickRow(inv, customers, byCustomer, send = { sending = inv }) { pdf = it } }
+                item { QuickRow(inv, customers, byCustomer, send = { sending = inv }) { quickPdf(it) } }
                 item {
                     PiecesCard(inv, owner, allPieces) { allPieces = true }
                 }
@@ -309,6 +313,7 @@ private fun InvoiceDetail(inv: Invoice, customers: List<erp.core.models.Customer
         OwnerDeleteCodeSheet(deletion, onDismiss = { paymentAsk = null }, onDone = { acted(outcome) })
     }
     pdf?.let { InvoicePdfDialog(it, onDismiss = { pdf = null }) }
+    erp.app.ui.QuickPdfBusy(quick)
 }
 
 /** The payment sheet for an invoice (the kit's PaymentSheet), the balance one tap away. */

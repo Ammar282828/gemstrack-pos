@@ -30,7 +30,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import erp.app.data.ErpApi
 import erp.app.data.ServerShelf
-import erp.app.device.shareBytes
 import erp.app.nav.LocalNavigator
 import erp.app.ui.icons.Symbols
 import erp.core.logic.isWalkInName
@@ -149,20 +148,13 @@ fun CustomerContactActions(
     val number = if (walkIn) "" else CustomerContactLinks.e164(phone)
     var asking by remember { mutableStateOf(false) }
     var more by remember { mutableStateOf(false) }
-    var failure by remember { mutableStateOf<String?>(null) }
     if (number.isEmpty() && doc == null && onAddPhone == null) return
 
+    // Share PDF goes straight to the system share sheet (Print, WhatsApp, Files), never a viewer first.
+    val quick = rememberQuickPdf()
     fun share(d: CustomerDoc) {
         if (onShare != null) { onShare(); return }
-        scope.launch {
-            try {
-                shareBytes(context, ErpApi.shared.bytes(d.pdfPath), d.fileName, "application/pdf", d.fileName)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                failure = e.message ?: e.toString()
-            }
-        }
+        quick.share(d.pdfPath, d.fileName, d.fileName)
     }
 
     Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
@@ -197,10 +189,7 @@ fun CustomerContactActions(
         SendDocDialog(doc, if (number.isNotEmpty()) number else if (walkIn) phone.orEmpty() else "", if (walkIn) null else customerName,
             onDismiss = { asking = false }, sent = { asking = false; sent?.invoke(it) })
     }
-    failure?.let { why ->
-        AlertDialog(onDismissRequest = { failure = null }, title = { Text("Could not open the PDF") }, text = { Text(why) },
-            confirmButton = { TextButton(onClick = { failure = null }) { Text("OK") } })
-    }
+    QuickPdfBusy(quick)
 }
 
 /**
@@ -312,7 +301,7 @@ fun CustomerContactDropdown(
     val walkIn = CustomerContactLinks.isWalkIn(customerId, customerName)
     val number = if (walkIn) "" else CustomerContactLinks.e164(phone)
     var asking by remember { mutableStateOf(false) }
-    var failure by remember { mutableStateOf<String?>(null) }
+    val quick = rememberQuickPdf()
 
     DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
         for (item in ContactMenuPlan.items(number, walkIn, customerId, doc?.kind?.noun)) {
@@ -339,17 +328,7 @@ fun CustomerContactDropdown(
                         ContactMenuPlan.Kind.Message -> openUri(context, Intent.ACTION_SENDTO, CustomerContactLinks.sms(number))
                         ContactMenuPlan.Kind.AddPhone -> customerId?.let { navigator.open("/customers/$it/edit") }
                         ContactMenuPlan.Kind.SendPdf -> asking = true
-                        ContactMenuPlan.Kind.SharePdf -> doc?.let { d ->
-                            scope.launch {
-                                try {
-                                    shareBytes(context, ErpApi.shared.bytes(d.pdfPath), d.fileName, "application/pdf", d.fileName)
-                                } catch (e: CancellationException) {
-                                    throw e
-                                } catch (e: Exception) {
-                                    failure = e.message ?: e.toString()
-                                }
-                            }
-                        }
+                        ContactMenuPlan.Kind.SharePdf -> doc?.let { d -> quick.share(d.pdfPath, d.fileName, d.fileName) }
                         ContactMenuPlan.Kind.CopyNumber -> copyNumber(context, number)
                     }
                 },
@@ -360,8 +339,5 @@ fun CustomerContactDropdown(
         SendDocDialog(doc, if (number.isNotEmpty()) number else if (walkIn) phone.orEmpty() else "", if (walkIn) null else customerName,
             onDismiss = { asking = false }, sent = { asking = false; note.show(Note(it)) })
     }
-    failure?.let { why ->
-        AlertDialog(onDismissRequest = { failure = null }, title = { Text("Could not open the PDF") }, text = { Text(why) },
-            confirmButton = { TextButton(onClick = { failure = null }) { Text("OK") } })
-    }
+    QuickPdfBusy(quick)
 }

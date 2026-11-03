@@ -1,6 +1,7 @@
 package erp.app.screens.orders
 
 import erp.app.screens.voice.voiceClearance
+import erp.app.screens.neworder.slipTarget
 import erp.app.ui.SegmentedColumn
 import erp.app.ui.ledgerRow
 import erp.app.ui.icons.Symbols
@@ -156,6 +157,7 @@ private fun Detail(shelfOrder: Order) {
     val book = LocalBook.current
     val session = LocalSession.current
     val navigator = LocalNavigator.current
+    val quick = erp.app.ui.rememberQuickPdf()
     val haptics = rememberHaptics()
     val scope = rememberCoroutineScope()
     val me by session.me.collectAsStateWithLifecycle()
@@ -225,6 +227,7 @@ private fun Detail(shelfOrder: Order) {
         }
     }
     val step = barStep()
+    erp.app.ui.QuickPdfBusy(quick)
     val offersAdvance = OrdersLogic.offersAdvance(order, stage, isOwner)
 
     fun run(step: OrderNextStep) {
@@ -248,7 +251,8 @@ private fun Detail(shelfOrder: Order) {
             onStatus = ::choose,
             onAdvance = { advancing = true },
             onFinalize = { navigator.open(OrderPaths.finalize(order.id)) },
-            onSlip = { navigator.open(OrderPaths.slip(order.id)) },
+            onSlip = { slipTarget(order.id).let { quick.share(it.path, it.fileName, it.title) } },
+            onViewSlip = { navigator.open(OrderPaths.slip(order.id)) },
             onMessage = { notifying = true },
             onSendToKarigar = { sendingToKarigar = true },
             onTrack = { tracking = true },
@@ -721,6 +725,7 @@ private fun MoreMenu(
     onAdvance: () -> Unit,
     onFinalize: () -> Unit,
     onSlip: () -> Unit,
+    onViewSlip: () -> Unit,
     onMessage: () -> Unit,
     onSendToKarigar: () -> Unit,
     onTrack: () -> Unit,
@@ -764,8 +769,9 @@ private fun MoreMenu(
         }
         HorizontalDivider()
         MenuHeader("Share")
-        // The workshop slip: printed, saved or sent from the share sheet.
-        item("Print slip", Symbols.Print, onClick = onSlip)()
+        // The workshop slip: straight to the share sheet (Print, WhatsApp, Files); View slip opens it for looking.
+        item("Print or share slip", Symbols.Print, onClick = onSlip)()
+        item("View slip", Symbols.PictureAsPdf, onClick = onViewSlip)()
         item("Message the customer", Symbols.Chat, onClick = onMessage)()
         item("Send to karigar", Symbols.Send, onClick = onSendToKarigar)()
         if (tcs != null || canBook) {
