@@ -83,6 +83,45 @@ export function buildPhotoCaption(order: Order, index: number, orderNote?: strin
   return [orderNote ? `${orderNote}` : '', pieceText(order, index)].filter(Boolean).join('\n').slice(0, 1000);
 }
 
+/** The caption cap WhatsApp allows is 1024; the words stay under 1000. */
+export const KARIGAR_CAPTION_MAX = 1000;
+/** A text message (a piece with no photo) may run longer. */
+export const KARIGAR_TEXT_MAX = 4000;
+
+/**
+ * What will be sent for each piece, as the phones show it for editing: the caption of its first photo
+ * ("Order <id>" + its lines), which is also the text sent when the piece has no photo.
+ */
+export function pieceMessages(order: Order, indexes?: number[] | null): KarigarPiece[] {
+  const chosen = chooseKarigarPieces(order, indexes);
+  const many = order.items.length > 1;
+  return chosen.map(index => {
+    const item = order.items[index];
+    const category = categorySingular(item.itemCategory) || staticCategories.find(c => c.id === item.itemCategory)?.title || '';
+    const name = category || (item.description || '').trim() || 'Piece';
+    return {
+      index,
+      title: many ? `Piece ${index + 1} of ${order.items.length}: ${name}` : name,
+      text: buildPhotoCaption(order, index, `Order ${order.id}`),
+    };
+  });
+}
+
+/**
+ * The owner's edited words from a request body: { "<pieceIndex>": "words" }. Strings only, trimmed; undefined when
+ * none were sent; null when the shape is wrong (the route answers 400).
+ */
+export function parseTextOverrides(raw: unknown): Map<number, string> | undefined | null {
+  if (raw === undefined || raw === null) return undefined;
+  if (typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const out = new Map<number, string>();
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (!/^\d{1,4}$/.test(k) || typeof v !== 'string') return null;
+    out.set(Number(k), v.trim());
+  }
+  return out;
+}
+
 /** +92 3•• •••• 123 — enough for the owner to recognise the number, not to read it. */
 export function maskPhone(digits: string): string {
   const d = digits.replace(/\D/g, '');

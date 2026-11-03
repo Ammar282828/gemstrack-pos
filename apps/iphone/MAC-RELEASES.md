@@ -41,3 +41,4 @@ app archived for TestFlight's "Shop" group, and the iPhone app built beside it a
 - 2026-11-03: Choose a number from your contacts when adding or editing a customer or karigar, and when sending a PDF or message on WhatsApp.
 - 2026-11-03: Choose a number from your contacts when adding or editing a customer or karigar, and when sending a PDF or message on WhatsApp.
 - 2026-11-03: Choose a number from your contacts when adding or editing a customer or karigar, and when sending a PDF or message on WhatsApp.
+- 2026-11-03: Edit the words before sending an order to a karigar, and the send carries on in the background while you keep working.

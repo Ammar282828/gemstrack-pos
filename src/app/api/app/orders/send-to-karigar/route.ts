@@ -3,7 +3,7 @@
  * the owner, 2026-11-02 — "send order details to a karigar … the description, picture, weight, any
  * instructions … from the order page or the workshop page".
  *
- *   { orderId, pieceIndexes?: number[], karigarId?: string, phone?: string }
+ *   { orderId, pieceIndexes?: number[], karigarId?: string, phone?: string, texts?: { [pieceIndex]: string } }
  *
  * Owners and staff. Per karigar: each chosen piece's reference photos as images (the first of a piece
  * captioned with its details), then one text with the order number, due date and every piece in the
@@ -12,7 +12,9 @@
  *
  * Without `karigarId`, each piece goes to its assigned karigar (pieces nobody holds are refused);
  * with it, `pieceIndexes` defaults to the pieces assigned to him, else all. `phone` replaces the
- * number on file (one karigar only). `preview: true` returns the words (and photo count) without sending. One photo failing does not stop the rest.
+ * number on file (one karigar only). `preview: true` returns the words per piece (and photo count) without sending.
+ * `texts` replaces a piece's words (its photo caption, or its text when it has no photo); "" sends the photo bare. A piece's words only ever
+ * go to that piece's own karigar. One photo failing does not stop the rest.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -22,7 +24,7 @@ import { staffView } from '@/lib/staff-view';
 import { itemPhotoRefs } from '@/lib/order-photos';
 import { readOrderPhotos } from '@/lib/order-photos-server';
 import { sendWhatsAppFile, sendWhatsAppMessage, toWhatsAppNumber, whatsAppProvider } from '@/lib/whatsapp';
-import { buildKarigarMessage, buildPhotoCaption, chooseKarigarPieces, maskPhone } from '@/lib/karigar-message';
+import { buildKarigarMessage, chooseKarigarPieces, maskPhone, parseTextOverrides, pieceMessages, KARIGAR_CAPTION_MAX, KARIGAR_TEXT_MAX } from '@/lib/karigar-message';
 import { STORE_CONFIG } from '@/lib/store-config';
 import { dailyCap, WHATSAPP_PER_DAY } from '@/lib/daily-cap';
 import type { Order } from '@/lib/store';
@@ -54,7 +56,7 @@ async function photoBlob(src: string): Promise<{ blob: Blob; name: string } | nu
 export async function POST(req: NextRequest) {
   const who = await pdfViewer(req);
   if (who instanceof NextResponse) return who;
-  const body = (await req.json().catch(() => ({}))) as { orderId?: unknown; pieceIndexes?: unknown; karigarId?: unknown; phone?: unknown; preview?: unknown };
+  const body = (await req.json().catch(() => ({}))) as { orderId?: unknown; pieceIndexes?: unknown; karigarId?: unknown; phone?: unknown; preview?: unknown; texts?: unknown };
   const preview = body.preview === true;
   if (!preview) {
     const capped = await dailyCap('whatsapp', who.email, req, WHATSAPP_PER_DAY);
@@ -65,6 +67,8 @@ export async function POST(req: NextRequest) {
   const phoneOverride = typeof body.phone === 'string' ? body.phone.trim() : '';
   if (!isDocId(orderId)) return bad('Say which order.');
   if (karigarId && !isDocId(karigarId)) return bad('Say which karigar.');
+  const overrides = parseTextOverrides(body.texts);
+  if (overrides === null) return bad('The edited words are not in the right shape.');
   const asked = Array.isArray(body.pieceIndexes) ? body.pieceIndexes.filter((n): n is number => typeof n === 'number') : null;
   if (!preview && !whatsAppProvider()) return bad("This shop's WhatsApp line isn't connected to the ERP.", 503);
 
@@ -100,8 +104,9 @@ export async function POST(req: NextRequest) {
       for (const [id, indexes] of groups) {
         const k = await adminDb.collection('karigars').doc(id).get();
         const name = String(k.get('name') || '');
+        const pieces = pieceMessages(order, indexes).map(p => ({ ...p, photos: itemPhotoRefs(order.items[p.index]).length }));
         messages.push({
-          karigarId: id, pieces: indexes, message: buildKarigarMessage(order, indexes, { karigarName: name, shopName }),
+          karigarId: id, pieces, message: pieces.map(p => p.text).join('\n\n'),
           photos: indexes.reduce((n, i) => n + itemPhotoRefs(order.items[i]).length, 0),
         });
       }
@@ -133,7 +138,8 @@ export async function POST(req: NextRequest) {
       for (let n = 0; n < indexes.length; n++) {
         // The piece's details ride on its first photo (owner, 2026-11-03: "make the message very simple"): one
         // message per piece, never the same details again in a text after it.
-        const caption = buildPhotoCaption(order, indexes[n], `Order ${order.id}`);
+        const edited = overrides?.get(indexes[n]);
+        const caption = edited !== undefined ? edited.slice(0, KARIGAR_CAPTION_MAX) : pieceMessages(order, [indexes[n]])[0].text;
         let first = true;
         for (const r of refs[n]) {
           try {
@@ -153,8 +159,16 @@ export async function POST(req: NextRequest) {
       }
       // Only the pieces without a photo still need their words sent.
       const uncaptioned = indexes.filter(i => !captioned.has(i));
-      if (uncaptioned.length) {
-        await sendWhatsAppMessage(to, buildKarigarMessage(order, uncaptioned, { karigarName: name, shopName, photoCount }));
+      // Edited ones are sent as the owner wrote them (nothing when emptied); the rest as one generated message.
+      const untouched = uncaptioned.filter(i => !overrides?.has(i));
+      for (const i of uncaptioned.filter(i => overrides?.has(i))) {
+        const words = (overrides!.get(i) || '').slice(0, KARIGAR_TEXT_MAX);
+        if (!words) continue;
+        await sendWhatsAppMessage(to, words);
+        sent++;
+      }
+      if (untouched.length) {
+        await sendWhatsAppMessage(to, buildKarigarMessage(order, untouched, { karigarName: name, shopName, photoCount }));
         sent++;
       }
       try {

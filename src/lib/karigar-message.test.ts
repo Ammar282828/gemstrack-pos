@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildKarigarMessage, buildPhotoCaption, chooseKarigarPieces, firstName, maskPhone } from './karigar-message';
+import { buildKarigarMessage, buildPhotoCaption, chooseKarigarPieces, firstName, maskPhone, parseTextOverrides, pieceMessages } from './karigar-message';
 import type { Order, OrderItem } from '@/lib/store';
 
 const piece = (o: Partial<OrderItem>): OrderItem => ({
@@ -51,5 +51,27 @@ describe('helpers', () => {
     expect(firstName('  Ayesha  Khan ')).toBe('Ayesha');
     expect(firstName(undefined)).toBe('');
     expect(maskPhone('923001234567')).toBe('+92•••••••567');
+  });
+});
+
+describe('the words per piece, editable', () => {
+  const o = order([piece({}), piece({ description: 'Pendant', size: '' })]);
+  it('gives each chosen piece its caption, titled', () => {
+    const p = pieceMessages(o, [1]);
+    expect(p).toHaveLength(1);
+    expect(p[0].index).toBe(1);
+    expect(p[0].title).toMatch(/^Piece 2 of 2/);
+    expect(p[0].text).toBe(buildPhotoCaption(o, 1, 'Order ORD-000042'));
+  });
+  it('defaults to every piece and drops indexes that do not exist', () => {
+    expect(pieceMessages(o).map(p => p.index)).toEqual([0, 1]);
+    expect(pieceMessages(o, [1, 9]).map(p => p.index)).toEqual([1]);
+  });
+  it('reads the edited words: trimmed strings by index, else refuses', () => {
+    expect(parseTextOverrides(undefined)).toBeUndefined();
+    expect(parseTextOverrides({ '0': '  hi  ', '1': '' })).toEqual(new Map([[0, 'hi'], [1, '']]));
+    expect(parseTextOverrides({ a: 'x' })).toBeNull();
+    expect(parseTextOverrides({ '0': 5 })).toBeNull();
+    expect(parseTextOverrides(['x'])).toBeNull();
   });
 });

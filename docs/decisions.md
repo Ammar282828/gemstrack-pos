@@ -542,6 +542,13 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
 
 ### Send to karigar
 
+- **The words are the owner's to edit, and sending happens in the background** (owner, 2026-11-03: "let me edit the message
+  being sent to karigar, and send message in background"). Each ticked piece shows its words in a text box (the caption the
+  server would send, `pieceMessages` in `lib/karigar-message.ts`; Reset restores them); only edited pieces go in the request as
+  `texts: { "<pieceIndex>": "words" }` (≤ 1000 characters as a caption; empty sends the photo bare), and a piece's words only
+  ever go to that piece's own karigar. Send closes the dialog / sheet at once; the web shows "Sending to X…" then "Sent to X" or
+  the error with Retry (global toast); iPhone/Mac hand it to `KarigarSendQueue` (the Outbox's own task, in a background task)
+  and say the result app-wide with Retry. Never retried by itself: a timeout may have delivered photos already.
 - **Only what the karigar works from** (owner, 2026-11-03: "why are you sending wastage to the karigars? Make the message
   very simple"): one WhatsApp message per piece, its photo with "Order <id>", the name, description, metal and karat, weight,
   size, stones / diamonds / stone weight / finish and the instructions as the caption (more photos of it follow without words; a piece

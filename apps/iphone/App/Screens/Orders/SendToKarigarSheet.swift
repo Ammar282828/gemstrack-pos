@@ -8,6 +8,11 @@ import ERPCore
 /// the due date. Never a price, and the customer only by first name. Not a money op, so it is sent straight, not
 /// through `/api/app/write`. "Share…" instead hands the photos and the same words to the system share sheet, for
 /// sending from the owner's own WhatsApp.
+///
+/// Each ticked piece's words are in an editor under its toggle, filled from the server's builder (Reset puts the
+/// generated words back); only the edited ones go in the request (`texts`), and "Share…" shares what is shown. Send
+/// closes the sheet at once and the send runs in the background (`KarigarSendQueue`), its result said app-wide
+/// (owner, 2026-11-03), so `onSent` is no longer called here.
 struct SendToKarigarSheet: View {
     let order: Order
     var pieces: [Int]? = nil
@@ -20,8 +25,10 @@ struct SendToKarigarSheet: View {
     @State private var ticked: Set<Int> = []
     @State private var phone = ""
     @State private var text = ""
+    /// What the server would send per piece, and the owner's edits over it (by piece index).
+    @State private var generated: [Int: String] = [:]
+    @State private var edits: [Int: String] = [:]
     @State private var photoCount = 0
-    @State private var busy = false
     @State private var preparingShare = false
     @State private var error: String?
     @State private var share: SendToKarigarShare?
@@ -33,6 +40,9 @@ struct SendToKarigarSheet: View {
     private var number: String { CustomerKit.whatsAppNumber(phone.isEmpty ? onFile : phone) }
     private var numberOK: Bool { number.count >= 11 && number.count <= 15 }
     private var indexes: [Int] { ticked.sorted() }
+    private func words(_ i: Int) -> String { edits[i] ?? generated[i] ?? "" }
+    /// What "Share…" hands over: each ticked piece's words as shown.
+    private var sharedWords: String { indexes.map(words).filter { !$0.isEmpty }.joined(separator: "\n\n") }
 
     var body: some View {
         NavigationStack {
@@ -71,19 +81,25 @@ struct SendToKarigarSheet: View {
                                 }
                             }
                         }
+                        if ticked.contains(i) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                TextEditor(text: Binding(get: { words(i) }, set: { edits[i] = $0 }))
+                                    .font(.subheadline)
+                                    .frame(minHeight: 96)
+                                    .scrollContentBackground(.hidden)
+                                    .accessibilityLabel("Message for piece \(i + 1)")
+                                if edits[i] != nil {
+                                    Button("Reset") { edits[i] = nil }
+                                        .font(.caption)
+                                }
+                            }
+                        }
                     }
                 } header: {
                     LedgerHeading(title: "Pieces")
                 } footer: {
-                    if photoCount > 0 { Text("\(photoCount) reference photo\(photoCount == 1 ? "" : "s") go first. No prices are sent.") }
+                    if photoCount > 0 { Text("\(photoCount) reference photo\(photoCount == 1 ? "" : "s") go first; each piece's words ride on its first photo. No prices are sent.") }
                     else { Text("No prices are sent.") }
-                }
-                if !text.isEmpty {
-                    Section {
-                        Text(text).font(.subheadline).textSelection(.enabled)
-                    } header: {
-                        LedgerHeading(title: "The message")
-                    }
                 }
                 }
                 .houseRows()
@@ -100,12 +116,12 @@ struct SendToKarigarSheet: View {
                     Button { Task { await prepareShare() } } label: {
                         if preparingShare { ProgressView() } else { Label("Share\u{2026}", systemImage: "square.and.arrow.up") }
                     }
-                    .disabled(preparingShare || busy || indexes.isEmpty || text.isEmpty)
+                    .disabled(preparingShare || indexes.isEmpty || sharedWords.isEmpty)
                 }
             }
-            .actionBar(primary: ActionBar.Action("Send on WhatsApp", systemImage: "paperplane", isBusy: busy,
+            .actionBar(primary: ActionBar.Action("Send on WhatsApp", systemImage: "paperplane", isBusy: false,
                                                  isDisabled: chosen.isEmpty || indexes.isEmpty || !numberOK) {
-                Task { await send() }
+                send()
             })
             .sheet(item: $share) { MarketingShareSheet(items: $0.items) }
         }
@@ -154,6 +170,12 @@ struct SendToKarigarSheet: View {
         if !chosen.isEmpty { b["karigarId"] = chosen }
         if !phone.trimmingCharacters(in: .whitespaces).isEmpty { b["phone"] = phone.trimmingCharacters(in: .whitespaces) }
         if preview { b["preview"] = true }
+        else {
+            // Only the words the owner changed; an emptied one sends its photo bare.
+            var texts: [String: String] = [:]
+            for i in indexes { if let e = edits[i] { texts[String(i)] = e.trimmingCharacters(in: .whitespacesAndNewlines) } }
+            if !texts.isEmpty { b["texts"] = texts }
+        }
         return b
     }
 
@@ -163,25 +185,23 @@ struct SendToKarigarSheet: View {
         guard !Task.isCancelled else { return }
         guard let out = try? await ERPAPI.shared.send("/api/app/orders/send-to-karigar", requestBody(preview: true)) else { return }
         guard !Task.isCancelled else { return }
-        let first = (out["messages"] as? [[String: Any]])?.first
+        let groups = out["messages"] as? [[String: Any]] ?? []
         text = out["message"] as? String ?? ""
-        photoCount = first?["photos"] as? Int ?? 0
+        photoCount = groups.first?["photos"] as? Int ?? 0
+        var fresh: [Int: String] = [:]
+        for g in groups {
+            // Older servers sent `pieces` as the plain indexes: then the one joined `message` is all there is.
+            for p in g["pieces"] as? [[String: Any]] ?? [] {
+                if let i = p["index"] as? Int { fresh[i] = p["text"] as? String ?? "" }
+            }
+        }
+        generated.merge(fresh) { _, new in new }
     }
 
-    private func send() async {
-        busy = true
-        defer { busy = false }
-        do {
-            let out = try await ERPAPI.shared.send("/api/app/orders/send-to-karigar", requestBody(preview: false), timeout: 180)
-            let sent = out["sent"] as? Int ?? 0
-            let to = out["to"] as? String ?? ""
-            var detail = "\(sent) message\(sent == 1 ? "" : "s") to \(to)"
-            if let failed = out["photosFailed"] as? Int, failed > 0 { detail += " · \(failed) photo\(failed == 1 ? "" : "s") did not go" }
-            onSent(Note(title: "Sent to \(karigar?.name ?? "the karigar")", detail: detail))
-            dismiss()
-        } catch {
-            self.error = error.localizedDescription
-        }
+    /// Hands the request to the background queue and closes: the result is said app-wide, with Retry.
+    private func send() {
+        KarigarSendQueue.shared.send(body: requestBody(preview: false), karigarName: karigar?.name ?? "the karigar")
+        dismiss()
     }
 
     /// The pieces' photos as files, and the words: the system share sheet (the owner's own WhatsApp, AirDrop, Messages).
@@ -201,7 +221,7 @@ struct SendToKarigarSheet: View {
                 if (try? jpeg.write(to: url)) != nil { items.append(url) }
             }
         }
-        items.append(text)
+        items.append(sharedWords.isEmpty ? text : sharedWords)
         share = SendToKarigarShare(items: items)
     }
 }

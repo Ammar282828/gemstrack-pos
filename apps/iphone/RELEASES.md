@@ -75,3 +75,4 @@ cloud session cannot press that button, but it can push. One line per build, new
 - 2026-11-03: A printer button on every invoice and order card: one tap prints the invoice or the order's slip.
 - 2026-11-03: Choose a number from your contacts when adding or editing a customer or karigar, and when sending a PDF or message on WhatsApp; the name fills in too.
 - 2026-11-03: Choose a number from your contacts when adding or editing a customer or karigar, and when sending a PDF or message on WhatsApp; the name fills in too.
+- 2026-11-03: Edit the words before sending an order to a karigar, and the send carries on in the background while you keep working.
