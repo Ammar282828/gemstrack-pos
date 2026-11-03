@@ -28,24 +28,33 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 html.ui-glass {
-  --gc-blur: 16px;
-  --gc-sat: 1.4;
-  --gc-fill: var(--popover) / 0.62;       /* true glass */
+  /* True glass is mostly what shows through it: a fill under half, the blur doing the legibility
+     work, a saturate so the ground's colour comes through richer than it is. A fill of 0.6 and up
+     is a solid card with a blur nobody can see (the first cut, judged on the mock: the true and
+     the lite cards were indistinguishable). */
+  --gc-blur: 20px;
+  --gc-sat: 1.5;
+  --gc-fill: var(--popover) / 0.42;       /* true glass */
   --gc-lite: var(--card) / 0.74;          /* lite: the house card colour */
-  --gc-edge: 0 0% 100% / 0.7;             /* specular ring, lit corner */
-  --gc-edge-dim: 0 0% 100% / 0;
+  --gc-edge: 0 0% 100% / 0.85;            /* specular ring, lit corner */
+  --gc-edge-dim: 0 0% 100% / 0.08;
   --gc-hair: 220 30% 10% / 0.07;          /* outer hairline so white reads on a pale ground */
-  --gc-top: 0 0% 100% / 0.55;
-  --gc-shadow: 0 10px 28px -16px hsl(220 30% 10% / 0.3);
+  --gc-top: 0 0% 100% / 0.6;
+  --gc-under: 220 30% 10% / 0.06;         /* the shadow edge of the rim: light leaves the glass darker there */
+  --gc-thick: 0 0% 100% / 0.14;           /* a faint inner glow: the glass has a thickness */
+  --gc-shadow: 0 12px 30px -14px hsl(220 30% 10% / 0.28);
   --gc-lite-shadow: 0 6px 18px -14px hsl(220 30% 10% / 0.22);
 }
 html.ui-glass.dark {
-  --gc-fill: var(--popover) / 0.58;
+  --gc-fill: var(--popover) / 0.38;
   --gc-lite: var(--card) / 0.7;
-  --gc-edge: 0 0% 100% / 0.26;
+  --gc-edge: 0 0% 100% / 0.32;
+  --gc-edge-dim: 0 0% 100% / 0.03;
   --gc-hair: 0 0% 0% / 0.4;
-  --gc-top: 0 0% 100% / 0.1;
-  --gc-shadow: 0 14px 34px -16px hsl(0 0% 0% / 0.7);
+  --gc-top: 0 0% 100% / 0.12;
+  --gc-under: 0 0% 0% / 0.35;
+  --gc-thick: 0 0% 100% / 0.05;
+  --gc-shadow: 0 16px 36px -14px hsl(0 0% 0% / 0.7);
   --gc-lite-shadow: 0 8px 22px -14px hsl(0 0% 0% / 0.6);
 }
 
@@ -53,11 +62,12 @@ html.ui-glass.dark {
       glass already uses. Three wide radial gradients: the house's primary, its second
       chart hue, a warm third. Specificity is raised so it wins over globals.css. ─── */
 html.ui-glass.ui-glass body::before {
+  /* Strong enough that a card at 0.42 fill has colour to show; still a wash, not a picture. */
   background-image:
-    radial-gradient(52rem 38rem at 6% -8%, hsl(var(--primary) / 0.22), transparent 62%),
-    radial-gradient(46rem 34rem at 98% 20%, hsl(var(--chart-2) / 0.16), transparent 62%),
-    radial-gradient(54rem 38rem at 40% 108%, hsl(var(--chart-3) / 0.15), transparent 62%),
-    radial-gradient(40rem 30rem at 62% 46%, hsl(var(--foreground) / 0.025), transparent 60%);
+    radial-gradient(52rem 38rem at 6% -8%, hsl(var(--primary) / 0.32), transparent 62%),
+    radial-gradient(46rem 34rem at 98% 20%, hsl(var(--chart-2) / 0.24), transparent 62%),
+    radial-gradient(54rem 38rem at 40% 108%, hsl(var(--chart-3) / 0.22), transparent 62%),
+    radial-gradient(40rem 30rem at 62% 46%, hsl(var(--foreground) / 0.03), transparent 60%);
 }
 html.ui-glass.ui-glass.dark body::before {
   background-image:
@@ -81,18 +91,22 @@ html.ui-glass .glass-lite {
     var(--gc-lite-shadow);
 }
 
-/* ── TRUE glass. `isolation` + `contain: paint` keep the blur layer to the card's own
-      box, so it does not promote the page; the prefixed property is for Safari < 18. ── */
+/* ── TRUE glass. `isolation` keeps the blur a layer of the card's own; NOT `contain: paint`,
+      which clips everything outside the box — the card's own drop shadow and any badge that
+      overhangs (the first cut had it, and the lift was gone). The prefixed property is for
+      Safari < 18. The insets are the lensing: a lit top edge, a darker underside, and a faint
+      inner glow that reads as the glass's thickness. ── */
 html.ui-glass .glass-card,
 html.ui-glass .glass-zone .card {
   isolation: isolate;
-  contain: paint;
   background-color: hsl(var(--gc-fill));
   -webkit-backdrop-filter: blur(var(--gc-blur)) saturate(var(--gc-sat));
   backdrop-filter: blur(var(--gc-blur)) saturate(var(--gc-sat));
   box-shadow:
     inset 0 1px 0 hsl(var(--gc-top)),
+    inset 0 -1px 0 hsl(var(--gc-under)),
     inset 0 0 0 1px hsl(var(--gc-hair)),
+    inset 0 0 28px hsl(var(--gc-thick)),
     var(--gc-shadow);
 }
 /* A positioned card (sticky/absolute) keeps its position; the ring needs a containing block. */
@@ -122,7 +136,6 @@ html.ui-glass :is(.glass-window, .glass-popover, .glass-sheet, .glass-drawer, .g
 html.ui-glass .cv-list .glass-card {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
-  contain: none;
   background-color: hsl(var(--gc-lite));
   box-shadow: inset 0 1px 0 hsl(var(--gc-top)), inset 0 0 0 1px hsl(var(--gc-hair)), var(--gc-lite-shadow);
 }
@@ -151,7 +164,6 @@ html.ui-glass :is(.card, .glass-card):focus-within { outline: none; }
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
     box-shadow: none;
-    contain: none;
   }
   html.ui-glass .glass-card::after, html.ui-glass .glass-zone .card::after { content: none; }
 }
@@ -166,12 +178,11 @@ html.ui-glass :is(.card, .glass-card):focus-within { outline: none; }
     backdrop-filter: none;
     box-shadow: none;
     border: 1px solid hsl(var(--border));
-    contain: none;
   }
   html.ui-glass .glass-card::after, html.ui-glass .glass-zone .card::after { content: none; }
 }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   html.ui-glass .glass-card,
-  html.ui-glass .glass-zone .card { background-color: hsl(var(--card) / 0.92); contain: none; }
+  html.ui-glass .glass-zone .card { background-color: hsl(var(--card) / 0.92); }
   html.ui-glass .glass-card::after, html.ui-glass .glass-zone .card::after { content: none; }
 }
