@@ -56,6 +56,36 @@ object MoneyPaths {
     const val revenueWeb = "/additional-revenue?web=1"
     const val hisaabWeb = "/hisaab?web=1"
 
+    /** The expense report the ERP draws for what is on screen (src/lib/expense-report-pdf.ts, /api/app/pdf/expenses). */
+    fun expenseReport(period: ExpensePeriod, fromDay: String?, toDay: String?, grouping: ExpenseGrouping, category: String, search: String): String {
+        val id = when (period) {
+            ExpensePeriod.thisMonth -> "this-month"
+            ExpensePeriod.lastMonth -> "last-month"
+            ExpensePeriod.last30 -> "last-30"
+            ExpensePeriod.thisYear -> "this-year"
+            ExpensePeriod.all -> "all"
+            ExpensePeriod.custom -> "custom"
+        }
+        var q = "period=$id&grouping=${grouping.name}"
+        q += "&category=" + component(category.ifEmpty { "All" })
+        q += "&search=" + component(search.trim())
+        if (period == ExpensePeriod.custom && !fromDay.isNullOrEmpty()) {
+            q += "&start=" + component(fromDay)
+            if (!toDay.isNullOrEmpty()) q += "&end=" + component(toDay)
+        }
+        return "/api/app/pdf/expenses?$q"
+    }
+
+    /** Everyone outstanding whose name matches the search, as the ERP prints it (the chips are not applied). */
+    fun hisaabSummary(search: String): String {
+        val q = search.trim()
+        return "/api/app/pdf/hisaab" + (if (q.isEmpty()) "" else "?q=" + component(q))
+    }
+
+    /** One person's Ledger Statement, as the ledger page's Print saves it. */
+    fun ledgerPdf(id: String, isCustomer: Boolean): String =
+        "/api/app/pdf/hisaab/" + encode(id) + "?type=" + (if (isCustomer) "customer" else "karigar")
+
     /** The partners' page: a drawing is changed there, with its withdrawal (lib/writes/expense-admin.ts). */
     const val shareholders = "/shareholders"
 

@@ -91,6 +91,8 @@ class PageActivity : FragmentActivity() {
 
         /** Opens the page over the caller; the platform's own transition. */
         fun start(context: Context, path: String) {
+            // "Talk to ERP" is a capsule over what is open, never a page (every route to /voice lands here).
+            if (erp.app.screens.voice.VoiceOverlay.handles(path)) { erp.app.screens.voice.VoiceOverlay.request(); return }
             val intent = intent(context, path)
             // Not from an Activity (never today): a task of its own is the only way to start one.
             if (context !is android.app.Activity) intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
