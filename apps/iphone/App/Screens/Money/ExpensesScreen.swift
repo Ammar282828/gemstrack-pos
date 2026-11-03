@@ -80,9 +80,8 @@ struct ExpensesScreen: View {
             }
             .presentationSizing(.form)
         }
-        .navigationDestination(item: $report) { t in
-            PDFDocumentScreen(path: t.path, fileName: t.fileName, title: t.title)
-        }
+        // Straight to the share sheet (Print, WhatsApp, Files), without opening the PDF first (PDFQuickShare.swift).
+        .pdfQuickShare($report)
         .navigationDestination(isPresented: $openShareholders) {
             PlaceScreen(path: MoneyPaths.shareholders)
         }
@@ -426,9 +425,8 @@ extension ExpensesScreen {
             }
             .presentationSizing(.form)
         }
-        .navigationDestination(item: $report) { t in
-            PDFDocumentScreen(path: t.path, fileName: t.fileName, title: t.title)
-        }
+        // Straight to the share sheet (Print, WhatsApp, Files), without opening the PDF first (PDFQuickShare.swift).
+        .pdfQuickShare($report)
         .navigationDestination(isPresented: $openShareholders) {
             PlaceScreen(path: MoneyPaths.shareholders)
         }

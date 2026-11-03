@@ -354,6 +354,10 @@ struct MacCustomersPlace: View {
             MacAction("Call", symbol: "phone", enabled: call != nil, id: "call") { if let call { openURL(call) } },
             MacAction("WhatsApp", symbol: "message", enabled: whatsApp != nil, id: "whatsapp") { if let whatsApp { openURL(whatsApp) } },
             MacAction("Message", symbol: "text.bubble", enabled: message != nil, id: "message") { if let message { openURL(message) } },
+            // The end of the one Contact order (MacContact): the number the customer page reaches, as text.
+            MacContact.copyNumber(one.map { (c: Customer) -> String in
+                MacContact.number(CustomerKit.filled(c.phone) ?? c.altPhone, customerId: c.id, customerName: nil)
+            } ?? ""),
         ]
         if hisaab {
             out.append(MacAction("Open Hisaab", symbol: "book.closed", enabled: one != nil, id: "hisaab") {

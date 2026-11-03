@@ -256,6 +256,8 @@ struct InvoicesList: View {
     /// Send on WhatsApp from a swipe: the invoice page's own send (InvoiceWhatsAppSend).
     @State private var sending: Invoice?
     @State private var pdf: InvoicePDFTarget?
+    /// Share or print straight away, without opening the PDF first (PDFQuickShare.swift).
+    @State private var quickPDF: InvoicePDFTarget?
     @State private var note: Note?
     /// The payment link to make (InvoicePaymentLink): set to start it.
     @State private var linking: Invoice?
@@ -306,6 +308,7 @@ struct InvoicesList: View {
                 rangeTo = from == nil ? nil : to
             }
         }
+        .pdfQuickShare($quickPDF)
         .navigationDestination(item: $pdf) { t in
             PDFDocumentScreen(path: t.path, fileName: t.fileName, title: t.title)
         }
@@ -326,7 +329,8 @@ struct InvoicesList: View {
         let scoped = scope(all, stamped)
         let shown = scoped.filter { chip.matches($0) }
         let groups = sections(shown, stamped)
-        let figures = summaryFigures(all)
+        // No figures over the list (owner, 2026-11-03: "remove the upper bar with the summaries in invoices and orders").
+        let figures: [ListFigure] = []
         RecordListScaffold(search: $search, prompt: "Search invoices", isEmpty: groups.isEmpty) {
             emptyState
         } rows: {
@@ -367,8 +371,7 @@ struct InvoicesList: View {
     /// whenever there are any. Parked in the toolbar menu alone (a8d9e4e) it hid them from the owner.
     private func chips(_ scoped: [Invoice]) -> [ListChip] {
         rowChips(scoped).map { c in
-            // Unpaid's count is the Owed to you figure's own "n invoices": said once (CONVENTIONS rule 15).
-            ListChip(id: c.rawValue, title: c.title, count: c == .unpaid ? nil : scoped.filter { c.matches($0) }.count,
+            ListChip(id: c.rawValue, title: c.title, count: scoped.filter { c.matches($0) }.count,
                      chosen: c == chip) {
                 Motion.run(Motion.enter, reduce: reduceMotion) { chip = c }
             }
@@ -473,9 +476,15 @@ struct InvoicesList: View {
     }
 
     private func row(_ inv: Invoice) -> some View {
-        InvoiceListRow(invoice: inv, mine: isMine(inv), dated: grouping != .day)
-            // The page grows out of its row (the id is the route's path).
-            .zoomSource(id: InvoiceFacts.path(inv.id))
+        HStack(spacing: pt(8)) {
+            InvoiceListRow(invoice: inv, mine: isMine(inv), dated: grouping != .day)
+                // The page grows out of its row (the id is the route's path).
+                .zoomSource(id: InvoiceFacts.path(inv.id))
+            // One tap to the printer (owner, 2026-11-03), beside the row rather than inside its link.
+            QuickPrintButton(label: "Print \(inv.id)") {
+                quickPDF = InvoiceFacts.pdfTarget(inv, byCustomer: session.shop.invoiceByCustomer)
+            }
+        }
             // The bill to the customer: the commonest thing after a sale, the same send as the invoice page's.
             .swipeActions(edge: .leading, allowsFullSwipe: false) {
                 Button { sending = inv } label: { Label("Send on WhatsApp", systemImage: "message") }
@@ -502,6 +511,9 @@ struct InvoicesList: View {
                 .zoomSource(id: InvoiceFacts.path(inv.id))
         } footer: {
             RecordCardFooter(label: "Actions for \(inv.id)") {
+                QuickPrintButton(label: "Print \(inv.id)") {
+                    quickPDF = InvoiceFacts.pdfTarget(inv, byCustomer: session.shop.invoiceByCustomer)
+                }
                 if canPay && isOwing(inv) {
                     Button("Take payment", systemImage: "banknote") { paying = inv }
                         .buttonStyle(.borderless).font(.subheadline.weight(.medium))
@@ -522,8 +534,12 @@ struct InvoicesList: View {
                 Button { sending = inv } label: {
                     Label(inv.sentOnWhatsApp == nil ? "Send on WhatsApp" : "Send again on WhatsApp", systemImage: "message")
                 }
+                // Straight to the share sheet (Print, WhatsApp, Files), without opening the PDF first.
+                Button { quickPDF = InvoiceFacts.pdfTarget(inv, byCustomer: session.shop.invoiceByCustomer) } label: {
+                    Label("Print or share PDF", systemImage: "printer")
+                }
                 Button { pdf = InvoiceFacts.pdfTarget(inv, byCustomer: session.shop.invoiceByCustomer) } label: {
-                    Label("Print / PDF", systemImage: "printer")
+                    Label("View PDF", systemImage: "doc.richtext")
                 }
                 // The page's Payment link on an unpaid invoice: Shopify's checkout, copied.
                 if InvoiceFacts.offersPaymentLink(inv) {

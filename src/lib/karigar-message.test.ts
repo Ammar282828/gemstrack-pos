@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildKarigarMessage, buildPhotoCaption, chooseKarigarPieces, firstName, maskPhone } from './karigar-message';
+import { buildKarigarMessage, buildPhotoCaption, chooseKarigarPieces, firstName, maskPhone, parseTextOverrides, pieceMessages } from './karigar-message';
 import type { Order, OrderItem } from '@/lib/store';
 
 const piece = (o: Partial<OrderItem>): OrderItem => ({
@@ -13,27 +13,29 @@ const order = (items: OrderItem[]): Order => ({
 } as unknown as Order);
 
 describe('the message to a karigar', () => {
-  const msg = buildKarigarMessage(order([piece({}), piece({ description: 'Pendant', size: '' })]), [0, 1], { karigarName: 'Usman Ali', photoCount: 2 });
-  it('carries the order, due date, weight, wastage in grams, size and instructions', () => {
-    expect(msg).toContain('ORD-000042');
-    expect(msg).toContain('Due: 20 Nov 2026');
-    expect(msg).toContain('Est. 10g');
-    expect(msg).toContain('Wastage 1.00g');
-    expect(msg).toContain('Size 9');
-    expect(msg).toContain('Deepen the engraving');
-    expect(msg).toContain('Assalam o alaikum Usman,');
-    expect(msg).toContain('2 reference photos');
+  const msg = buildKarigarMessage(
+    order([piece({ stoneDetails: '3 rubies', stoneWeightG: 0.4 }), piece({ description: 'Pendant', size: '' })]),
+    [0, 1], { karigarName: 'Usman Ali', photoCount: 2 });
+  it('carries only the order number and each piece: name, description, size, stones and instructions', () => {
+    expect(msg).toContain('Order ORD-000042');
+    expect(msg).toContain('*Ring with a flat top*');
+    expect(msg).toContain('Metal: Gold (21K)');
+    expect(msg).toContain('Weight: 10g');
+    expect(msg).toContain('Size: 9');
+    expect(msg).toContain('Stones: 3 rubies');
+    expect(msg).toContain('Stone weight: 0.40g');
+    expect(msg).toContain('Instructions: Deepen the engraving');
   });
-  it('never carries a price, a rate, a phone or more of the customer than a first name', () => {
-    expect(msg).not.toMatch(/PKR|987|4321|33333|487654|500000|0300|Khan/);
-    expect(msg).toContain('For: Ayesha');
+  it('never carries wastage, a due date, a greeting, a price, a rate, a phone or the customer', () => {
+    expect(msg).not.toMatch(/Wastage|Due|Assalam|For:|Ayesha|PKR|987|4321|33333|487654|500000|0300|Khan/i);
   });
   it('writes a one-piece order without numbering', () => {
     expect(buildKarigarMessage(order([piece({})]), [0])).not.toMatch(/^1\. /m);
   });
   it('captions a photo with the same details, within the limit', () => {
     const cap = buildPhotoCaption(order([piece({})]), 0);
-    expect(cap).toContain('Wastage 1.00g');
+    expect(cap).toContain('Size: 9');
+    expect(cap).not.toMatch(/Wastage/);
     expect(cap.length).toBeLessThanOrEqual(1000);
   });
 });
@@ -49,5 +51,27 @@ describe('helpers', () => {
     expect(firstName('  Ayesha  Khan ')).toBe('Ayesha');
     expect(firstName(undefined)).toBe('');
     expect(maskPhone('923001234567')).toBe('+92•••••••567');
+  });
+});
+
+describe('the words per piece, editable', () => {
+  const o = order([piece({}), piece({ description: 'Pendant', size: '' })]);
+  it('gives each chosen piece its caption, titled', () => {
+    const p = pieceMessages(o, [1]);
+    expect(p).toHaveLength(1);
+    expect(p[0].index).toBe(1);
+    expect(p[0].title).toMatch(/^Piece 2 of 2/);
+    expect(p[0].text).toBe(buildPhotoCaption(o, 1, 'Order ORD-000042'));
+  });
+  it('defaults to every piece and drops indexes that do not exist', () => {
+    expect(pieceMessages(o).map(p => p.index)).toEqual([0, 1]);
+    expect(pieceMessages(o, [1, 9]).map(p => p.index)).toEqual([1]);
+  });
+  it('reads the edited words: trimmed strings by index, else refuses', () => {
+    expect(parseTextOverrides(undefined)).toBeUndefined();
+    expect(parseTextOverrides({ '0': '  hi  ', '1': '' })).toEqual(new Map([[0, 'hi'], [1, '']]));
+    expect(parseTextOverrides({ a: 'x' })).toBeNull();
+    expect(parseTextOverrides({ '0': 5 })).toBeNull();
+    expect(parseTextOverrides(['x'])).toBeNull();
   });
 });

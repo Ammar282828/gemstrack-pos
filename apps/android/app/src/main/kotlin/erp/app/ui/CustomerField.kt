@@ -173,6 +173,13 @@ fun CustomerField(
                 placeholder = { Text("Optional") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                trailingIcon = {
+                    ContactPickButton { pick ->
+                        if (pick.phone.isNotEmpty()) onPhoneChange(pick.phone)
+                        // Only a blank, unpicked name is filled; a name already typed is kept.
+                        if (picked == null) pick.nameToFill(name)?.let(onType)
+                    }
+                },
             )
             phoneHits.forEach { hit ->
                 HitRow(hit, note = "This number is on file") { settled = hit.customer.id; focusManager.clearFocus(); onPick(hit.customer) }

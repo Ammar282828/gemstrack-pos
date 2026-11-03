@@ -77,6 +77,11 @@ struct CustomerField: View {
                         .keyboardType(.phonePad)
                         .fieldKind(.telephoneNumber)
                         .focused($focus, equals: .phone)
+                        .contactPickable { pick in
+                            if !pick.phone.isEmpty { phone = pick.phone }
+                            // Only a blank, unpicked name is filled; a name already typed is kept.
+                            if typed.isEmpty, picked == nil, !pick.name.isEmpty { type(pick.name) }
+                        }
                 } label: {
                     Text("Phone")
                 }

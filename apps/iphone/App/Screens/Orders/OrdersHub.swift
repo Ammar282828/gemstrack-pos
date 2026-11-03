@@ -35,6 +35,8 @@ struct OrdersHub: View {
     @State private var advancing: Order?
     @State private var cancelling: Order?
     @State private var web: OrdersWebTarget?
+    /// A card's Print slip goes straight to the share sheet (Print, WhatsApp, Files), without opening it first.
+    @State private var slipShare: InvoicePDFTarget?
     @State private var failure: String?
     /// Counted so each event is felt once: an advance taken, a status moved.
     @State private var moneyTick = 0
@@ -70,6 +72,7 @@ struct OrdersHub: View {
         #endif
         .toolbar { hubToolbar }
         .ordersWebDestination($web)
+        .pdfQuickShare($slipShare)
         .sheet(item: $advancing) { order in advanceSheet(order).presentationSizing(.form) }
         .confirmDestructive(isPresented: cancelShown, title: cancelling.map { "Cancel order \($0.id)?" } ?? "Cancel order?",
                             message: OrdersLogic.cancelWords, action: "Cancel order",
@@ -149,7 +152,8 @@ struct OrdersHub: View {
     /// The record lists' one layout: rows on a phone, a grid of cards on a wide iPad.
     private func list(all: [Order], scoped: [Order], shown: [Order], groups: [OrdersSection], owedOn: [String: Double],
                       now: Date, forceOpen: Bool) -> some View {
-        let figures = summaryFigures(all, owedOn: owedOn, now: now)
+        // No figures over the list (owner, 2026-11-03: "remove the upper bar with the summaries in invoices and orders").
+        let figures: [ListFigure] = []
         return RecordListScaffold(search: $query, prompt: "Order, customer, phone or piece", isEmpty: groups.isEmpty) {
             emptyState(nothingOpen: grouping == .due && !shown.isEmpty)
         } rows: {
@@ -554,7 +558,12 @@ struct OrdersHub: View {
             advance: { order in advancing = order },
             markReady: { order in setStatus(order, "Completed") },
             setStatus: { order, status in choose(order, status) },
-            open: { target in web = target },
+            open: { target in
+                if let id = OrdersHub.slipId(target) {
+                    slipShare = InvoicePDFTarget(path: "/api/app/pdf/order-slip/" + InvoiceFacts.encode(id),
+                                                 fileName: "OrderSlip-\(id).pdf", title: "Slip \(id)")
+                } else { web = target }
+            },
             contact: { order, kind in reach(order, kind) }
         )
     }
@@ -658,5 +667,15 @@ struct OrdersSectionHeader: View {
     var body: some View {
         ListSectionHeader(title: title, hint: hint, count: count, trailing: "worth " + Money.pkrLac(value), value: value,
                           tone: tone, spoken: "\(title), \(count) order\(count == 1 ? "" : "s"), worth \(Money.pkrLac(value))")
+    }
+}
+
+extension OrdersHub {
+    /// "/orders/<id>/slip" → the id: a card's Print slip, shared rather than opened.
+    static func slipId(_ target: OrdersWebTarget) -> String? {
+        let p = target.path
+        guard p.hasPrefix("/orders/"), p.hasSuffix("/slip") else { return nil }
+        let id = String(p.dropFirst("/orders/".count).dropLast("/slip".count))
+        return id.isEmpty || id.contains("/") ? nil : id
     }
 }

@@ -19,6 +19,7 @@ import PhoneInput from 'react-phone-number-input';
 import { parsePhoneNumberFromString, getCountryCallingCode, type CountryCode } from 'libphonenumber-js';
 import { AlertCircle, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ContactPickButton, type ContactPick } from '@/components/shared/contact-pick-button';
 
 const FRAME =
   'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ' +
@@ -104,7 +105,11 @@ export const PhoneField: React.FC<{
   disabled?: boolean;
   className?: string;
   'aria-label'?: string;
-}> = ({ value, onChange, onBlur, showHint = true, disabled, className, 'aria-label': ariaLabel }) => {
+  /** Also told the contact's name when one is chosen from the phone's contacts (to fill an empty name box). */
+  onPickContact?: (pick: ContactPick) => void;
+  /** False hides the "From contacts" button (the shop's own numbers); on by default where the browser has the picker. */
+  contacts?: boolean;
+}> = ({ value, onChange, onBlur, showHint = true, disabled, className, 'aria-label': ariaLabel, onPickContact, contacts = true }) => {
   const [touched, setTouched] = React.useState(false);
   // The library keeps its own copy of the typed text and deliberately ignores
   // a changed `value` prop mid-typing, so normalising on each keystroke fixes
@@ -169,6 +174,7 @@ export const PhoneField: React.FC<{
 
   return (
     <div className="space-y-1" onBlur={settle} onPaste={paste}>
+      <div className="flex items-center gap-1">
       <PhoneInput
         key={nonce}
         international
@@ -185,6 +191,21 @@ export const PhoneField: React.FC<{
           className,
         )}
       />
+      {contacts && (
+        <ContactPickButton
+          disabled={disabled}
+          onPick={pick => {
+            if (pick.phone) {
+              onChange(fromPasted(pick.phone, country));
+              setTouched(true);
+              // The library ignores a changed value mid-typing: remount so the box shows the number.
+              setNonce(n => n + 1);
+            }
+            onPickContact?.(pick);
+          }}
+        />
+      )}
+      </div>
 
       {tell && status.state === 'incomplete' && (
         <p className="text-xs text-destructive flex items-center gap-1.5">

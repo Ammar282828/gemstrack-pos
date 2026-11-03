@@ -8,21 +8,78 @@
  * button that carries its own (the Workshop's job rows, which hold one piece each).
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
-import { Send, Loader2 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Send } from 'lucide-react';
 import { useAppStore, type Order } from '@/lib/store';
 import { authedFetch } from '@/lib/voice/authed-fetch';
-import { buildKarigarMessage, chooseKarigarPieces } from '@/lib/karigar-message';
+import { chooseKarigarPieces, KARIGAR_CAPTION_MAX } from '@/lib/karigar-message';
 import { toWhatsAppNumber } from '@/lib/whatsapp';
-import { STORE_CONFIG } from '@/lib/store-config';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { ToastAction } from '@/components/ui/toast';
+import { ContactPickButton } from '@/components/shared/contact-pick-button';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { useToast } from '@/hooks/use-toast';
+import { useToast, toast as globalToast } from '@/hooks/use-toast';
 import { categorySingular } from '@/lib/categories';
+
+interface SendPayload { orderId: string; pieceIndexes: number[]; karigarId: string; phone?: string; texts?: Record<string, string> }
+
+/**
+ * The send itself, in the background: the dialog is already closed, a toast says it is going, and another says how it
+ * ended (with Retry on a failure). It uses the global toast store, so it outlives the dialog that started it.
+ */
+/** Sends on their way, by their words: the same one twice (a double click, Retry while it runs) is dropped. */
+const inFlight = new Set<string>();
+
+function deliver(payload: SendPayload, name: string): void {
+  // Never twice (owner, 2026-11-03: "it keeps retrying or double sending"): the ERP keeps one record per send and
+  // ticks each message off, so the same send again is answered "already", an unfinished one carries on from where it
+  // stopped (Retry sends only what had not gone), and a long one answers `partial` and is asked again here.
+  const key = JSON.stringify(payload);
+  if (inFlight.has(key)) return;
+  inFlight.add(key);
+  const pending = globalToast({ title: `Sending to ${name}…`, description: 'You can keep working.', duration: 600000 });
+  void (async () => {
+    try {
+      let sent = 0, unsure = 0, photosFailed = 0, to = '';
+      let already = '';
+      for (let round = 0; round < 12; round++) {
+        const res = await authedFetch('/api/app/orders/send-to-karigar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.error || 'Could not send.');
+        to = data.to || to;
+        if (data.duplicate) { if (!sent) already = data.said || `Already sent to ${name}.`; break; }
+        sent += data.sent || 0;
+        unsure += data.unsure || 0;
+        if (!data.partial) { photosFailed = data.photosFailed || 0; break; }
+      }
+      pending.dismiss();
+      if (already) { globalToast({ title: already }); return; }
+      globalToast({
+        title: `Sent to ${name}`,
+        description: `${sent} message${sent === 1 ? '' : 's'} to ${to}`
+          + (photosFailed ? ` · ${photosFailed} photo(s) did not go; sending again sends only those` : '')
+          + (unsure ? ` · WhatsApp was slow on ${unsure}: check the chat` : ''),
+      });
+    } catch (e) {
+      pending.dismiss();
+      globalToast({
+        variant: 'destructive', title: `Not sent to ${name}`, description: `${e instanceof Error ? e.message : 'Try again.'} Retry sends only what has not gone.`,
+        action: <ToastAction altText="Retry" onClick={() => deliver(payload, name)}>Retry</ToastAction>,
+      });
+    } finally {
+      inFlight.delete(key);
+    }
+  })();
+}
 
 export const SendToKarigarDialog: React.FC<{
   order: Order;
@@ -38,7 +95,9 @@ export const SendToKarigarDialog: React.FC<{
   const [karigarId, setKarigarId] = useState('');
   const [ticked, setTicked] = useState<number[]>([]);
   const [phone, setPhone] = useState('');
-  const [busy, setBusy] = useState(false);
+  /** What the server would send per piece, and the owner's edits over it (by piece index). */
+  const [generated, setGenerated] = useState<Record<number, string>>({});
+  const [edits, setEdits] = useState<Record<number, string>>({});
 
   useEffect(() => { if (open && !karigars.length) void loadKarigars?.(); }, [open, karigars.length, loadKarigars]);
 
@@ -48,6 +107,7 @@ export const SendToKarigarDialog: React.FC<{
     const first = startKarigar || (pieces?.length ? order.items[pieces[0]]?.karigarId : undefined) || order.items.find(i => i.karigarId)?.karigarId || '';
     setKarigarId(first || '');
     setPhone('');
+    setEdits({});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
   useEffect(() => {
@@ -61,10 +121,28 @@ export const SendToKarigarDialog: React.FC<{
   const onFile = karigar?.contact || karigar?.altPhone || '';
   const number = toWhatsAppNumber(phone || onFile);
   const numberOk = number.length >= 11 && number.length <= 15;
-  const preview = useMemo(
-    () => (ticked.length ? buildKarigarMessage(order, ticked, { karigarName: karigar?.name, shopName: STORE_CONFIG.name }) : ''),
-    [order, ticked, karigar?.name],
-  );
+  // The words come from the server's one builder (preview), per piece.
+  useEffect(() => {
+    if (!open || !karigarId || !ticked.length) return;
+    let live = true;
+    const t = setTimeout(async () => {
+      try {
+        const res = await authedFetch('/api/app/orders/send-to-karigar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId: order.id, pieceIndexes: ticked, karigarId, preview: true }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!live || !res.ok) return;
+        const next: Record<number, string> = {};
+        for (const m of data.messages ?? []) for (const p of m.pieces ?? []) if (typeof p?.index === 'number') next[p.index] = String(p.text ?? '');
+        setGenerated(g => ({ ...g, ...next }));
+      } catch { /* the fields stay empty; Send still works with the server's own words */ }
+    }, 250);
+    return () => { live = false; clearTimeout(t); };
+  }, [open, order.id, karigarId, ticked]);
+  const wordsOf = (i: number) => edits[i] ?? generated[i] ?? '';
+
   const photos = ticked.reduce((n, i) => {
     const it = order.items[i];
     return n + (it?.sampleImageDataUri || it?.samplePhotoId ? 1 : 0) + (it?.extraPhotos?.length || 0);
@@ -72,29 +150,18 @@ export const SendToKarigarDialog: React.FC<{
 
   const toggle = (i: number) => setTicked(t => (t.includes(i) ? t.filter(x => x !== i) : [...t, i].sort((a, b) => a - b)));
 
-  const send = async () => {
+  const send = () => {
     if (!karigarId) return toast({ variant: 'destructive', title: 'Pick a karigar first' });
     if (!ticked.length) return toast({ variant: 'destructive', title: 'Pick at least one piece' });
     if (!numberOk) return toast({ variant: 'destructive', title: `Add a phone number for ${karigar?.name || 'the karigar'} first` });
-    setBusy(true);
-    try {
-      const res = await authedFetch('/api/app/orders/send-to-karigar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId: order.id, pieceIndexes: ticked, karigarId, ...(phone.trim() ? { phone: phone.trim() } : {}) }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || 'Could not send.');
-      toast({
-        title: `Sent to ${karigar?.name || 'the karigar'}`,
-        description: `${data.sent} message${data.sent === 1 ? '' : 's'} to ${data.to}${data.photosFailed ? ` · ${data.photosFailed} photo(s) did not go` : ''}`,
-      });
-      onOpenChange(false);
-    } catch (e) {
-      toast({ variant: 'destructive', title: 'Not sent', description: e instanceof Error ? e.message : 'Try again.' });
-    } finally {
-      setBusy(false);
-    }
+    const texts: Record<string, string> = {};
+    for (const i of ticked) if (edits[i] !== undefined) texts[String(i)] = edits[i].trim();
+    deliver({
+      orderId: order.id, pieceIndexes: ticked, karigarId,
+      ...(phone.trim() ? { phone: phone.trim() } : {}),
+      ...(Object.keys(texts).length ? { texts } : {}),
+    }, karigar?.name || 'the karigar');
+    onOpenChange(false);
   };
 
   return (
@@ -122,7 +189,10 @@ export const SendToKarigarDialog: React.FC<{
           {(!onFile || phone) && karigarId && (
             <div className="space-y-1.5">
               <Label htmlFor="stk-phone">WhatsApp number</Label>
-              <Input id="stk-phone" inputMode="tel" placeholder="03xx xxxxxxx" value={phone} onChange={e => setPhone(e.target.value)} />
+              <div className="flex items-center gap-1">
+                <Input id="stk-phone" inputMode="tel" placeholder="03xx xxxxxxx" value={phone} onChange={e => setPhone(e.target.value)} />
+                <ContactPickButton onPick={pick => { if (pick.phone) setPhone(pick.phone); }} />
+              </div>
             </div>
           )}
 
@@ -139,18 +209,35 @@ export const SendToKarigarDialog: React.FC<{
             {photos > 0 && <p className="text-xs text-muted-foreground">{photos} reference photo{photos === 1 ? '' : 's'} will go first.</p>}
           </div>
 
-          {preview && (
-            <div className="space-y-1.5">
-              <Label>Message</Label>
-              <pre className="whitespace-pre-wrap rounded-control bg-muted/50 p-3 text-xs font-sans">{preview}</pre>
+          {ticked.length > 0 && (
+            <div className="space-y-3">
+              <Label>Message for each piece</Label>
+              {ticked.map(i => (
+                <div key={i} className="space-y-1">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>Piece {i + 1}</span>
+                    {edits[i] !== undefined && (
+                      <button type="button" className="underline" onClick={() => setEdits(e => { const { [i]: _drop, ...rest } = e; return rest; })}>Reset</button>
+                    )}
+                  </div>
+                  <Textarea
+                    rows={5}
+                    className="text-xs"
+                    maxLength={KARIGAR_CAPTION_MAX}
+                    value={wordsOf(i)}
+                    onChange={e => setEdits(prev => ({ ...prev, [i]: e.target.value }))}
+                  />
+                </div>
+              ))}
+              <p className="text-xs text-muted-foreground">Goes as the caption of the piece&apos;s first photo. Empty sends the photo bare.</p>
             </div>
           )}
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={send} disabled={busy || !karigarId || !ticked.length}>
-            {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}Send on WhatsApp
+          <Button onClick={send} disabled={!karigarId || !ticked.length}>
+            <Send className="mr-2 h-4 w-4" />Send on WhatsApp
           </Button>
         </DialogFooter>
       </DialogContent>

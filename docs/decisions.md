@@ -542,6 +542,25 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
 
 ### Send to karigar
 
+- **Never twice** (owner, 2026-11-03: "sending to karigar is hella buggy, it keeps retrying or double sending"; the log showed
+  three sends of one order 7 s apart, all delivered). The server keeps one record per send, `karigar_sends/<sha256 of order,
+  karigar, number, pieces, edited words>`, and ticks off each message (`<karigar>:<piece>:p<n>`, the texts) the moment it goes.
+  The same send while one is running (last tick < 90 s) answers `duplicate, busy`; within 2 minutes of finishing it answers
+  `duplicate` with "Already sent to X n s ago"; an unfinished one (failed, a photo refused, `partial`) carries on within 30
+  minutes and sends only what had not gone, never a piece's words twice. A WhatsApp timeout is ticked as gone (it may well have
+  been) and said "check the chat". A request stops starting messages after 40 s and answers `partial`; web and iPhone/Mac ask
+  again until it is done. Clients drop a second identical request while one is on its way. Tests: `send-to-karigar/route.test.ts`.
+- **The words are the owner's to edit, and sending happens in the background** (owner, 2026-11-03: "let me edit the message
+  being sent to karigar, and send message in background"). Each ticked piece shows its words in a text box (the caption the
+  server would send, `pieceMessages` in `lib/karigar-message.ts`; Reset restores them); only edited pieces go in the request as
+  `texts: { "<pieceIndex>": "words" }` (≤ 1000 characters as a caption; empty sends the photo bare), and a piece's words only
+  ever go to that piece's own karigar. Send closes the dialog / sheet at once; the web shows "Sending to X…" then "Sent to X" or
+  the error with Retry (global toast); iPhone/Mac hand it to `KarigarSendQueue` (the Outbox's own task, in a background task)
+  and say the result app-wide with Retry. Never retried by itself: a timeout may have delivered photos already.
+- **Only what the karigar works from** (owner, 2026-11-03: "why are you sending wastage to the karigars? Make the message
+  very simple"): one WhatsApp message per piece, its photo with "Order <id>", the name, description, metal and karat, weight,
+  size, stones / diamonds / stone weight / finish and the instructions as the caption (more photos of it follow without words; a piece
+  with no photo gets the same lines as text). No wastage, due date, greeting or customer; never a price.
 - **An order's pieces go to a karigar on WhatsApp from the shop's line** (2026-11-02, owner: "send the karigar the order details
   from the order page or from the workshop page"). `POST /api/app/orders/send-to-karigar` (owners and staff): each chosen
   piece's reference photos as images (the first of a piece captioned with its details), then one text with the order number,
@@ -952,6 +971,16 @@ Website → Interest ranks them (Saved, Asked about, Looked at longest with at l
   for the same days (`/api/website/interest?from&to`, added; `days` unchanged for the iPhone app). Live: people in the last five
   minutes (pages beat every 30 s while visible), where, on what, how they came, each visit, and today's totals.
 - A session ends after 30 minutes away, or when the visitor arrives again from a referrer or tagged link.
+
+### WhatsApp catalogue
+
+Owner, 2026-11-03: "Set price as 0 for all products and make the catalogue". Every piece on taheri.shop is in the Meta
+catalogue "Taheri WhatsApp Catalogue" (28423918447285958, business 268983724480807), for Taheri's WhatsApp Business
+catalogue. Meta requires a price, and the house prices by the day's rate, so each piece is **0.00 PKR** and its
+description ends "Message us for today's price." The source is `GET /api/public/catalog-feed` (`lib/website/catalog-feed.ts`,
+from `getSitePieces()`, hidden pieces left out): Meta re-reads it daily at 06:00 Karachi, so a new piece joins and a sold or
+hidden one leaves on its own. Ids are a hash of the site's key, so a piece keeps its place across reads.
+
 ### Story drafts
 
 2026-10-27. The owner asked for a week of Instagram stories from the pieces ready for WhatsApp, 9:16 with the weight and the piece's

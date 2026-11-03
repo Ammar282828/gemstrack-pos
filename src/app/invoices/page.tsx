@@ -1,7 +1,7 @@
 
 "use client";
 
-import { isOwing, owedToYou } from '@/lib/owed';
+import { isOwing } from '@/lib/owed';
 import { invoiceSaleValue } from '@/lib/analytics/sale-value';
 
 /**
@@ -37,9 +37,11 @@ import { whatsappOrderChip } from '@/lib/shopify-whatsapp';
 import { mergeInstructions } from '@/lib/workshop';
 import { describePlating } from '@/lib/materials';
 import { STORE_CONFIG, storeLinksUrl, STORE_LOGO_URL } from '@/lib/store-config';
-import { saveInvoicePdf } from '@/lib/invoice-pdf';
+import { saveInvoicePdf, buildInvoicePdf } from '@/lib/invoice-pdf';
 import { PrintButton } from '@/components/shared/print-button';
-import { generateOrderSlipPDF } from '@/lib/order-slip-pdf';
+import { generateOrderSlipPDF, drawOrderSlipPdf } from '@/lib/order-slip-pdf';
+import { browserPdfImages } from '@/lib/pdf-inputs';
+import { QuickPrintButton } from '@/components/shared/quick-print-button';
 import { TakenByPicker } from '@/components/shared/taken-by-picker';
 import type { TakenBy } from '@/lib/store';
 import QRCode from 'qrcode.react';
@@ -88,7 +90,7 @@ const getDocStatus = (doc: DocumentType): Order['status'] | 'Paid' | 'Unpaid' =>
 const isShopifyDoc = (doc: DocumentType): boolean =>
   doc.docType === 'invoice' && !!((doc as Invoice).source?.startsWith('shopify'));
 
-type RowProps = { doc: DocumentType; onPrint: () => void; onPrintPerPiece?: () => void; onMarkPaid?: () => void; onStatusChange?: (status: OrderStatus) => void; onSendPaymentLink?: () => void; isSendingLink?: boolean; mine?: boolean };
+type RowProps = { doc: DocumentType; onQuickPrint: () => Promise<{ output: (type: 'blob') => Blob }>; onPrint: () => void; onPrintPerPiece?: () => void; onMarkPaid?: () => void; onStatusChange?: (status: OrderStatus) => void; onSendPaymentLink?: () => void; isSendingLink?: boolean; mine?: boolean };
 
 /** The status an order can change, as a pill with a chevron. */
 const OrderStatusSelect: React.FC<{ doc: Order; onStatusChange: (s: OrderStatus) => void }> = ({ doc, onStatusChange }) => {
@@ -127,7 +129,7 @@ const BalancePill: React.FC<{ doc: DocumentType }> = ({ doc }) => {
 };
 
 /** One row of the phone list (the app's invoice row): who, what, the balance, the total; actions beneath. */
-const DocumentCard: React.FC<RowProps> = ({ doc, onPrint, onPrintPerPiece, onMarkPaid, onStatusChange, onSendPaymentLink, isSendingLink, mine }) => {
+const DocumentCard: React.FC<RowProps> = ({ doc, onQuickPrint, onPrint, onPrintPerPiece, onMarkPaid, onStatusChange, onSendPaymentLink, isSendingLink, mine }) => {
     const router = useRouter();
     const status = getDocStatus(doc);
     const href = doc.docType === 'order' ? `/orders/${doc.id}` : `/invoices/${doc.id}`;
@@ -164,6 +166,7 @@ const DocumentCard: React.FC<RowProps> = ({ doc, onPrint, onPrintPerPiece, onMar
                 <span className="whitespace-nowrap font-serif text-ios-title3 font-semibold tabular-nums">PKR {docTotal(doc).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
             </div>
             <div className="-mb-1 mt-1 flex flex-wrap items-center gap-x-1 pl-[42px]">
+                <QuickPrintButton label={`Print ${doc.docType === 'order' ? 'order ' : ''}${doc.id}`} build={onQuickPrint} />
                 <PrintButton pieces={pieceCount(doc)} onPrint={onPrint} onPrintPerPiece={onPrintPerPiece} />
                 {status === 'Unpaid' && onMarkPaid && (
                     <Button variant="ghost" size="sm" className="text-tone-settled-ink hover:text-tone-settled-ink" onClick={(e) => { e.stopPropagation(); onMarkPaid(); }}>
@@ -181,7 +184,7 @@ const DocumentCard: React.FC<RowProps> = ({ doc, onPrint, onPrintPerPiece, onMar
     );
 };
 
-const DocumentRow: React.FC<RowProps> = ({ doc, onPrint, onPrintPerPiece, onMarkPaid, onStatusChange, onSendPaymentLink, isSendingLink, mine }) => {
+const DocumentRow: React.FC<RowProps> = ({ doc, onQuickPrint, onPrint, onPrintPerPiece, onMarkPaid, onStatusChange, onSendPaymentLink, isSendingLink, mine }) => {
     const router = useRouter();
     const status = getDocStatus(doc);
 
@@ -227,6 +230,7 @@ const DocumentRow: React.FC<RowProps> = ({ doc, onPrint, onPrintPerPiece, onMark
             </TableCell>
             <TableCell>
                 <div className="flex items-center gap-1">
+                    <QuickPrintButton label={`Print ${doc.docType === 'order' ? 'order ' : ''}${doc.id}`} build={onQuickPrint} />
                     <PrintButton pieces={pieceCount(doc)} onPrint={onPrint} onPrintPerPiece={onPrintPerPiece} />
                     {status === 'Unpaid' && onMarkPaid && (
                         <Button variant="ghost" size="sm" className="text-tone-settled-ink hover:text-tone-settled-ink" onClick={(e) => { e.stopPropagation(); onMarkPaid(); }}>
@@ -322,6 +326,16 @@ export default function DocumentsPage() {
         variant: 'destructive',
       });
     }
+  };
+
+  /** The document for the printer icon: the same PDF as Print, handed to the print dialog instead of saved. */
+  const buildForPrint = async (document: DocumentType) => {
+    if (document.docType === 'invoice') {
+      const inv = document as Invoice;
+      const customer = inv.customerId ? customers.find(c => c.id === inv.customerId) : null;
+      return buildInvoicePdf(inv, { customer });
+    }
+    return drawOrderSlipPdf(document as Order, { images: await browserPdfImages() });
   };
 
   // "Mark Paid" opens the payment dialog, balance filled in, method to choose. It used to record the
@@ -535,6 +549,7 @@ export default function DocumentsPage() {
 
       const rowProps = (d: DocumentType) => ({
         doc: d,
+        onQuickPrint: () => buildForPrint(d),
         onPrint: () => handlePrint(d),
         onPrintPerPiece: d.docType === 'invoice' ? () => handlePrint(d, true) : undefined,
         onMarkPaid: d.docType === 'invoice' && owesMoney((d as Invoice).balanceDue) ? () => handleMarkPaid(d) : undefined,
@@ -620,13 +635,10 @@ export default function DocumentsPage() {
   }
 
   const pkr = (n: number) => 'PKR ' + Math.round(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
-  // The whole book's figure, whatever the filters show (the dashboard's "Owed to you").
-  const owedAll = owedToYou(generatedInvoices);
 
   return (
     <PageShell
-      // On a phone only what is owed; the sentence around it is for the desk.
-      subtitle={<><span className="hidden sm:inline">Every invoice and order, and what is still owed on it{owedAll.total > 0 && ' — '}</span>{owedAll.total > 0 && <><span className="font-medium text-tone-owed-ink">{pkr(owedAll.total)} owed</span> on {owedAll.invoices.length} invoice{owedAll.invoices.length === 1 ? '' : 's'}</>}<span className="hidden sm:inline">.</span></>}
+      subtitle="Every invoice and order, and what is still owed on it."
       // A Shopify CSV is imported at a desk, never from a phone: the full-width button was the first
       // thing under the title there.
       action={

@@ -1,5 +1,6 @@
 package erp.app.screens.neworder
 
+import erp.app.ui.ContactPickButton
 import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -320,7 +321,18 @@ internal fun DeliverySection(
         WideFieldRow("Address", d.deliveryAddress, { t -> holder.edit { deliveryAddress = t } }, prompt = "House / flat, street, area", minLines = 2, maxLines = 4)
         FieldRow("City", d.deliveryCity, { t -> holder.edit { deliveryCity = t } }, prompt = "Karachi", capitalization = KeyboardCapitalization.Words)
         FieldRow("Receiver", d.deliveryName, { t -> holder.edit { deliveryName = t } }, prompt = "If not the customer", capitalization = KeyboardCapitalization.Words)
-        FieldRow("Receiver's phone", d.deliveryPhone, { t -> holder.edit { deliveryPhone = t } }, prompt = "Optional", keyboardType = KeyboardType.Phone)
+        FieldRow(
+            "Receiver's phone", d.deliveryPhone, { t -> holder.edit { deliveryPhone = t } }, prompt = "Optional", keyboardType = KeyboardType.Phone,
+            // The number from Contacts; the name too when its box is empty, never over one typed.
+            trailing = {
+                ContactPickButton { pick ->
+                    holder.edit {
+                        if (pick.phone.isNotEmpty()) deliveryPhone = pick.phone
+                        pick.nameToFill(deliveryName)?.let { n -> deliveryName = n }
+                    }
+                }
+            },
+        )
         NumberRow("Delivery charge (PKR)", d.deliveryCharge, { t -> holder.edit { deliveryCharge = t } }, prompt = "0 if free", rupees = true)
         FieldRow("Instructions", d.deliveryNotes, { t -> holder.edit { deliveryNotes = t } }, prompt = "Landmark, timing, gate", capitalization = KeyboardCapitalization.Sentences)
         ToggleRow("Expected on a day", d.deliveryExpected.isNotEmpty()) { on -> holder.edit { deliveryExpected = if (on) NewOrderDay.today else "" } }

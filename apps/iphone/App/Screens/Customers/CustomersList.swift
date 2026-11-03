@@ -147,65 +147,115 @@ struct CustomersList: View {
 
     // MARK: The list
 
+    /// One section of the list: who, and what they owe between them (the Owing money one).
+    private struct CustSection: Identifiable {
+        let id: String
+        let title: String
+        let hint: String
+        let people: [Customer]
+        let owed: Double
+    }
+
+    private func sections(_ shown: CustomerKit.Groups, _ stats: [String: CustomerKit.Stats]) -> [CustSection] {
+        var out: [CustSection] = []
+        if !shown.owing.isEmpty {
+            var owed = 0.0
+            for c in shown.owing { owed += stats[c.id]?.owed ?? 0 }
+            out.append(CustSection(id: "owing", title: "Owing money", hint: "", people: shown.owing, owed: owed))
+        }
+        if !shown.active.isEmpty {
+            out.append(CustSection(id: "recent", title: "Recent", hint: "", people: shown.active, owed: 0))
+        }
+        if !shown.quiet.isEmpty {
+            out.append(CustSection(id: "quiet", title: "Quiet", hint: "no sale in a year", people: shown.quiet, owed: 0))
+        }
+        return out
+    }
+
+    /// The record lists' one layout (RecordList.swift): the chips, then a section per group, as rows on a phone and as a
+    /// grid of cards on a wide iPad. No figures over the list (owner, 2026-11-03: Invoices and Orders lost theirs);
+    /// what is owed is the Owing money heading and each row's own figure.
     private var list: some View {
         let f = figures()
         let shown = visible(f.groups)
-        return List {
-            Section {
-                CustSummary(
-                    customerCount: f.customerCount,
-                    owed: f.owed,
-                    boughtRecently: f.groups.active.count + f.groups.owing.count,
-                    lifetime: f.lifetime,
-                    showHisaab: session.isOwner
-                )
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
+        let groups = sections(shown, f.stats)
+        return RecordListScaffold(search: $search, prompt: "Search by name, phone, or email", isEmpty: groups.isEmpty) {
+            empty(matched: f.matchedCount)
+        } rows: {
+            head(f, inList: true)
+            ForEach(groups) { group in
+                Section {
+                    ForEach(group.people) { c in row(c, f.stats[c.id]) }
+                } header: {
+                    header(group)
+                }
+                .houseRows()
             }
-            Section {
-                chips
-                    .chipRowInList()
-            }
-            if shown.owing.isEmpty && shown.active.isEmpty && shown.quiet.isEmpty {
-                Section { empty(matched: f.matchedCount) }
-                    .listRowBackground(Color.clear)
-            } else {
-                group("Owing money", nil, shown.owing, f.stats)
-                group("Recent", nil, shown.active, f.stats)
-                group("Quiet", "no sale in a year", shown.quiet, f.stats)
+        } cards: { width in
+            head(f, inList: false)
+            ForEach(groups) { group in
+                VStack(alignment: .leading, spacing: pt(16)) {
+                    header(group)
+                    RecordGrid(items: group.people, width: width) { c in card(c, f.stats[c.id]) }
+                }
             }
         }
-        .listStyle(.insetGrouped)
-        // Pulled down from the top, as iOS's own search (PullDownSearch.swift); on the List so the pull is read there.
-        .pullDownSearch(text: $search, prompt: "Search by name, phone, or email")
         .motion(showing, Motion.travel)
     }
 
-    private var chips: some View {
-        ChipRow {
-            ForEach(Showing.allCases) { option in
-                FilterChip(title: option.rawValue, chosen: option == showing) { showing = option }
+    private func head(_ f: Figures, inList: Bool) -> some View {
+        RecordListHead(figures: [], chips: chips(f), inList: inList)
+    }
+
+    private func header(_ group: CustSection) -> some View {
+        ListSectionHeader(title: group.title, hint: group.hint, count: group.people.count,
+                          trailing: group.owed >= 1 ? Money.pkr(group.owed) : nil, value: group.owed)
+    }
+
+    /// Everyone, Owing, Recent: the same three filters as before, as chips with how many each shows.
+    private func chips(_ f: Figures) -> [ListChip] {
+        Showing.allCases.map { option in
+            let count: Int
+            switch option {
+            case .everyone: count = f.matchedCount
+            case .owing: count = f.groups.owing.count
+            case .recent: count = f.groups.active.count
+            }
+            return ListChip(id: option.rawValue, title: option.rawValue, count: count, chosen: option == showing) {
+                showing = option
             }
         }
     }
 
-    @ViewBuilder private func group(_ title: String, _ hint: String?, _ people: [Customer], _ stats: [String: CustomerKit.Stats]) -> some View {
-        if !people.isEmpty {
-            Section {
-                ForEach(people) { c in
-                    row(c, stats[c.id])
-                }
-            } header: {
-                LedgerHeading(title: title, count: people.count, trailing: hint)
-            }
-            .houseRows()
+    /// One customer as the record lists' row (RecordRow): who, their number and last sale, and what they owe (or, if
+    /// nothing, what they have spent) on the trailing side.
+    private func record(_ c: Customer, _ s: CustomerKit.Stats?) -> some View {
+        RecordRow(name: CustomerKit.shown(c), title: CustomerKit.shown(c), subtitle: Text(subtitle(c, s)), money: money(s))
+    }
+
+    private func subtitle(_ c: Customer, _ s: CustomerKit.Stats?) -> String {
+        var parts: [String] = []
+        if let phone = CustomerKit.filled(c.phone) { parts.append(phone) }
+        if let s, s.count > 0 {
+            var sales = "\(s.count) sale\(s.count == 1 ? "" : "s")"
+            let last = CustomerKit.monthYear(s.lastAt)
+            if !last.isEmpty { sales += " · last \(last)" }
+            parts.append(sales)
         }
+        return parts.joined(separator: " · ")
+    }
+
+    private func money(_ s: CustomerKit.Stats?) -> RecordMoney? {
+        guard let s else { return nil }
+        // What is owed leads: it is the reason you look a customer up.
+        if s.owed >= 1 { return RecordMoney(amount: s.owed, tone: .owed, detail: "owed", detailTone: .owed) }
+        if s.spent > 0 { return RecordMoney(amount: s.spent, lac: true, detail: "spent") }
+        return nil
     }
 
     private func row(_ c: Customer, _ s: CustomerKit.Stats?) -> some View {
         NavigationLink(value: CustomerKit.route(c.id)) {
-            CustRowLabel(customer: c, stats: s)
+            record(c, s)
         }
         .zoomSource(id: CustomerKit.path(c.id))
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
@@ -214,6 +264,24 @@ struct CustomersList: View {
         .contextMenu {
             contactButtons(c)
         }
+    }
+
+    /// The iPad's card: the same row, then the contact menu. The card carries the row's actions (rule 16).
+    private func card(_ c: Customer, _ s: CustomerKit.Stats?) -> some View {
+        RecordCard {
+            NavigationLink(value: CustomerKit.route(c.id)) {
+                record(c, s)
+            }
+            .buttonStyle(.plain)
+            .zoomSource(id: CustomerKit.path(c.id))
+        } footer: {
+            RecordCardFooter(label: "Contact \(CustomerKit.shown(c))") {
+                EmptyView()
+            } actions: {
+                contactButtons(c)
+            }
+        }
+        .contextMenu { contactButtons(c) }
     }
 
     // MARK: Call, WhatsApp, Message
@@ -244,94 +312,16 @@ struct CustomersList: View {
     // MARK: Nothing to show
 
     @ViewBuilder private func empty(matched: Int) -> some View {
-        if matched == 0 && !CustomerKit.trim(search).isEmpty {
-            ContentUnavailableView.search(text: search)
-        } else if matched == 0 {
-            ContentUnavailableView("No customers found", systemImage: "person.2", description: Text("Add a customer to begin."))
-        } else if showing == .owing {
+        let searching = !CustomerKit.trim(search).isEmpty
+        if matched > 0 && !searching && showing == .owing {
             ContentUnavailableView("Nobody owes you", systemImage: "checkmark.circle", description: Text("Every customer is settled."))
-        } else {
+        } else if matched > 0 && !searching && showing == .recent {
             ContentUnavailableView("No recent buyers", systemImage: "clock", description: Text("Nobody here has bought in the last \(CustomerKit.dormantAfterMonths) months."))
+        } else {
+            RecordEmptyState(search: search, clear: showing != .everyone ? { search = ""; showing = .everyone } : nil,
+                             title: "No customers found", symbol: "person.2",
+                             message: "Add a customer to begin.",
+                             action: .link("Add customer", Route(path: "/customers/add")))
         }
-    }
-}
-
-/// The four figures over the list: customers, owed to you, bought lately, lifetime sales.
-private struct CustSummary: View {
-    let customerCount: Int
-    let owed: Owed
-    let boughtRecently: Int
-    let lifetime: Double
-    let showHisaab: Bool
-
-    private var owedDetail: String {
-        // How many owe is the Owing money heading's count, said there once (rule 15).
-        var parts: [String] = []
-        if owed.walkIn > 0 { parts.append("walk-ins \(Money.pkr(owed.walkIn))") }
-        if owed.nameOnly > 0 { parts.append("typed names \(Money.pkr(owed.nameOnly))") }
-        if showHisaab && owed.ledger > 0 { parts.append("hisaab \(Money.pkr(owed.ledger))") }
-        return parts.joined(separator: " · ")
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: pt(16)) {
-            VStack(alignment: .leading, spacing: pt(8)) {
-                Text("Owed to you").font(.subheadline).foregroundStyle(.secondary)
-                HeroAmount(amount: owed.total)
-                if !owedDetail.isEmpty {
-                    Text(owedDetail).font(.footnote).foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-            Divider()
-            DisclosureGroup("Customer overview") {
-                VStack(spacing: pt(12)) {
-                    TwoLine(title: "Customers", trailing: "\(customerCount)")
-                    TwoLine(title: "Bought in \(CustomerKit.dormantAfterMonths) months", trailing: "\(boughtRecently)")
-                    TwoLine(title: "Lifetime sales", trailing: Money.pkrLac(lifetime))
-                }
-                .padding(.top, pt(12))
-            }
-            .font(.subheadline)
-        }
-        .heroSheen()
-    }
-}
-
-/// One customer in the list: name, number, what they owe (or, if nothing, what they have spent).
-private struct CustRowLabel: View {
-    let customer: Customer
-    let stats: CustomerKit.Stats?
-
-    private var subtitle: String {
-        var lines: [String] = []
-        if let phone = CustomerKit.filled(customer.phone) { lines.append(phone) }
-        if let s = stats, s.count > 0 {
-            var sales = "\(s.count) sale\(s.count == 1 ? "" : "s")"
-            let last = CustomerKit.monthYear(s.lastAt)
-            if !last.isEmpty { sales += " · last \(last)" }
-            lines.append(sales)
-        }
-        return lines.joined(separator: "\n")
-    }
-
-    private var trailing: String? {
-        guard let s = stats else { return nil }
-        if s.owed >= 1 { return Money.pkr(s.owed) }
-        if s.spent > 0 { return Money.pkrLac(s.spent) }
-        return nil
-    }
-
-    private var owes: Bool { (stats?.owed ?? 0) > 0 }
-
-    var body: some View {
-        // What is owed leads: it is the reason you look a customer up.
-        HStack(alignment: .top, spacing: pt(12)) {
-            Monogram(name: CustomerKit.shown(customer))
-            TwoLine(title: CustomerKit.shown(customer), subtitle: subtitle,
-                    trailing: trailing, trailingTint: owes ? Tone.owed.color : .primary,
-                    trailingLabel: owes ? "Owed" : "Lifetime sales")
-        }
-        .padding(.vertical, pt(8))
     }
 }

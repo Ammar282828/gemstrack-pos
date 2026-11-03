@@ -45,6 +45,7 @@ import erp.app.nav.ScreenActions
 import erp.app.nav.ScreenTitle
 import erp.app.screens.neworder.PickerRow
 import erp.app.screens.neworder.formRow
+import erp.app.ui.ContactPickButton
 import erp.app.ui.Tone
 import erp.app.ui.color
 import erp.app.ui.readableColumn
@@ -148,7 +149,15 @@ fun AddCustomer() {
                     TextRow("Full name", name, { name = it }, capitalization = KeyboardCapitalization.Words)
                 }
                 FormSection(title = "Phone") {
-                    TextRow("Phone number", phone, { phone = it }, keyboardType = KeyboardType.Phone)
+                    TextRow(
+                        "Phone number", phone, { phone = it }, keyboardType = KeyboardType.Phone,
+                        trailing = {
+                            ContactPickButton { pick ->
+                                if (pick.phone.isNotEmpty()) phone = pick.phone
+                                pick.nameToFill(name)?.let { name = it }
+                            }
+                        },
+                    )
                     if (sameNumber != null) {
                         Row(
                             Modifier.fillMaxWidth().clickable(role = Role.Button) { navigator.open(CustomerKit.path(sameNumber.id)) }.formRow(),

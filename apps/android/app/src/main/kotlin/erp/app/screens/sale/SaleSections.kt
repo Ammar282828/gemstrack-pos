@@ -1,5 +1,6 @@
 package erp.app.screens.sale
 
+import erp.app.ui.ContactPickButton
 import erp.app.ui.icons.Symbols
 import erp.app.ui.Loading
 import androidx.compose.foundation.background
@@ -620,7 +621,18 @@ internal fun DeliverySection(s: SaleFormState, f: SaleFigures, d: SaleData) {
             })
             if (delivery.expectedDate.isNotEmpty()) ExpectedDate(s)
             FieldRow("Receiver name", delivery.contactName, { t -> s.update { it.delivery.contactName = t } }, placeholder = "If not the customer", capitalization = KeyboardCapitalization.Words)
-            FieldRow("Receiver phone", delivery.contactPhone, { t -> s.update { it.delivery.contactPhone = t } }, placeholder = "Optional", keyboard = KeyboardType.Phone)
+            FieldRow(
+                "Receiver phone", delivery.contactPhone, { t -> s.update { it.delivery.contactPhone = t } }, placeholder = "Optional", keyboard = KeyboardType.Phone,
+                // The number from Contacts; the name too when its box is empty, never over one typed.
+                trailing = {
+                    ContactPickButton { pick ->
+                        s.update {
+                            if (pick.phone.isNotEmpty()) it.delivery.contactPhone = pick.phone
+                            pick.nameToFill(it.delivery.contactName)?.let { n -> it.delivery.contactName = n }
+                        }
+                    }
+                },
+            )
             NumberRow("Delivery charge (PKR)", delivery.charge, { t -> s.update { it.delivery.charge = t } }, prompt = "0 if free", rupees = true)
             FieldRow("Instructions", delivery.notes, { t -> s.update { it.delivery.notes = t } }, placeholder = "Landmark, timing, gate code", capitalization = KeyboardCapitalization.Sentences)
         }

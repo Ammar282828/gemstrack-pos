@@ -250,7 +250,7 @@ private fun Detail(shelfOrder: Order) {
             onFinalize = { navigator.open(OrderPaths.finalize(order.id)) },
             onSlip = { navigator.open(OrderPaths.slip(order.id)) },
             onMessage = { notifying = true },
-            onKarigar = { sendingToKarigar = true },
+            onSendToKarigar = { sendingToKarigar = true },
             onTrack = { tracking = true },
             onBook = { booking = true },
             onUndo = { undo = it },
@@ -722,7 +722,7 @@ private fun MoreMenu(
     onFinalize: () -> Unit,
     onSlip: () -> Unit,
     onMessage: () -> Unit,
-    onKarigar: () -> Unit,
+    onSendToKarigar: () -> Unit,
     onTrack: () -> Unit,
     onBook: () -> Unit,
     onUndo: (OrderUndoAsk) -> Unit,
@@ -767,7 +767,7 @@ private fun MoreMenu(
         // The workshop slip: printed, saved or sent from the share sheet.
         item("Print slip", Symbols.Print, onClick = onSlip)()
         item("Message the customer", Symbols.Chat, onClick = onMessage)()
-        item("Send to karigar", Symbols.Send, onClick = onKarigar)()
+        item("Send to karigar", Symbols.Send, onClick = onSendToKarigar)()
         if (tcs != null || canBook) {
             HorizontalDivider()
             MenuHeader("Shipping")

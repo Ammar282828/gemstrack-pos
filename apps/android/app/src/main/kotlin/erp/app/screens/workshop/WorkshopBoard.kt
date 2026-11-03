@@ -1,5 +1,7 @@
 package erp.app.screens.workshop
 
+import erp.app.screens.orders.SendPieceAsk
+import erp.app.screens.orders.SendToKarigarSheet
 import erp.app.ui.rememberErpMotion
 import erp.app.ui.animatedItem
 import erp.app.ui.icons.Symbols
@@ -134,6 +136,7 @@ fun WorkshopBoard(path: String) {
     var editingPiece by remember { mutableStateOf<WorkshopPieceAsk?>(null) }
     var deletion by remember { mutableStateOf<WorkshopDeletion?>(null) }
     var deleted by remember { mutableStateOf(false) }
+    var sendingPiece by remember { mutableStateOf<SendPieceAsk?>(null) }
 
     val orders = rememberShelfStatus(book.orders)
     val invoices = rememberShelfStatus(book.invoices)
@@ -203,6 +206,13 @@ fun WorkshopBoard(path: String) {
                     is WorkshopLogic.WriteTarget.Invoice -> editingPiece = WorkshopPieceAsk(job, WorkshopPieceAsk.Target.Invoice(t.id, t.index))
                     null -> Unit
                 }
+            },
+            send = { job ->
+                // An order's piece to its karigar on WhatsApp: the sheet opens on that piece and that karigar.
+                val t = WorkshopLogic.writeTarget(job) as? WorkshopLogic.WriteTarget.Order
+                val order = t?.let { book.orders.item(it.id) }
+                if (t == null || order == null || t.index !in order.items.indices) failure = "This piece is no longer on the order."
+                else sendingPiece = SendPieceAsk(order, t.index, if (job.isUnassigned) null else job.karigarId)
             },
             delete = { job ->
                 // The web's "Delete this job?": the job goes from the Workshop and his page; nothing else is touched.
@@ -303,6 +313,7 @@ fun WorkshopBoard(path: String) {
     assigning?.let { preset -> WorkshopStockJobSheet(live, preset) { assigning = null } }
     editing?.let { job -> WorkshopJobDetailsSheet(job) { editing = null } }
     editingPiece?.let { ask -> WorkshopPieceDetailsSheet(ask) { editingPiece = null } }
+    sendingPiece?.let { ask -> SendToKarigarSheet(ask.order, onDismiss = { sendingPiece = null }, pieces = listOf(ask.index), karigarId = ask.karigarId) }
     deletion?.let { d ->
         WorkshopDeleteCodeSheet(d, onDismiss = { deletion = null }, onDone = { note.show(Note("Job deleted")) })
     }

@@ -24,6 +24,8 @@ struct OrderScreen: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var web: OrdersWebTarget?
+    /// The slip straight to the share sheet (Print, WhatsApp, Files), without opening it first (PDFQuickShare.swift).
+    @State private var slipShare: InvoicePDFTarget?
     @State private var advancing = false
     @State private var confirmCancel = false
     @State private var failure: String?
@@ -87,6 +89,7 @@ struct OrderScreen: View {
         // Voice is told this order is open: "make it 22 karat" needs no number (VoiceContext).
         .voiceFocus(book.orders.item(id).map(VoiceFocus.order))
         .ordersWebDestination($web)
+        .pdfQuickShare($slipShare)
         .orderUndo($undo, open: $web)
         .ordersFailureAlert($failure)
         .onChange(of: shelfSignature) { _, _ in reconcile() }
@@ -708,7 +711,11 @@ struct OrderScreen: View {
             }
             Section("Share") {
                 // The workshop slip: printed, saved or sent from the share sheet.
-                Button { web = .slip(order.id) } label: { Label("Print slip", systemImage: "printer") }
+                Button {
+                    slipShare = InvoicePDFTarget(path: "/api/app/pdf/order-slip/" + InvoiceFacts.encode(order.id),
+                                                 fileName: "OrderSlip-\(order.id).pdf", title: "Slip \(order.id)")
+                } label: { Label("Print or share slip", systemImage: "printer") }
+                Button { web = .slip(order.id) } label: { Label("View slip", systemImage: "doc.richtext") }
                 Button { notifying = true } label: { Label("Message the customer", systemImage: "message") }
                 Button { sendingToKarigar = true } label: { Label("Send to karigar", systemImage: "paperplane") }
             }
@@ -911,7 +918,8 @@ extension OrderScreen {
         .toolbar { macToolbar(groups) }
         .macRecordMenu(MacRecordMenu(title: "Order", groups: groups))
         .macOrdersSheets($macSheet, advanced: { amount, exchanges in advanced(amount, exchanges) },
-                         moved: { kind, told in onlineMoved(kind, told) })
+                         moved: { kind, told in onlineMoved(kind, told) },
+                         sent: { words in Note.show(Note(title: words), in: $note, reduce: reduceMotion) })
         .confirmDestructive(isPresented: $confirmCancel, title: "Cancel order \(order.id)?",
                             message: OrdersLogic.cancelWords, action: "Cancel order") {
             setStatus(order, "Cancelled")
@@ -1245,8 +1253,8 @@ extension OrderScreen {
         r.printSlip = { web = .slip(order.id) }
         r.message = { macSheet = .notify(order) }
         r.sendToKarigar = { macSheet = .sendKarigar(order) }
-        r.call = { if let url = CustomerKit.callURL(order.customerContact) { openURL(url) } }
-        r.whatsApp = { if let url = CustomerKit.whatsAppURL(order.customerContact) { openURL(url) } }
+        r.sendPDF = { macSheet = .sendPDF(order) }
+        r.orderPDF = { macSheet = .orderPDF(order) }
         r.bookCourier = { macSheet = .courier(order) }
         r.track = { macSheet = .tracking(order) }
         r.transfer = { macSheet = .transfer(order) }

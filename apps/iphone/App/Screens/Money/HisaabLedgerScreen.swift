@@ -133,6 +133,7 @@ struct HisaabLedgerScreen: View {
                         .keyboardType(.phonePad)
                         .fieldKind(.telephoneNumber)
                         .keyboardDone()
+                        .contactPickable { if !$0.phone.isEmpty { reminderPhone = $0.phone } }
                 } header: {
                     LedgerHeading(title: "To")
                 } footer: {
@@ -237,9 +238,8 @@ struct HisaabLedgerScreen: View {
             }
             .presentationSizing(.form)
         }
-        .navigationDestination(item: $statement) { t in
-            PDFDocumentScreen(path: t.path, fileName: t.fileName, title: t.title)
-        }
+        // Straight to the share sheet (Print, WhatsApp, Files), without opening the PDF first (PDFQuickShare.swift).
+        .pdfQuickShare($statement)
         .noteToast($note)
     }
 

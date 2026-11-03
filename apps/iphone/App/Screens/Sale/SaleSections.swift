@@ -505,6 +505,10 @@ extension SaleForm {
                 TextField("Receiver phone", text: $draft.delivery.contactPhone, prompt: Text("Optional"))
                     .fieldKind(.telephoneNumber)
                     .keyboardType(.phonePad)
+                    .contactPickable { pick in
+                        if !pick.phone.isEmpty { draft.delivery.contactPhone = pick.phone }
+                        if let n = pick.nameToFill(over: draft.delivery.contactName) { draft.delivery.contactName = n }
+                    }
                 SaleNumberField(label: "Delivery charge (PKR)", text: $draft.delivery.charge, prompt: "0 if free", rupees: true)
                 TextField("Instructions", text: $draft.delivery.notes, prompt: Text("Landmark, timing, gate code"))
             }

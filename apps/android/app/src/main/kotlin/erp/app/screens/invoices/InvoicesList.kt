@@ -32,6 +32,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import erp.app.ui.Button
+import erp.app.ui.QuickPrintButton
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenu
@@ -165,10 +166,6 @@ fun InvoicesList() {
     }
     val shown = remember(scoped, chip) { scoped.filter { chip.matches(it) } }
     val groups = remember(shown, grouping, now) { InvoicesListRules.sections(shown, grouping, now) }
-    // The figures hold still while the list below them is searched: the whole book's, or the chosen person's.
-    val summary = remember(all, takenBy, now) {
-        InvoiceSummary.of(if (takenBy.isEmpty()) all else all.filter { it.takenBy == takenBy }, now)
-    }
     val filterOn = InvoicesListRules.filterActive(filter, chip)
     val anyFilter = takenBy.isNotEmpty() || month.isNotEmpty() || rangeFrom != null || chip != InvoiceChip.all
 
@@ -215,11 +212,6 @@ fun InvoicesList() {
                         search = search, onSearch = { search = it },
                         scoped = scoped, chip = chip, onChip = { chip = it },
                         caption = if (filterOn) InvoicesListRules.caption(filter, chip) else null, onClear = ::clearFilters,
-                        summary = summary, filter = filter, now = now,
-                        onPick = { figure ->
-                            val (f, c) = InvoicesListRules.pick(figure, filter, chip, AppClock.now())
-                            month = f.month; rangeFrom = f.rangeFrom; rangeTo = f.rangeTo; chip = c
-                        },
                     )
                     if (groups.isEmpty()) {
                         item(span = FULL_WIDTH) {
@@ -309,10 +301,6 @@ private fun LazyGridScope.head(
     onChip: (InvoiceChip) -> Unit,
     caption: String?,
     onClear: () -> Unit,
-    summary: InvoiceSummary,
-    filter: InvoiceFilter,
-    now: Instant,
-    onPick: (InvoiceSummary.Figure) -> Unit,
 ) {
     animatedItem(key = "search", span = FULL_WIDTH) {
         SearchBarField(
@@ -344,64 +332,7 @@ private fun LazyGridScope.head(
             }
         }
     }
-    animatedItem(key = "summary", span = FULL_WIDTH) {
-        Box(Modifier.padding(horizontal = 16.dp).readableColumn()) { SummaryStrip(summary, filter, chip, now, onPick) }
-    }
 }
-
-/**
- * Owed to you in the serif (a tap shows the unpaid), then Today and This month: the whole book's, or the chosen
- * person's (Taken by), whatever else is filtered, so the figures hold still while the list below them is searched.
- * Always in view: a fold hid the one number the counter opens this page for.
- */
-@Composable
-private fun SummaryStrip(s: InvoiceSummary, filter: InvoiceFilter, chip: InvoiceChip, now: Instant, onPick: (InvoiceSummary.Figure) -> Unit) {
-    fun chosen(f: InvoiceSummary.Figure) = InvoicesListRules.chosen(f, filter, chip, now)
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Column(
-            Modifier
-                .ledgerCard(padding = 0.dp)
-                .chosenEdge(chosen(InvoiceSummary.Figure.owed))
-                .clickable(role = Role.Button) { onPick(InvoiceSummary.Figure.owed) }
-                .semantics { selected = chosen(InvoiceSummary.Figure.owed) }
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Text("Owed to you", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            NumericText(
-                erp.core.logic.Money.pkr(s.owed), s.owed,
-                style = ErpType.heroNumber,
-                color = if (s.owed >= 1) Tone.owed.color() else androidx.compose.ui.graphics.Color.Unspecified,
-                autoSize = true,
-            )
-            Text("${s.owedCount} invoice${if (s.owedCount == 1) "" else "s"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        FigureRow {
-            FigureButton("Today", s.today, s.todayCount, chosen(InvoiceSummary.Figure.today)) { onPick(InvoiceSummary.Figure.today) }
-            FigureButton("This month", s.month, s.monthCount, chosen(InvoiceSummary.Figure.month)) { onPick(InvoiceSummary.Figure.month) }
-        }
-    }
-}
-
-@Composable
-private fun erp.app.ui.FigureScope.FigureButton(title: String, amount: Double, count: Int, chosen: Boolean, onClick: () -> Unit) {
-    Box(
-        // share(): each takes half the row (without it Today filled the row and This month had no width).
-        Modifier
-            .share()
-            .chosenEdge(chosen)
-            .clip(Radius.cardShape)
-            .clickable(role = Role.Button, onClick = onClick)
-            .semantics { selected = chosen },
-    ) {
-        FigureTile(title, erp.core.logic.Money.pkrLac(amount), detail = "$count invoice${if (count == 1) "" else "s"}", number = amount)
-    }
-}
-
-/** The accent edge on the figure the list is showing. */
-@Composable
-private fun Modifier.chosenEdge(on: Boolean): Modifier =
-    if (on) border(BorderStroke(1.5.dp, ErpColors.accent), Radius.cardShape) else this
 
 @Composable
 private fun EmptyState(filtering: Boolean, onClear: () -> Unit, onNewSale: () -> Unit) {
@@ -451,7 +382,7 @@ fun InvoiceBalancePill(invoice: Invoice, modifier: Modifier = Modifier) {
     }
 }
 
-/** One invoice: who it was for, what was sold, its number and time; what it came to with where its balance stands under it. */
+/** One invoice: who it was for, what was sold, its number and time; what it came to with where its balance stands under it; the printer at the end. */
 @Composable
 private fun InvoiceListRow(invoice: Invoice, mine: Boolean, dated: Boolean, modifier: Modifier = Modifier) {
     val stacked = isLargeText()
@@ -460,27 +391,37 @@ private fun InvoiceListRow(invoice: Invoice, mine: Boolean, dated: Boolean, modi
             .fillMaxWidth()
             .mineRow(mine)
             .defaultMinSize(minHeight = 72.dp)
-            .padding(16.dp)
-            .semantics(mergeDescendants = true) {},
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(start = 16.dp, top = 16.dp, bottom = 16.dp, end = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.Top,
     ) {
-        if (stacked) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                RowIdentity(invoice, mine, dated, Modifier)
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        // The words are one stop for TalkBack; the printer is its own, beside the row rather than inside its link.
+        Row(Modifier.weight(1f).semantics(mergeDescendants = true) {}, horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
+            if (stacked) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    RowIdentity(invoice, mine, dated, Modifier)
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        RowAmount(invoiceSaleValue(invoice))
+                        InvoiceBalancePill(invoice)
+                    }
+                }
+            } else {
+                RowIdentity(invoice, mine, dated, Modifier.weight(1f))
+                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     RowAmount(invoiceSaleValue(invoice))
                     InvoiceBalancePill(invoice)
                 }
             }
-        } else {
-            RowIdentity(invoice, mine, dated, Modifier.weight(1f))
-            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                RowAmount(invoiceSaleValue(invoice))
-                InvoiceBalancePill(invoice)
-            }
         }
+        InvoicePrint(invoice)
     }
+}
+
+/** One tap to the printer (owner, 2026-11-03): the invoice's PDF, named as Print saves it, straight to the share sheet. */
+@Composable
+private fun InvoicePrint(invoice: Invoice) {
+    val target = InvoiceFacts.pdfTarget(invoice, LocalSession.current.shop.invoiceByCustomer)
+    QuickPrintButton("Print ${invoice.id}", target.path, target.fileName, target.title)
 }
 
 @Composable
@@ -568,6 +509,7 @@ private fun InvoiceCard(
                 }
             }
             Spacer(Modifier.weight(1f))
+            InvoicePrint(inv)
             Box {
                 IconButton(onClick = { menu = true }) { Icon(Symbols.MoreHoriz, contentDescription = "Actions for ${inv.id}") }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {

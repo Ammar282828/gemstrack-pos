@@ -368,6 +368,7 @@ export function NotificationsCard() {
                     value={newPhone || undefined}
                     onChange={(val) => setNewPhone(val || '')}
                     aria-label="WhatsApp number to notify"
+                    contacts={false}
                   />
                 </div>
                 <Button variant="outline" size="sm" onClick={handleAddPhone} disabled={!newPhone}>

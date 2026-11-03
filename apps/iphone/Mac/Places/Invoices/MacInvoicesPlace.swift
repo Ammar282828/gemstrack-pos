@@ -258,10 +258,16 @@ struct MacInvoicesPlace: View {
     private func context() -> MacInvoiceContext {
         let opener = openPlace
         let held = desk
-        return MacInvoiceContext(isOwner: session.isOwner, canPay: InvoiceFacts.mayTakePayments(role: session.role),
-                                 byCustomer: session.shop.invoiceByCustomer, desk: held) { route in
+        var cx = MacInvoiceContext(isOwner: session.isOwner, canPay: InvoiceFacts.mayTakePayments(role: session.role),
+                                   byCustomer: session.shop.invoiceByCustomer, desk: held) { route in
             if let opener { opener(route) } else { held.web = route }
         }
+        let customers = book.customers
+        cx.number = { inv in
+            MacContact.number(InvoiceFacts.whatsAppPhone(inv, customer: inv.customerId.flatMap { customers.item($0) }),
+                              customerId: inv.customerId, customerName: inv.customerName)
+        }
+        return cx
     }
 
     // MARK: Titles and the foot

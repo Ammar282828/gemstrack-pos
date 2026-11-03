@@ -16,7 +16,9 @@ import {
   MoreHorizontal, Phone, MessageCircle, ExternalLink, SlidersHorizontal, RefreshCw,
 } from 'lucide-react';
 import QRCode from 'qrcode.react';
-import { generateOrderSlipPDF } from '@/lib/order-slip-pdf';
+import { generateOrderSlipPDF, drawOrderSlipPdf } from '@/lib/order-slip-pdf';
+import { browserPdfImages } from '@/lib/pdf-inputs';
+import { QuickPrintButton } from '@/components/shared/quick-print-button';
 import { STORE_CONFIG, storeLinksUrl } from '@/lib/store-config';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -116,6 +118,11 @@ function usePrintSlip(order: Order) {
     }
   };
   return { print, busy };
+}
+
+/** The workshop slip for the printer icon: the one builder, handed to the print dialog rather than saved. */
+async function buildSlip(order: Order) {
+  return drawOrderSlipPdf(order, { images: await browserPdfImages() });
 }
 
 /** Changing an order's status from a list: Cancelled asks first. `dialog` is the confirmation, to render once. */
@@ -253,6 +260,7 @@ const OrderCard: React.FC<{ order: Order; owed: number; mine?: boolean }> = ({ o
         {/* The one thing to do next, on the card (lib/order-stage.ts). */}
         <div className="flex items-center gap-1">
           <NextStep order={order} owed={owed} size="default" className="min-w-0 flex-1 gap-1" />
+          <QuickPrintButton label={`Print order ${order.id}`} build={() => buildSlip(order)} className="h-11 w-11" />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button type="button" variant="ghost" size="icon" className="h-11 w-11 shrink-0 text-muted-foreground" aria-label={`Actions for ${order.id}`}>
@@ -293,7 +301,6 @@ const OrderCard: React.FC<{ order: Order; owed: number; mine?: boolean }> = ({ o
 };
 
 const OrderTableRow: React.FC<{ order: Order; owed: number; mine?: boolean }> = ({ order, owed, mine }) => {
-  const { print, busy } = usePrintSlip(order);
   const status = useStatusChange(order);
 
   const safeItems = Array.isArray(order.items) ? order.items : [];
@@ -406,10 +413,7 @@ const OrderTableRow: React.FC<{ order: Order; owed: number; mine?: boolean }> = 
         </TableCell>
         <TableCell className="text-right">
           <div className="inline-flex items-center gap-1.5">
-            <Button type="button" size="sm" variant="outline" onClick={print} disabled={busy} aria-label="Print slip" title="Print the workshop slip">
-              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
-              <span className="sr-only">Print</span>
-            </Button>
+            <QuickPrintButton label={`Print order ${order.id}`} build={() => buildSlip(order)} className="text-foreground" />
           </div>
         </TableCell>
       </TableRow>
@@ -522,12 +526,6 @@ export default function OrdersPage() {
     return out;
   }, [orders, searchTerm, appReady, paymentFilter, monthFilter, takenByFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /** Only the in-progress count is shown now; the tiles are gone. */
-  const activeCount = useMemo(
-    () => filteredOrders.filter(o => o.status === 'Pending' || o.status === 'In Progress').length,
-    [filteredOrders],
-  );
-
   const filterCount = [monthFilter, statusFilter, paymentFilter].filter(v => v !== 'All').length + (takenByFilter ? 1 : 0);
   /** The sheet's own count: the status has its chips. */
   const sheetCount = [monthFilter, paymentFilter].filter(v => v !== 'All').length + (takenByFilter ? 1 : 0);
@@ -617,7 +615,6 @@ export default function OrdersPage() {
         {filteredOrders.length === orders.length
           ? `${orders.length} order${orders.length === 1 ? '' : 's'}`
           : `${filteredOrders.length} of ${orders.length} orders`}
-        {activeCount > 0 && ` · ${activeCount} in progress`}
       </>}
       action={
         <Button asChild size="sm" className="flex-shrink-0">

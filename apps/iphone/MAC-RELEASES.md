@@ -35,3 +35,12 @@ app archived for TestFlight's "Shop" group, and the iPhone app built beside it a
 - 2026-11-02: with the iPhone build: Gross profit for Mina, the speed work, everything since 10-26.
 - 2026-11-02: Voice in the window, aware of the record you have open. Send order details to a karigar and invoice or order PDFs to customers on WhatsApp. One Contact menu for every customer. A simpler business picker.
 - 2026-11-03: ERP 2.3 again (the first attempt missed a file).
+- 2026-11-03: Every customer, invoice, order and repair on the Mac has the iPhone's Contact actions: Call, WhatsApp, Message, the PDF on WhatsApp from the shop's line, the PDF itself, and Copy Number.
+- 2026-11-03: Print any PDF straight away (invoices, order slips, repair receipts, expense reports, hisaab statements), and every customer, invoice, order and repair has the Contact actions (Call, WhatsApp, Message, PDF on WhatsApp, Copy Number).
+- 2026-11-03: A printer button on every invoice and order card: one tap prints the invoice or the order's slip.
+- 2026-11-03: Choose a number from your contacts when adding or editing a customer or karigar, and when sending a PDF or message on WhatsApp.
+- 2026-11-03: Choose a number from your contacts when adding or editing a customer or karigar, and when sending a PDF or message on WhatsApp.
+- 2026-11-03: Choose a number from your contacts when adding or editing a customer or karigar, and when sending a PDF or message on WhatsApp.
+- 2026-11-03: Edit the words before sending an order to a karigar, and the send carries on in the background while you keep working.
+- 2026-11-03: Send to karigar never sends twice: a second tap says "Already sent", and Retry sends only what had not gone.
+- 2026-11-03: Invoices, Orders and Customers share one layout, with no summary figures over the lists.

@@ -140,9 +140,8 @@ struct HisaabScreen: View {
         .navigationDestination(item: $go) { (r: Route) in
             HisaabDestination(path: r.path)
         }
-        .navigationDestination(item: $summaryPDF) { t in
-            PDFDocumentScreen(path: t.path, fileName: t.fileName, title: t.title)
-        }
+        // Straight to the share sheet (Print, WhatsApp, Files), without opening the PDF first (PDFQuickShare.swift).
+        .pdfQuickShare($summaryPDF)
         .task {
             book.hisaab.need()
             book.invoices.need()
@@ -402,9 +401,8 @@ extension HisaabScreen {
         .navigationDestination(item: $go) { (r: Route) in
             HisaabDestination(path: r.path)
         }
-        .navigationDestination(item: $summaryPDF) { t in
-            PDFDocumentScreen(path: t.path, fileName: t.fileName, title: t.title)
-        }
+        // Straight to the share sheet (Print, WhatsApp, Files), without opening the PDF first (PDFQuickShare.swift).
+        .pdfQuickShare($summaryPDF)
         .noteToast($macNote)
         .task {
             book.hisaab.need()

@@ -176,6 +176,10 @@ extension InvoiceCustomerSheet {
             })
         }
         TextField("Phone", text: $phone, prompt: Text("Optional"))
+            .contactPickable { pick in
+                if !pick.phone.isEmpty { phone = pick.phone }
+                if name.trimmingCharacters(in: .whitespaces).isEmpty, !pick.name.isEmpty { typeName(pick.name) }
+            }
         Text(customerNote.isEmpty ? explanation : explanation + " " + customerNote)
             .font(.callout)
             .foregroundStyle(.secondary)

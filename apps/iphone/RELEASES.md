@@ -71,3 +71,10 @@ cloud session cannot press that button, but it can push. One line per build, new
 - 2026-11-02: the Design editor's long modifier chain split in three (the Release compiler gave up on it): pull-down search, Gross profit, the speed work.
 - 2026-11-02: Search appears when you pull a list down. Voice works over any screen and understands the order, invoice or customer you have open. Send order details and photos to a karigar on WhatsApp. Send invoice and order PDFs to customers from the shop's WhatsApp. One Contact menu for every customer. A simpler business picker.
 - 2026-11-03: ERP 2.3 again (the first attempt missed a file): pull-down search, voice over any screen, send to karigar, customer PDFs on WhatsApp, one Contact menu, a simpler business picker, and Invoices, Orders and Customers in one layout.
+- 2026-11-03: Print or share any PDF straight away (invoices, order slips, repair receipts, expense reports, hisaab statements): the share sheet opens with Print, WhatsApp and Files, without opening the PDF first.
+- 2026-11-03: A printer button on every invoice and order card: one tap prints the invoice or the order's slip.
+- 2026-11-03: Choose a number from your contacts when adding or editing a customer or karigar, and when sending a PDF or message on WhatsApp; the name fills in too.
+- 2026-11-03: Choose a number from your contacts when adding or editing a customer or karigar, and when sending a PDF or message on WhatsApp; the name fills in too.
+- 2026-11-03: Edit the words before sending an order to a karigar, and the send carries on in the background while you keep working.
+- 2026-11-03: Send to karigar never sends twice: a second tap says "Already sent", and Retry sends only what had not gone.
+- 2026-11-03: Invoices, Orders and Customers share one layout, with no summary figures over the lists.

@@ -144,7 +144,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Online orders](docs/decisions.md#online-orders) — a person confirms; no sale until the transfer
 - [Shopify notices](docs/decisions.md#shopify-notices) — read back; kept current, never rewritten
 - [Order WhatsApp](docs/decisions.md#order-whatsapp) — Mina's web orders messaged from its line: COD Confirm/Cancel poll (or 1/2) → Confirm tag, bank → IBAN + screenshot, paid → thanks
-- [Send to karigar](docs/decisions.md#send-to-karigar) — an order's pieces (photos, weight, wastage in grams, instructions, due date) to a karigar on WhatsApp from the shop's line; never a price, so no slip PDF; `lib/karigar-message.ts`
+- [Send to karigar](docs/decisions.md#send-to-karigar) — an order's pieces to a karigar on WhatsApp from the shop's line: the photo captioned with name, description, metal and karat, weight, size, stones / stone weight / finish and instructions (never wastage, a price, the due date or the customer); never a price, so no slip PDF; `lib/karigar-message.ts`
 - [Name a sale](docs/decisions.md#name-a-sale) — on the invoice
 - [Advance method](docs/decisions.md#advance-method) — `.nullish()`, `onInvalid` toasts
 - [Exchange line](docs/decisions.md#exchange-line) — what + amount
@@ -178,6 +178,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Community twin](docs/decisions.md#community-twin) — sends to "Taheri Collections" groups also reach their namesakes in "- II"; `/links` shows the community
 - [Piece interest](docs/decisions.md#piece-interest) — both sites count opens, time looked, saves and WhatsApp enquiries per piece; Website → Interest ranks them
 - [Website analytics](docs/decisions.md#website-analytics) — Analytics › Website (Visitors, Live) is each site's Shopify-style report (sources, places, devices, funnel to WhatsApp, pages, searches, 404s) and Live; day counters, no person or address kept
+- [WhatsApp catalogue](docs/decisions.md#whatsapp-catalogue) — every taheri.shop piece in Meta at 0.00 PKR ("Message us for today's price"), from `/api/public/catalog-feed`, re-read daily
 
 **Liquid Glass** (`docs/features/liquid-glass.md`)
 - [Liquid Glass](docs/features/liquid-glass.md#liquid-glass) — Settings → Appearance; Apple HIG glass on the control layer only (`ui-glass`)

@@ -23,6 +23,7 @@ import { ToastAction } from '@/components/ui/toast';
 import { QuickAction } from '@/components/ledger/quick-actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ContactPickButton } from '@/components/shared/contact-pick-button';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -203,7 +204,10 @@ export function SendDocDialog({ open, onOpenChange, doc, phone, customerName, on
         <div className="space-y-3">
           <div className="space-y-1.5">
             <Label htmlFor="send-doc-to">WhatsApp number</Label>
-            <Input id="send-doc-to" inputMode="tel" autoComplete="tel" placeholder="0300 1234567" value={to} onChange={(e) => setTo(e.target.value)} />
+            <div className="flex items-center gap-1">
+              <Input id="send-doc-to" inputMode="tel" autoComplete="tel" placeholder="0300 1234567" value={to} onChange={(e) => setTo(e.target.value)} />
+              <ContactPickButton onPick={pick => { if (pick.phone) setTo(pick.phone); }} />
+            </div>
           </div>
           {doc.kind === 'invoice' && (doc.pieces ?? 0) > 1 && (
             <label className="flex items-center gap-2 text-ios-foot">

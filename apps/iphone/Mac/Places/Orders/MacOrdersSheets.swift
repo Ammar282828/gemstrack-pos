@@ -15,6 +15,10 @@ enum MacOrdersSheet: Identifiable {
     case leopards(Order)
     case transfer(Order)
     case lapse(Order)
+    /// The customer's order PDF from the shop's line (the one Contact order's Send PDF).
+    case sendPDF(Order)
+    /// The customer's order PDF to read, print or share (never the workshop slip).
+    case orderPDF(Order)
 
     var id: String {
         switch self {
@@ -26,6 +30,8 @@ enum MacOrdersSheet: Identifiable {
         case .leopards(let o): return "leopards-" + o.id
         case .transfer(let o): return "transfer-" + o.id
         case .lapse(let o): return "lapse-" + o.id
+        case .sendPDF(let o): return "send-pdf-" + o.id
+        case .orderPDF(let o): return "order-pdf-" + o.id
         }
     }
 }
@@ -56,6 +62,9 @@ struct MacOrdersSheetContent: View {
     let sheet: MacOrdersSheet
     let advanced: (Double, [[String: Any]]) -> Void
     let moved: (OnlineMoveSheet.Kind, OnlineTold) -> Void
+    var sent: (String) -> Void = { _ in }
+
+    @Environment(Session.self) private var session
 
     var body: some View {
         switch sheet {
@@ -75,6 +84,14 @@ struct MacOrdersSheetContent: View {
             OnlineMoveSheet(order: o, kind: .paid) { t in moved(.paid, t) }
         case .lapse(let o):
             OnlineMoveSheet(order: o, kind: .lapse) { t in moved(.lapse, t) }
+        case .sendPDF(let o):
+            SendDocSheet(doc: .order(o, byCustomer: session.shop.invoiceByCustomer),
+                         phone: MacContact.number(o.customerContact, customerId: o.customerId, customerName: o.customerName),
+                         customerName: o.customerName, sent: sent)
+                .frame(minWidth: 440, idealWidth: 480, minHeight: 240)
+        case .orderPDF(let o):
+            let doc = CustomerDoc.order(o, byCustomer: session.shop.invoiceByCustomer)
+            MacInvoicePDFSheet(target: InvoicePDFTarget(path: doc.pdfPath, fileName: doc.fileName, title: o.id))
         }
     }
 }
@@ -83,9 +100,10 @@ extension View {
     /// The order sheets, from one binding.
     func macOrdersSheets(_ sheet: Binding<MacOrdersSheet?>,
                          advanced: @escaping (Double, [[String: Any]]) -> Void,
-                         moved: @escaping (OnlineMoveSheet.Kind, OnlineTold) -> Void) -> some View {
+                         moved: @escaping (OnlineMoveSheet.Kind, OnlineTold) -> Void,
+                         sent: @escaping (String) -> Void = { _ in }) -> some View {
         self.sheet(item: sheet) { (s: MacOrdersSheet) in
-            MacOrdersSheetContent(sheet: s, advanced: advanced, moved: moved)
+            MacOrdersSheetContent(sheet: s, advanced: advanced, moved: moved, sent: sent)
         }
     }
 }
