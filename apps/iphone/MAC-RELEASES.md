@@ -36,4 +36,4 @@ app archived for TestFlight's "Shop" group, and the iPhone app built beside it a
 - 2026-11-02: Voice in the window, aware of the record you have open. Send order details to a karigar and invoice or order PDFs to customers on WhatsApp. One Contact menu for every customer. A simpler business picker.
 - 2026-11-03: ERP 2.3 again (the first attempt missed a file).
 - 2026-11-03: Every customer, invoice, order and repair on the Mac has the iPhone's Contact actions: Call, WhatsApp, Message, the PDF on WhatsApp from the shop's line, the PDF itself, and Copy Number.
-- 2026-11-03: ERP 2.3.1: print any PDF straight away (invoices, order slips, repair receipts, expense reports, hisaab statements), and every customer, invoice, order and repair has the Contact actions (Call, WhatsApp, Message, PDF on WhatsApp, Copy Number).
+- 2026-11-03: Print any PDF straight away (invoices, order slips, repair receipts, expense reports, hisaab statements), and every customer, invoice, order and repair has the Contact actions (Call, WhatsApp, Message, PDF on WhatsApp, Copy Number).
