@@ -963,6 +963,16 @@ Website → Interest ranks them (Saved, Asked about, Looked at longest with at l
   for the same days (`/api/website/interest?from&to`, added; `days` unchanged for the iPhone app). Live: people in the last five
   minutes (pages beat every 30 s while visible), where, on what, how they came, each visit, and today's totals.
 - A session ends after 30 minutes away, or when the visitor arrives again from a referrer or tagged link.
+
+### WhatsApp catalogue
+
+Owner, 2026-11-03: "Set price as 0 for all products and make the catalogue". Every piece on taheri.shop is in the Meta
+catalogue "Taheri WhatsApp Catalogue" (28423918447285958, business 268983724480807), for Taheri's WhatsApp Business
+catalogue. Meta requires a price, and the house prices by the day's rate, so each piece is **0.00 PKR** and its
+description ends "Message us for today's price." The source is `GET /api/public/catalog-feed` (`lib/website/catalog-feed.ts`,
+from `getSitePieces()`, hidden pieces left out): Meta re-reads it daily at 06:00 Karachi, so a new piece joins and a sold or
+hidden one leaves on its own. Ids are a hash of the site's key, so a piece keeps its place across reads.
+
 ### Story drafts
 
 2026-10-27. The owner asked for a week of Instagram stories from the pieces ready for WhatsApp, 9:16 with the weight and the piece's
