@@ -1,4 +1,5 @@
 import SwiftUI
+import ERPCore
 
 // Offline, said and kept (owner, 2026-11-03: "it should fully handle not being connected at all in any situation").
 // The pieces: the capsule at the top of the app while the line is gone (or something is still to send), the sheet it
