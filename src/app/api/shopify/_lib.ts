@@ -144,12 +144,24 @@ export function mapCustomer(sc: any) {
   };
 }
 
+/**
+ * What the customer chose that is not a variant, from the line's properties: a Birthstone Stack's
+ * "Cut: Oval" (2026-11-03), an engraving. Shopify's private properties (a leading "_") are the
+ * theme's own bookkeeping and stay out.
+ */
+export function lineItemNotes(lineItem: any): string[] {
+  const props = Array.isArray(lineItem?.properties) ? lineItem.properties : [];
+  return props
+    .filter((p: any) => p && p.name && !String(p.name).startsWith('_') && String(p.value ?? '').trim())
+    .map((p: any) => `${p.name}: ${String(p.value).trim()}`);
+}
+
 export function mapInvoiceItem(lineItem: any) {
   const price = parseFloat(lineItem.price || '0');
   const qty = lineItem.quantity || 1;
   return {
     sku: lineItem.sku || `SHOPIFY-${lineItem.id}`,
-    name: lineItem.name || lineItem.title || 'Shopify Item',
+    name: [lineItem.name || lineItem.title || 'Shopify Item', ...lineItemNotes(lineItem)].join(' · '),
     categoryId: '',
     metalType: 'gold',
     karat: '21k',
