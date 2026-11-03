@@ -16,6 +16,7 @@ import {
   type PartnershipSettings,
 } from '@/lib/partnership-settings';
 import { AmountInput } from '@/components/ui/amount-input';
+import { LinesSkeleton } from '@/components/shared/skeletons';
 
 interface Props {
   /** Optional callback fired whenever the saved floor changes. */
@@ -44,7 +45,7 @@ export const WorkingCapitalFloor: React.FC<Props> = ({ onFloorChange, setBy }) =
   }, [onFloorChange]);
 
   if (!settings) {
-    return <p className="text-xs text-muted-foreground">Loading floor…</p>;
+    return <LinesSkeleton lines={2} />;
   }
 
   const parsedDraft = Math.max(0, Number(draft) || 0);
@@ -95,7 +96,7 @@ export const WorkingCapitalFloor: React.FC<Props> = ({ onFloorChange, setBy }) =
             disabled={saving || !hasChange}
             className="flex-shrink-0"
            aria-label="Save">
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : hasChange ? <Save className="w-4 h-4 mr-1" /> : <CheckCircle2 className="w-4 h-4 mr-1 text-success" />}
+            {saving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : hasChange ? <Save className="w-4 h-4 mr-1" /> : <CheckCircle2 className="w-4 h-4 mr-1 text-success" />}
             {saving ? '' : hasChange ? 'Save' : 'Saved'}
           </Button>
         </div>

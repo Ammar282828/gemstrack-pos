@@ -23,6 +23,7 @@ import { STORE_CONFIG } from '@/lib/store-config';
 import { tonePill } from '@/lib/tones';
 import { cn } from '@/lib/utils';
 import type { Scope } from '@/lib/agent/scopes';
+import { ListRowsSkeleton } from '@/components/shared/skeletons';
 
 interface ScopeRow { id: Scope; label: string; detail: string; byDefault: boolean }
 interface KeyRow {
@@ -250,7 +251,7 @@ export default function ConnectAiPage() {
           </CardHeader>
           <CardContent className="space-y-2">
             {problem && <p className="text-sm text-destructive">{problem}</p>}
-            {keys === null && <p className="text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</p>}
+            {keys === null && <ListRowsSkeleton rows={2} avatar={false} card={false} />}
             {keys?.length === 0 && !problem && <p className="text-sm text-muted-foreground">No keys yet.</p>}
             {keys?.map(k => (
               <div key={k.id} className="flex items-start gap-3 rounded-xl bg-muted/60 p-3">

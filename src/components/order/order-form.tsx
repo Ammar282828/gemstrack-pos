@@ -68,6 +68,7 @@ import type { OrderDraft } from '@/lib/vision/order-draft';
 import { takeHandoff } from '@/lib/voice/handoff';
 import { TakenByPicker } from '@/components/shared/taken-by-picker';
 import { useMe } from '@/hooks/use-me';
+import { FormSkeleton } from '@/components/shared/skeletons';
 
 // Extend jsPDF interface for the autoTable plugin
 declare module 'jspdf' {
@@ -993,9 +994,8 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
   // shop's data had loaded — a refresh, a link, voice's new order (decisions.md#hooks, found 2026-10-05).
   if (isSettingsLoading || isCustomersLoading || isKarigarsLoading) {
     return (
-      <div className="container mx-auto p-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
-        <p className="text-lg text-muted-foreground">Loading Form...</p>
+      <div className="container mx-auto px-4 py-5 md:py-6 max-w-7xl">
+        <FormSkeleton fields={8} columns={2} />
       </div>
     );
   }

@@ -120,6 +120,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Number fields](docs/decisions.md#number-fields) — and sale-flow fields show 0 as blank
 - [Hooks](docs/decisions.md#hooks) — the `/orders/add` crash of 2026-09-22
 - [Fonts](docs/decisions.md#fonts) — every face in `src/fonts/`, `next/font/local`
+- [Loading](docs/decisions.md#loading) — a skeleton shaped like the content when its shape is known; the spinning circle only for an action; a busy button keeps its size
 - [Light and dark](docs/decisions.md#light-and-dark) — the device's choice wins; `theme-default` set outside React
 - [Motion](docs/decisions.md#motion) — three curves; dialogs linger; Reduce Motion
 - [Recent picks](docs/decisions.md#recent-picks) — last five per device

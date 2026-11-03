@@ -20,13 +20,14 @@ import { captureDevRole } from '@/lib/dev-role';
 import { appSignInAdvice, chromeIntent, embeddedBrowser, signInAdvice, type EmbeddedBrowser } from '@/lib/sign-in-trouble';
 import { AppSignInError, googleIdTokenFromApp, inApp as inIphoneApp, inNativeApp, isAppUserAgent } from '@/lib/native-app';
 import dynamic from 'next/dynamic';
+import { ListSkeleton } from '@/components/shared/skeletons';
 
 // Loaded lazily so the store app's bundle is not pulled in for karigars.
 const KarigarPortal = dynamic(() => import('@/app/my-work/page'), {
   ssr: false,
   loading: () => (
-    <div className="flex h-screen w-full items-center justify-center bg-background">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    <div className="container mx-auto px-4 py-5 md:py-6 max-w-7xl">
+      <ListSkeleton rows={5} />
     </div>
   ),
 });

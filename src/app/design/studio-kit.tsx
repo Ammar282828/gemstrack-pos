@@ -13,6 +13,7 @@ import type { AssetAssessment, FixCode, Placement } from '@/lib/ads/studio/asses
 import type { StudioAsset, DriveSummary } from '@/lib/ads/studio/assets';
 import { authHeaders } from '../ads/ads-kit';
 import { STORE_LINKS } from '@/lib/store-config';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export interface LibraryItem extends StudioAsset {
   assessment: AssetAssessment | null;
@@ -80,7 +81,7 @@ export function AuthedImg({ src, alt, className, fit = 'cover' }: { src: string;
     <div ref={box} className={cn('relative overflow-hidden bg-muted', className)}>
       {failed ? <div className="absolute inset-0 flex items-center justify-center text-muted-foreground"><ImageOff className="h-5 w-5" /></div>
         : url ? <img src={url} alt={alt} loading="lazy" onError={() => setFailed(true)} className={cn('absolute inset-0 h-full w-full', fit === 'cover' ? 'object-cover' : 'object-contain')} />
-          : <div className="absolute inset-0 flex items-center justify-center text-muted-foreground/60"><Loader2 className="h-4 w-4 animate-spin" /></div>}
+          : <Skeleton className="absolute inset-0 h-full w-full rounded-none" />}
     </div>
   );
 }

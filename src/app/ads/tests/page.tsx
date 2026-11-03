@@ -19,6 +19,7 @@ import { STORE_META_ADS } from '@/lib/store-config';
 import { count, money, roasText } from '@/lib/ads/shape';
 import { studyProblems } from '@/lib/ads/study';
 import { api, useAdsStatus, NotReady, ErrorLine } from '../ads-kit';
+import { ListRowsSkeleton } from '@/components/shared/skeletons';
 
 interface Cell { name: string; share: number | null; adsets: { id: string; name: string }[]; spend: number; result: number; resultLabel: string; costPerResult: number | null; purchases: number; roas: number | null }
 interface Test { id: string; name: string; start: string | null; end: string | null; running: boolean; cells: Cell[]; ahead: string | null }
@@ -83,7 +84,7 @@ function Tests() {
             <Input value={name} onChange={e => setName(e.target.value)} placeholder="Name, like “Packshot vs on-hand”" className="h-11 text-base sm:text-sm" />
             <Input value={filter} onChange={e => setFilter(e.target.value)} placeholder="Find an ad set" className="h-9 text-base sm:text-sm" />
             <ul className="max-h-64 overflow-y-auto divide-y rounded-lg border">
-              {!data && loading && <li className="p-3 text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Reading…</li>}
+              {!data && loading && <li><ListRowsSkeleton rows={3} avatar={false} card={false} /></li>}
               {shown.map(a => {
                 const i = picked.indexOf(a.id);
                 return (

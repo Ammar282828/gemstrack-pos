@@ -11,7 +11,7 @@
 import { PageShell } from '@/components/shared/page-shell';
 import React, { useState, useEffect } from 'react';
 import { readDeviceTheme, writeDeviceTheme, DEVICE_THEME_EVENT } from '@/lib/theme-cache';
-import { ListSkeleton } from '@/components/shared/skeletons';
+import { ListSkeleton, ListRowsSkeleton } from '@/components/shared/skeletons';
 import { STORE_CONFIG, STORE_BRAND, STORE_WEBSITE_SELLING } from '@/lib/store-config';
 import { auth as firebaseAuth } from '@/lib/firebase';
 import { cn } from '@/lib/utils';
@@ -48,6 +48,7 @@ import { useWorkDrafts } from '@/components/drafts/use-work-drafts';
 import { REPORT_TOGGLE, reportWhen, type ReportTask } from '@/lib/notifications/schedule';
 import { RatesForm } from '@/components/rates/rate-chip';
 import { authedFetch } from '@/lib/voice/authed-fetch';
+import { BusyLabel } from '@/components/ui/busy';
 
 
 export const EmergencyLock: React.FC = () => {
@@ -318,10 +319,10 @@ export function NotificationsCard() {
             {health?.detail && <p className="text-xs text-muted-foreground">{health.detail}</p>}
           </div>
           <Button size="sm" variant="outline" onClick={checkHealth} disabled={checking}>
-            {checking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Re-check'}
+            <BusyLabel busy={checking}>Re-check</BusyLabel>
           </Button>
           <Button size="sm" onClick={sendTest} disabled={testing || !health?.ok}>
-            {testing ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}Send test
+            <BusyLabel busy={testing}>Send test</BusyLabel>
           </Button>
         </div>
         {/* Master toggle */}
@@ -399,7 +400,7 @@ export function NotificationsCard() {
                     <div className="flex items-center gap-2 flex-shrink-0">
                       {task && (
                         <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => sendNow(task)} disabled={!!sendingNow || !phones.length}>
-                          {sendingNow === task ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Send now'}
+                          <BusyLabel busy={sendingNow === task}>Send now</BusyLabel>
                         </Button>
                       )}
                       <Switch
@@ -609,9 +610,7 @@ export function SignInActivity() {
               </CardHeader>
               <CardContent>
                 {logsLoading ? (
-                  <div className="flex items-center gap-2 text-muted-foreground py-4">
-                    <Loader2 className="h-4 w-4 animate-spin" /> Loading…
-                  </div>
+                  <ListRowsSkeleton rows={4} avatar={false} card={false} />
                 ) : signInLogs.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-4">No sign-in activity recorded yet.</p>
                 ) : (

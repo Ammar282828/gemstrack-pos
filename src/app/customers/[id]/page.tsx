@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { ListSkeleton } from '@/components/shared/skeletons';
+import { DetailSkeleton } from '@/components/shared/skeletons';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAppStore, Customer, Invoice, Order } from '@/lib/store';
@@ -110,7 +110,7 @@ export default function CustomerDetailPage() {
   if (!isHydrated) {
     return (
       <div className="container mx-auto px-4 py-5 md:py-6 max-w-7xl">
-        <ListSkeleton />
+        <DetailSkeleton sections={2} />
       </div>
     );
   }

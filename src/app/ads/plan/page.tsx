@@ -24,6 +24,7 @@ import { PlanSection } from './plan';
 import { GuideSection } from './guide';
 import { RivalsSection } from './rivals';
 import type { Play } from '@/lib/ads/studio/plays';
+import { ListSkeleton } from '@/components/shared/skeletons';
 
 const PARTS = [
   { key: 'plays', label: 'What to run', icon: MapIcon },
@@ -33,7 +34,7 @@ const PARTS = [
 
 export default function AdsPlanRoute() {
   if (!STORE_AD_STUDIO) return <p className="container mx-auto px-4 py-8 text-sm text-muted-foreground">The Plan isn’t part of this shop.</p>;
-  return <Suspense><AdsPlan /></Suspense>;
+  return <Suspense fallback={<ListSkeleton rows={4} />}><AdsPlan /></Suspense>;
 }
 
 function AdsPlan() {

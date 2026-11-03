@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { authedFetch } from '@/lib/voice/authed-fetch';
+import { LinesSkeleton } from '@/components/shared/skeletons';
 
 type Status = { set: boolean; readable: boolean; keyId?: string; setAt?: string; setBy?: string; error?: string };
 
@@ -64,7 +65,7 @@ export function IphonePushCard() {
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
         {!status ? (
-          <p className="text-muted-foreground"><Loader2 className="mr-1 inline h-3.5 w-3.5 animate-spin" /> Checking…</p>
+          <LinesSkeleton lines={2} />
         ) : status.set && status.readable ? (
           <p className="flex items-start gap-2">
             <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-tone-settled-ink" />

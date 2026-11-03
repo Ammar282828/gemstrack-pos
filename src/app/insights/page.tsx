@@ -21,6 +21,7 @@ import { surfaceLabel, type Finding, type Split } from '@/lib/social-insights/sh
 import type { DailySnapshot, FacebookOverview, InstagramOverview, PlatformSpend } from '@/lib/social-insights/fetch';
 import { ErrorLine } from '@/app/ads/ads-kit';
 import { Delta, InsightRangePicker, MissingNote, Tile, useInsightRange, useInsights } from './insights-kit';
+import { FigureTilesSkeleton, ChartSkeleton } from '@/components/shared/skeletons';
 
 interface OverviewData { instagram: InstagramOverview | null; facebook: FacebookOverview | null; paid: { now: PlatformSpend[]; before: PlatformSpend[] } | null; history: DailySnapshot[]; currency: string }
 
@@ -102,7 +103,7 @@ function InsightsOverview() {
       action={<Button variant="outline" onClick={() => { o.reload(true).then(() => f.reload()); }} disabled={o.loading}><RefreshCw className={cn('h-4 w-4 mr-1.5', o.loading && 'animate-spin')} /> Refresh</Button>}>
       <InsightRangePicker value={range} onChange={setRange} />
       {o.error && <ErrorLine error={o.error} onRetry={() => o.reload(true)} />}
-      {!d && o.loading && <div className="flex items-center gap-2 text-sm text-muted-foreground py-6"><Loader2 className="h-4 w-4 animate-spin" /> Asking Meta…</div>}
+      {!d && o.loading && <div className="space-y-4"><FigureTilesSkeleton tiles={4} /><ChartSkeleton height={220} /></div>}
       {d && (
         <>
           <p className="text-xs text-muted-foreground -mt-1">{d.since} → {d.until} · compared with {d.previous.since} → {d.previous.until}</p>

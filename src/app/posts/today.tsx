@@ -13,6 +13,7 @@ import { Check, ChevronRight, Clock, Globe, Instagram, MessageCircle, Radio, Tre
 import { cn } from '@/lib/utils';
 import type { Sent } from '@/lib/social/sent-log';
 import { TARGET_ORDER, statusOf, type DayState, type KarachiNow, type Schedule, type Target } from '@/lib/investments-schedule';
+import { ListRowsSkeleton } from '@/components/shared/skeletons';
 
 export interface InvestmentsToday {
   /** Today's post, once the routine has filed it. */
@@ -90,7 +91,7 @@ export function TodayCard({ sent, investments, now, thumbOf, placeName }: {
       )}
 
       {sent === null ? (
-        <p className="text-xs text-muted-foreground">Reading what went out…</p>
+        <ListRowsSkeleton rows={2} avatar={false} card={false} />
       ) : today.length ? (
         <ul className="divide-y">
           {shown.map(s => {

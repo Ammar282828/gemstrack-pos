@@ -18,6 +18,7 @@ import { Check, Loader2, Search, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { byNewest } from '@/lib/website/new-arrivals';
 import type { SitePieceLike } from '@/lib/website/site-photo';
+import { RecordGridSkeleton } from '@/components/shared/skeletons';
 
 export interface SitePick extends SitePieceLike {
   thumb: string;
@@ -108,7 +109,7 @@ export function SitePicker({ open, onOpenChange, siteName, headers, onAdd }: {
 
         <div className="min-h-0 flex-1 overflow-y-auto -mx-1 px-1">
           {error && <p className="text-sm text-destructive">{error}</p>}
-          {!pieces && !error && <div className="flex items-center gap-2 py-8 justify-center text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Reading the website…</div>}
+          {!pieces && !error && <RecordGridSkeleton cards={10} className="grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2" />}
           {pieces && <p className="text-xs text-muted-foreground mb-2">{filtered.length.toLocaleString()} of {pieces.length.toLocaleString()} pieces</p>}
           <ul className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2">
             {filtered.slice(0, shown).map(p => {

@@ -14,6 +14,7 @@ import dynamic from 'next/dynamic';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PageShell } from '@/components/shared/page-shell';
 import { Button } from '@/components/ui/button';
+import { BusyLabel } from '@/components/ui/busy';
 import { Megaphone, Plus, RefreshCw, Loader2, ArrowUpRight, ArrowDownRight, AlertTriangle, ExternalLink, Wallet, Pause, Play, Lightbulb, CheckCircle2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { AttentionItem } from '@/lib/ads/attention';
@@ -25,6 +26,7 @@ import {
 } from '@/lib/ads/shape';
 import { api, useAdsStatus, useRange, RangePicker, NotReady, AccountAlerts, AccountPill, ErrorLine, StatusPill } from './ads-kit';
 import { Readiness } from './readiness';
+import { FigureTilesSkeleton, ListRowsSkeleton } from '@/components/shared/skeletons';
 
 // recharts is heavy: fetched when the chart is first drawn.
 const SpendChart = dynamic(() => import('./spend-chart').then(m => m.SpendChart), { ssr: false, loading: () => <Skeleton className="h-full w-full" /> });
@@ -111,8 +113,8 @@ function Attention({ items, busy, onAct }: { items: AttentionItem[]; busy: strin
               <p className="font-medium leading-tight">{it.title}</p>
               <p className="text-xs text-muted-foreground mt-0.5">{it.why}</p>
             </div>
-            {it.action?.do === 'pause' && <Button size="sm" variant="outline" className="h-8 shrink-0" disabled={busy === it.action.id} onClick={() => onAct(it.action as Extract<AttentionItem['action'], { do: 'pause' }>)}>{busy === it.action.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><Pause className="h-3.5 w-3.5 mr-1" /> Pause</>}</Button>}
-            {it.action?.do === 'resume' && <Button size="sm" variant="outline" className="h-8 shrink-0" disabled={busy === it.action.id} onClick={() => onAct(it.action as Extract<AttentionItem['action'], { do: 'resume' }>)}>{busy === it.action.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><Play className="h-3.5 w-3.5 mr-1" /> Run again</>}</Button>}
+            {it.action?.do === 'pause' && <Button size="sm" variant="outline" className="h-8 shrink-0" disabled={busy === it.action.id} onClick={() => onAct(it.action as Extract<AttentionItem['action'], { do: 'pause' }>)}><BusyLabel busy={busy === it.action!.id}><Pause className="h-3.5 w-3.5 mr-1" /> Pause</BusyLabel></Button>}
+            {it.action?.do === 'resume' && <Button size="sm" variant="outline" className="h-8 shrink-0" disabled={busy === it.action.id} onClick={() => onAct(it.action as Extract<AttentionItem['action'], { do: 'resume' }>)}><BusyLabel busy={busy === it.action!.id}><Play className="h-3.5 w-3.5 mr-1" /> Run again</BusyLabel></Button>}
             {it.action?.do === 'open' && <Button asChild size="sm" variant="ghost" className="h-8 shrink-0"><Link href={it.action.href}>Open</Link></Button>}
           </li>
         ))}
@@ -171,7 +173,7 @@ function AdsOverview() {
           {status && <Readiness status={status} />}
           <RangePicker value={range} onChange={setRange} />
           {error && <ErrorLine error={error} onRetry={() => load(true)} />}
-          {!data && loading && <div className="flex items-center gap-2 text-sm text-muted-foreground py-6"><Loader2 className="h-4 w-4 animate-spin" /> Asking Meta…</div>}
+          {!data && loading && <div className="space-y-4"><FigureTilesSkeleton tiles={4} /><ListRowsSkeleton rows={4} /></div>}
 
           {data && t && (
             <>

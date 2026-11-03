@@ -5,7 +5,7 @@
 import { authedFetch } from '@/lib/voice/authed-fetch';
 import { ItemPhotos } from '@/components/order/order-photo';
 import React, { useState, useEffect, useRef } from 'react';
-import { ListSkeleton } from '@/components/shared/skeletons';
+import { DetailSkeleton } from '@/components/shared/skeletons';
 import { whatsAppLink } from '@/lib/whatsapp';
 import { describePlating } from '@/lib/materials';
 import { generateOrderSlipPDF } from '@/lib/order-slip-pdf';
@@ -78,6 +78,7 @@ import { auth as firebaseAuth } from '@/lib/firebase';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { deleteErrorText } from '@/lib/delete-code';
 import { owesMoney } from '@/lib/money';
+import { BusyLabel } from '@/components/ui/busy';
 
 
 const STATUS_TONE: Record<string, Tone> = { Pending: 'owed', 'In Progress': 'working', Completed: 'settled', Cancelled: 'quiet', Refunded: 'quiet' };
@@ -506,7 +507,7 @@ export default function OrderDetailPage() {
   if (!isHydrated || (!order && !ordersSettled)) {
     return (
         <div className="container mx-auto px-4 py-5 md:py-6 max-w-7xl">
-        <ListSkeleton />
+        <DetailSkeleton sections={2} />
       </div>
       );
   }
@@ -1178,8 +1179,7 @@ export default function OrderDetailPage() {
             disabled={isDeletingItem}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            {isDeletingItem ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-            Remove
+            <BusyLabel busy={isDeletingItem}>Remove</BusyLabel>
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

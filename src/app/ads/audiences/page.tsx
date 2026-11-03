@@ -21,6 +21,7 @@ import { STORE_META_ADS, STORE_CONFIG } from '@/lib/store-config';
 import { compact } from '@/lib/ads/shape';
 import type { Segment } from '@/lib/ads/audience-rows';
 import { api, useAdsStatus, NotReady, ErrorLine } from '../ads-kit';
+import { ListRowsSkeleton } from '@/components/shared/skeletons';
 
 interface Audience { id: string; name: string; kind: string; description: string | null; size: [number, number] | null; ready: boolean; status: string | null; created: string | null; retentionDays: number | null }
 interface Data { audiences: Audience[]; segments: { key: Segment; label: string; hint: string }[]; events: { key: string; label: string }[]; websiteEvents?: { key: string; label: string; hint: string }[]; pixel?: boolean; instagram: string | null }
@@ -160,7 +161,7 @@ function Audiences() {
 
           <section className="rounded-xl border p-4 space-y-2">
             <h2 className="font-semibold">In the ad account</h2>
-            {!data && loading && <p className="text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Reading…</p>}
+            {!data && loading && <ListRowsSkeleton rows={3} avatar={false} card={false} />}
             {data && !data.audiences.length && <p className="text-sm text-muted-foreground">No audiences yet.</p>}
             <ul className="divide-y">
               {(data?.audiences ?? []).map(a => (

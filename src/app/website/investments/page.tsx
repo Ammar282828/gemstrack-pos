@@ -43,6 +43,8 @@ import {
   DAY_NAMES, DEFAULT_SCHEDULE, TARGET_ORDER, clock, daysLabel, karachiNow, statusOf,
   type KarachiNow, type Schedule, type Status, type Target,
 } from '@/lib/investments-schedule';
+import { ListRowsSkeleton } from '@/components/shared/skeletons';
+import { BusyLabel } from '@/components/ui/busy';
 
 interface Sent { at: string; by: string; ref: string }
 interface Post {
@@ -149,7 +151,7 @@ function InvestmentsPage() {
 
       {adding && <AddByHand today={today} onDone={() => { setAdding(false); load(); }} />}
 
-      {loading && !posts && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>}
+      {loading && !posts && <ListRowsSkeleton rows={3} />}
       {posts?.length === 0 && <p className="text-sm text-muted-foreground">No posts yet. The first arrives with the routine’s next run.</p>}
       {posts?.map(p => <DayCard key={p.id} post={p} isToday={p.date === today} targets={shown} schedule={schedule} now={now} onChanged={() => load(true)} />)}
     </div>
@@ -477,7 +479,7 @@ function DayCard({ post: p, isToday, targets, schedule, now, onChanged }: { post
                     )}
                     <Button size="sm" variant={s ? 'ghost' : 'default'} className="mt-1.5 w-full h-8" disabled={!!busy || missing(t)}
                       onClick={() => setConfirm({ targets: [t], force: !!s })}>
-                      {busy === t ? <Loader2 className="h-4 w-4 animate-spin" /> : s ? 'Send again…' : <><Send className="h-3.5 w-3.5 mr-1.5" /> Send now</>}
+                      <BusyLabel busy={busy === t}>{s ? 'Send again…' : <><Send className="h-3.5 w-3.5 mr-1.5 inline" /> Send now</>}</BusyLabel>
                     </Button>
                   </div>
                 );
@@ -550,7 +552,7 @@ function AddByHand({ today, onDone }: { today: string; onDone: () => void }) {
       </div>
       <Textarea value={post} onChange={e => setPost(e.target.value)} rows={8} placeholder="The WhatsApp post" className="font-mono text-xs" />
       <Textarea value={teaser} onChange={e => setTeaser(e.target.value)} rows={5} placeholder="The teaser (optional)" className="font-mono text-xs" />
-      <Button onClick={save} disabled={busy || !post.trim() || !date}>{busy ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : null} File it</Button>
+      <Button onClick={save} disabled={busy || !post.trim() || !date}><BusyLabel busy={busy}>File it</BusyLabel></Button>
     </div>
   );
 }

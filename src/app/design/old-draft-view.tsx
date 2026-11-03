@@ -14,6 +14,7 @@ import { Copy, Download, Loader2 } from 'lucide-react';
 import { readPostDraft, type PostDraft } from '@/lib/social/post-drafts';
 import type { OldDraftState } from './old-draft';
 import { downloadBlob } from './studio-kit';
+import { LinesSkeleton } from '@/components/shared/skeletons';
 
 export function OldDraftView({ id, onClose }: { id: string | null; onClose: () => void }) {
   const [got, setGot] = useState<{ draft: PostDraft<OldDraftState>; urls: { id: string; name: string; url: string; blob: Blob }[] } | null>(null);
@@ -40,7 +41,7 @@ export function OldDraftView({ id, onClose }: { id: string | null; onClose: () =
         <DialogTitle>{got?.draft.title || 'An earlier draft'}</DialogTitle>
         <DialogDescription>This draft of the older Post a piece screen can’t be opened as a design. Here are its words and photographs to copy and keep.</DialogDescription>
         {error && <p className="text-sm text-destructive">{error}</p>}
-        {!got && !error && <p className="text-sm text-muted-foreground"><Loader2 className="mr-1 inline h-4 w-4 animate-spin" /> …</p>}
+        {!got && !error && <LinesSkeleton lines={4} />}
         {got && s && (
           <div className="space-y-3 text-sm">
             <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs">

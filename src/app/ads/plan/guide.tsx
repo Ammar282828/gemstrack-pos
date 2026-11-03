@@ -17,6 +17,7 @@ import { GAPS, HOUSES, MARKET_AT, META_NOTES, PATTERNS } from '@/lib/ads/studio/
 import { AUDIENCE, BRAND, DECISION_RULES, HARD_RULES, IDENTITY, MARKET, MARK_RULES, VISUAL, VOICE } from '@/lib/ads/studio/brand';
 import type { WinnersState } from '@/lib/ads/studio/research';
 import { api } from '../ads-kit';
+import { LinesSkeleton } from '@/components/shared/skeletons';
 
 interface GuideData {
   calendar: {
@@ -56,7 +57,7 @@ export function GuideSection({ connected }: { connected: boolean }) {
         {error && <p className="text-sm text-destructive">{error}</p>}
         {BRAND.calendar && <section className="rounded-xl border p-4 space-y-3">
           <h2 className="text-base font-semibold flex items-center gap-2" title="From the tabular Hijri calendar the Dawoodi Bohras keep, checked against the vault’s 2025 dates. Urs and Dawat dates aren’t in the vault — confirm those against the Dawat calendar; if unsure, treat a day as sacred."><CalendarClock className="h-4 w-4" /> Ad days</h2>
-          {!c ? <p className="text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin inline mr-1" /> …</p> : (
+          {!c ? <LinesSkeleton lines={3} /> : (
             <>
               <div className={cn('rounded-lg p-3 text-sm', c.today.level === 'clear' ? 'bg-emerald-500/10' : c.today.level === 'quiet' ? 'bg-amber-500/10' : 'bg-rose-500/10')}>
                 <p className="font-medium">Today, {day(c.today.date)} · {c.today.hijri}</p>

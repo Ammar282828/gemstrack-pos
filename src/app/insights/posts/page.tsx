@@ -17,6 +17,7 @@ import { compact, count } from '@/lib/ads/shape';
 import { byKind, KIND_LABEL, type PostKind, type PostRow } from '@/lib/social-insights/shape';
 import { ErrorLine } from '@/app/ads/ads-kit';
 import { InsightRangePicker, MissingNote, useInsightRange, useInsights } from '../insights-kit';
+import { FigureTilesSkeleton, ChartSkeleton } from '@/components/shared/skeletons';
 
 interface PostsData { posts: PostRow[]; stories: PostRow[]; liveStories: string[]; lastPostAt: string | null }
 
@@ -99,7 +100,7 @@ function InsightsPosts() {
       action={<Button variant="outline" onClick={() => reload(true)} disabled={loading}><RefreshCw className={cn('h-4 w-4 mr-1.5', loading && 'animate-spin')} /> Refresh</Button>}>
       <InsightRangePicker value={range} onChange={setRange} />
       {error && <ErrorLine error={error} onRetry={() => reload(true)} />}
-      {!data && loading && <div className="flex items-center gap-2 text-sm text-muted-foreground py-6"><Loader2 className="h-4 w-4 animate-spin" /> Reading every post’s numbers from Meta…</div>}
+      {!data && loading && <div className="space-y-4"><FigureTilesSkeleton tiles={4} /><ChartSkeleton height={220} /></div>}
       {data && (
         <>
           {kinds.length > 0 && (

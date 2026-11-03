@@ -122,7 +122,7 @@ const AddTransactionDialog: React.FC<{
                         <DialogFooter>
                             <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
                             <Button type="submit" disabled={form.formState.isSubmitting} className={cn(isGaveMode ? 'bg-destructive hover:bg-destructive/90' : 'bg-success hover:bg-success')}>
-                                {form.formState.isSubmitting ? <Loader2 className="animate-spin" /> : <Save className="mr-2 h-4 w-4"/>}
+                                {form.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4"/>}
                                 Save Transaction
                             </Button>
                         </DialogFooter>

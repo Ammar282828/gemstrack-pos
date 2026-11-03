@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import { STORE_LINKS } from '@/lib/store-config';
 import { Tile } from '@/app/insights/insights-kit';
 import { Card, cityRows, countryName, DEVICE, duration, flag, pageLabel, pct, Ranked, sourceLabel, SwitchCard } from '../site-kit';
+import { FigureTilesSkeleton, ListRowsSkeleton } from '@/components/shared/skeletons';
 
 interface Live {
   at: number; visitors: number; newVisitors: number;
@@ -57,7 +58,7 @@ export default function LivePage() {
   return (
     <PageShell subtitle={`On ${site.replace(/^https?:\/\//, '') || 'the website'} in the last five minutes · updates by itself`}>
       {error && <p className="text-sm text-destructive">{error}</p>}
-      {!live && !error && <div className="flex items-center gap-2 text-sm text-muted-foreground py-6"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>}
+      {!live && !error && <div className="space-y-4"><FigureTilesSkeleton tiles={3} /><ListRowsSkeleton rows={4} /></div>}
       {live && (
         <>
           <section className="rounded-[22px] bg-card p-5 flex items-center gap-4">

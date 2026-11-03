@@ -194,6 +194,16 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
   (`src/lib/recents.ts`, localStorage). Items are *moved* up, never duplicated — Radix prints a duplicated selected
   value twice in the trigger. Lists that change over time carry a `recentsKey`; the karigar picker opts out (it ranks itself).
 
+### Loading
+
+- **A skeleton when the shape is known, the spinning circle when it is not** (owner, 2026-11-03: "fix all loading states,
+  skeleton for known state and loading circle for unknown state"). Lists, record pages, cards, figure tiles, charts, forms,
+  photo grids and photos show a skeleton shaped like what comes (same sizes, so nothing jumps; one soft pulse, still under
+  Reduce Motion); an action under way (saving, sending, a PDF being drawn, a scan, sign-in, a check) shows the system
+  circle, with words when it lasts; in a button the circle takes the label's place and the button keeps its size. Web:
+  `components/shared/skeletons.tsx`, `components/ui/busy.tsx` (`BusyLabel`), a `loading.tsx` per route. iPhone/iPad/Mac:
+  `App/UI/Skeletons.swift` (`SkeletonPage(shape:)`, `ShelfState(shape:)`, `BusySpinner`, `.busy`). Android: `ui/States.kt`.
+
 ## Home and the day
 
 ### Dashboard

@@ -39,6 +39,7 @@ import { AmountInput } from '@/components/ui/amount-input';
 import { buildWorkshopJobs } from '@/lib/workshop';
 import { karigarPosition } from '@/lib/karigar-position';
 import { deleteErrorText } from '@/lib/delete-code';
+import { DetailSkeleton } from '@/components/shared/skeletons';
 
 const silverTransactionSchema = z.object({
   silverGrams: z.coerce.number().positive("Silver grams must be greater than 0"),
@@ -374,7 +375,7 @@ export default function KarigarDetailPage() {
     }
   };
 
-  if (!isHydrated) return <div className="container mx-auto p-4"><p>Loading...</p></div>;
+  if (!isHydrated) return <div className="container mx-auto px-4 py-5 md:py-6 max-w-7xl"><DetailSkeleton sections={2} /></div>;
 
   if (!karigar) {
     return (

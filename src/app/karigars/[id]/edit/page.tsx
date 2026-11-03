@@ -2,7 +2,7 @@
 "use client";
 
 import { KarigarForm } from '@/components/karigar/karigar-form';
-import { ListSkeleton } from '@/components/shared/skeletons';
+import { FormSkeleton } from '@/components/shared/skeletons';
 import { useAppStore } from '@/lib/store';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -27,7 +27,7 @@ export default function EditKarigarPage() {
   if (isKarigarsLoading && !karigar) {
     return (
       <div className="container mx-auto px-4 py-5 md:py-6 max-w-7xl">
-        <ListSkeleton />
+        <FormSkeleton fields={8} columns={2} />
       </div>
     );
   }

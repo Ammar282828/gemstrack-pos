@@ -14,6 +14,7 @@ import { Loader2, PlugZap, AlertTriangle, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { RANGES, statusOf, ACCOUNT_STATUS, type RangeKey, type Tone, type AdsAccount } from '@/lib/ads/shape';
 import type { AdsSettings } from '@/lib/ads/settings';
+import { FigureTilesSkeleton, ListRowsSkeleton } from '@/components/shared/skeletons';
 
 export async function authHeaders(): Promise<Record<string, string>> {
   try { const t = await firebaseAuth?.currentUser?.getIdToken(); return t ? { Authorization: `Bearer ${t}` } : {}; } catch { return {}; }
@@ -135,7 +136,7 @@ export function AccountPill({ account }: { account: AdsAccount }) {
 
 /** Instead of a page that can't work yet: what's missing, and the way to Setup. */
 export function NotReady({ status, error, loading, onRetry }: { status: AdsStatus | null; error: string | null; loading: boolean; onRetry: () => void }) {
-  if (loading && !status) return <div className="flex items-center gap-2 text-sm text-muted-foreground py-10 justify-center"><Loader2 className="h-4 w-4 animate-spin" /> Checking the Meta connection…</div>;
+  if (loading && !status) return <div className="space-y-4"><FigureTilesSkeleton tiles={4} /><ListRowsSkeleton rows={3} /></div>;
   if (error) return (
     <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-4 text-sm space-y-2">
       <p className="flex items-center gap-2 font-medium"><AlertTriangle className="h-4 w-4 text-destructive" /> {error}</p>

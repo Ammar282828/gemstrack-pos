@@ -49,6 +49,7 @@ import { cn } from '@/lib/utils';
 import { DEFAULT_KARAT_VALUE_FOR_CALCULATION } from '@/lib/store';
 import { authedFetch } from '@/lib/voice/authed-fetch';
 import { isWalkInName } from '@/lib/walk-in';
+import { BusyLabel } from '@/components/ui/busy';
 
 type Phase = 'idle' | 'listening' | 'thinking' | 'confirming' | 'writing';
 
@@ -776,8 +777,7 @@ export function VoiceBubble() {
                 disabled={phase === 'writing' || rereading || !allReady}
                 variant={views?.some((v) => v.danger) ? 'destructive' : 'default'}
               >
-                {phase === 'writing' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {many ? 'Do all of it' : formsOnly ? 'Open it' : 'Write it down'}
+                <BusyLabel busy={phase === 'writing'}>{many ? 'Do all of it' : formsOnly ? 'Open it' : 'Write it down'}</BusyLabel>
               </Button>
             )}
           </DialogFooter>

@@ -52,6 +52,7 @@ import { PieceCard, agoLabel, slugOf, type CardHandle, type IgStatus, type Piece
 import { jpegOf } from './piece-photos';
 import { IG_CAROUSEL_MAX, albumCaptions, albumFileName, carouselPlan, instagramText, photosLabel, placesFor } from '@/lib/social/album';
 import { TodayCard, type InvestmentsToday } from './today';
+import { RecordGridSkeleton } from '@/components/shared/skeletons';
 
 /** The "collection" chip for the new arrivals — what the grid opens on. */
 const NEW = '__new';
@@ -616,7 +617,7 @@ function PostsHub() {
             </div>
             <label className="flex items-center gap-2 text-xs text-muted-foreground"><Switch checked={freshOnly} onCheckedChange={setFreshOnly} /> Hide pieces posted in the last {FRESH_DAYS} days</label>
 
-            {!pieces && !error && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Reading the website…</div>}
+            {!pieces && !error && <RecordGridSkeleton cards={8} className="grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5" />}
             {pieces && <p className="text-xs text-muted-foreground">{filtered.length.toLocaleString()} of {pieces.length.toLocaleString()} pieces</p>}
             <ul className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5">
               {filtered.slice(0, shown).map(p => {

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { ListSkeleton } from '@/components/shared/skeletons';
+import { ListSkeleton, ListRowsSkeleton } from '@/components/shared/skeletons';
 import { useAppStore, GivenItem, GivenItemStatus, GivenItemRecipientType } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
 import { useForm } from 'react-hook-form';
@@ -350,9 +350,7 @@ export default function GivenItemsPage() {
 
       {/* Table */}
       {isGivenItemsLoading ? (
-        <div className="text-center py-12">
-          <Loader2 className="w-12 h-12 mx-auto animate-spin text-primary mb-4" />
-        </div>
+        <ListRowsSkeleton rows={6} />
       ) : filtered.length === 0 ? (
         <EmptyState icon={<HandCoins />} title="Nothing here yet"
           description={search || statusFilter !== 'all' || byFilter ? 'No items match your filter.' : 'Select "Record Item Given" to add an entry.'} />

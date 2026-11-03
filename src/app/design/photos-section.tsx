@@ -24,6 +24,7 @@ import { photoPartsFor, type PhotoPart } from './design-state';
 import { startPhotoFromSite } from './start';
 import type { StartPhoto } from './use-design';
 import type { LibraryItem } from './studio-kit';
+import { ThumbGridSkeleton } from '@/components/shared/skeletons';
 
 const NEW = '__new__';
 const PAGE = 60;
@@ -118,7 +119,7 @@ function SitePieces({ onMake }: { onMake: (p: StartPhoto) => void }) {
         {collections.map(c => <FilterChip key={c} title={c} chosen={showing === c} onClick={() => setCollection(c)} />)}
       </ChipRow>
       {error && <p className="text-sm text-destructive">{error}</p>}
-      {!pieces && !error && <p className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Reading the website…</p>}
+      {!pieces && !error && <ThumbGridSkeleton count={12} />}
       {pieces && !filtered.length && <EmptyState title="No pieces" description="Nothing on the website matches." />}
       {pieces && filtered.length > 0 && <p className="px-1 text-ios-foot text-muted-foreground">{filtered.length.toLocaleString()} of {pieces.length.toLocaleString()} pieces — tap one to design it</p>}
       <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">

@@ -26,6 +26,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useToast } from '@/hooks/use-toast';
 import { Globe, Truck, Banknote, PackageCheck, RefreshCw, ExternalLink, FileText, Loader2, Ban, Clock, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { BusyLabel } from '@/components/ui/busy';
 
 const fmt = (n: number) => `Rs ${Math.round(n).toLocaleString('en-PK')}`;
 /** "4 Oct, 11:12 am". */
@@ -148,7 +149,7 @@ function MoneyMoves({ order, onDone }: { order: Order; onDone?: () => void }) {
           <DialogFooter>
             <Button variant="outline" disabled={!!busy} onClick={() => setAsk(null)}>Not yet</Button>
             <Button variant={askShown === 'lapse' ? 'destructive' : 'default'} disabled={!!busy} onClick={go}>
-              {busy ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}{askShown === 'paid' ? 'Yes, it is in' : 'Let it lapse'}
+              <BusyLabel busy={!!busy}>{askShown === 'paid' ? 'Yes, it is in' : 'Let it lapse'}</BusyLabel>
             </Button>
           </DialogFooter>
         </DialogContent>

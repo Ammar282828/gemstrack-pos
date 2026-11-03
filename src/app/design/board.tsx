@@ -52,6 +52,9 @@ import { FONTS, bodyFace, headlineFace, serifFace } from '../website/post/fonts'
 import { useSiteAssets } from '../website/post/site-assets';
 import { api, authHeaders } from '../ads/ads-kit';
 import { AuthedImg, SITE_LABEL, downloadBlob, fetchAsset, runImageOp, safeName, type LibraryItem, type LibraryResponse } from './studio-kit';
+import { ListRowsSkeleton, ThumbGridSkeleton, LinesSkeleton } from '@/components/shared/skeletons';
+import { Skeleton } from '@/components/ui/skeleton';
+import { BusyLabel } from '@/components/ui/busy';
 
 const LAST_KEY = 'taheri_studio_board';
 const POLL_MS = 4000;
@@ -198,7 +201,7 @@ export function BoardSection() {
         <WeeklyButton onBoard={id => { loadList().then(() => choose(id)); }} />
         <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setAgentOpen(true)}><Bot className="h-4 w-4 mr-1" /> Connect an agent</Button>
       </div>
-      {!boards && <p className="text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Loading the boards…</p>}
+      {!boards && <ListRowsSkeleton rows={3} />}
       {boards && boards.length === 0 && (
         <div className="rounded-xl border-2 border-dashed p-8 text-center space-y-3">
           <p className="text-sm">A board holds designs side by side — your own, the AI’s variants, and an agent’s — with notes beside them.</p>
@@ -861,7 +864,7 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
     files.forEach((f, i) => { const c = boardPoint(e.clientX, e.clientY); addOwnPhoto(f, selFrame?.format ?? 'portrait', { x: c.x - 150 + i * 40, y: c.y - 180 + i * 40 }); });
   };
 
-  if (!board) return <p className="text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Opening the board…</p>;
+  if (!board) return <Skeleton className="h-[60vh] w-full rounded-xl" />;
   const overlay = stage || full;
 
   return (
@@ -1072,7 +1075,7 @@ function FrameCard({ frame: f, x, y, selected, fresh, marks, ready, boardId, dra
       </p>
       <div className={cn('relative overflow-hidden rounded-sm bg-background shadow-sm ring-1 ring-border transition-shadow duration-700', fresh && 'ring-8 ring-sky-400/80 shadow-[0_0_60px_rgba(56,189,248,0.6)]', selected && 'ring-4 ring-primary')} style={{ width: w, height: h }}>
         {url ? <img loading="lazy" decoding="async" src={url} alt={f.label} draggable={false} className="h-full w-full object-cover pointer-events-none" />
-          : <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground p-4 text-center">{err ? `Couldn’t draw it: ${err}` : <Loader2 className="h-5 w-5 animate-spin" />}</div>}
+          : <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground p-4 text-center">{err ? `Couldn’t draw it: ${err}` : <Skeleton className="absolute inset-0 h-full w-full rounded-none" />}</div>}
       </div>
     </div>
   );
@@ -1189,7 +1192,7 @@ function QueueDialog({ frame: f, open, onClose, onQueue }: { frame: BoardFrame; 
           <DialogTitle>Queue a post</DialogTitle>
           <DialogDescription>It waits in Posts → Hub, held: send it now or set a time there. Nothing goes out from here.</DialogDescription>
         </DialogHeader>
-        {!places && <p className="text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Finding the WhatsApp places…</p>}
+        {!places && <LinesSkeleton lines={4} />}
         {err && <p className="text-xs text-destructive">{err}</p>}
         {places && (
           <div className="space-y-1.5">
@@ -1666,7 +1669,7 @@ function FrameEditor({ frame: f, sizes, order, thumbs, marks, onClose, onSave, o
         : <span className="hidden shrink-0 items-center gap-1 text-[11px] text-muted-foreground lg:flex">
           {saveState === 'saving' || pending ? <><Loader2 className="h-3 w-3 animate-spin" />Saving</> : <><CheckIcon className="h-3 w-3" />Saved{linked && sizes.length ? ` · ${sizesLabel} too` : ''}</>}
         </span>,
-    actions: <Button size="sm" className="ml-1" disabled={leaving} onClick={cancel}>{leaving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}Done</Button>,
+    actions: <Button size="sm" className="ml-1" disabled={leaving} onClick={cancel}><BusyLabel busy={leaving}>Done</BusyLabel></Button>,
     strip: order.length > 1 ? <FrameStrip order={order} current={start.id} group={start.group} thumbs={thumbs} onPick={go} /> : undefined,
   };
 
@@ -1776,7 +1779,7 @@ function PicturesPanel({ slots, urlOf, selected, busy, checks, restorable, hasMa
           return (
             <button key={s.target} type="button" onClick={() => onChoose(s.target)} title={s.label}
               className={cn('relative h-16 w-16 shrink-0 overflow-hidden rounded-md border-2 bg-muted min-h-0', selected === s.target ? 'border-primary ring-2 ring-primary/30' : 'border-transparent hover:border-border')}>
-              {url ? <img loading="lazy" decoding="async" src={url} alt={s.label} className="h-full w-full object-cover" /> : <Loader2 className="m-auto h-4 w-4 animate-spin text-muted-foreground" />}
+              {url ? <img loading="lazy" decoding="async" src={url} alt={s.label} className="h-full w-full object-cover" /> : <Skeleton className="h-full w-full rounded-none" />}
               {restorable(s.target) && <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-primary" title="Changed" />}
             </button>
           );
@@ -1939,11 +1942,11 @@ function PhotoPicker({ open, onOpenChange, onPick, withFormat, title = 'Add a ph
         {onFile && (
           <form className="flex gap-2" onSubmit={e => { e.preventDefault(); void fromLink(); }}>
             <Input value={link} onChange={e => setLink(e.target.value)} inputMode="url" placeholder="Paste a link: an Instagram post or any picture" className="h-9 flex-1 text-base sm:text-sm" />
-            <Button size="sm" type="submit" className="h-9" disabled={!link.trim() || fetching}>{fetching ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Add'}</Button>
+            <Button size="sm" type="submit" className="h-9" disabled={!link.trim() || fetching}><BusyLabel busy={fetching}>Add</BusyLabel></Button>
           </form>
         )}
         {err && <p className="text-sm text-destructive">{err}</p>}
-        {!items && !err && <p className="text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</p>}
+        {!items && !err && <ThumbGridSkeleton count={8} className="grid-cols-3 sm:grid-cols-4 md:grid-cols-4" />}
         {items && (
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
             {items.map(it => (

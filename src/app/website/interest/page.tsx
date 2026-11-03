@@ -26,6 +26,7 @@ import { STORE_LINKS } from '@/lib/store-config';
 import { Delta, Tile } from '@/app/insights/insights-kit';
 import type { Summary } from '@/lib/website/site-analytics';
 import { Card, CHANNEL, cityRows, countryName, flag, DEVICE, duration, pageLabel, pct, Ranked, sourceLabel, SwitchCard, type RankRow } from './site-kit';
+import { FigureTilesSkeleton, ChartSkeleton } from '@/components/shared/skeletons';
 
 interface Row {
   piece: string; name: string; thumb: string; url: string; collection: string;
@@ -129,7 +130,7 @@ export default function InterestPage() {
       )}
 
       {error && <p className="text-sm text-destructive">{error}</p>}
-      {loading && !report && <div className="flex items-center gap-2 text-sm text-muted-foreground py-6"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>}
+      {loading && !report && <div className="space-y-4"><FigureTilesSkeleton tiles={4} /><ChartSkeleton height={220} /></div>}
 
       {report && n && b && (
         <>

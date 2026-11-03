@@ -347,7 +347,7 @@ export const FinalizeOrderDialog: React.FC<{
                         <DialogFooter className="sticky -bottom-6 -mx-6 -mb-6 gap-2 border-t bg-background/95 px-6 py-4 backdrop-blur">
                             <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
                             <Button type="submit" disabled={form.formState.isSubmitting}>
-                                {form.formState.isSubmitting ? <Loader2 className="animate-spin mr-2" /> : <FileText className="mr-2 h-4 w-4"/>}
+                                {form.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4"/>}
                                 Finalize & invoice
                             </Button>
                         </DialogFooter>
@@ -448,7 +448,7 @@ export const RecordAdvanceDialog: React.FC<{
                         <DialogFooter>
                             <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
                             <Button type="submit" disabled={form.formState.isSubmitting}>
-                               {form.formState.isSubmitting ? <Loader2 className="animate-spin mr-2"/> : <DollarSign className="mr-2 h-4 w-4"/>}
+                               {form.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <DollarSign className="mr-2 h-4 w-4"/>}
                                 Record Payment
                             </Button>
                         </DialogFooter>

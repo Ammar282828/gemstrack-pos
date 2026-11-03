@@ -37,10 +37,11 @@ import { displayName, isDesignDraft, kindCard, photoPartOf, sectionOf, sectionsF
 import { OldDraftView } from './old-draft-view';
 import { diagnose } from '@/lib/social/diagnose';
 import { useDesign, useDesignRole, type StartPhoto, type StartRequest } from './use-design';
+import { ListSkeleton } from '@/components/shared/skeletons';
 
 export default function DesignPage() {
   if (!STORE_DESIGN) return <p className="container mx-auto px-4 py-8 text-sm text-muted-foreground">Design isn’t part of this shop.</p>;
-  return <Suspense><DesignRoute /></Suspense>;
+  return <Suspense fallback={<ListSkeleton rows={4} />}><DesignRoute /></Suspense>;
 }
 
 function DesignRoute() {

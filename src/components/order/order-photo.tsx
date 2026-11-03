@@ -50,7 +50,7 @@ export function useOrderPhoto(item: PhotoItem): string | null | undefined {
 /** Renders `children(src)` once the photo is known; nothing when the piece has none. */
 export function OrderPhoto({ item, children }: { item: PhotoItem; children: (src: string) => React.ReactNode }) {
   const src = useOrderPhoto(item);
-  if (src === undefined) return <div className="h-28 w-full animate-pulse rounded-md bg-muted" aria-hidden />;
+  if (src === undefined) return <div className="h-28 w-full animate-pulse motion-reduce:animate-none rounded-md bg-muted" aria-hidden />;
   return src ? <>{children(src)}</> : null;
 }
 
@@ -81,7 +81,7 @@ export function ItemPhotos({ item, size = 96, cover, title, className }: { item:
   return (
     <>
       <div className={`flex flex-wrap gap-2 ${className ?? ''}`}>
-        {photos.length === 0 && <div style={{ width: size, height: size }} className="animate-pulse rounded-md bg-muted" aria-hidden />}
+        {photos.length === 0 && <div style={{ width: size, height: size }} className="animate-pulse motion-reduce:animate-none rounded-md bg-muted" aria-hidden />}
         {photos.map((src, i) => (
           <button key={i} type="button" onClick={() => setOpen(i)} aria-label={`Open reference photo ${i + 1} of ${photos.length}`}
             style={{ width: size, height: size }} className="relative flex-shrink-0 overflow-hidden rounded-md border bg-muted">

@@ -22,6 +22,9 @@ import {
   AuthedImg, FIX_OPS, Meter, SITE_LABEL, ScoreBadge, downloadBlob, fetchAsset, runImageOp, safeName, scoreWord,
   type FixResult, type LibraryItem, type LibraryResponse, type WorkPhoto,
 } from './studio-kit';
+import { ThumbGridSkeleton } from '@/components/shared/skeletons';
+import { Skeleton } from '@/components/ui/skeleton';
+import { BusyLabel } from '@/components/ui/busy';
 
 const PLACEMENT_KEY = 'taheri_studio_placement';
 export function usePlacement(): [Placement, (p: Placement) => void] {
@@ -151,7 +154,7 @@ function AddByLink({ onAdded }: { onAdded: () => void }) {
   return (
     <form onSubmit={e => { e.preventDefault(); add(); }} className="inline-flex items-center gap-1">
       <Input autoFocus value={link} onChange={e => setLink(e.target.value)} placeholder="Drive folder link" className="h-7 w-56 text-base sm:text-[11px]" />
-      <Button size="sm" className="h-7" disabled={busy || !link.trim()}>{busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Add'}</Button>
+      <Button size="sm" className="h-7" disabled={busy || !link.trim()}><BusyLabel busy={busy}>Add</BusyLabel></Button>
     </form>
   );
 }
@@ -244,7 +247,7 @@ export function PicksSection({ placement, onPlacement, onOpen, reloadKey }: { pl
       {counts && <AssessBar counts={counts} runner={runner} big={counts.assessed === 0} />}
       {data && <DriveCard drive={data.drive} onRefresh={() => { reload(true); newest.reload(true); }} refreshing={loading} />}
       {loading && !data ? (
-        <div className="py-16 text-center text-sm text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin inline mr-2" /> Gathering the photos…</div>
+        <ThumbGridSkeleton count={12} />
       ) : data && data.items.length > 0 ? (
         <section className="space-y-2">
           <div>
@@ -326,10 +329,10 @@ export function LibrarySection({ placement, onPlacement, onOpen, reloadKey }: { 
           )}
         </div>
       )}
-      {loading && !data ? <div className="py-16 text-center text-sm text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin inline mr-2" /> Gathering the photos…</div>
+      {loading && !data ? <ThumbGridSkeleton count={12} />
         : <Grid>{(data?.items ?? []).map(it => <AssetTile key={it.id} item={it} onOpen={onOpen} />)}</Grid>}
       {data && data.items.length < data.total && (
-        <div className="text-center"><Button variant="outline" onClick={() => setPages(p => p + 1)} disabled={loading}>{loading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null} Show more</Button></div>
+        <div className="text-center"><Button variant="outline" onClick={() => setPages(p => p + 1)} disabled={loading}><BusyLabel busy={loading}>Show more</BusyLabel></Button></div>
       )}
     </div>
   );
@@ -432,7 +435,7 @@ export function AssetSheet({ item, placement, onClose, onMake, onChanged }: {
             <div className="relative rounded-xl border bg-muted overflow-hidden">
               {photoError ? <p className="p-6 text-sm text-destructive">{photoError}</p>
                 : (current?.url ?? base?.url) ? <img src={current?.url ?? base!.url} alt={cur.name} className="w-full max-h-[60vh] object-contain" />
-                  : <div className="aspect-square flex items-center justify-center text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin mr-2" /> Fetching the photo…</div>}
+                  : <Skeleton className="aspect-square w-full rounded-none" />}
               {busy && <div className="absolute inset-0 bg-background/70 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2 text-sm"><Loader2 className="h-5 w-5 animate-spin" /> {busy.startsWith('extend:') ? `Extend to ${busy.slice(7)}` : FIXES[busy as FixCode]?.label}… {FIX_OPS[(busy.startsWith('extend:') ? 'extend-portrait' : busy) as keyof typeof FIX_OPS]?.secs}</div>}
             </div>
             {edits.length > 0 && (

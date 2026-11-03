@@ -49,6 +49,8 @@ import { siteLayouts, siteStartLayout } from '@/lib/social/site-design';
 import { SoloEditor, useStoryDoc } from '../post/story-editor';
 import { FONTS, bodyFace, headlineFace } from '../post/fonts';
 import { useSiteAssets } from '../post/site-assets';
+import { RecordGridSkeleton } from '@/components/shared/skeletons';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // ── What the routes send ───────────────────────────────────────────────────
 
@@ -187,7 +189,7 @@ function EditPiecePage() {
             ))}
           </div>
 
-          {!pieces && !error && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Reading {SITE_NAME}…</div>}
+          {!pieces && !error && <RecordGridSkeleton cards={10} className="grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2.5" />}
           {pieces && <p className="text-xs text-muted-foreground">{filtered.length.toLocaleString()} of {pieces.length.toLocaleString()} pieces</p>}
           <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2.5">
             {filtered.slice(0, shown).map(p => (
@@ -513,9 +515,7 @@ function PieceEditor({ piece, onSaved, onClose }: { piece: Piece; onSaved: (p: P
             <SoloEditor side={{
               label: 'The photo', sub: `${shape === 'square' ? 'Square' : 'Its own shape'} · ${SITE_NAME}`,
               placeholder: ready ? undefined : (
-                <div className="mx-auto flex aspect-square w-[300px] sm:w-[340px] items-center justify-center rounded-xl border-2 border-dashed text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Fetching the photo…
-                </div>
+                <Skeleton className="mx-auto aspect-square w-[300px] sm:w-[340px] rounded-xl" />
               ),
               tools: (
                 <DropdownMenu>

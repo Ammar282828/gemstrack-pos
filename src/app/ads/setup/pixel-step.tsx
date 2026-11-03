@@ -13,6 +13,8 @@ import { Loader2, CheckCircle2, AlertTriangle, Globe } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { PixelRow, PixelState } from '@/lib/ads/pixel';
 import { api } from '../ads-kit';
+import { BusyLabel } from '@/components/ui/busy';
+import { LinesSkeleton } from '@/components/shared/skeletons';
 
 const host = (u: string) => { try { return new URL(u).host.replace(/^www\./, ''); } catch { return u; } };
 
@@ -43,7 +45,7 @@ export function PixelStep({ ready }: { ready: boolean }) {
   };
   if (!ready) return <p className="text-muted-foreground">Connect and choose the ad account first.</p>;
   if (error) return <p className="text-destructive">{error}</p>;
-  if (!data) return <p className="text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin inline mr-1" /> Reading the ad account’s pixels…</p>;
+  if (!data) return <LinesSkeleton lines={3} />;
   const st = data.state;
   const listed = new Set(data.pixels.map(p => p.id));
   // Pixels the house's own sites already carry (House of Mina's Shopify store, through Shopify's Facebook app).
@@ -84,7 +86,7 @@ export function PixelStep({ ready }: { ready: boolean }) {
       )}
       <div className="flex gap-2">
         <Input value={name} onChange={e => setName(e.target.value)} className="h-8 text-base sm:text-xs max-w-[14rem]" aria-label="New pixel’s name" />
-        <Button size="sm" variant="outline" disabled={busy} onClick={() => { if (carried.length && !confirm(`The site already carries pixel ${carried.join(', ')}. A second pixel splits visits and orders between two — make one anyway?`)) return; act({ action: 'create', name }); }}>{busy ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null} Make a new pixel</Button>
+        <Button size="sm" variant="outline" disabled={busy} onClick={() => { if (carried.length && !confirm(`The site already carries pixel ${carried.join(', ')}. A second pixel splits visits and orders between two — make one anyway?`)) return; act({ action: 'create', name }); }}><BusyLabel busy={busy}>Make a new pixel</BusyLabel></Button>
         {st.id && <Button size="sm" variant="ghost" disabled={busy} onClick={() => act({ action: 'choose', id: null })}>Stop using it</Button>}
       </div>
     </div>

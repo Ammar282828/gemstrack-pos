@@ -28,6 +28,7 @@ import { showsWeight, siteDetailsLine, siteLayouts, siteStartLayout } from '@/li
 import { SoloEditor, useStoryDoc } from '@/app/website/post/story-editor';
 import { FONTS, bodyFace, headlineFace } from '@/app/website/post/fonts';
 import { useSiteAssets } from '@/app/website/post/site-assets';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export interface DesignPiece { id: string; name: string; url: string; collection: string; weightOnPhoto: boolean; photoSource: string | null; sourceMarked: boolean }
 
@@ -187,9 +188,7 @@ export function PieceDesignPanel({ d, piece, siteName }: { d: PieceDesign; piece
         <SoloEditor side={{
           label: 'The photo', sub: 'Square · WhatsApp and the story',
           placeholder: d.ready ? undefined : (
-            <div className="mx-auto flex aspect-square w-[300px] sm:w-[340px] max-w-full items-center justify-center rounded-xl border-2 border-dashed text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Fetching the photo…
-            </div>
+            <Skeleton className="mx-auto aspect-square w-[300px] sm:w-[340px] max-w-full rounded-xl" />
           ),
           bottom: <p className="text-[11px] text-muted-foreground">Drag or pinch the photo to crop it; the corner of anything on it to size it.</p>,
           props: {

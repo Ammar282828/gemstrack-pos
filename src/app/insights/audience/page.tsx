@@ -20,6 +20,7 @@ import { bestHours, countryLabel, genderLabel, hourLabel, sharesOf, type Part } 
 import type { Audience } from '@/lib/social-insights/fetch';
 import { ErrorLine } from '@/app/ads/ads-kit';
 import { InsightRangePicker, MissingNote, ShareBars, useInsightRange, useInsights } from '../insights-kit';
+import { FigureTilesSkeleton, ChartSkeleton } from '@/components/shared/skeletons';
 
 // recharts is heavy: fetched when the chart is first drawn.
 const OnlineHoursBars = dynamic(() => import('../charts').then(m => m.OnlineHoursBars), { ssr: false, loading: () => <Skeleton className="h-full w-full" /> });
@@ -54,7 +55,7 @@ function InsightsAudience() {
       action={<Button variant="outline" onClick={() => reload(true)} disabled={loading}><RefreshCw className={cn('h-4 w-4 mr-1.5', loading && 'animate-spin')} /> Refresh</Button>}>
       <InsightRangePicker value={range} onChange={setRange} />
       {error && <ErrorLine error={error} onRetry={() => reload(true)} />}
-      {!data && loading && <div className="flex items-center gap-2 text-sm text-muted-foreground py-6"><Loader2 className="h-4 w-4 animate-spin" /> Asking Meta…</div>}
+      {!data && loading && <div className="space-y-4"><FigureTilesSkeleton tiles={4} /><ChartSkeleton height={220} /></div>}
       {data && !a && <p className="text-sm text-muted-foreground">Choose this shop’s Instagram account on Ads → Setup.</p>}
       {a && g && (
         <>

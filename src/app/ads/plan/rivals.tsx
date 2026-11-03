@@ -18,6 +18,7 @@ import type { Competitor } from '@/lib/ads/studio/research';
 import type { FoundCompetitor } from '@/lib/ads/studio/prompts';
 import { api } from '../ads-kit';
 import { BRAND, IDENTITY } from '@/lib/ads/studio/brand';
+import { ListRowsSkeleton } from '@/components/shared/skeletons';
 
 type Row = Competitor & { adLibrary: string; instagram: string; profile: (Competitor['profile'] & { posts: (NonNullable<Competitor['profile']>['posts'][number] & { rate?: number | null })[] }) | null };
 type Found = FoundCompetitor & { adLibrary: string };
@@ -97,7 +98,7 @@ export function RivalsSection({ connected }: { connected: boolean }) {
 
       {!connected && <p className="text-xs text-amber-700 dark:text-amber-400">Connect Meta (Setup) to look them up on Instagram.</p>}
       {error && <p className="text-sm text-destructive">{error}</p>}
-      {list === null ? <div className="py-10 text-center text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin inline mr-2" /> Loading…</div>
+      {list === null ? <ListRowsSkeleton rows={3} />
         : list.length === 0 ? <p className="text-sm text-muted-foreground text-center py-8">No competitors yet.</p>
           : <div className="space-y-2">{list.map(c => <RivalCard key={c.username} c={c} open={open === c.username} onToggle={() => setOpen(open === c.username ? null : c.username)} onChange={update} onRemove={() => remove(c.username)} canLook={connected} />)}</div>}
     </div>

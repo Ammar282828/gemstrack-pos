@@ -23,6 +23,8 @@ import { STORE_MARK_SVG, STORE_WHATSAPP_NUMBERS } from '@/lib/store-config';
 import { FONTS } from '@/app/website/post/fonts';
 import { storyCaption, storyDay, type StoryDraft, type StoryDraftPlace, type StoryDraftStatus } from '@/lib/social/story-drafts';
 import { loadWeekStoryFonts, weekStoryJpeg, type WeekStoryFonts } from '@/lib/social/week-story';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ThumbGridSkeleton, LinesSkeleton } from '@/components/shared/skeletons';
 
 type Filter = 'todo' | 'posted' | 'skipped' | 'all';
 interface IgStatus { configured: boolean; connected: boolean; username: string | null }
@@ -285,7 +287,7 @@ export default function StoryDraftsPage() {
         ))}
       </div>
 
-      {!drafts && !error && <p className="flex items-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Reading the website…</p>}
+      {!drafts && !error && <ThumbGridSkeleton count={8} aspect="aspect-[9/16]" className="grid-cols-2 sm:grid-cols-3 md:grid-cols-4" />}
       {drafts && !shown.length && <p className="text-sm text-muted-foreground">Nothing here.</p>}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
@@ -296,7 +298,7 @@ export default function StoryDraftsPage() {
               {previews[d.id]
                 // eslint-disable-next-line @next/next/no-img-element
                 ? <img loading="lazy" decoding="async" src={previews[d.id]} alt={d.name} className="h-full w-full object-cover" />
-                : <div className="flex h-full items-center justify-center p-3 text-center text-xs text-muted-foreground">{d.missing ? 'Not on the website now' : failed[d.id] ? `Couldn’t draw it: ${failed[d.id]}` : <Loader2 className="h-4 w-4 animate-spin" />}</div>}
+                : <div className="flex h-full items-center justify-center p-3 text-center text-xs text-muted-foreground">{d.missing ? 'Not on the website now' : failed[d.id] ? `Couldn’t draw it: ${failed[d.id]}` : <Skeleton className="h-full w-full rounded-none" />}</div>}
               {d.state && (
                 <span className={cn('absolute left-2 top-2 rounded-full px-2 py-0.5 text-[11px] font-semibold', d.state.status === 'posted' ? 'bg-emerald-600 text-white' : 'bg-black/60 text-white')}>
                   {d.state.status === 'posted' ? ['Posted', ...(d.state.on ?? []).map(p => PLACE_LABEL[p])].join(' · ') : 'Skipped'}
@@ -325,7 +327,7 @@ export default function StoryDraftsPage() {
                 {openUrl
                   // eslint-disable-next-line @next/next/no-img-element
                   ? <img src={openUrl} alt={open.name} className="h-full w-full object-cover" />
-                  : <div className="flex h-full items-center justify-center text-sm text-muted-foreground">{open.missing ? 'Not on the website now' : <Loader2 className="h-5 w-5 animate-spin" />}</div>}
+                  : <div className="flex h-full items-center justify-center text-sm text-muted-foreground">{open.missing ? 'Not on the website now' : <Skeleton className="h-full w-full rounded-none" />}</div>}
               </div>
               {open.missing && <p className="text-sm text-muted-foreground">This piece is hidden or gone from the website, so there is no photograph to make it from.</p>}
               {!open.missing && !open.weight && <p className="text-sm text-muted-foreground">The site has no weight for this piece; add it on Website › Photo weights and it shows here.</p>}
@@ -354,7 +356,7 @@ export default function StoryDraftsPage() {
               {!open.missing && (
                 <div className="space-y-2 rounded-2xl bg-muted/50 p-3">
                   <p className="flex items-center text-sm font-medium"><MessageCircle className="mr-2 h-4 w-4 text-emerald-600" />WhatsApp community</p>
-                  {!wa && <p className="flex items-center text-xs text-muted-foreground"><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />Asking WhatsApp for the groups…</p>}
+                  {!wa && <LinesSkeleton lines={3} />}
                   {wa && 'none' in wa && <p className="text-xs text-muted-foreground">This shop has no WhatsApp community set.</p>}
                   {wa && 'error' in wa && <p className="text-xs text-destructive">Couldn’t read the groups: {wa.error}</p>}
                   {wa && 'places' in wa && (

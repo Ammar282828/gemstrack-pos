@@ -25,10 +25,12 @@ import { ACCOUNT_STATUS } from '@/lib/ads/shape';
 import type { AccountChoice, PageChoice, InstagramChoice, AdsSettings } from '@/lib/ads/settings';
 import { PixelStep } from './pixel-step';
 import { api, useAdsStatus, AccountAlerts, ErrorLine } from '../ads-kit';
+import { ListRowsSkeleton, LinesSkeleton, ListSkeleton } from '@/components/shared/skeletons';
+import { BusyLabel } from '@/components/ui/busy';
 
 export default function AdsSetupRoute() {
   if (!STORE_META_ADS) return <p className="container mx-auto px-4 py-8 text-sm text-muted-foreground">This shop doesn’t run Meta ads from the ERP.</p>;
-  return <Suspense fallback={null}><AdsSetup /></Suspense>;
+  return <Suspense fallback={<ListSkeleton rows={4} />}><AdsSetup /></Suspense>;
 }
 
 /** Both houses' POS — the Meta app they share must allow each one's return address. */
@@ -154,7 +156,7 @@ function AdsSetup() {
       subtitle={`${STORE_CONFIG.name}’s Meta ad account, connected to this ERP`}
       action={<Button variant="outline" onClick={() => { reload(); if (connected) loadAssets(); }} disabled={loading}><RefreshCw className={cn('h-4 w-4 mr-1.5', loading && 'animate-spin')} /> Check again</Button>}>
       {error && <ErrorLine error={error} onRetry={reload} />}
-      {!status && loading && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Checking…</div>}
+      {!status && loading && <ListRowsSkeleton rows={4} />}
       {status && <AccountAlerts status={status} />}
       {/* What is still wrong, first: the steps below fold once done (the audit of 2026-10-04). */}
       {status && <Readiness status={status} />}
@@ -194,7 +196,7 @@ function AdsSetup() {
                 {app.loginConfigFromEnv ? <p className="text-xs mt-1">Set for this shop by META_LOGIN_CONFIG_ID: <code>{app.loginConfigId}</code></p> : (
                   <div className="flex gap-2 mt-1.5">
                     <Input value={configId} onChange={e => setConfigId(e.target.value.replace(/\D/g, ''))} inputMode="numeric" placeholder="Configuration ID" className="h-9 max-w-[16rem] text-base sm:text-sm tabular-nums" aria-label="Configuration ID" />
-                    <Button size="sm" variant={app.loginConfigId ? 'outline' : 'default'} className="h-9" disabled={!!busy || !configId || configId === (app.loginConfigId ?? '')} onClick={() => save({ loginConfigId: configId }, 'config')}>{busy === 'config' ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save'}</Button>
+                    <Button size="sm" variant={app.loginConfigId ? 'outline' : 'default'} className="h-9" disabled={!!busy || !configId || configId === (app.loginConfigId ?? '')} onClick={() => save({ loginConfigId: configId }, 'config')}><BusyLabel busy={busy === 'config'}>Save</BusyLabel></Button>
                   </div>
                 )}
                 {app.loginConfigId && !app.loginConfigFromEnv && <p className="text-xs mt-1 text-success">Saved: Connect uses configuration {app.loginConfigId}.</p>}
@@ -248,7 +250,7 @@ function AdsSetup() {
           </Step>
 
           <Step n={4} done={connected ? !!settings?.adAccountId : null} title={<><Megaphone className="h-4 w-4" /> The ad account</>}>
-            {!connected ? <p className="text-muted-foreground">After connecting.</p> : assetsError ? <ErrorLine error={assetsError} onRetry={loadAssets} /> : !assets ? <p className="flex items-center gap-2 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Reading what the login can see…</p> : (
+            {!connected ? <p className="text-muted-foreground">After connecting.</p> : assetsError ? <ErrorLine error={assetsError} onRetry={loadAssets} /> : !assets ? <LinesSkeleton lines={3} /> : (
               assets.accounts.length ? (
                 <div className="grid gap-2">
                   {assets.accounts.map(a => {

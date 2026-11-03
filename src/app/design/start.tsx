@@ -30,6 +30,7 @@ import { flatAdRequest, type PlanReview } from './flat-ad';
 import { readImageFile } from './image-file';
 import type { Play } from '@/lib/ads/studio/plays';
 import { useDesigns, useDeviceDrafts } from './saved-shelf';
+import { BusyLabel } from '@/components/ui/busy';
 
 /** A website piece as a photograph to start from. */
 export function startPhotoFromSite(p: SitePick): StartPhoto {
@@ -221,7 +222,7 @@ export function StartScreen({ adsOk, initialKind, play, onClearPlay, photo, onPh
           ...(play && kind === 'ad' ? { template: play.template } : {}),
           ...(price || (play && kind === 'ad') ? { copy: { ...(price ? { price } : {}), ...(play && kind === 'ad' ? { goal: play.goal } : {}) } } : {}),
         })}>
-          {starting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}Continue
+          <BusyLabel busy={starting}>Continue</BusyLabel>
         </Button>
         {!photo && <p className="px-1 text-ios-foot text-muted-foreground">A photograph is optional: without one the design starts on the house’s ground.</p>}
       </section>
@@ -290,7 +291,7 @@ function PlanReviewCard({ review, onCancel, onStart }: { review: PlanReview; onC
       <div className="flex justify-end gap-2">
         <Button size="sm" variant="ghost" onClick={onCancel}>Not now</Button>
         <Button size="sm" disabled={busy} onClick={async () => { setBusy(true); try { onStart(await flatAdRequest(review, keepIds)); } finally { setBusy(false); } }}>
-          {busy ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : null}Make a design from it
+          <BusyLabel busy={busy}>Make a design from it</BusyLabel>
         </Button>
       </div>
     </div>

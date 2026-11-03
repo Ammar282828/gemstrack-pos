@@ -42,10 +42,13 @@ import { defaultDraft, type AudienceDraft } from '@/lib/ads/targeting';
 import { GOALS, goalOf, goesToSite, isChannelLink, planProblems, planSummary, defaultName, BIDDING, type AdPlan, type Bidding, type GoalKey, type PlanPhoto } from '@/lib/ads/plan';
 import { api, useAdsStatus, NotReady, AccountAlerts, ErrorLine } from '../ads-kit';
 import { AudienceEditor } from '../audience-editor';
+import { ThumbGridSkeleton, LinesSkeleton, FormSkeleton } from '@/components/shared/skeletons';
+import { Skeleton } from '@/components/ui/skeleton';
+import { BusyLabel } from '@/components/ui/busy';
 
 export default function NewAdRoute() {
   if (!STORE_META_ADS) return <p className="container mx-auto px-4 py-8 text-sm text-muted-foreground">This shop doesn’t run Meta ads from the ERP.</p>;
-  return <Suspense fallback={null}><NewAd /></Suspense>;
+  return <Suspense fallback={<FormSkeleton fields={6} />}><NewAd /></Suspense>;
 }
 
 interface Media { id: string; caption: string; type: string; thumb: string | null; permalink: string | null; at: string | null; boostable: boolean | null; why: string | null }
@@ -83,7 +86,7 @@ const pieceText = (p: SitePiece, goal: GoalKey) =>
 /** Under "Online orders": whether the pixel has orders for Meta to learn from. */
 function SalesNote({ pixel, chosen }: { pixel: PixelState | null; chosen: boolean }) {
   if (!chosen) return <p className="text-[11px] text-warning">Choose the website’s pixel on the Setup tab first — Meta counts orders through it.</p>;
-  if (!pixel) return <p className="text-[11px] text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin inline mr-1" /> Reading what the pixel recorded this week…</p>;
+  if (!pixel) return <LinesSkeleton lines={2} />;
   const r = salesReadiness(pixel.events);
   const line = r.level === 'unknown' ? 'Meta didn’t say what the pixel recorded this week.'
     : r.level === 'none' ? `The pixel recorded no order this week, so Meta has nothing to learn from yet — “Website visits” buys better until orders come through ${pixel.site ?? 'the site'}.`
@@ -465,7 +468,7 @@ function NewAd() {
               <div className="space-y-2">
                 <p className="text-xs text-muted-foreground">The post runs as it is — its photo, caption, likes and comments. Tap one.</p>
                 {mediaError && <ErrorLine error={mediaError} onRetry={() => loadMedia()} />}
-                {!media && mediaBusy && <p className="text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Reading Instagram…</p>}
+                {!media && mediaBusy && <ThumbGridSkeleton count={8} className="grid-cols-3 sm:grid-cols-4 gap-1.5" />}
                 {media && (
                   <ul className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
                     {media.map(m => {
@@ -483,7 +486,7 @@ function NewAd() {
                     })}
                   </ul>
                 )}
-                {mediaAfter && <Button variant="outline" size="sm" className="w-full" disabled={mediaBusy} onClick={() => loadMedia(mediaAfter)}>{mediaBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Older posts'}</Button>}
+                {mediaAfter && <Button variant="outline" size="sm" className="w-full" disabled={mediaBusy} onClick={() => loadMedia(mediaAfter)}><BusyLabel busy={mediaBusy}>Older posts</BusyLabel></Button>}
                 {post && <p className="text-xs text-muted-foreground line-clamp-3 whitespace-pre-line rounded-md bg-muted/50 p-2">{post.caption || 'No caption.'}</p>}
               </div>
             )}
@@ -495,7 +498,7 @@ function NewAd() {
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input value={pieceQ} onChange={e => setPieceQ(e.target.value)} placeholder="Search the website — ruby, kara, jhumka…" className="h-10 pl-9 text-base sm:text-sm" />
                 </div>
-                {!pieces && !piecesError && <p className="text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Reading the website…</p>}
+                {!pieces && !piecesError && <ThumbGridSkeleton count={10} className="grid-cols-3 sm:grid-cols-5 gap-1.5" />}
                 <ul className="grid grid-cols-3 sm:grid-cols-5 gap-1.5 max-h-80 overflow-y-auto">
                   {shownPieces.map(p => (
                     <li key={p.id}><button type="button" onClick={() => addPiece(p)} disabled={photos.length >= 10} className="block w-full text-left rounded-md border overflow-hidden hover:border-primary/60">
@@ -535,7 +538,7 @@ function NewAd() {
                 <p className="text-xs text-muted-foreground">A creator’s post run as an ad under both names (Instagram’s partnership ads). The creator makes the code: on the post, ⋯ → Partnership label and ads → Get ad code, and sends it to you.</p>
                 <div className="flex gap-2">
                   <Input value={adCode} onChange={e => setAdCode(e.target.value)} placeholder="Paste the ad code" className="h-11 text-base sm:text-sm font-mono" />
-                  <Button variant="outline" className="h-11 shrink-0" disabled={!adCode.trim() || codeBusy} onClick={checkCode}>{codeBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Check'}</Button>
+                  <Button variant="outline" className="h-11 shrink-0" disabled={!adCode.trim() || codeBusy} onClick={checkCode}><BusyLabel busy={codeBusy}>Check</BusyLabel></Button>
                 </div>
                 {codeCheck && codeCheck.code === adCode.trim() && (
                   <div className={cn('flex items-center gap-2 rounded-lg border p-2 text-xs', codeCheck.ok ? 'border-success/40' : 'border-warning/40')}>
@@ -562,7 +565,7 @@ function NewAd() {
               <div className="space-y-2">
                 <p className="text-xs text-muted-foreground">Meta picks, for each person, the pieces from the website they’re most likely to buy and builds the ad from their photos, names and prices. The catalogue is the one Shopify keeps in sync.</p>
                 {catError && <ErrorLine error={catError} onRetry={() => { setCatError(null); setCatalogs(null); }} />}
-                {!catalogs && !catError && <p className="text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Reading the catalogues…</p>}
+                {!catalogs && !catError && <Skeleton className="h-11 w-full" />}
                 {catalogs && !catalogs.length && <p className="text-sm text-muted-foreground">The Meta business has no catalogue yet — connect one in Shopify’s Facebook &amp; Instagram app.</p>}
                 {catalogs && catalogs.length > 1 && (
                   <select value={catalogId} onChange={e => setCatalogId(e.target.value)} className="h-11 w-full rounded-md border bg-background px-3 text-base sm:text-sm">
@@ -574,7 +577,7 @@ function NewAd() {
                   <select value={setId} onChange={e => setSetId(e.target.value)} className="h-11 w-full rounded-md border bg-background px-3 text-base sm:text-sm" aria-label="Product set">
                     {sets.map(x => <option key={x.id} value={x.id}>{x.name}{x.products !== null ? ` · ${x.products} pieces` : ''}</option>)}
                   </select>
-                ) : <p className="text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Reading its product sets…</p>)}
+                ) : <Skeleton className="h-11 w-full" />)}
                 <div className="grid gap-1.5 sm:grid-cols-2">
                   {([['viewers', 'Bring back lookers', 'People who viewed or carted a piece in the last 14 days and didn’t buy see those pieces.'], ['everyone', 'Find new buyers', 'Meta finds new people for the pieces; anyone who bought recently is left out.']] as const).map(([k, label, hint]) => (
                     <button key={k} type="button" onClick={() => setCatWho(k)} className={cn('rounded-lg border p-2.5 text-left', catWho === k ? 'border-primary ring-1 ring-primary' : '')}>
@@ -616,7 +619,7 @@ function NewAd() {
                       <div className="rounded-lg border p-2 space-y-2">
                         <p className="text-[11px] text-muted-foreground">Every picture in this ad account’s Ads Manager library — tap to use it again.</p>
                         {libError && <ErrorLine error={libError} onRetry={() => loadLibrary()} />}
-                        {!library && !libError && <p className="text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Reading the library…</p>}
+                        {!library && !libError && <ThumbGridSkeleton count={12} className="grid-cols-4 sm:grid-cols-6 gap-1.5" />}
                         {library && !library.length && <p className="text-sm text-muted-foreground">The library is empty so far.</p>}
                         <ul className="grid grid-cols-4 sm:grid-cols-6 gap-1.5 max-h-72 overflow-y-auto">
                           {(library ?? []).map(img => {

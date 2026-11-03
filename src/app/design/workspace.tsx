@@ -37,6 +37,7 @@ import { PublishSheet } from './publish-sheet';
 import { ResizeSheet } from './resize-sheet';
 import type { ResizedPage } from '@/lib/design/resize';
 import { isCataloguePage, type DesignApi } from './use-design';
+import { BusyLabel } from '@/components/ui/busy';
 
 interface Props {
   design: DesignApi;
@@ -106,7 +107,7 @@ export function DesignWorkspace({ design, adsOk, onAnother, onClose }: Props) {
     closeLabel: 'Done',
     title: <span className="max-w-[40vw] truncate text-sm font-medium sm:max-w-[260px]">{displayName(w)}</span>,
     status: <span className="hidden shrink-0 items-center gap-1 text-[11px] text-muted-foreground sm:flex"><span className={cn('h-1.5 w-1.5 rounded-full', w.dirty ? 'bg-amber-500' : 'bg-emerald-500')} />{page.label}</span>,
-    actions: <Button size="sm" className="ml-1" disabled={design.saving || w.fresh} onClick={save}>{design.saving ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : null}Save</Button>,
+    actions: <Button size="sm" className="ml-1" disabled={design.saving || w.fresh} onClick={save}><BusyLabel busy={design.saving}>Save</BusyLabel></Button>,
   };
 
   return (

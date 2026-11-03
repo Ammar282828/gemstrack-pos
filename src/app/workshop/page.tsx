@@ -52,6 +52,7 @@ import { useMineFilter } from '@/hooks/use-me';
 import { PageShell } from '@/components/shared/page-shell';
 import { Pill, ChipRow, FilterChip, Segmented, EmptyState, type Tone } from '@/components/ledger';
 import { deleteErrorText } from '@/lib/delete-code';
+import { ListSkeleton } from '@/components/shared/skeletons';
 
 // ── small presentational helpers ────────────────────────────────────────────
 
@@ -993,7 +994,7 @@ export default function WorkshopPage() {
   const openEdit = (job: WorkshopJob) => setEditJob(job);
 
   if (!isHydrated) {
-    return <div className="container mx-auto p-6 flex items-center gap-2 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Loading workshop…</div>;
+    return <div className="container mx-auto px-4 py-5 md:py-6 max-w-7xl"><ListSkeleton rows={6} /></div>;
   }
 
   const boardCols: { key: KarigarJobStatus; label: string; icon: React.ReactNode }[] = [

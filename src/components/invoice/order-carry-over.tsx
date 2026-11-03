@@ -18,6 +18,7 @@ import { ClipboardList } from 'lucide-react';
 import { useAppStore, type Invoice } from '@/lib/store';
 import { orderAdvancePayments } from '@/lib/order-payment';
 import { orderExchanges, invoiceExchanges, describeExchangeEntry, exchangeTotal } from '@/lib/exchange';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const pkr = (n: number) => `PKR ${Math.round(n).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 const day = (iso?: string) => { try { return iso ? format(parseISO(iso), 'd MMM yyyy') : ''; } catch { return ''; } };
@@ -52,7 +53,7 @@ export function OrderCarryOver({ invoice }: { invoice: Invoice }) {
           From order{' '}
           <Link href={`/orders/${orderId}`} className="ml-1 font-mono text-primary hover:underline">{orderId}</Link>
         </p>
-        {!order && <span className="text-xs text-muted-foreground">Loading the order…</span>}
+        {!order && <Skeleton className="h-3 w-24" />}
       </div>
 
       {facts.length > 0 && (

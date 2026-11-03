@@ -17,6 +17,7 @@ import { Chip } from '@/components/order/describe-field';
 import { staticCategories } from '@/lib/categories';
 import { loadCatalogue, type CataloguePiece } from '@/lib/describe-client';
 import { pieceInCategory, pieceMatches, resolveCategoryId } from '@/lib/website/catalogue-category';
+import { ThumbGridSkeleton } from '@/components/shared/skeletons';
 
 const PAGE = 60;
 
@@ -93,7 +94,7 @@ function CataloguePickerDialog({ open, onOpenChange, category, onPick }: {
           {chips.map(c => <Chip key={c.id} active={cat === c.id} onClick={() => setCat(c.id)}>{c.title}</Chip>)}
         </div>
         <div className="max-h-[55vh] overflow-auto">
-          {pieces === null && <p className="text-sm text-muted-foreground py-6 text-center">Loading the catalogue…</p>}
+          {pieces === null && <ThumbGridSkeleton count={10} className="grid-cols-3 sm:grid-cols-4 md:grid-cols-5" />}
           {pieces !== null && matching.length === 0 && <p className="text-sm text-muted-foreground py-6 text-center">No photos{cat ? ' in this category' : ''} match.</p>}
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
             {matching.slice(0, shown).map(p => (

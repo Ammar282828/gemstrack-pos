@@ -28,6 +28,8 @@ import { deletePostDraft, listPostDrafts, type PostDraft } from '@/lib/social/po
 import { api, authHeaders } from '../ads/ads-kit';
 import { downloadBlob, safeName } from './studio-kit';
 import { isDesignDraft, kindLabel } from './design-state';
+import { ThumbGridSkeleton, LinesSkeleton } from '@/components/shared/skeletons';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const DEVICE = '__device';
 const ACCOUNT = '__account';
@@ -139,7 +141,7 @@ export function SavedShelf({ adsOk, onOpen, onOpenDraft }: { adsOk: boolean; onO
             )}
           </div>
           {error ? <p className="text-sm text-destructive">{error}</p>
-            : !data ? <p className="text-sm text-muted-foreground"><Loader2 className="mr-1 inline h-4 w-4 animate-spin" /> Opening the shelf…</p>
+            : !data ? <ThumbGridSkeleton count={8} className="grid-cols-2 sm:grid-cols-3 md:grid-cols-4" />
             : !shown.length ? (
               <EmptyState icon={<FolderOpen />} title={items.length ? 'Nothing here' : 'Nothing saved yet'}
                 description={items.length ? 'No design in this folder matches.' : 'Save a design from the workspace and it waits here, in any folder you make.'} />
@@ -196,7 +198,7 @@ function DesignDialog({ item, folders, onClose, onChanged, onOpen }: {
       <DialogContent className="max-w-lg">
         <DialogHeader><DialogTitle className="sr-only">{d.name}</DialogTitle></DialogHeader>
         <div className="space-y-3">
-          <div className="grid min-h-40 place-items-center rounded-lg bg-muted">{url ? <img src={url} alt={d.name} className="max-h-[55vh] w-auto rounded-lg" /> : d.thumb ? <img src={d.thumb} alt="" className="max-h-[40vh] w-auto rounded-lg opacity-70" /> : <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}</div>
+          <div className="grid min-h-40 place-items-center rounded-lg bg-muted">{url ? <img src={url} alt={d.name} className="max-h-[55vh] w-auto rounded-lg" /> : d.thumb ? <img src={d.thumb} alt="" className="max-h-[40vh] w-auto rounded-lg opacity-70" /> : <Skeleton className="h-40 w-full rounded-lg" />}</div>
           <Input value={name} onChange={e => setName(e.target.value)} onBlur={() => { if (name.trim() && name !== d.name) void patch({ name }); }} className="h-9 text-base font-medium sm:text-sm" aria-label="Name" />
           <p className="text-ios-foot text-muted-foreground">{kindLabel(d.kind)} · {d.pages.map(p => p.label).join(', ')}{d.scope === 'ads' ? ' · ads' : ''}</p>
           <select value={d.folder ?? ''} onChange={e => { void patch({ folder: e.target.value || null }); onClose(); }} className="h-9 w-full rounded-md border bg-background px-3 text-base sm:text-sm" aria-label="Folder">
@@ -221,7 +223,7 @@ function DesignDialog({ item, folders, onClose, onChanged, onOpen }: {
 // ── On this device ─────────────────────────────────────────────────────────
 
 function DeviceDrafts({ drafts, onOpen, onChanged }: { drafts: PostDraft[] | null; onOpen: (id: string) => void; onChanged: () => void }) {
-  if (!drafts) return <p className="text-sm text-muted-foreground"><Loader2 className="mr-1 inline h-4 w-4 animate-spin" /> …</p>;
+  if (!drafts) return <ThumbGridSkeleton count={4} className="grid-cols-2 sm:grid-cols-4" />;
   if (!drafts.length) return <EmptyState icon={<Smartphone />} title="No drafts on this device" description="A design is kept here as you make it, and for 30 days after." />;
   return (
     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -278,7 +280,7 @@ function AccountAds({ folders, onKept }: { folders: AdFolder[]; onKept: () => vo
     finally { setBusy(null); }
   };
   if (error) return <p className="text-sm text-destructive">{error}</p>;
-  if (!ads) return <p className="text-sm text-muted-foreground"><Loader2 className="mr-1 inline h-4 w-4 animate-spin" /> …</p>;
+  if (!ads) return <ThumbGridSkeleton count={4} className="grid-cols-2 sm:grid-cols-4" />;
   return (
     <div className="space-y-2">
       <div className="flex gap-2">

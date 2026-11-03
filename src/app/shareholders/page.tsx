@@ -45,6 +45,7 @@ import { AmountInput } from '@/components/ui/amount-input';
 import { STORE_PARTNERSHIP } from '@/lib/store-config';
 import { invoiceSaleValue } from '@/lib/analytics/sale-value';
 import { deleteErrorText } from '@/lib/delete-code';
+import { BusyLabel } from '@/components/ui/busy';
 
 /** Expenses from "Pearls - Studs x2" onward. */
 const EXPENSE_CUTOFF = '2025-07-02';
@@ -656,8 +657,7 @@ export default function ShareholderFinancesPage() {
             <div className="flex justify-end gap-2 pt-1">
               <Button type="button" variant="outline" onClick={() => setMode(null)}>Cancel</Button>
               <Button type="submit" disabled={saving}>
-                {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                {mode === 'salary' ? 'Pay salary' : mode === 'withdrawal' ? 'Record withdrawal' : 'Record contribution'}
+                <BusyLabel busy={saving}>{mode === 'salary' ? 'Pay salary' : mode === 'withdrawal' ? 'Record withdrawal' : 'Record contribution'}</BusyLabel>
               </Button>
             </div>
           </form>

@@ -28,6 +28,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Briefcase, Database, Loader2, TriangleAlert, Users } from 'lucide-react';
+import { ListRowsSkeleton } from '@/components/shared/skeletons';
 
 const NO_BOOK: TaheriBook = { source: '', customers: [], karigars: [] };
 
@@ -163,7 +164,7 @@ export default function ImportTaheriPage() {
         icon={<Database className="h-6 w-6" />}
         action={<PageBack fallback="/settings" />}
       >
-        <p className="text-sm text-muted-foreground">{bookError ?? 'Loading the book…'}</p>
+        {bookError ? <p className="text-sm text-muted-foreground">{bookError}</p> : <ListRowsSkeleton rows={4} />}
       </PageShell>
     );
   }

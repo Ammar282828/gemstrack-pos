@@ -32,10 +32,11 @@ import { parseTargeting, describeAudience, type AudienceDraft } from '@/lib/ads/
 import { campaignsCsv } from '@/lib/ads/export';
 import { api, useAdsStatus, useRange, RangePicker, NotReady, AccountAlerts, ErrorLine, StatusPill } from '../ads-kit';
 import { AudienceEditor } from '../audience-editor';
+import { FigureTilesSkeleton, ListRowsSkeleton, LinesSkeleton, ListSkeleton } from '@/components/shared/skeletons';
 
 export default function CampaignsRoute() {
   if (!STORE_META_ADS) return <p className="container mx-auto px-4 py-8 text-sm text-muted-foreground">This shop doesn’t run Meta ads from the ERP.</p>;
-  return <Suspense fallback={null}><Campaigns /></Suspense>;
+  return <Suspense fallback={<ListSkeleton rows={5} />}><Campaigns /></Suspense>;
 }
 
 type Filter = 'all' | 'running' | 'paused' | 'problems';
@@ -271,7 +272,7 @@ function Campaigns() {
             {data && <a href={adsManagerUrl(data.account.id, 'account')} target="_blank" rel="noopener" className="inline-flex items-center gap-1 text-xs text-primary">Ads Manager <ExternalLink className="h-3 w-3" /></a>}
           </div>
           {error && <ErrorLine error={error} onRetry={load} />}
-          {!data && loading && <div className="flex items-center gap-2 text-sm text-muted-foreground py-6"><Loader2 className="h-4 w-4 animate-spin" /> Asking Meta…</div>}
+          {!data && loading && <div className="space-y-4"><FigureTilesSkeleton tiles={4} /><ListRowsSkeleton rows={4} /></div>}
           {data && (
             <>
               <p className="text-xs text-muted-foreground">{campaigns.length === data.campaigns.length ? 'All campaigns' : `${campaigns.length} of ${data.campaigns.length} campaigns`}: <b className="text-foreground">{money(shownTotal.spend, cur)}</b> spent · {compact(shownTotal.impressions)} views</p>
@@ -442,7 +443,7 @@ function AudienceDialog({ t, cur, onClose, onSave }: { t: Target; cur: string; o
           <DialogDescription>{draft ? describeAudience(draft) : 'Reading it from Meta…'}</DialogDescription>
         </DialogHeader>
         {error && <ErrorLine error={error} />}
-        {!draft && !error && <Loader2 className="h-5 w-5 animate-spin mx-auto my-6 text-muted-foreground" />}
+        {!draft && !error && <LinesSkeleton lines={5} className="my-4" />}
         {draft && <AudienceEditor draft={draft} onChange={setDraft} goal={goal} currency={cur} />}
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
@@ -545,7 +546,7 @@ function AdDialog({ id, onClose }: { id: string; onClose: () => void }) {
           <DialogDescription asChild><div className="flex flex-wrap items-center gap-2">{ad?.effective_status && <StatusPill status={ad.effective_status} />}{ad?.adset?.name && <span className="text-xs">in {ad.adset.name}</span>}</div></DialogDescription>
         </DialogHeader>
         {error && <ErrorLine error={error} />}
-        {!d && !error && <Loader2 className="h-5 w-5 animate-spin mx-auto my-6 text-muted-foreground" />}
+        {!d && !error && <LinesSkeleton lines={5} className="my-4" />}
         {d && (
           <div className="space-y-3">
             {(feedback.length > 0 || (ad?.issues_info ?? []).length > 0) && (

@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 import { compact } from '@/lib/ads/shape';
 import { IG_POSITIONS, cityRadius, type AudienceDraft, type GeoPick, type Named, type Place } from '@/lib/ads/targeting';
 import { api } from './ads-kit';
+import { LinesSkeleton } from '@/components/shared/skeletons';
 
 interface InterestHit { id: string; name: string; size: [number, number] | null; path: string | null }
 interface AudienceRow { id: string; name: string; kind: string; size: [number, number] | null; ready: boolean }
@@ -239,7 +240,7 @@ export function AudienceEditor({ draft, onChange, goal, currency: _currency }: {
       <Section title="The shop’s audiences">
         {!showAud ? (
           <button type="button" onClick={() => setShowAud(true)} className="text-sm text-primary min-h-0">Include or leave out customers, Instagram engagers, lookalikes…</button>
-        ) : !audiences ? <p className="text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Reading the audiences…</p>
+        ) : !audiences ? <LinesSkeleton lines={3} />
           : !audiences.length ? <p className="text-sm text-muted-foreground">None yet — make them on the Audiences tab.</p> : (
           <ul className="rounded-lg border divide-y">
             {audiences.map(a => {

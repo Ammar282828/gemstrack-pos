@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { ListSkeleton } from '@/components/shared/skeletons';
+import { ListSkeleton, ListRowsSkeleton } from '@/components/shared/skeletons';
 import { FilterBar } from '@/components/shared/filter-bar';
 import { useAppStore, AdditionalRevenue, RepairRevenueError } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
@@ -270,10 +270,7 @@ export default function AdditionalRevenuePage() {
       </Card>
 
       {isAdditionalRevenueLoading ? (
-        <div className="text-center py-12">
-          <Loader2 className="w-12 h-12 mx-auto text-primary animate-spin mb-4" />
-          <p className="text-muted-foreground">Loading revenue entries...</p>
-        </div>
+        <ListRowsSkeleton rows={6} />
       ) : filtered.length > 0 ? (
         <>
           {/* Mobile: Cards */}

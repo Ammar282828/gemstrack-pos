@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect, useDeferredValue } from 'react';
-import { ListSkeleton } from '@/components/shared/skeletons';
+import { ListSkeleton, RecordGridSkeleton } from '@/components/shared/skeletons';
 import { FilterBar } from '@/components/shared/filter-bar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Link from 'next/link';
@@ -350,7 +350,7 @@ export default function ProductsPage() {
       </FilterBar>
 
       {isProductsLoading ? (
-        <ListSkeleton rows={8} />
+        viewMode === 'grid' ? <RecordGridSkeleton cards={8} className="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" /> : <ListSkeleton rows={8} />
       ) : filteredProducts.length > 0 ? (
         viewMode === 'grid' ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">

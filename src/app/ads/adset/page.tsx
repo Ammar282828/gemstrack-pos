@@ -22,10 +22,11 @@ import { adCount, designProblems, goalsForObjective, nextAdSet, type AdSetDesign
 import { objectiveLabel, type TreeCampaign } from '@/lib/ads/shape';
 import { api, useAdsStatus, NotReady, ErrorLine } from '../ads-kit';
 import { AudienceEditor } from '../audience-editor';
+import { ListRowsSkeleton, ThumbGridSkeleton, FormSkeleton } from '@/components/shared/skeletons';
 
 export default function AdSetRoute() {
   if (!STORE_META_ADS) return <p className="container mx-auto px-4 py-8 text-sm text-muted-foreground">This shop doesn’t run Meta ads from the ERP.</p>;
-  return <Suspense fallback={null}><AdSetDesigner /></Suspense>;
+  return <Suspense fallback={<FormSkeleton fields={6} />}><AdSetDesigner /></Suspense>;
 }
 
 interface CampaignInfo { id: string; name: string; objective: string; budgeted: boolean }
@@ -195,7 +196,7 @@ function AdSetDesigner() {
               ))}
             </div>
             {adsKind === 'copy' ? (
-              treeError ? <ErrorLine error={treeError} /> : !tree ? <p className="text-xs text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin inline mr-1" /> …</p> : (
+              treeError ? <ErrorLine error={treeError} /> : !tree ? <ListRowsSkeleton rows={3} avatar={false} card={false} /> : (
                 <>
                   <div className="relative"><Search className="h-3.5 w-3.5 absolute left-2.5 top-2.5 text-muted-foreground" /><Input value={adQ} onChange={e => setAdQ(e.target.value)} placeholder="Find an ad" className="h-9 pl-8 text-base sm:text-xs" /></div>
                   <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5 max-h-80 overflow-y-auto">
@@ -214,7 +215,7 @@ function AdSetDesigner() {
               )
             ) : (
               <>
-                {!media ? <p className="text-xs text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin inline mr-1" /> …</p> : (
+                {!media ? <ThumbGridSkeleton count={8} className="grid-cols-4 gap-1.5" /> : (
                   <div className="grid grid-cols-4 gap-1.5 max-h-72 overflow-y-auto">
                     {media.filter(m => m.boostable !== false).map(m => (
                       <button key={m.id} type="button" onClick={() => setPost(m.id)} className={cn('rounded-lg overflow-hidden border min-h-0', post === m.id && 'ring-2 ring-primary')}>

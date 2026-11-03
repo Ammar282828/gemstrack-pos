@@ -24,6 +24,7 @@ import { reviveTimestamps } from '@/lib/backup-collections';
 import { db } from '@/lib/firebase';
 import { format } from 'date-fns';
 import { AmountInput } from '@/components/ui/amount-input';
+import { ListRowsSkeleton } from '@/components/shared/skeletons';
 
 const LAST_EXPORT_KEY = 'gemstrack-last-export';
 
@@ -351,7 +352,7 @@ const SoldProductRecovery: React.FC = () => {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input placeholder="Search SKU or name of a sold item…" className="pl-9" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}  aria-label="Search SKU or name of a sold item"/>
         </div>
-        {isSoldProductsLoading && searchTerm && <div className="flex justify-center p-4"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>}
+        {isSoldProductsLoading && searchTerm && <ListRowsSkeleton rows={3} avatar={false} card={false} />}
         {filteredSoldProducts.length > 0 && (
           <ScrollArea className="h-64 border rounded-md">
             <div className="p-2 space-y-1">

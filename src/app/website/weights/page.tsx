@@ -28,6 +28,7 @@ import { Scale, ChevronLeft, ChevronRight, Loader2, Check, Search, X, Star } fro
 import { cn } from '@/lib/utils';
 import { STORE_WEBSITE_WEIGHTS } from '@/lib/store-config';
 import { weightFace } from './fonts';
+import { RecordPageSkeleton } from '@/components/shared/skeletons';
 
 interface Piece {
   key: string; collection: string; file: string; thumb: string;
@@ -181,7 +182,7 @@ function PhotoWeightsPage() {
       <SetOfTheDayCard emptyHint={<>Nothing yet — open a photo below and press <Star className="inline h-3.5 w-3.5 -mt-0.5" /> Feature today.</>} />
 
       {pieces === null ? (
-        <div className="flex items-center justify-center py-24 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading the catalogue…</div>
+        <RecordPageSkeleton sections={1} />
       ) : !current ? (
         <div className="rounded-lg border border-dashed py-20 text-center">
           <Check className="h-8 w-8 mx-auto text-emerald-600 mb-2" />

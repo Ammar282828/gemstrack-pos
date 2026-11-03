@@ -18,6 +18,8 @@ import { STORE_META_ADS } from '@/lib/store-config';
 import { money } from '@/lib/ads/shape';
 import type { RuleKind } from '@/lib/ads/rules';
 import { api, useAdsStatus, NotReady, ErrorLine } from '../ads-kit';
+import { ListRowsSkeleton } from '@/components/shared/skeletons';
+import { BusyLabel } from '@/components/ui/busy';
 
 interface Rule { id: string; name: string; enabled: boolean; summary: string; created: string | null }
 interface LogRow { id: string; at: string; by: string; action: string; target?: string; name?: string; detail?: Record<string, unknown> }
@@ -85,12 +87,12 @@ function Rules() {
               <AmountInput value={amount} onValueChange={setAmount} className="h-11 max-w-[10rem] tabular-nums" aria-label="Amount" />
               <span className="text-sm text-muted-foreground">{cur}{chosen?.needs === 'cost' ? ' per result' : ' today'}</span>
             </div>
-            <Button className="w-full h-11" disabled={!!busy || !amount || !data} onClick={() => run('new', () => api('/api/ads/rules', { body: { kind, amount } }), 'Rule made')}>{busy === 'new' ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : null} Make the rule</Button>
+            <Button className="w-full h-11" disabled={!!busy || !amount || !data} onClick={() => run('new', () => api('/api/ads/rules', { body: { kind, amount } }), 'Rule made')}><BusyLabel busy={busy === 'new'}>Make the rule</BusyLabel></Button>
           </section>
 
           <section className="rounded-xl border p-4 space-y-2">
             <h2 className="font-semibold">Rules on the account</h2>
-            {!data && loading && <p className="text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Reading…</p>}
+            {!data && loading && <ListRowsSkeleton rows={3} avatar={false} card={false} />}
             {data && !data.rules.length && <p className="text-sm text-muted-foreground">None yet.</p>}
             <ul className="divide-y">
               {(data?.rules ?? []).map(r => (
