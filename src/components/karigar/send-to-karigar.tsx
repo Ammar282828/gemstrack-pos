@@ -32,28 +32,51 @@ interface SendPayload { orderId: string; pieceIndexes: number[]; karigarId: stri
  * The send itself, in the background: the dialog is already closed, a toast says it is going, and another says how it
  * ended (with Retry on a failure). It uses the global toast store, so it outlives the dialog that started it.
  */
+/** Sends on their way, by their words: the same one twice (a double click, Retry while it runs) is dropped. */
+const inFlight = new Set<string>();
+
 function deliver(payload: SendPayload, name: string): void {
+  // Never twice (owner, 2026-11-03: "it keeps retrying or double sending"): the ERP keeps one record per send and
+  // ticks each message off, so the same send again is answered "already", an unfinished one carries on from where it
+  // stopped (Retry sends only what had not gone), and a long one answers `partial` and is asked again here.
+  const key = JSON.stringify(payload);
+  if (inFlight.has(key)) return;
+  inFlight.add(key);
   const pending = globalToast({ title: `Sending to ${name}…`, description: 'You can keep working.', duration: 600000 });
   void (async () => {
     try {
-      const res = await authedFetch('/api/app/orders/send-to-karigar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || 'Could not send.');
+      let sent = 0, unsure = 0, photosFailed = 0, to = '';
+      let already = '';
+      for (let round = 0; round < 12; round++) {
+        const res = await authedFetch('/api/app/orders/send-to-karigar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.error || 'Could not send.');
+        to = data.to || to;
+        if (data.duplicate) { if (!sent) already = data.said || `Already sent to ${name}.`; break; }
+        sent += data.sent || 0;
+        unsure += data.unsure || 0;
+        if (!data.partial) { photosFailed = data.photosFailed || 0; break; }
+      }
       pending.dismiss();
+      if (already) { globalToast({ title: already }); return; }
       globalToast({
         title: `Sent to ${name}`,
-        description: `${data.sent} message${data.sent === 1 ? '' : 's'} to ${data.to}${data.photosFailed ? ` · ${data.photosFailed} photo(s) did not go` : ''}`,
+        description: `${sent} message${sent === 1 ? '' : 's'} to ${to}`
+          + (photosFailed ? ` · ${photosFailed} photo(s) did not go; sending again sends only those` : '')
+          + (unsure ? ` · WhatsApp was slow on ${unsure}: check the chat` : ''),
       });
     } catch (e) {
       pending.dismiss();
       globalToast({
-        variant: 'destructive', title: `Not sent to ${name}`, description: e instanceof Error ? e.message : 'Try again.',
+        variant: 'destructive', title: `Not sent to ${name}`, description: `${e instanceof Error ? e.message : 'Try again.'} Retry sends only what has not gone.`,
         action: <ToastAction altText="Retry" onClick={() => deliver(payload, name)}>Retry</ToastAction>,
       });
+    } finally {
+      inFlight.delete(key);
     }
   })();
 }

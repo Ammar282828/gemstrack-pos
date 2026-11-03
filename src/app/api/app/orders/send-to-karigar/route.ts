@@ -28,9 +28,23 @@ import { buildKarigarMessage, chooseKarigarPieces, maskPhone, parseTextOverrides
 import { STORE_CONFIG } from '@/lib/store-config';
 import { dailyCap, WHATSAPP_PER_DAY } from '@/lib/daily-cap';
 import type { Order } from '@/lib/store';
+import { FieldValue } from 'firebase-admin/firestore';
+import { createHash } from 'node:crypto';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
+
+/** A request stops starting new messages after this long and answers `partial`: the caller asks again and it carries on. */
+const BUDGET_MS = 40_000;
+/** A send another request is in the middle of (its last message under this long ago) is not started twice. */
+const BUSY_MS = 90_000;
+/** The same send finished this recently is not sent again: a double tap, two devices, a Retry after it went. */
+const AGAIN_MS = 120_000;
+/** An unfinished send this recent carries on where it stopped instead of starting over. */
+const RESUME_MS = 30 * 60_000;
+
+/** A timeout from WhatsApp is not a refusal: the message may well have gone, so it is never sent again. */
+const maybeWent = (e: unknown) => e instanceof Error && /TimeoutError|AbortError|aborted|timed? ?out/i.test(`${e.name} ${e.message}`);
 
 const bad = (error: string, status = 400) => NextResponse.json({ error }, { status });
 
@@ -124,9 +138,60 @@ export async function POST(req: NextRequest) {
       people.set(id, { name, to });
     }
 
+    // One record per send (owner, 2026-11-03: "it keeps retrying or double sending"): the same order, pieces,
+    // karigar and words asked for again — a double tap, a second device, a Retry after a timeout, a phone's request
+    // replayed — never reaches WhatsApp twice. Each message is ticked off as it goes, so an unfinished send carries
+    // on from where it stopped and what went is never repeated.
+    const key = createHash('sha256').update(JSON.stringify({
+      orderId, groups: [...groups].map(([id, ix]) => [id, people.get(id)!.to, ix]),
+      texts: overrides ? [...overrides].sort((a, b) => a[0] - b[0]) : null,
+    })).digest('hex').slice(0, 40);
+    const ref = adminDb.collection('karigar_sends').doc(key);
+    const names = [...people.values()].map(p => p.name).join(', ');
+    const toSaid = [...people.values()].map(p => maskPhone(p.to)).join(', ');
+    const started = Date.now();
+    const claim = await adminDb.runTransaction(async tx => {
+      const d = (await tx.get(ref)).data() as { state?: string; startedAt?: number; beatAt?: number; finishedAt?: number; done?: string[]; sent?: number } | undefined;
+      const now = Date.now();
+      if (d?.state === 'sending' && now - (d.beatAt ?? 0) < BUSY_MS) return { busy: true as const };
+      if (d?.state === 'done' && now - (d.finishedAt ?? 0) < AGAIN_MS) return { already: d.sent ?? 0, ago: now - (d.finishedAt ?? now) };
+      if (d && d.state !== 'done' && now - (d.startedAt ?? 0) < RESUME_MS) {
+        tx.update(ref, { state: 'sending', beatAt: now });
+        return { done: new Set(d.done ?? []), sentBefore: d.sent ?? 0 };
+      }
+      tx.set(ref, { state: 'sending', orderId, by: who.email, startedAt: now, beatAt: now, done: [], sent: 0 });
+      return { done: new Set<string>(), sentBefore: 0 };
+    });
+    if ('busy' in claim) {
+      return NextResponse.json({ ok: true, duplicate: true, busy: true, sent: 0, to: toSaid, said: `Already sending to ${names}. It will say when it has gone.` });
+    }
+    if ('already' in claim) {
+      const s = Math.max(1, Math.round((claim.ago ?? 0) / 1000));
+      return NextResponse.json({ ok: true, duplicate: true, sent: claim.already, to: toSaid, said: `Already sent to ${names} ${s < 60 ? `${s} s` : `${Math.round(s / 60)} min`} ago.` });
+    }
+    const done = claim.done;
+    let partial = false;
+    let unsure = 0;
+    /** Sends one message once: skipped when an earlier request already sent it, and ticked off the moment it goes. */
+    const once = async (tick: string, send: () => Promise<unknown>): Promise<'sent' | 'skipped' | 'later'> => {
+      if (done.has(tick)) return 'skipped';
+      if (Date.now() - started > BUDGET_MS) { partial = true; return 'later'; }
+      try {
+        await send();
+      } catch (e) {
+        if (!maybeWent(e)) throw e;
+        unsure++;
+        console.warn('[send-to-karigar] WhatsApp timed out; not sending it again', order.id, tick);
+      }
+      done.add(tick);
+      await ref.update({ done: FieldValue.arrayUnion(tick), sent: FieldValue.increment(1), beatAt: Date.now() }).catch(e => console.warn('[send-to-karigar] tick', e));
+      return 'sent';
+    };
+
     let sent = 0;
     const failedPhotos: string[] = [];
 
+    try {
     for (const [id, indexes] of groups) {
       const { name, to } = people.get(id)!;
       // The photo documents, one round trip.
@@ -135,18 +200,25 @@ export async function POST(req: NextRequest) {
       let photoCount = 0;
       /** Pieces whose details went with a photo: the text after is only for the ones that had none. */
       const captioned = new Set<number>();
-      for (let n = 0; n < indexes.length; n++) {
+      for (let n = 0; n < indexes.length && !partial; n++) {
         // The piece's details ride on its first photo (owner, 2026-11-03: "make the message very simple"): one
         // message per piece, never the same details again in a text after it.
         const edited = overrides?.get(indexes[n]);
         const caption = edited !== undefined ? edited.slice(0, KARIGAR_CAPTION_MAX) : pieceMessages(order, [indexes[n]])[0].text;
-        let first = true;
-        for (const r of refs[n]) {
+        // A photo of this piece that went in an earlier request carried its words: a retried one goes bare.
+        const tickOf = (j: number) => `${id}:${indexes[n]}:p${j}`;
+        let first = !refs[n].some((_, j) => done.has(tickOf(j)));
+        if (!first) captioned.add(indexes[n]);
+        for (let j = 0; j < refs[n].length; j++) {
+          const r = refs[n][j];
+          const tick = tickOf(j);
           try {
+            if (done.has(tick)) { photoCount++; continue; }
             const src = r.src || docs.get(r.id || '') || '';
             const p = src ? await photoBlob(src) : null;
             if (!p) { failedPhotos.push(`${order.id} piece ${indexes[n] + 1}`); continue; }
-            await sendWhatsAppFile(to, p.blob, p.name, first ? caption : '');
+            const how = await once(tick, () => sendWhatsAppFile(to, p.blob, p.name, first ? caption : ''));
+            if (how === 'later') break;
             if (first) captioned.add(indexes[n]);
             first = false;
             photoCount++;
@@ -161,17 +233,21 @@ export async function POST(req: NextRequest) {
       const uncaptioned = indexes.filter(i => !captioned.has(i));
       // Edited ones are sent as the owner wrote them (nothing when emptied); the rest as one generated message.
       const untouched = uncaptioned.filter(i => !overrides?.has(i));
+      if (partial) break;
       for (const i of uncaptioned.filter(i => overrides?.has(i))) {
         const words = (overrides!.get(i) || '').slice(0, KARIGAR_TEXT_MAX);
         if (!words) continue;
-        await sendWhatsAppMessage(to, words);
-        sent++;
+        if (await once(`${id}:${i}:text`, () => sendWhatsAppMessage(to, words)) === 'sent') sent++;
       }
       if (untouched.length) {
-        await sendWhatsAppMessage(to, buildKarigarMessage(order, untouched, { karigarName: name, shopName, photoCount }));
-        sent++;
+        const words = buildKarigarMessage(order, untouched, { karigarName: name, shopName, photoCount });
+        if (await once(`${id}:text:${untouched.join(',')}`, () => sendWhatsAppMessage(to, words)) === 'sent') sent++;
       }
-      try {
+      if (partial) break;
+      // Once per send, when this karigar's part has all gone (a carry-on does not log it twice).
+      if (!done.has(`${id}:logged`)) try {
+        done.add(`${id}:logged`);
+        await ref.update({ done: FieldValue.arrayUnion(`${id}:logged`) });
         await adminDb.collection('activity_log').add({
           action: 'order.update', title: `Sent order ${order.id} to ${name}`, detail: `${indexes.length} piece(s), ${photoCount} photo(s) · WhatsApp`,
           relatedId: order.id, by: who.email, at: new Date().toISOString(), via: 'send-to-karigar',
@@ -179,8 +255,21 @@ export async function POST(req: NextRequest) {
       } catch (e) { console.warn('[send-to-karigar] activity log', e); }
     }
 
+    } catch (e) {
+      // Let the next request carry on from what went, straight away.
+      await ref.update({ state: 'failed', beatAt: 0 }).catch(() => {});
+      throw e;
+    }
+
+    // A photo that could not be read or was refused stays unticked: Retry sends only those.
+    if (partial || failedPhotos.length) await ref.update({ state: partial ? 'paused' : 'incomplete', beatAt: 0 }).catch(() => {});
+    else await ref.update({ state: 'done', finishedAt: Date.now() }).catch(() => {});
+
     return NextResponse.json({
-      ok: true, sent, to: [...people.values()].map(p => maskPhone(p.to)).join(', '),
+      ok: true, sent, to: toSaid,
+      ...(partial ? { partial: true } : {}),
+      ...(claim.sentBefore ? { sentBefore: claim.sentBefore } : {}),
+      ...(unsure ? { unsure } : {}),
       ...(failedPhotos.length ? { photosFailed: failedPhotos.length } : {}),
     });
   } catch (e) {

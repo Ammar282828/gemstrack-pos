@@ -542,6 +542,14 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
 
 ### Send to karigar
 
+- **Never twice** (owner, 2026-11-03: "sending to karigar is hella buggy, it keeps retrying or double sending"; the log showed
+  three sends of one order 7 s apart, all delivered). The server keeps one record per send, `karigar_sends/<sha256 of order,
+  karigar, number, pieces, edited words>`, and ticks off each message (`<karigar>:<piece>:p<n>`, the texts) the moment it goes.
+  The same send while one is running (last tick < 90 s) answers `duplicate, busy`; within 2 minutes of finishing it answers
+  `duplicate` with "Already sent to X n s ago"; an unfinished one (failed, a photo refused, `partial`) carries on within 30
+  minutes and sends only what had not gone, never a piece's words twice. A WhatsApp timeout is ticked as gone (it may well have
+  been) and said "check the chat". A request stops starting messages after 40 s and answers `partial`; web and iPhone/Mac ask
+  again until it is done. Clients drop a second identical request while one is on its way. Tests: `send-to-karigar/route.test.ts`.
 - **The words are the owner's to edit, and sending happens in the background** (owner, 2026-11-03: "let me edit the message
   being sent to karigar, and send message in background"). Each ticked piece shows its words in a text box (the caption the
   server would send, `pieceMessages` in `lib/karigar-message.ts`; Reset restores them); only edited pieces go in the request as
