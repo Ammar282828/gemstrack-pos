@@ -192,12 +192,11 @@ fun OrdersHub() {
         },
         open = { navigator.open(it) },
         contact = { order, kind ->
+            // The swipe's fast path; the number is the Contact menu's one (0300… dials +92300…).
             if (kind == OrderContactKind.call) {
-                val dial = OrdersLogic.dialable(order.customerContact)
-                if (dial.isNotEmpty()) erp.app.device.openAddress(context, Intent.ACTION_DIAL, "tel:$dial")
+                erp.app.ui.CustomerContactLinks.tel(order.customerContact)?.let { erp.app.device.openAddress(context, Intent.ACTION_DIAL, it) }
             } else {
-                val number = toWhatsAppNumber(order.customerContact)
-                if (number.isNotEmpty()) erp.app.device.openAddress(context, Intent.ACTION_VIEW, "https://wa.me/$number")
+                erp.app.ui.CustomerContactLinks.whatsApp(order.customerContact)?.let { erp.app.device.openAddress(context, Intent.ACTION_VIEW, it) }
             }
         },
     )

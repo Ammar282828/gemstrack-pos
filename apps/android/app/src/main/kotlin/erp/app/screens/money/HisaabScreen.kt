@@ -91,6 +91,7 @@ private fun HisaabBoard() {
     val ready = hisaab.loaded && invoices.loaded && customers.loaded && karigars.loaded
 
     var search by rememberSaveable { mutableStateOf("") }
+    val quick = erp.app.ui.rememberQuickPdf()
     var chip by rememberSaveable { mutableStateOf(HisaabChip.all) }
     var kind by rememberSaveable { mutableStateOf(HisaabKind.everyone) }
     var order by rememberSaveable { mutableStateOf(HisaabOrder.byName) }
@@ -164,14 +165,17 @@ private fun HisaabBoard() {
                     Column(Modifier.padding(horizontal = 16.dp).readableColumn(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Column(Modifier.fillMaxWidth().clip(erp.app.ui.Radius.cardShape).background(ErpColors.card)) {
                             Row(
-                                Modifier.fillMaxWidth().clickable(role = Role.Button) { navigator.open(MoneyPaths.hisaabWeb) }.ledgerRow(),
+                                Modifier.fillMaxWidth().clickable(role = Role.Button) {
+                                    // Everyone outstanding whose name matches the search, straight to the share sheet.
+                                    quick.share(MoneyPaths.hisaabSummary(search), "Hisaab-Summary-${erp.core.ERPDate.karachiDay(java.time.Instant.now())}.pdf", "Hisaab summary")
+                                }.ledgerRow(),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Icon(Symbols.IosShare, contentDescription = null, tint = ErpColors.accent)
-                                Text("Export the summary report", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+                                if (quick.preparing) erp.app.ui.Loading(Modifier.size(24.dp)) else Icon(Symbols.Print, contentDescription = null, tint = ErpColors.accent)
+                                Text("Print or share the summary report", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
                             }
                         }
-                        Footnote("The summary PDF is made on the ERP’s own page. To add an entry, tap + and choose the account.")
+                        Footnote("The summary PDF is drawn by the ERP. To add an entry, tap + and choose the account.")
                     }
                 }
             }

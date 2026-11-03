@@ -77,6 +77,7 @@ fun WorkshopPieceDetailsSheet(ask: WorkshopPieceAsk, onDismiss: () -> Unit) {
     val note = LocalNoteState.current
     val haptics = rememberHaptics()
     val job = ask.job
+    erp.app.screens.voice.VoiceFocusEffect(erp.app.screens.voice.VoiceFocus.piece(ask))
     var name by remember { mutableStateOf(job.description) }
     var size by remember { mutableStateOf(job.size ?: "") }
     var weightText by remember { mutableStateOf(WorkshopFigure.field(job.weightG)) }

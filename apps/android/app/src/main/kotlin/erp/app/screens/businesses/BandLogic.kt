@@ -5,13 +5,16 @@ import java.time.Duration
 import java.time.Instant
 
 /**
- * What the cold-start picker's bands decide, apart from drawing them (the logic of BusinessPicker.swift, 2026-10-30 "brand bands").
+ * What the cold-start picker's cards decide, apart from drawing them (the logic of BusinessPicker.swift; 2026-11-02 "two cards", which
+ * replaced the full-bleed bands). The name is the bands' still: the identity, order, caption and status are unchanged.
  */
 object BandLogic {
-    /** The most bands that share the screen; more scroll. */
-    const val FIT = 4
+    /** From this width (dp) the cards sit side by side; narrower, they stack (the iPhone's 600 pt). */
+    const val WIDE = 600f
 
-    /** A band's own colours as "RRGGBB" hex, constant in light and dark: an identity screen, not a themed page. */
+    fun sideBySide(widthDp: Float): Boolean = widthDp >= WIDE
+
+    /** A card's own colours as "RRGGBB" hex, constant in light and dark: an identity screen, not a themed page. */
     data class Identity(val ground: String, val ink: String, val isDark: Boolean)
 
     fun identity(b: Business): Identity = when (b.art) {
@@ -75,7 +78,7 @@ object BandLogic {
         return "Opened $phrase"
     }
 
-    /** What a screen reader says of a band beyond "Open <name>". */
+    /** What a screen reader says of a card beyond "Open <name>". */
     fun status(b: Business, last: Boolean, state: SignIn, stampMillis: Long?, now: Instant): String {
         val parts = mutableListOf<String>()
         if (last) parts += "Last opened"

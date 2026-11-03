@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
@@ -98,6 +99,7 @@ private fun ExpensesBoard() {
     rememberShelf(book.karigarBatches)
     val connectionLost by Connection.isOffline.collectAsStateWithLifecycle()
     val note = LocalNoteState.current
+    val quick = erp.app.ui.rememberQuickPdf()
 
     var search by rememberSaveable { mutableStateOf("") }
     var period by rememberSaveable { mutableStateOf(ExpensePeriod.thisMonth) }
@@ -212,14 +214,20 @@ private fun ExpensesBoard() {
                     Column(Modifier.padding(horizontal = 16.dp).readableColumn(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         SegmentedColumn {
                             Row(
-                                Modifier.fillMaxWidth().clickable(role = Role.Button) { navigator.open(MoneyPaths.expensesWeb) }.ledgerRow(),
+                                Modifier.fillMaxWidth().clickable(role = Role.Button) {
+                                    // Straight to the share sheet (Print, WhatsApp, Files), for the period and filters on screen.
+                                    quick.share(
+                                        MoneyPaths.expenseReport(period, custom.fromDay, custom.toDay, grouping, category, search),
+                                        "Expense-Report-${erp.core.ERPDate.karachiDay(Instant.now())}.pdf", "Expense report",
+                                    )
+                                }.ledgerRow(),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Icon(Symbols.Description, contentDescription = null, tint = ErpColors.accent)
-                                Text("Expense report (PDF)", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+                                if (quick.preparing) erp.app.ui.Loading(Modifier.size(24.dp)) else Icon(Symbols.Print, contentDescription = null, tint = ErpColors.accent)
+                                Text("Print or share the expense report", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
                             }
                         }
-                        Footnote("The report is drawn by the ERP’s page, for the period and filters chosen there.")
+                        Footnote("The report is drawn by the ERP, for the period and filters chosen here.")
                     }
                 }
             }

@@ -101,6 +101,7 @@ private fun LedgerBoard(path: String) {
     val karigars = rememberShelfStatus(book.karigars)
     val connectionLost by Connection.isOffline.collectAsStateWithLifecycle()
     val note = LocalNoteState.current
+    val quick = erp.app.ui.rememberQuickPdf()
     val id = MoneyPaths.ledgerID(path) ?: ""
     val ready = hisaab.loaded && customers.loaded && karigars.loaded
 
@@ -117,9 +118,13 @@ private fun LedgerBoard(path: String) {
     val notFound = name.isEmpty() && rows.isEmpty()
 
     ScreenTitle(if (name.isEmpty()) "Hisaab" else name)
-    if (ready && !notFound && onFile) {
+    if (ready && !notFound && (onFile || (isCustomer && customer != null))) {
         ScreenActions {
-            Box {
+            // The one Contact menu (ui/CustomerContact.kt) for a customer on file: Call, WhatsApp, Message, Copy number.
+            if (isCustomer && customer != null && id != WALK_IN_ENTITY) {
+                erp.app.ui.CustomerContactMenu(erp.app.screens.customers.CustomerKit.filled(customer.phone) ?: customer.altPhone, customerId = customer.id, customerName = customer.name)
+            }
+            if (onFile) Box {
                 IconButton(onClick = { menu = true }) { Icon(Symbols.Add, contentDescription = "Add entry") }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     DropdownMenuItem(
@@ -196,9 +201,14 @@ private fun LedgerBoard(path: String) {
                     animatedItem(key = "print") {
                         Column(Modifier.padding(horizontal = 16.dp).readableColumn(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             SegmentedColumn {
-                                ActionRow("Print the ledger or send a reminder", Symbols.Print) { navigator.open(printPath) }
+                                // The statement straight to the share sheet; the WhatsApp reminder is still the ERP's page.
+                                ActionRow(if (quick.preparing) "Preparing the ledger…" else "Print or share the ledger", Symbols.Print) {
+                                    quick.share(MoneyPaths.ledgerPdf(id, isCustomer), "Ledger-$name-${erp.core.ERPDate.karachiDay(java.time.Instant.now())}.pdf", "Ledger statement")
+                                }
+                                LedgerDivider()
+                                ActionRow("Send a reminder", Symbols.Chat) { navigator.open(printPath) }
                             }
-                            Footnote("The ledger PDF and the WhatsApp reminder are made on the ERP’s own page.")
+                            Footnote("The ledger PDF is drawn by the ERP; the WhatsApp reminder is made on the ERP’s own page.")
                         }
                     }
                 }

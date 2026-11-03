@@ -145,6 +145,7 @@ fun CustomerScreen(id: String) {
     /** An invoice whose credit is being handed back (InvoiceCreditSheet). */
     var givingBack by remember { mutableStateOf<Invoice?>(null) }
     val customer = customers.items.firstOrNull { it.id == id } ?: seed
+    erp.app.screens.voice.VoiceFocusEffect(customer?.let { erp.app.screens.voice.VoiceFocus.customer(it) })
     val loaded = seed != null || (customers.loaded && invoices.loaded && orders.loaded && repairs.loaded && (!owner || hisaabLoaded))
     val failure = customers.error ?: invoices.error ?: orders.error ?: repairs.error ?: (if (owner) hisaabError else null)
     var deletion by remember { mutableStateOf<OwnerDeletion?>(null) }
@@ -269,14 +270,6 @@ private fun Header(c: Customer, addPhone: () -> Unit) {
             CustomerKit.filled(c.phone) ?: c.altPhone, customerId = c.id, customerName = CustomerKit.shown(c), onAddPhone = addPhone,
         )
     }
-}
-
-@Composable
-private fun Contact(title: String, icon: ImageVector, enabled: Boolean, modifier: Modifier, onClick: () -> Unit) {
-    QuickAction(
-        title, icon, onClick = { if (enabled) onClick() },
-        modifier = modifier.alpha(if (enabled) 1f else 0.38f).semantics { if (!enabled) disabled() },
-    )
 }
 
 // MARK: Owed

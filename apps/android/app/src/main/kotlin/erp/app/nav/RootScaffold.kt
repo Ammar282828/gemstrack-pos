@@ -182,7 +182,11 @@ fun RootScaffold() {
                     stacks[tab]?.let { StackHost(it, Modifier.fillMaxSize()) }
                 }
             }
-            if (!wide && canCreate) CreateButton(create, Modifier.align(Alignment.BottomEnd).padding(16.dp))
+            // The + steps aside while the voice capsule is up (it sits where the + does, above the bar), as on the iPhone.
+            val voiceUp = erp.app.screens.voice.VoiceOverlay.state.shown
+            val inset = erp.app.screens.voice.LocalVoiceInset.current
+            androidx.compose.runtime.SideEffect { inset.bottom = if (wide) 16.dp else 76.dp }
+            if (!wide && canCreate && !voiceUp) CreateButton(create, Modifier.align(Alignment.BottomEnd).padding(16.dp))
         }
     }
 }
