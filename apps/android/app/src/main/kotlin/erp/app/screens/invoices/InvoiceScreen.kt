@@ -1,5 +1,6 @@
 package erp.app.screens.invoices
 
+import erp.app.screens.voice.voiceClearance
 import erp.app.ui.rememberErpMotion
 import erp.app.ui.icons.Symbols
 import androidx.compose.animation.animateContentSize
@@ -140,6 +141,7 @@ fun InvoiceScreen(id: String) {
     val customers by rememberShelf(book.customers)
     val connectionLost by Connection.isOffline.collectAsStateWithLifecycle()
     val invoice = status.items.firstOrNull { it.id == id }
+    erp.app.screens.voice.VoiceFocusEffect(invoice?.let { erp.app.screens.voice.VoiceFocus.invoice(it) })
     ScreenTitle(id)
     // The page grows out of its row on the list (the row's id is this route's path).
     Box(Modifier.fillMaxSize().zoomDestination(InvoiceFacts.path(id))) {
@@ -268,7 +270,7 @@ private fun InvoiceDetail(inv: Invoice, customers: List<erp.core.models.Customer
             if (canPay && owing) {
                 Button(
                     onClick = { paying = inv },
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).defaultMinSize(minHeight = 52.dp),
+                    modifier = Modifier.fillMaxWidth().voiceClearance().padding(horizontal = 16.dp, vertical = 8.dp).defaultMinSize(minHeight = 52.dp),
                 ) {
                     Icon(Symbols.Payments, contentDescription = null)
                     Spacer(Modifier.width(8.dp))

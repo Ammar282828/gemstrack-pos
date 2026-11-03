@@ -223,6 +223,7 @@ fun WorkshopKarigarScreen(id: String) {
     val firstError = if (!owner) core else core ?: hisaabError ?: expensesError ?: batchesError
 
     val karigar = karigars.items.firstOrNull { it.id == id }
+    erp.app.screens.voice.VoiceFocusEffect(karigar?.let { erp.app.screens.voice.VoiceFocus.karigar(it) })
     ScreenTitle(karigar?.name?.ifEmpty { null } ?: "Karigar")
 
     ShelfState(

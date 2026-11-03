@@ -138,9 +138,15 @@ fun AppShell(session: Session, content: @Composable BoxScope.() -> Unit) {
             // One toast per Activity: the banner sits over every screen, so `LocalNoteState.current.show(Note(...))`
             // works wherever it is called (a page on top of the tabs shows it on the page).
             val note = rememberNoteState()
-            CompositionLocalProvider(LocalSession provides session, LocalBook provides book, LocalNoteState provides note) {
+            val voiceInset = remember { erp.app.screens.voice.VoiceInset() }
+            CompositionLocalProvider(
+                LocalSession provides session, LocalBook provides book, LocalNoteState provides note,
+                erp.app.screens.voice.LocalVoiceInset provides voiceInset,
+            ) {
                 Box(Modifier.fillMaxSize()) {
                     content()
+                    // Voice over whatever this Activity shows (and over the pages opened on top: each draws it from one state).
+                    erp.app.screens.voice.VoiceOverlayHost()
                     NoteHost(note)
                     // What a save that left its screen could not do, with Retry (Outbox).
                     erp.app.ui.OutboxHost(Modifier.align(androidx.compose.ui.Alignment.BottomCenter))

@@ -117,9 +117,13 @@ private fun LedgerBoard(path: String) {
     val notFound = name.isEmpty() && rows.isEmpty()
 
     ScreenTitle(if (name.isEmpty()) "Hisaab" else name)
-    if (ready && !notFound && onFile) {
+    if (ready && !notFound && (onFile || (isCustomer && customer != null))) {
         ScreenActions {
-            Box {
+            // The one Contact menu (ui/CustomerContact.kt) for a customer on file: Call, WhatsApp, Message, Copy number.
+            if (isCustomer && customer != null && id != WALK_IN_ENTITY) {
+                erp.app.ui.CustomerContactMenu(erp.app.screens.customers.CustomerKit.filled(customer.phone) ?: customer.altPhone, customerId = customer.id, customerName = customer.name)
+            }
+            if (onFile) Box {
                 IconButton(onClick = { menu = true }) { Icon(Symbols.Add, contentDescription = "Add entry") }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     DropdownMenuItem(

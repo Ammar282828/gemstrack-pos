@@ -82,6 +82,7 @@ fun RepairsSheet(id: String, seed: Repair?, onDismiss: () -> Unit) {
     val shelfItem = rememberShelfItem(book.repairs, id)
     val loaded = rememberShelfStatus(book.repairs).loaded
     val current: Repair? = (shelfItem ?: seed)?.let(desk::shown)
+    erp.app.screens.voice.VoiceFocusEffect(current?.let { erp.app.screens.voice.VoiceFocus.repair(it) })
 
     var web by remember { mutableStateOf<String?>(null) }
     var editing by remember { mutableStateOf(false) }
@@ -216,12 +217,11 @@ private fun HeaderCard(r: Repair, now: Instant, shopName: String, onCustomer: (S
         } else {
             RepairsLabeled("Customer", name)
         }
+        // The number, and the one Contact menu (ui/CustomerContact.kt): Call, WhatsApp, Message, Copy number.
         RepairsKit.filled(r.customerContact)?.let { phone ->
-            val uri = RepairsKit.callUri(phone)
-            if (uri != null) {
-                Box(Modifier.clickable(role = Role.Button) { openUrl(context, uri, android.content.Intent.ACTION_DIAL) }) { RepairsLabeled("Phone", phone, tint = ErpColors.accent) }
-            } else {
-                RepairsLabeled("Phone", phone)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.weight(1f)) { RepairsLabeled("Phone", phone) }
+                erp.app.ui.CustomerContactMenu(phone, customerId = r.customerId, customerName = r.customerName)
             }
         }
         // The page's "Tell them": the ready message, on WhatsApp, for a Ready ticket with a number.
