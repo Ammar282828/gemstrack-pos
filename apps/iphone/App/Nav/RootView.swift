@@ -79,7 +79,9 @@ struct RootView: View {
     @Environment(Session.self) private var session
     @Environment(\.layoutWidthClass) private var sizeClass
     // The simulator check opens each tab in turn (`-ERPDemoTab orders`).
-    @State private var tab = UserDefaults.standard.string(forKey: "ERPDemoTab") ?? "home"
+    // After a business switch the tab the person was on (BusinessCarry); `selection` falls back to Home when this
+    // business has no such tab.
+    @State private var tab = BusinessCarry.carriedTab() ?? UserDefaults.standard.string(forKey: "ERPDemoTab") ?? "home"
     @State private var creating: Route?
     /// Voice: an overlay over the tabs (and over a page sheet), never a sheet of its own (VoiceOverlay).
     @State private var voice = VoiceSession.shared
@@ -191,6 +193,11 @@ struct RootView: View {
             BusinessChip(wide: true)
                 .padding(.vertical, pt(6))
         }
+        // The tab is kept outside the view so a business switch can open the next business on it.
+        .onChange(of: tab) { _, now in BusinessCarry.noteTab(now) }
+        .onAppear { BusinessCarry.noteTab(tab) }
+        // The new business's screens have been made from what was carried.
+        .task { BusinessCarry.settled() }
         .onChange(of: ShellCommands.shared.request) { _, r in
             if let r { perform(r.kind, entries: entries, map: map) }
         }
@@ -440,6 +447,13 @@ struct PlaceScreen: View {
     @Environment(\.layoutWidthClass) private var sizeClass
     @State private var chosen: String?
 
+    init(path: String, isRoot: Bool = false) {
+        self.path = path
+        self.isRoot = isRoot
+        // A tab's chosen page, as it was in the business just left (BusinessCarry), when this one has it too.
+        _chosen = State(initialValue: isRoot ? BusinessCarry.carriedSub(for: path) : nil)
+    }
+
     var body: some View {
         let bare = ScreenRoute.bare(path)
         // The map as this person sees it: staff are not offered Today's cash among Home's tabs.
@@ -456,6 +470,12 @@ struct PlaceScreen: View {
             ?? (entry?.href == ScreenRoute.bare(current) ? (entry?.heading ?? entry?.label) : nil)
         ScreenRegistry.view(for: current)
             .id(current)
+            .onChange(of: chosen) { _, now in
+                if isRoot { BusinessCarry.noteSub(root: path, chosen: now) }
+            }
+            .onAppear {
+                if isRoot { BusinessCarry.noteSub(root: path, chosen: chosen) }
+            }
             // The sub-tab swap fades rather than cuts (the `.id` stays: it is the routing).
             .transition(.opacity)
             .motion(current, Motion.enter)

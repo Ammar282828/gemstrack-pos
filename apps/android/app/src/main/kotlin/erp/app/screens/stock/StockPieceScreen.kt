@@ -88,6 +88,7 @@ fun StockPieceScreen(sku: String) {
     val products = rememberShelfStatus(book.products)
     val settings by rememberSingle(book.settings)
     val product = rememberShelfItem(book.products, sku)
+    erp.app.screens.voice.VoiceFocusEffect(product?.let { erp.app.screens.voice.VoiceFocus.product(it) })
     val connectionLost by Connection.isOffline.collectAsStateWithLifecycle()
     ScreenTitle(sku)
     Box(Modifier.fillMaxSize().zoomDestination(StockKit.piecePath(sku))) {

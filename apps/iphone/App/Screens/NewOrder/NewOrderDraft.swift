@@ -30,7 +30,8 @@ struct NewOrderPieceDraft: Codable, Equatable, Identifiable {
     var karat = "21k"
     var weight = ""
     /// A new piece is priced from the rate with stones counted: that is almost every piece here.
-    var hasStones = true
+    /// "Add stone details" starts off (owner, 2026-11-03); a piece that already has stone data comes back on.
+    var hasStones = false
     var stoneWeight = ""
     var stoneDetails = ""
     var hasDiamonds = false
@@ -62,6 +63,12 @@ struct NewOrderPieceDraft: Codable, Equatable, Identifiable {
     var extras: [NewOrderExtraPhoto] = []
     /// The piece had more pictures on file, so an emptied list is sent as [] and clears them.
     var hadExtras = false
+    /// A catalogue picture (https) picked to print on the bill; nil when none. Without one, `printReference` prints the
+    /// piece's own first reference photo.
+    var referenceImage: String?
+    var printReference = false
+    /// The order on file had a catalogue picture, so taking it off sends null.
+    var hadReference = false
 
     /// Reference pictures a piece takes (lib/order-photos.ts MAX_PIECE_PHOTOS).
     static let maxPhotos = 8
@@ -102,6 +109,9 @@ struct NewOrderPieceDraft: Codable, Equatable, Identifiable {
         photo = try? c.decodeIfPresent(Data.self, forKey: .photo)
         extras = (try? c.decodeIfPresent([NewOrderExtraPhoto].self, forKey: .extras)) ?? []
         hadExtras = c.orderField(.hadExtras, false)
+        referenceImage = try? c.decodeIfPresent(String.self, forKey: .referenceImage)
+        printReference = c.orderField(.printReference, false)
+        hadReference = c.orderField(.hadReference, false)
     }
 }
 
@@ -433,6 +443,11 @@ enum NewOrderDraftStore {
     static func load(business: String? = nil) -> NewOrderDraft? {
         let biz = business ?? House.id
         return queue.sync {
+            // A write still waiting out its pause is made first, so a read never sees an older draft than was typed.
+            waitingLock.lock()
+            let pending = waiting.removeValue(forKey: biz)
+            waitingLock.unlock()
+            if let pending { write(pending, biz) }
             guard let data = UserDefaults.standard.data(forKey: key(for: biz)),
                   var draft = try? JSONDecoder().decode(NewOrderDraft.self, from: data),
                   !draft.isBlank else { return nil }
@@ -458,6 +473,8 @@ enum NewOrderDraftStore {
     /// be heavy, and the form saves at every change).
     private static let waitingLock = NSLock()
     private static var waiting: [String: NewOrderDraft] = [:]
+    /// The businesses that have a write already on its way (see `save`).
+    private static var scheduledWrites = Set<String>()
 
     /// `now` is for the moment the screen or the app is going away: the write is still off the main thread (the
     /// encode can be heavy), under a few seconds the phone lends so it finishes after the app has left.
@@ -476,9 +493,17 @@ enum NewOrderDraftStore {
             queue.sync { write(draft, biz) }
             #endif
         } else {
-            waitingLock.lock(); waiting[biz] = draft; waitingLock.unlock()
-            queue.async {
+            // One write per pause in the typing, not one per key: the newest draft waits here, and the first key of a
+            // burst schedules the single write that takes it. (The encode and the file checks stay off the main thread;
+            // the app leaving or the screen going writes at once, `now`.)
+            waitingLock.lock()
+            waiting[biz] = draft
+            let scheduled = !scheduledWrites.insert(biz).inserted
+            waitingLock.unlock()
+            if scheduled { return }
+            queue.asyncAfter(deadline: .now() + 0.35) {
                 waitingLock.lock()
+                scheduledWrites.remove(biz)
                 let next = waiting.removeValue(forKey: biz)
                 waitingLock.unlock()
                 if let next { write(next, biz) }

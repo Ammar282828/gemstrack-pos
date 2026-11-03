@@ -116,31 +116,54 @@ private struct PullDownSearchReader: ViewModifier {
     @Binding var state: PullDownSearchState
     let hasText: Bool
     @Environment(\.accessibilityReduceMotion) private var reduce
-    /// A finger is on the list: a bounce after a flick up to the top is not a pull.
-    @State private var dragging = false
+
+    /// Where the list's top is, coarsely: the scroll transform returns this, so `onScrollGeometryChange` hands the
+    /// action a value only when the list crosses a line (never one per frame of the drag).
+    private enum Zone: Equatable { case rest, pulled, away }
+
+    /// A finger is on the list. A bounce after a flick up to the top is not a pull.
+    @State private var touching = false
+    /// The pull went past the threshold with the finger down: the bar comes out when the finger lifts, as iOS's own
+    /// search does, so the list's inset never changes under the finger (that fought the rubber band and stuttered).
+    @State private var armed = false
 
     func body(content: Content) -> some View {
         content
-            // contentOffset.y + contentInsets.top is 0 at rest and negative past the top.
-            .onScrollGeometryChange(for: Bool.self) { geo in
-                geo.contentOffset.y + geo.contentInsets.top < -PullDownSearchTuning.threshold
-            } action: { _, pulled in
-                guard pulled, dragging, !state.shown else { return }
-                withAnimation(PullDownSearchField.slide(reduce: reduce)) {
-                    state.shown = true
-                    state.revealedAt = Date()
+            // One reader for both lines. contentOffset.y + contentInsets.top is 0 at rest and negative past the top.
+            .onScrollGeometryChange(for: Zone.self) { geo in
+                let y = geo.contentOffset.y + geo.contentInsets.top
+                if y < -PullDownSearchTuning.threshold { return .pulled }
+                return y > PullDownSearchTuning.awayFrom ? .away : .rest
+            } action: { _, zone in
+                switch zone {
+                case .pulled:
+                    guard touching, !state.shown, !armed else { return }
+                    armed = true
+                    // The one light tap, at the line (not on the reveal, which is a moment later).
+                    state.buzz += 1
+                case .away:
+                    armed = false
+                    guard state.shown, !state.holding, !hasText,
+                          Date().timeIntervalSince(state.revealedAt) > PullDownSearchTuning.settle else { return }
+                    withAnimation(PullDownSearchField.slide(reduce: reduce)) { state.shown = false }
+                case .rest:
+                    // Pulled back up before letting go: nothing was asked for.
+                    if touching { armed = false }
                 }
-                state.buzz += 1
-            }
-            .onScrollGeometryChange(for: Bool.self) { geo in
-                geo.contentOffset.y + geo.contentInsets.top > PullDownSearchTuning.awayFrom
-            } action: { _, away in
-                guard away, state.shown, !state.holding, !hasText,
-                      Date().timeIntervalSince(state.revealedAt) > PullDownSearchTuning.settle else { return }
-                withAnimation(PullDownSearchField.slide(reduce: reduce)) { state.shown = false }
             }
             .onScrollPhaseChange { _, phase in
-                dragging = phase == .interacting
+                let now = phase == .interacting || phase == .tracking
+                guard now != touching else { return }
+                touching = now
+                // The finger lifted while past the line: the bar comes out now.
+                if !now, armed {
+                    armed = false
+                    guard !state.shown else { return }
+                    withAnimation(PullDownSearchField.slide(reduce: reduce)) {
+                        state.shown = true
+                        state.revealedAt = Date()
+                    }
+                }
             }
     }
 }
@@ -152,9 +175,9 @@ private struct PullDownSearchField: ViewModifier {
     @Environment(\.accessibilityReduceMotion) private var reduce
     @FocusState private var focused: Bool
 
-    /// A spring in, nothing but a fade under Reduce Motion.
+    /// A smooth ease in (no bounce: the list is settling from its pull), nothing but a fade under Reduce Motion.
     static func slide(reduce: Bool) -> Animation {
-        reduce ? .easeOut(duration: 0.12) : .spring(duration: 0.38, bounce: 0.18)
+        reduce ? .easeOut(duration: 0.12) : .smooth(duration: 0.3)
     }
 
     private var visible: Bool { state.shown || !text.isEmpty }
@@ -192,7 +215,9 @@ private struct PullDownSearchField: ViewModifier {
             }
             .padding(.horizontal, 12)
             .frame(minHeight: 40)
-            .glassEffect(.regular, in: .capsule)
+            // A plain fill, not glass: glass forming while the bar slides in drew a stray bubble and re-sampled the list
+            // under it on every frame of the slide (CONVENTIONS rule 16).
+            .background(.quaternary, in: .capsule)
             Button("Cancel") { cancel() }
                 .tint(Theme.accent)
         }

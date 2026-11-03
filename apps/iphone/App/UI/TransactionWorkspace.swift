@@ -16,11 +16,16 @@ enum EntryStepState {
     case done, attention
 }
 
-struct EntrySteps: View {
+struct EntrySteps: View, Equatable {
     @Binding var selection: EntryStep
     /// Optional per-step state; a step with none shows its name alone.
     var states: [EntryStep: EntryStepState] = [:]
     @Environment(\.dynamicTypeSize) private var typeSize
+
+    /// Redrawn only when the step or a step's state changes, not on every key of the form under it (`.equatable()`).
+    static func == (a: EntrySteps, b: EntrySteps) -> Bool {
+        a.selection == b.selection && a.states == b.states
+    }
 
     var body: some View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: pt(4)), count: typeSize.isAccessibilitySize ? 2 : 4), spacing: pt(4)) {
@@ -87,10 +92,16 @@ struct TransactionWorkspace<Editor: View, Review: View, Footer: View>: View {
     @ViewBuilder let review: () -> Review
     @ViewBuilder let footer: () -> Footer
     @Environment(\.dynamicTypeSize) private var typeSize
+    /// The window's width, read once per change of width. A `GeometryReader` here re-ran the whole form on every frame
+    /// of the keyboard's slide (the keyboard shrinks the safe area, so its height changes each frame); width alone
+    /// does not move with it. Zero until the first layout, which draws nothing for that one pass.
+    @State private var width: CGFloat = 0
 
     var body: some View {
-        GeometryReader { geometry in
-            if geometry.size.width >= 820 && !typeSize.isAccessibilitySize {
+        Group {
+            if width == 0 {
+                Color.clear
+            } else if width >= 820 && !typeSize.isAccessibilitySize {
                 HStack(spacing: 0) {
                     editor().scrollContentBackground(.hidden).background(Theme.ground).frame(maxWidth: .infinity)
                     Divider()
@@ -98,7 +109,7 @@ struct TransactionWorkspace<Editor: View, Review: View, Footer: View>: View {
                         ScrollView { review().padding(pt(20)) }
                         footer()
                     }
-                    .frame(width: min(380, geometry.size.width * 0.35))
+                    .frame(width: min(380, width * 0.35))
                     .background(Theme.ground)
                 }
             } else {
@@ -106,7 +117,20 @@ struct TransactionWorkspace<Editor: View, Review: View, Footer: View>: View {
                     .safeAreaBar(edge: .bottom, spacing: 0) { footer() }
             }
         }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
     }
+}
+
+/// Holds a screen's content as it was while something else is on top of it (a piece being typed in is pushed over the
+/// form, and every key it types changes the draft the form beneath is built from). While `frozen` on both sides of a
+/// change, the content is not asked again; the moment it is off, it is drawn from the draft as it now is.
+struct FrozenWhile<Content: View>: View, Equatable {
+    let frozen: Bool
+    @ViewBuilder let content: () -> Content
+
+    static func == (a: FrozenWhile<Content>, b: FrozenWhile<Content>) -> Bool { a.frozen && b.frozen }
+
+    var body: some View { content() }
 }
 
 struct TransactionReviewRow: Identifiable {

@@ -211,6 +211,8 @@ final class Businesses {
         UserDefaults.standard.set(id, forKey: BusinessStorage.currentKey)
         BusinessBox.shared.set(current: next, list: list)
         Sessions.shared.deactivate(left.id)
+        // The next business opens on the tab (and its chosen page) the person is on, where it has them.
+        BusinessCarry.arm()
         Self.resetPerBusinessState()
         // The next business's session now, from its cached answer (as a cold start opens), rather than while
         // the screen is being drawn; then the screen is rebuilt on it.
