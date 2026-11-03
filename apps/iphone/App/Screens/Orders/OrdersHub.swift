@@ -154,15 +154,17 @@ struct OrdersHub: View {
                       now: Date, forceOpen: Bool) -> some View {
         // No figures over the list (owner, 2026-11-03: "remove the upper bar with the summaries in invoices and orders").
         let figures: [ListFigure] = []
-        return RecordListScaffold(search: $query, prompt: "Order, customer, phone or piece", isEmpty: groups.isEmpty) {
+        return RecordListScaffold(search: $query, prompt: "Order, customer, phone or piece", isEmpty: groups.isEmpty && Outbox.shared.records(kind: "order").isEmpty) {
             emptyState(nothingOpen: grouping == .due && !shown.isEmpty)
         } rows: {
             head(scoped, figures, inList: true)
+            PendingRecords(kind: "order")
             ForEach(groups) { g in
                 section(g, owedOn: owedOn, now: now, forceOpen: forceOpen)
             }
         } cards: { width in
             head(scoped, figures, inList: false)
+            PendingRecords(kind: "order", width: width)
             ForEach(groups) { g in
                 let open = isOpen(g, forceOpen: forceOpen)
                 VStack(alignment: .leading, spacing: pt(16)) {

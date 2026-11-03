@@ -21,6 +21,7 @@ import { drawOrderPdf, orderPdfFileName } from '@/lib/order-pdf';
 import { drawRepairPdf, repairPdfFileName } from '@/lib/repair-pdf';
 import { KARACHI_DATES } from '@/lib/pdf-inputs';
 import { serverPdfImages } from '@/lib/pdf-inputs-server';
+import { serverReferenceImages } from '@/lib/pdf-references-server';
 import type { Customer, Invoice, Order, Repair } from '@/lib/store';
 
 /** Who the paper is for: everything for an owner, the shop floor's copy for staff. */
@@ -69,7 +70,9 @@ async function customerOf(inv: Invoice, viewer: PdfViewer): Promise<Customer | n
 export async function invoicePdf(id: string, viewer: PdfViewer, opts: { perPiece?: boolean } = {}): Promise<ServerPdf | null> {
   const invoice = (await read('invoices', id, viewer)) as Invoice | null;
   if (!invoice) return null;
-  const [customer, images] = await Promise.all([customerOf(invoice, viewer), serverPdfImages()]);
+  const lines: Invoice['items'] = Array.isArray(invoice.items) ? invoice.items : (Object.values(invoice.items || {}) as Invoice['items']);
+  const [customer, base, references] = await Promise.all([customerOf(invoice, viewer), serverPdfImages(), serverReferenceImages(lines)]);
+  const images = { ...base, references };
   const doc = await drawInvoicePdf(invoice, { customer, perPiece: opts.perPiece, images, dates: KARACHI_DATES });
   return { bytes: new Uint8Array(doc.output('arraybuffer')), fileName: invoicePdfFileName(invoice, opts) };
 }
@@ -89,7 +92,8 @@ export async function orderSlipPdf(id: string, viewer: PdfViewer): Promise<Serve
 export async function orderPdf(id: string, viewer: PdfViewer): Promise<ServerPdf | null> {
   const order = (await read('orders', id, viewer)) as Order | null;
   if (!order) return null;
-  const doc = drawOrderPdf(order, { images: await serverPdfImages(), dates: KARACHI_DATES });
+  const [base, references] = await Promise.all([serverPdfImages(), serverReferenceImages(order.items || [], { own: true })]);
+  const doc = drawOrderPdf(order, { images: { ...base, references }, dates: KARACHI_DATES });
   return { bytes: new Uint8Array(doc.output('arraybuffer')), fileName: orderPdfFileName(order) };
 }
 

@@ -134,6 +134,7 @@ enum OrderCases {
     /// A new piece as "Add a piece" makes it (the house's metal, 21k, 10% wastage, stones ticked), then filled in.
     private static func add(_ d: inout NewOrderDraft, _ desc: String, _ fill: (inout NewOrderPieceDraft) -> Void) {
         var p = NewOrderPieceDraft()
+        p.hasStones = true  // "Add stone details" starts off on the phone; these cases weigh stones
         p.description = desc
         fill(&p)
         d.pieces.append(p)

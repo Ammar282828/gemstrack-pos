@@ -69,4 +69,6 @@ export interface SideEffects {
   syncInvoiceShopify?: (invoiceId: string, mode: 'upsert' | 'cancel') => void;
   /** The record (its id) is written: raise its WhatsApp alert (the server builds the PDF from the record). */
   notify?: (id: string) => void;
+  /** When the record was made: the tap on a phone that was offline (`clientAt`), else now. */
+  now?: () => string;
 }

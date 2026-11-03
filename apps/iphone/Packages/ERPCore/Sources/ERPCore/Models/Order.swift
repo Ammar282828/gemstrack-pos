@@ -162,8 +162,13 @@ public struct OrderItem: Decodable, Hashable {
     public let nickelFree: Bool
     /// Internal only; never printed on estimates or invoices.
     public let adminNote: String?
+    /// A catalogue picture (https) picked to print beside the piece on the bill; nil when none was picked.
+    public let referenceImage: String?
+    /// Print the reference picture (the catalogue pick, else the piece's own first reference photo) on the bill.
+    public let printReference: Bool?
 
     private enum K: String, CodingKey {
+        case referenceImage, printReference
         case itemCategory, description, karat, estimatedWeightG, stoneWeightG, hasStones, wastagePercentage
         case makingCharges, diamondCharges, stoneCharges, sampleImageDataUri, samplePhotoId, extraPhotos, referenceSku
         case sampleGiven, isCompleted, givenAt, hasDiamonds, stoneDetails, diamondDetails
@@ -204,6 +209,8 @@ public struct OrderItem: Decodable, Hashable {
         platingType = c.string(.platingType)
         platingNote = c.string(.platingNote)
         nickelFree = c.bool(.nickelFree, default: false)
+        referenceImage = c.string(.referenceImage)
+        printReference = c.bool(.printReference)
         adminNote = c.string(.adminNote)
     }
 }

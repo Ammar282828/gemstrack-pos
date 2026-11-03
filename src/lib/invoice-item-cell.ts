@@ -24,7 +24,15 @@ export interface ItemBlock {
   settings: string[];
   /** Metal / wastage / making / stones, already formatted. */
   breakdown: string[];
+  /** The piece's reference picture, drawn left of the name (owner, 2026-11-03: "next to the product name"). */
+  picture?: { dataUrl: string; format: string; aspect: number } | null;
 }
+
+/** The picture's box, mm: a square the picture is fitted into (aspect kept), and the gap before the words. */
+export const PICTURE_BOX = 16;
+const PICTURE_GAP = 2;
+/** The room the picture takes from the words: nothing when the piece has none. */
+const pictureRoom = (b: ItemBlock) => (b.picture ? PICTURE_BOX + PICTURE_GAP : 0);
 
 /**
  * Wastage as it is written on the customer's invoice: grams, nothing else.
@@ -90,11 +98,13 @@ function wrap(doc: jsPDF, b: ItemBlock, w: number): Wrapped {
  * depending on which way the guess went.
  */
 export function itemCellHeight(doc: jsPDF, b: ItemBlock, cellWidth: number, padding = 2): number {
-  const w = wrap(doc, b, cellWidth - padding * 2);
+  const w = wrap(doc, b, cellWidth - padding * 2 - pictureRoom(b));
   let h = w.name.length * line(NAME_PT)
         + w.spec.length * line(SPEC_PT)
         + w.settings.length * line(SET_PT);
   if (w.breakdown.length) h += RULE_GAP + w.breakdown.length * line(BRK_PT);
+  // A row never ends before its picture does.
+  if (b.picture) h = Math.max(h, PICTURE_BOX);
   return h + padding * 2;
 }
 
@@ -113,9 +123,18 @@ export function drawItemCell(
   // in the safe direction only costs a slightly tall row; the other direction
   // is unreadable.
   const width = Math.min(cellWidth, cell.width ?? cellWidth) - padding * 2;
-  const w = wrap(doc, b, width);
-  const x = cell.x + padding;
+  const room = pictureRoom(b);
+  const w = wrap(doc, b, width - room);
+  const x = cell.x + padding + room;
   let y = cell.y + padding;
+
+  if (b.picture) {
+    const a = Number.isFinite(b.picture.aspect) && b.picture.aspect > 0 ? b.picture.aspect : 1;
+    const pw = a >= 1 ? PICTURE_BOX : PICTURE_BOX * a;
+    const ph = a >= 1 ? PICTURE_BOX / a : PICTURE_BOX;
+    try { doc.addImage(b.picture.dataUrl, b.picture.format, cell.x + padding + (PICTURE_BOX - pw) / 2, y + (PICTURE_BOX - ph) / 2, pw, ph, undefined, 'FAST'); }
+    catch { /* a bad picture must not stop the document */ }
+  }
 
   doc.setFont('helvetica', 'bold').setFontSize(NAME_PT).setTextColor(20, 20, 20);
   for (const l of w.name) { y += line(NAME_PT); doc.text(l, x, y - line(NAME_PT) * 0.25); }

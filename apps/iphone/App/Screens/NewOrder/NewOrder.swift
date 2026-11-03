@@ -71,6 +71,9 @@ struct NewOrder: View {
     @State private var macNames = Memo<[String: String]>()
     @State private var macAddresses = Memo<[String]>()
     #endif
+    /// What the form reads of the shelves, kept until they change: the lists are never filtered again on a keystroke.
+    @State private var peopleMemo = Memo<[Customer]>()
+    @State private var karigarsMemo = Memo<[Karigar]>()
     /// Bumped on a saved order or edit, so the money tap is felt once (never per keystroke).
     @State private var saves = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -130,11 +133,11 @@ struct NewOrder: View {
 
     /// Customers who are people: not removed, not the old "Walk-in Customer" records (lib/walk-in.ts).
     private var people: [Customer] {
-        NewOrderMath.people(book.customers.items)
+        peopleMemo([book.customers.revision]) { NewOrderMath.people(book.customers.items) }
     }
 
     private var karigars: [Karigar] {
-        book.karigars.items.filter { ($0.deletedAt ?? "").isEmpty }
+        karigarsMemo([book.karigars.revision]) { book.karigars.items.filter { ($0.deletedAt ?? "").isEmpty } }
     }
 
     /// The customer's saved address, then every address their orders and invoices were delivered to, once each.
@@ -279,8 +282,11 @@ struct NewOrder: View {
     /// The form, its bar and its toolbar.
     private func screen(_ totals: NewOrderMath.Totals, _ settings: Settings?) -> some View {
         TransactionWorkspace {
+          // A piece being typed in is pushed over this form and changes the draft at every key: the form beneath is
+          // held as it was until the piece closes (FrozenWhile), so those keys draw only the editor.
+          FrozenWhile(frozen: editing != nil) {
           VStack(spacing: 0) {
-            EntrySteps(selection: $step, states: stepStates)
+            EntrySteps(selection: $step, states: stepStates).equatable()
             if step == .pieces || step == .payment { NewOrderPinnedSummary(totals: totals) }
             // Only the step's own form is keyed: the strip and the pinned total stay, the step cross-fades.
             Form { Group {
@@ -334,6 +340,8 @@ struct NewOrder: View {
           }
           .motion(step)
           .formColumn()
+          }
+          .equatable()
         } review: {
             TransactionReview(customer: draft.customerName, contact: draft.customerPhone,
                 pieces: draft.pieces.enumerated().map { index, p in
@@ -606,6 +614,22 @@ struct NewOrder: View {
         failure = message
     }
 
+    /// The ERP could not be reached: the order is kept on this phone under its request name (Outbox.queueForLater), shows as
+    /// "Waiting to send" at the top of Orders and goes by itself when the line is back. The form ends as it does after a save.
+    private func finishQueued() {
+        NewOrderDraftStore.clear(business: biz.id)
+        WorkDraftSync.order.drop(business: biz)
+        if draft.fromSale {
+            SaleDraftStore.clear(business: biz.id)
+            WorkDraftSync.sale.drop(business: biz)
+        }
+        saves += 1
+        var still = Transaction()
+        still.disablesAnimations = true
+        withTransaction(still) { draft = NewOrderDraft.fresh() }
+        dismiss()
+    }
+
     /// The same checks as the web's form (`orderFormSchema`), then `createOrder` with `{ order }`, then the
     /// order's own page replaces this one. The ERP numbers the order and stamps the rates; nothing here
     /// updates a shelf, the new order arrives on it by itself.
@@ -641,6 +665,7 @@ struct NewOrder: View {
         let request = NewOrderMath.request(draft, settings: settings, customers: people)
         do {
             let out = try await ERPAPI.shared.write("createOrder", request, business: biz)
+            if ERPAPI.wasQueued(out) { finishQueued(); return }
             guard let made = out["order"] as? [String: Any], let id = made["id"] as? String, !id.isEmpty else {
                 throw ERPAPI.Failure(status: 0, message: "The ERP saved the order but didn't say its number. Look for it in Orders.")
             }

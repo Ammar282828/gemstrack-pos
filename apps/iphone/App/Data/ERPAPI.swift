@@ -14,7 +14,15 @@ final class ERPAPI {
     struct Failure: LocalizedError {
         let status: Int
         let message: String
+        /// The ERP could not be reached at all (no line): not a refusal, and not an answer. A write waits for it in the
+        /// Outbox; a read is answered from `ReadCache` where there is a last answer.
+        var offline = false
         var errorDescription: String? { message }
+
+        /// What an action that needs the ERP says with no line. Plain, and the same everywhere.
+        static func needsConnection(_ what: String = "This") -> Failure {
+            Failure(status: 0, message: "Needs a connection. \(what) will work when you're back online.", offline: true)
+        }
     }
 
     /// `timeout` is how long the ERP may take to answer: a minute, save for a send to WhatsApp that the server
@@ -26,12 +34,30 @@ final class ERPAPI {
         // A page load that has not answered in 15 s is a dead line, not a slow server: say so and let it retry.
         // Writes and sends keep a minute. None of this is serialized: each call is its own task on the shared session.
         let seconds = timeout ?? (method == "GET" ? 15 : 60)
+        let biz = business ?? House.business
+        let readsFromCache = method == "GET" && !House.isDemo && !biz.isDemo
         do {
-            return try await raw(path, method: method, json: json, timeout: seconds, business: business, ifNoneMatch: nil).data
-        } catch let e as URLError where method == "GET" && (e.code == .timedOut || e.code == .networkConnectionLost) {
-            // A read can be asked twice without harm: one more try after a line that dropped or stalled (a phone
-            // moving between Wi-Fi and mobile data). A write is never repeated here; it has its own request id.
-            return try await raw(path, method: method, json: json, timeout: seconds, business: business, ifNoneMatch: nil).data
+            let data: Data
+            do {
+                data = try await raw(path, method: method, json: json, timeout: seconds, business: business, ifNoneMatch: nil).data
+            } catch let e as URLError where method == "GET" && (e.code == .timedOut || e.code == .networkConnectionLost) && !Connection.shared.isOffline {
+                // A read can be asked twice without harm: one more try after a line that dropped or stalled (a phone
+                // moving between Wi-Fi and mobile data). A write is never repeated here; it has its own request id.
+                data = try await raw(path, method: method, json: json, timeout: seconds, business: business, ifNoneMatch: nil).data
+            }
+            if readsFromCache {
+                let id = biz.id
+                Task.detached(priority: .utility) { ReadCache.store(data, path: path, business: id) }
+            }
+            return data
+        } catch {
+            guard Connection.lost(error) else { throw error }
+            // No line: a read paints the last answer it had (nothing blocks on the network), anything else says so plainly.
+            if readsFromCache, let kept = ReadCache.load(path: path, business: biz.id) { return kept }
+            if Connection.neverLeft(error) {
+                throw Failure.needsConnection()
+            }
+            throw error
         }
     }
 
@@ -136,15 +162,29 @@ final class ERPAPI {
     ///
     /// The business is the one open when the tap was made: the answer's follow-ups go there, not to
     /// whichever business is open when it comes back.
+    ///
+    /// Offline (owner, 2026-11-03): a creation or a payment (`Outbox.queueableOps`: createOrder, createInvoice,
+    /// recordPayment, recordOrderAdvance…) that cannot reach the ERP is kept on this phone with its name and sent by the
+    /// Outbox when the line is back; the answer is then `["queued": true, "requestId": …]`, with no record in it. A
+    /// screen that needs the new record's number checks `queued` first (`ERPAPI.wasQueued`). `pending` says what the
+    /// waiting row in the list reads. The Outbox's own sends pass `queueOffline: false`: they are the queue.
+    /// Deletes, refunds and settlements are never queued: they fail at once with "Needs a connection".
     @discardableResult
-    func write(_ op: String, _ fields: [String: Any], requestId explicit: String? = nil, business: Business? = nil) async throws -> [String: Any] {
+    func write(_ op: String, _ fields: [String: Any], requestId explicit: String? = nil, business: Business? = nil,
+               queueOffline: Bool = true, pending: PendingSummary? = nil) async throws -> [String: Any] {
         let biz = business ?? House.business
         // A build older than this ERP's minimum writes nothing (its rules for money may be out of date).
         if biz.needsUpdate { throw Failure(status: 426, message: "This app is out of date: update it from TestFlight.") }
         var body = fields
         body["op"] = op
         let intent = explicit == nil ? WriteIntents.key(for: body) : nil
-        body["requestId"] = explicit ?? WriteIntents.id(for: intent ?? "", business: biz.id)
+        let name = explicit ?? WriteIntents.id(for: intent ?? "", business: biz.id)
+        body["requestId"] = name
+        let mayQueue = queueOffline && Outbox.queueableOps.contains(op) && !House.isDemo && !biz.isDemo
+        // No line at all: no need to wait for a request to fail.
+        if mayQueue && Connection.shared.isOffline {
+            return try Outbox.shared.queueForLater(op: op, fields: fields, requestId: name, business: biz, intent: intent, summary: pending)
+        }
         // Leaving the app mid-save must not cut the request off: the phone lends a few seconds.
         var bg = UIBackgroundTaskIdentifier.invalid
         bg = UIApplication.shared.beginBackgroundTask(withName: "erp.write") {
@@ -159,6 +199,13 @@ final class ERPAPI {
             // "Already sent and recorded": the earlier try went through. The intent is done.
             if let intent { WriteIntents.clear(intent, business: biz.id) }
             throw e
+        } catch {
+            // The line dropped, or no answer came: the change may or may not have been recorded. It is kept with its
+            // name, so sending it again is never a second one.
+            if mayQueue && Connection.lost(error) {
+                return try Outbox.shared.queueForLater(op: op, fields: fields, requestId: name, business: biz, intent: intent, summary: pending)
+            }
+            throw error
         }
         if let intent { WriteIntents.clear(intent, business: biz.id) }
         // Staff read the books every 25 seconds: fetch them now, so the balance just paid is never
@@ -170,6 +217,9 @@ final class ERPAPI {
         }
         return out
     }
+
+    /// The write was kept to be sent later (see `write`): there is no record in the answer yet.
+    nonisolated static func wasQueued(_ answer: [String: Any]) -> Bool { answer["queued"] as? Bool == true }
 
     @discardableResult
     func send(_ path: String, method: String = "POST", _ json: [String: Any] = [:], timeout: TimeInterval? = nil, business: Business? = nil) async throws -> [String: Any] {

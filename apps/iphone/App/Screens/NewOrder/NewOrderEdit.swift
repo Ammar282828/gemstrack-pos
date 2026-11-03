@@ -98,7 +98,8 @@ extension NewOrderPieceDraft {
         let kept = item.karat?.rawValue ?? ""
         karat = karats.isEmpty ? kept : (karats.contains(kept) ? kept : (karats.contains("21k") ? "21k" : (karats.last ?? "")))
         weight = NewOrderFormat.boxText(item.estimatedWeightG, digits: 3)
-        hasStones = item.hasStones
+        // Stone data on file keeps the details open, so a figure in the price never sits behind a closed switch.
+        hasStones = item.hasStones || item.stoneWeightG > 0 || !NewOrderFormat.trim(item.stoneDetails ?? "").isEmpty
         stoneWeight = NewOrderFormat.boxText(item.stoneWeightG, digits: 3)
         stoneDetails = item.stoneDetails ?? ""
         hasDiamonds = item.hasDiamonds
@@ -126,6 +127,9 @@ extension NewOrderPieceDraft {
         manual = item.isManualPrice
         manualPrice = item.isManualPrice ? NewOrderFormat.rupeeBox(item.manualPrice) : ""
         adminNote = item.adminNote ?? ""
+        referenceImage = item.referenceImage
+        printReference = item.printReference ?? false
+        hadReference = !(item.referenceImage ?? "").isEmpty
     }
 }
 

@@ -114,3 +114,69 @@ struct NewOrderSizeField: View {
         }
     }
 }
+
+// MARK: Keystrokes
+
+/// A section that is drawn again only when what it reads changes (`key`), not at every key typed in another field. The
+/// content still writes through the bindings it captured. Use as `Sliced(key) { … }.equatable()`.
+struct Sliced<Key: Equatable, Content: View>: View, Equatable {
+    let key: Key
+    let content: () -> Content
+
+    init(_ key: Key, @ViewBuilder content: @escaping () -> Content) {
+        self.key = key
+        self.content = content
+    }
+
+    static func == (lhs: Sliced<Key, Content>, rhs: Sliced<Key, Content>) -> Bool { lhs.key == rhs.key }
+
+    var body: some View { content() }
+}
+
+/// A text box that keeps what is typed in its own state and hands it to the form about 250 ms after the last key (at
+/// once on Return, when focus leaves, and when the box goes away), so the form does not redraw at every key. A change
+/// made from outside (a suggestion tapped) replaces what is typed.
+struct DebouncedTextField: View {
+    let title: String
+    @Binding var text: String
+    var prompt = ""
+    var lines: ClosedRange<Int> = 1...1
+
+    @State private var typed = ""
+    @State private var started = false
+    @State private var pending: Task<Void, Never>?
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        TextField(title, text: $typed, prompt: Text(prompt), axis: .vertical)
+            .lineLimit(lines)
+            .focused($focused)
+            .onAppear {
+                typed = text
+                started = true
+            }
+            .onChange(of: typed) { _, now in
+                guard started, now != text else { return }
+                pending?.cancel()
+                pending = Task {
+                    try? await Task.sleep(for: .milliseconds(250))
+                    if !Task.isCancelled { commit() }
+                }
+            }
+            .onChange(of: text) { _, now in
+                // The form changed it (a chip, a pick): what is shown follows, and nothing typed is left waiting.
+                if now != typed {
+                    pending?.cancel()
+                    typed = now
+                }
+            }
+            .onChange(of: focused) { _, now in if !now { commit() } }
+            .onSubmit { commit() }
+            .onDisappear { commit() }
+    }
+
+    private func commit() {
+        pending?.cancel()
+        if text != typed { text = typed }
+    }
+}

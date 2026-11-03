@@ -254,11 +254,14 @@ struct NewOrderPrintedSection: View {
     @Binding var draft: NewOrderDraft
 
     var body: some View {
-        Section {
-            Toggle("Leave rates off the printed bill", isOn: $draft.hideRates)
-        } footer: {
-            Text("Prices stay the same. The slip and the invoice just won't show the per-gram rate.")
+        Sliced(draft.hideRates) {
+            Section {
+                Toggle("Leave rates off the printed bill", isOn: $draft.hideRates)
+            } footer: {
+                Text("Prices stay the same. The slip and the invoice just won't show the per-gram rate.")
+            }
         }
+        .equatable()
     }
 }
 
@@ -428,14 +431,17 @@ struct NewOrderNotesSection: View {
     @Binding var draft: NewOrderDraft
 
     var body: some View {
-        Section {
-            TextField("Notes", text: $draft.notes, prompt: Text("Anything the shop should remember"), axis: .vertical)
-                .lineLimit(2...6)
-        } header: {
-            LedgerHeading(title: "Notes")
-        } footer: {
-            Text("Kept with the order and carried to its invoice as a note for the shop. Never printed.")
+        Sliced(draft.notes) {
+            Section {
+                TextField("Notes", text: $draft.notes, prompt: Text("Anything the shop should remember"), axis: .vertical)
+                    .lineLimit(2...6)
+            } header: {
+                LedgerHeading(title: "Notes")
+            } footer: {
+                Text("Kept with the order and carried to its invoice as a note for the shop. Never printed.")
+            }
         }
+        .equatable()
     }
 }
 

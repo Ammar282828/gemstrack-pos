@@ -17,7 +17,7 @@ enum FirestoreSource {
     static func forget(_ business: Business = House.business) async {
         // The snapshots go first (and on the listeners' queue, behind any write they have pending), whatever else fails.
         await withCheckedContinuation { (k: CheckedContinuation<Void, Never>) in
-            queue.async { ShelfSnapshots.erase(business: business.id); k.resume() }
+            queue.async { ShelfSnapshots.erase(business: business.id); ReadCache.erase(business: business.id); k.resume() }
         }
         guard !House.isDemo, let db = Businesses.shared.firestore(for: business) else { return }
         do {

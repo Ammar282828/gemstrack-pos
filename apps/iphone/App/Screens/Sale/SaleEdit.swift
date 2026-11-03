@@ -104,6 +104,8 @@ extension SaleLine {
         platingType = item.platingType
         platingNote = item.platingNote
         nickelFree = item.nickelFree
+        referenceImage = item.referenceImage
+        printReference = item.printReference ?? false
     }
 }
 

@@ -17,6 +17,9 @@ import { KARAT_VALUES as karatValues, METAL_TYPES as metalTypeValues, metalLabel
 import { useAppStore, Settings, KaratValue, DeliveryInfo, Order, OrderItem, Customer, MetalType, Product, Karigar, staticCategories, CUSTOMER_SOURCES, TAKEN_BY, CUSTOMER_SOURCE_LABELS, PAYMENT_TYPES } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DescribeField } from '@/components/order/describe-field';
+import { WastageChips } from '@/components/order/wastage-chips';
+import { ReferencePicker } from '@/components/order/reference-picker';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -98,6 +101,9 @@ const orderItemSchema = z.object({
   extraPhotos: z.array(z.object({ id: z.string().optional(), dataUri: z.string().optional(), hash: z.string().optional() })).optional(),
   givenAt: z.string().optional(),
   referenceSku: z.string().optional(),
+  // The picture printed beside the logo on the bill and the order estimate (lib/reference-image.ts).
+  referenceImage: z.string().optional(),
+  printReference: z.boolean().optional(),
   sampleGiven: z.boolean().default(false),
   hasDiamonds: z.boolean().default(false),
   hasStones: z.boolean().default(false),
@@ -436,6 +442,10 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
             platingType: item.platingType || '', platingNote: item.platingNote || '',
             nickelFree: !!item.nickelFree,
             adminNote: item.adminNote || '',
+            // Add stone details stays on for a piece that has stone data.
+            hasStones: !!item.hasStones || Number(item.stoneWeightG) > 0 || Number(item.stoneCharges) > 0 || !!item.stoneDetails,
+            referenceImage: item.referenceImage || '',
+            printReference: !!item.printReference,
         })),
         goldRate18k: rates.goldRatePerGram18k || 0,
         palladiumRate18k: rates.palladiumRatePerGram18k || 0,
@@ -1027,8 +1037,9 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
          * Nothing is removed by this. Manual pricing, the other karats and the other
          * metals are all still one control away; this only decides where the form opens.
          */
-        hasStones: true,
+        hasStones: false,
         stoneWeightG: 0,
+        referenceImage: '', printReference: false,
         karigarId: '',
         isManualPrice: false,
         manualPrice: 0,
@@ -1307,7 +1318,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
                                 )}/>
                                 <div className="md:col-span-2">
                                     <FormField control={form.control} name={`items.${index}.description`} render={({ field }) => (
-                                        <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea placeholder="e.g. Custom ring with ruby stone" {...field} rows={2}/></FormControl><FormMessage /></FormItem>
+                                        <FormItem><FormLabel>Description</FormLabel><FormControl><DescribeField value={field.value || ''} onChange={field.onChange} category={form.watch(`items.${index}.itemCategory`)} textareaProps={{ placeholder: 'e.g. Ruby & diamond ring', name: field.name, onBlur: field.onBlur }} /></FormControl><FormMessage /></FormItem>
                                     )}/>
                                 </div>
                             </div>
@@ -1410,7 +1421,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
                                     )}/>
                                     {form.watch(`items.${index}.metalType`) !== 'silver' && (
                                         <FormField control={form.control} name={`items.${index}.wastagePercentage`} render={({ field }) => (
-                                            <FormItem><FormLabel>Wastage (%)</FormLabel><FormControl><Input type="number" step="0.1" {...field} /></FormControl><FormMessage /></FormItem>
+                                            <FormItem><FormLabel>Wastage (%)</FormLabel><FormControl><WastageChips value={field.value} onChange={field.onChange} /></FormControl><FormMessage /></FormItem>
                                         )}/>
                                     )}
                                 </div>
@@ -1446,9 +1457,9 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
                                 )}
 
                                 <FormField control={form.control} name={`items.${index}.hasStones`} render={({ field }) => (
-                                    <FormItem className="flex flex-row items-center space-x-2 space-y-0">
-                                      <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                                      <FormLabel className="font-normal text-sm cursor-pointer">Has other stones</FormLabel>
+                                    <FormItem className="flex flex-row items-center justify-between space-y-0">
+                                      <FormLabel className="font-normal text-sm cursor-pointer">Add stone details</FormLabel>
+                                      <FormControl><Switch checked={!!field.value} onCheckedChange={field.onChange} /></FormControl>
                                     </FormItem>
                                 )}/>
                                 {form.watch(`items.${index}.hasStones`) && (
@@ -1503,6 +1514,12 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
                                 <FormLabel>Reference pictures</FormLabel>
                                 <ItemSamplesField form={form} index={index} />
                             </div>
+                            <ReferencePicker
+                              category={form.watch(`items.${index}.itemCategory`)}
+                              referenceImage={form.watch(`items.${index}.referenceImage`)}
+                              printReference={form.watch(`items.${index}.printReference`)}
+                              onChange={n => { form.setValue(`items.${index}.referenceImage`, n.referenceImage, { shouldDirty: true }); form.setValue(`items.${index}.printReference`, n.printReference, { shouldDirty: true }); }}
+                            />
                             <FormField control={form.control} name={`items.${index}.referenceSku`} render={({ field }) => (
                                <FormItem><FormLabel>Reference SKU</FormLabel><FormControl><Input placeholder="e.g. RIN-123456" {...field} /></FormControl><FormMessage /></FormItem>
                             )}/>

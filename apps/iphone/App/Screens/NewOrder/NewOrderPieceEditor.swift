@@ -70,6 +70,7 @@ struct NewOrderPieceEditor: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var confirmRemove = false
+    @State private var wastageOther = false
 
     private var metal: MetalType { MetalType(rawValue: piece.metal) }
     private var silver: Bool { metal == .silver }
@@ -127,8 +128,9 @@ struct NewOrderPieceEditor: View {
                     Text(c.label).tag(c.id)
                 }
             }
-            TextField("Description", text: $piece.description, prompt: Text("e.g. Custom ring with ruby stone"), axis: .vertical)
-                .lineLimit(2...5)
+            DebouncedTextField(title: "Description", text: $piece.description, prompt: "e.g. Custom ring with ruby stone", lines: 2...5)
+            // What this shop has already written for this category, and its stone combos: tap to fill.
+            DescribeSuggestions(text: $piece.description, category: piece.category)
             Picker("Metal", selection: metalBinding) {
                 ForEach(METAL_TYPES, id: \.rawValue) { m in
                     Text(metalLabel(m)).tag(m.rawValue)
@@ -240,11 +242,15 @@ struct NewOrderPieceEditor: View {
     private var weighedRows: some View {
         NewOrderNumberRow(title: "Weight", text: $piece.weight, unit: "g")
         if takesWastageAndMaking(metal) {
-            NewOrderWastageRow(
-                percent: $piece.wastage,
-                weight: piece.weightValue,
-                stoneWeight: piece.stoneWeightValue
-            )
+            // 10 / 12 / 15 / 25 or Other: Other opens the percentage and grams boxes.
+            WastageChips(percent: $piece.wastage, other: $wastageOther)
+            if WastageChips.reveals(piece.wastage, wastageOther) {
+                NewOrderWastageRow(
+                    percent: $piece.wastage,
+                    weight: piece.weightValue,
+                    stoneWeight: piece.stoneWeightValue
+                )
+            }
             NewOrderNumberRow(title: "Making (PKR)", text: $piece.making, rupees: true)
         }
         NewOrderNumberRow(title: "Stones (PKR)", text: $piece.stones, rupees: true)
@@ -264,7 +270,7 @@ struct NewOrderPieceEditor: View {
 
     @ViewBuilder
     private var stoneRows: some View {
-        Toggle("Has other stones", isOn: $piece.hasStones)
+        Toggle("Add stone details", isOn: $piece.hasStones)
         if piece.hasStones {
             NewOrderNumberRow(title: "Stone weight", text: $piece.stoneWeight, prompt: "e.g. 0.5", unit: "g")
             TextField("Stone details", text: $piece.stoneDetails, prompt: Text("e.g. 1 × ruby 2ct, 4 × sapphire 0.5ct"), axis: .vertical)
@@ -306,6 +312,8 @@ struct NewOrderPieceEditor: View {
                 .textInputAutocapitalization(.characters)
                 .autocorrectionDisabled()
             Toggle("Customer provided a physical sample", isOn: $piece.sampleGiven)
+            ReferencePrintRows(image: $piece.referenceImage, printIt: $piece.printReference, category: piece.category,
+                               fallbackNote: "The piece's own first reference photo is printed.")
         } header: {
             LedgerHeading(title: "References")
         }

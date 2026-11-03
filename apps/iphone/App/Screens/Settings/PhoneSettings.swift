@@ -43,6 +43,7 @@ struct PhoneSettings: View {
     @ViewBuilder
     private var phoneBody: some View {
         Form { Group {
+            WaitingToSendSection()
             Section {
                 switch allowed {
                 case .denied:
@@ -279,6 +280,7 @@ extension PhoneSettings {
     @ViewBuilder
     fileprivate var macBody: some View {
         Form {
+            WaitingToSendSection()
             Section {
                 switch allowed {
                 case .denied:

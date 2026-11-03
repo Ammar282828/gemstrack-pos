@@ -16,7 +16,15 @@ import { loadPdfLogo } from '@/lib/pdf-logo';
 /** A footer code: the page's canvas, or a PNG data URL (the server has no canvas). */
 export type PdfCode = HTMLCanvasElement | string | null | undefined;
 
+/** A picture ready for addImage (a JPEG or PNG data URL) and its width over its height. */
+export interface PdfPicture { dataUrl: string; format: 'JPEG' | 'PNG'; aspect: number }
+
 export interface PdfImages {
+  /**
+   * The reference pictures pieces ask to print beside the logo, by `referenceKey` (lib/reference-image.ts); a
+   * picture that could not be fetched is null or absent and its piece prints without (a missing image never breaks the PDF).
+   */
+  references?: Record<string, PdfPicture | null>;
   /** The wordmark, ready for addImage; none and the header goes without. */
   logo?: { dataUrl: string; format: string } | null;
   /** The one code to the shop's link page; without it, WhatsApp's and Instagram's. */

@@ -1,5 +1,5 @@
 /**
- * The workshop order slip as a PDF, from anywhere that has an order: the one builder.
+ * The order slip as a PDF, from anywhere that has an order: the one builder.
  *
  * Lifted out of the invoices page so the orders list can print one per row without
  * opening the order first, and the order page's own copy folded into it (2026-10-09), so
@@ -59,7 +59,7 @@ export function drawOrderSlipPdf(order: Order, opts: OrderSlipOptions): jsPDF {
   const logoFormat: string = images.logo?.format ?? 'PNG';
 
   const drawHeader = (pageNum: number) => drawDocHeader(pdfDoc, {
-    pageWidth, pageHeight, margin, title: 'Workshop order slip',
+    pageWidth, pageHeight, margin, title: 'Order slip',
     logoDataUrl, logoFormat, logoAspect: STORE_LOGO_ASPECT, pageNum,
   });
   drawHeader(1);

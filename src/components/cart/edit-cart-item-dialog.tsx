@@ -26,6 +26,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { DescribeField } from '@/components/order/describe-field';
+import { WastageChips } from '@/components/order/wastage-chips';
+import { ReferencePicker } from '@/components/order/reference-picker';
 import { Checkbox } from '@/components/ui/checkbox';
 import { FormSection, PriceModeToggle } from '@/components/shared/piece-form';
 import { cn } from '@/lib/utils';
@@ -60,6 +64,8 @@ interface Draft {
   silverRatePerGram: string;
   isCustomPrice: boolean;
   customPrice: string;
+  referenceImage: string;
+  printReference: boolean;
 }
 
 const n = (v: string) => (v.trim() === '' ? 0 : Number(v)) || 0;
@@ -92,6 +98,8 @@ function toDraft(p: Product): Draft {
     silverRatePerGram: p.silverRatePerGram != null ? String(p.silverRatePerGram) : '',
     isCustomPrice: !!p.isCustomPrice,
     customPrice: p.customPrice != null ? String(p.customPrice) : '',
+    referenceImage: p.referenceImage || '',
+    printReference: !!p.printReference,
   };
 }
 
@@ -123,6 +131,8 @@ function toPatch(d: Draft): Partial<Product> {
     silverRatePerGram: d.metalType === 'silver' && d.silverRatePerGram ? n(d.silverRatePerGram) : undefined,
     isCustomPrice: d.isCustomPrice,
     customPrice: d.isCustomPrice ? n(d.customPrice) : undefined,
+    referenceImage: d.printReference ? d.referenceImage.trim() || undefined : undefined,
+    printReference: d.printReference || undefined,
   };
 }
 
@@ -222,7 +232,7 @@ export const EditCartItemDialog: React.FC<{
             </div>
             <div className="sm:col-span-2">
               <Label className="text-xs">Item name</Label>
-              <Input value={d.name} onChange={e => set('name', e.target.value)} placeholder="What is being sold"  aria-label="Item name"/>
+              <DescribeField value={d.name} onChange={v => set('name', v)} category={d.categoryId} textareaProps={{ rows: 1, placeholder: 'What is being sold', 'aria-label': 'Item name' }} />
             </div>
           </div>
 
@@ -289,7 +299,7 @@ export const EditCartItemDialog: React.FC<{
                 <Num label="Weight (g)" value={d.metalWeightG} onChange={v => set('metalWeightG', v)} step="0.001" />
                 {isSilver
                   ? <Num label="Rate per gram (PKR)" value={d.silverRatePerGram} onChange={v => set('silverRatePerGram', v)} placeholder="e.g. 150" />
-                  : <Num label="Wastage (%)" value={d.wastagePercentage} onChange={v => set('wastagePercentage', v)} step="0.01" />}
+                  : <div><Label className="text-xs">Wastage (%)</Label><WastageChips value={d.wastagePercentage} onChange={v => set('wastagePercentage', String(v))} /></div>}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <Num label="Making (PKR)" value={d.makingCharges} onChange={v => set('makingCharges', v)} />
@@ -319,9 +329,9 @@ export const EditCartItemDialog: React.FC<{
             </div>
           )}
 
-          <div className="flex items-center gap-2">
-            <Checkbox id="has-stones" checked={d.hasStones} onCheckedChange={c => set('hasStones', c === true)} />
-            <Label htmlFor="has-stones" className="cursor-pointer text-sm font-normal">Has other stones</Label>
+          <div className="flex items-center justify-between gap-2">
+            <Label htmlFor="has-stones" className="cursor-pointer text-sm font-normal">Add stone details</Label>
+            <Switch id="has-stones" checked={d.hasStones} onCheckedChange={c => set('hasStones', c)} />
           </div>
           {d.hasStones && (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pl-6 border-l-2 border-muted">
@@ -332,6 +342,9 @@ export const EditCartItemDialog: React.FC<{
               </div>
             </div>
           )}
+
+          <ReferencePicker category={d.categoryId} referenceImage={d.referenceImage} printReference={d.printReference}
+            onChange={n => setD(prev => prev ? { ...prev, referenceImage: n.referenceImage, printReference: n.printReference } : prev)} />
 
           {/* ── On the bill ───────────────────────────────────────────── */}
           <FormSection title="On the bill" hint="optional" />

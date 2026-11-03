@@ -91,6 +91,9 @@ struct SaleLine: Codable, Equatable, Identifiable {
     var silverRatePerGram: Double?
     var shopifyProductId: String?
     var shopifyVariantId: String?
+    /// A catalogue picture (https) picked to print beside the piece on the bill, and whether to print one.
+    var referenceImage: String?
+    var printReference = false
 
     var id: String { sku }
 
@@ -198,6 +201,8 @@ struct SaleLine: Codable, Equatable, Identifiable {
         silverRatePerGram = c.saleOptional(.silverRatePerGram)
         shopifyProductId = c.saleOptional(.shopifyProductId)
         shopifyVariantId = c.saleOptional(.shopifyVariantId)
+        referenceImage = c.saleOptional(.referenceImage)
+        printReference = c.saleField(.printReference, false)
     }
 
     /// What ERPCore prices (`PricedPiece(product)` for a piece in stock, with this sale's edits).
@@ -265,6 +270,8 @@ struct SaleLine: Codable, Equatable, Identifiable {
         if let v = silverRatePerGram, v > 0 { o["silverRatePerGram"] = v }
         put("shopifyProductId", shopifyProductId)
         put("shopifyVariantId", shopifyVariantId)
+        put("referenceImage", referenceImage)
+        o["printReference"] = printReference
         return o
     }
 }
@@ -434,16 +441,50 @@ enum SaleDraftStore {
     private static func key(for business: String) -> String { BizKey("erp.saleDraft", business) }
 
     static func load(business: String? = nil) -> SaleDraft? {
+        // A save still waiting out its pause is made first, so a read never sees an older draft than was typed.
+        flush(business: business)
         guard let data = UserDefaults.standard.data(forKey: business.map { key(for: $0) } ?? key) else { return nil }
         return try? JSONDecoder().decode(SaleDraft.self, from: data)
     }
 
+    // One write per pause in the typing, not one per key (as NewOrderDraftStore): the newest draft waits here, the first
+    // key of a burst schedules the single write 0.35 s later, and the encode runs off the main thread.
+    private static let queue = DispatchQueue(label: "erp.saleDraft", qos: .utility)
+    private static let lock = NSLock()
+    private static var waiting: [String: SaleDraft] = [:]
+    private static var scheduled = Set<String>()
+
     static func save(_ draft: SaleDraft, business: String? = nil) {
-        write(draft, business: business)
+        let biz = business ?? BusinessSwitchPin.id(within: 0.4)
+        lock.lock()
+        waiting[biz] = draft
+        let already = !scheduled.insert(biz).inserted
+        lock.unlock()
+        if already { return }
+        queue.asyncAfter(deadline: .now() + 0.35) {
+            lock.lock()
+            scheduled.remove(biz)
+            let next = waiting.removeValue(forKey: biz)
+            lock.unlock()
+            if let next { writeNow(next, biz) }
+        }
+    }
+
+    /// Makes any save still waiting, now (a read, a clear, the screen or the app going away).
+    static func flush(business: String? = nil) {
+        let biz = business ?? BusinessSwitchPin.id(within: 0.4)
+        lock.lock()
+        let next = waiting.removeValue(forKey: biz)
+        lock.unlock()
+        if let next { queue.sync { writeNow(next, biz) } }
     }
 
     private static func write(_ draft: SaleDraft, business: String?) {
-        let k = key(for: business ?? BusinessSwitchPin.id(within: 0.4))
+        writeNow(draft, business ?? BusinessSwitchPin.id(within: 0.4))
+    }
+
+    private static func writeNow(_ draft: SaleDraft, _ biz: String) {
+        let k = key(for: biz)
         if draft.isBlank {
             UserDefaults.standard.removeObject(forKey: k)
         } else if let data = try? JSONEncoder().encode(draft) {
@@ -451,7 +492,13 @@ enum SaleDraftStore {
         }
     }
 
-    static func clear(business: String? = nil) { UserDefaults.standard.removeObject(forKey: business.map { key(for: $0) } ?? key) }
+    static func clear(business: String? = nil) {
+        // Nothing waiting may write the draft back after it is cleared.
+        lock.lock()
+        _ = waiting.removeValue(forKey: business ?? BusinessSwitchPin.id(within: 0.4))
+        lock.unlock()
+        UserDefaults.standard.removeObject(forKey: business.map { key(for: $0) } ?? key)
+    }
 
     /// Puts a piece on the unfinished sale (a new one if there is none). False when it is already there. The caller
     /// opens the sale with `?resume=1` (SaleLinks.continueSale).
@@ -492,6 +539,8 @@ struct SaleLineFields {
     var silverRate: String
     var fixed: Bool
     var customPrice: String
+    var referenceImage: String?
+    var printReference: Bool
 
     init(_ l: SaleLine) {
         name = l.name
@@ -519,6 +568,8 @@ struct SaleLineFields {
         silverRate = SaleNumber.text(l.silverRatePerGram)
         fixed = l.isCustomPrice
         customPrice = SaleNumber.text(l.customPrice)
+        referenceImage = l.referenceImage
+        printReference = l.printReference
     }
 
     private func nilIfBlank(_ s: String) -> String? {
@@ -556,6 +607,8 @@ struct SaleLineFields {
         out.silverRatePerGram = silver && rate > 0 ? rate : nil
         out.isCustomPrice = fixed
         out.customPrice = fixed ? SaleNumber.value(customPrice) : nil
+        out.referenceImage = nilIfBlank(referenceImage ?? "")
+        out.printReference = printReference
         return out
     }
 }

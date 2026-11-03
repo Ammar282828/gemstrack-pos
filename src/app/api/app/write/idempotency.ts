@@ -24,6 +24,11 @@ export const MONEY_OP_NAMES: ReadonlySet<string> = new Set([
 ]);
 
 export const REQUEST_ID = /^[A-Za-z0-9-]{8,64}$/;
+/**
+ * How long a name is remembered. A phone that took an order offline sends it when it is back, maybe weeks on
+ * (the iPad's queue, 2026-11-03): the name must still be known then, or the replay would record it again.
+ */
+export const CLAIM_DAYS = 60;
 /** A claim still pending after this long was left by a write that died. */
 export const STALE_PENDING_MS = 2 * 60_000;
 /** Firestore's document limit is 1 MiB; an answer larger than this is not kept (the replay says so). */
@@ -43,7 +48,7 @@ const isExists = (e: unknown) => (e as { code?: number }).code === 6;
 
 export async function claimRequest(requestId: string, op: string, by: string): Promise<ClaimResult> {
   const fresh = () => ({
-    op, by, status: 'pending', at: new Date().toISOString(), expireAt: new Date(Date.now() + 7 * 864e5),
+    op, by, status: 'pending', at: new Date().toISOString(), expireAt: new Date(Date.now() + CLAIM_DAYS * 864e5),
   });
   try {
     await ref(requestId).create(fresh());

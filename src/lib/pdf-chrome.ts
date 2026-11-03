@@ -98,7 +98,7 @@ export interface HeaderOpts {
   pageWidth: number;
   pageHeight: number;
   margin: number;
-  /** ESTIMATE, INVOICE, WORKSHOP ORDER SLIP. */
+  /** ESTIMATE, INVOICE, ORDER SLIP. */
   title: string;
   logoDataUrl: string | null;
   logoFormat: string;
@@ -109,10 +109,10 @@ export interface HeaderOpts {
 /** Wordmark left, document title right, one brand rule under both. */
 export function drawDocHeader(doc: jsPDF, o: HeaderOpts): number {
   const { pageWidth, pageHeight, margin, title, logoDataUrl, logoFormat, logoAspect, pageNum } = o;
+  const h = 8;
 
   if (logoDataUrl) {
     try {
-      const h = 8;
       doc.addImage(logoDataUrl, logoFormat, margin, 9, h * logoAspect, h, undefined, 'FAST');
     } catch { /* a missing logo must not stop the document */ }
   }

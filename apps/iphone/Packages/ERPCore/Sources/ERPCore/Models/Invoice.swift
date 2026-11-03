@@ -180,8 +180,12 @@ public struct InvoiceItem: Decodable, Hashable {
     public let isCompleted: Bool
     /// When the piece physically went to the karigar (ISO).
     public let givenAt: String?
+    /// A catalogue picture (https) to print beside the piece on the bill.
+    public let referenceImage: String?
+    public let printReference: Bool?
 
     private enum K: String, CodingKey {
+        case referenceImage, printReference
         case sku, silverRatePerGram, name, categoryId, metalType, karat, metalWeightG, stoneWeightG
         case quantity, unitPrice, itemTotal, metalCost, wastageCost, wastagePercentage, makingCharges
         case diamondChargesIfAny, stoneChargesIfAny, miscChargesIfAny, stoneDetails, diamondDetails
@@ -223,6 +227,8 @@ public struct InvoiceItem: Decodable, Hashable {
         adminNote = c.string(.adminNote)
         karigarId = c.string(.karigarId)
         isCompleted = c.bool(.isCompleted, default: false)
+        referenceImage = c.string(.referenceImage)
+        printReference = c.bool(.printReference)
         givenAt = c.string(.givenAt)
     }
 }

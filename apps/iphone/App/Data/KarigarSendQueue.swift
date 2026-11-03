@@ -27,6 +27,14 @@ final class KarigarSendQueue {
         let biz = business ?? House.business
         let key = (try? JSONSerialization.data(withJSONObject: body, options: [.sortedKeys])).map { String(decoding: $0, as: UTF8.self) } ?? UUID().uuidString
         guard inFlight.insert(key).inserted else { return }
+        let path = "/api/app/orders/send-to-karigar"
+        // No line at all: the send certainly has not gone, so it waits on this phone and goes by itself when the line is
+        // back (the ERP keeps one record per send, so it can only go once).
+        if Connection.shared.isOffline {
+            inFlight.remove(key)
+            Outbox.shared.queueRoute(path, body: body, label: "Send to \(karigarName)", business: biz)
+            return
+        }
         Outbox.shared.post(label: "Send to \(karigarName)") { [weak self] in
             var bg = UIBackgroundTaskIdentifier.invalid
             bg = UIApplication.shared.beginBackgroundTask(withName: "erp.karigar") {
@@ -43,7 +51,7 @@ final class KarigarSendQueue {
                 var unsure = 0
                 // A long send comes back `partial`: ask again, and the ERP carries on from where it stopped.
                 for _ in 0..<12 {
-                    let out = try await ERPAPI.shared.send("/api/app/orders/send-to-karigar", body, timeout: 90, business: biz)
+                    let out = try await ERPAPI.shared.send(path, body, timeout: 90, business: biz)
                     if out["duplicate"] as? Bool == true {
                         if sent > 0 { break }
                         return out["said"] as? String ?? "Already sent to \(karigarName)."
@@ -60,9 +68,18 @@ final class KarigarSendQueue {
                 if unsure > 0 { said += " · WhatsApp was slow on \(unsure): check the chat" }
                 return said
             } catch let e as ERPAPI.Failure {
+                // The line dropped before the request left: kept for it, as when it was already gone.
+                if Connection.neverLeft(e) {
+                    Outbox.shared.queueRoute(path, body: body, label: "Send to \(karigarName)", business: biz)
+                    return "Saved. It goes to \(karigarName) when you're back online."
+                }
                 // Status 400 so the Outbox does not retry it by itself.
                 throw ERPAPI.Failure(status: 400, message: e.message + " Retry sends only what has not gone.")
             } catch {
+                if Connection.neverLeft(error) {
+                    Outbox.shared.queueRoute(path, body: body, label: "Send to \(karigarName)", business: biz)
+                    return "Saved. It goes to \(karigarName) when you're back online."
+                }
                 throw ERPAPI.Failure(status: 400, message: error.localizedDescription + " Retry sends only what has not gone.")
             }
         }

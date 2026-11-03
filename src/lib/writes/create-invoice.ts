@@ -10,6 +10,7 @@
  * out; what is still owed as one row; what was paid past the total as the customer's credit).
  */
 
+import { cleanReferenceImage } from '@/lib/reference-image';
 import type { DbPort, SideEffects } from '@/lib/db-port';
 import type { Customer, DeliveryInfo, Invoice, InvoiceItem, Payment, Product, SalePayment, Settings } from '@/lib/store';
 import { _calculateProductCostsInternal } from '@/lib/pricing';
@@ -196,6 +197,11 @@ export async function createInvoice(db: DbPort, input: SaleInput, fx: SaleSideEf
       if (cartItem.stoneDetails) itemToAdd.stoneDetails = cartItem.stoneDetails;
       if (cartItem.diamondDetails) itemToAdd.diamondDetails = cartItem.diamondDetails;
       if (cartItem.size) itemToAdd.size = cartItem.size;
+      if (cartItem.printReference === true) {
+        itemToAdd.printReference = true;
+        const ref = cleanReferenceImage(cartItem.referenceImage);
+        if (ref) itemToAdd.referenceImage = ref;
+      }
       if (cartItem.isCustomPrice) {
         itemToAdd.isCustomPrice = true;
         // The price holds whatever is set in it: kept so the margin knows (lib/margin.ts).

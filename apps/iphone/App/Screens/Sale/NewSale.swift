@@ -102,6 +102,8 @@ struct SaleForm: View {
     /// The order form, opened from this sale's pieces.
     @State var openOrder: Route?
     @State var confirmingOrder = false
+    /// Who the sale is to, kept until the customer's words or the customer list change (see `page`).
+    @State var whoMemo = Memo<SaleCustomer>()
 
     var body: some View {
         Group {
@@ -141,10 +143,18 @@ struct SaleForm: View {
     // MARK: The page
 
     private var page: some View {
-        let f = SaleFigures(draft: draft, settings: book.settings.value, customers: book.customers.items, marginSettings: House.margin)
+        // Who the sale is to is found in the customer list once per change of the customer's words, not at every key
+        // of every other field (it walks every customer when a number is typed).
+        let who = whoMemo([book.customers.revision, draft.customerId.hashValue, draft.customerName.hashValue,
+                           draft.customerPhone.hashValue]) {
+            resolveSaleCustomer(selectedId: draft.customerId, typedName: draft.customerName,
+                                typedPhone: draft.customerPhone, customers: book.customers.items)
+        }
+        let f = SaleFigures(draft: draft, settings: book.settings.value, customers: book.customers.items,
+                            marginSettings: House.margin, who: who)
         return TransactionWorkspace {
           VStack(spacing: 0) {
-            EntrySteps(selection: $step, states: stepStates(f))
+            EntrySteps(selection: $step, states: stepStates(f)).equatable()
             if step == .pieces || step == .payment { saleSummary(f) }
             Form { Group {
             if let edit {

@@ -650,6 +650,37 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
   Edit order, New order, the workshop card and the karigar page (web `photo-lightbox.tsx`, iPhone `PieceGallery.swift`). An
   older app that edits a piece and writes its items back whole will drop `extraPhotos` it does not know (the first photo survives).
 
+### Piece entry
+
+Owner, 2026-11-03 ("iPad is our main order taker"):
+- **Descriptions are suggested.** A piece is usually named by its stones, so the description field offers chips as you
+  type: that category's past descriptions (every order and counter-described invoice piece, `GET /api/app/describe`,
+  `lib/describe*.ts`), then the shop's saved stone combos worded with the category ("Ruby & diamond" + Rings → "Ruby &
+  diamond ring"), then other categories. "View all" lists the whole history by category; "Add stone combo" saves to
+  `app_settings/global.stoneCombos` (op `setStoneCombos`, owners and staff). Categories are ids (`cat001`).
+- **Wastage is picked, not typed:** 10 · 12 · 15 · 25 % · Other (Other shows the % and grams fields). Same stored value.
+- **"Add stone details"** (was "Has other stones") is off for a new piece; on for one that has stone data.
+- **A reference photo can print on the bill, beside the piece's name** (owner: "reference photo should be next to the
+  product name"): per piece `printReference` and `referenceImage` (an https catalogue URL; an order piece without one
+  prints its own first reference photo). Picked from the website catalogue (`GET /api/app/catalogue?category=<id>&q=`),
+  only that category's pieces by default, searchable; images through `/api/app/catalogue/image` (the site's host only).
+  Drawn in the item row, 16 mm, on the invoice (combined and per piece) and the order estimate; never on the slip.
+- **The slip is "Order slip"** (owner: "stop printing for the workshop on the order slip").
+
+### Offline
+
+- **The iPad takes orders and sales with no connection at all** (owner, 2026-11-03: "massive offline capabilities…
+  fully handle not being connected at all in any situation"). This overrides "money writes are never queued" for
+  creations and payments only: createOrder, createInvoice, recordPayment, recordOrderAdvance, addRepair,
+  recordRepairPayment, addExpense, the hisaab/shareholder/extra-revenue entries and plain updates queue on the phone
+  (`ERPAPI.write` → `Outbox.queueForLater`, on disk per business, the request name fixed at the first tap) and send
+  themselves oldest first when the line returns; the lists show them under "Waiting to send" ("Pending" until numbered).
+  Deletes, refunds, settlements and finalising an order say "Needs a connection". A refusal (sold meanwhile) keeps the
+  data with Retry / Discard. The server dates such a record by the tap (`clientAt`, kept when within the last 30 days)
+  and remembers request names 60 days (`CLAIM_DAYS`), so a late replay is never a second record. Reads paint from the
+  Firestore cache, shelf snapshots and `ReadCache` (the last answer of every GET). A glass capsule says
+  "Offline — changes will send when you're back".
+
 ## Money and analytics
 
 ### Invoice credit

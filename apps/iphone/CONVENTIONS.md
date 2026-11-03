@@ -132,6 +132,18 @@ Read before adding anything here. The why is in `docs/features/iphone-app.md`.
    - **Words.** Sentence case for every button and title ("Settle and carry over", not "Settle & Carry Over"); a
      count agrees with its noun ("1 piece"); no developer words a shop reads (Vertex, PITR, scopes, err, ids).
 
+17. **Offline is a state, not an error** (owner, 2026-11-03: "it should fully handle not being connected at all in any
+   situation"). The books paint from Firestore's cache and `ShelfSnapshots`; a screen that asks a route (`ERPAPI.get`)
+   paints the last answer (`ReadCache`) when there is no line, so it never blocks or errors on the network. A creation or
+   a payment (`Outbox.queueableOps`) that cannot reach the ERP is kept on the phone by `ERPAPI.write` under the request
+   name made at the first tap, answers `["queued": true]` (check `ERPAPI.wasQueued(out)` before reading the new record
+   from the answer), and goes by itself when the line returns; New order / New sale then finish as saved, and the record
+   is a "Waiting to send" row at the top of Orders / Invoices (`PendingRecords`). Deletes, refunds, settlements and
+   everything else that needs the ERP fail at once with "Needs a connection" (`ERPAPI.Failure.needsConnection`), never a
+   spinner. A refusal (4xx) of a kept change keeps its data, says so app-wide with Retry, and can be discarded from
+   Waiting to send (`WaitingToSendSheet`, opened by the offline capsule or Settings → This phone). A new money op that
+   may wait is added to `Outbox.queueableOps` only if its callers never read the answer's record.
+
 ## Kit components
 
 Reach for these before writing a screen's own. Files: `App/UI/Ledger.swift`, `KitComponents.swift`, `Note.swift`.

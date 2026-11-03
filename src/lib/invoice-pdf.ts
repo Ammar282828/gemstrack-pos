@@ -28,6 +28,7 @@ import { STORE_INVOICE_BY_CUSTOMER, STORE_LOGO_ASPECT } from '@/lib/store-config
 import { staticCategories } from '@/lib/categories';
 import type { Invoice, InvoiceItem, Customer } from '@/lib/store';
 import { openPDFWindowForIOS, savePDF } from '@/lib/utils';
+import { referenceKey } from '@/lib/reference-image';
 import { browserPdfImages, drawFooter, type PdfDates, type PdfImages } from '@/lib/pdf-inputs';
 import { stockSku } from '@/lib/sku';
 import { format } from 'date-fns';
@@ -277,6 +278,8 @@ function drawInvoice(doc: jsPDF, inv: PieceInvoice, customer: Customer | null | 
       ].filter(Boolean).join('  ·  '),
       settings: describeSettings(item),
       breakdown: breakdownLines.map(l => l.trim().replace(/^\+\s*/, '')),
+      // A marked piece's reference picture, left of its name.
+      picture: item.printReference === true ? chrome.images.references?.[referenceKey(item, 0)] ?? null : null,
     });
     tableRows.push([
       index + 1, '', item.quantity,
@@ -515,8 +518,10 @@ export async function drawInvoicePdf(invoice: Invoice, opts: InvoicePdfOptions &
 /** The finished document, not yet saved: in the browser, with the page's logo and codes unless given. */
 export async function buildInvoicePdf(invoice: Invoice, opts: InvoicePdfOptions = {}): Promise<jsPDF> {
   // The logo once per session, not once per print — see pdf-logo.ts.
-  const images = opts.images ?? await browserPdfImages();
-  return await drawInvoicePdf(invoice, { ...opts, images });
+  const base = opts.images ?? await browserPdfImages();
+  // Pieces marked to print their picture: fetched through the server; a miss prints without.
+  const references = base.references ?? await (await import('@/lib/pdf-references-browser')).browserReferenceImages(itemsOf(invoice)).catch(() => ({}));
+  return await drawInvoicePdf(invoice, { ...opts, images: { ...base, references } });
 }
 
 /**

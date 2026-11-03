@@ -331,10 +331,11 @@ struct InvoicesList: View {
         let groups = sections(shown, stamped)
         // No figures over the list (owner, 2026-11-03: "remove the upper bar with the summaries in invoices and orders").
         let figures: [ListFigure] = []
-        RecordListScaffold(search: $search, prompt: "Search invoices", isEmpty: groups.isEmpty) {
+        RecordListScaffold(search: $search, prompt: "Search invoices", isEmpty: groups.isEmpty && Outbox.shared.records(kind: "invoice").isEmpty) {
             emptyState
         } rows: {
             head(scoped, figures, inList: true)
+            PendingRecords(kind: "invoice")
             ForEach(groups) { group in
                 Section {
                     ForEach(group.rows) { inv in row(inv) }
@@ -345,6 +346,7 @@ struct InvoicesList: View {
             }
         } cards: { width in
             head(scoped, figures, inList: false)
+            PendingRecords(kind: "invoice", width: width)
             ForEach(groups) { group in
                 VStack(alignment: .leading, spacing: pt(16)) {
                     header(group)

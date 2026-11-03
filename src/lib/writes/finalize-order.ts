@@ -16,6 +16,7 @@ import type { Invoice, InvoiceItem, Order, Payment, Settings } from '@/lib/store
 import { exchangeTotal, invoiceExchangeFields, orderExchanges } from '@/lib/exchange';
 import { creditDescription } from '@/lib/invoice-credit';
 import { rupees } from '@/lib/money';
+import { cleanReferenceImage } from '@/lib/reference-image';
 import { finalizeRates, finalizedItemCosts, type FinalizedItem, type RateField } from '@/lib/order-finalize';
 import { orderAdvancePayments } from '@/lib/order-payment';
 import { newShareToken } from '@/lib/share-token';
@@ -84,6 +85,9 @@ export function invoiceFromOrder(
       ...(finalizedData.isManualPrice && originalItem.hasStones && { hasStones: true }),
       ...(originalItem.itemCategory && { itemCategory: originalItem.itemCategory }),
       ...(originalItem.adminNote && { adminNote: originalItem.adminNote }),
+      // The picture the order printed beside the logo goes on to the bill (an empty one has no address to carry).
+      ...(originalItem.printReference === true && { printReference: true }),
+      ...(originalItem.printReference === true && cleanReferenceImage(originalItem.referenceImage) && { referenceImage: cleanReferenceImage(originalItem.referenceImage) }),
       // Silver's plating was left behind, so a Mina order's "21K gold plating,
       // nickel-free" vanished from its invoice.
       ...(originalItem.platingType && { platingType: originalItem.platingType }),

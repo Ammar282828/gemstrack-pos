@@ -735,12 +735,24 @@ extension SaleForm {
         // A rate a written bill set is the bill's, never today's (SaleScanHeld).
         let kept = SaleScanHeld.unheld(draft.ratesToWriteBack(f, current: book.settings.value), in: draft)
         do {
-            let out = try await ERPAPI.shared.write("createInvoice", draft.payload(f) { book.products.item($0)?.qrCodeDataUrl }, business: biz)
-            let id = (out["invoice"] as? [String: Any])?["id"] as? String ?? ""
+            // The request is built once: with no line it is kept on this phone under the request name made at this tap
+            // (Outbox.queueForLater) and the pending row at the top of Invoices reads `pending`.
+            let request = draft.payload(f) { book.products.item($0)?.qrCodeDataUrl }
+            var pending = PendingSummary.make(op: "createInvoice", fields: request)
+            pending.amount = f.total
+            let out = try await ERPAPI.shared.write("createInvoice", request, business: biz, pending: pending)
             if let kept { let b = biz; Task { await keepRates(kept, business: b) } }
             SaleDraftStore.clear(business: biz.id)
             WorkDraftSync.sale.drop(business: biz)
             draft = SaleDraft()
+            if ERPAPI.wasQueued(out) {
+                // Saved on this phone, not yet at the ERP: the sale is done here. It shows as "Waiting to send" in Invoices
+                // and goes by itself when the line is back.
+                saving = false
+                dismiss()
+                return
+            }
+            let id = (out["invoice"] as? [String: Any])?["id"] as? String ?? ""
             if id.isEmpty {
                 failure = "The sale was saved, but the ERP did not say its number. Look for it under Invoices."
             } else {

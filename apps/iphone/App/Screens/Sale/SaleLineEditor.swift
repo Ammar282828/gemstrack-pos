@@ -19,6 +19,7 @@ struct SaleLineEditor: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var f: Fields
+    @State private var wastageOther = false
 
     init(line: SaleLine, rates: PricingRates, create: Bool = false, apply: @escaping (SaleLine) -> Void) {
         self.line = line
@@ -118,7 +119,10 @@ struct SaleLineEditor: View {
                     Text(f.categoryId).tag(f.categoryId)
                 }
             }
+            // Plain on purpose: Apply reads the name at the tap, and this sheet's form is small enough to redraw per key.
             TextField("Item name", text: $f.name, prompt: Text("What is being sold"))
+            // What this shop has already written for this category, and its stone combos: tap to fill.
+            DescribeSuggestions(text: $f.name, category: f.categoryId)
             Picker("Metal", selection: $f.metalType) {
                 ForEach(METAL_TYPES, id: \.rawValue) { m in Text(metalLabel(m)).tag(m.rawValue) }
                 if !METAL_TYPES.contains(where: { $0.rawValue == f.metalType }) { Text(f.metalType).tag(f.metalType) }
@@ -205,12 +209,12 @@ struct SaleLineEditor: View {
                 if silver {
                     SaleNumberField(label: "Rate per gram (PKR)", text: $f.silverRate, prompt: "e.g. 150")
                 } else {
-                    SaleNumberField(label: "Wastage (%)", text: $f.wastage)
+                    wastageRows
                 }
                 SaleNumberField(label: "Making (PKR)", text: $f.making, rupees: true)
                 SaleNumberField(label: "Stones (PKR)", text: $f.stoneCharges, rupees: true)
                 SaleNumberField(label: "Misc (PKR)", text: $f.miscCharges, rupees: true)
-                if silver { SaleNumberField(label: "Wastage (%)", text: $f.wastage) }
+                if silver { wastageRows }
             }
         } header: {
             LedgerHeading(title: "Price")
@@ -218,6 +222,15 @@ struct SaleLineEditor: View {
             if f.fixed {
                 Text("The weight is printed on the bill; the price stays as typed.")
             }
+        }
+    }
+
+    /// 10 / 12 / 15 / 25 or Other; Other opens the percentage box.
+    @ViewBuilder
+    private var wastageRows: some View {
+        WastageChips(percent: $f.wastage, other: $wastageOther)
+        if WastageChips.reveals(f.wastage, wastageOther) {
+            SaleNumberField(label: "Wastage (%)", text: $f.wastage)
         }
     }
 
@@ -229,7 +242,7 @@ struct SaleLineEditor: View {
                 if !f.fixed { SaleNumberField(label: "Diamonds (PKR)", text: $f.diamondCharges, rupees: true) }
                 TextField("Diamond details", text: $f.diamondDetails, prompt: Text("e.g. 0.5ct round"))
             }
-            Toggle("Has other stones", isOn: $f.hasStones)
+            Toggle("Add stone details", isOn: $f.hasStones)
             if f.hasStones {
                 SaleNumberField(label: "Stone weight (g)", text: $f.stoneWeight)
                 TextField("Stone details", text: $f.stoneDetails, prompt: Text("e.g. 4 rubies"))
@@ -241,6 +254,8 @@ struct SaleLineEditor: View {
         Section {
             TextField("Description", text: $f.billDescription, prompt: Text("Additional details to appear on the invoice"), axis: .vertical)
                 .lineLimit(2...5)
+            ReferencePrintRows(image: $f.referenceImage, printIt: $f.printReference, category: f.categoryId,
+                               fallbackNote: (line.imageUrl ?? "").isEmpty ? "" : "The piece's own photo is printed.")
         } header: {
             LedgerHeading(title: "On the bill")
         }

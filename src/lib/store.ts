@@ -277,6 +277,8 @@ export interface PaymentMethod {
 export interface Settings extends GoldRates {
   /** An owner's urgent message, shown to every signed-in person until cleared. */
   teamNote?: string;
+  /** The owner's saved stone combinations ("Ruby & diamond") that complete a piece's description (setStoneCombos, lib/describe.ts). */
+  stoneCombos?: string[];
   /**
    * Palladium, flat. Kept because every existing product, order and invoice was priced
    * from it, and it remains the fallback when a piece carries no karat.
@@ -439,6 +441,9 @@ export interface Product {
   isCustomPrice?: boolean;
   customPrice?: number;
   description?: string;
+  /** A sale line's printed reference picture (see OrderItem.referenceImage); never stored on stock. */
+  referenceImage?: string;
+  printReference?: boolean;
   size?: string; // Optional ring/bracelet size (e.g. "10 Indian / 5 US"); free text
   platingType?: string;  // 925 silver only
   platingNote?: string;
@@ -476,6 +481,9 @@ export interface InvoiceItem {
   hasDiamonds?: boolean;
   hasStones?: boolean;
   itemCategory?: string;
+  /** See OrderItem.referenceImage / printReference. */
+  referenceImage?: string;
+  printReference?: boolean;
   size?: string; // Optional ring/bracelet size carried from product or order
   platingType?: string;  // 925 silver only
   platingNote?: string;
@@ -676,6 +684,9 @@ export interface OrderItem {
   /** Reference photos 2..n of the piece, one document each (the first stays above); lib/order-photos.ts. */
   extraPhotos?: { id?: string; dataUri?: string; hash?: string }[];
   referenceSku?: string;
+  /** An https picture (a catalogue photo) printed beside the logo when `printReference`; empty = this piece's own first reference photo. */
+  referenceImage?: string;
+  printReference?: boolean;
   sampleGiven: boolean;
   isCompleted: boolean;
   /**
@@ -2575,6 +2586,7 @@ export const useAppStore = create<AppState>()(
                 ...(item.silverRatePerGram ? { silverRatePerGram: item.silverRatePerGram } : {}),
                 ...(item.platingType ? { platingType: item.platingType } : {}),
                 ...(item.platingNote ? { platingNote: item.platingNote } : {}),
+                ...(item.printReference ? { printReference: true, ...(item.referenceImage ? { referenceImage: item.referenceImage } : {}) } : {}),
                 quantity: 1
             };
         });

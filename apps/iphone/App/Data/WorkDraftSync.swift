@@ -159,7 +159,34 @@ final class WorkDraftSync {
         guard let gone = UserDefaults.standard.string(forKey: idKey(biz.id)) else { return }
         forget(biz.id)
         abandon(gone)
-        enqueue { _ = try? await ERPAPI.shared.send("/api/app/drafts", ["action": "drop", "id": gone], business: biz) }
+        enqueue { [weak self] in await self?.dropRemote(gone, biz) }
+    }
+
+    // MARK: A removal that could not go (no line)
+
+    /// Draft ids to remove from Drafts, per business: a sale saved offline must not leave its draft behind. Marked before
+    /// the removal is sent and cleared when the ERP has answered, so no line or a kill only delays it (`resume`).
+    private func dropKey(_ b: String) -> String { BizKey("erp.\(kind)Draft.pendingDrops", b) }
+
+    private func pendingDrops(_ b: String) -> [String] { UserDefaults.standard.stringArray(forKey: dropKey(b)) ?? [] }
+
+    private func markDrop(_ id: String, _ b: String, on: Bool) {
+        var ids = pendingDrops(b).filter { $0 != id }
+        if on { ids.append(id) }
+        UserDefaults.standard.set(ids, forKey: dropKey(b))
+    }
+
+    private func dropRemote(_ id: String, _ biz: Business) async {
+        markDrop(id, biz.id, on: true)
+        do {
+            _ = try await ERPAPI.shared.send("/api/app/drafts", ["action": "drop", "id": id], business: biz)
+            markDrop(id, biz.id, on: false)
+        } catch let e as ERPAPI.Failure where (400..<500).contains(e.status) && e.status != 401 && e.status != 408 && e.status != 429 {
+            // Refused (already gone, not this person's): nothing to wait for.
+            markDrop(id, biz.id, on: false)
+        } catch {
+            // No line: it stays marked and goes when `resume` runs (the line is back, the app comes forward).
+        }
     }
 
     /// A draft that is gone (discarded from Drafts, saved): nothing of it is sent or retried any more.
@@ -286,6 +313,9 @@ final class WorkDraftSync {
     /// Tries again what could not be sent: saves kept on disk after a failure or a hand-off. Called when the app comes
     /// forward, when Drafts or a form opens, and by the backoff.
     func resume() {
+        for biz in Businesses.shared.list {
+            for id in pendingDrops(biz.id) { enqueue { [weak self] in await self?.dropRemote(id, biz) } }
+        }
         for rec in DraftOutboxFiles.all(kind: kind) where !removed.contains(rec.id) && busy[rec.id] == nil {
             guard let biz = Businesses.shared.business(rec.biz) else { continue }
             submit(Outgoing(id: rec.id, body: rec.body, biz: biz, text: ""), durable: false)

@@ -42,6 +42,17 @@ import { STORE_CONFIG, STORE_TAKEN_BY } from '@/lib/store-config';
 import type { OpHandler, OpRoles } from './op-context';
 import { MONEY_OP_NAMES, REQUEST_ID, claimRequest, finishRequest, releaseRequest } from './idempotency';
 import { PEOPLE_OPS, runPeopleOp } from './ops-people';
+
+/**
+ * When a sale or order was taken, from a phone that was offline (`clientAt`, its tap): kept only when it is a real
+ * time in the last 30 days and not in the future (a minute of clock skew allowed), else the server's now.
+ */
+export function takenAt(v: unknown, nowMs = Date.now()): string | null {
+  if (typeof v !== 'string') return null;
+  const t = Date.parse(v);
+  if (!Number.isFinite(t) || t > nowMs + 60_000 || t < nowMs - 30 * 864e5) return null;
+  return new Date(Math.min(t, nowMs)).toISOString();
+}
 import { STOCK_OPS, runStockOp } from './ops-stock';
 import { INVOICE_OPS, runInvoiceOp } from './ops-invoices';
 import { MONEY_OPS, runMoneyOp } from './ops-money';
@@ -61,6 +72,7 @@ import { WORK2_OPS, runWork2Op } from './ops-work2';
 import { SETTINGS2_OPS, runSettings2Op } from './ops-settings2';
 import { SETTINGS3_OPS, runSettings3Op } from './ops-settings3';
 import { SETTINGS4_OPS, runSettings4Op } from './ops-settings4';
+import { DESCRIBE_OPS, runDescribeOp } from './ops-describe';
 
 type Body = { op?: string } & Record<string, unknown>;
 type FollowUp = { path: string; body: Record<string, unknown> };
@@ -117,6 +129,7 @@ const GROUPS: { roles: OpRoles; run: OpHandler }[] = [
   { roles: SETTINGS2_OPS, run: runSettings2Op },
   { roles: SETTINGS3_OPS, run: runSettings3Op },
   { roles: SETTINGS4_OPS, run: runSettings4Op },
+  { roles: DESCRIBE_OPS, run: runDescribeOp },
 ];
 
 export const OPS: OpRoles = Object.assign({}, OWN_OPS, ...GROUPS.map((g) => g.roles));
@@ -290,7 +303,7 @@ export async function runWriteOp(caller: WriteCaller, body: Body): Promise<NextR
             payments: Array.isArray(body.payments) ? (body.payments as SaleInput['payments']) : [],
             costRate24k: Number(body.costRate24k) || undefined,
             requestId: requestId ?? undefined,
-          }, { log, notify: (id) => alert({ event: 'sale', id }) });
+          }, { log, notify: (id) => alert({ event: 'sale', id }), ...(!editing && takenAt(body.clientAt) ? { now: () => takenAt(body.clientAt)! } : {}) });
           return NextResponse.json({ ok: true, invoice, followUps });
         }
 
@@ -310,7 +323,7 @@ export async function runWriteOp(caller: WriteCaller, body: Body): Promise<NextR
             },
             normalizePhone: (v) => normalizePhoneNumber(v),
             clean: cleanObject,
-          }, { log, notify: (id) => alert({ event: 'order', id }) });
+          }, { log, notify: (id) => alert({ event: 'order', id }), ...(takenAt(body.clientAt) ? { now: () => takenAt(body.clientAt)! } : {}) });
           return NextResponse.json({ ok: true, order: created, followUps });
         }
 

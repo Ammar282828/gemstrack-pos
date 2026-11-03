@@ -192,6 +192,13 @@ enum NewOrderMath {
         o["totalEstimate"] = NewOrderFormat.finite(costs.totalPrice)
         put(&o, "itemCategory", p.category)
         put(&o, "referenceSku", p.referenceSku)
+        // The catalogue picture to print beside the piece on the bill; none picked prints the piece's own first photo.
+        if let ref = p.referenceImage, !trim(ref).isEmpty {
+            o["referenceImage"] = trim(ref)
+        } else if p.hadReference {
+            o["referenceImage"] = NSNull()
+        }
+        o["printReference"] = p.printReference
         put(&o, "size", p.size)
         put(&o, "karigarId", p.karigarId)
         // Karat stays for any metal that has one (gold, and palladium's 18k and 12k, which price differently):

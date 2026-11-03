@@ -20,6 +20,7 @@ import { staticCategories, categorySingular } from '@/lib/categories';
 import { describeMetal, describeSettings } from '@/lib/materials';
 import { drawItemCell, itemCellHeight, wastageGrams, type ItemBlock } from '@/lib/invoice-item-cell';
 import { drawDocHeader, tableStyles, drawRowRule, alignHeadCell, label, FOOTER_HEIGHT } from '@/lib/pdf-chrome';
+import { referenceKey } from '@/lib/reference-image';
 import { browserPdfImages, drawFooter, type PdfDates, type PdfImages } from '@/lib/pdf-inputs';
 import { drawOrderTotals } from '@/lib/order-slip';
 import { orderFileName } from '@/lib/invoice-share';
@@ -126,7 +127,10 @@ export function drawOrderPdf(order: Order, { images, dates }: OrderPdfOptions): 
   // The table starts where the estimate's and the slip's do (startY infoBottom + 7).
   const infoBottom = infoY + (ratesApplied.length > 0 ? 18 : 13) + extra - 7;
 
-  const blocks = orderCustomerBlocks(order);
+  const blocks = orderCustomerBlocks(order).map((b, i) => {
+    const item = order.items[i];
+    return item?.printReference === true ? { ...b, picture: images.references?.[referenceKey(item, i)] ?? null } : b;
+  });
   const descWidth = pageWidth - margin * 2 - 7 - 28;
   doc.autoTable({
     ...tableStyles(margin),
@@ -175,7 +179,10 @@ export async function saveOrderPdf(order: Order): Promise<void> {
   if (typeof window === 'undefined') return;
   const iOSWin = openPDFWindowForIOS();
   try {
-    await savePDF(drawOrderPdf(order, { images: await browserPdfImages() }), orderPdfFileName(order), iOSWin);
+    const images = await browserPdfImages();
+    // A piece marked to print its picture: the catalogue's, or its own first photo (a miss prints without).
+    const references = await (await import('@/lib/pdf-references-browser')).browserReferenceImages(order.items || [], { own: true }).catch(() => ({}));
+    await savePDF(drawOrderPdf(order, { images: { ...images, references } }), orderPdfFileName(order), iOSWin);
   } catch (e) {
     iOSWin?.close();
     throw e;

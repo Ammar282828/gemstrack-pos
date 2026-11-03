@@ -156,7 +156,7 @@ export async function createOrder(
   const grandTotal = rupees(input.grandTotal);
   const descriptions = input.items.map(i => i.description).filter(Boolean) as string[];
   const summary = (input.items.length === 1 ? descriptions[0] : descriptions.join(', ')) || 'Custom order';
-  const createdAt = new Date().toISOString();
+  const createdAt = fx.now?.() ?? new Date().toISOString();
 
   const orderId = (n: number) => `ORD-${String(n).padStart(6, '0')}`;
   const predicted = deps.expectedNumber && deps.expectedNumber > 0 ? orderId(deps.expectedNumber) : null;
