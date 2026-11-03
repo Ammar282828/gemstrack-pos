@@ -12,7 +12,9 @@ import { auth as firebaseAuth } from '@/lib/firebase';
 import { PageShell } from '@/components/shared/page-shell';
 import { Loader2, Radio } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { STORE_LINKS } from '@/lib/store-config';
+import { STORE_LINKS, STORE_SHOPIFY_ANALYTICS } from '@/lib/store-config';
+import { ShopifyLive } from '../shopify-live';
+import { ViewSwitch, useView } from '../view-switch';
 import { Tile } from '@/app/insights/insights-kit';
 import { Card, cityRows, countryName, DEVICE, duration, flag, pageLabel, pct, Ranked, sourceLabel, SwitchCard } from '../site-kit';
 import { FigureTilesSkeleton, ListRowsSkeleton } from '@/components/shared/skeletons';
@@ -27,7 +29,7 @@ interface Live {
 
 const site = (STORE_LINKS.website || '').replace(/\/+$/, '');
 
-export default function LivePage() {
+function CatalogueLivePage({ switcher }: { switcher?: React.ReactNode } = {}) {
   const [live, setLive] = useState<Live | null>(null);
   const [error, setError] = useState('');
   const busy = useRef(false);
@@ -57,6 +59,7 @@ export default function LivePage() {
 
   return (
     <PageShell subtitle={`On ${site.replace(/^https?:\/\//, '') || 'the website'} in the last five minutes · updates by itself`}>
+      {switcher}
       {error && <p className="text-sm text-destructive">{error}</p>}
       {!live && !error && <div className="space-y-4"><FigureTilesSkeleton tiles={3} /><ListRowsSkeleton rows={4} /></div>}
       {live && (
@@ -119,6 +122,19 @@ export default function LivePage() {
           {!live.visitors && <p className="text-sm text-muted-foreground">No one on the site at the moment. Visits are counted from 23 October 2026.</p>}
         </>
       )}
+    </PageShell>
+  );
+}
+
+/** House of Mina: the Shopify store's right-now picture first, the catalogue's own live counter a tap away. */
+export default function LivePage() {
+  const [view, setView] = useView('live');
+  if (!STORE_SHOPIFY_ANALYTICS) return <CatalogueLivePage />;
+  if (view === 'catalogue') return <CatalogueLivePage switcher={<ViewSwitch view={view} onChange={setView} />} />;
+  return (
+    <PageShell subtitle="The online store right now — Shopify has no live view, so this is its latest sessions, orders and checkouts">
+      <ViewSwitch view={view} onChange={setView} />
+      <ShopifyLive />
     </PageShell>
   );
 }

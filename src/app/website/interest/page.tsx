@@ -22,7 +22,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Heart, Loader2, MessageCircle, Eye, Clock, RefreshCw, ExternalLink, Radio } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { STORE_LINKS } from '@/lib/store-config';
+import { STORE_LINKS, STORE_SHOPIFY_ANALYTICS } from '@/lib/store-config';
+import { ShopifyReport } from './shopify-report';
+import { ViewSwitch, useView } from './view-switch';
 import { Delta, Tile } from '@/app/insights/insights-kit';
 import type { Summary } from '@/lib/website/site-analytics';
 import { Card, CHANNEL, cityRows, countryName, flag, DEVICE, duration, pageLabel, pct, Ranked, sourceLabel, SwitchCard, type RankRow } from './site-kit';
@@ -74,7 +76,7 @@ async function get<T>(url: string): Promise<T> {
   return d as T;
 }
 
-export default function InterestPage() {
+function CatalogueInterestPage({ switcher }: { switcher?: React.ReactNode } = {}) {
   const [period, setPeriodState] = useState<PeriodKey>('30d');
   const [custom, setCustom] = useState({ from: '', to: '' });
   const [report, setReport] = useState<Report | null>(null);
@@ -115,6 +117,7 @@ export default function InterestPage() {
   return (
     <PageShell subtitle={`What visitors to ${site.replace(/^https?:\/\//, '') || 'the website'} do — counted anonymously, no person or address kept`}
       action={<Button variant="outline" onClick={load} disabled={loading}><RefreshCw className={cn('h-4 w-4 mr-1.5', loading && 'animate-spin')} /> Refresh</Button>}>
+      {switcher}
       <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
         {PERIODS.map(p => (
           <button key={p.key} type="button" onClick={() => setPeriod(p.key)}
@@ -297,5 +300,21 @@ function SourceTable({ now }: { now: Summary }) {
         </table>
       </div>
     </Card>
+  );
+}
+
+/**
+ * House of Mina's public store is Shopify: its Visitors opens on Shopify's own analytics (ShopifyQL), the catalogue's
+ * counters (and the pieces) a tap away. Elsewhere (Taheri) this is the counters page, unchanged.
+ */
+export default function InterestPage() {
+  const [view, setView] = useView('visitors');
+  if (!STORE_SHOPIFY_ANALYTICS) return <CatalogueInterestPage />;
+  if (view === 'catalogue') return <CatalogueInterestPage switcher={<ViewSwitch view={view} onChange={setView} />} />;
+  return (
+    <PageShell subtitle="Shopify's own analytics for the online store — owners only">
+      <ViewSwitch view={view} onChange={setView} />
+      <ShopifyReport siteHost={(STORE_LINKS.shop || '').replace(/^https?:\/\//, '').replace(/\/+$/, '') || 'the store'} />
+    </PageShell>
   );
 }

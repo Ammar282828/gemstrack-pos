@@ -181,6 +181,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Community twin](docs/decisions.md#community-twin) — sends to "Taheri Collections" groups also reach their namesakes in "- II"; `/links` shows the community
 - [Piece interest](docs/decisions.md#piece-interest) — both sites count opens, time looked, saves and WhatsApp enquiries per piece; Website → Interest ranks them
 - [Website analytics](docs/decisions.md#website-analytics) — Analytics › Website (Visitors, Live) is each site's Shopify-style report (sources, places, devices, funnel to WhatsApp, pages, searches, 404s) and Live; day counters, no person or address kept
+- [Shopify analytics](docs/decisions.md#shopify-analytics-house-of-mina) — Mina's Website → Visitors/Live read Shopify's ShopifyQL (`/api/website/shopify-analytics`, `/live`); needs `read_reports` (and `read_orders` for Live); a missing scope is said, never a crash
 - [WhatsApp catalogue](docs/decisions.md#whatsapp-catalogue) — every taheri.shop piece in Meta at 0.00 PKR ("Message us for today's price"), from `/api/public/catalog-feed`, re-read daily
 
 **Liquid Glass** (`docs/features/liquid-glass.md`)

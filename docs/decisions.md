@@ -194,6 +194,18 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
   (`src/lib/recents.ts`, localStorage). Items are *moved* up, never duplicated — Radix prints a duplicated selected
   value twice in the trigger. Lists that change over time carry a `recentsKey`; the karigar picker opts out (it ranks itself).
 
+### Shopify analytics (House of Mina)
+
+- Owner, 2026-11-03: "add all Shopify website insights like who's live and everything to House of Mina website analytics… (ALL)".
+  Where `NEXT_PUBLIC_STORE_SHOPIFY_ANALYTICS=1` (Mina; Taheri keeps its own counters), Website → Visitors and Live open on
+  Shopify's own analytics, with the catalogue's counters a "Catalogue" chip away. Read through the Admin API's ShopifyQL
+  (`lib/website/shopify-analytics.ts`, `GET /api/website/shopify-analytics` cached 10 min, `/live` cached 60 s): sales,
+  sessions, funnel, products, sources, places, devices, landing pages, searches, channels, discount codes and new/returning
+  customers, each against the period before. Owners only. Scopes are read at run time; a section whose scope is missing
+  returns `{ missingScope }` and the page says what to grant (`read_reports` for Visitors; `read_orders` for Live's orders and
+  checkouts). Shopify has no Live View API: Live is sessions by the minute (the hour if refused), today's places and the
+  orders and checkouts of the last 30 minutes; true live visitors would need a custom pixel beacon (not built).
+
 ### Loading
 
 - **A skeleton when the shape is known, the spinning circle when it is not** (owner, 2026-11-03: "fix all loading states,
