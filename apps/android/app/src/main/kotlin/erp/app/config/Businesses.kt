@@ -227,6 +227,8 @@ object Businesses {
         erp.app.screens.design.DesignHooks.reset()
         WorkDraftSync.order.reset()
         WorkDraftSync.sale.reset()
+        erp.app.screens.voice.VoiceOverlay.reset()
+        erp.app.screens.voice.VoiceContext.reset()
         closeSheet()
     }
 

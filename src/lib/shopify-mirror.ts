@@ -150,7 +150,10 @@ export function planShopifyMirror(
 export function isPosPushedOrder(order: { tags?: string | string[] | null }): boolean {
   const tags = (Array.isArray(order.tags) ? order.tags : String(order.tags || '').split(','))
     .map(t => String(t).trim()).filter(Boolean);
-  return tags.includes('pos-import') || tags.some(t => t.startsWith('pos-inv-'));
+  // pos-order / pos-order-ORD-…: a POS order sent to Shopify (push/from-order, the order sync). Its record is the
+  // ERP's order; imported as an invoice too it would be the same sale twice (owner, 2026-11-03: "duplicate orders").
+  return tags.includes('pos-import') || tags.includes('pos-order')
+    || tags.some(t => t.startsWith('pos-inv-') || t.startsWith('pos-order-'));
 }
 
 /** The ERP invoice a checkout link was made for ("POS Invoice INV-000123" in the note). */
