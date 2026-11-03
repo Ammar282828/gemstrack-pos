@@ -1,5 +1,6 @@
 import SwiftUI
 import ERPCore
+import Contacts
 import ContactsUI
 #if canImport(UIKit)
 import UIKit
