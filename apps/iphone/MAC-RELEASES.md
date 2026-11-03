@@ -40,3 +40,4 @@ app archived for TestFlight's "Shop" group, and the iPhone app built beside it a
 - 2026-11-03: A printer button on every invoice and order card: one tap prints the invoice or the order's slip.
 - 2026-11-03: Choose a number from your contacts when adding or editing a customer or karigar, and when sending a PDF or message on WhatsApp.
 - 2026-11-03: Choose a number from your contacts when adding or editing a customer or karigar, and when sending a PDF or message on WhatsApp.
+- 2026-11-03: Choose a number from your contacts when adding or editing a customer or karigar, and when sending a PDF or message on WhatsApp.

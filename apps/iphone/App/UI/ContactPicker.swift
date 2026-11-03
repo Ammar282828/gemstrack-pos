@@ -126,7 +126,7 @@ private struct ContactPickAnchor: NSViewRepresentable {
             coordinator.delegate = d
             coordinator.picker = picker
             picker.delegate = d
-            picker.show(relativeTo: view.bounds, of: view, preferredEdge: .minY)
+            picker.showRelative(to: view.bounds, of: view, preferredEdge: NSRectEdge.minY)
         }
     }
 }
