@@ -141,6 +141,7 @@ fun OrderScreen(id: String) {
     rememberShelf(book.karigars)
     val connectionLost by Connection.isOffline.collectAsStateWithLifecycle()
     val order = rememberShelfItem(book.orders, id)
+    erp.app.screens.voice.VoiceFocusEffect(order?.let { erp.app.screens.voice.VoiceFocus.order(it) })
     Box(Modifier.fillMaxSize().zoomDestination(OrderPaths.order(id))) {
         ShelfState(loaded = orders.loaded, error = orders.error, offline = orders.offline, connectionLost = connectionLost) {
             // Read through `items`: the shelf's lookup alone would not redraw on a change.

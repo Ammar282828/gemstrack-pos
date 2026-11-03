@@ -145,6 +145,7 @@ fun CustomerScreen(id: String) {
     /** An invoice whose credit is being handed back (InvoiceCreditSheet). */
     var givingBack by remember { mutableStateOf<Invoice?>(null) }
     val customer = customers.items.firstOrNull { it.id == id } ?: seed
+    erp.app.screens.voice.VoiceFocusEffect(customer?.let { erp.app.screens.voice.VoiceFocus.customer(it) })
     val loaded = seed != null || (customers.loaded && invoices.loaded && orders.loaded && repairs.loaded && (!owner || hisaabLoaded))
     val failure = customers.error ?: invoices.error ?: orders.error ?: repairs.error ?: (if (owner) hisaabError else null)
     var deletion by remember { mutableStateOf<OwnerDeletion?>(null) }

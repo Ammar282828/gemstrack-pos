@@ -140,6 +140,7 @@ fun InvoiceScreen(id: String) {
     val customers by rememberShelf(book.customers)
     val connectionLost by Connection.isOffline.collectAsStateWithLifecycle()
     val invoice = status.items.firstOrNull { it.id == id }
+    erp.app.screens.voice.VoiceFocusEffect(invoice?.let { erp.app.screens.voice.VoiceFocus.invoice(it) })
     ScreenTitle(id)
     // The page grows out of its row on the list (the row's id is this route's path).
     Box(Modifier.fillMaxSize().zoomDestination(InvoiceFacts.path(id))) {

@@ -82,6 +82,7 @@ fun RepairsSheet(id: String, seed: Repair?, onDismiss: () -> Unit) {
     val shelfItem = rememberShelfItem(book.repairs, id)
     val loaded = rememberShelfStatus(book.repairs).loaded
     val current: Repair? = (shelfItem ?: seed)?.let(desk::shown)
+    erp.app.screens.voice.VoiceFocusEffect(current?.let { erp.app.screens.voice.VoiceFocus.repair(it) })
 
     var web by remember { mutableStateOf<String?>(null) }
     var editing by remember { mutableStateOf(false) }

@@ -102,14 +102,18 @@ object VoiceLogic {
      * A request body for a spoken or typed sentence. With a plan not yet saved on screen the sentence is a change to
      * it: the earlier words and the model's own reading go with it (`previous`, src/lib/voice/refine.ts).
      */
-    fun requestBody(words: String, refining: VoicePlan?): Map<String, Any?> {
+    fun requestBody(words: String, refining: VoicePlan?, focus: VoiceFocus? = null): Map<String, Any?> {
         val body = LinkedHashMap(textBody(words))
         val reading = refining?.reading
         if (refining != null && reading != null) {
             body["previous"] = mapOf("words" to refining.reviewedWords.takeLast(PREVIOUS_WORDS), "reading" to reading)
         }
-        return body
+        return withContext(body, focus)
     }
+
+    /** What is open beneath the overlay goes with every sentence, spoken or typed: "make it 22 karat" is about this record (context.ts). */
+    fun withContext(body: Map<String, Any?>, focus: VoiceFocus?): Map<String, Any?> =
+        if (focus == null) body else LinkedHashMap(body).also { it["context"] = focus.payload }
 
     /** The words the plan answers: the earlier ones and the change, so a further change goes back whole. */
     fun cumulative(refining: VoicePlan?, words: String): String =
@@ -135,6 +139,45 @@ object VoiceLogic {
     /** A card's heading as the iPhone shows it (`.capitalized`: each word's first letter up, the rest down). */
     fun heading(title: String): String =
         title.split(' ').joinToString(" ") { w -> w.lowercase().replaceFirstChar { it.uppercase() } }
+
+    /** Whether a card offers "Open record" / "Fill the form" (`VoiceOverlay.step`): a problem with only a bare address offers nothing. */
+    fun opensRecord(card: VoiceCard): Boolean {
+        val path = card.href ?: return false
+        return card.operations.isEmpty() && (card.problem == null || card.handoff != null || path.startsWith("/"))
+    }
+
+    /** The steps show when there is more than one, or when one needs a look (a problem, a form to fill, a record to open). */
+    fun showsSteps(plan: VoicePlan, completed: Int): Boolean =
+        plan.cards.size > 1 || plan.cards.any { it.problem != null || it.handoff != null } ||
+            (plan.answer != null && plan.href != null) ||
+            (plan.operations.isNotEmpty() && completed == plan.operations.size && plan.cards.lastOrNull()?.href != null)
+
+    /** The answer, or what the plan will do, in a line or three (`VoiceOverlay.headline`). */
+    fun headline(plan: VoicePlan?, completed: Int): String? {
+        plan ?: return null
+        plan.answer?.let { return it }
+        if (plan.operations.isNotEmpty() && completed == plan.operations.size) return "Saved."
+        if (plan.cards.size == 1) return plan.cards[0].summary
+        if (plan.cards.size > 1) return "${plan.cards.size} changes"
+        return null
+    }
+
+    /** The line under the words (`VoiceOverlay.statusLine`). */
+    fun status(
+        starting: Boolean, listening: Boolean, writing: Boolean, clipMode: Boolean, plan: VoicePlan?, completed: Int,
+        focusLabel: String?, unavailable: Boolean,
+    ): String = when {
+        starting -> "Getting ready…"
+        writing -> "Saving…"
+        unavailable -> "Voice isn’t available. You can type."
+        !listening && clipMode -> "Tap the mic, then say what you need"
+        !listening -> "Tap the mic to listen again"
+        plan == null -> if (focusLabel != null) "Listening · about $focusLabel" else "Say what you need"
+        plan.operations.isNotEmpty() && completed == plan.operations.size -> "Say what’s next"
+        plan.operations.isEmpty() -> if (plan.href != null) "Opened. Say what’s next" else "Ask another, or say what to do"
+        plan.ready -> "Say “yes” to save, or what to change"
+        else -> "Say what to change"
+    }
 
     /** The words the person typed or the server heard, ready to review. */
     fun canRead(words: String): Boolean = words.trim().isNotEmpty()
