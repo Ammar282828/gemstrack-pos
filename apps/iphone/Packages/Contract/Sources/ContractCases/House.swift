@@ -17,3 +17,11 @@ enum BusinessSwitchPin {
     static func id(within window: TimeInterval = 2) -> String { House.id }
 }
 
+
+/// Stand-in for App/UI/Kit.swift's `Int(clamped:)` (the sale's "The rest" row reads it): the same body, so the cases
+/// round as the screen does.
+extension Int {
+    init(clamped value: Double) {
+        if value.isNaN { self = 0 } else if value >= 9.0e18 { self = Int.max } else if value <= -9.0e18 { self = Int.min } else { self = Int(value) }
+    }
+}
