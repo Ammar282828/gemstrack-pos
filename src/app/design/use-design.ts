@@ -499,6 +499,8 @@ export function useDesign() {
       setActive: (id: string) => change(w => setActive(w, id)),
       addPages: (pages: NewPage[]) => change(w => addPages(w, pages)),
       removePage: (id: string) => change(w => removePage(w, id)),
+      /** Put the work back as it was (the Undo of taking a size out). */
+      restoreWork: (prev: DesignWork) => change(() => prev),
       setMaster: (id: string) => change(w => setMaster(w, id)),
       rename: (name: string) => change(w => rename(w, name)),
       setCopy: (c: Parameters<typeof setCopy>[1]) => change(w => setCopy(w, c)),

@@ -112,7 +112,9 @@ export async function createInvoice(db: DbPort, input: SaleInput, fx: SaleSideEf
   // The number this invoice will most likely get, from the counter this device already has.
   const predictedId = existingInvoiceId || input.lastInvoiceNumber === undefined ? null : invoiceNumber((input.lastInvoiceNumber || 0) + 1);
 
+  let replayed = false;
   const result = await db.runTransaction<Invoice>(async (tx) => {
+    replayed = false;
     // --- READS FIRST, AND TOGETHER ---
     // Each piece is read here, in the transaction, so two counters selling the same piece cannot both win:
     // the second finds it gone (a piece made for this bill, NEW-…, was never stock: refused only once sold).
@@ -125,6 +127,17 @@ export async function createInvoice(db: DbPort, input: SaleInput, fx: SaleSideEf
       oldHisaab,
     ]);
     if (!currentSettings) throw new Error('Global settings not found.');
+    // The same new sale sent twice (a double tap, a retry after a dropped reply): the settings keep the
+    // last new sale's request and its invoice, so the second send finds the invoice and writes nothing.
+    const lastRequest = (currentSettings as { lastSaleRequest?: { requestId?: string; invoiceId?: string } }).lastSaleRequest;
+    if (!existingInvoiceId && input.requestId && lastRequest?.requestId === input.requestId && lastRequest.invoiceId) {
+      const done = await tx.get<Omit<Invoice, 'id'>>(INVOICES, lastRequest.invoiceId);
+      if (done) {
+        const items = done.items as unknown;
+        replayed = true;
+        return { ...done, id: lastRequest.invoiceId, items: Array.isArray(items) ? items : Object.values(items || {}) } as Invoice;
+      }
+    }
     // The invoice's own pieces are sold already, to it: an edit keeps them without asking the stock.
     const onInvoice = new Set<string>();
     if (existingInvoiceData) {
@@ -237,7 +250,10 @@ export async function createInvoice(db: DbPort, input: SaleInput, fx: SaleSideEf
       invoiceId = existingInvoiceId;
     } else {
       invoiceId = newInvoiceId!;
-      tx.update(SETTINGS, GLOBAL, { lastInvoiceNumber: nextInvoiceNumber });
+      tx.update(SETTINGS, GLOBAL, {
+        lastInvoiceNumber: nextInvoiceNumber,
+        ...(input.requestId && { lastSaleRequest: { requestId: input.requestId, invoiceId } }),
+      });
     }
 
     // Payments taken at the counter go into the same history, in the same shape, as a payment recorded
@@ -321,6 +337,9 @@ export async function createInvoice(db: DbPort, input: SaleInput, fx: SaleSideEf
     }
     return finalInvoice;
   });
+
+  // A repeat of a sale already written: nothing more to log, sync or announce.
+  if (replayed) return result;
 
   // An edit is an update, not a second sale: logged as invoice.create it read as a new invoice and
   // carried the activity log's Revert, which deletes the whole invoice (found 2026-10-04).

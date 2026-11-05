@@ -1,12 +1,12 @@
 
 "use client";
 
+import { BlurImg } from '@/components/ui/blur-img';
 import React, { useState, useMemo, useEffect, useDeferredValue, useCallback } from 'react';
 import { ListSkeleton, RecordGridSkeleton } from '@/components/shared/skeletons';
 import { FilterBar } from '@/components/shared/filter-bar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useAppStore, Settings, Product, calculateProductPrice } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
@@ -103,12 +103,10 @@ const ProductCard = React.memo<ProductCardProps>(function ProductCard({ product,
           aria-label={`Select ${product.name}`}
         />
         <Link href={`/products/${product.sku}`} className="relative shrink-0 w-20 h-20 rounded-md overflow-hidden border bg-muted block">
-          <Image
+          <BlurImg
             src={product.imageUrl || `https://placehold.co/160x160.png?text=${encodeURIComponent(product.name.substring(0, 1))}`}
             alt={product.name}
-            fill
-            sizes="80px"
-            style={{ objectFit: 'cover' }}
+            className="absolute inset-0 h-full w-full object-cover"
             data-ai-hint="jewelry item"
           />
         </Link>
@@ -157,9 +155,9 @@ const ProductRow = React.memo<ProductCardProps>(function ProductRow({ product, c
       </TableCell>
       <TableCell>
         <div className="relative w-10 h-10 rounded overflow-hidden border bg-muted shrink-0">
-          <Image
+          <BlurImg
             src={product.imageUrl || `https://placehold.co/80x80.png?text=${encodeURIComponent(product.name.substring(0, 1))}`}
-            alt={product.name} fill sizes="40px" style={{ objectFit: 'cover' }} data-ai-hint="jewelry item"
+            alt={product.name} className="absolute inset-0 h-full w-full object-cover" data-ai-hint="jewelry item"
           />
         </div>
       </TableCell>

@@ -2,6 +2,7 @@
 "use client";
 
 import { useLingering } from '@/hooks/use-lingering';
+import { useIntentId } from '@/hooks/use-intent-id';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray, Control, type UseFormReturn } from 'react-hook-form';
@@ -669,6 +670,8 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
     toast({ title: "The order can't be saved yet", description: first(errors) || 'A field needs a look.', variant: 'destructive' });
   };
 
+  // One name for this new order: a double tap or a retry makes one order (hooks/use-intent-id.ts).
+  const orderIntent = useIntentId();
   const onSubmit = async (data: OrderFormData) => {
     const { subtotal, discount, grandTotal } = liveEstimate;
     /**
@@ -778,7 +781,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
         };
 
         try {
-            const newOrder = await addOrder(orderToSave);
+            const newOrder = await addOrder({ ...orderToSave, requestId: orderIntent.id() });
             // A customer made with this order: the sizes chosen for their profile go on it now, and any
             // never asked about (picked before the name was typed) are offered once, on the way out.
             if (STORE_SIZE_TO_PROFILE && newOrder?.customerId && !finalCustomerId) {
@@ -800,6 +803,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
               }
             }
             if (newOrder) {
+                orderIntent.renew();
                 // The cart's contents have become the order; leaving them
                 // behind would bill the same pieces a second time.
                 if (seedFromCart) clearCart();

@@ -403,8 +403,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 1280px screen the rail is a fifth of the width; collapsing it
                 is what makes the wide tables fit. Cmd/Ctrl+B also toggles. */}
             {/* A phone has the tab bar and the map sheet instead of a menu (docs/features/web-matches-app.md, c.3). */}
-            <SidebarTrigger className="glass-ctl max-md:!hidden" />
-            <span className="hidden lg:inline text-2xs text-muted-foreground">⌘B</span>
+            <SidebarTrigger className="glass-ctl max-md:!hidden" title="Collapse or open the sidebar (⌘B)" />
+            <kbd className="hidden rounded border bg-muted px-1.5 font-sans text-2xs text-muted-foreground lg:inline">⌘B</kbd>
             {/* Phone, deeper than a tab root: back to the place it sits under, as the app's navigation bar does. */}
             {!rootPage && here && (
               <PageBack layout fallback={here.entry.href} label={here.entry.label} className="md:hidden max-w-[40%] truncate text-[17px]" />

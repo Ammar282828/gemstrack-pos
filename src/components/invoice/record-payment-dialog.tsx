@@ -19,6 +19,7 @@ import { AmountInput } from '@/components/ui/amount-input';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { useIntentId } from '@/hooks/use-intent-id';
 import { useToast } from '@/hooks/use-toast';
 import { balanceLine, canHoldCredit } from '@/lib/invoice-credit';
 import { rupees } from '@/lib/money';
@@ -40,9 +41,11 @@ export function RecordPaymentDialog({ invoice: invoiceNow, open, onOpenChange }:
   const [saving, setSaving] = useState(false);
   // A double tap must not record two payments (INV-000257 had two, 1.3 s apart).
   const lock = useRef(false);
+  // One name for this payment: a double tap or a retry is recorded once (hooks/use-intent-id.ts).
+  const intent = useIntentId();
 
   useEffect(() => {
-    if (open && invoice) { setAmount(rupees(invoice.balanceDue)); setMethod(''); setReference(''); }
+    if (open && invoice) { intent.renew(); setAmount(rupees(invoice.balanceDue)); setMethod(''); setReference(''); }
   }, [open, invoice]);
 
   const balance = invoice?.balanceDue ?? 0;
@@ -62,8 +65,9 @@ export function RecordPaymentDialog({ invoice: invoiceNow, open, onOpenChange }:
       // One write with the payment (lib/writes/settle.ts): it lands whole or not at all.
       const updated = settle > 0
         ? await settleInvoicePayment(invoice.id, rupees(amount), settle, method, method === 'Cash' ? '' : reference)
-        : await updateInvoicePayment(invoice.id, rupees(amount), new Date().toISOString(), method, method === 'Cash' ? '' : reference);
+        : await updateInvoicePayment(invoice.id, rupees(amount), new Date().toISOString(), method, method === 'Cash' ? '' : reference, intent.id());
       if (!updated) throw new Error();
+      intent.renew();
       const after = balanceLine(updated.balanceDue);
       toast({ title: 'Payment recorded', description: `PKR ${amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} by ${method} on ${invoice.id}${after.state === 'due' ? `, PKR ${after.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} still due` : after.state === 'credit' ? `, PKR ${after.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} in credit` : ' — paid in full'}.` });
       onOpenChange(false);

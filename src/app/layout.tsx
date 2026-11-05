@@ -235,7 +235,7 @@ export default function RootLayout({
             <meta name="twitter:card" content={head.share.image ? 'summary_large_image' : 'summary'} />
           </>
         )}
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         {/* Added to the home screen: its own window, named for the house (the manifest says the same for Android). */}
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />

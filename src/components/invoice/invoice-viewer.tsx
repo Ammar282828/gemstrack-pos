@@ -12,6 +12,7 @@
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useIntentId } from '@/hooks/use-intent-id';
 import { whatsappOrderChip } from '@/lib/shopify-whatsapp';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -124,6 +125,8 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
   useEffect(() => { if (latest && fromList && fromList !== latest) setLatest(null); }, [fromList]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const paymentLockRef = useRef(false);
+  // One name for a payment intent: a double tap or a retry is recorded once (hooks/use-intent-id.ts).
+  const paymentIntent = useIntentId();
   const [paymentAmount, setPaymentAmount] = useState<string>('');
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
   const [isEditingDiscount, setIsEditingDiscount] = useState(false);
@@ -181,8 +184,9 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
       // in the same write as the payment (lib/writes/settle.ts), so it lands whole or not at all.
       const updated = settle > 0
         ? await settleInvoicePayment(invoice.id, amount, settle, paymentMethod, paymentRef)
-        : await updateInvoicePayment(invoice.id, amount, new Date().toISOString(), paymentMethod, paymentRef);
+        : await updateInvoicePayment(invoice.id, amount, new Date().toISOString(), paymentMethod, paymentRef, paymentIntent.id());
       if (!updated) throw new Error('No invoice came back from the store.');
+      paymentIntent.renew();
       setLatest(updated);
       setPaymentAmount('');
       setPaymentRef('');

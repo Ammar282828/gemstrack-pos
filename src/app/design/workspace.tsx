@@ -19,6 +19,8 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { ArrowLeft, ImagePlus, Loader2, Maximize2, Plus, RefreshCw, Rocket, Save, ShieldCheck, Sparkles, Star, Trash2, Type } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ToastAction } from '@/components/ui/toast';
+import { useToast } from '@/hooks/use-toast';
 import { PALETTES } from '@/lib/social/story';
 import { PRESETS, SQUARE_PRESETS, applyPreset, applySquarePreset, reflow, renderDocTo, type Assets, type Bind, type Fields, type PresetId, type SquarePresetId, type StoryDoc } from '@/lib/social/editor';
 import { AD_TEMPLATES, PHOTO, applyAdTemplate, blankAd, safeZone, type AdTemplateId } from '@/lib/ads/studio/templates';
@@ -240,6 +242,17 @@ const sizeLine = (p: WorkPage) => `${p.frame.w}×${p.frame.h}`;
 
 function PageStrip({ design, onAdd, onRedo }: { design: DesignApi; onAdd: () => void; onRedo: (p: WorkPage) => void }) {
   const w = design.work!;
+  const { toast } = useToast();
+  // Taking a size out is undone for a few seconds instead of asked about first: the work as it was is put back.
+  const takeOut = (p: WorkPage) => {
+    const before = w;
+    design.actions.removePage(p.id);
+    toast({
+      title: `Took out “${p.label}”`,
+      duration: 6000,
+      action: <ToastAction altText={`Undo: put ${p.label} back`} onClick={() => design.actions.restoreWork(before)}>Undo</ToastAction>,
+    });
+  };
   return (
     <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="Sizes of this design">
       {w.pages.map(p => {
@@ -259,7 +272,7 @@ function PageStrip({ design, onAdd, onRedo }: { design: DesignApi; onAdd: () => 
               <span className="flex items-center gap-0.5">
                 {behind && <button type="button" onClick={() => onRedo(p)} className="min-h-0 rounded p-1 text-primary hover:bg-muted" title="Re-do from the master" aria-label="Re-do from the master"><RefreshCw className="h-3.5 w-3.5" /></button>}
                 {!isMaster && <button type="button" onClick={() => design.actions.setMaster(p.id)} className="min-h-0 rounded p-1 text-muted-foreground hover:bg-muted" title="Make this the master" aria-label="Make this the master"><Star className="h-3.5 w-3.5" /></button>}
-                {w.pages.length > 1 && <button type="button" onClick={() => { if (confirm(`Take “${p.label}” out of this design?`)) design.actions.removePage(p.id); }} className="min-h-0 rounded p-1 text-muted-foreground hover:bg-muted" title="Take this size out" aria-label="Take this size out"><Trash2 className="h-3.5 w-3.5" /></button>}
+                {w.pages.length > 1 && <button type="button" onClick={() => takeOut(p)} className="min-h-0 rounded p-1 text-muted-foreground hover:bg-muted" title="Take this size out" aria-label="Take this size out"><Trash2 className="h-3.5 w-3.5" /></button>}
               </span>
             )}
           </div>

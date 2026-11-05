@@ -1281,7 +1281,7 @@ export class RepairRevenueError extends Error {
 
 // --- Store State and Actions ---
 type ProductDataForAdd = Omit<Product, 'sku' | 'qrCodeDataUrl'>;
-type OrderDataForAdd = Omit<Order, 'id' | 'createdAt' | 'status'>;
+type OrderDataForAdd = Omit<Order, 'id' | 'createdAt' | 'status'> & { /** One name for this save (hooks/use-intent-id.ts). */ requestId?: string };
 /** One piece as Finalize & invoice sends it (lib/order-finalize.ts). */
 type FinalizedOrderItemData = FinalizedItem;
 
@@ -1453,12 +1453,14 @@ export interface AppState {
     /** Payments taken as the invoice is written; added to any it already had. */
     payments?: SalePayment[],
     /** The 24k rate typed for the shop's margin (lib/margin.ts); none, and the sale is taken at 10%. */
-    costRate24k?: number
+    costRate24k?: number,
+    /** One name for this save (hooks/use-intent-id.ts): the same sale sent twice is written once. */
+    requestId?: string
   ) => Promise<Invoice | null>;
-  updateInvoicePayment: (invoiceId: string, paymentAmount: number, paymentDate: string, method?: PaymentType, reference?: string) => Promise<Invoice | null>;
+  updateInvoicePayment: (invoiceId: string, paymentAmount: number, paymentDate: string, method?: PaymentType, reference?: string, requestId?: string) => Promise<Invoice | null>;
   /** One payment off an invoice (an advance carried over, a payment, a partial refund); asks for the delete code. */
   /** Hand a customer their invoice's credit back (the whole of it unless an amount is given); owner only; throws the refusal. */
-  payBackCredit: (invoiceId: string, amount?: number, method?: PaymentType) => Promise<Invoice>;
+  payBackCredit: (invoiceId: string, amount?: number, method?: PaymentType, requestId?: string) => Promise<Invoice>;
   deleteInvoicePayment: (invoiceId: string, index: number, payment: { amount: number; date: string }) => Promise<Invoice>;
   refundInvoicePartial: (invoiceId: string, refundAmount: number, reason?: string) => Promise<Invoice | null>;
   updateInvoiceDiscount: (invoiceId: string, newDiscountAmount: number) => Promise<Invoice | null>;
@@ -1507,7 +1509,7 @@ export interface AppState {
   ) => Promise<Invoice | null>;
   revertOrderFromInvoice: (orderId: string, invoiceId: string) => Promise<void>;
   refundOrder: (orderId: string) => Promise<void>;
-  recordOrderAdvance: (orderId: string, amount: number, notes: string, method?: PaymentType, exchanges?: ExchangeEntry[]) => Promise<Order | null>;
+  recordOrderAdvance: (orderId: string, amount: number, notes: string, method?: PaymentType, exchanges?: ExchangeEntry[], requestId?: string) => Promise<Order | null>;
   /** One advance off an order not yet invoiced, as its page lists them; asks for the delete code. */
   deleteOrderAdvance: (orderId: string, lineIndex: number) => Promise<Order>;
 
@@ -1672,6 +1674,30 @@ const createDataLoader = <T, K extends keyof AppState>(
  * with `if (await staffWrite(...)) return;` and leave the owner path below
  * completely untouched.
  */
+/**
+ * Show an order's change on screen before the write is acknowledged (a status, a ticked piece: never money).
+ * Returns the undo, which puts back the fields as they were unless the order moved on since.
+ */
+function optimisticOrder(set: (fn: (s: AppState) => Partial<AppState>) => void, orderId: string, patch: Record<string, unknown>): () => void {
+  let before: Order | undefined;
+  set(state => {
+    before = state.orders.find(o => o.id === orderId);
+    return { orders: state.orders.map(o => (o.id === orderId ? ({ ...o, ...patch } as Order) : o)) } as Partial<AppState>;
+  });
+  return () => {
+    const prior = before;
+    if (!prior) return;
+    set(state => ({
+      orders: state.orders.map(o => {
+        if (o.id !== orderId) return o;
+        const back: Record<string, unknown> = {};
+        for (const k of Object.keys(patch)) back[k] = (prior as unknown as Record<string, unknown>)[k];
+        return { ...o, ...back } as Order;
+      }),
+    }) as Partial<AppState>);
+  };
+}
+
 async function staffWriteJson(op: string, payload: Record<string, unknown>): Promise<Record<string, unknown>> {
   const token = await auth?.currentUser?.getIdToken();
   const res = await fetch('/api/staff/write', {
@@ -2607,7 +2633,7 @@ export const useAppStore = create<AppState>()(
         });
       }),
 
-      generateInvoice: async (customerInfo, invoiceRates, discountAmount, exchanges?, existingInvoiceId?, delivery?, takenBy?, hideRates?, internalNote?, payments?, costRate24k?) => {
+      generateInvoice: async (customerInfo, invoiceRates, discountAmount, exchanges?, existingInvoiceId?, delivery?, takenBy?, hideRates?, internalNote?, payments?, costRate24k?, requestId?) => {
         if(get().settings.databaseLocked) return null;
         const { cart } = get();
         if (cart.length === 0) return null;
@@ -2616,7 +2642,7 @@ export const useAppStore = create<AppState>()(
             // The one copy (lib/writes/create-invoice.ts), which the iPhone app runs on the server too.
             const result = await createInvoiceWrite(clientPort, {
               cart, customer: customerInfo, rates: invoiceRates, discountAmount, exchanges, existingInvoiceId, delivery,
-              takenBy, hideRates, internalNote, payments, costRate24k,
+              takenBy, hideRates, internalNote, payments, costRate24k, requestId,
               lastInvoiceNumber: get().settings.lastInvoiceNumber || 0,
             }, {
               log: (action, title, detail, ref) => { addActivityLog(action as LogEventType, title, detail, ref ?? ''); },
@@ -2630,7 +2656,7 @@ export const useAppStore = create<AppState>()(
             return null;
         }
       },
-      updateInvoicePayment: async (invoiceId, paymentAmount, paymentDate, method, reference) => {
+      updateInvoicePayment: async (invoiceId, paymentAmount, paymentDate, method, reference, requestId) => {
         if(get().settings.databaseLocked) return null;
 
         // Staff have no database access, so their payment goes through the
@@ -2656,7 +2682,7 @@ export const useAppStore = create<AppState>()(
         try {
           const updated = await recordInvoicePayment(
             clientPort,
-            { invoiceId, amount: paymentAmount, date: paymentDate, method, reference },
+            { invoiceId, amount: paymentAmount, date: paymentDate, method, reference, requestId },
             {
               // The port keeps its action as a plain string; the store's own log
               // is typed, and the value is one of its members.
@@ -2684,11 +2710,11 @@ export const useAppStore = create<AppState>()(
         set(state => ({ generatedInvoices: state.generatedInvoices.map(i => i.id === invoiceId ? { ...i, ...updated } : i) }) as Partial<AppState>);
         return updated;
       },
-      payBackCredit: async (invoiceId, amount, method) => {
+      payBackCredit: async (invoiceId, amount, method, requestId) => {
         if (get().settings.databaseLocked) throw new Error('The database is locked. Unlock it in Settings first.');
         if (effectiveRole() !== 'owner') throw new Error('Only an owner can give credit back.');
         // A payment, not a refund of the sale: no delete code, nothing for Shopify (lib/writes/invoice-credit-payback.ts).
-        const out = await writePayBackCredit(clientPort, { invoiceId, amount, method }, {
+        const out = await writePayBackCredit(clientPort, { invoiceId, amount, method, requestId }, {
           log: (action, title, detail, ref) => { addActivityLog(action as LogEventType, title, detail, ref ?? ''); },
         });
         const { paidBack: _paidBack, ...updated } = out;
@@ -3106,7 +3132,10 @@ export const useAppStore = create<AppState>()(
           const existing = get().orders.find(o => o.id === orderId);
           const { patch: payload, ticked } = orderStatusPatch({ status: existing?.status ?? status, items: existing?.items, invoiceId: existing?.invoiceId }, status);
 
-          await setDoc(orderDocRef, payload, { merge: true });
+          // Not money: the screen shows the new stage at once, and goes back (the caller's error toast says why)
+          // if the write fails. A refund's own screen is the one that moves money, so Refunded waits.
+          const restore = existing && status !== 'Refunded' ? optimisticOrder(set, orderId, payload) : null;
+          try { await setDoc(orderDocRef, payload, { merge: true }); } catch (e) { restore?.(); throw e; }
           await addActivityLog('order.update', `Order ${orderId} status changed`, `New status: ${status}`, orderId);
           if (ticked) {
             await addActivityLog('order.update', `All items marked complete on ${orderId}`,
@@ -3141,7 +3170,9 @@ export const useAppStore = create<AppState>()(
 
         try {
           const orderDocRef = doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId);
-          await setDoc(orderDocRef, patch, { merge: true });
+          // Not money: the tick shows at once and is undone if the write fails (the caller toasts the error).
+          const restore = optimisticOrder(set, orderId, patch);
+          try { await setDoc(orderDocRef, patch, { merge: true }); } catch (e) { restore(); throw e; }
           console.log(`Successfully updated item #${itemIndex} status for order ${orderId}.`);
           if (nextStatus) {
             addActivityLog('order.update', `${orderId} → ${nextStatus}`, nextStatus === 'Completed' ? 'Every piece is finished' : `${order.items[itemIndex]?.description || `Item ${itemIndex + 1}`} is not finished`, orderId);
@@ -3530,11 +3561,11 @@ export const useAppStore = create<AppState>()(
             throw error;
         }
       },
-      recordOrderAdvance: async (orderId, amount, notes, method, exchanges) => {
+      recordOrderAdvance: async (orderId, amount, notes, method, exchanges, requestId) => {
         if (get().settings.databaseLocked) return null;
         try {
             // The one copy (lib/writes/order-advance.ts), which the iPhone app runs on the server too.
-            const updatedOrder = await writeOrderAdvance(clientPort, { orderId, amount, notes, method, exchanges }, {
+            const updatedOrder = await writeOrderAdvance(clientPort, { orderId, amount, notes, method, exchanges, requestId }, {
               log: (action, title, detail, ref) => addActivityLog(action as LogEventType, title, detail, ref ?? ''),
             }) as unknown as Order;
             syncOrderShopify(orderId, 'upsert');
