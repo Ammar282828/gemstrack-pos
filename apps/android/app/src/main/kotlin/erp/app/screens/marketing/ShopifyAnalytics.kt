@@ -1,5 +1,7 @@
 package erp.app.screens.marketing
 
+import erp.core.Json
+import kotlinx.coroutines.withContext
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -173,9 +175,16 @@ fun ShopifyVisitorsScreen() {
     // The previous report stays while the next period loads; a failure shows only when there is nothing to show.
     suspend fun load() {
         try {
-            val r = ShopReport.from(ErpApi.shared.get(path)) ?: throw ErpApi.Failure(0, "The ERP's answer couldn't be read.")
-            report = r
-            problem = null
+            // The last kept report at once, then the ERP's (it replaces it).
+            var got = false
+            ErpApi.shared.cachedThenFresh(path).collect { read ->
+                val r = withContext(kotlinx.coroutines.Dispatchers.Default) { ShopReport.from(Json.parse(read.text)) }
+                    ?: if (read.fresh) throw ErpApi.Failure(0, "The ERP's answer couldn't be read.") else return@collect
+                report = r
+                problem = null
+                got = true
+            }
+            if (!got) throw ErpApi.Failure(0, "The ERP's answer couldn't be read.")
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

@@ -447,6 +447,22 @@ class DesignWorkspaceModel(
     fun redoFromMaster(pageId: String, doc: MarketingValue) = mutate { it.redoFromMaster(pageId, doc) }
     fun addPages(pages: List<NewDesignPage>) = mutate { it.addPages(pages) }
     fun removePage(id: String) { mutate { it.removePage(id) }; thumbs.remove(id); previews.remove(id) }
+
+    /** Takes a page out and returns the way back: the whole work as it was, with the page's pictures (the work is immutable). */
+    fun removePageUndoable(id: String): () -> Unit {
+        val was = work ?: return {}
+        val thumb = thumbs[id]
+        val preview = previews[id]
+        removePage(id)
+        return {
+            if (work != null && work?.page(id) == null) {
+                work = was.setActive(id)
+                thumb?.let { thumbs[id] = it }
+                preview?.let { previews[id] = it }
+                changed()
+            }
+        }
+    }
     fun setMaster(id: String) = mutate { it.setMaster(id) }
     fun setActive(id: String) { work?.let { work = it.setActive(id) } }
     fun rename(name: String) = mutate { it.copy(name = name.take(120), dirty = true) }

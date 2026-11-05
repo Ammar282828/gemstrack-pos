@@ -1,5 +1,6 @@
 package erp.app
 
+import coil3.request.crossfade
 import android.app.Application
 import erp.app.auth.Session
 import erp.app.auth.Sessions
@@ -53,6 +54,8 @@ class ErpApp : Application(), SingletonImageLoader.Factory {
      */
     override fun newImageLoader(context: PlatformContext): ImageLoader =
         ImageLoader.Builder(context)
+            // A picture fades in over its placeholder (a request says crossfade(false) under Reduce Motion).
+            .crossfade(true)
             .memoryCache { MemoryCache.Builder().maxSizePercent(context, 0.15).build() }
             .diskCache {
                 DiskCache.Builder()

@@ -1,5 +1,6 @@
 package erp.app.ui
 
+import erp.app.ui.theme.tabular
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -286,7 +287,7 @@ fun PaymentSheet(
                 },
             )
             if (amount > 0) {
-                Text(Money.pkrLac(amount), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(Money.pkrLac(amount), style = MaterialTheme.typography.bodyMedium.tabular(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (owed != null && owed >= 1) {
                 TextButton(onClick = {

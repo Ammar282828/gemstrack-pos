@@ -360,16 +360,20 @@ private fun Orb(voice: VoiceModel) {
         else -> "Listen again"
     }
     val scale = if (voice.listening) 1f + voice.level * 0.35f else 1f
-    Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+    // The 48 dp box takes the tap (the disc inside draws 40).
+    Box(
+        Modifier.size(48.dp).clip(CircleShape)
+            .clickable(enabled = !voice.starting && !voice.thinking && !voice.writing, role = Role.Button) { voice.micTap(VoiceOverlay.state.language) }
+            .semantics { contentDescription = label },
+        contentAlignment = Alignment.Center,
+    ) {
         Box(
             Modifier.size(44.dp).scale(scale).clip(CircleShape)
                 .background(if (voice.listening) MaterialTheme.colorScheme.primary.copy(alpha = 0.25f) else Color.Transparent),
         )
         Box(
             Modifier.size(40.dp).clip(CircleShape)
-                .background(if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondaryContainer)
-                .clickable(enabled = !voice.starting && !voice.thinking && !voice.writing, role = Role.Button) { voice.micTap(VoiceOverlay.state.language) }
-                .semantics { contentDescription = label },
+                .background(if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondaryContainer),
             contentAlignment = Alignment.Center,
         ) {
             Icon(

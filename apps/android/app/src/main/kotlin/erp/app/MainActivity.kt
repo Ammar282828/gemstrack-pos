@@ -82,6 +82,8 @@ class MainActivity : FragmentActivity() {
                     AppLock.unlockIfNeeded(this@MainActivity)
                 }
                 before = s
+                // Once signed in: the most-opened reads are warmed behind the first screen (Prefetch).
+                if (s == Session.State.SignedIn) erp.app.data.Prefetch.warm(this@MainActivity, session)
                 if (s != Session.State.SignedIn) AppLock.signedOut()
                 AppLock.applyRecentsPolicy(this@MainActivity, hide = s == Session.State.SignedIn && AppLock.enabled && !House.isDemo)
             }
@@ -127,6 +129,20 @@ class MainActivity : FragmentActivity() {
             lifecycleScope.launch { runCatching { erp.app.device.Push.refreshAll() } }
         }
         lifecycleScope.launch { AppLock.unlockIfNeeded(this@MainActivity) }
+    }
+
+    /** What Meta+/ lists: the shell's keyboard shortcuts (RootScaffold). */
+    override fun onProvideKeyboardShortcuts(data: MutableList<android.view.KeyboardShortcutGroup>, menu: android.view.Menu?, deviceId: Int) {
+        super.onProvideKeyboardShortcuts(data, menu, deviceId)
+        val ctrl = android.view.KeyEvent.META_CTRL_ON
+        data += android.view.KeyboardShortcutGroup(
+            "ERP",
+            listOf(
+                android.view.KeyboardShortcutInfo("Search", android.view.KeyEvent.KEYCODE_K, ctrl),
+                android.view.KeyboardShortcutInfo("New sale", android.view.KeyEvent.KEYCODE_N, ctrl),
+                android.view.KeyboardShortcutInfo("New order", android.view.KeyEvent.KEYCODE_N, ctrl or android.view.KeyEvent.META_SHIFT_ON),
+            ),
+        )
     }
 
     override fun onDestroy() {

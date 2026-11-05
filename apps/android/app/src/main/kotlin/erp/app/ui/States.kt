@@ -1,5 +1,6 @@
 package erp.app.ui
 
+import coil3.request.crossfade
 import erp.app.ui.icons.Symbols
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
@@ -427,8 +428,9 @@ fun SkeletonAsyncImage(
     decodePx: Int? = null,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val request = remember(model, decodePx) {
-        coil3.request.ImageRequest.Builder(context).data(model).apply { if (decodePx != null) size(coil3.size.Size(decodePx, decodePx)) }.build()
+    val reduce = reduceMotion()
+    val request = remember(model, decodePx, reduce) {
+        coil3.request.ImageRequest.Builder(context).data(model).crossfade(!reduce).apply { if (decodePx != null) size(coil3.size.Size(decodePx, decodePx)) }.build()
     }
     coil3.compose.AsyncImage(
         model = request, contentDescription = contentDescription, modifier = modifier, contentScale = contentScale,

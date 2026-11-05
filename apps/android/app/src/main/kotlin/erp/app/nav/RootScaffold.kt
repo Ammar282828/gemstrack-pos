@@ -25,6 +25,16 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.vector.ImageVector
 import erp.app.ui.rememberErpMotion
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isMetaPressed
+import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -131,7 +141,28 @@ fun RootScaffold() {
         chosen = tabs.firstOrNull()?.id ?: SEARCH_TAB
     }
 
+    // Keyboard shortcuts (hardware keyboard, Chromebook, tablet with a case): Ctrl/Meta+K is Search, Ctrl+N a new sale, Ctrl+Shift+N a
+    // new order; MainActivity lists them for Meta+/ (`onProvideKeyboardShortcuts`). The root takes focus so keys reach it when no field has.
+    val rootFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { rootFocus.requestFocus() } }
+    val shortcuts = Modifier
+        .focusRequester(rootFocus)
+        .focusable()
+        .onPreviewKeyEvent { e ->
+            if (e.type != KeyEventType.KeyDown || !(e.isCtrlPressed || e.isMetaPressed)) return@onPreviewKeyEvent false
+            when {
+                e.key == Key.K -> { chosen = SEARCH_TAB; SearchFocus.ask(); true }
+                e.key == Key.N && canCreate -> {
+                    if (e.isShiftPressed) create.open("/orders/add")
+                    else if (create.sale != null) create.open(NEW_SALE_PATH) else create.open("/orders/add")
+                    true
+                }
+                else -> false
+            }
+        }
+
     NavigationSuiteScaffold(
+        modifier = shortcuts,
         navigationSuiteType = layout,
         // Glass: the ground (drawn once, behind everything) shows between the bars.
         containerColor = erp.app.ui.pageColor(androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffoldDefaults.containerColor),

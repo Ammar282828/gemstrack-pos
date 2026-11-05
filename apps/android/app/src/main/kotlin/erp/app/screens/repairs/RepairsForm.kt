@@ -1,5 +1,6 @@
 package erp.app.screens.repairs
 
+import erp.app.ui.theme.tabular
 import erp.app.ui.ContactPickButton
 import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.clickable
@@ -272,7 +273,7 @@ fun RepairsForm(editing: Repair?, onDismiss: () -> Unit, onSaved: (id: String, s
                     editing.payments.forEach { p ->
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(RepairsKit.paymentWords(p), Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-                            Text(Money.pkr(p.amount), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                            Text(Money.pkr(p.amount), style = MaterialTheme.typography.bodyMedium.tabular(), fontWeight = FontWeight.Medium)
                         }
                     }
                 }

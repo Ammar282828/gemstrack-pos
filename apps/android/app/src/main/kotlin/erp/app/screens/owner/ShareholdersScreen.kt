@@ -1,5 +1,6 @@
 package erp.app.screens.owner
 
+import erp.app.ui.theme.tabular
 import erp.app.ui.groupRowFill
 import erp.app.ui.BusyLabel
 import erp.app.ui.animatedItem
@@ -579,7 +580,7 @@ private fun FloorHistoryRow(entry: FloorHistoryEntry) {
     val who = entry.by?.let { "$whenSaid · $it" } ?: whenSaid
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(who, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
-        Text(Money.pkr(entry.value), style = MaterialTheme.typography.bodySmall)
+        Text(Money.pkr(entry.value), style = MaterialTheme.typography.bodySmall.tabular())
     }
 }
 

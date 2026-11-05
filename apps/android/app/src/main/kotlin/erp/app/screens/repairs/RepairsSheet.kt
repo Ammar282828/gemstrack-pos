@@ -1,5 +1,6 @@
 package erp.app.screens.repairs
 
+import erp.app.ui.theme.tabular
 import erp.app.ui.SkeletonShape
 import erp.app.ui.icons.Symbols
 import erp.app.ui.AppClock
@@ -239,7 +240,7 @@ private fun PieceRow(p: RepairPiece) {
             if (p.work.isNotEmpty()) Text(p.work, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             p.weightG?.let { w -> if (w > 0) Text(RepairsKit.grams(w), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
-        p.price?.let { price -> if (price > 0) Text(Money.pkr(price), style = MaterialTheme.typography.bodyMedium) }
+        p.price?.let { price -> if (price > 0) Text(Money.pkr(price), style = MaterialTheme.typography.bodyMedium.tabular()) }
     }
 }
 
@@ -264,7 +265,7 @@ private fun MoneyCard(r: Repair, now: Instant) {
 private fun PaymentLine(p: RepairPayment, now: Instant) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
         Text(RepairsKit.paymentWords(p, now), Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(Money.pkr(p.amount), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(Money.pkr(p.amount), style = MaterialTheme.typography.bodySmall.tabular(), color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

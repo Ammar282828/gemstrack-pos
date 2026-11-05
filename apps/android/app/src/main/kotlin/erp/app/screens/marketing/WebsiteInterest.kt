@@ -1,5 +1,7 @@
 package erp.app.screens.marketing
 
+import erp.core.Json
+import kotlinx.coroutines.withContext
 import erp.app.ui.SkeletonShape
 import erp.app.ui.Loading
 import erp.app.ui.icons.Symbols
@@ -110,9 +112,16 @@ fun WebsiteInterestScreen() {
                 problem = null
                 return
             }
-            val r = ErpApi.shared.get("/api/website/analytics?$query").let { SiteReport.from(it) } ?: throw ErpApi.Failure(0, "The ERP's answer couldn't be read.")
-            report = r
-            problem = null
+            // The last kept report at once, then the ERP's (it replaces it); the rankings follow the ERP's own days.
+            var last: SiteReport? = null
+            ErpApi.shared.cachedThenFresh("/api/website/analytics?$query").collect { read ->
+                val r = withContext(kotlinx.coroutines.Dispatchers.Default) { SiteReport.from(Json.parse(read.text)) }
+                    ?: if (read.fresh) throw ErpApi.Failure(0, "The ERP's answer couldn't be read.") else return@collect
+                report = r
+                problem = null
+                last = r
+            }
+            val r = last ?: throw ErpApi.Failure(0, "The ERP's answer couldn't be read.")
             // The piece rankings for the same days as the report.
             pieces = WebsiteApi.get("/api/website/interest?from=${r.from}&to=${r.to}", WebsiteInterestAnswer).pieces
         } catch (e: CancellationException) {

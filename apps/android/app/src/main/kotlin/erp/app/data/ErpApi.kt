@@ -22,6 +22,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody
+import kotlinx.coroutines.flow.mapNotNull
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
@@ -58,7 +59,11 @@ class ErpApi private constructor(private val initial: Business) {
      * long the ERP may take to answer: a page load that has not answered in 15 s is a dead line, not a slow server, so
      * it says so and lets the screen retry; writes and sends keep a minute.
      */
-    suspend fun data(path: String, method: String = "GET", json: Map<String, Any?>? = null, timeoutMs: Long? = null): String = withContext(Dispatchers.IO) {
+    suspend fun data(path: String, method: String = "GET", json: Map<String, Any?>? = null, timeoutMs: Long? = null): String =
+        dataSourced(path, method, json, timeoutMs).first
+
+    /** What [data] answers, and whether it is the kept last answer (no line) rather than the ERP's own. */
+    private suspend fun dataSourced(path: String, method: String, json: Map<String, Any?>?, timeoutMs: Long?): Pair<String, Boolean> = withContext(Dispatchers.IO) {
         val readsFromCache = method == "GET" && !House.isDemo
         try {
             val text = open(path, method, json, timeoutMs ?: if (method == "GET") GET_TIMEOUT_MS else SEND_TIMEOUT_MS, "application/json").use { r ->
@@ -72,16 +77,39 @@ class ErpApi private constructor(private val initial: Business) {
                 text
             }
             if (readsFromCache) ReadCache.store(text, path, id)
-            text
+            text to false
         } catch (e: Failure) {
             if (!Connection.lost(e)) throw e
             // No line: a read paints the last answer it had (nothing blocks on the network), anything else says so plainly.
             val cached = if (readsFromCache) ReadCache.load(path, id) else null
-            if (cached != null) cached
+            if (cached != null) cached to true
             else if (Connection.neverLeft(e)) throw Failure.needsConnection()
             else throw e
         }
     }
+
+    /** One answer of [cachedThenFresh]: [fresh] is false for the last answer kept on the phone, true for the ERP's own. */
+    class Read(val text: String, val fresh: Boolean)
+
+    /**
+     * Stale-while-revalidate for a read route: the last kept answer at once (if there is one), then the ERP's. The network answer is
+     * the authority: a screen that adopts the first must replace it with the second, and anything that decides money waits for
+     * `fresh`. The ERP failing after a kept answer was shown is thrown to the collector (it keeps what it has). A GET only; in
+     * the demo and for routes [ReadCache] never keeps there is no first answer, only the network's.
+     */
+    fun cachedThenFresh(path: String, timeoutMs: Long? = null): kotlinx.coroutines.flow.Flow<Read> = kotlinx.coroutines.flow.flow {
+        val kept = if (House.isDemo) null else withContext(Dispatchers.IO) { ReadCache.load(path, id) }
+        if (kept != null) emit(Read(kept, fresh = false))
+        val (text, fromCache) = dataSourced(path, "GET", null, timeoutMs)
+        // No line: the kept answer is all there is, and it was already shown.
+        if (!(fromCache && kept == text)) emit(Read(text, fresh = !fromCache))
+    }
+
+    /** [cachedThenFresh], decoded as a model (an answer that is not an object is skipped). */
+    inline fun <reified T : Any> modelCachedThenFresh(path: String): kotlinx.coroutines.flow.Flow<Pair<T, Boolean>> =
+        cachedThenFresh(path).mapNotNull { r ->
+            withContext(Dispatchers.Default) { Json.decode<T>(r.text) }?.let { it to r.fresh }
+        }
 
     /**
      * A file from the ERP whole (a PDF, a slip's picture): `data` answers text, which would damage the bytes. The same

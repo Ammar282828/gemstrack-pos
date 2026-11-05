@@ -1,5 +1,6 @@
 package erp.app.nav
 
+import erp.app.ui.theme.tabular
 import erp.app.ui.animatedItem
 import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.background
@@ -22,6 +23,7 @@ import androidx.compose.material3.Icon
 import erp.app.ui.IconButton
 import androidx.compose.material3.MaterialTheme
 import erp.app.ui.SearchBarField
+import androidx.compose.ui.focus.focusRequester
 import erp.app.ui.LedgerDivider
 import erp.app.ui.SegmentedColumn
 import androidx.compose.material3.Text
@@ -62,6 +64,17 @@ import erp.app.ui.theme.ErpColors
 import kotlinx.coroutines.delay
 
 /**
+ * Ctrl+K / Meta+K (RootScaffold) opens the Search tab with its field focused. The request waits here until the
+ * screen is on show (it may not be composed yet), then is taken.
+ */
+object SearchFocus {
+    var pending by androidx.compose.runtime.mutableStateOf(false)
+        private set
+    fun ask() { pending = true }
+    internal fun taken() { pending = false }
+}
+
+/**
  * The Search tab (SearchHome.swift). Idle it is one calm list in the house's colour: the ERP's whole map by group
  * (Analytics under "Overview"), then the account. Typed into, it finds places, customers, invoices, orders, stock and
  * repairs. No quick buttons and no recents (removed 2026-10-24). Every row is one `clickable` and nothing else:
@@ -91,6 +104,15 @@ fun SearchScreen() {
     val stock by rememberOrEmpty(asked) { rememberShelf(book.products) }
     val repairs by rememberOrEmpty(asked) { rememberShelf(book.repairs) }
 
+    val fieldFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+    LaunchedEffect(SearchFocus.pending) {
+        if (SearchFocus.pending) {
+            // The field is the list's first item: a frame for it to exist, then the cursor in it.
+            delay(50)
+            runCatching { fieldFocus.requestFocus() }
+            SearchFocus.taken()
+        }
+    }
     LaunchedEffect(text) {
         val next = text.trim()
         if (next.isEmpty()) { query = ""; expanded = emptySet(); return@LaunchedEffect }
@@ -104,7 +126,7 @@ fun SearchScreen() {
             SearchBarField(
                 value = text,
                 onValueChange = { text = it },
-                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp).focusRequester(fieldFocus),
                 placeholder = { Text("Customers, invoices, orders, stock, places", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 leadingIcon = { Icon(Symbols.Search, null) },
                 trailingIcon = { if (text.isNotEmpty()) IconButton({ text = "" }) { Icon(Symbols.Clear, "Clear") } },
@@ -186,7 +208,7 @@ fun SearchScreen() {
                     // The whole order (owner, 2026-11-03), what is owed under it.
                     Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         RowAmount(OrdersLogic.fullAmount(o))
-                        if (due > 0) Text("${Money.pkr(due)} due", style = MaterialTheme.typography.bodySmall, color = Tone.owed.color())
+                        if (due > 0) Text("${Money.pkr(due)} due", style = MaterialTheme.typography.bodySmall.tabular(), color = Tone.owed.color())
                     }
                 })
             }

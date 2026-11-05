@@ -118,6 +118,8 @@ private fun OverheadsBoard() {
     var loadError by remember { mutableStateOf<String?>(null) }
     var lines by remember { mutableStateOf<List<OverheadDraftLine>>(emptyList()) }
     var saving by remember { mutableStateOf(false) }
+    /** The plans on screen are the ERP's own answer, not the kept one: only then may they be saved over. */
+    var fresh by remember { mutableStateOf(false) }
     var saveError by remember { mutableStateOf<String?>(null) }
     var refreshing by remember { mutableStateOf(false) }
     // One clock for the whole screen, so the month boundary and the days-left figure cannot disagree part-way down.
@@ -134,16 +136,22 @@ private fun OverheadsBoard() {
     val dirtyNow by rememberUpdatedState(dirty)
     val ready = (answer != null || loadError != null) && invoices.loaded && orders.loaded
 
-    /** The plans, from the ERP. What arrives is adopted, but never over the top of an edit in progress. */
+    /**
+     * The plans: the last kept answer at once, then the ERP's (stale-while-revalidate; the ERP's answer is the authority).
+     * What arrives is adopted, but never over the top of an edit in progress. Saving waits for the ERP's own answer.
+     */
     suspend fun load() {
-        val wasDirty = dirtyNow
         try {
-            val a = ErpApi.shared.getModel<OverheadPlansAnswer>("/api/app/overheads") ?: throw ErpApi.Failure(0, "The ERP's answer couldn't be read.")
-            val at = Instant.now()
-            answer = a
-            loadError = null
-            now = at
-            if (!wasDirty) lines = OverheadDraftLine.lines(Overheads.planForMonth(a.plans, Overheads.monthKey(at)) ?: emptyList())
+            ErpApi.shared.modelCachedThenFresh<OverheadPlansAnswer>("/api/app/overheads").collect { (a, isFresh) ->
+                val wasDirty = dirtyNow
+                val at = Instant.now()
+                answer = a
+                loadError = null
+                now = at
+                if (isFresh) fresh = true
+                if (!wasDirty) lines = OverheadDraftLine.lines(Overheads.planForMonth(a.plans, Overheads.monthKey(at)) ?: emptyList())
+            }
+            if (answer == null) throw ErpApi.Failure(0, "The ERP's answer couldn't be read.")
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -166,7 +174,7 @@ private fun OverheadsBoard() {
      * lines are dropped there, as the page drops them.
      */
     fun save() {
-        if (saving) return
+        if (saving || !fresh) return
         saving = true
         saveError = null
         scope.launch {
@@ -257,7 +265,7 @@ private fun OverheadsBoard() {
         if (dirty) {
             Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth()) {
                 SaveBar(
-                    saveError, saving, monthName,
+                    saveError, saving, monthName, canSave = fresh,
                     onDiscard = { lines = OverheadDraftLine.lines(liveItems); saveError = null },
                     onSave = ::save,
                 )
@@ -407,7 +415,7 @@ private fun Sheet(
 // MARK: Saving
 
 @Composable
-private fun SaveBar(saveError: String?, saving: Boolean, monthName: String, onDiscard: () -> Unit, onSave: () -> Unit) {
+private fun SaveBar(saveError: String?, saving: Boolean, monthName: String, canSave: Boolean, onDiscard: () -> Unit, onSave: () -> Unit) {
     Column(
         Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).navigationBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -424,7 +432,7 @@ private fun SaveBar(saveError: String?, saving: Boolean, monthName: String, onDi
                 Icon(Symbols.Undo, contentDescription = null)
                 Text("  Discard")
             }
-            Button(onClick = onSave, enabled = !saving, modifier = Modifier.weight(1f)) {
+            Button(onClick = onSave, enabled = !saving && canSave, modifier = Modifier.weight(1f)) {
                 BusyLabel(saving) { Text("Save from $monthName") }
             }
         }
