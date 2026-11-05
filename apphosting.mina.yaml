@@ -149,10 +149,8 @@ env:
       - BUILD
       - RUNTIME
   # Who may sign in as an owner. Mina is behind sign-in; there is no open access here.
-  # potatomasta501 is out for now (owner, 2026-11-05: "give potatomasta employee access for now so i can test what all an
-  # employee can access"): it is in STAFF_EMAILS below. Put it back here, and out of there, when the test is done.
   - variable: NEXT_PUBLIC_STORE_ALLOWED_EMAILS
-    value: "minakhalid00@gmail.com,hmurtaza55@gmail.com"
+    value: "potatomasta501@gmail.com,minakhalid00@gmail.com,hmurtaza55@gmail.com"
     availability:
       - BUILD
       - RUNTIME
@@ -166,7 +164,7 @@ env:
   # Shop-floor staff (lib/roles.ts): sell, take orders, keep the bench moving; no money, analytics or settings.
   # The owner, 2026-11-05: i.jawedbega@gmail.com "erp access employee level".
   - variable: NEXT_PUBLIC_STORE_STAFF_EMAILS
-    value: "i.jawedbega@gmail.com,potatomasta501@gmail.com"
+    value: "i.jawedbega@gmail.com"
     availability:
       - BUILD
       - RUNTIME
