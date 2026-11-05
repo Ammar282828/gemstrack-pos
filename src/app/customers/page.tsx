@@ -2,6 +2,7 @@
 
 "use client";
 
+import { useSeesMoney } from '@/lib/use-sees-money';
 import { owedToYou } from '@/lib/owed';
 import { lacCrore } from '@/lib/money';
 import { WALK_IN_ENTITY } from '@/lib/walk-in';
@@ -51,6 +52,8 @@ const money = (n: number) => lacCrore(n);
 const pkr = (n: number) => `PKR ${money(n)}`;
 
 const CustomerRow: React.FC<{ customer: Customer; stats?: CustomerStats; onDelete: (id: string) => Promise<void> }> = ({ customer, stats, onDelete }) => {
+  // Staff see who a customer is and how many sales, never what they spent or owe (docs/decisions.md#staff-see-no-money).
+  const seesMoney = useSeesMoney();
   return (
     <TableRow>
       <TableCell>
@@ -60,15 +63,15 @@ const CustomerRow: React.FC<{ customer: Customer; stats?: CustomerStats; onDelet
         </Link>
       </TableCell>
       <TableCell className="text-muted-foreground">{customer.phone || '-'}</TableCell>
-      <TableCell className="text-right tabular-nums">
+      {seesMoney && <TableCell className="text-right tabular-nums">
         {stats?.spent ? <span className="font-medium">{pkr(stats.spent)}</span> : <span className="text-muted-foreground">—</span>}
         {stats?.count ? <span className="block text-2xs text-muted-foreground">{stats.count} sale{stats.count === 1 ? '' : 's'}</span> : null}
-      </TableCell>
-      <TableCell className="text-right tabular-nums">
+      </TableCell>}
+      {seesMoney && <TableCell className="text-right tabular-nums">
         {stats?.owed
           ? <span className="font-medium text-tone-owed-ink">{pkr(stats.owed)}</span>
           : <span className="text-muted-foreground">—</span>}
-      </TableCell>
+      </TableCell>}
       <TableCell className="hidden lg:table-cell text-muted-foreground text-sm whitespace-nowrap">
         {stats?.lastAt ? formatDate(stats.lastAt, 'd MMM yy') : '—'}
       </TableCell>
@@ -77,11 +80,11 @@ const CustomerRow: React.FC<{ customer: Customer; stats?: CustomerStats; onDelet
       </TableCell>
       <TableCell className="text-right">
         <div className="flex justify-end gap-1">
-          <Button asChild size="sm" variant="ghost" aria-label="Open ledger">
+          {seesMoney && <Button asChild size="sm" variant="ghost" aria-label="Open ledger">
             <Link href={`/hisaab/${customer.id}?type=customer`}>
               <BookUser className="w-4 h-4" />
             </Link>
-          </Button>
+          </Button>}
           <Button asChild size="sm" variant="ghost" aria-label="Edit">
             <Link href={`/customers/${customer.id}/edit`}>
               <Edit3 className="w-4 h-4" />
@@ -95,8 +98,9 @@ const CustomerRow: React.FC<{ customer: Customer; stats?: CustomerStats; onDelet
 
 /** The app's customer row: a monogram, the name, phone and history; what they owe (amber) or what they have bought (lac). */
 const CustomerCard: React.FC<{ customer: Customer; stats?: CustomerStats; onDelete: (id: string) => Promise<void> }> = ({ customer, stats }) => {
-    const owing = !!stats && stats.owed > 0;
-    const spent = !!stats && stats.spent > 0;
+    const seesMoney = useSeesMoney();
+    const owing = seesMoney && !!stats && stats.owed > 0;
+    const spent = seesMoney && !!stats && stats.spent > 0;
     return (
     <div className="py-3">
         <Link href={`/customers/${customer.id}`} className="press-row flex items-start gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-md">
@@ -125,9 +129,9 @@ const CustomerCard: React.FC<{ customer: Customer; stats?: CustomerStats; onDele
             ) : null}
         </Link>
         <div className="-mb-1 mt-1 flex gap-1 pl-[52px]">
-            <Button asChild size="sm" variant="ghost">
+            {seesMoney && <Button asChild size="sm" variant="ghost">
                 <Link href={`/hisaab/${customer.id}?type=customer`}><BookUser className="mr-1.5 h-4 w-4" /> Ledger</Link>
-            </Button>
+            </Button>}
             <Button asChild size="sm" variant="ghost">
                 <Link href={`/customers/${customer.id}/edit`}><Edit3 className="mr-1.5 h-4 w-4" /> Edit</Link>
             </Button>
@@ -463,6 +467,7 @@ const MergeCustomersDialog: React.FC<{
 };
 
 export default function CustomersPage() {
+  const seesMoney = useSeesMoney();
   const [searchTerm, setSearchTerm] = useState('');
   // Filtering follows typing, never holds it up.
   const deferredSearch = useDeferredValue(searchTerm);
@@ -643,8 +648,8 @@ export default function CustomersPage() {
                   <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Phone</TableHead>
-                    <TableHead className="text-right">Spent</TableHead>
-                    <TableHead className="text-right">Owes</TableHead>
+                    {seesMoney && <TableHead className="text-right">Spent</TableHead>}
+                    {seesMoney && <TableHead className="text-right">Owes</TableHead>}
                     <TableHead className="hidden lg:table-cell">Last sale</TableHead>
                     <TableHead className="hidden xl:table-cell">Address</TableHead>
                     <TableHead className="text-right w-[7rem]">Actions</TableHead>
@@ -667,7 +672,7 @@ export default function CustomersPage() {
     <PageShell
       subtitle={<>
         {customers.length} on file
-        {totals.owingCount > 0 && <> · {totals.owingCount} owing {pkr(totals.owed)}</>}
+        {seesMoney && totals.owingCount > 0 && <> · {totals.owingCount} owing {pkr(totals.owed)}</>}
       </>}
       action={<>
           {spamCandidates.length > 0 && (
@@ -689,7 +694,7 @@ export default function CustomersPage() {
 
       <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
         <FigureTile label="Customers" value={customers.length.toLocaleString()} />
-        <FigureTile
+        {seesMoney && <FigureTile
           label="Owed to you"
           value={pkr(totals.owed)}
           tint={totals.owed > 0 ? 'owed' : undefined}
@@ -698,15 +703,15 @@ export default function CustomersPage() {
             {totals.walkIn > 0 && <> · walk-ins {pkr(totals.walkIn)}</>}
             {totals.nameOnly > 0 && <> · typed names {pkr(totals.nameOnly)}</>}
           </>}
-        />
+        />}
         <FigureTile label={`Bought in ${DORMANT_AFTER_MONTHS}m`} value={(groups.active.length + groups.owing.length).toLocaleString()} />
-        <FigureTile label="Lifetime sales" value={`PKR ${formatAmount(totals.spent, true)}`} />
+        {seesMoney && <FigureTile label="Lifetime sales" value={`PKR ${formatAmount(totals.spent, true)}`} />}
       </div>
 
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
         <SearchField className="lg:max-w-md lg:flex-1" value={searchTerm} onChange={setSearchTerm} placeholder="Search name, phone, email" />
         <ChipRow label="Show" className="lg:mx-0 lg:px-0">
-          {([['all', 'Everyone'], ['owing', 'Owing'], ['active', 'Recent']] as const).map(([id, label]) => (
+          {([['all', 'Everyone'], ['owing', 'Owing'], ['active', 'Recent']] as const).filter(([id]) => seesMoney || id !== 'owing').map(([id, label]) => (
             <FilterChip key={id} title={label} chosen={view === id} onClick={() => setView(id)} />
           ))}
         </ChipRow>
@@ -721,8 +726,8 @@ export default function CustomersPage() {
         />
       ) : (
         <div className="space-y-5">
-          <Section title="Owing money" hint="most owed first" people={visible.owing} />
-          <Section title="Recent" hint={`bought in the last ${DORMANT_AFTER_MONTHS} months`} people={visible.active} />
+          {seesMoney && <Section title="Owing money" hint="most owed first" people={visible.owing} />}
+          <Section title="Recent" hint={`bought in the last ${DORMANT_AFTER_MONTHS} months`} people={seesMoney ? visible.active : [...visible.owing, ...visible.active]} />
           <Section title="Quiet" hint="no sale in a year" people={visible.quiet} />
         </div>
       )}

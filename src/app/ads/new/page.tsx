@@ -19,6 +19,7 @@
  * budget are remembered on this device.
  */
 
+import { useSpendHidden } from '@/lib/use-sees-money';
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -113,6 +114,8 @@ function NewAd() {
   const [button, setButton] = useState<AdPlan['button']>('SHOP_NOW');
   const [audience, setAudience] = useState<AudienceDraft>(defaultDraft());
   const [budgetKind, setBudgetKind] = useState<'daily' | 'total'>('daily');
+  // The staff member who also runs the marketing: no budget step; her ad is saved paused at the smallest budget (lib/ads/spend.ts).
+  const hide = useSpendHidden();
   const [amount, setAmount] = useState<number | undefined>(1000);
   const [startLater, setStartLater] = useState(false);
   const [start, setStart] = useState(localInput(Date.now() + 3_600_000));
@@ -301,7 +304,7 @@ function NewAd() {
       .then(({ template: t }) => {
         setGoal(t.goal); setText(t.text); setHeadline(t.headline); if (t.link) setLink(t.link); setButton(t.button);
         setAudience({ ...defaultDraft(), ...t.audience });
-        if (t.budget.amount > 0) { setBudgetKind(t.budget.kind); setAmount(t.budget.amount); }
+        if (!hide && t.budget?.amount > 0) { setBudgetKind(t.budget.kind); setAmount(t.budget.amount); }
         if (t.source.kind === 'post') {
           setKind('post');
           setPost({ id: t.source.mediaId, caption: t.source.caption ?? '', type: 'IMAGE', thumb: t.source.thumb ?? null, permalink: t.source.permalink ?? null, at: null, boostable: true, why: null });
@@ -386,13 +389,13 @@ function NewAd() {
       : { kind: 'photos', photos: readyPhotos.map(({ hash, url, headline: h, link: l }) => ({ hash, url, headline: h, link: l })), vertical };
     const p: AdPlan = {
       goal, source, text, headline, link, button, audience,
-      budget: { kind: budgetKind, amount: amount ?? 0, start: startIso, end: endIso },
-      launch, name: '',
-      bidding: bidKind === 'min_roas' ? { kind: 'min_roas', roas: roas ?? 0 } : bidKind === 'lowest' ? { kind: 'lowest' } : { kind: bidKind, amount: bidAmount ?? 0 },
-      hours: hoursOn ? { days: hourDays, from: hourFrom * 60, to: hourTo * 60 } : null,
+      budget: hide ? { kind: 'daily', amount: 1, start: null, end: null } : { kind: budgetKind, amount: amount ?? 0, start: startIso, end: endIso },
+      launch: hide ? 'paused' : launch, name: '',
+      bidding: hide ? { kind: 'lowest' } : bidKind === 'min_roas' ? { kind: 'min_roas', roas: roas ?? 0 } : bidKind === 'lowest' ? { kind: 'lowest' } : { kind: bidKind, amount: bidAmount ?? 0 },
+      hours: hide ? null : hoursOn ? { days: hourDays, from: hourFrom * 60, to: hourTo * 60 } : null,
     };
     return { ...p, name: nameTouched && name.trim() ? name.trim() : defaultName(p) };
-  }, [kind, post, vid, adCode, codeCheck, catalogId, setId, sets, catWho, readyPhotos, vertical, goal, text, headline, link, button, audience, budgetKind, amount, startIso, endIso, launch, name, nameTouched, bidKind, bidAmount, roas, hoursOn, hourDays, hourFrom, hourTo]);
+  }, [kind, post, vid, adCode, codeCheck, catalogId, setId, sets, catWho, readyPhotos, vertical, goal, text, headline, link, button, audience, budgetKind, amount, startIso, endIso, launch, name, nameTouched, bidKind, bidAmount, roas, hoursOn, hourDays, hourFrom, hourTo, hide]);
   // The days it would run through that the house keeps free of product ads (Taheri's Bohra calendar).
   const quiet = useMemo(() => {
     if (!STORE_AD_STUDIO || !BRAND.calendar) return [];
@@ -404,7 +407,7 @@ function NewAd() {
     pageId: status?.settings?.pageId ?? null, instagramUserId: status?.settings?.instagramUserId ?? null,
     instagramUsername: status?.settings?.instagramUsername ?? null, whatsappGreeting: status?.settings?.whatsappGreeting ?? null,
     pixelId: status?.settings?.pixelId ?? null,
-    currency, minDaily: status?.account?.minDailyBudget ?? null,
+    currency, minDaily: hide ? null : status?.account?.minDailyBudget ?? null,
   };
   const problems = planProblems(plan, ctx);
   const stillUploading = photos.some(p => p.uploading) || (kind === 'video' && (vid?.phase === 'uploading' || vid?.phase === 'processing'));
@@ -436,7 +439,8 @@ function NewAd() {
     window.scrollTo({ top: 0 });
   };
 
-  const summary = planSummary(plan, currency);
+  // Her summary names no money: the placeholder budget is not hers to read.
+  const summary = planSummary(plan, currency).filter(l => !hide || !l.startsWith('Budget:'));
 
   return (
     <PageShell title="New ad" icon={<Rocket className="h-7 w-7" />} width="narrow" subtitle={status?.settings?.instagramUsername ? `As @${status.settings.instagramUsername}` : undefined}>
@@ -686,6 +690,11 @@ function NewAd() {
             <AudienceEditor draft={audience} onChange={setAudience} goal={goalOf(goal).optimization} currency={currency} />
           </Card>
 
+          {hide ? (
+            <Card n={usingPost ? 4 : 5} title="Budget">
+              <p className="text-sm text-muted-foreground">An owner sets the budget and turns the ad on. Yours is saved paused in Campaigns, and waits there.</p>
+            </Card>
+          ) : (
           <Card n={usingPost ? 4 : 5} title="Budget and dates">
             <div className="inline-flex rounded-full border p-0.5 text-xs">
               {(['daily', 'total'] as const).map(k => <button key={k} type="button" onClick={() => { setBudgetKind(k); if (k === 'total' && !days) setDays(7); }} className={cn('rounded-full px-3 py-1.5 min-h-0', budgetKind === k ? 'bg-primary text-primary-foreground' : 'text-muted-foreground')}>{k === 'daily' ? 'Per day' : 'In total'}</button>)}
@@ -763,7 +772,8 @@ function NewAd() {
             {amount ? <p className="text-xs text-muted-foreground">{budgetKind === 'daily'
               ? days ? <>At most about <b className="text-foreground">{money(amount * days, currency)}</b> over {days} days (Meta may spend a little more on a good day and less on others).</> : <>About <b className="text-foreground">{money(amount * 30, currency)}</b> a month until it’s paused.</>
               : <>About <b className="text-foreground">{money(amount / (days || 1), currency)}</b> a day over {days} days.</>}</p> : null}
-          </Card>
+                    </Card>
+          )}
 
           <Card n={usingPost ? 5 : 6} title="Preview">
             {!previews ? (
@@ -781,14 +791,14 @@ function NewAd() {
 
           <Card n={usingPost ? 6 : 7} title="Make it">
             <Input value={nameTouched ? name : plan.name} onChange={e => { setName(e.target.value); setNameTouched(true); }} className="h-10 text-base sm:text-sm" aria-label="Name in Ads Manager" />
-            <div className="grid grid-cols-2 gap-1.5">
+            {!hide && <div className="grid grid-cols-2 gap-1.5">
               {(['paused', 'live'] as const).map(l => (
                 <button key={l} type="button" onClick={() => setLaunch(l)} className={cn('rounded-lg border p-3 text-left', launch === l ? 'border-primary ring-1 ring-primary' : '')}>
                   <span className="block text-sm font-medium">{l === 'paused' ? 'Save it paused' : 'Put it live'}</span>
                   <span className="block text-[11px] text-muted-foreground">{l === 'paused' ? 'Look it over in Campaigns, switch it on there.' : 'Starts once Meta approves it.'}</span>
                 </button>
               ))}
-            </div>
+            </div>}
             <ul className="text-xs text-muted-foreground space-y-0.5 rounded-lg bg-muted/40 p-3">{summary.map((s, i) => <li key={i}>{s}</li>)}</ul>
             {problems.length > 0 && (
               <ul className="text-xs space-y-1">{problems.map((p, i) => <li key={i} className="flex gap-1.5 text-warning"><AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />{p}{/Setup/.test(p) && <Link href="/ads/setup" className="text-primary shrink-0">Setup →</Link>}</li>)}</ul>

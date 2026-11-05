@@ -62,6 +62,37 @@ export const isMarketing = (email: string | undefined | null): boolean => {
 };
 
 /**
+ * Someone on BOTH the staff and the marketing lists (the owner, 2026-11-05: the employee who also runs
+ * the marketing). She is staff for the books — `roleForEmail` still says 'staff', so she is money-blind
+ * (`seesMoney`) and reads the books through /api/staff/* like any other employee — and she also gets
+ * marketing's places. Owners are never one: they have everything anyway.
+ */
+export const alsoMarketing = (email: string | undefined | null): boolean => {
+  const e = normalise(email);
+  return !!e && isStaff(e) && MARKETING_EMAILS.includes(e);
+};
+
+/**
+ * Who may use the marketing places (Ads, Insights, Posts, Design, Website tools and their routes): an owner,
+ * a marketing account, or a staff member who is also on the marketing list.
+ */
+export const marketingAccess = (email: string | undefined | null): boolean =>
+  isOwner(email) || isMarketing(email) || alsoMarketing(email);
+
+/**
+ * Who may see an amount outside the one bill in hand: owners only (the owner, 2026-11-05: staff
+ * "not view any sort of numbers or amounts"). Staff, with or without marketing, and the marketing
+ * account (who reads no books at all) are money-blind; a person with no role sees nothing anyway.
+ */
+export const seesMoney = (email: string | undefined | null): boolean => isOwner(email);
+
+/**
+ * Ad spend, budgets, cost per result, ROAS and sales figures are withheld from a staff member who runs
+ * marketing (the owner, 2026-11-05: "everything but spend"). The pure marketing account keeps what it had.
+ */
+export const spendHidden = (email: string | undefined | null): boolean => alsoMarketing(email);
+
+/**
  * Karigars are resolved from Firestore (they have a record), so this cannot
  * decide between 'karigar' and 'none' on its own — callers that need the
  * distinction ask karigar-auth. Everything else is decided here.
@@ -128,6 +159,9 @@ export const STAFF_HIDDEN_FIELDS: Record<string, readonly string[]> = {
   invoices: ['ratesApplied'],
   // A karigar's own rates and running balance.
   karigars: ['ratePerGram', 'openingBalance', 'notes', 'email'],
+  // Aggregates no page writes today; named so one added later never reaches the shop floor
+  // (the owner, 2026-11-05: staff see no customer's spending or balance).
+  customers: ['totalSpent', 'lifetimeSpend', 'balance', 'creditBalance', 'openingBalance', 'outstanding'],
   // What the shop paid for stock, versus what it asks for it.
   products: ['costPrice', 'purchasePrice', 'supplier'],
 };

@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { randomBytes } from 'crypto';
 import { publicOrigin } from '@/lib/social/gate';
 import { adsGate } from '@/lib/ads/gate';
+import { configBlocked } from '@/lib/ads/spend';
 import { appSecret, authorizeUrl, META_APP_ID } from '@/lib/ads/meta';
 import { loadAdsSettings } from '@/lib/ads/settings';
 
@@ -17,6 +18,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   const who = await adsGate(req);
   if (who instanceof NextResponse) return who;
+  { const blocked = configBlocked(who); if (blocked) return blocked; }
   if (!META_APP_ID()) return NextResponse.json({ error: 'No Meta app is set for this shop (META_APP_ID).' }, { status: 503 });
   if (!(await appSecret())) return NextResponse.json({ error: 'The Meta app secret is not in this project yet — step 2 on this page.' }, { status: 503 });
   const state = randomBytes(18).toString('base64url');

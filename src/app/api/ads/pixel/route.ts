@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { adsFail, adsGate, noStore } from '@/lib/ads/gate';
+import { configBlocked } from '@/lib/ads/spend';
 import { createPixel, listPixels, pixelState } from '@/lib/ads/pixel';
 import { saveAdsSettings } from '@/lib/ads/settings';
 
@@ -27,6 +28,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const who = await adsGate(req);
   if (who instanceof NextResponse) return who;
+  { const blocked = configBlocked(who); if (blocked) return blocked; }
   try {
     const b = (await req.json().catch(() => ({}))) as { action?: string; name?: string; id?: string | null };
     if (b.action === 'create') {

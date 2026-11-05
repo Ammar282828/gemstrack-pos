@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { verifyRequestEmail } from '@/lib/karigar-auth';
-import { roleForEmail } from '@/lib/roles';
+import { marketingAccess } from '@/lib/roles';
 import { karachiDay } from '@/lib/website/piece-interest';
 import { LIVE_MS, liveSummary, SITE_DAYS, SITE_LIVE, summarize, type DayDoc, type LiveDoc } from '@/lib/website/site-analytics';
 
@@ -16,8 +16,8 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
   const email = await verifyRequestEmail(req);
   if (!email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const role = roleForEmail(email);
-  if (role !== 'owner' && role !== 'staff' && role !== 'marketing') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  // Visitor numbers are marketing's, not the shop floor's (docs/decisions.md#staff-see-no-money).
+  if (!marketingAccess(email)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const now = Date.now();
   const live = adminDb.collection(SITE_LIVE);

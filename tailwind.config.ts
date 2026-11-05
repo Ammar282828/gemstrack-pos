@@ -98,6 +98,15 @@ export default {
   				'4': 'hsl(var(--chart-4))',
   				'5': 'hsl(var(--chart-5))'
   			},
+  			// Analytics' fixed series colours (globals.css --ana-1…6): bg-ana-1, text-ana-2.
+  			ana: {
+  				'1': 'var(--ana-1)',
+  				'2': 'var(--ana-2)',
+  				'3': 'var(--ana-3)',
+  				'4': 'var(--ana-4)',
+  				'5': 'var(--ana-5)',
+  				'6': 'var(--ana-6)'
+  			},
   			sidebar: {
   				DEFAULT: 'hsl(var(--sidebar-background))',
   				foreground: 'hsl(var(--sidebar-foreground))',

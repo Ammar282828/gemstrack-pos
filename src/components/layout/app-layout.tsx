@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
 import { Gem, LogOut, WifiOff, Search, Sun, Moon } from 'lucide-react';
-import { NEW_SALE, SETTINGS, sidebarFor, forRole, locate, pageTitle, type NavEntry } from '@/lib/nav';
+import { NEW_SALE, SETTINGS, sidebarFor, forRole, locate, pageTitle, type NavEntry, type NavRole } from '@/lib/nav';
 import { useWorkDrafts } from '@/components/drafts/use-work-drafts';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAppStore } from '@/lib/store';
@@ -31,7 +31,8 @@ import { useAuth } from '@/components/auth/google-auth-gate';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { useScrolled, useTitleScrolledOut } from '@/lib/use-scrolled';
-import { roleForEmail } from '@/lib/roles';
+import { roleForEmail, alsoMarketing } from '@/lib/roles';
+import { staffBlocked } from '@/lib/staff-pages';
 import { devRole, captureDevRole } from '@/lib/dev-role';
 import { writeDeviceTheme } from '@/lib/theme-cache';
 import { RateChip, RateSheet } from '@/components/rates/rate-chip';
@@ -145,19 +146,23 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     : null;
   useEffect(() => { if (marketingHome) router.replace(marketingHome); }, [marketingHome, router]);
 
+  // A staff member typing an address the menu hides (analytics, money, settings, ad setup…) goes home (lib/staff-pages.ts).
+  const staffBarred = (devRole() ?? roleForEmail(user?.email)) === 'staff' && staffBlocked(pathname, !devRole() && alsoMarketing(user?.email));
+  useEffect(() => { if (staffBarred) router.replace('/'); }, [staffBarred, router]);
+
   // The page's tab in view on a phone's row: Hisaab, fifth of Money's, opened scrolled out of sight.
   // Above the early return, as every hook here (docs/decisions.md#hooks).
   useEffect(() => {
     document.querySelector('.phone-tabs [aria-current="page"]')?.scrollIntoView({ block: 'nearest', inline: 'center' });
   }, [pathname, isStoreHydrated]);
 
-  if (!isStoreHydrated) return null;
+  if (!isStoreHydrated || staffBarred) return null;
 
   // Staff see only what they can actually reach. This is presentation, not
   // protection — the boundary is firestore.rules — but a menu full of doors
   // that error on opening is its own kind of broken.
   const role = devRole() ?? roleForEmail(user?.email);
-  const navRole = role === 'marketing' ? 'marketing' : role === 'staff' ? 'staff' : 'owner';
+  const navRole: NavRole = role === 'marketing' ? 'marketing' : role === 'staff' ? (!devRole() && alsoMarketing(user?.email) ? 'staffMarketing' : 'staff') : 'owner';
   const visibleGroups = sidebarFor(navRole);
   const settingsEntry = forRole(SETTINGS, navRole);
   const newSaleEntry = forRole(NEW_SALE, navRole);

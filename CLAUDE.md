@@ -166,6 +166,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Net profit](docs/decisions.md#net-profit) — profit less running costs (not drawings), never revenue less expenses; profit is the per-sale estimate, or revenue less recorded goods where a house records them (Mina: Gross profit); margin = net ÷ revenue
 - [Exchange as cash](docs/decisions.md#exchange-as-cash) — in Cash In and in revenue (`invoiceSaleValue`)
 - [Analytics default: this month](docs/decisions.md#analytics-default-this-month) — the 1st to today, not a rolling 30 days; Home's ledger too
+- [Analytics redesign](docs/decisions.md#analytics-redesign) — Overview: 4 figures vs the period before + one picture per question, each a link to its page; Profit, Cash, Spending, metal pages; one computation `lib/analytics/books.ts`; one y-axis, `--ana-*` colours
 
 **People and sign-in**
 - [Add photos sign-in](docs/decisions.md#add-photos-sign-in) — superseded 2026-09-30: every house signs in
@@ -173,6 +174,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Signed-in defaults](docs/decisions.md#signed-in-defaults) — `NEXT_PUBLIC_STORE_PEOPLE`; Taken by, Workshop; Orders/Invoices: all, yours lit
 - [Karigar sign-in](docs/decisions.md#karigar-sign-in) — in-app browsers; `[sign-in]` in the log
 - [Marketing role](docs/decisions.md#marketing-role) — `NEXT_PUBLIC_STORE_MARKETING_EMAILS`; Marketing group only, via the server; audiences owners'
+- [Staff see no money](docs/decisions.md#staff-see-no-money) — staff see amounts on orders, invoices, repairs and drafts only; Home has no figures but their shortcuts and Help (`/help`); no analytics, expenses, customer totals or settings; a staff member also on the marketing list gets Marketing and Ads (made paused, no spend; `lib/ads/spend.ts`)
 - [Not your own action](docs/decisions.md#not-your-own-action) — an event push skips every phone of the person who caused it; reports, reminders and the test still reach them
 - [Delete code](docs/decisions.md#delete-code) — every delete asks; the server checks it
 

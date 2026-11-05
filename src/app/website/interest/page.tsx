@@ -12,6 +12,7 @@
  * Counted anonymously by the site itself (POST /api/public/events; lib/website/site-analytics.ts). Live is its own tab.
  */
 
+import { useSpendHidden } from '@/lib/use-sees-money';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
@@ -310,7 +311,9 @@ function SourceTable({ now }: { now: Summary }) {
  */
 export default function InterestPage() {
   const [view, setView] = useView('visitors');
-  if (!STORE_SHOPIFY_ANALYTICS) return <CatalogueInterestPage />;
+  // The Shopify view is sales and revenue, owners' (its routes refuse anyone else); the staff member who runs marketing gets the counters only.
+  const noMoney = useSpendHidden();
+  if (!STORE_SHOPIFY_ANALYTICS || noMoney) return <CatalogueInterestPage />;
   if (view === 'catalogue') return <CatalogueInterestPage switcher={<ViewSwitch view={view} onChange={setView} />} />;
   return (
     <PageShell subtitle="Shopify's own analytics for the online store — owners only">

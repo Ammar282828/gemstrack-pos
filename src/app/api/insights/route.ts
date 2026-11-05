@@ -19,6 +19,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { adsFail, adsGate, noStore } from '@/lib/ads/gate';
+import { adsJson, withoutSpend } from '@/lib/ads/spend';
 import { accountSummary, loadAdsSettings } from '@/lib/ads/settings';
 import { remembered } from '@/lib/ads/swr';
 import { findingsFor, isInsightRange, previousWindow, windowFor, type InsightRange } from '@/lib/social-insights/shape';
@@ -49,11 +50,13 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Choose this shop’s Instagram account and Facebook Page on Ads → Setup first.' }, { status: 409 });
     }
     const fresh = q.get('fresh') === '1';
-    if (part !== 'findings') return NextResponse.json(await cached(part, range, s, fresh), { headers: noStore });
+    if (part !== 'findings') return adsJson(who, await cached(part, range, s, fresh), { headers: noStore });
     // The findings read all three parts (kept five minutes, so the tabs after this open at once).
     const [o, p, a] = await Promise.all([cached('overview', range, s, fresh), cached('posts', range, s, fresh), cached('audience', range, s, fresh)]);
-    const out = { findings: findingsFor(o as never, p as never, a as never, Date.now()), part, range, at: new Date().toISOString() };
-    return NextResponse.json(out, { headers: noStore });
+    // Her findings are written without the paid side (spend, and what it bought), as her overview is (lib/ads/spend.ts).
+    const overview = withoutSpend(who) ? { ...o, paid: null } : o;
+    const out = { findings: findingsFor(overview as never, p as never, a as never, Date.now()), part, range, at: new Date().toISOString() };
+    return adsJson(who, out, { headers: noStore });
   } catch (e) {
     return adsFail(e, `insights ${part}`);
   }

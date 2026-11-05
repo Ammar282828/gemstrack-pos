@@ -118,6 +118,10 @@ body {
     --chart-3: 35.2 91.4% 58.4%;
     --chart-4: 280.7 80% 59.8%;
     --chart-5: 340.8 82.2% 61.6%;
+    /* Analytics' categorical series, in one fixed order (components/analytics/charts.tsx): gold, blue, orange, green,
+       violet, pink. Colour follows the entity, never its rank. Both houses wear the same set: Mina's blocks below
+       do not name them, so they inherit. Aqua and pink are short of contrast on white: their series carry labels. */
+    --ana-1: #b07a00; --ana-2: #2a78d6; --ana-3: #eb6834; --ana-4: #1baf7a; --ana-5: #6250d6; --ana-6: #e87ba4;
 
     /* The app's Tone (lib/tones.ts): a fill (tints, bars, icons) and an ink (text, small icons).
        Apple's system colours and their accessible variants. Both houses wear the same set. */
@@ -225,6 +229,7 @@ body {
     --chart-3: 28 48% 68%;
     --chart-4: 340 42% 62%;
     --chart-5: 205 38% 58%;
+    --ana-1: #c98500; --ana-2: #3987e5; --ana-3: #d95926; --ana-4: #199e70; --ana-5: #9085e9; --ana-6: #d55181;
 
     /* In dark the ink is the fill: the system colours are already bright enough to read. */
     --tone-late: 4 100% 61%;      --tone-late-ink: 4 100% 61%;

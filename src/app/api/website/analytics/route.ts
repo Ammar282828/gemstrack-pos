@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { verifyRequestEmail } from '@/lib/karigar-auth';
-import { roleForEmail } from '@/lib/roles';
+import { marketingAccess } from '@/lib/roles';
 import { karachiDay } from '@/lib/website/piece-interest';
 import { addDays, daysBetween, period, series, SITE_DAYS, SITE_VISITORS, summarize, type DayDoc } from '@/lib/website/site-analytics';
 
@@ -39,8 +39,8 @@ async function uniqueVisitors(from: string, to: string, today: string, days: Day
 export async function GET(req: NextRequest) {
   const email = await verifyRequestEmail(req);
   if (!email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const role = roleForEmail(email);
-  if (role !== 'owner' && role !== 'staff' && role !== 'marketing') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  // Visitor numbers are marketing's, not the shop floor's (docs/decisions.md#staff-see-no-money).
+  if (!marketingAccess(email)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const q = req.nextUrl.searchParams;
   const today = karachiDay();

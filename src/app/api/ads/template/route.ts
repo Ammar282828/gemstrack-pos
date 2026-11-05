@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { adsFail, adsGate, noStore } from '@/lib/ads/gate';
+import { adsJson } from '@/lib/ads/spend';
 import { actId, graph, MetaAdsError } from '@/lib/ads/meta';
 import { requireAccount } from '@/lib/ads/settings';
 import { fromMinor, type AdsAccount } from '@/lib/ads/shape';
@@ -77,7 +78,7 @@ export async function GET(req: NextRequest) {
       budget: daily ? { kind: 'daily', amount: daily } : { kind: 'total', amount: lifetime || 0 },
       name: String(ad.name || ''),
     };
-    return NextResponse.json({ template }, { headers: noStore });
+    return adsJson(who, { template }, { headers: noStore });
   } catch (e) {
     return adsFail(e, 'template');
   }

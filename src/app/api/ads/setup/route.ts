@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { adsFail, adsGate, noStore } from '@/lib/ads/gate';
+import { configBlocked } from '@/lib/ads/spend';
 import { disconnect } from '@/lib/ads/meta';
 import { autoChoose, listAdAccounts, listInstagramAccounts, listPages, loadAdsSettings, saveAdsSettings, PINNED_ACCOUNT, HOUSE_INSTAGRAM, type AdsSettings } from '@/lib/ads/settings';
 
@@ -18,6 +19,7 @@ export const maxDuration = 60;
 export async function GET(req: NextRequest) {
   const who = await adsGate(req);
   if (who instanceof NextResponse) return who;
+  { const blocked = configBlocked(who); if (blocked) return blocked; }
   try {
     const current = await loadAdsSettings();
     const [accounts, pages] = await Promise.all([
@@ -41,6 +43,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const who = await adsGate(req);
   if (who instanceof NextResponse) return who;
+  { const blocked = configBlocked(who); if (blocked) return blocked; }
   const body = (await req.json().catch(() => ({}))) as Partial<AdsSettings> & { action?: string };
   try {
     if (body.action === 'disconnect') {
