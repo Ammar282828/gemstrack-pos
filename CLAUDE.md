@@ -166,6 +166,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Net profit](docs/decisions.md#net-profit) — profit less running costs (not drawings), never revenue less expenses; profit is the per-sale estimate, or revenue less recorded goods where a house records them (Mina: Gross profit); margin = net ÷ revenue
 - [Exchange as cash](docs/decisions.md#exchange-as-cash) — in Cash In and in revenue (`invoiceSaleValue`)
 - [Analytics default: this month](docs/decisions.md#analytics-default-this-month) — the 1st to today, not a rolling 30 days; Home's ledger too
+- [Analytics redesign](docs/decisions.md#analytics-redesign) — Overview: 4 figures vs the period before + one picture per question, each a link to its page; Profit, Cash, Spending, metal pages; one computation `lib/analytics/books.ts`; one y-axis, `--ana-*` colours
 
 **People and sign-in**
 - [Add photos sign-in](docs/decisions.md#add-photos-sign-in) — superseded 2026-09-30: every house signs in

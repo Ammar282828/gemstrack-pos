@@ -125,7 +125,10 @@ export function TrendArea({ data, height = 180, name = 'Revenue', prevName = 'Pr
           <Area {...chartMotion()} type="monotone" dataKey="value" name={name} stroke={ana(1)} strokeWidth={2} fill={`url(#g${id})`} dot={false} activeDot={{ r: 5, fill: ana(1), stroke: 'hsl(var(--card))', strokeWidth: 2 }} />
           {last && tail && tail.value > 0 && (
             <ReferenceDot x={tail.label} y={tail.value} r={3.5} fill={ana(1)} stroke="none" ifOverflow="extendDomain"
-              label={{ value: lacCrore(tail.value), position: 'top', fill: FG, fontSize: 11 }} />
+              // Ending at the dot, not centred on it: the last point sits on the right edge, where a centred label is cut.
+              label={({ viewBox }: any) => viewBox ? (
+                <text x={viewBox.x + viewBox.width / 2 + 4} y={viewBox.y - 6} textAnchor="end" fontSize={11} fill={FG}>{lacCrore(tail.value)}</text>
+              ) : <g />} />
           )}
         </ComposedChart>
       </ResponsiveContainer>
@@ -236,8 +239,9 @@ export function HBars({ data, format = lacCrore, name = 'Amount', labelWidth = 1
 }) {
   const hasChip = data.some(d => d.chip);
   const valueTick = ({ x, y, payload }: any) => (
-    <text x={x - 8} y={y} dy={4} textAnchor="end" fontSize={11} fill={FG}>
-      <title>{payload.value}</title>{fits(String(payload.value), labelWidth - 12)}
+    // From the chart's own left edge (the label column starts there): a name shortened by `fits` can never be cut.
+    <text x={4} y={y} dy={4} textAnchor="start" fontSize={11} fill={FG}>
+      <title>{payload.value}</title>{fits(String(payload.value), labelWidth - 22)}
     </text>
   );
   const end = ({ x, y, width, height: h, index }: any) => {
@@ -327,17 +331,11 @@ export function StackedBars({ data, series, xKey = 'label', height = 260, format
       <ResponsiveContainer width="100%" height={height}>
         <BarChart data={data} layout={vertical ? 'vertical' : 'horizontal'} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} barCategoryGap={vertical ? 14 : '22%'}>
           {vertical ? <CartesianGrid horizontal={false} stroke="hsl(var(--border))" /> : GRID}
-          {vertical ? (
-            <>
-              <XAxis type="number" {...AXIS} tickFormatter={v => axis(Number(v))} />
-              <YAxis type="category" dataKey={xKey} {...AXIS} width={36} />
-            </>
-          ) : (
-            <>
-              <XAxis dataKey={xKey} {...AXIS} interval="preserveStartEnd" minTickGap={8} tickMargin={6} />
-              <YAxis {...AXIS} width={44} tickFormatter={v => axis(Number(v))} />
-            </>
-          )}
+          {/* Direct children, never a fragment: recharts finds its axes by walking its own children only. */}
+          {vertical && <XAxis type="number" {...AXIS} tickFormatter={v => axis(Number(v))} />}
+          {vertical && <YAxis type="category" dataKey={xKey} {...AXIS} width={36} />}
+          {!vertical && <XAxis dataKey={xKey} {...AXIS} interval="preserveStartEnd" minTickGap={8} tickMargin={6} />}
+          {!vertical && <YAxis {...AXIS} width={44} tickFormatter={v => axis(Number(v))} />}
           <Tooltip cursor={BAND} content={<Tip format={tip} hide={() => false} />} />
           {series.map((s, i) => (
             <Bar {...chartMotion()} key={s.key} dataKey={s.key} name={s.label} stackId="s" fill={s.color ?? ana(i + 1)} {...gap}
@@ -361,7 +359,7 @@ export function WeekdayBars({ data, height = 200, format = pkrLac }: { data: Wee
     <ResponsiveContainer width="100%" height={height}>
       <BarChart data={data} margin={{ top: 22, right: 8, left: 0, bottom: 0 }} barCategoryGap="28%">
         {GRID}
-        <XAxis dataKey="label" {...AXIS} tickMargin={6} />
+        <XAxis dataKey="label" {...AXIS} tickMargin={6} interval={0} />
         <YAxis {...AXIS} width={44} tickFormatter={v => axisLac(Number(v))} />
         <Tooltip cursor={BAND} content={({ active, payload }) => {
           const r: WeekdayDatum | undefined = active ? payload?.[0]?.payload : undefined;
@@ -375,7 +373,9 @@ export function WeekdayBars({ data, height = 200, format = pkrLac }: { data: Wee
         }} />
         <Bar {...chartMotion()} dataKey="avg" name="Average" fill={ana(1)} maxBarSize={36} radius={[4, 4, 0, 0]}>
           <LabelList dataKey="avg" content={({ x, y, width, index }: any) => index === best && data[best]?.avg > 0 ? (
-            <text x={x + width / 2} y={y - 6} textAnchor="middle" fontSize={11} fontWeight={600} fill={FG}>{lacCrore(data[best].avg)}</text>
+            // The first and last bars' labels lean inwards, clear of the axis and the card's edge.
+            <text x={index === 0 ? x : index === data.length - 1 ? x + width : x + width / 2} y={y - 6}
+              textAnchor={index === 0 ? 'start' : index === data.length - 1 ? 'end' : 'middle'} fontSize={11} fontWeight={600} fill={FG}>{lacCrore(data[best].avg)}</text>
           ) : null} />
         </Bar>
       </BarChart>

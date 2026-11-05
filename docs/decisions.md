@@ -851,6 +851,28 @@ balance below zero is the customer's credit (`lib/invoice-credit.ts`).
 
 - **Every analytics screen opens on this month, the 1st to today** (owner, 2026-10-12: "all analytic should default to that month rather than 30 days"). `lib/analytics/range-param.ts` (`this-month` is first in `QUICK_RANGES` and is `DEFAULT_RANGE_KEY`, so a plain /analytics keeps a clean URL; Last 30 days stays one tap away) and the quick buttons in `analytics-view.tsx` read that one list. Home's collapsed ledger section is "This month" (revenue, expenses, net since the 1st). Expenses already defaulted to This month. Left as they were: the iPhone app (`apps/iphone`, native Swift: `AnalyticsDates.swift` `defaultKey`), the Ads page's own presets, and the new-arrivals 30-day window.
 
+### Analytics redesign
+
+Owner, 2026-11-05: "right now the main page is very complicated. Make it simpler, add more graphs and diagrams to explain
+things and allow the user to enter those specific diagrams or graphs to get a more complicated look at it."
+
+- **The Overview is a glance and a set of doors.** Four headline figures (Revenue, Net profit, Net cash, Still to collect),
+  each against the period before (`previousPeriod` in `lib/analytics/books.ts`: a month-to-date against the same days of
+  last month, a year-to-date against last year's, any other range against the same number of days before), then one
+  picture per question (sales over time, revenue to profit, money in and out, what sold, who bought, metal sold, where the
+  money went, best pieces), each with one computed sentence. A whole card is a link to the page that answers it in depth.
+  No paragraphs: what used to be explained above the numbers lives on the deep page, under "How this is worked out".
+- **The deep pages** (Analytics › Sales tabs): Overview, Sales, Profit, Cash, Spending, Products, Customers, Categories,
+  and the house metal (Gold / Silver: `STORE_METAL_WORD`). Each opens on its picture, bigger and with controls (day / week /
+  month, compare with the period before), then tables. "Spending", not "Expenses": Money › Expenses is where they are written.
+- **One computation.** `lib/analytics/books.ts` (`computeBooks`, `monthlySeries`, `yearlySummary`, tested in `books.test.ts`)
+  replaced the 1,400-line page's inline sums with the same arithmetic: coins apart, net profit less running costs only,
+  `invoiceSaleValue`, order dates. Weight sold counts the house's metal (Mina sees silver). Cash is worked out even in a range
+  with no sale (a payment on an older bill still lands).
+- **Charts follow one set of rules** (`components/analytics/charts.tsx`): one y-axis, never two (two measures, two
+  charts); colours `--ana-1…6` in a fixed order, checked for colour blindness in light and dark, following the thing they
+  stand for (22K is always the same colour); good and bad in the tones only; thin marks, a tooltip on every chart.
+
 ## People and sign-in
 
 ### Add photos sign-in
