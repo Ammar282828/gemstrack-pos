@@ -25,11 +25,11 @@ import {
   Wallet, TrendingUp, Settings as SettingsIcon, Calendar, Briefcase, Package, Gem, Layers, ImagePlus, Scale, Heart,
   PenLine, Coins, Target, BookUser, PieChart, Landmark, Tag, ArchiveRestore, RotateCcw, Mic, History, Palette,
   Rocket, BarChart3, UsersRound, ListChecks, SlidersHorizontal, Contact, Import, Database, ScanLine, Camera,
-  LayoutGrid, Bell, Plug, Banknote, Map as MapIcon, Rows3, Bot, Radio,
+  LayoutGrid, Bell, Plug, Banknote, Map as MapIcon, Rows3, Bot, Radio, PiggyBank, Weight,
 } from 'lucide-react';
 import {
   STORE_LINKS, STORE_PARTNERSHIP, STORE_WEBSITE_WEIGHTS, STORE_SITE_EDIT, STORE_INVESTMENTS, STORE_POST_PIECE,
-  STORE_SITE_POSTS, STORE_META_ADS, STORE_AD_STUDIO, STORE_BRAND, STORE_DESIGN,
+  STORE_SITE_POSTS, STORE_META_ADS, STORE_AD_STUDIO, STORE_BRAND, STORE_DESIGN, STORE_METAL_WORD,
 } from '@/lib/store-config';
 import { STORY_DRAFT_SEEDS } from '@/lib/social/story-drafts';
 
@@ -223,9 +223,15 @@ export const NAV: NavEntry[] = [
     tabs: [
       { section: 'Sales', href: '/analytics', label: 'Overview', heading: 'Analytics', icon: TrendingUp },
       { section: 'Sales', href: '/analytics/sales', label: 'Sales', icon: BarChart3, keywords: ['by day', 'months', 'years', 'payments'] },
+      // The redesign of 2026-11-05: Profit, Cash and Spending answer what the Overview's pictures ask; Spending is the
+      // analysis of Money → Expenses (where they are entered). The metal tab is named for the house's metal.
+      { section: 'Sales', href: '/analytics/profit', label: 'Profit', icon: PiggyBank, keywords: ['net profit', 'margin', 'gross profit', 'yearly'] },
+      { section: 'Sales', href: '/analytics/cash', label: 'Cash', icon: Wallet, keywords: ['cash flow', 'money in', 'money out', 'receivables', 'outstanding', 'owed to us'] },
+      { section: 'Sales', href: '/analytics/spending', label: 'Spending', icon: Receipt, keywords: ['expenses by category', 'costs', 'overheads analysis'] },
       { section: 'Sales', href: '/analytics/products', label: 'Products', icon: Gem, keywords: ['best sellers', 'pieces sold'] },
       { section: 'Sales', href: '/analytics/customers', label: 'Customers', icon: Users, keywords: ['top customers'] },
       { section: 'Sales', href: '/analytics/categories', label: 'Categories', icon: LayoutGrid },
+      { section: 'Sales', href: '/analytics/metal', label: STORE_METAL_WORD, heading: `${STORE_METAL_WORD} sold`, icon: Weight, keywords: ['tola', 'grams', 'karat', 'weight sold', 'gold coins', 'coins'] },
       // The website's own analytics (Shopify's, for sites that sell by WhatsApp): the period report and the pieces; Live beside it.
       { section: 'Website', staff: true, marketing: true, href: '/website/interest', label: 'Visitors', heading: 'Website', icon: Globe, when: website,
         keywords: ['interest', 'saved', 'favourites', 'most saved', 'enquiries', 'inquired', 'looked at', 'popular', 'website analytics', 'visitors', 'sessions', 'traffic', 'bounce rate', 'traffic source', 'location', 'country', 'city', 'device', 'browser', 'landing page', 'exit page', 'search terms', '404', 'conversion', 'funnel'] },

@@ -11,11 +11,11 @@ enum NavIcon {
         "Gem": "diamond", "Globe": "globe", "Hammer": "hammer", "Heart": "heart", "History": "clock.arrow.circlepath",
         "House": "house", "ImagePlus": "photo.badge.plus", "Import": "square.and.arrow.down", "Landmark": "building.columns",
         "Layers": "square.3.layers.3d", "LayoutGrid": "square.grid.2x2", "ListChecks": "checklist", "Map": "map", "Megaphone": "megaphone",
-        "Mic": "mic", "Package": "shippingbox.and.arrow.backward", "Palette": "paintpalette", "PenLine": "pencil.line",
+        "Mic": "mic", "Package": "shippingbox.and.arrow.backward", "Palette": "paintpalette", "PenLine": "pencil.line", "PiggyBank": "banknote.fill",
         "Plug": "powerplug", "Radio": "dot.radiowaves.left.and.right", "Receipt": "receipt", "Rocket": "paperplane", "RotateCcw": "arrow.uturn.backward",
         "Scale": "scalemass", "ScanLine": "qrcode.viewfinder", "Send": "paperplane.fill", "Settings": "gearshape",
         "SlidersHorizontal": "slider.horizontal.3", "Tag": "tag", "Target": "target", "TrendingUp": "chart.line.uptrend.xyaxis",
-        "Users": "person.2", "UsersRound": "person.3", "Wallet": "wallet.bifold", "Wrench": "wrench.and.screwdriver",
+        "Users": "person.2", "UsersRound": "person.3", "Wallet": "wallet.bifold", "Weight": "scalemass.fill", "Wrench": "wrench.and.screwdriver",
     ]
 
     static func symbol(for lucide: String?) -> String { lucide.flatMap { symbols[$0] } ?? "square" }

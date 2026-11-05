@@ -19,12 +19,12 @@ object NavIcon {
         "ImagePlus" to { Symbols.AddPhotoAlternate }, "Import" to { Symbols.Download }, "Landmark" to { Symbols.AccountBalance },
         "Layers" to { Symbols.Layers }, "LayoutGrid" to { Symbols.GridView }, "ListChecks" to { Symbols.Checklist },
         "Map" to { Symbols.Explore }, "Megaphone" to { Symbols.Campaign }, "Mic" to { Symbols.Mic }, "Package" to { Symbols.Inventory },
-        "Palette" to { Symbols.Palette }, "PenLine" to { Symbols.Edit }, "Plug" to { Symbols.Power },
+        "Palette" to { Symbols.Palette }, "PenLine" to { Symbols.Edit }, "PiggyBank" to { Symbols.Paid }, "Plug" to { Symbols.Power },
         "Receipt" to { Symbols.Receipt }, "Rocket" to { Symbols.RocketLaunch }, "Rows3" to { Symbols.ViewAgenda }, "RotateCcw" to { Symbols.Undo },
         "Scale" to { Symbols.Scale }, "ScanLine" to { Symbols.QrCodeScanner }, "Send" to { Symbols.Send },
         "Settings" to { Symbols.Settings }, "SlidersHorizontal" to { Symbols.Tune }, "Tag" to { Symbols.Sell },
         "Target" to { Symbols.Adjust }, "TrendingUp" to { Symbols.TrendingUp }, "Users" to { Symbols.People },
-        "UsersRound" to { Symbols.Groups }, "Wallet" to { Symbols.AccountBalanceWallet }, "Wrench" to { Symbols.Build },
+        "UsersRound" to { Symbols.Groups }, "Wallet" to { Symbols.AccountBalanceWallet }, "Weight" to { Symbols.Scale }, "Wrench" to { Symbols.Build },
     )
 
 
@@ -40,12 +40,12 @@ object NavIcon {
         "ImagePlus" to { Symbols.Fill.AddPhotoAlternate }, "Import" to { Symbols.Fill.Download }, "Landmark" to { Symbols.Fill.AccountBalance },
         "Layers" to { Symbols.Fill.Layers }, "LayoutGrid" to { Symbols.Fill.GridView }, "ListChecks" to { Symbols.Fill.Checklist },
         "Map" to { Symbols.Fill.Explore }, "Megaphone" to { Symbols.Fill.Campaign }, "Mic" to { Symbols.Fill.Mic }, "Package" to { Symbols.Fill.Inventory },
-        "Palette" to { Symbols.Fill.Palette }, "PenLine" to { Symbols.Fill.Edit }, "Plug" to { Symbols.Fill.Power },
+        "Palette" to { Symbols.Fill.Palette }, "PenLine" to { Symbols.Fill.Edit }, "PiggyBank" to { Symbols.Fill.Paid }, "Plug" to { Symbols.Fill.Power },
         "Receipt" to { Symbols.Fill.Receipt }, "Rocket" to { Symbols.Fill.RocketLaunch }, "Rows3" to { Symbols.Fill.ViewAgenda }, "RotateCcw" to { Symbols.Fill.Undo },
         "Scale" to { Symbols.Fill.Scale }, "ScanLine" to { Symbols.Fill.QrCodeScanner }, "Send" to { Symbols.Fill.Send },
         "Settings" to { Symbols.Fill.Settings }, "SlidersHorizontal" to { Symbols.Fill.Tune }, "Tag" to { Symbols.Fill.Sell },
         "Target" to { Symbols.Fill.Adjust }, "TrendingUp" to { Symbols.Fill.TrendingUp }, "Users" to { Symbols.Fill.People },
-        "UsersRound" to { Symbols.Fill.Groups }, "Wallet" to { Symbols.Fill.AccountBalanceWallet }, "Wrench" to { Symbols.Fill.Build },
+        "UsersRound" to { Symbols.Fill.Groups }, "Wallet" to { Symbols.Fill.AccountBalanceWallet }, "Weight" to { Symbols.Fill.Scale }, "Wrench" to { Symbols.Fill.Build },
     )
 
 

@@ -582,6 +582,43 @@
           ]
         },
         {
+          "href": "/analytics/profit",
+          "label": "Profit",
+          "icon": "PiggyBank",
+          "section": "Sales",
+          "keywords": [
+            "net profit",
+            "margin",
+            "gross profit",
+            "yearly"
+          ]
+        },
+        {
+          "href": "/analytics/cash",
+          "label": "Cash",
+          "icon": "Wallet",
+          "section": "Sales",
+          "keywords": [
+            "cash flow",
+            "money in",
+            "money out",
+            "receivables",
+            "outstanding",
+            "owed to us"
+          ]
+        },
+        {
+          "href": "/analytics/spending",
+          "label": "Spending",
+          "icon": "Receipt",
+          "section": "Sales",
+          "keywords": [
+            "expenses by category",
+            "costs",
+            "overheads analysis"
+          ]
+        },
+        {
           "href": "/analytics/products",
           "label": "Products",
           "icon": "Gem",
@@ -605,6 +642,21 @@
           "label": "Categories",
           "icon": "LayoutGrid",
           "section": "Sales"
+        },
+        {
+          "href": "/analytics/metal",
+          "label": "Gold",
+          "heading": "Gold sold",
+          "icon": "Weight",
+          "section": "Sales",
+          "keywords": [
+            "tola",
+            "grams",
+            "karat",
+            "weight sold",
+            "gold coins",
+            "coins"
+          ]
         },
         {
           "href": "/website/interest",
