@@ -7,6 +7,7 @@
  * (brand.ts) — the same rules the model checks every ad against.
  */
 
+import { useSpendHidden } from '@/lib/use-sees-money';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -33,6 +34,7 @@ const day = (ymd: string, opts: Intl.DateTimeFormatOptions = { weekday: 'short',
 const minusDays = (ymd: string, n: number) => new Date(Date.parse(`${ymd}T12:00:00+05:00`) - n * 86_400_000).toISOString().slice(0, 10);
 
 export function GuideSection({ connected }: { connected: boolean }) {
+  const hideSpend = useSpendHidden();
   const { toast } = useToast();
   const [data, setData] = useState<GuideData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -83,7 +85,7 @@ export function GuideSection({ connected }: { connected: boolean }) {
           )}
         </section>}
 
-        <section className="rounded-xl border p-4 space-y-3">
+        {!hideSpend && <section className="rounded-xl border p-4 space-y-3">
           <div className="flex items-center justify-between gap-2">
             <h2 className="text-base font-semibold flex items-center gap-2" title="Your last six months: what the cheapest results share, and the dearest"><Trophy className="h-4 w-4" /> What your own ads say</h2>
             <Button size="sm" disabled={reading || !connected} onClick={readWinners}>{reading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1" />} {w ? 'Read again' : 'Read my ads'}</Button>
@@ -110,7 +112,7 @@ export function GuideSection({ connected }: { connected: boolean }) {
               <p className="text-[10px] text-muted-foreground">{w.considered} ads spent enough to compare, {w.since} to {w.until}. Read {w.at ? new Date(w.at).toLocaleString() : ''}.</p>
             </>
           )}
-        </section>
+        </section>}
 
         <BrandCard />
       </div>

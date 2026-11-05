@@ -1,6 +1,7 @@
 
 "use client";
 
+import { useSeesMoney } from '@/lib/use-sees-money';
 import { orderFullAmount } from '@/lib/order-payment';
 import React, { useMemo, useState, useEffect } from 'react';
 import { ListSkeleton } from '@/components/shared/skeletons';
@@ -49,7 +50,7 @@ function dayLac(n: number): string {
   return lac >= 10 && lac < 100 ? `${Math.round(lac)}L` : axisLac(n);
 }
 
-const EventDetails: React.FC<{ events: CalendarEventType[] | undefined, selectedDate: Date | undefined }> = ({ events, selectedDate }) => {
+const EventDetails: React.FC<{ events: CalendarEventType[] | undefined, selectedDate: Date | undefined, money: boolean }> = ({ events, selectedDate, money }) => {
     if (!selectedDate) {
         return <p className="text-muted-foreground text-center py-10">Select a day on the calendar to see its events.</p>;
     }
@@ -72,7 +73,7 @@ const EventDetails: React.FC<{ events: CalendarEventType[] | undefined, selected
                             <ArrowRight className="h-4 w-4 text-muted-foreground" />
                         </div>
                         <div className="mt-2 pl-1">
-                          <p className="font-semibold text-sm">PKR {('grandTotal' in event) ? (event.eventType === 'order' ? orderFullAmount(event as never) : invoiceSaleValue(event as never)).toLocaleString(undefined, { maximumFractionDigits: 0 }) : 'N/A'}</p>
+                          {money && <p className="font-semibold text-sm">PKR {('grandTotal' in event) ? (event.eventType === 'order' ? orderFullAmount(event as never) : invoiceSaleValue(event as never)).toLocaleString(undefined, { maximumFractionDigits: 0 }) : 'N/A'}</p>}
                           <p className="text-xs text-muted-foreground">{('customerName' in event && event.customerName) ? event.customerName : 'Walk-in'}</p>
                           <p className="text-xs text-muted-foreground">{formatDate(event.createdAt, 'hh:mm a')}</p>
                         </div>
@@ -85,6 +86,8 @@ const EventDetails: React.FC<{ events: CalendarEventType[] | undefined, selected
 
 
 export default function CalendarPage() {
+  // Staff see what is on each day, never what it came to (docs/decisions.md#staff-see-no-money).
+  const seesMoney = useSeesMoney();
   const { generatedInvoices, orders, isInvoicesLoading, isOrdersLoading, loadGeneratedInvoices, loadOrders } = useAppStore(useShallow(s => ({ generatedInvoices: s.generatedInvoices, orders: s.orders, isInvoicesLoading: s.isInvoicesLoading, isOrdersLoading: s.isOrdersLoading, loadGeneratedInvoices: s.loadGeneratedInvoices, loadOrders: s.loadOrders })));
 
   useEffect(() => {
@@ -190,7 +193,7 @@ export default function CalendarPage() {
 
     return (
       <div className="flex flex-col gap-0.5 mt-0.5 w-full">
-        {dayData && dayData.total > 0 && (
+        {seesMoney && dayData && dayData.total > 0 && (
           <span className="w-full text-[10px] font-semibold leading-tight tracking-tight tabular-nums truncate sm:text-2xs sm:tracking-normal">
             {dayLac(dayData.total)}
           </span>
@@ -244,7 +247,7 @@ export default function CalendarPage() {
             { label: 'Sales', value: String(monthSummary.sales) },
             { label: 'Orders', value: String(monthSummary.orders) },
             { label: 'Avg. trading day', value: monthSummary.best ? pkrLac(monthSummary.best) : '—' },
-          ].map(c => (
+          ].filter(c => seesMoney || c.label === 'Sales' || c.label === 'Orders').map(c => (
             <div key={c.label} className="rounded-lg border bg-card px-3 py-2 min-w-0">
               <p className="text-2xs uppercase tracking-wide text-muted-foreground truncate">{c.label}</p>
               <p className={cn('text-base font-bold tabular-nums truncate', c.tone)}>{c.value}</p>
@@ -320,7 +323,7 @@ export default function CalendarPage() {
                         </DrawerDescription>
                     </DrawerHeader>
                      <ScrollArea className="h-[50vh] px-4 pb-4">
-                         <EventDetails events={eventsForSelectedDay} selectedDate={selectedDate} />
+                         <EventDetails events={eventsForSelectedDay} selectedDate={selectedDate} money={seesMoney} />
                     </ScrollArea>
                 </DrawerContent>
              </Drawer>
@@ -336,7 +339,7 @@ export default function CalendarPage() {
                 </CardHeader>
                 <CardContent>
                     <ScrollArea className="h-[60vh] pr-4">
-                       <EventDetails events={eventsForSelectedDay} selectedDate={selectedDate}/>
+                       <EventDetails events={eventsForSelectedDay} selectedDate={selectedDate} money={seesMoney} />
                     </ScrollArea>
                 </CardContent>
             </Card>

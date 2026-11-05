@@ -8,6 +8,8 @@
  * has stopped or flagged.
  */
 
+import { useSpendHidden } from '@/lib/use-sees-money';
+import { zeroSpend } from '@/lib/ads/spend-client';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
@@ -77,8 +79,8 @@ function Tile({ label, value, sub, delta }: { label: string; value: string; sub?
   );
 }
 
-function Bars({ title, rows, currency, empty }: { title: string; rows: Breakdown[]; currency: string; empty: string }) {
-  const bySpend = rows.some(r => r.metrics.spend > 0);
+function Bars({ title, rows, currency, empty, hide }: { title: string; rows: Breakdown[]; currency: string; empty: string; hide?: boolean }) {
+  const bySpend = !hide && rows.some(r => r.metrics.spend > 0);
   const top = rows.slice(0, 8);
   const max = Math.max(1, ...top.map(r => (bySpend ? r.metrics.spend : r.metrics.impressions)));
   return (
@@ -87,7 +89,7 @@ function Bars({ title, rows, currency, empty }: { title: string; rows: Breakdown
       {!top.length ? <p className="text-xs text-muted-foreground">{empty}</p> : top.map(r => {
         const v = bySpend ? r.metrics.spend : r.metrics.impressions;
         return (
-          <div key={r.key} className="space-y-0.5" title={`${r.label}: ${money(r.metrics.spend, currency)} · ${count(r.metrics.reach)} reached · ${count(r.metrics.impressions)} views`}>
+          <div key={r.key} className="space-y-0.5" title={`${r.label}: ${hide ? '' : `${money(r.metrics.spend, currency)} · `}${count(r.metrics.reach)} reached · ${count(r.metrics.impressions)} views`}>
             <div className="flex justify-between gap-2 text-xs"><span className="truncate min-w-0">{r.label}</span><span className="tabular-nums text-muted-foreground shrink-0">{bySpend ? money(v, currency) : `${compact(v)} views`}</span></div>
             <div className="h-1.5 rounded-full bg-muted overflow-hidden"><div className="h-full rounded-full bg-primary/70" style={{ width: `${(v / max) * 100}%` }} /></div>
           </div>
@@ -125,6 +127,8 @@ function Attention({ items, busy, onAct }: { items: AttentionItem[]; busy: strin
 
 function AdsOverview() {
   const { toast } = useToast();
+  // The staff member who also runs the marketing sees results, never spend (lib/ads/spend.ts).
+  const hide = useSpendHidden();
   const { status, error: statusError, loading: statusLoading, reload, ready } = useAdsStatus();
   const [acting, setActing] = useState<string | null>(null);
   const [range, setRange] = useRange();
@@ -134,10 +138,10 @@ function AdsOverview() {
 
   const load = useCallback(async (fresh = false) => {
     setLoading(true); setError(null);
-    try { setData(await api<Overview>(`/api/ads/overview?range=${range}${fresh ? '&fresh=1' : ''}`)); }
+    try { const d = await api<Overview>(`/api/ads/overview?range=${range}${fresh ? '&fresh=1' : ''}`); setData(hide ? zeroSpend(d) : d); }
     catch (e) { setError(e instanceof Error ? e.message : String(e)); }
     finally { setLoading(false); }
-  }, [range]);
+  }, [range, hide]);
   useEffect(() => { if (ready) load(); }, [ready, load]);
   const act = async (a: Extract<AttentionItem['action'], { do: 'pause' | 'resume' }>) => {
     setActing(a.id);
@@ -162,7 +166,7 @@ function AdsOverview() {
 
   return (
     <PageShell title="Ads" icon={<Megaphone className="h-7 w-7" />}
-      subtitle={account ? <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">{account.name} <AccountPill account={account} />{account.funding && <span className="inline-flex items-center gap-1"><Wallet className="h-3 w-3" />{account.funding}</span>}</span> : 'Meta ads for this shop'}
+      subtitle={account ? <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">{account.name} <AccountPill account={account} />{!hide && account.funding && <span className="inline-flex items-center gap-1"><Wallet className="h-3 w-3" />{account.funding}</span>}</span> : 'Meta ads for this shop'}
       action={ready ? <>
         <Button variant="outline" onClick={() => load(true)} disabled={loading}><RefreshCw className={cn('h-4 w-4 mr-1.5', loading && 'animate-spin')} /> Refresh</Button>
         <Button asChild><Link href="/ads/new"><Plus className="h-4 w-4 mr-1.5" /> New ad</Link></Button>
@@ -182,17 +186,17 @@ function AdsOverview() {
                 {data.previous ? ` · compared with ${data.previous.since} → ${data.previous.until}` : ''}
               </p>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
-                <Tile label="Spent" value={money(t.spend, cur)} delta={<Delta now={t.spend} before={p?.spend} neutral />} sub={account ? `${money(account.amountSpent, cur)} all time` : undefined} />
+                {!hide && <Tile label="Spent" value={money(t.spend, cur)} delta={<Delta now={t.spend} before={p?.spend} neutral />} sub={account ? `${money(account.amountSpent, cur)} all time` : undefined} />}
                 <Tile label="People reached" value={compact(t.reach)} delta={<Delta now={t.reach} before={p?.reach} />} sub={`${compact(t.impressions)} views · ${t.frequency ? t.frequency.toFixed(1) : '0'}×`} />
                 {main && main.key !== 'reach'
-                  ? <Tile label={main.label} value={count(valueOf(t, main.key))} delta={<Delta now={valueOf(t, main.key)} before={p ? valueOf(p, main.key) : null} />} sub={valueOf(t, main.key) ? `${money(t.spend / valueOf(t, main.key), cur, { cents: true })} each` : undefined} />
-                  : <Tile label="Clicks" value={count(t.clicks)} delta={<Delta now={t.clicks} before={p?.clicks} />} sub={t.clicks ? `${money(t.cpc, cur, { cents: true })} each` : undefined} />}
-                <Tile label="Click-through" value={pct(t.ctr)} delta={<Delta now={t.ctr} before={p?.ctr} />} sub={`${money(t.cpm, cur, { cents: true })} per 1,000 views`} />
+                  ? <Tile label={main.label} value={count(valueOf(t, main.key))} delta={<Delta now={valueOf(t, main.key)} before={p ? valueOf(p, main.key) : null} />} sub={!hide && valueOf(t, main.key) ? `${money(t.spend / valueOf(t, main.key), cur, { cents: true })} each` : undefined} />
+                  : <Tile label="Clicks" value={count(t.clicks)} delta={<Delta now={t.clicks} before={p?.clicks} />} sub={!hide && t.clicks ? `${money(t.cpc, cur, { cents: true })} each` : undefined} />}
+                <Tile label="Click-through" value={pct(t.ctr)} delta={<Delta now={t.ctr} before={p?.ctr} />} sub={hide ? undefined : `${money(t.cpm, cur, { cents: true })} per 1,000 views`} />
               </div>
               {(() => {
                 // What the ads sold, as Ads Manager's Purchases / conversion value / Purchase ROAS read it (the pixel's purchases).
                 const s = salesOf(t), sp = p ? salesOf(p) : null;
-                if (!s.purchases && !s.value) return null;
+                if (hide || (!s.purchases && !s.value)) return null;
                 return (
                   <div className="grid grid-cols-3 gap-2.5">
                     <Tile label="Sales from ads" value={money(s.value, cur)} delta={<Delta now={s.value} before={sp?.value} />} sub={`${count(s.purchases)} purchase${s.purchases === 1 ? '' : 's'}`} />
@@ -212,7 +216,7 @@ function AdsOverview() {
 
               <Attention items={data.attention} busy={acting} onAct={act} />
 
-              {data.month.spent > 0 || data.month.lastMonth > 0 ? (
+              {!hide && data.month && (data.month.spent > 0 || data.month.lastMonth > 0) ? (
                 <div className="rounded-xl border p-3 space-y-1.5">
                   <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 text-sm">
                     <span><b className="tabular-nums">{money(data.month.spent, cur)}</b> <span className="text-muted-foreground">so far this month</span></span>
@@ -224,7 +228,7 @@ function AdsOverview() {
                 </div>
               ) : null}
 
-              {chart.length > 1 && (
+              {!hide && chart.length > 1 && (
                 <div className="rounded-xl border p-3">
                   <p className="text-sm font-semibold mb-2">Day by day <span className="font-normal text-muted-foreground text-xs">— spend{main ? ` and ${main.label.toLowerCase()}` : ''}</span></p>
                   <div className="h-56">
@@ -235,7 +239,7 @@ function AdsOverview() {
 
               <div className="rounded-xl border p-3 space-y-2">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-semibold">The ads that spent most</p>
+                  <p className="text-sm font-semibold">{hide ? 'The ads with the most views' : 'The ads that spent most'}</p>
                   <Link href="/ads/campaigns" className="text-xs text-primary">All campaigns →</Link>
                 </div>
                 {!data.topAds.length ? <p className="text-sm text-muted-foreground">No ad spent anything in {rangeLabel(range).toLowerCase()}. <Link href="/ads/new" className="text-primary">Make one →</Link></p> : (
@@ -252,8 +256,8 @@ function AdsOverview() {
                             <span className="block text-[11px] text-muted-foreground truncate">{a.campaign}</span>
                           </Link>
                           <span className="text-right shrink-0">
-                            <span className="block text-sm font-semibold tabular-nums">{money(a.metrics.spend, cur)}</span>
-                            <span className="block text-[11px] text-muted-foreground tabular-nums">{r ? `${count(r.value)} ${r.label.toLowerCase()}${r.value ? ` · ${money(a.metrics.spend / r.value, cur, { cents: true })}` : ''}` : `${compact(a.metrics.reach)} reached`}{salesOf(a.metrics).value > 0 ? ` · ${roasText(salesOf(a.metrics).roas)} ROAS` : ''}</span>
+                            {!hide && <span className="block text-sm font-semibold tabular-nums">{money(a.metrics.spend, cur)}</span>}
+                            <span className={cn('block tabular-nums', hide ? 'text-sm font-semibold' : 'text-[11px] text-muted-foreground')}>{r ? `${count(r.value)} ${r.label.toLowerCase()}${r.value && !hide ? ` · ${money(a.metrics.spend / r.value, cur, { cents: true })}` : ''}` : `${compact(a.metrics.reach)} reached`}{!hide && salesOf(a.metrics).value > 0 ? ` · ${roasText(salesOf(a.metrics).roas)} ROAS` : ''}</span>
                           </span>
                           {a.permalink && <a href={a.permalink} target="_blank" rel="noopener" className="text-muted-foreground hover:text-foreground shrink-0" aria-label="Open on Instagram"><ExternalLink className="h-4 w-4" /></a>}
                         </li>
@@ -264,9 +268,9 @@ function AdsOverview() {
               </div>
 
               <div className="grid gap-2.5 md:grid-cols-3">
-                <Bars title="Who saw them" rows={data.breakdowns.ageGender} currency={cur} empty="Nothing yet." />
-                <Bars title="Where" rows={data.breakdowns.placement} currency={cur} empty="Nothing yet." />
-                <Bars title="Region" rows={data.breakdowns.region} currency={cur} empty="Nothing yet." />
+                <Bars title="Who saw them" rows={data.breakdowns.ageGender} currency={cur} hide={hide} empty="Nothing yet." />
+                <Bars title="Where" rows={data.breakdowns.placement} currency={cur} hide={hide} empty="Nothing yet." />
+                <Bars title="Region" rows={data.breakdowns.region} currency={cur} hide={hide} empty="Nothing yet." />
               </div>
               <p className="text-[11px] text-muted-foreground">From Meta, {new Date(data.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}. Today’s numbers keep changing for a few hours; reach across days can’t be added up, so “people reached” is Meta’s own count for the whole range.</p>
             </>

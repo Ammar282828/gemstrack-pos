@@ -10,6 +10,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { adsGate, noStore } from '@/lib/ads/gate';
+import { adsJson } from '@/lib/ads/spend';
 import { appSecret, appLiveReadiness, APP_PAGES, checkConnection, META_APP_ID, redirectUri, REQUIRED_SCOPES, TOKEN_SECRET, APP_SECRET_NAME, GRAPH_VERSION, LOGIN_CONFIG_ID } from '@/lib/ads/meta';
 import { accountSummary, HOUSE_INSTAGRAM, loadAdsSettings, PINNED_ACCOUNT } from '@/lib/ads/settings';
 import { secretAccess, secretConsoleUrl, posProject } from '@/lib/secret-manager';
@@ -59,7 +60,7 @@ export async function GET(req: NextRequest) {
   let accountError: string | null = null;
   if (connection?.connected && settings?.adAccountId && read) ({ account, error: accountError } = read);
 
-  return NextResponse.json({
+  return adsJson(who, {
     app: {
       id: META_APP_ID() || null,
       secret: !!secret,

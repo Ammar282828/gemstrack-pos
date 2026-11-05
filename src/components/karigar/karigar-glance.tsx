@@ -10,6 +10,7 @@
  * bottom. Nobody is hidden; they just don't get a row of em-dashes each.
  */
 
+import { useSeesMoney } from '@/lib/use-sees-money';
 import { lacCrore } from '@/lib/money';
 import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -121,6 +122,7 @@ const KarigarPanel: React.FC<{
   onAssign: (id: string) => void;
   onShare: (row: GlanceRow) => void;
 }> = ({ row, onFocus, onAssign, onShare }) => {
+  const seesMoney = useSeesMoney();
   const more = row.active - Math.min(row.peek.length, PEEK);
 
   return (
@@ -194,12 +196,12 @@ const KarigarPanel: React.FC<{
 
         {/* Exposure + actions, pinned to the bottom so cards align. */}
         <div className="mt-auto pt-3">
-          {(row.weightG > 0 || row.value > 0 || row.orders > 0) && (
+          {(row.weightG > 0 || (seesMoney && row.value > 0) || row.orders > 0) && (
             <p className="text-xs text-muted-foreground tabular-nums mb-2">
               {[
                 row.orders > 0 ? `${row.orders} order${row.orders === 1 ? '' : 's'}` : null,
                 row.weightG > 0 ? `${row.weightG.toFixed(1)}g out` : null,
-                row.value > 0 ? `PKR ${lacCrore(row.value)}` : null,
+                seesMoney && row.value > 0 ? `PKR ${lacCrore(row.value)}` : null,
               ].filter(Boolean).join(' · ')}
             </p>
           )}
@@ -239,6 +241,7 @@ export const KarigarGlance: React.FC<{
   onFocus: (karigarId: string) => void;
   onAssign: (karigarId: string) => void;
 }> = ({ loads, karigars, contactById, onFocus, onAssign }) => {
+  const seesMoney = useSeesMoney();
   const rows = useMemo(() => buildGlanceRows(loads, karigars), [loads, karigars]);
   const onShare = useShare(contactById);
   const [showIdle, setShowIdle] = useState(false);
@@ -273,7 +276,7 @@ export const KarigarGlance: React.FC<{
               { label: `Critical ${CRITICAL_DAYS}d+`, value: String(totals.critical), tone: totals.critical ? 'text-tone-late-ink' : undefined },
               { label: 'Gold out', value: totals.weightG > 0 ? `${totals.weightG.toFixed(1)}g` : '—' },
               { label: 'Value out', value: totals.value > 0 ? `PKR ${lacCrore(totals.value)}` : '—' },
-            ].map(c => (
+            ].filter(c => seesMoney || c.label !== 'Value out').map(c => (
               <div key={c.label} className="min-w-0">
                 <p className="text-2xs font-semibold uppercase tracking-[.6px] text-muted-foreground truncate">{c.label}</p>
                 <p className={cn('font-serif text-ios-title2 font-semibold leading-tight tabular-nums truncate', c.tone)}>{c.value}</p>

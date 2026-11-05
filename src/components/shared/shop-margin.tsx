@@ -3,7 +3,7 @@
 /**
  * The shop's margin on an order or sale, and the 24k rate it is worked out from (lib/margin.ts).
  *
- * For owners and staff only, and never for the customer (the owner, 2026-10-05). These render on
+ * For owners only since 2026-11-05 (staff see no margin, no cost rate: docs/decisions.md#staff-see-no-money), and never for the customer (the owner, 2026-10-05). These render on
  * the shop's own screens — the sale, the order form, Finalize, an invoice's and an order's page —
  * and nothing they show is printed, sent or stored where the customer's link can read it (the
  * public invoice route strips costRate24k). The figure is blurred until tapped: the counter turns
@@ -20,6 +20,7 @@ import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { COST_RATTI_LESS, ASSUMED_MARGIN, goldCostPerGram, percentLabel, type Margin } from '@/lib/margin';
 import { GRAMS_PER_TOLA } from '@/lib/units';
+import { useSeesMoney } from '@/lib/use-sees-money';
 
 export const SHOP_MARGIN_ON = COST_RATTI_LESS !== null;
 
@@ -42,7 +43,8 @@ export function CostRateField({ value, onChange, sheetRate24k, id = 'cost-rate-2
   id?: string;
   className?: string;
 }) {
-  if (!SHOP_MARGIN_ON) return null;
+  const seesMoney = useSeesMoney();
+  if (!SHOP_MARGIN_ON || !seesMoney) return null;
   const perGram = Number(value) || 0;
   const perTola = Math.round(perGram * GRAMS_PER_TOLA);
   const sheetTola = Math.round((Number(sheetRate24k) || 0) * GRAMS_PER_TOLA);
@@ -67,7 +69,8 @@ export function CostRateField({ value, onChange, sheetRate24k, id = 'cost-rate-2
 /** What the shop earns on this, blurred until tapped. */
 export function MarginFigure({ margin, className, compact = false }: { margin: Margin | null; className?: string; compact?: boolean }) {
   const [shown, setShown] = useState(false);
-  if (!SHOP_MARGIN_ON || !margin) return null;
+  const seesMoney = useSeesMoney();
+  if (!SHOP_MARGIN_ON || !seesMoney || !margin) return null;
   const tone = margin.assumed ? 'text-muted-foreground' : margin.percent < 0 ? 'text-destructive' : 'text-success';
   const words = margin.assumed
     ? `≈ ${percentLabel(margin)} (no 24k rate given — assumed)`

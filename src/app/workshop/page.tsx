@@ -1,5 +1,6 @@
 "use client";
 
+import { useSeesMoney } from '@/lib/use-sees-money';
 import { lacCrore } from '@/lib/money';
 import { loadOrderPhoto } from '@/components/order/order-photo';
 import { useLingering } from '@/hooks/use-lingering';
@@ -205,6 +206,7 @@ const JobRow: React.FC<{
 
 const AddJobDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => void; presetKarigarId?: string }> =
 ({ open, onOpenChange, presetKarigarId }) => {
+  const seesMoney = useSeesMoney();
   const karigars = useAppStore(s => s.karigars);
   const addKarigarJob = useAppStore(s => s.addKarigarJob);
   const { toast } = useToast();
@@ -317,10 +319,10 @@ const AddJobDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => void
               <Label className="text-xs">Qty</Label>
               <AmountInput value={quantity} onValueChange={v => setQuantity(v === undefined ? '' : String(v))}  aria-label="Qty"/>
             </div>
-            <div>
+            {seesMoney && <div>
               <Label className="text-xs">Making (PKR)</Label>
               <AmountInput value={agreedCost} onValueChange={v => setAgreedCost(v === undefined ? '' : String(v))} placeholder="0"  aria-label="Making (PKR)"/>
-            </div>
+            </div>}
           </div>
 
           <div>
@@ -551,6 +553,7 @@ const KarigarCard: React.FC<{
   onEdit: (j: WorkshopJob) => void;
   onAssign: (karigarId: string) => void;
 }> = ({ load, contact, onToggleDone, onToggleGiven, onSetStatus, onDelete, onEdit, onAssign }) => {
+  const seesMoney = useSeesMoney();
   const [showDone, setShowDone] = useState(false);
   const { toast } = useToast();
   const isUnassigned = load.karigarId === UNASSIGNED_ID;
@@ -614,7 +617,7 @@ const KarigarCard: React.FC<{
         {load.active > 0 && (
           <div className="flex items-center justify-between text-2xs text-muted-foreground mb-2">
             <span>{load.totalWeightG > 0 ? `${load.totalWeightG.toFixed(3)}g out` : ''}</span>
-            <span>{load.totalValue > 0 ? `PKR ${load.totalValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : ''}</span>
+            <span>{seesMoney && load.totalValue > 0 ? `PKR ${load.totalValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : ''}</span>
           </div>
         )}
         {visible.length === 0 ? (
@@ -648,6 +651,7 @@ const FocusedKarigarView: React.FC<{
   showCompleted: boolean;
   onBack?: () => void;
 }> = ({ load, contact, onToggleDone, onToggleGiven, onSetStatus, onDelete, onEdit, onAssign, showCompleted, onBack }) => {
+  const seesMoney = useSeesMoney();
   const { toast } = useToast();
   const isUnassigned = load.karigarId === UNASSIGNED_ID;
 
@@ -738,7 +742,7 @@ const FocusedKarigarView: React.FC<{
             if (late.length) cells.push({ label: `Late ${WARN_DAYS}d+`, value: String(late.length), tone: 'text-tone-owed-ink' });
             if (load.critical) cells.push({ label: `Critical ${CRITICAL_DAYS}d+`, value: String(load.critical), tone: 'text-tone-late-ink' });
             if (load.totalWeightG > 0) cells.push({ label: 'Gold out', value: `${load.totalWeightG.toFixed(1)}g` });
-            if (load.totalValue > 0) cells.push({ label: 'Value', value: lacCrore(load.totalValue) });
+            if (seesMoney && load.totalValue > 0) cells.push({ label: 'Value', value: lacCrore(load.totalValue) });
             return (
               <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-x-4 sm:gap-x-8 gap-y-3">
                 {cells.map(c => (

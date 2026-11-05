@@ -136,7 +136,7 @@ class NewOrderPieceDraft(
         if (extras.isNotEmpty()) o["extras"] = extras.map { it.toMap() }
         o["hadExtras"] = hadExtras
         referenceImage?.let { o["referenceImage"] = it }
-        if (printReference) o["printReference"] = true
+        o["printReference"] = printReference
         if (hadReference) o["hadReference"] = true
         return o
     }

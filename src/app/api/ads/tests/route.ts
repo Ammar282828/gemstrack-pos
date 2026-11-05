@@ -10,6 +10,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { adsFail, adsGate, noStore } from '@/lib/ads/gate';
+import { configBlocked } from '@/lib/ads/spend';
 import { graph, graphAll, MetaAdsError } from '@/lib/ads/meta';
 import { requireAccount } from '@/lib/ads/settings';
 import { businessOf } from '@/lib/ads/business';
@@ -31,6 +32,7 @@ const day = (s: string) => s.slice(0, 10);
 export async function GET(req: NextRequest) {
   const who = await adsGate(req);
   if (who instanceof NextResponse) return who;
+  { const blocked = configBlocked(who); if (blocked) return blocked; }
   try {
     const { act } = await requireAccount();
     const [acct, studies, adsets] = await Promise.all([
@@ -73,6 +75,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const who = await adsGate(req);
   if (who instanceof NextResponse) return who;
+  { const blocked = configBlocked(who); if (blocked) return blocked; }
   const b = (await req.json().catch(() => ({}))) as Partial<StudyInput>;
   try {
     const { act, settings } = await requireAccount();

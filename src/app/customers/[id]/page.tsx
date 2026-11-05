@@ -2,6 +2,7 @@
 
 "use client";
 
+import { useSeesMoney } from '@/lib/use-sees-money';
 import { orderFullAmount } from '@/lib/order-payment';
 import React, { useEffect, useState } from 'react';
 import { DetailSkeleton } from '@/components/shared/skeletons';
@@ -59,6 +60,8 @@ export default function CustomerDetailPage() {
   const customerId = params.id as string;
 
   const isHydrated = useIsStoreHydrated();
+  // Staff see the customer and their documents, never what they spent or owe (docs/decisions.md#staff-see-no-money).
+  const seesMoney = useSeesMoney();
   const { customer, allInvoices, allOrders, hisaabEntries, deleteCustomerAction, loadCustomers, loadGeneratedInvoices, loadOrders, loadHisaab } = useAppStore(useShallow(state => ({
     customer: state.customers.find(c => c.id === customerId),
     allInvoices: state.generatedInvoices,
@@ -151,7 +154,7 @@ export default function CustomerDetailPage() {
         <p className="truncate text-ios-sub font-semibold">{invoice.id}</p>
         <p className="text-ios-cap text-muted-foreground">{new Date(invoice.createdAt).toLocaleDateString()}</p>
       </div>
-      <span className="font-serif text-ios-title3 font-semibold tabular-nums">PKR {invoiceSaleValue(invoice).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+      {seesMoney && <span className="font-serif text-ios-title3 font-semibold tabular-nums">PKR {invoiceSaleValue(invoice).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>}
     </Link>
   ));
   const orderRows = customerOrders.map(order => (
@@ -161,7 +164,7 @@ export default function CustomerDetailPage() {
         <p className="text-ios-cap text-muted-foreground">{formatDate(order.createdAt, 'PP')}</p>
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1">
-        <span className="font-serif text-ios-title3 font-semibold tabular-nums">PKR {orderFullAmount(order).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+        {seesMoney && <span className="font-serif text-ios-title3 font-semibold tabular-nums">PKR {orderFullAmount(order).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>}
         <Pill tone={STATUS_TONE[order.status] ?? 'quiet'}>{order.status}</Pill>
       </div>
     </Link>
@@ -182,13 +185,13 @@ export default function CustomerDetailPage() {
                   <p className="truncate font-mono text-ios-cap text-muted-foreground">Customer ID: {customer.id}</p>
                 </div>
               </div>
-              {(owedNow > 0 || bought > 0) && (
+              {seesMoney && (owedNow > 0 || bought > 0) && (
                 <div>
                   <p className="text-ios-foot text-muted-foreground">{owedNow > 0 ? 'Owes you' : 'Lifetime sales'}</p>
                   <HeroAmount amount={owedNow > 0 ? owedNow : bought} lac={owedNow <= 0} tone={owedNow > 0 ? 'owed' : undefined} />
                 </div>
               )}
-              {creditInvoices.length > 0 && (
+              {seesMoney && creditInvoices.length > 0 && (
                 <div className="space-y-2">
                   <p className="text-ios-foot text-muted-foreground">Credit to you</p>
                   {creditInvoices.map(({ inv, credit }) => (
@@ -214,11 +217,11 @@ export default function CustomerDetailPage() {
               {customer.notes && <DetailItem label="Notes" value={customer.notes} icon={<StickyNote className="w-4 h-4" />} />}
             </CardContent>
             <CardFooter className="flex-col gap-2 pt-4">
-               <Button asChild className="w-full">
+               {seesMoney && <Button asChild className="w-full">
                 <Link href={`/hisaab/${customer.id}?type=customer`}>
                   <BookUser className="mr-2 h-4 w-4" /> View Hisaab
                 </Link>
-              </Button>
+              </Button>}
               <div className="flex space-x-2 w-full">
                 <Button asChild variant="outline" className="w-full">
                     <Link href={`/customers/${customerId}/edit`}>
@@ -263,7 +266,7 @@ export default function CustomerDetailPage() {
                     <TableRow>
                       <TableHead>Invoice ID</TableHead>
                       <TableHead>Date</TableHead>
-                      <TableHead className="text-right">Total (PKR)</TableHead>
+                      {seesMoney && <TableHead className="text-right">Total (PKR)</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -273,7 +276,7 @@ export default function CustomerDetailPage() {
                           <Link href={`/invoices/${invoice.id}`} onClick={e => e.stopPropagation()}>{invoice.id}</Link>
                         </TableCell>
                         <TableCell>{new Date(invoice.createdAt).toLocaleDateString()}</TableCell>
-                        <TableCell className="text-right tabular-nums">{invoiceSaleValue(invoice).toLocaleString()}</TableCell>
+                        {seesMoney && <TableCell className="text-right tabular-nums">{invoiceSaleValue(invoice).toLocaleString()}</TableCell>}
                       </TableRow>
                     ))}
                   </TableBody>
@@ -297,7 +300,7 @@ export default function CustomerDetailPage() {
                       <TableHead>Order ID</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Balance Due (PKR)</TableHead>
+                      {seesMoney && <TableHead className="text-right">Balance Due (PKR)</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -310,7 +313,7 @@ export default function CustomerDetailPage() {
                         <TableCell>
                             <Pill tone={STATUS_TONE[order.status] ?? 'quiet'}>{order.status}</Pill>
                         </TableCell>
-                        <TableCell className="text-right tabular-nums">{orderFullAmount(order).toLocaleString()}</TableCell>
+                        {seesMoney && <TableCell className="text-right tabular-nums">{orderFullAmount(order).toLocaleString()}</TableCell>}
                       </TableRow>
                     ))}
                   </TableBody>

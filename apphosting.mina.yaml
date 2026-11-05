@@ -157,7 +157,14 @@ env:
   # Marketing accounts (lib/roles.ts): sign in and see only the Marketing group — Posts, Website, Ads —
   # never the books. The owner, 2026-10-05: unknownuser80 "access only to the marketing section".
   - variable: NEXT_PUBLIC_STORE_MARKETING_EMAILS
-    value: "unknownuser80@gmail.com"
+    value: "unknownuser80@gmail.com,i.jawedbega@gmail.com"
+    availability:
+      - BUILD
+      - RUNTIME
+  # Shop-floor staff (lib/roles.ts): sell, take orders, keep the bench moving; no money, analytics or settings.
+  # The owner, 2026-11-05: i.jawedbega@gmail.com "erp access employee level".
+  - variable: NEXT_PUBLIC_STORE_STAFF_EMAILS
+    value: "i.jawedbega@gmail.com"
     availability:
       - BUILD
       - RUNTIME

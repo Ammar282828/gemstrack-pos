@@ -7,7 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyRequestEmail } from '@/lib/karigar-auth';
-import { roleForEmail, type Role } from '@/lib/roles';
+import { roleForEmail, alsoMarketing, marketingAccess, type Role } from '@/lib/roles';
 import { STORE_DESIGN } from '@/lib/store-config';
 
 export type DesignNeed = 'post' | 'ads';
@@ -24,15 +24,14 @@ export function designAccess(o: { enabled: boolean; open: boolean; email: string
 export async function designGate(req: NextRequest, need: DesignNeed, enabled = STORE_DESIGN): Promise<string | NextResponse> {
   const open = process.env.NEXT_PUBLIC_OPEN_ACCESS === '1';
   const email = enabled && !open ? await verifyRequestEmail(req) : null;
-  const d = designAccess({ enabled, open, email, role: roleForEmail(email), need });
+  const d = designAccess({ enabled, open, email, role: alsoMarketing(email) ? 'marketing' : roleForEmail(email), need });
   return 'who' in d ? d.who : NextResponse.json({ error: d.error }, { status: d.status });
 }
 
 /** Whether the person `designGate` let in (its return value) may also see ads-scope designs. */
 export const mayUseAds = (who: string): boolean => {
   if (who === 'counter') return true;
-  const role = roleForEmail(who);
-  return role === 'owner' || role === 'marketing';
+  return marketingAccess(who);
 };
 
 /** A failure as an answer: an error carrying a 4xx `status` says so; anything else is a 500. */

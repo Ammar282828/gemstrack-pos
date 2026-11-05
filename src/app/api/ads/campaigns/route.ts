@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { adsFail, adsGate, noStore } from '@/lib/ads/gate';
+import { adsJson, spendBlocked } from '@/lib/ads/spend';
 import { accountSummary, requireAccount } from '@/lib/ads/settings';
 import { campaignTotals, previousPeriod, totals, tree } from '@/lib/ads/insights';
 import { currencyOffset, isRange, type Metrics, type RangeKey } from '@/lib/ads/shape';
@@ -23,6 +24,8 @@ export async function GET(req: NextRequest) {
   try {
     const { act } = await requireAccount();
     const csv = q.get('format') === 'csv';
+    // The CSV is the spend table itself.
+    if (csv) { const blocked = spendBlocked(who); if (blocked) return blocked; }
     // All at once: the tree waits only for the currency, the period before only for the range's dates.
     const accountP = accountSummary(act);
     const [account, campaigns, before] = await Promise.all([
@@ -39,7 +42,7 @@ export async function GET(req: NextRequest) {
       });
     }
     for (const c of campaigns) { const b = before.get(c.id); if (b) c.previous = b; }
-    return NextResponse.json({ range: r, account, campaigns }, { headers: noStore });
+    return adsJson(who, { range: r, account, campaigns }, { headers: noStore });
   } catch (e) {
     return adsFail(e, 'campaigns');
   }

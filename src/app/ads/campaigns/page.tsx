@@ -9,6 +9,8 @@
  * `?ad=<id>` opens that ad (the Overview's links land here).
  */
 
+import { useSpendHidden } from '@/lib/use-sees-money';
+import { zeroSpend } from '@/lib/ads/spend-client';
 import React, { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -74,16 +76,16 @@ function Trend({ now, before, neutral }: { now: number; before: number | undefin
   return <span className={cn('inline-flex items-center', neutral ? 'text-muted-foreground' : up ? 'text-success' : 'text-destructive')}>{up ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}{Math.abs(d).toFixed(0)}%</span>;
 }
 
-function Numbers({ m, goal, cur, className, before }: { m: Metrics; goal?: string; cur: string; className?: string; before?: Metrics }) {
+function Numbers({ m, goal, cur, className, before, hide }: { m: Metrics; goal?: string; cur: string; className?: string; before?: Metrics; hide?: boolean }) {
   const r = resultOf(m, goal);
   const rb = before ? resultOf(before, goal) : null;
   // Purchases' order value and ROAS — Ads Manager's Purchase ROAS column, on every row that sold something.
   const sales = salesOf(m);
   return (
     <span className={cn('text-[11px] text-muted-foreground tabular-nums', className)}>
-      <b className="text-foreground font-semibold">{money(m.spend, cur)}</b> <Trend now={m.spend} before={before?.spend} neutral />
-      {r ? <> · {count(r.value)} {r.label.toLowerCase()} <Trend now={r.value} before={rb?.value} />{r.value ? ` · ${money(m.spend / r.value, cur, { cents: true })} each` : ''}</> : null}
-      {sales.value > 0 ? <> · <b className="text-foreground font-semibold">{money(sales.value, cur)} sales</b> <Trend now={sales.value} before={before ? salesOf(before).value : undefined} /> · <b className={cn('font-semibold', (sales.roas ?? 0) >= 1 ? 'text-success' : 'text-destructive')}>{roasText(sales.roas)} ROAS</b></> : null}
+      {!hide && <><b className="text-foreground font-semibold">{money(m.spend, cur)}</b> <Trend now={m.spend} before={before?.spend} neutral /></>}
+      {r ? <>{hide ? '' : ' · '}{count(r.value)} {r.label.toLowerCase()} <Trend now={r.value} before={rb?.value} />{r.value && !hide ? ` · ${money(m.spend / r.value, cur, { cents: true })} each` : ''}</> : null}
+      {!hide && sales.value > 0 ? <> · <b className="text-foreground font-semibold">{money(sales.value, cur)} sales</b> <Trend now={sales.value} before={before ? salesOf(before).value : undefined} /> · <b className={cn('font-semibold', (sales.roas ?? 0) >= 1 ? 'text-success' : 'text-destructive')}>{roasText(sales.roas)} ROAS</b></> : null}
       {' · '}{compact(m.reach)} reached
     </span>
   );
@@ -97,6 +99,8 @@ function budgetText(daily: number | null | undefined, lifetime: number | null | 
 
 function Campaigns() {
   const { toast } = useToast();
+  // The staff member who also runs the marketing sees results, never spend or budgets (lib/ads/spend.ts).
+  const hide = useSpendHidden();
   const params = useSearchParams();
   const { status, error: statusError, loading: statusLoading, reload, ready } = useAdsStatus();
   const [range, setRange] = useRange();
@@ -119,10 +123,10 @@ function Campaigns() {
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
-    try { setData(await api(`/api/ads/campaigns?range=${range}${archived ? '&archived=1' : ''}`)); }
+    try { const d = await api<{ account: AdsAccount; campaigns: TreeCampaign[] }>(`/api/ads/campaigns?range=${range}${archived ? '&archived=1' : ''}`); setData(hide ? zeroSpend(d) : d); }
     catch (e) { setError(e instanceof Error ? e.message : String(e)); }
     finally { setLoading(false); }
-  }, [range, archived]);
+  }, [range, archived, hide]);
   useEffect(() => { if (ready) load(); }, [ready, load]);
 
   // ?ad= — open its campaign and ad set, and the ad itself.
@@ -148,7 +152,8 @@ function Campaigns() {
     } finally { setBusy(null); }
   };
   const toggle = (t: Target, on: boolean) => {
-    if (on) setDialog({ kind: 'confirm', t, action: 'activate' });
+    if (on && hide) toast({ title: 'An owner turns ads on', description: 'An owner sets the budget and turns it on. Yours waits here, paused.' });
+    else if (on) setDialog({ kind: 'confirm', t, action: 'activate' });
     else act(t, { action: 'status', status: 'PAUSED' }, `Paused ${t.name}`);
   };
 
@@ -177,7 +182,7 @@ function Campaigns() {
         {t.level === 'ad' && <DropdownMenuItem asChild><Link href={`/ads/adset?ads=${t.id}`}><Layers className="h-4 w-4 mr-2" /> Into new ad sets</Link></DropdownMenuItem>}
         {t.level === 'campaign' && <DropdownMenuItem asChild><Link href={`/ads/adset?campaign=${t.id}`}><Layers className="h-4 w-4 mr-2" /> Add ad sets</Link></DropdownMenuItem>}
         {t.level === 'adset' && <DropdownMenuItem asChild><Link href={`/ads/adset?from=${t.id}`}><Layers className="h-4 w-4 mr-2" /> Copy and change</Link></DropdownMenuItem>}
-        {budget && <DropdownMenuItem onSelect={() => setDialog({ kind: 'budget', t })}><Wallet className="h-4 w-4 mr-2" /> Change budget</DropdownMenuItem>}
+        {budget && !hide && <DropdownMenuItem onSelect={() => setDialog({ kind: 'budget', t })}><Wallet className="h-4 w-4 mr-2" /> Change budget</DropdownMenuItem>}
         {schedule && <DropdownMenuItem onSelect={() => setDialog({ kind: 'schedule', t })}><CalendarClock className="h-4 w-4 mr-2" /> End date</DropdownMenuItem>}
         {audience && <DropdownMenuItem onSelect={() => setDialog({ kind: 'audience', t })}><Users className="h-4 w-4 mr-2" /> Audience and placements</DropdownMenuItem>}
         <DropdownMenuItem onSelect={() => setDialog({ kind: 'rename', t })}><Pencil className="h-4 w-4 mr-2" /> Rename</DropdownMenuItem>
@@ -213,7 +218,7 @@ function Campaigns() {
 
   const setRow = (s: TreeAdSet) => {
     const t: Target = { level: 'adset', id: s.id, name: s.name, status: s.status, dailyBudget: s.dailyBudget, lifetimeBudget: s.lifetimeBudget, end: s.endTime };
-    const b = budgetText(s.dailyBudget, s.lifetimeBudget, cur);
+    const b = hide ? null : budgetText(s.dailyBudget, s.lifetimeBudget, cur);
     return (
       <li key={s.id} className="py-2">
         <div className="flex items-center gap-2">
@@ -227,7 +232,7 @@ function Campaigns() {
               {s.learning && <span className={cn('rounded-full border px-2 py-0.5 text-[11px]', s.learning === 'Learning limited' ? 'border-warning/50 text-warning' : 'text-muted-foreground')}>{s.learning}</span>}
               <span className="text-[11px] text-muted-foreground">{RESULT_FOR_GOAL[s.optimizationGoal]?.label ?? s.optimizationGoal.toLowerCase().replace(/_/g, ' ')}{b ? ` · ${b}` : ''}{s.endTime ? ` · ends ${new Date(s.endTime).toLocaleDateString()}` : ''}</span>
             </div>
-            <Numbers m={s.metrics} goal={s.optimizationGoal} cur={cur} className="block" />
+            <Numbers m={s.metrics} goal={s.optimizationGoal} cur={cur} className="block" hide={hide} />
             <Issues list={s.issues} />
           </div>
           <Switch checked={s.status === 'ACTIVE'} disabled={busy === s.id || s.status === 'ARCHIVED'} onCheckedChange={on => toggle(t, on)} aria-label="Running" />
@@ -269,23 +274,23 @@ function Campaigns() {
             {view === 'tree' && <button type="button" onClick={() => { setAllOpen(v => !v); setOpen({}); }} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground min-h-0">
               {allOpen ? <><ChevronsDownUp className="h-3.5 w-3.5" /> Fold all</> : <><ChevronsUpDown className="h-3.5 w-3.5" /> Open all</>}
             </button>}
-            {data && <button type="button" onClick={() => download(campaigns, range)} className="ml-auto inline-flex items-center gap-1 text-xs text-primary min-h-0"><Download className="h-3 w-3" /> Download (CSV)</button>}
+            {data && !hide && <button type="button" onClick={() => download(campaigns, range)} className="ml-auto inline-flex items-center gap-1 text-xs text-primary min-h-0"><Download className="h-3 w-3" /> Download (CSV)</button>}
             {data && <a href={adsManagerUrl(data.account.id, 'account')} target="_blank" rel="noopener" className="inline-flex items-center gap-1 text-xs text-primary">Ads Manager <ExternalLink className="h-3 w-3" /></a>}
           </div>
           {error && <ErrorLine error={error} onRetry={load} />}
           {!data && loading && <div className="space-y-4"><FigureTilesSkeleton tiles={4} /><ListRowsSkeleton rows={4} /></div>}
           {data && (
             <>
-              <p className="text-xs text-muted-foreground">{campaigns.length === data.campaigns.length ? 'All campaigns' : `${campaigns.length} of ${data.campaigns.length} campaigns`}: <b className="text-foreground">{money(shownTotal.spend, cur)}</b> spent · {compact(shownTotal.impressions)} views</p>
+              <p className="text-xs text-muted-foreground">{campaigns.length === data.campaigns.length ? 'All campaigns' : `${campaigns.length} of ${data.campaigns.length} campaigns`}: {hide ? null : <><b className="text-foreground">{money(shownTotal.spend, cur)}</b> spent · </>}{compact(shownTotal.impressions)} views</p>
               {!campaigns.length && <EmptyState title={data.campaigns.length ? 'Nothing matches' : 'No campaigns yet'} action={data.campaigns.length ? undefined : <Link href="/ads/new" className="text-primary">Make the first ad →</Link>} className="py-8" />}
               {view === 'gallery' ? (
-                <Gallery campaigns={campaigns} cur={cur} accountId={data.account.id} busy={busy} filter={filter}
+                <Gallery hide={hide} campaigns={campaigns} cur={cur} accountId={data.account.id} busy={busy} filter={filter}
                   onOpen={id => setDialog({ kind: 'ad', id })} onToggle={(a, on) => toggle({ level: 'ad', id: a.id, name: a.name, status: a.status }, on)} />
               ) : (
               <ul className="space-y-2.5">
                 {campaigns.map(c => {
                   const t: Target = { level: 'campaign', id: c.id, name: c.name, status: c.status, dailyBudget: c.dailyBudget, lifetimeBudget: c.lifetimeBudget, end: c.stopTime };
-                  const b = budgetText(c.dailyBudget, c.lifetimeBudget, cur);
+                  const b = hide ? null : budgetText(c.dailyBudget, c.lifetimeBudget, cur);
                   const goal = c.adsets.length === 1 ? c.adsets[0].optimizationGoal : undefined;
                   return (
                     <li key={c.id} className="rounded-xl border p-3">
@@ -299,7 +304,7 @@ function Campaigns() {
                             <StatusPill status={c.effectiveStatus} />
                             <span className="text-[11px] text-muted-foreground">{objectiveLabel(c.objective)} · {c.adsets.length} ad set{c.adsets.length === 1 ? '' : 's'}{b ? ` · ${b}` : ''}{c.stopTime ? ` · ends ${new Date(c.stopTime).toLocaleDateString()}` : ''}</span>
                           </div>
-                          <Numbers m={c.metrics} goal={goal} cur={cur} className="block" before={c.previous} />
+                          <Numbers m={c.metrics} goal={goal} cur={cur} className="block" before={c.previous} hide={hide} />
                           <Issues list={c.issues} />
                         </div>
                         <Switch checked={c.status === 'ACTIVE'} disabled={busy === c.id || c.status === 'ARCHIVED'} onCheckedChange={on => toggle(t, on)} aria-label="Running" />
@@ -471,11 +476,11 @@ const SORTS: { key: GallerySort; label: string }[] = [
   { key: 'spend', label: 'Most spent' }, { key: 'results', label: 'Most results' }, { key: 'cost', label: 'Cheapest result' }, { key: 'roas', label: 'Best ROAS' }, { key: 'ctr', label: 'Best click-through' }, { key: 'name', label: 'Name' },
 ];
 
-function Gallery({ campaigns, cur, accountId, busy, filter, onOpen, onToggle }: {
-  campaigns: TreeCampaign[]; cur: string; accountId: string; busy: string | null; filter: Filter;
+function Gallery({ hide, campaigns, cur, accountId, busy, filter, onOpen, onToggle }: {
+  hide?: boolean; campaigns: TreeCampaign[]; cur: string; accountId: string; busy: string | null; filter: Filter;
   onOpen: (id: string) => void; onToggle: (a: TreeAd, on: boolean) => void;
 }) {
-  const [sort, setSort] = useState<GallerySort>('spend');
+  const [sort, setSort] = useState<GallerySort>(hide ? 'results' : 'spend');
   const all = campaigns.flatMap(c => c.adsets.flatMap(s => s.ads));
   const cost = (a: TreeAd) => { const r = resultOf(a.metrics, a.goal); return r && r.value > 0 ? a.metrics.spend / r.value : Infinity; };
   const ads = all
@@ -492,7 +497,7 @@ function Gallery({ campaigns, cur, accountId, busy, filter, onOpen, onToggle }: 
     <div className="flex flex-wrap items-center gap-2">
       <span className="text-xs text-muted-foreground">{ads.length === all.length ? `${all.length} ads` : `${ads.length} of ${all.length} ads`}</span>
       <select value={sort} onChange={e => setSort(e.target.value as GallerySort)} className="ml-auto h-8 rounded-md border bg-background px-2 text-xs" aria-label="Sort">
-        {SORTS.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+        {SORTS.filter(s => !hide || (s.key !== 'spend' && s.key !== 'cost' && s.key !== 'roas')).map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
       </select>
     </div>
     <ul className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
@@ -509,9 +514,9 @@ function Gallery({ campaigns, cur, accountId, busy, filter, onOpen, onToggle }: 
               <p className="text-[11px] text-muted-foreground line-clamp-1">{[a.campaignName, a.adsetName].filter(Boolean).join(' › ')}</p>
               {(a.title || a.body) && <p className="text-[11px] line-clamp-2">{a.title ? <b>{a.title} </b> : null}{a.body}</p>}
               <p className="text-[11px] text-muted-foreground tabular-nums">
-                <b className="text-foreground">{money(a.metrics.spend, cur)}</b>
-                {r ? ` · ${count(r.value)} ${r.label.toLowerCase()}` : ` · ${compact(a.metrics.reach)} reached`}
-                {salesOf(a.metrics).value > 0 ? ` · ${money(salesOf(a.metrics).value, cur)} sales · ${roasText(salesOf(a.metrics).roas)} ROAS` : ''}
+                {!hide && <b className="text-foreground">{money(a.metrics.spend, cur)}</b>}
+                {r ? `${hide ? '' : ' · '}${count(r.value)} ${r.label.toLowerCase()}` : `${hide ? '' : ' · '}${compact(a.metrics.reach)} reached`}
+                {!hide && salesOf(a.metrics).value > 0 ? ` · ${money(salesOf(a.metrics).value, cur)} sales · ${roasText(salesOf(a.metrics).roas)} ROAS` : ''}
                 {a.button ? ` · “${a.button}”` : ''}
               </p>
               {a.issues.length > 0 && <p className="text-[11px] text-destructive line-clamp-2">{a.issues.join(' · ')}</p>}

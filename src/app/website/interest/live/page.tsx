@@ -7,6 +7,7 @@
  * The open pages beat every 30 seconds (the sites' visits.js), so a visitor drops off within five minutes of leaving.
  */
 
+import { useSpendHidden } from '@/lib/use-sees-money';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { auth as firebaseAuth } from '@/lib/firebase';
 import { PageShell } from '@/components/shared/page-shell';
@@ -130,7 +131,9 @@ function CatalogueLivePage({ switcher }: { switcher?: React.ReactNode } = {}) {
 /** House of Mina: the Shopify store's right-now picture first, the catalogue's own live counter a tap away. */
 export default function LivePage() {
   const [view, setView] = useView('live');
-  if (!STORE_SHOPIFY_ANALYTICS) return <CatalogueLivePage />;
+  // The Shopify view is sales and revenue, owners' (its routes refuse anyone else); the staff member who runs marketing gets the counters only.
+  const noMoney = useSpendHidden();
+  if (!STORE_SHOPIFY_ANALYTICS || noMoney) return <CatalogueLivePage />;
   if (view === 'catalogue') return <CatalogueLivePage switcher={<ViewSwitch view={view} onChange={setView} />} />;
   return (
     <PageShell subtitle="The online store right now — Shopify has no live view, so this is its latest sessions, orders and checkouts">

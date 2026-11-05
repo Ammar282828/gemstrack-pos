@@ -12,6 +12,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { adsFail, adsGate, noStore } from '@/lib/ads/gate';
+import { adsJson, capNewAd, withoutSpend } from '@/lib/ads/spend';
 import { graph, MetaAdsError } from '@/lib/ads/meta';
 import { planContext } from '@/lib/ads/context';
 import { fromMinor } from '@/lib/ads/shape';
@@ -62,10 +63,10 @@ export async function GET(req: NextRequest) {
           end: s.end_time && Date.parse(s.end_time) > Date.now() ? s.end_time : null,
         },
       };
-      return NextResponse.json({ campaign, draft, ads: (s.ads?.data ?? []).map(a => a.id), currency: ctx.currency, minDaily: ctx.minDaily, pixelId: ctx.pixelId ?? null }, { headers: noStore });
+      return adsJson(who, { campaign, draft, ads: (s.ads?.data ?? []).map(a => a.id), currency: ctx.currency, minDaily: ctx.minDaily, pixelId: ctx.pixelId ?? null }, { headers: noStore });
     }
     const id = q.get('campaign');
-    return NextResponse.json({ campaign: id ? await campaignInfo(act, id) : null, currency: ctx.currency, minDaily: ctx.minDaily, pixelId: ctx.pixelId ?? null }, { headers: noStore });
+    return adsJson(who, { campaign: id ? await campaignInfo(act, id) : null, currency: ctx.currency, minDaily: ctx.minDaily, pixelId: ctx.pixelId ?? null }, { headers: noStore });
   } catch (e) {
     return adsFail(e, 'adsets');
   }
@@ -84,6 +85,11 @@ export async function POST(req: NextRequest) {
   let step = 'the campaign';
   try {
     const { act, ctx } = await planContext();
+    // Hers are made paused at the smallest budget; an owner sets the budget and turns them on (lib/ads/spend.ts).
+    if (withoutSpend(who)) {
+      design.launch = 'paused';
+      for (const a of design.adsets) a.budget = capNewAd({ budget: a.budget, launch: 'paused' as const, bidding: undefined, hours: null }, ctx.minDaily).budget;
+    }
     // The campaign's own objective and budget, never the page's word for them.
     if (design.campaign.kind === 'existing') {
       const c = await campaignInfo(act, design.campaign.id);
