@@ -238,7 +238,7 @@ object NewOrderMath {
             o["referenceImage"] = null
         }
         // The iPhone always sends the flag; until its contract file is rewritten with it, only a set flag is sent (a missing one reads as off).
-        if (p.printReference) o["printReference"] = true
+        o["printReference"] = p.printReference
         put(o, "size", p.size)
         put(o, "karigarId", p.karigarId)
         // Karat stays for any metal that has one (gold, and palladium's 18k and 12k, which price differently):
