@@ -64,6 +64,20 @@
           ]
         },
         {
+          "href": "/help",
+          "label": "Help",
+          "icon": "LifeBuoy",
+          "staff": true,
+          "keywords": [
+            "help",
+            "how to",
+            "guide",
+            "how do i",
+            "instructions",
+            "training"
+          ]
+        },
+        {
           "href": "/today",
           "label": "Today’s cash",
           "icon": "Banknote",
@@ -529,7 +543,6 @@
       "href": "/analytics",
       "label": "Analytics",
       "icon": "TrendingUp",
-      "staff": true,
       "keywords": [
         "reports",
         "sales report",
@@ -639,7 +652,6 @@
           "label": "Visitors",
           "heading": "Website",
           "icon": "Globe",
-          "staff": true,
           "marketing": true,
           "section": "Website",
           "keywords": [
@@ -674,7 +686,6 @@
           "href": "/website/interest/live",
           "label": "Live",
           "icon": "Radio",
-          "staff": true,
           "marketing": true,
           "section": "Website",
           "keywords": [

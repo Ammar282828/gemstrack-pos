@@ -174,6 +174,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Signed-in defaults](docs/decisions.md#signed-in-defaults) — `NEXT_PUBLIC_STORE_PEOPLE`; Taken by, Workshop; Orders/Invoices: all, yours lit
 - [Karigar sign-in](docs/decisions.md#karigar-sign-in) — in-app browsers; `[sign-in]` in the log
 - [Marketing role](docs/decisions.md#marketing-role) — `NEXT_PUBLIC_STORE_MARKETING_EMAILS`; Marketing group only, via the server; audiences owners'
+- [Staff see no money](docs/decisions.md#staff-see-no-money) — staff see amounts on orders, invoices, repairs and drafts only; Home has no figures but their shortcuts and Help (`/help`); no analytics, expenses, customer totals or settings; a staff member also on the marketing list gets Marketing and Ads (made paused, no spend; `lib/ads/spend.ts`)
 - [Not your own action](docs/decisions.md#not-your-own-action) — an event push skips every phone of the person who caused it; reports, reminders and the test still reach them
 - [Delete code](docs/decisions.md#delete-code) — every delete asks; the server checks it
 

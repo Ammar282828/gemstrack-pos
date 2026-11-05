@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { adsGate, noStore } from '@/lib/ads/gate';
+import { configBlocked, withoutSpend } from '@/lib/ads/spend';
 import { STORE_AD_STUDIO } from '@/lib/store-config';
 import { adDayStatus, hijriLabel, karachiDay, quietDaysBetween, upcomingObservances } from '@/lib/ads/studio/calendar';
 import { analyseWinners, loadWinners } from '@/lib/ads/studio/research';
@@ -32,7 +33,8 @@ export async function GET(req: NextRequest) {
   const who = await adsGate(req, STORE_AD_STUDIO);
   if (who instanceof NextResponse) return who;
   try {
-    return NextResponse.json({ calendar: calendar(), winners: await loadWinners() }, { headers: noStore });
+    // The calendar and rules are hers; "what your own ads say" is built from cost per result, so she gets none of it.
+    return NextResponse.json({ calendar: calendar(), winners: withoutSpend(who) ? null : await loadWinners() }, { headers: noStore });
   } catch (e) {
     return studioFail(e, 'guide');
   }
@@ -41,6 +43,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const who = await adsGate(req, STORE_AD_STUDIO);
   if (who instanceof NextResponse) return who;
+  { const blocked = configBlocked(who); if (blocked) return blocked; }
   const blocked = await studioAiGate(req);
   if (blocked) return blocked;
   try {

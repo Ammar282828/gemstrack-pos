@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { adsFail, adsGate, noStore } from '@/lib/ads/gate';
+import { configBlocked } from '@/lib/ads/spend';
 import { graph } from '@/lib/ads/meta';
 import { requireAccount } from '@/lib/ads/settings';
 import { createRule, deleteRule, listRules, setRule, RULE_KINDS, type RuleKind } from '@/lib/ads/rules';
@@ -21,6 +22,7 @@ async function currencyOf(act: string) {
 export async function GET(req: NextRequest) {
   const who = await adsGate(req);
   if (who instanceof NextResponse) return who;
+  { const blocked = configBlocked(who); if (blocked) return blocked; }
   try {
     const { act } = await requireAccount();
     const currency = await currencyOf(act);
@@ -37,6 +39,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const who = await adsGate(req);
   if (who instanceof NextResponse) return who;
+  { const blocked = configBlocked(who); if (blocked) return blocked; }
   const b = (await req.json().catch(() => ({}))) as { kind?: string; amount?: number; id?: string; enabled?: boolean };
   try {
     const { act } = await requireAccount();
@@ -57,6 +60,7 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const who = await adsGate(req);
   if (who instanceof NextResponse) return who;
+  { const blocked = configBlocked(who); if (blocked) return blocked; }
   const id = req.nextUrl.searchParams.get('id') || '';
   try {
     const { act } = await requireAccount();

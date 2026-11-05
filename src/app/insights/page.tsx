@@ -7,6 +7,7 @@
  * platform; the follower history the hourly snapshot keeps; and, first, what it all says.
  */
 
+import { useSpendHidden } from '@/lib/use-sees-money';
 import React from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
@@ -85,6 +86,8 @@ function InsightsOverview() {
   const d = o.data;
   const ig = d?.instagram ?? null, fb = d?.facebook ?? null;
   const cur = d?.currency ?? 'PKR';
+  // The staff member who also runs the marketing sees reach and followers, not what the ads cost (lib/ads/spend.ts).
+  const hideSpend = useSpendHidden();
 
   // What it says, worked out on the server from all three parts (one brain with the iPhone app).
   const f = useInsights<{ findings: Finding[] }>('findings', range);
@@ -156,7 +159,7 @@ function InsightsOverview() {
             </section>
           )}
 
-          <section className="rounded-xl border p-3 space-y-2">
+          {!hideSpend && <section className="rounded-xl border p-3 space-y-2">
             <div className="flex items-center justify-between gap-2">
               <p className="text-sm font-semibold">Ads by platform</p>
               <Link href="/ads" className="text-xs text-primary">Ads overview →</Link>
@@ -178,7 +181,7 @@ function InsightsOverview() {
                 ))}
               </ul>
             )}
-          </section>
+          </section>}
 
           {fb && (
             <section className="space-y-2.5">

@@ -1,7 +1,7 @@
 /**
  * Who may use the Ads routes: whoever the POS lets in (the owner, 2026-09-25:
  * "open like the rest"). Under NEXT_PUBLIC_OPEN_ACCESS that is anyone who
- * reaches the app; otherwise a verified owner or marketing account (roles.ts;
+ * reaches the app; otherwise a verified owner, marketing account or staff-and-marketing account (roles.ts marketingAccess;
  * the owner, 2026-10-05) — ad money is not the shop floor's business, like
  * Expenses and Analytics, which staff don't see. Nobody, in a house with the
  * feature off. The audiences built from the customer book stay owners' only
@@ -13,7 +13,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyRequestEmail } from '@/lib/karigar-auth';
-import { roleForEmail } from '@/lib/roles';
+import { roleForEmail, marketingAccess } from '@/lib/roles';
 import { STORE_META_ADS } from '@/lib/store-config';
 import { SecretError } from '@/lib/secret-manager';
 import { MetaAdsError } from './meta';
@@ -25,8 +25,8 @@ export async function adsGate(req: NextRequest, enabled = STORE_META_ADS): Promi
   if (OPEN_ACCESS) return 'counter';
   const email = await verifyRequestEmail(req);
   if (!email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const role = roleForEmail(email);
-  if (role !== 'owner' && role !== 'marketing') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  // An owner, a marketing account, or a staff member also on the marketing list (she gets no spend: lib/ads/spend.ts).
+  if (!marketingAccess(email)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   return email;
 }
 

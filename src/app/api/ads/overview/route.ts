@@ -15,6 +15,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { adsFail, adsGate, noStore } from '@/lib/ads/gate';
+import { adsJson, withoutSpend } from '@/lib/ads/spend';
 import { accountSummary, requireAccount } from '@/lib/ads/settings';
 import { breakdowns, daily, previousPeriod, problemAds, topAds, totals, tree } from '@/lib/ads/insights';
 import { attentionItems, pacing } from '@/lib/ads/attention';
@@ -32,7 +33,9 @@ export async function GET(req: NextRequest) {
   try {
     const { act } = await requireAccount();
     const body = await remembered(`overview|${act}|${r}`, () => build(act, r), { ttl: 90_000, stale: 10 * 60_000, fresh: q.get('fresh') === '1' });
-    return NextResponse.json(body, { headers: noStore });
+    // For her: no month-to-date spend, and no attention list (its words are about spend, pacing and budgets).
+    const shown = withoutSpend(who) ? { ...body, month: null, attention: [] } : body;
+    return adsJson(who, shown, { headers: noStore });
   } catch (e) {
     return adsFail(e, 'overview');
   }

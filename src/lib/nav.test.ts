@@ -152,3 +152,34 @@ describe('Settings is an index list on a phone', () => {
     expect(ALL_ENTRIES.filter(e => e.phoneIndex).map(e => e.id)).toEqual(['settings']);
   });
 });
+
+describe('staff and the money-blind menu (docs/decisions.md#staff-see-no-money)', () => {
+  const ids = (role: Parameters<typeof sidebarFor>[0]) => sidebarFor(role).flatMap(g => g.entries.map(e => e.id));
+  it('staff have no Analytics, Money, Ads or Settings', () => {
+    const staff = ids('staff');
+    for (const id of ['analytics', 'money', 'ads']) expect(staff).not.toContain(id);
+    expect(paletteFor('staff').map(d => d.href)).not.toContain('/website/interest');
+    expect(forRole(SETTINGS, 'staff')).toBeNull();
+  });
+  it('staff-and-marketing add the whole Marketing group and the marketing sections, but no settings or ad setup', () => {
+    const both = ids('staffMarketing');
+    for (const id of ['orders', 'invoices', 'customers', 'workshop']) expect(both, id).toContain(id);
+    // Whatever of the Marketing group this house has (Posts and Website hang on its flags), she has too.
+    const marketing = sidebarFor('marketing').filter(g => g.key === 'marketing').flatMap(g => g.entries.map(e => e.id));
+    for (const id of marketing) expect(both, id).toContain(id);
+    for (const id of ['money', 'stock']) expect(both).not.toContain(id);
+    expect(forRole(SETTINGS, 'staffMarketing')).toBeNull();
+    const hrefs = paletteFor('staffMarketing').map(d => d.href);
+    for (const h of ['/ads/setup', '/ads/audiences', '/ads/rules', '/ads/tests', '/expenses', '/settings']) expect(hrefs, h).not.toContain(h);
+    // Everything the marketing account's palette offers (by this house's flags), less the configuring, plus the shop floor's.
+    const marketingHrefs = paletteFor('marketing').map(d => d.href).filter(h => !['/ads/setup', '/ads/audiences', '/ads/rules', '/ads/tests'].some(c => h.startsWith(c)));
+    for (const h of [...marketingHrefs, '/orders/add', '/help']) expect(hrefs, h).toContain(h);
+    const analytics = forRole(ALL_ENTRIES.find(e => e.id === 'analytics')!, 'staffMarketing')!;
+    expect(analytics.tabs!.every(t => t.marketing)).toBe(true);
+  });
+  it('the pure marketing account and owners are as they were', () => {
+    expect(ids('marketing')).toContain('ads');
+    expect(paletteFor('marketing').map(d => d.href)).toContain('/ads/setup');
+    expect(ids('owner')).toEqual(expect.arrayContaining(['money', 'analytics', 'ads']));
+  });
+});

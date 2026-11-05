@@ -951,6 +951,47 @@ things and allow the user to enter those specific diagrams or graphs to get a mo
   cleared the order's link (the advance counted as revenue again) — it now keeps the other; a duplicate's pieces stay sold.
   Not gated: drafts (they have Undo), settings lists, ads and website items (outside the books).
 
+### Staff see no money
+
+<!-- The anchor stays for the links; since the same evening staff see orders' and invoices' amounts (below). -->
+
+The owner, 2026-11-05, of the employee at House of Mina (i.jawedbega@gmail.com): "I dont want them to see any numbers/analytics
+expenses. They need to be able to make invoices/orders/check current orders/invoices, workshop access, view customers, however
+not view any sort of numbers or amounts. She should have marketing access full, all photos features." Then, asked, two choices:
+**amounts: "Only the bill in hand"**, and **marketing: "Everything but spend"**. Later the same day: "dont give her any settings".
+
+- **Then, the same day: "show her numbers in orders and invoices", "Dashboard should not have numbers, just tailored features
+  for her", and "add a help feature so employees can understand everything".** So staff see every amount on Orders, Invoices,
+  Repairs and Drafts (lists, cards, totals, pages, PDFs, payments) and in search. Hidden from staff (`seesMoney(email)` in
+  `lib/roles.ts`, owners only; `useSeesMoney()` in `lib/use-sees-money.ts`, a `?as=staff` preview counts as staff): Home's figures
+  (taken today, this month, owed, the month section, recent sales' amounts, unpaid rows), the Calendar's amounts, customers'
+  spending, owing, totals and Ledger links (list and page), karigars' pay, batches and "we owe him", the workshop's values, and the
+  shop's margin and 24k cost rate (`shop-margin.tsx`). Analytics has no tab for staff; `/analytics`, money, settings and stock
+  addresses typed by hand go home (`lib/staff-pages.ts`).
+- **Staff Home** (`components/home/staff-actions.tsx`): in place of the figures, one tap to what she does (New sale, New order, New
+  repair, Scan a tag, New customer, Workshop), a Marketing row for an employee who runs it (Add photos, Design, Stories, New ad), and
+  Help; then Needs you and Due to customers without money.
+- **Help** (`/help`, Home's tab, `staff: true`): one page of short step-by-step guides for each thing an employee does (sale,
+  payment, sending the PDF, orders, karigar, repairs, workshop, customers, drafts, and the marketing tools for those who have them),
+  in the screens' own button words, with a search box. Change a guide when its screen's buttons change.
+- **Accepted:** the server's staff read path still sends each invoice and order its totals (the bill in hand needs them), so the
+  numbers are in the browser's data though not on the screen; customer aggregates are not stored, so none are sent
+  (`STAFF_HIDDEN_FIELDS.customers` names the ones that would be withheld if one were added). Online orders waiting to be confirmed
+  keep their amount (confirming quotes it); the rate chip still shows the day's rates.
+- **Staff and marketing both.** Someone on both lists is `staff` for the books (`roleForEmail` unchanged) and `alsoMarketing(email)`;
+  `marketingAccess(email)` (owner, marketing, or staff-and-marketing) is what the Ads and Insights gate, the Design gate's ads
+  scope and the website analytics routes check, and `forRole(…, 'staffMarketing')` shows her the Marketing group whole.
+  The pure marketing account is unchanged: it keeps ad spend.
+- **No spend for her** (`lib/ads/spend.ts`): ads and Insights routes pass their JSON through `stripSpend` (spend, cpm, cpc, values,
+  budgets, ROAS, cost per result, the account's balance and cap, the paid side of Insights, the overview's month and attention
+  list); the Campaigns CSV, the helper and Ads Plan's "what your own ads say" refuse her; the UI hides the same places
+  (`useSpendHidden`). **Her ads wait paused:** `capNewAd` saves a new ad or ad set paused at the account's smallest daily budget (500
+  when it names none) with no bid control, schedule or hours, whatever the page sent; the object route refuses a budget change or
+  switching ACTIVE (`spendBlocked`); the New ad page shows "An owner sets the budget and turns it on".
+- **No settings for her** (or any staff): Ads → Setup, Audiences, Rules, A/B tests and Connect, the pixel's and audiences' writes,
+  the Studio's agent keys and Drive links (`configBlocked`), and the Settings pages, are not in her menu or palette and refused by
+  the routes. Visitors for her shows the counters, never Shopify's sales analytics.
+
 ### Marketing role
 
 The owner, 2026-10-05: unknownuser80@gmail.com should have "access only to the marketing section" of House of Mina's ERP.

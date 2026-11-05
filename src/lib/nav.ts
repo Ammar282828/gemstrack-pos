@@ -25,7 +25,7 @@ import {
   Wallet, TrendingUp, Settings as SettingsIcon, Calendar, Briefcase, Package, Gem, Layers, ImagePlus, Scale, Heart,
   PenLine, Coins, Target, BookUser, PieChart, Landmark, Tag, ArchiveRestore, RotateCcw, Mic, History, Palette,
   Rocket, BarChart3, UsersRound, ListChecks, SlidersHorizontal, Contact, Import, Database, ScanLine, Camera,
-  LayoutGrid, Bell, Plug, Banknote, Map as MapIcon, Rows3, Bot, Radio, PiggyBank, Weight,
+  LayoutGrid, Bell, Plug, Banknote, Map as MapIcon, Rows3, Bot, Radio, PiggyBank, Weight, LifeBuoy,
 } from 'lucide-react';
 import {
   STORE_LINKS, STORE_PARTNERSHIP, STORE_WEBSITE_WEIGHTS, STORE_SITE_EDIT, STORE_INVESTMENTS, STORE_POST_PIECE,
@@ -118,6 +118,9 @@ export const NAV: NavEntry[] = [
     tabs: [
       { staff: true, href: '/', label: 'Dashboard', icon: Home },
       { staff: true, href: '/calendar', label: 'Calendar', icon: Calendar, keywords: ['due dates', 'activity'] },
+      // How to do each thing an employee can do, in the shop's own words (the owner, 2026-11-05: "add a help feature so
+      // employees can understand everything"). Owners may read it too.
+      { staff: true, href: '/help', label: 'Help', icon: LifeBuoy, keywords: ['help', 'how to', 'guide', 'how do i', 'instructions', 'training'] },
       // Money in today by method, out, and the drawer (lib/analytics/todays-cash.ts). Owners: it is the till.
       { href: '/today', label: 'Today’s cash', icon: Banknote, keywords: ['cash', 'drawer', 'till', 'today', 'collected', 'daily cash'] },
     ],
@@ -217,8 +220,8 @@ export const NAV: NavEntry[] = [
     // Every analytics in one place (the owner, 2026-10-23: "why are some analytics somewhere and other analytics in other
     // places. make the analytics page one where all analytics live under sub sections"): Sales (the books), Website (the
     // site's own visits and pieces), Social (Instagram and Facebook) and Ads, each a section of its own pages. The pages
-    // kept their addresses. Staff see Website; the marketing account Website, Social and Ads; owners all.
-    id: 'analytics', group: 'home', href: '/analytics', label: 'Analytics', icon: TrendingUp, qualify: true, keepQuery: true, staff: true,
+    // kept their addresses. Staff see none of it (visitor numbers are numbers: the owner, 2026-11-05); the marketing account, and a staff member who is also on the marketing list, Website, Social and Ads; owners all.
+    id: 'analytics', group: 'home', href: '/analytics', label: 'Analytics', icon: TrendingUp, qualify: true, keepQuery: true,
     keywords: ['reports', 'sales report', 'monthly pdf', 'stats', 'statistics'],
     tabs: [
       { section: 'Sales', href: '/analytics', label: 'Overview', heading: 'Analytics', icon: TrendingUp },
@@ -233,9 +236,9 @@ export const NAV: NavEntry[] = [
       { section: 'Sales', href: '/analytics/categories', label: 'Categories', icon: LayoutGrid },
       { section: 'Sales', href: '/analytics/metal', label: STORE_METAL_WORD, heading: `${STORE_METAL_WORD} sold`, icon: Weight, keywords: ['tola', 'grams', 'karat', 'weight sold', 'gold coins', 'coins'] },
       // The website's own analytics (Shopify's, for sites that sell by WhatsApp): the period report and the pieces; Live beside it.
-      { section: 'Website', staff: true, marketing: true, href: '/website/interest', label: 'Visitors', heading: 'Website', icon: Globe, when: website,
+      { section: 'Website', marketing: true, href: '/website/interest', label: 'Visitors', heading: 'Website', icon: Globe, when: website,
         keywords: ['interest', 'saved', 'favourites', 'most saved', 'enquiries', 'inquired', 'looked at', 'popular', 'website analytics', 'visitors', 'sessions', 'traffic', 'bounce rate', 'traffic source', 'location', 'country', 'city', 'device', 'browser', 'landing page', 'exit page', 'search terms', '404', 'conversion', 'funnel'] },
-      { section: 'Website', staff: true, marketing: true, href: '/website/interest/live', label: 'Live', icon: Radio, when: website, keywords: ['live visitors', 'live view', 'on the site now', 'right now', 'real time', 'realtime'] },
+      { section: 'Website', marketing: true, href: '/website/interest/live', label: 'Live', icon: Radio, when: website, keywords: ['live visitors', 'live view', 'on the site now', 'right now', 'real time', 'realtime'] },
       // Instagram and the Facebook Page, organic beside paid (lib/social-insights; owner, 2026-10-17:
       // "all analytics possible to track on the instagram and facebook … through ads and organically"). Through the Ads connection.
       { section: 'Social', marketing: true, href: '/insights', label: 'Insights', heading: 'Insights', icon: BarChart3, when: () => STORE_META_ADS,
@@ -298,6 +301,14 @@ export const ACTIONS: NavAction[] = [
 /** Every entry, the sidebar's and the footer's. */
 export const ALL_ENTRIES: NavEntry[] = [NEW_SALE, ...NAV, SETTINGS];
 
+/**
+ * Pages that configure how the shop or a connection works: Ads' Setup and the three cards it holds (audiences built from
+ * the customer book, automated rules, tests). A staff member never opens them, marketing or not (the owner, 2026-11-05).
+ * The routes behind them refuse her too (lib/ads/spend.ts `configBlocked`).
+ */
+export const CONFIG_PAGES = ['/ads/setup', '/ads/audiences', '/ads/rules', '/ads/tests'] as const;
+export const isConfigPage = (href: string): boolean => CONFIG_PAGES.some(h => within(href, h));
+
 const on = (p: Place) => !p.when || p.when();
 
 /** Is this path `href`, or beneath it? ('/' only matches itself; a query is ignored.) */
@@ -311,7 +322,7 @@ export function within(pathname: string, href: string): boolean {
  * only the tabs and pages they can, and the entry opens the first tab.
  */
 /** Who the menu is drawn for. `true`/`false` are the old staff/owner flag, kept for the callers that pass it. */
-export type NavRole = 'owner' | 'staff' | 'marketing';
+export type NavRole = 'owner' | 'staff' | 'marketing' | 'staffMarketing';
 const asRole = (who: boolean | NavRole): NavRole => (typeof who === 'boolean' ? (who ? 'staff' : 'owner') : who);
 
 export function forRole(entry: NavEntry, who: boolean | NavRole): NavEntry | null {
@@ -327,6 +338,23 @@ export function forRole(entry: NavEntry, who: boolean | NavRole): NavEntry | nul
     if (!entry.tabs) return entry;
     const tabs = entry.tabs.filter(on);
     return tabs.length ? { ...entry, href: tabs[0].href, tabs, pages: entry.pages?.filter(on) } : null;
+  }
+  // A staff member who is also on the marketing list (roles.ts alsoMarketing): the shop floor's rows, and
+  // the Marketing group and Analytics' marketing sections whole. She stays money-blind (use-sees-money.ts).
+  if (role === 'staffMarketing') {
+    if (!on(entry)) return null;
+    if (entry.group === 'marketing') {
+      // Her marketing is the work, never the configuring (the owner, 2026-11-05: "dont give her any settings").
+      const m = forRole(entry, 'marketing');
+      if (!m) return null;
+      const tabs = (m.tabs ?? []).filter(t => !isConfigPage(t.href));
+      return tabs.length ? { ...m, href: tabs[0].href, tabs, pages: m.pages?.filter(p => !isConfigPage(p.href)) } : null;
+    }
+    if (!entry.tabs) return entry.staff ? entry : null;
+    const tabs = entry.tabs.filter(t => on(t) && ((entry.staff && t.staff) || t.marketing));
+    if (!tabs.length) return null;
+    const pages = entry.pages?.filter(p => on(p) && entry.staff && p.staff);
+    return { ...entry, href: tabs[0].href, tabs, pages };
   }
   const staff = role === 'staff';
   if (!on(entry) || (staff && !entry.staff)) return null;
@@ -401,7 +429,7 @@ export interface Destination { key: string; label: string; href: string; icon: L
  * place's too; a tab at its entry's own address is the entry (its label becomes a keyword).
  */
 export function paletteFor(who: boolean | NavRole): Destination[] {
-  const role = asRole(who), staff = role === 'staff';
+  const role = asRole(who), staff = role === 'staff' || role === 'staffMarketing';
   const entries = ALL_ENTRIES.map(e => forRole(e, role)).filter((e): e is NavEntry => !!e);
   const raw: (Destination & { entry?: NavEntry; tabLabel?: string })[] = [];
   for (const e of entries) {
