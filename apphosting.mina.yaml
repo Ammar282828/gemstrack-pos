@@ -161,6 +161,13 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  # Shop-floor staff (lib/roles.ts): sell, take orders, keep the bench moving; no money, analytics or settings.
+  # The owner, 2026-11-05: i.jawedbega@gmail.com "erp access employee level".
+  - variable: NEXT_PUBLIC_STORE_STAFF_EMAILS
+    value: "i.jawedbega@gmail.com"
+    availability:
+      - BUILD
+      - RUNTIME
   # Counter staff, for "Taken by" on orders and invoices — ADJUST to Mina's counter.
   - variable: NEXT_PUBLIC_STORE_TAKEN_BY
     value: "Mina,Ammar,Murtaza"
