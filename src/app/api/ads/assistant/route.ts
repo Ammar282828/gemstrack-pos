@@ -10,6 +10,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { adsFail, adsGate } from '@/lib/ads/gate';
+import { spendBlocked } from '@/lib/ads/spend';
 import { askAds, type ChatMessage } from '@/lib/ads/assistant';
 import { isRange, type RangeKey } from '@/lib/ads/shape';
 import { AiError } from '@/lib/social/ai';
@@ -23,6 +24,8 @@ const DAILY_CAP = Number(process.env.ADS_AI_DAILY_CAP) || 200;
 export async function POST(req: NextRequest) {
   const who = await adsGate(req);
   if (who instanceof NextResponse) return who;
+  // The helper answers from the ads' spend and results; she gets neither.
+  { const blocked = spendBlocked(who); if (blocked) return blocked; }
   const body = (await req.json().catch(() => ({}))) as { messages?: ChatMessage[]; range?: string; page?: string };
   const messages = (Array.isArray(body.messages) ? body.messages : [])
     .filter(m => m && (m.role === 'user' || m.role === 'assistant') && typeof m.text === 'string' && m.text.trim())

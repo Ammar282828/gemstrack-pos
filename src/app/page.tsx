@@ -39,6 +39,11 @@ import { owesMoney } from '@/lib/money';
 import { useShallow } from 'zustand/react/shallow';
 import { formatDate } from '@/lib/safe-date';
 import { SectionBoundary } from '@/components/shared/section-boundary';
+import { useSeesMoney } from '@/lib/use-sees-money';
+import { StaffActions } from '@/components/home/staff-actions';
+import { useAuth } from '@/components/auth/google-auth-gate';
+import { alsoMarketing } from '@/lib/roles';
+import { devRole } from '@/lib/dev-role';
 
 /** PKR at a glance, in lac and crore (lib/money.ts); the exact value stays on hover. */
 function compactPKR(n: number): string {
@@ -78,7 +83,7 @@ interface Due {
   timing: OrderTiming;
 }
 
-const DueRow: React.FC<{ d: Due }> = ({ d }) => {
+const DueRow: React.FC<{ d: Due; money: boolean }> = ({ d, money }) => {
   const t = d.timing;
   const tone: Tone = t.state === 'late' ? 'late' : t.state === 'today' ? 'owed' : 'quiet';
   const when = t.due ? (t.state === 'late' || t.state === 'today' ? timingLabel(t) : '') : t.state === 'late' ? timingLabel(t) : 'no date';
@@ -96,13 +101,13 @@ const DueRow: React.FC<{ d: Due }> = ({ d }) => {
           {when && <span className={cn('font-medium', tone !== 'quiet' && toneClasses(tone).ink)}> · {when}</span>}
         </span>
       </span>
-      {d.amount > 0 && <span className="flex-shrink-0 text-ios-sub font-semibold tabular-nums">{compactPKR(d.amount)}</span>}
+      {money && d.amount > 0 && <span className="flex-shrink-0 text-ios-sub font-semibold tabular-nums">{compactPKR(d.amount)}</span>}
       <Chevron />
     </Link>
   );
 };
 
-const RecentInvoiceRow: React.FC<{ invoice: Invoice }> = ({ invoice }) => {
+const RecentInvoiceRow: React.FC<{ invoice: Invoice; money: boolean }> = ({ invoice, money }) => {
   const owing = owesMoney(invoice.balanceDue);
   return (
     <Link href={`/invoices/${invoice.id}`} className={ROW}>
@@ -111,12 +116,12 @@ const RecentInvoiceRow: React.FC<{ invoice: Invoice }> = ({ invoice }) => {
         <span className="block truncate text-ios-sub font-semibold text-foreground">{invoice.customerName || 'Walk-in'}</span>
         <span className="block truncate text-ios-foot text-muted-foreground">{formatDate(invoice.createdAt, 'EEE d MMM')}</span>
       </span>
-      <span className="flex flex-shrink-0 flex-col items-end gap-1">
+      {money && <span className="flex flex-shrink-0 flex-col items-end gap-1">
         <span className="text-ios-sub font-semibold tabular-nums">{compactPKR(invoiceSaleValue(invoice))}</span>
         {owing && (
           <Pill tone="owed">{invoice.balanceDue >= (invoice.grandTotal || 0) ? 'Unpaid' : `${compactPKR(invoice.balanceDue)} due`}</Pill>
         )}
-      </span>
+      </span>}
       <Chevron />
     </Link>
   );
@@ -141,6 +146,10 @@ const dueOrder = (t: OrderTiming) => (t.state === 'late' ? 0 : t.state === 'toda
 
 export default function HomePage() {
   const appReady = useAppReady();
+  // Staff see what needs doing, never a figure (docs/decisions.md#staff-see-no-money): no takings, month, owed or sums.
+  const seesMoney = useSeesMoney();
+  const { user } = useAuth();
+  const staffMarketing = !devRole() && alsoMarketing(user?.email);
   const {
     loadProducts, orders, loadOrders,
     generatedInvoices, loadGeneratedInvoices,
@@ -229,6 +238,7 @@ export default function HomePage() {
     const todayDue = due.filter(d => d.timing.state === 'today');
 
     // Repairs finished but not collected for a while — the customer needs a call.
+    const readyRepairs = repairs.filter(r => r.status === 'ready').length;
     const readyWaiting = repairs.filter(r => r.status === 'ready' && r.readyAt && isValid(parseISO(r.readyAt)) && differenceInCalendarDays(now, parseISO(r.readyAt)) >= 3);
 
     const revenueMonth = rev(monthStart, tomorrowStart);
@@ -244,7 +254,7 @@ export default function HomePage() {
       lastMonthRevenue: rev(lastMonthStart, monthStart),
       unpaid, totalOutstanding, owedInHisaab: owed.ledger,
       activeJobs, criticalJobs, unassignedJobs,
-      due, lateDue, todayDue, readyWaiting,
+      due, lateDue, todayDue, readyWaiting, readyRepairs,
       revenueMonth, expensesMonth, netMonth: revenueMonth - expensesMonth,
       recentInvoices: newestFirst(generatedInvoices, i => i.createdAt).slice(0, 12),
     };
@@ -312,7 +322,7 @@ export default function HomePage() {
       });
     }
 
-    for (const inv of stats.unpaid.slice(0, 3)) {
+    for (const inv of seesMoney ? stats.unpaid.slice(0, 3) : []) {
       out.push({
         href: `/invoices/${inv.id}`, tone: 'owed', icon: Receipt,
         title: inv.customerName || 'Walk-in',
@@ -320,7 +330,7 @@ export default function HomePage() {
         amount: compactPKR(inv.balanceDue || 0),
       });
     }
-    const rest = stats.unpaid.slice(3);
+    const rest = seesMoney ? stats.unpaid.slice(3) : [];
     if (rest.length) {
       out.push({
         href: '/invoices', tone: 'owed', icon: Receipt,
@@ -345,7 +355,7 @@ export default function HomePage() {
     }
 
     return out;
-  }, [stats, customers, onlineWaiting, ratePause]);
+  }, [stats, customers, onlineWaiting, ratePause, seesMoney]);
 
   const [moreNeeds, setMoreNeeds] = React.useState(false);
   const [moreDue, setMoreDue] = React.useState(false);
@@ -367,7 +377,7 @@ export default function HomePage() {
   const needs = (
     <LedgerSection title="Needs you" count={tasks.length || undefined}>
       {tasks.length === 0 ? (
-        <EmptyState icon={<CheckCircle2 className="text-tone-settled" />} title="All clear" description="Nothing late, unpaid or waiting." className="py-8" />
+        <EmptyState icon={<CheckCircle2 className="text-tone-settled" />} title="All clear" description={seesMoney ? 'Nothing late, unpaid or waiting.' : 'Nothing late or waiting.'} className="py-8" />
       ) : (
         <>
           {shownTasks.map((t, i) => <TaskRow key={`${t.href}-${i}`} {...t} />)}
@@ -388,7 +398,7 @@ export default function HomePage() {
         <EmptyState icon={<CalendarClock />} title="Nothing due" description="No open orders or repairs." className="py-8" />
       ) : (
         <>
-          {shownDue.map(d => <DueRow key={d.key} d={d} />)}
+          {shownDue.map(d => <DueRow key={d.key} d={d} money={seesMoney} />)}
           {stats.due.length > SHOWN && !moreDue && <ShowMore hidden={stats.due.length - SHOWN} onClick={() => setMoreDue(true)} />}
         </>
       )}
@@ -403,7 +413,7 @@ export default function HomePage() {
       {stats.recentInvoices.length === 0 ? (
         <EmptyState icon={<Gem />} title="No sales yet" className="py-8" />
       ) : (
-        stats.recentInvoices.map(i => <RecentInvoiceRow key={i.id} invoice={i} />)
+        stats.recentInvoices.map(i => <RecentInvoiceRow key={i.id} invoice={i} money={seesMoney} />)
       )}
     </LedgerSection>
   );
@@ -425,6 +435,7 @@ export default function HomePage() {
       </header>
 
       {/* The glance: what was taken today, then three figures. Wide, they sit across in one row. */}
+      {seesMoney ? (
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.5fr_1fr_1fr_1fr]">
         <button type="button" onClick={() => setTakenOpen(true)} aria-haspopup="dialog" title={`PKR ${stats.todayRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })} — tap for day by day`} className="press block min-w-0 rounded-card text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
           <div className="glass-card h-full rounded-card bg-card p-4">
@@ -462,6 +473,10 @@ export default function HomePage() {
           </TileLink>
         </div>
       </div>
+      ) : (
+        // Staff: the things she does, one tap each; the work lists below say what needs doing, with no money.
+        <StaffActions marketing={staffMarketing} />
+      )}
 
       {/* Phone: one column, in the app's order. Wide: needs + due beside sales + the month. */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start">
@@ -472,10 +487,10 @@ export default function HomePage() {
         </div>
         <div className="space-y-5">
           <SectionBoundary name="Recent sales">{sales}</SectionBoundary>
-          <SectionBoundary name="This month">{month}</SectionBoundary>
+          {seesMoney && <SectionBoundary name="This month">{month}</SectionBoundary>}
         </div>
       </div>
-      {takenOpen && (
+      {seesMoney && takenOpen && (
         <SectionBoundary name="Taken by day" fallback={() => null}>
           <TakenByDayDialog open onOpenChange={setTakenOpen}
             data={{ invoices: generatedInvoices, orders, extraRevenues: additionalRevenues, repairs }} />

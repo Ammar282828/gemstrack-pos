@@ -2,6 +2,7 @@
 
 "use client";
 
+import { useSeesMoney } from '@/lib/use-sees-money';
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -192,6 +193,8 @@ export default function KarigarDetailPage() {
   const { toast } = useToast();
   const karigarId = params.id as string;
 
+  // Staff see the work on his bench, never what he is paid or what we owe him (docs/decisions.md#staff-see-no-money).
+  const seesMoney = useSeesMoney();
   const isHydrated = useIsStoreHydrated();
   const karigar = useAppStore(state => state.karigars.find(k => k.id === karigarId));
   const expenses = useAppStore(state => state.expenses);
@@ -437,7 +440,7 @@ export default function KarigarDetailPage() {
               </AlertDialog>
             </div>
           </div>
-          <Separator className="my-4" />
+          {seesMoney && <><Separator className="my-4" />
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Total Paid (all time)</p>
@@ -447,12 +450,12 @@ export default function KarigarDetailPage() {
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Active pay batch</p>
               <p className="font-semibold">{openBatch ? openBatch.label : <span className="text-muted-foreground text-sm font-normal">None</span>}</p>
             </div>
-          </div>
+          </div></>}
         </CardContent>
       </Card>
 
       {/* ── Now: what he has of ours, what we owe him ── */}
-      <NowCard karigarId={karigarId} position={position} openBatch={openBatch ? { label: openBatch.label, total: openBatchTotal } : null} silver={karigarSilver.length ? { grams: totalSilverGrams, surcharge: totalSilverSurcharge } : null} />
+      <NowCard seesMoney={seesMoney} karigarId={karigarId} position={position} openBatch={openBatch ? { label: openBatch.label, total: openBatchTotal } : null} silver={karigarSilver.length ? { grams: totalSilverGrams, surcharge: totalSilverSurcharge } : null} />
 
       {/* ── Gold Khata (gold given / pieces received) ── */}
       {goldKhata.entries.length > 0 && (
@@ -460,9 +463,9 @@ export default function KarigarDetailPage() {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2 text-base"><Scale className="h-5 w-5 text-primary" />Gold Khata</CardTitle>
-              <Button asChild variant="ghost" size="sm" className="text-primary">
+              {seesMoney && <Button asChild variant="ghost" size="sm" className="text-primary">
                 <Link href={`/hisaab/${karigarId}?type=karigar`}>Open in Hisaab <ExternalLink className="ml-1.5 h-3.5 w-3.5" /></Link>
-              </Button>
+              </Button>}
             </div>
           </CardHeader>
           <CardContent>
@@ -603,6 +606,7 @@ export default function KarigarDetailPage() {
       </Dialog>
 
       {/* ── Active Hisaab ── */}
+      {seesMoney && <>
       {openBatch ? (
         <Card className="border-primary/30 shadow-sm">
           <CardHeader className="flex flex-row items-start justify-between gap-3 pb-3">
@@ -769,6 +773,7 @@ export default function KarigarDetailPage() {
           <DirectPaymentsCard expenses={unbatchedExpenses} />
         </div>
       )}
+      </>}
     </div>
   );
 }
@@ -777,7 +782,8 @@ export default function KarigarDetailPage() {
  * The karigar at a glance: his bench, the metal with him, what he has been handed, and the money
  * between us. Read only — every figure links to where it is kept and changed.
  */
-function NowCard({ karigarId, position, openBatch, silver }: {
+function NowCard({ seesMoney, karigarId, position, openBatch, silver }: {
+  seesMoney: boolean;
   karigarId: string;
   position: ReturnType<typeof karigarPosition>;
   openBatch: { label: string; total: number } | null;
@@ -795,13 +801,13 @@ function NowCard({ karigarId, position, openBatch, silver }: {
           <NowTile label="On his bench" value={`${bench.length} piece${bench.length === 1 ? '' : 's'}`} hint={bench.length ? `oldest ${bench[0].ageDays} d` : 'nothing open'} href={`/workshop?karigar=${karigarId}`} />
           <NowTile label="Pieces weigh (est.)" value={metals.length ? metals.map(([, w]) => g(w)).join(' · ') : '—'}
             hint={metals.length ? metals.map(([m]) => m).join(', ') + (metalOnBench.unweighed ? ` · ${metalOnBench.unweighed} unweighed` : '') : metalOnBench.unweighed ? `${metalOnBench.unweighed} unweighed` : 'the weights on the jobs'} />
-          <NowTile label="Gold khata" value={g(goldKhata.net)} hint="given less received, in Hisaab" href={`/hisaab/${karigarId}?type=karigar`} tone={goldKhata.net > 0.0005 ? 'bad' : undefined} />
-          <NowTile label={cash > 0 ? 'He holds of ours' : cash < 0 ? 'We owe him' : 'Cash'} value={cash ? `PKR ${Math.abs(cash).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : 'Square'}
-            hint={openBatch ? `${openBatch.label}: PKR ${openBatch.total.toLocaleString(undefined, { maximumFractionDigits: 0 })} paid` : 'Hisaab cash'} href={`/hisaab/${karigarId}?type=karigar`} tone={cash < 0 ? 'bad' : undefined} />
+          <NowTile label="Gold khata" value={g(goldKhata.net)} hint="given less received, in Hisaab" href={seesMoney ? `/hisaab/${karigarId}?type=karigar` : undefined} tone={goldKhata.net > 0.0005 ? 'bad' : undefined} />
+          {seesMoney && <NowTile label={cash > 0 ? 'He holds of ours' : cash < 0 ? 'We owe him' : 'Cash'} value={cash ? `PKR ${Math.abs(cash).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : 'Square'}
+            hint={openBatch ? `${openBatch.label}: PKR ${openBatch.total.toLocaleString(undefined, { maximumFractionDigits: 0 })} paid` : 'Hisaab cash'} href={`/hisaab/${karigarId}?type=karigar`} tone={cash < 0 ? 'bad' : undefined} />}
         </div>
         <p className="text-2xs text-muted-foreground">
           The pieces' weight is what the jobs say they will weigh; the gold khata is what was handed over and brought back. Two measures, never added.
-          {silver && <> Silver received: {g(silver.grams)} · PKR {silver.surcharge.toLocaleString(undefined, { maximumFractionDigits: 0 })} surcharge.</>}
+          {silver && <> Silver received: {g(silver.grams)}{seesMoney && <> · PKR {silver.surcharge.toLocaleString(undefined, { maximumFractionDigits: 0 })} surcharge</>}.</>}
         </p>
 
         {bench.length > 0 && (

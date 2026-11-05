@@ -10,6 +10,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { adsFail, adsGate, noStore, ownerOnly } from '@/lib/ads/gate';
+import { configBlocked } from '@/lib/ads/spend';
 import { MetaAdsError } from '@/lib/ads/meta';
 import { requireAccount } from '@/lib/ads/settings';
 import { createCustomerAudience, createEngagementAudience, createLookalike, createWebsiteAudience, deleteAudience, listAudiences, refreshCustomerAudience, ENGAGEMENT_EVENTS, WEBSITE_EVENTS } from '@/lib/ads/audiences';
@@ -36,6 +37,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const who = await adsGate(req);
   if (who instanceof NextResponse) return who;
+  { const blocked = configBlocked(who); if (blocked) return blocked; }
   const b = (await req.json().catch(() => ({}))) as Record<string, unknown>;
   // A customer audience sends the customer book (hashed) to Meta: owners only, not a marketing account.
   if (b.kind === 'customers' || b.kind === 'refresh') { const no = await ownerOnly(req); if (no) return no; }
@@ -86,6 +88,7 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const who = await adsGate(req);
   if (who instanceof NextResponse) return who;
+  { const blocked = configBlocked(who); if (blocked) return blocked; }
   const id = req.nextUrl.searchParams.get('id') || '';
   try {
     const { act } = await requireAccount();

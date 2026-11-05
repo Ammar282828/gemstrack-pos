@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { adsGate, noStore } from '@/lib/ads/gate';
+import { configBlocked } from '@/lib/ads/spend';
 import { STORE_AD_STUDIO } from '@/lib/store-config';
 import { addLinkedFolder, removeLinkedFolder } from '@/lib/ads/studio/drive';
 import { studioFail } from '@/lib/ads/studio/route-kit';
@@ -14,6 +15,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   const who = await adsGate(req, STORE_AD_STUDIO);
   if (who instanceof NextResponse) return who;
+  { const blocked = configBlocked(who); if (blocked) return blocked; }
   try {
     const b = (await req.json().catch(() => ({}))) as { link?: string };
     return NextResponse.json({ folder: await addLinkedFolder(String(b.link ?? '')) }, { headers: noStore });
@@ -23,6 +25,7 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const who = await adsGate(req, STORE_AD_STUDIO);
   if (who instanceof NextResponse) return who;
+  { const blocked = configBlocked(who); if (blocked) return blocked; }
   const id = req.nextUrl.searchParams.get('id') || '';
   if (!/^[\w-]{10,}$/.test(id)) return NextResponse.json({ error: 'Which folder?' }, { status: 400 });
   try { await removeLinkedFolder(id); return NextResponse.json({ ok: true }); }

@@ -192,8 +192,7 @@ class SaleLine(
         put("shopifyProductId", shopifyProductId)
         put("shopifyVariantId", shopifyVariantId)
         put("referenceImage", referenceImage)
-        // The iPhone always sends the flag; until its contract file is rewritten with it, only a set flag is sent (the ERP reads a missing one as off).
-        if (printReference) o["printReference"] = true
+        o["printReference"] = printReference
         return o
     }
 
@@ -231,7 +230,7 @@ class SaleLine(
         shopifyProductId?.let { o["shopifyProductId"] = it }
         shopifyVariantId?.let { o["shopifyVariantId"] = it }
         referenceImage?.let { o["referenceImage"] = it }
-        if (printReference) o["printReference"] = true
+        o["printReference"] = printReference
         return o
     }
 

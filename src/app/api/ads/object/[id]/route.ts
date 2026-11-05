@@ -17,6 +17,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { adsFail, adsGate, noStore } from '@/lib/ads/gate';
+import { adsJson, spendBlocked } from '@/lib/ads/spend';
 import { graph, MetaAdsError } from '@/lib/ads/meta';
 import { requireAccount } from '@/lib/ads/settings';
 import { fromMinor, toMinor, type Level } from '@/lib/ads/shape';
@@ -58,13 +59,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           .then(d => ({ format: f, html: d.data?.[0]?.body ?? null }))
           .catch(() => ({ format: f, html: null }))),
       ]);
-      return NextResponse.json({ level, currency, ad, previews: previews.filter(p => p.html) }, { headers: noStore });
+      return adsJson(who, { level, currency, ad, previews: previews.filter(p => p.html) }, { headers: noStore });
     }
     const fields = level === 'adset'
       ? 'name,status,effective_status,optimization_goal,billing_event,destination_type,daily_budget,lifetime_budget,start_time,end_time,targeting,promoted_object,bid_strategy,learning_stage_info,issues_info,campaign{id,name,objective}'
       : 'name,status,effective_status,objective,daily_budget,lifetime_budget,start_time,stop_time,buying_type,bid_strategy,issues_info';
     const obj = await graph<Record<string, unknown>>(id, { params: { fields } });
-    return NextResponse.json({ level, currency, [level]: obj,
+    return adsJson(who, { level, currency, [level]: obj,
       audience: level === 'adset' ? parseTargeting(obj.targeting as Record<string, unknown> | undefined) : undefined,
       budget: { daily: obj.daily_budget ? fromMinor(String(obj.daily_budget), currency) : null,
         lifetime: obj.lifetime_budget ? fromMinor(String(obj.lifetime_budget), currency) : null },
@@ -90,10 +91,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     switch (body.action) {
       case 'status': {
         if (body.status !== 'ACTIVE' && body.status !== 'PAUSED') return NextResponse.json({ error: 'Running or paused?' }, { status: 400 });
+        // Switching an ad on spends: an owner does that (lib/ads/spend.ts).
+        if (body.status === 'ACTIVE') { const blocked = spendBlocked(who); if (blocked) return blocked; }
         await post({ status: body.status });
         break;
       }
       case 'budget': {
+        { const blocked = spendBlocked(who); if (blocked) return blocked; }
         if (level === 'ad') return NextResponse.json({ error: 'Ads have no budget of their own.' }, { status: 400 });
         const daily = Number(body.daily), lifetime = Number(body.lifetime);
         if (body.daily !== undefined) {

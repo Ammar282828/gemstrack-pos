@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { adsFail, adsGate } from '@/lib/ads/gate';
+import { capNewAd, withoutSpend } from '@/lib/ads/spend';
 import { createAd } from '@/lib/ads/create';
 import { planContext } from '@/lib/ads/context';
 import { logAds } from '@/lib/ads/log';
@@ -34,8 +35,10 @@ export async function POST(req: NextRequest) {
   if (!isPlan(plan)) return NextResponse.json({ error: 'The ad is missing something — reload the page and try again.' }, { status: 400 });
   try {
     const { act, ctx } = await planContext();
-    const made = await createAd(act, { ...plan, name: plan.name.trim().slice(0, 200) }, ctx);
-    await logAds({ by: who, action: made.live ? 'created live' : 'created paused', target: made.adId, name: plan.name, detail: { goal: plan.goal, budget: plan.budget, campaignId: made.campaignId } });
+    // Hers are saved paused at the smallest budget; an owner sets the budget and turns them on (lib/ads/spend.ts).
+    const asked = withoutSpend(who) ? capNewAd(plan, ctx.minDaily) : plan;
+    const made = await createAd(act, { ...asked, name: plan.name.trim().slice(0, 200) }, ctx);
+    await logAds({ by: who, action: made.live ? 'created live' : 'created paused', target: made.adId, name: plan.name, detail: { goal: plan.goal, budget: asked.budget, campaignId: made.campaignId } });
     return NextResponse.json(made);
   } catch (e) {
     return adsFail(e, 'create');

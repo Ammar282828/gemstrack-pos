@@ -6,6 +6,7 @@
  * boosted post. Opened from Campaigns ("Add an ad set", "Copy and change") and after a new ad.
  */
 
+import { useSpendHidden } from '@/lib/use-sees-money';
 import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -35,6 +36,8 @@ const dateInput = (iso: string | null) => (iso ? iso.slice(0, 10) : '');
 
 function AdSetDesigner() {
   const params = useSearchParams();
+  // The staff member who also runs the marketing: no budgets; her ad sets are made paused and an owner sets the budget (lib/ads/spend.ts).
+  const hide = useSpendHidden();
   const { status, error: statusError, loading: statusLoading, reload, ready } = useAdsStatus();
   const [tree, setTree] = useState<TreeCampaign[] | null>(null);
   const [treeError, setTreeError] = useState<string | null>(null);
@@ -70,7 +73,7 @@ function AdSetDesigner() {
     ).then(d => {
       setInfo({ currency: d.currency, minDaily: d.minDaily, pixelId: d.pixelId });
       if (from && d.draft) {
-        setSets([{ ...d.draft, key: 's1-from' }]);
+        setSets([{ ...d.draft, budget: d.draft.budget ?? { kind: 'daily', amount: 0, start: null, end: null }, key: 's1-from' }]);
         setOpen('s1-from');
         if (d.ads?.length) setAdIds(d.ads);
         if (d.campaign) { setTarget(d.campaign.id); setCampaign(d.campaign); }
@@ -97,16 +100,20 @@ function AdSetDesigner() {
     setSets(ss => ss.map(s => (allowed.some(g => g.key === s.goal) ? s : { ...s, goal: allowed[0].key })));
   }, [allowed]);
 
-  const design: AdSetDesign = {
+  const asked: AdSetDesign = {
     campaign: target === 'new' ? { kind: 'new', name: campaignName } : { kind: 'existing', id: target, objective: campaign?.objective ?? '', budgeted: !!campaign?.budgeted },
     adsets: sets,
     ads: adsKind === 'copy' ? { kind: 'copy', ids: adIds } : { kind: 'post', mediaId: post, link },
     launch,
   };
+  // Hers: paused, and a placeholder budget the server replaces with the account's smallest (so the form can be complete).
+  const design: AdSetDesign = hide
+    ? { ...asked, launch: 'paused', adsets: asked.adsets.map(a => ({ ...a, budget: { kind: 'daily', amount: 1, start: null, end: null } })) }
+    : asked;
   const currency = info?.currency ?? status?.account?.currency ?? 'PKR';
   const problems = designProblems(design, {
     pageId: status?.settings?.pageId ?? null, instagramUserId: status?.settings?.instagramUserId ?? null, instagramUsername: null, whatsappGreeting: null,
-    pixelId: info?.pixelId ?? status?.settings?.pixelId ?? null, currency, minDaily: info?.minDaily ?? status?.account?.minDailyBudget ?? null,
+    pixelId: info?.pixelId ?? status?.settings?.pixelId ?? null, currency, minDaily: hide ? null : info?.minDaily ?? status?.account?.minDailyBudget ?? null,
   });
   const budgeted = design.campaign.kind === 'existing' && design.campaign.budgeted;
 
@@ -165,7 +172,7 @@ function AdSetDesigner() {
                       className={cn('rounded-full border px-3 py-1 text-xs min-h-0', s.goal === g.key ? 'bg-primary text-primary-foreground border-primary' : 'text-muted-foreground')}>{g.label}</button>
                   ))}
                 </div>
-                {!budgeted && (
+                {!budgeted && !hide && (
                   <div className="flex flex-wrap items-center gap-2">
                     <div className="flex rounded-md border overflow-hidden text-xs">
                       {(['daily', 'total'] as const).map(k => <button key={k} type="button" onClick={() => change(s.key, { budget: { ...s.budget, kind: k } })} className={cn('px-3 py-1.5 min-h-0', s.budget.kind === k ? 'bg-primary text-primary-foreground' : 'text-muted-foreground')}>{k === 'daily' ? 'A day' : 'In total'}</button>)}
@@ -174,10 +181,10 @@ function AdSetDesigner() {
                     <span className="text-xs text-muted-foreground">{currency}</span>
                   </div>
                 )}
-                <div className="flex flex-wrap items-center gap-2 text-xs">
+                {!hide && <div className="flex flex-wrap items-center gap-2 text-xs">
                   <label className="flex items-center gap-1">From <Input type="date" value={dateInput(s.budget.start)} onChange={e => change(s.key, { budget: { ...s.budget, start: e.target.value ? new Date(`${e.target.value}T00:00:00`).toISOString() : null } })} className="h-8 w-40 text-base sm:text-xs" /></label>
                   <label className="flex items-center gap-1">to <Input type="date" value={dateInput(s.budget.end)} onChange={e => change(s.key, { budget: { ...s.budget, end: e.target.value ? new Date(`${e.target.value}T23:59:00`).toISOString() : null } })} className="h-8 w-40 text-base sm:text-xs" /></label>
-                </div>
+                </div>}
                 <button type="button" onClick={() => setOpen(isOpen && sets.length > 1 ? null : s.key)} className="w-full flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2 text-left text-xs min-h-0">
                   <span className="truncate">{describeAudience(s.audience)}</span>
                   {isOpen ? <ChevronUp className="h-4 w-4 shrink-0" /> : <ChevronDown className="h-4 w-4 shrink-0" />}
@@ -230,9 +237,10 @@ function AdSetDesigner() {
           </section>
 
           <section className="rounded-xl border p-4 space-y-2">
-            <div className="grid grid-cols-2 gap-1.5">
+            {hide && <p className="text-xs text-muted-foreground">Ad sets you make are saved paused. An owner sets the budget and turns them on.</p>}
+            {!hide && <div className="grid grid-cols-2 gap-1.5">
               {(['paused', 'live'] as const).map(k => <button key={k} type="button" onClick={() => setLaunch(k)} className={cn('rounded-lg border p-2 text-xs', launch === k ? 'border-primary bg-primary/10' : 'text-muted-foreground')}>{k === 'paused' ? 'Make them paused' : 'Run them once approved'}</button>)}
-            </div>
+            </div>}
             {problems.length > 0 && <ul className="text-xs text-warning list-disc pl-4">{problems.slice(0, 4).map(p => <li key={p}>{p}</li>)}</ul>}
             {error && <p className="text-xs text-destructive">{error}</p>}
             <Button className="w-full h-11" disabled={busy || problems.length > 0} onClick={make}>

@@ -24,7 +24,8 @@ import { Search, Briefcase, Gem, Receipt, ClipboardList, ArrowRight, Wrench } fr
 import { paletteFor } from '@/lib/nav';
 import { scorePlace } from '@/lib/palette-match';
 import { useAuth } from '@/components/auth/google-auth-gate';
-import { roleForEmail } from '@/lib/roles';
+import { roleForEmail, alsoMarketing } from '@/lib/roles';
+import type { NavRole } from '@/lib/nav';
 import { devRole } from '@/lib/dev-role';
 
 interface Item {
@@ -57,7 +58,7 @@ const pkr = (n: number) => (n >= 100000 ? `PKR ${(n / 100000).toFixed(n >= 10000
  * It was a hand-kept list of its own that had drifted from the sidebar — other names, missing
  * pages (the Posts hub, Drafts, Scan, Labels, every Analytics and Ads tab) and no roles.
  */
-function destinationsFor(staff: boolean | 'marketing'): Array<Item & { keywords: string[] }> {
+function destinationsFor(staff: NavRole): Array<Item & { keywords: string[] }> {
   return paletteFor(staff).map(d => ({
     id: d.key, label: d.label, group: d.group, href: d.href,
     icon: <d.icon className="h-4 w-4" />,
@@ -98,7 +99,7 @@ export function CommandPalette() {
   // The same role rule as the sidebar (app-layout.tsx).
   const { user } = useAuth();
   const role = devRole() ?? roleForEmail(user?.email);
-  const isStaff: boolean | 'marketing' = role === 'marketing' ? 'marketing' : role === 'staff';
+  const isStaff: NavRole = role === 'marketing' ? 'marketing' : role === 'staff' ? (!devRole() && alsoMarketing(user?.email) ? 'staffMarketing' : 'staff') : 'owner';
 
   // Ctrl+K / Cmd+K anywhere, including from inside a field.
   useEffect(() => {

@@ -64,6 +64,20 @@
           ]
         },
         {
+          "href": "/help",
+          "label": "Help",
+          "icon": "LifeBuoy",
+          "staff": true,
+          "keywords": [
+            "help",
+            "how to",
+            "guide",
+            "how do i",
+            "instructions",
+            "training"
+          ]
+        },
+        {
           "href": "/today",
           "label": "Today’s cash",
           "icon": "Banknote",
@@ -553,7 +567,6 @@
       "href": "/analytics",
       "label": "Analytics",
       "icon": "TrendingUp",
-      "staff": true,
       "keywords": [
         "reports",
         "sales report",
@@ -582,6 +595,43 @@
           ]
         },
         {
+          "href": "/analytics/profit",
+          "label": "Profit",
+          "icon": "PiggyBank",
+          "section": "Sales",
+          "keywords": [
+            "net profit",
+            "margin",
+            "gross profit",
+            "yearly"
+          ]
+        },
+        {
+          "href": "/analytics/cash",
+          "label": "Cash",
+          "icon": "Wallet",
+          "section": "Sales",
+          "keywords": [
+            "cash flow",
+            "money in",
+            "money out",
+            "receivables",
+            "outstanding",
+            "owed to us"
+          ]
+        },
+        {
+          "href": "/analytics/spending",
+          "label": "Spending",
+          "icon": "Receipt",
+          "section": "Sales",
+          "keywords": [
+            "expenses by category",
+            "costs",
+            "overheads analysis"
+          ]
+        },
+        {
           "href": "/analytics/products",
           "label": "Products",
           "icon": "Gem",
@@ -607,11 +657,25 @@
           "section": "Sales"
         },
         {
+          "href": "/analytics/metal",
+          "label": "Gold",
+          "heading": "Gold sold",
+          "icon": "Weight",
+          "section": "Sales",
+          "keywords": [
+            "tola",
+            "grams",
+            "karat",
+            "weight sold",
+            "gold coins",
+            "coins"
+          ]
+        },
+        {
           "href": "/website/interest",
           "label": "Visitors",
           "heading": "Website",
           "icon": "Globe",
-          "staff": true,
           "marketing": true,
           "section": "Website",
           "keywords": [
@@ -646,7 +710,6 @@
           "href": "/website/interest/live",
           "label": "Live",
           "icon": "Radio",
-          "staff": true,
           "marketing": true,
           "section": "Website",
           "keywords": [
