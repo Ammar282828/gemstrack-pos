@@ -246,6 +246,7 @@ struct OnlineOrdersScreen: View {
             NavigationLink(value: Route(path: "/orders/\(orderId)")) {
                 TwoLine(title: "\(r.id) · \(orderId)", subtitle: confirmedLine(r), trailing: Money.pkr(r.grandTotal))
             }
+            .zoomSource(id: "/orders/\(orderId)")
         } else if r.state == "declined" {
             TwoLine(title: "\(r.id) · declined",
                     subtitle: [r.customer.name, r.declineReason ?? ""].filter { !$0.isEmpty }.joined(separator: " · "),

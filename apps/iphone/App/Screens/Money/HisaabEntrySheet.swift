@@ -60,7 +60,7 @@ struct HisaabEntrySheet: View {
                         gramsRow
                         cashRow
                     }
-                    if cash > 0 { Text(Money.pkrLac(cash)).foregroundStyle(.secondary) }
+                    if cash > 0 { Text(Money.pkrLac(cash)).monospacedDigit().foregroundStyle(.secondary) }
                 } header: {
                     LedgerHeading(title: mode == .gave ? "What you gave" : "What you got")
                 } footer: {

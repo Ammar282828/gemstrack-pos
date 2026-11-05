@@ -634,7 +634,7 @@ extension StockBulkEditor {
                 }
                 .width(min: 80, ideal: 160)
                 TableColumn("") { (row: StockBulkRow) in
-                    Button { remove(row.id) } label: { Image(systemName: "minus.circle") }
+                    Button { remove(row.id) } label: { Image(systemName: "minus.circle").frame(minWidth: Metrics.tap, minHeight: Metrics.tap).contentShape(Rectangle()) }
                         .buttonStyle(.borderless)
                         .help("Remove this row")
                 }

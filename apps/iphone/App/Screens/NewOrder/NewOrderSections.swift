@@ -328,7 +328,7 @@ struct NewOrderExchangeSection: View {
             LedgerHeading(title: "Exchange / trade-in")
         }
         .motion(draft.exchanges.count)
-        .motion(opened)
+        .motion(opened, Motion.spring)
     }
 
     private var total: Double { exchangeRowsTotal(draft.exchanges.map { $0.row }) }

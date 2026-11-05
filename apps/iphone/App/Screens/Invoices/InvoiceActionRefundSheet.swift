@@ -226,7 +226,7 @@ extension InvoiceActionRefundSheet {
             // The web takes it; said so nobody hands back more than came in by a slip of the keys.
             Text("More than was paid on it (\(PaymentText.pkr(invoice.amountPaid))).").foregroundStyle(Tone.owed.color)
         } else if amount > 0 {
-            Text(Money.pkrLac(amount)).font(.callout).foregroundStyle(.secondary)
+            Text(Money.pkrLac(amount)).font(.callout).monospacedDigit().foregroundStyle(.secondary)
         }
         if let after {
             Section("After") {

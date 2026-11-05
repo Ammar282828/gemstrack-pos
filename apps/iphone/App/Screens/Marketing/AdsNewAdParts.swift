@@ -174,11 +174,11 @@ struct AdsPhotoRow: View {
             Spacer(minLength: 4)
             if carousel {
                 VStack(spacing: pt(8)) {
-                    Button { move(-1) } label: { Image(systemName: "chevron.up") }
+                    Button { move(-1) } label: { Image(systemName: "chevron.up").frame(minWidth: Metrics.tap, minHeight: Metrics.tap).contentShape(Rectangle()) }
                         .buttonStyle(.borderless)
                         .disabled(first)
                         .accessibilityLabel("Earlier")
-                    Button { move(1) } label: { Image(systemName: "chevron.down") }
+                    Button { move(1) } label: { Image(systemName: "chevron.down").frame(minWidth: Metrics.tap, minHeight: Metrics.tap).contentShape(Rectangle()) }
                         .buttonStyle(.borderless)
                         .disabled(last)
                         .accessibilityLabel("Later")

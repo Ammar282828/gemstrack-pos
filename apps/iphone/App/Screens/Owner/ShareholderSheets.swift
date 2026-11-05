@@ -113,7 +113,7 @@ struct ShareholderEntrySheet: View {
                         .keyboardType(.numberPad)
                         .font(.title2.weight(.semibold))
                         .monospacedDigit()
-                    if amount > 0 { Text(Money.pkrLac(amount)).foregroundStyle(.secondary) }
+                    if amount > 0 { Text(Money.pkrLac(amount)).monospacedDigit().foregroundStyle(.secondary) }
                     // The day is worked out in Karachi, so the picker shows Karachi's too.
                     DatePicker("Date", selection: $date, displayedComponents: .date)
                         .environment(\.timeZone, ERPDate.karachi)

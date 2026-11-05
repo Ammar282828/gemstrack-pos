@@ -310,7 +310,7 @@ struct DashTakenSheet: View {
             ForEach(list) { (d: DashTakenDay) in
                 BarMark(x: .value("Day", Self.key(d)), y: .value("Taken", d.total))
                     .foregroundStyle(Self.key(d) == chosenKey ? Theme.accent : Theme.accent.opacity(0.3))
-                    .cornerRadius(3)
+                    .cornerRadius(3, style: .continuous)
             }
             RuleMark(y: .value("Nothing", 0.0))
                 .lineStyle(StrokeStyle(lineWidth: 1))

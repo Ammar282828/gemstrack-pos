@@ -44,7 +44,7 @@ struct RevenueEditSheet: View {
                         .keyboardType(.numberPad)
                         .font(.title2.weight(.semibold))
                         .monospacedDigit()
-                    if amount > 0 { Text(Money.pkrLac(amount)).foregroundStyle(.secondary) }
+                    if amount > 0 { Text(Money.pkrLac(amount)).monospacedDigit().foregroundStyle(.secondary) }
                 }
                 }
                 .houseRows()

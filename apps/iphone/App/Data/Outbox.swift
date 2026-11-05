@@ -241,6 +241,8 @@ final class Outbox {
 
     func dismissFailure() { failure = nil }
     func clearNotice() { notice = nil }
+    /// Say something app-wide from a screen that has no toast of its own (a row in a List): used for an Undo.
+    func say(_ note: Note) { notice = note }
 
     /// Back in front: load what a kill left, and try again what had given up waiting.
     func resume() {

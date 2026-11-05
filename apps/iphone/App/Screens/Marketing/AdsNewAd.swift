@@ -746,7 +746,7 @@ struct AdsNewAdScreen: View {
                     Text("With its 9:16 version for stories, reels and WhatsApp Status: one ad, each place its own size.")
                         .font(.footnote)
                     Spacer(minLength: 4)
-                    Button { vertical = nil } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary) }
+                    Button { vertical = nil } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary).frame(minWidth: Metrics.tap, minHeight: Metrics.tap).contentShape(Rectangle()) }
                         .buttonStyle(.borderless)
                         .accessibilityLabel("Drop the story size")
                 }

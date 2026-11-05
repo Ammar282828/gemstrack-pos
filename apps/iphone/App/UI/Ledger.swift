@@ -717,7 +717,7 @@ struct FilterChip: View {
         .accessibilityAddTraits(chosen ? .isSelected : [])
         // A light tick as a chip is chosen (never as the old one lets go), and its fill eases over.
         .sensoryFeedback(.selection, trigger: chosen) { _, now in now }
-        .motion(chosen, Motion.exit)
+        .motion(chosen, Motion.spring)
     }
 }
 

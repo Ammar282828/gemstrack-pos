@@ -447,7 +447,7 @@ struct Dashboard: View {
 
     private func reveal(_ expanded: Binding<Bool>, count: Int) -> some View {
         Button(expanded.wrappedValue ? "Show less" : "Show \(count) more") {
-            Motion.run(expanded.wrappedValue ? Motion.exit : Motion.enter, reduce: reduceMotion) { expanded.wrappedValue.toggle() }
+            Motion.run(Motion.spring, reduce: reduceMotion) { expanded.wrappedValue.toggle() }
         }
         .font(.subheadline.weight(.medium)).frame(minHeight: Metrics.tap).padding(.horizontal, pt(4))
     }

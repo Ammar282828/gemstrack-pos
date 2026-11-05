@@ -242,7 +242,7 @@ extension AlertsForm {
                 HStack {
                     Text(p).monospacedDigit()
                     Spacer()
-                    Button { savePhones(phones.filter { $0 != p }) } label: { Image(systemName: "minus.circle") }
+                    Button { savePhones(phones.filter { $0 != p }) } label: { Image(systemName: "minus.circle").frame(minWidth: Metrics.tap, minHeight: Metrics.tap).contentShape(Rectangle()) }
                         .buttonStyle(.borderless)
                         .help("Remove this number")
                 }

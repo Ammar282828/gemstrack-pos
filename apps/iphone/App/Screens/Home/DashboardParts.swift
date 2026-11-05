@@ -98,7 +98,7 @@ struct DashWeekBars: View {
                 ForEach(days) { (d: DashDay) in
                     BarMark(x: .value("Day", DashDate.weekdayDayMonth(d.day)), y: .value("Taken", d.amount))
                         .foregroundStyle(d.id == today ? Theme.accent : Theme.accent.opacity(0.25))
-                        .cornerRadius(3)
+                        .cornerRadius(3, style: .continuous)
                 }
                 RuleMark(y: .value("Nothing", 0.0))
                     .lineStyle(StrokeStyle(lineWidth: 1))

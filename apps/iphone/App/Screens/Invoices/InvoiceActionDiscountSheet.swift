@@ -204,7 +204,7 @@ extension InvoiceActionDiscountSheet {
         if let problem {
             Text(problem).foregroundStyle(Tone.problem.color)
         } else if let d = discount, d > 0 {
-            Text(Money.pkrLac(d)).font(.callout).foregroundStyle(.secondary)
+            Text(Money.pkrLac(d)).font(.callout).monospacedDigit().foregroundStyle(.secondary)
         }
     }
 

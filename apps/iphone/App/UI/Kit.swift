@@ -199,6 +199,10 @@ enum Motion {
     /// What travels across the page. ease-sheet (0.32, 0.72, 0, 1), 300 ms.
     static let travel = Animation.timingCurve(0.32, 0.72, 0, 1, duration: 0.3)
 
+    /// What a finger can interrupt (a chip, a toggle, a section opening): a spring keeps the velocity when the state flips
+    /// again mid-move, which a fixed timing curve cannot. Enter and exit keep the curves above.
+    static let spring = Animation.snappy(duration: 0.3)
+
     /// `withAnimation(Motion.enter)` unless the reader asked for less motion.
     @MainActor static func run(_ animation: Animation = enter, reduce: Bool, _ change: () -> Void) {
         if reduce { change() } else { withAnimation(animation, change) }
@@ -747,7 +751,7 @@ struct PaymentSheet: View {
                         .keyboardType(.numberPad)
                         .font(.title2.weight(.semibold))
                         .monospacedDigit()
-                    if amount > 0 { Text(Money.pkrLac(amount)).foregroundStyle(.secondary) }
+                    if amount > 0 { Text(Money.pkrLac(amount)).monospacedDigit().foregroundStyle(.secondary) }
                     if let owed, owed >= 1 {
                         Button("All that's owed: \(PaymentText.pkr(owed))") {
                             amountText = PaymentText.field(owed)
@@ -885,7 +889,7 @@ extension PaymentSheet {
             }
         }
         if amount > 0 {
-            Text(Money.pkrLac(amount)).font(.callout).foregroundStyle(.secondary)
+            Text(Money.pkrLac(amount)).font(.callout).monospacedDigit().foregroundStyle(.secondary)
         }
         Picker("Paid By", selection: $method) {
             ForEach(PaymentMethods.all, id: \.self) { Text($0) }

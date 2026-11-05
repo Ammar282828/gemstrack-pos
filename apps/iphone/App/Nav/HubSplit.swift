@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// What the app's menu bar and keyboard shortcuts ask of the open window (⌘1…⌘5, ⌘N, ⇧⌘N, ⌘F). The scene's
+/// What the app's menu bar and keyboard shortcuts ask of the open window (⌘1…⌘5, ⌘N, ⇧⌘N, ⌘F, ⌘K). The scene's
 /// `.commands` (ERPApp) write here; RootView reads and acts, because only it knows the tabs and who is signed in.
 @MainActor @Observable
 final class ShellCommands {
@@ -40,6 +40,8 @@ struct ShellMenu: Commands {
             }
             Divider()
             Button("Search") { shell.send(.search) }.keyboardShortcut("f", modifiers: .command)
+            // ⌘K: the same ask as ⌘F (open Search, the field takes the keyboard), the name other apps give it.
+            Button("Quick find") { shell.send(.search) }.keyboardShortcut("k", modifiers: .command)
         }
     }
 }

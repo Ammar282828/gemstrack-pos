@@ -229,14 +229,14 @@ struct PhotoViewer: View {
     private var bar: some View {
         HStack(spacing: pt(12)) {
             Button { dismiss() } label: {
-                Image(systemName: "xmark.circle.fill").font(.title2).symbolRenderingMode(.palette).foregroundStyle(.white, .white.opacity(0.25))
+                Image(systemName: "xmark.circle.fill").font(.title2).symbolRenderingMode(.palette).foregroundStyle(.white, .white.opacity(0.25)).frame(minWidth: Metrics.tap, minHeight: Metrics.tap).contentShape(Rectangle())
             }
             .accessibilityLabel("Close")
             Spacer()
             if photos.count > 1 {
-                if index > 0 { Button { step(-1) } label: { Image(systemName: "chevron.left") }.accessibilityLabel("Previous photo") }
+                if index > 0 { Button { step(-1) } label: { Image(systemName: "chevron.left").frame(minWidth: Metrics.tap, minHeight: Metrics.tap).contentShape(Rectangle()) }.accessibilityLabel("Previous photo") }
                 Text("\(index + 1) of \(photos.count)").font(.subheadline.monospacedDigit()).foregroundStyle(.white)
-                if index < photos.count - 1 { Button { step(1) } label: { Image(systemName: "chevron.right") }.accessibilityLabel("Next photo") }
+                if index < photos.count - 1 { Button { step(1) } label: { Image(systemName: "chevron.right").frame(minWidth: Metrics.tap, minHeight: Metrics.tap).contentShape(Rectangle()) }.accessibilityLabel("Next photo") }
             }
             Spacer()
             if photos.indices.contains(index), let image = loaded[photos[index].id] {

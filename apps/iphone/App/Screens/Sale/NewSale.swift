@@ -222,9 +222,12 @@ struct SaleForm: View {
         .scrollDismissesKeyboard(.interactively)
         .keyboardDone()
         // ⌘S saves from any step (save(f) does nothing until the sale can be saved).
+        // In a new sale the shortcut is the More menu's own Save, so the iPad's ⌘-hold list shows it; editing has no menu.
         .background {
-            Button("Save") { Task { await save(f) } }
-                .keyboardShortcut("s", modifiers: .command).opacity(0).accessibilityHidden(true)
+            if edit != nil {
+                Button("Save") { Task { await save(f) } }
+                    .keyboardShortcut("s", modifiers: .command).opacity(0).accessibilityHidden(true)
+            }
         }
         .failureAlert($failure, title: "About this sale")
         .toolbar {
@@ -239,6 +242,8 @@ struct SaleForm: View {
                 // Throwing the sale away is a menu's item, not a red button beside the title.
                 ToolbarItem(placement: .trailingAction) {
                     Menu {
+                        Button { Task { await save(f) } } label: { Label("Save", systemImage: "checkmark") }
+                            .keyboardShortcut("s", modifiers: .command)
                         Button(role: .destructive) { confirmingReset = true } label: {
                             Label("Start over", systemImage: "arrow.counterclockwise")
                         }

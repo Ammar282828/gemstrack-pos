@@ -376,6 +376,8 @@ struct NewOrder: View {
                 // Throwing the order away is a menu's item, not a red button in the form.
                 ToolbarItem(placement: .trailingAction) {
                     Menu {
+                        Button { Task { await save() } } label: { Label("Save", systemImage: "checkmark") }
+                            .keyboardShortcut("s", modifiers: .command)
                         Button(role: .destructive) { confirmReset = true } label: {
                             Label("Start over", systemImage: "arrow.counterclockwise")
                         }
@@ -388,9 +390,12 @@ struct NewOrder: View {
         }
         .keyboardDone()
         // ⌘S saves from any step; a step still missing something is told what, as the Save button would.
+        // In a new order the shortcut is the More menu's own Save, so the iPad's ⌘-hold list shows it; editing has no menu.
         .background {
-            Button("Save") { Task { await save() } }
-                .keyboardShortcut("s", modifiers: .command).opacity(0).accessibilityHidden(true)
+            if edit != nil {
+                Button("Save") { Task { await save() } }
+                    .keyboardShortcut("s", modifiers: .command).opacity(0).accessibilityHidden(true)
+            }
         }
         .navigationDestination(item: $editing) { ref in editor(ref.id) }
     }

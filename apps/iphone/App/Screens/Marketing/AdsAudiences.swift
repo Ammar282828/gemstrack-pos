@@ -336,11 +336,11 @@ struct AdsAudiencesScreen: View {
                 ProgressView()
             } else {
                 if a.kind == "Customer list" && isOwner {
-                    Button { Task { await refresh(a) } } label: { Image(systemName: "arrow.clockwise") }
+                    Button { Task { await refresh(a) } } label: { Image(systemName: "arrow.clockwise").frame(minWidth: Metrics.tap, minHeight: Metrics.tap).contentShape(Rectangle()) }
                         .buttonStyle(.borderless)
                         .accessibilityLabel("Add today's customers")
                 }
-                Button { deleting = a } label: { Image(systemName: "trash").foregroundStyle(.secondary) }
+                Button { deleting = a } label: { Image(systemName: "trash").foregroundStyle(.secondary).frame(minWidth: Metrics.tap, minHeight: Metrics.tap).contentShape(Rectangle()) }
                     .buttonStyle(.borderless)
                     .accessibilityLabel("Delete \(a.name)")
             }
