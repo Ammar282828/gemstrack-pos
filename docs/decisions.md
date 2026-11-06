@@ -115,7 +115,9 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
   stays on its old code until the next push. Every face (Inter; the links page's Bodoni Moda / Newsreader; the story, post and
   ad faces) is Google's own latin woff2 in `src/fonts/`, loaded with `next/font/local` with the same weights, styles and
   fallback font, so the build fetches nothing. A new face: download its latin woff2 there (README), never the Google loader.
-  (The ERP's screens are in the system font — `font-sans` beats globals.css's `'Inter'`; Inter only reaches `/links`.)
+  (Since 2026-11-06 the ERP's screens are in **Inter**, headings and figures too — the owner: "change the font to a nice
+  professional sans serif font". Tailwind's `sans` and `serif` are both `var(--font-inter)` with the system sans behind it
+  (`tailwind.config.ts`), so the `font-serif` headings and money figures that wore the app's New York read in Inter.)
 
 ### Light and dark
 

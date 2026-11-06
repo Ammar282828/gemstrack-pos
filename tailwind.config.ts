@@ -34,7 +34,12 @@ export default {
   		},
   		// New York on Apple devices (the app's figures and section headings), Georgia elsewhere.
   		fontFamily: {
-  			serif: ['ui-serif', '"New York"', 'Georgia', 'Cambria', '"Times New Roman"', 'serif'],
+  			// One professional sans for the whole ERP (the owner, 2026-11-06: "change the font to a nice professional sans
+  			// serif font"): Inter, shipped in src/fonts and set on <body> as --font-inter (app/layout.tsx), the system's
+  			// sans behind it. `serif` is the same face on purpose: the headings and figures that wore the app's New York
+  			// (font-serif) now read in Inter, without touching every one of them.
+  			sans: ['var(--font-inter)', 'ui-sans-serif', 'system-ui', '-apple-system', '"Segoe UI"', 'Roboto', '"Helvetica Neue"', 'Arial', 'sans-serif'],
+  			serif: ['var(--font-inter)', 'ui-sans-serif', 'system-ui', '-apple-system', '"Segoe UI"', 'Roboto', '"Helvetica Neue"', 'Arial', 'sans-serif'],
   		},
   		colors: {
   			background: 'hsl(var(--background))',

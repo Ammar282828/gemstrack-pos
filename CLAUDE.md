@@ -119,7 +119,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [The name ERP](docs/decisions.md#the-name-erp) — ERP in every word people read; Shopify codes and code names stay POS
 - [Number fields](docs/decisions.md#number-fields) — and sale-flow fields show 0 as blank
 - [Hooks](docs/decisions.md#hooks) — the `/orders/add` crash of 2026-09-22
-- [Fonts](docs/decisions.md#fonts) — every face in `src/fonts/`, `next/font/local`
+- [Fonts](docs/decisions.md#fonts) — every face in `src/fonts/`, `next/font/local`; the ERP reads in Inter, headings and figures too (2026-11-06)
 - [Feel of the app](docs/decisions.md#feel-of-the-app) — hidden screens do no work, non-money saves leave at once, failing parts show a Retry card, pressed states everywhere, tokens only; the web's service worker caches static files and keeps pages network-first
 - [Loading](docs/decisions.md#loading) — a skeleton shaped like the content when its shape is known; the spinning circle only for an action; a busy button keeps its size
 - [Light and dark](docs/decisions.md#light-and-dark) — the device's choice wins; `theme-default` set outside React
