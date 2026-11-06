@@ -72,7 +72,7 @@ fun AdsRulesScreen() {
     val session = LocalSession.current
     val backend = LocalAdsBackend.current
     val scope = rememberCoroutineScope()
-    val mayUse = adsMayUse(session.role)
+    val mayUse = adsMayConfigure(session.role)
 
     var status by remember { mutableStateOf<AdsStatusAnswer?>(null) }
     var data by remember { mutableStateOf<AdsRulesAnswer?>(null) }

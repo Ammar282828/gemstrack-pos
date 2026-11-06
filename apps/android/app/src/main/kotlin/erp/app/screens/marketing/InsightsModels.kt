@@ -231,7 +231,7 @@ object InsightsLogic {
     val sorts = listOf("at" to "Newest", "views" to "Views", "reach" to "Reach", "interactions" to "Interactions", "rate" to "Engagement rate", "shares" to "Shares", "saves" to "Saves")
 
     /** Owners and marketing accounts read Insights (gate.ts, like Ads). */
-    fun mayRead(role: String): Boolean = role == "owner" || role == "marketing"
+    fun mayRead(role: String, alsoMarketing: Boolean = false): Boolean = role == "owner" || role == "marketing" || (role == "staff" && alsoMarketing)
 
     private fun value(p: InsightPost, sort: String): Double = when (sort) {
         "views" -> p.views; "reach" -> p.reach; "interactions" -> p.interactions; "rate" -> p.rate; "shares" -> p.shares; "saves" -> p.saves

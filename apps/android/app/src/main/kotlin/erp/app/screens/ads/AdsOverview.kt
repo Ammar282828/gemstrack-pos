@@ -68,7 +68,7 @@ fun adsClock(iso: String?): String {
 
 /** Whether the map shows this person a place (MarketingKit.has). TODO(shared): MarketingKit.has. */
 fun adsMapHas(href: String, role: String): Boolean {
-    val map = NavMap.current.visible(role)
+    val map = NavMap.current.visible(role, erp.app.auth.Sessions.current.alsoMarketing)
     for (e in map.entries) {
         if (e.href == href) return true
         if ((e.tabs ?: emptyList()).any { it.href == href }) return true
@@ -89,7 +89,7 @@ fun AdsOverviewScreen() {
     val backend = LocalAdsBackend.current
     val navigator = LocalNavigator.current
     val scope = rememberCoroutineScope()
-    val mayRead = adsMayUse(session.role)
+    val mayRead = adsMayUse(session.role, session.alsoMarketing)
     val rangeKey = AdsRangeStore.key
     val changes by AdsChanges.count.collectAsStateWithLifecycle()
 
@@ -211,7 +211,8 @@ fun AdsOverviewContent(
                 if (problem != null) AdsSection("Couldn't refresh") { AdsWarningRow(problem, Tone.quiet, Symbols.WifiOff) }
                 Figures(d, cur)
                 Brought(d)
-                Attention(d, acting, onPause, onRunAgain)
+                // Her overview carries no attention list (the server leaves it out with the spend): an empty one would say "Nothing needs attention".
+                if (!LocalSession.current.spendHidden) Attention(d, acting, onPause, onRunAgain)
             },
             right = {
                 MonthCard(d, cur)
@@ -233,7 +234,7 @@ private fun AccountCard(d: AdOverview, rangeKey: String) {
         Row(Modifier.fillMaxWidth().ledgerRow(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(d.account.name, style = MaterialTheme.typography.titleMedium)
-                if (!d.account.funding.isNullOrEmpty()) {
+                if (!d.account.funding.isNullOrEmpty() && !LocalSession.current.spendHidden) {
                     Text(d.account.funding, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
@@ -247,25 +248,27 @@ private fun Figures(d: AdOverview, cur: String) {
     val t = d.totals
     val b = d.before
     val main = AdsResults.headlineResult(t)
+    // A staff member who runs the marketing sees what the ads reached, never what they cost (lib/ads/spend.ts).
+    val hide = LocalSession.current.spendHidden
     val spentNote = listOfNotNull(AdsFormat.change(t.spend, b?.spend), "${AdsFormat.money(d.account.amountSpent, cur)} all time").joinToString(" · ")
     val reachNote = AdsFormat.change(t.reach, b?.reach) ?: "${AdsFormat.compact(t.impressions)} views"
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         FigureRow(spacing = 10.dp) {
-            FigureTile("Spent", AdsFormat.money(t.spend, cur), Modifier.share(), detail = spentNote, number = t.spend)
+            if (!hide) FigureTile("Spent", AdsFormat.money(t.spend, cur), Modifier.share(), detail = spentNote, number = t.spend)
             FigureTile("People reached", AdsFormat.compact(t.reach), Modifier.share(), detail = reachNote, number = t.reach)
         }
         FigureRow(spacing = 10.dp) {
             // The result the account mostly buys, or clicks where it has none.
             if (main.key == "reach") {
-                FigureTile("Clicks", AdsFormat.count(t.clicks), Modifier.share(), detail = if (t.clicks > 0) "${AdsFormat.money(t.cpc, cur)} each" else null, number = t.clicks)
+                FigureTile("Clicks", AdsFormat.count(t.clicks), Modifier.share(), detail = if (t.clicks > 0 && !hide) "${AdsFormat.money(t.cpc, cur)} each" else null, number = t.clicks)
             } else {
                 val before = b?.let { AdsResults.value(it, main.key) }
-                val each = if (main.value > 0) "${AdsFormat.money(t.spend / main.value, cur)} each" else null
+                val each = if (main.value > 0 && !hide) "${AdsFormat.money(t.spend / main.value, cur)} each" else null
                 FigureTile(main.label, AdsFormat.count(main.value), Modifier.share(), detail = AdsFormat.change(main.value, before) ?: each, number = main.value)
             }
-            FigureTile("Click-through", AdsFormat.pct(t.ctr), Modifier.share(), detail = "${AdsFormat.money(t.cpm, cur)} per 1,000 views", number = t.ctr)
+            FigureTile("Click-through", AdsFormat.pct(t.ctr), Modifier.share(), detail = if (hide) null else "${AdsFormat.money(t.cpm, cur)} per 1,000 views", number = t.ctr)
         }
-        SalesTiles(t, b, cur)
+        if (!hide) SalesTiles(t, b, cur)
     }
 }
 
@@ -328,6 +331,7 @@ private fun Attention(d: AdOverview, acting: String?, onPause: (AdAttention) -> 
 
 @Composable
 private fun MonthCard(d: AdOverview, cur: String) {
+    if (LocalSession.current.spendHidden) return
     val m = d.month ?: return
     if (!(m.spent > 0 || m.lastMonth > 0)) return
     AdsSection("This month") {
@@ -343,6 +347,8 @@ private fun MonthCard(d: AdOverview, cur: String) {
 
 @Composable
 private fun DayByDay(d: AdOverview, cur: String) {
+    // The chart is spend by day: not for her.
+    if (LocalSession.current.spendHidden) return
     // A chart of one day is a dot: it needs two.
     val days = d.daily.filter { runCatching { java.time.LocalDate.parse(it.date) }.isSuccess }
     if (days.size <= 1) return
@@ -354,9 +360,10 @@ private fun DayByDay(d: AdOverview, cur: String) {
 @Composable
 private fun TopAds(d: AdOverview, cur: String, rangeKey: String) {
     val navigator = LocalNavigator.current
-    AdsSection("The ads that spent most") {
+    val hide = LocalSession.current.spendHidden
+    AdsSection(if (hide) "The ads with the most views" else "The ads that spent most") {
         if (d.topAds.isEmpty()) {
-            AdsRow { Text("No ad spent anything in ${AdsRange.label(rangeKey).lowercase()}.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            AdsRow { Text(if (hide) "No ad was seen in ${AdsRange.label(rangeKey).lowercase()}." else "No ad spent anything in ${AdsRange.label(rangeKey).lowercase()}.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
         } else {
             for (a in d.topAds) {
                 Row(
@@ -370,8 +377,8 @@ private fun TopAds(d: AdOverview, cur: String, rangeKey: String) {
                         Text(a.campaign, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text(AdsFormat.money(a.metrics.spend, cur), style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold, fontFeatureSettings = TabularDigits))
-                        Text(resultLine(a, cur), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        if (!hide) Text(AdsFormat.money(a.metrics.spend, cur), style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold, fontFeatureSettings = TabularDigits))
+                        Text(resultLine(a, cur, hide), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }
@@ -379,11 +386,11 @@ private fun TopAds(d: AdOverview, cur: String, rangeKey: String) {
     }
 }
 
-fun resultLine(a: AdTop, cur: String): String {
+fun resultLine(a: AdTop, cur: String, hide: Boolean = false): String {
     val s = AdsResults.sales(a.metrics)
-    val roas = if (s.value > 0) " · ${AdsResults.roasText(s.roas)} ROAS" else ""
+    val roas = if (s.value > 0 && !hide) " · ${AdsResults.roasText(s.roas)} ROAS" else ""
     val r = AdsResults.of(a.metrics, a.goal) ?: return "${AdsFormat.compact(a.metrics.reach)} reached$roas"
-    val each = if (r.value > 0) " · ${AdsFormat.money(a.metrics.spend / r.value, cur)} each" else ""
+    val each = if (r.value > 0 && !hide) " · ${AdsFormat.money(a.metrics.spend / r.value, cur)} each" else ""
     return "${AdsFormat.count(r.value)} ${r.label.lowercase()}$each$roas"
 }
 
@@ -391,7 +398,7 @@ fun resultLine(a: AdTop, cur: String): String {
 private fun Split(title: String, rows: List<AdSplit>, cur: String) {
     val top = rows.take(8)
     if (top.isEmpty()) return
-    val bySpend = top.any { it.metrics.spend > 0 }
+    val bySpend = !LocalSession.current.spendHidden && top.any { it.metrics.spend > 0 }
     val biggest = top.maxOf { if (bySpend) it.metrics.spend else it.metrics.impressions }
     AdsSection(title) {
         for (r in top) {
@@ -421,6 +428,6 @@ private fun ElsewhereInAds(d: AdOverview, role: String) {
         AdsLink("Campaigns", Symbols.Checklist, "/ads/campaigns", "Every campaign, ad set and ad; run or pause them")
         if (adsMapHas("/ads/studio", role)) AdsLink("Studio", Symbols.Palette, "/ads/studio", "Make the creative before the ad")
         AdsLink("New ad", Symbols.Send, "/ads/new", "Boost a piece or an Instagram post")
-        AdsLink("Setup", Symbols.Tune, "/ads/setup", "The Meta connection, ad account, audiences and rules")
+        if (adsMayConfigure(role)) AdsLink("Setup", Symbols.Tune, "/ads/setup", "The Meta connection, ad account, audiences and rules")
     }
 }

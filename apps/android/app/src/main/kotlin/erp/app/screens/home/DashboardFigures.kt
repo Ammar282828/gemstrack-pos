@@ -513,7 +513,7 @@ class DashFigures(
     private class BenchGroup(val id: String, val name: String, var count: Int, var oldest: Int)
 
     /** Everything actually waiting on a decision, worst first: grouped, not enumerated (page.tsx `tasks`). */
-    fun needs(onlineWaiting: Int, ratePause: OnlineInbox.RatePause?): List<DashNeed> {
+    fun needs(onlineWaiting: Int, ratePause: OnlineInbox.RatePause?, money: Boolean = true): List<DashNeed> {
         val out = ArrayList<DashNeed>()
         fun add(path: String, tone: DashNeed.Tone, title: String, detail: String, amount: Double? = null, kind: DashNeed.Kind = DashNeed.Kind.other) {
             out += DashNeed("${out.size}|$path", path, tone, title, detail, amount, kind = kind)
@@ -553,10 +553,11 @@ class DashFigures(
 
         addBenchNeeds(::add)
 
-        for (inv in unpaid.take(3)) {
+        // Staff are told what is late or waiting, never what is owed (page.tsx: `seesMoney ? stats.unpaid… : []`).
+        for (inv in if (money) unpaid.take(3) else emptyList()) {
             add(DashPath.invoice(inv.id), DashNeed.Tone.warn, DashText.name(inv.customerName), "Unpaid since ${DashDate.dayMonth(inv.createdAt)}", inv.balanceDue, DashNeed.Kind.unpaid)
         }
-        val rest = unpaid.drop(3)
+        val rest = if (money) unpaid.drop(3) else emptyList()
         if (rest.isNotEmpty()) {
             val sum = rest.fold(0.0) { acc, inv -> acc + inv.balanceDue }
             add("/invoices", DashNeed.Tone.warn, "${rest.size} more unpaid", "Smaller balances", sum, DashNeed.Kind.unpaid)

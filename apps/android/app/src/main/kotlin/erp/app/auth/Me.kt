@@ -10,6 +10,8 @@ data class Me(
     val karigar: Karigar?,
     /** The house's own settings; missing from an answer cached by an older build. */
     val shop: Shop?,
+    /** Staff who are also on the marketing list (/api/app/me `alsoMarketing`): Marketing, Ads and Insights without spend or settings. */
+    val alsoMarketing: Boolean = false,
 ) {
     data class Karigar(val id: String, val name: String)
 
@@ -17,6 +19,7 @@ data class Me(
         buildMap {
             put("email", email)
             put("role", role)
+            if (alsoMarketing) put("alsoMarketing", true)
             karigar?.let { put("karigar", mapOf("id" to it.id, "name" to it.name)) }
             shop?.let { put("shop", it.toMap()) }
         },
@@ -35,7 +38,7 @@ data class Me(
                 val name = k["name"] as? String
                 if (id != null && name != null) Karigar(id, name) else null
             }
-            return Me(email, role, k, (m["shop"] as? Map<*, *>)?.let { Shop.from(it) })
+            return Me(email, role, k, (m["shop"] as? Map<*, *>)?.let { Shop.from(it) }, m["alsoMarketing"] == true)
         }
     }
 }

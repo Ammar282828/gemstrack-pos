@@ -3,6 +3,7 @@ package erp.app.nav
 import erp.app.ErpApp
 import erp.app.config.House
 import erp.core.Json
+import erp.core.logic.StaffAccess
 
 /**
  * The ERP's map (src/lib/nav.ts, exported per house to nav-<house>.json): every place the ERP has, in its
@@ -71,19 +72,25 @@ data class NavMap(
      * The map as a person sees it (src/lib/nav.ts forRole): owners everything; staff only the places marked for
      * them; a marketing account the Marketing group whole and nothing else.
      */
-    fun visible(role: String): NavMap {
+    fun visible(role: String, alsoMarketing: Boolean = false): NavMap {
         if (role == "owner") return this
-        if (role == "marketing") {
-            // The Marketing group whole, with all its tabs and pages, `staff` or not (Ads has none). Outside it, as nav.ts
-            // forRole does, only the tabs marked `marketing` (Analytics' Website, Social and Ads), and the entry only if it
-            // has any. No Settings, no New sale and nothing to create.
+        if (role == "marketing") return marketingView()
+        // Staff who are also on the marketing list (nav.ts forRole 'staffMarketing'): the shop floor's rows, and the Marketing
+        // group and Analytics' marketing sections whole, but never the configuring pages (the owner: "dont give her any settings").
+        if (role == "staff" && alsoMarketing) {
             val theirs = entries.mapNotNull { e ->
-                if (e.group == "marketing") return@mapNotNull e
-                val tabs = (e.tabs ?: emptyList()).filter { it.marketing == true }
+                if (e.group == "marketing") {
+                    val m = e
+                    val tabs = (m.tabs ?: emptyList()).filter { !isConfigPage(it.href) }
+                    val first = tabs.firstOrNull() ?: return@mapNotNull null
+                    return@mapNotNull m.copy(href = first.href, tabs = tabs, pages = m.pages?.filter { !isConfigPage(it.href) })
+                }
+                if (e.tabs == null) return@mapNotNull if (e.staff == true) e else null
+                val tabs = e.tabs.filter { (e.staff == true && it.staff == true) || it.marketing == true }
                 val first = tabs.firstOrNull() ?: return@mapNotNull null
-                e.copy(href = first.href, tabs = tabs, pages = emptyList())
+                e.copy(href = first.href, tabs = tabs, pages = e.pages?.filter { e.staff == true && it.staff == true })
             }
-            return NavMap(groups, null, theirs, null, emptyList())
+            return NavMap(groups, null, theirs, null, actions.filter { it.staff == true && it.href != newSale?.href })
         }
         fun keep(p: NavPlace) = p.staff == true
         val mine = entries.mapNotNull { e ->
@@ -95,6 +102,21 @@ data class NavMap(
         }
         // New sale is out of Create too: it is the same sale the server will not save for staff.
         return NavMap(groups, null, mine, null, actions.filter { keep(it) && it.href != newSale?.href })
+    }
+
+    /** A marketing account's view: the Marketing group whole, `staff` or not (Ads has none); outside it only the tabs marked `marketing`. No Settings, no New sale, nothing to create. */
+    private fun marketingView(): NavMap {
+        val theirs = entries.mapNotNull { e ->
+            if (e.group == "marketing") return@mapNotNull e
+            marketingEntryOutside(e)
+        }
+        return NavMap(groups, null, theirs, null, emptyList())
+    }
+
+    private fun marketingEntryOutside(e: NavEntry): NavEntry? {
+        val tabs = (e.tabs ?: emptyList()).filter { it.marketing == true }
+        val first = tabs.firstOrNull() ?: return null
+        return e.copy(href = first.href, tabs = tabs, pages = emptyList())
     }
 
     /**
@@ -141,6 +163,10 @@ data class NavMap(
     }
 
     companion object {
+        /** nav.ts CONFIG_PAGES: how the shop or a connection is set up. Staff never open them, marketing or not. */
+        val configPages = listOf("/ads/setup", "/ads/audiences", "/ads/rules", "/ads/tests")
+        fun isConfigPage(href: String): Boolean = configPages.any { StaffAccess.within(href, it) }
+
         private val byArt = HashMap<String, NavMap>()
 
         /**

@@ -52,6 +52,11 @@ object AnaDate {
     /** "8 Oct". */
     fun dayMonth(d: Instant): String = dayMonthFormat.format(d)
 
+    private val weekdayDayMonthFormat = format("EEE d MMM")
+
+    /** "Thu 8 Oct" for a day key "2026-10-08" (date-fns 'EEE d MMM'). */
+    fun weekdayDayMonth(dayKey: String): String = parseISO(dayKey)?.let { weekdayDayMonthFormat.format(it) } ?: dayKey
+
     /** "Thursday, 8 October 2026". */
     fun longDay(d: Instant): String = longDayFormat.format(d)
 

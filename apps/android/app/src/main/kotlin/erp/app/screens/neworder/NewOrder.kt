@@ -491,8 +491,8 @@ private fun NewOrderForm(readsSlip: Boolean, edit: NewOrderEdit?, ratesFirst: Bo
                             }
                             NotesSection(holder)
                             DeliverySection(holder, knownAddresses)
-                            // The shop's own figure: owners and staff, never the customer (decisions.md "Margin").
-                            if (EntryHouse.margin.rattiLess != null) MarginSection(holder, settings) { totals }
+                            // The shop's own figure: owners only since 2026-11-05 (staff see no margin), never the customer (decisions.md "Margin").
+                            if (EntryHouse.margin.rattiLess != null && erp.app.auth.LocalSession.current.seesMoney) MarginSection(holder, settings) { totals }
                             TotalsSection(totals, d.pieces.size)
                             if (edit == null && !d.isBlank) {
                                 FormCard(footer = "Your order is kept as you type, on this phone and in Drafts for the counter, until you save it or start over.") {

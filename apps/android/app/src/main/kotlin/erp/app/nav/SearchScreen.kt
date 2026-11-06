@@ -85,7 +85,8 @@ fun SearchScreen() {
     val session = LocalSession.current
     val me by session.me.collectAsStateWithLifecycle()
     val role = me?.role ?: "none"
-    val map = remember(role) { NavMap.current.visible(role) }
+    val alsoMk = me?.alsoMarketing ?: false
+    val map = remember(role, alsoMk) { NavMap.current.visible(role, alsoMk) }
     var text by rememberSaveable { mutableStateOf("") }
     val typed = text.trim()
     // The results are worked out from the words after a pause in typing.

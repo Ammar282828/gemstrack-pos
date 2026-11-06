@@ -98,7 +98,8 @@ fun ShopifySwitchHost(page: String, catalogue: @Composable () -> Unit, shopify: 
     var mode by remember { mutableStateOf(if (Prefs.string("erp.websiteView.$page") == "catalogue") "catalogue" else "shopify") }
     var probe by remember { mutableStateOf(Prefs.string(PROBE_KEY)?.let { if (it == "1") "yes" else if (it == "0") "no" else "unknown" } ?: "unknown") }
     var failed by remember { mutableStateOf(false) }
-    val available = !demo && (told ?: (probe == "yes"))
+    // Shopify's analytics carry sales: a staff member who runs the marketing sees the site's own counters instead (staff-see-no-money).
+    val available = !demo && !session.spendHidden && (told ?: (probe == "yes"))
     val waiting = !demo && told == null && session.isOwner && probe != "yes" && probe != "no" && !failed
 
     // One look at the route, only where the ERP has not said and the answer is not known: 200 is yes, 404 no. A failed look

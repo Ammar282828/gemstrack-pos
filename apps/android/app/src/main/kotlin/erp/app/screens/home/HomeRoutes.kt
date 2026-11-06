@@ -9,6 +9,7 @@ import erp.app.screens.voice.VoiceOpener
  */
 val HomeRoutes: List<ScreenRoute> = listOf(
     ScreenRoute.exact("/") { Dashboard() },
+    ScreenRoute.exact("/help") { HelpScreen() },
     ScreenRoute.exact("/today") { TodaysCashScreen() },
     ScreenRoute.exact("/voice") { VoiceOpener() },
 )

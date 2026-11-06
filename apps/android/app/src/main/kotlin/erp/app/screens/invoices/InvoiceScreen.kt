@@ -719,7 +719,7 @@ private fun LinkRow(label: String, value: String, onClick: () -> Unit) {
 private fun ShopCard(inv: Invoice, role: String) {
     val settings = House.margin
     // The margin is the shop's own (lib/margin.ts): owners and staff see it, never a customer.
-    val showsMargin = InvoiceWords.showsMargin(settings) && (role == "owner" || role == "staff")
+    val showsMargin = InvoiceWords.showsMargin(settings) && erp.core.logic.StaffAccess.seesMoney(role)
     val shopNote = (inv.internalNote ?: "").trim()
     if (shopNote.isEmpty() && !showsMargin) return
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {

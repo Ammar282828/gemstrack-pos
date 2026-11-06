@@ -73,7 +73,9 @@ fun AdsNewAdScreen(path: String) {
     val session = LocalSession.current
     val backend = LocalAdsBackend.current
     val scope = rememberCoroutineScope()
-    val mayUse = adsMayUse(session.role)
+    val mayUse = adsMayUse(session.role, session.alsoMarketing)
+    // The staff member who also runs the marketing: no budget step; her ad is saved paused, an owner budgets it and turns it on.
+    val hide = session.spendHidden
     val now0 = AppClock.now()
     val context = LocalContext.current
 
@@ -389,7 +391,7 @@ fun AdsNewAdScreen(path: String) {
             previewBusy = true
             previewError = null
             try {
-                val list = backend.preview(d.plan(AppClock.now()))
+                val list = backend.preview(d.plan(AppClock.now(), hide))
                 if (list.isEmpty()) previewError = "Meta gave no preview." else previewSet = list
             } catch (e: CancellationException) {
                 throw e
@@ -406,7 +408,7 @@ fun AdsNewAdScreen(path: String) {
         scope.launch {
             checking = true
             try {
-                val c = backend.checkPlan(d.plan(AppClock.now()))
+                val c = backend.checkPlan(d.plan(AppClock.now(), hide))
                 check = c
                 if (c.problems.isEmpty()) confirming = true
             } catch (e: CancellationException) {
@@ -423,7 +425,7 @@ fun AdsNewAdScreen(path: String) {
         val c = check ?: return
         scope.launch {
             sending = true
-            val p = LinkedHashMap(d.plan(AppClock.now()))
+            val p = LinkedHashMap(d.plan(AppClock.now(), hide))
             p["name"] = c.name
             try {
                 val m = backend.create(p)
@@ -483,7 +485,7 @@ fun AdsNewAdScreen(path: String) {
     if (confirming) {
         AdsConfirm(
             title = if (d.launch == "live") "Put this ad live?" else "Make this ad?",
-            message = d.confirmText(check, lists, AppClock.now()),
+            message = d.confirmText(check, lists, AppClock.now(), hide),
             confirm = if (d.launch == "live") "Put it live" else "Make it, paused",
             cancel = "Not yet",
             onDismiss = { confirming = false },
@@ -558,13 +560,19 @@ private fun NewAdForm(
             },
             right = {
                 AudienceSection(d, onAudience)
-                BudgetSection(d, onDraft, s, currency)
-                AdsAdvancedSection(
-                    d.advanced, { onDraft(d.copy(advanced = it)) },
-                    needsTotal = { onDraft(d.copy(budgetKind = "total", days = d.days ?: 7)) },
-                    sales = d.goalKey == "sales", currency = s.currency,
-                )
-                QuietSection(l, d, now)
+                if (LocalSession.current.spendHidden) {
+                    AdsSection("${d.step(5)} · Budget") {
+                        AdsRow { Text("An owner sets the budget and turns the ad on. Yours is saved paused in Campaigns, and waits there.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    }
+                } else {
+                    BudgetSection(d, onDraft, s, currency)
+                    AdsAdvancedSection(
+                        d.advanced, { onDraft(d.copy(advanced = it)) },
+                        needsTotal = { onDraft(d.copy(budgetKind = "total", days = d.days ?: 7)) },
+                        sales = d.goalKey == "sales", currency = s.currency,
+                    )
+                    QuietSection(l, d, now)
+                }
                 PreviewSection(d, previewBusy, previewError, onPreview)
                 MakeSections(d, onDraft, check, checking, sending, onReview)
             },
@@ -897,12 +905,16 @@ private fun PreviewSection(d: AdsNewAdDraft, busy: Boolean, error: String?, onPr
 }
 
 @Composable
-private fun MakeSections(d: AdsNewAdDraft, onDraft: (AdsNewAdDraft) -> Unit, check: AdsPlanCheck?, checking: Boolean, sending: Boolean, onReview: () -> Unit) {
+private fun MakeSections(d0: AdsNewAdDraft, onDraft: (AdsNewAdDraft) -> Unit, check: AdsPlanCheck?, checking: Boolean, sending: Boolean, onReview: () -> Unit) {
+    // Her ads are always saved paused (an owner turns them on): no "Put it live".
+    val hide = LocalSession.current.spendHidden
+    val d = if (hide) d0.copy(launch = "paused") else d0
     AdsSection(
         "${d.step(7)} · Make it",
         footer = {
             Text(
-                if (d.launch == "paused") "Look it over in Campaigns and switch it on there: nothing is spent until then."
+                if (hide) "It is saved paused in Campaigns. An owner sets the budget and turns it on: nothing is spent until then."
+                else if (d.launch == "paused") "Look it over in Campaigns and switch it on there: nothing is spent until then."
                 else "It starts once Meta approves it (usually within the hour) and spends its budget from then.",
             )
         },
@@ -910,7 +922,7 @@ private fun MakeSections(d: AdsNewAdDraft, onDraft: (AdsNewAdDraft) -> Unit, che
         AdsRow {
             TextField(d.name, { onDraft(d.copy(name = it)) }, Modifier.fillMaxWidth(), placeholder = { Text("Name in Ads Manager (made for you)") }, singleLine = true)
         }
-        AdsRow {
+        if (!hide) AdsRow {
             AdsChips {
                 FilterChip("Save it paused", d.launch == "paused", { onDraft(d.copy(launch = "paused")) })
                 FilterChip("Put it live", d.launch == "live", { onDraft(d.copy(launch = "live")) })

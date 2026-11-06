@@ -291,7 +291,10 @@ fun AdsOwnersOnly() {
 }
 
 /** The Ads pages answer owners and marketing accounts alone (gate.ts). */
-fun adsMayUse(role: String): Boolean = role == "owner" || role == "marketing"
+fun adsMayUse(role: String, alsoMarketing: Boolean = false): Boolean = role == "owner" || role == "marketing" || (role == "staff" && alsoMarketing)
+
+/** Ads' setup, audiences, rules and tests configure the account: never staff's, marketing or not (lib/ads/spend.ts `configBlocked`). */
+fun adsMayConfigure(role: String): Boolean = role == "owner" || role == "marketing"
 
 /** Instead of a page that can't work yet (ads-kit.tsx NotReady): what's missing, and the way to Setup. */
 @Composable
