@@ -75,7 +75,7 @@ fun DesignScreen(path: String, preset: DesignWorkspaceModel? = null) {
     ScreenTitle("Design")
     val session = LocalSession.current
     val role = session.role
-    val access = DesignAccess(role)
+    val access = DesignAccess(role, session.alsoMarketing)
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val navigator = LocalNavigator.current

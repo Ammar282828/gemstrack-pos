@@ -85,7 +85,7 @@ data class AdsNewAdDraft(
     }
 
     /** The ad as the routes take it (plan.ts AdPlan). */
-    fun plan(now: Instant): Map<String, Any?> {
+    fun plan(now: Instant, spendHidden: Boolean = false): Map<String, Any?> {
         val source = LinkedHashMap<String, Any?>()
         if (kind == AdsKind.video) {
             source.putAll(video?.json ?: linkedMapOf("kind" to "video", "videoId" to "", "thumbHash" to ""))
@@ -118,10 +118,12 @@ data class AdsNewAdDraft(
         p["link"] = link
         p["button"] = button
         p["audience"] = audience.json
-        p["budget"] = budget(now).json
-        p["launch"] = launch
-        p["bidding"] = advanced.bidding
-        p["hours"] = advanced.hours
+        // A staff member who runs the marketing makes her ad paused with no budget of her own: the server saves it at the smallest
+        // daily budget (lib/ads/spend.ts capNewAd); an owner sets the real one and turns it on.
+        p["budget"] = if (spendHidden) linkedMapOf("kind" to "daily", "amount" to 1.0, "start" to null, "end" to null) else budget(now).json
+        p["launch"] = if (spendHidden) "paused" else launch
+        p["bidding"] = if (spendHidden) linkedMapOf("kind" to "lowest") else advanced.bidding
+        p["hours"] = if (spendHidden) null else advanced.hours
         p["name"] = name.trim()
         return p
     }
@@ -137,9 +139,10 @@ data class AdsNewAdDraft(
     }
 
     /** What the confirmation says: the server's lines, the name, and any quiet days the ad would run through. */
-    fun confirmText(check: AdsPlanCheck?, lists: AdsNewAdLists?, now: Instant): String {
+    fun confirmText(check: AdsPlanCheck?, lists: AdsNewAdLists?, now: Instant, spendHidden: Boolean = false): String {
         val c = check ?: return ""
-        val lines = ArrayList(c.summary)
+        // Her summary names no money: the placeholder budget is not hers to read.
+        val lines = ArrayList(c.summary.filter { !spendHidden || !it.startsWith("Budget:") })
         lines.add("Name: ${c.name}")
         val q = quietInRange(lists, now)
         q.firstOrNull()?.let { first ->
@@ -237,7 +240,8 @@ data class AdsDesign(
         return base.filter { if (adsKind == "post") !it.photosOnly else !it.postOnly }
     }
 
-    fun json(): Map<String, Any?> {
+    /** `spendHidden`: hers are paused with a placeholder budget the server replaces with the account's smallest (lib/ads/spend.ts capNewAd). */
+    fun json(spendHidden: Boolean = false): Map<String, Any?> {
         val c = LinkedHashMap<String, Any?>()
         if (target == "new") {
             c["kind"] = "new"
@@ -260,9 +264,11 @@ data class AdsDesign(
         }
         val d = LinkedHashMap<String, Any?>()
         d["campaign"] = c
-        d["adsets"] = sets.map { it.json }
+        d["adsets"] = sets.map { s ->
+            if (spendHidden) LinkedHashMap(s.json).also { it["budget"] = linkedMapOf("kind" to "daily", "amount" to 1.0, "start" to null, "end" to null) } else s.json
+        }
         d["ads"] = ads
-        d["launch"] = launch
+        d["launch"] = if (spendHidden) "paused" else launch
         return d
     }
 }

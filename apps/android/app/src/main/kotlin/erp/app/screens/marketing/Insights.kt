@@ -151,7 +151,7 @@ private fun today() = java.time.LocalDate.parse(erp.core.ERPDate.karachiDay(AppC
 
 @Composable
 fun InsightsOverviewScreen() {
-    val mayRead = InsightsLogic.mayRead(LocalSession.current.role)
+    val mayRead = InsightsLogic.mayRead(LocalSession.current.role, LocalSession.current.alsoMarketing)
     val rangeKey = InsightsRangeStore.key
     val scope = rememberCoroutineScope()
     var data by remember { mutableStateOf<InsightsOverview?>(null) }
@@ -327,6 +327,8 @@ private fun FollowersSection(d: InsightsOverview) {
 
 @Composable
 private fun PaidSection(d: InsightsOverview, rangeKey: String) {
+    // The paid side is spend by platform: not for the staff member who runs the marketing (the server leaves it out too).
+    if (LocalSession.current.spendHidden) return
     val shown = d.paid.filter { it.metrics.spend > 0 || it.metrics.impressions > 0 }
     val before = d.paidBefore.associate { it.platform to it.metrics.spend }
     AdsSection("Ads by platform") {
@@ -398,7 +400,7 @@ private fun PlacesSection(d: InsightsOverview) {
 
 @Composable
 fun InsightsPostsScreen() {
-    val mayRead = InsightsLogic.mayRead(LocalSession.current.role)
+    val mayRead = InsightsLogic.mayRead(LocalSession.current.role, LocalSession.current.alsoMarketing)
     val rangeKey = InsightsRangeStore.key
     val scope = rememberCoroutineScope()
     var data by remember { mutableStateOf<InsightsPosts?>(null) }
@@ -535,7 +537,7 @@ private fun PostRow(p: InsightPost, live: Boolean) {
 
 @Composable
 fun InsightsAudienceScreen() {
-    val mayRead = InsightsLogic.mayRead(LocalSession.current.role)
+    val mayRead = InsightsLogic.mayRead(LocalSession.current.role, LocalSession.current.alsoMarketing)
     val scope = rememberCoroutineScope()
     var data by remember { mutableStateOf<InsightsAudience?>(null) }
     var problem by remember { mutableStateOf<String?>(null) }

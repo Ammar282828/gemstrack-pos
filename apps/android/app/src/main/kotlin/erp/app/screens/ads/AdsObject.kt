@@ -32,6 +32,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import erp.app.auth.LocalSession
 import erp.app.nav.LocalNavigator
 import erp.app.nav.ScreenTitle
 import erp.app.ui.FieldRow
@@ -81,6 +82,7 @@ private fun AdsObjectBody(path: String) {
     val navigator = LocalNavigator.current
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val spendHidden = LocalSession.current.spendHidden
     val id = AdsQuery.value("id", path) ?: ""
     val level = AdsQuery.value("level", path) ?: "ad"
 
@@ -190,7 +192,9 @@ private fun AdsObjectBody(path: String) {
                             AdsStatusBadge(obj["effective_status"] as? String ?: "")
                             val active = obj["status"] as? String == "ACTIVE"
                             AdsTonalButton(if (active) "Pause" else "Run", {
-                                if (active) scope.launch { act("status", mapOf("status" to "PAUSED")) } else confirming = "activate"
+                                if (active) scope.launch { act("status", mapOf("status" to "PAUSED")) }
+                                else if (spendHidden) failure = "An owner sets the budget and turns it on. Yours waits here, paused."
+                                else confirming = "activate"
                             }, enabled = !busy)
                         }
                     }
@@ -202,7 +206,7 @@ private fun AdsObjectBody(path: String) {
                     }
                     if (level != "ad") {
                         AdsSection("Budget and schedule") {
-                            if (budget != null && (number(budget["daily"]) > 0 || number(budget["lifetime"]) > 0)) {
+                            if (!spendHidden && budget != null && (number(budget["daily"]) > 0 || number(budget["lifetime"]) > 0)) {
                                 AdsActionRow("Change budget", {
                                     budgeting = AdsBudgetTarget(
                                         level, id, name,

@@ -87,7 +87,8 @@ fun PlaceScreen(
     val session = LocalSession.current
     val me by session.me.collectAsStateWithLifecycle()
     val role = me?.role ?: "none"
-    val map = remember(role) { NavMap.current.visible(role) }
+    val alsoMk = me?.alsoMarketing ?: false
+    val map = remember(role, alsoMk) { NavMap.current.visible(role, alsoMk) }
     val navigator = LocalNavigator.current
     // A tab's chosen page, as it was in the business just left (BusinessCarry), when this one has it too.
     var chosen by rememberSaveable(path) { mutableStateOf<String?>(if (isRoot) BusinessCarry.carriedSub(path) else null) }

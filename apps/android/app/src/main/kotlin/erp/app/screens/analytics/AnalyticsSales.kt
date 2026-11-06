@@ -14,150 +14,177 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import erp.app.screens.home.DashDisclosure
-import erp.app.screens.money.Footnote
 import erp.app.ui.ActionRow
 import erp.app.ui.DividedColumn
 import erp.app.ui.FullScreenSheet
 import erp.app.ui.LedgerSection
-import erp.app.ui.SectionCard
+import erp.app.ui.SegmentedButton
+import erp.app.ui.SegmentedButtonDefaults
 import erp.app.ui.ShopDate
-import erp.app.ui.Tone
+import erp.app.ui.SingleChoiceSegmentedButtonRow
+import erp.app.ui.Switch
 import erp.app.ui.TwoLine
 import erp.app.ui.ValueRow
-import erp.app.ui.color
 import erp.app.ui.ledgerRow
 import erp.app.ui.readableColumn
 import erp.app.ui.theme.TabularDigits
+import erp.core.logic.Bucket
 import erp.core.logic.Money
-import erp.core.logic.NetProfit
-import erp.core.logic.invoiceSaleValue
+import erp.core.logic.autoBucket
+import erp.core.logic.bucketSeries
+import erp.core.logic.compareSeries
 import erp.core.models.Invoice
 import erp.core.models.InvoiceItem
+import erp.core.logic.invoiceSaleValue
 
 /**
- * Analytics → Sales (analytics-view.tsx, section "sales"): when the money came in. Sales over time in the period, then
- * the shape of the whole history (months and years, which the period does not bound), then the days one by one. A
- * year's row sets the period to that year; a day's row opens its report.
+ * Analytics → Sales (components/analytics/pages/sales.tsx): when did the money come in? The hero is revenue over time
+ * (day, week or month) with the period before dashed on the same axis; under it the figures, what the revenue is made
+ * of, which weekdays are busy, every month on record, and every day (a row opens that day's invoices and pieces). The
+ * years are on Profit.
  */
 @Composable
-fun AnaSalesPage(figures: AnaFigures, history: AnaHistory, period: AnaPeriodState, showCosts: Boolean, pick: (String) -> Unit) {
+fun AnaSalesPage(l: AnaLedger, period: AnaPeriodState) {
     var day by remember { mutableStateOf<AnaDay?>(null) }
-    var showDays by remember { mutableStateOf(false) }
+    var showDays by rememberSaveable { mutableStateOf(false) }
+    val b = l.books
+    val days = remember(b) { b.salesOverTime.map { AnaDay(it.date, it.sales, it.orders, it.itemsSold) } }
     AnaPage(period) {
+        TrendCard(l, period)
+        AnaFigureRow(
+            listOf(
+                AnaFig("Sales", b.totalOrders.toString(), "Invoices and booked orders"),
+                AnaFig("Average sale", Money.pkrLac(b.averageOrderValue)),
+                AnaFig("Pieces sold", AnaFormat.count(b.totalItemsSold), "${AnaFormat.fixed(b.averageItemsPerOrder, 1)} per sale"),
+                AnaFig("Discounts given", Money.pkrLac(b.totalDiscounts)),
+            ),
+        )
         AnaColumns(
             left = {
-                OverTimeSection(figures)
-                MonthlySection(history)
+                MixCard(l)
+                WeekdayCard(l)
             },
             right = {
-                YearlySection(history, showCosts, pick)
-                DailySection(figures, showDays, { showDays = !showDays }) { day = it }
+                MonthsCard(l)
+                DailySection(days, showDays, { showDays = !showDays }) { day = it }
             },
         )
     }
-    day?.let { d -> AnaDaySheet(d, figures.invoicesByDay[d.date] ?: emptyList(), onDismiss = { day = null }) }
+    day?.let { d -> AnaDaySheet(d, b.invoicesByDay[d.date] ?: emptyList(), onDismiss = { day = null }) }
 }
 
-// MARK: Sales over time
+// MARK: Revenue over time
 
 @Composable
-private fun OverTimeSection(f: AnaFigures) {
-    SectionCard("Sales over time") {
-        if (f.salesOverTime.isEmpty()) {
-            Text("No sales data available to display chart for the selected period.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        } else {
-            AnaSalesChart(f.salesOverTime)
-        }
-        Footnote("Revenue and order count trend for the selected period.", Modifier)
+private fun TrendCard(l: AnaLedger, period: AnaPeriodState) {
+    val b = l.books
+    // The grain suits the period until the person picks one; a new period starts over.
+    var picked by remember(period) { mutableStateOf<Bucket?>(null) }
+    val bucket = picked ?: autoBucket(l.range, l.now)
+    var compare by rememberSaveable { mutableStateOf(true) }
+
+    fun rowsFor(grain: Bucket): List<erp.core.logic.ComparedRow> {
+        val cur = bucketSeries(b.salesOverTime, grain, l.range, l.now)
+        val before = if (l.previous != null && l.prev != null) bucketSeries(l.prev.salesOverTime, grain, l.previous.range, l.now) else null
+        return compareSeries(cur, before)
     }
-    if (f.salesOverTime.isNotEmpty()) DashDisclosure("Number of sales") { AnaOrdersChart(f.salesOverTime) }
+    val rows = remember(l, bucket) { rowsFor(bucket) }
+    val best = rows.fold(null as erp.core.logic.ComparedRow?) { m, r -> if (r.value > (m?.value ?: 0.0)) r else m }
+    val canCompare = l.previous != null && l.prev != null && l.prev.totalSales > 0
+    val grain = bucket.name
+    val takeaway = best?.let {
+        "Best $grain: ${it.tip} · ${Money.pkrLac(it.value)}" +
+            if (canCompare && compare && l.prev != null) " · ${Money.pkrLac(l.prev.totalSales)} ${l.previous?.label}" else ""
+    } ?: "No sales in this period"
+
+    AnaChartCard("Revenue over time", takeaway = takeaway) {
+        // Under the title, not beside it: on a phone the controls do not fit in the header.
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+            val options = listOf(Bucket.day to "Day", Bucket.week to "Week", Bucket.month to "Month")
+            options.forEachIndexed { i, (value, label) ->
+                SegmentedButton(selected = bucket == value, onClick = { picked = value }, shape = SegmentedButtonDefaults.itemShape(i, options.size), label = { Text(label) })
+            }
+        }
+        if (canCompare) {
+            Row(
+                Modifier.fillMaxWidth().clickable(role = Role.Switch, onClickLabel = "Compare with ${l.previous?.label}") { compare = !compare },
+                horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Compare with ${l.previous?.label}", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Switch(compare, null)
+            }
+        }
+        // The chart swaps along the axis as the grain changes (Reduce Motion: it just changes).
+        erp.app.ui.AxisSwap(bucket, forward = { from, to -> to.ordinal >= from.ordinal }) { shown ->
+            val shownRows = if (shown == bucket) rows else remember(l, shown) { rowsFor(shown) }
+            AnaTrendChart(shownRows, showPrev = canCompare && compare, prevName = l.previous?.let { "Compared with ${it.label}" }, height = 240.dp)
+        }
+    }
+}
+
+// MARK: What the revenue is made of
+
+@Composable
+private fun MixCard(l: AnaLedger) {
+    val mix = l.books.revenueMix
+    val total = mix.sumOf { it.value }
+    val top = mix.maxByOrNull { it.value }
+    AnaChartCard(
+        "Revenue mix",
+        takeaway = if (total > 0 && top != null) "${top.label} made ${anaPercent(top.value, total)}% of ${Money.pkrLac(total)}" else "No revenue in this period",
+    ) {
+        AnaStackBar100(mix.mapIndexed { i, m -> AnaPart(m.label, m.value, anaColor(i + 1)) }, height = 18.dp)
+    }
+}
+
+// MARK: By weekday
+
+@Composable
+private fun WeekdayCard(l: AnaLedger) {
+    val days = l.books.byWeekday
+    val best = days.fold(null as erp.core.logic.WeekdayRow?) { m, d -> if (d.avg > (m?.avg ?: 0.0)) d else m }
+    val groups = remember(days) { days.map { AnaGroup(it.label, listOf(it.avg)) } }
+    AnaChartCard(
+        "By weekday",
+        takeaway = if (best != null && best.avg > 0) "${best.label} is busiest: ${Money.pkrLac(best.avg)} on an average one" else "No sales in this period",
+    ) {
+        AnaBarsChart(
+            groups, listOf(AnaSeries("Average a day", anaColor(1))), height = 160.dp,
+            readout = { i ->
+                val d = days[i]
+                "${d.label}: ${Money.pkrLac(d.avg)} a day · ${Money.pkrLac(d.revenue)} over ${anaPlural(d.days, "day")} · ${anaPlural(d.count, "sale")}"
+            },
+        )
+    }
 }
 
 // MARK: Revenue by month
 
 @Composable
-private fun MonthlySection(h: AnaHistory) {
-    if (h.months.isEmpty()) return
-    var note = "Every month on record, regardless of the period above."
-    if (h.monthlyAverage > 0) {
-        note += " Averaging ${Money.pkrLac(h.monthlyAverage)} across months with sales; the best month is green."
-    }
-    SectionCard("Revenue by month") {
-        AnaMonthlyChart(h.months, h.monthlyAverage, h.bestMonth)
-        Footnote(note, Modifier)
-    }
-}
-
-// MARK: Yearly performance
-
-@Composable
-private fun YearlySection(h: AnaHistory, showCosts: Boolean, pick: (String) -> Unit) {
-    if (h.yearly.isEmpty()) return
-    LedgerSection(
-        "Yearly performance",
-        footer = {
-            Text(
-                if (showCosts) "All-time revenue, expenses and profit by year. Tap a year to filter Analytics to it."
-                else "All-time revenue by year. Tap a year to filter Analytics to it.",
-            )
-        },
+private fun MonthsCard(l: AnaLedger) {
+    val m = l.monthly ?: return
+    if (m.data.isEmpty()) return
+    val bestMonth = m.data.firstOrNull { it.key == m.best }
+    val rows = remember(m) { m.data.map { AnaMonth(it.key, it.month, it.revenue, it.sales) } }
+    AnaChartCard(
+        "Every month",
+        takeaway = bestMonth?.let { "Best month ${it.month} · ${Money.pkrLac(it.revenue)}; the dashed line is the ${Money.pkrLac(m.average)} average" },
     ) {
-        DividedColumn {
-            for (y in h.yearly) YearRow(y, showCosts) { pick("year-${y.year}") }
-        }
-    }
-}
-
-@Composable
-private fun YearRow(y: AnaYear, showCosts: Boolean, onClick: () -> Unit) {
-    val parts = ArrayList<String>()
-    parts.add(if (y.unpaid > 0) "Unpaid ${Money.lacCrore(y.unpaid)}" else "Nothing unpaid")
-    if (showCosts) {
-        parts.add("Expenses ${Money.lacCrore(y.expenses)}")
-        parts.add("${if (erp.app.config.House.goodsExpenseCategories.isNotEmpty()) "Gross" else "Est."} profit ${Money.lacCrore(y.profit)}")
-    }
-    Column(
-        Modifier.fillMaxWidth().clickable(role = Role.Button, onClickLabel = "Show ${y.year}", onClick = onClick).ledgerRow(),
-        verticalArrangement = Arrangement.spacedBy(3.dp),
-    ) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
-            Text(y.year.toString(), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
-            Text(
-                Money.lacCrore(y.revenue),
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold, fontFeatureSettings = TabularDigits),
-            )
-        }
-        Text(parts.joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        if (showCosts) {
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(
-                    "Net profit ${Money.lacCrore(y.netProfit)}",
-                    style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = TabularDigits),
-                    color = if (y.netProfit >= 0) Tone.settled.color() else Tone.owed.color(),
-                )
-                Text(
-                    if (y.revenue > 0) "${AnaFormat.fixed(NetProfit.marginPercent(y.netProfit, y.revenue), 1)}% margin" else "—",
-                    style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = TabularDigits),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
+        AnaMonthlyChart(rows, m.average, m.best)
     }
 }
 
 // MARK: Daily summary
 
 @Composable
-private fun DailySection(f: AnaFigures, showAll: Boolean, toggle: () -> Unit, open: (AnaDay) -> Unit) {
-    val days = f.salesOverTime
-    LedgerSection("Daily summary", footer = { Text("Tap a day for its report.") }) {
+private fun DailySection(days: List<AnaDay>, showAll: Boolean, toggle: () -> Unit, open: (AnaDay) -> Unit) {
+    LedgerSection("Every day", footer = { Text("${anaPlural(days.size, "day")} with sales. Tap a day for its report.") }) {
         if (days.isEmpty()) {
             Text("No daily data available for the selected period.", Modifier.ledgerRow(), color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else {

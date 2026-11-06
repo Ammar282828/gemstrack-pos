@@ -80,6 +80,8 @@ fun Dashboard() {
     val session = LocalSession.current
     val navigator = LocalNavigator.current
     val owner = session.isOwner
+    // Staff see what needs doing, never a figure (docs/decisions.md#staff-see-no-money): no takings, month, owed or sums.
+    val money = session.seesMoney
     val connectionLost by Connection.isOffline.collectAsStateWithLifecycle()
 
     // The instant the page is worked out against; it turns over at Karachi's midnight on a screen left open.
@@ -173,9 +175,9 @@ fun Dashboard() {
                 connectionLost = connectionLost,
             ) {
                 figures?.let { f ->
-                    val needs = f.needs(if (selling) waiting else 0, if (selling) ratePause else null)
+                    val needs = f.needs(if (selling) waiting else 0, if (selling) ratePause else null, money)
                     DashboardPage(
-                        f, needs, owner,
+                        f, needs, owner, money, session.role, session.alsoMarketing,
                         open = navigator::open,
                         onRates = if (owner) ({ rateSheet = true }) else null,
                         onTaken = { takenSheet = true },
@@ -188,7 +190,7 @@ fun Dashboard() {
     }
     if (rateSheet) RateSheet(onDismiss = { rateSheet = false })
     if (noteSheet) TeamNoteEditor(onDismiss = { noteSheet = false })
-    if (takenSheet) figures?.let { f -> DashTakenSheet(f.takenDays, f.takenMonthLength, onDismiss = { takenSheet = false }) }
+    if (takenSheet && money) figures?.let { f -> DashTakenSheet(f.takenDays, f.takenMonthLength, onDismiss = { takenSheet = false }) }
 }
 
 @Composable
@@ -196,6 +198,9 @@ private fun DashboardPage(
     f: DashFigures,
     needs: List<DashNeed>,
     owner: Boolean,
+    money: Boolean,
+    role: String,
+    alsoMarketing: Boolean,
     open: (String) -> Unit,
     onRates: (() -> Unit)?,
     onTaken: () -> Unit,
@@ -221,27 +226,31 @@ private fun DashboardPage(
                 if (wide) {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         DateLine(f)
-                        Hero(f, onTaken)
-                        FigureGrid(f, owner, open)
+                        if (money) {
+                            Hero(f, onTaken)
+                            FigureGrid(f, owner, open)
+                        } else StaffActions(role, alsoMarketing, open)
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.Top) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(22.dp)) {
                             NeedsSection(needs, allNeeds, toggleNeeds, open, onRates)
-                            DueSection(f, allDue, toggleDue, open)
+                            DueSection(f, allDue, toggleDue, open, money)
                         }
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(22.dp)) {
-                            SalesSection(f, allSales, toggleSales, open)
+                            SalesSection(f, allSales, toggleSales, open, money)
                         }
                     }
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         DateLine(f)
-                        Hero(f, onTaken)
-                        FigureGrid(f, owner, open)
+                        if (money) {
+                            Hero(f, onTaken)
+                            FigureGrid(f, owner, open)
+                        } else StaffActions(role, alsoMarketing, open)
                     }
                     NeedsSection(needs, allNeeds, toggleNeeds, open, onRates)
-                    DueSection(f, allDue, toggleDue, open)
-                    SalesSection(f, allSales, toggleSales, open)
+                    DueSection(f, allDue, toggleDue, open, money)
+                    SalesSection(f, allSales, toggleSales, open, money)
                 }
             }
         }
@@ -347,21 +356,21 @@ private fun NeedsSection(needs: List<DashNeed>, all: Boolean, toggle: () -> Unit
 }
 
 @Composable
-private fun DueSection(f: DashFigures, all: Boolean, toggle: () -> Unit, open: (String) -> Unit) {
+private fun DueSection(f: DashFigures, all: Boolean, toggle: () -> Unit, open: (String) -> Unit, money: Boolean) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         DashHeader("Due to customers", count = f.due.size, allLabel = "All orders", onAll = { open("/orders") })
         if (f.due.isEmpty()) DashEmpty("No open orders or repairs.")
-        else DashRowsCard(if (all) f.due else f.due.take(3), inset = DUE_LEAF + 12.dp) { d -> DashDueRow(d, open) }
+        else DashRowsCard(if (all) f.due else f.due.take(3), inset = DUE_LEAF + 12.dp) { d -> DashDueRow(d, open, money) }
         if (f.due.size > 3) DashReveal(all, f.due.size - 3, toggle)
     }
 }
 
 @Composable
-private fun SalesSection(f: DashFigures, all: Boolean, toggle: () -> Unit, open: (String) -> Unit) {
+private fun SalesSection(f: DashFigures, all: Boolean, toggle: () -> Unit, open: (String) -> Unit, money: Boolean) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         DashHeader("Recent sales", allLabel = "All invoices", onAll = { open("/invoices") })
         if (f.recentInvoices.isEmpty()) DashEmpty("No sales yet.")
-        else DashRowsCard(if (all) f.recentInvoices else f.recentInvoices.take(3), inset = SALE_MONOGRAM + 12.dp) { i -> DashSaleRow(i, f.now, open) }
+        else DashRowsCard(if (all) f.recentInvoices else f.recentInvoices.take(3), inset = SALE_MONOGRAM + 12.dp) { i -> DashSaleRow(i, f.now, open, money) }
         if (f.recentInvoices.size > 3) DashReveal(all, f.recentInvoices.size - 3, toggle)
     }
 }

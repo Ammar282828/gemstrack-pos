@@ -96,7 +96,7 @@ fun AdsCampaignsScreen(path: String = "/ads/campaigns") {
     val backend = LocalAdsBackend.current
     val navigator = LocalNavigator.current
     val scope = rememberCoroutineScope()
-    val mayRead = adsMayUse(session.role)
+    val mayRead = adsMayUse(session.role, session.alsoMarketing)
     val rangeKey = AdsRangeStore.key
     val changes by AdsChanges.count.collectAsStateWithLifecycle()
 
@@ -106,7 +106,9 @@ fun AdsCampaignsScreen(path: String = "/ads/campaigns") {
     var search by rememberSaveable { mutableStateOf("") }
     var archived by rememberSaveable { mutableStateOf(false) }
     var gallery by rememberSaveable { mutableStateOf(false) }
-    var sort by rememberSaveable { mutableStateOf(AdsSort.spend) }
+    // A staff member who runs the marketing sees results, never spend or budgets; her ads wait paused for an owner (lib/ads/spend.ts).
+    val hide = session.spendHidden
+    var sort by rememberSaveable { mutableStateOf(if (hide) AdsSort.results else AdsSort.spend) }
     var allExpanded by rememberSaveable { mutableStateOf(false) }
     val expanded = remember { mutableStateListOf<String>() }
     val shownStatus = remember { mutableStateMapOf<String, String>() }
@@ -141,7 +143,7 @@ fun AdsCampaignsScreen(path: String = "/ads/campaigns") {
                         text = { Text("New ad") }, leadingIcon = { Icon(Symbols.Add, null) },
                         onClick = { more = false; navigator.open("/ads/new") },
                     )
-                    DropdownMenuItem(
+                    if (!hide) DropdownMenuItem(
                         text = { Text("Download (CSV)") }, leadingIcon = { Icon(Symbols.TableChart, null) }, enabled = !exporting,
                         onClick = { more = false; exportCsv = true },
                     )
@@ -232,7 +234,10 @@ fun AdsCampaignsScreen(path: String = "/ads/campaigns") {
                 },
                 busy = null,
                 csv = csv, exporting = exporting, onShareCsv = { f -> shareBytes(context, f.bytes, f.name, "text/csv", f.name) },
-                onSwitch = { t, running -> if (running) asking = t else setRunning(t, false) },
+                onSwitch = { t, running ->
+                    if (running && hide) failure = "An owner sets the budget and turns it on. Yours waits here, paused."
+                    else if (running) asking = t else setRunning(t, false)
+                },
                 onBudget = { budgeting = it },
                 onDetails = { level, id -> navigator.open(AdsCampaignsLogic.objectPath(level, id)) },
             )
@@ -241,7 +246,7 @@ fun AdsCampaignsScreen(path: String = "/ads/campaigns") {
         problem != null -> AdsUnavailable("Campaigns aren't ready", problem ?: "") {
             // The demo has no ERP to ask again: no button that can only fail.
             if (!House.isDemo) AdsTonalButton("Try again", { scope.launch { load() } })
-            AdsTonalButton("Open Setup", { navigator.open("/ads/setup") })
+            if (adsMayConfigure(session.role)) AdsTonalButton("Open Setup", { navigator.open("/ads/setup") })
         }
         else -> SkeletonLoading(Modifier.fillMaxSize(), label = "Reading the campaigns", shape = SkeletonShape.Cards)
     }
@@ -283,6 +288,7 @@ fun AdsCampaignsContent(
 ) {
     val cur = d.account.currency
     val list = AdsCampaignsLogic.shown(d.campaigns, filter, search)
+    val hide = LocalSession.current.spendHidden
     val spent = list.sumOf { it.metrics.spend }
     val views = list.sumOf { it.metrics.impressions }
     // One column on a phone, as many cards across as the window has room for on a tablet.
@@ -300,7 +306,7 @@ fun AdsCampaignsContent(
                     for (f in AdsFilter.entries) FilterChip(f.label, filter == f, { onFilter(f) })
                 }
                 Text(
-                    AdsCampaignsLogic.summary(list.size, d.campaigns.size, spent, views, cur),
+                    AdsCampaignsLogic.summary(list.size, d.campaigns.size, spent, views, cur, hide),
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 AdsChips {
@@ -308,7 +314,7 @@ fun AdsCampaignsContent(
                     FilterChip("Ads and pictures", gallery, { onGallery(true) })
                 }
                 if (gallery) {
-                    PickerRow("Sort", sort.key, AdsSort.entries.map { it.key to it.label }) { k -> onSort(AdsSort.entries.first { it.key == k }) }
+                    PickerRow("Sort", sort.key, AdsSort.entries.filter { !hide || (it != AdsSort.spend && it != AdsSort.cost && it != AdsSort.roas) }.map { it.key to it.label }) { k -> onSort(AdsSort.entries.first { it.key == k }) }
                 }
             }
         }
@@ -362,7 +368,7 @@ private fun CampaignCard(
                 Text(c.name, style = MaterialTheme.typography.titleMedium)
                 AdsStatusBadge(c.effectiveStatus)
                 Text(AdsCampaignsLogic.campaignBits(c), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                val b = AdsCampaignsLogic.budget(c.dailyBudget, c.lifetimeBudget, cur)
+                val b = if (LocalSession.current.spendHidden) "" else AdsCampaignsLogic.budget(c.dailyBudget, c.lifetimeBudget, cur)
                 if (b.isNotEmpty()) BudgetButton(b) { onBudget(AdsBudgetTarget("campaign", c.id, c.name, c.dailyBudget, c.lifetimeBudget, c.stopTime, cur)) }
                 Numbers(c.metrics, goal, c.previous, cur)
                 Issues(c.issues)
@@ -403,7 +409,7 @@ private fun AdSetRow(
                     AdsStatusBadge(s.effectiveStatus)
                     if (s.learning != null) Text(s.learning, style = MaterialTheme.typography.bodySmall, color = Tone.owed.color())
                 }
-                val b = AdsCampaignsLogic.budget(s.dailyBudget, s.lifetimeBudget, cur)
+                val b = if (LocalSession.current.spendHidden) "" else AdsCampaignsLogic.budget(s.dailyBudget, s.lifetimeBudget, cur)
                 if (b.isNotEmpty()) BudgetButton(b) { onBudget(AdsBudgetTarget("adset", s.id, s.name, s.dailyBudget, s.lifetimeBudget, s.endTime, cur)) }
                 Numbers(s.metrics, s.optimizationGoal, null, cur)
                 Issues(s.issues)
@@ -428,7 +434,7 @@ private fun AdStrip(ads: List<AdItem>, cur: String, onDetails: (String, String) 
             ) {
                 AdsPicture(a.image, a.name, a.id, Modifier.fillMaxWidth().aspectRatio(1f).clip(Radius.thumbShape))
                 Text(a.name, style = MaterialTheme.typography.labelSmall, maxLines = 3, overflow = TextOverflow.Ellipsis)
-                Text(AdsFormat.money(a.metrics.spend, cur), style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = TabularDigits), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (!LocalSession.current.spendHidden) Text(AdsFormat.money(a.metrics.spend, cur), style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = TabularDigits), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -494,7 +500,7 @@ private fun DetailsButton(name: String, onClick: () -> Unit) {
 @Composable
 private fun Numbers(m: AdMetrics, goal: String?, before: AdMetrics?, cur: String) {
     Text(
-        AdsCampaignsLogic.numbers(m, goal, before, cur),
+        AdsCampaignsLogic.numbers(m, goal, before, cur, LocalSession.current.spendHidden),
         style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = TabularDigits),
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )

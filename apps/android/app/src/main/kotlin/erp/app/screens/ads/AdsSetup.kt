@@ -116,7 +116,7 @@ fun AdsSetupScreen() {
     val backend = LocalAdsBackend.current
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    val mayUse = adsMayUse(session.role)
+    val mayUse = adsMayConfigure(session.role)
 
     var status by remember { mutableStateOf<AdsStatusAnswer?>(null) }
     var assets by remember { mutableStateOf<AdsSetupAssets?>(null) }
