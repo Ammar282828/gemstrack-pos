@@ -17,6 +17,8 @@ enum AdsMacNewAdPane: Hashable {
 struct AdsMacFooter: View {
     @Binding var launch: String
     var title = "Create Ad"
+    /// False for the staff member who runs marketing: her ad is always made paused.
+    var offersLive = true
     let summary: String
     let busy: Bool
     let disabled: Bool
@@ -26,13 +28,15 @@ struct AdsMacFooter: View {
         MacPageFooter {
             MacFooterSummary(text: summary)
             Spacer(minLength: 12)
-            Picker("Start", selection: $launch) {
-                Text("Paused").tag("paused")
-                Text("Live").tag("live")
+            if offersLive {
+                Picker("Start", selection: $launch) {
+                    Text("Paused").tag("paused")
+                    Text("Live").tag("live")
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .help("Paused: nothing is spent until you switch it on in Campaigns. Live: it starts once Meta approves it.")
             }
-            .pickerStyle(.menu)
-            .labelsHidden()
-            .help("Paused: nothing is spent until you switch it on in Campaigns. Live: it starts once Meta approves it.")
             Button(busy ? "Checking…" : title, action: create)
                 .keyboardShortcut(.defaultAction)
                 .buttonStyle(.borderedProminent)

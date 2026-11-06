@@ -43,7 +43,7 @@ struct AdsAudiencesScreen: View {
         AdsChoice(key: "GB", label: "UK"), AdsChoice(key: "US", label: "USA"), AdsChoice(key: "CA", label: "Canada"),
     ]
 
-    private var mayUse: Bool { session.role == "owner" || session.role == "marketing" }
+    private var mayUse: Bool { session.marketingAccess }
     private var isOwner: Bool { session.role == "owner" }
 
     var body: some View {

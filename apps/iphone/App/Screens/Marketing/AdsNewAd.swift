@@ -90,7 +90,11 @@ struct AdsNewAdScreen: View {
     @State private var macPane = AdsMacNewAdPane.preview
     #endif
 
-    private var mayUse: Bool { session.role == "owner" || session.role == "marketing" }
+    private var mayUse: Bool { session.marketingAccess }
+
+    /// The staff member who also runs the marketing sees no budget, bid or schedule: her ad is made paused at a placeholder
+    /// budget an owner sets and turns on (lib/ads/spend.ts `capNewAd`, which the route applies too).
+    private var hide: Bool { session.spendHidden }
 
     var body: some View {
         sheets(dialogs(page))
@@ -229,10 +233,19 @@ struct AdsNewAdScreen: View {
         p["link"] = link
         p["button"] = button
         p["audience"] = audience.json
-        p["budget"] = budget.json
-        p["launch"] = launch
-        p["bidding"] = advanced.bidding
-        p["hours"] = advanced.hours
+        if hide {
+            let capped: [String: Any] = ["kind": "daily", "amount": 1.0, "start": NSNull(), "end": NSNull()]
+            let lowest: [String: Any] = ["kind": "lowest"]
+            p["budget"] = capped
+            p["launch"] = "paused"
+            p["bidding"] = lowest
+            p["hours"] = NSNull()
+        } else {
+            p["budget"] = budget.json
+            p["launch"] = launch
+            p["bidding"] = advanced.bidding
+            p["hours"] = advanced.hours
+        }
         p["name"] = name.trimmingCharacters(in: .whitespaces)
         return p
     }
@@ -249,7 +262,7 @@ struct AdsNewAdScreen: View {
 
     private var confirmText: String {
         guard let c = check else { return "" }
-        var lines = c.summary
+        var lines = hide ? c.summary.filter { (l: String) in !l.hasPrefix("Budget:") } : c.summary
         lines.append("Name: \(c.name)")
         let q = quietInRange
         if let firstDay = q.first {
@@ -614,9 +627,13 @@ struct AdsNewAdScreen: View {
                 goalSection(l)
                 if !asIs { wordsSection(l) }
                 audienceSection
-                budgetSection(s)
-                AdsAdvancedSection(advanced: $advanced, needsTotal: { budgetKindChoice.wrappedValue = "total" },
-                                   sales: goalKey == "sales", currency: s.currency)
+                if hide {
+                    noBudgetSection
+                } else {
+                    budgetSection(s)
+                    AdsAdvancedSection(advanced: $advanced, needsTotal: { budgetKindChoice.wrappedValue = "total" },
+                                       sales: goalKey == "sales", currency: s.currency)
+                }
                 quietSection
                 previewSection
                 makeSections
@@ -1024,15 +1041,28 @@ struct AdsNewAdScreen: View {
         }
     }
 
+    /// What stands in the budget's place for her: an owner sets the budget and turns the ad on.
+    private var noBudgetSection: some View {
+        Section {
+            Text("An owner sets the budget and turns the ad on. Yours is saved paused in Campaigns, and waits there.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        } header: {
+            LedgerHeading(title: "\(step(5)) · Budget")
+        }
+    }
+
     @ViewBuilder
     private var makeSections: some View {
         Section {
             TextField("Name in Ads Manager (made for you)", text: $name)
-            Picker("Launch", selection: $launch) {
-                Text("Save it paused").tag("paused")
-                Text("Put it live").tag("live")
+            if !hide {
+                Picker("Launch", selection: $launch) {
+                    Text("Save it paused").tag("paused")
+                    Text("Put it live").tag("live")
+                }
+                .pickerStyle(.segmented)
             }
-            .pickerStyle(.segmented)
         } header: {
             LedgerHeading(title: "\(step(7)) · Make it")
         } footer: {
@@ -1162,7 +1192,7 @@ extension AdsNewAdScreen {
     }
 
     private var macFooter: some View {
-        AdsMacFooter(launch: $launch, summary: macFooterSummary, busy: checking || sending, disabled: stillUploading || !mayUse) {
+        AdsMacFooter(launch: $launch, offersLive: !hide, summary: macFooterSummary, busy: checking || sending, disabled: stillUploading || !mayUse) {
             Task { await review() }
         }
     }
@@ -1170,6 +1200,7 @@ extension AdsNewAdScreen {
     /// What the footer says: what is still being sent, else what the budget comes to.
     private var macFooterSummary: String {
         if stillUploading { return kind == .video ? "Wait for the video to reach Meta." : "Wait for the photos to reach Meta." }
+        if hide { return "Saved paused: an owner sets the budget." }
         guard let v = AdsAmount.parse(amount) else { return "A budget above zero." }
         let money = AdsFormat.money(v, currency)
         if budgetKind == "daily" {
@@ -1235,9 +1266,17 @@ extension AdsNewAdScreen {
             macGoal(l)
             if !asIs { macWords(l) }
             macAudience
-            macBudget(s)
-            AdsAdvancedSection(advanced: $advanced, needsTotal: { budgetKind = "total"; if days == nil { days = 7 } },
-                               sales: goalKey == "sales", currency: s.currency)
+            if hide {
+                Section("Budget") {
+                    Text("An owner sets the budget and turns the ad on. Yours is saved paused in Campaigns, and waits there.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                macBudget(s)
+                AdsAdvancedSection(advanced: $advanced, needsTotal: { budgetKind = "total"; if days == nil { days = 7 } },
+                                   sales: goalKey == "sales", currency: s.currency)
+            }
             quietSection
             macName
             AdsProblemsSection(problems: check?.problems ?? [])

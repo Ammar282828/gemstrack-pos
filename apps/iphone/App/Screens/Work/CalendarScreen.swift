@@ -142,13 +142,21 @@ struct CalendarScreen: View {
     /// The month on screen: its money, its sales and orders, and the average day that took anything.
     private func tiles(_ m: ShopCalendarMonth) -> some View {
         VStack(spacing: pt(10)) {
-            FigureRow(alignment: .top, spacing: pt(10)) {
-                FigureTile(label: ShopCalendar.title(year: year, month: month), value: Money.pkrLac(m.total), tint: Tone.settled.color)
-                FigureTile(label: "Sales", value: "\(m.sales)")
-            }
-            FigureRow(alignment: .top, spacing: pt(10)) {
-                FigureTile(label: "Orders", value: "\(m.orders)")
-                FigureTile(label: "Average trading day", value: m.perTradingDay > 0 ? Money.pkrLac(m.perTradingDay) : "—")
+            if session.seesMoney {
+                FigureRow(alignment: .top, spacing: pt(10)) {
+                    FigureTile(label: ShopCalendar.title(year: year, month: month), value: Money.pkrLac(m.total), tint: Tone.settled.color)
+                    FigureTile(label: "Sales", value: "\(m.sales)")
+                }
+                FigureRow(alignment: .top, spacing: pt(10)) {
+                    FigureTile(label: "Orders", value: "\(m.orders)")
+                    FigureTile(label: "Average trading day", value: m.perTradingDay > 0 ? Money.pkrLac(m.perTradingDay) : "—")
+                }
+            } else {
+                // Staff see what is on each day, never what it came to (decision "Staff see no money").
+                FigureRow(alignment: .top, spacing: pt(10)) {
+                    FigureTile(label: "Sales", value: "\(m.sales)")
+                    FigureTile(label: "Orders", value: "\(m.orders)")
+                }
             }
         }
         .padding(.vertical, pt(4))
@@ -218,7 +226,7 @@ struct CalendarScreen: View {
                     .font(.caption.weight(isToday ? .bold : .medium))
                     .foregroundStyle(isToday ? Theme.accent : Color.primary)
                 // The money taken that day, in a few characters; a day with nothing sold shows none.
-                if let data, data.total > 0 {
+                if session.seesMoney, let data, data.total > 0 {
                     Text(ShopCalendar.dayMoney(data.total))
                         .font(.caption2.weight(.semibold))
                         .monospacedDigit()
@@ -263,7 +271,7 @@ struct CalendarScreen: View {
     private func spoken(_ key: String, _ data: ShopCalendarDay?, _ due: Int) -> String {
         var parts = [ShopCalendar.longDay(key)]
         if let data {
-            if data.total > 0 { parts.append(Money.pkr(data.total)) }
+            if data.total > 0 && session.seesMoney { parts.append(Money.pkr(data.total)) }
             if data.invoices > 0 { parts.append("\(data.invoices) sale\(data.invoices == 1 ? "" : "s")") }
             if data.orders > 0 { parts.append("\(data.orders) order\(data.orders == 1 ? "" : "s")") }
         }
@@ -301,7 +309,7 @@ struct CalendarScreen: View {
                     Text(ShopCalendar.clock(iso: e.createdAt)).font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 8)
-                RowAmount(amount: e.grandTotal)
+                if session.seesMoney { RowAmount(amount: e.grandTotal) }
             }
         }
         .zoomSource(id: path)
@@ -417,11 +425,15 @@ extension CalendarScreen {
     /// The month on screen as the kit's figure cards, in the one grid every page uses: the money taken, the sales and orders,
     /// and the average day that took anything. (The month is the window's subtitle: not said again here.)
     private func macFigures(_ m: ShopCalendarMonth) -> some View {
-        MacFigureGrid([
+        // Staff see what is on each day, never what it came to (decision "Staff see no money").
+        MacFigureGrid(session.seesMoney ? [
             MacFigure("Money taken", Money.pkrLac(m.total)),
             MacFigure("Sales", "\(m.sales)"),
             MacFigure("Orders", "\(m.orders)"),
             MacFigure("Average trading day", m.perTradingDay > 0 ? Money.pkrLac(m.perTradingDay) : "\u{2014}"),
+        ] : [
+            MacFigure("Sales", "\(m.sales)"),
+            MacFigure("Orders", "\(m.orders)"),
         ])
     }
 
@@ -493,7 +505,7 @@ extension CalendarScreen {
                         .foregroundStyle(Tone.owed.color)
                     }
                 }
-                if let data, data.total > 0 {
+                if session.seesMoney, let data, data.total > 0 {
                     Text(ShopCalendar.dayMoney(data.total))
                         .font(.caption.weight(.semibold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
                 }

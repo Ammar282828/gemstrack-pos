@@ -14,6 +14,7 @@ struct MacReportsCalendarDay: View {
     /// Orders promised for the day (the promise layer, apart from the money).
     let promised: [Order]
 
+    @Environment(Session.self) private var session
     @Environment(\.openPlaceWindow) private var openPlace
     @State private var picked = Set<String>()
 
@@ -101,7 +102,7 @@ struct MacReportsCalendarDay: View {
                     .foregroundStyle(e.isInvoice ? Tone.settled.color : Tone.working.color)
                     .frame(width: 16)
                 Text(e.docId).font(.body.monospaced()).lineLimit(1)
-                MacAmount(e.grandTotal)
+                if session.seesMoney { MacAmount(e.grandTotal) }
             }
             HStack(spacing: 6) {
                 Text(e.customerName.isEmpty ? "Walk-in" : e.customerName)

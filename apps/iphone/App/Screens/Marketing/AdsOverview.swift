@@ -26,7 +26,10 @@ struct AdsOverviewScreen: View {
     @Environment(\.openPlaceWindow) private var openPlace
     #endif
 
-    private var mayRead: Bool { session.role == "owner" || session.role == "marketing" }
+    private var mayRead: Bool { session.marketingAccess }
+    /// The staff member who also runs marketing sees what the ads reached and brought in, never what they cost or earned
+    /// (decision "Staff see no money"; the route sends no spend either).
+    private var hide: Bool { session.spendHidden }
 
     var body: some View {
         Group {
@@ -205,27 +208,37 @@ struct AdsOverviewScreen: View {
             if across {
                 // An iPad: every figure in one grid, four across.
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: pt(10), alignment: .top), count: 4), spacing: pt(10)) {
-                    FigureTile(label: "Spent", value: AdsFormat.money(t.spend, cur), detail: spentNote)
+                    if !hide { FigureTile(label: "Spent", value: AdsFormat.money(t.spend, cur), detail: spentNote) }
                     FigureTile(label: "People reached", value: AdsFormat.compact(t.reach), detail: reachNote)
                     mainTile(t, b, main, cur)
                     FigureTile(label: "Click-through", value: AdsFormat.pct(t.ctr),
-                               detail: "\(AdsFormat.money(t.cpm, cur)) per 1,000 views")
-                    salesTilePair(t, b, cur)
+                               detail: hide ? nil : "\(AdsFormat.money(t.cpm, cur)) per 1,000 views")
+                    if !hide { salesTilePair(t, b, cur) }
                 }
                 .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                 .listRowBackground(Color.clear)
             } else {
             VStack(spacing: pt(10)) {
-                FigureRow(spacing: pt(10)) {
-                    FigureTile(label: "Spent", value: AdsFormat.money(t.spend, cur), detail: spentNote)
-                    FigureTile(label: "People reached", value: AdsFormat.compact(t.reach), detail: reachNote)
+                if hide {
+                    FigureRow(spacing: pt(10)) {
+                        FigureTile(label: "People reached", value: AdsFormat.compact(t.reach), detail: reachNote)
+                        mainTile(t, b, main, cur)
+                    }
+                    FigureRow(spacing: pt(10)) {
+                        FigureTile(label: "Click-through", value: AdsFormat.pct(t.ctr))
+                    }
+                } else {
+                    FigureRow(spacing: pt(10)) {
+                        FigureTile(label: "Spent", value: AdsFormat.money(t.spend, cur), detail: spentNote)
+                        FigureTile(label: "People reached", value: AdsFormat.compact(t.reach), detail: reachNote)
+                    }
+                    FigureRow(spacing: pt(10)) {
+                        mainTile(t, b, main, cur)
+                        FigureTile(label: "Click-through", value: AdsFormat.pct(t.ctr),
+                                   detail: "\(AdsFormat.money(t.cpm, cur)) per 1,000 views")
+                    }
+                    salesTiles(t, b, cur)
                 }
-                FigureRow(spacing: pt(10)) {
-                    mainTile(t, b, main, cur)
-                    FigureTile(label: "Click-through", value: AdsFormat.pct(t.ctr),
-                               detail: "\(AdsFormat.money(t.cpm, cur)) per 1,000 views")
-                }
-                salesTiles(t, b, cur)
             }
             .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
             .listRowBackground(Color.clear)
@@ -266,10 +279,10 @@ struct AdsOverviewScreen: View {
     private func mainTile(_ t: AdMetrics, _ b: AdMetrics?, _ main: (key: String, label: String, value: Double), _ cur: String) -> some View {
         if main.key == "reach" {
             FigureTile(label: "Clicks", value: AdsFormat.count(t.clicks),
-                       detail: t.clicks > 0 ? "\(AdsFormat.money(t.cpc, cur)) each" : nil)
+                       detail: t.clicks > 0 && !hide ? "\(AdsFormat.money(t.cpc, cur)) each" : nil)
         } else {
             let before = b.map { (m: AdMetrics) in AdsResults.value(m, key: main.key) }
-            let each = main.value > 0 ? "\(AdsFormat.money(t.spend / main.value, cur)) each" : nil
+            let each = main.value > 0 && !hide ? "\(AdsFormat.money(t.spend / main.value, cur)) each" : nil
             FigureTile(label: main.label, value: AdsFormat.count(main.value),
                        detail: AdsFormat.change(main.value, before) ?? each)
         }
@@ -344,7 +357,7 @@ struct AdsOverviewScreen: View {
 
     @ViewBuilder
     private func monthSection(_ d: AdOverview, _ cur: String) -> some View {
-        if let m = d.month, m.spent > 0 || m.lastMonth > 0 {
+        if let m = d.month, !hide, m.spent > 0 || m.lastMonth > 0 {
             Section {
                 LabeledContent("Spent so far") { Text(AdsFormat.money(m.spent, cur)).monospacedDigit().contentTransition(.numericText(value: m.spent)) }
                 LabeledContent("Heading for") { Text(AdsFormat.money(m.projected, cur)).monospacedDigit().contentTransition(.numericText(value: m.projected)) }
@@ -384,7 +397,7 @@ struct AdsOverviewScreen: View {
             guard let date = AdsDay.plot(day.date) else { return nil }
             return DayPoint(id: day.date, date: date, spend: day.metrics.spend)
         }
-        if points.count > 1 {
+        if points.count > 1 && !hide {
             Section {
                 dailyChart(points, cur)
                 .frame(height: 180)
@@ -422,8 +435,10 @@ struct AdsOverviewScreen: View {
             }
             Spacer(minLength: 8)
             VStack(alignment: .trailing, spacing: pt(2)) {
-                Text(AdsFormat.money(a.metrics.spend, cur)).font(.subheadline.weight(.semibold)).monospacedDigit()
-                    .contentTransition(.numericText(value: a.metrics.spend))
+                if !hide {
+                    Text(AdsFormat.money(a.metrics.spend, cur)).font(.subheadline.weight(.semibold)).monospacedDigit()
+                        .contentTransition(.numericText(value: a.metrics.spend))
+                }
                 Text(resultLine(a, cur)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
         }
@@ -431,9 +446,9 @@ struct AdsOverviewScreen: View {
 
     private func resultLine(_ a: AdTop, _ cur: String) -> String {
         let s = AdsResults.sales(a.metrics)
-        let roas = s.value > 0 ? " · \(AdsResults.roasText(s.roas)) ROAS" : ""
+        let roas = s.value > 0 && !hide ? " · \(AdsResults.roasText(s.roas)) ROAS" : ""
         guard let r = AdsResults.of(a.metrics, goal: a.goal) else { return "\(AdsFormat.compact(a.metrics.reach)) reached\(roas)" }
-        let each = r.value > 0 ? " · \(AdsFormat.money(a.metrics.spend / r.value, cur)) each" : ""
+        let each = r.value > 0 && !hide ? " · \(AdsFormat.money(a.metrics.spend / r.value, cur)) each" : ""
         return "\(AdsFormat.count(r.value)) \(r.label.lowercased())\(each)\(roas)"
     }
 

@@ -161,6 +161,14 @@ struct CustomersList: View {
 
     private func sections(_ shown: CustomerKit.Groups, _ stats: [String: CustomerKit.Stats]) -> [CustSection] {
         var out: [CustSection] = []
+        // Staff see who a customer is and how many sales, never what they owe or spent (decision "Staff see no money"):
+        // no Owing money section; those who owe sit with the recent ones.
+        if !session.seesMoney {
+            let recent = shown.owing + shown.active
+            if !recent.isEmpty { out.append(CustSection(id: "recent", title: "Recent", hint: "", people: recent, owed: 0)) }
+            if !shown.quiet.isEmpty { out.append(CustSection(id: "quiet", title: "Quiet", hint: "no sale in a year", people: shown.quiet, owed: 0)) }
+            return out
+        }
         if !shown.owing.isEmpty {
             var owed = 0.0
             for c in shown.owing { owed += stats[c.id]?.owed ?? 0 }
@@ -217,7 +225,7 @@ struct CustomersList: View {
 
     /// Everyone, Owing, Recent: the same three filters as before, as chips with how many each shows.
     private func chips(_ f: Figures) -> [ListChip] {
-        Showing.allCases.map { option in
+        Showing.allCases.filter { (option: Showing) in session.seesMoney || option != .owing }.map { option in
             let count: Int
             switch option {
             case .everyone: count = f.matchedCount
@@ -249,7 +257,7 @@ struct CustomersList: View {
     }
 
     private func money(_ s: CustomerKit.Stats?) -> RecordMoney? {
-        guard let s else { return nil }
+        guard let s, session.seesMoney else { return nil }
         // What is owed leads: it is the reason you look a customer up.
         if s.owed >= 1 { return RecordMoney(amount: s.owed, tone: .owed, detail: "owed", detailTone: .owed) }
         if s.spent > 0 { return RecordMoney(amount: s.spent, lac: true, detail: "spent") }

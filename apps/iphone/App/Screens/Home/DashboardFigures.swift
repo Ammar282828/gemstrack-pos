@@ -607,7 +607,7 @@ struct DashFigures {
     }
 
     /// Everything actually waiting on a decision, worst first: grouped, not enumerated (page.tsx `tasks`).
-    func needs(onlineWaiting: Int, ratePause: DashRatePause?) -> [DashNeed] {
+    func needs(onlineWaiting: Int, ratePause: DashRatePause?, showMoney: Bool = true) -> [DashNeed] {
         var out: [DashNeed] = []
         func add(_ path: String, _ tone: DashNeed.Tone, _ title: String, _ detail: String, amount: Double? = nil,
                  kind: DashNeed.Kind = .other) {
@@ -643,12 +643,14 @@ struct DashFigures {
 
         addBenchNeeds(add)
 
-        let shown = unpaid.prefix(3)
+        // Staff see what needs doing, never what is owed (decision "Staff see no money"): no unpaid rows.
+        let owing = showMoney ? unpaid : []
+        let shown = owing.prefix(3)
         for inv in shown {
             add(DashPath.invoice(inv.id), .warn, DashText.name(inv.customerName), "Unpaid since \(DashDate.dayMonth(iso: inv.createdAt))",
                 amount: inv.balanceDue, kind: .unpaid)
         }
-        let rest = unpaid.dropFirst(3)
+        let rest = owing.dropFirst(3)
         if !rest.isEmpty {
             let sum = rest.reduce(0.0) { (acc: Double, inv: Invoice) -> Double in acc + inv.balanceDue }
             add("/invoices", .warn, "\(rest.count) more unpaid", "Smaller balances", amount: sum, kind: .unpaid)

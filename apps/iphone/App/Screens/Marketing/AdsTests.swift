@@ -31,7 +31,7 @@ struct AdsTestsScreen: View {
     @State private var macMaking = false
     #endif
 
-    private var mayUse: Bool { session.role == "owner" || session.role == "marketing" }
+    private var mayUse: Bool { session.marketingAccess }
 
     var body: some View {
         Group {

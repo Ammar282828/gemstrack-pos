@@ -81,7 +81,8 @@ struct NavMap: Decodable {
     static func invalidate() { lock.lock(); cache = nil; lock.unlock() }
 
     /// The map as a person sees it (src/lib/nav.ts forRole): owners everything; staff only the places
-    /// marked for them; a marketing account the Marketing group whole and nothing else.
+    /// marked for them; a marketing account the Marketing group whole and nothing else; "staffMarketing" (`Session.navRole`: a
+    /// staff member also on the marketing list) the staff's places and the marketing ones, without configuring.
     func visible(to role: String) -> NavMap {
         if role == "owner" { return self }
         if role == "marketing" {
@@ -97,6 +98,7 @@ struct NavMap: Decodable {
             }
             return NavMap(groups: groups, newSale: nil, entries: theirs, settings: nil, actions: [])
         }
+        if role == "staffMarketing" { return forStaffMarketing() }
         func keep(_ p: NavPlace) -> Bool { p.staff == true }
         let mine = entries.compactMap { e -> NavEntry? in
             guard e.staff == true else { return nil }
@@ -109,6 +111,35 @@ struct NavMap: Decodable {
         // New sale is out of Create too: it is the same sale the server will not save for staff.
         return NavMap(groups: groups, newSale: nil, entries: mine, settings: nil,
                       actions: actions.filter { keep($0) && $0.href != newSale?.href })
+    }
+
+    /// Ad setup, audiences, rules and tests: configuring, which the staff member who runs marketing never gets (nav.ts CONFIG_PAGES).
+    static func isConfigPage(_ href: String) -> Bool {
+        let h = href.split(separator: "?").first.map(String.init) ?? href
+        return ["/ads/setup", "/ads/audiences", "/ads/rules", "/ads/tests"].contains { (c: String) in h == c || h.hasPrefix(c + "/") }
+    }
+
+    /// nav.ts forRole(…, 'staffMarketing'): the shop floor's rows, and the Marketing group and Analytics' marketing tabs, whole
+    /// but for the configuring pages. She stays money-blind (`Session.seesMoney`). No New sale (as for staff), no Settings.
+    private func forStaffMarketing() -> NavMap {
+        func keepPage(_ p: NavPlace) -> Bool { !NavMap.isConfigPage(p.href) }
+        let mine = entries.compactMap { e -> NavEntry? in
+            if e.group == "marketing" {
+                guard let all = e.tabs else { return e }
+                let tabs = all.filter(keepPage)
+                guard let first = tabs.first else { return nil }
+                return NavEntry(id: e.id, group: e.group, href: first.href, label: e.label, heading: e.heading, icon: e.icon, staff: e.staff,
+                                keywords: e.keywords, match: e.match, tabs: tabs, pages: e.pages?.filter(keepPage), count: e.count)
+            }
+            guard let all = e.tabs else { return e.staff == true ? e : nil }
+            let tabs = all.filter { (t: NavPlace) in (e.staff == true && t.staff == true) || t.marketing == true }
+            guard let first = tabs.first else { return nil }
+            return NavEntry(id: e.id, group: e.group, href: first.href, label: e.label, heading: e.heading, icon: e.icon, staff: e.staff,
+                            keywords: e.keywords, match: e.match, tabs: tabs,
+                            pages: e.pages?.filter { (p: NavPlace) in e.staff == true && p.staff == true }, count: e.count)
+        }
+        return NavMap(groups: groups, newSale: nil, entries: mine, settings: nil,
+                      actions: actions.filter { (a: NavPlace) in a.staff == true && a.href != newSale?.href })
     }
 
     /// The entry a path belongs to (its own href, a tab's, a page's, a `match`, or beneath one): the one

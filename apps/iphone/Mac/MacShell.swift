@@ -132,7 +132,7 @@ struct MacShell: View {
     @MainActor private static var launchRestored = false
     @State private var restored = false
 
-    private var map: NavMap { NavMap.current.visible(to: session.role) }
+    private var map: NavMap { NavMap.current.visible(to: session.navRole) }
     private var online: OnlineInbox { .shared }
 
     /// Owners and staff are told of online orders; the count sits beside Orders, as the web's sidebar has it.

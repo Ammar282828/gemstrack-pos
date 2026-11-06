@@ -330,7 +330,7 @@ struct WebsitePhotosScreen: View {
     @ViewBuilder
     private var afterSection: some View {
         Section {
-            if MarketingKit.has("/website/weights", role: session.role) {
+            if MarketingKit.has("/website/weights", role: session.navRole) {
                 MarketingLink(title: "Record their weights", symbol: "scalemass", path: "/website/weights")
             }
             if let url = collectionURL {

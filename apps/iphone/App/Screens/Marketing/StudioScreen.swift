@@ -35,7 +35,7 @@ struct StudioScreen: View {
     @ViewBuilder
     private var phoneBody: some View {
         Group {
-            if session.role == "owner" || session.role == "marketing" {
+            if session.marketingAccess {
                 #if os(macOS)
                 // The five tabs are a segmented control in the window's toolbar.
                 page
@@ -56,7 +56,7 @@ struct StudioScreen: View {
         .modifier(HouseGround()).navigationTitle("Studio").navigationBarTitleDisplayMode(.inline)
         #if os(macOS)
         .toolbar {
-            if session.role == "owner" || session.role == "marketing" {
+            if session.marketingAccess {
                 ToolbarItem(placement: .principal) {
                     Picker("Studio", selection: $model.tab) {
                         Text("Plan").tag("plan"); Text("Photos").tag("photos"); Text("Make").tag("make")
@@ -567,7 +567,7 @@ struct AdsPlanScreen: View {
     @Environment(Session.self) private var session
     var body: some View {
         Group {
-            if session.role == "owner" || session.role == "marketing" {
+            if session.marketingAccess {
                 StudioPlan(model: model)
             } else { AdsOwnersOnly() }
         }

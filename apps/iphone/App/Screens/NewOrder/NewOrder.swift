@@ -570,7 +570,8 @@ struct NewOrder: View {
         NewOrderNotesSection(draft: $draft)
         NewOrderDeliverySection(draft: $draft, knownAddresses: { knownAddresses })
         // The shop's own figure: owners and staff, never the customer (decisions.md "Margin").
-        if House.margin.rattiLess != nil {
+        // Staff see no margin and no 24k cost rate (decision "Staff see no money").
+        if House.margin.rattiLess != nil && session.seesMoney {
             NewOrderMarginSection(draft: $draft, settings: settings) {
                 NewOrderMath.margin(draft, settings, totals)
             }

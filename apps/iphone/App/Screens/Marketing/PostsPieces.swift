@@ -286,7 +286,7 @@ struct PostPieceScreen: View {
     func actions(_ p: PostPiece) -> some View {
         Section {
             MarketingLink(title: "Send or queue it", symbol: "paperplane", path: MarketingKit.trayPath(p.id))
-            if MarketingKit.has("/website/edit", role: session.role) {
+            if MarketingKit.has("/website/edit", role: session.navRole) {
                 MarketingLink(title: "Edit this piece", symbol: "pencil.line", path: editPath(p))
             }
             if let url = URL(string: p.url), !p.url.isEmpty {
@@ -359,7 +359,7 @@ extension PostPieceScreen {
                     Label("Send or queue it", systemImage: "paperplane")
                 }
                 .help("Open this piece in the tray")
-                if MarketingKit.has("/website/edit", role: session.role) {
+                if MarketingKit.has("/website/edit", role: session.navRole) {
                     NavigationLink(value: Route(path: editPath(p))) { Label("Edit this piece", systemImage: "pencil.line") }
                         .help("Edit this piece from its original")
                 }
