@@ -2,7 +2,7 @@ name: TestFlight status
 
 # Why a build is or is not in TestFlight (docs/features/iphone-app.md, Xcode Cloud): each house's newest builds,
 # their processing and beta state, and whether the "Shop" group has them (apps/ios/scripts/asc.mjs builds).
-# A cloud session cannot dispatch it (403): a push that changes this file runs it (last: 20 details, 11-05 23h10).
+# A cloud session cannot dispatch it (403): a push that changes this file runs it (last: staff + analytics, 11-06 05h00).
 # With fix (the default, and on a push to this file): the newest valid build joins Shop, export compliance answered.
 
 # Every day (schedule): the same pass. (Until 2026-11-02 keep-fresh started an Xcode Cloud build of a 60-day-old build, so
