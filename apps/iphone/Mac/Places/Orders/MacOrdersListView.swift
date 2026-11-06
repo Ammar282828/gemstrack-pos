@@ -35,6 +35,8 @@ struct MacOrdersGroup: Identifiable {
 
 struct MacOrdersListView<RowMenu: View>: View {
     let rows: [MacOrdersListRow]
+    /// Staff see each order's amount, never a stage's sum (docs/decisions.md#staff-see-no-money).
+    @Environment(Session.self) private var session
     /// What the rows were made from: a new value makes the groups again.
     let version: [Int]
     let sort: MacOrdersSort
@@ -139,7 +141,8 @@ struct MacOrdersListView<RowMenu: View>: View {
                         .font(.caption.weight(.semibold)).foregroundStyle(.secondary).frame(width: 12).padding(.top, 3)
                 }
                 VStack(alignment: .leading, spacing: 2) {
-                    LedgerHeading(title: g.title, count: g.rows.count, trailing: g.worth >= 1 ? "worth " + Money.pkrLac(g.worth, digits: 1) : nil)
+                    LedgerHeading(title: g.title, count: g.rows.count,
+                                  trailing: session.isOwner && g.worth >= 1 ? "worth " + Money.pkrLac(g.worth, digits: 1) : nil)
                     if !g.hint.isEmpty {
                         Text(g.hint).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                     }
