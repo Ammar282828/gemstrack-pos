@@ -19,7 +19,7 @@ struct WebsiteMenu: View {
 
     @ViewBuilder
     private var phoneBody: some View {
-        let tabs = MarketingKit.tabs(of: "website", role: session.role)
+        let tabs = MarketingKit.tabs(of: "website", role: session.navRole)
         List {
             Group {
                 if tabs.isEmpty {
@@ -53,7 +53,7 @@ extension WebsiteMenu {
     /// The website's tools as plain rows, each also openable in a window of its own (the sidebar lists them too).
     @ViewBuilder
     var macBody: some View {
-        let tabs = MarketingKit.tabs(of: "website", role: session.role)
+        let tabs = MarketingKit.tabs(of: "website", role: session.navRole)
         Group {
             if tabs.isEmpty {
                 NotAvailableState("This shop doesn't change its website from the ERP", why: "Its website is managed outside the ERP, so there are no website tools here.", symbol: "globe")

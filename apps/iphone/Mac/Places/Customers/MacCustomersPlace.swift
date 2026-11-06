@@ -202,6 +202,8 @@ struct MacCustomersPlace: View {
             for r in rows {
                 if r.owed >= 1 { owing.append(r) } else if !r.lastAt.isEmpty && r.lastAt >= cutoff { active.append(r) } else { quiet.append(r) }
             }
+            // Staff see no customer's spending or balance (decision "Staff see no money"): those who owe sit with the recent ones.
+            if !session.seesMoney { active += owing; owing = [] }
             owing.sort { $0.owed > $1.owed }
             active.sort { $0.lastAt > $1.lastAt }
             quiet.sort { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
@@ -278,6 +280,9 @@ struct MacCustomersPlace: View {
     }
 
     private func summary(_ rows: [MacCustomersRow], _ b: MacCustomersBooks) -> [String] {
+        if !session.seesMoney {
+            return selection.count > 1 ? ["\(selection.count) selected"] : ["\(rows.count) customer\(rows.count == 1 ? "" : "s")"]
+        }
         if selection.count > 1 {
             let picked = rows.filter { (r: MacCustomersRow) in selection.contains(r.id) }
             let owed = picked.reduce(0.0) { (sum: Double, r: MacCustomersRow) in sum + r.owed }
@@ -644,6 +649,7 @@ private struct MacCustomersMiniRow: View {
 /// One customer as the iPhone's list sets them: monogram, name over number and sales, what they owe (or have spent) at the right.
 struct MacCustomersListRow: View {
     let row: MacCustomersRow
+    @Environment(Session.self) private var session
 
     private var subtitle: String {
         var parts: [String] = []
@@ -675,8 +681,10 @@ struct MacCustomersListRow: View {
 
     @ViewBuilder
     private var trailing: some View {
-        // The same two lines as an order's or a repair's: the sum over its small word.
-        if row.owed >= 1 {
+        // The same two lines as an order's or a repair's: the sum over its small word. Staff see none.
+        if !session.seesMoney {
+            EmptyView()
+        } else if row.owed >= 1 {
             VStack(alignment: .trailing, spacing: 1) {
                 RowAmount(amount: row.owed, tone: Tone.owed.color)
                 Text("Owed").font(.caption2).foregroundStyle(.secondary)

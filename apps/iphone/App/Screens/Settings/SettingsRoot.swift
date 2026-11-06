@@ -75,7 +75,7 @@ struct SettingsRoot: View {
 
     /// The web's Settings sections (nav.ts SETTINGS `section`: Shop, Connections, Records) with their tabs in its order.
     private var settingsSections: [(name: String, tabs: [NavPlace])] {
-        guard let e = NavMap.current.visible(to: session.role).settings else { return [] }
+        guard let e = NavMap.current.visible(to: session.navRole).settings else { return [] }
         return e.sections.map { (name: $0, tabs: e.tabs(in: $0)) }
     }
 

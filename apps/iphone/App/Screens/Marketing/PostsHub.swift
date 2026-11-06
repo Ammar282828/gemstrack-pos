@@ -47,8 +47,8 @@ struct PostsHub: View {
     #endif
 
     // Design and the old Post a piece composer are Posts' tab (Hub · Design · Investments), reached from the title menu, not rows here.
-    private var hasInvestments: Bool { MarketingKit.has("/website/investments", role: session.role) }
-    private var hasWebsite: Bool { MarketingKit.has("/website/photos", role: session.role) }
+    private var hasInvestments: Bool { MarketingKit.has("/website/investments", role: session.navRole) }
+    private var hasWebsite: Bool { MarketingKit.has("/website/photos", role: session.navRole) }
 
     var body: some View {
         #if os(macOS)

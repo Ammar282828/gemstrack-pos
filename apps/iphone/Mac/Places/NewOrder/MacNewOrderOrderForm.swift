@@ -16,6 +16,8 @@ struct MacNewOrderOrderForm: View {
     /// Change rate (the order page's `?rates=1`) puts the rates first.
     let ratesFirst: Bool
 
+    @Environment(Session.self) private var session
+
     var body: some View {
         Form {
             if ratesFirst { MacNewOrderRates(draft: $draft, settings: settings) }
@@ -24,7 +26,7 @@ struct MacNewOrderOrderForm: View {
             if !ratesFirst { MacNewOrderRates(draft: $draft, settings: settings) }
             MacNewOrderDelivery(draft: $draft, knownAddresses: knownAddresses)
             MacNewOrderNotes(draft: $draft)
-            if House.margin.rattiLess != nil {
+            if House.margin.rattiLess != nil && session.seesMoney {
                 MacNewOrderMargin(draft: $draft, settings: settings, margin: margin)
             }
         }

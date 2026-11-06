@@ -19,7 +19,7 @@ struct MacCommands: Commands {
     /// still answer (⌘N from a New Sale window, Lock Now from Settings).
     private var map: NavMap? {
         let session = Sessions.shared.current
-        return session.state == .signedIn ? NavMap.current.visible(to: session.role) : nil
+        return session.state == .signedIn ? NavMap.current.visible(to: session.navRole) : nil
     }
     private var signedIn: Bool { map != nil }
     /// Signed in and not behind the lock: the books' commands answer only then.

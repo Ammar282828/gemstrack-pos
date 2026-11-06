@@ -30,7 +30,7 @@ struct DesignScreen: View {
         _partRaw = State(initialValue: AdsQuery.value("s", in: path) ?? "site")
     }
 
-    private var access: DesignAccess { DesignAccess(role: session.role) }
+    private var access: DesignAccess { DesignAccess(role: session.navRole) }
     private var current: DesignSection { DesignSection.of(sectionRaw, access) }
     private var part: Binding<DesignPhotoPart> {
         Binding(get: { DesignPhotoPart.of(partRaw, access) }, set: { partRaw = $0.rawValue })
@@ -98,7 +98,7 @@ struct DesignScreen: View {
             if workspace.isOpen {
                 DesignWorkspaceView(model: workspace, access: access, onClose: { Task { await workspace.close(); await shelf.loadDrafts() } }, onChangePhoto: { go(.photos) })
             } else {
-                DesignStartView(start: start, access: access, role: session.role, shelf: shelf, starting: workspace.starting,
+                DesignStartView(start: start, access: access, role: session.navRole, shelf: shelf, starting: workspace.starting,
                                 onBrowse: { go(.photos) }, onBegin: begin, onOpenDraft: openDraft, onOpenSaved: openSaved, onSeeAll: { go(.saved) })
             }
         case .photos:

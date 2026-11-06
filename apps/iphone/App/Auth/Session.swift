@@ -54,6 +54,11 @@ final class Session {
         let karigar: Karigar?
         /// The house's own settings (/api/app/me `shop`); missing from an answer cached by an older build.
         var shop: Shop?
+        /// Whether this person may see an amount outside the one bill in hand (lib/roles.ts `seesMoney`: owners only).
+        /// Absent from an older server's answer or an answer cached by an older build: then the role decides.
+        var seesMoney: Bool?
+        /// A staff member who is also on the marketing list (lib/roles.ts `alsoMarketing`); absent: not.
+        var alsoMarketing: Bool?
         struct Karigar: Codable { let id: String; let name: String }
     }
 
@@ -121,6 +126,16 @@ final class Session {
 
     var role: String { me?.role ?? "none" }
     var isOwner: Bool { role == "owner" }
+    /// Owners only see money outside the bill in hand (decision "Staff see no money"). An older server does not say: the role does.
+    var seesMoney: Bool { me?.seesMoney ?? (role == "owner") }
+    /// The staff member who also runs the marketing: the Marketing places, no spend, no settings.
+    var alsoMarketing: Bool { role == "staff" && (me?.alsoMarketing ?? false) }
+    /// Who may use the marketing places (Ads, Insights, Posts, Design, Website tools): lib/roles.ts `marketingAccess`.
+    var marketingAccess: Bool { isOwner || role == "marketing" || alsoMarketing }
+    /// Ad spend, budgets, cost per result and ROAS are withheld from her (lib/roles.ts `spendHidden`).
+    var spendHidden: Bool { alsoMarketing }
+    /// The role the menu is drawn for (`NavMap.visible(to:)`): "staffMarketing" for the staff member who also runs marketing.
+    var navRole: String { alsoMarketing ? "staffMarketing" : role }
     /// The house's settings for the screens (see Shop).
     var shop: Shop { me?.shop ?? .fallback }
 
@@ -133,7 +148,7 @@ final class Session {
     init(business: Business) {
         self.business = business
         if House.isDemo {
-            me = Me(email: "owner@example.com", role: "owner", karigar: nil, shop: .demo)
+            me = Me(email: "owner@example.com", role: "owner", karigar: nil, shop: .demo, seesMoney: true, alsoMarketing: false)
             Book.shared.signedIn(role: "owner")
             state = .signedIn
         } else if business.firebaseOptions == nil {

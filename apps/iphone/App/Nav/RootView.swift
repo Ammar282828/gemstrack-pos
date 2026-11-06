@@ -93,7 +93,7 @@ struct RootView: View {
     /// Voice: an overlay over the tabs (and over a page sheet), never a sheet of its own (VoiceOverlay).
     @State private var voice = VoiceSession.shared
 
-    private var map: NavMap { NavMap.current.visible(to: session.role) }
+    private var map: NavMap { NavMap.current.visible(to: session.navRole) }
     private static let primary = ["home", "orders", "invoices", "customers"]
     private var online: OnlineInbox { .shared }
 
@@ -475,7 +475,7 @@ struct PlaceScreen: View {
     var body: some View {
         let bare = ScreenRoute.bare(path)
         // The map as this person sees it: staff are not offered Today's cash among Home's tabs.
-        let entry = NavMap.current.visible(to: session.role).entry(for: path)
+        let entry = NavMap.current.visible(to: session.navRole).entry(for: path)
         let atTab = entry.map { e in bare == e.href || (e.tabs ?? []).contains { $0.href == bare } } ?? false
         let tabs = atTab ? (entry?.tabs ?? []) : []
         let current = chosen ?? path
@@ -486,7 +486,7 @@ struct PlaceScreen: View {
         let menuTabs = SectionedTabs.menu(tabs, sections: sections, open: openSection)
         let title = tabs.first { $0.href == ScreenRoute.bare(current) }?.title
             ?? (entry?.href == ScreenRoute.bare(current) ? (entry?.heading ?? entry?.label) : nil)
-        ScreenRegistry.view(for: current)
+        StaffGate(path: current) { ScreenRegistry.view(for: current) }
             .id(current)
             .onChange(of: chosen) { _, now in
                 if isRoot { BusinessCarry.noteSub(root: path, chosen: now) }

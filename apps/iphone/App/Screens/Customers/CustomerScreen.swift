@@ -152,7 +152,8 @@ struct CustomerScreen: View {
                     .listRowBackground(Color.clear)
             }
             .houseRows()
-            Group { owedSection(f.owing) }.houseRows()
+            // Staff see who they are and their documents, never what they spent or owe (decision "Staff see no money").
+            if session.seesMoney { Group { owedSection(f.owing) }.houseRows() }
         } right: { Group {
             invoicesSection(f.invoices)
             ordersSection(f.orders)
@@ -359,6 +360,7 @@ struct CustomerScreen: View {
 // MARK: Rows
 
 private struct CustInvoiceRow: View {
+    @Environment(Session.self) private var session
     let invoice: Invoice
 
     private var line: BalanceLine { balanceLine(invoice.balanceDue) }
@@ -368,6 +370,8 @@ private struct CustInvoiceRow: View {
         var parts = [ShopDate.say(invoice.createdAt)]
         if refunded {
             parts.append("refunded")
+        } else if !session.seesMoney {
+            // Staff see no customer's balance or credit.
         } else if line.state == .due {
             parts.append("owes \(Money.pkr(line.amount))")
         } else if line.state == .credit {
@@ -377,12 +381,13 @@ private struct CustInvoiceRow: View {
     }
 
     var body: some View {
-        TwoLine(title: invoice.id, subtitle: subtitle, trailing: Money.pkr(invoiceSaleValue(invoice)),
+        TwoLine(title: invoice.id, subtitle: subtitle, trailing: session.seesMoney ? Money.pkr(invoiceSaleValue(invoice)) : nil,
                 trailingTint: (!refunded && line.state == .due) ? Tone.owed.color : .primary)
     }
 }
 
 private struct CustOrderRow: View {
+    @Environment(Session.self) private var session
     let order: Order
 
     private var closed: Bool { order.status == .cancelled || order.status == .refunded }
@@ -399,7 +404,7 @@ private struct CustOrderRow: View {
     var body: some View {
         // The whole order, not the stored grandTotal (net of advances: the balance); owner, 2026-11-03.
         HStack(spacing: pt(8)) {
-            TwoLine(title: order.id, subtitle: subtitle, trailing: Money.pkr(OrdersLogic.fullAmount(order) >= 1 ? OrdersLogic.fullAmount(order) : order.grandTotal),
+            TwoLine(title: order.id, subtitle: subtitle, trailing: session.seesMoney ? Money.pkr(OrdersLogic.fullAmount(order) >= 1 ? OrdersLogic.fullAmount(order) : order.grandTotal) : nil,
                     trailingTint: (closed || invoiced) ? .secondary : .primary)
             // Completed is the expected end: no badge for it (rule 15). Open, cancelled and refunded keep theirs.
             if order.status != .completed { StatusBadge(order: order.status) }
@@ -529,6 +534,7 @@ extension CustomerScreen {
     }
 
     private func macHeadline(_ o: CustomerKit.Owing) -> MacHeadline? {
+        guard session.seesMoney else { return nil }
         if o.total >= 1 { return MacHeadline("Owed", Money.pkr(o.total), tone: .owed) }
         if o.shopOwesThem >= 1 { return MacHeadline("The hisaab owes them", Money.pkr(o.shopOwesThem), tone: .credit) }
         return nil
@@ -663,7 +669,7 @@ extension CustomerScreen {
                 giveBack: { (inv: Invoice) in givingBack = inv })
         case .orders:
             MacCustomerRecordOrders(
-                orders: f.orders, revision: book.orders.revision, selection: $macPick,
+                orders: f.orders, revision: book.orders.revision, selection: $macPick, money: session.seesMoney,
                 open: { (id: String) in macOpen(CustomerKit.place("/orders/", id)) })
         case .repairs:
             MacCustomerRecordRepairs(
@@ -684,6 +690,7 @@ extension CustomerScreen {
             var parts = [count(f.invoices.count, "invoice")]
             let billed = f.invoices.filter { (i: Invoice) in i.status != .refunded }
                 .reduce(0.0) { (sum: Double, i: Invoice) in sum + invoiceSaleValue(i) }
+            guard session.seesMoney else { return parts }
             if billed > 0 { parts.append("\(Money.pkrLac(billed)) billed") }
             if f.owing.onInvoices >= 1 { parts.append("\(Money.pkr(f.owing.onInvoices)) owed on invoices") }
             if f.owing.inHisaab >= 1 { parts.append("\(Money.pkr(f.owing.inHisaab)) in the hisaab") }
