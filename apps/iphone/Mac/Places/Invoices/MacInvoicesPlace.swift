@@ -135,7 +135,8 @@ struct MacInvoicesPlace: View {
                 } header: {
                     // The days' headings, but not one the window's own title already says ("Today" over today's list).
                     if sort == .date && g.title.caseInsensitiveCompare(named) != .orderedSame {
-                        LedgerHeading(title: g.title, count: g.rows.count, trailing: Money.pkrLac(g.billed, digits: 1))
+                        LedgerHeading(title: g.title, count: g.rows.count,
+                                      trailing: session.isOwner ? Money.pkrLac(g.billed, digits: 1) : nil)
                     }
                 }
                 .houseRows()
@@ -282,9 +283,14 @@ struct MacInvoicesPlace: View {
         return "\(n) invoice\(n == 1 ? "" : "s")"
     }
 
-    /// "214 invoices · PKR 32.4 lac billed · PKR 1.2 lac owed"; with rows picked, the picked rows' own.
+    /// "214 invoices · PKR 32.4 lac billed · PKR 1.2 lac owed"; with rows picked, the picked rows' own. Staff get the
+    /// counts only: each row keeps its amount, no sum (docs/decisions.md#staff-see-no-money).
     private func summary(_ shown: MacInvoicesPlaceTable) -> [String] {
         let picked = selection.compactMap { shown.byId[$0] }
+        guard session.isOwner else {
+            let n = shown.rows.count
+            return [picked.isEmpty ? "\(n) invoice\(n == 1 ? "" : "s")" : "\(picked.count) of \(n) selected"]
+        }
         if picked.isEmpty {
             let n = shown.rows.count
             return ["\(n) invoice\(n == 1 ? "" : "s")", billedWords(shown.billed), owedWords(shown.owed)]

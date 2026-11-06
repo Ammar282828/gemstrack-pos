@@ -114,6 +114,17 @@ struct MacCustomersPlace: View {
 
     private var listId: String? { MacLists.list(in: path) }
 
+    /// Staff see no money (docs/decisions.md#staff-see-no-money, roles.ts `seesMoney`: owners only): no Spent or Owed
+    /// amounts, no sums, and no order by them. The groups stay, as the web's list keeps them.
+    private var seesMoney: Bool { session.isOwner }
+
+    /// The sort as drawn: one by money falls back to the groups for a person who sees none.
+    private var shownSort: MacCustomersSort { !seesMoney && (sort == .spent || sort == .owed) ? .group : sort }
+
+    private var sortChoices: [MacCustomersSort] {
+        seesMoney ? MacCustomersSort.allCases : MacCustomersSort.allCases.filter { $0 != .spent && $0 != .owed }
+    }
+
     private var loaded: Bool {
         book.customers.loaded && book.invoices.loaded && book.orders.loaded && (!session.isOwner || book.hisaab.loaded)
     }
@@ -184,13 +195,13 @@ struct MacCustomersPlace: View {
             return out
         }
         // The sort alone only puts the same rows in another order.
-        return ordered(key + [sort.hashValue, Int(Date().timeIntervalSince1970 / 3_600)]) { groups(rows) }
+        return ordered(key + [shownSort.hashValue, Int(Date().timeIntervalSince1970 / 3_600)]) { groups(rows) }
     }
 
     /// The rows in the chosen order: grouped as the iPhone's list is (most owed first, then the latest buyers, then A to Z),
     /// or one flat run by a column.
     private func groups(_ rows: [MacCustomersRow]) -> [MacCustomersGroup] {
-        switch sort {
+        switch shownSort {
         case .group:
             var calendar = Calendar(identifier: .gregorian)
             calendar.timeZone = ERPDate.karachi
@@ -241,11 +252,11 @@ struct MacCustomersPlace: View {
             ForEach(groups) { (g: MacCustomersGroup) in
                 Section {
                     ForEach(g.rows) { (r: MacCustomersRow) in
-                        MacCustomersListRow(row: r).tag(r.id)
+                        MacCustomersListRow(row: r, seesMoney: seesMoney).tag(r.id)
                             .macOpensOnDoubleClick { go(CustomerKit.route(r.id)) }
                     }
                 } header: {
-                    if sort == .group {
+                    if shownSort == .group {
                         LedgerHeading(title: g.title, count: g.rows.count, trailing: g.hint)
                     }
                 }
@@ -278,6 +289,9 @@ struct MacCustomersPlace: View {
     }
 
     private func summary(_ rows: [MacCustomersRow], _ b: MacCustomersBooks) -> [String] {
+        guard seesMoney else {
+            return [selection.count > 1 ? "\(selection.count) selected" : "\(rows.count) customer\(rows.count == 1 ? "" : "s")"]
+        }
         if selection.count > 1 {
             let picked = rows.filter { (r: MacCustomersRow) in selection.contains(r.id) }
             let owed = picked.reduce(0.0) { (sum: Double, r: MacCustomersRow) in sum + r.owed }
@@ -429,7 +443,7 @@ struct MacCustomersPlace: View {
     private var sortMenu: some View {
         Menu {
             Picker("Sort By", selection: $sort) {
-                ForEach(MacCustomersSort.allCases) { (o: MacCustomersSort) in Text(o.title).tag(o) }
+                ForEach(sortChoices) { (o: MacCustomersSort) in Text(o.title).tag(o) }
             }
             .pickerStyle(.inline)
             if session.isOwner {
@@ -466,11 +480,15 @@ struct MacCustomersPlace: View {
                 owed: b.stats[c.id]?.owed ?? 0,
                 recent: recent(for: c.id),
                 actions: contactActions(c, hisaab: session.isOwner),
-                open: { (r: Route) in go(r) })
+                open: { (r: Route) in go(r) },
+                seesMoney: seesMoney)
         } else if selection.count > 1 {
-            MacInspectorEmpty(title: "\(selection.count) Customers Selected", detail: "Pick one to see what they owe and how to reach them.")
+            MacInspectorEmpty(title: "\(selection.count) Customers Selected",
+                              detail: seesMoney ? "Pick one to see what they owe and how to reach them." : "Pick one to see how to reach them.")
         } else {
-            MacInspectorEmpty(title: "No Customer Selected", detail: "Pick a customer to see what they owe, their sales and orders, and how to reach them.")
+            MacInspectorEmpty(title: "No Customer Selected",
+                              detail: seesMoney ? "Pick a customer to see what they owe, their sales and orders, and how to reach them."
+                                                : "Pick a customer to see their sales and orders, and how to reach them.")
         }
     }
 }
@@ -485,6 +503,8 @@ private struct MacCustomersInspector: View {
     let recent: MacCustomersRecent
     let actions: [MacAction]
     let open: (Route) -> Void
+    /// An owner's: what they owe, and each record's amount (staff see the records, not the money).
+    var seesMoney = true
 
     var body: some View {
         ScrollView {
@@ -513,7 +533,7 @@ private struct MacCustomersInspector: View {
                 }
                 Spacer(minLength: 0)
             }
-            if owed >= 1 {
+            if seesMoney, owed >= 1 {
                 Divider()
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Owed to you").font(.callout).foregroundStyle(.secondary)
@@ -576,7 +596,7 @@ private struct MacCustomersInspector: View {
                     let inv = pair.element
                     if pair.offset > 0 { Divider() }
                     MacCustomersMiniRow(title: inv.id, subtitle: ShopDate.say(inv.createdAt),
-                                        amount: invoiceSaleValue(inv), flag: invoiceFlag(inv)) {
+                                        amount: seesMoney ? invoiceSaleValue(inv) : nil, flag: seesMoney ? invoiceFlag(inv) : nil) {
                         open(CustomerKit.place("/invoices/", inv.id))
                     }
                 }
@@ -594,7 +614,7 @@ private struct MacCustomersInspector: View {
                 ForEach(Array(recent.orders.enumerated()), id: \.element.id) { pair in
                     let o = pair.element
                     if pair.offset > 0 { Divider() }
-                    MacCustomersMiniRow(title: o.id, subtitle: ShopDate.say(o.createdAt), amount: o.grandTotal, flag: nil) {
+                    MacCustomersMiniRow(title: o.id, subtitle: ShopDate.say(o.createdAt), amount: seesMoney ? o.grandTotal : nil, flag: nil) {
                         open(CustomerKit.place("/orders/", o.id))
                     }
                 }
@@ -617,7 +637,8 @@ private struct MacCustomersInspector: View {
 private struct MacCustomersMiniRow: View {
     let title: String
     let subtitle: String
-    let amount: Double
+    /// Nil for a person who sees no money: the record without its amount.
+    let amount: Double?
     let flag: String?
     let open: () -> Void
 
@@ -630,7 +651,7 @@ private struct MacCustomersMiniRow: View {
                 }
                 Spacer(minLength: 8)
                 VStack(alignment: .trailing, spacing: 3) {
-                    RowAmount(amount: amount)
+                    if let amount { RowAmount(amount: amount) }
                     if let flag { Pill(flag, tone: .owed) }
                 }
             }
@@ -644,6 +665,8 @@ private struct MacCustomersMiniRow: View {
 /// One customer as the iPhone's list sets them: monogram, name over number and sales, what they owe (or have spent) at the right.
 struct MacCustomersListRow: View {
     let row: MacCustomersRow
+    /// Staff see who the customer is, never what they owe or have spent.
+    var seesMoney = true
 
     private var subtitle: String {
         var parts: [String] = []
@@ -676,12 +699,12 @@ struct MacCustomersListRow: View {
     @ViewBuilder
     private var trailing: some View {
         // The same two lines as an order's or a repair's: the sum over its small word.
-        if row.owed >= 1 {
+        if seesMoney, row.owed >= 1 {
             VStack(alignment: .trailing, spacing: 1) {
                 RowAmount(amount: row.owed, tone: Tone.owed.color)
                 Text("Owed").font(.caption2).foregroundStyle(.secondary)
             }
-        } else if row.spent > 0 {
+        } else if seesMoney, row.spent > 0 {
             VStack(alignment: .trailing, spacing: 1) {
                 RowAmount(amount: row.spent, lac: true)
                 Text("Lifetime").font(.caption2).foregroundStyle(.secondary)

@@ -9,6 +9,8 @@ import ERPCore
 
 struct MacOrdersBoard<RowMenu: View>: View {
     let working: [MacOrdersBoardColumn]
+    /// Staff see each card's amount, never a column's sum (docs/decisions.md#staff-see-no-money).
+    @Environment(Session.self) private var session
     let closed: [MacOrdersBoardColumn]
     /// A search is on: the folded stages open so its hits are not hidden.
     let searching: Bool
@@ -100,7 +102,7 @@ struct MacOrdersBoard<RowMenu: View>: View {
     private func header(_ c: MacOrdersBoardColumn) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             LedgerHeading(title: c.title, count: c.rows.count)
-            if c.worth > 0 {
+            if session.isOwner, c.worth > 0 {
                 Text("worth " + Money.pkrLac(c.worth, digits: 1)).font(.caption).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
             }
         }

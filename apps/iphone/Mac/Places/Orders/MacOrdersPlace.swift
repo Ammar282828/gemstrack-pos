@@ -136,8 +136,13 @@ struct MacOrdersPlace: View {
         }
     }
 
-    /// "214 orders · PKR 32.4 lac worth · PKR 1.2 lac owed"; with rows picked, the picked ones' sums.
+    /// "214 orders · PKR 32.4 lac worth · PKR 1.2 lac owed"; with rows picked, the picked ones' sums. Staff get the
+    /// counts only: no sum of money (docs/decisions.md#staff-see-no-money).
     private func summary(_ base: MacOrdersBase) -> [String] {
+        guard session.isOwner else {
+            if selection.isEmpty { return [base.rows.count == 1 ? "1 order" : "\(base.rows.count) orders"] }
+            return ["\(selection.count) of \(base.rows.count) picked"]
+        }
         if selection.isEmpty {
             return [base.rows.count == 1 ? "1 order" : "\(base.rows.count) orders",
                     "\(Money.pkrLac(base.worth, digits: 1)) worth", "\(Money.pkrLac(base.owed, digits: 1)) owed"]
