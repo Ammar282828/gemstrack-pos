@@ -541,11 +541,15 @@ class AnalyticsFiguresTests {
         assertEquals("PKR 85,000", Money.pkrLac(85000.0))
     }
 
-    @Test fun onlyTheFiveAnalyticsAddressesAreHere() {
-        val paths = listOf("/analytics", "/analytics/sales", "/analytics/products", "/analytics/customers", "/analytics/categories")
+    @Test fun onlyTheNineAnalyticsAddressesAreHere() {
+        val paths = listOf(
+            "/analytics", "/analytics/sales", "/analytics/profit", "/analytics/cash", "/analytics/spending",
+            "/analytics/products", "/analytics/customers", "/analytics/categories", "/analytics/metal",
+        )
         for (p in paths) assertTrue(AnalyticsRoutes.any { it.matches(p) }, p)
         assertFalse(AnalyticsRoutes.any { it.matches("/analytics/unknown") })
         assertFalse(AnalyticsRoutes.any { it.matches("/expenses") })
-        assertEquals(listOf("Analytics", "Sales", "Products", "Customers", "Categories"), AnaSection.values().map { it.title })
+        assertEquals(listOf("Analytics", "Sales", "Profit", "Cash", "Spending", "Products", "Customers", "Categories", "Metal sold"), AnaSection.values().map { it.title })
+        assertEquals(paths.size, AnalyticsRoutes.size)
     }
 }
