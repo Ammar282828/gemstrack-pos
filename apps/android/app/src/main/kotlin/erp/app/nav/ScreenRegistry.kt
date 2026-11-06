@@ -112,6 +112,12 @@ object ScreenRegistry {
     @Composable
     fun Screen(path: String) {
         erp.app.device.CrashCatcher.route = path
+        // Staff are sent away from the books, settings, analytics and stock lists (staff-pages.ts), typed or tapped; the server refuses them too.
+        val who = erp.app.auth.Sessions.current
+        if (who.role == "staff" && erp.core.logic.StaffAccess.staffBlocked(path, who.alsoMarketing)) {
+            erp.app.ui.NotAvailableState("Not part of your access", why = "Your account works with orders, invoices, customers and the workshop. Ask an owner if you need this page.")
+            return
+        }
         if (wantsWeb(path)) return WebScreen(withoutWebFlag(path))
         val r = routes.firstOrNull { it.matches(path) }
         if (r != null) r.make(path) else WebScreen(path)

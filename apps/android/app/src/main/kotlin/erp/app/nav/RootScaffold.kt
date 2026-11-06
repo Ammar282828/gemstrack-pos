@@ -100,7 +100,8 @@ fun RootScaffold() {
     val me by session.me.collectAsStateWithLifecycle()
     val role = me?.role ?: "none"
     val shop = me?.shop ?: session.shop
-    val map = remember(role) { NavMap.current.visible(role) }
+    val alsoMk = me?.alsoMarketing ?: false
+    val map = remember(role, alsoMk) { NavMap.current.visible(role, alsoMk) }
 
     val wide = currentWindowAdaptiveInfoV2().windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND)
     val tabs = remember(map, wide, role) {

@@ -11,7 +11,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveKarigar, verifyRequestEmail } from '@/lib/karigar-auth';
-import { roleForEmail } from '@/lib/roles';
+import { roleForEmail, alsoMarketing } from '@/lib/roles';
 import { STORE_BRAND, STORE_CONFIG, STORE_TAKEN_BY, STORE_SHOPIFY_ANALYTICS } from '@/lib/store-config';
 import { shopFlags } from '@/lib/app-shop';
 import { EXPENSE_CATEGORIES } from '@/lib/expense-categories';
@@ -27,6 +27,8 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     email,
     role: karigar ? 'karigar' : role,
+    // A staff member who is also on the marketing list (roles.ts): the apps give her Marketing, Ads and Insights, without spend or settings.
+    ...(alsoMarketing(email) ? { alsoMarketing: true } : {}),
     ...(karigar ? { karigar: { id: karigar.karigarId, name: karigar.name } } : {}),
     house: { brand: STORE_BRAND, name: STORE_CONFIG.name, metal: STORE_CONFIG.defaultMetal },
     shop: {

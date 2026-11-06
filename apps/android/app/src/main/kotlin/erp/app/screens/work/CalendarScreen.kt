@@ -154,12 +154,15 @@ private fun CalendarPage() {
 /** The month on screen: its money, its sales and orders, and the average day that took anything. */
 @Composable
 private fun Tiles(m: ShopCalendarMonth, year: Int, month: Int) {
+    // Staff see what is on each day, never what it came to (docs/decisions.md#staff-see-no-money): the counts only.
+    val money = LocalSession.current.seesMoney
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         FigureRow(spacing = 10.dp) {
-            FigureTile(ShopCalendar.title(year, month), Money.pkr(m.total), Modifier.share(), tint = Tone.settled.color(), number = m.total)
+            if (money) FigureTile(ShopCalendar.title(year, month), Money.pkr(m.total), Modifier.share(), tint = Tone.settled.color(), number = m.total)
             FigureTile("Sales", "${m.sales}", Modifier.share(), number = m.sales.toDouble())
+            if (!money) FigureTile("Orders", "${m.orders}", Modifier.share(), number = m.orders.toDouble())
         }
-        FigureRow(spacing = 10.dp) {
+        if (money) FigureRow(spacing = 10.dp) {
             FigureTile("Orders", "${m.orders}", Modifier.share(), number = m.orders.toDouble())
             FigureTile("Avg. trading day", if (m.perTradingDay > 0) Money.pkr(Math.round(m.perTradingDay).toDouble()) else "—", Modifier.share())
         }
@@ -212,6 +215,7 @@ private fun Legend(icon: androidx.compose.ui.graphics.vector.ImageVector, word: 
 
 @Composable
 private fun RowScope.DayCell(day: Int, key: String, data: ShopCalendarDay?, due: Int, isSelected: Boolean, isToday: Boolean, onClick: () -> Unit) {
+    val money = LocalSession.current.seesMoney
     val shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.thumb)
     val accent = ErpColors.accent
     Column(
@@ -220,14 +224,14 @@ private fun RowScope.DayCell(day: Int, key: String, data: ShopCalendarDay?, due:
             .background(if (isSelected) accent.copy(alpha = 0.16f) else androidx.compose.ui.graphics.Color.Transparent)
             .then(if (isToday) Modifier.border(BorderStroke(1.5.dp, accent), shape) else Modifier)
             .clickable(role = Role.Button, onClick = onClick)
-            .semantics { contentDescription = spoken(key, data, due); selected = isSelected }
+            .semantics { contentDescription = spoken(key, data, due, money); selected = isSelected }
             .padding(vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(1.dp),
     ) {
         Text("$day", style = MaterialTheme.typography.labelMedium.copy(fontWeight = if (isToday) FontWeight.Bold else FontWeight.Medium), color = if (isToday) accent else MaterialTheme.colorScheme.onSurface)
         // The money taken that day, in a few characters; a day with nothing sold shows none.
         Text(
-            if (data != null && data.total > 0) ShopCalendar.dayMoney(data.total) else " ",
+            if (money && data != null && data.total > 0) ShopCalendar.dayMoney(data.total) else " ",
             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold, fontFeatureSettings = "tnum"),
             maxLines = 1, softWrap = false, overflow = TextOverflow.Clip,
         )
@@ -253,10 +257,10 @@ private fun Count(n: Int, tone: Tone) {
 }
 
 /** What a day says to TalkBack: its date, the money, the sales and orders, and what was promised. */
-internal fun spoken(key: String, data: ShopCalendarDay?, due: Int): String {
+internal fun spoken(key: String, data: ShopCalendarDay?, due: Int, money: Boolean = true): String {
     val parts = mutableListOf(ShopCalendar.longDay(key))
     if (data != null) {
-        if (data.total > 0) parts.add(Money.pkr(data.total))
+        if (money && data.total > 0) parts.add(Money.pkr(data.total))
         if (data.invoices > 0) parts.add("${data.invoices} sale${if (data.invoices == 1) "" else "s"}")
         if (data.orders > 0) parts.add("${data.orders} order${if (data.orders == 1) "" else "s"}")
     }
@@ -267,6 +271,7 @@ internal fun spoken(key: String, data: ShopCalendarDay?, due: Int): String {
 @Composable
 private fun DaySection(events: List<ShopCalendarEvent>, selected: String) {
     val nav = LocalNavigator.current
+    val money = LocalSession.current.seesMoney
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         LedgerHeading("Events for ${ShopCalendar.longDay(selected)}", Modifier.padding(horizontal = 16.dp))
         SegmentedColumn {
@@ -287,7 +292,7 @@ private fun DaySection(events: List<ShopCalendarEvent>, selected: String) {
                             Text(e.customerName.ifEmpty { "Walk-in" }, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text(ShopCalendar.clock(e.createdAt), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
                         }
-                        Text(Money.pkr(e.grandTotal), style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold, fontFeatureSettings = "tnum"))
+                        if (money) Text(Money.pkr(e.grandTotal), style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold, fontFeatureSettings = "tnum"))
                     }
                 }
             }

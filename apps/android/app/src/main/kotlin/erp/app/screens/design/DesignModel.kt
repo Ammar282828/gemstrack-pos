@@ -14,11 +14,11 @@ import kotlin.math.roundToInt
 // MARK: Who sees what
 
 /** `designGate('post' | 'ads')` (lib/design/gate.ts): post = owner, staff, marketing; ads = owner, marketing. */
-data class DesignAccess(val role: String) {
+data class DesignAccess(val role: String, val alsoMarketing: Boolean = false) {
     val post: Boolean get() = role == "owner" || role == "staff" || role == "marketing"
 
     /** The library with scores, the Board, the Ad kind: owner and marketing. */
-    val ads: Boolean get() = role == "owner" || role == "marketing"
+    val ads: Boolean get() = role == "owner" || role == "marketing" || (role == "staff" && alsoMarketing)
 }
 
 enum class DesignSection(val id: String, val title: String) {

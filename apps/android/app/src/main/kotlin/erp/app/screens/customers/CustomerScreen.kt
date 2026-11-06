@@ -220,9 +220,10 @@ private fun Page(f: Facts, owner: Boolean, onGiveBack: (Invoice) -> Unit, onRemo
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         item { Header(f.customer) { navigator.open(CustomerKit.path(f.customer.id, "/edit")) } }
-        item { OwedCard(f.owing) }
+        // Staff see the customer and their documents, never what they spent or owe (docs/decisions.md#staff-see-no-money).
+        if (owner) item { OwedCard(f.owing) }
         item { InvoicesSection(f.invoices, owner, onGiveBack) { navigator.open(CustomerKit.place("/invoices/", it)) } }
-        item { OrdersSection(f.orders) { navigator.open(CustomerKit.place("/orders/", it)) } }
+        item { OrdersSection(f.orders, owner) { navigator.open(CustomerKit.place("/orders/", it)) } }
         item { RepairsSection(f.repairs) { navigator.open(CustomerKit.place("/repairs?id=", it)) } }
         if (owner) item { HisaabSection(f.hisaab, f.customer.id) { navigator.open(CustomerKit.hisaabPath(f.customer.id)) } }
         item { DetailsSection(f.customer) }
@@ -349,7 +350,7 @@ private fun InvoicesSection(list: List<Invoice>, owner: Boolean, onGiveBack: (In
             // Credit they have paid ahead: the owner can hand it back (decision "Invoice credit").
             val giveBack = if (owner && InvoiceCredit.canGiveBack(inv)) RowAction("Give back", Symbols.Payments, Tone.credit) { onGiveBack(inv) } else null
             SwipeActions(end = giveBack, menu = listOfNotNull(giveBack)) {
-                Box(Modifier.clickable(role = Role.Button) { open(inv.id) }.ledgerRow()) { CustInvoiceRow(inv) }
+                Box(Modifier.clickable(role = Role.Button) { open(inv.id) }.ledgerRow()) { CustInvoiceRow(inv, owner) }
             }
             if (i < list.lastIndex) LedgerDivider()
         }
@@ -367,11 +368,11 @@ private fun InvoicesSection(list: List<Invoice>, owner: Boolean, onGiveBack: (In
 }
 
 @Composable
-private fun OrdersSection(list: List<Order>, open: (String) -> Unit) {
+private fun OrdersSection(list: List<Order>, money: Boolean, open: (String) -> Unit) {
     LedgerSection("Orders · ${list.size}") {
         if (list.isEmpty()) EmptyLine("No custom orders found for this customer.")
         list.forEachIndexed { i, order ->
-            Box(Modifier.clickable(role = Role.Button) { open(order.id) }.ledgerRow()) { CustOrderRow(order) }
+            Box(Modifier.clickable(role = Role.Button) { open(order.id) }.ledgerRow()) { CustOrderRow(order, money) }
             if (i < list.lastIndex) LedgerDivider()
         }
     }
@@ -414,22 +415,22 @@ private fun HisaabSection(rows: List<HisaabEntry>, id: String, openAll: () -> Un
 
 // MARK: Rows
 
-internal fun invoiceSubtitle(invoice: Invoice): String {
+internal fun invoiceSubtitle(invoice: Invoice, money: Boolean = true): String {
     val line = balanceLine(invoice.balanceDue)
     val refunded = invoice.status == InvoiceStatus.refunded
     val parts = arrayListOf(ShopDate.say(invoice.createdAt))
     if (refunded) parts += "refunded"
-    else if (line.state == BalanceState.due) parts += "owes ${Money.pkr(line.amount)}"
-    else if (line.state == BalanceState.credit) parts += "credit ${Money.pkr(line.amount)}"
+    else if (money && line.state == BalanceState.due) parts += "owes ${Money.pkr(line.amount)}"
+    else if (money && line.state == BalanceState.credit) parts += "credit ${Money.pkr(line.amount)}"
     return parts.joinToString(" · ")
 }
 
 @Composable
-private fun CustInvoiceRow(invoice: Invoice) {
+private fun CustInvoiceRow(invoice: Invoice, money: Boolean = true) {
     val line = balanceLine(invoice.balanceDue)
     val refunded = invoice.status == InvoiceStatus.refunded
     TwoLine(
-        invoice.id, subtitle = invoiceSubtitle(invoice), trailing = Money.pkr(invoiceSaleValue(invoice)),
+        invoice.id, subtitle = invoiceSubtitle(invoice, money), trailing = if (money) Money.pkr(invoiceSaleValue(invoice)) else null,
         trailingTint = if (!refunded && line.state == BalanceState.due) Tone.owed.color() else Color.Unspecified,
     )
 }
@@ -443,13 +444,13 @@ internal fun orderSubtitle(order: Order): String {
 }
 
 @Composable
-private fun CustOrderRow(order: Order) {
+private fun CustOrderRow(order: Order, money: Boolean = true) {
     val closed = order.status == OrderStatus.cancelled || order.status == OrderStatus.refunded
     val invoiced = !order.invoiceId.isNullOrEmpty()
     // The order's total is stored net of its advances, so it is the balance still to pay (order-payment.ts).
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
         TwoLine(
-            order.id, Modifier.weight(1f), subtitle = orderSubtitle(order), trailing = Money.pkr(OrdersLogic.fullAmount(order).let { if (it >= 1) it else order.grandTotal }),
+            order.id, Modifier.weight(1f), subtitle = orderSubtitle(order), trailing = if (money) Money.pkr(OrdersLogic.fullAmount(order).let { if (it >= 1) it else order.grandTotal }) else null,
             trailingTint = if (closed || invoiced) MaterialTheme.colorScheme.onSurfaceVariant else Color.Unspecified,
         )
         StatusBadge(order.status)

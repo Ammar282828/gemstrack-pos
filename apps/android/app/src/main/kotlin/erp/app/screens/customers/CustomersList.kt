@@ -132,10 +132,14 @@ fun CustomersList() {
     }
     val matched = worked?.matched ?: emptyList()
     val groups = worked?.groups ?: CustomerKit.Groups()
-    val shown = when (showing) {
-        CustomersShowing.everyone -> groups
-        CustomersShowing.owing -> CustomerKit.Groups(owing = groups.owing)
-        CustomersShowing.recent -> CustomerKit.Groups(active = groups.active)
+    // Staff see who a customer is and how many sales, never what they spent or owe (docs/decisions.md#staff-see-no-money):
+    // no Owing group (those who owe join Recent), no totals, no amounts on a row.
+    val money = session.seesMoney
+    val seen = if (money) groups else CustomerKit.Groups(owing = emptyList(), active = groups.owing + groups.active, quiet = groups.quiet)
+    val shown = when (if (money) showing else showing.takeIf { it != CustomersShowing.owing } ?: CustomersShowing.everyone) {
+        CustomersShowing.everyone -> seen
+        CustomersShowing.owing -> CustomerKit.Groups(owing = seen.owing)
+        CustomersShowing.recent -> CustomerKit.Groups(active = seen.active)
     }
 
     ScreenTitle("Customers")
@@ -166,6 +170,7 @@ fun CustomersList() {
             }
             animatedItem(key = "summary", contentType = "summary") {
                 CustSummary(
+                    money = money,
                     modifier = Modifier.padding(bottom = GAP),
                     customerCount = reckoned.live.size,
                     owed = reckoned.owed,
@@ -177,15 +182,15 @@ fun CustomersList() {
             }
             animatedItem(key = "chips", contentType = "chips") {
                 ChipRow(Modifier.padding(bottom = GAP)) {
-                    for (option in CustomersShowing.values()) FilterChip(option.title, chosen = option == showing, onClick = { showing = option })
+                    for (option in CustomersShowing.values().filter { money || it != CustomersShowing.owing }) FilterChip(option.title, chosen = option == showing, onClick = { showing = option })
                 }
             }
             if (shown.owing.isEmpty() && shown.active.isEmpty() && shown.quiet.isEmpty()) {
                 animatedItem(key = "empty", contentType = "empty") { Box(Modifier.padding(bottom = GAP)) { Empty(matched.size, appliedSearch, showing) } }
             } else {
-                group("Owing money", "most owed first", shown.owing, reckoned.stats) { navigator.open(CustomerKit.path(it)) }
-                group("Recent", "bought in the last ${CustomerKit.dormantAfterMonths} months", shown.active, reckoned.stats) { navigator.open(CustomerKit.path(it)) }
-                group("Quiet", "no sale in a year", shown.quiet, reckoned.stats) { navigator.open(CustomerKit.path(it)) }
+                group("Owing money", "most owed first", shown.owing, reckoned.stats, money) { navigator.open(CustomerKit.path(it)) }
+                group("Recent", "bought in the last ${CustomerKit.dormantAfterMonths} months", shown.active, reckoned.stats, money) { navigator.open(CustomerKit.path(it)) }
+                group("Quiet", "no sale in a year", shown.quiet, reckoned.stats, money) { navigator.open(CustomerKit.path(it)) }
             }
             // Clearing up the book is an owner's: the web's merge and removals are browser writes the shop floor cannot make.
             if (owner) {
@@ -228,6 +233,7 @@ private fun LazyListScope.group(
     hint: String,
     people: List<Customer>,
     stats: Map<String, CustomerKit.Stats>,
+    money: Boolean,
     open: (String) -> Unit,
 ) {
     if (people.isEmpty()) return
@@ -247,7 +253,7 @@ private fun LazyListScope.group(
         )
         // The rows of a group are one card; the last leaves the gap to the next group.
         Column(Modifier.animateItem().appearOnce(i).padding(bottom = if (last) GAP else 2.dp).clip(shape)) {
-            CustomerRow(c, stats[c.id], onClick = { open(c.id) })
+            CustomerRow(c, stats[c.id], money, onClick = { open(c.id) })
         }
     }
 }
@@ -256,7 +262,7 @@ private val GAP = 20.dp
 
 /** One customer in the list: swipe for WhatsApp or Call, a long press for the three ways to reach them. */
 @Composable
-private fun CustomerRow(c: Customer, stats: CustomerKit.Stats?, onClick: () -> Unit) {
+private fun CustomerRow(c: Customer, stats: CustomerKit.Stats?, money: Boolean, onClick: () -> Unit) {
     val context = LocalContext.current
     val wa = CustomerKit.whatsAppUri(c.phone) != null
     val call = CustomerKit.callUri(c.phone) != null
@@ -275,17 +281,17 @@ private fun CustomerRow(c: Customer, stats: CustomerKit.Stats?, onClick: () -> U
         onClick = onClick,
     ) {
         Box(Modifier.fillMaxWidth().glassRowFill().zoomSource(CustomerKit.path(c.id), Radius.tile)) {
-            CustRowLabel(c, stats)
+            CustRowLabel(c, stats, money)
         }
     }
 }
 
 /** One customer in the list: name, number, what they owe (or, if nothing, what they have spent). */
 @Composable
-private fun CustRowLabel(customer: Customer, stats: CustomerKit.Stats?) {
+private fun CustRowLabel(customer: Customer, stats: CustomerKit.Stats?, money: Boolean = true) {
     val subtitle = custSubtitle(customer, stats)
-    val trailing = custTrailing(stats)
-    val owes = (stats?.owed ?: 0.0) > 0
+    val trailing = if (money) custTrailing(stats) else null
+    val owes = money && (stats?.owed ?: 0.0) > 0
     // What is owed leads: it is the reason you look a customer up.
     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
         Monogram(CustomerKit.shown(customer), size = MonogramSize.row)
@@ -328,7 +334,15 @@ internal fun custOwedDetail(owingCount: Int, owed: Owed, showHisaab: Boolean): S
 
 /** The four figures over the list: customers, owed to you, bought lately, lifetime sales. */
 @Composable
-private fun CustSummary(modifier: Modifier, customerCount: Int, owed: Owed, owingCount: Int, boughtRecently: Int, lifetime: Double, showHisaab: Boolean) {
+private fun CustSummary(money: Boolean, modifier: Modifier, customerCount: Int, owed: Owed, owingCount: Int, boughtRecently: Int, lifetime: Double, showHisaab: Boolean) {
+    if (!money) {
+        // Staff: how many customers and how many bought lately, no sum.
+        Column(modifier.ledgerCard(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            TwoLine("Customers", trailing = "$customerCount")
+            TwoLine("Bought in ${CustomerKit.dormantAfterMonths} months", trailing = "$boughtRecently")
+        }
+        return
+    }
     Column(modifier.ledgerCard(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Owed to you", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)

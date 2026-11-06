@@ -569,7 +569,7 @@ private fun MoneyCard(order: Order) {
                 if (rates.isNotEmpty()) Text(rates, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 // The shop's margin: owners and staff, never a customer, never in a house that does not cost by gold, and
                 // blurred until tapped (docs/decisions.md "Margin").
-                if (OrdersLogic.marginIsOn(House.margin)) OrdersMarginRow(order)
+                if (OrdersLogic.marginIsOn(House.margin) && erp.app.auth.LocalSession.current.seesMoney) OrdersMarginRow(order)
             }
         }
     }

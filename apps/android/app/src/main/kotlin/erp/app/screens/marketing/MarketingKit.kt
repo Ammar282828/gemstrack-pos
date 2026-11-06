@@ -98,7 +98,7 @@ object MarketingKit {
      * a place that is not theirs is simply not there.
      */
     fun has(href: String, role: String, map: NavMap = NavMap.current): Boolean {
-        for (e in map.visible(role).entries) {
+        for (e in map.visible(role, erp.app.auth.Sessions.current.alsoMarketing).entries) {
             if (e.href == href) return true
             if ((e.tabs ?: emptyList()).any { it.href == href }) return true
             if ((e.pages ?: emptyList()).any { it.href == href }) return true
@@ -108,7 +108,7 @@ object MarketingKit {
 
     /** An entry's tabs for this person, in the ERP's order ("website" → Add photos, Edit a piece…). */
     fun tabs(entryId: String, role: String, map: NavMap = NavMap.current): List<NavPlace> =
-        map.visible(role).entries.firstOrNull { it.id == entryId }?.tabs ?: emptyList()
+        map.visible(role, erp.app.auth.Sessions.current.alsoMarketing).entries.firstOrNull { it.id == entryId }?.tabs ?: emptyList()
 }
 
 /** Times and ages in the shop's own words (Karachi, am/pm in lower case). */

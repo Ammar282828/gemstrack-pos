@@ -56,7 +56,7 @@ fun AdsAudiencesScreen() {
     val session = LocalSession.current
     val backend = LocalAdsBackend.current
     val scope = rememberCoroutineScope()
-    val mayUse = adsMayUse(session.role)
+    val mayUse = adsMayConfigure(session.role)
     // Only an owner can send the customer book to Meta (the route insists).
     val isOwner = session.role == "owner"
 

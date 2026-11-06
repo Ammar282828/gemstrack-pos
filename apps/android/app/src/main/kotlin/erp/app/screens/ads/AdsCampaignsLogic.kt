@@ -42,8 +42,9 @@ object AdsCampaignsLogic {
     }
 
     /** "All campaigns: PKR 12,000 spent · 45k views". */
-    fun summary(count: Int, all: Int, spent: Double, views: Double, cur: String): String {
+    fun summary(count: Int, all: Int, spent: Double, views: Double, cur: String, hide: Boolean = false): String {
         val which = if (count == all) "All campaigns" else "$count of $all campaigns"
+        if (hide) return "$which: ${AdsFormat.compact(views)} views"
         return "$which: ${AdsFormat.money(spent, cur)} spent · ${AdsFormat.compact(views)} views"
     }
 
@@ -77,16 +78,18 @@ object AdsCampaignsLogic {
     }
 
     /** "PKR 12,000 · up 18% on before · 45 chats started · PKR 266 each · 12.3k reached". */
-    fun numbers(m: AdMetrics, goal: String?, before: AdMetrics?, cur: String): String {
+    fun numbers(m: AdMetrics, goal: String?, before: AdMetrics?, cur: String, hide: Boolean = false): String {
         val parts = ArrayList<String>()
-        parts.add(AdsFormat.money(m.spend, cur))
-        AdsFormat.change(m.spend, before?.spend)?.let { parts.add(it) }
+        if (!hide) {
+            parts.add(AdsFormat.money(m.spend, cur))
+            AdsFormat.change(m.spend, before?.spend)?.let { parts.add(it) }
+        }
         AdsResults.of(m, goal)?.let { r ->
             parts.add("${AdsFormat.count(r.value)} ${r.label.lowercase()}")
-            if (r.value > 0) parts.add("${AdsFormat.money(m.spend / r.value, cur)} each")
+            if (r.value > 0 && !hide) parts.add("${AdsFormat.money(m.spend / r.value, cur)} each")
         }
         val s = AdsResults.sales(m)
-        if (s.value > 0) parts.add("${AdsFormat.money(s.value, cur)} sales · ${AdsResults.roasText(s.roas)} ROAS")
+        if (s.value > 0 && !hide) parts.add("${AdsFormat.money(s.value, cur)} sales · ${AdsResults.roasText(s.roas)} ROAS")
         parts.add("${AdsFormat.compact(m.reach)} reached")
         return parts.joinToString(" · ")
     }
