@@ -3,6 +3,7 @@ package erp.app.screens.analytics
 import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -21,6 +22,9 @@ import erp.app.ui.ChipRow
 import erp.app.ui.DividedColumn
 import erp.app.ui.FilterChip
 import erp.app.ui.LedgerSection
+import erp.app.ui.SegmentedButton
+import erp.app.ui.SegmentedButtonDefaults
+import erp.app.ui.SingleChoiceSegmentedButtonRow
 import erp.app.ui.SectionCard
 import erp.app.ui.TwoLine
 import erp.app.ui.ledgerRow
@@ -43,7 +47,7 @@ fun AnaSortChips(titles: List<String>, selected: Int, pick: (Int) -> Unit) {
  * Overview's net figure.
  */
 @Composable
-fun AnaProductsPage(figures: AnaFigures, rows: List<AnaBreakdown.ProductRow>, period: AnaPeriodState) {
+fun AnaProductsPage(figures: AnaFigures, rows: List<AnaBreakdown.ProductRow>, period: AnaPeriodState, ledger: AnaLedger) {
     var search by rememberSaveable { mutableStateOf("") }
     var sort by rememberSaveable { mutableIntStateOf(0) }
     var showAll by rememberSaveable { mutableStateOf(false) }
@@ -51,8 +55,8 @@ fun AnaProductsPage(figures: AnaFigures, rows: List<AnaBreakdown.ProductRow>, pe
     AnaPage(period) {
         AnaColumns(
             left = {
+                TopChart(ledger)
                 TopSection(figures, showTop) { showTop = !showTop }
-                CategorySection(figures)
             },
             right = {
                 MoneySearchField(search, { search = it }, "Search every piece by name or SKU")
@@ -62,7 +66,39 @@ fun AnaProductsPage(figures: AnaFigures, rows: List<AnaBreakdown.ProductRow>, pe
     }
 }
 
-// MARK: Top ten
+// MARK: Top ten, as a picture
+
+/** The ten best pieces by revenue or by pieces sold (components/analytics/pages/products.tsx), the leader named in a sentence. */
+@Composable
+private fun TopChart(l: AnaLedger) {
+    val b = l.books
+    var byRevenue by rememberSaveable { mutableStateOf(true) }
+    val rows = (if (byRevenue) b.topProductsByRevenue else b.topProductsByQuantity).take(10)
+    val total = if (byRevenue) b.topProductsByRevenue.sumOf { it.revenue } else b.topProductsByQuantity.sumOf { it.quantity }
+    val takeaway = if (rows.isEmpty()) "No pieces sold in this period." else {
+        val top = rows[0]
+        val share = anaPercent(if (byRevenue) top.revenue else top.quantity, total)
+        if (byRevenue) "${top.name} led with ${Money.pkrLac(top.revenue)}, $share% of piece revenue."
+        else "${top.name} sold most: ${AnaFormat.count(top.quantity)} ${if (top.quantity == 1.0) "piece" else "pieces"}, $share% of all pieces sold."
+    }
+    AnaChartCard(if (byRevenue) "Top 10 pieces by revenue" else "Top 10 pieces by pieces sold", takeaway = takeaway) {
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+            val options = listOf(true to "Revenue", false to "Pieces sold")
+            options.forEachIndexed { i, (value, label) ->
+                SegmentedButton(selected = byRevenue == value, onClick = { byRevenue = value }, shape = SegmentedButtonDefaults.itemShape(i, options.size), label = { Text(label) })
+            }
+        }
+        if (rows.isNotEmpty()) {
+            AnaHBars(
+                rows.map { AnaHBar(it.name, if (byRevenue) it.revenue else it.quantity) },
+                format = if (byRevenue) { v -> Money.lacCrore(v) } else { v -> Math.round(v).toString() },
+                spokenFormat = if (byRevenue) { v -> Money.pkrLac(v) } else { v -> "${Math.round(v)} pieces" },
+            )
+        }
+    }
+}
+
+// MARK: Top ten, as a list
 
 @Composable
 private fun TopSection(f: AnaFigures, showTop: Boolean, toggle: () -> Unit) {
