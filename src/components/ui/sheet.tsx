@@ -53,26 +53,86 @@ interface SheetContentProps
   extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content>,
     VariantProps<typeof sheetVariants> {}
 
+/**
+ * A bottom sheet on a touch screen is pulled down to dismiss: the grabber at its top follows the finger
+ * (it only ever moves down; a little pull is rubber-banded), and past 110 px, or a quick flick, it closes
+ * through the same Close button the keyboard and screen reader use. Only the grabber drags, so the sheet's
+ * own scrolling is untouched. Mouse and keyboard are unchanged (Esc, the X, a tap on the dim).
+ */
+function useSwipeDown(enabled: boolean) {
+  const sheetRef = React.useRef<HTMLElement | null>(null)
+  const closeRef = React.useRef<HTMLButtonElement | null>(null)
+  const drag = React.useRef<{ y: number; t: number; dy: number } | null>(null)
+  const apply = (dy: number, animate: boolean) => {
+    const el = sheetRef.current
+    if (!el) return
+    el.style.transition = animate ? "transform 220ms cubic-bezier(0.32, 0.72, 0, 1)" : "none"
+    el.style.transform = dy ? `translateY(${dy}px)` : ""
+  }
+  const handlers = enabled ? {
+    onPointerDown: (e: React.PointerEvent) => {
+      if (e.pointerType !== "touch") return
+      drag.current = { y: e.clientY, t: Date.now(), dy: 0 };
+      (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
+    },
+    onPointerMove: (e: React.PointerEvent) => {
+      const d = drag.current
+      if (!d) return
+      const raw = e.clientY - d.y
+      // Down follows the finger; up is resisted to a few pixels.
+      d.dy = raw > 0 ? raw : raw / 8
+      apply(d.dy, false)
+    },
+    onPointerUp: () => {
+      const d = drag.current
+      drag.current = null
+      if (!d) return
+      const fast = d.dy > 40 && d.dy / Math.max(1, Date.now() - d.t) > 0.6
+      if (d.dy > 110 || fast) { closeRef.current?.click(); window.setTimeout(() => apply(0, false), 250) }
+      else apply(0, true)
+    },
+    onPointerCancel: () => { drag.current = null; apply(0, true) },
+  } : {}
+  return { sheetRef, closeRef, handlers }
+}
+
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   SheetContentProps
->(({ side = "right", className, children, ...props }, ref) => (
+>(({ side = "right", className, children, ...props }, ref) => {
+  const swipe = useSwipeDown(side === "bottom")
+  return (
   <SheetPortal>
     <SheetOverlay />
     <SheetPrimitive.Content
-      ref={ref}
+      ref={(node) => {
+        swipe.sheetRef.current = node
+        if (typeof ref === "function") ref(node)
+        else if (ref) (ref as React.MutableRefObject<HTMLDivElement | null>).current = node
+      }}
       data-side={side}
       className={cn(sheetVariants({ side }), className)}
       {...props}
     >
+      {side === "bottom" && (
+        <div
+          aria-hidden
+          data-sheet-grabber=""
+          className="absolute inset-x-0 top-0 z-10 flex h-7 cursor-grab touch-none items-start justify-center pt-2"
+          {...swipe.handlers}
+        >
+          <span className="h-1 w-9 rounded-full bg-muted-foreground/30" />
+        </div>
+      )}
       {children}
-      <SheetPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary">
+      <SheetPrimitive.Close ref={swipe.closeRef} className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary">
         <X className="h-4 w-4" />
         <span className="sr-only">Close</span>
       </SheetPrimitive.Close>
     </SheetPrimitive.Content>
   </SheetPortal>
-))
+  )
+})
 SheetContent.displayName = SheetPrimitive.Content.displayName
 
 const SheetHeader = ({

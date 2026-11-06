@@ -201,7 +201,7 @@ struct WebsiteEditPieceScreen: View {
             if let url = URL(string: p.url), !p.url.isEmpty {
                 Link(destination: url) { Label("Open on \(siteName)", systemImage: "safari") }
             }
-            if MarketingKit.has("/design", role: session.role) {
+            if MarketingKit.has("/design", role: session.navRole) {
                 MarketingLink(title: "Open in Design", symbol: "wand.and.stars",
                               path: "/design?v=make&site=" + WebsiteNumber.query(p.id))
             }
@@ -673,7 +673,7 @@ extension WebsiteEditPieceScreen {
             if let url = URL(string: p.url), !p.url.isEmpty {
                 Button("Open on \(siteName)") { NSWorkspace.shared.open(url) }
             }
-            if MarketingKit.has("/design", role: session.role), let openPlace {
+            if MarketingKit.has("/design", role: session.navRole), let openPlace {
                 Button("Open in Design") { openPlace(Route(path: "/design?v=make&site=" + WebsiteNumber.query(p.id))) }
             }
         } header: {

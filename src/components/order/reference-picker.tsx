@@ -6,6 +6,7 @@
  * Picking sets `referenceImage` and leaves `printReference` as it was: off until the person turns it on (owner, 2026-11-03: "do not print the photo from catalogue by default"); a small preview with Remove.
  */
 
+import { BlurImg } from '@/components/ui/blur-img';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ImageIcon, X } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
@@ -136,7 +137,7 @@ function CataloguePickerDialog({ open, onOpenChange, category, onPick }: {
               <button key={p.id} type="button" onClick={() => onPick(p)} title={p.title}
                 className="group relative aspect-square overflow-hidden rounded-lg border bg-muted focus:outline-none focus:ring-2 focus:ring-primary">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={p.thumb} alt={p.title} loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                <BlurImg src={p.thumb} alt={p.title} className="h-full w-full object-cover" />
                 <span className="absolute inset-x-0 bottom-0 truncate bg-background/80 px-1 py-0.5 text-[10px] opacity-0 [@media(hover:none)]:opacity-100 group-hover:opacity-100">{p.title}</span>
               </button>
             ))}

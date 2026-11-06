@@ -91,7 +91,12 @@ fun DesignWorkspaceView(
     val scope = rememberCoroutineScope()
     var editing by remember { mutableStateOf<String?>(null) }
     var sitePicker by remember { mutableStateOf(false) }
-    var removing by remember { mutableStateOf<DesignPageState?>(null) }
+    // Act, then Undo: a page is only this open design's layout (its draft is saved as you go), so taking it out is reversible.
+    val note = erp.app.ui.LocalNoteState.current
+    val removing: (DesignPageState) -> Unit = { p ->
+        val back = model.removePageUndoable(p.id)
+        note.show(erp.app.ui.undoNote("Took “${p.label}” out", "Its layout is removed; the other sizes stay.") { back() })
+    }
     var safe by remember { mutableStateOf(true) }
 
     val pickDevice = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
@@ -123,7 +128,7 @@ fun DesignWorkspaceView(
             val wide = maxWidth >= 840.dp
             val left: @Composable () -> Unit = {
                 Header(model, w, onClose)
-                Strip(model, w) { removing = it }
+                Strip(model, w, removing)
                 DesignCandidateBanner(model)
                 Stage(model, w, safe, { safe = it }, onEdit = { model.beginEditing(it); editing = it })
             }
@@ -138,7 +143,7 @@ fun DesignWorkspaceView(
                 // On a wide window the page is pinned beside the words: the strip above it, the page filling what is left, and only the words scroll.
                 Row(Modifier.fillMaxSize().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                     Column(Modifier.weight(1f).fillMaxSize().padding(vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        Strip(model, w) { removing = it }
+                        Strip(model, w, removing)
                         DesignCandidateBanner(model)
                         Stage(model, w, safe, { safe = it }, onEdit = { model.beginEditing(it); editing = it }, modifier = Modifier.weight(1f), fill = true)
                     }
@@ -173,9 +178,6 @@ fun DesignWorkspaceView(
             val p = DesignPhotoSources.site(piece, data)
             model.replacePhoto(data, label = p.label, fields = p.fields, source = p.source, isMarked = p.marked)
         })
-    }
-    removing?.let { p ->
-        ConfirmDestructive("Take “${p.label}” out of this design?", "Its layout is removed; the other sizes stay.", "Take it out", { removing = null }) { model.removePage(p.id) }
     }
 }
 

@@ -109,7 +109,6 @@ fun PostTrayScreen(path: String) {
     val note = LocalNoteState.current
     var picking by remember { mutableStateOf(false) }
     var confirming by remember { mutableStateOf(false) }
-    var clearing by remember { mutableStateOf(false) }
     var failure by remember { mutableStateOf<String?>(null) }
     var working by remember { mutableStateOf<String?>(null) }
     var story by remember { mutableStateOf<TrayStory?>(null) }
@@ -192,7 +191,11 @@ fun PostTrayScreen(path: String) {
                     if (model.cards.isEmpty()) {
                         EmptyTray(model, state.pieces.isEmpty(), { picking = true }) { failure = it }
                     } else {
-                        TrayStrip(model) { clearing = true }
+                        TrayStrip(model) {
+                            val count = model.cards.size
+                            val back = model.clearUndoable()
+                            note.show(erp.app.ui.undoNote("Cleared $count", "They came off the tray.") { back() })
+                        }
                         WhereSection(model)
                         Blockers(model)
                     }
@@ -222,15 +225,6 @@ fun PostTrayScreen(path: String) {
         FullScreenSheet(title = PostTrayLogic.pickTitle(model.cards.size), onCancel = { picking = false }, cancelText = "Done", confirmText = "Done", onConfirm = { picking = false }) {
             PostPiecesScreen(tray = model)
         }
-    }
-    if (clearing) {
-        AlertDialog(
-            onDismissRequest = { clearing = false },
-            title = { Text("Clear all ${model.cards.size}?") },
-            text = { Text("They come off the tray. The pieces themselves are untouched.") },
-            confirmButton = { TextButton(onClick = { clearing = false; model.clear() }) { Text("Clear all", color = Tone.problem.color()) } },
-            dismissButton = { TextButton(onClick = { clearing = false }) { Text("Cancel") } },
-        )
     }
     if (confirming) {
         val lines = model.cards.map { PostTrayLogic.Line(it.piece.name, it.going, MarketingTime.postedAgo(state.posted[it.id])) }

@@ -19,6 +19,7 @@ struct MacReportsTodayPage: View {
     let setRate: () -> Void
 
     @Environment(Book.self) private var book
+    @Environment(Session.self) private var session
     @Environment(\.openPlaceWindow) private var openPlace
     @Environment(\.macGo) private var macGo
 
@@ -30,33 +31,41 @@ struct MacReportsTodayPage: View {
                 if !note.isEmpty {
                     MacDashNote(text: note, isOwner: isOwner, edit: editNote)
                 }
-                // Four even columns (two and two on a narrow window), every card as tall as the tallest.
-                MacEvenGrid(count: 4, minimum: 220, spacing: 16) { (i: Int) in
-                    switch i {
-                    case 0: takenCard
-                    case 1: owedCard
-                    case 2: monthCard
-                    default: benchCard
+                if session.seesMoney {
+                    // Four even columns (two and two on a narrow window), every card as tall as the tallest.
+                    MacEvenGrid(count: 4, minimum: 220, spacing: 16) { (i: Int) in
+                        switch i {
+                        case 0: takenCard
+                        case 1: owedCard
+                        case 2: monthCard
+                        default: benchCard
+                        }
                     }
-                }
-                MacReportsWidth(900) {
-                    // Side by side, the two cards as tall as each other: the chart grows to the list's height.
-                    HStack(alignment: .top, spacing: 16) {
-                        chartCard.frame(maxWidth: .infinity, maxHeight: .infinity)
-                        needsCard.frame(width: 340).frame(maxHeight: .infinity)
+                    MacReportsWidth(900) {
+                        // Side by side, the two cards as tall as each other: the chart grows to the list's height.
+                        HStack(alignment: .top, spacing: 16) {
+                            chartCard.frame(maxWidth: .infinity, maxHeight: .infinity)
+                            needsCard.frame(width: 340).frame(maxHeight: .infinity)
+                        }
+                        .fixedSize(horizontal: false, vertical: true)
+                    } narrow: {
+                        VStack(spacing: 16) { chartCard; needsCard }
                     }
-                    .fixedSize(horizontal: false, vertical: true)
-                } narrow: {
-                    VStack(spacing: 16) { chartCard; needsCard }
-                }
-                MacReportsWidth(760) {
-                    HStack(alignment: .top, spacing: 16) {
-                        dueCard.frame(maxHeight: .infinity)
-                        salesCard.frame(maxHeight: .infinity)
+                    MacReportsWidth(760) {
+                        HStack(alignment: .top, spacing: 16) {
+                            dueCard.frame(maxHeight: .infinity)
+                            salesCard.frame(maxHeight: .infinity)
+                        }
+                        .fixedSize(horizontal: false, vertical: true)
+                    } narrow: {
+                        VStack(spacing: 16) { dueCard; salesCard }
                     }
-                    .fixedSize(horizontal: false, vertical: true)
-                } narrow: {
-                    VStack(spacing: 16) { dueCard; salesCard }
+
+                } else {
+                    // Staff see no figures (decision "Staff see no money"): what they do, then what needs doing.
+                    StaffActions()
+                    needsCard
+                    dueCard
                 }
             }
             .padding(24)

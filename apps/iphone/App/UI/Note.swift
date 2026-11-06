@@ -12,6 +12,13 @@ struct Note: Equatable {
     var detail = ""
     /// Something that did not happen: a red problem and a warning tap, never the green tick.
     var failed = false
+    /// "Undo": the reverse of what was just done. The toast shows a button for it and stays longer. Only for a
+    /// reversible, non-money change whose reverse write exists.
+    var undo: (@MainActor () -> Void)?
+
+    static func == (a: Note, b: Note) -> Bool {
+        a.title == b.title && a.detail == b.detail && a.failed == b.failed && (a.undo == nil) == (b.undo == nil)
+    }
 
     /// Say it: the toast rises on the enter curve (it only appears under Reduce Motion). Pass the screen's
     /// `@Environment(\.accessibilityReduceMotion)`; use this rather than a bare `withAnimation`.
@@ -27,6 +34,9 @@ typealias OwnerNote = Note
 
 struct NoteBanner: View {
     let note: Note
+    /// The toast's own: the Undo tap (the toast leaves after it) and whether a finger is on it (the toast waits).
+    var onUndo: (@MainActor () -> Void)?
+    var onHold: ((Bool) -> Void)?
 
     var body: some View {
         HStack(spacing: pt(10)) {
@@ -39,6 +49,14 @@ struct NoteBanner: View {
                 }
             }
             Spacer(minLength: 0)
+            if note.undo != nil, let onUndo {
+                Button("Undo", action: onUndo)
+                    .buttonStyle(HoldingButtonStyle(onHold: onHold))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Theme.accent)
+                    .frame(minWidth: Metrics.tap, minHeight: Metrics.tap)
+                    .contentShape(Rectangle())
+            }
         }
         .padding(.horizontal, pt(16))
         .padding(.vertical, pt(10))
@@ -47,6 +65,18 @@ struct NoteBanner: View {
         .background(.regularMaterial, in: .rect(cornerRadius: Radius.card, style: .continuous))
         .shadow(color: .black.opacity(0.12), radius: 10, y: 4)
         .accessibilityElement(children: .combine)
+        .accessibilityAction(named: "Undo") { if note.undo != nil { onUndo?() } }
+    }
+}
+
+/// A plain text button that tells the toast while it is held, so the toast does not leave under a finger.
+private struct HoldingButtonStyle: ButtonStyle {
+    var onHold: ((Bool) -> Void)?
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.6 : 1)
+            .onChange(of: configuration.isPressed) { _, now in onHold?(now) }
     }
 }
 
@@ -69,12 +99,20 @@ extension View {
 private struct NotePresenter: ViewModifier {
     @Binding var note: Note?
     @Environment(\.accessibilityReduceMotion) private var reduce
+    @State private var holding = false
+
+    private struct Key: Equatable { var note: Note?; var holding: Bool }
 
     func body(content: Content) -> some View {
         content
             .overlay(alignment: .bottom) {
                 if let shown = note {
-                    NoteBanner(note: shown)
+                    NoteBanner(note: shown, onUndo: {
+                        let run = shown.undo
+                        holding = false
+                        Motion.run(Motion.exit, reduce: reduce) { note = nil }
+                        run?()
+                    }, onHold: { holding = $0 })
                         .frame(maxWidth: 560)
                         .padding(.horizontal)
                         .padding(.bottom, pt(8))
@@ -86,11 +124,12 @@ private struct NotePresenter: ViewModifier {
                 return now.failed ? .warning : .success
             }
             .onChange(of: note) { _, now in
+                holding = false
                 if let now { AccessibilityNotification.Announcement(now.spoken).post() }
             }
-            .task(id: note) {
-                guard note != nil else { return }
-                try? await Task.sleep(for: .seconds(4))
+            .task(id: Key(note: note, holding: holding)) {
+                guard let shown = note, !holding else { return }
+                try? await Task.sleep(for: .seconds(shown.undo == nil ? 4 : 6))
                 if !Task.isCancelled { Motion.run(Motion.exit, reduce: reduce) { note = nil } }
             }
     }

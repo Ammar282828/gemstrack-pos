@@ -57,7 +57,7 @@ import kotlin.math.max
 
 /** 0 to 1 as a chart arrives; already 1 when animations are off. */
 @Composable
-private fun rememberReveal(): Float {
+internal fun rememberReveal(): Float {
     val motion = rememberErpMotion()
     var target by remember { mutableFloatStateOf(if (motion.reduce) 1f else 0f) }
     LaunchedEffect(Unit) { target = 1f }
@@ -79,10 +79,10 @@ internal fun chartPalette(): List<Color> = listOf(
 )
 
 @Composable
-private fun hairline(): Color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+internal fun hairline(): Color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
 
 @Composable
-private fun CaptionLine(left: String, right: String? = null) {
+internal fun CaptionLine(left: String, right: String? = null) {
     Row(Modifier.fillMaxWidth().clearAndSetSemantics {}) {
         Text(left, Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (right != null) Text(right, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -91,16 +91,16 @@ private fun CaptionLine(left: String, right: String? = null) {
 
 /** What a touch on the chart picked out, said under it. */
 @Composable
-private fun Readout(text: String?) {
+internal fun Readout(text: String?, hint: String = "Touch the chart to read a day.") {
     Text(
-        text ?: "Touch the chart to read a day.",
+        text ?: hint,
         style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = TabularDigits, fontWeight = if (text == null) FontWeight.Normal else FontWeight.Medium),
         color = if (text == null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
     )
 }
 
 /** Taps and drags along a chart pick the nearest of [count] slots. */
-private fun Modifier.pickSlot(count: Int, onPick: (Int) -> Unit): Modifier =
+internal fun Modifier.pickSlot(count: Int, onPick: (Int) -> Unit): Modifier =
     pointerInput(count) {
         detectTapGestures { p -> if (count > 0) onPick(((p.x / size.width) * count).toInt().coerceIn(0, count - 1)) }
     }.pointerInput(count) {
@@ -177,7 +177,7 @@ fun AnaRevenueBars(days: List<AnaDay>, modifier: Modifier = Modifier) {
     }
 }
 
-private fun min3(a: Float, b: Float): Float = if (a < b) a else b
+internal fun min3(a: Float, b: Float): Float = if (a < b) a else b
 
 private fun dayWord(key: String): String = AnaDate.parseISO(key)?.let { AnaDate.dayMonth(it) } ?: key
 
@@ -226,7 +226,7 @@ fun AnaSalesChart(days: List<AnaDay>, modifier: Modifier = Modifier) {
 }
 
 /** A smooth line that never overshoots a day: each segment eases flat into its points. */
-private fun smooth(xs: List<Float>, ys: List<Float>): Path = Path().apply {
+internal fun smooth(xs: List<Float>, ys: List<Float>): Path = Path().apply {
     moveTo(xs[0], ys[0])
     for (i in 1 until xs.size) {
         val mid = (xs[i - 1] + xs[i]) / 2
@@ -332,7 +332,7 @@ fun AnaSourceTrendChart(points: List<AnaSourcePoint>, modifier: Modifier = Modif
 }
 
 @Composable
-private fun Legend(entries: List<Pair<String, Color>>) {
+internal fun Legend(entries: List<Pair<String, Color>>) {
     // Wraps on a narrow screen: a row per two names is plenty, and the colours are never the only clue (the names are).
     Column(Modifier.clearAndSetSemantics {}, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         entries.chunked(2).forEach { pair ->

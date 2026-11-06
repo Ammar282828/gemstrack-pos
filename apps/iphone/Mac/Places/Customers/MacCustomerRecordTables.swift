@@ -69,11 +69,12 @@ struct MacCustomerRecordInvoices: View {
                 .width(min: 70, ideal: 96)
             TableColumn("Date", value: \.date) { (r: MacCustomerRecordInvoiceRow) in Text(ShopDate.say(r.date)).lineLimit(1) }
                 .width(min: 70, ideal: 90)
-            TableColumn("Total", value: \.total) { (r: MacCustomerRecordInvoiceRow) in MacAmount(r.total) }
+            TableColumn("Total", value: \.total) { (r: MacCustomerRecordInvoiceRow) in MacAmount(owner ? r.total : nil) }
                 .width(min: 70, ideal: 90)
             TableColumn("Owed", value: \.owed) { (r: MacCustomerRecordInvoiceRow) in
                 // Only what needs someone is coloured: a settled or refunded bill shows nothing here.
-                MacAmount(r.owed >= 1 ? r.owed : nil, tone: .owed)
+                // Owners only: staff see no customer's balance (decision "Staff see no money").
+                MacAmount(owner && r.owed >= 1 ? r.owed : nil, tone: .owed)
             }
             .width(min: 70, ideal: 90)
             TableColumn("Status", value: \.state) { (r: MacCustomerRecordInvoiceRow) in MacStatus(r.state, tone: r.tone) }
@@ -126,6 +127,8 @@ struct MacCustomerRecordOrders: View {
     let orders: [Order]
     let revision: Int
     @Binding var selection: Set<String>
+    /// False for staff: the amount still to pay is not shown (decision "Staff see no money").
+    var money = true
     let open: (String) -> Void
 
     @State private var sort = [KeyPathComparator(\MacCustomerRecordOrderRow.date, order: .reverse)]
@@ -144,7 +147,7 @@ struct MacCustomerRecordOrders: View {
                 .width(min: 90, ideal: 130)
             TableColumn("Still to pay", value: \.toPay) { (r: MacCustomerRecordOrderRow) in
                 // A closed order (cancelled, refunded, invoiced) is history: dimmed.
-                MacAmount(r.toPay).opacity(r.closed ? 0.55 : 1)
+                MacAmount(money ? r.toPay : nil).opacity(r.closed ? 0.55 : 1)
             }
             .width(min: 70, ideal: 90)
             TableColumn("Invoice", value: \.invoiceId) { (r: MacCustomerRecordOrderRow) in

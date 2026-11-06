@@ -85,6 +85,8 @@ export interface OrderInput {
    * rate the customer was told, and the settings may have moved since.
    */
   ratesApplied?: Partial<Record<typeof RATE_FIELDS[number], number>>;
+  /** The screen's name for this one save: the same request sent twice makes one order (the settings remember the last). */
+  requestId?: string;
   [k: string]: unknown;
 }
 
@@ -163,12 +165,20 @@ export async function createOrder(
   // Sample photos go to documents of their own, in this same commit (lib/order-photos.ts).
   const { items: itemsOut, photos } = splitItemPhotos(input.items as { sampleImageDataUri?: string }[]);
 
+  let replayed = false;
   const order = await db.runTransaction<CreatedOrder>(async tx => {
+    replayed = false;
     const [settings, predictedClash] = await Promise.all([
-      tx.get<Record<string, number>>(SETTINGS, SETTINGS_DOC),
+      tx.get<Record<string, unknown>>(SETTINGS, SETTINGS_DOC),
       predicted ? tx.get(ORDERS, predicted) : Promise.resolve(null),
     ]);
     if (!settings) throw new Error('Global settings not found.');
+    // The same save sent again (a double tap, a retry after a dropped reply) finds its order and writes nothing.
+    const last = settings.lastOrderRequest as { requestId?: string; orderId?: string } | undefined;
+    if (input.requestId && last?.requestId === input.requestId && last.orderId) {
+      const done = await tx.get<CreatedOrder>(ORDERS, last.orderId);
+      if (done) { replayed = true; return { ...done, id: last.orderId } as CreatedOrder; }
+    }
 
     const nextNumber = (Number(settings.lastOrderNumber) || 0) + 1;
     const id = orderId(nextNumber);
@@ -191,7 +201,7 @@ export async function createOrder(
     const ratesApplied: Record<string, number> = {};
     for (const f of RATE_FIELDS) {
       const given = Number(supplied[f]);
-      ratesApplied[f] = Number.isFinite(given) && given > 0 ? given : settings[f];
+      ratesApplied[f] = Number.isFinite(given) && given > 0 ? given : Number(settings[f]);
     }
 
     const doc = {
@@ -216,10 +226,12 @@ export async function createOrder(
     // Firestore rejects undefined and aborts the transaction, which is how
     // walk-in orders with no customer used to fail to save without a word.
     tx.set(ORDERS, id, clean(doc) as Record<string, unknown>);
-    tx.update(SETTINGS, SETTINGS_DOC, { lastOrderNumber: nextNumber });
+    tx.update(SETTINGS, SETTINGS_DOC, { lastOrderNumber: nextNumber, ...(input.requestId && { lastOrderRequest: { requestId: input.requestId, orderId: id } }) });
     for (const ph of photos) tx.set(ORDER_PHOTOS, ph.id, { dataUri: ph.dataUri, hash: ph.hash, orderId: id, createdAt });
     return doc;
   });
+
+  if (replayed) return order;
 
   await fx.log?.(
     'order.create',

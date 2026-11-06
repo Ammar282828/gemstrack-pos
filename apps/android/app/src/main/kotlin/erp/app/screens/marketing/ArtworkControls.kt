@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import androidx.compose.material3.minimumInteractiveComponentSize
 import erp.app.ui.TextField
 import erp.core.logic.ShopNumber
 import android.graphics.BitmapFactory
@@ -264,10 +265,13 @@ private fun ArtworkColorDialog(title: String, hex: String, onDismiss: () -> Unit
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     for (s in swatches) {
                         Box(
-                            Modifier.size(36.dp).clip(CircleShape).background(ArtworkColor.color(s) ?: Color.White)
-                                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
+                            // The swatch draws 36 dp; its tap target is 48 (the click wraps the minimum size, the circle is drawn inside).
+                            Modifier
                                 .clickable(role = Role.Button) { ArtworkColor.parse(s)?.let { (pr, pg, pb) -> r = pr.toDouble(); g = pg.toDouble(); b = pb.toDouble(); sync() } }
-                                .semantics { contentDescription = s },
+                                .semantics { contentDescription = s }
+                                .minimumInteractiveComponentSize()
+                                .size(36.dp).clip(CircleShape).background(ArtworkColor.color(s) ?: Color.White)
+                                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape),
                         )
                     }
                 }

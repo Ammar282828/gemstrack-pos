@@ -15,12 +15,16 @@ public struct Payment: Decodable, Hashable {
     /// Gold handed over with an order's advance (alone when `amount` is 0). The same rows sit on the order's
     /// `exchanges`; this is what lets the advance list show, and deleting the advance take them (lib/order-payment.ts).
     public let exchanges: [ExchangeEntry]
+    /// "credit-payback" on the negative line written when the shop hands a customer their credit back
+    /// (lib/invoice-credit.ts `isCreditPayback`); nil on every other payment.
+    public let kind: String?
 
-    private enum K: String, CodingKey { case amount, date, notes, method, reference, exchanges }
+    private enum K: String, CodingKey { case amount, date, notes, method, reference, exchanges, kind }
 
     /// For the rules that make payments (`orderAdvancePayments`), not for decoding.
-    public init(amount: Double, date: String, notes: String? = nil, method: PaymentType? = nil, reference: String? = nil, exchanges: [ExchangeEntry] = []) {
+    public init(amount: Double, date: String, notes: String? = nil, method: PaymentType? = nil, reference: String? = nil, exchanges: [ExchangeEntry] = [], kind: String? = nil) {
         self.exchanges = exchanges
+        self.kind = kind
         self.amount = amount
         self.date = date
         self.notes = notes
@@ -36,6 +40,7 @@ public struct Payment: Decodable, Hashable {
         method = c.word(.method)
         reference = c.string(.reference)
         exchanges = c.list(.exchanges)
+        kind = c.string(.kind)
     }
 }
 

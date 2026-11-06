@@ -192,7 +192,7 @@ struct PostAlbumStrip: View {
                     Button(role: .destructive) { model.remove(card, x.id) } label: { Image(systemName: "xmark") }
                         .accessibilityLabel("Take photo \(number) out")
                 }
-                Button { model.move(card, x.id, by: 1) } label: { Image(systemName: "chevron.right") }
+                Button { model.move(card, x.id, by: 1) } label: { Image(systemName: "chevron.right").frame(minWidth: Metrics.tap, minHeight: Metrics.tap).contentShape(Rectangle()) }
                     .disabled(number == card.album.count)
                     .accessibilityLabel("Move later")
             }

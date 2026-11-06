@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -33,22 +34,74 @@ import erp.core.logic.Money
  * sorted by spending, number of sales or average sale. Every walk-in is the one row (walk-in.ts).
  */
 @Composable
-fun AnaCustomersPage(figures: AnaFigures, rows: List<AnaBreakdown.CustomerRow>, period: AnaPeriodState) {
+fun AnaCustomersPage(figures: AnaFigures, rows: List<AnaBreakdown.CustomerRow>, period: AnaPeriodState, ledger: AnaLedger) {
     var search by rememberSaveable { mutableStateOf("") }
     var sort by rememberSaveable { mutableIntStateOf(0) }
     var showAll by rememberSaveable { mutableStateOf(false) }
     var showTop by rememberSaveable { mutableStateOf(false) }
     AnaPage(period) {
+        FlowCard(ledger)
+        CustomerFigures(ledger)
         AnaColumns(
             left = {
+                TopChart(ledger)
                 TopSection(figures, showTop) { showTop = !showTop }
-                SourceSection(figures)
+                SourceSection(figures, ledger)
             },
             right = {
                 MoneySearchField(search, { search = it }, "Search everyone by name")
                 AllSection(rows, search, sort, { sort = it }, showAll) { showAll = !showAll }
             },
         )
+    }
+}
+
+// MARK: New and returning
+
+/** New against returning customers per day, week or month (a customer is new in the bucket of their first-ever sale; walk-ins are in neither). */
+@Composable
+private fun FlowCard(l: AnaLedger) {
+    val b = l.books
+    val named = b.newCustomers + b.returningCustomers
+    val flow = remember(l) { erp.core.logic.bucketCustomerFlow(b.customerDays, erp.core.logic.autoBucket(l.range, l.now), l.range, l.now) }
+    val groups = remember(flow) { flow.map { AnaGroup(it.label, listOf(it.newCustomers.toDouble(), it.returningCustomers.toDouble())) } }
+    val takeaway = if (named == 0) "No named customers bought in this period."
+    else "${anaPlural(b.newCustomers, "new customer")} brought ${Money.pkrLac(b.revenueFromNew)}; ${b.returningCustomers} returning brought ${Money.pkrLac(b.revenueFromReturning)}."
+    AnaChartCard("New and returning customers", takeaway = takeaway) {
+        if (named > 0) {
+            AnaBarsChart(
+                groups, listOf(AnaSeries("New", anaColor(1)), AnaSeries("Returning", anaColor(2))), stacked = true, height = 200.dp,
+                format = { v -> anaPlural(Math.round(v).toInt(), "customer") },
+            )
+        }
+    }
+}
+
+@Composable
+private fun CustomerFigures(l: AnaLedger) {
+    val b = l.books
+    val named = b.newCustomers + b.returningCustomers
+    val revenue = b.revenueFromNew + b.revenueFromReturning
+    val returnShare = if (revenue > 0) Math.round(b.revenueFromReturning / revenue * 100).toInt() else 0
+    AnaFigureRow(
+        listOf(
+            AnaFig("Customers", named.toString(), "named, walk-ins left out"),
+            AnaFig("New", b.newCustomers.toString(), Money.pkrLac(b.revenueFromNew)),
+            AnaFig("Returning", b.returningCustomers.toString(), Money.pkrLac(b.revenueFromReturning)),
+            AnaFig("Revenue from returning", "$returnShare%", "of named customers’ sales"),
+        ),
+    )
+}
+
+/** The ten who spent most, as bars; the row list below opens each customer. */
+@Composable
+private fun TopChart(l: AnaLedger) {
+    val top = l.books.topCustomers.take(10)
+    AnaChartCard(
+        "Top 10 customers",
+        takeaway = if (top.isNotEmpty()) "${top[0].customerName} spent most: ${Money.pkrLac(top[0].totalSpent)} in ${anaPlural(top[0].orderCount, "sale")}." else "No customers bought in this period.",
+    ) {
+        if (top.isNotEmpty()) AnaHBars(top.map { AnaHBar(it.customerName, it.totalSpent) })
     }
 }
 
@@ -80,8 +133,18 @@ private fun TopSection(f: AnaFigures, showTop: Boolean, toggle: () -> Unit) {
  * linked customer's saved one; sales with neither are Unclassified.
  */
 @Composable
-private fun SourceSection(f: AnaFigures) {
+private fun SourceSection(f: AnaFigures, l: AnaLedger) {
     val sources = f.sourceBreakdown
+    val lead = l.books.sourceBreakdown.maxByOrNull { it.revenue }
+    val sourceTotal = l.books.sourceBreakdown.sumOf { it.revenue }
+    AnaChartCard(
+        "Revenue by source",
+        takeaway = if (lead != null && sourceTotal > 0) "${lead.label} brought the most: ${anaPercent(lead.revenue, sourceTotal)}% of revenue." else "No sales with a source in this period.",
+    ) {
+        if (l.books.sourceBreakdown.isNotEmpty()) {
+            AnaStackBar100(l.books.sourceBreakdown.map { AnaPart(it.label, it.revenue, anaSourceColor(it.key)) }, format = { Money.lacCrore(it) })
+        }
+    }
     SectionCard("Acquisition source insights") {
         if (sources.isEmpty()) {
             Text("No acquisition-source data available for the selected period.", color = MaterialTheme.colorScheme.onSurfaceVariant)

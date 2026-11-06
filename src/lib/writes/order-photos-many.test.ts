@@ -54,6 +54,17 @@ describe('several reference photos per piece', () => {
     expect(data.order_photos[item.extraPhotos[1].id]).toMatchObject({ dataUri: photo(3), orderId: order.id });
   });
 
+  it('the same new order sent twice with one request makes one order', async () => {
+    const { db, data } = fakeDb(seed);
+    const input = { items: [{ description: 'Ring' }], customerName: 'X', requestId: 'req-ord-0001' };
+    const deps = { createCustomer: async () => ({ id: 'c1', name: 'X' }), clean };
+    const a = await createOrder(db, input, deps);
+    const b = await createOrder(db, input, deps);
+    expect(b.id).toBe(a.id);
+    expect(Object.keys(data.orders)).toEqual([a.id]);
+    expect((data.app_settings.global as { lastOrderNumber: number }).lastOrderNumber).toBe(5);
+  });
+
   it('a piece with one photo (any older order) reads as a list of one; more are listed in order', () => {
     expect(itemPhotoRefs({ samplePhotoId: 'p1' })).toEqual([{ id: 'p1' }]);
     expect(itemPhotoRefs({ sampleImageDataUri: 'https://x/y.jpg' })).toEqual([{ src: 'https://x/y.jpg' }]);

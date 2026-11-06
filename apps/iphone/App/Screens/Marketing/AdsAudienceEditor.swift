@@ -187,7 +187,7 @@ struct AdsAudienceSheet: View {
             Spacer(minLength: 8)
             if p.type == "city" || p.type == "pin" { radiusMenu(p) }
             Button { remove(p) } label: {
-                Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary).frame(minWidth: Metrics.tap, minHeight: Metrics.tap).contentShape(Rectangle())
             }
             .buttonStyle(.borderless)
             .accessibilityLabel("Remove \(p.name)")
@@ -294,7 +294,7 @@ struct AdsAudienceSheet: View {
                     Text(i.name)
                     Spacer(minLength: 8)
                     Button { draft.interests.removeAll { (x: AdsNamed) in x.id == i.id } } label: {
-                        Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                        Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary).frame(minWidth: Metrics.tap, minHeight: Metrics.tap).contentShape(Rectangle())
                     }
                     .buttonStyle(.borderless)
                     .accessibilityLabel("Remove \(i.name)")

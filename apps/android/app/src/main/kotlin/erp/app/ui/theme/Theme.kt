@@ -3,7 +3,6 @@ package erp.app.ui.theme
 import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.MaterialTheme
@@ -27,6 +26,8 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.Hyphens
+import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
@@ -65,6 +66,9 @@ object ErpFonts {
 /** Tabular digits, so a sum never jumps sideways as it changes. */
 const val TabularDigits = "tnum"
 
+/** The same style with steady digits: for a sum, a count or a time, never for prose. */
+fun TextStyle.tabular(): TextStyle = copy(fontFeatureSettings = TabularDigits)
+
 /**
  * The kit's four figure styles on the Material 3 type scale, emphasized as Material 3 Expressive does it (a heavier
  * weight at the same size), digits tabular: the hero number is displaySmall, a tile's value titleLarge.
@@ -83,19 +87,32 @@ object ErpType {
     val tileValue = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 22.sp, lineHeight = 28.sp, letterSpacing = 0.sp, fontFeatureSettings = TabularDigits)
 }
 
-/** The stock Material 3 type scale in the system font, with its Expressive emphasized styles. */
-private val ErpTypography = Typography()
+/**
+ * The stock Material 3 type scale in the system font, with its Expressive emphasized styles, set the way a reader wants it
+ * broken: headings balance their lines (no one-word last line), body text breaks as a paragraph and hyphenates where it must.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+internal val ErpTypography = Typography().let { t ->
+    fun TextStyle.heading() = copy(lineBreak = LineBreak.Heading)
+    fun TextStyle.body() = copy(lineBreak = LineBreak.Paragraph, hyphens = Hyphens.Auto)
+    t.copy(
+        displayLarge = t.displayLarge.heading(), displayMedium = t.displayMedium.heading(), displaySmall = t.displaySmall.heading(),
+        headlineLarge = t.headlineLarge.heading(), headlineMedium = t.headlineMedium.heading(), headlineSmall = t.headlineSmall.heading(),
+        titleLarge = t.titleLarge.heading(), titleMedium = t.titleMedium.heading(), titleSmall = t.titleSmall.heading(),
+        bodyLarge = t.bodyLarge.body(), bodyMedium = t.bodyMedium.body(), bodySmall = t.bodySmall.body(),
+    )
+}
 
 /** Material 3 Expressive's shape scale; [erp.app.ui.Radius] names the ones the kit draws with. */
 private val ErpShapes = Shapes(
-    extraSmall = RoundedCornerShape(4.dp),
-    small = RoundedCornerShape(8.dp),
-    medium = RoundedCornerShape(12.dp),
-    large = RoundedCornerShape(16.dp),
-    largeIncreased = RoundedCornerShape(20.dp),
-    extraLarge = RoundedCornerShape(28.dp),
-    extraLargeIncreased = RoundedCornerShape(32.dp),
-    extraExtraLarge = RoundedCornerShape(48.dp),
+    extraSmall = erp.app.ui.ContinuousRoundedShape(4.dp),
+    small = erp.app.ui.ContinuousRoundedShape(8.dp),
+    medium = erp.app.ui.ContinuousRoundedShape(12.dp),
+    large = erp.app.ui.ContinuousRoundedShape(16.dp),
+    largeIncreased = erp.app.ui.ContinuousRoundedShape(20.dp),
+    extraLarge = erp.app.ui.ContinuousRoundedShape(28.dp),
+    extraLargeIncreased = erp.app.ui.ContinuousRoundedShape(32.dp),
+    extraExtraLarge = erp.app.ui.ContinuousRoundedShape(48.dp),
 )
 
 /**

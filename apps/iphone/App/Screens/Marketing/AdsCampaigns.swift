@@ -60,7 +60,7 @@ struct AdsCampaignsScreen: View {
         let name: String
     }
 
-    private var mayRead: Bool { session.role == "owner" || session.role == "marketing" }
+    private var mayRead: Bool { session.marketingAccess }
 
     var body: some View {
         Group {
@@ -289,6 +289,8 @@ struct AdsCampaignsScreen: View {
 
     private func summary(_ count: Int, _ all: Int, _ spent: Double, _ views: Double, _ cur: String) -> String {
         let which = count == all ? "All campaigns" : "\(count) of \(all) campaigns"
+        // The staff member who runs marketing sees no spend (decision "Staff see no money").
+        if session.spendHidden { return "\(which): \(AdsFormat.compact(views)) views" }
         return "\(which): \(AdsFormat.money(spent, cur)) spent · \(AdsFormat.compact(views)) views"
     }
 
@@ -374,7 +376,9 @@ struct AdsCampaignsScreen: View {
                                 .aspectRatio(1, contentMode: .fit)
                                 .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
                             Text(a.name).font(.caption).fixedSize(horizontal: false, vertical: true)
-                            Text(AdsFormat.money(a.metrics.spend, cur)).font(.caption2).foregroundStyle(.secondary).monospacedDigit()
+                            if !session.spendHidden {
+                                Text(AdsFormat.money(a.metrics.spend, cur)).font(.caption2).foregroundStyle(.secondary).monospacedDigit()
+                            }
                         }
                         .frame(width: 84)
                     }
@@ -465,7 +469,8 @@ struct AdsCampaignsScreen: View {
             .labelsHidden()
             .tint(Theme.accent)
             // One change at a time: a second switch mid-send would have its busy mark cleared by the first.
-            .disabled(busy != nil || status == "ARCHIVED" || status == "DELETED")
+            // She cannot switch an ad on: an owner budgets and turns it on (lib/ads/spend.ts `spendBlocked`).
+            .disabled(busy != nil || status == "ARCHIVED" || status == "DELETED" || session.spendHidden)
             .opacity(busy == t.id ? 0.4 : 1)
     }
 
@@ -479,9 +484,10 @@ struct AdsCampaignsScreen: View {
     }
 
     /// Who may change the money: the same as the server's ads gate.
-    private var mayChange: Bool { session.role == "owner" || session.role == "marketing" }
+    private var mayChange: Bool { session.marketingAccess && !session.spendHidden }
 
     private func budget(_ daily: Double?, _ lifetime: Double?, _ cur: String) -> String {
+        if session.spendHidden { return "" }
         if let daily, daily > 0 { return "\(AdsFormat.money(daily, cur)) a day" }
         if let lifetime, lifetime > 0 { return "\(AdsFormat.money(lifetime, cur)) in total" }
         return ""
@@ -489,14 +495,15 @@ struct AdsCampaignsScreen: View {
 
     /// "PKR 12,000 · up 18% on before · 45 chats started · PKR 266 each · 12.3k reached".
     private func numbers(_ m: AdMetrics, goal: String?, before: AdMetrics?, _ cur: String) -> some View {
-        var parts: [String] = [AdsFormat.money(m.spend, cur)]
-        if let change = AdsFormat.change(m.spend, before?.spend) { parts.append(change) }
+        let hidden = session.spendHidden
+        var parts: [String] = hidden ? [] : [AdsFormat.money(m.spend, cur)]
+        if !hidden, let change = AdsFormat.change(m.spend, before?.spend) { parts.append(change) }
         if let r = AdsResults.of(m, goal: goal) {
             parts.append("\(AdsFormat.count(r.value)) \(r.label.lowercased())")
-            if r.value > 0 { parts.append("\(AdsFormat.money(m.spend / r.value, cur)) each") }
+            if r.value > 0 && !hidden { parts.append("\(AdsFormat.money(m.spend / r.value, cur)) each") }
         }
         let s = AdsResults.sales(m)
-        if s.value > 0 { parts.append("\(AdsFormat.money(s.value, cur)) sales · \(AdsResults.roasText(s.roas)) ROAS") }
+        if s.value > 0 && !hidden { parts.append("\(AdsFormat.money(s.value, cur)) sales · \(AdsResults.roasText(s.roas)) ROAS") }
         parts.append("\(AdsFormat.compact(m.reach)) reached")
         return Text(parts.joined(separator: " · "))
             .font(.caption)

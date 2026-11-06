@@ -41,7 +41,7 @@ struct AnaRevenueBars: View {
         Chart(days) { day in
             BarMark(x: .value("Day", day.plotDate, unit: .day), y: .value("Revenue", day.sales / Money.lac))
                 .foregroundStyle(Theme.accent.gradient)
-                .cornerRadius(3)
+                .cornerRadius(3, style: .continuous)
         }
         .frame(height: 190)
         .chartYAxisLabel("PKR lac")

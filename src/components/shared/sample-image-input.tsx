@@ -9,6 +9,7 @@
  * image is downscaled and re-encoded until it comfortably fits.
  */
 
+import { BlurImg } from '@/components/ui/blur-img';
 import React, { useRef, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -190,7 +191,7 @@ const Thumb: React.FC<{ entry: PhotoEntry; onOpen: () => void; onRemove: () => v
       <button type="button" onClick={onOpen} aria-label="Open photo" className="h-full w-full overflow-hidden rounded-md border bg-muted">
         {src
           // eslint-disable-next-line @next/next/no-img-element
-          ? <img src={src} alt="Reference" className="h-full w-full object-contain" loading="lazy" decoding="async" />
+          ? <BlurImg src={src} alt="Reference" className="h-full w-full object-contain" />
           : <div className="h-full w-full animate-pulse motion-reduce:animate-none" />}
       </button>
       <Button type="button" variant="destructive" size="icon" className="absolute -right-2 -top-2 h-6 w-6 rounded-full" onClick={onRemove} aria-label="Remove photo">

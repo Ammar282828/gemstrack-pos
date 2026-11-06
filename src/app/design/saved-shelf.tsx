@@ -24,7 +24,8 @@ import { cn } from '@/lib/utils';
 import type { AdFolder } from '@/lib/ads/studio/saved';
 import type { TreeCampaign } from '@/lib/ads/shape';
 import type { DesignRecord } from '@/lib/design/model';
-import { deletePostDraft, listPostDrafts, type PostDraft } from '@/lib/social/post-drafts';
+import { deletePostDraft, listPostDrafts, readPostDraft, savePostDraft, type PostDraft } from '@/lib/social/post-drafts';
+import { ToastAction } from '@/components/ui/toast';
 import { api, authHeaders } from '../ads/ads-kit';
 import { downloadBlob, safeName } from './studio-kit';
 import { isDesignDraft, kindLabel } from './design-state';
@@ -233,6 +234,7 @@ function DeviceDrafts({ drafts, onOpen, onChanged }: { drafts: PostDraft[] | nul
 }
 
 function DraftRow({ draft, onOpen, onChanged }: { draft: PostDraft; onOpen: (id: string) => void; onChanged: () => void }) {
+  const { toast } = useToast();
   const thumb = useThumb(draft.thumb);
   const mine = isDesignDraft(draft.state);
   const body = (
@@ -248,9 +250,15 @@ function DraftRow({ draft, onOpen, onChanged }: { draft: PostDraft; onOpen: (id:
     <div className="flex items-center gap-2 rounded-card bg-card p-2">
       <button type="button" onClick={() => onOpen(draft.id)} className="flex min-h-0 min-w-0 flex-1 items-center gap-3">{body}</button>
       <Button variant="ghost" size="icon" className="h-9 w-9 min-h-0 text-muted-foreground" aria-label="Delete this draft" onClick={async () => {
-        if (!confirm('Delete this draft from this device?')) return;
+        // Deleted at once, undone for a few seconds: the draft and its photographs are held and written back.
+        const kept = await readPostDraft<Record<string, unknown>>(draft.id).catch(() => null);
         await deletePostDraft(draft.id).catch(() => undefined);
         onChanged();
+        if (kept) toast({
+          title: 'Draft deleted',
+          duration: 6000,
+          action: <ToastAction altText="Undo: bring the draft back" onClick={() => { void savePostDraft(kept.draft, kept.blobs, new Set()).then(onChanged).catch(() => undefined); }}>Undo</ToastAction>,
+        });
       }}><Trash2 className="h-4 w-4" /></Button>
     </div>
   );

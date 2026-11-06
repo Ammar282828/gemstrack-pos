@@ -252,6 +252,9 @@ struct StockRemoteImage: View {
     let name: String
     let maxPixel: Int
     @State private var image: UIImage?
+    /// A smaller copy of this same photo already in memory (a list's thumbnail, under the detail's big one), shown blurred
+    /// until the full one arrives; nil when none was seen, and the shimmer stands in.
+    @State private var preview: UIImage?
     @State private var failed = false
 
     /// The frame's long side in pixels, rounded up to a step so nearby sizes share one decoded copy.
@@ -266,12 +269,18 @@ struct StockRemoteImage: View {
                 Image(uiImage: image).resizable().scaledToFill()
             } else if failed {
                 StockInitial(name: name)
+            } else if let preview {
+                Image(uiImage: preview).resizable().scaledToFill()
+                    .blur(radius: 8)
+                    .clipped()
+                    .accessibilityLabel("Loading the photo")
             } else {
                 SkeletonPhoto(ratio: nil, radius: 0, label: "Loading the photo")
             }
         }
         .task(id: "\(url.absoluteString)#\(maxPixel)") {
             if let hit = RemoteImageStore.shared.cached(url, maxPixel: maxPixel) { image = hit; return }
+            preview = RemoteImageStore.shared.smallerCached(url, than: maxPixel)
             if let got = await RemoteImageStore.shared.image(url, maxPixel: maxPixel) { image = got } else { failed = true }
         }
     }
@@ -299,6 +308,16 @@ final class RemoteImageStore {
     private func key(_ url: URL, _ px: Int) -> NSString { "\(url.absoluteString)#\(px)" as NSString }
 
     func cached(_ url: URL, maxPixel: Int) -> UIImage? { memory.object(forKey: key(url, maxPixel)) }
+
+    /// The largest copy of this photo already decoded at fewer pixels than `maxPixel` (sizes come in steps of 160).
+    func smallerCached(_ url: URL, than maxPixel: Int) -> UIImage? {
+        var px = maxPixel - 160
+        while px >= 160 {
+            if let hit = memory.object(forKey: key(url, px)) { return hit }
+            px -= 160
+        }
+        return nil
+    }
 
     func image(_ url: URL, maxPixel: Int) async -> UIImage? {
         if let hit = cached(url, maxPixel: maxPixel) { return hit }

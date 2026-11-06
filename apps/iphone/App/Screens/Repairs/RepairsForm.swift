@@ -664,7 +664,7 @@ extension RepairsForm {
                             .multilineTextAlignment(.trailing)
                             .monospacedDigit()
                             .frame(width: 90)
-                        Button { remove(piece.id) } label: { Image(systemName: "minus.circle") }
+                        Button { remove(piece.id) } label: { Image(systemName: "minus.circle").frame(minWidth: Metrics.tap, minHeight: Metrics.tap).contentShape(Rectangle()) }
                             .buttonStyle(.borderless)
                             .disabled(pieces.count <= 1)
                             .help("Remove this piece")

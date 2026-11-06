@@ -35,7 +35,7 @@ struct StudioScreen: View {
     @ViewBuilder
     private var phoneBody: some View {
         Group {
-            if session.role == "owner" || session.role == "marketing" {
+            if session.marketingAccess {
                 #if os(macOS)
                 // The five tabs are a segmented control in the window's toolbar.
                 page
@@ -56,7 +56,7 @@ struct StudioScreen: View {
         .modifier(HouseGround()).navigationTitle("Studio").navigationBarTitleDisplayMode(.inline)
         #if os(macOS)
         .toolbar {
-            if session.role == "owner" || session.role == "marketing" {
+            if session.marketingAccess {
                 ToolbarItem(placement: .principal) {
                     Picker("Studio", selection: $model.tab) {
                         Text("Plan").tag("plan"); Text("Photos").tag("photos"); Text("Make").tag("make")
@@ -182,7 +182,6 @@ struct StudioMaker: View {
     @State private var days = 7
     @State private var photoBrief = ""
     @State private var scene = ""
-    @State private var discarding = false
     private func field(_ key: String) -> Binding<String> { Binding(get: { model.fields[key] ?? "" }, set: { model.fields[key] = $0 }) }
     var body: some View {
         makerForm
@@ -321,10 +320,14 @@ struct StudioMaker: View {
                     if let bytes = Data(base64Encoded: model.painted["image"].s("data")), let image = UIImage(data: bytes) { Image(uiImage: image).resizable().scaledToFit().frame(maxHeight: 360) }
                     MarketingDetails(fields: model.painted.object.filter { $0.key != "image" }.mapValues(\.any))
                     Button("Use this version") { Task { await model.usePainted() } }
-                    Button("Discard version", role: .destructive) { discarding = true }
-                        .confirmationDialog("Discard this version? It can’t be brought back.", isPresented: $discarding, titleVisibility: .visible) {
-                            Button("Discard version", role: .destructive) { model.painted = .null }
-                        }
+                    Button("Discard version", role: .destructive) {
+                        // The version is only in memory, so Undo puts it back.
+                        let kept = model.painted
+                        model.painted = .null
+                        var said = Note(title: "Version discarded")
+                        said.undo = { [model] in model.painted = kept }
+                        Outbox.shared.say(said)
+                    }
                 }
             }
         }.houseRows()
@@ -564,7 +567,7 @@ struct AdsPlanScreen: View {
     @Environment(Session.self) private var session
     var body: some View {
         Group {
-            if session.role == "owner" || session.role == "marketing" {
+            if session.marketingAccess {
                 StudioPlan(model: model)
             } else { AdsOwnersOnly() }
         }

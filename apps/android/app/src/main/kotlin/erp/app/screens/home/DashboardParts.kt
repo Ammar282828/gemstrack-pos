@@ -443,25 +443,25 @@ internal fun dueLeafTone(due: DashDue): Tone = when (due.timing.state) {
 internal fun duePressing(due: DashDue): Boolean = due.timing.state == PromiseState.late || due.timing.state == PromiseState.today
 
 /** "ORD-000123", "Repair · REP-000045"; with the sum when the right-hand side is taken by how it stands. */
-internal fun dueRefText(due: DashDue): String = if (duePressing(due) && due.amount > 0) "${due.refLine} · ${Money.pkr(due.amount)}" else due.refLine
+internal fun dueRefText(due: DashDue, money: Boolean = true): String = if (money && duePressing(due) && due.amount > 0) "${due.refLine} · ${Money.pkr(due.amount)}" else due.refLine
 
-internal fun dueSpoken(due: DashDue): String {
+internal fun dueSpoken(due: DashDue, money: Boolean = true): String {
     var s = "${due.customer}, ${if (due.isRepair) "repair" else "order"} ${due.ref}, ${PromiseWords.say(due.timing).text}"
-    if (due.amount > 0) s += ", ${Money.pkr(due.amount)}"
+    if (money && due.amount > 0) s += ", ${Money.pkr(due.amount)}"
     return s
 }
 
 /** A promise to a customer, an order or a repair: the promised day as a leaf, who, which, and either how it stands (late or today) or what it comes to. */
 @Composable
-fun DashDueRow(due: DashDue, onOpen: (String) -> Unit) {
+fun DashDueRow(due: DashDue, onOpen: (String) -> Unit, money: Boolean = true) {
     val words = PromiseWords.say(due.timing)
-    DashLink({ onOpen(due.path) }, dueSpoken(due), Modifier.fillMaxWidth().defaultMinSize(minHeight = MinTouchTarget).zoomSource(due.path, Radius.tile)) {
+    DashLink({ onOpen(due.path) }, dueSpoken(due, money), Modifier.fillMaxWidth().defaultMinSize(minHeight = MinTouchTarget).zoomSource(due.path, Radius.tile)) {
         Row(Modifier.padding(vertical = 9.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
             DateLeaf(due.timing.due, tone = dueLeafTone(due), size = DUE_LEAF)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(due.customer, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
-                    dueRefText(due),
+                    dueRefText(due, money),
                     style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = TabularDigits),
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                     maxLines = 1, overflow = TextOverflow.Ellipsis,
@@ -469,7 +469,7 @@ fun DashDueRow(due: DashDue, onOpen: (String) -> Unit) {
             }
             when {
                 duePressing(due) -> Pill(words.text, tone = words.tone)
-                due.amount > 0 -> RowAmount(due.amount)
+                money && due.amount > 0 -> RowAmount(due.amount)
                 else -> Pill(words.text, tone = Tone.quiet)
             }
             DashChevron()
@@ -496,19 +496,20 @@ fun saleStanding(invoice: Invoice): SaleStanding {
 
 /** A recent sale: who (a monogram and the name), when, what it was worth, and whether it is paid. */
 @Composable
-fun DashSaleRow(invoice: Invoice, now: Instant, onOpen: (String) -> Unit) {
+fun DashSaleRow(invoice: Invoice, now: Instant, onOpen: (String) -> Unit, money: Boolean = true) {
     val name = DashText.name(invoice.customerName)
     val whenText = ShopDate.say(invoice.createdAt, withTime = true, now = now)
     val standing = saleStanding(invoice)
     val worth = invoiceSaleValue(invoice)
-    DashLink({ onOpen(DashPath.invoice(invoice.id)) }, "$name, $whenText, ${Money.pkrLac(worth)}, ${standing.text}", Modifier.fillMaxWidth().defaultMinSize(minHeight = MinTouchTarget).zoomSource(DashPath.invoice(invoice.id), Radius.tile)) {
+    DashLink({ onOpen(DashPath.invoice(invoice.id)) }, if (money) "$name, $whenText, ${Money.pkrLac(worth)}, ${standing.text}" else "$name, $whenText", Modifier.fillMaxWidth().defaultMinSize(minHeight = MinTouchTarget).zoomSource(DashPath.invoice(invoice.id), Radius.tile)) {
         Row(Modifier.padding(vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Monogram(invoice.customerName, size = SALE_MONOGRAM)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(name, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(whenText, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            // Staff see no amount and no standing: whether a sale is paid is a figure of its own.
+            if (money) Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 RowAmount(worth, lac = true)
                 Pill(standing.text, tone = standing.tone)
             }

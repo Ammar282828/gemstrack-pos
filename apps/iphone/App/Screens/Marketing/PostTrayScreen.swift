@@ -105,9 +105,9 @@ struct PostTrayScreen: View {
     }
 
     private var access: PostTrayCardSections.Access {
-        .init(design: MarketingKit.has("/design", role: session.role),
-              edit: MarketingKit.has("/website/edit", role: session.role),
-              promote: MarketingKit.has("/ads/new", role: session.role))
+        .init(design: MarketingKit.has("/design", role: session.navRole),
+              edit: MarketingKit.has("/website/edit", role: session.navRole),
+              promote: MarketingKit.has("/ads/new", role: session.navRole))
     }
 
     private func start() async {

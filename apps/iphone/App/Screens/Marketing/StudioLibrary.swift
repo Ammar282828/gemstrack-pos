@@ -17,7 +17,8 @@ struct StudioLibrary: View {
     @State private var opened: StudioAssetChoice?
     @State private var driveLink = ""
     @State private var loaded = false
-    @State private var unlinking: MarketingValue?
+    @State private var note: Note?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var queryKey: String { [model.part, q, placement, source, filter, collection, sort].joined(separator: "|") }
     var body: some View {
         #if os(macOS)
@@ -70,9 +71,23 @@ struct StudioLibrary: View {
         .task(id: queryKey) { if !House.isDemo { do { try await Task.sleep(for: .milliseconds(250)); await load() } catch {} } }
         .refreshable { await load(fresh: true) }
         .sheet(item: $opened) { choice in StudioAssetSheet(item: choice.item, placement: placement, model: model) { await load() }.presentationSizing(.page) }
-        .confirmationDialog("Unlink “\(unlinking?.s("name") ?? "this folder")”? Its photos leave the library.", isPresented: Binding(get: { unlinking != nil }, set: { if !$0 { unlinking = nil } }), titleVisibility: .visible) {
-            Button("Unlink folder", role: .destructive) { if let folder = unlinking { Task { await model.run("Unlinking folder…") { _ = try await MarketingRequest.send("/api/ads/studio/drive?id=" + AdsQuery.escape(folder.s("id")), method: "DELETE") }; await load(fresh: true) } } }
+        .noteToast($note)
+    }
+    /// Unlinking only drops the folder from the list, so Undo links the same folder again (its id is a Drive link).
+    func unlink(_ folder: MarketingValue) async {
+        let id = folder.s("id"), name = folder.s("name")
+        guard !id.isEmpty else { return }
+        await model.run("Unlinking folder…") { _ = try await MarketingRequest.send("/api/ads/studio/drive?id=" + AdsQuery.escape(id), method: "DELETE") }
+        await load(fresh: true)
+        guard model.error == nil else { return }
+        var said = Note(title: "Unlinked " + (name.isEmpty ? "the folder" : name), detail: "Its photos leave the library.")
+        said.undo = {
+            Task {
+                await model.run("Linking folder…") { _ = try await MarketingRequest.send("/api/ads/studio/drive", ["link": id]) }
+                await load(fresh: true)
+            }
         }
+        Note.show(said, in: $note, reduce: reduceMotion)
     }
     var assessment: some View {
         LedgerSection("Assessment", collapsible: true) {
@@ -94,7 +109,7 @@ struct StudioLibrary: View {
             TextField("Folder link", text: $driveLink).keyboardType(.URL).textInputAutocapitalization(.never)
             Button("Add folder") { Task { await model.run("Adding Drive folder…") { _ = try await MarketingRequest.send("/api/ads/studio/drive", ["link": driveLink]); driveLink = "" }; await load(fresh: true) } }.disabled(driveLink.isEmpty)
             ForEach(details["roots"].array, id: \.text) { folder in
-                HStack { Text(folder.s("name")); Spacer(); Button("Unlink", role: .destructive) { unlinking = folder } }
+                HStack { Text(folder.s("name")); Spacer(); Button("Unlink", role: .destructive) { Task { await unlink(folder) } } }
             }
             MarketingDetails(fields: details.object.filter { !["roots", "account"].contains($0.key) }.mapValues(\.any))
             if let url = URL(string: details.s("enableUrl")), url.scheme == "https" { Link("Enable Drive API", destination: url) }
@@ -201,9 +216,7 @@ extension StudioLibrary {
         }
         .task(id: queryKey) { if !House.isDemo { do { try await Task.sleep(for: .milliseconds(250)); await load() } catch {} } }
         .sheet(item: $opened) { choice in StudioAssetSheet(item: choice.item, placement: placement, model: model) { await load() }.presentationSizing(.page) }
-        .confirmationDialog("Unlink “\(unlinking?.s("name") ?? "this folder")”? Its photos leave the library.", isPresented: Binding(get: { unlinking != nil }, set: { if !$0 { unlinking = nil } }), titleVisibility: .visible) {
-            Button("Unlink folder", role: .destructive) { if let folder = unlinking { Task { await model.run("Unlinking folder…") { _ = try await MarketingRequest.send("/api/ads/studio/drive?id=" + AdsQuery.escape(folder.s("id")), method: "DELETE") }; await load(fresh: true) } } }
-        }
+        .noteToast($note)
     }
 }
 #endif

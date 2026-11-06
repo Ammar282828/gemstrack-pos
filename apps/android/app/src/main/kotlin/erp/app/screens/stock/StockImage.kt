@@ -1,5 +1,6 @@
 package erp.app.screens.stock
 
+import coil3.request.crossfade
 import erp.app.ui.SkeletonPhoto
 import erp.app.ui.Loading
 import android.graphics.BitmapFactory
@@ -62,8 +63,9 @@ fun StockImage(imageUrl: String?, name: String, key: String, modifier: Modifier 
                 var failed by remember(source) { mutableStateOf(false) }
                 if (failed) StockInitial(name) else {
                     val context = LocalContext.current
-                    val request = remember(source, decodePx) {
-                        ImageRequest.Builder(context).data(source).size(Size(decodePx, decodePx)).build()
+                    val reduce = erp.app.ui.reduceMotion()
+                    val request = remember(source, decodePx, reduce) {
+                        ImageRequest.Builder(context).data(source).size(Size(decodePx, decodePx)).crossfade(!reduce).build()
                     }
                     AsyncImage(
                         model = request, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop,

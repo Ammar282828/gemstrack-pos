@@ -52,7 +52,8 @@ struct InvoiceScreen: View {
     /// The margin is the shop's own (lib/margin.ts): owners and staff see it, blurred until tapped, and
     /// never a customer (docs/decisions.md "Margin"). Mina's silver is not costed that way: its web page
     /// shows none (NEXT_PUBLIC_STORE_COST_RATTI_LESS "none").
-    private var showsMargin: Bool { House.margin.rattiLess != nil }
+    /// Owners only since 2026-11-05: staff see no margin (decision "Staff see no money").
+    private var showsMargin: Bool { House.margin.rattiLess != nil && session.seesMoney }
 
     /// Pieces shown before "Show N more".
     private let firstPieces = 5

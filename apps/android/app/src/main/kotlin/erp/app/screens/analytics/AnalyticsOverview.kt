@@ -1,13 +1,8 @@
 package erp.app.screens.analytics
 
-import erp.app.ui.icons.Symbols
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import erp.app.ui.Button
-import erp.app.ui.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -16,263 +11,229 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import erp.app.config.House
 import erp.app.data.ErpApi
-import erp.app.nav.LocalNavigator
 import erp.app.nav.ScreenActions
-import erp.app.screens.home.DashDisclosure
-import erp.app.screens.money.Footnote
 import erp.app.screens.money.MoneySheet
 import erp.app.screens.money.PickerRow
-import erp.app.ui.ActionRow
 import erp.app.ui.AppClock
-import erp.app.ui.DividedColumn
-import erp.app.ui.FigureGrid
-import erp.app.ui.FigureTile
-import erp.app.ui.LedgerSection
-import erp.app.ui.MoneyRow
+import erp.app.ui.Button
+import erp.app.ui.IconButton
 import erp.app.ui.PdfDocumentScreen
-import erp.app.ui.RowAmount
-import erp.app.ui.SectionCard
 import erp.app.ui.Tone
-import erp.app.ui.TwoLine
-import erp.app.ui.ValueRow
 import erp.app.ui.color
-import erp.app.ui.fill
+import erp.app.ui.icons.Symbols
 import erp.app.ui.ledgerCard
-import erp.app.ui.ledgerRow
-import erp.app.ui.theme.ErpColors
 import erp.core.ERPDate
-import erp.core.logic.MarginSettings
 import erp.core.logic.Money
-import erp.core.logic.NetProfit
 import java.time.LocalDate
-import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
- * Analytics → Overview (analytics-view.tsx, section "overview"): how the shop is doing in the period. The money
- * figures first, the counts beneath, the gold by weight, the coins on their own, the cash that actually moved, and what
- * the expenses were. Est. profit, expenses and the cash out side are the owners' books: a staff account that reaches
- * this page sees the sales side alone.
+ * Analytics → Overview (components/analytics/pages/overview.tsx): how is the shop doing, in one glance. Four headline
+ * figures against the period before (Revenue, Net profit, Net cash, Still to collect), then one picture per question
+ * (sales over time, revenue to profit, money in and out, what sold, who bought, the metal sold, where the money went, the
+ * best pieces), each with one computed sentence. A whole card is a door to the page that answers it in depth; a card with
+ * nothing to show is left out rather than drawn empty. The month's PDF stays here.
  */
 @Composable
-fun AnaOverviewPage(figures: AnaFigures, period: AnaPeriodState, showCosts: Boolean, margin: MarginSettings) {
+fun AnaOverviewPage(l: AnaLedger, period: AnaPeriodState) {
     var monthlyPdf by remember { mutableStateOf(false) }
     // The month's PDF is the ERP's own: any month, drawn by the server, the same document the 1st's WhatsApp report carries.
-    if (showCosts) {
-        ScreenActions {
-            IconButton(onClick = { monthlyPdf = true }) { Icon(Symbols.PictureAsPdf, contentDescription = "Monthly PDF") }
-        }
+    ScreenActions {
+        IconButton(onClick = { monthlyPdf = true }) { Icon(Symbols.PictureAsPdf, contentDescription = "Monthly PDF") }
     }
+    val open = rememberAnaOpen()
+    val b = l.books
+    val prev = l.prev
+    val against = l.previous?.label ?: "the period before"
+
+    // Revenue per day, week or month (whichever suits the range), the period before on the same axis.
+    val trend = remember(l) {
+        val bucket = erp.core.logic.autoBucket(l.range, l.now)
+        val cur = erp.core.logic.bucketSeries(b.salesOverTime, bucket, l.range, l.now)
+        val before = if (l.previous != null && prev != null) erp.core.logic.bucketSeries(prev.salesOverTime, bucket, l.previous.range, l.now) else null
+        erp.core.logic.compareSeries(cur, before) to cur.map { it.sales }
+    }
+
     AnaPage(period) {
-        AnaColumns(
-            left = {
-                MoneySection(figures, showCosts, margin)
-                TrendSection(figures)
-                CountsSection(figures)
-                if (!showCosts) StaffNote()
-            },
-            right = {
-                GoldSection(figures)
-                CoinsSection(figures)
-                CashSection(figures, showCosts)
-                if (showCosts) ExpensesSection(figures)
-            },
-        )
+        AnaTiles(l, trend.second, against, open)
+        AnaCardGrid(overviewCards(l, trend.first, open))
     }
     if (monthlyPdf) MonthlyReportSheet(onDismiss = { monthlyPdf = false })
 }
 
-// MARK: Money
+// MARK: The four figures
 
 @Composable
-private fun MoneySection(f: AnaFigures, showCosts: Boolean, margin: MarginSettings) {
-    // Less the running costs only: not drawings, not the goods the margin already allows for (NetProfit.isRunningCost).
-    // Before them: the estimate, or revenue less the goods bought where the house records them (Mina: f.profit).
-    val net = NetProfit.of(f.profit, f.runningExpenses)
-    val netPct = NetProfit.marginPercent(net, f.totalSales)
-    val netDetail = if (f.totalSales > 0) "${AnaFormat.fixed(netPct, 1)}% margin · ${if (f.recordsGoods) "gross" else "est."} profit less running costs" else "No revenue in period"
-    val netTint = if (net >= 0) Tone.settled.color() else Tone.owed.color()
-    // Split running · goods · drawings where any is not running (the web's Expenses tile).
-    val expensesDetail = if (f.goodsExpenses > 0 || f.runningExpenses != f.totalExpenses) {
-        listOfNotNull(
-            "Running ${Money.pkrLac(f.runningExpenses)}",
-            if (f.goodsExpenses > 0) "goods ${Money.pkrLac(f.goodsExpenses)}" else null,
-            if (f.drawingsExpenses > 0) "drawings ${Money.pkrLac(f.drawingsExpenses)}" else null,
-        ).joinToString(" · ")
-    } else "Paid out in this period"
-    val assumed = (margin.assumedMargin * 100).roundToInt()
-    val costedByGold = margin.rattiLess != null && f.salesCosted > 0
-    val estDetail = if (f.recordsGoods) "Revenue less goods bought"
-    else if (!costedByGold || f.totalSales <= 0) "Revenue × $assumed%"
-    else AnaFormat.number((f.estProfit / f.totalSales * 1000).let { Math.floor(it + 0.5) } / 10, 1) + "% of revenue"
-    val estNote = if (f.recordsGoods) "Gross profit is revenue less the goods bought (${Money.pkrLac(f.goodsExpenses)}); goods not yet sold count as spent. At $assumed% it would be ${Money.pkrLac(f.estProfit)}."
-    else if (!costedByGold) "Est. profit is revenue × $assumed%, before expenses."
-    else "Est. profit: ${f.salesCosted} of ${f.salesCount} sales from their 24k rate, the rest at $assumed%, before expenses."
-
-    FigureGrid {
-        FigureTile("Revenue", Money.pkrLac(f.totalSales), detail = "Sales in this period", tint = Tone.settled.color(), number = f.totalSales)
-        if (showCosts) {
-            FigureTile("Expenses", Money.pkrLac(f.totalExpenses), detail = expensesDetail, tint = Tone.owed.color(), number = f.totalExpenses)
-            FigureTile(if (f.recordsGoods) "Gross profit" else "Est. profit", Money.pkrLac(f.profit), detail = estDetail, tint = ErpColors.accent, number = f.profit)
-            FigureTile("Net profit", Money.pkrLac(net), detail = netDetail, tint = netTint, number = net)
-        }
-    }
-    DashDisclosure("Revenue and profit details") {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            MoneyRow("Invoices", f.invoiceSales, lac = true)
-            MoneyRow("Orders", f.orderSales, lac = true)
-            MoneyRow("Extra revenue", f.extraRevenue, lac = true)
-            if (showCosts) Footnote(estNote, Modifier.padding(horizontal = 0.dp))
-        }
+private fun AnaTiles(l: AnaLedger, spark: List<Double>, against: String, open: (String) -> Unit) {
+    val b = l.books
+    val prev = l.prev
+    erp.app.ui.FigureGrid {
+        AnaKpiTile(
+            "Revenue", Money.pkrLac(b.totalSales), b.totalSales, delta = anaDelta(b.totalSales, prev?.totalSales), against = against,
+            spark = spark, onOpen = { open("/analytics/sales") },
+        )
+        AnaKpiTile(
+            "Net profit", Money.pkrLac(b.netProfit), b.netProfit, delta = anaDelta(b.netProfit, prev?.netProfit), against = against,
+            sub = "${AnaFormat.fixed(b.netMargin, 0)}% margin", onOpen = { open("/analytics/profit") },
+        )
+        AnaKpiTile(
+            "Net cash", Money.pkrLac(b.netCashFlow), b.netCashFlow, delta = anaDelta(b.netCashFlow, prev?.netCashFlow), against = against,
+            sub = "in ${Money.pkrLac(b.cashIn)} · out ${Money.pkrLac(b.cashOut)}", onOpen = { open("/analytics/cash") },
+        )
+        AnaKpiTile(
+            "Still to collect", Money.pkrLac(b.totalUnpaid), b.totalUnpaid, tint = Tone.owed.color(), onOpen = { open("/analytics/cash") },
+        )
     }
 }
 
-@Composable
-private fun TrendSection(f: AnaFigures) {
-    if (f.salesOverTime.isEmpty()) return
-    val navigator = LocalNavigator.current
-    SectionCard("Revenue over time") {
-        AnaRevenueBars(f.salesOverTime)
-        ActionRow("Sales details", onClick = { navigator.open("/analytics/sales") }, icon = Symbols.BarChart)
+// MARK: One picture per question
+
+/** The Overview's cards in the web's order; a card with nothing to say is not in the list. */
+private fun overviewCards(l: AnaLedger, trendRows: List<erp.core.logic.ComparedRow>, open: (String) -> Unit): List<@Composable () -> Unit> {
+    val b = l.books
+    val metalWord = anaMetalWord()
+    val cards = ArrayList<@Composable () -> Unit>()
+
+    // Sales over time
+    if (b.salesOverTime.isNotEmpty()) cards.add {
+        val bestDay = b.salesOverTime.fold(null as erp.core.logic.SalesDay?) { m, d -> if (d.sales > (m?.sales ?: 0.0)) d else m }
+        AnaChartCard(
+            "Sales over time", takeaway = bestDay?.let { "Best day ${AnaDate.weekdayDayMonth(it.date)} · ${Money.pkrLac(it.sales)}" } ?: "No sales in this period",
+            open = { open("/analytics/sales") },
+        ) {
+            AnaTrendChart(trendRows, showPrev = l.previous != null, prevName = l.previous?.let { "Compared with ${it.label}" })
+        }
     }
+
+    // Revenue to profit
+    if (b.totalSales > 0) cards.add {
+        AnaChartCard(
+            "From revenue to profit",
+            takeaway = if (b.netProfit >= 0) "Kept PKR ${b.netMargin.roundToInt()} of every PKR 100" else "A loss of ${Money.pkrLac(-b.netProfit)} after running costs",
+            open = { open("/analytics/profit") },
+        ) { AnaWaterfall(profitSteps(l, short = true)) }
+    }
+
+    // Money in and out
+    if (b.cashIn > 0 || b.cashOut > 0) cards.add {
+        AnaChartCard(
+            "Money in and out",
+            takeaway = "${Money.pkrLac(b.cashIn)} in, ${Money.pkrLac(b.cashOut)} out: net ${if (b.netCashFlow < 0) "−" else ""}${Money.pkrLac(kotlin.math.abs(b.netCashFlow))}",
+            open = { open("/analytics/cash") },
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                AnaLabelledStack("In", anaCashInParts(l))
+                AnaLabelledStack("Out", anaCashOutParts(l))
+            }
+        }
+    }
+
+    // What sold
+    val cats = b.salesByCategory.sortedByDescending { it.sales }.take(5)
+    val catTotal = b.salesByCategory.sumOf { it.sales }
+    if (cats.isNotEmpty() && catTotal > 0) cards.add {
+        AnaChartCard("What sold", takeaway = "${cats[0].categoryName} were ${anaPercent(cats[0].sales, catTotal)}% of sales", open = { open("/analytics/categories") }) {
+            AnaHBars(cats.map { AnaHBar(it.categoryName, it.sales) })
+        }
+    }
+
+    // Who bought
+    val buyers = b.newCustomers + b.returningCustomers
+    if (buyers > 0) cards.add {
+        val topSource = b.sourceBreakdown.filter { it.key != "unclassified" && it.revenue > 0 }.maxByOrNull { it.revenue }
+        AnaChartCard(
+            "Who bought",
+            takeaway = if (b.newCustomers > 0) "${anaPlural(b.newCustomers, "new customer")} brought ${Money.pkrLac(b.revenueFromNew)}"
+            else "${anaPlural(b.returningCustomers, "returning customer")} brought ${Money.pkrLac(b.revenueFromReturning)}, none new",
+            open = { open("/analytics/customers") },
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                AnaLabelledStack("Customers", listOf(AnaPartSpec("New", b.newCustomers.toDouble(), 1), AnaPartSpec("Returning", b.returningCustomers.toDouble(), 2))) { it.roundToInt().toString() }
+                AnaLabelledStack("Revenue", listOf(AnaPartSpec("New", b.revenueFromNew, 1), AnaPartSpec("Returning", b.revenueFromReturning, 2)))
+                if (topSource != null) AnaMuted("Most came through ${topSource.label} · ${Money.pkrLac(topSource.revenue)}")
+            }
+        }
+    }
+
+    // Metal sold (hidden when nothing was weighed and no coins)
+    val coins = b.coinSummary
+    if (b.metalGrams > 0 || coins.coins > 0) cards.add {
+        val topKarat = b.metalByKarat.maxByOrNull { it.grams }
+        AnaChartCard(
+            "$metalWord sold",
+            takeaway = if (b.metalGrams > 0) "${anaTola(b.metalGrams)} left the shop${topKarat?.let { ", mostly ${it.karat}" } ?: ""}"
+            else "${anaPlural(coins.coins.roundToInt(), "coin")} sold, no jewellery weighed",
+            open = { open("/analytics/metal") },
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (b.metalGrams > 0) AnaLabelledStack(null, b.metalByKarat.map { AnaPartSpec(it.karat, it.grams, karat = it.karat) }) { anaTola(it) }
+                if (coins.coins > 0) AnaMuted("$metalWord coins, apart: ${anaPlural(coins.coins.roundToInt(), "coin")} · ${anaTola(coins.grams)} · ${Money.pkrLac(coins.revenue)}")
+            }
+        }
+    }
+
+    // Where the money went
+    val spend = b.expensesByCategory.sortedByDescending { it.amount }.take(5)
+    if (b.totalExpenses > 0 && spend.isNotEmpty()) cards.add {
+        AnaChartCard(
+            "Where the money went",
+            takeaway = "${Money.pkrLac(b.totalExpenses)} spent, ${anaPercent(spend[0].amount, b.totalExpenses)}% on ${spend[0].category}",
+            open = { open("/analytics/spending") },
+        ) {
+            AnaHBars(spend.map { AnaHBar(it.category, it.amount, anaKindColor(it.kind), anaKindLabel(it.kind).lowercase()) })
+        }
+    }
+
+    // Best pieces
+    val pieces = b.topProductsByRevenue.take(5)
+    if (pieces.isNotEmpty()) cards.add {
+        AnaChartCard("Best pieces", takeaway = "${pieces[0].name} led with ${Money.pkrLac(pieces[0].revenue)}", open = { open("/analytics/products") }) {
+            AnaHBars(pieces.map { AnaHBar(it.name, it.revenue) })
+        }
+    }
+    return cards
 }
 
-// MARK: Counts
-
-@Composable
-private fun CountsSection(f: AnaFigures) {
-    LedgerSection("Orders and pieces", collapsible = true) {
-        DividedColumn {
-            if (f.totalUnpaid > 0) ValueRow("Outstanding") { RowAmount(f.totalUnpaid, lac = true, tone = Tone.owed.color()) }
-            ValueRow("Orders") { Text(f.totalOrders.toString(), style = MaterialTheme.typography.bodyLarge) }
-            ValueRow("Avg. order") { RowAmount(f.averageOrderValue, lac = true) }
-            ValueRow("Items sold") { Text(AnaFormat.count(f.totalItemsSold), style = MaterialTheme.typography.bodyLarge) }
-            ValueRow("Discounts") { RowAmount(f.totalDiscounts, lac = true) }
-            ValueRow("Items / order") { Text(AnaFormat.fixed(f.averageItemsPerOrder, 2), style = MaterialTheme.typography.bodyLarge) }
-        }
-    }
+/** Revenue to profit as the web's two waterfalls draw it: the Overview's short words, Profit's long ones. */
+internal fun profitSteps(l: AnaLedger, short: Boolean): List<AnaStep> {
+    val b = l.books
+    val goods = l.recordsGoods
+    val profitWord = if (goods) "Gross profit" else if (short) "Profit" else "Est. profit"
+    return listOf(
+        AnaStep("Revenue", AnaStepKind.total, b.totalSales),
+        AnaStep(if (goods) (if (short) "Goods" else "Goods bought") else (if (short) "Pieces cost" else "Cost of pieces (est.)"), AnaStepKind.change, -maxOf(0.0, b.costOfPieces)),
+        AnaStep(profitWord, AnaStepKind.total, b.estProfitAdj),
+        AnaStep(if (short) "Running" else "Running costs", AnaStepKind.change, -b.runningExpenses),
+        AnaStep("Net profit", AnaStepKind.total, b.netProfit),
+    )
 }
 
-// MARK: Gold sold, by weight
-
-/**
- * Rupees move with the rate; grams do not, and grams are what the shop actually parted with. Both units, because the
- * trade quotes in tola and the scale reads in grams.
- */
-@Composable
-private fun GoldSection(f: AnaFigures) {
-    if (f.goldGrams <= 0) return
-    val tolaText = AnaFormat.number(AnaFormat.tola(f.goldGrams), 3) + " tola"
-    val weighed = AnaFormat.number(f.goldGrams, 2) + " g · " + AnaFormat.count(f.goldPieces) +
-        (if (f.goldPieces == 1.0) " piece" else " pieces") + " weighed"
-    LedgerSection("Gold sold") {
-        ValueRow("Total") {
-            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(tolaText, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold))
-                Text(weighed, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-    }
-    DashDisclosure("By karat") {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            for (k in f.goldByKarat) {
-                TwoLine(
-                    title = k.karat.uppercase(),
-                    subtitle = AnaFormat.number(k.grams, 2) + " g · " + AnaFormat.count(k.pieces),
-                    trailing = AnaFormat.number(AnaFormat.tola(k.grams), 3) + " tola",
-                )
-            }
-        }
-    }
+/** Where the cash came from (`inParts` of the web's Overview and Cash). */
+internal fun anaCashInParts(l: AnaLedger): List<AnaPartSpec> {
+    val b = l.books
+    return listOf(
+        AnaPartSpec("Invoice payments", b.cashInFromInvoicePayments, 1),
+        AnaPartSpec("Order advances", b.cashInFromOrderAdvances, 2),
+        AnaPartSpec("Exchange", b.cashInFromExchange, 3),
+        AnaPartSpec("Extra revenue", b.cashInFromExtraRevenue, 4),
+    )
 }
 
-// MARK: Gold coins, on their own
-
-/** A coin sells at the metal price plus a sliver; a ring carries making and margin. Nothing in this section is in the figures above. */
-@Composable
-private fun CoinsSection(f: AnaFigures) {
-    if (f.coinInvoiceCount <= 0) return
-    val c = f.coin
-    LedgerSection("Gold coins") {
-        if (c.invoices > 0) {
-            val bills = c.invoices.toString() + " " + AnaFormat.plural(c.invoices, "bill", "bills") + " in this period"
-            TwoLine("Coin revenue", Modifier.ledgerRow(), subtitle = bills, trailing = Money.pkrLac(c.revenue))
-        } else {
-            Text("No coin bills in this period.", Modifier.ledgerRow(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-    if (c.invoices > 0) {
-        DashDisclosure("Coin details") {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                TwoLine(
-                    "Coins sold",
-                    subtitle = if (c.grams > 0) AnaFormat.weight(c.grams) else "No weight recorded",
-                    trailing = AnaFormat.count(c.coins),
-                )
-                TwoLine(
-                    "Realised / gram",
-                    subtitle = "Revenue over grams, all-in",
-                    trailing = if (c.ratePerGram > 0) Money.pkrLac(c.ratePerGram) else "—",
-                )
-                if (c.outstanding >= 1) {
-                    TwoLine("Outstanding", subtitle = "Still owed on coin bills", trailing = Money.pkrLac(c.outstanding), trailingTint = Tone.owed.color())
-                }
-                Footnote("Coin figures are separate from jewellery revenue and profit.", Modifier.padding(horizontal = 0.dp))
-            }
-        }
-    }
-}
-
-// MARK: Cash flow
-
-/**
- * Actual money in against out during the period. Revenue counts what was earned, including future cash from open orders
- * and unpaid invoices; cash flow counts only what physically moved.
- */
-@Composable
-private fun CashSection(f: AnaFigures, showCosts: Boolean) {
-    val net = f.netCashFlow
-    // Gold taken off an invoice's total is in Cash In but was never in revenue.
-    val gap = f.totalSales - (f.cashIn - f.creditPaidBack - f.exchangeOffInvoices)
-    val netSign = if (net >= 0) "+" else "−"
-    val netTint = if (net >= 0) Tone.settled.color() else Tone.owed.color()
-    LedgerSection("Cash flow") {
-        DividedColumn {
-            TwoLine("Cash in", Modifier.ledgerRow(), trailing = Money.pkrLac(f.cashIn), trailingTint = Tone.settled.color())
-            if (showCosts) {
-                TwoLine("Cash out", Modifier.ledgerRow(), subtitle = "Every expense paid in this period" + if (f.creditPaidBack > 0) " · Credit paid back: ${Money.pkrLac(f.creditPaidBack)}" else "", trailing = Money.pkrLac(f.cashOut), trailingTint = Tone.owed.color())
-                TwoLine(
-                    "Net cash flow", Modifier.ledgerRow(),
-                    subtitle = if (net >= 0) "Business gained cash in this period" else "Business spent more cash than it took in",
-                    trailing = netSign + Money.pkrLac(abs(net)), trailingTint = netTint,
-                )
-            }
-        }
-    }
-    DashDisclosure("Cash breakdown") {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            for ((label, amount) in cashInParts(f)) {
-                Column {
-                    MoneyRow(label, amount, lac = true)
-                }
-            }
-            if (gap > 0) {
-                Footnote(
-                    "${Money.pkrLac(gap)} of recognised revenue is not yet collected: it sits as customer receivables and uninvoiced open orders. That gap is the difference between revenue (what was earned) and Cash in, leaving out gold taken off a bill (it is off the revenue too).",
-                    Modifier.padding(horizontal = 0.dp), tone = Tone.owed,
-                )
-            }
-            Footnote("Cash flow counts money received and paid. Revenue also includes unpaid sales and open orders.", Modifier.padding(horizontal = 0.dp))
-        }
-    }
+/** Where the cash went: running costs, goods, drawings, and credit handed back. */
+internal fun anaCashOutParts(l: AnaLedger): List<AnaPartSpec> {
+    val b = l.books
+    return listOf(
+        AnaPartSpec(anaKindLabel(erp.core.logic.ExpenseKind.running), b.cashOutRunning, kind = erp.core.logic.ExpenseKind.running),
+        AnaPartSpec(anaKindLabel(erp.core.logic.ExpenseKind.goods), b.cashOutGoods, kind = erp.core.logic.ExpenseKind.goods),
+        AnaPartSpec(anaKindLabel(erp.core.logic.ExpenseKind.drawings), b.cashOutDrawings, kind = erp.core.logic.ExpenseKind.drawings),
+        AnaPartSpec("Credit paid back", b.creditPaidBack, 4),
+    )
 }
 
 /** What the cash in was made of: invoice payments always, the rest when there was any. */
@@ -283,34 +244,6 @@ internal fun cashInParts(f: AnaFigures): List<Pair<String, Double>> {
     if (cash.exchange > 0) parts.add("Exchange" to cash.exchange)
     if (cash.extraRevenue > 0) parts.add("Extra revenue" to cash.extraRevenue)
     return parts
-}
-
-// MARK: Expenses by category
-
-@Composable
-private fun ExpensesSection(f: AnaFigures) {
-    val rows = f.expensesByCategory
-    SectionCard("Expenses by category") {
-        if (rows.isEmpty()) {
-            Text("No expenses recorded for the selected period.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        } else {
-            AnaBarChart(rows.map { AnaBar(it.category, it.category, it.amount) }, tint = Tone.owed.fill().copy(alpha = 0.8f))
-        }
-    }
-    if (rows.isNotEmpty()) {
-        DashDisclosure("All categories · ${rows.size}") {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                for (e in rows) MoneyRow(e.category, e.amount)
-            }
-        }
-    }
-}
-
-@Composable
-private fun StaffNote() {
-    Column(Modifier.fillMaxWidth().ledgerCard()) {
-        Footnote("Expenses, extra revenue and what the shop earns are the owners’ books, so these figures are from sales and orders only.", Modifier.padding(horizontal = 0.dp))
-    }
 }
 
 // MARK: The monthly PDF

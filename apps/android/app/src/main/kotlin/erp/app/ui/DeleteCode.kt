@@ -33,6 +33,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.autofill.ContentType
+import androidx.compose.ui.semantics.contentType
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -174,7 +176,8 @@ fun OwnerDeleteCodeSheet(deletion: OwnerDeletion, onDismiss: () -> Unit, onDone:
                     // Typing again clears the last refusal; the box emptied after one keeps it said.
                     if (digits.isNotEmpty()) error = null
                 },
-                modifier = Modifier.fillMaxWidth(),
+                // A password to the system: hidden from screenshots of the field and from accessibility's read-out of its text.
+                modifier = Modifier.fillMaxWidth().semantics { contentType = ContentType.Password },
                 label = { Text("Delete code") },
                 textStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center),
                 singleLine = true,

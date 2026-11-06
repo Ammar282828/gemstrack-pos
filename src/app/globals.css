@@ -919,8 +919,12 @@ html.ui-glass .glass-fab:active { transform: scale(0.94); }
 
 /* The top bar's height, for anything sticky beneath it (Hisaab's toolbar): a phone page with sibling
    tabs carries them as a second row (app-layout.tsx), 2.75rem under the 3.5rem bar. */
-.app-inset { --app-header-h: 3.5rem; }
-@media (max-width: 767px) { .app-inset.has-page-tabs { --app-header-h: 6.25rem; } }
+.app-inset { --app-header-h: calc(3.5rem + env(safe-area-inset-top)); }
+@media (max-width: 767px) { .app-inset.has-page-tabs { --app-header-h: calc(6.25rem + env(safe-area-inset-top)); } }
+/* viewport-fit=cover (layout.tsx) draws under the notch and home bar: the top bar clears the notch /
+   status bar, and a landscape phone keeps the sides clear of the notch. */
+.app-header { padding-top: env(safe-area-inset-top); }
+body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
 
 /* ═══════════════════════════════════════════════════════════════════════════
    The app look (docs/features/web-matches-app.md, 2026-10-12)
@@ -1031,4 +1035,31 @@ body.app-look .ledger-rows .ui-field:focus {
     -webkit-user-select: none;
     user-select: none;
   }
+}
+
+/* ── Typography: balanced titles, no one-word last lines in running text ─────── */
+h1, h2, h3, h4, [data-slot="dialog-title"], .card-title { text-wrap: balance; }
+p, li, figcaption { text-wrap: pretty; }
+
+/* Figures line up in a column: every table cell, whatever the font's default digits. */
+td, th { font-variant-numeric: tabular-nums; }
+
+/* ── Continuous corners (progressive enhancement) ────────────────────────────────
+   Where the browser has `corner-shape` (Chrome 139+), cards, fields, windows and popovers take
+   Apple's squircle. A squircle reads smaller than a circular arc of the same radius, so the tokens
+   grow by a quarter inside this block to keep the look. Elsewhere nothing changes. */
+@supports (corner-shape: squircle) {
+  :root, html.ui-glass {
+    --r-card: 1.72rem; --r-card-sm: 1.56rem; --r-tile: 1.09rem; --r-control: 0.94rem;
+    --r-window: 2.19rem; --r-bar: 1.56rem; --r-popover: 1.25rem;
+  }
+  .rounded-card, .rounded-card-sm, .rounded-tile, .rounded-control, .card, .alert, .ui-field,
+  .glass-window, .glass-popover, .glass-bar, .glass-toast, .glass-toolbar, .dialog-sheet {
+    corner-shape: squircle;
+  }
+}
+
+/* A finger's target: icon buttons are 44 x 44 on a touch screen (the desktop keeps its 40). */
+@media (pointer: coarse) {
+  button.h-10.w-10, a.h-10.w-10, .btn.h-10.w-10 { min-width: 2.75rem; min-height: 2.75rem; }
 }

@@ -1,5 +1,6 @@
 package erp.app.screens.money
 
+import erp.app.ui.theme.tabular
 import erp.app.ui.groupRowFill
 import erp.app.ui.glassRow
 import erp.app.ui.animatedItem
@@ -311,7 +312,7 @@ private fun LedgerRow(line: HisaabLedgerLine, showGold: Boolean) {
             if (e.cashCredit > 0) Moved("You got ${Money.pkr(e.cashCredit)}", Tone.settled.color(), big = true)
             if (e.goldDebitGrams > 0) Moved("You gave ${MoneyFormat.grams(e.goldDebitGrams)}", Tone.owed.color())
             if (e.goldCreditGrams > 0) Moved("You got ${MoneyFormat.grams(e.goldCreditGrams)}", Tone.settled.color())
-            Text("Balance ${Money.pkr(line.cash)}", style = MaterialTheme.typography.bodySmall, color = balanceTone(line.cash))
+            Text("Balance ${Money.pkr(line.cash)}", style = MaterialTheme.typography.bodySmall.tabular(), color = balanceTone(line.cash))
             if (showGold) Text("${MoneyFormat.grams(line.gold)} ${MoneyWords.metal}", style = MaterialTheme.typography.bodySmall, color = balanceTone(line.gold))
         }
     }

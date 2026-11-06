@@ -48,6 +48,9 @@ object AnaSku {
 /** Where a customer's row opens. */
 object AnaPath {
     fun customer(id: String): String = "/customers/" + URLEncoder.encode(id, "UTF-8").replace("+", "%20").replace("*", "%2A")
+
+    /** An invoice's page (a row of Who still owes us opens it). */
+    fun invoice(id: String): String = "/invoices/" + URLEncoder.encode(id, "UTF-8").replace("+", "%20").replace("*", "%2A")
 }
 
 /** JavaScript's `sort` is stable; Kotlin's is too, so this is a descending sort that keeps first-seen order among equals. */

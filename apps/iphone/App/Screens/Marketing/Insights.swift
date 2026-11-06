@@ -543,7 +543,7 @@ struct InsightsOverviewScreen: View {
     @State private var found: [InsightFinding] = []
     @State private var problem: String?
 
-    private var mayRead: Bool { session.role == "owner" || session.role == "marketing" }
+    private var mayRead: Bool { session.marketingAccess }
 
     var body: some View {
         Group {
@@ -843,7 +843,7 @@ struct InsightsPostsScreen: View {
     @State private var macMade = Memo<[InsightPost]>()
     #endif
 
-    private var mayRead: Bool { session.role == "owner" || session.role == "marketing" }
+    private var mayRead: Bool { session.marketingAccess }
     private static let filters: [(key: String, label: String)] = [("all", "All"), ("reel", "Reels"), ("post", "Photos"), ("carousel", "Carousels"), ("story", "Stories"), ("fb", "Facebook"), ("older", "Older, still earning")]
     private static let sorts: [(key: String, label: String)] = [("at", "Newest"), ("views", "Views"), ("reach", "Reach"), ("interactions", "Interactions"), ("rate", "Engagement rate"), ("shares", "Shares"), ("saves", "Saves")]
 
@@ -1034,7 +1034,7 @@ struct InsightsAudienceScreen: View {
     @State private var problem: String?
     @State private var group = "followers"
 
-    private var mayRead: Bool { session.role == "owner" || session.role == "marketing" }
+    private var mayRead: Bool { session.marketingAccess }
 
     var body: some View {
         Group {

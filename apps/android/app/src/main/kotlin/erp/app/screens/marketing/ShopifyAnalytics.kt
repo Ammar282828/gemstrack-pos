@@ -1,5 +1,7 @@
 package erp.app.screens.marketing
 
+import erp.core.Json
+import kotlinx.coroutines.withContext
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -96,7 +98,8 @@ fun ShopifySwitchHost(page: String, catalogue: @Composable () -> Unit, shopify: 
     var mode by remember { mutableStateOf(if (Prefs.string("erp.websiteView.$page") == "catalogue") "catalogue" else "shopify") }
     var probe by remember { mutableStateOf(Prefs.string(PROBE_KEY)?.let { if (it == "1") "yes" else if (it == "0") "no" else "unknown" } ?: "unknown") }
     var failed by remember { mutableStateOf(false) }
-    val available = !demo && (told ?: (probe == "yes"))
+    // Shopify's analytics carry sales: a staff member who runs the marketing sees the site's own counters instead (staff-see-no-money).
+    val available = !demo && !session.spendHidden && (told ?: (probe == "yes"))
     val waiting = !demo && told == null && session.isOwner && probe != "yes" && probe != "no" && !failed
 
     // One look at the route, only where the ERP has not said and the answer is not known: 200 is yes, 404 no. A failed look
@@ -173,9 +176,16 @@ fun ShopifyVisitorsScreen() {
     // The previous report stays while the next period loads; a failure shows only when there is nothing to show.
     suspend fun load() {
         try {
-            val r = ShopReport.from(ErpApi.shared.get(path)) ?: throw ErpApi.Failure(0, "The ERP's answer couldn't be read.")
-            report = r
-            problem = null
+            // The last kept report at once, then the ERP's (it replaces it).
+            var got = false
+            ErpApi.shared.cachedThenFresh(path).collect { read ->
+                val r = withContext(kotlinx.coroutines.Dispatchers.Default) { ShopReport.from(Json.parse(read.text)) }
+                    ?: if (read.fresh) throw ErpApi.Failure(0, "The ERP's answer couldn't be read.") else return@collect
+                report = r
+                problem = null
+                got = true
+            }
+            if (!got) throw ErpApi.Failure(0, "The ERP's answer couldn't be read.")
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

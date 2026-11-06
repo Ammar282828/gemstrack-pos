@@ -16,6 +16,7 @@ import { INPUT_TO_RATE, ratesToKeep, type RateInputKey } from '@/lib/rates';
 import { RateStaleNotice } from '@/components/rates/rate-chip';
 import { CustomerAutocomplete } from '@/components/customer/customer-autocomplete';
 import { useAppReady } from '@/hooks/use-store';
+import { useIntentId } from '@/hooks/use-intent-id';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -175,6 +176,9 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
   const isEditingEstimateRef = React.useRef(false);
 
   const [isGeneratingEstimate, setIsGeneratingEstimate] = useState(false);
+  // One name for this sale: a double tap or a retry after a dropped reply writes one invoice (hooks/use-intent-id.ts).
+  const saleIntent = useIntentId();
+  const saleLock = useRef(false);
   const editingInvoiceOriginalRef = React.useRef<InvoiceType | null>(null);
   const [editingInvoiceId, setEditingInvoiceId] = useState<string | undefined>(undefined);
   // Editing while a sale is in progress and Drafts are off: the sale would be lost, so ask first.
@@ -641,7 +645,7 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
   }, [appReady, settings, cartItemsFromStore, rateInputs, cartMetalInfo, overpaid]);
 
   const handleGenerateInvoice = async () => {
-    if (isGeneratingEstimate) return; // Prevent double-submit
+    if (isGeneratingEstimate || saleLock.current) return; // Prevent double-submit (the ref covers taps before the state re-renders)
 
     // The database lock is a deliberate admin switch, but every write path below
     // it just returns null. Without this the button looks broken rather than
@@ -734,12 +738,13 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
     // Decided before the save: the edit flags are cleared once it succeeds.
     const keptRates = ratesToKeep({ isNew: !isEditingEstimate, typed: typedRates, inputs: rateInputs, metals: cartMetalInfo.metals, current: settings });
 
+    saleLock.current = true;
     setIsGeneratingEstimate(true);
     let invoice;
     try {
-      invoice = await generateInvoiceAction(customerForInvoice, ratesForInvoice, parsedDiscountAmount, exchanges, isEditingEstimate ? editingInvoiceId : undefined, delivery, takenBy, hideRates, internalNote, paymentsNow, costRate24k);
+      invoice = await generateInvoiceAction(customerForInvoice, ratesForInvoice, parsedDiscountAmount, exchanges, isEditingEstimate ? editingInvoiceId : undefined, delivery, takenBy, hideRates, internalNote, paymentsNow, costRate24k, saleIntent.id());
       // The sale is an invoice now: out of Drafts, and nothing written there again.
-      if (invoice) { saleDraft.finish(); setSalePayments([blankSalePayment()]); setExchangeRows([blankExchangeRow()]); }
+      if (invoice) { saleIntent.renew(); saleDraft.finish(); setSalePayments([blankSalePayment()]); setExchangeRows([blankExchangeRow()]); }
     } catch (error) {
       console.error("[Cart handleGenerateInvoice] Failed:", error);
       toast({
@@ -749,6 +754,7 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
       });
       return;
     } finally {
+      saleLock.current = false;
       setIsGeneratingEstimate(false);
     }
 

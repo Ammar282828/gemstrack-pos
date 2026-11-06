@@ -35,6 +35,7 @@ import { marginOf } from '@/lib/margin';
 import { rupees } from '@/lib/money';
 import { RoundOffChips, SettleOffer } from '@/components/shared/round-off-chips';
 import { useShallow } from 'zustand/react/shallow';
+import { useIntentId } from '@/hooks/use-intent-id';
 
 // --- Finalize Order Dialog Components ---
 const finalizeOrderItemSchema = z.object({
@@ -374,6 +375,9 @@ export const RecordAdvanceDialog: React.FC<{
 }> = ({ order, open, onOpenChange }) => {
     const { recordOrderAdvance, settleOrderAdvance } = useAppStore(useShallow(s => ({ recordOrderAdvance: s.recordOrderAdvance, settleOrderAdvance: s.settleOrderAdvance })));
     const { toast } = useToast();
+    // One name for this advance: a double tap or a retry is recorded once (hooks/use-intent-id.ts).
+    const intent = useIntentId();
+    React.useEffect(() => { if (open) intent.renew(); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
     const form = useForm<RecordAdvanceFormData>({
       resolver: zodResolver(recordAdvanceSchema),
       defaultValues: { amount: undefined, notes: 'Advance payment received', method: 'Cash' }
@@ -395,7 +399,8 @@ export const RecordAdvanceDialog: React.FC<{
             // write as the advance (lib/writes/settle.ts); the stage is untouched. The invoice made from the order
             // carries the discount (Order to invoice).
             if (settle > 0) await settleOrderAdvance(order.id, amount, settle, data.notes, data.method);
-            else await recordOrderAdvance(order.id, amount, data.notes, data.method, exchange);
+            else await recordOrderAdvance(order.id, amount, data.notes, data.method, exchange, intent.id());
+            intent.renew();
             const gold = exchangeRowsTotal(exchangeRows);
             toast({
                 title: "Advance Recorded",

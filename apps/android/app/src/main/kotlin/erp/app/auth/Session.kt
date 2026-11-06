@@ -20,6 +20,7 @@ import erp.app.data.ErpApi
 import erp.app.data.FirestoreSource
 import erp.app.data.OnlineInbox
 import erp.app.device.DeviceLinks
+import erp.core.logic.StaffAccess
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -65,6 +66,15 @@ class Session(private val context: Context, val business: Business) {
 
     val role: String get() = _me.value?.role ?: "none"
     val isOwner: Boolean get() = role == "owner"
+
+    /** Staff who also run the marketing (the server says: `alsoMarketing`). */
+    val alsoMarketing: Boolean get() = _me.value?.alsoMarketing ?: false
+
+    /** Whether amounts show beyond the one bill in hand: owners only (roles.ts `seesMoney`, StaffAccess). */
+    val seesMoney: Boolean get() = StaffAccess.seesMoney(role)
+
+    /** Staff who run marketing see no ad spend, budget, cost per result or ROAS. */
+    val spendHidden: Boolean get() = StaffAccess.spendHidden(role, alsoMarketing)
 
     /** The business's settings for the screens (see Shop). */
     val shop: Shop get() = _me.value?.shop ?: Shop.fallbackFor(business)

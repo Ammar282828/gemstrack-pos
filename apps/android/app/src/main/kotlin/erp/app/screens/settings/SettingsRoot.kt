@@ -58,7 +58,7 @@ fun SettingsRoot() {
 
     // The web's Settings sections (nav.ts SETTINGS `section`: Shop, Connections, Records) with their tabs in its order.
     val sections = remember(session.me) {
-        val e = NavMap.current.visible(me?.role ?: "owner").settings
+        val e = NavMap.current.visible(me?.role ?: "owner", me?.alsoMarketing ?: false).settings
         e?.sections?.map { it to e.tabsIn(it) } ?: emptyList()
     }
 

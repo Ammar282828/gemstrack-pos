@@ -43,7 +43,7 @@ struct AdsAudiencesScreen: View {
         AdsChoice(key: "GB", label: "UK"), AdsChoice(key: "US", label: "USA"), AdsChoice(key: "CA", label: "Canada"),
     ]
 
-    private var mayUse: Bool { session.role == "owner" || session.role == "marketing" }
+    private var mayUse: Bool { session.marketingAccess }
     private var isOwner: Bool { session.role == "owner" }
 
     var body: some View {
@@ -336,11 +336,11 @@ struct AdsAudiencesScreen: View {
                 ProgressView()
             } else {
                 if a.kind == "Customer list" && isOwner {
-                    Button { Task { await refresh(a) } } label: { Image(systemName: "arrow.clockwise") }
+                    Button { Task { await refresh(a) } } label: { Image(systemName: "arrow.clockwise").frame(minWidth: Metrics.tap, minHeight: Metrics.tap).contentShape(Rectangle()) }
                         .buttonStyle(.borderless)
                         .accessibilityLabel("Add today's customers")
                 }
-                Button { deleting = a } label: { Image(systemName: "trash").foregroundStyle(.secondary) }
+                Button { deleting = a } label: { Image(systemName: "trash").foregroundStyle(.secondary).frame(minWidth: Metrics.tap, minHeight: Metrics.tap).contentShape(Rectangle()) }
                     .buttonStyle(.borderless)
                     .accessibilityLabel("Delete \(a.name)")
             }

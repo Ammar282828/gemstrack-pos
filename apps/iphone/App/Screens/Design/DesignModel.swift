@@ -15,9 +15,9 @@ import UIKit
 /// `designGate('post' | 'ads')` (lib/design/gate.ts): post = owner, staff, marketing; ads = owner, marketing.
 struct DesignAccess: Equatable {
     let role: String
-    var post: Bool { role == "owner" || role == "staff" || role == "marketing" }
-    /// The library with scores, the Board, the Ad kind: owner and marketing.
-    var ads: Bool { role == "owner" || role == "marketing" }
+    var post: Bool { role == "owner" || role == "staff" || role == "marketing" || role == "staffMarketing" }
+    /// The library with scores, the Board, the Ad kind: owner and marketing (and the staff member who runs it: `Session.navRole`).
+    var ads: Bool { role == "owner" || role == "marketing" || role == "staffMarketing" }
 }
 
 enum DesignSection: String, CaseIterable, Identifiable {

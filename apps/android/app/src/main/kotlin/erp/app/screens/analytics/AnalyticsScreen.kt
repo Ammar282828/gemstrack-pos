@@ -32,19 +32,40 @@ import erp.app.ui.AppClock
 import erp.app.ui.NotAvailableState
 import erp.app.ui.ShelfState
 import erp.app.ui.SkeletonLoading
+import erp.core.logic.Books
+import erp.core.logic.BooksInput
+import erp.core.logic.BooksOptions
 import erp.core.logic.MarginSettings
+import erp.core.logic.Period
+import erp.core.logic.monthlyRevenue
+import erp.core.logic.monthlySeries
+import erp.core.logic.previousPeriod
+import erp.core.logic.yearlySummary
+import erp.core.models.MetalType
+import java.time.Instant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
-/** The five tabs of Analytics (lib/nav.ts: one entry, so the title menu switches between them). */
+/**
+ * The tabs of Analytics (lib/nav.ts: one entry, so the title menu switches between them), in the menu's order. The
+ * redesign of 2026-11-05 added Profit, Cash, Spending and the house's metal (Gold / Silver).
+ */
 enum class AnaSection(val title: String) {
     /** The Overview is "Analytics", as on the web. */
     overview("Analytics"),
     sales("Sales"),
+    profit("Profit"),
+    cash("Cash"),
+    spending("Spending"),
     products("Products"),
     customers("Customers"),
     categories("Categories"),
+    metal("Metal sold"),
+    ;
+
+    /** What the title bar says: the metal page is "Gold sold" or "Silver sold" (the nav's `heading`). */
+    val heading: String get() = if (this == metal) erp.app.config.House.metal.replaceFirstChar { it.uppercase() } + " sold" else title
 }
 
 /**
@@ -58,7 +79,7 @@ enum class AnaSection(val title: String) {
 @Composable
 fun AnalyticsScreen(section: AnaSection) {
     if (!LocalSession.current.isOwner) {
-        ScreenTitle(section.title)
+        ScreenTitle(section.heading)
         NotAvailableState("Owners only")
         return
     }
@@ -77,7 +98,7 @@ private fun AnalyticsBoard(section: AnaSection) {
     val revenue = rememberShelfStatus(book.revenue)
     val connectionLost by Connection.isOffline.collectAsStateWithLifecycle()
 
-    ScreenTitle(section.title)
+    ScreenTitle(section.heading)
 
     val loaded = invoices.loaded && orders.loaded && products.loaded && customers.loaded && expenses.loaded && revenue.loaded
     // Extra revenue counts in Revenue, Est. profit and Cash in: a failed read must not quietly lower them.
@@ -104,7 +125,7 @@ private fun AnalyticsBoard(section: AnaSection) {
         ) {
             val live = customers.items.filter { (it.deletedAt ?: "").isEmpty() }
             val books = AnaBooks(invoices.items, orders.items, products.items, live, expenses.items, revenue.items)
-            value = withContext(Dispatchers.Default) { AnaPageData.of(section, books, period, margin, goods) }
+            value = withContext(Dispatchers.Default) { AnaPageData.of(section, books, period, margin, goods, now) }
         }
         val d = data
         if (d == null) SkeletonLoading(Modifier.fillMaxSize(), shape = SkeletonShape.Chart) else AnaPages(section, d)
@@ -117,21 +138,51 @@ class AnaPageData(
     val period: AnaPeriodState,
     val margin: MarginSettings?,
     val figures: AnaFigures,
-    val history: AnaHistory?,
     val productRows: List<AnaBreakdown.ProductRow>,
     val customerRows: List<AnaBreakdown.CustomerRow>,
     val categoryRows: List<AnaBreakdown.CategoryRow>,
+    /** The redesign's books (core `Books`): this period, the one before, and the months. */
+    val ledger: AnaLedger,
 ) {
     companion object {
-        fun of(section: AnaSection, books: AnaBooks, period: AnaPeriodState, margin: MarginSettings?, goods: List<String> = emptyList()): AnaPageData {
+        fun of(
+            section: AnaSection, books: AnaBooks, period: AnaPeriodState, margin: MarginSettings?, goods: List<String> = emptyList(),
+            now: Instant = AppClock.now(),
+        ): AnaPageData {
             val range = period.range
             return AnaPageData(
                 books, period, margin,
-                figures = AnaFigures.of(books, range, margin, goods),
-                history = if (section == AnaSection.sales) AnaHistory.of(books, margin, goods) else null,
+                // The three older tabs keep the figures they were built on; the redesigned ones read the core books.
+                figures = if (section == AnaSection.products || section == AnaSection.customers || section == AnaSection.categories) AnaFigures.of(books, range, margin, goods) else AnaFigures(),
                 productRows = if (section == AnaSection.products) AnaBreakdown.products(books, range) else emptyList(),
                 customerRows = if (section == AnaSection.customers) AnaBreakdown.customers(books, range) else emptyList(),
                 categoryRows = if (section == AnaSection.categories) AnaBreakdown.categories(books, range) else emptyList(),
+                ledger = ledgerOf(section, books, range, margin, goods, now),
+            )
+        }
+
+        /** The core books for a page: only what the section draws is worked out (the twelve months cost twelve passes). */
+        fun ledgerOf(section: AnaSection, books: AnaBooks, range: AnaRange?, margin: MarginSettings?, goods: List<String>, now: Instant): AnaLedger {
+            val opts = BooksOptions(
+                now = now, metal = if (erp.app.config.House.metal == "silver") MetalType.silver else MetalType.gold,
+                margin = margin ?: MarginSettings.default, goods = goods,
+            )
+            val input = BooksInput(books.invoices, books.orders, books.products, books.customers, books.expenses, books.extraRevenue)
+            val period = range?.let { Period(it.from, it.to) }
+            val previous = previousPeriod(period, now)
+            val current = Books.compute(input, period, opts)
+            val needsPrev = section == AnaSection.overview || section == AnaSection.sales
+            val needsMonths = section == AnaSection.profit || section == AnaSection.cash || section == AnaSection.spending || section == AnaSection.metal
+            return AnaLedger(
+                books = current,
+                prev = if (needsPrev && previous != null) Books.compute(input, previous.range, opts) else null,
+                previous = previous,
+                months = if (needsMonths) monthlySeries(input, 12, opts) else emptyList(),
+                years = if (section == AnaSection.profit) yearlySummary(input, opts) else emptyList(),
+                monthly = if (section == AnaSection.sales) monthlyRevenue(input, opts) else null,
+                range = period,
+                now = now,
+                recordsGoods = goods.isNotEmpty(),
             )
         }
     }
@@ -143,10 +194,17 @@ enum class AnaEmptyKind { nothingInRange, noData }
 /** One tab's page, chosen by section. */
 @Composable
 private fun AnaPages(section: AnaSection, d: AnaPageData) {
-    val showCosts = d.margin != null
+    val b = d.ledger.books
+    // Cash, Spending and the metal page have something to say about a period with collections, expenses or coin bills but no sale.
+    val hasSomething = when (section) {
+        AnaSection.cash -> b.cashIn > 0 || b.cashOut > 0
+        AnaSection.spending -> b.totalExpenses > 0
+        AnaSection.metal -> b.coinSummary.invoices > 0
+        else -> false
+    }
     val empty: AnaEmptyKind? = when {
-        d.period.range != null && d.figures.invoicesInRange == 0 && d.figures.ordersInRange == 0 -> AnaEmptyKind.nothingInRange
         d.books.invoices.isEmpty() && d.books.orders.isEmpty() && d.books.expenses.isEmpty() -> AnaEmptyKind.noData
+        b.rangeEmpty && !hasSomething -> AnaEmptyKind.nothingInRange
         else -> null
     }
     if (empty != null) {
@@ -154,11 +212,15 @@ private fun AnaPages(section: AnaSection, d: AnaPageData) {
         return
     }
     when (section) {
-        AnaSection.overview -> AnaOverviewPage(d.figures, d.period, showCosts, d.margin ?: MarginSettings.default)
-        AnaSection.sales -> AnaSalesPage(d.figures, d.history ?: AnaHistory(), d.period, showCosts) { AnaPeriodStore.choose(it) }
-        AnaSection.products -> AnaProductsPage(d.figures, d.productRows, d.period)
-        AnaSection.customers -> AnaCustomersPage(d.figures, d.customerRows, d.period)
+        AnaSection.overview -> AnaOverviewPage(d.ledger, d.period)
+        AnaSection.sales -> AnaSalesPage(d.ledger, d.period)
+        AnaSection.profit -> AnaProfitPage(d.ledger, d.period) { AnaPeriodStore.choose(it) }
+        AnaSection.cash -> AnaCashPage(d.ledger, d.period)
+        AnaSection.spending -> AnaSpendingPage(d.ledger, d.period)
+        AnaSection.products -> AnaProductsPage(d.figures, d.productRows, d.period, d.ledger)
+        AnaSection.customers -> AnaCustomersPage(d.figures, d.customerRows, d.period, d.ledger)
         AnaSection.categories -> AnaCategoriesPage(d.categoryRows, d.period)
+        AnaSection.metal -> AnaMetalPage(d.ledger, d.period)
     }
 }
 

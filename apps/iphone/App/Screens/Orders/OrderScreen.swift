@@ -381,7 +381,7 @@ struct OrderScreen: View {
                 }
                 // The shop's margin: owners and staff, never a customer, never in a house that does not cost by
                 // gold, and blurred until tapped (docs/decisions.md "Margin").
-                if OrdersLogic.marginIsOn(House.margin) {
+                if OrdersLogic.marginIsOn(House.margin) && session.seesMoney {
                     OrdersMarginRow(order: order)
                 }
             }
@@ -1155,7 +1155,7 @@ extension OrderScreen {
         if !rates.isEmpty { Text(rates).font(.caption).foregroundStyle(.secondary) }
         // The shop's margin: owners and staff, never a customer, never in a house that does not cost by gold, and
         // blurred until clicked (docs/decisions.md "Margin").
-        if OrdersLogic.marginIsOn(House.margin) { OrdersMarginRow(order: order) }
+        if OrdersLogic.marginIsOn(House.margin) && session.seesMoney { OrdersMarginRow(order: order) }
     }
 
     @ViewBuilder

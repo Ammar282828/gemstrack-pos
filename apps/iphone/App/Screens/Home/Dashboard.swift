@@ -97,7 +97,7 @@ struct Dashboard: View {
             if homeSearch.trimmingCharacters(in: .whitespaces).isEmpty {
                 shelfPage
             } else {
-                SearchView(map: NavMap.current.visible(to: session.role), embedded: $homeSearch)
+                SearchView(map: NavMap.current.visible(to: session.navRole), embedded: $homeSearch)
             }
         }
         .pullDownSearchField(text: $homeSearch, prompt: "Customers, invoices, orders, stock, places", state: $homePull)
@@ -175,7 +175,7 @@ struct Dashboard: View {
     private func page(_ f: DashFigures) -> some View {
         // A house whose website does not sell has no online orders to confirm and no rate to pause on.
         let selling = session.shop.websiteSelling
-        let needs = f.needs(onlineWaiting: selling ? inbox.waiting : 0, ratePause: selling ? inbox.ratePause : nil)
+        let needs = f.needs(onlineWaiting: selling ? inbox.waiting : 0, ratePause: selling ? inbox.ratePause : nil, showMoney: session.seesMoney)
         let wide = width >= 820 && !typeSize.isAccessibilitySize
         return ScrollView {
             Group {
@@ -185,12 +185,17 @@ struct Dashboard: View {
                     VStack(alignment: .leading, spacing: pt(22)) {
                         VStack(alignment: .leading, spacing: pt(12)) {
                             dateLine
-                            hero(f)
-                            figureGrid(f)
+                            // Staff see no figures (decision "Staff see no money"): what they do, one tap each, in their place.
+                            if session.seesMoney {
+                                hero(f)
+                                figureGrid(f)
+                            } else {
+                                StaffActions()
+                            }
                         }
                         needsSection(needs)
                         dueSection(f)
-                        salesSection(f)
+                        if session.seesMoney { salesSection(f) }
                     }
                 }
             }
@@ -215,8 +220,12 @@ struct Dashboard: View {
         VStack(alignment: .leading, spacing: pt(26)) {
             VStack(alignment: .leading, spacing: pt(12)) {
                 dateLine
-                hero(f)
-                wideFigureRow(f)
+                if session.seesMoney {
+                    hero(f)
+                    wideFigureRow(f)
+                } else {
+                    StaffActions()
+                }
             }
             let lists = wideLists(f, needs: needs)
             HStack(alignment: .top, spacing: pt(24)) {
@@ -261,7 +270,8 @@ struct Dashboard: View {
         let count = width >= 1180 ? 3 : 2
         var cols = Array(repeating: [HomeList](), count: count)
         var load = Array(repeating: 0, count: count)
-        for (l, w) in weights {
+        // Staff have no Recent sales list (decision "Staff see no money").
+        for (l, w) in weights where session.seesMoney || l != .sales {
             let i = load.indices.min { load[$0] < load[$1] } ?? 0
             cols[i].append(l)
             load[i] += w
@@ -447,7 +457,7 @@ struct Dashboard: View {
 
     private func reveal(_ expanded: Binding<Bool>, count: Int) -> some View {
         Button(expanded.wrappedValue ? "Show less" : "Show \(count) more") {
-            Motion.run(expanded.wrappedValue ? Motion.exit : Motion.enter, reduce: reduceMotion) { expanded.wrappedValue.toggle() }
+            Motion.run(Motion.spring, reduce: reduceMotion) { expanded.wrappedValue.toggle() }
         }
         .font(.subheadline.weight(.medium)).frame(minHeight: Metrics.tap).padding(.horizontal, pt(4))
     }
@@ -517,7 +527,7 @@ extension Dashboard {
     /// (Mac/Places/Reports); the figures and rows are the iPhone's own, worked out once above.
     fileprivate func macPage(_ f: DashFigures) -> some View {
         let selling = session.shop.websiteSelling
-        let needs = f.needs(onlineWaiting: selling ? inbox.waiting : 0, ratePause: selling ? inbox.ratePause : nil)
+        let needs = f.needs(onlineWaiting: selling ? inbox.waiting : 0, ratePause: selling ? inbox.ratePause : nil, showMoney: session.seesMoney)
         // No `.motion` here: the lists are Lists, and an animation keyed on their count animated every row change.
         return MacReportsTodayPage(figures: f, needs: needs, isOwner: session.isOwner,
                                    editNote: { noteSheet = true }, setRate: { rateSheet = true })

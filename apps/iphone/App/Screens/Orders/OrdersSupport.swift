@@ -218,7 +218,7 @@ struct OrderAdvanceExchange: View {
             Text("Gold handed over now comes off the balance, and goes to the invoice with the order.")
         }
         .motion(rows.count)
-        .motion(opened)
+        .motion(opened, Motion.spring)
     }
 
     private var total: Double { exchangeRowsTotal(rows) }

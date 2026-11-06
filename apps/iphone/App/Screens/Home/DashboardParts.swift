@@ -98,7 +98,7 @@ struct DashWeekBars: View {
                 ForEach(days) { (d: DashDay) in
                     BarMark(x: .value("Day", DashDate.weekdayDayMonth(d.day)), y: .value("Taken", d.amount))
                         .foregroundStyle(d.id == today ? Theme.accent : Theme.accent.opacity(0.25))
-                        .cornerRadius(3)
+                        .cornerRadius(3, style: .continuous)
                 }
                 RuleMark(y: .value("Nothing", 0.0))
                     .lineStyle(StrokeStyle(lineWidth: 1))
@@ -337,6 +337,7 @@ struct DashNeedList: View {
 
 /// One thing waiting on a decision: what it is about (a symbol in its tone), what to know, what it comes to.
 struct DashNeedRow: View {
+    @Environment(Session.self) private var session
     let need: DashNeed
     var side: CGFloat = 30
     var onRates: (() -> Void)?
@@ -367,7 +368,7 @@ struct DashNeedRow: View {
 
     private var spoken: String {
         var s = "\(need.title). \(need.detail)"
-        if let amount = need.amount { s += ". \(Money.pkrLac(amount))" }
+        if let amount = need.amount, session.seesMoney { s += ". \(Money.pkrLac(amount))" }
         return s
     }
 
@@ -399,7 +400,7 @@ struct DashNeedRow: View {
                     .multilineTextAlignment(.leading)
             }
             Spacer(minLength: 8)
-            if let amount = need.amount {
+            if let amount = need.amount, session.seesMoney {
                 RowAmount(amount: amount, lac: true)
             }
             DashChevron()
@@ -416,6 +417,7 @@ struct DashNeedRow: View {
 /// A promise to a customer, an order or a repair: the promised day as a leaf, who, which, and either how it
 /// stands (late or today) or what it comes to.
 struct DashDueRow: View {
+    @Environment(Session.self) private var session
     let due: DashDue
 
     /// The size of the leaf, so the hairlines can be set in past it.
@@ -433,13 +435,13 @@ struct DashDueRow: View {
 
     /// "ORD-000123", "Repair · REP-000045"; with the sum when the right-hand side is taken by how it stands.
     private var refText: String {
-        pressing && due.amount > 0 ? "\(due.refLine) · \(Money.pkr(due.amount))" : due.refLine
+        pressing && due.amount > 0 && session.seesMoney ? "\(due.refLine) · \(Money.pkr(due.amount))" : due.refLine
     }
 
     private var spoken: String {
         let words = PromiseWords.say(due.timing).text
         var s = "\(due.customer), \(due.isRepair ? "repair" : "order") \(due.ref), \(words)"
-        if due.amount > 0 { s += ", \(Money.pkr(due.amount))" }
+        if due.amount > 0 && session.seesMoney { s += ", \(Money.pkr(due.amount))" }
         return s
     }
 
@@ -475,7 +477,7 @@ struct DashDueRow: View {
         let words = PromiseWords.say(due.timing)
         if pressing {
             Pill(words.text, tone: words.tone)
-        } else if due.amount > 0 {
+        } else if due.amount > 0 && session.seesMoney {
             RowAmount(amount: due.amount)
         } else {
             Pill(words.text, tone: .quiet)

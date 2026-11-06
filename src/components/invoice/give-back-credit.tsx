@@ -8,6 +8,7 @@
  */
 
 import { useState } from 'react';
+import { useIntentId } from '@/hooks/use-intent-id';
 import { Loader2, HandCoins } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
@@ -45,6 +46,7 @@ export function GiveBackCredit({ invoiceId, customerName, credit, variant = 'out
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState<PaymentType>('Cash');
   const [busy, setBusy] = useState(false);
+  const intent = useIntentId();
 
   if (!(credit > 0)) return null;
   const given = amount === '' ? credit : rupees(parseFloat(amount));
@@ -54,7 +56,8 @@ export function GiveBackCredit({ invoiceId, customerName, credit, variant = 'out
     if (busy || !valid) return;
     setBusy(true);
     try {
-      const updated = await payBackCredit(invoiceId, given, method);
+      const updated = await payBackCredit(invoiceId, given, method, intent.id());
+      intent.renew();
       const left = balanceLine(updated.balanceDue);
       toast({ title: 'Credit given back', description: `${pkr(given)} by ${method} to ${customerName || 'the customer'}. ${left.state === 'credit' ? `${pkr(left.amount)} credit left.` : 'No credit left.'}` });
       setOpen(false);
@@ -69,7 +72,7 @@ export function GiveBackCredit({ invoiceId, customerName, credit, variant = 'out
 
   return (
     <>
-      <Button type="button" variant={variant} size={size} onClick={() => { setAmount(''); setOpen(true); }}>
+      <Button type="button" variant={variant} size={size} onClick={() => { setAmount(''); intent.renew(); setOpen(true); }}>
         <HandCoins className="mr-2 h-4 w-4" /> Give back {pkr(credit)}
       </Button>
       <AlertDialog open={open} onOpenChange={o => { if (!busy) setOpen(o); }}>

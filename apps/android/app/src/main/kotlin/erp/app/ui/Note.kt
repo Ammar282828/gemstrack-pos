@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +16,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Icon
+import androidx.compose.material3.minimumInteractiveComponentSize
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -49,6 +53,11 @@ data class Note(
     val detail: String = "",
     /** Something that did not happen: an amber warning and a warning tap, never the green tick. */
     val failed: Boolean = false,
+    /** An action on the banner ("Undo"): said with [action], it runs on a tap and the note leaves. */
+    val actionLabel: String? = null,
+    val action: (() -> Unit)? = null,
+    /** How long it stays; an undo gets [UNDO_MILLIS] so there is time to read it and reach for the button. */
+    val millis: Long = NOTE_MILLIS,
 ) {
     /** What TalkBack says when it appears. */
     val spoken: String get() = if (detail.isEmpty()) title else "$title. $detail"
@@ -56,6 +65,16 @@ data class Note(
 
 /** How long a note stays. */
 private const val NOTE_MILLIS = 4000L
+
+/** How long an Undo note stays (Material's long snackbar). */
+const val UNDO_MILLIS = 6000L
+
+/**
+ * A note that says what just happened with an Undo: for a reversible change that is not money and not a delete, done at
+ * once with no confirm dialog. [onUndo] must put back exactly what was there.
+ */
+fun undoNote(title: String, detail: String = "", onUndo: () -> Unit) =
+    Note(title, detail, actionLabel = "Undo", action = onUndo, millis = UNDO_MILLIS)
 
 /** The note on show, if any. It hides itself after four seconds; a newer note replaces it and restarts the wait. */
 @Stable
@@ -74,7 +93,7 @@ class NoteState(private val scope: CoroutineScope?) {
         lastShown = note
         hiding?.cancel()
         hiding = scope?.launch {
-            delay(NOTE_MILLIS)
+            delay(note.millis)
             this@NoteState.note = null
         }
     }
@@ -120,13 +139,13 @@ fun NoteHost(state: NoteState, modifier: Modifier = Modifier, haptics: Boolean =
             enter = motion.slideIn(fromTop = true),
             exit = motion.slideOut(toTop = true),
         ) {
-            state.lastShown?.let { NoteBanner(it, Modifier.widthIn(max = 560.dp).padding(horizontal = 16.dp, vertical = 8.dp)) }
+            state.lastShown?.let { NoteBanner(it, Modifier.widthIn(max = 560.dp).padding(horizontal = 16.dp, vertical = 8.dp), onAction = { state.hide() }) }
         }
     }
 }
 
 @Composable
-fun NoteBanner(note: Note, modifier: Modifier = Modifier) {
+fun NoteBanner(note: Note, modifier: Modifier = Modifier, onAction: () -> Unit = {}) {
     Surface(
         modifier.semantics(mergeDescendants = true) {
             liveRegion = LiveRegionMode.Polite
@@ -152,6 +171,19 @@ fun NoteBanner(note: Note, modifier: Modifier = Modifier) {
                 if (note.detail.isNotEmpty()) {
                     Text(note.detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.inverseOnSurface.copy(alpha = 0.8f))
                 }
+            }
+            val act = note.action
+            if (act != null && note.actionLabel != null) {
+                Text(
+                    note.actionLabel,
+                    Modifier
+                        .minimumInteractiveComponentSize()
+                        .clip(Radius.thumbShape)
+                        .clickable(role = Role.Button) { act(); onAction() }
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.inversePrimary,
+                )
             }
         }
     }

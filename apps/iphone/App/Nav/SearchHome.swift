@@ -247,7 +247,9 @@ struct SearchView: View {
     private var phoneFound: some View {
         let r = results
         let settled = query == typed
+        let commands = commandHits
         return List {
+            commandsSection(commands)
             placesSection(r)
             customersSection(r)
             invoicesSection(r)
@@ -260,7 +262,40 @@ struct SearchView: View {
         .background(Theme.ground.ignoresSafeArea())
         .scrollDismissesKeyboard(.interactively)
         .overlay {
-            if settled, r.isEmpty { ContentUnavailableView.search(text: text) }
+            if settled, r.isEmpty, commands.isEmpty { ContentUnavailableView.search(text: text) }
+        }
+    }
+
+    /// "new sale", "new order" typed (or just "new", "add"): the same actions the menu bar's ⌘N and ⇧⌘N run, through the shell.
+    private struct CommandHit: Identifiable {
+        let id: String, title: String, symbol: String, kind: ShellCommands.Kind
+    }
+
+    private var commandHits: [CommandHit] {
+        guard !typed.isEmpty else { return [] }
+        var all: [CommandHit] = []
+        if session.isOwner, map.newSale != nil { all.append(CommandHit(id: "sale", title: "New sale", symbol: "banknote", kind: .newSale)) }
+        if session.role != "marketing" { all.append(CommandHit(id: "order", title: "New order", symbol: "list.clipboard", kind: .newOrder)) }
+        let verbs = ["new", "create", "add"]
+        return all.filter { c in
+            c.title.lowercased().contains(typed) || (typed.count >= 2 && verbs.contains { $0.hasPrefix(typed) })
+        }
+    }
+
+    @ViewBuilder
+    private func commandsSection(_ hits: [CommandHit]) -> some View {
+        if !hits.isEmpty {
+            Section {
+                ForEach(hits) { (c: CommandHit) in
+                    Button { ShellCommands.shared.send(c.kind) } label: {
+                        Label { Text(c.title) } icon: { Image(systemName: c.symbol).foregroundStyle(Theme.accent) }
+                            .frame(minHeight: Metrics.tap)
+                    }
+                }
+            } header: {
+                LedgerHeading(title: "Actions")
+            }
+            .houseRows()
         }
     }
 

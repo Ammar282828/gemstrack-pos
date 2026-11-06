@@ -82,7 +82,9 @@ fun AdsAdSetsScreen(path: String) {
     val session = LocalSession.current
     val backend = LocalAdsBackend.current
     val scope = rememberCoroutineScope()
-    val mayUse = adsMayUse(session.role)
+    val mayUse = adsMayUse(session.role, session.alsoMarketing)
+    // The staff member who runs the marketing: no budgets, her ad sets are made paused and an owner budgets them (lib/ads/spend.ts).
+    val hide = session.spendHidden
 
     var status by remember { mutableStateOf<AdsStatusAnswer?>(null) }
     var lists by remember { mutableStateOf<AdsNewAdLists?>(null) }
@@ -189,7 +191,7 @@ fun AdsAdSetsScreen(path: String) {
         scope.launch {
             checking = true
             try {
-                val c = backend.checkDesign(design.json())
+                val c = backend.checkDesign(design.json(hide))
                 check = c
                 if (c.problems.isEmpty()) confirming = true
             } catch (e: CancellationException) {
@@ -206,7 +208,7 @@ fun AdsAdSetsScreen(path: String) {
         scope.launch {
             sending = true
             try {
-                made = backend.makeAdsets(design.json())
+                made = backend.makeAdsets(design.json(hide))
                 AdsChanges.bump()
             } catch (e: CancellationException) {
                 throw e
@@ -305,7 +307,9 @@ private fun AdPage(
                     null,
                     footer = { Text(if (d.launch == "paused") "Nothing is spent until they are switched on in Campaigns." else "They start once Meta approves them and spend their budgets from then.") },
                 ) {
-                    AdsRow {
+                    if (LocalSession.current.spendHidden) {
+                        AdsRow { Text("Ad sets you make are saved paused. An owner sets the budget and turns them on.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    } else AdsRow {
                         AdsChips {
                             FilterChip("Make them paused", d.launch == "paused", { onLaunch("paused") })
                             FilterChip("Run them once approved", d.launch == "live", { onLaunch("live") })
@@ -355,7 +359,7 @@ private fun SetCard(
     AdsSection("Ad set $number") {
         AdsRow { TextField(set.name, { change(set.copy(name = it)) }, Modifier.fillMaxWidth(), label = { Text("Ad set name") }, singleLine = true) }
         PickerRow("Goal", set.goal, goals.map { it.key to it.label }) { change(set.copy(goal = it)) }
-        if (!budgeted) {
+        if (!budgeted && !LocalSession.current.spendHidden) {
             AdsRow {
                 AdsChips {
                     FilterChip("A day", set.budgetKind == "daily", { change(set.copy(budgetKind = "daily")) })

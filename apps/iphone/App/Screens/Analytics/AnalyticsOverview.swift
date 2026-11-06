@@ -324,7 +324,7 @@ struct AnaOverviewPage: View {
 }
 
 /// The server draws the same monthly document used by the ERP’s scheduled report.
-private struct AnaMonthlyReportSheet: View {
+struct AnaMonthlyReportSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var selected = 1
     @State private var opened = false

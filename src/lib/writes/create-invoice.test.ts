@@ -203,4 +203,18 @@ describe('a piece is read inside the transaction, so it is sold once', () => {
     expect((data.invoices[first.id].paymentHistory as unknown[]).length).toBe(1);
     expect(data.invoices[first.id].amountPaid).toBe(1_000);
   });
+
+  it('the same new sale sent twice with one request makes one invoice and one payment', async () => {
+    const { db, data } = fakeDb({ app_settings: { global: { lastInvoiceNumber: 0 } }, products: { R: ring('R') as never }, customers: { c1: { name: 'Demo' } } });
+    const alerts: string[] = [];
+    const input = sale('R', { customer: { id: 'c1', name: 'Demo' }, payments: [{ amount: 1_000 }], requestId: 'req-dbl-0001' });
+    const a = await createInvoice(db, input, fx({ notify: (id: string) => alerts.push(id) }));
+    const b = await createInvoice(db, input, fx({ notify: (id: string) => alerts.push(id) }));
+    expect(b.id).toBe(a.id);
+    expect(Object.keys(data.invoices)).toEqual([a.id]);
+    expect((data.invoices[a.id].paymentHistory as unknown[]).length).toBe(1);
+    expect(data.invoices[a.id].amountPaid).toBe(1_000);
+    expect((data.app_settings.global as { lastInvoiceNumber: number }).lastInvoiceNumber).toBe(1);
+    expect(alerts).toEqual([a.id]);
+  });
 });

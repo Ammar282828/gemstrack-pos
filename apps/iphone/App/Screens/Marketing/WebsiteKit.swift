@@ -272,6 +272,15 @@ final class WebsiteStore {
         }
     }
 
+    /// Taking it off acts at once and says so with Undo, which features the same piece again with its line.
+    func clearFeaturedWithUndo() {
+        guard let was = featured else { clearFeaturedNow(); return }
+        clearFeaturedNow()
+        var said = Note(title: "Taken off the home page", detail: was.file)
+        said.undo = { [self] in featureNow(was.key, note: was.note) }
+        Outbox.shared.say(said)
+    }
+
     /// Instant: the PUT goes through the Outbox; the home page's set of the day shows here when the site has it.
     func featureNow(_ key: String, note: String? = nil) {
         Outbox.shared.post(label: "Feature on \(siteName)") { [self] in
@@ -310,15 +319,15 @@ struct WebsiteFeatureButton: View {
     var body: some View {
         if store.hasFeatured {
             let on = WebsiteStore.sameKey(store.featured?.key, key)
-            Button { asking = true } label: {
+            Button { if on { store.clearFeaturedWithUndo() } else { asking = true } } label: {
                 HStack {
                     Label(on ? "Set of the day: on the home page" : "Feature today", systemImage: on ? "star.fill" : "star")
                     if busy { Spacer(); ProgressView() }
                 }
             }
             .disabled(busy || !store.featuredRead)
-            .confirmationDialog(on ? "Take it off the home page?" : "Lead the home page with it?", isPresented: $asking, titleVisibility: .visible) {
-                Button(on ? "Take it off" : "Feature today", role: on ? .destructive : nil) { toggle(on) }
+            .confirmationDialog("Lead the home page with it?", isPresented: $asking, titleVisibility: .visible) {
+                Button("Feature today") { toggle(on) }
             } message: {
                 Text(words(on))
             }
@@ -379,7 +388,7 @@ struct WebsiteSetOfTheDay: View {
                             Button("Put this line on the home page") { asking = .note }
                         }
                     }
-                    Button(role: .destructive) { asking = .remove } label: {
+                    Button(role: .destructive) { store.clearFeaturedWithUndo() } label: {
                         Label("Take it off the home page", systemImage: "star.slash")
                     }
                     .disabled(busy)
@@ -392,17 +401,11 @@ struct WebsiteSetOfTheDay: View {
             }
             .onAppear { note = store.featured?.note ?? "" }
             .onChange(of: store.featured?.note) { _, now in note = now ?? "" }
-            .confirmationDialog(asking == .remove ? "Take it off the home page?" : "Change the line on the home page?",
+            .confirmationDialog("Change the line on the home page?",
                                 isPresented: askingShown, titleVisibility: .visible, presenting: asking) { (a: Asking) in
-                if a == .remove {
-                    Button("Take it off", role: .destructive) { store.clearFeaturedNow() }
-                } else {
-                    Button("Put it on the home page") { saveNote() }
-                }
+                if a == .note { Button("Put it on the home page") { saveNote() } }
             } message: { (a: Asking) in
-                if a == .remove {
-                    Text("\(store.siteName)'s home page stops leading with \(store.featured?.file ?? "it"), for everyone who opens it.")
-                } else {
+                if a == .note {
                     Text(note.trimmingCharacters(in: .whitespaces).isEmpty
                          ? "The line under the set of the day on \(store.siteName)'s home page is taken away."
                          : "Under the set of the day on \(store.siteName)'s home page, for everyone: “\(note.trimmingCharacters(in: .whitespaces))”")

@@ -312,6 +312,16 @@ class PostTrayModel(val engine: DesignEngine, private val scope: CoroutineScope)
         active = null
     }
 
+    /** Clears the tray and returns the way back: the same cards in the same order, the same one active (the cards are local). */
+    fun clearUndoable(): () -> Unit {
+        val was = cards.toList()
+        val wasActive = active
+        clear()
+        return {
+            if (cards.isEmpty()) { cards.addAll(was); active = wasActive }
+        }
+    }
+
     /** A piece at random from the website: not one posted lately, unless there are none. */
     private fun randomPiece(): PostPiece? {
         val open = store.pieces.filter { !has(it.id) }
