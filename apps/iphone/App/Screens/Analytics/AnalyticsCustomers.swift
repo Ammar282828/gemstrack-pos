@@ -24,7 +24,16 @@ struct AnaCustomersPage: View {
             sourceSection
         }, right: { (_: Bool) in
             allSection
+            explainSection
         }, search: $search, searchPrompt: "Search everyone by name")
+    }
+
+    /// What the figures are, at the foot of the page (decision "Analytics redesign").
+    private var explainSection: some View {
+        LedgerSection("How this is worked out", collapsible: true) {
+            Text("A customer is new when their first sale ever falls in the period; walk-ins are in neither count and are the one row. A sale’s source is the one on the bill or order, else the customer’s saved one; with neither it is Unclassified.")
+                .font(.footnote).foregroundStyle(.secondary)
+        }
     }
 
     // MARK: Top ten

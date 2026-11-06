@@ -26,7 +26,16 @@ struct AnaProductsPage: View {
             categorySection
         }, right: { (_: Bool) in
             allSection
+            explainSection
         }, search: $search, searchPrompt: "Search every piece by name or SKU")
+    }
+
+    /// What the figures are, at the foot of the page (decision "Analytics redesign").
+    private var explainSection: some View {
+        LedgerSection("How this is worked out", collapsible: true) {
+            Text("Revenue is each piece’s own total, before invoice discounts and trade-ins, so it runs higher than the Overview’s. A piece described for one bill has no stock number. Gold coins are kept apart.")
+                .font(.footnote).foregroundStyle(.secondary)
+        }
     }
 
     // MARK: Top ten
