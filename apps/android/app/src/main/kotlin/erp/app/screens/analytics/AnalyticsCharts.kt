@@ -331,19 +331,20 @@ fun AnaSourceTrendChart(points: List<AnaSourcePoint>, modifier: Modifier = Modif
     }
 }
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 internal fun Legend(entries: List<Pair<String, Color>>) {
-    // Wraps on a narrow screen: a row per two names is plenty, and the colours are never the only clue (the names are).
-    Column(Modifier.clearAndSetSemantics {}, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        entries.chunked(2).forEach { pair ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                pair.forEach { (name, color) ->
-                    Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(10.dp).clip(CircleShape).background(color))
-                        Text(name, style = MaterialTheme.typography.bodySmall, maxLines = 1)
-                    }
-                }
-                if (pair.size == 1) Box(Modifier.weight(1f))
+    // Each name at its own width, wrapping onto the next line when the row is full, so none is cut ("Compared with last
+    // month" in Inter is wider than half a phone); the colours are never the only clue (the names are).
+    androidx.compose.foundation.layout.FlowRow(
+        Modifier.fillMaxWidth().clearAndSetSemantics {},
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        entries.forEach { (name, color) ->
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(10.dp).clip(CircleShape).background(color))
+                Text(name, style = MaterialTheme.typography.bodySmall)
             }
         }
     }
