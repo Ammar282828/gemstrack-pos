@@ -276,6 +276,6 @@ fun Initials(name: String, modifier: Modifier = Modifier, size: Dp = 30.dp) {
         modifier.size(size).clip(CircleShape).background(MaterialTheme.colorScheme.secondaryContainer).clearAndSetSemantics {},
         contentAlignment = Alignment.Center,
     ) {
-        Text(letters, color = accent, fontSize = textSize, lineHeight = textSize, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.SansSerif, maxLines = 1, softWrap = false)
+        Text(letters, color = accent, fontSize = textSize, lineHeight = textSize, fontWeight = FontWeight.SemiBold, fontFamily = erp.app.ui.theme.ErpFonts.inter, maxLines = 1, softWrap = false)
     }
 }
