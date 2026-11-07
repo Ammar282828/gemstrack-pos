@@ -25,6 +25,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.Hyphens
 import androidx.compose.ui.text.style.LineBreak
@@ -56,10 +57,17 @@ val LocalErpDark = staticCompositionLocalOf { false }
 val LocalToneColors = staticCompositionLocalOf<ToneColors> { error("ErpTheme not provided") }
 
 /**
- * The system sans everywhere (Google Sans on a Pixel, Roboto elsewhere): Material You has no serif. FuturaLT-Light is
- * the website-weight overlay's face and nothing else.
+ * Inter everywhere, headings and figures too, as the web and the iPhone (decisions: Fonts, 2026-11-06: "a nice professional
+ * sans serif font"): one variable file (res/font/inter.ttf, from src/fonts/inter-latin.woff2), each weight a point on its
+ * `wght` axis. Letters outside its Latin set fall back to the system sans. FuturaLT-Light is the website-weight overlay's
+ * face and nothing else; the home-screen widget stays in the system sans (Glance draws no bundled font).
  */
 object ErpFonts {
+    val inter: FontFamily = FontFamily(
+        listOf(100, 200, 300, 400, 500, 600, 700, 800, 900).map { w ->
+            Font(R.font.inter, FontWeight(w), variationSettings = FontVariation.Settings(FontVariation.weight(w)))
+        },
+    )
     val futuraLight: FontFamily = FontFamily(Font(R.font.futura_lt_light))
 }
 
@@ -75,31 +83,41 @@ fun TextStyle.tabular(): TextStyle = copy(fontFeatureSettings = TabularDigits)
  */
 object ErpType {
     /** A screen's one big sum (displaySmall, emphasized). */
-    val heroNumber = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 36.sp, lineHeight = 44.sp, letterSpacing = 0.sp, fontFeatureSettings = TabularDigits)
+    val heroNumber = TextStyle(fontFamily = ErpFonts.inter, fontWeight = FontWeight.SemiBold, fontSize = 36.sp, lineHeight = 44.sp, letterSpacing = 0.sp, fontFeatureSettings = TabularDigits)
 
     /** "PKR" beside it (titleLarge). */
-    val heroUnit = TextStyle(fontWeight = FontWeight.Medium, fontSize = 22.sp, lineHeight = 28.sp, letterSpacing = 0.sp)
+    val heroUnit = TextStyle(fontFamily = ErpFonts.inter, fontWeight = FontWeight.Medium, fontSize = 22.sp, lineHeight = 28.sp, letterSpacing = 0.sp)
 
     /** A section's name or a short title (titleMedium, emphasized). */
-    val heading = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 16.sp, lineHeight = 24.sp, letterSpacing = 0.15.sp)
+    val heading = TextStyle(fontFamily = ErpFonts.inter, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, lineHeight = 24.sp, letterSpacing = 0.15.sp)
 
     /** A figure tile's value (titleLarge, emphasized). */
-    val tileValue = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 22.sp, lineHeight = 28.sp, letterSpacing = 0.sp, fontFeatureSettings = TabularDigits)
+    val tileValue = TextStyle(fontFamily = ErpFonts.inter, fontWeight = FontWeight.SemiBold, fontSize = 22.sp, lineHeight = 28.sp, letterSpacing = 0.sp, fontFeatureSettings = TabularDigits)
 }
 
 /**
- * The stock Material 3 type scale in the system font, with its Expressive emphasized styles, set the way a reader wants it
+ * The stock Material 3 type scale in Inter, with its Expressive emphasized styles, set the way a reader wants it
  * broken: headings balance their lines (no one-word last line), body text breaks as a paragraph and hyphenates where it must.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 internal val ErpTypography = Typography().let { t ->
-    fun TextStyle.heading() = copy(lineBreak = LineBreak.Heading)
-    fun TextStyle.body() = copy(lineBreak = LineBreak.Paragraph, hyphens = Hyphens.Auto)
+    fun TextStyle.heading() = copy(fontFamily = ErpFonts.inter, lineBreak = LineBreak.Heading)
+    fun TextStyle.body() = copy(fontFamily = ErpFonts.inter, lineBreak = LineBreak.Paragraph, hyphens = Hyphens.Auto)
+    fun TextStyle.inter() = copy(fontFamily = ErpFonts.inter)
     t.copy(
         displayLarge = t.displayLarge.heading(), displayMedium = t.displayMedium.heading(), displaySmall = t.displaySmall.heading(),
         headlineLarge = t.headlineLarge.heading(), headlineMedium = t.headlineMedium.heading(), headlineSmall = t.headlineSmall.heading(),
         titleLarge = t.titleLarge.heading(), titleMedium = t.titleMedium.heading(), titleSmall = t.titleSmall.heading(),
         bodyLarge = t.bodyLarge.body(), bodyMedium = t.bodyMedium.body(), bodySmall = t.bodySmall.body(),
+        labelLarge = t.labelLarge.inter(), labelMedium = t.labelMedium.inter(), labelSmall = t.labelSmall.inter(),
+        displayLargeEmphasized = t.displayLargeEmphasized.heading(), displayMediumEmphasized = t.displayMediumEmphasized.heading(),
+        displaySmallEmphasized = t.displaySmallEmphasized.heading(), headlineLargeEmphasized = t.headlineLargeEmphasized.heading(),
+        headlineMediumEmphasized = t.headlineMediumEmphasized.heading(), headlineSmallEmphasized = t.headlineSmallEmphasized.heading(),
+        titleLargeEmphasized = t.titleLargeEmphasized.heading(), titleMediumEmphasized = t.titleMediumEmphasized.heading(),
+        titleSmallEmphasized = t.titleSmallEmphasized.heading(), bodyLargeEmphasized = t.bodyLargeEmphasized.body(),
+        bodyMediumEmphasized = t.bodyMediumEmphasized.body(), bodySmallEmphasized = t.bodySmallEmphasized.body(),
+        labelLargeEmphasized = t.labelLargeEmphasized.inter(), labelMediumEmphasized = t.labelMediumEmphasized.inter(),
+        labelSmallEmphasized = t.labelSmallEmphasized.inter(),
     )
 }
 

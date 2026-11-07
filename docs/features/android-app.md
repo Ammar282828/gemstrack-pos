@@ -282,7 +282,7 @@ Rules: `apps/android/CONVENTIONS.md` rule 5; the decision: `docs/decisions.md#ma
   of a screen `primaryContainer`; "yours" (an order or sale of the signed-in person) is `ledgerCard(lit = true)`, a wash of the primary container, not an outline.
   Edge to edge over the surface, the bars' icons follow the theme.
 - **Shape and type.** `Radius` is the Expressive scale (card 28, chip 16, tile 12, thumb 8, joint 4; the theme's `Shapes` carry extraSmall 4 ... extraLargeIncreased 32).
-  The serif is gone: the Material 3 type scale in the system sans (Google Sans on a Pixel, Roboto elsewhere); `ErpType.heroNumber` is displaySmall emphasized,
+  The serif is gone: the Material 3 type scale in Inter (since 2026-11-07, `res/font/inter.ttf`, as the web; the widget keeps the system sans); `ErpType.heroNumber` is displaySmall emphasized,
   `tileValue` titleLarge emphasized, `heading` titleMedium emphasized, digits tabular; `LedgerHeading` is sentence case in the primary, as Settings' group headers.
 - **Segmented groups.** `ui/Segmented.kt`: `SegmentedColumn` lays out its children as tiles 2 dp apart, the first with extraLarge corners above, the last below, small
   joints between, each clipped to its tile (a ripple keeps the corners). `LedgerSection`, `FormSection`, `SettingsSection`, Search and the Home lists draw it, so the
