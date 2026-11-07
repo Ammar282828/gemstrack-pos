@@ -192,17 +192,17 @@ private struct OverheadsBoard: View {
                     ProgressView(value: p.percent, total: 100).tint(Theme.accent)
                     if met {
                         Label("Covered \u{2014} \(OwnerText.pkr(earned - target)) above the benchmark", systemImage: "chart.line.uptrend.xyaxis")
-                            .font(.subheadline.weight(.medium))
+                            .font(.house(.subheadline).weight(.medium))
                             .foregroundStyle(.secondary)
                     } else {
                         HStack(spacing: pt(4)) {
                             RowAmount(amount: p.shortfall, tone: Theme.accent)
                             Text("still to earn").foregroundStyle(.secondary)
                         }
-                        .font(.subheadline)
+                        .font(.house(.subheadline))
                     }
                     Label(daysLine(p, met: met), systemImage: "calendar")
-                        .font(.subheadline)
+                        .font(.house(.subheadline))
                         .foregroundStyle(.secondary)
                 }
                 .ledgerCard(padding: 14)
@@ -251,13 +251,13 @@ private struct OverheadsBoard: View {
             VStack(alignment: .leading, spacing: pt(2)) {
                 Text(r.inProgress ? "\(r.label) · so far" : r.label).lineLimit(1)
                 Text("\(OwnerText.pkr(r.earned)) of \(OwnerText.pkr(r.target))")
-                    .font(.caption)
+                    .font(.house(.caption))
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
             }
             Spacer(minLength: 8)
             Text(OwnerText.signed(r.surplus))
-                .font(.subheadline.weight(.semibold))
+                .font(.house(.subheadline).weight(.semibold))
                 .monospacedDigit()
                 .foregroundStyle(r.inProgress ? Color.secondary : (r.surplus >= 0 ? Color.primary : Tone.owed.color))
         }
@@ -412,7 +412,7 @@ extension OverheadsBoard {
             MacDashCard(title: "Target covered", trailing: "\(Int(p.percent.rounded()))%") {
                 MacDashProgress(fraction: min(1, max(0, p.percent / 100)), tint: met ? Tone.settled.color : Theme.accent)
                 Text("What \(monthName) has to cover before anything is profit. Scored from \(Overheads.monthLabel(Overheads.benchmarkStart)).")
-                    .font(.footnote)
+                    .font(.house(.footnote))
                     .foregroundStyle(.secondary)
             }
             .fixedSize(horizontal: false, vertical: true)
@@ -440,7 +440,7 @@ extension OverheadsBoard {
                 .scrollDisabled(true)
                 .macReportsTable(rows: rows.count)
                 Text(summaryLine(summary: s))
-                    .font(.callout)
+                    .font(.house(.callout))
                     .foregroundStyle(.secondary)
                     .padding(16)
             }
@@ -478,7 +478,7 @@ extension OverheadsBoard {
                         .disabled(answer == nil)
                     Divider()
                     HStack {
-                        Text("Total").font(.body.weight(.medium))
+                        Text("Total").font(.house(.body).weight(.medium))
                         Spacer(minLength: 8)
                         RowAmount(amount: target, tone: Theme.accent)
                     }
@@ -486,7 +486,7 @@ extension OverheadsBoard {
             }
             .fixedSize(horizontal: false, vertical: true)
             Text("A benchmark, not a ledger. Nothing here is recorded as an expense or counted against profit \u{2014} enter the real payments in Expenses as they go out. Changes apply from \(Overheads.monthLabel(thisMonth)) onward; months already scored keep the target they were scored against.")
-                .font(.footnote)
+                .font(.house(.footnote))
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 4)
         }

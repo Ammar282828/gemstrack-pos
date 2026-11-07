@@ -75,7 +75,7 @@ struct MacOrdersBoard<RowMenu: View>: View {
                     }
                     if c.rows.isEmpty {
                         Text("Nothing here")
-                            .font(.callout)
+                            .font(.house(.callout))
                             .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity)
                             .padding(.top, 6)
@@ -103,7 +103,7 @@ struct MacOrdersBoard<RowMenu: View>: View {
         VStack(alignment: .leading, spacing: 2) {
             LedgerHeading(title: c.title, count: c.rows.count)
             if session.isOwner, c.worth > 0 {
-                Text("worth " + Money.pkrLac(c.worth, digits: 1)).font(.caption).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
+                Text("worth " + Money.pkrLac(c.worth, digits: 1)).font(.house(.caption)).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
             }
         }
         .padding(.horizontal, 12)
@@ -120,14 +120,14 @@ struct MacOrdersBoard<RowMenu: View>: View {
             HStack(spacing: 8) {
                 Monogram(name: r.customer, size: Monogram.Size.row)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(r.customer).font(.body).lineLimit(1)
-                    Text(r.id).font(.caption).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
+                    Text(r.customer).font(.house(.body)).lineLimit(1)
+                    Text(r.id).font(.house(.caption)).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
                 }
                 Spacer(minLength: 4)
                 money(r)
             }
             if !r.what.isEmpty {
-                Text(r.what).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                Text(r.what).font(.house(.callout)).foregroundStyle(.secondary).lineLimit(1)
             }
             HStack(spacing: 8) {
                 StageTrack(stage: r.stage).frame(width: 64)
@@ -135,7 +135,7 @@ struct MacOrdersBoard<RowMenu: View>: View {
                 if !r.promisedDay.isEmpty && r.stage != .done && r.stage != .closed {
                     let urgent = !r.promisedWords.isEmpty
                     Text(urgent ? r.promisedWords : "Due " + r.promisedDay)
-                        .font(.caption.weight(urgent ? .semibold : .regular))
+                        .font(.house(.caption).weight(urgent ? .semibold : .regular))
                         .foregroundStyle(urgent ? r.promisedTone.color : Color.secondary)
                         .lineLimit(1)
                 }
@@ -189,7 +189,7 @@ struct MacOrdersBoard<RowMenu: View>: View {
                     showClosed.toggle()
                 } label: {
                     Text(showClosed ? "Hide Done and Cancelled" : "Show Done and Cancelled (\(closedCount))")
-                        .font(.callout)
+                        .font(.house(.callout))
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(Theme.accent)

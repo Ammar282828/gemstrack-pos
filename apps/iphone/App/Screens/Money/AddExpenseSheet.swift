@@ -93,7 +93,7 @@ struct AddExpenseSheet: View {
                 LedgerSection("How much") {
                     TextField("Amount in rupees", text: $amountText.wholeRupees)
                         .keyboardType(.numberPad)
-                        .font(.title2.weight(.semibold))
+                        .font(.house(.title2).weight(.semibold))
                         .monospacedDigit()
                     if amount > 0 { Text(Money.pkrLac(amount)).monospacedDigit().foregroundStyle(.secondary) }
                 }
@@ -205,7 +205,7 @@ struct AddExpenseSheet: View {
         let batches = theirBatches
         if batches.isEmpty {
             Text("\(karigarName) has no hisaab yet. This is recorded as a direct payment.")
-                .font(.footnote)
+                .font(.house(.footnote))
                 .foregroundStyle(.secondary)
         } else {
             Picker("Add to a hisaab", selection: batchBinding) {

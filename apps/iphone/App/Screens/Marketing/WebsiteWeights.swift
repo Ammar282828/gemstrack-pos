@@ -145,11 +145,11 @@ struct WebsiteWeightsScreen: View {
                 Section {
                     VStack(alignment: .leading, spacing: pt(8)) {
                         HStack(alignment: .firstTextBaseline) {
-                            Text("\(c.withWeight)").font(.system(.title2, design: .serif).weight(.semibold)).monospacedDigit().contentTransition(.numericText(value: Double(c.withWeight)))
+                            Text("\(c.withWeight)").font(.house(.title2).weight(.semibold)).monospacedDigit().contentTransition(.numericText(value: Double(c.withWeight)))
                             Text("of \(c.total) weighed").foregroundStyle(.secondary)
                             Spacer()
                             Text(c.total - c.withWeight > 0 ? "\(c.total - c.withWeight) to go" : "all weighed")
-                                .font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
+                                .font(.house(.subheadline)).foregroundStyle(.secondary).monospacedDigit()
                         }
                         ProgressView(value: Double(c.withWeight), total: Double(max(1, c.total))).tint(Theme.accent)
                     }
@@ -199,11 +199,11 @@ struct WebsiteWeightsScreen: View {
         let items = weightItems
         if let bad = items.first(where: { (i: Outbox.Item) in i.status == .failed }) {
             Label("Not saved: \(bad.label.dropFirst(Self.labelPrefix.count))", systemImage: "exclamationmark.triangle.fill")
-                .font(.footnote).foregroundStyle(Tone.problem.color)
+                .font(.house(.footnote)).foregroundStyle(Tone.problem.color)
         } else if !items.isEmpty {
-            Label("Saving \(items.count)…", systemImage: "arrow.triangle.2.circlepath").font(.footnote).foregroundStyle(.secondary)
+            Label("Saving \(items.count)…", systemImage: "arrow.triangle.2.circlepath").font(.house(.footnote)).foregroundStyle(.secondary)
         } else if done.count > 0 {
-            Label("\(done.count) saved", systemImage: "checkmark.circle.fill").font(.footnote).foregroundStyle(.secondary)
+            Label("\(done.count) saved", systemImage: "checkmark.circle.fill").font(.house(.footnote)).foregroundStyle(.secondary)
         }
     }
 
@@ -231,7 +231,7 @@ struct WebsiteWeightsScreen: View {
                 .overlay(alignment: .topTrailing) {
                     if p.source == "label", let g = p.labelWeightGrams {
                         Text("Weight on the photo: \(WebsiteNumber.grams(g))g")
-                            .font(.caption)
+                            .font(.house(.caption))
                             .foregroundStyle(.primary)
                             .padding(.horizontal, pt(8)).padding(.vertical, pt(4))
                             .background(Theme.card, in: .capsule)
@@ -243,7 +243,7 @@ struct WebsiteWeightsScreen: View {
                 Button { index = max(index - 1, 0) } label: { Label("Previous", systemImage: "chevron.left") }
                     .disabled(index == 0)
                 Spacer()
-                Text("\(index + 1) of \(total)").font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
+                Text("\(index + 1) of \(total)").font(.house(.subheadline)).foregroundStyle(.secondary).monospacedDigit()
                 Spacer()
                 Button { index = min(index + 1, total - 1) } label: { Label("Next", systemImage: "chevron.right") }
                     .disabled(index >= total - 1)
@@ -264,9 +264,9 @@ struct WebsiteWeightsScreen: View {
                     .keyboardType(.decimalPad)
                     .keyboardDone()
                     .focused($typing)
-                    .font(.system(.largeTitle, design: .serif).weight(.semibold))
+                    .font(.house(.largeTitle).weight(.semibold))
                     .monospacedDigit()
-                Text("g").font(.title).foregroundStyle(.secondary)
+                Text("g").font(.house(.title)).foregroundStyle(.secondary)
             }
             Button("Skip") { index = min(index + 1, max(0, queue.count - 1)) }
                 .disabled(index >= queue.count - 1)
@@ -295,13 +295,13 @@ struct WebsiteWeightsScreen: View {
                                 .overlay(alignment: .topTrailing) {
                                     if let st = outbox.status(of: Self.labelPrefix + u.piece.file) {
                                         Image(systemName: st == .failed ? "exclamationmark.circle.fill" : "ellipsis.circle.fill")
-                                            .font(.caption).foregroundStyle(st == .failed ? Tone.problem.color : Color.secondary).padding(pt(2))
+                                            .font(.house(.caption)).foregroundStyle(st == .failed ? Tone.problem.color : Color.secondary).padding(pt(2))
                                     }
                                 }
                                 .overlay(alignment: .bottom) {
                                     if let g = u.piece.weightGrams {
                                         Text("\(WebsiteNumber.grams(g))g")
-                                            .font(.caption2)
+                                            .font(.house(.caption2))
                                             .foregroundStyle(.primary)
                                             .frame(maxWidth: .infinity)
                                             .background(Theme.card.opacity(0.85))
@@ -513,9 +513,9 @@ extension WebsiteWeightsScreen {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 TextField("0.00", text: $value)
                     .focused($typing)
-                    .font(.title2.weight(.semibold))
+                    .font(.house(.title2).weight(.semibold))
                     .monospacedDigit()
-                Text("g").font(.title3).foregroundStyle(.secondary)
+                Text("g").font(.house(.title3)).foregroundStyle(.secondary)
             }
             WebsiteFeatureButton(key: p.key, name: p.file)
         } header: {

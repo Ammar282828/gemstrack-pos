@@ -104,7 +104,7 @@ struct WorkshopPaySheet: View {
                 LedgerSection("Amount (PKR)") {
                     TextField("0", text: $amountText.wholeRupees)
                         .keyboardType(.numberPad)
-                        .font(.title2.weight(.semibold))
+                        .font(.house(.title2).weight(.semibold))
                         .monospacedDigit()
                     if amount > 0 { HeroAmount(amount: amount, lac: true) }
                 }

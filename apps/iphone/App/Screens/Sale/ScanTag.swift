@@ -161,14 +161,14 @@ struct ScanTag: View {
                         .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
                 }
                 VStack(alignment: .leading, spacing: pt(3)) {
-                    Text(p.name).font(.headline)
-                    Text(p.sku).font(.subheadline.monospaced()).foregroundStyle(.secondary)
-                    Text(spec(p)).font(.subheadline).foregroundStyle(.secondary)
+                    Text(p.name).font(.house(.headline))
+                    Text(p.sku).font(.house(.subheadline).monospaced()).foregroundStyle(.secondary)
+                    Text(spec(p)).font(.house(.subheadline)).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 0)
             }
             if let price {
-                LabeledContent("Price today") { Text(Money.pkr(price)).font(.headline).monospacedDigit() }
+                LabeledContent("Price today") { Text(Money.pkr(price)).font(.house(.headline)).monospacedDigit() }
             }
             pieceActions(p, added: added)
         }
@@ -178,7 +178,7 @@ struct ScanTag: View {
     private func pieceActions(_ p: Product, added: Bool) -> some View {
         if session.isOwner && added {
             Label("On the new sale · \(onSale) piece\(onSale == 1 ? "" : "s")", systemImage: "checkmark.circle.fill")
-                .font(.subheadline.weight(.semibold))
+                .font(.house(.subheadline).weight(.semibold))
                 .foregroundStyle(Tone.settled.color)
         }
         NavigationLink(value: SaleLinks.piece(p.sku)) {
@@ -194,7 +194,7 @@ struct ScanTag: View {
     private func soldCard(code: String, invoiceId: String) -> some View {
         let inv = book.invoices.item(invoiceId)
         return card {
-            Label("\(code) is not in stock", systemImage: "magnifyingglass").font(.headline)
+            Label("\(code) is not in stock", systemImage: "magnifyingglass").font(.house(.headline))
             if let inv {
                 let who = isWalkInName(inv.customerName) || inv.customerName.isEmpty ? "Walk-in" : inv.customerName
                 Text("It was sold on \(inv.id) · \(ShopDate.say(inv.createdAt)) · \(who).")
@@ -215,7 +215,7 @@ struct ScanTag: View {
 
     private func unknownCard(_ code: String) -> some View {
         card {
-            Label("No piece \(code) in stock", systemImage: "magnifyingglass").font(.headline)
+            Label("No piece \(code) in stock", systemImage: "magnifyingglass").font(.house(.headline))
             Text("It may be a one-off piece that was billed without being stocked, or it is not entered yet.")
                 .foregroundStyle(.secondary)
             Button("Scan another") { scanAnother() }
@@ -228,7 +228,7 @@ struct ScanTag: View {
     /// Pieces already waiting on the new sale.
     private var saleCard: some View {
         card {
-            Label("\(onSale) piece\(onSale == 1 ? "" : "s") on the new sale", systemImage: "cart").font(.headline)
+            Label("\(onSale) piece\(onSale == 1 ? "" : "s") on the new sale", systemImage: "cart").font(.house(.headline))
             NavigationLink(value: SaleLinks.continueSale) {
                 Text("Open the sale").frame(maxWidth: .infinity)
             }
@@ -353,9 +353,9 @@ extension ScanTag {
                         .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
                 }
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(p.name).font(.headline)
-                    Text(p.sku).font(.subheadline.monospaced()).foregroundStyle(.secondary)
-                    Text(spec(p)).font(.subheadline).foregroundStyle(.secondary)
+                    Text(p.name).font(.house(.headline))
+                    Text(p.sku).font(.house(.subheadline).monospaced()).foregroundStyle(.secondary)
+                    Text(spec(p)).font(.house(.subheadline)).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 0)
             }
@@ -375,7 +375,7 @@ extension ScanTag {
     private func macSold(code: String, invoiceId: String, open: SaleMacOpener) -> some View {
         let inv = book.invoices.item(invoiceId)
         Section {
-            Label("\(code) is not in stock", systemImage: "magnifyingglass").font(.headline)
+            Label("\(code) is not in stock", systemImage: "magnifyingglass").font(.house(.headline))
             if let inv {
                 let who = isWalkInName(inv.customerName) || inv.customerName.isEmpty ? "Walk-in" : inv.customerName
                 Text("It was sold on \(inv.id) · \(ShopDate.say(inv.createdAt)) · \(who).")
@@ -393,7 +393,7 @@ extension ScanTag {
     @ViewBuilder
     private func macUnknown(_ code: String) -> some View {
         Section {
-            Label("No piece \(code) in stock", systemImage: "magnifyingglass").font(.headline)
+            Label("No piece \(code) in stock", systemImage: "magnifyingglass").font(.house(.headline))
             Text("It may be a one-off piece that was billed without being stocked, or it is not entered yet.")
                 .foregroundStyle(.secondary)
         } header: {
@@ -443,7 +443,7 @@ private struct ScanTagMacScanner: View {
                     ForEach(history, id: \.self) { sku in
                         Button { read(sku) } label: {
                             HStack {
-                                Text(sku).font(.body.monospaced())
+                                Text(sku).font(.house(.body).monospaced())
                                 Text(title(sku)).foregroundStyle(.secondary).lineLimit(1)
                                 Spacer()
                             }

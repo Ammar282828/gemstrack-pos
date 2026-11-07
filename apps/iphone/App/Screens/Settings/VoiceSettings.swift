@@ -95,21 +95,21 @@ private struct VoiceSettingsPage: View {
     private var statusSection: some View {
         Section {
             Label {
-                Text(ready == nil ? "Checking…" : ready == true ? "Voice is ready" : "Voice is not set up").font(.headline)
+                Text(ready == nil ? "Checking…" : ready == true ? "Voice is ready" : "Voice is not set up").font(.house(.headline))
             } icon: {
                 Image(systemName: ready == true ? "mic.fill" : "mic.slash")
             }
             if ready == false {
                 VStack(alignment: .leading, spacing: pt(6)) {
-                    Text(problemTitle).font(.subheadline.weight(.semibold))
+                    Text(problemTitle).font(.house(.subheadline).weight(.semibold))
                     Text(problemDetail + " Everything else works meanwhile — every entry voice could make can still be made from the ordinary forms.")
-                        .font(.subheadline)
+                        .font(.house(.subheadline))
                         .foregroundStyle(.secondary)
                 }
                 .padding(.vertical, pt(2))
             }
             Text("Nothing spoken is written down until it has been read back and confirmed. When two people sound alike, it asks which rather than choosing.")
-                .font(.subheadline)
+                .font(.house(.subheadline))
                 .foregroundStyle(.secondary)
         } footer: {
             Text("Voice is paid for by this shop’s own Google account. There is no key to keep.")
@@ -186,10 +186,10 @@ private struct VoiceSettingsPage: View {
             VStack(alignment: .leading, spacing: pt(2)) {
                 HStack(spacing: pt(6)) {
                     Text("“\(a.heard)”").italic().foregroundStyle(.secondary).lineLimit(1)
-                    Image(systemName: "arrow.right").font(.caption).foregroundStyle(.secondary)
+                    Image(systemName: "arrow.right").font(.house(.caption)).foregroundStyle(.secondary)
                     Text(a.refName).fontWeight(.medium).lineLimit(1)
                 }
-                Text(sub).font(.caption).foregroundStyle(.secondary)
+                Text(sub).font(.house(.caption)).foregroundStyle(.secondary)
             }
             Spacer(minLength: 8)
             if busy == a.id { ProgressView() }

@@ -193,13 +193,13 @@ struct InvoiceScreen: View {
                         customerTitle(inv)
                         if !when.isEmpty {
                             Text(when)
-                                .font(.subheadline)
+                                .font(.house(.subheadline))
                                 .foregroundStyle(.secondary)
                                 .monospacedDigit()
                         }
                         HStack(spacing: pt(6)) {
                             Text(piecesLine(inv))
-                                .font(.subheadline)
+                                .font(.house(.subheadline))
                                 .foregroundStyle(.secondary)
                                 .lineLimit(2)
                         }
@@ -209,7 +209,7 @@ struct InvoiceScreen: View {
                 if session.isOwner && unnamed(inv) && inv.status != .refunded {
                     Button { settingCustomer = true } label: {
                         Label("Name the customer", systemImage: "person.crop.circle.badge.plus")
-                            .font(.subheadline.weight(.semibold))
+                            .font(.house(.subheadline).weight(.semibold))
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.regular)
@@ -220,7 +220,7 @@ struct InvoiceScreen: View {
                 // Whoever opens it next sees the PDF went, so it is not sent twice.
                 if let sent = inv.sentOnWhatsApp {
                     Label("PDF sent to \(sent.to) · \(ShopDate.say(sent.at, withTime: true))", systemImage: "checkmark.circle.fill")
-                        .font(.caption)
+                        .font(.house(.caption))
                         .foregroundStyle(.secondary)
                 }
             }
@@ -254,7 +254,7 @@ struct InvoiceScreen: View {
                 // Paid in full says it once, in the lead; the sums are under Pieces and Payments (rule 15).
                 if balanceLine(inv.balanceDue).state != .paid || inv.status == .refunded {
                     Text("Total \(Money.pkr(inv.grandTotal)) · Paid \(Money.pkr(inv.amountPaid))")
-                        .font(.subheadline)
+                        .font(.house(.subheadline))
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
                         .contentTransition(.numericText(value: inv.balanceDue))
@@ -276,15 +276,15 @@ struct InvoiceScreen: View {
         } else {
             switch line.state {
             case .due:
-                Text("Due").font(.subheadline).foregroundStyle(.secondary)
+                Text("Due").font(.house(.subheadline)).foregroundStyle(.secondary)
                 HeroAmount(amount: line.amount, tone: InvoiceFacts.balanceTone(inv).color)
             case .credit:
-                Text("In credit").font(.subheadline).foregroundStyle(.secondary)
+                Text("In credit").font(.house(.subheadline)).foregroundStyle(.secondary)
                 HeroAmount(amount: line.amount, tone: Tone.credit.color)
             case .paid:
                 // Paid is what an invoice is meant to be: said in the ink, not as a green badge (CONVENTIONS rule 15).
                 Text("Paid in full")
-                    .font(.system(.largeTitle, design: .serif).weight(.semibold))
+                    .font(.house(.largeTitle).weight(.semibold))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
@@ -296,7 +296,7 @@ struct InvoiceScreen: View {
     /// row would make the whole row a link, and take the Name the customer button's tap with it.
     private func customerTitle(_ inv: Invoice) -> some View {
         Text(InvoiceFacts.customerName(inv, walkIn: "Walk-in"))
-            .font(.system(.title2, design: .serif).weight(.semibold))
+            .font(.house(.title2).weight(.semibold))
             .foregroundStyle(Color.primary)
             .lineLimit(2)
             .minimumScaleFactor(0.8)
@@ -340,7 +340,7 @@ struct InvoiceScreen: View {
         let shown = allPieces ? items : Array(items.prefix(firstPieces))
         Section {
             if inv.items.isEmpty {
-                Text("No pieces on this invoice.").font(.subheadline).foregroundStyle(.secondary)
+                Text("No pieces on this invoice.").font(.house(.subheadline)).foregroundStyle(.secondary)
             }
             ForEach(shown, id: \.offset) { pair in
                 InvoicePieceRow(item: pair.element, showBreakdown: session.isOwner)
@@ -379,7 +379,7 @@ struct InvoiceScreen: View {
         MoneyRow("Total", inv.grandTotal, emphasis: true)
         if !inv.hideRates && !rates.isEmpty {
             Text("Rates applied · " + rates.joined(separator: "  ·  "))
-                .font(.caption)
+                .font(.house(.caption))
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
         }
@@ -394,7 +394,7 @@ struct InvoiceScreen: View {
                 LabeledContent("Exchange", value: "—")
             }
             if !said.isEmpty {
-                Text(said).font(.caption).foregroundStyle(.secondary)
+                Text(said).font(.house(.caption)).foregroundStyle(.secondary)
             }
         }
     }
@@ -419,7 +419,7 @@ struct InvoiceScreen: View {
         let line = balanceLine(inv.balanceDue)
         Section {
             if inv.paymentHistory.isEmpty {
-                Text("No payments yet").font(.subheadline).foregroundStyle(.secondary)
+                Text("No payments yet").font(.house(.subheadline)).foregroundStyle(.secondary)
             }
             ForEach(Array(inv.paymentHistory.enumerated()), id: \.offset) { pair in
                 paymentRow(inv, index: pair.offset, payment: pair.element)
@@ -435,7 +435,7 @@ struct InvoiceScreen: View {
             if line.state == .credit && inv.status != .refunded && !inv.paymentHistory.isEmpty {
                 Label("\(line.label), on \(InvoiceFacts.customerName(inv, walkIn: "the customer"))'s hisaab",
                       systemImage: "arrow.uturn.left.circle.fill")
-                    .font(.footnote.weight(.medium))
+                    .font(.house(.footnote).weight(.medium))
                     .foregroundStyle(Tone.credit.color)
                 // Finish the credit by handing the money over (an owner's; a walk-in holds none).
                 if session.isOwner && InvoiceCredit.held(inv) >= 1 {
@@ -531,7 +531,7 @@ struct InvoiceScreen: View {
             Section {
                 if showsMargin { InvoiceMarginRow(invoice: inv) }
                 if !shopNote.isEmpty {
-                    Text(shopNote).font(.subheadline)
+                    Text(shopNote).font(.house(.subheadline))
                 }
             } header: {
                 LedgerHeading(title: "For the shop (never printed)")
@@ -688,22 +688,22 @@ private struct InvoicePieceRow: View {
                 : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: pt(12)))
             layout {
                 Text(title)
-                    .font(.headline)
+                    .font(.house(.headline))
                     .fixedSize(horizontal: false, vertical: true)
                 if !typeSize.isAccessibilitySize { Spacer(minLength: 8) }
                 RowAmount(amount: item.itemTotal)
             }
             if !facts.isEmpty {
                 Text(facts.joined(separator: " · "))
-                    .font(.subheadline)
+                    .font(.house(.subheadline))
                     .foregroundStyle(.secondary)
             }
             ForEach(settings, id: \.self) { line in
-                Text(line).font(.caption).foregroundStyle(.secondary)
+                Text(line).font(.house(.caption)).foregroundStyle(.secondary)
             }
             if showBreakdown && !costs.isEmpty {
                 Text(costs.joined(separator: " · "))
-                    .font(.caption)
+                    .font(.house(.caption))
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
             }
@@ -780,22 +780,22 @@ private struct InvoicePaymentRow: View {
     var body: some View {
         HStack(alignment: .center, spacing: pt(12)) {
             Image(systemName: symbol)
-                .font(.subheadline.weight(.semibold))
+                .font(.house(.subheadline).weight(.semibold))
                 .foregroundStyle(tone.color)
                 .frame(width: iconSize, height: iconSize)
                 .background(tone.color.opacity(0.12), in: .circle)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: pt(2)) {
-                Text(title).font(.subheadline.weight(.medium))
+                Text(title).font(.house(.subheadline).weight(.medium))
                 Text(detail)
-                    .font(.caption)
+                    .font(.house(.caption))
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
             }
             Spacer(minLength: 8)
             if refund {
                 Text(Money.minus(payment.amount))
-                    .font(.subheadline.weight(.semibold))
+                    .font(.house(.subheadline).weight(.semibold))
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
@@ -858,7 +858,7 @@ private struct InvoiceMarginRow: View {
             HStack(alignment: .firstTextBaseline, spacing: pt(12)) {
                 Label("We earn", systemImage: shown ? "eye.slash" : "eye")
                     .contentTransition(.symbolEffect(.replace))
-                    .font(.subheadline)
+                    .font(.house(.subheadline))
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 8)
                 figure
@@ -875,13 +875,13 @@ private struct InvoiceMarginRow: View {
         if shown {
             let m = invoiceMargin(invoice, settings: House.margin)
             Text(words(m))
-                .font(.subheadline.weight(.medium))
+                .font(.house(.subheadline).weight(.medium))
                 .monospacedDigit()
                 .multilineTextAlignment(.trailing)
                 .foregroundStyle(tone(m))
         } else {
             Text("00.0% · \(Money.pkr(0))")
-                .font(.subheadline.weight(.medium))
+                .font(.house(.subheadline).weight(.medium))
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
                 .blur(radius: 6)
@@ -1070,7 +1070,7 @@ extension InvoiceScreen {
 
     private func macMain(_ inv: Invoice, _ cx: MacInvoiceContext) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            MacInvoiceHead(invoice: inv, cx: cx, customerTitleFont: .system(.title2, design: .serif).weight(.semibold),
+            MacInvoiceHead(invoice: inv, cx: cx, customerTitleFont: .house(.title2).weight(.semibold),
                            withContact: true)
             MacInvoicePiecesTable(invoice: inv, isOwner: session.isOwner)
             MacInvoiceTotalsBlock(invoice: inv, rates: appliedRates(inv))
@@ -1248,8 +1248,8 @@ private struct MacInvoicePiecesTable: View {
             let facts = full.macFacts.joined(separator: " · ")
             if !lines.filter({ !$0.isEmpty }).isEmpty || !facts.isEmpty {
                 VStack(alignment: .leading, spacing: 3) {
-                    if !facts.isEmpty { Text(facts).font(.callout) }
-                    ForEach(lines.filter { !$0.isEmpty }, id: \.self) { Text($0).font(.caption).foregroundStyle(.secondary).monospacedDigit() }
+                    if !facts.isEmpty { Text(facts).font(.house(.callout)) }
+                    ForEach(lines.filter { !$0.isEmpty }, id: \.self) { Text($0).font(.house(.caption)).foregroundStyle(.secondary).monospacedDigit() }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.vertical, 4)
@@ -1280,7 +1280,7 @@ private struct MacInvoiceTotalsBlock: View {
         HStack(alignment: .top, spacing: 24) {
             if !invoice.hideRates && !rates.isEmpty {
                 Text("Rates applied · " + rates.joined(separator: "  ·  "))
-                    .font(.caption)
+                    .font(.house(.caption))
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
             }
@@ -1324,7 +1324,7 @@ private struct MacInvoiceTotalsBlock: View {
         return VStack(alignment: .leading, spacing: 1) {
             line("Exchange", e.value > 0 ? Money.minus(e.value) : "—")
             if !said.isEmpty {
-                Text(said).font(.caption).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading)
+                Text(said).font(.house(.caption)).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading)
             }
         }
     }

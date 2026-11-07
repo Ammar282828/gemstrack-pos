@@ -35,9 +35,9 @@ struct MacInvoiceSheetFrame<Content: View>: View {
 
     private var heading: some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(title).font(.headline)
+            Text(title).font(.house(.headline))
             if let subtitle, !subtitle.isEmpty {
-                Text(subtitle).font(.callout).foregroundStyle(.secondary)
+                Text(subtitle).font(.house(.callout)).foregroundStyle(.secondary)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

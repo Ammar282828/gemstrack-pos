@@ -28,7 +28,7 @@ struct AnaBarChart: View {
             .accessibilityLabel("Amount by name")
             .accessibilityValue(ChartSummary.say(bars.map { (label: $0.label, value: $0.value) }))
             Text("PKR lac")
-                .font(.caption)
+                .font(.house(.caption))
                 .foregroundStyle(.secondary)
         }
     }
@@ -84,7 +84,7 @@ struct AnaSalesChart: View {
             .accessibilityLabel("Sales each day over the period")
             .accessibilityValue(ChartSummary.say(days.map { (label: ChartSummary.day($0.plotDate), value: $0.sales) }))
             Text("Sales, PKR lac")
-                .font(.caption)
+                .font(.house(.caption))
                 .foregroundStyle(.secondary)
         }
     }
@@ -115,7 +115,7 @@ struct AnaOrdersChart: View {
             .accessibilityLabel("Orders each day over the period")
             .accessibilityValue(ChartSummary.say(days.map { (label: ChartSummary.day($0.plotDate), value: Double($0.orders)) }, money: false))
             Text("Orders")
-                .font(.caption)
+                .font(.house(.caption))
                 .foregroundStyle(.secondary)
         }
     }
@@ -159,7 +159,7 @@ struct AnaMonthlyChart: View {
             .accessibilityLabel("Revenue for each month on record")
             .accessibilityValue(ChartSummary.say(months.map { (label: $0.label, value: $0.revenue) }) + ". Average " + Spoken.rupees(average, lac: true))
             Text("Revenue, PKR lac. Dashed line: the average of months with sales.")
-                .font(.caption)
+                .font(.house(.caption))
                 .foregroundStyle(.secondary)
         }
     }
@@ -188,7 +188,7 @@ struct AnaSourceTrendChart: View {
                 "\(name), \(Spoken.rupees(rows.reduce(0) { $0 + $1.amount }, lac: true))"
             }.sorted().joined(separator: ". "))
             Text("PKR lac")
-                .font(.caption)
+                .font(.house(.caption))
                 .foregroundStyle(.secondary)
         }
     }
@@ -205,7 +205,7 @@ struct AnaShareChart: View {
 
     var body: some View {
         if rows.isEmpty {
-            Text("No category revenue in this period.").font(.subheadline).foregroundStyle(.secondary)
+            Text("No category revenue in this period.").font(.house(.subheadline)).foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, minHeight: 80)
         } else {
             VStack(spacing: pt(12)) {
@@ -213,11 +213,11 @@ struct AnaShareChart: View {
                     let muted = c.id == "uncategorized"
                     VStack(alignment: .leading, spacing: pt(4)) {
                         HStack(alignment: .firstTextBaseline, spacing: pt(12)) {
-                            Text(c.name).font(.subheadline).lineLimit(1)
+                            Text(c.name).font(.house(.subheadline)).lineLimit(1)
                                 .foregroundStyle(muted ? Color.secondary : Color.primary)
                             Spacer(minLength: 0)
-                            Text(categoryShareText(total > 0 ? c.revenue / total : 0)).font(.subheadline).monospacedDigit()
-                            Text(Money.lacCrore(c.revenue)).font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                            Text(categoryShareText(total > 0 ? c.revenue / total : 0)).font(.house(.subheadline)).monospacedDigit()
+                            Text(Money.lacCrore(c.revenue)).font(.house(.caption)).foregroundStyle(.secondary).monospacedDigit()
                         }
                         GeometryReader { (geo: GeometryProxy) in
                             ZStack(alignment: .leading) {

@@ -562,7 +562,7 @@ extension RepairsForm {
 
     private var macSheetTitle: some View {
         Text(editing.map { "Repair \($0.id)" } ?? "New Repair")
-            .font(.headline)
+            .font(.house(.headline))
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 20)
             .padding(.top, 16)
@@ -574,7 +574,7 @@ extension RepairsForm {
             Divider()
             HStack(spacing: 12) {
                 Text(macSummary)
-                    .font(.callout)
+                    .font(.house(.callout))
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
                     .lineLimit(1)
@@ -645,7 +645,7 @@ extension RepairsForm {
                     Text("Price")
                     Color.clear.frame(width: 20, height: 1)
                 }
-                .font(.caption)
+                .font(.house(.caption))
                 .foregroundStyle(.secondary)
                 ForEach($pieces) { $piece in
                     GridRow {

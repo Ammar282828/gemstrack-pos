@@ -31,7 +31,7 @@ private struct PDFQuickShare: ViewModifier {
                 if let preparing {
                     HStack(spacing: 10) {
                         ProgressView()
-                        Text("Preparing \(preparing.title)…").font(.subheadline).lineLimit(1)
+                        Text("Preparing \(preparing.title)…").font(.house(.subheadline)).lineLimit(1)
                     }
                     .padding(.horizontal, 18).padding(.vertical, 12)
                     .glassEffect(.regular, in: .capsule)
@@ -149,7 +149,7 @@ struct QuickPrintButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: "printer")
-                .font(.subheadline.weight(.semibold))
+                .font(.house(.subheadline).weight(.semibold))
                 .foregroundStyle(Theme.accent)
                 .frame(width: 36, height: 36)
                 .contentShape(Circle())

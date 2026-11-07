@@ -37,7 +37,7 @@ struct TagScanner: View {
                     .clipShape(.rect(cornerRadius: Radius.card, style: .continuous))
                     .overlay(alignment: .bottom) {
                         Text("Hold the tag's code in view, or tap a SKU printed on it")
-                            .font(.footnote.weight(.medium))
+                            .font(.house(.footnote).weight(.medium))
                             .padding(.horizontal, pt(12)).padding(.vertical, pt(6))
                             .glassEffect(.regular, in: .capsule)
                             .padding(.bottom, pt(10))
@@ -51,11 +51,11 @@ struct TagScanner: View {
 
     private var unavailable: some View {
         VStack(spacing: pt(8)) {
-            Image(systemName: "camera.slash").font(.largeTitle).foregroundStyle(.secondary)
+            Image(systemName: "camera.slash").font(.house(.largeTitle)).foregroundStyle(.secondary)
             Text(cameraSupported ? "The camera is off for this app." : "This phone can't scan tags here.")
-                .font(.headline)
+                .font(.house(.headline))
             Text(cameraSupported ? "Allow it in Settings, or type the SKU below." : "Type the SKU below.")
-                .font(.subheadline).foregroundStyle(.secondary)
+                .font(.house(.subheadline)).foregroundStyle(.secondary)
             if cameraSupported {
                 Button("Open Settings") {
                     if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
@@ -192,12 +192,12 @@ struct TagScanner: View {
     var body: some View {
         VStack(spacing: 12) {
             VStack(spacing: 6) {
-                Image(systemName: "barcode.viewfinder").font(.title2).foregroundStyle(.secondary)
-                Text("Scan the tag with the barcode scanner").font(.headline)
+                Image(systemName: "barcode.viewfinder").font(.house(.title2)).foregroundStyle(.secondary)
+                Text("Scan the tag with the barcode scanner").font(.house(.headline))
                 Text("Point the scanner at the tag: it types the SKU. Or type it below, or read a photo of the tag.")
-                    .font(.callout).foregroundStyle(.secondary)
+                    .font(.house(.callout)).foregroundStyle(.secondary)
                 if reading { ProgressView().controlSize(.small) }
-                if let said { Text(said).font(.callout).foregroundStyle(Tone.owed.color) }
+                if let said { Text(said).font(.house(.callout)).foregroundStyle(Tone.owed.color) }
             }
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity, minHeight: min(height, 200))

@@ -264,7 +264,7 @@ private struct AIKeysPage: View {
                     })) {
                         VStack(alignment: .leading, spacing: pt(2)) {
                             Text(s.label)
-                            Text(s.detail).font(.caption).foregroundStyle(.secondary)
+                            Text(s.detail).font(.house(.caption)).foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -286,8 +286,8 @@ private struct AIKeysPage: View {
                     VStack(alignment: .leading, spacing: pt(4)) {
                         Text("\(k.label)  ··\(k.tail)").fontWeight(.medium)
                         Text(k.scopes.map(scopeLabel).joined(separator: ", ") + (k.expired ? " · Expired" : ""))
-                            .font(.caption).foregroundStyle(.secondary)
-                        Text(line(k)).font(.caption).foregroundStyle(.secondary)
+                            .font(.house(.caption)).foregroundStyle(.secondary)
+                        Text(line(k)).font(.house(.caption)).foregroundStyle(.secondary)
                     }
                     .swipeActions {
                         Button(role: .destructive) { revoking = k } label: { Label("Revoke", systemImage: "trash") }
@@ -387,9 +387,9 @@ private struct AIKeySetup: View {
                 AICopyBlock(text: json("url"))
             }
             Text("Then ask it, for example: “Make a story and a post of our newest emerald ring and queue it for the community.” It waits in Posts for your OK.")
-                .font(.footnote).foregroundStyle(.secondary)
+                .font(.house(.footnote)).foregroundStyle(.secondary)
         }
-        .font(.subheadline)
+        .font(.house(.subheadline))
     }
 }
 
@@ -401,7 +401,7 @@ private struct AICopyBlock: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: pt(4)) {
-            if let caption { Text(caption).font(.footnote).foregroundStyle(.secondary) }
+            if let caption { Text(caption).font(.house(.footnote)).foregroundStyle(.secondary) }
             HStack(alignment: .top, spacing: pt(8)) {
                 Text(text)
                     .font(.system(.footnote, design: .monospaced))
@@ -495,7 +495,7 @@ extension AIKeysPage {
             }
             Divider()
             Text("What each AI did is in Settings → Activity, under its name. Posts it queues wait in Posts for your OK. Pick a key and press \u{232B} to revoke it.")
-                .font(.footnote).foregroundStyle(.secondary)
+                .font(.house(.footnote)).foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 20).padding(.vertical, 8)
         }
@@ -527,7 +527,7 @@ extension AIKeysPage {
 
     private var makeSheet: some View {
         VStack(spacing: 0) {
-            Text("Make a key").font(.headline)
+            Text("Make a key").font(.house(.headline))
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 20).padding(.top, 16)
             Form {
@@ -543,7 +543,7 @@ extension AIKeysPage {
                         })) {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(s.label)
-                                Text(s.detail).font(.caption).foregroundStyle(.secondary)
+                                Text(s.detail).font(.house(.caption)).foregroundStyle(.secondary)
                             }
                         }
                     }

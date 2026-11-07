@@ -113,7 +113,7 @@ struct WebsiteEditScreen: View {
                 }
                 .scrollClipDisabled()
                 Text("\(items.count) of \(store.pieces.count) pieces · it shows on \(store.siteName) within a minute; the original photo is kept to put back")
-                    .font(.footnote)
+                    .font(.house(.footnote))
                     .foregroundStyle(.secondary)
                 if items.isEmpty {
                     ContentUnavailableView("Nothing matches", systemImage: "square.grid.2x2",
@@ -165,7 +165,7 @@ struct WebsiteEditScreen: View {
                     VStack(alignment: .leading, spacing: pt(2)) {
                         Text(r.name.isEmpty ? "A piece" : r.name).foregroundStyle(Theme.accent)
                         Text(WebsiteEditScreen.recentWords(r))
-                            .font(.caption)
+                            .font(.house(.caption))
                             .foregroundStyle(.secondary)
                             .lineLimit(2)
                     }
@@ -198,15 +198,15 @@ struct WebsiteEditTile: View {
             #if os(macOS)
             // Two lines reserved, so a row of cards stands level whatever the names say.
             Text(piece.words.name.isEmpty ? "A piece" : piece.words.name)
-                .font(.subheadline.weight(.medium))
+                .font(.house(.subheadline).weight(.medium))
                 .lineLimit(2, reservesSpace: true)
             #else
             Text(piece.words.name.isEmpty ? "A piece" : piece.words.name)
-                .font(.subheadline.weight(.medium))
+                .font(.house(.subheadline).weight(.medium))
                 .lineLimit(2)
             #endif
             Text(detail)
-                .font(.caption)
+                .font(.house(.caption))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
@@ -222,7 +222,7 @@ struct WebsiteEditTile: View {
 
     private func badge(_ text: String, symbol: String) -> some View {
         Label(text, systemImage: symbol)
-            .font(.caption2.weight(.medium))
+            .font(.house(.caption2).weight(.medium))
             .foregroundStyle(.primary)
             .padding(.horizontal, pt(6)).padding(.vertical, pt(3))
             .background(Theme.card, in: .capsule)

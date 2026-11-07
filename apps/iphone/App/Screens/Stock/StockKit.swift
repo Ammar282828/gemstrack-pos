@@ -198,7 +198,7 @@ struct StockInitial: View {
 
     var body: some View {
         Text(String(name.trimmingCharacters(in: .whitespaces).prefix(1)).uppercased())
-            .font(.title2.weight(.semibold))
+            .font(.house(.title2).weight(.semibold))
             .foregroundStyle(.secondary)
     }
 }

@@ -17,7 +17,7 @@ struct WeprintSettings: View {
     var body: some View {
         Form { Group {
             Section {
-                Label("WEPrint", systemImage: "printer").font(.headline)
+                Label("WEPrint", systemImage: "printer").font(.house(.headline))
                 Text("The live feed to WEPrint isn’t set up, so this page is switched off.")
                 Text("Export the pieces as CSV from Labels and import that file into WEPrint instead.")
                     .foregroundStyle(.secondary)

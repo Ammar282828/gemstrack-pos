@@ -160,9 +160,9 @@ struct OrderLeopardsSheet: View {
                 LabeledContent("CN", value: cn)
             }
             if let track {
-                Text(track.status).font(.subheadline.weight(.semibold))
+                Text(track.status).font(.house(.subheadline).weight(.semibold))
                 ForEach(Array(track.lines.enumerated()), id: \.offset) { pair in
-                    Text(pair.element).font(.caption).foregroundStyle(.secondary)
+                    Text(pair.element).font(.house(.caption)).foregroundStyle(.secondary)
                 }
             }
             if !done {

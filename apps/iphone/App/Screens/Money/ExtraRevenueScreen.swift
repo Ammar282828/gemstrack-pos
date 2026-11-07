@@ -148,7 +148,7 @@ struct ExtraRevenueScreen: View {
         return VStack(alignment: .leading, spacing: pt(6)) {
             LedgerHeading(title: month.title, trailing: Money.pkr(month.total))
             if !month.hint.isEmpty {
-                Text(month.hint).font(.footnote).foregroundStyle(.secondary)
+                Text(month.hint).font(.house(.footnote)).foregroundStyle(.secondary)
             }
         }
     }
@@ -292,7 +292,7 @@ extension ExtraRevenueScreen {
                 MoneyRangeFields(filter: $dates)
                 Spacer(minLength: 0)
                 Text(dates.useFrom ? "Without an end date it runs to the end of today." : "Until a start date is chosen, every entry is shown.")
-                    .font(.footnote)
+                    .font(.house(.footnote))
                     .foregroundStyle(.secondary)
             }
             .padding(.horizontal, 14)

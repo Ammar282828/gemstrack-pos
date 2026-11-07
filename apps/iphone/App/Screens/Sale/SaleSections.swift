@@ -54,13 +54,13 @@ extension SaleForm {
         return VStack(alignment: .leading, spacing: pt(4)) {
             TwoLine(title: line.name.isEmpty ? (line.stockSku ?? "New piece") : line.name, subtitle: spec(line), trailing: Money.pkr(f.price(of: line.sku)))
             if line.isCustomPrice {
-                Text("Fixed price: \(Money.pkr(line.customPrice ?? 0))").font(.caption).foregroundStyle(Tone.owed.color)
+                Text("Fixed price: \(Money.pkr(line.customPrice ?? 0))").font(.house(.caption)).foregroundStyle(Tone.owed.color)
             }
             if line.metalType == "silver", !line.isCustomPrice, let rate = line.silverRatePerGram, rate > 0 {
-                Text("Rate: \(SaleNumber.grams(rate))/g").font(.caption).foregroundStyle(.secondary)
+                Text("Rate: \(SaleNumber.grams(rate))/g").font(.house(.caption)).foregroundStyle(.secondary)
             }
             if gone {
-                Label("No longer in stock", systemImage: "exclamationmark.triangle.fill").font(.caption).foregroundStyle(Tone.problem.color)
+                Label("No longer in stock", systemImage: "exclamationmark.triangle.fill").font(.house(.caption)).foregroundStyle(Tone.problem.color)
             }
         }
         .contentShape(.rect)
@@ -101,7 +101,7 @@ extension SaleForm {
             }
             ForEach(results) { p in resultRow(p, f) }
             if let notice {
-                Label(notice, systemImage: "exclamationmark.circle").font(.footnote).foregroundStyle(Tone.problem.color)
+                Label(notice, systemImage: "exclamationmark.circle").font(.house(.footnote)).foregroundStyle(Tone.problem.color)
             }
             Button { scanning = true } label: { Label("Scan a tag", systemImage: "qrcode.viewfinder") }
             // Straight to the piece: no "this bill only or stock too?" question first (owner, 2026-10-24). Stock is made on Stock.
@@ -135,7 +135,7 @@ extension SaleForm {
                 if stale {
                     Button { rateSheet = true } label: {
                         Label(staleRateText, systemImage: "exclamationmark.triangle.fill")
-                            .font(.footnote)
+                            .font(.house(.footnote))
                             .foregroundStyle(Tone.owed.color)
                     }
                 }
@@ -244,16 +244,16 @@ extension SaleForm {
                 }
                 if computed {
                     Text("Amount = grams × rate. Type an amount to change it.")
-                        .font(.caption)
+                        .font(.house(.caption))
                         .foregroundStyle(.secondary)
                 }
             } else {
                 Button("+ Weight & rate") { openedExchange.insert(row.id) }
-                    .font(.caption)
+                    .font(.house(.caption))
                     .buttonStyle(.borderless)
             }
             Button(role: .destructive) { draft.removeExchange(row.id) } label: { Label("Remove", systemImage: "trash") }
-                .font(.caption)
+                .font(.house(.caption))
                 .buttonStyle(.borderless)
         }
     }
@@ -312,7 +312,7 @@ extension SaleForm {
                     .disabled(row.wrappedValue.method == "Cash")
             }
             Button(role: .destructive) { draft.removePayment(row.wrappedValue.id) } label: { Label("Remove", systemImage: "trash") }
-                .font(.caption)
+                .font(.house(.caption))
                 .buttonStyle(.borderless)
         }
     }
@@ -392,16 +392,16 @@ extension SaleForm {
         }
         if perGram > 0 {
             Text("\(Money.pkr(perGram)) a gram · our cost \(Money.pkr(goldCostPerGram(perGram, rattiLess: ratti))) a gram of jewellery (24k less \(SaleNumber.grams(ratti)) ratti).")
-                .font(.caption)
+                .font(.house(.caption))
                 .foregroundStyle(.secondary)
         } else {
             Text("Without it the margin is taken as \(Int((House.margin.assumedMargin * 100).rounded()))%.")
-                .font(.caption)
+                .font(.house(.caption))
                 .foregroundStyle(.secondary)
         }
         if sheetTola > 0 && sheetTola != SaleNumber.value(draft.costTola).rounded() {
             Button("Use the rate sheet's \(Money.grouped(sheetTola)) a tola") { draft.costTola = String(Int(sheetTola)) }
-                .font(.caption)
+                .font(.house(.caption))
                 .buttonStyle(.borderless)
         }
         if let m = f.margin { marginRow(m) }
@@ -446,7 +446,7 @@ extension SaleForm {
                 VStack(alignment: .leading, spacing: pt(2)) {
                     Text("Leave rates off the printed bill")
                     Text("Prices stay the same. The invoice just won't show the per-gram rate.")
-                        .font(.caption)
+                        .font(.house(.caption))
                         .foregroundStyle(.secondary)
                 }
             }
@@ -539,7 +539,7 @@ extension SaleForm {
     func saleSummary(_ f: SaleFigures) -> some View {
         let line = balanceLine(f.balance)
         let total = Text(f.hasEstimate ? "Total \(Money.pkr(f.total))" : "Total …")
-            .font(.system(.title3, design: .serif).weight(.semibold))
+            .font(.house(.title3).weight(.semibold))
             .monospacedDigit()
             .contentTransition(.numericText(value: f.total))
         let due: Text = {
@@ -571,7 +571,7 @@ extension SaleForm {
     }
 
     private func summaryDue(_ due: Text, _ f: SaleFigures) -> some View {
-        due.font(.subheadline.weight(.semibold))
+        due.font(.house(.subheadline).weight(.semibold))
             .monospacedDigit()
             .contentTransition(.numericText(value: f.balance))
             .lineLimit(1)
@@ -657,7 +657,7 @@ extension SaleForm {
                 // A new item is refused only once it is on an invoice: this sale was saved before
                 // (a save sent again after the answer was lost), so there is nothing to take off.
                 Text("This sale was already saved. Look for it in Invoices before saving it again.")
-                    .font(.footnote.weight(.semibold))
+                    .font(.house(.footnote).weight(.semibold))
                     .multilineTextAlignment(.center)
                 NavigationLink(value: Route(path: "/invoices")) {
                     Text("Open Invoices")
@@ -674,7 +674,7 @@ extension SaleForm {
             }
             if !alreadySold && goneSkus.isEmpty, let reason = f.blockedReason {
                 Text(reason)
-                    .font(.footnote)
+                    .font(.house(.footnote))
                     .foregroundStyle(f.hasPieces ? Tone.problem.color : Tone.quiet.color)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)

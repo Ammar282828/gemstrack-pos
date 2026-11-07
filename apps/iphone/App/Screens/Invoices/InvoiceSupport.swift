@@ -460,7 +460,7 @@ private struct InvoiceWhatsAppSend: ViewModifier {
             .overlay(alignment: .top) {
                 if sendingPDF {
                     Label("Sending the PDF…", systemImage: "paperplane")
-                        .font(.footnote.weight(.medium))
+                        .font(.house(.footnote).weight(.medium))
                         .padding(.horizontal, pt(14)).padding(.vertical, pt(7))
                         .glassEffect(.regular, in: .capsule)
                         .padding(.top, pt(8))

@@ -32,7 +32,7 @@ private struct InvoicePaymentLink: ViewModifier {
             .overlay(alignment: .top) {
                 if making {
                     Label("Making the payment link…", systemImage: "link")
-                        .font(.footnote.weight(.medium))
+                        .font(.house(.footnote).weight(.medium))
                         .padding(.horizontal, pt(14)).padding(.vertical, pt(7))
                         .glassEffect(.regular, in: .capsule)
                         .padding(.top, pt(8))
@@ -106,13 +106,13 @@ struct InvoiceCSVImportSheet: View {
                 if let done {
                     Section {
                         Label("Import complete", systemImage: "checkmark.circle.fill")
-                            .font(.headline)
+                            .font(.house(.headline))
                             .foregroundStyle(Tone.settled.color)
                             .symbolEffect(.bounce, value: done)
                         Text(done.imported == 0
                              ? "The file held no Shopify orders (names like #1001), so nothing was imported."
                              : "\(done.imported) invoice\(done.imported == 1 ? "" : "s") saved, \(done.first) to \(done.last).")
-                            .font(.subheadline)
+                            .font(.house(.subheadline))
                     }
                 } else {
                     Section {
@@ -131,7 +131,7 @@ struct InvoiceCSVImportSheet: View {
                             LabeledContent("Shopify orders", value: "\(preview.orders)")
                             if !preview.firstNames.isEmpty {
                                 Text("First entries: " + preview.firstNames.joined(separator: ", ") + (preview.rows > 5 ? "…" : ""))
-                                    .font(.footnote)
+                                    .font(.house(.footnote))
                                     .foregroundStyle(.secondary)
                             }
                         } header: {
@@ -141,7 +141,7 @@ struct InvoiceCSVImportSheet: View {
                     if !progress.isEmpty {
                         Section {
                             ForEach(Array(progress.enumerated()), id: \.offset) { pair in
-                                Text(pair.element).font(.caption).foregroundStyle(.secondary)
+                                Text(pair.element).font(.house(.caption)).foregroundStyle(.secondary)
                             }
                         }
                     }
@@ -274,11 +274,11 @@ extension InvoiceCSVImportSheet {
                     .disabled(importing)
             }
             Text("Each order becomes an invoice, numbered on from the last invoice number.")
-                .font(.callout)
+                .font(.house(.callout))
                 .foregroundStyle(.secondary)
             macPreview
             ForEach(Array(progress.enumerated()), id: \.offset) { pair in
-                Text(pair.element).font(.caption).foregroundStyle(.secondary)
+                Text(pair.element).font(.house(.caption)).foregroundStyle(.secondary)
             }
         }
     }
@@ -292,7 +292,7 @@ extension InvoiceCSVImportSheet {
             MacInvoiceFigureRow(label: "Shopify Orders", value: "\(preview.orders)")
             if !preview.firstNames.isEmpty {
                 Text("First entries: " + preview.firstNames.joined(separator: ", ") + (preview.rows > 5 ? "…" : ""))
-                    .font(.callout)
+                    .font(.house(.callout))
                     .foregroundStyle(.secondary)
             }
         }

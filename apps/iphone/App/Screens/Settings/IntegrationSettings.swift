@@ -42,9 +42,9 @@ private struct IntegrationsForm: View {
                         if shopify.configured {
                             LabeledContent("Last synced", value: shopify.lastSyncedAt.map { ShopDate.say($0, withTime: true) } ?? "Not yet")
                         }
-                        if let error = shopify.error { Text(error).font(.footnote).foregroundStyle(.secondary) }
+                        if let error = shopify.error { Text(error).font(.house(.footnote)).foregroundStyle(.secondary) }
                     } else if let shopifyFailure {
-                        Text(shopifyFailure).font(.footnote).foregroundStyle(.secondary)
+                        Text(shopifyFailure).font(.house(.footnote)).foregroundStyle(.secondary)
                         Button("Check connection again") { Task { await checkShopify() } }
                     } else {
                         ProgressView()

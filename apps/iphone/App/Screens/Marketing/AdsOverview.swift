@@ -168,9 +168,9 @@ struct AdsOverviewScreen: View {
         Section {
             HStack {
                 VStack(alignment: .leading, spacing: pt(2)) {
-                    Text(d.account.name).font(.headline)
+                    Text(d.account.name).font(.house(.headline))
                     if let funding = d.account.funding, !funding.isEmpty {
-                        Text(funding).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                        Text(funding).font(.house(.subheadline)).foregroundStyle(.secondary).lineLimit(1)
                     }
                 }
                 Spacer()
@@ -333,8 +333,8 @@ struct AdsOverviewScreen: View {
             Image(systemName: a.severity == "tip" ? "lightbulb" : "exclamationmark.triangle.fill")
                 .foregroundStyle(a.severity == "bad" ? Tone.problem.color : (a.severity == "warn" ? Tone.owed.color : Color.secondary))
             VStack(alignment: .leading, spacing: pt(4)) {
-                Text(a.title).font(.body.weight(.medium))
-                Text(a.why).font(.subheadline).foregroundStyle(.secondary)
+                Text(a.title).font(.house(.body).weight(.medium))
+                Text(a.why).font(.house(.subheadline)).foregroundStyle(.secondary)
                 if a.doing == "pause" {
                     Button("Pause") { Task { await run(a, running: false) } }
                         .buttonStyle(.bordered)
@@ -365,7 +365,7 @@ struct AdsOverviewScreen: View {
                     LabeledContent("Last month") { Text(AdsFormat.money(m.lastMonth, cur)).monospacedDigit().contentTransition(.numericText(value: m.lastMonth)) }
                 }
                 ProgressView(value: Double(min(m.dayOfMonth, m.daysInMonth)), total: Double(m.daysInMonth)) {
-                    Text("Day \(m.dayOfMonth) of \(m.daysInMonth)").font(.footnote).foregroundStyle(.secondary)
+                    Text("Day \(m.dayOfMonth) of \(m.daysInMonth)").font(.house(.footnote)).foregroundStyle(.secondary)
                 }
                 .tint(Theme.accent)
             } header: {
@@ -431,15 +431,15 @@ struct AdsOverviewScreen: View {
                 .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
             VStack(alignment: .leading, spacing: pt(2)) {
                 Text(a.name).lineLimit(1)
-                Text(a.campaign).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                Text(a.campaign).font(.house(.subheadline)).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer(minLength: 8)
             VStack(alignment: .trailing, spacing: pt(2)) {
                 if !hide {
-                    Text(AdsFormat.money(a.metrics.spend, cur)).font(.subheadline.weight(.semibold)).monospacedDigit()
+                    Text(AdsFormat.money(a.metrics.spend, cur)).font(.house(.subheadline).weight(.semibold)).monospacedDigit()
                         .contentTransition(.numericText(value: a.metrics.spend))
                 }
-                Text(resultLine(a, cur)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                Text(resultLine(a, cur)).font(.house(.caption)).foregroundStyle(.secondary).lineLimit(1)
             }
         }
     }
@@ -466,7 +466,7 @@ struct AdsOverviewScreen: View {
                             Text(r.label).lineLimit(1)
                             Spacer(minLength: 8)
                             Text(bySpend ? AdsFormat.money(v, cur) : "\(AdsFormat.compact(v)) views")
-                                .font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
+                                .font(.house(.subheadline)).foregroundStyle(.secondary).monospacedDigit()
                                 .contentTransition(.numericText(value: v))
                         }
                         ProgressView(value: v, total: max(biggest, 1)).tint(Theme.accent)
@@ -518,8 +518,8 @@ struct AdsDailyHoverChart: View {
                     .foregroundStyle(Color.secondary.opacity(0.4))
                     .annotation(position: .top, overflowResolution: .init(x: .fit(to: .chart), y: .disabled)) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(ChartSummary.day(h)).font(.caption.weight(.semibold))
-                            Text(AdsFormat.money(d.spend, currency)).font(.caption).monospacedDigit()
+                            Text(ChartSummary.day(h)).font(.house(.caption).weight(.semibold))
+                            Text(AdsFormat.money(d.spend, currency)).font(.house(.caption)).monospacedDigit()
                         }
                         .padding(8)
                         .background(Theme.card, in: .rect(cornerRadius: Radius.thumb, style: .continuous))
@@ -608,7 +608,7 @@ extension AdsOverviewScreen {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(d.account.name).font(.system(.title3, design: .serif).weight(.semibold))
+                    Text(d.account.name).font(.house(.title3).weight(.semibold))
                     if let funding = d.account.funding, !funding.isEmpty {
                         Text(funding).foregroundStyle(.secondary).lineLimit(1)
                     }
@@ -693,7 +693,7 @@ extension AdsOverviewScreen {
     private func macFoot(_ d: AdOverview) -> some View {
         if !d.at.isEmpty {
             Text("From Meta, \(MarketingTime.clock(d.at)). Today's numbers keep changing for a few hours; reach across days can't be added up, so \"people reached\" is Meta's own count for the whole range.")
-                .font(.callout)
+                .font(.house(.callout))
                 .foregroundStyle(.secondary)
         }
     }

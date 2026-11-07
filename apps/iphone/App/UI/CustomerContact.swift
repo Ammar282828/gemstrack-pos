@@ -150,7 +150,7 @@ struct CustomerContactActions: View {
                             .foregroundStyle(Theme.accent)
                             .frame(maxWidth: .infinity, minHeight: Metrics.tap)
                             .background(Theme.accent.opacity(0.12), in: .rect(cornerRadius: Radius.chip, style: .continuous))
-                        Text("More").font(.caption2.weight(.medium)).foregroundStyle(Color.primary).lineLimit(1)
+                        Text("More").font(.house(.caption2).weight(.medium)).foregroundStyle(Color.primary).lineLimit(1)
                     }
                     .contentShape(Rectangle())
                 }

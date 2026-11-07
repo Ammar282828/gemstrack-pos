@@ -296,7 +296,7 @@ struct WebsitePhotoEditRows: View {
                 SkeletonPhoto(label: "Preparing the photo")
             }
             if let problem = edit.problem {
-                Text(problem).font(.footnote).foregroundStyle(Tone.problem.color)
+                Text(problem).font(.house(.footnote)).foregroundStyle(Tone.problem.color)
             }
             if shapes {
                 Picker("Shape", selection: Binding(get: { edit.shape }, set: { (s: String) in Task { await edit.chooseShape(s, fields: fields) } })) {
@@ -315,7 +315,7 @@ struct WebsitePhotoEditRows: View {
             }
             .disabled(busy)
             if edit.layoutShowsWeight && (fields["weight"] ?? "").isEmpty {
-                Text("Type the weight (below) to put it on.").font(.caption).foregroundStyle(Tone.owed.color)
+                Text("Type the weight (below) to put it on.").font(.house(.caption)).foregroundStyle(Tone.owed.color)
             }
             Button { designing = true } label: {
                 Label("Crop and design", systemImage: "crop")
@@ -341,7 +341,7 @@ struct WebsitePhotoEditRows: View {
             }
             .disabled(busy)
             if let p = edit.current, p.id != WebsitePhotoEdit.sitePhoto {
-                Text("Using: \(p.label).").font(.caption).foregroundStyle(.secondary)
+                Text("Using: \(p.label).").font(.house(.caption)).foregroundStyle(.secondary)
             }
         }
         .task(id: edit.doc.text + fields.sorted { (a: (key: String, value: String), b: (key: String, value: String)) in a.key < b.key }.description + "\(edit.photos.count)") {

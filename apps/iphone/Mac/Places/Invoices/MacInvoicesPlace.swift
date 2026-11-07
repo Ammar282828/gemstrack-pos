@@ -427,13 +427,13 @@ struct MacInvoiceListRow: View {
         HStack(alignment: .center, spacing: pt(12)) {
             Monogram(name: row.customer, size: Monogram.Size.row)
             VStack(alignment: .leading, spacing: 2) {
-                Text(row.customer).font(.body).lineLimit(1)
+                Text(row.customer).font(.house(.body)).lineLimit(1)
                 if !row.sold.isEmpty {
-                    Text(row.sold).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                    Text(row.sold).font(.house(.callout)).foregroundStyle(.secondary).lineLimit(1)
                 }
                 HStack(spacing: pt(6)) {
                     Text([row.id, dated ? row.dateText : row.timeText, row.whatsapp].filter { !$0.isEmpty }.joined(separator: " \u{00B7} "))
-                        .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                        .font(.house(.caption)).foregroundStyle(.secondary).lineLimit(1)
                     if mine { MineTag() }
                 }
             }

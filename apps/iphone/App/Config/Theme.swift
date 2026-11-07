@@ -57,7 +57,7 @@ struct HouseLogo: View {
             } else if let fetched {
                 Image(uiImage: fetched).resizable().scaledToFit()
             } else {
-                Text(b.name).font(.largeTitle.weight(.semibold)).foregroundStyle(Theme.accent).minimumScaleFactor(0.5).lineLimit(1)
+                Text(b.name).font(.house(.largeTitle).weight(.semibold)).foregroundStyle(Theme.accent).minimumScaleFactor(0.5).lineLimit(1)
             }
         }
         .frame(maxWidth: 256, maxHeight: 72)

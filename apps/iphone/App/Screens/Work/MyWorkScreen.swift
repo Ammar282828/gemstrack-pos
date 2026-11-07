@@ -185,7 +185,7 @@ struct MyWorkScreen: View {
             if readOnly, let name = p.karigar?.name {
                 Section {
                     Text("Viewing exactly what \(name) sees. Read-only: tick items off from the Workshop dashboard instead.")
-                        .font(.footnote)
+                        .font(.house(.footnote))
                         .foregroundStyle(.secondary)
                 }
                 .houseRows()
@@ -300,12 +300,12 @@ struct MyWorkScreen: View {
         return HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: pt(2)) {
                 if g.isStock {
-                    Text("Stock piece").font(.headline)
+                    Text("Stock piece").font(.house(.headline))
                 } else {
                     Text(g.orderId ?? "").font(Font.headline.monospaced())
                 }
                 Text(pieces + handed + age)
-                    .font(.caption)
+                    .font(.house(.caption))
                     .foregroundStyle(.secondary)
             }
             Spacer(minLength: 8)
@@ -320,7 +320,7 @@ struct MyWorkScreen: View {
             tick(j, readOnly: readOnly)
             VStack(alignment: .leading, spacing: pt(8)) {
                 Text(j.description)
-                    .font(.body.weight(.medium))
+                    .font(.house(.body).weight(.medium))
                     .strikethrough(j.isDone)
                 specs(j)
                 if j.sampleGiven {
@@ -332,8 +332,8 @@ struct MyWorkScreen: View {
                 }
                 if let notes = j.notes, !notes.isEmpty {
                     VStack(alignment: .leading, spacing: pt(2)) {
-                        Text("INSTRUCTIONS").font(.caption2).foregroundStyle(.secondary)
-                        Text(notes).font(.subheadline)
+                        Text("INSTRUCTIONS").font(.house(.caption2)).foregroundStyle(.secondary)
+                        Text(notes).font(.house(.subheadline))
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(pt(8))
@@ -350,7 +350,7 @@ struct MyWorkScreen: View {
             ProgressView().frame(width: 44, height: 44)
         } else if readOnly {
             Image(systemName: j.isDone ? "checkmark.circle.fill" : "circle")
-                .font(.title2)
+                .font(.house(.title2))
                 .foregroundStyle(j.isDone ? Tone.settled.color : Color.secondary.opacity(0.5))
                 .frame(width: 44, height: 44)
                 .accessibilityLabel(j.isDone ? "Done" : "Not done")
@@ -358,7 +358,7 @@ struct MyWorkScreen: View {
             // The karigar's main action, many times a day: a 44 pt target, a bounce as it flips.
             Button { toggle(j) } label: {
                 Image(systemName: j.isDone ? "checkmark.circle.fill" : "circle")
-                    .font(.title2)
+                    .font(.house(.title2))
                     .foregroundStyle(j.isDone ? Tone.settled.color : Color.secondary)
                     .contentTransition(.symbolEffect(.replace))
                     .symbolEffect(.bounce, value: j.isDone)
@@ -378,9 +378,9 @@ struct MyWorkScreen: View {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: pt(6))], alignment: .leading, spacing: pt(6)) {
                 ForEach(list, id: \.self) { (spec: KarigarPortalRules.Spec) in
                     VStack(alignment: .leading, spacing: pt(2)) {
-                        Text(spec.label.uppercased()).font(.caption2).foregroundStyle(.secondary)
+                        Text(spec.label.uppercased()).font(.house(.caption2)).foregroundStyle(.secondary)
                         Text(spec.value)
-                            .font(.subheadline.weight(.semibold))
+                            .font(.house(.subheadline).weight(.semibold))
                             .foregroundStyle(spec.accent ? Theme.accent : Color.primary)
                             .lineLimit(1)
                     }
@@ -417,7 +417,7 @@ struct MyWorkScreen: View {
         Section {
             VStack(alignment: .leading, spacing: pt(2)) {
                 HeroAmount(amount: a.totalPaid)
-                Text("total paid to you").font(.caption).foregroundStyle(.secondary)
+                Text("total paid to you").font(.house(.caption)).foregroundStyle(.secondary)
             }
             ForEach(Self.keyed(a.payments) { "\($0.date)|\($0.description)|\($0.amount)" }) { row in
                 paymentRow(row.item)
@@ -431,12 +431,12 @@ struct MyWorkScreen: View {
     private func goldRow(_ l: KarigarPortalGoldLine) -> some View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: pt(1)) {
-                Text(KarigarPortalRules.date(l.date, shortYear: true)).font(.caption).foregroundStyle(.secondary)
-                Text(l.description).font(.subheadline)
+                Text(KarigarPortalRules.date(l.date, shortYear: true)).font(.house(.caption)).foregroundStyle(.secondary)
+                Text(l.description).font(.house(.subheadline))
             }
             Spacer(minLength: 8)
             Text(l.goldOut != 0 ? "↑ " + KarigarPortalRules.grams(l.goldOut) : "↓ " + KarigarPortalRules.grams(l.goldIn))
-                .font(.subheadline.weight(.semibold))
+                .font(.house(.subheadline).weight(.semibold))
                 .monospacedDigit()
                 .foregroundStyle(l.goldOut != 0 ? Tone.owed.color : Tone.settled.color)
                 .accessibilityLabel((l.goldOut != 0 ? "Given " : "Returned ") + KarigarPortalRules.grams(l.goldOut != 0 ? l.goldOut : l.goldIn))
@@ -446,8 +446,8 @@ struct MyWorkScreen: View {
     private func paymentRow(_ p: KarigarPortalPayment) -> some View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: pt(1)) {
-                Text(KarigarPortalRules.date(p.date, shortYear: true)).font(.caption).foregroundStyle(.secondary)
-                Text(p.description).font(.subheadline)
+                Text(KarigarPortalRules.date(p.date, shortYear: true)).font(.house(.caption)).foregroundStyle(.secondary)
+                Text(p.description).font(.house(.subheadline))
             }
             Spacer(minLength: 8)
             RowAmount(amount: p.amount)
@@ -497,7 +497,7 @@ extension MyWorkScreen {
         return VStack(spacing: 0) {
             if readOnly, let name = p.karigar?.name {
                 Label("Viewing exactly what \(name) sees. Read-only: tick items off from the Workshop dashboard instead.", systemImage: "eye")
-                    .font(.callout).foregroundStyle(.secondary)
+                    .font(.house(.callout)).foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 16).padding(.vertical, 8)
                 Divider()
@@ -622,7 +622,7 @@ extension MyWorkScreen {
             } else {
                 Button { toggle(j) } label: {
                     Image(systemName: j.isDone ? "checkmark.circle.fill" : "circle")
-                        .font(.title3)
+                        .font(.house(.title3))
                         .foregroundStyle(j.isDone ? Tone.settled.color : Color.secondary)
                 }
                 .buttonStyle(.borderless)
@@ -630,15 +630,15 @@ extension MyWorkScreen {
                 .help(j.isDone ? "Done. Click to reopen." : "Mark as done")
             }
             VStack(alignment: .leading, spacing: 2) {
-                Text(j.description).font(.body).strikethrough(j.isDone).lineLimit(1)
-                Text(macPieceLine(j)).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                Text(j.description).font(.house(.body)).strikethrough(j.isDone).lineLimit(1)
+                Text(macPieceLine(j)).font(.house(.callout)).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer(minLength: 8)
             // Rule 15: only a piece that needs someone says so.
             if !j.isDone && j.urgency != "ok" {
                 Pill(j.urgency == "critical" ? "Urgent" : "Late", tone: j.urgency == "critical" ? .late : .owed)
             }
-            Text("\(j.ageDays) day\(j.ageDays == 1 ? "" : "s")").font(.caption).monospacedDigit().foregroundStyle(.secondary)
+            Text("\(j.ageDays) day\(j.ageDays == 1 ? "" : "s")").font(.house(.caption)).monospacedDigit().foregroundStyle(.secondary)
         }
         .padding(.vertical, 3)
         .tag(j.id)

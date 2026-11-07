@@ -621,7 +621,7 @@ struct AdsNewAdScreen: View {
             Group {
                 AdsAlertsSection(status: s)
                 if let notice {
-                    Section { Label(notice, systemImage: "info.circle").font(.subheadline) }
+                    Section { Label(notice, systemImage: "info.circle").font(.house(.subheadline)) }
                 }
                 promoteSections(s, l)
                 goalSection(l)
@@ -693,7 +693,7 @@ struct AdsNewAdScreen: View {
                     StockImage(imageUrl: post.thumb, name: "Post", key: post.id)
                         .frame(width: 56, height: 56)
                         .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
-                    Text("The post of the ad this started from").font(.subheadline)
+                    Text("The post of the ad this started from").font(.house(.subheadline))
                 }
             }
             if let media {
@@ -709,7 +709,7 @@ struct AdsNewAdScreen: View {
             }
             if let post {
                 Text(post.caption.isEmpty ? "No caption." : post.caption)
-                    .font(.footnote)
+                    .font(.house(.footnote))
                     .foregroundStyle(.secondary)
                     .lineLimit(3)
             }
@@ -761,7 +761,7 @@ struct AdsNewAdScreen: View {
                         .frame(width: 32, height: 56)
                         .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
                     Text("With its 9:16 version for stories, reels and WhatsApp Status: one ad, each place its own size.")
-                        .font(.footnote)
+                        .font(.house(.footnote))
                     Spacer(minLength: 4)
                     Button { vertical = nil } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary).frame(minWidth: Metrics.tap, minHeight: Metrics.tap).contentShape(Rectangle()) }
                         .buttonStyle(.borderless)
@@ -905,7 +905,7 @@ struct AdsNewAdScreen: View {
                 HStack(spacing: pt(10)) {
                     VStack(alignment: .leading, spacing: pt(4)) {
                         Text("Who sees it").foregroundStyle(.primary)
-                        Text(audience.words).font(.subheadline).foregroundStyle(.secondary)
+                        Text(audience.words).font(.house(.subheadline)).foregroundStyle(.secondary)
                     }
                     Spacer(minLength: 8)
                     Image(systemName: "chevron.right").foregroundStyle(.tertiary)
@@ -998,12 +998,12 @@ struct AdsNewAdScreen: View {
             Section {
                 ForEach(Array(q.prefix(6))) { (d: AdsQuietDay) in
                     VStack(alignment: .leading, spacing: pt(2)) {
-                        Text("\(ShopDate.say(d.date)) · \(d.hijri)").font(.subheadline.weight(.medium))
-                        Text(d.name + (d.near ? " (the days before)" : "")).font(.caption).foregroundStyle(.secondary)
+                        Text("\(ShopDate.say(d.date)) · \(d.hijri)").font(.house(.subheadline).weight(.medium))
+                        Text(d.name + (d.near ? " (the days before)" : "")).font(.house(.caption)).foregroundStyle(.secondary)
                     }
                 }
                 if q.count > 6 {
-                    Text("…and \(q.count - 6) more.").font(.caption).foregroundStyle(.secondary)
+                    Text("…and \(q.count - 6) more.").font(.house(.caption)).foregroundStyle(.secondary)
                 }
             } header: {
                 Label(days == nil ? "Left running, it would reach days kept free of product ads" : "It would run through days kept free of product ads",
@@ -1045,7 +1045,7 @@ struct AdsNewAdScreen: View {
     private var noBudgetSection: some View {
         Section {
             Text("An owner sets the budget and turns the ad on. Yours is saved paused in Campaigns, and waits there.")
-                .font(.subheadline)
+                .font(.house(.subheadline))
                 .foregroundStyle(.secondary)
         } header: {
             LedgerHeading(title: "\(step(5)) · Budget")
@@ -1093,15 +1093,15 @@ struct AdsNewAdScreen: View {
             Group {
                 Section {
                     VStack(spacing: pt(10)) {
-                        Image(systemName: "checkmark.circle.fill").font(.largeTitle).foregroundStyle(Tone.settled.color)
-                        Text(m.live ? "The ad is on its way" : "The ad is made, paused").font(.headline)
+                        Image(systemName: "checkmark.circle.fill").font(.house(.largeTitle)).foregroundStyle(Tone.settled.color)
+                        Text(m.live ? "The ad is on its way" : "The ad is made, paused").font(.house(.headline))
                         Text(m.live ? "Meta reviews every ad first (usually within the hour); it starts as soon as it is approved."
                              : "Nothing is spent until it is switched on in Campaigns.")
-                            .font(.subheadline)
+                            .font(.house(.subheadline))
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
                         ForEach(m.warnings, id: \.self) { (w: String) in
-                            Text(w).font(.footnote).foregroundStyle(Tone.owed.color)
+                            Text(w).font(.house(.footnote)).foregroundStyle(Tone.owed.color)
                         }
                     }
                     .frame(maxWidth: .infinity)
@@ -1214,7 +1214,7 @@ extension AdsNewAdScreen {
     private func macSourceColumn(_ s: AdsStatusAnswer, _ l: AdsNewAdLists) -> some View {
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 6) {
-                Text("What to Promote").font(.headline)
+                Text("What to Promote").font(.house(.headline))
                 Picker("What to promote", selection: $kind) {
                     Text("A post").tag(Kind.post)
                     Text("New photos").tag(Kind.photos)
@@ -1225,7 +1225,7 @@ extension AdsNewAdScreen {
                 }
                 .pickerStyle(.menu)
                 .labelsHidden()
-                if let ig = s.settings?.instagramUsername { Text("It runs as @\(ig).").font(.caption).foregroundStyle(.secondary) }
+                if let ig = s.settings?.instagramUsername { Text("It runs as @\(ig).").font(.house(.caption)).foregroundStyle(.secondary) }
             }
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -1269,7 +1269,7 @@ extension AdsNewAdScreen {
             if hide {
                 Section("Budget") {
                     Text("An owner sets the budget and turns the ad on. Yours is saved paused in Campaigns, and waits there.")
-                        .font(.caption)
+                        .font(.house(.caption))
                         .foregroundStyle(.secondary)
                 }
             } else {
@@ -1290,8 +1290,8 @@ extension AdsNewAdScreen {
                 ForEach(offered(l)) { (g: AdsGoal) in Text(g.label).tag(g.key) }
             }
             .pickerStyle(.menu)
-            if let g = goal { Text(g.hint).font(.caption).foregroundStyle(.secondary) }
-            goalNote.font(.caption)
+            if let g = goal { Text(g.hint).font(.house(.caption)).foregroundStyle(.secondary) }
+            goalNote.font(.house(.caption))
         }
     }
 
@@ -1318,7 +1318,7 @@ extension AdsNewAdScreen {
     /// The audience in a line; its editor, with Meta's estimate at its head, is the panel at the right.
     private var macAudience: some View {
         Section("Who Sees It") {
-            Text(audience.words).font(.callout)
+            Text(audience.words).font(.house(.callout))
             if audience.places.isEmpty { Text("Choose where the ad shows.").foregroundStyle(Tone.problem.color) }
             Button("Choose…") {
                 macPane = .audience
@@ -1358,7 +1358,7 @@ extension AdsNewAdScreen {
                 DatePicker("Starts", selection: $start, in: Date()..., displayedComponents: [.date, .hourAndMinute])
                     .environment(\.timeZone, ERPDate.karachi)
             }
-            Text(budgetNote(s)).font(.caption).foregroundStyle(.secondary)
+            Text(budgetNote(s)).font(.house(.caption)).foregroundStyle(.secondary)
         }
     }
 
@@ -1367,7 +1367,7 @@ extension AdsNewAdScreen {
             TextField("Name in Ads Manager (made for you)", text: $name)
             Text(launch == "paused" ? "Look it over in Campaigns and switch it on there: nothing is spent until then."
                  : "It starts once Meta approves it (usually within the hour) and spends its budget from then.")
-                .font(.caption)
+                .font(.house(.caption))
                 .foregroundStyle(.secondary)
         }
     }
@@ -1410,7 +1410,7 @@ extension AdsNewAdScreen {
                 AdsMacAdSketch(account: s.settings?.instagramUsername.map { (u: String) in "@" + u } ?? "Your page",
                                picture: picture, preview: photos.first?.preview, words: words, headline: headline, button: buttonLabel)
                 Text("This is a sketch from what is typed. Meta Preview, in the toolbar, shows feed, stories and reels exactly.")
-                    .font(.callout)
+                    .font(.house(.callout))
                     .foregroundStyle(.secondary)
             }
             .padding(16)

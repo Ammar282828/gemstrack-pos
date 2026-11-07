@@ -69,7 +69,7 @@ private struct ShopForm: View {
                         .onSubmit { commit() }
                 }
                 VStack(alignment: .leading, spacing: pt(4)) {
-                    Text("Address").font(.subheadline).foregroundStyle(.secondary)
+                    Text("Address").font(.house(.subheadline)).foregroundStyle(.secondary)
                     TextField("Address", text: $draft.address, axis: .vertical)
                         .lineLimit(1...4)
                         .focused($focus, equals: .address)
@@ -180,7 +180,7 @@ private struct ShopForm: View {
                     Text("A whole number, 0 or more.").foregroundStyle(Tone.problem.color)
                 }
             }
-            .font(.caption)
+            .font(.house(.caption))
             .foregroundStyle(.secondary)
         }
     }

@@ -23,7 +23,7 @@ struct MacOrdersFooter: View {
             Divider()
             HStack(spacing: 10) {
                 Text(summary)
-                    .font(.callout)
+                    .font(.house(.callout))
                     .foregroundStyle(summaryTone == .quiet ? Color.secondary : summaryTone.color)
                     .monospacedDigit()
                     .lineLimit(2)

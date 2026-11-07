@@ -64,7 +64,7 @@ struct ShopifyVisitorsView: View {
                     chips.chipRowInList()
                     if let r = report {
                         Text(spanLine(r))
-                            .font(.footnote).foregroundStyle(.secondary)
+                            .font(.house(.footnote)).foregroundStyle(.secondary)
                             .listRowBackground(Color.clear)
                             .listRowSeparator(.hidden)
                     }
@@ -114,7 +114,7 @@ struct ShopifyVisitorsView: View {
                 VStack(alignment: .leading, spacing: pt(10)) {
                     chips.padding(.leading, -16)
                     if let r = report {
-                        Text(spanLine(r)).font(.footnote).foregroundStyle(.secondary)
+                        Text(spanLine(r)).font(.house(.footnote)).foregroundStyle(.secondary)
                     }
                 }
                 if let r = report {

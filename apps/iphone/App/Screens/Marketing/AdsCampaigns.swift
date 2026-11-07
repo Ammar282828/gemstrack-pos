@@ -316,9 +316,9 @@ struct AdsCampaignsScreen: View {
         ].filter { (s: String) in !s.isEmpty }
         return HStack(alignment: .top, spacing: pt(12)) {
             VStack(alignment: .leading, spacing: pt(4)) {
-                Text(c.name).font(.headline).fixedSize(horizontal: false, vertical: true)
+                Text(c.name).font(.house(.headline)).fixedSize(horizontal: false, vertical: true)
                 AdsStatusBadge(status: c.effectiveStatus)
-                if !bits.isEmpty { Text(bits.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary) }
+                if !bits.isEmpty { Text(bits.joined(separator: " · ")).font(.house(.caption)).foregroundStyle(.secondary) }
                 let b = budget(c.dailyBudget, c.lifetimeBudget, cur)
                 if !b.isEmpty {
                     budgetButton(AdsBudgetTarget(level: "campaign", id: c.id, name: c.name, daily: c.dailyBudget,
@@ -340,10 +340,10 @@ struct AdsCampaignsScreen: View {
         VStack(alignment: .leading, spacing: pt(8)) {
             HStack(alignment: .top, spacing: pt(12)) {
                 VStack(alignment: .leading, spacing: pt(4)) {
-                    Text(s.name).font(.body.weight(.medium)).fixedSize(horizontal: false, vertical: true)
+                    Text(s.name).font(.house(.body).weight(.medium)).fixedSize(horizontal: false, vertical: true)
                     HStack(spacing: pt(6)) {
                         AdsStatusBadge(status: s.effectiveStatus)
-                        if let learning = s.learning { Text(learning).font(.caption).foregroundStyle(Tone.owed.color) }
+                        if let learning = s.learning { Text(learning).font(.house(.caption)).foregroundStyle(Tone.owed.color) }
                     }
                     let b = budget(s.dailyBudget, s.lifetimeBudget, cur)
                     if !b.isEmpty {
@@ -375,9 +375,9 @@ struct AdsCampaignsScreen: View {
                             StockImage(imageUrl: a.image, name: a.name, key: a.id)
                                 .aspectRatio(1, contentMode: .fit)
                                 .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
-                            Text(a.name).font(.caption).fixedSize(horizontal: false, vertical: true)
+                            Text(a.name).font(.house(.caption)).fixedSize(horizontal: false, vertical: true)
                             if !session.spendHidden {
-                                Text(AdsFormat.money(a.metrics.spend, cur)).font(.caption2).foregroundStyle(.secondary).monospacedDigit()
+                                Text(AdsFormat.money(a.metrics.spend, cur)).font(.house(.caption2)).foregroundStyle(.secondary).monospacedDigit()
                             }
                         }
                         .frame(width: 84)
@@ -440,7 +440,7 @@ struct AdsCampaignsScreen: View {
             Button { go = Route(path: objectPath("ad", ad.id)) } label: {
                 VStack(alignment: .leading, spacing: pt(10)) {
                     StockImage(imageUrl: ad.image, name: ad.name, key: ad.id).aspectRatio(1, contentMode: .fit).clipShape(.rect(cornerRadius: Radius.chip, style: .continuous))
-                    Text(ad.name).font(.headline).foregroundStyle(.primary).fixedSize(horizontal: false, vertical: true)
+                    Text(ad.name).font(.house(.headline)).foregroundStyle(.primary).fixedSize(horizontal: false, vertical: true)
                 }
             }.buttonStyle(.pressable)
             AdsStatusBadge(status: ad.effectiveStatus)
@@ -477,7 +477,7 @@ struct AdsCampaignsScreen: View {
     /// The budget in words, as a button: it opens the budget and end date to change.
     private func budgetButton(_ t: AdsBudgetTarget, _ words: String) -> some View {
         Button { budgeting = t } label: {
-            Label(words, systemImage: "pencil.circle").font(.caption.weight(.medium))
+            Label(words, systemImage: "pencil.circle").font(.house(.caption).weight(.medium))
         }
         .buttonStyle(.borderless)
         .disabled(!mayChange)
@@ -506,7 +506,7 @@ struct AdsCampaignsScreen: View {
         if s.value > 0 && !hidden { parts.append("\(AdsFormat.money(s.value, cur)) sales · \(AdsResults.roasText(s.roas)) ROAS") }
         parts.append("\(AdsFormat.compact(m.reach)) reached")
         return Text(parts.joined(separator: " · "))
-            .font(.caption)
+            .font(.house(.caption))
             .foregroundStyle(.secondary)
             .monospacedDigit()
             .contentTransition(.numericText(value: m.spend))
@@ -516,7 +516,7 @@ struct AdsCampaignsScreen: View {
     private func issues(_ list: [String]) -> some View {
         ForEach(list, id: \.self) { issue in
             Label(issue, systemImage: "exclamationmark.triangle.fill")
-                .font(.caption)
+                .font(.house(.caption))
                 .foregroundStyle(Tone.owed.color)
         }
     }
@@ -724,7 +724,7 @@ extension AdsCampaignsScreen {
                 }
                 Spacer()
             }
-            .font(.callout)
+            .font(.house(.callout))
         }
     }
 
@@ -770,8 +770,8 @@ extension AdsCampaignsScreen {
         return HStack(spacing: 12) {
             macLead(r)
             VStack(alignment: .leading, spacing: 2) {
-                Text(r.name).font(.body).lineLimit(1)
-                Text(macSecondLine(r, cur)).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                Text(r.name).font(.house(.body)).lineLimit(1)
+                Text(macSecondLine(r, cur)).font(.house(.callout)).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer(minLength: 8)
             if !r.issues.isEmpty {
@@ -779,8 +779,8 @@ extension AdsCampaignsScreen {
             }
             Pill(words.label, tone: AdsStatusWords.tone(words.tone))
             VStack(alignment: .trailing, spacing: 2) {
-                Text(AdsFormat.money(r.metrics.spend, cur)).font(.body.weight(.semibold)).monospacedDigit().lineLimit(1)
-                Text(macResultLine(r, cur)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                Text(AdsFormat.money(r.metrics.spend, cur)).font(.house(.body).weight(.semibold)).monospacedDigit().lineLimit(1)
+                Text(macResultLine(r, cur)).font(.house(.caption)).foregroundStyle(.secondary).lineLimit(1)
             }
             .frame(minWidth: 110, alignment: .trailing)
             runSwitch(macTarget(r), status: r.status)

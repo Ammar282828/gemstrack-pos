@@ -128,14 +128,14 @@ struct StudioPlan: View {
             LedgerSection(stage.s("title")) {
                 ForEach(model.catalogue["plays"].array.filter { $0.s("stage") == stage.s("id") }, id: \.text) { play in
                     VStack(alignment: .leading, spacing: pt(10)) {
-                        Label(play.s("title"), systemImage: play["core"].bool ? "star.fill" : "megaphone").font(.headline)
-                        Text(play.s("where")).font(.subheadline).foregroundStyle(.secondary)
+                        Label(play.s("title"), systemImage: play["core"].bool ? "star.fill" : "megaphone").font(.house(.headline))
+                        Text(play.s("where")).font(.house(.subheadline)).foregroundStyle(.secondary)
                         DisclosureGroup("Why, who and budget") {
                             Text(play.s("why"))
                             LabeledContent("Who", value: play.s("who")); LabeledContent("Budget", value: play.s("budget")); LabeledContent("Judge it by", value: play.s("judge"))
                             LabeledContent("Format", value: play.s("format") + (play["pair"].bool ? " + story" : ""))
                             LabeledContent("Layout", value: play.s("template")); LabeledContent("Call to action", value: play.s("cta"))
-                        }.font(.subheadline)
+                        }.font(.house(.subheadline))
                         Button("Make this") { model.route = Route(path: "/design?v=make&kind=ad&play=" + (play.s("id").addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? play.s("id"))) }.buttonStyle(.bordered)
                     }.padding(.vertical, pt(6))
                 }
@@ -158,7 +158,7 @@ struct StudioPlan: View {
         ForEach(model.catalogue["playbook"].array, id: \.text) { section in
             LedgerSection(section.s("title"), collapsible: true) {
                 Text(section.s("lead"))
-                ForEach(section["points"].array, id: \.text) { point in VStack(alignment: .leading, spacing: pt(5)) { Text(point.s("head")).font(.headline); Text(point.s("body")).font(.subheadline).foregroundStyle(.secondary) }.padding(.vertical, pt(5)) }
+                ForEach(section["points"].array, id: \.text) { point in VStack(alignment: .leading, spacing: pt(5)) { Text(point.s("head")).font(.house(.headline)); Text(point.s("body")).font(.house(.subheadline)).foregroundStyle(.secondary) }.padding(.vertical, pt(5)) }
             }
         }
     }
@@ -204,7 +204,7 @@ struct StudioMaker: View {
     }
     private var form: some View {
         Form {
-            if let said = model.said { Section { Text(said).font(.footnote); Button("Dismiss") { model.said = nil } }.houseRows() }
+            if let said = model.said { Section { Text(said).font(.house(.footnote)); Button("Dismiss") { model.said = nil } }.houseRows() }
             source
             if model.photo != nil { design; words; ai; checks; destinations; saving }
         }

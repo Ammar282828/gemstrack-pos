@@ -266,7 +266,7 @@ struct WorkshopBoard: View {
             }
             .padding(.vertical, pt(4))
             }
-            .font(.subheadline)
+            .font(.house(.subheadline))
             .padding(pt(16))
             .listRowInsets(EdgeInsets())
             .listRowBackground(Color.clear)
@@ -301,7 +301,7 @@ struct WorkshopBoard: View {
                 }
             }
             Text(headerCounts(load))
-                .font(.caption)
+                .font(.house(.caption))
                 .foregroundStyle(.secondary)
         }
         .textCase(nil)
@@ -372,14 +372,14 @@ struct WorkshopBoard: View {
             Button { opened = WorkshopPlace.karigar(load.karigarId) } label: {
                 HStack {
                     VStack(alignment: .leading, spacing: pt(2)) {
-                        Text(load.isUnassigned ? "Unassigned work" : load.karigarName).font(.title3.weight(.semibold))
+                        Text(load.isUnassigned ? "Unassigned work" : load.karigarName).font(.house(.title3).weight(.semibold))
                         let sentence = focusedSentence(load, orders: orders)
                         if !sentence.isEmpty {
-                            Text(sentence).font(.subheadline).foregroundStyle(.secondary)
+                            Text(sentence).font(.house(.subheadline)).foregroundStyle(.secondary)
                         }
                     }
                     Spacer()
-                    if !load.isUnassigned { Image(systemName: "chevron.right").font(.footnote).foregroundStyle(.tertiary) }
+                    if !load.isUnassigned { Image(systemName: "chevron.right").font(.house(.footnote)).foregroundStyle(.tertiary) }
                 }
             }
             .buttonStyle(.pressable)
@@ -792,8 +792,8 @@ private struct FocusedCells: View {
             HStack(spacing: pt(20)) {
                 ForEach(cells) { c in
                     VStack(alignment: .leading, spacing: pt(2)) {
-                        Text(c.label.uppercased()).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
-                        Text(c.value).font(.title3.weight(.bold)).monospacedDigit().foregroundStyle(c.tint)
+                        Text(c.label.uppercased()).font(.house(.caption2)).foregroundStyle(.secondary).lineLimit(1)
+                        Text(c.value).font(.house(.title3).weight(.bold)).monospacedDigit().foregroundStyle(c.tint)
                     }
                 }
             }
@@ -1029,7 +1029,7 @@ extension WorkshopBoard {
             macDoneCell(j)
             VStack(alignment: .leading, spacing: 2) {
                 macPieceCell(j)
-                Text(macReference(j)).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                Text(macReference(j)).font(.house(.callout)).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer(minLength: 8)
             macKarigarCell(j, live).frame(maxWidth: 170, alignment: .trailing)
@@ -1415,7 +1415,7 @@ extension WorkshopBoard {
                 title: "\(jobs.count) Pieces",
                 subtitle: grams > 0 ? WorkshopLogic.number(grams, digits: 1) + "g in all" : nil
             ) {
-                Image(systemName: "square.stack.3d.up").font(.title2).foregroundStyle(Theme.accent)
+                Image(systemName: "square.stack.3d.up").font(.house(.title2)).foregroundStyle(Theme.accent)
             }
             MacActionButtons(actions: [macDoneAction(jobs)])
             MacWorkCard("Pieces", count: jobs.count) {
@@ -1474,7 +1474,7 @@ extension WorkshopBoard {
         if let by = job.takenBy, !by.isEmpty { MacWorkFact("Taken by", by) }
         if let notes = job.notes, !notes.isEmpty {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Instructions").font(.callout).foregroundStyle(.secondary)
+                Text("Instructions").font(.house(.callout)).foregroundStyle(.secondary)
                 Text(notes).textSelection(.enabled)
             }
         }

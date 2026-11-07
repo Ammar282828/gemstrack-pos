@@ -58,7 +58,7 @@ struct WorkshopJobRow: View {
             }
             referenceLine
             if showKarigar && !job.isUnassigned && (job.isDone || (isStock && canWrite)) {
-                Label(job.karigarName, systemImage: "hammer").font(.subheadline).foregroundStyle(.secondary)
+                Label(job.karigarName, systemImage: "hammer").font(.house(.subheadline)).foregroundStyle(.secondary)
             }
             specLine
             notesBox
@@ -80,21 +80,21 @@ struct WorkshopJobRow: View {
 
     private var titleLine: some View {
         Text(job.description)
-            .font(.headline)
+            .font(.house(.headline))
             .fixedSize(horizontal: false, vertical: true)
     }
 
     private var badgeLine: some View {
         FigureRow(spacing: pt(8)) {
             Label(stageWords, systemImage: stageSymbol)
-                .font(.caption.weight(.semibold))
+                .font(.house(.caption).weight(.semibold))
                 .foregroundStyle(stageTone)
                 .contentTransition(.symbolEffect(.replace))
                 .motion(stageWords)
             WorkshopAgeBadge(job: job)
             if job.isOnline {
                 // A small glyph for where it was sold, not a line of its own.
-                Image(systemName: "bag").font(.caption).foregroundStyle(.secondary)
+                Image(systemName: "bag").font(.house(.caption)).foregroundStyle(.secondary)
                     .accessibilityLabel("Online sale")
             }
         }
@@ -127,22 +127,22 @@ struct WorkshopJobRow: View {
                 Button { actions.open(place) } label: {
                     HStack(spacing: pt(2)) {
                         Text(job.invoiceId ?? job.orderId ?? "")
-                            .font(.caption.monospaced().weight(.medium))
-                        Image(systemName: "chevron.right").font(.caption2.weight(.semibold))
+                            .font(.house(.caption).monospaced().weight(.medium))
+                        Image(systemName: "chevron.right").font(.house(.caption2).weight(.semibold))
                     }
                     .frame(minHeight: Metrics.tap, alignment: .leading)
                 }
                 .buttonStyle(.borderless)
                 if !referenceWords.isEmpty {
                     Text(referenceWords)
-                        .font(.subheadline)
+                        .font(.house(.subheadline))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
         } else {
             Label("Stock work", systemImage: "shippingbox")
-                .font(.caption).foregroundStyle(.secondary)
+                .font(.house(.caption)).foregroundStyle(.secondary)
         }
     }
 
@@ -169,7 +169,7 @@ struct WorkshopJobRow: View {
     private var specLine: some View {
         let meta = WorkshopLogic.meta(job)
         if !meta.isEmpty {
-            Text(meta).font(.caption).foregroundStyle(.secondary)
+            Text(meta).font(.house(.caption)).foregroundStyle(.secondary)
         }
     }
 
@@ -181,13 +181,13 @@ struct WorkshopJobRow: View {
                 set: { on in Motion.run(reduce: reduceMotion) { instructionsOpen = on } }
             )) {
                 Text(notes)
-                    .font(.subheadline)
+                    .font(.house(.subheadline))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, pt(8))
             } label: {
                 Label("Instructions", systemImage: "note.text")
-                    .font(.subheadline.weight(.medium))
+                    .font(.house(.subheadline).weight(.medium))
                     .frame(minHeight: Metrics.tap)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -205,7 +205,7 @@ struct WorkshopJobRow: View {
                 FigureRow(spacing: pt(12)) {
                     statusMenu
                     Button { actions.details(job) } label: {
-                        Label("Details", systemImage: "pencil").font(.subheadline)
+                        Label("Details", systemImage: "pencil").font(.house(.subheadline))
                             .frame(minHeight: Metrics.tap)
                     }
                     .buttonStyle(.bordered)
@@ -222,7 +222,7 @@ struct WorkshopJobRow: View {
                     Spacer(minLength: 0)
                     Button { actions.done(job, true) } label: {
                         Label("Mark done", systemImage: "checkmark.circle")
-                            .font(.subheadline.weight(.medium)).frame(minHeight: Metrics.tap)
+                            .font(.house(.subheadline).weight(.medium)).frame(minHeight: Metrics.tap)
                     }
                     .buttonStyle(.bordered)
                     .disabled(busy)
@@ -234,7 +234,7 @@ struct WorkshopJobRow: View {
             readOnlyControls
         } else {
             Label(job.hasGiven ? "Given " + ShopDate.say(job.givenAt) : "Completed", systemImage: "checkmark.circle")
-                .font(.subheadline).foregroundStyle(.secondary)
+                .font(.house(.subheadline)).foregroundStyle(.secondary)
         }
     }
 
@@ -257,7 +257,7 @@ struct WorkshopJobRow: View {
             }
         } label: {
             Label(WorkshopStatusWords.say(stockStatus), systemImage: WorkshopStatusWords.symbol(stockStatus))
-                .font(.subheadline)
+                .font(.house(.subheadline))
                 .frame(minHeight: Metrics.tap)
         }
         .buttonStyle(.bordered)
@@ -282,7 +282,7 @@ struct WorkshopJobRow: View {
             }
         } label: {
             Label(assigned ? job.karigarName : "Assign karigar", systemImage: assigned ? "hammer" : "person.badge.plus")
-                .font(.subheadline)
+                .font(.house(.subheadline))
                 .foregroundStyle(assigned ? Color.primary : Theme.accent)
                 .frame(minHeight: Metrics.tap)
         }
@@ -309,7 +309,7 @@ struct WorkshopJobRow: View {
                 .foregroundStyle(shown ? Color.secondary : Color.primary)
                 .contentTransition(.opacity)
         }
-        .font(.subheadline)
+        .font(.house(.subheadline))
         .frame(minHeight: Metrics.tap)
         .disabled(job.isUnassigned || busy)
         .motion(job.hasGiven)
@@ -328,14 +328,14 @@ struct WorkshopJobRow: View {
         // One row: who has it, and when it went. Amber only for the one thing missing (no karigar).
         if job.isUnassigned {
             Label("No karigar yet", systemImage: "hammer")
-                .font(.subheadline).foregroundStyle(Tone.owed.color)
+                .font(.house(.subheadline)).foregroundStyle(Tone.owed.color)
         } else {
             AdaptiveStack(spacing: pt(8)) {
                 Label(job.karigarName, systemImage: "hammer").fontWeight(.medium)
                 Text(job.hasGiven ? "Given " + ShopDate.say(job.givenAt) : "Not given yet")
                     .foregroundStyle(.secondary)
             }
-            .font(.subheadline)
+            .font(.house(.subheadline))
         }
     }
 

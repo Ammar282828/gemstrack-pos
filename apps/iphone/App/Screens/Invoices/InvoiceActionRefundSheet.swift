@@ -55,7 +55,7 @@ struct InvoiceActionRefundSheet: View {
                 if mode == .full {
                     Section {
                         Text(InvoiceActionDeleteSheet.detail(invoice, book: book))
-                            .font(.subheadline)
+                            .font(.house(.subheadline))
                     } header: {
                         LedgerHeading(title: "What goes")
                     }
@@ -100,7 +100,7 @@ struct InvoiceActionRefundSheet: View {
         Section {
             TextField("Refund amount (PKR)", text: $amountText.wholeRupees, prompt: Text("e.g. 1500"))
                 .keyboardType(.numberPad)
-                .font(.title2.weight(.semibold))
+                .font(.house(.title2).weight(.semibold))
                 .monospacedDigit()
             TextField("Reason", text: $reason, prompt: Text("e.g. damaged item (optional)"))
         } header: {
@@ -205,13 +205,13 @@ extension InvoiceActionRefundSheet {
     private var macWhat: some View {
         if mode == .full {
             Text("A full refund deletes the invoice, removes all hisaab entries, and returns all items to stock. This cannot be undone.")
-                .font(.callout)
+                .font(.house(.callout))
             Text(InvoiceActionDeleteSheet.detail(invoice, book: book))
-                .font(.callout)
+                .font(.house(.callout))
                 .foregroundStyle(.secondary)
         } else {
             Text("A partial refund records a negative payment on this invoice and issues a matching refund on Shopify. The invoice stays in your records.")
-                .font(.callout)
+                .font(.house(.callout))
             LabeledContent("Amount") {
                 MacInvoiceNumberField(title: "Refund amount (PKR)", text: $amountText.wholeRupees, prompt: "e.g. 1500", focused: false)
             }
@@ -226,14 +226,14 @@ extension InvoiceActionRefundSheet {
             // The web takes it; said so nobody hands back more than came in by a slip of the keys.
             Text("More than was paid on it (\(PaymentText.pkr(invoice.amountPaid))).").foregroundStyle(Tone.owed.color)
         } else if amount > 0 {
-            Text(Money.pkrLac(amount)).font(.callout).monospacedDigit().foregroundStyle(.secondary)
+            Text(Money.pkrLac(amount)).font(.house(.callout)).monospacedDigit().foregroundStyle(.secondary)
         }
         if let after {
             Section("After") {
                 MacInvoiceFigureRow(label: "Paid", value: PaymentText.pkr(after.amountPaid))
                 MacInvoiceFigureRow(label: balanceLine(after.balanceDue).label,
                                     value: PaymentText.pkr(balanceLine(after.balanceDue).amount), bold: true)
-                Text(partialFollowers(after)).font(.callout).foregroundStyle(.secondary)
+                Text(partialFollowers(after)).font(.house(.callout)).foregroundStyle(.secondary)
             }
         }
     }

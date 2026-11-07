@@ -172,7 +172,7 @@ struct SaleScanScreen: View {
                         subtitle: bits.joined(separator: " · "),
                         trailing: written > 0 ? Money.pkr(written) : nil)
                 if let note = l.note, !note.isEmpty {
-                    Text(note).font(.caption).foregroundStyle(.secondary)
+                    Text(note).font(.house(.caption)).foregroundStyle(.secondary)
                 }
             }
         }
@@ -409,7 +409,7 @@ private struct MacBillLines: View {
         let kept = lines.count - skipped.count
         VStack(alignment: .leading, spacing: 0) {
             Text("\(kept) of \(lines.count) line\(lines.count == 1 ? "" : "s")")
-                .font(.headline)
+                .font(.house(.headline))
                 .padding(.horizontal, 20).padding(.top, 12).padding(.bottom, 6)
             Table(rows, selection: $selection) {
                 TableColumn("") { r in
@@ -436,7 +436,7 @@ private struct MacBillLines: View {
                 if lines.isEmpty { Text("No lines could be read off this. You can still bill it by hand.").foregroundStyle(.secondary) }
             }
             Text("Leave a line off with a click on its circle. A line with only a figure is billed at that figure and will not move if you change the rate.")
-                .font(.caption).foregroundStyle(.secondary)
+                .font(.house(.caption)).foregroundStyle(.secondary)
                 .padding(.horizontal, 20).padding(.vertical, 6)
         }
     }

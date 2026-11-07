@@ -256,7 +256,7 @@ struct MacReportsOverview: View {
             let coin = f.coin
             MacReportsFacts(title: "Gold coins", detail: String(coin.invoices) + " " + AnaFormat.plural(coin.invoices, "bill", "bills"), rows: coinFacts)
             Text("Coin figures are separate from jewellery revenue and profit.")
-                .font(.caption)
+                .font(.house(.caption))
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 16)
                 .padding(.bottom, 12)
@@ -292,7 +292,7 @@ struct MacReportsOverview: View {
                 Text("Expenses, extra revenue and what the shop earns are the owners’ books, so these figures are from sales and orders only.")
             }
         }
-        .font(.caption)
+        .font(.house(.caption))
         .foregroundStyle(.secondary)
         .padding(.horizontal, 4)
     }

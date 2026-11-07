@@ -72,7 +72,7 @@ struct PostQueueSheet: View {
             }
             if !e.caption.isEmpty {
                 LedgerSection("Caption") {
-                    Text(e.caption).textSelection(.enabled).font(.subheadline)
+                    Text(e.caption).textSelection(.enabled).font(.house(.subheadline))
                 }
             }
             actions(e)
@@ -107,12 +107,12 @@ struct PostQueueSheet: View {
                 .frame(width: 84, height: 84)
                 .clipShape(.rect(cornerRadius: Radius.chip, style: .continuous))
             VStack(alignment: .leading, spacing: pt(6)) {
-                Text(e.headline.isEmpty ? "A piece" : e.headline).font(.headline)
-                Text(statusWords(e)).font(.subheadline).foregroundStyle(e.status == "failed" ? Tone.problem.color : Color.secondary)
+                Text(e.headline.isEmpty ? "A piece" : e.headline).font(.house(.headline))
+                Text(statusWords(e)).font(.house(.subheadline)).foregroundStyle(e.status == "failed" ? Tone.problem.color : Color.secondary)
                 if e.units > 0 {
                     ProgressView(value: Double(e.done), total: Double(e.units))
                         .tint(Theme.accent)
-                    Text("\(e.done) of \(e.units) gone").font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                    Text("\(e.done) of \(e.units) gone").font(.house(.caption)).foregroundStyle(.secondary).monospacedDigit()
                 }
             }
         }
@@ -177,24 +177,24 @@ struct PostQueueSheet: View {
         // Gone is the expected end: a quiet word; only a failure is coloured (CONVENTIONS rule 15).
         return HStack(spacing: pt(12)) {
             Image(systemName: p.symbol)
-                .font(.body.weight(.semibold))
+                .font(.house(.body).weight(.semibold))
                 .foregroundStyle(Theme.onAccent)
                 .frame(width: 32, height: 32)
                 .background(Theme.accent, in: .rect(cornerRadius: Radius.thumb, style: .continuous))
             VStack(alignment: .leading, spacing: pt(2)) {
                 Text(p.title)
                 Text(problem ?? p.detail)
-                    .font(.caption)
+                    .font(.house(.caption))
                     .foregroundStyle(problem == nil ? Color.secondary : Tone.problem.color)
 
             }
             Spacer(minLength: 6)
             if gone == p.units.count {
-                Text("Gone").font(.caption).foregroundStyle(.secondary)
+                Text("Gone").font(.house(.caption)).foregroundStyle(.secondary)
             } else if problem != nil {
                 Label("Failed", systemImage: "exclamationmark.circle.fill").labelStyle(.iconOnly).foregroundStyle(Tone.problem.color)
             } else if gone > 0 {
-                Text("\(gone)/\(p.units.count)").font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                Text("\(gone)/\(p.units.count)").font(.house(.caption)).foregroundStyle(.secondary).monospacedDigit()
             }
         }
     }
@@ -302,7 +302,7 @@ extension PostQueueSheet {
                 Group {
                     if !e.caption.isEmpty {
                         Section("Caption") {
-                            Text(e.caption).textSelection(.enabled).font(.body)
+                            Text(e.caption).textSelection(.enabled).font(.house(.body))
                         }
                     }
                     actions(e)

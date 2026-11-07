@@ -113,11 +113,11 @@ struct MacNewOrderCustomerBox: View {
         if let c = picked {
             let sub = [c.phone ?? "", c.city ?? ""].filter { !$0.isEmpty }.joined(separator: " \u{00B7} ")
             Label(sub.isEmpty ? "On file" : "On file \u{00B7} " + sub, systemImage: "checkmark.seal.fill")
-                .font(.callout)
+                .font(.house(.callout))
                 .foregroundStyle(.secondary)
         } else if !typed.isEmpty && foundExact([typed.hashValue] + recentKey, { CustomerSearch.exact(typed, in: book).isEmpty }) {
             Label("New customer \u{201C}\(typed)\u{201D}", systemImage: "person.badge.plus")
-                .font(.callout)
+                .font(.house(.callout))
                 .foregroundStyle(.secondary)
         }
     }

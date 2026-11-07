@@ -194,12 +194,12 @@ private struct WebsiteSellingForm: View {
                     VStack(alignment: .leading, spacing: pt(2)) {
                         Text("Show prices and take orders")
                         Text(draft.enabled ? "On. The site shows prices for every piece with a readable weight." : "Off. The site shows no prices; every piece is enquiry-only.")
-                            .font(.caption).foregroundStyle(.secondary)
+                            .font(.house(.caption)).foregroundStyle(.secondary)
                     }
                 }
                 if !draft.missing.isEmpty {
                     Label("Before this can work, set \(draft.missing.joined(separator: " and ")).", systemImage: "exclamationmark.triangle")
-                        .font(.footnote)
+                        .font(.house(.footnote))
                         .foregroundStyle(Tone.owed.color)
                 }
             } footer: {
@@ -291,7 +291,7 @@ private struct WebsiteSellingForm: View {
 
             Section {
                 Text("The bank account shown to customers is kept by whoever manages the ERP, not here, so nothing that can write to the books can change where the money goes.")
-                    .font(.footnote).foregroundStyle(.secondary)
+                    .font(.house(.footnote)).foregroundStyle(.secondary)
                 if let at = base.updatedAt, !at.isEmpty {
                     LabeledContent("Last saved", value: ShopDate.say(at, withTime: true))
                 }
@@ -324,7 +324,7 @@ private struct WebsiteSellingForm: View {
         )
         let def = draft.defaultPricing
         return VStack(alignment: .leading, spacing: pt(8)) {
-            Text(name).font(.headline)
+            Text(name).font(.house(.headline))
             Picker("Karat", selection: Binding<String>(get: { row.wrappedValue.karat ?? "" }, set: { row.wrappedValue.karat = $0.isEmpty ? nil : $0 })) {
                 Text("Default (\(def.karat ?? "21k"))").tag("")
                 ForEach(Self.karats, id: \.self) { Text($0).tag($0) }

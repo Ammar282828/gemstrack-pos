@@ -58,7 +58,7 @@ struct WebsiteLiveScreen: View {
                         columns(l)
                     } else {
                         Text("No one on the site at the moment. Visits are counted from 23 October 2026.")
-                            .font(.subheadline).foregroundStyle(.secondary)
+                            .font(.house(.subheadline)).foregroundStyle(.secondary)
                     }
                 }
             }
@@ -129,7 +129,7 @@ struct WebsiteLiveScreen: View {
                 } else {
                     Section {
                         Text("No one on the site at the moment. Visits are counted from 23 October 2026.")
-                            .font(.subheadline).foregroundStyle(.secondary)
+                            .font(.house(.subheadline)).foregroundStyle(.secondary)
                     }
                     .houseRows()
                 }
@@ -151,16 +151,16 @@ struct WebsiteLiveScreen: View {
     private func heroBody(_ l: SiteLive) -> some View {
         HStack(spacing: pt(14)) {
                 Image(systemName: "circle.fill")
-                    .font(.caption)
+                    .font(.house(.caption))
                     .foregroundStyle(l.visitors > 0 ? Tone.settled.color : Color.secondary.opacity(0.4))
                     .symbolEffect(.pulse, isActive: l.visitors > 0 && !reduceMotion)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: pt(4)) {
                     Text("\(l.visitors)")
-                        .font(.system(.largeTitle, design: .serif).weight(.semibold))
+                        .font(.house(.largeTitle).weight(.semibold))
                         .monospacedDigit()
                         .contentTransition(.numericText(value: Double(l.visitors)))
-                    Text(heroWords(l)).font(.subheadline).foregroundStyle(.secondary)
+                    Text(heroWords(l)).font(.house(.subheadline)).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 0)
@@ -223,18 +223,18 @@ struct WebsiteLiveScreen: View {
 
     private func visitRow(_ v: SiteLiveVisit) -> some View {
         HStack(alignment: .top, spacing: pt(12)) {
-            Text(SiteWords.flag(v.cc)).font(.title3).accessibilityHidden(true)
+            Text(SiteWords.flag(v.cc)).font(.house(.title3)).accessibilityHidden(true)
             AdaptiveStack(spacing: pt(8), alignment: .top) {
                 VStack(alignment: .leading, spacing: pt(2)) {
                     Text(SiteWords.page(v.path))
-                    Text(detail(v)).font(.footnote).foregroundStyle(.secondary)
+                    Text(detail(v)).font(.house(.footnote)).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 8)
                 VStack(alignment: .trailing, spacing: pt(2)) {
                     Text(stay(v))
                     Text(SiteWords.ago(v.ago))
                 }
-                .font(.footnote).foregroundStyle(.secondary).monospacedDigit()
+                .font(.house(.footnote)).foregroundStyle(.secondary).monospacedDigit()
             }
         }
         .accessibilityElement(children: .combine)
@@ -287,7 +287,7 @@ extension WebsiteLiveScreen {
                         macCards(l)
                     } else {
                         Text("No one on the site at the moment. Visits are counted from 23 October 2026.")
-                            .font(.subheadline).foregroundStyle(.secondary)
+                            .font(.house(.subheadline)).foregroundStyle(.secondary)
                     }
                 }
             }

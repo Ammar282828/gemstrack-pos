@@ -474,7 +474,7 @@ struct InsightBlock<Content: View>: View {
         VStack(alignment: .leading, spacing: pt(12)) {
             if !title.isEmpty { LedgerHeading(title: title, count: count, trailing: trailing) }
             content()
-            if let footer { Text(footer).font(.footnote).foregroundStyle(.secondary) }
+            if let footer { Text(footer).font(.house(.footnote)).foregroundStyle(.secondary) }
         }
     }
 }
@@ -641,8 +641,8 @@ struct InsightsOverviewScreen: View {
                         Image(systemName: f.tone == "good" ? "checkmark.circle" : (f.tone == "warn" ? "exclamationmark.triangle.fill" : "info.circle"))
                             .foregroundStyle(f.tone == "good" ? Tone.settled.color : (f.tone == "warn" ? Tone.owed.color : Color.secondary))
                         VStack(alignment: .leading, spacing: pt(4)) {
-                            Text(f.title).font(.body.weight(.medium))
-                            Text(f.why).font(.subheadline).foregroundStyle(.secondary)
+                            Text(f.title).font(.house(.body).weight(.medium))
+                            Text(f.why).font(.house(.subheadline)).foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -689,7 +689,7 @@ struct InsightsOverviewScreen: View {
                 HStack {
                     Text(title)
                     Spacer(minLength: 8)
-                    Text("ads \(AdsFormat.compact(s.ads)) · own \(AdsFormat.compact(s.organic))").font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
+                    Text("ads \(AdsFormat.compact(s.ads)) · own \(AdsFormat.compact(s.organic))").font(.house(.subheadline)).foregroundStyle(.secondary).monospacedDigit()
                 }
                 GeometryReader { (g: GeometryProxy) in
                     HStack(spacing: pt(2)) {
@@ -700,7 +700,7 @@ struct InsightsOverviewScreen: View {
                 .frame(height: 8)
                 .accessibilityLabel("\(Int((share * 100).rounded()))% from ads")
                 Text(([("From ads \(Int((share * 100).rounded()))%")] + s.bySurface.filter { (p: InsightPart) in p.value > 0 }.map { (p: InsightPart) in "\(InsightWords.surface[p.key] ?? p.key) \(AdsFormat.compact(p.value))" }).joined(separator: " · "))
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.house(.caption)).foregroundStyle(.secondary)
             }
         }
     }
@@ -751,7 +751,7 @@ struct InsightsOverviewScreen: View {
                 .accessibilityValue(ChartSummary.say(points.map { (label: ChartSummary.day($0.date), value: $0.value) }, money: false, total: false))
             } else {
                 Text("Meta keeps no follower history, so the ERP writes the count down every day. The line fills in from there.")
-                    .font(.subheadline).foregroundStyle(.secondary)
+                    .font(.house(.subheadline)).foregroundStyle(.secondary)
             }
         }
     }
@@ -766,16 +766,16 @@ struct InsightsOverviewScreen: View {
                 ForEach(shown) { (p: InsightPlatform) in
                     VStack(alignment: .leading, spacing: pt(4)) {
                         HStack {
-                            Text(InsightWords.platform[p.platform] ?? p.platform).font(.body.weight(.medium))
+                            Text(InsightWords.platform[p.platform] ?? p.platform).font(.house(.body).weight(.medium))
                             Spacer(minLength: 8)
-                            Text(AdsFormat.money(p.metrics.spend, d.currency)).font(.body.weight(.semibold)).monospacedDigit()
+                            Text(AdsFormat.money(p.metrics.spend, d.currency)).font(.house(.body).weight(.semibold)).monospacedDigit()
                         }
                         Text([AdsFormat.change(p.metrics.spend, before[p.platform]), "\(AdsFormat.compact(p.metrics.reach)) reached", "\(AdsFormat.compact(p.metrics.impressions)) views", "\(AdsFormat.count(p.metrics.linkClicks)) link clicks"]
                             .compactMap { (s: String?) in s }.joined(separator: " · "))
-                            .font(.subheadline).foregroundStyle(.secondary)
+                            .font(.house(.subheadline)).foregroundStyle(.secondary)
                         let results = AdsResults.headlineActions(p.metrics, limit: 4)
                         if !results.isEmpty {
-                            Text(results.map { (r: AdsResults.Line) in "\(AdsFormat.count(r.value)) \(r.label.lowercased())" }.joined(separator: " · ")).font(.caption)
+                            Text(results.map { (r: AdsResults.Line) in "\(AdsFormat.count(r.value)) \(r.label.lowercased())" }.joined(separator: " · ")).font(.house(.caption))
                         }
                     }
                 }
@@ -937,7 +937,7 @@ struct InsightsPostsScreen: View {
             }
         }
         if let last = d.lastPostAt {
-            Text("Last Instagram post \(ShopDate.say(last))").font(.footnote).foregroundStyle(.secondary)
+            Text("Last Instagram post \(ShopDate.say(last))").font(.house(.footnote)).foregroundStyle(.secondary)
         }
         LedgerHeading(title: "Posts", count: shown.count)
         if shown.isEmpty {
@@ -947,7 +947,7 @@ struct InsightsPostsScreen: View {
                 ForEach(shown) { (p: InsightPost) in row(p, live: d.live.contains(p.id)).ledgerCard() }
             }
         }
-        Text(Self.postsNote).font(.footnote).foregroundStyle(.secondary)
+        Text(Self.postsNote).font(.house(.footnote)).foregroundStyle(.secondary)
     }
 
     private func postsList(_ d: InsightsPosts, _ shown: [InsightPost]) -> some View {
@@ -1001,21 +1001,21 @@ struct InsightsPostsScreen: View {
                 .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
             VStack(alignment: .leading, spacing: pt(6)) {
                 HStack(spacing: pt(6)) {
-                    Text(InsightWords.kind[p.kind] ?? p.kind).font(.caption.weight(.medium))
-                    Text(ShopDate.say(p.at)).font(.caption).foregroundStyle(.secondary)
+                    Text(InsightWords.kind[p.kind] ?? p.kind).font(.house(.caption).weight(.medium))
+                    Text(ShopDate.say(p.at)).font(.house(.caption)).foregroundStyle(.secondary)
                     if live { StatusBadge("Up now", color: Tone.settled.color) }
-                    if p.older { Text("before this range").font(.caption).foregroundStyle(.secondary) }
+                    if p.older { Text("before this range").font(.house(.caption)).foregroundStyle(.secondary) }
                     Spacer(minLength: 0)
                     if let link = p.link, let url = URL(string: link) {
                         Link(destination: url) { Image(systemName: "arrow.up.right.square") }.foregroundStyle(.secondary)
                     }
                 }
-                if !p.caption.isEmpty { Text(p.caption).font(.subheadline).lineLimit(2) }
+                if !p.caption.isEmpty { Text(p.caption).font(.house(.subheadline)).lineLimit(2) }
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: pt(6)) {
                     ForEach(stats, id: \.0) { (s: (String, String)) in
                         VStack(alignment: .leading, spacing: 0) {
-                            Text(s.0).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
-                            Text(s.1).font(.subheadline.weight(.semibold)).monospacedDigit()
+                            Text(s.0).font(.house(.caption2)).foregroundStyle(.secondary).lineLimit(1)
+                            Text(s.1).font(.house(.subheadline).weight(.semibold)).monospacedDigit()
                         }
                     }
                 }
@@ -1113,7 +1113,7 @@ struct InsightsAudienceScreen: View {
         }
         .pickerStyle(.segmented)
         .frame(maxWidth: 480)
-        Text(audienceNote()).font(.footnote).foregroundStyle(.secondary)
+        Text(audienceNote()).font(.house(.footnote)).foregroundStyle(.secondary)
         if let dims {
             HStack(alignment: .top, spacing: pt(20)) {
                 VStack(alignment: .leading, spacing: pt(20)) {
@@ -1173,7 +1173,7 @@ struct InsightsAudienceScreen: View {
                         HStack {
                             Text(label(p.key)).lineLimit(1)
                             Spacer(minLength: 8)
-                            Text("\(Int((p.value / total * 100).rounded()))%").font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
+                            Text("\(Int((p.value / total * 100).rounded()))%").font(.house(.subheadline)).foregroundStyle(.secondary).monospacedDigit()
                         }
                         ProgressView(value: p.value, total: biggest).tint(Theme.accent)
                     }
@@ -1198,7 +1198,7 @@ struct InsightsAudienceScreen: View {
                 .accessibilityLabel("Followers online each hour, Karachi time")
                 .accessibilityValue(ChartSummary.say(points.map { (label: InsightWords.hour($0.id), value: $0.online) }, money: false, total: false))
             } else {
-                Text("Meta isn't sharing this for the account yet (it holds it back for smaller accounts).").font(.subheadline).foregroundStyle(.secondary)
+                Text("Meta isn't sharing this for the account yet (it holds it back for smaller accounts).").font(.house(.subheadline)).foregroundStyle(.secondary)
             }
         }
     }
@@ -1393,7 +1393,7 @@ extension InsightsOverviewScreen {
     private func macFoot(_ d: InsightsOverview) -> some View {
         if !d.at.isEmpty {
             Text("\(ShopDate.say(d.since)) to \(ShopDate.say(d.until)), compared with \(ShopDate.say(d.beforeSince)) to \(ShopDate.say(d.beforeUntil)). From Meta, \(MarketingTime.clock(d.at)). Instagram's numbers include its ads; the split takes them apart.")
-                .font(.callout)
+                .font(.house(.callout))
                 .foregroundStyle(.secondary)
         }
     }
@@ -1504,9 +1504,9 @@ extension InsightsPostsScreen {
                 .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
             VStack(alignment: .leading, spacing: 1) {
                 Text(p.caption.isEmpty ? (InsightWords.kind[p.kind] ?? p.kind) : p.caption).lineLimit(1)
-                if d.live.contains(p.id) { Text("Up now").font(.caption).foregroundStyle(Tone.settled.color) }
-                else if p.older { Text("before this range").font(.caption).foregroundStyle(.secondary) }
-                else { Text(InsightWords.kind[p.kind] ?? p.kind).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
+                if d.live.contains(p.id) { Text("Up now").font(.house(.caption)).foregroundStyle(Tone.settled.color) }
+                else if p.older { Text("before this range").font(.house(.caption)).foregroundStyle(.secondary) }
+                else { Text(InsightWords.kind[p.kind] ?? p.kind).font(.house(.caption)).foregroundStyle(.secondary).lineLimit(1) }
             }
         }
     }
@@ -1578,15 +1578,15 @@ extension InsightsPostsScreen {
                 .frame(width: 44, height: 44)
                 .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
-                Text(p.caption.isEmpty ? (InsightWords.kind[p.kind] ?? p.kind) : p.caption).font(.body).lineLimit(1)
-                Text((InsightWords.kind[p.kind] ?? p.kind) + " · " + ShopDate.say(p.at)).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                Text(p.caption.isEmpty ? (InsightWords.kind[p.kind] ?? p.kind) : p.caption).font(.house(.body)).lineLimit(1)
+                Text((InsightWords.kind[p.kind] ?? p.kind) + " · " + ShopDate.say(p.at)).font(.house(.callout)).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer(minLength: 8)
             if d.live.contains(p.id) { Pill("Up now", tone: .settled) }
             else if p.older { Pill("Before this range", tone: .quiet) }
             VStack(alignment: .trailing, spacing: 2) {
-                Text(InsightWords.optional(p.views) + " views").font(.body.weight(.semibold)).monospacedDigit().lineLimit(1)
-                Text(macDetail(p)).font(.caption).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
+                Text(InsightWords.optional(p.views) + " views").font(.house(.body).weight(.semibold)).monospacedDigit().lineLimit(1)
+                Text(macDetail(p)).font(.house(.caption)).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
             }
             .frame(minWidth: 150, alignment: .trailing)
         }
@@ -1614,7 +1614,7 @@ extension InsightsAudienceScreen {
         // gender, cities beside countries), each as tall as its row's tallest.
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                Text(audienceNote()).font(.callout).foregroundStyle(.secondary)
+                Text(audienceNote()).font(.house(.callout)).foregroundStyle(.secondary)
                 if let dims {
                     MacEvenLayout(minimum: 420, spacing: 16) {
                         macShares("Age", "Age", dims.age) { (k: String) in k }

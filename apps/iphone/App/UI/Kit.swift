@@ -106,17 +106,17 @@ struct FigureTile: View {
         MacFigureCard(figure: macFigure)
         #else
         VStack(alignment: .leading, spacing: pt(8)) {
-            Text(label).font(.subheadline).foregroundStyle(.secondary)
+            Text(label).font(.house(.subheadline)).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             Text(value)
-                .font(.system(.title2, design: .serif).weight(.semibold))
+                .font(.house(.title2).weight(.semibold))
                 .foregroundStyle(tint)
                 .monospacedDigit()
                 // A new period's figure rolls over digit by digit rather than blinking.
                 .contentTransition(.numericText())
                 .fixedSize(horizontal: false, vertical: true)
             if let detail, !detail.isEmpty {
-                Text(detail).font(.footnote).foregroundStyle(.secondary)
+                Text(detail).font(.house(.footnote)).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -463,7 +463,7 @@ struct ShelfState<Content: View>: View {
             .safeAreaInset(edge: .top, spacing: 0) {
                 if showingOfflineCopy {
                     Label("Offline: showing this phone's copy", systemImage: "icloud.slash")
-                        .font(.footnote.weight(.medium))
+                        .font(.house(.footnote).weight(.medium))
                         .padding(.horizontal, pt(14)).padding(.vertical, pt(7))
                         .glassEffect(.regular, in: .capsule)
                         .padding(.top, pt(4))
@@ -503,7 +503,7 @@ struct TwoLine: View {
         VStack(alignment: .leading, spacing: Metrics.tap > 30 ? 6 : 2) {
             Text(title).fontWeight(.medium)
             if let subtitle, !subtitle.isEmpty {
-                Text(subtitle).font(.subheadline).foregroundStyle(.secondary)
+                Text(subtitle).font(.house(.subheadline)).foregroundStyle(.secondary)
             }
         }
         .fixedSize(horizontal: false, vertical: true)
@@ -512,10 +512,10 @@ struct TwoLine: View {
     @ViewBuilder private var amount: some View {
         if let trailing {
             VStack(alignment: typeSize.isAccessibilitySize ? .leading : .trailing, spacing: pt(4)) {
-                Text(trailing).font(.subheadline.weight(.semibold))
+                Text(trailing).font(.house(.subheadline).weight(.semibold))
                     .monospacedDigit().foregroundStyle(trailingTint)
                 if let trailingLabel {
-                    Text(trailingLabel).font(.caption).foregroundStyle(.secondary)
+                    Text(trailingLabel).font(.house(.caption)).foregroundStyle(.secondary)
                 }
             }
             .fixedSize(horizontal: false, vertical: true)
@@ -749,7 +749,7 @@ struct PaymentSheet: View {
                 Section {
                     TextField("Amount in rupees", text: $amountText)
                         .keyboardType(.numberPad)
-                        .font(.title2.weight(.semibold))
+                        .font(.house(.title2).weight(.semibold))
                         .monospacedDigit()
                     if amount > 0 { Text(Money.pkrLac(amount)).monospacedDigit().foregroundStyle(.secondary) }
                     if let owed, owed >= 1 {
@@ -889,7 +889,7 @@ extension PaymentSheet {
             }
         }
         if amount > 0 {
-            Text(Money.pkrLac(amount)).font(.callout).monospacedDigit().foregroundStyle(.secondary)
+            Text(Money.pkrLac(amount)).font(.house(.callout)).monospacedDigit().foregroundStyle(.secondary)
         }
         Picker("Paid By", selection: $method) {
             ForEach(PaymentMethods.all, id: \.self) { Text($0) }
@@ -913,7 +913,7 @@ extension PaymentSheet {
             Button(SettleWords.offer(x)) { send(settling: x) }
                 .disabled(saving)
             Text("Takes this payment, then adds \(PaymentText.pkr(x)) to the discount, so nothing is left owing.")
-                .font(.caption)
+                .font(.house(.caption))
                 .foregroundStyle(.secondary)
         }
     }

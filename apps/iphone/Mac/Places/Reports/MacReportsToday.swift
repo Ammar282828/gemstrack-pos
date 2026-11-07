@@ -87,8 +87,8 @@ struct MacReportsTodayPage: View {
         let hello = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening"
         return VStack(alignment: .leading, spacing: 2) {
             Text(DashDate.longDay(figures.now).uppercased())
-                .font(.caption.weight(.semibold)).foregroundStyle(.secondary).tracking(0.6)
-            Text(hello).font(.system(size: 30, weight: .semibold, design: .serif))
+                .font(.house(.caption).weight(.semibold)).foregroundStyle(.secondary).tracking(0.6)
+            Text(hello).font(.house(size: 30, weight: .semibold))
         }
     }
 
@@ -267,22 +267,22 @@ struct MacDashCard<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
-                Text(title).font(.headline)
+                Text(title).font(.house(.headline))
                 if let count, count > 0 {
-                    Text("\(count)").font(.caption.weight(.semibold)).monospacedDigit()
+                    Text("\(count)").font(.house(.caption).weight(.semibold)).monospacedDigit()
                         .padding(.horizontal, 7).padding(.vertical, 2)
                         .background(Color.primary.opacity(0.08), in: Capsule())
                 }
                 Spacer(minLength: 8)
                 if let trailing {
-                    Text(trailing).font(.headline).monospacedDigit().foregroundStyle(.secondary)
+                    Text(trailing).font(.house(.headline)).monospacedDigit().foregroundStyle(.secondary)
                 }
                 if let action = more ?? open {
                     // In the house's accent, as every other link on the page (a `.link` button is the system's blue).
                     Button(more != nil ? "Show All" : "Open", action: action)
                         .buttonStyle(.plain)
                         .foregroundStyle(Theme.accent)
-                        .font(.callout.weight(.medium))
+                        .font(.house(.callout).weight(.medium))
                         .pointerHover()
                 }
             }
@@ -336,7 +336,7 @@ struct MacDashEmpty: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: symbol).font(.title3).foregroundStyle(Tone.settled.color)
+            Image(systemName: symbol).font(.house(.title3)).foregroundStyle(Tone.settled.color)
             Text(text).foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, minHeight: 80)
@@ -573,7 +573,7 @@ struct MacReportsNeedRow: View {
                 .frame(width: 20)
             VStack(alignment: .leading, spacing: 1) {
                 Text(need.title).lineLimit(2)
-                Text(need.detail).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                Text(need.detail).font(.house(.caption)).foregroundStyle(.secondary).lineLimit(2)
             }
             Spacer(minLength: 8)
             if let amount = need.amount {
@@ -593,13 +593,13 @@ struct MacReportsDueRow: View {
         HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 1) {
                 Text(due.customer).lineLimit(1)
-                Text(due.refLine).font(.caption).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
+                Text(due.refLine).font(.house(.caption)).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
             }
             Spacer(minLength: 8)
             VStack(alignment: .trailing, spacing: 1) {
                 MacStatus(words.text, tone: words.tone)
                 if due.amount > 0 {
-                    Text(Money.pkr(due.amount)).font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                    Text(Money.pkr(due.amount)).font(.house(.caption)).foregroundStyle(.secondary).monospacedDigit()
                 }
             }
         }
@@ -626,13 +626,13 @@ struct MacReportsSaleRow: View {
         HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 1) {
                 Text(DashText.name(invoice.customerName)).lineLimit(1)
-                Text(ShopDate.say(invoice.createdAt, withTime: true)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                Text(ShopDate.say(invoice.createdAt, withTime: true)).font(.house(.caption)).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer(minLength: 8)
             VStack(alignment: .trailing, spacing: 1) {
                 Text(Money.pkrLac(invoiceSaleValue(invoice))).monospacedDigit()
                 if let standing {
-                    MacStatus(standing.text, tone: standing.tone).font(.caption)
+                    MacStatus(standing.text, tone: standing.tone).font(.house(.caption))
                 }
             }
         }

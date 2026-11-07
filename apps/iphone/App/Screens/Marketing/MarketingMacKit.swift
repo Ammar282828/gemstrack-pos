@@ -90,8 +90,8 @@ struct MacDayHover: ViewModifier {
                             .offset(x: box.origin.x + x, y: box.origin.y)
                             .allowsHitTesting(false)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(ChartSummary.day(h.date)).font(.caption.weight(.semibold))
-                            Text(say(h.value)).font(.caption).monospacedDigit()
+                            Text(ChartSummary.day(h.date)).font(.house(.caption).weight(.semibold))
+                            Text(say(h.value)).font(.house(.caption)).monospacedDigit()
                         }
                         .padding(8)
                         .background(Theme.card, in: .rect(cornerRadius: Radius.thumb, style: .continuous))
@@ -170,7 +170,7 @@ struct MacFooterSummary: View {
 
     var body: some View {
         Text(text)
-            .font(.callout)
+            .font(.house(.callout))
             .foregroundStyle(.secondary)
             .monospacedDigit()
             .lineLimit(1)

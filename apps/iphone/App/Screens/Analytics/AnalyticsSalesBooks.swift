@@ -91,7 +91,7 @@ struct AbSalesPage: View {
                 .sensoryFeedback(.selection, trigger: bucket)
                 if canCompare, let label = ctx.previousLabel {
                     Toggle("Compare with " + label, isOn: $compare)
-                        .font(.subheadline)
+                        .font(.house(.subheadline))
                         .tint(Theme.accent)
                 }
                 AbTrend(rows: rows, bucket: bucket, showPrev: canCompare && compare, height: 280)
@@ -158,7 +158,7 @@ struct AbSalesPage: View {
         return AbTable(title: "Every day",
                        detail: list.isEmpty ? nil : AbSay.count(list.count, "day") + " with sales. Tap a day to see its invoices and pieces.") {
             if list.isEmpty {
-                Text("No daily data available for the selected period.").font(.subheadline).foregroundStyle(.secondary)
+                Text("No daily data available for the selected period.").font(.house(.subheadline)).foregroundStyle(.secondary)
                     .padding(.vertical, pt(8))
             } else {
                 ForEach(shown) { (d: SalesDay) in
@@ -171,7 +171,7 @@ struct AbSalesPage: View {
                 }
                 if list.count > shown.count || allDays {
                     Button(allDays ? "Show fewer" : "Show all " + String(list.count) + " days") { allDays.toggle() }
-                        .font(.subheadline)
+                        .font(.house(.subheadline))
                         .padding(.top, pt(8))
                 }
             }

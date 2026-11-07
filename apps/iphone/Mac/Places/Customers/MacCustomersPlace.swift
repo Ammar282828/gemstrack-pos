@@ -528,9 +528,9 @@ private struct MacCustomersInspector: View {
                 Monogram(name: CustomerKit.shown(customer), size: Monogram.Size.hero)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(CustomerKit.shown(customer))
-                        .font(.system(.title3, design: .serif).weight(.semibold)).lineLimit(2).textSelection(.enabled)
+                        .font(.house(.title3).weight(.semibold)).lineLimit(2).textSelection(.enabled)
                     if let phone = CustomerKit.filled(customer.phone) {
-                        Text(phone).font(.callout).foregroundStyle(.secondary).monospacedDigit().textSelection(.enabled)
+                        Text(phone).font(.house(.callout)).foregroundStyle(.secondary).monospacedDigit().textSelection(.enabled)
                     }
                 }
                 Spacer(minLength: 0)
@@ -538,7 +538,7 @@ private struct MacCustomersInspector: View {
             if seesMoney, owed >= 1 {
                 Divider()
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Owed to you").font(.callout).foregroundStyle(.secondary)
+                    Text("Owed to you").font(.house(.callout)).foregroundStyle(.secondary)
                     HeroAmount(amount: owed, tone: Tone.owed.color)
                 }
             }
@@ -603,7 +603,7 @@ private struct MacCustomersInspector: View {
                     }
                 }
                 if recent.invoiceCount > recent.invoices.count {
-                    Text("\(recent.invoiceCount) in all, in the customer's window.").font(.caption).foregroundStyle(.secondary)
+                    Text("\(recent.invoiceCount) in all, in the customer's window.").font(.house(.caption)).foregroundStyle(.secondary)
                 }
             }
         }
@@ -621,7 +621,7 @@ private struct MacCustomersInspector: View {
                     }
                 }
                 if recent.orderCount > recent.orders.count {
-                    Text("\(recent.orderCount) in all, in the customer's window.").font(.caption).foregroundStyle(.secondary)
+                    Text("\(recent.orderCount) in all, in the customer's window.").font(.house(.caption)).foregroundStyle(.secondary)
                 }
             }
         }
@@ -648,8 +648,8 @@ private struct MacCustomersMiniRow: View {
         Button(action: open) {
             HStack(alignment: .center, spacing: 8) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(.body).monospacedDigit().lineLimit(1)
-                    Text(subtitle.isEmpty ? " " : subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    Text(title).font(.house(.body)).monospacedDigit().lineLimit(1)
+                    Text(subtitle.isEmpty ? " " : subtitle).font(.house(.caption)).foregroundStyle(.secondary).lineLimit(1)
                 }
                 Spacer(minLength: 8)
                 VStack(alignment: .trailing, spacing: 3) {
@@ -686,9 +686,9 @@ struct MacCustomersListRow: View {
         HStack(alignment: .center, spacing: pt(12)) {
             Monogram(name: row.name, size: Monogram.Size.row)
             VStack(alignment: .leading, spacing: 2) {
-                Text(row.name).font(.body).lineLimit(1)
+                Text(row.name).font(.house(.body)).lineLimit(1)
                 if !subtitle.isEmpty {
-                    Text(subtitle).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                    Text(subtitle).font(.house(.callout)).foregroundStyle(.secondary).lineLimit(1)
                 }
             }
             Spacer(minLength: 8)
@@ -704,12 +704,12 @@ struct MacCustomersListRow: View {
         if seesMoney, row.owed >= 1 {
             VStack(alignment: .trailing, spacing: 1) {
                 RowAmount(amount: row.owed, tone: Tone.owed.color)
-                Text("Owed").font(.caption2).foregroundStyle(.secondary)
+                Text("Owed").font(.house(.caption2)).foregroundStyle(.secondary)
             }
         } else if seesMoney, row.spent > 0 {
             VStack(alignment: .trailing, spacing: 1) {
                 RowAmount(amount: row.spent, lac: true)
-                Text("Lifetime").font(.caption2).foregroundStyle(.secondary)
+                Text("Lifetime").font(.house(.caption2)).foregroundStyle(.secondary)
             }
         }
     }

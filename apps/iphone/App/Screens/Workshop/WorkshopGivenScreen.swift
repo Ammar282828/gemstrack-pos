@@ -161,7 +161,7 @@ struct WorkshopGivenScreen: View {
     private func row(_ item: GivenItem) -> some View {
         VStack(alignment: .leading, spacing: pt(14)) {
             HStack(alignment: .top, spacing: pt(8)) {
-                Text(item.description).font(.headline).fixedSize(horizontal: false, vertical: true)
+                Text(item.description).font(.house(.headline)).fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 4)
                 Menu { itemMenu(item) } label: {
                     Image(systemName: "ellipsis").frame(width: Metrics.tap, height: Metrics.tap)
@@ -175,10 +175,10 @@ struct WorkshopGivenScreen: View {
             } icon: {
                 Image(systemName: icon(item.recipientType))
             }
-            .font(.subheadline)
+            .font(.house(.subheadline))
             .foregroundStyle(.secondary)
             if let notes = item.notes, !notes.isEmpty {
-                Text(notes).font(.caption).foregroundStyle(.secondary)
+                Text(notes).font(.house(.caption)).foregroundStyle(.secondary)
             }
             if canReturn(item) {
                 gotBack(item)
@@ -251,12 +251,12 @@ struct WorkshopGivenScreen: View {
             if days >= 7 {
                 Pill("Out \(days) days", tone: .owed)
             } else {
-                Text("Still out").font(.caption2).foregroundStyle(.secondary)
+                Text("Still out").font(.house(.caption2)).foregroundStyle(.secondary)
             }
         } else {
             // Back is the expected end: no badge (rule 15), only when.
             if let back = item.returnedDate, !back.isEmpty {
-                Text("Back " + ShopDate.say(back)).font(.caption2).foregroundStyle(.secondary)
+                Text("Back " + ShopDate.say(back)).font(.house(.caption2)).foregroundStyle(.secondary)
             }
         }
     }
@@ -271,7 +271,7 @@ struct WorkshopGivenScreen: View {
             Spacer()
             Button { markReturned(item) } label: {
                 Label("Got back", systemImage: "checkmark.circle")
-                    .font(.subheadline)
+                    .font(.house(.subheadline))
                     .frame(minHeight: Metrics.tap)
             }
             .buttonStyle(.bordered)
@@ -406,8 +406,8 @@ extension WorkshopGivenScreen {
                         .frame(width: Monogram.Size.row, height: Monogram.Size.row)
                         .background(Theme.accent.opacity(0.13), in: .circle)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(g.description).font(.body).lineLimit(1)
-                        Text(recipientWords(g)).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                        Text(g.description).font(.house(.body)).lineLimit(1)
+                        Text(recipientWords(g)).font(.house(.callout)).foregroundStyle(.secondary).lineLimit(1)
                     }
                     Spacer(minLength: 8)
                     macStanding(g)
@@ -452,12 +452,12 @@ extension WorkshopGivenScreen {
             if days >= 7 {
                 Pill("Out \(days) days", tone: .owed)
             } else {
-                Text("Still out").font(.callout).foregroundStyle(.secondary)
+                Text("Still out").font(.house(.callout)).foregroundStyle(.secondary)
             }
         } else if let back = g.returnedDate, !back.isEmpty {
-            Text("Back " + ShopDate.say(back)).font(.callout).foregroundStyle(.secondary)
+            Text("Back " + ShopDate.say(back)).font(.house(.callout)).foregroundStyle(.secondary)
         } else {
-            Text("Back").font(.callout).foregroundStyle(.secondary)
+            Text("Back").font(.house(.callout)).foregroundStyle(.secondary)
         }
     }
 
@@ -586,7 +586,7 @@ extension WorkshopGivenScreen {
                 if let by = item.givenBy, !by.isEmpty { MacWorkFact("Given by", by) }
                 if let notes = item.notes, !notes.isEmpty {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Note").font(.callout).foregroundStyle(.secondary)
+                        Text("Note").font(.house(.callout)).foregroundStyle(.secondary)
                         Text(notes).textSelection(.enabled)
                     }
                 }
@@ -765,7 +765,7 @@ struct WorkshopGivenSheet: View {
                         Text(s.name)
                         Spacer()
                         if let hint = s.hint {
-                            Text(hint).font(.caption).foregroundStyle(.secondary)
+                            Text(hint).font(.house(.caption)).foregroundStyle(.secondary)
                         }
                     }
                 }

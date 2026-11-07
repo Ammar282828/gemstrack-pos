@@ -206,7 +206,7 @@ struct SearchView: View {
             #endif
             if let s = map.settings { accountLink(s.label, NavIcon.symbol(for: s.icon), s.href) }
             if let email = session.me?.email, !email.isEmpty {
-                Text("Signed in as \(email)").font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                Text("Signed in as \(email)").font(.house(.subheadline)).foregroundStyle(.secondary).lineLimit(1)
                     .frame(minHeight: Metrics.tap, alignment: .leading)
             }
             Button(role: .destructive) { confirmingSignOut = true } label: {
@@ -215,7 +215,7 @@ struct SearchView: View {
         } header: {
             LedgerHeading(title: "Account")
         } footer: {
-            Text(versionLine).font(.caption).frame(maxWidth: .infinity)
+            Text(versionLine).font(.house(.caption)).frame(maxWidth: .infinity)
         }
         .houseRows()
     }
@@ -320,7 +320,7 @@ struct SearchView: View {
                 VStack(alignment: .leading, spacing: pt(1)) {
                     Text(h.place.label)
                     if let e = h.entry, e.label != h.place.label {
-                        Text(e.label).font(.caption).foregroundStyle(.secondary)
+                        Text(e.label).font(.house(.caption)).foregroundStyle(.secondary)
                     }
                 }
             } icon: { Image(systemName: NavIcon.symbol(for: h.place.icon)) }
@@ -333,7 +333,7 @@ struct SearchView: View {
                 Monogram(name: c.name, size: Monogram.Size.row)
                 VStack(alignment: .leading, spacing: pt(2)) {
                     Text(c.name)
-                    if let p = c.phone, !p.isEmpty { Text(p).font(.caption).foregroundStyle(.secondary) }
+                    if let p = c.phone, !p.isEmpty { Text(p).font(.house(.caption)).foregroundStyle(.secondary) }
                 }
             }
         }
@@ -344,7 +344,7 @@ struct SearchView: View {
             HStack(spacing: pt(8)) {
                 VStack(alignment: .leading, spacing: pt(2)) {
                     Text(i.id)
-                    Text(invoiceLine(i)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    Text(invoiceLine(i)).font(.house(.caption)).foregroundStyle(.secondary).lineLimit(1)
                 }
                 Spacer(minLength: 8)
                 RowAmount(amount: i.balanceDue > 0 ? i.balanceDue : i.grandTotal, tone: i.balanceDue > 0 ? Tone.owed.color : Color.primary)
@@ -362,14 +362,14 @@ struct SearchView: View {
             HStack(spacing: pt(8)) {
                 VStack(alignment: .leading, spacing: pt(2)) {
                     Text(o.id)
-                    Text(o.customerName ?? "").font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                    Text(o.status.rawValue).font(.caption).foregroundStyle(Tone(status: o.status).color)
+                    Text(o.customerName ?? "").font(.house(.caption)).foregroundStyle(.secondary).lineLimit(1)
+                    Text(o.status.rawValue).font(.house(.caption)).foregroundStyle(Tone(status: o.status).color)
                 }
                 Spacer(minLength: 8)
                 // The whole order (owner, 2026-11-03: "the full order amount, don't minus advance"); what is owed under it.
                 VStack(alignment: .trailing, spacing: pt(2)) {
                     RowAmount(amount: OrdersLogic.fullAmount(o))
-                    if due > 0 { Text("\(Money.pkr(due)) due").font(.caption).foregroundStyle(Tone.owed.color) }
+                    if due > 0 { Text("\(Money.pkr(due)) due").font(.house(.caption)).foregroundStyle(Tone.owed.color) }
                 }
             }
         }
@@ -379,7 +379,7 @@ struct SearchView: View {
         page("Stock", r.stock, path: { "/products/" + SearchPath.encode($0.sku) }) { p in
             VStack(alignment: .leading, spacing: pt(2)) {
                 Text(p.name.isEmpty ? p.sku : p.name)
-                if !p.name.isEmpty { Text(p.sku).font(.caption).foregroundStyle(.secondary) }
+                if !p.name.isEmpty { Text(p.sku).font(.house(.caption)).foregroundStyle(.secondary) }
             }
         }
     }
@@ -388,7 +388,7 @@ struct SearchView: View {
         page("Repairs", r.repairs, path: { "/repairs?id=" + SearchPath.encode($0.id) }) { x in
             VStack(alignment: .leading, spacing: pt(2)) {
                 Text(x.id)
-                Text(x.customerName).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                Text(x.customerName).font(.house(.caption)).foregroundStyle(.secondary).lineLimit(1)
             }
         }
     }

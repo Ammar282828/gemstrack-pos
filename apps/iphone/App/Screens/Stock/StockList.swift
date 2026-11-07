@@ -314,11 +314,11 @@ private struct StockPrice: View {
     var body: some View {
         if let price, price > 0 {
             Text(Money.pkr(price))
-                .font(.subheadline.weight(.semibold))
+                .font(.house(.subheadline).weight(.semibold))
                 .monospacedDigit()
         } else {
             Text(price == nil ? "—" : "Price N/A")
-                .font(.caption)
+                .font(.house(.caption))
                 .foregroundStyle(.secondary)
         }
     }
@@ -340,9 +340,9 @@ private struct StockRow: View {
                     .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
                     .zoomSource(id: StockKit.piecePath(p.sku))
                 VStack(alignment: .leading, spacing: pt(2)) {
-                    Text(p.name).font(.body.weight(.medium)).lineLimit(2)
-                    Text(p.sku).font(.caption.monospaced()).foregroundStyle(.secondary).lineLimit(1)
-                    Text(detail(p)).font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                    Text(p.name).font(.house(.body).weight(.medium)).lineLimit(2)
+                    Text(p.sku).font(.house(.caption).monospaced()).foregroundStyle(.secondary).lineLimit(1)
+                    Text(detail(p)).font(.house(.footnote)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 8)
                 StockPrice(price: row.price).layoutPriority(1)
@@ -386,10 +386,10 @@ private struct StockCard: View {
                     .aspectRatio(1, contentMode: .fit)
                     .clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))
                     .zoomSource(id: StockKit.piecePath(p.sku))
-                Text(p.name).font(.subheadline.weight(.semibold)).lineLimit(2).multilineTextAlignment(.leading)
-                Text(p.sku).font(.caption.monospaced()).foregroundStyle(.secondary).lineLimit(1)
+                Text(p.name).font(.house(.subheadline).weight(.semibold)).lineLimit(2).multilineTextAlignment(.leading)
+                Text(p.sku).font(.house(.caption).monospaced()).foregroundStyle(.secondary).lineLimit(1)
                 Text("\(StockKit.metalLine(p)) · \(StockKit.grams(p.metalWeightG))")
-                    .font(.caption)
+                    .font(.house(.caption))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                 StockPrice(price: row.price)

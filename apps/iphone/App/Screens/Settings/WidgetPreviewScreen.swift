@@ -52,16 +52,16 @@ struct WidgetPreviewScreen: View {
     private var intro: some View {
         VStack(alignment: .leading, spacing: pt(6)) {
             Label("Sample figures and message", systemImage: "eye")
-                .font(.subheadline.weight(.semibold))
+                .font(.house(.subheadline).weight(.semibold))
             Text("These are examples, not your shop’s numbers.")
-                .font(.subheadline).foregroundStyle(.secondary)
+                .font(.house(.subheadline)).foregroundStyle(.secondary)
         }
     }
 
     private var footer: some View {
         #if os(macOS)
         Text("Your widget shows the shop’s actual revenue and pinned message after it is linked. Add it from the desktop or Notification Centre: right-click, then Edit Widgets.")
-            .font(.footnote).foregroundStyle(.secondary)
+            .font(.house(.footnote)).foregroundStyle(.secondary)
         #else
         phoneFooter
         #endif
@@ -72,12 +72,12 @@ struct WidgetPreviewScreen: View {
         Text(look == .tinted
              ? "Tinted is an approximation; the home screen applies your chosen tint. Your widget shows the shop’s actual revenue and pinned message after it is linked."
              : "Your home-screen widget shows the shop’s actual revenue and pinned message after it is linked.")
-            .font(.footnote).foregroundStyle(.secondary)
+            .font(.house(.footnote)).foregroundStyle(.secondary)
     }
 
     private func preview(_ title: String, size: ERPWidgetSize, width: CGFloat, height: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: pt(8)) {
-            Text(title).font(.subheadline.weight(.medium))
+            Text(title).font(.house(.subheadline).weight(.medium))
             card(size: size, width: width, height: height)
         }
     }

@@ -148,10 +148,10 @@ struct ActivityLogScreen: View {
                     WorkRangeFields(range: $range)
                     if range.useFrom && !range.useTo {
                         Text("Without an end date the range runs to the end of today.")
-                            .font(.footnote).foregroundStyle(.secondary)
+                            .font(.house(.footnote)).foregroundStyle(.secondary)
                     }
                 } label: {
-                    Text("Filters").font(.headline)
+                    Text("Filters").font(.house(.headline))
                 }
             }
             .houseRows()
@@ -198,15 +198,15 @@ struct ActivityLogScreen: View {
         let quiet = [s.email != who ? s.email : "", s.os, s.browser].filter { !$0.isEmpty }.joined(separator: " · ")
         return VStack(alignment: .leading, spacing: pt(3)) {
             HStack(alignment: .firstTextBaseline, spacing: pt(8)) {
-                Text(who.isEmpty ? "—" : who).font(.subheadline.weight(.semibold)).lineLimit(1)
+                Text(who.isEmpty ? "—" : who).font(.house(.subheadline).weight(.semibold)).lineLimit(1)
                 Spacer(minLength: 8)
                 Text(s.timestamp.isEmpty ? "—" : ShopDate.say(s.timestamp, withTime: true))
-                    .font(.caption)
+                    .font(.house(.caption))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
             if !quiet.isEmpty {
-                Text(quiet).font(.footnote).foregroundStyle(.secondary).lineLimit(1)
+                Text(quiet).font(.house(.footnote)).foregroundStyle(.secondary).lineLimit(1)
             }
         }
     }
@@ -232,9 +232,9 @@ struct ActivityLogScreen: View {
         if book.settings.value?.databaseLocked == true {
             Section {
                 Label("Database secured", systemImage: "checkmark.shield")
-                    .font(.headline)
+                    .font(.house(.headline))
                 Text("The connection to the database is currently locked. No data can be read or written. To restore access, you must request a reset from the developer.")
-                    .font(.subheadline)
+                    .font(.house(.subheadline))
                     .foregroundStyle(.secondary)
             }
             .houseRows()
@@ -242,10 +242,10 @@ struct ActivityLogScreen: View {
             // Alone, and last: it cannot be undone from the app.
             Section {
                 Label("Irreversible", systemImage: "exclamationmark.triangle.fill")
-                    .font(.subheadline.weight(.semibold))
+                    .font(.house(.subheadline).weight(.semibold))
                     .foregroundStyle(Tone.problem.color)
                 Text("Activating this lock will make the app unusable until a developer manually restores access. This is a final security measure for emergencies.")
-                    .font(.subheadline)
+                    .font(.house(.subheadline))
                     .foregroundStyle(.secondary)
                 Button(role: .destructive) { askLock = true } label: {
                     Label(locking ? "Locking…" : "Lock database now", systemImage: "exclamationmark.shield")
@@ -311,14 +311,14 @@ struct ActivityLogScreen: View {
                 .foregroundStyle(tint)
                 .frame(width: 24)
             VStack(alignment: .leading, spacing: pt(2)) {
-                Text(e.description).font(.subheadline.weight(.semibold))
+                Text(e.description).font(.house(.subheadline).weight(.semibold))
                 if !e.details.isEmpty {
-                    Text(e.details).font(.footnote).foregroundStyle(.secondary)
+                    Text(e.details).font(.house(.footnote)).foregroundStyle(.secondary)
                 }
             }
             Spacer(minLength: 8)
             Text(ShopDate.say(e.timestamp, withTime: true))
-                .font(.caption)
+                .font(.house(.caption))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.trailing)
         }
@@ -469,7 +469,7 @@ extension ActivityLogScreen {
                 WorkRangeFields(range: $range)
                 if range.useFrom && !range.useTo {
                     Text("Without an end date the range runs to the end of today.")
-                        .font(.footnote).foregroundStyle(.secondary)
+                        .font(.house(.footnote)).foregroundStyle(.secondary)
                 }
             }
             .formStyle(.grouped)
@@ -536,12 +536,12 @@ extension ActivityLogScreen {
                             .frame(width: Monogram.Size.row, height: Monogram.Size.row)
                             .background(tint.opacity(0.13), in: .circle)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(e.description).font(.body).lineLimit(1)
+                            Text(e.description).font(.house(.body)).lineLimit(1)
                             Text(e.details.isEmpty ? ActivityLogRules.title(e.eventType) : e.details)
-                                .font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                                .font(.house(.callout)).foregroundStyle(.secondary).lineLimit(1)
                         }
                         Spacer(minLength: 8)
-                        Text(ShopDate.say(e.timestamp, withTime: true)).font(.caption).monospacedDigit().foregroundStyle(.secondary)
+                        Text(ShopDate.say(e.timestamp, withTime: true)).font(.house(.caption)).monospacedDigit().foregroundStyle(.secondary)
                     }
                     .padding(.vertical, 3)
                     .tag(e.id)
@@ -579,7 +579,7 @@ extension ActivityLogScreen {
             if list.count > shown {
                 Divider()
                 HStack {
-                    Text("Showing \(shown) of \(list.count)").font(.callout).foregroundStyle(.secondary)
+                    Text("Showing \(shown) of \(list.count)").font(.house(.callout)).foregroundStyle(.secondary)
                     Spacer()
                     Button("Show \(min(ActivityLogScreen.pageSize, list.count - shown)) more") {
                         shown += ActivityLogScreen.pageSize
@@ -599,13 +599,13 @@ extension ActivityLogScreen {
                     HStack(spacing: 10) {
                         Monogram(name: who, size: Monogram.Size.row)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(who).font(.body).lineLimit(1)
+                            Text(who).font(.house(.body)).lineLimit(1)
                             Text([s.email, s.os, s.browser].filter { !$0.isEmpty && $0 != who }.joined(separator: " \u{00B7} "))
-                                .font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                                .font(.house(.callout)).foregroundStyle(.secondary).lineLimit(1)
                         }
                         Spacer(minLength: 8)
                         Text(s.timestamp.isEmpty ? "\u{2014}" : ShopDate.say(s.timestamp, withTime: true))
-                            .font(.caption).monospacedDigit().foregroundStyle(.secondary)
+                            .font(.house(.caption)).monospacedDigit().foregroundStyle(.secondary)
                     }
                     .padding(.vertical, 3)
                     .houseRows()

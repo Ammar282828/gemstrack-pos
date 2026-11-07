@@ -112,7 +112,7 @@ struct DesignScreen: View {
 
     private var openBanner: some View {
         HStack(spacing: pt(10)) {
-            Text("“\(workspace.work?.displayName ?? "")” is open.").font(.subheadline).lineLimit(1)
+            Text("“\(workspace.work?.displayName ?? "")” is open.").font(.house(.subheadline)).lineLimit(1)
             Spacer(minLength: 0)
             Button("Back to it") { go(.make) }.buttonStyle(.bordered)
         }

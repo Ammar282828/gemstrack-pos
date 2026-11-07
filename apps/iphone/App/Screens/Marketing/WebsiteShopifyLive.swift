@@ -75,7 +75,7 @@ struct ShopifyLiveView: View {
                         todayBlock(l)
                     }
                     if !l.note.isEmpty {
-                        Text(l.note).font(.footnote).foregroundStyle(.secondary)
+                        Text(l.note).font(.house(.footnote)).foregroundStyle(.secondary)
                     }
                     HStack(alignment: .top, spacing: pt(20)) {
                         VStack(alignment: .leading, spacing: pt(20)) {
@@ -107,17 +107,17 @@ struct ShopifyLiveView: View {
         let on = (n ?? 0) > 0
         return HStack(spacing: pt(14)) {
             Image(systemName: "circle.fill")
-                .font(.caption)
+                .font(.house(.caption))
                 .foregroundStyle(on ? Tone.settled.color : Color.secondary.opacity(0.4))
                 .symbolEffect(.pulse, isActive: on && !reduceMotion)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: pt(4)) {
                 Text(n.map { (x: Int) -> String in String(x) } ?? "\u{2013}")
-                    .font(.system(.largeTitle, design: .serif).weight(.semibold))
+                    .font(.house(.largeTitle).weight(.semibold))
                     .monospacedDigit()
                     .contentTransition(.numericText(value: Double(n ?? 0)))
                 Text("sessions on the store in the last \(l.windowMinutes) minutes")
-                    .font(.subheadline).foregroundStyle(.secondary)
+                    .font(.house(.subheadline)).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 0)
@@ -164,7 +164,7 @@ struct ShopifyLiveView: View {
             SiteBlock(title: "Orders and checkouts", note: "The last \(l.windowMinutes) minutes, newest first.") {
                 if list.isEmpty {
                     Text("No orders or checkouts in the last \(l.windowMinutes) minutes.")
-                        .font(.subheadline).foregroundStyle(.secondary)
+                        .font(.house(.subheadline)).foregroundStyle(.secondary)
                 } else {
                     ForEach(list) { (a: ShopActivity) in
                         activityRow(a)
@@ -186,7 +186,7 @@ struct ShopifyLiveView: View {
                 VStack(alignment: .leading, spacing: pt(2)) {
                     Text(a.kind == "order" ? "Order " + a.label : a.label)
                     if !detail.isEmpty {
-                        Text(detail).font(.footnote).foregroundStyle(.secondary)
+                        Text(detail).font(.house(.footnote)).foregroundStyle(.secondary)
                     }
                 }
                 Spacer(minLength: 8)
@@ -194,7 +194,7 @@ struct ShopifyLiveView: View {
                     if let amount = a.amount {
                         Text(ShopWords.money(amount, a.currency)).monospacedDigit()
                     }
-                    Text(ShopWords.ago(a.ago)).font(.footnote).foregroundStyle(.secondary)
+                    Text(ShopWords.ago(a.ago)).font(.house(.footnote)).foregroundStyle(.secondary)
                 }
             }
         }

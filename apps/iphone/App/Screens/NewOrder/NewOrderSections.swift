@@ -48,7 +48,7 @@ struct NewOrderCustomerSection: View {
             )
             if let match = numberMatch {
                 Label("This number is \(match.name)'s: the order goes to them.", systemImage: "person.crop.circle.badge.checkmark")
-                    .font(.footnote)
+                    .font(.house(.footnote))
                     .foregroundStyle(.secondary)
             }
             Picker("How they found us", selection: $draft.source) {
@@ -127,7 +127,7 @@ struct NewOrderPromisedSection: View {
                 if let d = days, d <= URGENT_WINDOW_DAYS {
                     // Soon is amber, as the order page's "Urgent" pill: red is kept for what is already late.
                     Label(urgentWords(d), systemImage: "exclamationmark.triangle.fill")
-                        .font(.subheadline)
+                        .font(.house(.subheadline))
                         .foregroundStyle(d < 0 ? Tone.late.color : Tone.owed.color)
                 }
             }
@@ -376,7 +376,7 @@ struct NewOrderExchangeSection: View {
                 Button { opened.insert(row.id) } label: {
                     Label("Weight & rate", systemImage: "plus")
                 }
-                .font(.footnote)
+                .font(.house(.footnote))
                 .buttonStyle(.borderless)
             }
         }
@@ -419,7 +419,7 @@ struct NewOrderExchangeSection: View {
         }
         if computed {
             Text("Amount = grams × rate: type an amount to change it.")
-                .font(.footnote)
+                .font(.house(.footnote))
                 .foregroundStyle(.secondary)
         }
     }
@@ -553,14 +553,14 @@ struct NewOrderMarginSection: View {
                 Label("24k rate now (per tola)", systemImage: "lock.fill")
             }
             Text(rateWords)
-                .font(.footnote)
+                .font(.house(.footnote))
                 .foregroundStyle(.secondary)
             if sheetTola > 0 && Double(sheetTola) != NewOrderFormat.num(draft.costTola) {
                 Button("Use the rate sheet's \(Money.grouped(Double(sheetTola))) a tola") {
                     draft.costTola = String(sheetTola)
                 }
                 .buttonStyle(.borderless)
-                .font(.footnote)
+                .font(.house(.footnote))
             }
             Button { shown.toggle() } label: {
                 HStack {
@@ -571,7 +571,7 @@ struct NewOrderMarginSection: View {
                         .multilineTextAlignment(.trailing)
                         .blur(radius: shown ? 0 : 5)
                 }
-                .font(.subheadline)
+                .font(.house(.subheadline))
             }
             .buttonStyle(.plain)
             .accessibilityLabel(shown ? "Hide our margin" : "Show our margin")
@@ -633,7 +633,7 @@ struct NewOrderTotalsSection: View {
             if totals.exchange > 0 { minus("Taken in exchange", totals.exchange) }
             LabeledContent("Balance due") {
                 MoneyText(amount: totals.balance, exact: true)
-                    .font(.title3.weight(.bold))
+                    .font(.house(.title3).weight(.bold))
             }
         } header: {
             LedgerHeading(title: "Totals")

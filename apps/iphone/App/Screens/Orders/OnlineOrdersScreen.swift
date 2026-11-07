@@ -123,7 +123,7 @@ struct OnlineOrdersScreen: View {
             if let moved = OnlineOrdersLogic.movedLine(r) {
                 let dearer = (OnlineOrdersLogic.moved(r)?.amount ?? 0) > 0
                 Label(moved, systemImage: "chart.line.uptrend.xyaxis")
-                    .font(.footnote)
+                    .font(.house(.footnote))
                     .foregroundStyle(dearer ? Tone.owed.color : Color.secondary)
             }
             actionsRow(r)
@@ -137,10 +137,10 @@ struct OnlineOrdersScreen: View {
             Monogram(name: r.customer.name, size: Monogram.Size.row)
             VStack(alignment: .leading, spacing: pt(3)) {
                 Text(r.customer.name.isEmpty ? "Customer" : r.customer.name)
-                    .font(.headline)
+                    .font(.house(.headline))
                     .lineLimit(2)
                 Text(["Online", r.id, OnlineOrdersLogic.ago(r.placedAt)].filter { !$0.isEmpty }.joined(separator: " \u{00B7} "))
-                    .font(.caption)
+                    .font(.house(.caption))
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
             }
@@ -148,7 +148,7 @@ struct OnlineOrdersScreen: View {
             VStack(alignment: .trailing, spacing: pt(2)) {
                 RowAmount(amount: r.grandTotal)
                 Text(r.deliveryCharge > 0 ? "incl. \(Money.pkr(r.deliveryCharge)) delivery" : "free delivery")
-                    .font(.caption2)
+                    .font(.house(.caption2))
                     .foregroundStyle(.secondary)
             }
             .layoutPriority(1)
@@ -163,17 +163,17 @@ struct OnlineOrdersScreen: View {
                 .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
             VStack(alignment: .leading, spacing: pt(2)) {
                 Text(OnlineOrdersLogic.pieceName(l.description))
-                    .font(.subheadline)
+                    .font(.house(.subheadline))
                     .lineLimit(2)
                 if let size = l.size {
                     Text("Size \(size)")
-                        .font(.caption.weight(.medium))
+                        .font(.house(.caption).weight(.medium))
                         .foregroundStyle(Tone.owed.color)
                 }
             }
             Spacer(minLength: 8)
             Text(Money.pkr(l.price))
-                .font(.subheadline)
+                .font(.house(.subheadline))
                 .monospacedDigit()
         }
     }
@@ -195,10 +195,10 @@ struct OnlineOrdersScreen: View {
             } icon: {
                 Image(systemName: "mappin.and.ellipse")
             }
-            .font(.subheadline)
+            .font(.house(.subheadline))
             if let notes = r.delivery.notes?.trimmingCharacters(in: .whitespacesAndNewlines), !notes.isEmpty {
                 Text("“\(notes)”")
-                    .font(.caption)
+                    .font(.house(.caption))
                     .foregroundStyle(.secondary)
             }
         }
@@ -384,9 +384,9 @@ extension OnlineOrdersScreen {
         HStack(spacing: 12) {
             Monogram(name: r.customer.name, size: Monogram.Size.row)
             VStack(alignment: .leading, spacing: 2) {
-                Text(r.customer.name.isEmpty ? "Customer" : r.customer.name).font(.body).lineLimit(1)
+                Text(r.customer.name.isEmpty ? "Customer" : r.customer.name).font(.house(.body)).lineLimit(1)
                 Text([r.id, OnlineOrdersLogic.ago(r.placedAt)].filter { !$0.isEmpty }.joined(separator: " \u{00B7} "))
-                    .font(.callout)
+                    .font(.house(.callout))
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
                     .lineLimit(1)
@@ -524,7 +524,7 @@ extension OnlineOrdersScreen {
             VStack(alignment: .leading, spacing: 2) {
                 Text(OnlineOrdersLogic.pieceName(l.description)).lineLimit(2)
                 if let size = l.size {
-                    Text("Size \(size)").font(.callout.weight(.medium)).foregroundStyle(Tone.owed.color)
+                    Text("Size \(size)").font(.house(.callout).weight(.medium)).foregroundStyle(Tone.owed.color)
                 }
             }
             Spacer(minLength: 8)

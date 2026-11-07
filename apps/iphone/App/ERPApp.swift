@@ -15,6 +15,7 @@ struct ERPApp: App {
         LaunchClock.armTimeout()
         LaunchClock.mark("app:init")
         _ = Businesses.shared
+        HouseFont.dressBars()
         // Crash and hang reports from MetricKit go to the ERP (app_diagnostics): no personal data in them. Subscribed once the
         // first frame is out (BusinessHost's task), not before it.
         if Sessions.shared.current.state == .signedIn { AppLock.shared.launched(signedIn: true) }
@@ -23,6 +24,7 @@ struct ERPApp: App {
     var body: some Scene {
         WindowGroup {
             BusinessHost()
+                .font(.house(.body))
                 // A widget's tap (shoperp://open?b=<business>&p=<path>): the app on that business and screen, through
                 // the same router a notification uses (it waits for Face ID and switches business first).
                 .onOpenURL { url in

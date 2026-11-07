@@ -214,7 +214,7 @@ struct MacCustomerRecordRepairs: View {
             TableColumn("Repair", value: \.piece) { (r: MacCustomerRecordRepairRow) in
                 VStack(alignment: .leading, spacing: 1) {
                     Text(r.piece).lineLimit(1)
-                    Text(r.line).font(.caption).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
+                    Text(r.line).font(.house(.caption)).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
                 }
             }
             .width(min: 120, ideal: 220)
@@ -291,7 +291,7 @@ struct MacCustomerRecordHisaab: View {
             TableColumn("Entry", value: \.what) { (r: MacCustomerRecordHisaabRow) in
                 VStack(alignment: .leading, spacing: 1) {
                     Text(r.what).lineLimit(1)
-                    if !r.note.isEmpty { Text(r.note).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
+                    if !r.note.isEmpty { Text(r.note).font(.house(.caption)).foregroundStyle(.secondary).lineLimit(1) }
                 }
             }
             .width(min: 120, ideal: 240)

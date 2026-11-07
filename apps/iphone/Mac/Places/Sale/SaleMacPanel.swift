@@ -59,7 +59,7 @@ struct SaleMacCustomerRows: View {
         if draft.customerId == nil, offered.exact.count == 1, let c = offered.exact.first {
             HStack(spacing: 8) {
                 Label("\(c.name) is on file.", systemImage: "person.crop.circle.badge.checkmark")
-                    .font(.callout)
+                    .font(.house(.callout))
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 4)
                 Button("Use Them") { pick(c) }
@@ -118,7 +118,7 @@ extension SaleForm {
                       ? "\(Money.pkr(edit.paidBefore)) paid before stays on \(edit.invoiceId). A payment added below is taken now. A piece taken off stays sold."
                       : "Nothing is paid on \(edit.invoiceId) yet. A payment added below is taken now. A piece taken off stays sold.",
                       systemImage: "pencil.and.list.clipboard")
-                    .font(.callout)
+                    .font(.house(.callout))
             }
             .houseRows()
         }
@@ -321,7 +321,7 @@ extension SaleForm {
             .multilineTextAlignment(.trailing)
         if computed {
             Text("Amount = grams × rate. Type an amount to change it.")
-                .font(.caption)
+                .font(.house(.caption))
                 .foregroundStyle(.secondary)
         }
     }
@@ -344,7 +344,7 @@ extension SaleForm {
                 if stale {
                     Button { rateSheet = true } label: {
                         Label(macStaleRateText, systemImage: "exclamationmark.triangle.fill")
-                            .font(.callout)
+                            .font(.house(.callout))
                             .foregroundStyle(Tone.owed.color)
                             .multilineTextAlignment(.leading)
                     }
@@ -369,7 +369,7 @@ extension SaleForm {
                                 .buttonStyle(.borderless)
                         }
                         Text("Used for this sale only. A rate typed here is not saved as today's rate: set that from the rate in the toolbar.")
-                            .font(.caption)
+                            .font(.house(.caption))
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -429,7 +429,7 @@ extension SaleForm {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Leave rates off the printed bill")
                 Text("Prices stay the same. The invoice just won't show the per-gram rate.")
-                    .font(.caption)
+                    .font(.house(.caption))
                     .foregroundStyle(.secondary)
             }
         }
@@ -439,7 +439,7 @@ extension SaleForm {
         // Houses that cost a sale by its gold ask for the 24k rate now (lib/margin.ts); Mina's silver does not.
         if House.margin.rattiLess != nil { costRateRows(f) }
         Text("Never printed on the bill or sent to the customer.")
-            .font(.caption)
+            .font(.house(.caption))
             .foregroundStyle(.secondary)
     }
 }

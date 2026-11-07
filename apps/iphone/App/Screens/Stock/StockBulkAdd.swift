@@ -209,7 +209,7 @@ private struct StockBulkEditor: View {
             }
             if shared.metalType == "gold" {
                 VStack(alignment: .leading, spacing: pt(6)) {
-                    Text("Karat").font(.caption).foregroundStyle(.secondary)
+                    Text("Karat").font(.house(.caption)).foregroundStyle(.secondary)
                     Picker("Karat", selection: $shared.karat) {
                         ForEach(karatOptions, id: \.self) { (k: String) in
                             Text(karatLabel(k)).tag(k)
@@ -297,7 +297,7 @@ private struct StockBulkEditor: View {
     private func weightRow(_ index: Int, _ row: StockBulkRow) -> some View {
         HStack(spacing: pt(10)) {
             Text("\(index + 1)")
-                .font(.footnote)
+                .font(.house(.footnote))
                 .foregroundStyle(.secondary)
                 .frame(minWidth: 22)
             AdaptiveStack(spacing: pt(10), alignment: .firstTextBaseline) {
@@ -444,10 +444,10 @@ private struct StockBulkEditor: View {
             Section {
                 VStack(spacing: pt(8)) {
                     Image(systemName: "checkmark.circle.fill")
-                        .font(.largeTitle)
+                        .font(.house(.largeTitle))
                         .imageScale(.large)
                         .foregroundStyle(Tone.settled.color)
-                    Text("Bulk add complete").font(.title2.weight(.semibold))
+                    Text("Bulk add complete").font(.house(.title2).weight(.semibold))
                     Text("\(skus.count) piece\(skus.count == 1 ? " is" : "s are") in stock.")
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -608,7 +608,7 @@ extension StockBulkEditor {
 
     private var weightsTable: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Weights to Add \u{00B7} \(rows.count)").font(.headline)
+            Text("Weights to Add \u{00B7} \(rows.count)").font(.house(.headline))
             // The paste field on its line, its buttons under it: side by side they would not fit the table's narrowest.
             TextField("Weights", text: $pasted, prompt: Text("Paste or type weights, e.g. 4.2 5.1 6.75"), axis: .vertical)
                 .lineLimit(1...3)
@@ -647,7 +647,7 @@ extension StockBulkEditor {
             }
             .onDeleteCommand { removePicked(picked) }
             Text("Paste a list from a message or a sheet: every number in it becomes a piece. Select rows and press Delete to remove them.")
-                .font(.footnote).foregroundStyle(.secondary)
+                .font(.house(.footnote)).foregroundStyle(.secondary)
         }
         .padding(16)
     }

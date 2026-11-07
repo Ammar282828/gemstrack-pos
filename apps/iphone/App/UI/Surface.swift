@@ -39,7 +39,7 @@ struct ActionBar: View {
         VStack(spacing: pt(8)) {
             if let summary, !summary.isEmpty {
                 Text(summary)
-                    .font(.footnote)
+                    .font(.house(.footnote))
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
                     .contentTransition(.numericText())
@@ -115,7 +115,7 @@ struct MacActionFooter: View {
             HStack(spacing: 10) {
                 if let summary, !summary.isEmpty {
                     Text(summary)
-                        .font(.callout)
+                        .font(.house(.callout))
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
                         .contentTransition(.numericText())

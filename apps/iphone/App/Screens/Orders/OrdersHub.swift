@@ -337,7 +337,7 @@ struct OrdersHub: View {
         } label: {
             Label(open ? "Fold away" : "Show \(g.orders.count) order\(g.orders.count == 1 ? "" : "s")",
                   systemImage: open ? "chevron.up" : "chevron.down")
-                .font(.subheadline)
+                .font(.house(.subheadline))
         }
         .buttonStyle(.borderless)
         .frame(minHeight: Metrics.tap)

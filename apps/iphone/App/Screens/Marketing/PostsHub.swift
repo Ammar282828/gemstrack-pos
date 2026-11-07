@@ -122,8 +122,8 @@ struct PostsHub: View {
                         HStack(alignment: .top, spacing: pt(10)) {
                             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Tone.owed.color)
                             VStack(alignment: .leading, spacing: pt(2)) {
-                                Text("\(c.group): \(c.label)").font(.body.weight(.medium))
-                                Text(c.fix ?? c.detail).font(.subheadline).foregroundStyle(.secondary)
+                                Text("\(c.group): \(c.label)").font(.house(.body).weight(.medium))
+                                Text(c.fix ?? c.detail).font(.house(.subheadline)).foregroundStyle(.secondary)
                             }
                         }
                     }
@@ -210,7 +210,7 @@ struct PostsHub: View {
                 NavigationLink(value: Route(path: "/website/investments")) {
                     VStack(alignment: .leading, spacing: pt(3)) {
                         Label("Gold post", systemImage: "chart.line.uptrend.xyaxis")
-                        Text(goldLine).font(.subheadline).foregroundStyle(.secondary)
+                        Text(goldLine).font(.house(.subheadline)).foregroundStyle(.secondary)
                     }
                 }
             } header: {
@@ -290,7 +290,7 @@ struct PostsHub: View {
                     .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
                 TwoLine(title: e.headline.isEmpty ? "A piece" : e.headline, subtitle: queueNote(e))
                 queueBadge(e)
-                Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
+                Image(systemName: "chevron.right").font(.house(.caption).weight(.semibold)).foregroundStyle(.tertiary)
             }
             .contentShape(.rect)
         }
@@ -378,7 +378,7 @@ struct PostsHub: View {
             }
             if let from = store.shownFrom {
                 Text("Showing the list from \(from.formatted(date: .abbreviated, time: .shortened)). The website did not answer just now.")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.house(.caption)).foregroundStyle(.secondary)
             }
             MarketingLink(title: "All \(store.pieces.count) pieces", symbol: "square.grid.2x2", path: MarketingKit.piecesPath)
         } header: {
@@ -400,7 +400,7 @@ struct PostPieceTile: View {
                 .overlay(alignment: .topLeading) {
                     if piece.newArrival {
                         Text("New")
-                            .font(.caption2.weight(.semibold))
+                            .font(.house(.caption2).weight(.semibold))
                             .foregroundStyle(Theme.onAccent)
                             .padding(.horizontal, pt(6)).padding(.vertical, pt(2))
                             .background(Theme.accent, in: .capsule)
@@ -409,11 +409,11 @@ struct PostPieceTile: View {
                 }
             #if os(macOS)
             // Two lines reserved, so a row of tiles stands level whatever the names say.
-            Text(piece.name).font(.caption.weight(.semibold)).lineLimit(2, reservesSpace: true).multilineTextAlignment(.leading)
+            Text(piece.name).font(.house(.caption).weight(.semibold)).lineLimit(2, reservesSpace: true).multilineTextAlignment(.leading)
             #else
-            Text(piece.name).font(.caption.weight(.semibold)).lineLimit(2).multilineTextAlignment(.leading)
+            Text(piece.name).font(.house(.caption).weight(.semibold)).lineLimit(2).multilineTextAlignment(.leading)
             #endif
-            Text(note).font(.caption2).foregroundStyle(noteColor).lineLimit(1)
+            Text(note).font(.house(.caption2)).foregroundStyle(noteColor).lineLimit(1)
         }
     }
 
@@ -471,7 +471,7 @@ struct MacPostsTimeSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Send “\(title)” at").font(.headline)
+            Text("Send “\(title)” at").font(.house(.headline))
             DatePicker("Send at", selection: $when, in: Date()..., displayedComponents: [.date, .hourAndMinute])
                 .environment(\.timeZone, ERPDate.karachi)
             HStack {
@@ -773,7 +773,7 @@ extension PostsHub {
                             Label("\(failing.count) \(failing.count == 1 ? "thing needs" : "things need") attention", systemImage: "exclamationmark.triangle.fill")
                                 .foregroundStyle(Tone.owed.color)
                             Image(systemName: checksOpen ? "chevron.down" : "chevron.right")
-                                .font(.caption.weight(.semibold))
+                                .font(.house(.caption).weight(.semibold))
                                 .foregroundStyle(.tertiary)
                             Spacer(minLength: 0)
                         }
@@ -782,7 +782,7 @@ extension PostsHub {
                     .buttonStyle(.plain)
                     if checksOpen {
                         ForEach(failing) { (c: PostCheck) in
-                            Text("\(c.group): \(c.label). \(c.fix ?? c.detail)").font(.callout).foregroundStyle(.secondary)
+                            Text("\(c.group): \(c.label). \(c.fix ?? c.detail)").font(.house(.callout)).foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -843,13 +843,13 @@ extension PostsHub {
                 .background(.quaternary, in: .rect(cornerRadius: Radius.thumb, style: .continuous))
                 .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
-                Text(r.title).font(.body).lineLimit(1)
-                Text(r.place).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                Text(r.title).font(.house(.body)).lineLimit(1)
+                Text(r.place).font(.house(.callout)).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer(minLength: 8)
             VStack(alignment: .trailing, spacing: 3) {
                 if r.rank < 6 { Pill(r.status, tone: r.tone) }
-                Text(r.whenText).font(.caption).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
+                Text(r.whenText).font(.house(.caption)).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
             }
         }
         .padding(.vertical, 3)
@@ -906,8 +906,8 @@ extension PostsHub {
             VStack(alignment: .leading, spacing: 12) {
                 macPicture(r)
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(r.title).font(.system(.title3, design: .serif).weight(.semibold)).lineLimit(3).textSelection(.enabled)
-                    Text(macStatusLine(r)).font(.callout).foregroundStyle(.secondary)
+                    Text(r.title).font(.house(.title3).weight(.semibold)).lineLimit(3).textSelection(.enabled)
+                    Text(macStatusLine(r)).font(.house(.callout)).foregroundStyle(.secondary)
                     Pill(r.status, tone: r.tone)
                 }
                 if let e = r.entry {
@@ -916,7 +916,7 @@ extension PostsHub {
                     if e.units > 0 {
                         VStack(alignment: .leading, spacing: 6) {
                             ProgressView(value: Double(e.done), total: Double(e.units)).tint(Theme.accent)
-                            Text("\(e.done) of \(e.units) gone").font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                            Text("\(e.done) of \(e.units) gone").font(.house(.caption)).foregroundStyle(.secondary).monospacedDigit()
                         }
                         .padding(14)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -931,7 +931,7 @@ extension PostsHub {
                             LedgerHeading(title: "Caption")
                             Text(e.caption).textSelection(.enabled)
                             if e.toWebsite && !e.websiteNames.isEmpty {
-                                Text("On the website as " + e.websiteNames.joined(separator: ", ") + ".").font(.callout).foregroundStyle(.secondary)
+                                Text("On the website as " + e.websiteNames.joined(separator: ", ") + ".").font(.house(.callout)).foregroundStyle(.secondary)
                             }
                         }
                         .padding(14)
@@ -987,12 +987,12 @@ extension PostsHub {
                     Image(systemName: p.symbol).frame(width: 18).foregroundStyle(.secondary)
                     VStack(alignment: .leading, spacing: 1) {
                         Text(p.title)
-                        Text(problem ?? p.detail).font(.caption).foregroundStyle(problem == nil ? Color.secondary : Tone.problem.color)
+                        Text(problem ?? p.detail).font(.house(.caption)).foregroundStyle(problem == nil ? Color.secondary : Tone.problem.color)
                     }
                     Spacer(minLength: 4)
-                    if gone == p.units.count { Text("Gone").font(.caption).foregroundStyle(.secondary) }
+                    if gone == p.units.count { Text("Gone").font(.house(.caption)).foregroundStyle(.secondary) }
                     else if problem != nil { Image(systemName: "exclamationmark.circle.fill").foregroundStyle(Tone.problem.color) }
-                    else if gone > 0 { Text("\(gone)/\(p.units.count)").font(.caption).foregroundStyle(.secondary).monospacedDigit() }
+                    else if gone > 0 { Text("\(gone)/\(p.units.count)").font(.house(.caption)).foregroundStyle(.secondary).monospacedDigit() }
                 }
             }
         }

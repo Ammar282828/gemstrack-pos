@@ -43,7 +43,7 @@ struct EntrySteps: View, Equatable {
                             Circle().fill(Tone.owed.color).frame(width: 6, height: 6)
                         }
                     }
-                        .font(.subheadline.weight(selection == step ? .semibold : .regular))
+                        .font(.house(.subheadline).weight(selection == step ? .semibold : .regular))
                         .foregroundStyle(selection == step ? Theme.accent : Color.secondary)
                         .frame(maxWidth: .infinity, minHeight: Metrics.tap)
                         .background(selection == step ? Theme.accent.opacity(0.1) : Color.clear, in: .rect(cornerRadius: Radius.tile, style: .continuous))
@@ -147,12 +147,12 @@ struct PieceInspector: View {
     var body: some View {
         VStack(alignment: .leading, spacing: pt(20)) {
             Label("Piece summary", systemImage: "sparkles")
-                .font(.subheadline.weight(.semibold)).foregroundStyle(Theme.accent)
-            Text(title.isEmpty ? "New piece" : title).font(.headline)
+                .font(.house(.subheadline).weight(.semibold)).foregroundStyle(Theme.accent)
+            Text(title.isEmpty ? "New piece" : title).font(.house(.headline))
             Divider()
             ForEach(rows) { row in
                 LabeledContent(row.label, value: row.value.isEmpty ? "—" : row.value)
-                    .font(.subheadline).monospacedDigit()
+                    .font(.house(.subheadline)).monospacedDigit()
             }
         }
         .padding(pt(20))
@@ -169,16 +169,16 @@ struct TransactionReview: View {
     var body: some View {
         VStack(alignment: .leading, spacing: pt(20)) {
             Label("At a glance", systemImage: "list.clipboard")
-                .font(.subheadline.weight(.semibold)).foregroundStyle(Theme.accent)
+                .font(.house(.subheadline).weight(.semibold)).foregroundStyle(Theme.accent)
             VStack(alignment: .leading, spacing: pt(4)) {
-                Text(customer.isEmpty ? "Walk-in" : customer).font(.headline)
-                if !contact.isEmpty { Text(contact).font(.subheadline).foregroundStyle(.secondary) }
+                Text(customer.isEmpty ? "Walk-in" : customer).font(.house(.headline))
+                if !contact.isEmpty { Text(contact).font(.house(.subheadline)).foregroundStyle(.secondary) }
             }
             Divider()
             VStack(alignment: .leading, spacing: pt(12)) {
-                Text("\(pieces.count) piece\(pieces.count == 1 ? "" : "s")").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                Text("\(pieces.count) piece\(pieces.count == 1 ? "" : "s")").font(.house(.caption).weight(.semibold)).foregroundStyle(.secondary)
                 if pieces.isEmpty {
-                    Text("Add a piece to begin.").font(.subheadline).foregroundStyle(.secondary)
+                    Text("Add a piece to begin.").font(.house(.subheadline)).foregroundStyle(.secondary)
                 }
                 ForEach(pieces) { row in reviewRow(row) }
             }
@@ -193,9 +193,9 @@ struct TransactionReview: View {
 
     private func reviewRow(_ row: TransactionReviewRow) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: pt(12)) {
-            Text(row.label).font(.subheadline).fixedSize(horizontal: false, vertical: true)
+            Text(row.label).font(.house(.subheadline)).fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
-            Text(row.value).font(.subheadline.weight(.medium)).monospacedDigit()
+            Text(row.value).font(.house(.subheadline).weight(.medium)).monospacedDigit()
                 .multilineTextAlignment(.trailing).fixedSize(horizontal: false, vertical: true)
         }
     }

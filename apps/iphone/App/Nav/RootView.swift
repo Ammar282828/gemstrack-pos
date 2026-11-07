@@ -392,7 +392,7 @@ private struct CreateAccessory: ViewModifier {
                                 ForEach(actions) { a in
                                     Button { collapse(); open(a.path) } label: {
                                         Label(a.title, systemImage: a.symbol)
-                                            .font(.body.weight(.semibold))
+                                            .font(.house(.body).weight(.semibold))
                                             .padding(.horizontal, pt(18))
                                             .frame(minHeight: 48)
                                             .contentShape(Capsule())
@@ -664,8 +664,8 @@ struct TeamNotePresentation: ViewModifier {
                         Button { reading = true } label: {
                             VStack(alignment: .leading, spacing: pt(5)) {
                                 Label("Urgent note", systemImage: "pin.fill")
-                                    .font(.caption.weight(.semibold)).foregroundStyle(Theme.accent)
-                                Text(text).font(.subheadline).foregroundStyle(.primary)
+                                    .font(.house(.caption).weight(.semibold)).foregroundStyle(Theme.accent)
+                                Text(text).font(.house(.subheadline)).foregroundStyle(.primary)
                                     .lineLimit(2).multilineTextAlignment(.leading)
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)

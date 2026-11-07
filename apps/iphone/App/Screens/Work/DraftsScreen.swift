@@ -195,7 +195,7 @@ struct DraftsScreen: View {
             }
             Section {
                 footer
-                    .font(.footnote)
+                    .font(.house(.footnote))
                     .foregroundStyle(.secondary)
                     .listRowBackground(Color.clear)
             }
@@ -247,7 +247,7 @@ struct DraftsScreen: View {
                     if continuing == row.draft.id {
                         ProgressView()
                     } else {
-                        Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+                        Image(systemName: "chevron.right").font(.house(.footnote).weight(.semibold)).foregroundStyle(.tertiary)
                     }
                 }
             }
@@ -266,16 +266,16 @@ struct DraftsScreen: View {
         let d = row.draft
         return VStack(alignment: .leading, spacing: pt(3)) {
             HStack(alignment: .firstTextBaseline) {
-                Text(d.title).font(.headline).lineLimit(1)
+                Text(d.title).font(.house(.headline)).lineLimit(1)
                 Spacer(minLength: 8)
                 if d.total > 0 {
                     RowAmount(amount: d.total)
                 }
             }
             if !d.detail.isEmpty {
-                Text(d.detail).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
+                Text(d.detail).font(.house(.subheadline)).foregroundStyle(.secondary).lineLimit(2)
             }
-            Text(lastTyped(row)).font(.caption).foregroundStyle(.secondary)
+            Text(lastTyped(row)).font(.house(.caption)).foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(.rect)
@@ -469,9 +469,9 @@ extension DraftsScreen {
         return HStack(spacing: 10) {
             Monogram(name: d.title, size: Monogram.Size.row)
             VStack(alignment: .leading, spacing: 2) {
-                Text(d.title).font(.body).lineLimit(1)
+                Text(d.title).font(.house(.body)).lineLimit(1)
                 Text(d.detail.isEmpty ? macLastTyped(r) : d.detail + " \u{00B7} " + macLastTyped(r))
-                    .font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                    .font(.house(.callout)).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer(minLength: 8)
             if continuing == d.id { ProgressView().controlSize(.small) }

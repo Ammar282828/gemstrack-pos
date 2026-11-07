@@ -23,6 +23,7 @@ struct ERPMacApp: App {
     var body: some Scene {
         WindowGroup("ERP", id: MacWindows.main) {
             MacBusinessHost()
+                .font(.house(.body))
                 .onOpenURL { MacWindows.openLink($0) }
         }
         .defaultSize(width: 1320, height: 860)
@@ -33,6 +34,7 @@ struct ERPMacApp: App {
         // context menu, or a double-click in a table), so two can be read side by side.
         WindowGroup("Place", id: MacWindows.place, for: Route.self) { $route in
             MacPlaceWindow(route: route)
+                .font(.house(.body))
         }
         .defaultSize(width: 1000, height: 780)
 

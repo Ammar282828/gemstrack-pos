@@ -210,20 +210,20 @@ struct AbCard<Content: View>: View {
         VStack(alignment: .leading, spacing: pt(10)) {
             HStack(alignment: .firstTextBaseline, spacing: pt(8)) {
                 Text(title)
-                    .font(.system(.headline, design: .serif))
+                    .font(.house(.headline))
                     .foregroundStyle(.primary)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 0)
                 if path != nil {
                     Image(systemName: "chevron.right")
-                        .font(.footnote.weight(.semibold))
+                        .font(.house(.footnote).weight(.semibold))
                         .foregroundStyle(.tertiary)
                         .accessibilityHidden(true)
                 }
             }
             if let takeaway, !takeaway.isEmpty {
                 Text(takeaway)
-                    .font(.subheadline)
+                    .font(.house(.subheadline))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
@@ -262,9 +262,9 @@ struct AbTile: View {
     var body: some View {
         NavigationLink(value: Route(path: path)) {
             VStack(alignment: .leading, spacing: pt(6)) {
-                Text(label).font(.subheadline).foregroundStyle(.secondary)
+                Text(label).font(.house(.subheadline)).foregroundStyle(.secondary)
                 Text(value)
-                    .font(.system(.title2, design: .serif).weight(.semibold))
+                    .font(.house(.title2).weight(.semibold))
                     .foregroundStyle(tone?.color ?? Color.primary)
                     .monospacedDigit()
                     .minimumScaleFactor(0.8)
@@ -274,7 +274,7 @@ struct AbTile: View {
                     AbDeltaPill(delta: delta, against: against ?? "the period before")
                 }
                 if let sub, !sub.isEmpty {
-                    Text(sub).font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                    Text(sub).font(.house(.footnote)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 }
             }
             .padding(Metrics.cardPadding)
@@ -303,9 +303,9 @@ struct AbDeltaPill: View {
     var body: some View {
         HStack(spacing: 4) {
             Image(systemName: flat ? "minus" : (delta.pct > 0 ? "arrow.up" : "arrow.down"))
-                .font(.caption2.weight(.bold))
+                .font(.house(.caption2).weight(.bold))
             Text(flat ? "No change vs \(against)" : "\(shown)% vs \(against)")
-                .font(.caption.weight(.medium))
+                .font(.house(.caption).weight(.medium))
                 .monospacedDigit()
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -324,12 +324,12 @@ struct AbExplain<Content: View>: View {
     var body: some View {
         DisclosureGroup {
             VStack(alignment: .leading, spacing: pt(8)) { content() }
-                .font(.footnote)
+                .font(.house(.footnote))
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, pt(6))
         } label: {
-            Text(title).font(.subheadline.weight(.medium))
+            Text(title).font(.house(.subheadline).weight(.medium))
         }
         .padding(Metrics.cardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -345,9 +345,9 @@ struct AbTable<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: pt(8)) {
-            Text(title).font(.system(.headline, design: .serif))
+            Text(title).font(.house(.headline))
             if let detail, !detail.isEmpty {
-                Text(detail).font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                Text(detail).font(.house(.footnote)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
             VStack(alignment: .leading, spacing: 0) { content() }
         }
@@ -373,14 +373,14 @@ struct AbRow: View {
                     Circle().fill(dot).frame(width: 9, height: 9).accessibilityHidden(true)
                 }
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(.subheadline).foregroundStyle(.primary).fixedSize(horizontal: false, vertical: true)
+                    Text(title).font(.house(.subheadline)).foregroundStyle(.primary).fixedSize(horizontal: false, vertical: true)
                     if let subtitle, !subtitle.isEmpty {
-                        Text(subtitle).font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                        Text(subtitle).font(.house(.footnote)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 Spacer(minLength: pt(8))
                 Text(trailing)
-                    .font(.subheadline.weight(.semibold))
+                    .font(.house(.subheadline).weight(.semibold))
                     .monospacedDigit()
                     .foregroundStyle(trailingTone?.color ?? Color.primary)
             }

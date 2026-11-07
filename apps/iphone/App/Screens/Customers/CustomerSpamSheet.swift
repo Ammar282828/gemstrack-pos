@@ -202,19 +202,19 @@ struct CustomerSpamSheet: View {
         } label: {
             HStack(alignment: .top, spacing: pt(12)) {
                 Image(systemName: on ? "checkmark.circle.fill" : "circle")
-                    .font(.title3)
+                    .font(.house(.title3))
                     .foregroundStyle(on ? Theme.accent : Color.secondary)
                     .contentTransition(.symbolEffect(.replace))
                 VStack(alignment: .leading, spacing: pt(4)) {
                     Text(CustomerKit.trim(c.customer.name).isEmpty ? "(no name)" : c.customer.name)
-                        .font(.body.weight(.medium))
+                        .font(.house(.body).weight(.medium))
                         .foregroundStyle(.primary)
                     Text(CustomerKit.filled(c.customer.email) ?? "no email")
-                        .font(.caption)
+                        .font(.house(.caption))
                         .foregroundStyle(.secondary)
                     // The reasons are one quiet line (they wrap, never cut); only Shopify is a mark.
                     Text(c.reasons.joined(separator: " · "))
-                        .font(.caption)
+                        .font(.house(.caption))
                         .foregroundStyle(.secondary)
                     if CustomerKit.filled(c.customer.shopifyCustomerId) != nil {
                         Pill("Shopify", tone: .working)
@@ -231,7 +231,7 @@ struct CustomerSpamSheet: View {
     private func tick(_ on: Bool, _ title: String) -> some View {
         HStack(spacing: pt(12)) {
             Image(systemName: on ? "checkmark.circle.fill" : "circle")
-                .font(.title3)
+                .font(.house(.title3))
                 .foregroundStyle(on ? Theme.accent : Color.secondary)
                 .contentTransition(.symbolEffect(.replace))
             Text(title).foregroundStyle(.primary)
@@ -330,11 +330,11 @@ struct CustomerSpamSheet: View {
         Section {
             VStack(alignment: .leading, spacing: pt(8)) {
                 Text(r.finished ? "Finished" : "Removing \(min(r.done + 1, r.queue.count)) of \(r.queue.count)…")
-                    .font(.body.weight(.medium))
+                    .font(.house(.body).weight(.medium))
                 ProgressView(value: Double(r.done), total: Double(max(1, r.queue.count)))
                     .tint(Theme.accent)
                 Text("\(r.removed.count) removed" + (r.failed.isEmpty ? "" : ", \(r.failed.count) not removed"))
-                    .font(.caption)
+                    .font(.house(.caption))
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
             }
@@ -352,8 +352,8 @@ struct CustomerSpamSheet: View {
             Section {
                 ForEach(r.failed.indices, id: \.self) { (i: Int) in
                     VStack(alignment: .leading, spacing: pt(3)) {
-                        Text(r.failed[i].name).font(.body.weight(.medium))
-                        Text(r.failed[i].why).font(.caption).foregroundStyle(Tone.problem.color)
+                        Text(r.failed[i].name).font(.house(.body).weight(.medium))
+                        Text(r.failed[i].why).font(.house(.caption)).foregroundStyle(Tone.problem.color)
                     }
                 }
             } header: {
@@ -440,13 +440,13 @@ extension CustomerSpamSheet {
         VStack(spacing: 0) {
             HStack {
                 Text("\(selected.count) of \(found.count) selected to remove")
-                    .font(.callout)
+                    .font(.house(.callout))
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
                 Spacer(minLength: 0)
                 if found.contains(where: { CustomerKit.filled($0.customer.shopifyCustomerId) != nil }) {
                     Text("Rows tagged Shopify may sync back until the storefront's sign-up has a CAPTCHA.")
-                        .font(.footnote)
+                        .font(.house(.footnote))
                         .foregroundStyle(Tone.owed.color)
                 }
             }

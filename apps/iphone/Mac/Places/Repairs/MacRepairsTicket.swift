@@ -129,9 +129,9 @@ struct MacRepairsTicket: View {
                 Monogram(name: RepairsKit.customer(r), size: Monogram.Size.hero)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(RepairsKit.repairSummary(r))
-                        .font(.system(wide ? .title : .title3, design: .serif).weight(.semibold))
+                        .font(.house(wide ? .title : .title3).weight(.semibold))
                         .lineLimit(2).textSelection(.enabled)
-                    Text(subtitle(r)).font(.callout).foregroundStyle(.secondary).lineLimit(2).textSelection(.enabled)
+                    Text(subtitle(r)).font(.house(.callout)).foregroundStyle(.secondary).lineLimit(2).textSelection(.enabled)
                 }
                 Spacer(minLength: 0)
             }
@@ -142,11 +142,11 @@ struct MacRepairsTicket: View {
             }
             if owing >= 1 {
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("Owed").font(.caption).foregroundStyle(.secondary)
+                    Text("Owed").font(.house(.caption)).foregroundStyle(.secondary)
                     HStack(alignment: .firstTextBaseline, spacing: 5) {
-                        Text("PKR").font(.system(.callout, design: .serif).weight(.medium)).foregroundStyle(.secondary)
+                        Text("PKR").font(.house(.callout).weight(.medium)).foregroundStyle(.secondary)
                         Text(HeroAmount.figure(owing, lac: false))
-                            .font(.system(wide ? .largeTitle : .title, design: .serif).weight(.semibold))
+                            .font(.house(wide ? .largeTitle : .title).weight(.semibold))
                             .foregroundStyle(Tone.owed.color).monospacedDigit().lineLimit(1).minimumScaleFactor(0.6)
                     }
                 }
@@ -207,7 +207,7 @@ struct MacRepairsTicket: View {
             Spacer(minLength: 8)
             value().multilineTextAlignment(.trailing)
         }
-        .font(.callout)
+        .font(.house(.callout))
     }
 
     private func customerCard(_ r: Repair) -> some View {
@@ -268,10 +268,10 @@ struct MacRepairsTicket: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(p.item.isEmpty ? "Piece" : p.item).fontWeight(.medium)
                 if !p.work.isEmpty {
-                    Text(p.work).font(.callout).foregroundStyle(.secondary)
+                    Text(p.work).font(.house(.callout)).foregroundStyle(.secondary)
                 }
                 if let w = p.weightG, w > 0 {
-                    Text(RepairsKit.grams(w)).font(.callout).foregroundStyle(.secondary).monospacedDigit()
+                    Text(RepairsKit.grams(w)).font(.house(.callout)).foregroundStyle(.secondary).monospacedDigit()
                 }
             }
             Spacer(minLength: 8)
@@ -308,7 +308,7 @@ struct MacRepairsTicket: View {
             Spacer(minLength: 8)
             Text(Money.pkr(p.amount)).monospacedDigit()
         }
-        .font(.callout)
+        .font(.house(.callout))
         .foregroundStyle(.secondary)
     }
 
@@ -334,7 +334,7 @@ struct MacRepairsTicket: View {
             // For the shop only: never printed, never sent, and an owner's to read.
             if session.isOwner, let note = RepairsKit.filled(r.internalNote) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Note for the shop").font(.callout).foregroundStyle(.secondary)
+                    Text("Note for the shop").font(.house(.callout)).foregroundStyle(.secondary)
                     Text(note).textSelection(.enabled)
                 }
             }

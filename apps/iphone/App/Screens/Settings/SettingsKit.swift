@@ -116,7 +116,7 @@ struct SettingsIcon: View {
 
     var body: some View {
         Image(systemName: symbol)
-            .font(.subheadline.weight(.semibold))
+            .font(.house(.subheadline).weight(.semibold))
             .dynamicTypeSize(...DynamicTypeSize.xxLarge)
             .foregroundStyle(color == Theme.accent ? Theme.onAccent : .white)
             .frame(width: 29, height: 29)
@@ -150,7 +150,7 @@ struct SettingToggle: View {
         Toggle(isOn: Binding(get: { writer.isOn(key, stored) }, set: { writer.set(key, $0) })) {
             VStack(alignment: .leading, spacing: pt(2)) {
                 Text(title)
-                if let detail { Text(detail).font(.caption).foregroundStyle(.secondary) }
+                if let detail { Text(detail).font(.house(.caption)).foregroundStyle(.secondary) }
             }
         }
     }

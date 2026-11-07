@@ -302,7 +302,7 @@ struct AdsAlertsSection: View {
             Section {
                 ForEach(list) { (i: Item) in
                     Label(i.text, systemImage: "exclamationmark.triangle.fill")
-                        .font(.subheadline)
+                        .font(.house(.subheadline))
                         .foregroundStyle(i.bad ? Tone.problem.color : Tone.owed.color)
                 }
             }
@@ -328,7 +328,7 @@ struct AdsProblemsSection: View {
             Section {
                 ForEach(problems, id: \.self) { (p: String) in
                     Label(p, systemImage: "exclamationmark.triangle.fill")
-                        .font(.subheadline)
+                        .font(.house(.subheadline))
                         .foregroundStyle(Tone.owed.color)
                 }
                 if setup, problems.contains(where: { (p: String) in p.contains("Setup") }) {

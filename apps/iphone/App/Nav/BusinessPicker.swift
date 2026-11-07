@@ -93,7 +93,7 @@ struct BusinessPicker: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: pt(24)) {
                     Text("Choose a business")
-                        .font(.title3.weight(.semibold))
+                        .font(.house(.title3).weight(.semibold))
                         .accessibilityAddTraits(.isHeader)
                     cards(ordered, store: store, sideBySide: sideBySide)
                     footer(store)
@@ -161,7 +161,7 @@ struct BusinessPicker: View {
             VStack(spacing: pt(8)) {
                 CardWordmark(business: b, ink: id.ink)
                 Text(captionText(b))
-                    .font(.caption2)
+                    .font(.house(.caption2))
                     .tracking(0.4)
                     .foregroundStyle(id.ink.opacity(0.6))
                     .lineLimit(1)
@@ -206,7 +206,7 @@ struct BusinessPicker: View {
                 .accessibilityIdentifier("picker.manage")
         }
         .buttonStyle(.plain)
-        .font(.footnote)
+        .font(.house(.footnote))
         .foregroundStyle(.secondary)
         .frame(minHeight: Metrics.tap)
         .opacity(chosen == nil ? 1 : 0)
@@ -309,7 +309,7 @@ private struct CardWordmark: View {
                     .frame(maxWidth: pt(200), maxHeight: markHeight)
             } else {
                 Text(business.name)
-                    .font(.system(size: pt(22), weight: .semibold, design: .serif))
+                    .font(.house(size: pt(22), weight: .semibold))
                     .foregroundStyle(ink)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)

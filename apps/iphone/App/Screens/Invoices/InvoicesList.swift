@@ -529,7 +529,7 @@ struct InvoicesList: View {
                 }
                 if canPay && isOwing(inv) {
                     Button("Take payment", systemImage: "banknote") { paying = inv }
-                        .buttonStyle(.borderless).font(.subheadline.weight(.medium))
+                        .buttonStyle(.borderless).font(.house(.subheadline).weight(.medium))
                         .frame(minHeight: Metrics.tap)
                 }
             } actions: {

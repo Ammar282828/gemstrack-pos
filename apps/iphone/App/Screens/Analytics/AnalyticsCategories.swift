@@ -21,7 +21,7 @@ struct AnaCategoriesPage: View {
         }, right: { (_: Bool) in
             if !rows.isEmpty { tableSection }
             LedgerSection("How this is worked out", collapsible: true) {
-                Text("Revenue is each piece’s own total, before invoice discounts and trade-ins, so it can be higher than the Overview’s. A piece counts in its own category, else its order’s, else the one its name suggests. Gold coins are kept apart.").font(.footnote).foregroundStyle(.secondary)
+                Text("Revenue is each piece’s own total, before invoice discounts and trade-ins, so it can be higher than the Overview’s. A piece counts in its own category, else its order’s, else the one its name suggests. Gold coins are kept apart.").font(.house(.footnote)).foregroundStyle(.secondary)
             }
         })
     }

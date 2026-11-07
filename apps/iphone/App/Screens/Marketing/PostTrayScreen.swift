@@ -175,7 +175,7 @@ struct PostTrayScreen: View {
                     .strokeBorder(on ? Theme.accent : Color.clear, lineWidth: 2)
             }
             .overlay(alignment: .topLeading) {
-                Text("\(number)").font(.caption2.weight(.semibold)).monospacedDigit()
+                Text("\(number)").font(.house(.caption2).weight(.semibold)).monospacedDigit()
                     .foregroundStyle(Theme.onAccent)
                     .padding(.horizontal, pt(5)).padding(.vertical, pt(1))
                     .background(Theme.accent, in: .capsule)
@@ -215,7 +215,7 @@ struct PostTrayScreen: View {
                     Toggle(isOn: Binding(get: { model.instagramPost }, set: { (_: Bool) in model.chooseInstagram() })) {
                         HStack {
                             Text("Instagram post")
-                            if !model.instagram.s("username").isEmpty { Text("@\(model.instagram.s("username"))").font(.subheadline).foregroundStyle(.secondary) }
+                            if !model.instagram.s("username").isEmpty { Text("@\(model.instagram.s("username"))").font(.house(.subheadline)).foregroundStyle(.secondary) }
                         }
                     }
                     .tint(Theme.accent)
@@ -231,7 +231,7 @@ struct PostTrayScreen: View {
         Toggle(isOn: Binding(get: { model.targets.contains(key) }, set: { (_: Bool) in model.toggle(key) })) {
             HStack {
                 Text(title)
-                if let reach { Text("\(reach.formatted()) \(noun)").font(.subheadline).foregroundStyle(.secondary) }
+                if let reach { Text("\(reach.formatted()) \(noun)").font(.house(.subheadline)).foregroundStyle(.secondary) }
             }
         }
         .tint(Theme.accent)
@@ -472,7 +472,7 @@ struct PostTrayCardSections: View {
                 onDesignAI(edit, op, params, label)
             }
             TextField("Name on the photo", text: $card.designName)
-            if let note = designNote { Text(note).font(.footnote).foregroundStyle(.secondary) }
+            if let note = designNote { Text(note).font(.house(.footnote)).foregroundStyle(.secondary) }
             Button { model.dropDesign(card) } label: { Label("Use the photo as it is", systemImage: "arrow.counterclockwise") }
                 .disabled(locked)
             pieceRows
@@ -519,9 +519,9 @@ struct PostTrayCardSections: View {
                 Label("Didn't go: \(failed)", systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color)
             }
             VStack(alignment: .leading, spacing: pt(2)) {
-                Text(p.name).font(.headline)
+                Text(p.name).font(.house(.headline))
                 Text([p.collection, p.weightGrams.map { (g: Double) in WebsiteNumber.grams(g) + "g" } ?? ""].filter { !$0.isEmpty }.joined(separator: " · "))
-                    .font(.subheadline).foregroundStyle(.secondary)
+                    .font(.house(.subheadline)).foregroundStyle(.secondary)
             }
             if let ago = MarketingTime.postedAgo(posted) {
                 Text("Already went out: \(ago).").foregroundStyle(Tone.owed.color)
@@ -589,7 +589,7 @@ struct PostTrayCardSections: View {
     private var captionSection: some View {
         Section {
             TextField("Caption", text: Binding(get: { card.caption }, set: { (v: String) in card.caption = v; card.edited = true }), axis: .vertical)
-                .font(.footnote.monospaced())
+                .font(.house(.footnote).monospaced())
                 .lineLimit(6...16)
                 .disabled(locked)
             Button(action: onAI) { Label("Write with AI", systemImage: "sparkles") }

@@ -140,7 +140,7 @@ struct HisaabLedgerScreen: View {
                     if reminderPhone.isEmpty { Text("Their record has no number: type the one to send to.") }
                 }
                 Section {
-                    Text(r.message).font(.callout).textSelection(.enabled)
+                    Text(r.message).font(.house(.callout)).textSelection(.enabled)
                 } header: {
                     LedgerHeading(title: "The message")
                 }
@@ -399,10 +399,10 @@ private struct HisaabLedgerRow: View {
         HStack(alignment: .top, spacing: pt(12)) {
             VStack(alignment: .leading, spacing: pt(3)) {
                 Text(line.entry.description.isEmpty ? "No description" : line.entry.description)
-                    .font(.body.weight(.medium))
+                    .font(.house(.body).weight(.medium))
                     .lineLimit(2)
                 Text(ShopDate.say(line.entry.date))
-                    .font(.caption)
+                    .font(.house(.caption))
                     .foregroundStyle(.secondary)
             }
             Spacer(minLength: 8)
@@ -417,19 +417,19 @@ private struct HisaabLedgerRow: View {
     private var moves: some View {
         let e = line.entry
         if e.cashDebit > 0 {
-            Text("You gave \(Money.pkr(e.cashDebit))").font(.subheadline.weight(.semibold)).foregroundStyle(Tone.owed.color)
+            Text("You gave \(Money.pkr(e.cashDebit))").font(.house(.subheadline).weight(.semibold)).foregroundStyle(Tone.owed.color)
         }
         if e.cashCredit > 0 {
-            Text("You got \(Money.pkr(e.cashCredit))").font(.subheadline.weight(.semibold)).foregroundStyle(Tone.settled.color)
+            Text("You got \(Money.pkr(e.cashCredit))").font(.house(.subheadline).weight(.semibold)).foregroundStyle(Tone.settled.color)
         }
         // One coloured figure per row: the metal's movement is quiet when the cash already moved.
         let cashMoved = e.cashDebit > 0 || e.cashCredit > 0
         if e.goldDebitGrams > 0 {
-            Text("You gave \(MoneyFormat.grams(e.goldDebitGrams))").font(.caption)
+            Text("You gave \(MoneyFormat.grams(e.goldDebitGrams))").font(.house(.caption))
                 .foregroundStyle(cashMoved ? Color.secondary : Tone.owed.color)
         }
         if e.goldCreditGrams > 0 {
-            Text("You got \(MoneyFormat.grams(e.goldCreditGrams))").font(.caption)
+            Text("You got \(MoneyFormat.grams(e.goldCreditGrams))").font(.house(.caption))
                 .foregroundStyle(cashMoved ? Color.secondary : Tone.settled.color)
         }
     }
@@ -438,11 +438,11 @@ private struct HisaabLedgerRow: View {
     private var balances: some View {
         // The running balance is a quiet note, not a second coloured figure.
         Text("Balance \(Money.pkr(line.cash))")
-            .font(.caption)
+            .font(.house(.caption))
             .foregroundStyle(.secondary)
         if showGold {
             Text("\(MoneyFormat.grams(line.gold)) \(MoneyWords.metal)")
-                .font(.caption)
+                .font(.house(.caption))
                 .foregroundStyle(.secondary)
         }
     }

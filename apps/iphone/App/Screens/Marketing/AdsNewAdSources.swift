@@ -208,13 +208,13 @@ struct AdsVideoSection: View {
                         switch v.phase {
                         case .sending:
                             ProgressView(value: v.sent)
-                            Text("Sending to Meta… \(Int(v.sent * 100))%").font(.caption).foregroundStyle(.secondary)
+                            Text("Sending to Meta… \(Int(v.sent * 100))%").font(.house(.caption)).foregroundStyle(.secondary)
                         case .processing:
-                            Text("Meta is processing it (a minute or two)…").font(.caption).foregroundStyle(.secondary)
+                            Text("Meta is processing it (a minute or two)…").font(.house(.caption)).foregroundStyle(.secondary)
                         case .ready:
-                            Text("Ready, with Meta's cover frame").font(.caption).foregroundStyle(.secondary)
+                            Text("Ready, with Meta's cover frame").font(.house(.caption)).foregroundStyle(.secondary)
                         case .failed:
-                            Text(v.error ?? "It didn't reach Meta.").font(.caption).foregroundStyle(Tone.problem.color)
+                            Text(v.error ?? "It didn't reach Meta.").font(.house(.caption)).foregroundStyle(Tone.problem.color)
                         }
                     }
                 }
@@ -298,7 +298,7 @@ struct AdsPartnerSection: View {
                 TextField("Paste the ad code", text: $code)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
-                    .font(.body.monospaced())
+                    .font(.house(.body).monospaced())
                 Button {
                     Task {
                         checking = true
@@ -325,10 +325,10 @@ struct AdsPartnerSection: View {
                             Text(c.why ?? "Meta couldn't check the code. It can still be tried.").foregroundStyle(Tone.owed.color)
                         }
                         if let link = c.permalink, let url = URL(string: link) {
-                            Link("See the post", destination: url).font(.caption)
+                            Link("See the post", destination: url).font(.house(.caption))
                         }
                     }
-                    .font(.subheadline)
+                    .font(.house(.subheadline))
                 }
             }
             if toSite {

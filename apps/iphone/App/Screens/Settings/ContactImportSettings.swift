@@ -337,16 +337,16 @@ private struct ContactImportPage: View {
         return VStack(alignment: .leading, spacing: pt(10)) {
             HStack(alignment: .top, spacing: pt(12)) {
                 VStack(alignment: .leading, spacing: pt(2)) {
-                    Text("IN THE BOOK").font(.caption2).foregroundStyle(.secondary)
-                    Text(target.name).font(.subheadline.weight(.medium))
+                    Text("IN THE BOOK").font(.house(.caption2)).foregroundStyle(.secondary)
+                    Text(target.name).font(.house(.subheadline).weight(.medium))
                     Text([target.phone, target.altPhone].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ").ifEmpty("no number"))
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(.house(.caption)).foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 VStack(alignment: .leading, spacing: pt(2)) {
-                    Text("ON THE PHONE").font(.caption2).foregroundStyle(.secondary)
-                    Text(c.name).font(.subheadline.weight(.medium))
-                    Text(c.phone ?? "no number").font(.caption).foregroundStyle(.secondary)
+                    Text("ON THE PHONE").font(.house(.caption2)).foregroundStyle(.secondary)
+                    Text(c.name).font(.house(.subheadline).weight(.medium))
+                    Text(c.phone ?? "no number").font(.house(.caption)).foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -356,7 +356,7 @@ private struct ContactImportPage: View {
             .pickerStyle(.menu)
             .disabled(importing)
             if let hint = opts.first(where: { $0.value == chosen })?.hint {
-                Text(hint).font(.caption).foregroundStyle(.secondary)
+                Text(hint).font(.house(.caption)).foregroundStyle(.secondary)
             }
         }
         .padding(.vertical, pt(4))
@@ -373,7 +373,7 @@ private struct ContactImportPage: View {
                     VStack(alignment: .leading, spacing: pt(2)) {
                         Text(f.name).fontWeight(.medium).strikethrough(off).lineLimit(1)
                         Text("\(f.phone ?? "no number")\(f.extraPhones.isEmpty ? "" : " (+\(f.extraPhones.count) more)")")
-                            .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                            .font(.house(.caption)).foregroundStyle(.secondary).lineLimit(1)
                     }
                     Spacer(minLength: 8)
                     ForEach(f.tags, id: \.self) { (t: String) in StatusBadge(t.uppercased(), color: .secondary) }
@@ -403,7 +403,7 @@ private struct ContactImportPage: View {
     private func settledSection(_ p: SettingsContactPlan) -> some View {
         Section {
             Text(p.settled.prefix(30).map(\.name).joined(separator: ", ") + (p.settled.count > 30 ? " and \(p.settled.count - 30) more" : ""))
-                .font(.subheadline)
+                .font(.house(.subheadline))
                 .foregroundStyle(.secondary)
         } header: {
             LedgerHeading(title: "Already saved")

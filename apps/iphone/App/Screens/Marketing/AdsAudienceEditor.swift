@@ -170,7 +170,7 @@ struct AdsAudienceSheet: View {
                     VStack(alignment: .leading, spacing: pt(2)) {
                         Text(h.name).foregroundStyle(.primary)
                         Text([h.detail ?? "", h.type].filter { (s: String) in !s.isEmpty }.joined(separator: " · "))
-                            .font(.caption).foregroundStyle(.secondary)
+                            .font(.house(.caption)).foregroundStyle(.secondary)
                     }
                 }
             }
@@ -182,7 +182,7 @@ struct AdsAudienceSheet: View {
             Image(systemName: p.type == "pin" ? "mappin.and.ellipse" : "mappin").foregroundStyle(Theme.accent)
             VStack(alignment: .leading, spacing: pt(2)) {
                 Text(p.name)
-                if let d = p.detail, !d.isEmpty { Text(d).font(.caption).foregroundStyle(.secondary) }
+                if let d = p.detail, !d.isEmpty { Text(d).font(.house(.caption)).foregroundStyle(.secondary) }
             }
             Spacer(minLength: 8)
             if p.type == "city" || p.type == "pin" { radiusMenu(p) }
@@ -206,7 +206,7 @@ struct AdsAudienceSheet: View {
                 Button("+\(k) km") { setRadius(p, Double(k)) }
             }
         } label: {
-            Text(now > 0 ? "+\(now) km" : "City only").font(.subheadline)
+            Text(now > 0 ? "+\(now) km" : "City only").font(.house(.subheadline))
         }
     }
 
@@ -351,10 +351,10 @@ struct AdsAudienceSheet: View {
                     HStack(spacing: pt(8)) {
                         VStack(alignment: .leading, spacing: pt(2)) {
                             Text(h.name).foregroundStyle(.primary)
-                            if let path = h.path, !path.isEmpty { Text(path).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
+                            if let path = h.path, !path.isEmpty { Text(path).font(.house(.caption)).foregroundStyle(.secondary).lineLimit(1) }
                         }
                         Spacer(minLength: 8)
-                        if let size = h.size { Text(AdsFormat.compact(size)).font(.caption).foregroundStyle(.secondary).monospacedDigit() }
+                        if let size = h.size { Text(AdsFormat.compact(size)).font(.house(.caption)).foregroundStyle(.secondary).monospacedDigit() }
                         Image(systemName: on ? "checkmark" : "plus.circle").foregroundStyle(Theme.accent)
                     }
                 }
@@ -416,7 +416,7 @@ struct AdsAudienceSheet: View {
         let bits = [a.kind, a.sizeWords ?? "", a.ready ? "" : "not ready"].filter { (s: String) in !s.isEmpty }
         return VStack(alignment: .leading, spacing: pt(6)) {
             Text(a.name)
-            Text(bits.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary)
+            Text(bits.joined(separator: " · ")).font(.house(.caption)).foregroundStyle(.secondary)
             Picker("Use", selection: use(a)) {
                 Text("Not used").tag("off")
                 Text("Reach").tag("include")

@@ -40,8 +40,8 @@ struct AdsMacInspector: View {
             HStack(alignment: .top, spacing: 12) {
                 lead
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(row.name).font(.system(.title3, design: .serif).weight(.semibold)).lineLimit(3).textSelection(.enabled)
-                    Text(subtitle).font(.callout).foregroundStyle(.secondary)
+                    Text(row.name).font(.house(.title3).weight(.semibold)).lineLimit(3).textSelection(.enabled)
+                    Text(subtitle).font(.house(.callout)).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 0)
             }
@@ -49,9 +49,9 @@ struct AdsMacInspector: View {
                 Pill(words.label, tone: AdsStatusWords.tone(words.tone))
                 Spacer(minLength: 8)
                 VStack(alignment: .trailing, spacing: 1) {
-                    Text("Spent").font(.caption).foregroundStyle(.secondary)
+                    Text("Spent").font(.house(.caption)).foregroundStyle(.secondary)
                     Text(AdsFormat.money(row.metrics.spend, currency))
-                        .font(.system(.title2, design: .serif).weight(.semibold)).monospacedDigit()
+                        .font(.house(.title2).weight(.semibold)).monospacedDigit()
                 }
             }
             MacActionButtons(actions: main)
@@ -218,7 +218,7 @@ struct AdsMacBudgetEditor: View {
                 DatePicker("Ends", selection: $endDay, in: Date()..., displayedComponents: .date)
                     .environment(\.timeZone, ERPDate.karachi)
             }
-            if let note { Text(note).font(.caption).foregroundStyle(.secondary) }
+            if let note { Text(note).font(.house(.caption)).foregroundStyle(.secondary) }
             Button(buttonTitle) { Task { await save() } }
                 .disabled(!enabled || busy || after == nil || !(budgetChanged || endChanged))
         }

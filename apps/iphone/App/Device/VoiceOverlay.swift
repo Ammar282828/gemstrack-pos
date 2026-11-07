@@ -114,18 +114,18 @@ struct VoiceOverlay: View {
     private var words: some View {
         VStack(alignment: .leading, spacing: pt(2)) {
             if voice.phase == .thinking {
-                Text(voice.heard).font(.subheadline.weight(.medium)).lineLimit(1).truncationMode(.head)
-                Text("Reading it…").font(.footnote).foregroundStyle(.secondary).modifier(VoiceShimmer())
+                Text(voice.heard).font(.house(.subheadline).weight(.medium)).lineLimit(1).truncationMode(.head)
+                Text("Reading it…").font(.house(.footnote)).foregroundStyle(.secondary).modifier(VoiceShimmer())
             } else if !voice.liveWords.isEmpty {
                 // The newest words are the ones to see: an overflowing sentence loses its start.
-                Text(liveText).font(.subheadline.weight(.medium)).lineLimit(2).truncationMode(.head)
+                Text(liveText).font(.house(.subheadline).weight(.medium)).lineLimit(2).truncationMode(.head)
                     .accessibilityAddTraits(.updatesFrequently)
             } else if let headline {
-                Text(headline).font(.subheadline.weight(.medium)).lineLimit(3)
+                Text(headline).font(.house(.subheadline).weight(.medium)).lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
-                Text(statusLine).font(.footnote).foregroundStyle(.secondary).lineLimit(1)
+                Text(statusLine).font(.house(.footnote)).foregroundStyle(.secondary).lineLimit(1)
             } else {
-                Text(statusLine).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
+                Text(statusLine).font(.house(.subheadline)).foregroundStyle(.secondary).lineLimit(2)
             }
         }
         .contentTransition(.opacity)
@@ -148,7 +148,7 @@ struct VoiceOverlay: View {
             .menuStyle(.button).buttonStyle(.plain)
             .accessibilityLabel("Voice options")
             Button { voice.dismiss() } label: {
-                Image(systemName: "xmark").font(.body.weight(.semibold))
+                Image(systemName: "xmark").font(.house(.body).weight(.semibold))
                     .frame(width: 44, height: 44).contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -237,7 +237,7 @@ struct VoiceOverlay: View {
                 if !plan.operations.isEmpty && voice.completed == plan.operations.count, let path = plan.cards.last?.href {
                     Button("Open record", systemImage: "arrow.up.right") { go(path) }.buttonStyle(.bordered)
                 } else if voice.completed > 0 {
-                    Text("\(voice.completed) of \(plan.operations.count) changes saved.").font(.footnote).foregroundStyle(.secondary)
+                    Text("\(voice.completed) of \(plan.operations.count) changes saved.").font(.house(.footnote)).foregroundStyle(.secondary)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -251,11 +251,11 @@ struct VoiceOverlay: View {
     private func step(_ card: NativeVoiceCard, number: Int?) -> some View {
         VStack(alignment: .leading, spacing: pt(4)) {
             HStack(alignment: .firstTextBaseline, spacing: pt(6)) {
-                if let number { Text("\(number)").font(.footnote.weight(.semibold).monospacedDigit()).foregroundStyle(.secondary) }
-                Text(card.summary).font(.subheadline).fixedSize(horizontal: false, vertical: true)
+                if let number { Text("\(number)").font(.house(.footnote).weight(.semibold).monospacedDigit()).foregroundStyle(.secondary) }
+                Text(card.summary).font(.house(.subheadline)).fixedSize(horizontal: false, vertical: true)
             }
             if let problem = card.problem {
-                Label(problem, systemImage: "exclamationmark.circle").font(.footnote).foregroundStyle(Tone.owed.color)
+                Label(problem, systemImage: "exclamationmark.circle").font(.house(.footnote)).foregroundStyle(Tone.owed.color)
                     .fixedSize(horizontal: false, vertical: true)
             }
             if card.operations.isEmpty, let path = card.href, card.problem == nil || card.handoff != nil || path.hasPrefix("/") {
@@ -273,7 +273,7 @@ struct VoiceOverlay: View {
 
     private func failureLine(_ message: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: pt(8)) {
-            Label(message, systemImage: "exclamationmark.triangle").font(.footnote).foregroundStyle(Tone.problem.color)
+            Label(message, systemImage: "exclamationmark.triangle").font(.house(.footnote)).foregroundStyle(Tone.problem.color)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
             if voice.canRetry { Button("Try again") { voice.retry() }.buttonStyle(.bordered).controlSize(.small) }
@@ -321,7 +321,7 @@ struct VoiceOverlay: View {
                     .buttonStyle(.bordered).disabled(action.busy)
             }
             Spacer(minLength: 0)
-            Text("Or say “yes”").font(.footnote).foregroundStyle(.secondary).opacity(action.busy ? 0 : 1)
+            Text("Or say “yes”").font(.house(.footnote)).foregroundStyle(.secondary).opacity(action.busy ? 0 : 1)
             Button {
                 voice.save()
             } label: {

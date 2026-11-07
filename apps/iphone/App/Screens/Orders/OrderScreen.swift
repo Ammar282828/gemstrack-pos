@@ -201,13 +201,13 @@ struct OrderScreen: View {
             Monogram(name: name, size: Monogram.Size.hero)
             VStack(alignment: .leading, spacing: pt(4)) {
                 Text(name)
-                    .font(.system(.title2, design: .serif).weight(.semibold))
+                    .font(.house(.title2).weight(.semibold))
                     .lineLimit(2)
                 if !phone.isEmpty || online || mine {
                     HStack(spacing: pt(8)) {
                         if !phone.isEmpty {
                             Text(OrdersLogic.phoneWords(phone))
-                                .font(.subheadline)
+                                .font(.house(.subheadline))
                                 .foregroundStyle(.secondary)
                                 .monospacedDigit()
                                 .lineLimit(1)
@@ -217,7 +217,7 @@ struct OrderScreen: View {
                     }
                 }
                 Text(caption(order))
-                    .font(.caption)
+                    .font(.house(.caption))
                     .foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
@@ -245,7 +245,7 @@ struct OrderScreen: View {
             VStack(alignment: .leading, spacing: pt(4)) {
                 if due >= 1 {
                     Text("OWED")
-                        .font(.caption2.weight(.semibold))
+                        .font(.house(.caption2).weight(.semibold))
                         .foregroundStyle(.secondary)
                         .tracking(0.6)
                     HeroAmount(amount: due, tone: Tone.owed.color)
@@ -269,7 +269,7 @@ struct OrderScreen: View {
             DateLeaf(date: t.due, tone: tone)
             VStack(alignment: .leading, spacing: pt(4)) {
                 Text(OrdersLogic.promiseLine(order, now: now))
-                    .font(.subheadline.weight(tone == .quiet ? .regular : .semibold))
+                    .font(.house(.subheadline).weight(tone == .quiet ? .regular : .semibold))
                     .foregroundStyle(tone == .late ? tone.color : (p.undated ? Color.secondary : Color.primary))
                     .monospacedDigit()
                 if p.urgent && t.state != .late {
@@ -310,20 +310,20 @@ struct OrderScreen: View {
                 VStack(alignment: .leading, spacing: pt(10)) {
                     VStack(alignment: .leading, spacing: pt(4)) {
                         Label("Note", systemImage: "note.text")
-                            .font(.caption.weight(.semibold))
+                            .font(.house(.caption).weight(.semibold))
                             .foregroundStyle(.secondary)
                         Text(notes)
-                            .font(.subheadline)
+                            .font(.house(.subheadline))
                             .textSelection(.enabled)
                     }
                     if !shipTo.isEmpty {
                         Divider()
                         VStack(alignment: .leading, spacing: pt(4)) {
                             Label("Deliver to", systemImage: "mappin.and.ellipse")
-                                .font(.caption.weight(.semibold))
+                                .font(.house(.caption).weight(.semibold))
                                 .foregroundStyle(.secondary)
                             Text(shipTo.joined(separator: "\n"))
-                                .font(.subheadline)
+                                .font(.house(.subheadline))
                         }
                     }
                 }
@@ -376,7 +376,7 @@ struct OrderScreen: View {
                 }
                 if !rates.isEmpty {
                     Text(rates)
-                        .font(.caption)
+                        .font(.house(.caption))
                         .foregroundStyle(.secondary)
                 }
                 // The shop's margin: owners and staff, never a customer, never in a house that does not cost by
@@ -400,7 +400,7 @@ struct OrderScreen: View {
             }
             if !l.gold.isEmpty { Text(l.gold) }
         }
-        .font(.caption)
+        .font(.house(.caption))
         .foregroundStyle(.secondary)
     }
 
@@ -410,7 +410,7 @@ struct OrderScreen: View {
             Spacer(minLength: 8)
             if showValue { Text(Money.pkr(e.value)).monospacedDigit() }
         }
-        .font(.caption)
+        .font(.house(.caption))
         .foregroundStyle(.secondary)
     }
 
@@ -427,7 +427,7 @@ struct OrderScreen: View {
             }
             if !rates.isEmpty {
                 Text(rates)
-                    .font(.caption)
+                    .font(.house(.caption))
                     .foregroundStyle(.secondary)
             }
             NavigationLink(value: Route(path: "/invoices/\(invoiceId)")) {
@@ -490,7 +490,7 @@ struct OrderScreen: View {
             }.motion(ordered)
             if order.items.isEmpty {
                 Text("No pieces on this order.")
-                    .font(.subheadline)
+                    .font(.house(.subheadline))
                     .foregroundStyle(.secondary)
             }
             if counts.unassigned > 0 && !invoiced {
@@ -941,16 +941,16 @@ extension OrderScreen {
                 Monogram(name: OrdersLogic.customerName(order), size: Monogram.Size.hero)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(OrdersLogic.customerName(order))
-                        .font(.system(.title, design: .serif).weight(.semibold))
+                        .font(.house(.title).weight(.semibold))
                         .lineLimit(2).textSelection(.enabled)
-                    Text(subtitle).font(.callout).foregroundStyle(.secondary).textSelection(.enabled)
+                    Text(subtitle).font(.house(.callout)).foregroundStyle(.secondary).textSelection(.enabled)
                     Pill(macStageWords(order, stage: stage), tone: MacOrdersLogic.tone(stage))
                         .padding(.top, 2)
                 }
                 Spacer(minLength: 12)
                 if let headline {
                     VStack(alignment: .trailing, spacing: 2) {
-                        Text(headline.label).font(.callout).foregroundStyle(.secondary)
+                        Text(headline.label).font(.house(.callout)).foregroundStyle(.secondary)
                         HeroAmount(amount: macHeadlineAmount(order, stage: stage, owed: owed, invoice: invoice),
                                    tone: headline.tone == .quiet ? Color.primary : headline.tone.color)
                     }
@@ -1152,7 +1152,7 @@ extension OrderScreen {
             MacOrdersMoneyRow(label: describeExchangeEntry(pair.element),
                               value: exchanges.count > 1 ? Money.pkr(pair.element.value) : "", small: true)
         }
-        if !rates.isEmpty { Text(rates).font(.caption).foregroundStyle(.secondary) }
+        if !rates.isEmpty { Text(rates).font(.house(.caption)).foregroundStyle(.secondary) }
         // The shop's margin: owners and staff, never a customer, never in a house that does not cost by gold, and
         // blurred until clicked (docs/decisions.md "Margin").
         if OrdersLogic.marginIsOn(House.margin) && session.seesMoney { OrdersMarginRow(order: order) }
@@ -1168,7 +1168,7 @@ extension OrderScreen {
             MacOrdersMoneyRow(label: isCredit(inv.balanceDue) ? "In credit" : "Due", value: Money.pkr(abs(inv.balanceDue)), strong: true,
                               tone: inv.balanceDue >= 1 ? .owed : (isCredit(inv.balanceDue) ? .credit : .quiet))
         }
-        if !rates.isEmpty { Text(rates).font(.caption).foregroundStyle(.secondary) }
+        if !rates.isEmpty { Text(rates).font(.house(.caption)).foregroundStyle(.secondary) }
         Button { macOpenRoute("/invoices/\(invoiceId)") } label: {
             Label("Invoiced \u{00B7} \(invoiceId)", systemImage: "doc.text")
         }
@@ -1177,7 +1177,7 @@ extension OrderScreen {
         Text(OrderActions.canUndoInvoice(order, isOwner: session.isOwner)
              ? "To change it, use Unlock & Edit."
              : "The order is locked to its invoice.")
-            .font(.caption)
+            .font(.house(.caption))
             .foregroundStyle(.secondary)
     }
 
@@ -1209,7 +1209,7 @@ extension OrderScreen {
             if let source = order.source { MacOrdersFact(label: "Found us via") { Text(OrdersLogic.sourceLabel(source)) } }
             if !shipTo.isEmpty { MacOrdersFact(label: "Deliver to") { Text(shipTo.joined(separator: "\n")) } }
             if !note.isEmpty { MacOrdersFact(label: "Note") { Text(note).textSelection(.enabled) } }
-            if let blocked { Text(blocked).font(.caption).foregroundStyle(.secondary) }
+            if let blocked { Text(blocked).font(.house(.caption)).foregroundStyle(.secondary) }
         }
     }
 

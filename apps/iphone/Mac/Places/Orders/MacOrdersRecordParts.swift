@@ -24,7 +24,7 @@ private func macOrdersHeaderRow(_ columns: [MacOrdersColumnSpec]) -> some View {
                        alignment: pair.element.trailing ? .trailing : .leading)
         }
     }
-    .font(.caption)
+    .font(.house(.caption))
     .foregroundStyle(.secondary)
     .padding(.horizontal, 8)
     .padding(.vertical, 4)
@@ -84,7 +84,7 @@ struct MacOrdersPiecesGrid: View {
                     .foregroundStyle(r.done ? Color.secondary : Color.primary)
                     .lineLimit(1)
                 if let category = OrdersLogic.categorySingular(r.item.itemCategory) {
-                    Text(category).font(.caption).foregroundStyle(.secondary)
+                    Text(category).font(.house(.caption)).foregroundStyle(.secondary)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -166,7 +166,7 @@ struct MacOrdersPieceDetail: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(item.description.isEmpty ? "Piece \(index + 1)" : item.description)
-                .font(.headline)
+                .font(.house(.headline))
                 .textSelection(.enabled)
             // Every reference picture in a row; a click opens them full screen (PieceGallery.swift).
             OrderPiecePhotos(item: item, size: 132, all: true)
@@ -193,7 +193,7 @@ struct MacOrdersPieceDetail: View {
 
     private func note(_ title: String, _ text: String) -> some View {
         VStack(alignment: .leading, spacing: 1) {
-            Text(title).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            Text(title).font(.house(.caption).weight(.semibold)).foregroundStyle(.secondary)
             Text(text).textSelection(.enabled)
         }
     }
@@ -315,7 +315,7 @@ struct MacOrdersFact<Value: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 1) {
-            Text(label).font(.caption).foregroundStyle(.secondary)
+            Text(label).font(.house(.caption)).foregroundStyle(.secondary)
             value()
         }
         .frame(maxWidth: .infinity, alignment: .leading)

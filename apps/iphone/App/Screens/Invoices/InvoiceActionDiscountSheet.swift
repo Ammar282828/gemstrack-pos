@@ -68,7 +68,7 @@ struct InvoiceActionDiscountSheet: View {
                 Section {
                     TextField("Discount in rupees", text: $amountText.wholeRupees)
                         .keyboardType(.numberPad)
-                        .font(.title2.weight(.semibold))
+                        .font(.house(.title2).weight(.semibold))
                         .monospacedDigit()
                     // invoice-viewer.tsx: the bill before any discount is the lines less the exchange.
                     RoundOffChips(payable: invoice.subtotal - getInvoiceExchangeTotal(invoice), discount: discount ?? 0) { n in
@@ -204,7 +204,7 @@ extension InvoiceActionDiscountSheet {
         if let problem {
             Text(problem).foregroundStyle(Tone.problem.color)
         } else if let d = discount, d > 0 {
-            Text(Money.pkrLac(d)).font(.callout).monospacedDigit().foregroundStyle(.secondary)
+            Text(Money.pkrLac(d)).font(.house(.callout)).monospacedDigit().foregroundStyle(.secondary)
         }
     }
 
@@ -216,7 +216,7 @@ extension InvoiceActionDiscountSheet {
             Section("After") {
                 MacInvoiceFigureRow(label: "Grand Total", value: PaymentText.pkr(after.grandTotal), bold: true)
                 MacInvoiceFigureRow(label: line.label, value: PaymentText.pkr(line.amount))
-                Text(followers(after)).font(.callout).foregroundStyle(.secondary)
+                Text(followers(after)).font(.house(.callout)).foregroundStyle(.secondary)
             }
         }
     }

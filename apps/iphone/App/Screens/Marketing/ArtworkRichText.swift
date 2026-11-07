@@ -152,13 +152,13 @@ struct ArtworkRunsRows: View {
     var body: some View {
         Group {
             if layer.n("curve") != 0 {
-                Text("Bent text is drawn in one style. Set its Curve to 0 to style single words.").font(.footnote).foregroundStyle(Tone.owed.color)
+                Text("Bent text is drawn in one style. Set its Curve to 0 to style single words.").font(.house(.footnote)).foregroundStyle(Tone.owed.color)
             }
             if length == 0 {
-                Text("Type some words first.").font(.footnote).foregroundStyle(.secondary)
+                Text("Type some words first.").font(.house(.footnote)).foregroundStyle(.secondary)
             } else {
                 HStack {
-                    Text("Pick the words").font(.subheadline.weight(.semibold))
+                    Text("Pick the words").font(.house(.subheadline).weight(.semibold))
                     Spacer()
                     Button("All") { picked = Set(wordTokens.indices) }.buttonStyle(.borderless).frame(minHeight: Metrics.tap)
                     Button("None") { picked = [] }.buttonStyle(.borderless).frame(minHeight: Metrics.tap)
@@ -173,7 +173,7 @@ struct ArtworkRunsRows: View {
                         }.buttonStyle(.borderless)
                     }
                 }
-                Text(picked.isEmpty ? "None picked: styles go on all of it." : "\(picked.count) picked. \(DeviceWords.Tap) a word to add or remove it.").font(.footnote).foregroundStyle(.secondary)
+                Text(picked.isEmpty ? "None picked: styles go on all of it." : "\(picked.count) picked. \(DeviceWords.Tap) a word to add or remove it.").font(.house(.footnote)).foregroundStyle(.secondary)
                 styleRows
                 stretches
             }
@@ -224,13 +224,13 @@ struct ArtworkRunsRows: View {
     @ViewBuilder private var stretches: some View {
         let runs = ArtworkRuns.normalize(layer["runs"].array, len: length)
         if !runs.isEmpty {
-            Text("Styled stretches · \(runs.count)").font(.subheadline.weight(.semibold))
+            Text("Styled stretches · \(runs.count)").font(.house(.subheadline).weight(.semibold))
             ForEach(Array(runs.enumerated()), id: \.offset) { pair in
                 let r = pair.element
                 HStack {
                     VStack(alignment: .leading, spacing: pt(2)) {
                         Text((words as NSString).substring(with: NSRange(location: r.from, length: r.to - r.from))).lineLimit(1)
-                        Text(summary(r)).font(.footnote).foregroundStyle(.secondary)
+                        Text(summary(r)).font(.house(.footnote)).foregroundStyle(.secondary)
                     }
                     Spacer()
                     Button { picked = Set(wordTokens.indices.filter { wordTokens[$0].from >= r.from && wordTokens[$0].to <= r.to }) } label: { Image(systemName: "scope") }.buttonStyle(.borderless).accessibilityLabel("Pick these words")
@@ -256,7 +256,7 @@ struct ArtworkRunsRows: View {
     }
 
     @ViewBuilder private var whole: some View {
-        Text("The whole text").font(.subheadline.weight(.semibold))
+        Text("The whole text").font(.house(.subheadline).weight(.semibold))
         Toggle("Gradient fill (gold foil text)", isOn: Binding(get: { layer["fillGradient"] != .null }, set: { on in
             if on { layer["fillGradient"] = ArtworkGradients.foils[0].gradient } else { layer.artworkDrop("fillGradient") }
         }))
@@ -266,7 +266,7 @@ struct ArtworkRunsRows: View {
         Picker("List", selection: Binding(get: { layer.s("list", "none") }, set: { v in
             if v == "none" { layer.artworkDrop("list") } else { layer["list"] = .string(v) }
         })) { Text("None").tag("none"); Text("Bullets").tag("bullet"); Text("Numbers").tag("number") }
-        Text("A list puts a bullet or a number at every line break.").font(.footnote).foregroundStyle(.secondary)
+        Text("A list puts a bullet or a number at every line break.").font(.house(.footnote)).foregroundStyle(.secondary)
     }
 }
 
@@ -396,7 +396,7 @@ struct ArtworkGradientRows: View {
                 }
             }.padding(.vertical, pt(2))
         }
-        Text("Stop \(at + 1) of \(stops.count)").font(.footnote).foregroundStyle(.secondary)
+        Text("Stop \(at + 1) of \(stops.count)").font(.house(.footnote)).foregroundStyle(.secondary)
         ArtworkColour(title: "Stop colour", hex: stops[at].color, fallback: .white) { c in fold("g-colour") { setStop { $0.color = c } } }
         ArtworkSlider(title: "Position", value: Binding(get: { stops[at].at * 100 }, set: { v in fold("g-pos") { setPosition(v / 100) } }), range: 0...100, format: "%.0f%%")
         ArtworkSlider(title: "Opacity", value: Binding(get: { (stops[at].alpha ?? 1) * 100 }, set: { v in fold("g-alpha") { setStop { $0.alpha = v >= 100 ? nil : v / 100 } } }), range: 0...100, format: "%.0f%%")

@@ -488,7 +488,7 @@ struct SiteDelta: View {
 
     @ViewBuilder private var content: some View {
         if abs(change) < 0.5 {
-            Text("same as before").font(.caption).foregroundStyle(.secondary)
+            Text("same as before").font(.house(.caption)).foregroundStyle(.secondary)
         } else {
             let up = change > 0
             let good = invert ? !up : up
@@ -497,7 +497,7 @@ struct SiteDelta: View {
                 Image(systemName: up ? "arrow.up.right" : "arrow.down.right").imageScale(.small)
                 Text(text).monospacedDigit()
             }
-            .font(.caption.weight(.semibold))
+            .font(.house(.caption).weight(.semibold))
             .foregroundStyle(tone.color)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(deltaSpoken(up: up))
@@ -529,10 +529,10 @@ struct SiteTile: View {
         }
         #else
         VStack(alignment: .leading, spacing: pt(6)) {
-            Text(label).font(.subheadline).foregroundStyle(.secondary)
+            Text(label).font(.house(.subheadline)).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             Text(value)
-                .font(.system(.title2, design: .serif).weight(.semibold))
+                .font(.house(.title2).weight(.semibold))
                 .monospacedDigit()
                 .contentTransition(.numericText())
                 .fixedSize(horizontal: false, vertical: true)
@@ -540,7 +540,7 @@ struct SiteTile: View {
                 SiteDelta(now: now, before: before, invert: invert)
             }
             if let detail, !detail.isEmpty {
-                Text(detail).font(.footnote).foregroundStyle(.secondary)
+                Text(detail).font(.house(.footnote)).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -581,7 +581,7 @@ struct SiteBlock<Content: View>: View {
                 head
                 content()
                 if let note {
-                    Text(note).font(.footnote).foregroundStyle(.secondary)
+                    Text(note).font(.house(.footnote)).foregroundStyle(.secondary)
                 }
             }
             .frame(maxHeight: .infinity, alignment: .topLeading)
@@ -591,7 +591,7 @@ struct SiteBlock<Content: View>: View {
                 head
                 content()
                 if let note {
-                    Text(note).font(.footnote).foregroundStyle(.secondary)
+                    Text(note).font(.house(.footnote)).foregroundStyle(.secondary)
                 }
             }
             .ledgerCard()
@@ -734,7 +734,7 @@ struct SiteRankSection: View {
     @ViewBuilder private var content: some View {
         let list = shownRows
         if list.isEmpty {
-            Text(empty ?? "").font(.subheadline).foregroundStyle(.secondary)
+            Text(empty ?? "").font(.house(.subheadline)).foregroundStyle(.secondary)
         } else {
             ForEach(all ? list : Array(list.prefix(show))) { (r: SiteRankRow) in
                 rowBody(r, in: list)
@@ -764,7 +764,7 @@ struct SiteRankSection: View {
                     VStack(alignment: .leading, spacing: pt(2)) {
                         Text(row.label)
                         if let sub = row.sub {
-                            Text(sub).font(.footnote).foregroundStyle(.secondary)
+                            Text(sub).font(.house(.footnote)).foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -772,7 +772,7 @@ struct SiteRankSection: View {
                 HStack(spacing: pt(6)) {
                     Text(SiteWords.number(row.value)).monospacedDigit()
                         .contentTransition(.numericText(value: Double(row.value)))
-                    Text(SiteWords.pct(share)).font(.footnote).foregroundStyle(.secondary).monospacedDigit()
+                    Text(SiteWords.pct(share)).font(.house(.footnote)).foregroundStyle(.secondary).monospacedDigit()
                 }
             }
             ProgressView(value: Double(row.value), total: Double(top))

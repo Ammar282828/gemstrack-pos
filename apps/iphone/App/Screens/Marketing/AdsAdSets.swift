@@ -340,7 +340,7 @@ struct AdsAdSetsScreen: View {
                 TextField("Campaign name", text: $campaignName)
             }
             if let treeError {
-                Text("The account's campaigns didn't come: \(treeError)").font(.footnote).foregroundStyle(Tone.problem.color)
+                Text("The account's campaigns didn't come: \(treeError)").font(.house(.footnote)).foregroundStyle(Tone.problem.color)
             }
         } header: {
             #if os(macOS)
@@ -399,7 +399,7 @@ struct AdsAdSetsScreen: View {
                             .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
                         VStack(alignment: .leading, spacing: 2) {
                             Text(r.ad.name).lineLimit(2)
-                            Text(r.place).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                            Text(r.place).font(.house(.caption)).foregroundStyle(.secondary).lineLimit(1)
                         }
                     }
                 }
@@ -413,7 +413,7 @@ struct AdsAdSetsScreen: View {
                             .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
                         VStack(alignment: .leading, spacing: pt(2)) {
                             Text(r.ad.name).foregroundStyle(.primary).lineLimit(2)
-                            Text(r.place).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                            Text(r.place).font(.house(.caption)).foregroundStyle(.secondary).lineLimit(1)
                         }
                         Spacer(minLength: 8)
                         Image(systemName: on ? "checkmark.circle.fill" : "circle").foregroundStyle(on ? Theme.accent : Color.secondary)
@@ -468,10 +468,10 @@ struct AdsAdSetsScreen: View {
             Group {
                 Section {
                     VStack(spacing: pt(10)) {
-                        Image(systemName: "checkmark.circle.fill").font(.largeTitle).foregroundStyle(Tone.settled.color)
-                        Text("\(m.adsets.count) ad set\(m.adsets.count == 1 ? "" : "s") made\(m.live ? "" : ", paused")").font(.headline)
+                        Image(systemName: "checkmark.circle.fill").font(.house(.largeTitle)).foregroundStyle(Tone.settled.color)
+                        Text("\(m.adsets.count) ad set\(m.adsets.count == 1 ? "" : "s") made\(m.live ? "" : ", paused")").font(.house(.headline))
                         ForEach(m.warnings, id: \.self) { (w: String) in
-                            Text(w).font(.footnote).foregroundStyle(Tone.owed.color)
+                            Text(w).font(.house(.footnote)).foregroundStyle(Tone.owed.color)
                         }
                     }
                     .frame(maxWidth: .infinity)
@@ -631,7 +631,7 @@ private struct AdsSetCard: View {
                 HStack(spacing: pt(10)) {
                     VStack(alignment: .leading, spacing: pt(4)) {
                         Text("Who sees it").foregroundStyle(.primary)
-                        Text(draft.audience.words).font(.subheadline).foregroundStyle(.secondary)
+                        Text(draft.audience.words).font(.house(.subheadline)).foregroundStyle(.secondary)
                     }
                     Spacer(minLength: 8)
                     Image(systemName: "chevron.right").foregroundStyle(.tertiary)

@@ -40,7 +40,7 @@ struct MacInvoiceInspector: View {
 struct MacInvoiceHead: View {
     let invoice: Invoice
     let cx: MacInvoiceContext
-    var customerTitleFont: Font = .system(.title3, design: .serif).weight(.semibold)
+    var customerTitleFont: Font = .house(.title3).weight(.semibold)
     /// Call and Message beside the rest: a window has the width, the inspector at its narrowest does not.
     var withContact = false
 
@@ -54,7 +54,7 @@ struct MacInvoiceHead: View {
                     Text(InvoiceFacts.customerName(invoice, walkIn: "Walk-in"))
                         .font(customerTitleFont).lineLimit(2).textSelection(.enabled)
                     Text(MacInvoiceWords.subtitle(invoice, withTaker: false))
-                        .font(.callout).foregroundStyle(.secondary).lineLimit(2).textSelection(.enabled)
+                        .font(.house(.callout)).foregroundStyle(.secondary).lineLimit(2).textSelection(.enabled)
                     // A web order's WhatsApp: confirmed, cancel asked, awaiting the transfer (the iPhone's invoice pill;
                     // the list row only says it in words).
                     InvoiceWhatsAppPill(invoice: invoice).padding(.top, 2)
@@ -81,18 +81,18 @@ struct MacInvoiceHead: View {
             VStack(alignment: .leading, spacing: 4) {
                 switch line.state {
                 case .due:
-                    Text("Due").font(.callout).foregroundStyle(.secondary)
+                    Text("Due").font(.house(.callout)).foregroundStyle(.secondary)
                     HeroAmount(amount: line.amount, tone: InvoiceFacts.balanceTone(invoice).color)
                 case .credit:
-                    Text("In credit").font(.callout).foregroundStyle(.secondary)
+                    Text("In credit").font(.house(.callout)).foregroundStyle(.secondary)
                     HeroAmount(amount: line.amount, tone: Tone.credit.color)
                 case .paid:
                     Text("Paid in full")
-                        .font(.system(.title, design: .serif).weight(.semibold))
+                        .font(.house(.title).weight(.semibold))
                         .lineLimit(1)
                 }
                 Text("Total \(Money.pkr(invoice.grandTotal)) \u{00B7} Paid \(Money.pkr(invoice.amountPaid))")
-                    .font(.callout).foregroundStyle(.secondary).monospacedDigit().lineLimit(1).minimumScaleFactor(0.8)
+                    .font(.house(.callout)).foregroundStyle(.secondary).monospacedDigit().lineLimit(1).minimumScaleFactor(0.8)
             }
         }
     }
@@ -155,7 +155,7 @@ private struct MacInvoiceInspectorBody: View {
     private var piecesSection: some View {
         MacInspectorCard(title: "Pieces", count: invoice.items.count) {
             if invoice.items.isEmpty {
-                Text("No pieces on this invoice.").font(.callout).foregroundStyle(.secondary)
+                Text("No pieces on this invoice.").font(.house(.callout)).foregroundStyle(.secondary)
             }
             ForEach(Array(invoice.items.enumerated()), id: \.offset) { pair in
                 pieceRow(pair.element)
@@ -175,7 +175,7 @@ private struct MacInvoiceInspectorBody: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(MacInvoiceWords.pieceTitle(item)).lineLimit(2)
                 if !facts.isEmpty {
-                    Text(facts).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                    Text(facts).font(.house(.caption)).foregroundStyle(.secondary).lineLimit(2)
                 }
             }
             Spacer(minLength: 8)
@@ -206,7 +206,7 @@ private struct MacInvoiceInspectorBody: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(MacInvoiceWords.paymentTitle(p))
                 Text([ShopDate.say(p.date, withTime: true), note].filter { !$0.isEmpty }.joined(separator: " · "))
-                    .font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                    .font(.house(.caption)).foregroundStyle(.secondary).lineLimit(2)
             }
             Spacer(minLength: 8)
             Text(p.amount < 0 ? Money.minus(p.amount) : Money.pkr(p.amount))
@@ -221,7 +221,7 @@ private struct MacInvoiceInspectorBody: View {
         let line = balanceLine(invoice.balanceDue)
         let who = InvoiceFacts.customerName(invoice, walkIn: "the customer")
         Label("\(line.label), on \(who)'s hisaab", systemImage: "arrow.uturn.left.circle.fill")
-            .font(.callout)
+            .font(.house(.callout))
             .foregroundStyle(Tone.credit.color)
         if cx.isOwner && held >= 1 {
             Button("Give Back \(Money.pkr(held))…") {

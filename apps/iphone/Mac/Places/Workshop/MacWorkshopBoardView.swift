@@ -123,7 +123,7 @@ struct MacWorkshopBoardView: View {
             VStack(alignment: .leading, spacing: 2) {
                 LedgerHeading(title: col.title, count: col.kind == .free ? col.free.count : col.jobs.count)
                 if !col.subtitle.isEmpty {
-                    Text(col.subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                    Text(col.subtitle).font(.house(.caption)).foregroundStyle(.secondary).lineLimit(2)
                 }
                 if col.critical > 0 || col.late > 0 {
                     HStack(spacing: 4) {
@@ -173,11 +173,11 @@ struct MacWorkshopBoardView: View {
         if col.kind == .free {
             ForEach(col.free) { (k: Karigar) in freeRow(k) }
             if col.free.isEmpty {
-                Text("Everyone has work").font(.callout).foregroundStyle(.secondary).padding(.top, 6)
+                Text("Everyone has work").font(.house(.callout)).foregroundStyle(.secondary).padding(.top, 6)
             }
         } else if col.jobs.isEmpty {
             Text(col.kind == .done ? "Drop a piece here to mark it done" : "Nothing here")
-                .font(.callout).foregroundStyle(.secondary).padding(.top, 6)
+                .font(.house(.callout)).foregroundStyle(.secondary).padding(.top, 6)
         } else {
             ForEach(col.jobs) { (job: WorkshopJob) in jobRow(job) }
         }
@@ -190,26 +190,26 @@ struct MacWorkshopBoardView: View {
         let isPicked = picked.contains(job.id)
         return VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(job.description).font(.body.weight(.semibold)).lineLimit(2)
+                Text(job.description).font(.house(.body).weight(.semibold)).lineLimit(2)
                 Spacer(minLength: 4)
                 WorkshopAgeBadge(job: job)
                 if !job.isDone && job.urgency == .ok {
-                    Text("\(job.ageDays)d").font(.caption).monospacedDigit().foregroundStyle(.secondary)
+                    Text("\(job.ageDays)d").font(.house(.caption)).monospacedDigit().foregroundStyle(.secondary)
                 }
             }
-            Text(reference(job)).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+            Text(reference(job)).font(.house(.callout)).foregroundStyle(.secondary).lineLimit(1)
             HStack(spacing: 8) {
                 Label(stageWords(job), systemImage: stageSymbol(job))
-                    .font(.caption.weight(.semibold))
+                    .font(.house(.caption).weight(.semibold))
                     .foregroundStyle(stageTone(job))
                     .lineLimit(1)
                 if job.isOnline {
-                    Image(systemName: "bag").font(.caption).foregroundStyle(.secondary).help("Online sale")
+                    Image(systemName: "bag").font(.house(.caption)).foregroundStyle(.secondary).help("Online sale")
                 }
                 Spacer(minLength: 0)
                 if (job.weightG ?? 0) > 0 {
                     Text(WorkshopLogic.number(job.weightG ?? 0, digits: 1) + "g")
-                        .font(.caption).monospacedDigit().foregroundStyle(.secondary)
+                        .font(.house(.caption)).monospacedDigit().foregroundStyle(.secondary)
                 }
             }
         }
@@ -267,7 +267,7 @@ struct MacWorkshopBoardView: View {
         let key = "free:" + k.id
         return HStack(spacing: 8) {
             Monogram(name: k.name, size: Monogram.Size.row)
-            Text(k.name).font(.body)
+            Text(k.name).font(.house(.body))
             Spacer(minLength: 0)
         }
             .padding(8)

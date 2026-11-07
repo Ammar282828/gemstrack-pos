@@ -52,7 +52,7 @@ struct MacNewOrderCustomerSection: View {
             )
             if let match = numberMatch {
                 Label("This number is \(match.name)'s: the order goes to them.", systemImage: "person.crop.circle.badge.checkmark")
-                    .font(.callout)
+                    .font(.house(.callout))
                     .foregroundStyle(.secondary)
             }
             Picker("How they found us", selection: $draft.source) {

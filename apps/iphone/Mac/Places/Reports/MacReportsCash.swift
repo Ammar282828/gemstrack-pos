@@ -175,9 +175,9 @@ struct MacReportsCashPage: View {
                         Monogram(name: r.source == "Extra revenue" ? "" : r.who, size: Monogram.Size.row)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(r.source == "Extra revenue" || r.who.isEmpty ? r.ref : "\(r.ref) \u{00B7} \(r.who)")
-                                .font(.body).lineLimit(1)
+                                .font(.house(.body)).lineLimit(1)
                             Text("\(r.source) \u{00B7} \(r.method) \u{00B7} \(r.time)")
-                                .font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                                .font(.house(.callout)).foregroundStyle(.secondary).lineLimit(1)
                         }
                         Spacer(minLength: 8)
                         RowAmount(amount: r.amount)
@@ -207,7 +207,7 @@ struct MacReportsCashPage: View {
                     ForEach(Array(rows.enumerated()), id: \.element.id) { (i: Int, r: MacReportsMethodRow) in
                         if i > 0 { Divider() }
                         HStack {
-                            Text(r.method).font(.body)
+                            Text(r.method).font(.house(.body))
                             Spacer(minLength: 8)
                             RowAmount(amount: r.amount)
                         }
@@ -244,8 +244,8 @@ struct MacReportsCashPage: View {
                         if i > 0 { Divider() }
                         HStack(spacing: 12) {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(r.what).font(.body).lineLimit(1)
-                                Text(r.category).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                                Text(r.what).font(.house(.body)).lineLimit(1)
+                                Text(r.category).font(.house(.callout)).foregroundStyle(.secondary).lineLimit(1)
                             }
                             Spacer(minLength: 8)
                             RowAmount(amount: r.amount)
@@ -255,7 +255,7 @@ struct MacReportsCashPage: View {
                 }
             }
             Text("Expenses carry no method, so every one the business paid counts as leaving the drawer; one a partner paid out of pocket does not.")
-                .font(.caption)
+                .font(.house(.caption))
                 .foregroundStyle(.secondary)
         }
     }

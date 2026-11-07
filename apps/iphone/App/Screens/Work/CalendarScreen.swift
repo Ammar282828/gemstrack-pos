@@ -169,7 +169,7 @@ struct CalendarScreen: View {
             Label("Promised", systemImage: "calendar.badge.clock").foregroundStyle(Tone.owed.color)
         }
         .labelStyle(LegendLabel())
-        .font(.caption)
+        .font(.house(.caption))
     }
 
     // MARK: The month
@@ -184,7 +184,7 @@ struct CalendarScreen: View {
                     .buttonStyle(.borderless)
                     .accessibilityLabel("Previous month")
                 Spacer()
-                Text(ShopCalendar.title(year: year, month: month)).font(.headline)
+                Text(ShopCalendar.title(year: year, month: month)).font(.house(.headline))
                     .contentTransition(.numericText())
                 Spacer()
                 Button { step(1) } label: { Image(systemName: "chevron.right").frame(width: Metrics.tap, height: Metrics.tap) }
@@ -193,7 +193,7 @@ struct CalendarScreen: View {
             }
             LazyVGrid(columns: columns, spacing: pt(4)) {
                 ForEach(["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"], id: \.self) { (name: String) in
-                    Text(name).font(.caption2).foregroundStyle(.secondary)
+                    Text(name).font(.house(.caption2)).foregroundStyle(.secondary)
                 }
                 // A day is its own number; a blank before the 1st is told by its place, which never changes for a month.
                 ForEach(cells.enumerated().map { (e: EnumeratedSequence<[Int?]>.Element) in CalendarCell(id: e.element.map { "d\($0)" } ?? "b\(e.offset)", day: e.element) }) { (cell: CalendarCell) in
@@ -223,17 +223,17 @@ struct CalendarScreen: View {
         return Button { Motion.run(reduce: reduceMotion) { selected = key } } label: {
             VStack(spacing: pt(1)) {
                 Text("\(day)")
-                    .font(.caption.weight(isToday ? .bold : .medium))
+                    .font(.house(.caption).weight(isToday ? .bold : .medium))
                     .foregroundStyle(isToday ? Theme.accent : Color.primary)
                 // The money taken that day, in a few characters; a day with nothing sold shows none.
                 if session.seesMoney, let data, data.total > 0 {
                     Text(ShopCalendar.dayMoney(data.total))
-                        .font(.caption2.weight(.semibold))
+                        .font(.house(.caption2).weight(.semibold))
                         .monospacedDigit()
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)
                 } else {
-                    Text(" ").font(.caption2)
+                    Text(" ").font(.house(.caption2))
                 }
                 HStack(spacing: pt(3)) {
                     if let data, data.invoices > 0 { count(data.invoices, color: Tone.settled.color) }
@@ -243,7 +243,7 @@ struct CalendarScreen: View {
                             Image(systemName: "calendar.badge.clock")
                             Text("\(due)")
                         }
-                        .font(.caption2)
+                        .font(.house(.caption2))
                         .foregroundStyle(Tone.owed.color)
                     }
                 }
@@ -263,7 +263,7 @@ struct CalendarScreen: View {
     private func count(_ n: Int, color: Color) -> some View {
         HStack(spacing: pt(2)) {
             Circle().fill(color).frame(width: 5, height: 5)
-            Text("\(n)").font(.caption2).foregroundStyle(color)
+            Text("\(n)").font(.house(.caption2)).foregroundStyle(color)
         }
     }
 
@@ -303,10 +303,10 @@ struct CalendarScreen: View {
                     .foregroundStyle(e.isInvoice ? Tone.settled.color : Tone.working.color)
                     .frame(width: 24)
                 VStack(alignment: .leading, spacing: pt(2)) {
-                    Text(e.docId).font(.subheadline.monospaced().weight(.semibold)).lineLimit(1)
+                    Text(e.docId).font(.house(.subheadline).monospaced().weight(.semibold)).lineLimit(1)
                     Text(e.customerName.isEmpty ? "Walk-in" : e.customerName)
-                        .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
-                    Text(ShopCalendar.clock(iso: e.createdAt)).font(.caption).foregroundStyle(.secondary)
+                        .font(.house(.subheadline)).foregroundStyle(.secondary).lineLimit(1)
+                    Text(ShopCalendar.clock(iso: e.createdAt)).font(.house(.caption)).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 8)
                 if session.seesMoney { RowAmount(amount: e.grandTotal) }
@@ -332,9 +332,9 @@ struct CalendarScreen: View {
                         HStack(alignment: .top, spacing: pt(12)) {
                             Image(systemName: "calendar.badge.clock").foregroundStyle(Tone.owed.color).frame(width: 24)
                             VStack(alignment: .leading, spacing: pt(2)) {
-                                Text(o.id).font(.subheadline.monospaced().weight(.semibold)).lineLimit(1)
+                                Text(o.id).font(.house(.subheadline).monospaced().weight(.semibold)).lineLimit(1)
                                 Text((o.customerName ?? "").isEmpty ? "Walk-in" : (o.customerName ?? ""))
-                                    .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                                    .font(.house(.subheadline)).foregroundStyle(.secondary).lineLimit(1)
                             }
                             Spacer(minLength: 8)
                             // Completed is the expected end: no badge (rule 15).
@@ -405,7 +405,7 @@ extension CalendarScreen {
                         .keyboardShortcut(.leftArrow, modifiers: .command)
                         .help("Previous month (⌘←)")
                     Text(ShopCalendar.title(year: year, month: month))
-                        .font(.headline).frame(minWidth: 150)
+                        .font(.house(.headline)).frame(minWidth: 150)
                         .contentTransition(.numericText())
                     Button { step(1) } label: { Image(systemName: "chevron.right") }
                         .keyboardShortcut(.rightArrow, modifiers: .command)
@@ -457,7 +457,7 @@ extension CalendarScreen {
         return VStack(spacing: 6) {
             HStack(spacing: 6) {
                 ForEach(names, id: \.self) { (name: String) in
-                    Text(name).font(.caption.weight(.medium)).foregroundStyle(.secondary)
+                    Text(name).font(.house(.caption).weight(.medium)).foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity)
                 }
             }
@@ -493,7 +493,7 @@ extension CalendarScreen {
             VStack(alignment: .leading, spacing: 3) {
                 HStack {
                     Text("\(day)")
-                        .font(.callout.weight(isToday ? .bold : .medium))
+                        .font(.house(.callout).weight(isToday ? .bold : .medium))
                         .foregroundStyle(isToday ? Theme.accent : Color.primary)
                     Spacer(minLength: 0)
                     if due > 0 {
@@ -501,13 +501,13 @@ extension CalendarScreen {
                             Image(systemName: "calendar.badge.clock")
                             Text("\(due)")
                         }
-                        .font(.caption2)
+                        .font(.house(.caption2))
                         .foregroundStyle(Tone.owed.color)
                     }
                 }
                 if session.seesMoney, let data, data.total > 0 {
                     Text(ShopCalendar.dayMoney(data.total))
-                        .font(.caption.weight(.semibold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
+                        .font(.house(.caption).weight(.semibold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
                 }
                 Spacer(minLength: 0)
                 HStack(spacing: 6) {

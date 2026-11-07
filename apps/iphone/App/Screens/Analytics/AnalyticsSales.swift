@@ -77,7 +77,7 @@ struct AnaSalesPage: View {
                     Button { pick("year-\(y.year)") } label: {
                         HStack(spacing: pt(8)) {
                             yearRow(y)
-                            Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+                            Image(systemName: "chevron.right").font(.house(.footnote).weight(.semibold)).foregroundStyle(.tertiary)
                                 .accessibilityHidden(true)
                         }
                     }
@@ -107,11 +107,11 @@ struct AnaSalesPage: View {
     private func yearRow(_ y: AnaYear) -> some View {
         VStack(alignment: .leading, spacing: pt(3)) {
             AdaptiveStack(spacing: pt(8)) {
-                Text(String(y.year)).font(.headline)
+                Text(String(y.year)).font(.house(.headline))
                 Spacer(minLength: 8)
                 RowAmount(amount: y.revenue, lac: true)
             }
-            Text(yearDetail(y)).font(.caption).foregroundStyle(.secondary)
+            Text(yearDetail(y)).font(.house(.caption)).foregroundStyle(.secondary)
             if showCosts {
                 AdaptiveStack(spacing: pt(6)) {
                     Text("Net profit \(Money.lacCrore(y.netProfit))")
@@ -119,7 +119,7 @@ struct AnaSalesPage: View {
                     Text(y.revenue > 0 ? "\(AnaFormat.fixed(y.netProfit / y.revenue * 100, 1))% margin" : "—")
                         .foregroundStyle(.secondary)
                 }
-                .font(.caption)
+                .font(.house(.caption))
                 .monospacedDigit()
             }
         }
@@ -149,7 +149,7 @@ struct AnaSalesPage: View {
                     Button { day = d } label: {
                         HStack(spacing: pt(8)) {
                             dayRow(d)
-                            Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+                            Image(systemName: "chevron.right").font(.house(.footnote).weight(.semibold)).foregroundStyle(.tertiary)
                                 .accessibilityHidden(true)
                         }
                     }

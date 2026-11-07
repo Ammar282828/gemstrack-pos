@@ -43,16 +43,16 @@ struct NoteBanner: View {
             Image(systemName: note.failed ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
                 .foregroundStyle(note.failed ? Tone.problem.color : Tone.settled.color)
             VStack(alignment: .leading, spacing: 1) {
-                Text(note.title).font(.subheadline.weight(.semibold))
+                Text(note.title).font(.house(.subheadline).weight(.semibold))
                 if !note.detail.isEmpty {
-                    Text(note.detail).font(.caption).foregroundStyle(.secondary)
+                    Text(note.detail).font(.house(.caption)).foregroundStyle(.secondary)
                 }
             }
             Spacer(minLength: 0)
             if note.undo != nil, let onUndo {
                 Button("Undo", action: onUndo)
                     .buttonStyle(HoldingButtonStyle(onHold: onHold))
-                    .font(.subheadline.weight(.semibold))
+                    .font(.house(.subheadline).weight(.semibold))
                     .foregroundStyle(Theme.accent)
                     .frame(minWidth: Metrics.tap, minHeight: Metrics.tap)
                     .contentShape(Rectangle())

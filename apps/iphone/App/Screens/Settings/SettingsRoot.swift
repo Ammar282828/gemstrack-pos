@@ -101,16 +101,16 @@ struct SettingsRoot: View {
             ZStack {
                 Circle().fill(Theme.accent)
                 Text(String(name.prefix(1)).uppercased())
-                    .font(.title2.weight(.semibold))
+                    .font(.house(.title2).weight(.semibold))
                     .foregroundStyle(Theme.onAccent)
             }
             .frame(width: 56, height: 56)
             VStack(alignment: .leading, spacing: pt(2)) {
-                Text(name).font(.headline).lineLimit(1)
+                Text(name).font(.house(.headline)).lineLimit(1)
                 if session.shop.person != nil, !email.isEmpty {
-                    Text(email).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                    Text(email).font(.house(.subheadline)).foregroundStyle(.secondary).lineLimit(1)
                 }
-                Text("Owner · \(session.shop.name)").font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                Text("Owner · \(session.shop.name)").font(.house(.subheadline)).foregroundStyle(.secondary).lineLimit(1)
             }
         }
         .padding(.vertical, pt(4))

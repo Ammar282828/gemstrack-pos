@@ -102,8 +102,8 @@ struct StockPieceTagSheet: View {
                 } else {
                     StockInitial(name: product.name)
                 }
-                if !product.name.isEmpty { Text(product.name).font(.headline) }
-                Text(product.sku).font(.subheadline.monospaced()).foregroundStyle(.secondary)
+                if !product.name.isEmpty { Text(product.name).font(.house(.headline)) }
+                Text(product.sku).font(.house(.subheadline).monospaced()).foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, pt(6))

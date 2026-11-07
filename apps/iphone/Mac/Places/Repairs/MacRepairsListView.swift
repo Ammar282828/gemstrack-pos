@@ -148,7 +148,7 @@ struct MacRepairsListView<RowMenu: View>: View {
             HStack(alignment: .top, spacing: 6) {
                 if g.folds && !searching {
                     Image(systemName: isOpen(g) ? "chevron.down" : "chevron.right")
-                        .font(.caption.weight(.semibold)).foregroundStyle(.secondary).frame(width: 12).padding(.top, 3)
+                        .font(.house(.caption).weight(.semibold)).foregroundStyle(.secondary).frame(width: 12).padding(.top, 3)
                 }
                 LedgerHeading(title: g.title, count: g.rows.count, trailing: g.owed >= 1 ? Money.pkrLac(g.owed, digits: 1) + " owed" : nil)
             }
@@ -172,11 +172,11 @@ struct MacRepairsRowView: View {
             Monogram(name: row.customer, size: Monogram.Size.row)
             VStack(alignment: .leading, spacing: 2) {
                 Text(row.summary)
-                    .font(.body)
+                    .font(.house(.body))
                     .foregroundStyle(greyed ? Color.secondary : Color.primary)
                     .lineLimit(1)
                 Text(secondLine)
-                    .font(.callout)
+                    .font(.house(.callout))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
@@ -203,7 +203,7 @@ struct MacRepairsRowView: View {
             }
             if row.status == .received && !row.readyBy.isEmpty {
                 Text("Ready by " + row.readyBy)
-                    .font(.caption.weight(row.readyByTone == .quiet ? .regular : .semibold))
+                    .font(.house(.caption).weight(row.readyByTone == .quiet ? .regular : .semibold))
                     .foregroundStyle(row.readyByTone == .quiet ? Color.secondary : row.readyByTone.color)
                     .lineLimit(1)
             }
@@ -217,7 +217,7 @@ struct MacRepairsRowView: View {
             if row.owed >= 1 {
                 VStack(alignment: .trailing, spacing: 1) {
                     RowAmount(amount: row.owed, tone: Tone.owed.color)
-                    Text("Owed").font(.caption2).foregroundStyle(.secondary)
+                    Text("Owed").font(.house(.caption2)).foregroundStyle(.secondary)
                 }
             } else {
                 Color.clear.frame(width: 1, height: 1)

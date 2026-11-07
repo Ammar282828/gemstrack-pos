@@ -117,9 +117,9 @@ struct AbCashPage: View {
                 }
                 HStack {
                     Text(list.count > shown.count ? "Largest " + String(shown.count) + " of " + String(list.count) + " unpaid" : String(list.count) + " unpaid")
-                        .font(.footnote).foregroundStyle(.secondary)
+                        .font(.house(.footnote)).foregroundStyle(.secondary)
                     Spacer()
-                    Text("Total owed " + Money.pkrLac(b.receivablesTotal)).font(.footnote.weight(.semibold)).monospacedDigit()
+                    Text("Total owed " + Money.pkrLac(b.receivablesTotal)).font(.house(.footnote).weight(.semibold)).monospacedDigit()
                 }
                 .padding(.top, pt(8))
             }

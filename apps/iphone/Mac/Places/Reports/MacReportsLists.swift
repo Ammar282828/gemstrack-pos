@@ -19,7 +19,7 @@ private struct MacReportsNote: View {
     let text: String
     var body: some View {
         Text(text)
-            .font(.caption)
+            .font(.house(.caption))
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 16)

@@ -108,7 +108,7 @@ struct NewOrderSizeField: View {
                         Button(option) { value = option }
                     }
                 } label: {
-                    Image(systemName: "chevron.up.chevron.down").font(.footnote)
+                    Image(systemName: "chevron.up.chevron.down").font(.house(.footnote))
                 }
             }
         }

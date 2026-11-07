@@ -46,7 +46,7 @@ struct OrderNotifySheet: View {
                 }
                 Section {
                     Text(text)
-                        .font(.subheadline)
+                        .font(.house(.subheadline))
                         .textSelection(.enabled)
                 } header: {
                     LedgerHeading(title: "The message")

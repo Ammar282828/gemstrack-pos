@@ -69,7 +69,7 @@ struct PhoneSettings: View {
                         Toggle(isOn: binding(k.id)) {
                             VStack(alignment: .leading, spacing: pt(2)) {
                                 Text(k.title)
-                                Text(k.detail).font(.caption).foregroundStyle(.secondary)
+                                Text(k.detail).font(.house(.caption)).foregroundStyle(.secondary)
                             }
                         }
                         .disabled(saving)
@@ -85,11 +85,11 @@ struct PhoneSettings: View {
                                 testing = false
                             }
                         }.disabled(testing || saving)
-                        if let testResult { Text(testResult).font(.caption).foregroundStyle(.secondary) }
+                        if let testResult { Text(testResult).font(.house(.caption)).foregroundStyle(.secondary) }
                     }
                 }
-                if let providerStatus { Text(providerStatus).font(.caption).foregroundStyle(.secondary) }
-                if let problem = Push.shared.registrationError { Text(problem).font(.caption).foregroundStyle(Tone.problem.color) }
+                if let providerStatus { Text(providerStatus).font(.house(.caption)).foregroundStyle(.secondary) }
+                if let problem = Push.shared.registrationError { Text(problem).font(.house(.caption)).foregroundStyle(Tone.problem.color) }
             } header: {
                 LedgerHeading(title: "Notifications on this phone")
             } footer: {
@@ -148,7 +148,7 @@ struct PhoneSettings: View {
                 .disabled(linking)
                 if linkFailed {
                     Text("Couldn't reach the ERP to link the widget. The widget keeps its current link.")
-                        .font(.footnote).foregroundStyle(.secondary)
+                        .font(.house(.footnote)).foregroundStyle(.secondary)
                 }
             } footer: {
                 Text("Add it from the home screen: touch and hold, then Edit, Add Widget, ERP. Touch and hold the widget, then Edit Widget, to choose the business it shows. \(House.storeName) is linked when you sign in to it.")
@@ -197,7 +197,7 @@ struct PhoneSettings: View {
             BusinessBadge(business: b, size: 30)
             VStack(alignment: .leading, spacing: pt(1)) {
                 Text(b.displayName).lineLimit(1)
-                if b.id == House.id { Text("Open now").font(.caption).foregroundStyle(.secondary) }
+                if b.id == House.id { Text("Open now").font(.house(.caption)).foregroundStyle(.secondary) }
             }
             Spacer(minLength: 8)
             // Linked is the normal state and says nothing (rule 15); only what is not linked gets a word.
@@ -306,7 +306,7 @@ extension PhoneSettings {
                             Toggle(isOn: binding(k.id)) {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(k.title)
-                                    Text(k.detail).font(.caption).foregroundStyle(.secondary)
+                                    Text(k.detail).font(.house(.caption)).foregroundStyle(.secondary)
                                 }
                             }
                             .disabled(saving)
@@ -323,12 +323,12 @@ extension PhoneSettings {
                                 }
                             }
                             .disabled(testing || saving)
-                            if let testResult { Text(testResult).font(.caption).foregroundStyle(.secondary) }
+                            if let testResult { Text(testResult).font(.house(.caption)).foregroundStyle(.secondary) }
                         }
                     }
                 }
-                if let providerStatus { Text(providerStatus).font(.caption).foregroundStyle(.secondary) }
-                if let problem = Push.shared.registrationError { Text(problem).font(.caption).foregroundStyle(Tone.problem.color) }
+                if let providerStatus { Text(providerStatus).font(.house(.caption)).foregroundStyle(.secondary) }
+                if let problem = Push.shared.registrationError { Text(problem).font(.house(.caption)).foregroundStyle(Tone.problem.color) }
             } header: {
                 Text("Notifications on this Mac")
             } footer: {

@@ -250,7 +250,7 @@ struct DescribeSuggestions: View {
                 Button { showAll = true } label: { Label("View all descriptions", systemImage: "list.bullet") }
                 Button { addCombo = true } label: { Label("Add stone combo", systemImage: "plus") }
             } label: {
-                Image(systemName: "ellipsis.circle").font(.title3).frame(width: 44, height: 44)
+                Image(systemName: "ellipsis.circle").font(.house(.title3)).frame(width: 44, height: 44)
             }
             .accessibilityLabel("More descriptions")
         }
@@ -351,7 +351,7 @@ struct DescribeHistorySheet: View {
                         Button { choose(e.text) } label: {
                             VStack(alignment: .leading, spacing: pt(2)) {
                                 Text(e.text).foregroundStyle(.primary)
-                                Text(line(e)).font(.caption).foregroundStyle(.secondary)
+                                Text(line(e)).font(.house(.caption)).foregroundStyle(.secondary)
                             }
                         }
                     }
@@ -488,7 +488,7 @@ struct WastageChips: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: pt(6)) {
-            Text("Wastage").font(.caption).foregroundStyle(.secondary)
+            Text("Wastage").font(.house(.caption)).foregroundStyle(.secondary)
             Picker("Wastage", selection: selection) {
                 ForEach(Self.presets, id: \.self) { p in Text("\(p)%").tag(String(p)) }
                 Text("Other").tag("other")

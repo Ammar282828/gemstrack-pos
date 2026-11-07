@@ -197,7 +197,7 @@ struct AdsRulesScreen: View {
                     HStack(alignment: .top, spacing: pt(10)) {
                         VStack(alignment: .leading, spacing: pt(2)) {
                             Text(k.label).foregroundStyle(.primary)
-                            Text(k.hint).font(.caption).foregroundStyle(.secondary)
+                            Text(k.hint).font(.house(.caption)).foregroundStyle(.secondary)
                         }
                         Spacer(minLength: 8)
                         if k.key == kind { Image(systemName: "checkmark").foregroundStyle(Theme.accent) }
@@ -240,7 +240,7 @@ struct AdsRulesScreen: View {
                     HStack(spacing: pt(10)) {
                         VStack(alignment: .leading, spacing: pt(2)) {
                             Text(r.name)
-                            Text(r.summary).font(.caption).foregroundStyle(.secondary)
+                            Text(r.summary).font(.house(.caption)).foregroundStyle(.secondary)
                         }
                         Spacer(minLength: 8)
                         if busy == r.id {
@@ -285,9 +285,9 @@ struct AdsRulesScreen: View {
                 }
                 ForEach(data.log) { (r: AdsLogRow) in
                     VStack(alignment: .leading, spacing: pt(2)) {
-                        Text(r.words(currency)).font(.subheadline.weight(.medium))
+                        Text(r.words(currency)).font(.house(.subheadline).weight(.medium))
                         Text([ShopDate.say(r.at, withTime: true), r.name ?? r.target ?? "", r.by].filter { (s: String) in !s.isEmpty }.joined(separator: " · "))
-                            .font(.caption)
+                            .font(.house(.caption))
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -423,7 +423,7 @@ extension AdsRulesScreen {
                                    actions: [actions[0][0], actions[1][0]])
                 Text(r.summary).foregroundStyle(.secondary)
                 Text("Meta checks it itself around the clock on every ad set in the account, even with the ERP closed. A rule costs nothing itself.")
-                    .font(.callout)
+                    .font(.house(.callout))
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 0)
             }
@@ -445,7 +445,7 @@ extension AdsRulesScreen {
                         ForEach(data?.kinds ?? []) { (k: AdsHinted) in Text(k.label).tag(k.key) }
                     }
                     .pickerStyle(.menu)
-                    if let hint = chosen?.hint { Text(hint).font(.caption).foregroundStyle(.secondary) }
+                    if let hint = chosen?.hint { Text(hint).font(.house(.caption)).foregroundStyle(.secondary) }
                     LabeledContent(chosen?.needs == "cost" ? "Per result (\(currency))" : "Today (\(currency))") {
                         TextField("Amount", text: $amount)
                             .multilineTextAlignment(.trailing)

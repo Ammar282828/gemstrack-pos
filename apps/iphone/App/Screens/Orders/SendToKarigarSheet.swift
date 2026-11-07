@@ -77,20 +77,20 @@ struct SendToKarigarSheet: View {
                             VStack(alignment: .leading, spacing: pt(2)) {
                                 Text("\(i + 1). " + pieceTitle(order.items[i]))
                                 if order.items[i].karigarId == chosen && !chosen.isEmpty {
-                                    Text("Assigned to him").font(.caption).foregroundStyle(.secondary)
+                                    Text("Assigned to him").font(.house(.caption)).foregroundStyle(.secondary)
                                 }
                             }
                         }
                         if ticked.contains(i) {
                             VStack(alignment: .leading, spacing: pt(4)) {
                                 TextEditor(text: Binding(get: { words(i) }, set: { edits[i] = $0 }))
-                                    .font(.subheadline)
+                                    .font(.house(.subheadline))
                                     .frame(minHeight: 96)
                                     .scrollContentBackground(.hidden)
                                     .accessibilityLabel("Message for piece \(i + 1)")
                                 if edits[i] != nil {
                                     Button("Reset") { edits[i] = nil }
-                                        .font(.caption)
+                                        .font(.house(.caption))
                                 }
                             }
                         }

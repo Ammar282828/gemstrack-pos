@@ -42,7 +42,7 @@ struct RevenueEditSheet: View {
                 LedgerSection("How much") {
                     TextField("Amount in rupees", text: $amountText.wholeRupees)
                         .keyboardType(.numberPad)
-                        .font(.title2.weight(.semibold))
+                        .font(.house(.title2).weight(.semibold))
                         .monospacedDigit()
                     if amount > 0 { Text(Money.pkrLac(amount)).monospacedDigit().foregroundStyle(.secondary) }
                 }
