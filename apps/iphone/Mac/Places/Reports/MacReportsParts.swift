@@ -88,7 +88,7 @@ struct MacReportsGrid: View {
             GridRow {
                 ForEach(Array(headers.enumerated()), id: \.offset) { (i: Int, h: String) in
                     cell(h, column: i)
-                        .font(.caption)
+                        .font(.house(.caption))
                         .foregroundStyle(.secondary)
                 }
             }
@@ -157,10 +157,10 @@ struct MacReportsHeader: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(title).font(.headline)
+            Text(title).font(.house(.headline))
             Spacer(minLength: 8)
             if let detail, !detail.isEmpty {
-                Text(detail).font(.callout).foregroundStyle(.secondary).monospacedDigit()
+                Text(detail).font(.house(.callout)).foregroundStyle(.secondary).monospacedDigit()
             }
         }
         .padding(.horizontal, 16)

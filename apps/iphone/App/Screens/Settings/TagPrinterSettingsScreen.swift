@@ -335,7 +335,7 @@ struct TagPrinterSettingsScreen: View {
                 }
                 if canEdit {
                     Button("Printer's own") { edit { $0[keyPath: key] = nil } }
-                        .buttonStyle(.borderless).font(.footnote)
+                        .buttonStyle(.borderless).font(.house(.footnote))
                 }
             }
         } else {
@@ -388,7 +388,7 @@ extension TagPrinterSettingsScreen {
                     if canEdit {
                         Button("Printer\u{2019}s Own") { edit { $0[keyPath: key] = nil } }
                             .buttonStyle(.borderless)
-                            .font(.footnote)
+                            .font(.house(.footnote))
                             .help("Leave this option to the printer")
                     }
                 }

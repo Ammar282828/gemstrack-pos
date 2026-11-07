@@ -206,7 +206,7 @@ struct AdsAudiencesScreen: View {
                         HStack(alignment: .top, spacing: pt(10)) {
                             VStack(alignment: .leading, spacing: pt(2)) {
                                 Text(seg.label).foregroundStyle(.primary)
-                                Text(seg.hint).font(.caption).foregroundStyle(.secondary)
+                                Text(seg.hint).font(.house(.caption)).foregroundStyle(.secondary)
                             }
                             Spacer(minLength: 8)
                             if seg.key == segment { Image(systemName: "checkmark").foregroundStyle(Theme.accent) }
@@ -258,7 +258,7 @@ struct AdsAudiencesScreen: View {
                         HStack(alignment: .top, spacing: pt(10)) {
                             VStack(alignment: .leading, spacing: pt(2)) {
                                 Text(e.label).foregroundStyle(.primary)
-                                Text(e.hint).font(.caption).foregroundStyle(.secondary)
+                                Text(e.hint).font(.house(.caption)).foregroundStyle(.secondary)
                             }
                             Spacer(minLength: 8)
                             if e.key == webEvent { Image(systemName: "checkmark").foregroundStyle(Theme.accent) }
@@ -328,8 +328,8 @@ struct AdsAudiencesScreen: View {
         return HStack(spacing: pt(10)) {
             VStack(alignment: .leading, spacing: pt(2)) {
                 Text(a.name)
-                Text(line).font(.caption).foregroundStyle(.secondary)
-                if let st = a.status { Text(st).font(.caption).foregroundStyle(Tone.owed.color) }
+                Text(line).font(.house(.caption)).foregroundStyle(.secondary)
+                if let st = a.status { Text(st).font(.house(.caption)).foregroundStyle(Tone.owed.color) }
             }
             Spacer(minLength: 8)
             if busy == a.id {
@@ -424,7 +424,7 @@ extension AdsAudiencesScreen {
             TableColumn("Audience", value: \.name) { (a: AdsAudienceRow) in
                 VStack(alignment: .leading, spacing: 1) {
                     Text(a.name).lineLimit(1)
-                    if let st = a.status { Text(st).font(.caption).foregroundStyle(Tone.owed.color) }
+                    if let st = a.status { Text(st).font(.house(.caption)).foregroundStyle(Tone.owed.color) }
                 }
             }
             .width(min: 160, ideal: 280)
@@ -462,7 +462,7 @@ extension AdsAudiencesScreen {
                                    headline: MacHeadline("People", a.sizeWords ?? "not known yet"),
                                    actions: a.kind == "Customer list" && isOwner ? [actions[0][0], actions[1][0]] : [actions[1][0]])
                 LabeledContent("Made", value: a.created.map { (c: String) in ShopDate.say(c) } ?? "")
-                Text(macAbout(a)).font(.callout).foregroundStyle(.secondary)
+                Text(macAbout(a)).font(.house(.callout)).foregroundStyle(.secondary)
                 Spacer(minLength: 0)
             }
             .padding(16)
@@ -549,10 +549,10 @@ extension AdsAudiencesScreen {
                 }
                 .pickerStyle(.menu)
                 if let hint = data?.segments.first(where: { (seg: AdsHinted) in seg.key == segment })?.hint {
-                    Text(hint).font(.caption).foregroundStyle(.secondary)
+                    Text(hint).font(.house(.caption)).foregroundStyle(.secondary)
                 }
                 Text("Show ads to people who already buy from the shop, or leave them out of ads meant for new people. The customers' phone numbers, emails and names are scrambled (SHA-256) on the ERP's server first; Meta receives only the scrambled codes, matches them to accounts, and doesn't keep the unmatched ones. It costs nothing. The first time, Meta may ask for its Custom Audience terms to be accepted.")
-                    .font(.callout)
+                    .font(.house(.callout))
                     .foregroundStyle(.secondary)
             }
         case "engagers":
@@ -580,7 +580,7 @@ extension AdsAudiencesScreen {
                     }
                     .pickerStyle(.menu)
                     if let hint = data?.websiteEvents.first(where: { (e: AdsHinted) in e.key == webEvent })?.hint {
-                        Text(hint).font(.caption).foregroundStyle(.secondary)
+                        Text(hint).font(.house(.caption)).foregroundStyle(.secondary)
                     }
                     Picker("In the last", selection: $webDays) {
                         ForEach([7, 14, 30, 60, 90, 180], id: \.self) { (d: Int) in Text("\(d) days").tag(d) }
@@ -606,7 +606,7 @@ extension AdsAudiencesScreen {
                 }
                 .pickerStyle(.menu)
                 Text("1% is the closest match. Meta needs at least 100 matched people in the country to start from.")
-                    .font(.caption)
+                    .font(.house(.caption))
                     .foregroundStyle(.secondary)
             }
         }

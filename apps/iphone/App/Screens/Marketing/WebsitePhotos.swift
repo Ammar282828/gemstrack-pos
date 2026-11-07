@@ -174,7 +174,7 @@ struct WebsitePhotosScreen: View {
                         Text(chosen.map { (c: WebsiteCollection) in "\(c.category) → \(c.collection)" } ?? "Choose where these photographs go…")
                             .foregroundStyle(chosen == nil ? Color.secondary : Color.primary)
                         if let c = chosen {
-                            Text(c.count > 0 ? "It has \(c.count) pieces today" : "Nothing in it yet").font(.subheadline).foregroundStyle(.secondary)
+                            Text(c.count > 0 ? "It has \(c.count) pieces today" : "Nothing in it yet").font(.house(.subheadline)).foregroundStyle(.secondary)
                         }
                     }
                     Spacer(minLength: 8)
@@ -244,11 +244,11 @@ struct WebsitePhotosScreen: View {
                     .pickerStyle(.menu)
                     TextField("Official name, e.g. LOVE Bracelet, Classic", text: modelBinding(item.id))
                         .textInputAutocapitalization(.words)
-                        .font(.subheadline)
+                        .font(.house(.subheadline))
                 }
                 if let check = item.check, !check.passes {
                     Label(check.differences.first ?? "Not checked: compare it with the original.", systemImage: "exclamationmark.triangle")
-                        .font(.caption)
+                        .font(.house(.caption))
                         .foregroundStyle(Tone.owed.color)
                 }
                 if editable && !item.retouching {
@@ -260,12 +260,12 @@ struct WebsitePhotosScreen: View {
                             Button { undoRetouch(item.id) } label: { Label("Original", systemImage: "arrow.uturn.backward") }
                         }
                     }
-                    .font(.subheadline)
+                    .font(.house(.subheadline))
                     .buttonStyle(.borderless)
                 }
                 if item.status == .done, let rel = item.rel, !rel.isEmpty {
                     WebsiteFeatureButton(key: rel, name: item.stem)
-                        .font(.subheadline)
+                        .font(.house(.subheadline))
                         .buttonStyle(.borderless)
                 }
             }
@@ -296,14 +296,14 @@ struct WebsitePhotosScreen: View {
         switch item.status {
         case .done:
             // Done is the expected end: a quiet word, the dimmed photo says the rest (CONVENTIONS rule 15).
-            Text("On the website").font(.caption).foregroundStyle(.secondary)
+            Text("On the website").font(.house(.caption)).foregroundStyle(.secondary)
         case .failed:
-            Label(item.error ?? "Failed", systemImage: "xmark.circle.fill").font(.caption).foregroundStyle(Tone.problem.color)
+            Label(item.error ?? "Failed", systemImage: "xmark.circle.fill").font(.house(.caption)).foregroundStyle(Tone.problem.color)
         case .uploading:
-            Text("Sending…").font(.caption).foregroundStyle(.secondary)
+            Text("Sending…").font(.house(.caption)).foregroundStyle(.secondary)
         case .queued:
             Text(item.retouching ? "Retouching… about a minute" : WebsitePhoto.size(item.data.count))
-                .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                .font(.house(.caption)).foregroundStyle(.secondary).monospacedDigit()
         }
     }
 
@@ -668,9 +668,9 @@ extension WebsitePhotosScreen {
                         .foregroundStyle(Tone.owed.color)
                 }
                 if let c = chosen {
-                    Text("\(c.category) → \(c.collection) · " + (c.count > 0 ? "it has \(c.count) pieces today" : "nothing in it yet")).font(.system(.headline, design: .serif))
+                    Text("\(c.category) → \(c.collection) · " + (c.count > 0 ? "it has \(c.count) pieces today" : "nothing in it yet")).font(.house(.headline))
                 }
-                if let note { Text(note).font(.callout).foregroundStyle(.secondary) }
+                if let note { Text(note).font(.house(.callout)).foregroundStyle(.secondary) }
                 if reading { MarketingReading(text: "Reading the photographs…") }
             }
             .padding(14)
@@ -710,12 +710,12 @@ extension WebsitePhotosScreen {
             .clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))
             .opacity(item.status == .done ? 0.7 : 1)
             .overlay(alignment: .topLeading) { macItemStatus(item).padding(6) }
-            Text(displayName(item)).font(.subheadline.weight(.medium)).lineLimit(2, reservesSpace: true)
+            Text(displayName(item)).font(.house(.subheadline).weight(.medium)).lineLimit(2, reservesSpace: true)
             if isMaison {
                 macHouse(item)
                 macOfficialName(item)
             } else {
-                Text(WebsitePhoto.size(item.data.count)).font(.caption).monospacedDigit().foregroundStyle(.secondary)
+                Text(WebsitePhoto.size(item.data.count)).font(.house(.caption)).monospacedDigit().foregroundStyle(.secondary)
             }
         }
         .padding(10)

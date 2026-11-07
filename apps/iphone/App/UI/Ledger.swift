@@ -141,7 +141,7 @@ struct Pill: View {
             if let symbol { Image(systemName: symbol).imageScale(.small) }
             Text(text).monospacedDigit()
         }
-        .font(.caption.weight(.semibold))
+        .font(.house(.caption).weight(.semibold))
         .lineLimit(1)
         .padding(.horizontal, 8)
         .padding(.vertical, 3)
@@ -190,7 +190,7 @@ struct Monogram: View {
                     .foregroundStyle(Theme.accent.opacity(0.8))
             } else {
                 Text(letters)
-                    .font(.system(size: size * 0.38, weight: .semibold, design: .serif))
+                    .font(.house(size: size * 0.38, weight: .semibold))
                     .foregroundStyle(Theme.accent)
             }
         }
@@ -224,10 +224,10 @@ struct HeroAmount: View {
     var body: some View {
         AdaptiveStack(spacing: 6) {
             Text(unit)
-                .font(.system(.title3, design: .serif).weight(.medium))
+                .font(.house(.title3).weight(.medium))
                 .foregroundStyle(.secondary)
             Text(text ?? Self.figure(amount, lac: lac))
-                .font(.system(.largeTitle, design: .serif).weight(.semibold))
+                .font(.house(.largeTitle).weight(.semibold))
                 .foregroundStyle(tone)
                 .monospacedDigit()
                 .contentTransition(.numericText(value: amount))
@@ -254,7 +254,7 @@ struct RowAmount: View {
 
     var body: some View {
         Text(lac ? Money.pkrLac(amount) : Money.pkr(amount))
-            .font(.subheadline.weight(.semibold))
+            .font(.house(.subheadline).weight(.semibold))
             .monospacedDigit()
             .contentTransition(.numericText(value: amount))
             .foregroundStyle(tone)
@@ -312,11 +312,11 @@ struct MoneySplit: View {
     private func cell(_ label: String, _ amount: Double, _ value: String, _ tint: Color, _ align: HorizontalAlignment) -> some View {
         VStack(alignment: align, spacing: 3) {
             Text(label.uppercased())
-                .font(.caption2.weight(.semibold))
+                .font(.house(.caption2).weight(.semibold))
                 .foregroundStyle(.secondary)
                 .tracking(0.6)
             Text(value)
-                .font(.subheadline.weight(.semibold))
+                .font(.house(.subheadline).weight(.semibold))
                 .monospacedDigit()
                 .contentTransition(.numericText(value: amount))
                 .foregroundStyle(tint)
@@ -357,18 +357,18 @@ struct DateLeaf: View {
         VStack(spacing: 0) {
             if let date {
                 Text(Self.weekday.string(from: date).uppercased())
-                    .font(.caption2.weight(.bold))
+                    .font(.house(.caption2).weight(.bold))
                     .foregroundStyle(tone == .quiet ? Color.secondary : tone.color)
                 Text(Self.day.string(from: date))
-                    .font(.system(.headline, design: .serif))
+                    .font(.house(.headline))
                     .monospacedDigit()
                     .foregroundStyle(tone == .late ? tone.color : Color.primary)
                 Text(Self.month.string(from: date).uppercased())
-                    .font(.caption2.weight(.semibold))
+                    .font(.house(.caption2).weight(.semibold))
                     .foregroundStyle(.secondary)
             } else {
                 Image(systemName: "calendar")
-                    .font(.title3)
+                    .font(.house(.title3))
                     .foregroundStyle(.tertiary)
             }
         }
@@ -442,7 +442,7 @@ struct StageTrack: View {
                         .frame(height: labels ? 5 : 4)
                     if labels {
                         Text(name)
-                            .font(.caption2.weight(index == at ? .semibold : .regular))
+                            .font(.house(.caption2).weight(index == at ? .semibold : .regular))
                             .foregroundStyle(index == at ? Color.primary : Color.secondary)
                             .lineLimit(1)
                     }
@@ -492,14 +492,14 @@ struct LedgerHeading: View {
             Text(title)
                 #if os(macOS)
                 // A Mac's section heading is the system's (Mail's, System Settings'): no serif.
-                .font(.headline)
+                .font(.house(.headline))
                 #else
-                .font(.system(.title3, design: .serif).weight(.semibold))
+                .font(.house(.title3).weight(.semibold))
                 #endif
                 .foregroundStyle(tone == .late ? tone.color : Color.primary)
             if let count, count > 0 {
                 Text("\(count)")
-                    .font(.subheadline)
+                    .font(.house(.subheadline))
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
             }
@@ -510,7 +510,7 @@ struct LedgerHeading: View {
     @ViewBuilder private var total: some View {
         if let trailing {
             Text(trailing)
-                .font(.subheadline.weight(.medium))
+                .font(.house(.subheadline).weight(.medium))
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
         }
@@ -544,7 +544,7 @@ struct LedgerSection<Content: View, Footer: View>: View {
             if collapsible {
                 DisclosureGroup(title) {
                     content()
-                    footer().font(.footnote).foregroundStyle(.secondary)
+                    footer().font(.house(.footnote)).foregroundStyle(.secondary)
                 }
             } else {
                 content()
@@ -640,7 +640,7 @@ struct QuickAction: View {
                     .frame(maxWidth: .infinity, minHeight: Metrics.tap)
                     .background(prominent ? Theme.accent : Theme.accent.opacity(0.12), in: .rect(cornerRadius: Radius.chip, style: .continuous))
                 Text(title)
-                    .font(.caption2.weight(.medium))
+                    .font(.house(.caption2).weight(.medium))
                     .foregroundStyle(prominent ? Theme.accent : Color.primary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
@@ -659,7 +659,7 @@ struct QuickAction: View {
 struct MineTag: View {
     var body: some View {
         Image(systemName: "person.fill")
-            .font(.caption2)
+            .font(.house(.caption2))
             .foregroundStyle(.secondary)
             .accessibilityLabel("Taken by you")
     }
@@ -706,7 +706,7 @@ struct FilterChip: View {
                         .foregroundStyle(chosen ? Theme.onAccent.opacity(0.8) : Color.secondary)
                 }
             }
-            .font(.subheadline.weight(chosen ? .semibold : .medium))
+            .font(.house(.subheadline).weight(chosen ? .semibold : .medium))
             .foregroundStyle(chosen ? Theme.onAccent : Color.primary)
             .padding(.horizontal, Self.horizontal)
             .padding(.vertical, Self.vertical)

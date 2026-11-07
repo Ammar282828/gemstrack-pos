@@ -127,7 +127,7 @@ struct WebsiteEditPieceScreen: View {
                         VStack(alignment: .leading, spacing: pt(2)) {
                             Text("Hide from the website")
                             Text("Off every page; its links go to the collection. Show it again any time.")
-                                .font(.caption).foregroundStyle(.secondary)
+                                .font(.house(.caption)).foregroundStyle(.secondary)
                         }
                     }
                     .tint(Theme.accent)
@@ -166,10 +166,10 @@ struct WebsiteEditPieceScreen: View {
                     Task { await runAI(photo, op, params, label) }
                 }
                 if let photoWarning {
-                    Label(photoWarning, systemImage: "exclamationmark.triangle").font(.footnote).foregroundStyle(Tone.owed.color)
+                    Label(photoWarning, systemImage: "exclamationmark.triangle").font(.house(.footnote)).foregroundStyle(Tone.owed.color)
                 }
                 Text(photo.changed(photoFields(p)) ? "The photo will be replaced when you save." : p.photoEdited ? "The website shows a photo made here." : "The website's photo, unchanged.")
-                    .font(.subheadline)
+                    .font(.house(.subheadline))
                     .foregroundStyle(photo.changed(photoFields(p)) ? .primary : .secondary)
             } else {
                 StockImage(imageUrl: p.image, name: p.words.name, key: p.id + (p.change?.at ?? ""))
@@ -178,16 +178,16 @@ struct WebsiteEditPieceScreen: View {
                     .opacity(p.hidden ? 0.5 : 1)
                     .listRowInsets(EdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8))
                 Text(p.photoEdited ? "The website shows a photo made here. The original is kept." : "The website's photo, unchanged.")
-                    .font(.subheadline)
+                    .font(.house(.subheadline))
                     .foregroundStyle(.secondary)
                 if let problem = photo?.problem {
-                    Text(problem).font(.footnote).foregroundStyle(Tone.problem.color)
+                    Text(problem).font(.house(.footnote)).foregroundStyle(Tone.problem.color)
                 }
                 Button { Task { await beginPhoto(p) } } label: {
                     Label {
                         VStack(alignment: .leading, spacing: pt(2)) {
                             Text(photo?.loading == true ? "Fetching the photo…" : "Re-make the photo")
-                            Text("Crop it, put the weight and the logo on, fix the light").font(.caption).foregroundStyle(.secondary)
+                            Text("Crop it, put the weight and the logo on, fix the light").font(.house(.caption)).foregroundStyle(.secondary)
                         }
                     } icon: { Image(systemName: "crop") }
                 }
@@ -270,11 +270,11 @@ struct WebsiteEditPieceScreen: View {
     private func field<C: View>(_ label: String, own: String, now: String, reset: @escaping () -> Void, @ViewBuilder content: () -> C) -> some View {
         VStack(alignment: .leading, spacing: pt(4)) {
             HStack {
-                Text(label).font(.caption).foregroundStyle(.secondary)
+                Text(label).font(.house(.caption)).foregroundStyle(.secondary)
                 Spacer(minLength: 8)
                 if own.trimmingCharacters(in: .whitespacesAndNewlines) != now.trimmingCharacters(in: .whitespacesAndNewlines) {
                     Button(action: reset) { Label("The site's own", systemImage: "arrow.uturn.backward") }
-                        .font(.caption)
+                        .font(.house(.caption))
                         .buttonStyle(.borderless)
                 }
             }
@@ -578,8 +578,8 @@ extension WebsiteEditPieceScreen {
                 .opacity(p.hidden ? 0.5 : 1)
             VStack(alignment: .leading, spacing: 4) {
                 Text(p.words.name.isEmpty ? "A piece" : p.words.name)
-                    .font(.system(.title3, design: .serif).weight(.semibold)).lineLimit(2)
-                Text(headerWords(p)).font(.callout).foregroundStyle(.secondary).lineLimit(2)
+                    .font(.house(.title3).weight(.semibold)).lineLimit(2)
+                Text(headerWords(p)).font(.house(.callout)).foregroundStyle(.secondary).lineLimit(2)
                 if p.hidden { Pill("Hidden", tone: .quiet, symbol: "eye.slash") }
                 else if p.changed { Pill("Changed here", tone: .working) }
             }
@@ -649,7 +649,7 @@ extension WebsiteEditPieceScreen {
                     Label(photoWarning, systemImage: "exclamationmark.triangle").foregroundStyle(Tone.owed.color)
                 }
                 Text(photo.changed(photoFields(p)) ? "The photo will be replaced when you save." : p.photoEdited ? "The website shows a photo made here." : "The website's photo, unchanged.")
-                    .font(.callout)
+                    .font(.house(.callout))
                     .foregroundStyle(photo.changed(photoFields(p)) ? Color.primary : Color.secondary)
             } else {
                 StockImage(imageUrl: p.image, name: p.words.name, key: p.id + (p.change?.at ?? ""))
@@ -657,15 +657,15 @@ extension WebsiteEditPieceScreen {
                     .clipShape(RoundedRectangle(cornerRadius: Radius.chip, style: .continuous))
                     .opacity(p.hidden ? 0.5 : 1)
                 Text(p.photoEdited ? "The website shows a photo made here. The original is kept." : "The website's photo, unchanged.")
-                    .font(.callout).foregroundStyle(.secondary)
+                    .font(.house(.callout)).foregroundStyle(.secondary)
                 if let problem = photo?.problem {
-                    Text(problem).font(.callout).foregroundStyle(Tone.problem.color)
+                    Text(problem).font(.house(.callout)).foregroundStyle(Tone.problem.color)
                 }
                 Button { Task { await beginPhoto(p) } } label: {
                     Text(photo?.loading == true ? "Fetching the Photo…" : "Re-make the Photo…")
                 }
                 .disabled(photo?.loading == true || busy != nil)
-                Text("Crop it, put the weight and the logo on, fix the light.").font(.caption).foregroundStyle(.secondary)
+                Text("Crop it, put the weight and the logo on, fix the light.").font(.house(.caption)).foregroundStyle(.secondary)
             }
             if original != nil || p.photoEdited {
                 Button("Put the Original Photo Back…", role: .destructive) { confirm = .photo }
@@ -689,7 +689,7 @@ extension WebsiteEditPieceScreen {
             Divider()
             VStack(alignment: .leading, spacing: 8) {
                 Text(anyChange(p) ? "It shows on \(siteName) within a minute." : "Nothing changed yet.")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.house(.caption)).foregroundStyle(.secondary)
                 HStack {
                     if p.changed {
                         Button("Undo Every Change…", role: .destructive) { confirm = .all }
@@ -734,7 +734,7 @@ extension WebsiteEditPieceScreen {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("Hide from the website")
                                 Text("Off every page; its links go to the collection. Show it again any time.")
-                                    .font(.caption).foregroundStyle(.secondary)
+                                    .font(.house(.caption)).foregroundStyle(.secondary)
                             }
                         }
                         .tint(Theme.accent)

@@ -87,17 +87,17 @@ struct MacNewOrderPieces: View {
     private func row(_ r: MacNewOrderRow) -> some View {
         HStack(spacing: 12) {
             Text("\(r.number)")
-                .font(.system(size: Monogram.Size.row * 0.4, weight: .semibold, design: .serif))
+                .font(.house(size: Monogram.Size.row * 0.4, weight: .semibold))
                 .monospacedDigit()
                 .foregroundStyle(Theme.accent)
                 .frame(width: Monogram.Size.row, height: Monogram.Size.row)
                 .background(Theme.accent.opacity(0.13), in: Circle())
             VStack(alignment: .leading, spacing: 2) {
                 Text(r.title.isEmpty ? "Untitled piece" : r.title)
-                    .font(.body)
+                    .font(.house(.body))
                     .foregroundStyle(r.title.isEmpty ? Color.secondary : Color.primary)
                     .lineLimit(1)
-                Text(secondLine(r)).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                Text(secondLine(r)).font(.house(.callout)).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer(minLength: 8)
             if r.price > 0 { RowAmount(amount: r.price) }
@@ -161,7 +161,7 @@ struct MacNewOrderTotals: View {
                 .foregroundStyle(tone?.color ?? Color.primary)
                 .frame(minWidth: 110, alignment: .trailing)
         }
-        .font(.callout)
+        .font(.house(.callout))
     }
 }
 #endif

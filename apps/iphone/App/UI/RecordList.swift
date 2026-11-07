@@ -52,7 +52,7 @@ struct ListSummaryStrip: View {
             }
             if let note, !note.isEmpty {
                 Text(note)
-                    .font(.caption)
+                    .font(.house(.caption))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, pt(8))
@@ -81,11 +81,11 @@ struct ListSummaryStrip: View {
     private func face(_ f: ListFigure) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(f.title)
-                .font(.caption)
+                .font(.house(.caption))
                 .foregroundStyle(f.chosen ? Theme.accent : Color.secondary)
                 .lineLimit(2)
             Text(f.text)
-                .font(.subheadline.weight(.semibold))
+                .font(.house(.subheadline).weight(.semibold))
                 .foregroundStyle(f.tone?.color ?? Color.primary)
                 .monospacedDigit()
                 .contentTransition(.numericText(value: f.value))
@@ -136,12 +136,12 @@ struct ListFilterCaption: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: pt(12)) {
             Text(text)
-                .font(.footnote)
+                .font(.house(.footnote))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
             Button("Clear", action: clear)
-                .font(.footnote.weight(.semibold))
+                .font(.house(.footnote).weight(.semibold))
                 .buttonStyle(.borderless)
                 .frame(minWidth: Metrics.tap, minHeight: Metrics.tap)
         }
@@ -207,7 +207,7 @@ struct ListSectionHeader: View {
             heading
             if !hint.isEmpty {
                 Text(hint)
-                    .font(.caption)
+                    .font(.house(.caption))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
@@ -277,13 +277,13 @@ struct RecordRow<Accessory: View>: View {
                 Monogram(name: name, size: Self.monogram)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(title)
-                        .font(.headline)
+                        .font(.house(.headline))
                         .foregroundStyle(muted ? Color.secondary : Color.primary)
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
                     HStack(alignment: .firstTextBaseline, spacing: pt(6)) {
                         subtitle
-                            .font(.caption)
+                            .font(.house(.caption))
                             .foregroundStyle(.secondary)
                             .lineLimit(2)
                         if mine { MineTag() }
@@ -308,7 +308,7 @@ struct RecordRow<Accessory: View>: View {
                     }
                     if let detail = money.detail, !detail.isEmpty {
                         Text(detail)
-                            .font(.caption.weight(money.detailTone == .quiet ? .regular : .semibold))
+                            .font(.house(.caption).weight(money.detailTone == .quiet ? .regular : .semibold))
                             .foregroundStyle(money.detailTone.color)
                             .monospacedDigit()
                             .lineLimit(1)

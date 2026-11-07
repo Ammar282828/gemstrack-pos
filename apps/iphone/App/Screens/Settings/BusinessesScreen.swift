@@ -109,8 +109,8 @@ struct BusinessesScreen: View {
             HStack(spacing: pt(14)) {
                 BusinessBadge(business: b, size: 44)
                 VStack(alignment: .leading, spacing: pt(2)) {
-                    Text(b.displayName).font(.headline).foregroundStyle(.primary).lineLimit(1)
-                    Text(b.host).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                    Text(b.displayName).font(.house(.headline)).foregroundStyle(.primary).lineLimit(1)
+                    Text(b.host).font(.house(.subheadline)).foregroundStyle(.secondary).lineLimit(1)
                     status(b)
                 }
                 Spacer(minLength: 8)
@@ -133,14 +133,14 @@ struct BusinessesScreen: View {
 
     @ViewBuilder private func status(_ b: Business) -> some View {
         if House.isDemo {
-            Label("Demo: made-up books", systemImage: "play.circle").font(.caption).foregroundStyle(.secondary)
+            Label("Demo: made-up books", systemImage: "play.circle").font(.house(.caption)).foregroundStyle(.secondary)
         } else if b.firebaseOptions == nil {
-            Label("iPhone sign-in not set up", systemImage: "exclamationmark.triangle.fill").font(.caption).foregroundStyle(Tone.owed.color)
+            Label("iPhone sign-in not set up", systemImage: "exclamationmark.triangle.fill").font(.house(.caption)).foregroundStyle(Tone.owed.color)
         } else if let email = who[b.id] {
             // Signed in is the normal state: the email in quiet words, no tick (rule 15).
-            Text(email).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            Text(email).font(.house(.caption)).foregroundStyle(.secondary).lineLimit(1)
         } else {
-            Label("Signed out", systemImage: "person.crop.circle.badge.questionmark").font(.caption).foregroundStyle(.secondary)
+            Label("Signed out", systemImage: "person.crop.circle.badge.questionmark").font(.house(.caption)).foregroundStyle(.secondary)
         }
     }
 
@@ -229,8 +229,8 @@ struct BusinessesScreen: View {
                 HStack(spacing: pt(14)) {
                     BusinessBadge(business: b, size: 52)
                     VStack(alignment: .leading, spacing: pt(2)) {
-                        Text(b.displayName).font(.headline)
-                        Text(b.host).font(.subheadline).foregroundStyle(.secondary)
+                        Text(b.displayName).font(.house(.headline))
+                        Text(b.host).font(.house(.subheadline)).foregroundStyle(.secondary)
                     }
                 }
                 BusinessLogo(business: b)
@@ -239,12 +239,12 @@ struct BusinessesScreen: View {
                         Circle().fill(Color(hex: item.element) ?? .gray).frame(width: 22, height: 22)
                             .overlay { Circle().strokeBorder(.primary.opacity(0.18), lineWidth: 0.5) }
                     }
-                    Text("Its colours, light and dark").font(.caption).foregroundStyle(.secondary)
+                    Text("Its colours, light and dark").font(.house(.caption)).foregroundStyle(.secondary)
                 }
                 .accessibilityElement(children: .combine)
                 if known {
                     Label("Already on this phone: adding it again refreshes how it looks.", systemImage: "info.circle")
-                        .font(.footnote).foregroundStyle(.secondary)
+                        .font(.house(.footnote)).foregroundStyle(.secondary)
                 }
                 Button { add() } label: {
                     Label(phase == .adding ? "Adding…" : known ? "Refresh and open \(b.name)" : "Add \(b.name)", systemImage: "plus.circle.fill")
@@ -330,7 +330,7 @@ extension BusinessesScreen {
                 }
                 Spacer()
                 Text("Each business keeps its own sign-in, books, drafts and alerts on this Mac.")
-                    .font(.footnote).foregroundStyle(.secondary)
+                    .font(.house(.footnote)).foregroundStyle(.secondary)
             }
             .padding(.horizontal, 20).padding(.vertical, 10)
         }
@@ -404,7 +404,7 @@ extension BusinessesScreen {
     @ViewBuilder
     private var macAddSheet: some View {
         VStack(spacing: 0) {
-            Text("Add a business").font(.headline)
+            Text("Add a business").font(.house(.headline))
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 20).padding(.top, 16)
             Form {

@@ -84,7 +84,7 @@ struct PaperPicker: View {
             .buttonStyle(.bordered)
             if loading { ProgressView() }
             #if os(macOS)
-            Text("or drop a photo or PDF here").font(.footnote).foregroundStyle(.secondary)
+            Text("or drop a photo or PDF here").font(.house(.footnote)).foregroundStyle(.secondary)
             #endif
         }
         .disabled(disabled || loading || room <= 0)
@@ -232,7 +232,7 @@ struct PaperPhotoStrip: View {
                     .overlay(alignment: .topLeading) {
                         if photos.count > 1 {
                             Text("\(i + 1)")
-                                .font(.caption.weight(.semibold))
+                                .font(.house(.caption).weight(.semibold))
                                 .padding(.horizontal, pt(8)).padding(.vertical, pt(3))
                                 .background(.regularMaterial, in: .capsule)
                                 .padding(pt(6))
@@ -242,7 +242,7 @@ struct PaperPhotoStrip: View {
                         if let remove {
                             Button(role: .destructive) { remove(p.id) } label: {
                                 Image(systemName: "xmark")
-                                    .font(.caption.weight(.bold))
+                                    .font(.house(.caption).weight(.bold))
                                     .padding(pt(7))
                                     .background(.regularMaterial, in: .capsule)
                             }

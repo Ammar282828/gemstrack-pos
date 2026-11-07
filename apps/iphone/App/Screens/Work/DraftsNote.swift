@@ -34,7 +34,7 @@ struct DraftsNote: View {
             Section {
                 NavigationLink(value: Route(path: "/drafts")) {
                     Label(n == 1 ? "1 draft" : "\(n) drafts", systemImage: "doc.on.doc")
-                        .font(.subheadline)
+                        .font(.house(.subheadline))
                         .foregroundStyle(.secondary)
                 }
             }

@@ -282,7 +282,7 @@ struct Dashboard: View {
     /// "TUESDAY 21 OCTOBER", a quiet line above the hero.
     private var dateLine: some View {
         Text(DashDate.dayLabel(now))
-            .font(.caption.weight(.semibold))
+            .font(.house(.caption).weight(.semibold))
             .tracking(0.8)
             .foregroundStyle(.secondary)
             .textCase(.uppercase)
@@ -459,7 +459,7 @@ struct Dashboard: View {
         Button(expanded.wrappedValue ? "Show less" : "Show \(count) more") {
             Motion.run(Motion.spring, reduce: reduceMotion) { expanded.wrappedValue.toggle() }
         }
-        .font(.subheadline.weight(.medium)).frame(minHeight: Metrics.tap).padding(.horizontal, pt(4))
+        .font(.house(.subheadline).weight(.medium)).frame(minHeight: Metrics.tap).padding(.horizontal, pt(4))
     }
 
     // MARK: Time and the server

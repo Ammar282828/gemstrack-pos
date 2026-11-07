@@ -218,7 +218,7 @@ struct AdsSetupScreen: View {
         if !lines.isEmpty {
             Section {
                 ForEach(lines, id: \.self) { (l: String) in
-                    Label(l, systemImage: "exclamationmark.triangle.fill").font(.subheadline).foregroundStyle(Tone.owed.color)
+                    Label(l, systemImage: "exclamationmark.triangle.fill").font(.house(.subheadline)).foregroundStyle(Tone.owed.color)
                 }
             } header: {
                 #if os(macOS)
@@ -286,7 +286,7 @@ struct AdsSetupScreen: View {
             Section {
                 Text(app.secret ? "Found in Secret Manager (\(app.secretName))." : "Copy the App secret from the Meta app's App settings → Basic and add it as a new version of \(app.secretName) in this project's Secret Manager.")
                     .foregroundStyle(app.secret ? Color.secondary : Color.primary)
-                Text(tokenLine(app)).font(.footnote).foregroundStyle(app.tokenStoreWrite ? Color.secondary : Tone.problem.color)
+                Text(tokenLine(app)).font(.house(.footnote)).foregroundStyle(app.tokenStoreWrite ? Color.secondary : Tone.problem.color)
             } header: {
                 stepHeader(2, "The app secret, kept by this ERP", done: app.secret && app.tokenStoreWrite)
             }
@@ -337,11 +337,11 @@ struct AdsSetupScreen: View {
         VStack(alignment: .leading, spacing: pt(6)) {
             HStack(alignment: .firstTextBaseline, spacing: pt(8)) {
                 Text("\(n).").monospacedDigit().foregroundStyle(.secondary)
-                Text(words).font(.subheadline)
+                Text(words).font(.house(.subheadline))
             }
             ForEach(copy, id: \.self) { (line: String) in
                 Text(line)
-                    .font(.caption.monospaced())
+                    .font(.house(.caption).monospaced())
                     .textSelection(.enabled)
                     .padding(.leading, pt(22))
                     .contextMenu { Button { UIPasteboard.general.string = line } label: { Label("Copy", systemImage: "doc.on.doc") } }
@@ -364,9 +364,9 @@ struct AdsSetupScreen: View {
                 Text(label)
             }
             if known && ok {
-                if let now { Text(now).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
+                if let now { Text(now).font(.house(.caption)).foregroundStyle(.secondary).lineLimit(1) }
             } else if !give.isEmpty {
-                Text(give).font(.caption.monospaced()).textSelection(.enabled)
+                Text(give).font(.house(.caption).monospaced()).textSelection(.enabled)
             }
         }
     }
@@ -400,7 +400,7 @@ struct AdsSetupScreen: View {
                 }
                 Text(app.loginConfigId.map { (id: String) in "Saved: Connect uses configuration \(id)." }
                      ?? "Without one, Facebook answers \"Invalid Scopes\".")
-                    .font(.caption)
+                    .font(.house(.caption))
                     .foregroundStyle(.secondary)
             }
         }
@@ -415,7 +415,7 @@ struct AdsSetupScreen: View {
                     Text(connectedLine(conn))
                     if conn.kind == "user", let days = conn.daysLeft {
                         Text("Good for \(days) more day\(days == 1 ? "" : "s"): connect again before then (running ads are never affected).")
-                            .font(.footnote)
+                            .font(.house(.footnote))
                             .foregroundStyle(days <= 10 ? Tone.owed.color : Color.secondary)
                     }
                 } else {
@@ -424,7 +424,7 @@ struct AdsSetupScreen: View {
                 if !conn.missingScopes.isEmpty {
                     Label("Not granted: \(conn.missingScopes.joined(separator: ", ")). Add them to the login configuration (step 1), then connect again.",
                           systemImage: "exclamationmark.triangle.fill")
-                        .font(.footnote)
+                        .font(.house(.footnote))
                         .foregroundStyle(Tone.owed.color)
                 }
             } else {
@@ -443,7 +443,7 @@ struct AdsSetupScreen: View {
                 }
             }
             if let e = s.connectionError {
-                Text(e).font(.footnote).foregroundStyle(Tone.problem.color)
+                Text(e).font(.house(.footnote)).foregroundStyle(Tone.problem.color)
             }
         } header: {
             stepHeader(3, "Connect Facebook", done: s.connection.map { (c: AdsStatusAnswer.Connection) in c.connected })
@@ -476,7 +476,7 @@ struct AdsSetupScreen: View {
                 }
                 ForEach(assets.accounts) { (a: AdsAccountChoice) in accountRow(a, pinned: s.pinnedAccount) }
                 if s.pinnedAccount {
-                    Text("Fixed for this shop by META_AD_ACCOUNT_ID.").font(.footnote).foregroundStyle(.secondary)
+                    Text("Fixed for this shop by META_AD_ACCOUNT_ID.").font(.house(.footnote)).foregroundStyle(.secondary)
                 }
             } else {
                 MarketingReading(text: "Reading what the login can see…")
@@ -499,7 +499,7 @@ struct AdsSetupScreen: View {
             }
             VStack(alignment: .leading, spacing: pt(2)) {
                 Text(title).foregroundStyle(.primary)
-                if !line.isEmpty { Text(line).font(.caption).foregroundStyle(.secondary) }
+                if !line.isEmpty { Text(line).font(.house(.caption)).foregroundStyle(.secondary) }
             }
             Spacer(minLength: 8)
             if on { Image(systemName: "checkmark").foregroundStyle(Theme.accent) }
@@ -538,7 +538,7 @@ struct AdsSetupScreen: View {
                 }
             }
             if wrongHouse, let house {
-                Text("This shop is @\(house); ads made here would appear as @\(settings?.instagramUsername ?? "").").font(.footnote).foregroundStyle(Tone.problem.color)
+                Text("This shop is @\(house); ads made here would appear as @\(settings?.instagramUsername ?? "").").font(.house(.footnote)).foregroundStyle(Tone.problem.color)
             }
         } header: {
             stepHeader(5, house.map { (h: String) in "Instagram · @\(h)" } ?? "Instagram", done: settings?.instagramUserId != nil && !wrongHouse)
@@ -561,7 +561,7 @@ struct AdsSetupScreen: View {
                 }
             }
             if let ig = chosenIg, let linked = ig.pageId, let page = settings?.pageId, linked != page {
-                Text("@\(ig.username) is linked to another Page: Meta requires that same Page.").font(.footnote).foregroundStyle(Tone.owed.color)
+                Text("@\(ig.username) is linked to another Page: Meta requires that same Page.").font(.house(.footnote)).foregroundStyle(Tone.owed.color)
             }
         } header: {
             stepHeader(6, "The Facebook Page behind new ads", done: settings?.pageId != nil)
@@ -611,11 +611,11 @@ struct AdsSetupScreen: View {
         let listed = Set(p.pixels.map { (x: AdsPixelRow) in x.id })
         ForEach(st.carried.filter { (id: String) in id != st.id }, id: \.self) { (id: String) in
             VStack(alignment: .leading, spacing: pt(6)) {
-                Label("\(st.sitesCarrying(id)) already carries pixel \(id)", systemImage: "globe").font(.subheadline.weight(.medium))
+                Label("\(st.sitesCarrying(id)) already carries pixel \(id)", systemImage: "globe").font(.house(.subheadline).weight(.medium))
                 Text(listed.contains(id)
                      ? "Use it rather than making another: one pixel keeps every visit and order in one place, and its history is already there."
                      : "It isn't shared with this ad account yet, so Meta won't let ads use it. In Meta Business settings → Data sources → Datasets, open \(id) → Assign assets → this ad account (full control); then it appears below.")
-                    .font(.caption)
+                    .font(.house(.caption))
                     .foregroundStyle(.secondary)
                 Button(listed.contains(id) ? "Use this pixel" : "Use it anyway (after sharing it)") {
                     Task { await pixelAct(["action": "choose", "id": id], "pixel") }
@@ -632,25 +632,25 @@ struct AdsSetupScreen: View {
                     Label("Pixel \(id) has not received anything this week", systemImage: "exclamationmark.triangle.fill")
                         .foregroundStyle(Tone.owed.color)
                 }
-                if let last = st.lastFired { Text("Last received \(ShopDate.say(last, withTime: true)).").font(.caption) }
+                if let last = st.lastFired { Text("Last received \(ShopDate.say(last, withTime: true)).").font(.house(.caption)) }
                 if st.onSite == false {
                     Text("\(st.sites.map { (x: AdsPixelSite) in x.host }.joined(separator: " and ")) doesn't load it yet: \(st.carried.isEmpty ? "the website needs its loader (it reads the id from this ERP's /api/public/pixel)" : "the site carries a different pixel (above)").")
-                        .font(.caption)
+                        .font(.house(.caption))
                 }
-                if st.events != nil { Text("This week: \(st.eventLine).").font(.caption) }
+                if st.events != nil { Text("This week: \(st.eventLine).").font(.house(.caption)) }
             }
         } else {
-            Text("No pixel chosen: website ads buy clicks, and nobody who visits can be retargeted.").font(.footnote).foregroundStyle(Tone.owed.color)
+            Text("No pixel chosen: website ads buy clicks, and nobody who visits can be retargeted.").font(.house(.footnote)).foregroundStyle(Tone.owed.color)
         }
         ForEach(p.pixels) { (x: AdsPixelRow) in
             HStack(spacing: pt(8)) {
                 VStack(alignment: .leading, spacing: pt(2)) {
                     Text(x.name)
-                    Text("\(x.id) · \(x.lastFired.map { (l: String) in "last \(ShopDate.say(l))" } ?? "never fired")").font(.caption).foregroundStyle(.secondary)
+                    Text("\(x.id) · \(x.lastFired.map { (l: String) in "last \(ShopDate.say(l))" } ?? "never fired")").font(.house(.caption)).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 8)
                 if st.id == x.id {
-                    Text("In use").font(.caption).foregroundStyle(.secondary)
+                    Text("In use").font(.house(.caption)).foregroundStyle(.secondary)
                 } else {
                     Button("Use this") { Task { await pixelAct(["action": "choose", "id": x.id], "pixel") } }
                         .buttonStyle(.borderless)
@@ -735,7 +735,7 @@ extension AdsSetupScreen {
                     Text(connectedLine(conn))
                     if conn.kind == "user", let days = conn.daysLeft {
                         Text("Good for \(days) more day\(days == 1 ? "" : "s"): connect again before then (running ads are never affected).")
-                            .font(.callout)
+                            .font(.house(.callout))
                             .foregroundStyle(days <= 10 ? Tone.owed.color : Color.secondary)
                     }
                 } else {
@@ -744,14 +744,14 @@ extension AdsSetupScreen {
                 if !conn.missingScopes.isEmpty {
                     Label("Not granted: \(conn.missingScopes.joined(separator: ", ")). Add them to the login configuration (step 1), then connect again.",
                           systemImage: "exclamationmark.triangle.fill")
-                        .font(.callout)
+                        .font(.house(.callout))
                         .foregroundStyle(Tone.owed.color)
                 }
             } else {
                 Text("Log in to Facebook as the person who runs \(session.shop.name)'s ads and approve, with Connect in the toolbar. The login is kept in this project's Secret Manager, never in the database.")
                     .foregroundStyle(.secondary)
             }
-            if let e = s.connectionError { Text(e).font(.callout).foregroundStyle(Tone.problem.color) }
+            if let e = s.connectionError { Text(e).font(.house(.callout)).foregroundStyle(Tone.problem.color) }
         } header: {
             stepHeader(3, "Connect Facebook", done: s.connection.map { (c: AdsStatusAnswer.Connection) in c.connected })
         } footer: {
@@ -781,7 +781,7 @@ extension AdsSetupScreen {
                     .pickerStyle(.menu)
                     .disabled(s.pinnedAccount)
                 }
-                if s.pinnedAccount { Text("Fixed for this shop by META_AD_ACCOUNT_ID.").font(.callout).foregroundStyle(.secondary) }
+                if s.pinnedAccount { Text("Fixed for this shop by META_AD_ACCOUNT_ID.").font(.house(.callout)).foregroundStyle(.secondary) }
             } else {
                 MarketingReading(text: "Reading what the login can see…")
             }
@@ -824,7 +824,7 @@ extension AdsSetupScreen {
                 .pickerStyle(.menu)
             }
             if wrongHouse, let house {
-                Text("This shop is @\(house); ads made here would appear as @\(settings?.instagramUsername ?? "").").font(.callout).foregroundStyle(Tone.problem.color)
+                Text("This shop is @\(house); ads made here would appear as @\(settings?.instagramUsername ?? "").").font(.house(.callout)).foregroundStyle(Tone.problem.color)
             }
         } header: {
             stepHeader(5, house.map { (h: String) in "Instagram · @\(h)" } ?? "Instagram", done: settings?.instagramUserId != nil && !wrongHouse)
@@ -863,7 +863,7 @@ extension AdsSetupScreen {
                 .pickerStyle(.menu)
             }
             if let ig = chosenIg, let linked = ig.pageId, let page = settings?.pageId, linked != page {
-                Text("@\(ig.username) is linked to another Page: Meta requires that same Page.").font(.callout).foregroundStyle(Tone.owed.color)
+                Text("@\(ig.username) is linked to another Page: Meta requires that same Page.").font(.house(.callout)).foregroundStyle(Tone.owed.color)
             }
         } header: {
             stepHeader(6, "The Facebook Page behind new ads", done: settings?.pageId != nil)
@@ -936,7 +936,7 @@ extension AdsSetupScreen {
                 Text(listed.contains(id)
                      ? "Use it rather than making another: one pixel keeps every visit and order in one place, and its history is already there."
                      : "It isn't shared with this ad account yet, so Meta won't let ads use it. In Meta Business settings → Data sources → Datasets, open \(id) → Assign assets → this ad account (full control); then it appears below.")
-                    .font(.callout)
+                    .font(.house(.callout))
                     .foregroundStyle(.secondary)
                 Button(listed.contains(id) ? "Use This Pixel" : "Use It Anyway (After Sharing It)") {
                     Task { await pixelAct(["action": "choose", "id": id], "pixel") }
@@ -951,15 +951,15 @@ extension AdsSetupScreen {
                     Label("Pixel \(id) has not received anything this week", systemImage: "exclamationmark.triangle.fill")
                         .foregroundStyle(Tone.owed.color)
                 }
-                if let last = st.lastFired { Text("Last received \(ShopDate.say(last, withTime: true)).").font(.callout) }
+                if let last = st.lastFired { Text("Last received \(ShopDate.say(last, withTime: true)).").font(.house(.callout)) }
                 if st.onSite == false {
                     Text("\(st.sites.map { (x: AdsPixelSite) in x.host }.joined(separator: " and ")) doesn't load it yet: \(st.carried.isEmpty ? "the website needs its loader (it reads the id from this ERP's /api/public/pixel)" : "the site carries a different pixel (above)").")
-                        .font(.callout)
+                        .font(.house(.callout))
                 }
-                if st.events != nil { Text("This week: \(st.eventLine).").font(.callout) }
+                if st.events != nil { Text("This week: \(st.eventLine).").font(.house(.callout)) }
             }
         } else {
-            Text("No pixel chosen: website ads buy clicks, and nobody who visits can be retargeted.").font(.callout).foregroundStyle(Tone.owed.color)
+            Text("No pixel chosen: website ads buy clicks, and nobody who visits can be retargeted.").font(.house(.callout)).foregroundStyle(Tone.owed.color)
         }
         Picker("Pixel in use", selection: macPixelChoice(st)) {
             Text("None").tag("")

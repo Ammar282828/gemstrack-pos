@@ -36,7 +36,7 @@ struct AbSpendingPage: View {
             AbCard(title: "Expenses by category", takeaway: takeaway) {
                 VStack(alignment: .leading, spacing: pt(10)) {
                     if b.expensesByCategory.isEmpty {
-                        Text("Nothing spent in this period.").font(.subheadline).foregroundStyle(.secondary)
+                        Text("Nothing spent in this period.").font(.house(.subheadline)).foregroundStyle(.secondary)
                     } else {
                         AbHBars(rows: b.expensesByCategory.map { (c: ExpenseByCategory) -> AbHBar in
                             AbHBar(id: c.category, label: c.category, value: c.amount, valueText: Money.lacCrore(c.amount),
@@ -46,7 +46,7 @@ struct AbSpendingPage: View {
                     NavigationLink(value: Route(path: "/expenses")) {
                         Label("Open expenses", systemImage: "chevron.right")
                             .labelStyle(.titleAndIcon)
-                            .font(.subheadline.weight(.medium))
+                            .font(.house(.subheadline).weight(.medium))
                     }
                     .buttonStyle(.pressable)
                     .foregroundStyle(Theme.accent)
@@ -86,7 +86,7 @@ struct AbSpendingPage: View {
                 let take = top.map { "Most spent in the last 12 months: \($0.month), \(Money.pkrLac(total($0)))." } ?? "No expenses in the last 12 months."
                 AbCard(title: "Month by month", takeaway: take) {
                     if kinds.isEmpty || top == nil {
-                        Text("Nothing to draw: no expenses in the last 12 months.").font(.subheadline).foregroundStyle(.secondary)
+                        Text("Nothing to draw: no expenses in the last 12 months.").font(.house(.subheadline)).foregroundStyle(.secondary)
                     } else {
                         AbBars(points: rows.flatMap { (m: MonthRow) -> [AbBarPoint] in
                             kinds.map { (k: ExpenseKind) -> AbBarPoint in

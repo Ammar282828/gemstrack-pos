@@ -298,7 +298,7 @@ struct MacNewOrderExchange: View {
             }
             if !row.valueTyped && NewOrderFormat.num(row.weightG) > 0 && NewOrderFormat.num(row.ratePerGram) > 0 {
                 Text("Amount = grams \u{00D7} rate: type an amount to change it.")
-                    .font(.callout)
+                    .font(.house(.callout))
                     .foregroundStyle(.secondary)
             }
         }
@@ -430,7 +430,7 @@ struct MacNewOrderMargin: View {
                 Label("24k rate now (per tola)", systemImage: "lock.fill")
             }
             Text(rateWords)
-                .font(.callout)
+                .font(.house(.callout))
                 .foregroundStyle(.secondary)
             if sheetTola > 0 && Double(sheetTola) != NewOrderFormat.num(draft.costTola) {
                 Button("Use the Rate Sheet's \(Money.grouped(Double(sheetTola))) a Tola") {

@@ -79,7 +79,7 @@ struct DesignSitePieces: View {
                 else if !loaded { SkeletonThumbGrid(count: 9, columns: 3, label: "Reading the website").padding(.horizontal, pt(16)) }
                 else if filtered.isEmpty { EmptyState("No pieces", symbol: "globe", message: "Nothing on the website matches.") }
                 else {
-                    Text("\(filtered.count) of \(pieces.count) pieces. \(DesignPhotoGrid.pickVerb) one to design it.").font(.footnote).foregroundStyle(.secondary).padding(.horizontal, pt(16))
+                    Text("\(filtered.count) of \(pieces.count) pieces. \(DesignPhotoGrid.pickVerb) one to design it.").font(.house(.footnote)).foregroundStyle(.secondary).padding(.horizontal, pt(16))
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: DesignPhotoGrid.cell), spacing: pt(10))], spacing: pt(10)) {
                         ForEach(Array(filtered.prefix(shown)), id: \.text) { p in
                             Button { onPick(DesignPhotoSources.site(p)) } label: { PieceCell(name: p.s("name"), sub: p.s("collection"), thumb: p.s("thumb", p.s("image"))) }
@@ -120,8 +120,8 @@ private struct PieceCell: View {
             MarketingPhoto(path: thumb)
                 .frame(maxWidth: .infinity).aspectRatio(1, contentMode: .fit)
                 .background(Theme.ground).clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))
-            Text(name).font(.caption.weight(.medium)).lineLimit(2).multilineTextAlignment(.leading)
-            if !sub.isEmpty { Text(sub).font(.caption2).foregroundStyle(.secondary).lineLimit(1) }
+            Text(name).font(.house(.caption).weight(.medium)).lineLimit(2).multilineTextAlignment(.leading)
+            if !sub.isEmpty { Text(sub).font(.house(.caption2)).foregroundStyle(.secondary).lineLimit(1) }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
@@ -245,8 +245,8 @@ private func designPhotosMacCell(_ item: DesignPhotosMacItem, name: String, sub:
             .frame(maxWidth: .infinity).aspectRatio(1, contentMode: .fit)
             .background(Theme.ground).clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous).strokeBorder(on ? Theme.accent : Color.clear, lineWidth: 2.5))
-        Text(name).font(.caption.weight(.medium)).lineLimit(2).multilineTextAlignment(.leading)
-        if !sub.isEmpty { Text(sub).font(.caption2).foregroundStyle(.secondary).lineLimit(1) }
+        Text(name).font(.house(.caption).weight(.medium)).lineLimit(2).multilineTextAlignment(.leading)
+        if !sub.isEmpty { Text(sub).font(.house(.caption2)).foregroundStyle(.secondary).lineLimit(1) }
     }
     .frame(maxWidth: .infinity, alignment: .leading)
     .contentShape(Rectangle())

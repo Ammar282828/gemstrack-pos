@@ -40,7 +40,7 @@ struct OrderOnlineSection: View {
                 ForEach(w.slips) { s in slipRow(s) }
                 if w.slips.isEmpty && awaitingMoney(w) {
                     Text("No slip yet. People often pay and send the slip on WhatsApp instead: check the bank and the chat.")
-                        .font(.footnote)
+                        .font(.house(.footnote))
                         .foregroundStyle(.secondary)
                 }
                 if mayAct { moves(w) }
@@ -151,7 +151,7 @@ struct OrderOnlineSection: View {
                     : "Price held until \(ShopDate.say(until, withTime: true)) (\(relative))",
                 systemImage: "clock"
             )
-            .font(.footnote)
+            .font(.house(.footnote))
             .foregroundStyle(ended ? Tone.late.color : Color.secondary)
         }
     }
@@ -180,11 +180,11 @@ struct OrderOnlineSection: View {
                         .foregroundStyle(wrong ? Tone.problem.color : Color.primary)
                 }
             }
-            .font(.subheadline)
+            .font(.house(.subheadline))
             let detail = [s.fromBank ?? "", (s.reference ?? "").isEmpty ? "" : "ref " + (s.reference ?? "")].filter { !$0.isEmpty }
             if !detail.isEmpty {
                 Text(detail.joined(separator: " · "))
-                    .font(.caption)
+                    .font(.house(.caption))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
@@ -204,7 +204,7 @@ extension OrderOnlineSection {
     fileprivate var macBody: some View {
         if let w = order.website {
             VStack(alignment: .leading, spacing: 10) {
-                Text("Online Order" + (w.onlineId.map { " " + $0 } ?? "")).font(.headline)
+                Text("Online Order" + (w.onlineId.map { " " + $0 } ?? "")).font(.house(.headline))
                 MacOrdersFact(label: "Payment") {
                     Text(OrdersLogic.paymentWords(w.paymentStatus)).foregroundStyle(tone(w.paymentStatus))
                 }
@@ -223,7 +223,7 @@ extension OrderOnlineSection {
                 ForEach(w.slips) { (s: WebsiteSlip) in slipRow(s) }
                 if w.slips.isEmpty && awaitingMoney(w) {
                     Text("No slip yet. People often pay and send the slip on WhatsApp instead: check the bank and the chat.")
-                        .font(.callout)
+                        .font(.house(.callout))
                         .foregroundStyle(.secondary)
                 }
             }

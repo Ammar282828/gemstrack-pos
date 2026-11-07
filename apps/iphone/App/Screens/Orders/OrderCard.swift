@@ -279,7 +279,7 @@ struct OrderNextStepRow: View {
 
     private func invoiceLink(_ invoiceId: String) -> some View {
         Label("Invoice \(invoiceId)", systemImage: "doc.text")
-            .font(.subheadline.weight(.medium))
+            .font(.house(.subheadline).weight(.medium))
             .foregroundStyle(Theme.accent)
     }
 
@@ -296,7 +296,7 @@ struct OrderNextStepRow: View {
                 .buttonBorderShape(.capsule)
                 .controlSize(.small)
                 .tint(Theme.accent)
-                .font(.subheadline.weight(.semibold))
+                .font(.house(.subheadline).weight(.semibold))
                 .frame(minHeight: Metrics.tap)
         }
     }

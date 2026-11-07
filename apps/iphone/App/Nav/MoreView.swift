@@ -11,21 +11,21 @@ struct SignInView: View {
                 VStack(spacing: pt(28)) {
                     HouseLogo().padding(.horizontal, pt(32))
                     VStack(spacing: pt(6)) {
-                        Text(House.storeName).font(.title.weight(.semibold)).multilineTextAlignment(.center)
+                        Text(House.storeName).font(.house(.title).weight(.semibold)).multilineTextAlignment(.center)
                         // Which business this is for: the person may have come back to one of several.
                         Label {
                             Text("Signing in to \(House.business.host)")
                         } icon: {
                             BusinessBadge(business: House.business, size: 20)
                         }
-                        .font(.footnote).foregroundStyle(.secondary)
+                        .font(.house(.footnote)).foregroundStyle(.secondary)
                         .accessibilityElement(children: .combine)
-                        Text("Sign in with the Gmail the shop has for you.").font(.subheadline).foregroundStyle(.secondary)
+                        Text("Sign in with the Gmail the shop has for you.").font(.house(.subheadline)).foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
                     }
                     if session.state == .needsSetup {
                         Text("This build can't reach the shop's book yet: its Firebase iOS app is not registered.")
-                            .font(.footnote).multilineTextAlignment(.center)
+                            .font(.house(.footnote)).multilineTextAlignment(.center)
                     } else {
                         let signingIn = session.state == .signingIn
                         Button {
@@ -43,7 +43,7 @@ struct SignInView: View {
                     }
                     if let e = session.error {
                         Label(e, systemImage: "exclamationmark.triangle.fill")
-                            .font(.footnote).foregroundStyle(Tone.problem.color).multilineTextAlignment(.center)
+                            .font(.house(.footnote)).foregroundStyle(Tone.problem.color).multilineTextAlignment(.center)
                     }
                     if !House.isDemo {
                         Button {

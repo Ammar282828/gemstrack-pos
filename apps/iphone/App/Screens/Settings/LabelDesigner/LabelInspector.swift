@@ -120,7 +120,7 @@ struct LabelInspector: View {
             } label: { Label("Change how a value reads", systemImage: "wand.and.stars") }
             DisclosureGroup("How placeholders work") {
                 ForEach(LabelPlaceholders.help, id: \.self) { (line: String) in
-                    Text(line).font(.footnote).foregroundStyle(.secondary)
+                    Text(line).font(.house(.footnote)).foregroundStyle(.secondary)
                 }
             }
         } header: {
@@ -241,7 +241,7 @@ struct LabelInspector: View {
                 LabelNumberRow(title: "Rounded corners", unit: "0 to 8", value: bind("rd", 0, { $0.rounding ?? 0 }, { $0.rounding = $1 == 0 ? nil : min(8, max(0, $1)) }), range: 0...8)
             }
             if f.type == .line {
-                Text("A line is a solid bar: make it thin with its Height (or Width, on its side).").font(.footnote).foregroundStyle(.secondary)
+                Text("A line is a solid bar: make it thin with its Height (or Width, on its side).").font(.house(.footnote)).foregroundStyle(.secondary)
             }
         } header: { Text(Self.kindName(f)).textCase(nil) }
     }
@@ -297,7 +297,7 @@ struct LabelNumberRow: View {
                     .multilineTextAlignment(.trailing)
                     .keyboardType(.numbersAndPunctuation)
                     .frame(minWidth: 40, maxWidth: 70)
-                if let unit { Text(unit).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
+                if let unit { Text(unit).font(.house(.caption)).foregroundStyle(.secondary).lineLimit(1) }
                 Stepper("", value: $value, in: range).labelsHidden()
             }
         }
@@ -318,12 +318,12 @@ struct LabelDotRow: View {
                     .multilineTextAlignment(.trailing)
                     .keyboardType(.numbersAndPunctuation)
                     .frame(minWidth: Metrics.tap, maxWidth: 64)
-                Text("dots").font(.caption).foregroundStyle(.secondary)
+                Text("dots").font(.house(.caption)).foregroundStyle(.secondary)
                 TextField("", value: mm, format: .number.precision(.fractionLength(0...1)))
                     .multilineTextAlignment(.trailing)
                     .keyboardType(.decimalPad)
                     .frame(minWidth: 40, maxWidth: 56)
-                Text("mm").font(.caption).foregroundStyle(.secondary)
+                Text("mm").font(.house(.caption)).foregroundStyle(.secondary)
             }
         }
     }

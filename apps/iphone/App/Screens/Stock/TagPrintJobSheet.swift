@@ -77,7 +77,7 @@ struct TagPrintJobSheet: View {
                 HStack {
                     VStack(alignment: .leading, spacing: pt(2)) {
                         Text(p.name.isEmpty ? p.sku : p.name).lineLimit(1)
-                        if !p.name.isEmpty { Text(p.sku).font(.caption.monospaced()).foregroundStyle(.secondary) }
+                        if !p.name.isEmpty { Text(p.sku).font(.house(.caption).monospaced()).foregroundStyle(.secondary) }
                     }
                     Spacer()
                     Button {

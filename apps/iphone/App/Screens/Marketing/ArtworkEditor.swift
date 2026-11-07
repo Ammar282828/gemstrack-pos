@@ -371,7 +371,7 @@ struct ArtworkEditor: View {
             if l.wrappedValue["locked"].bool { Button("Unlock") { l.wrappedValue["locked"] = .bool(false) } }
             else {
                 if !l.wrappedValue.s("bind").isEmpty {
-                    Text("Uses the piece’s \(l.wrappedValue.s("bind")); edit it on the piece.").font(.footnote).foregroundStyle(.secondary)
+                    Text("Uses the piece’s \(l.wrappedValue.s("bind")); edit it on the piece.").font(.house(.footnote)).foregroundStyle(.secondary)
                     Button("Make independent text") { let key = l.wrappedValue.s("bind"); l.wrappedValue["text"] = .string(fields[key] ?? ""); l.wrappedValue["bind"] = .null }
                 }
                 if l.wrappedValue.s("kind") == "text" {
@@ -897,7 +897,7 @@ extension ArtworkEditor {
                 Button("Unlock") { l.wrappedValue["locked"] = .bool(false) }
             } else {
                 if !l.wrappedValue.s("bind").isEmpty {
-                    Text("Uses the piece’s \(l.wrappedValue.s("bind")); edit it on the piece.").font(.callout).foregroundStyle(.secondary)
+                    Text("Uses the piece’s \(l.wrappedValue.s("bind")); edit it on the piece.").font(.house(.callout)).foregroundStyle(.secondary)
                     Button("Make Independent Text") { let key = l.wrappedValue.s("bind"); l.wrappedValue["text"] = .string(fields[key] ?? ""); l.wrappedValue["bind"] = .null }
                 }
                 if l.wrappedValue.s("kind") == "text" {
@@ -995,8 +995,8 @@ extension ArtworkEditor {
             Image(systemName: macSymbol(l.s("kind"))).frame(width: 18).foregroundStyle(.secondary)
             Text(name(l)).lineLimit(1)
             Spacer(minLength: 4)
-            if l["locked"].bool { Image(systemName: "lock.fill").font(.caption).foregroundStyle(.secondary) }
-            if l["hidden"].bool { Image(systemName: "eye.slash").font(.caption).foregroundStyle(.secondary) }
+            if l["locked"].bool { Image(systemName: "lock.fill").font(.house(.caption)).foregroundStyle(.secondary) }
+            if l["hidden"].bool { Image(systemName: "eye.slash").font(.house(.caption)).foregroundStyle(.secondary) }
         }
         .padding(.vertical, 2)
         .padding(.horizontal, 4)

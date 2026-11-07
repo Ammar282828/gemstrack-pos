@@ -137,7 +137,7 @@ struct ArtworkGuideRows: View {
                 position = ""
             }.buttonStyle(.borderless)
         }
-        Text("Things you move snap to the guides, the grid, the page’s middle and margins and each other. Guides are for you: they are not in the picture you post.").font(.footnote).foregroundStyle(.secondary)
+        Text("Things you move snap to the guides, the grid, the page’s middle and margins and each other. Guides are for you: they are not in the picture you post.").font(.house(.footnote)).foregroundStyle(.secondary)
     }
 }
 

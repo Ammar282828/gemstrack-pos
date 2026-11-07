@@ -54,7 +54,7 @@ struct StockPhotoDrop: ViewModifier {
                     RoundedRectangle(cornerRadius: Radius.chip, style: .continuous)
                         .strokeBorder(Theme.accent, style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
                         .background(Theme.accent.opacity(0.08), in: .rect(cornerRadius: Radius.chip, style: .continuous))
-                        .overlay { Label("Drop to replace the photo", systemImage: "photo.badge.arrow.down").font(.headline) }
+                        .overlay { Label("Drop to replace the photo", systemImage: "photo.badge.arrow.down").font(.house(.headline)) }
                         .allowsHitTesting(false)
                 } else if busy {
                     ProgressView("Uploading the photo…").padding(14).background(.regularMaterial, in: .rect(cornerRadius: Radius.tile, style: .continuous))

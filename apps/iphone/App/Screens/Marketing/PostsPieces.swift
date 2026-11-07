@@ -112,7 +112,7 @@ struct PostPiecesScreen: View {
                     .tint(Theme.accent)
                     .ledgerCard(padding: 14)
                 Text("\(items.count) of \(store.pieces.count) pieces")
-                    .font(.footnote)
+                    .font(.house(.footnote))
                     .foregroundStyle(.secondary)
                 #endif
                 if items.isEmpty {
@@ -165,7 +165,7 @@ struct PostPiecesScreen: View {
     private func pickMark(_ tray: PostTrayModel, _ p: PostPiece) -> some View {
         if let i = tray.cards.firstIndex(where: { (c: PostTrayCard) in c.id == p.id }) {
             Text("\(i + 1)")
-                .font(.caption.weight(.semibold)).monospacedDigit()
+                .font(.house(.caption).weight(.semibold)).monospacedDigit()
                 .foregroundStyle(Theme.onAccent)
                 .frame(minWidth: 24, minHeight: 24)
                 .background(Theme.accent, in: .circle)

@@ -228,23 +228,23 @@ struct DesignStartView: View {
     private var anything: some View {
         SectionCard("Start with anything") {
             Text("Paste a caption, a forwarded WhatsApp message, a link or a SKU, or drop photos.")
-                .font(.subheadline).foregroundStyle(.secondary)
+                .font(.house(.subheadline)).foregroundStyle(.secondary)
             Button { DesignHooks.shared.startWithAnything(start) } label: {
                 Label("Paste or describe a piece…", systemImage: "sparkles").frame(maxWidth: .infinity)
             }.buttonStyle(.bordered).largeOnPhone()
             let found = start.fields.filter { !$0.value.isEmpty }
             if !found.isEmpty || !start.price.isEmpty {
                 VStack(alignment: .leading, spacing: pt(6)) {
-                    Text(foundLine).font(.footnote).foregroundStyle(.secondary)
-                    Button("Clear") { start.fields = [:]; start.price = "" }.font(.footnote).frame(minHeight: Metrics.tap)
+                    Text(foundLine).font(.house(.footnote)).foregroundStyle(.secondary)
+                    Button("Clear") { start.fields = [:]; start.price = "" }.font(.house(.footnote)).frame(minHeight: Metrics.tap)
                 }
             }
             if !start.waiting.isEmpty {
                 VStack(alignment: .leading, spacing: pt(6)) {
-                    Text("Also found").font(.caption).foregroundStyle(.secondary)
+                    Text("Also found").font(.house(.caption)).foregroundStyle(.secondary)
                     ForEach(start.waiting) { f in
                         HStack {
-                            Text(f.name.isEmpty ? "A piece" : f.name).font(.subheadline).lineLimit(1)
+                            Text(f.name.isEmpty ? "A piece" : f.name).font(.house(.subheadline)).lineLimit(1)
                             Spacer(minLength: 0)
                             Button("Use") { start.use(f); start.waiting.removeAll { $0.id == f.id } }.buttonStyle(.bordered)
                             Button { start.waiting.removeAll { $0.id == f.id } } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary).frame(minWidth: Metrics.tap, minHeight: Metrics.tap) }
@@ -269,9 +269,9 @@ struct DesignStartView: View {
         SectionCard("What are you making?") {
             if let play = start.play, start.kind == "ad" {
                 HStack(spacing: pt(8)) {
-                    Text("Making ").font(.subheadline) + Text(play.s("title")).font(.subheadline.weight(.semibold)) + Text(" — “\(play.s("cta"))” · \(play.s("where"))").font(.subheadline)
+                    Text("Making ").font(.house(.subheadline)) + Text(play.s("title")).font(.house(.subheadline).weight(.semibold)) + Text(" — “\(play.s("cta"))” · \(play.s("where"))").font(.house(.subheadline))
                     Spacer(minLength: 0)
-                    Button("Not this play") { start.play = nil }.font(.footnote).frame(minHeight: Metrics.tap)
+                    Button("Not this play") { start.play = nil }.font(.house(.footnote)).frame(minHeight: Metrics.tap)
                 }
                 .padding(pt(10)).background(Theme.accent.opacity(0.12), in: .rect(cornerRadius: Radius.tile, style: .continuous))
             }
@@ -279,8 +279,8 @@ struct DesignStartView: View {
                 ForEach(cards) { c in
                     Button { start.choose(c.kind) } label: {
                         VStack(alignment: .leading, spacing: pt(3)) {
-                            Text(c.title).font(.headline)
-                            Text(c.note).font(.footnote).opacity(0.8)
+                            Text(c.title).font(.house(.headline))
+                            Text(c.note).font(.house(.footnote)).opacity(0.8)
                         }
                         .foregroundStyle(start.kind == c.kind ? Theme.onAccent : Color.primary)
                         .frame(maxWidth: .infinity, alignment: .leading).padding(pt(12))
@@ -292,10 +292,10 @@ struct DesignStartView: View {
                 }
             }
             VStack(alignment: .leading, spacing: pt(8)) {
-                HStack { Text("Sizes").font(.subheadline.weight(.medium)); Text(start.summary).font(.subheadline).foregroundStyle(.secondary) }
+                HStack { Text("Sizes").font(.house(.subheadline).weight(.medium)); Text(start.summary).font(.house(.subheadline)).foregroundStyle(.secondary) }
                 ForEach(DesignSizes.groups) { g in
                     VStack(alignment: .leading, spacing: pt(2)) {
-                        Text(g.title).font(.caption).foregroundStyle(.secondary)
+                        Text(g.title).font(.house(.caption)).foregroundStyle(.secondary)
                         #if os(macOS)
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 64), spacing: 8)], alignment: .leading, spacing: 8) {
                             ForEach(g.sizes) { s in FilterChip(title: s.ratio, chosen: start.sizes.contains(s.id)) { start.toggle(s.id) } }
@@ -310,7 +310,7 @@ struct DesignStartView: View {
                     }
                 }
                 VStack(alignment: .leading, spacing: pt(2)) {
-                    Text("Your own").font(.caption).foregroundStyle(.secondary)
+                    Text("Your own").font(.house(.caption)).foregroundStyle(.secondary)
                     HStack(spacing: pt(8)) {
                         FilterChip(title: "W:H", chosen: start.sizes.contains("custom")) { start.toggle("custom") }
                         if start.sizes.contains("custom") {
@@ -331,7 +331,7 @@ struct DesignStartView: View {
             if let photo = start.photo {
                 HStack(spacing: pt(10)) {
                     Image(systemName: "photo").foregroundStyle(Theme.accent)
-                    Text(photo.label).font(.subheadline.weight(.medium)).lineLimit(1)
+                    Text(photo.label).font(.house(.subheadline).weight(.medium)).lineLimit(1)
                     Spacer(minLength: 0)
                     Button { start.photo = nil } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary).frame(minWidth: Metrics.tap, minHeight: Metrics.tap) }
                         .buttonStyle(.plain).accessibilityLabel("Choose another photograph")
@@ -356,7 +356,7 @@ struct DesignStartView: View {
                 }
                 #endif
                 Text("A photograph is optional: without one the design starts on the house’s ground.")
-                    .font(.footnote).foregroundStyle(.secondary)
+                    .font(.house(.footnote)).foregroundStyle(.secondary)
             }
         }
     }
@@ -367,7 +367,7 @@ struct DesignStartView: View {
 
     private func chipLabel(_ title: String, _ symbol: String) -> some View {
         Label(title, systemImage: symbol)
-            .font(.subheadline.weight(.medium)).foregroundStyle(Color.primary)
+            .font(.house(.subheadline).weight(.medium)).foregroundStyle(Color.primary)
             .padding(.horizontal, pt(13)).padding(.vertical, pt(7)).frame(minHeight: Metrics.tap)
             .background(Theme.ground, in: .capsule)
             .overlay(Capsule().strokeBorder(Color.secondary.opacity(0.18), lineWidth: 1))
@@ -379,7 +379,7 @@ struct DesignStartView: View {
             let path = "/website/investments"
             NavigationLink(value: Route(path: path)) {
                 Label("Gold investment posts: Investments", systemImage: "chart.line.uptrend.xyaxis")
-                    .font(.subheadline).frame(maxWidth: .infinity, alignment: .leading)
+                    .font(.house(.subheadline)).frame(maxWidth: .infinity, alignment: .leading)
             }
             .zoomSource(id: path)
             .padding(.horizontal, pt(4))
@@ -397,7 +397,7 @@ struct DesignStartView: View {
                 ForEach(recent) { r in
                     Button { onOpenSaved(r) } label: { DesignRecordLine(record: r) }.buttonStyle(.pressable)
                 }
-                Button("See all saved", action: onSeeAll).font(.subheadline)
+                Button("See all saved", action: onSeeAll).font(.house(.subheadline))
             }
         }
     }
@@ -432,12 +432,12 @@ struct DesignDraftLine: View {
             }
             .frame(width: 44, height: 44).background(Theme.ground).clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
             VStack(alignment: .leading, spacing: pt(2)) {
-                Text(row.title).font(.subheadline.weight(.medium)).lineLimit(1)
+                Text(row.title).font(.house(.subheadline).weight(.medium)).lineLimit(1)
                 Text((row.old == nil ? "Draft on \(Self.device)" : "Earlier Post a piece draft") + " · " + ShopDate.stamp(row.updated, withTime: false))
-                    .font(.footnote).foregroundStyle(.secondary)
+                    .font(.house(.footnote)).foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
-            Image(systemName: "chevron.right").font(.footnote).foregroundStyle(.tertiary)
+            Image(systemName: "chevron.right").font(.house(.footnote)).foregroundStyle(.tertiary)
         }
         .contentShape(Rectangle())
     }
@@ -454,12 +454,12 @@ struct DesignRecordLine: View {
             }
             .frame(width: 44, height: 44).background(Theme.ground).clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
             VStack(alignment: .leading, spacing: pt(2)) {
-                Text(record.name).font(.subheadline.weight(.medium)).lineLimit(1)
+                Text(record.name).font(.house(.subheadline).weight(.medium)).lineLimit(1)
                 Text(DesignKinds.label(record.kind) + " · \(record.pages.count) size" + (record.pages.count == 1 ? "" : "s") + " · " + ShopDate.say(record.updated))
-                    .font(.footnote).foregroundStyle(.secondary)
+                    .font(.house(.footnote)).foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
-            Image(systemName: "chevron.right").font(.footnote).foregroundStyle(.tertiary)
+            Image(systemName: "chevron.right").font(.house(.footnote)).foregroundStyle(.tertiary)
         }
         .contentShape(Rectangle())
     }
@@ -545,9 +545,9 @@ extension DesignStartView {
             NavigationLink(value: Route(path: "/website/investments")) {
                 HStack(spacing: 10) {
                     Image(systemName: "chart.line.uptrend.xyaxis").foregroundStyle(Theme.accent)
-                    Text("Gold investment posts: Investments").font(.subheadline)
+                    Text("Gold investment posts: Investments").font(.house(.subheadline))
                     Spacer(minLength: 8)
-                    Image(systemName: "chevron.right").font(.footnote).foregroundStyle(.tertiary)
+                    Image(systemName: "chevron.right").font(.house(.footnote)).foregroundStyle(.tertiary)
                 }
                 .padding(14)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -564,9 +564,9 @@ extension DesignStartView {
         SectionCard("What are you making?") {
             if let play = start.play, start.kind == "ad" {
                 HStack(spacing: 8) {
-                    Text("Making ").font(.subheadline) + Text(play.s("title")).font(.subheadline.weight(.semibold)) + Text(" — “\(play.s("cta"))” · \(play.s("where"))").font(.subheadline)
+                    Text("Making ").font(.house(.subheadline)) + Text(play.s("title")).font(.house(.subheadline).weight(.semibold)) + Text(" — “\(play.s("cta"))” · \(play.s("where"))").font(.house(.subheadline))
                     Spacer(minLength: 0)
-                    Button("Not this play") { start.play = nil }.font(.footnote)
+                    Button("Not this play") { start.play = nil }.font(.house(.footnote))
                 }
                 .padding(10).background(Theme.accent.opacity(0.12), in: .rect(cornerRadius: Radius.tile, style: .continuous))
             }
@@ -574,10 +574,10 @@ extension DesignStartView {
                 ForEach(cards) { c in macKindCard(c) }
             }
             VStack(alignment: .leading, spacing: 8) {
-                HStack { Text("Sizes").font(.subheadline.weight(.medium)); Text(start.summary).font(.subheadline).foregroundStyle(.secondary) }
+                HStack { Text("Sizes").font(.house(.subheadline).weight(.medium)); Text(start.summary).font(.house(.subheadline)).foregroundStyle(.secondary) }
                 ForEach(DesignSizes.groups) { g in
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(g.title).font(.caption).foregroundStyle(.secondary)
+                        Text(g.title).font(.house(.caption)).foregroundStyle(.secondary)
                         MacChipFlow(spacing: 8, lineSpacing: 8) {
                             ForEach(g.sizes) { s in FilterChip(title: s.ratio, chosen: start.sizes.contains(s.id)) { start.toggle(s.id) } }
                         }
@@ -585,7 +585,7 @@ extension DesignStartView {
                     }
                 }
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Your own").font(.caption).foregroundStyle(.secondary)
+                    Text("Your own").font(.house(.caption)).foregroundStyle(.secondary)
                     HStack(spacing: 8) {
                         FilterChip(title: "W:H", chosen: start.sizes.contains("custom")) { start.toggle("custom") }
                         if start.sizes.contains("custom") {
@@ -606,11 +606,11 @@ extension DesignStartView {
         return Button { start.choose(c.kind) } label: {
             VStack(alignment: .leading, spacing: 3) {
                 HStack {
-                    Text(c.title).font(.system(.headline, design: .serif))
+                    Text(c.title).font(.house(.headline))
                     Spacer(minLength: 0)
                     if on { Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.accent) }
                 }
-                Text(c.note).font(.callout).foregroundStyle(.secondary)
+                Text(c.note).font(.house(.callout)).foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(12)
@@ -637,7 +637,7 @@ extension DesignStartView {
                     Button { onOpenSaved(r) } label: { DesignRecordLine(record: r) }.buttonStyle(.pressable)
                         .contextMenu { Button("Open", systemImage: "folder") { onOpenSaved(r) } }
                 }
-                Button("See all saved", action: onSeeAll).font(.subheadline)
+                Button("See all saved", action: onSeeAll).font(.house(.subheadline))
             }
         }
     }

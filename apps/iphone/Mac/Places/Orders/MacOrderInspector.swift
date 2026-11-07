@@ -67,9 +67,9 @@ struct MacOrderInspector: View {
                 Monogram(name: OrdersLogic.customerName(order), size: Monogram.Size.hero)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(OrdersLogic.customerName(order))
-                        .font(.system(.title3, design: .serif).weight(.semibold))
+                        .font(.house(.title3).weight(.semibold))
                         .lineLimit(2).textSelection(.enabled)
-                    Text(caption(order)).font(.callout).foregroundStyle(.secondary).lineLimit(2).textSelection(.enabled)
+                    Text(caption(order)).font(.house(.callout)).foregroundStyle(.secondary).lineLimit(2).textSelection(.enabled)
                 }
                 Spacer(minLength: 0)
             }
@@ -96,11 +96,11 @@ struct MacOrderInspector: View {
         let amount = owed >= 1 ? owed : (isCredit(owed) ? -owed : worth)
         let tone: Color = owed >= 1 ? Tone.owed.color : (isCredit(owed) ? Tone.credit.color : Tone.settled.color)
         return VStack(alignment: .leading, spacing: 0) {
-            Text(label).font(.caption).foregroundStyle(.secondary)
+            Text(label).font(.house(.caption)).foregroundStyle(.secondary)
             HStack(alignment: .firstTextBaseline, spacing: 5) {
-                Text("PKR").font(.system(.callout, design: .serif).weight(.medium)).foregroundStyle(.secondary)
+                Text("PKR").font(.house(.callout).weight(.medium)).foregroundStyle(.secondary)
                 Text(HeroAmount.figure(amount, lac: false))
-                    .font(.system(.title, design: .serif).weight(.semibold))
+                    .font(.house(.title).weight(.semibold))
                     .foregroundStyle(tone).monospacedDigit().lineLimit(1).minimumScaleFactor(0.6)
             }
         }
@@ -167,7 +167,7 @@ struct MacOrderInspector: View {
             Spacer(minLength: 8)
             value().multilineTextAlignment(.trailing)
         }
-        .font(.callout)
+        .font(.house(.callout))
     }
 
     /// "Next Step: Make invoice" is too long for two buttons side by side in the inspector's column: the step's own words.
@@ -209,10 +209,10 @@ struct MacOrderInspector: View {
         if OrdersLogic.isOpen(order) || !p.undated {
             card("Promised") {
                 Text(OrdersLogic.promiseLine(order, now: Date()))
-                    .font(.callout)
+                    .font(.house(.callout))
                     .foregroundStyle(p.tone == .quiet ? Color.primary : p.tone.color)
                 if p.urgent && p.state != .late {
-                    Text("Inside the bench week").font(.caption).foregroundStyle(.secondary)
+                    Text("Inside the bench week").font(.house(.caption)).foregroundStyle(.secondary)
                 }
             }
         }
@@ -239,13 +239,13 @@ struct MacOrderInspector: View {
                     .foregroundStyle(done ? Color.secondary : Color.primary)
                     .lineLimit(2)
                 if !facts.isEmpty {
-                    Text(facts).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                    Text(facts).font(.house(.caption)).foregroundStyle(.secondary).lineLimit(2)
                 }
                 karigarCell(order, i, item: item, done: done, karigars: karigars)
             }
             Spacer(minLength: 4)
             if let total = item.totalEstimate {
-                Text(Money.pkr(total)).monospacedDigit().font(.callout)
+                Text(Money.pkr(total)).monospacedDigit().font(.house(.callout))
             }
         }
     }
@@ -284,9 +284,9 @@ struct MacOrderInspector: View {
             .controlSize(.small)
             .frame(maxWidth: 200, alignment: .leading)
         } else if current != "none" {
-            Text(karigarName(current)).font(.callout).foregroundStyle(.secondary)
+            Text(karigarName(current)).font(.house(.callout)).foregroundStyle(.secondary)
         } else if !done {
-            Text("Not given out").font(.callout).foregroundStyle(Tone.owed.color)
+            Text("Not given out").font(.house(.callout)).foregroundStyle(Tone.owed.color)
         }
     }
 
@@ -324,8 +324,8 @@ struct MacOrderInspector: View {
                 Spacer(minLength: 8)
                 if l.amount > 0 || l.gold.isEmpty { Text(Money.pkr(l.amount)).monospacedDigit() }
             }
-            if !l.note.isEmpty { Text(l.note).font(.caption).foregroundStyle(.secondary) }
-            if !l.gold.isEmpty { Text(l.gold).font(.caption).foregroundStyle(.secondary) }
+            if !l.note.isEmpty { Text(l.note).font(.house(.caption)).foregroundStyle(.secondary) }
+            if !l.gold.isEmpty { Text(l.gold).font(.house(.caption)).foregroundStyle(.secondary) }
         }
     }
 

@@ -89,7 +89,7 @@ struct WebsiteInvestmentsScreen: View {
                     VStack(alignment: .leading, spacing: pt(2)) {
                         Text("Today's post hasn't arrived yet.")
                         Text("The routine runs at 11:00 and files it here when it finishes\((gold.schedule?.enabled ?? false) ? "; the schedule sends it once it's here" : ""). If it ran and nothing came, check its last step on claude.ai, or add today's by hand.")
-                            .font(.caption).foregroundStyle(.secondary)
+                            .font(.house(.caption)).foregroundStyle(.secondary)
                     }
                 } icon: {
                     Image(systemName: "clock").foregroundStyle(Tone.owed.color)
@@ -109,7 +109,7 @@ struct WebsiteInvestmentsScreen: View {
                             VStack(alignment: .leading, spacing: pt(2)) {
                                 Text("Today's post hasn't arrived yet.")
                                 Text("The routine runs at 11:00 and files it here when it finishes\((gold.schedule?.enabled ?? false) ? "; the schedule sends it once it's here" : ""). If it ran and nothing came, check its last step on claude.ai, or add today's by hand.")
-                                    .font(.caption).foregroundStyle(.secondary)
+                                    .font(.house(.caption)).foregroundStyle(.secondary)
                             }
                         } icon: {
                             Image(systemName: "clock").foregroundStyle(Tone.owed.color)
@@ -141,14 +141,14 @@ struct WebsiteInvestmentsScreen: View {
         return HStack(spacing: pt(10)) {
             VStack(alignment: .leading, spacing: pt(3)) {
                 HStack(spacing: pt(6)) {
-                    Text(WebsiteGoldTime.longDate(p.date)).font(.body.weight(.semibold))
+                    Text(WebsiteGoldTime.longDate(p.date)).font(.house(.body).weight(.semibold))
                     if p.hold { Pill("Held", tone: .quiet) }
                 }
-                Text(p.headline).font(.subheadline).foregroundStyle(.secondary).lineLimit(3)
+                Text(p.headline).font(.house(.subheadline)).foregroundStyle(.secondary).lineLimit(3)
             }
             Spacer(minLength: 8)
-            Text("\(sent)/\(targets.count) sent").font(.caption).foregroundStyle(.secondary).monospacedDigit()
-            Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
+            Text("\(sent)/\(targets.count) sent").font(.house(.caption)).foregroundStyle(.secondary).monospacedDigit()
+            Image(systemName: "chevron.right").font(.house(.caption)).foregroundStyle(.tertiary)
         }
         .contentShape(Rectangle())
     }
@@ -162,7 +162,7 @@ struct WebsiteInvestmentsScreen: View {
                     VStack(alignment: .leading, spacing: pt(2)) {
                         Text("Automatic sending")
                         Text(s.enabled ? WebsiteGoldWords.summary(s, targets: gold.targets) : "Off: nothing goes out unless someone presses Send.")
-                            .font(.caption).foregroundStyle(.secondary)
+                            .font(.house(.caption)).foregroundStyle(.secondary)
                     }
                 }
                 .tint(Tone.settled.color)
@@ -171,7 +171,7 @@ struct WebsiteInvestmentsScreen: View {
                           ? "The scheduler hasn't checked in yet. It runs every 5 minutes; if this stays, nothing goes out by itself."
                           : "The scheduler last checked in \(WebsiteGoldTime.ago(s.lastTick)). It should every 5 minutes: until it does, nothing goes out by itself.",
                           systemImage: "exclamationmark.triangle.fill")
-                        .font(.subheadline)
+                        .font(.house(.subheadline))
                         .foregroundStyle(Tone.owed.color)
                 }
                 Button { editing = true } label: { Label("Edit the schedule", systemImage: "calendar.badge.clock") }
@@ -391,13 +391,13 @@ struct WebsiteGoldDaySheet: View {
                     StockImage(imageUrl: url.absoluteString, name: label, key: d.id + kind + d.receivedAt)
                         .aspectRatio(kind == "square" ? 1 : 9.0 / 16.0, contentMode: .fit)
                         .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
-                    Label(label, systemImage: "arrow.up.right.square").font(.caption).foregroundStyle(.secondary)
+                    Label(label, systemImage: "arrow.up.right.square").font(.house(.caption)).foregroundStyle(.secondary)
                 }
             }
             .frame(maxWidth: .infinity)
         } else {
             Text("No \(kind) card")
-                .font(.caption)
+                .font(.house(.caption))
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, minHeight: 90)
                 .ledgerCard(padding: 8)
@@ -442,20 +442,20 @@ struct WebsiteGoldDaySheet: View {
         return VStack(alignment: .leading, spacing: pt(6)) {
             HStack {
                 VStack(alignment: .leading, spacing: pt(2)) {
-                    Text(t.label).font(.body.weight(.medium))
-                    Text("to " + t.to).font(.caption).foregroundStyle(.secondary)
+                    Text(t.label).font(.house(.body).weight(.medium))
+                    Text("to " + t.to).font(.house(.caption)).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 8)
                 if let went {
                     // Gone is the expected state: the time, quietly.
                     Text(ShopDate.say(went.at, withTime: true) + (went.by == "schedule" ? " · auto" : ""))
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(.house(.caption)).foregroundStyle(.secondary)
                 }
             }
             if scheduled, let line = part?.line {
                 // A plan on time is the expected state: only a warning is coloured.
                 Label(line, systemImage: "calendar.badge.clock")
-                    .font(.caption)
+                    .font(.house(.caption))
                     .foregroundStyle(part?.tone == "warn" ? Tone.owed.color : Color.secondary)
             }
             HStack(spacing: pt(16)) {
@@ -465,7 +465,7 @@ struct WebsiteGoldDaySheet: View {
                     Button("Try again") { ask = .retry(t.id) }
                 }
             }
-            .font(.subheadline.weight(.medium))
+            .font(.house(.subheadline).weight(.medium))
             .buttonStyle(.borderless)
         }
         .padding(.vertical, pt(2))

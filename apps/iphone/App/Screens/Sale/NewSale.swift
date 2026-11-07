@@ -163,7 +163,7 @@ struct SaleForm: View {
                           ? "\(Money.pkr(edit.paidBefore)) paid before stays on \(edit.invoiceId). A payment added below is taken now. A piece taken off stays sold."
                           : "Nothing is paid on \(edit.invoiceId) yet. A payment added below is taken now. A piece taken off stays sold.",
                           systemImage: "pencil.and.list.clipboard")
-                        .font(.subheadline)
+                        .font(.house(.subheadline))
                 }
             }
             switch step {
@@ -602,7 +602,7 @@ extension SaleForm {
         if alreadySold {
             VStack(alignment: .leading, spacing: 2) {
                 Text("This sale was already saved. Look for it in Invoices before saving it again.")
-                    .font(.callout.weight(.semibold))
+                    .font(.house(.callout).weight(.semibold))
                 NavigationLink(value: Route(path: "/invoices")) { Text("Open Invoices") }
             }
         } else if !goneSkus.isEmpty {
@@ -613,13 +613,13 @@ extension SaleForm {
             }
         } else if let reason = f.blockedReason {
             Text(reason)
-                .font(.callout)
+                .font(.house(.callout))
                 .foregroundStyle(f.hasPieces ? Tone.problem.color : Tone.quiet.color)
                 .lineLimit(2)
         } else if f.hasEstimate {
             let line = balanceLine(f.balance)
             Text(line.state == .paid ? "Paid in full" : "\(line.label) \(Money.pkr(line.amount))")
-                .font(.callout)
+                .font(.house(.callout))
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
         }

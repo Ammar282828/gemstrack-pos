@@ -70,7 +70,7 @@ struct AdsGoalLabel: View {
                 .frame(width: 24)
             VStack(alignment: .leading, spacing: pt(2)) {
                 Text(goal.label).foregroundStyle(.primary)
-                Text(goal.hint).font(.caption).foregroundStyle(.secondary)
+                Text(goal.hint).font(.house(.caption)).foregroundStyle(.secondary)
             }
             Spacer(minLength: 8)
             if chosen { Image(systemName: "checkmark").foregroundStyle(Theme.accent) }
@@ -104,7 +104,7 @@ struct AdsMediaGrid: View {
             .overlay(alignment: .topLeading) {
                 if let w = m.kindWord {
                     Text(w)
-                        .font(.caption2.weight(.semibold))
+                        .font(.house(.caption2).weight(.semibold))
                         .foregroundStyle(.primary)
                         .padding(.horizontal, pt(5))
                         .padding(.vertical, pt(2))
@@ -115,7 +115,7 @@ struct AdsMediaGrid: View {
             .overlay(alignment: .topTrailing) {
                 if on {
                     Image(systemName: "checkmark.circle.fill")
-                        .font(.title3)
+                        .font(.house(.title3))
                         .foregroundStyle(Theme.accent)
                         .padding(pt(4))
                 }
@@ -141,7 +141,7 @@ struct AdsPieceGrid: View {
                         StockImage(imageUrl: p.thumb, name: p.name, key: p.id)
                             .aspectRatio(1, contentMode: .fit)
                             .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
-                        Text(p.name).font(.caption2).lineLimit(2)
+                        Text(p.name).font(.house(.caption2)).lineLimit(2)
                     }
                 }
                 .buttonStyle(.plain)
@@ -199,10 +199,10 @@ struct AdsPhotoRow: View {
                 ProgressView()
                 Text("Sending to Meta…")
             }
-            .font(.caption)
+            .font(.house(.caption))
             .foregroundStyle(.secondary)
         } else if let e = photo.error {
-            Text(e).font(.caption).foregroundStyle(Tone.problem.color)
+            Text(e).font(.house(.caption)).foregroundStyle(Tone.problem.color)
         } else if carousel {
             TextField("Card headline", text: $photo.headline)
             if ownLinks {
@@ -212,7 +212,7 @@ struct AdsPhotoRow: View {
                     .autocorrectionDisabled()
             }
         } else {
-            Text("Ready").font(.caption).foregroundStyle(.secondary)
+            Text("Ready").font(.house(.caption)).foregroundStyle(.secondary)
         }
     }
 
@@ -246,7 +246,7 @@ struct AdsLibrarySheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: pt(12)) {
                     Text("Every picture in this ad account's Ads Manager library: \(DeviceWords.tap) one to use it again.")
-                        .font(.footnote)
+                        .font(.house(.footnote))
                         .foregroundStyle(.secondary)
                     if let problem {
                         ErrorState(problem) { Task { await load(nil) } }

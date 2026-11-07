@@ -648,8 +648,8 @@ private struct HisaabMacListRow: View {
         HStack(spacing: 12) {
             Monogram(name: account.name, size: Monogram.Size.row)
             VStack(alignment: .leading, spacing: 2) {
-                Text(account.name).font(.body.weight(.medium)).lineLimit(1)
-                Text(line).font(.callout).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
+                Text(account.name).font(.house(.body).weight(.medium)).lineLimit(1)
+                Text(line).font(.house(.callout)).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
             }
             Spacer(minLength: 8)
             if account.hasCash { RowAmount(amount: abs(account.cash), tone: tint) }
@@ -693,19 +693,19 @@ private struct HisaabMacInspector: View {
             HStack(spacing: 12) {
                 Monogram(name: account.name, size: Monogram.Size.hero)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(account.name).font(.system(.title3, design: .serif).weight(.semibold)).lineLimit(2).textSelection(.enabled)
-                    Text(kindLine).font(.callout).foregroundStyle(.secondary)
+                    Text(account.name).font(.house(.title3).weight(.semibold)).lineLimit(2).textSelection(.enabled)
+                    Text(kindLine).font(.house(.callout)).foregroundStyle(.secondary)
                 }
             }
             if account.hasCash {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(account.side == .get ? "You will get" : "You will give").font(.callout).foregroundStyle(.secondary)
+                    Text(account.side == .get ? "You will get" : "You will give").font(.house(.callout)).foregroundStyle(.secondary)
                     HeroAmount(amount: abs(account.cash), tone: account.side == .get ? Tone.owed.color : Tone.credit.color)
                 }
             }
             if account.gold != 0 {
                 Text("\(MoneyFormat.grams(abs(account.gold))) \(MoneyWords.metal) \(account.gold > 0 ? "to receive" : "to pay")")
-                    .font(.callout).monospacedDigit().foregroundStyle(.secondary)
+                    .font(.house(.callout)).monospacedDigit().foregroundStyle(.secondary)
             }
         }
     }
@@ -725,7 +725,7 @@ private struct HisaabMacInspector: View {
                     HisaabMacLine(line: line, openInvoice: openInvoice)
                 }
                 if page.lines.count > Self.shown {
-                    Text("\(page.lines.count) in all, in the ledger window.").font(.caption).foregroundStyle(.secondary)
+                    Text("\(page.lines.count) in all, in the ledger window.").font(.house(.caption)).foregroundStyle(.secondary)
                 }
             }
             .padding(14)
@@ -777,14 +777,14 @@ private struct HisaabMacLine: View {
         return HStack(alignment: .firstTextBaseline, spacing: 8) {
             VStack(alignment: .leading, spacing: 1) {
                 Text(e.description.isEmpty ? "No description" : e.description).lineLimit(1)
-                Text(ShopDate.say(e.date)).font(.caption).foregroundStyle(.secondary)
+                Text(ShopDate.say(e.date)).font(.house(.caption)).foregroundStyle(.secondary)
             }
             Spacer(minLength: 8)
             VStack(alignment: .trailing, spacing: 1) {
                 if e.cashDebit > 0 { Text("Gave \(Money.pkr(e.cashDebit))").foregroundStyle(Tone.owed.color) }
                 if e.cashCredit > 0 { Text("Got \(Money.pkr(e.cashCredit))").foregroundStyle(Tone.settled.color) }
-                if e.goldDebitGrams > 0 { Text("Gave \(MoneyFormat.grams(e.goldDebitGrams))").font(.caption).foregroundStyle(.secondary) }
-                if e.goldCreditGrams > 0 { Text("Got \(MoneyFormat.grams(e.goldCreditGrams))").font(.caption).foregroundStyle(.secondary) }
+                if e.goldDebitGrams > 0 { Text("Gave \(MoneyFormat.grams(e.goldDebitGrams))").font(.house(.caption)).foregroundStyle(.secondary) }
+                if e.goldCreditGrams > 0 { Text("Got \(MoneyFormat.grams(e.goldCreditGrams))").font(.house(.caption)).foregroundStyle(.secondary) }
             }
             .monospacedDigit()
         }
@@ -818,7 +818,7 @@ private struct HisaabAccountRow: View {
 
     private var top: some View {
         HStack(alignment: .firstTextBaseline, spacing: pt(8)) {
-            Text(account.name).font(.body.weight(.medium))
+            Text(account.name).font(.house(.body).weight(.medium))
             Spacer(minLength: 8)
             if account.hasCash {
                 RowAmount(amount: abs(account.cash), tone: tint)
@@ -829,16 +829,16 @@ private struct HisaabAccountRow: View {
     @ViewBuilder private var middle: some View {
         // The obvious is unsaid: only a walk-in and a karigar (the exceptions) are named.
         if account.isWalkIn {
-            Text("Sales with no customer named").font(.caption).foregroundStyle(.secondary)
+            Text("Sales with no customer named").font(.house(.caption)).foregroundStyle(.secondary)
         } else if !account.isCustomer {
-            Text("Karigar").font(.caption).foregroundStyle(.secondary)
+            Text("Karigar").font(.house(.caption)).foregroundStyle(.secondary)
         }
     }
 
     private var goldLine: some View {
         let word = account.gold > 0 ? "to receive" : "to pay"
         return Text("\(MoneyFormat.grams(abs(account.gold))) \(MoneyWords.metal) \(word)")
-            .font(.caption)
+            .font(.house(.caption))
             .monospacedDigit()
             .foregroundStyle(.secondary)
     }
@@ -847,7 +847,7 @@ private struct HisaabAccountRow: View {
     private var invoices: some View {
         let n = account.unpaid.count
         return Text("\(n) invoice\(n == 1 ? "" : "s") owing")
-            .font(.caption)
+            .font(.house(.caption))
             .foregroundStyle(.secondary)
     }
 }
@@ -861,7 +861,7 @@ private struct HisaabUnpaidLine: View {
             Text(invoice.id).font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary).lineLimit(1)
             Spacer(minLength: 8)
             Text(figures)
-                .font(.caption)
+                .font(.house(.caption))
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.trailing)

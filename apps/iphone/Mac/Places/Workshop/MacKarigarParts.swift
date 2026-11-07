@@ -30,7 +30,7 @@ struct MacKarigarDetailRows: View {
         if let v = k.address, !v.isEmpty { MacWorkFact("Address", v) }
         if let v = k.notes, !v.isEmpty {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Notes").font(.callout).foregroundStyle(.secondary)
+                Text("Notes").font(.house(.callout)).foregroundStyle(.secondary)
                 Text(v).textSelection(.enabled)
             }
         }
@@ -79,9 +79,9 @@ struct MacWorkFact: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(label).font(.callout).foregroundStyle(.secondary)
+            Text(label).font(.house(.callout)).foregroundStyle(.secondary)
             Spacer(minLength: 8)
-            Text(value).font(.callout).multilineTextAlignment(.trailing)
+            Text(value).font(.house(.callout)).multilineTextAlignment(.trailing)
                 .foregroundStyle(tone == .quiet ? Color.primary : tone.color)
                 .textSelection(.enabled)
         }
@@ -102,9 +102,9 @@ struct MacWorkHead<Lead: View>: View {
             HStack(alignment: .center, spacing: 12) {
                 lead()
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(title).font(.system(.title3, design: .serif).weight(.semibold)).lineLimit(2).textSelection(.enabled)
+                    Text(title).font(.house(.title3).weight(.semibold)).lineLimit(2).textSelection(.enabled)
                     if let subtitle, !subtitle.isEmpty {
-                        Text(subtitle).font(.callout).foregroundStyle(.secondary).lineLimit(2).textSelection(.enabled)
+                        Text(subtitle).font(.house(.callout)).foregroundStyle(.secondary).lineLimit(2).textSelection(.enabled)
                     }
                 }
                 Spacer(minLength: 4)
@@ -112,9 +112,9 @@ struct MacWorkHead<Lead: View>: View {
             }
             if let figure {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(figure.label).font(.callout).foregroundStyle(.secondary)
+                    Text(figure.label).font(.house(.callout)).foregroundStyle(.secondary)
                     Text(figure.value)
-                        .font(.system(.title, design: .serif).weight(.semibold))
+                        .font(.house(.title).weight(.semibold))
                         .monospacedDigit()
                         .foregroundStyle(figure.tone == .quiet ? Color.primary : figure.tone.color)
                 }

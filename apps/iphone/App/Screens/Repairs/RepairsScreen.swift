@@ -261,19 +261,19 @@ struct RepairsRow: View {
                 : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: pt(8)))
             layout {
                 Text(RepairsKit.repairSummary(repair))
-                    .font(.headline)
+                    .font(.house(.headline))
                     .foregroundStyle(greyed ? Color.secondary : Color.primary)
                     .lineLimit(typeSize.isAccessibilitySize ? 3 : 2)
                 if !typeSize.isAccessibilitySize { Spacer(minLength: 8) }
                 money
             }
             Text(who)
-                .font(.subheadline)
+                .font(.house(.subheadline))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
             RepairsPromiseText(repair: repair, now: now)
             Text(facts)
-                .font(.caption)
+                .font(.house(.caption))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
@@ -304,9 +304,9 @@ struct RepairsRow: View {
         if owing >= 1 {
             VStack(alignment: .trailing, spacing: 0) {
                 MoneyText(amount: owing, exact: true)
-                    .font(.subheadline.weight(.semibold))
+                    .font(.house(.subheadline).weight(.semibold))
                 Text("due")
-                    .font(.caption)
+                    .font(.house(.caption))
                     .foregroundStyle(.secondary)
             }
         }

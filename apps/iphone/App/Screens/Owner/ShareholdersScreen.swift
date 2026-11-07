@@ -246,8 +246,8 @@ private struct ShareholdersBoard: View {
 
     private func smallFigure(_ label: String, _ amount: Double, symbol: String) -> some View {
         VStack(alignment: .leading, spacing: pt(2)) {
-            Label(label, systemImage: symbol).font(.caption2).foregroundStyle(.secondary)
-            Text(ShareholderMoney.fmt(amount)).font(.subheadline.weight(.semibold)).monospacedDigit()
+            Label(label, systemImage: symbol).font(.house(.caption2)).foregroundStyle(.secondary)
+            Text(ShareholderMoney.fmt(amount)).font(.house(.subheadline).weight(.semibold)).monospacedDigit()
                 .contentTransition(.numericText(value: amount)).minimumScaleFactor(0.8)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -326,7 +326,7 @@ private struct ShareholdersBoard: View {
                     } icon: {
                         Image(systemName: "info.circle")
                     }
-                    .font(.footnote)
+                    .font(.house(.footnote))
                     .foregroundStyle(.secondary)
                 }
                 if f.totals.drawings > 0 {
@@ -335,7 +335,7 @@ private struct ShareholdersBoard: View {
                     } icon: {
                         Image(systemName: "info.circle")
                     }
-                    .font(.footnote)
+                    .font(.house(.footnote))
                     .foregroundStyle(.secondary)
                 }
             }
@@ -362,7 +362,7 @@ private struct ShareholdersBoard: View {
                 } icon: {
                     Image(systemName: "exclamationmark.triangle.fill")
                 }
-                .font(.footnote)
+                .font(.house(.footnote))
                 .foregroundStyle(Tone.owed.color)
             }
             LabeledContent("Cash available") {
@@ -380,7 +380,7 @@ private struct ShareholdersBoard: View {
                     }
                 } label: {
                     Text("Last reviewed: \(s.floorLastSetAt.map { OwnerText.shortDate($0) } ?? "\u{2014}") · \(s.floorHistory.count) change\(s.floorHistory.count == 1 ? "" : "s")")
-                        .font(.footnote)
+                        .font(.house(.footnote))
                         .foregroundStyle(.secondary)
                 }
             }
@@ -395,14 +395,14 @@ private struct ShareholdersBoard: View {
                             Text(ShareholderMoney.fmt(pr.total)).fontWeight(.medium).monospacedDigit()
                         }
                         Text("loan \(ShareholderMoney.fmt(pr.loanRepayment))   equity \(ShareholderMoney.fmt(pr.equityDraw))   profit \(ShareholderMoney.fmt(pr.profitShare))")
-                            .font(.caption)
+                            .font(.house(.caption))
                             .foregroundStyle(.secondary)
                             .monospacedDigit()
                     }
                 }
                 if !d.feasible {
                     Text("Not enough to clear the floor and the loans \u{2014} \(ShareholderMoney.fmt(d.shortfallToFirstDistribution)) short.")
-                        .font(.footnote)
+                        .font(.house(.footnote))
                         .foregroundStyle(Tone.owed.color)
                 }
             }
@@ -419,7 +419,7 @@ private struct ShareholdersBoard: View {
         return LabeledContent(who) {
             Text(Money.pkr(entry.value)).monospacedDigit()
         }
-        .font(.footnote)
+        .font(.house(.footnote))
     }
 
     private func lastSet(_ s: PartnershipSettings) -> String {
@@ -509,7 +509,7 @@ extension ShareholdersBoard {
                                       detailTone: share >= 0 ? nil : Tone.owed, open: nil) { EmptyView() }
                 }
                 Text("Divided equally \u{00B7} expenses from \(OwnerText.shortDate(ShareholderFigures.expenseCutoff)) \u{00B7} revenue from Shopify #1103")
-                    .font(.footnote)
+                    .font(.house(.footnote))
                     .foregroundStyle(.secondary)
                 MacReportsWidth(760) {
                     // The partners' cards stand level: each is as tall as the taller.
@@ -569,7 +569,7 @@ extension ShareholdersBoard {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .center, spacing: 12) {
                     Monogram(name: p.name, size: Monogram.Size.hero)
-                    Text(p.name).font(.system(.title2, design: .serif).weight(.semibold))
+                    Text(p.name).font(.house(.title2).weight(.semibold))
                     Spacer(minLength: 8)
                     Menu {
                         Button { asking = ShareholderAsk(move: .salary, who: p.id) } label: { Label("Pay salary", systemImage: "banknote") }
@@ -608,7 +608,7 @@ extension ShareholdersBoard {
                 TableColumn("What") { (r: PartnerMacRow) in
                     VStack(alignment: .leading, spacing: 1) {
                         Text(r.what).lineLimit(1)
-                        Text(r.kind).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                        Text(r.kind).font(.house(.caption)).foregroundStyle(.secondary).lineLimit(1)
                     }
                 }
                 .width(min: 120, ideal: 220)

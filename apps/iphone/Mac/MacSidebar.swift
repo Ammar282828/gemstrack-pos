@@ -360,7 +360,7 @@ struct MacSidebarRate: View {
                     .frame(width: 20)
                 VStack(alignment: .leading, spacing: 0) {
                     Text(today ? "Today\u{2019}s rate" : "Rate not set today")
-                        .font(.caption)
+                        .font(.house(.caption))
                         .foregroundStyle(today ? Color.secondary : Tone.owed.color)
                     HStack(spacing: 4) {
                         Text(RateKeys.main.label).fontWeight(.semibold)
@@ -369,7 +369,7 @@ struct MacSidebarRate: View {
                 }
                 Spacer(minLength: 4)
                 Text(session.isOwner ? (today ? "Change" : "Set") : "See")
-                    .font(.callout)
+                    .font(.house(.callout))
                     .foregroundStyle(.tint)
                     .opacity(hovering || !today ? 1 : 0)
             }

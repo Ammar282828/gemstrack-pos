@@ -264,7 +264,7 @@ struct DesignSmartSheet: View {
                 VStack(alignment: .leading, spacing: pt(16)) {
                     input
                     if !m.notes.isEmpty {
-                        VStack(alignment: .leading, spacing: pt(4)) { ForEach(m.notes, id: \.self) { Text($0).font(.footnote).foregroundStyle(.secondary) } }
+                        VStack(alignment: .leading, spacing: pt(4)) { ForEach(m.notes, id: \.self) { Text($0).font(.house(.footnote)).foregroundStyle(.secondary) } }
                     }
                     if let review = m.review { layerReview(review) }
                     ForEach(m.items) { item in card(item) }
@@ -324,7 +324,7 @@ struct DesignSmartSheet: View {
                 }
                 .buttonStyle(.bordered).largeOnPhone().disabled(m.busy != nil)
             }
-            Text("Nothing is used until you tick it. No figure appears that is not in what you gave.").font(.footnote).foregroundStyle(.secondary)
+            Text("Nothing is used until you tick it. No figure appears that is not in what you gave.").font(.house(.footnote)).foregroundStyle(.secondary)
         }
     }
 
@@ -344,7 +344,7 @@ struct DesignSmartSheet: View {
             HStack(spacing: pt(8)) {
                 // Sure is the expected state: only a doubtful reading is marked (rule 15), without the percentage.
                 if !sure { Pill("Check this", tone: .owed) }
-                if !item.parsed.s("suggestedKind").isEmpty { Text("suggests: " + item.parsed.s("suggestedKind")).font(.caption).foregroundStyle(.secondary) }
+                if !item.parsed.s("suggestedKind").isEmpty { Text("suggests: " + item.parsed.s("suggestedKind")).font(.house(.caption)).foregroundStyle(.secondary) }
                 Spacer(minLength: 0)
                 Button { m.items.removeAll { $0.id == item.id } } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary).frame(minWidth: Metrics.tap, minHeight: Metrics.tap) }
                     .buttonStyle(.plain).accessibilityLabel("Remove")
@@ -360,7 +360,7 @@ struct DesignSmartSheet: View {
                                         .overlay(RoundedRectangle(cornerRadius: Radius.thumb, style: .continuous).strokeBorder(n == item.main ? Theme.accent : .clear, lineWidth: 2))
                                 }.buttonStyle(.plain).accessibilityLabel(n == item.main ? "Main photo" : "Use as the main photo")
                                 if m.allowLayers && n == item.main {
-                                    Button { Task { await m.split(p) } } label: { Label("Layers", systemImage: "square.3.layers.3d").font(.caption2) }
+                                    Button { Task { await m.split(p) } } label: { Label("Layers", systemImage: "square.3.layers.3d").font(.house(.caption2)) }
                                         .buttonStyle(.bordered).disabled(m.busy != nil)
                                 }
                             }
@@ -374,7 +374,7 @@ struct DesignSmartSheet: View {
                         Toggle("", isOn: Binding(get: { item.accept[k] == true }, set: { on in set(item.id) { $0.accept[k] = on } })).labelsHidden().tint(Theme.accent)
                             .accessibilityLabel(DesignSmartModel.fieldLabel[k] ?? k)
                         VStack(alignment: .leading, spacing: pt(2)) {
-                            Text(DesignSmartModel.fieldLabel[k] ?? k).font(.caption).foregroundStyle(.secondary)
+                            Text(DesignSmartModel.fieldLabel[k] ?? k).font(.house(.caption)).foregroundStyle(.secondary)
                             TextField("", text: Binding(get: { item.fields[k] ?? "" }, set: { v in set(item.id) { $0.fields[k] = v; $0.accept[k] = true } }), axis: .vertical)
                                 .lineLimit(1...3)
                                 .padding(.horizontal, pt(10)).padding(.vertical, pt(7))
@@ -388,17 +388,17 @@ struct DesignSmartSheet: View {
                     Toggle("", isOn: Binding(get: { item.accept["price"] == true }, set: { on in set(item.id) { $0.accept["price"] = on } })).labelsHidden().tint(Theme.accent)
                         .accessibilityLabel("Price")
                     VStack(alignment: .leading, spacing: pt(2)) {
-                        Text("Price").font(.caption).foregroundStyle(.secondary)
-                        Text(item.parsed["price"].s("text", "PKR " + String(Int(item.parsed["price"].n("amount"))))).font(.subheadline)
+                        Text("Price").font(.house(.caption)).foregroundStyle(.secondary)
+                        Text(item.parsed["price"].s("text", "PKR " + String(Int(item.parsed["price"].n("amount"))))).font(.house(.subheadline))
                     }
                 }
             }
             if item.parsed["specs"].n("weightG") > 0 && (item.fields["weight"] ?? "").isEmpty {
                 Text("Weight \(WebsiteNumber.grams(item.parsed["specs"].n("weightG"))) g was read but left off the design: check it, then type the specs line.")
-                    .font(.footnote).foregroundStyle(.secondary)
+                    .font(.house(.footnote)).foregroundStyle(.secondary)
             }
             ForEach(item.parsed["warnings"].array.map(\.string), id: \.self) { w in
-                Label(w, systemImage: "exclamationmark.triangle").font(.footnote).foregroundStyle(Tone.owed.color)
+                Label(w, systemImage: "exclamationmark.triangle").font(.house(.footnote)).foregroundStyle(Tone.owed.color)
             }
             // One piece: the bar's "Use this piece" is its button; with several, each can be used on its own turn.
             if m.items.count > 1 {

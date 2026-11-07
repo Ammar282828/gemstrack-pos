@@ -192,10 +192,10 @@ struct AddCustomer: View {
             Section {
                 VStack(spacing: pt(8)) {
                     Image(systemName: "checkmark.circle.fill")
-                        .font(.largeTitle)
+                        .font(.house(.largeTitle))
                         .imageScale(.large)
                         .foregroundStyle(Tone.settled.color)
-                    Text("Saved").font(.title2.weight(.semibold))
+                    Text("Saved").font(.house(.title2).weight(.semibold))
                     Text("\(s.name) is on file.").foregroundStyle(.secondary).multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: .infinity)
@@ -304,7 +304,7 @@ extension AddCustomer {
                 TextField("Full name", text: $name, prompt: Text("Optional"))
                 if walkIn {
                     Text("A walk-in is not a customer: a sale to nobody in particular is left without one.")
-                        .font(.footnote)
+                        .font(.house(.footnote))
                         .foregroundStyle(Tone.problem.color)
                 }
                 TextField("Phone number", text: $phone, prompt: Text("Optional"))
@@ -320,7 +320,7 @@ extension AddCustomer {
                 TextField("Email address", text: $email, prompt: Text("Optional"))
                 if !emailOK {
                     Text("That doesn't look like an email address.")
-                        .font(.footnote)
+                        .font(.house(.footnote))
                         .foregroundStyle(Tone.problem.color)
                 }
             } header: {
@@ -364,7 +364,7 @@ extension AddCustomer {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 44))
                 .foregroundStyle(Tone.settled.color)
-            Text("Saved").font(.title2.weight(.semibold))
+            Text("Saved").font(.house(.title2).weight(.semibold))
             Text("\(s.name) is on file.").foregroundStyle(.secondary)
             HStack(spacing: 10) {
                 // Editing a profile is an owner's (the shop floor has no write to it, in the ERP or here).

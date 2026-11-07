@@ -109,13 +109,13 @@ struct PostComposerScreen: View {
     }
     private var photoSection: some View {
 Section {
-                TextField("Headline", text: word("headline"), axis: .vertical).font(.title3.weight(.semibold)).lineLimit(1...4)
+                TextField("Headline", text: word("headline"), axis: .vertical).font(.house(.title3).weight(.semibold)).lineLimit(1...4)
                 if d.photos.isEmpty { Label("Choose photos, take one, or bring in a website piece.", systemImage: "photo.on.rectangle").foregroundStyle(.secondary) }
                 else { photoStrip }
                 if !model.frozen {
                     // Twelve photos is the most a piece takes: past that the picker would only fail.
                     if d.photos.count < 12 { PhotosPicker(selection: $photos, maxSelectionCount: max(1, 12 - d.photos.count), matching: .images) { Label("Add photos", systemImage: "photo.badge.plus") } }
-                    else { Text("Twelve photos is the most a piece takes.").font(.footnote).foregroundStyle(.secondary) }
+                    else { Text("Twelve photos is the most a piece takes.").font(.house(.footnote)).foregroundStyle(.secondary) }
                     if MarketingCamera.available { Button { camera = true } label: { Label("Camera", systemImage: "camera") } }
                     Button { sitePicker = true } label: { Label("From the website", systemImage: "globe") }
                 }
@@ -165,7 +165,7 @@ Section {
             HStack(alignment: .top, spacing: pt(16)) {
                 ForEach(d.photos) { p in VStack(alignment: .leading, spacing: pt(8)) {
                     if let image = WebsitePhoto.thumbnail(p.data, maxPixel: 350) { Image(uiImage: image).resizable().scaledToFit().frame(width: 150, height: 150).background(Theme.ground, in: .rect(cornerRadius: Radius.tile, style: .continuous)) }
-                    Button(model.hero?.id == p.id ? "Lead photo ✓" : "Make lead photo") { model.draft.story["bg"]["photoId"] = .string(p.id) }.font(.subheadline)
+                    Button(model.hero?.id == p.id ? "Lead photo ✓" : "Make lead photo") { model.draft.story["bg"]["photoId"] = .string(p.id) }.font(.house(.subheadline))
                     Toggle("Website", isOn: photoFlag(p.id, site: true)).disabled(model.frozen)
                     Toggle("WhatsApp", isOn: photoFlag(p.id, site: false)).disabled(model.frozen)
                     if let check = p.check, check != .null {
@@ -220,14 +220,14 @@ Section {
             if d.words["toWhatsApp"].bool {
                 ForEach(model.audience["groups"].array, id: \.text) { g in Toggle(g.s("label", g.s("name")), isOn: waTarget(g.s("key"))) }
                 if model.audience["channel"] != .null { Toggle(model.audience["channel"].s("name", "Channel"), isOn: waTarget("channel")) }
-                if model.audience["community"] == .null { Text("WhatsApp is not connected. Check connections below.").font(.footnote).foregroundStyle(Tone.owed.color) }
+                if model.audience["community"] == .null { Text("WhatsApp is not connected. Check connections below.").font(.house(.footnote)).foregroundStyle(Tone.owed.color) }
             }
         }
         if model.makeStory {
             Toggle("Post story to Instagram", isOn: flag("toInstagram")).disabled(!model.instagram["connected"].bool)
-            if model.instagram["connected"].bool { Text("@" + model.instagram.s("username")).font(.footnote).foregroundStyle(.secondary) }
+            if model.instagram["connected"].bool { Text("@" + model.instagram.s("username")).font(.house(.footnote)).foregroundStyle(.secondary) }
             else { Button("Connect Instagram") { Task { do { let r = try await MarketingRequest.send("/api/instagram/connect"); if let url = URL(string: r.s("url")) { openURL(url) } } catch { model.error = error.localizedDescription } } } }
-            if model.manualStory { Text("Share the story from \(DeviceWords.yourDevice) to add music or stickers.").font(.footnote).foregroundStyle(.secondary) }
+            if model.manualStory { Text("Share the story from \(DeviceWords.yourDevice) to add music or stickers.").font(.house(.footnote)).foregroundStyle(.secondary) }
         }
         if let link = URL(string: model.config["posting"]["links"].s("waChannel")), link.scheme == "https" { Link("Open WhatsApp channel for manual sharing", destination: link) }
     }
@@ -244,8 +244,8 @@ Section {
                 ForEach(model.health["checks"].array, id: \.text) { check in
                     VStack(alignment: .leading, spacing: pt(5)) {
                         Label(check.s("label"), systemImage: check.s("status") == "ok" ? "checkmark.circle" : "exclamationmark.triangle")
-                        Text(check.s("detail")).font(.footnote).foregroundStyle(.secondary)
-                        if !check.s("fix").isEmpty { Text(check.s("fix")).font(.footnote) }
+                        Text(check.s("detail")).font(.house(.footnote)).foregroundStyle(.secondary)
+                        if !check.s("fix").isEmpty { Text(check.s("fix")).font(.house(.footnote)) }
                     }
                 }
                 MarketingDetails(fields: ["Recent problems": model.health["errors"].any])
@@ -259,8 +259,8 @@ Section {
                     Button { Task { await model.open(saved); draftsOpen = false } } label: {
                         VStack(alignment: .leading, spacing: pt(4)) {
                             Text(saved.title)
-                            Text(saved.updated, style: .date).font(.caption).foregroundStyle(.secondary)
-                            Text("\(saved.photos.count) photo\(saved.photos.count == 1 ? "" : "s")").font(.caption).foregroundStyle(.secondary)
+                            Text(saved.updated, style: .date).font(.house(.caption)).foregroundStyle(.secondary)
+                            Text("\(saved.photos.count) photo\(saved.photos.count == 1 ? "" : "s")").font(.house(.caption)).foregroundStyle(.secondary)
                         }
                     }
                     // A draft holds its photos: deleting it asks first (decision "Delete code": every delete asks).
@@ -306,7 +306,7 @@ struct NativePostAISheet: View {
                     if ["enhance", "reframe"].contains(request.op) { Toggle("Tidy labels and background", isOn: $tidy) }
                     DisclosureGroup("Edit the full prompt") { TextField("Full prompt (optional)", text: $rawPrompt, axis: .vertical).lineLimit(4...14) }
                 }.houseRows()
-                Text("A new version is kept beside the original. Check the piece and words before it goes out.").font(.footnote).foregroundStyle(.secondary)
+                Text("A new version is kept beside the original. Check the piece and words before it goes out.").font(.house(.footnote)).foregroundStyle(.secondary)
             }.modifier(HouseGround()).navigationTitle(request.target.capitalized).navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.disabled(running) }
@@ -349,7 +349,7 @@ struct NativeSitePhotoPicker: View {
         NavigationStack { List {
             if !loaded && error == nil { SkeletonRows(count: 6, label: "Loading the website’s pieces") }
             ForEach(shown, id: \.text) { p in
-                Button { Task { await take(p) } } label: { HStack(spacing: pt(12)) { MarketingPhoto(path: p.s("thumb", p.s("image"))).frame(width: 64, height: 64); VStack(alignment: .leading, spacing: pt(4)) { Text(p.s("name")).foregroundStyle(.primary); Text(p.s("collection")).font(.caption).foregroundStyle(.secondary) } } }
+                Button { Task { await take(p) } } label: { HStack(spacing: pt(12)) { MarketingPhoto(path: p.s("thumb", p.s("image"))).frame(width: 64, height: 64); VStack(alignment: .leading, spacing: pt(4)) { Text(p.s("name")).foregroundStyle(.primary); Text(p.s("collection")).font(.house(.caption)).foregroundStyle(.secondary) } } }
             }
         }.houseRows().modifier(HouseGround()).searchable(text: $q, placement: .alwaysShownSearch).navigationTitle("From the website").navigationBarTitleDisplayMode(.inline)
             .overlay { if loaded && shown.isEmpty { if q.isEmpty { EmptyState("No pieces on the website", symbol: "globe") } else { ContentUnavailableView.search(text: q) } } }
@@ -383,7 +383,7 @@ extension PostComposerScreen {
 
     private func macPreviewCard(_ title: String, response: MarketingValue, kind: String) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title).font(.headline)
+            Text(title).font(.house(.headline))
             if let image = NativeArtwork.image(response) {
                 Image(uiImage: image).resizable().scaledToFit()
                     .clipShape(.rect(cornerRadius: Radius.chip, style: .continuous))

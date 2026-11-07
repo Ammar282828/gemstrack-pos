@@ -166,7 +166,7 @@ struct WorkshopPieceDetailsSheet: View {
                     StockImage(imageUrl: uri, name: ask.job.description, key: ask.job.id, decodeDataURI: true)
                         .frame(maxHeight: 160).clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))
                 } else if let photoProblem {
-                    Text(photoProblem).font(.footnote).foregroundStyle(.secondary)
+                    Text(photoProblem).font(.house(.footnote)).foregroundStyle(.secondary)
                 } else {
                     SkeletonPhoto(ratio: nil, label: "Loading the photo").frame(height: 80)
                 }
@@ -175,7 +175,7 @@ struct WorkshopPieceDetailsSheet: View {
             if ask.gallery.count > 1 {
                 PieceGalleryRow(sources: ask.gallery, title: ask.job.description, size: 72, all: true)
                 Text("The piece has \(ask.gallery.count) reference pictures. Add or remove them in Edit order.")
-                    .font(.footnote).foregroundStyle(.secondary)
+                    .font(.house(.footnote)).foregroundStyle(.secondary)
             }
             NewOrderPhotoField(data: Binding(
                 get: { photo },

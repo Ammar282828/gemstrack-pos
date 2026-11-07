@@ -44,7 +44,7 @@ struct MacSummaryBar: View {
                     .monospacedDigit()
                 Spacer(minLength: 0)
             }
-            .font(.callout)
+            .font(.house(.callout))
             .foregroundStyle(.secondary)
             .padding(.horizontal, 12)
             .frame(height: 26)
@@ -157,10 +157,10 @@ struct MacFigureCard<Extra: View>: View {
                         .frame(width: 26, height: 26)
                         .background(figure.symbolTint.opacity(0.15), in: .rect(cornerRadius: 7, style: .continuous))
                 }
-                Text(figure.label).font(.callout.weight(.medium)).foregroundStyle(.secondary).lineLimit(1)
+                Text(figure.label).font(.house(.callout).weight(.medium)).foregroundStyle(.secondary).lineLimit(1)
                 Spacer(minLength: 0)
                 if figure.open != nil {
-                    Image(systemName: "arrow.up.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
+                    Image(systemName: "arrow.up.right").font(.house(.caption).weight(.semibold)).foregroundStyle(.tertiary)
                         .opacity(hovering ? 1 : 0)
                 }
             }
@@ -171,7 +171,7 @@ struct MacFigureCard<Extra: View>: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
             Text(figure.detail ?? " ")
-                .font(.callout)
+                .font(.house(.callout))
                 .foregroundStyle(figure.detailTone?.color ?? Color.secondary)
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
@@ -201,8 +201,8 @@ extension MacFigureCard where Extra == EmptyView {
 
 /// The type every Mac page sets its figures in: the house's serif, as the iPhone's figure tiles and hero amounts.
 enum MacType {
-    static let figure = Font.system(size: 24, weight: .semibold, design: .serif)
-    static let hero = Font.system(size: 30, weight: .semibold, design: .serif)
+    static let figure = Font.house(size: 24, weight: .semibold)
+    static let hero = Font.house(size: 30, weight: .semibold)
 }
 
 /// A card's surface: the house's card colour with its hairline and soft lift, lifted more under the pointer.
@@ -342,15 +342,15 @@ struct MacFigures: View {
     @ViewBuilder
     private func cell(_ f: MacFigure) -> some View {
         let words = VStack(alignment: .leading, spacing: 2) {
-            Text(f.label).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            Text(f.label).font(.house(.caption)).foregroundStyle(.secondary).lineLimit(1)
             Text(f.value)
-                .font(.title3.weight(.semibold))
+                .font(.house(.title3).weight(.semibold))
                 .monospacedDigit()
                 .foregroundStyle(f.tone?.color ?? Color.primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
             if let detail = f.detail, !detail.isEmpty {
-                Text(detail).font(.caption).foregroundStyle(f.detailTone?.color ?? Color.secondary).lineLimit(1)
+                Text(detail).font(.house(.caption)).foregroundStyle(f.detailTone?.color ?? Color.secondary).lineLimit(1)
             }
         }
         if let open = f.open {
@@ -388,18 +388,18 @@ struct MacInspectorHeader: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title).font(.title3.weight(.semibold)).lineLimit(2).textSelection(.enabled)
+            Text(title).font(.house(.title3).weight(.semibold)).lineLimit(2).textSelection(.enabled)
             if let subtitle, !subtitle.isEmpty {
-                Text(subtitle).font(.callout).foregroundStyle(.secondary).textSelection(.enabled)
+                Text(subtitle).font(.house(.callout)).foregroundStyle(.secondary).textSelection(.enabled)
             }
             if status != nil || headline != nil {
                 HStack(alignment: .firstTextBaseline) {
-                    if let status { status.font(.callout) }
+                    if let status { status.font(.house(.callout)) }
                     Spacer(minLength: 8)
                     if let headline {
                         VStack(alignment: .trailing, spacing: 1) {
-                            Text(headline.label).font(.caption).foregroundStyle(.secondary)
-                            Text(headline.value).font(.title3.weight(.semibold)).monospacedDigit()
+                            Text(headline.label).font(.house(.caption)).foregroundStyle(.secondary)
+                            Text(headline.value).font(.house(.title3).weight(.semibold)).monospacedDigit()
                                 .foregroundStyle(headline.tone == .quiet ? Color.primary : headline.tone.color)
                         }
                     }
@@ -421,7 +421,7 @@ struct MacDocumentHeader: View {
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(title).font(.title2.weight(.semibold)).lineLimit(2).textSelection(.enabled)
+                Text(title).font(.house(.title2).weight(.semibold)).lineLimit(2).textSelection(.enabled)
                 if let subtitle, !subtitle.isEmpty {
                     Text(subtitle).foregroundStyle(.secondary).textSelection(.enabled)
                 }
@@ -430,8 +430,8 @@ struct MacDocumentHeader: View {
             Spacer(minLength: 16)
             if let headline {
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text(headline.label).font(.callout).foregroundStyle(.secondary)
-                    Text(headline.value).font(.title.weight(.semibold)).monospacedDigit()
+                    Text(headline.label).font(.house(.callout)).foregroundStyle(.secondary)
+                    Text(headline.value).font(.house(.title).weight(.semibold)).monospacedDigit()
                         .foregroundStyle(headline.tone == .quiet ? Color.primary : headline.tone.color)
                 }
             }
@@ -583,11 +583,11 @@ struct MacInspectorEmpty: View {
                 .foregroundStyle(.tertiary)
                 .padding(.bottom, 4)
             Text(title)
-                .font(.headline)
+                .font(.house(.headline))
                 .foregroundStyle(.secondary)
             if let detail, !detail.isEmpty {
                 Text(detail)
-                    .font(.callout)
+                    .font(.house(.callout))
                     .foregroundStyle(.tertiary)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)

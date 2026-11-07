@@ -85,7 +85,7 @@ struct AbProfitPage: View {
                             ]
                         }, series: [AbSeries(name: profitWord, color: AbPalette.color(1)), AbSeries(name: "Running costs", color: AbPalette.color(2))],
                                height: 240)
-                        Text("Net margin").font(.subheadline.weight(.medium))
+                        Text("Net margin").font(.house(.subheadline).weight(.medium))
                         AbBars(points: rows.map { (m: MonthRow) -> AbBarPoint in
                             AbBarPoint(id: m.key + "-m", plot: AbPlot.month(m.start), tip: m.month, series: "Net margin", value: m.netMargin)
                         }, series: [], line: AbSeries(name: "Net margin", color: AbPalette.color(4)), divisor: 1, axisLabel: "Percent",

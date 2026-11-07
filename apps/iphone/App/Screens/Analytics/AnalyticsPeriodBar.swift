@@ -51,7 +51,7 @@ struct AnaPeriodBar: View {
                 AnaChip(title: customTitle, selected: state.key == "custom") { choosing = true }
             }
             Text(AnaPeriod.describe(state.range))
-                .font(.footnote)
+                .font(.house(.footnote))
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, pt(16))
         }

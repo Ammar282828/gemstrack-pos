@@ -181,11 +181,11 @@ private struct BackupPage: View {
                         HStack {
                             VStack(alignment: .leading, spacing: pt(2)) {
                                 Text(c.label)
-                                Text(c.description).font(.caption).foregroundStyle(.secondary)
+                                Text(c.description).font(.house(.caption)).foregroundStyle(.secondary)
                             }
                             Spacer(minLength: 8)
                             Text(c.count < 0 ? "Not counted" : BackupPage.grouped(c.count))
-                                .font(.caption.monospacedDigit())
+                                .font(.house(.caption).monospacedDigit())
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -281,7 +281,7 @@ private struct BackupPage: View {
                     VStack(alignment: .leading, spacing: pt(6)) {
                         ProgressView(value: Double(p.written), total: Double(max(p.total, 1)))
                         Text("\(label(p.collection)): slice \(p.part) of \(p.parts) · \(BackupPage.grouped(p.written)) of \(BackupPage.grouped(p.total)) records")
-                            .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                            .font(.house(.caption)).foregroundStyle(.secondary).monospacedDigit()
                     }
                 } else {
                     SecureField("Delete code", text: $restoreCode)
@@ -413,7 +413,7 @@ private struct BackupPage: View {
     private var pitrSection: some View {
         Section {
             Text("Google can take the whole database back to an earlier minute. It has to be switched on for the shop, and taking it back overwrites today’s data, so ask a developer before using it.")
-                .font(.subheadline)
+                .font(.house(.subheadline))
                 .foregroundStyle(.secondary)
             if let url = consoleURL {
                 Link(destination: url) { Label("Open Google Cloud", systemImage: "arrow.up.right.square") }

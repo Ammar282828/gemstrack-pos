@@ -57,7 +57,7 @@ struct OwnerDeleteCodeSheet: View {
                 // The consequence leads: what is deleted, what goes with it, whether it can be undone.
                 Section {
                     Text(([deletion.detail, deletion.final ? "This can't be undone." : ""]).filter { !$0.isEmpty }.joined(separator: " "))
-                        .font(.callout)
+                        .font(.house(.callout))
                 } header: {
                     Text(deletion.what).textCase(nil)
                 }
@@ -65,7 +65,7 @@ struct OwnerDeleteCodeSheet: View {
                     SecureField("Delete code", text: $code)
                         .keyboardType(.numberPad)
                         .fieldKind(.oneTimeCode)
-                        .font(.title2.weight(.semibold))
+                        .font(.house(.title2).weight(.semibold))
                         .multilineTextAlignment(.center)
                         .onChange(of: code) { _, typed in
                             let digits = String(typed.filter { $0.isASCII && $0.isNumber }.prefix(8))

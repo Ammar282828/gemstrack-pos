@@ -286,16 +286,16 @@ struct DesignLayerReviewCard: View {
     var body: some View {
         SectionCard("Rebuilt as layers") {
             Text(plan["cutout"] != .null ? "The piece is cut out and stands on the picture’s own colour. No part of it was redrawn." : "The photograph stays whole, with the lettering as layers above it.")
-                .font(.footnote).foregroundStyle(.secondary)
+                .font(.house(.footnote)).foregroundStyle(.secondary)
             ForEach(plan["layers"].array, id: \.text) { l in
                 Toggle(isOn: Binding(get: { keep.contains(l.s("id")) }, set: { on in if on { keep.insert(l.s("id")) } else { keep.remove(l.s("id")) } })) {
                     VStack(alignment: .leading, spacing: pt(1)) {
-                        Text(l.s("text")).font(.subheadline).lineLimit(2)
-                        Text(l.s("role")).font(.caption2).foregroundStyle(.secondary)
+                        Text(l.s("text")).font(.house(.subheadline)).lineLimit(2)
+                        Text(l.s("role")).font(.house(.caption2)).foregroundStyle(.secondary)
                     }
                 }.tint(Theme.accent)
             }
-            ForEach(plan["notes"].array.map(\.string), id: \.self) { Text($0).font(.footnote).foregroundStyle(.secondary) }
+            ForEach(plan["notes"].array.map(\.string), id: \.self) { Text($0).font(.house(.footnote)).foregroundStyle(.secondary) }
             if showsActions {
                 HStack {
                     Button("Cancel", action: onCancel).buttonStyle(.bordered)
@@ -347,14 +347,14 @@ struct DesignAITools: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: pt(10)) {
-            Label("With AI: the piece stays as it is", systemImage: "wand.and.stars").font(.subheadline.weight(.semibold))
+            Label("With AI: the piece stays as it is", systemImage: "wand.and.stars").font(.house(.subheadline).weight(.semibold))
             if let check = model.photoCheck {
                 let ok = DesignAIRules.checkOK(check)
                 Label(ok ? "Same piece" : (check["differences"].array.first?.string ?? "Look closely"), systemImage: ok ? "checkmark.shield" : "exclamationmark.shield")
-                    .font(.footnote).foregroundStyle(ok ? Tone.settled.color : Tone.owed.color)
+                    .font(.house(.footnote)).foregroundStyle(ok ? Tone.settled.color : Tone.owed.color)
             }
             let off = model.aiBusy != nil || model.photos["photo"] == nil
-            if model.photos["photo"] == nil { Text("Add a photograph first.").font(.footnote).foregroundStyle(.secondary) }
+            if model.photos["photo"] == nil { Text("Add a photograph first.").font(.house(.footnote)).foregroundStyle(.secondary) }
             VStack(spacing: pt(8)) {
                 tool("Enhance: clean, colour, sparkle", "sparkles", off) { Task { await model.photoTool(.enhance) } }
                 tool("Logo and labels off", "eraser", off) { Task { await model.photoTool(.clean) } }
@@ -369,14 +369,14 @@ struct DesignAITools: View {
                 }
                 if model.canUndoPhoto {
                     Button { model.undoPhoto() } label: { Label("Back to the photo before", systemImage: "arrow.uturn.backward").frame(maxWidth: .infinity, alignment: .leading) }
-                        .buttonStyle(.borderless).disabled(model.aiBusy != nil).font(.subheadline)
+                        .buttonStyle(.borderless).disabled(model.aiBusy != nil).font(.house(.subheadline))
                 }
             }
-            Toggle("Also remove tags and strings", isOn: Binding(get: { model.tidy }, set: { model.setTidy($0) })).font(.footnote).tint(Theme.accent)
+            Toggle("Also remove tags and strings", isOn: Binding(get: { model.tidy }, set: { model.setTidy($0) })).font(.house(.footnote)).tint(Theme.accent)
             if let busy = model.aiBusy {
-                HStack(spacing: pt(8)) { ProgressView(); Text(busy + "…").font(.footnote).foregroundStyle(.secondary) }
+                HStack(spacing: pt(8)) { ProgressView(); Text(busy + "…").font(.house(.footnote)).foregroundStyle(.secondary) }
             }
-            Text("Every result is compared with your photo; one that changed the piece waits for your say.").font(.caption2).foregroundStyle(.secondary)
+            Text("Every result is compared with your photo; one that changed the piece waits for your say.").font(.house(.caption2)).foregroundStyle(.secondary)
         }
         .padding(pt(10))
         .background(Theme.ground, in: .rect(cornerRadius: Radius.tile, style: .continuous))
@@ -384,7 +384,7 @@ struct DesignAITools: View {
 
     private func tool(_ title: String, _ symbol: String, _ off: Bool, _ action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Label(title, systemImage: symbol).font(.subheadline).frame(maxWidth: .infinity, alignment: .leading).frame(minHeight: 36)
+            Label(title, systemImage: symbol).font(.house(.subheadline)).frame(maxWidth: .infinity, alignment: .leading).frame(minHeight: 36)
         }
         .buttonStyle(.bordered).disabled(off)
     }
@@ -398,18 +398,18 @@ struct DesignCandidateBanner: View {
         if let c = model.candidate {
             let same = c.check.map { DesignAIRules.checkOK($0) }
             VStack(alignment: .leading, spacing: pt(10)) {
-                Text("\(c.label): to look at").font(.headline)
+                Text("\(c.label): to look at").font(.house(.headline))
                 if let image = WebsitePhoto.thumbnail(c.data, maxPixel: 900) {
                     Image(uiImage: image).resizable().scaledToFit().frame(maxHeight: 280).clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))
                 }
                 if same == true {
-                    Label("The same piece as the photograph.", systemImage: "checkmark.shield").font(.footnote).foregroundStyle(Tone.settled.color)
+                    Label("The same piece as the photograph.", systemImage: "checkmark.shield").font(.house(.footnote)).foregroundStyle(Tone.settled.color)
                 } else if let check = c.check {
                     let diffs = check["differences"].array.prefix(3).map(\.string).joined(separator: "; ")
                     Label("The piece may have changed: " + (diffs.isEmpty ? "compare it with your photograph" : diffs) + ".", systemImage: "exclamationmark.shield")
-                        .font(.footnote).foregroundStyle(Tone.problem.color)
+                        .font(.house(.footnote)).foregroundStyle(Tone.problem.color)
                 } else {
-                    Label("Not checked: compare the piece with your photograph.", systemImage: "exclamationmark.shield").font(.footnote).foregroundStyle(Tone.owed.color)
+                    Label("Not checked: compare the piece with your photograph.", systemImage: "exclamationmark.shield").font(.house(.footnote)).foregroundStyle(Tone.owed.color)
                 }
                 HStack(spacing: pt(10)) {
                     if same == false || same == nil {
@@ -453,7 +453,7 @@ struct DesignSettingSheet: View {
             Form {
                 Section {
                     Text("The piece stays exactly as photographed; AI photographs it again in the setting you choose, then checks it is still the same piece.")
-                        .font(.footnote).foregroundStyle(.secondary)
+                        .font(.house(.footnote)).foregroundStyle(.secondary)
                 }
                 Section("A setting") {
                     ForEach(scenes, id: \.text) { s in
@@ -461,7 +461,7 @@ struct DesignSettingSheet: View {
                             HStack {
                                 VStack(alignment: .leading, spacing: pt(2)) {
                                     Text(s.s("label")).foregroundStyle(.primary)
-                                    Text(s.s("suits")).font(.caption).foregroundStyle(.secondary)
+                                    Text(s.s("suits")).font(.house(.caption)).foregroundStyle(.secondary)
                                 }
                                 Spacer(minLength: 0)
                                 if sceneId == s.s("id") && custom.isEmpty { Image(systemName: "checkmark").foregroundStyle(Theme.accent) }
@@ -513,7 +513,7 @@ struct DesignAskSheet: View {
             Form {
                 Section {
                     Text("Say it the way you’d tell a photographer. The piece itself is protected, and the result is checked against the original.")
-                        .font(.footnote).foregroundStyle(.secondary)
+                        .font(.house(.footnote)).foregroundStyle(.secondary)
                     TextField("What should change?", text: $text, axis: .vertical).lineLimit(2...6)
                 }
                 Section("Ideas") {

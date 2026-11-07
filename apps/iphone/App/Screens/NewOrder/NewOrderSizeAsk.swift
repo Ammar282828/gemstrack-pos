@@ -49,7 +49,7 @@ struct NewOrderSizeAskSheet: View {
                         Toggle(isOn: isChosen(row)) {
                             VStack(alignment: .leading, spacing: pt(2)) {
                                 Text("\(row.field.label): \(row.value)")
-                                Text(words(row)).font(.footnote).foregroundStyle(.secondary)
+                                Text(words(row)).font(.house(.footnote)).foregroundStyle(.secondary)
                             }
                         }
                     }

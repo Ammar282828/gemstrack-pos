@@ -217,8 +217,8 @@ struct MacStockPlace: View {
                 .frame(width: 36, height: 36)
                 .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
-                Text(r.name.isEmpty ? r.sku : r.name).font(.body).lineLimit(1)
-                Text(r.sku + " \u{00B7} " + detail(r)).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                Text(r.name.isEmpty ? r.sku : r.name).font(.house(.body)).lineLimit(1)
+                Text(r.sku + " \u{00B7} " + detail(r)).font(.house(.callout)).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer(minLength: 8)
             price(r)
@@ -239,7 +239,7 @@ struct MacStockPlace: View {
         if r.price > 0 {
             RowAmount(amount: r.price)
         } else {
-            Text(rates == nil ? "\u{2014}" : "Price N/A").font(.caption).foregroundStyle(.secondary)
+            Text(rates == nil ? "\u{2014}" : "Price N/A").font(.house(.caption)).foregroundStyle(.secondary)
         }
     }
 
@@ -296,9 +296,9 @@ struct MacStockPlace: View {
             StockImage(imageUrl: r.product.imageUrl, name: r.product.name, key: r.sku)
                 .aspectRatio(1, contentMode: .fit)
                 .clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))
-            Text(r.name.isEmpty ? r.sku : r.name).font(.body.weight(.semibold)).lineLimit(2).multilineTextAlignment(.leading)
-            Text(r.sku).font(.caption.monospaced()).foregroundStyle(.secondary).lineLimit(1)
-            Text(r.metal + " \u{00B7} " + StockKit.grams(r.weight)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            Text(r.name.isEmpty ? r.sku : r.name).font(.house(.body).weight(.semibold)).lineLimit(2).multilineTextAlignment(.leading)
+            Text(r.sku).font(.house(.caption).monospaced()).foregroundStyle(.secondary).lineLimit(1)
+            Text(r.metal + " \u{00B7} " + StockKit.grams(r.weight)).font(.house(.caption)).foregroundStyle(.secondary).lineLimit(1)
             price(r)
         }
         .padding(10)
@@ -525,7 +525,7 @@ struct MacStockPlace: View {
         let grams = picked.reduce(0) { $0 + $1.weight }
         return MacWorkPage {
             MacWorkHead(title: "\(picked.count) Pieces", subtitle: StockKit.grams(grams) + " in all") {
-                Image(systemName: "square.stack.3d.up").font(.title2).foregroundStyle(Theme.accent)
+                Image(systemName: "square.stack.3d.up").font(.house(.title2)).foregroundStyle(Theme.accent)
             }
             MacActionButtons(actions: [sellAction(skus), printAction(skus, now: false)])
             MacWorkCard("Pieces", count: picked.count) {

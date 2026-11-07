@@ -95,7 +95,7 @@ struct PostAlbumStrip: View {
             #endif
             if !ownLeft.isEmpty {
                 VStack(alignment: .leading, spacing: pt(6)) {
-                    Text("More of this piece:").font(.subheadline).foregroundStyle(.secondary)
+                    Text("More of this piece:").font(.house(.subheadline)).foregroundStyle(.secondary)
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: pt(8)) {
                             ForEach(ownLeft, id: \.self) { (i: Int) in
@@ -169,7 +169,7 @@ struct PostAlbumStrip: View {
                 .frame(width: 84, height: 84)
                 .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
                 .overlay(alignment: .topLeading) {
-                    Text("\(number)").font(.caption2.weight(.semibold)).monospacedDigit()
+                    Text("\(number)").font(.house(.caption2).weight(.semibold)).monospacedDigit()
                         .foregroundStyle(Theme.onAccent)
                         .padding(.horizontal, pt(5)).padding(.vertical, pt(1))
                         .background(Theme.accent, in: .capsule)
@@ -267,11 +267,11 @@ struct PostAlbumSitePicker: View {
                                 .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
                             VStack(alignment: .leading, spacing: pt(2)) {
                                 Text(p.name)
-                                if !p.collection.isEmpty { Text(p.collection).font(.caption).foregroundStyle(.secondary) }
+                                if !p.collection.isEmpty { Text(p.collection).font(.house(.caption)).foregroundStyle(.secondary) }
                             }
                             Spacer(minLength: 6)
                             if let n = position(p) {
-                                Text("\(n)").font(.caption.weight(.semibold)).monospacedDigit()
+                                Text("\(n)").font(.house(.caption).weight(.semibold)).monospacedDigit()
                                     .foregroundStyle(Theme.onAccent)
                                     .frame(minWidth: 24, minHeight: 24)
                                     .background(Theme.accent, in: .circle)

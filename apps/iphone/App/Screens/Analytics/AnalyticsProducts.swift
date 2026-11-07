@@ -34,7 +34,7 @@ struct AnaProductsPage: View {
     private var explainSection: some View {
         LedgerSection("How this is worked out", collapsible: true) {
             Text("Revenue is each piece’s own total, before invoice discounts and trade-ins, so it runs higher than the Overview’s. A piece described for one bill has no stock number. Gold coins are kept apart.")
-                .font(.footnote).foregroundStyle(.secondary)
+                .font(.house(.footnote)).foregroundStyle(.secondary)
         }
     }
 

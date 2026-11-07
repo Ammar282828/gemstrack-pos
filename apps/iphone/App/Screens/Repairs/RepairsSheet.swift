@@ -169,7 +169,7 @@ struct RepairsSheet: View {
             VStack(alignment: .leading, spacing: pt(6)) {
                 HStack(alignment: .firstTextBaseline) {
                     Text(RepairsKit.repairSummary(r))
-                        .font(.title3.weight(.bold))
+                        .font(.house(.title3).weight(.bold))
                     Spacer(minLength: 8)
                     Pill(RepairsKit.label(desk.status(r)), tone: RepairsKit.tone(desk.status(r)))
                 }
@@ -243,12 +243,12 @@ struct RepairsSheet: View {
                     .fontWeight(.medium)
                 if !p.work.isEmpty {
                     Text(p.work)
-                        .font(.subheadline)
+                        .font(.house(.subheadline))
                         .foregroundStyle(.secondary)
                 }
                 if let w = p.weightG, w > 0 {
                     Text(RepairsKit.grams(w))
-                        .font(.caption)
+                        .font(.house(.caption))
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
                 }
@@ -296,7 +296,7 @@ struct RepairsSheet: View {
             Text(Money.pkr(p.amount)).monospacedDigit()
                 .contentTransition(.numericText(value: p.amount))
         }
-        .font(.caption)
+        .font(.house(.caption))
         .foregroundStyle(.secondary)
     }
 
@@ -333,7 +333,7 @@ struct RepairsSheet: View {
         if session.isOwner, let note = RepairsKit.filled(r.internalNote) {
             VStack(alignment: .leading, spacing: pt(2)) {
                 Text("Note for the shop")
-                    .font(.caption)
+                    .font(.house(.caption))
                     .foregroundStyle(.secondary)
                 Text(note)
             }

@@ -139,7 +139,7 @@ private struct HisaabImportPage: View {
                 Text("This tool does not support importing gold transactions. They must be added manually.")
                 Text("You can only import data for one person at a time. Upload a separate file for each person.")
             }
-            .font(.subheadline)
+            .font(.house(.subheadline))
             .foregroundStyle(.secondary)
         } header: {
             LedgerHeading(title: "Instructions and required format")
@@ -160,7 +160,7 @@ private struct HisaabImportPage: View {
             }
             .disabled(reading || importing)
             if !fileName.isEmpty {
-                Text(fileName).font(.subheadline).foregroundStyle(.secondary)
+                Text(fileName).font(.house(.subheadline)).foregroundStyle(.secondary)
             }
         }
     }
@@ -201,7 +201,7 @@ private struct HisaabImportPage: View {
                         Text("Select a customer or karigar…")
                     }
                     Spacer()
-                    Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
+                    Image(systemName: "chevron.right").font(.house(.caption)).foregroundStyle(.tertiary)
                 }
             }
             .disabled(importing)
@@ -222,14 +222,14 @@ private struct HisaabImportPage: View {
                     VStack(alignment: .leading, spacing: pt(2)) {
                         Text(row.description.isEmpty ? "—" : row.description).lineLimit(2)
                         Text(row.isValidDate ? OwnerText.shortDate(row.date) : "Invalid date")
-                            .font(.caption)
+                            .font(.house(.caption))
                             .foregroundStyle(row.isValidDate ? Color.secondary : Tone.problem.color)
                     }
                     Spacer(minLength: 8)
                     VStack(alignment: .trailing, spacing: pt(2)) {
-                        if row.cashIn != 0 { Text("IN \(PaymentText.pkr(row.cashIn))").font(.subheadline).monospacedDigit() }
-                        if row.cashOut != 0 { Text("OUT \(PaymentText.pkr(row.cashOut))").font(.subheadline).monospacedDigit() }
-                        if row.cashIn == 0 && row.cashOut == 0 { Text("No amount").font(.caption).foregroundStyle(Tone.problem.color) }
+                        if row.cashIn != 0 { Text("IN \(PaymentText.pkr(row.cashIn))").font(.house(.subheadline)).monospacedDigit() }
+                        if row.cashOut != 0 { Text("OUT \(PaymentText.pkr(row.cashOut))").font(.house(.subheadline)).monospacedDigit() }
+                        if row.cashIn == 0 && row.cashOut == 0 { Text("No amount").font(.house(.caption)).foregroundStyle(Tone.problem.color) }
                     }
                 }
             }

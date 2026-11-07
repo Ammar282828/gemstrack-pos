@@ -220,7 +220,7 @@ struct ExpensesScreen: View {
                 }
                 .padding(.top, pt(12))
             }
-            .font(.subheadline)
+            .font(.house(.subheadline))
             .ledgerCard()
         }
         .padding(.vertical, pt(4))
@@ -231,7 +231,7 @@ struct ExpensesScreen: View {
         return VStack(alignment: .leading, spacing: pt(6)) {
             LedgerHeading(title: group.label, trailing: Money.pkr(group.total))
             if !group.sub.isEmpty {
-                Text(group.sub).font(.footnote).foregroundStyle(.secondary)
+                Text(group.sub).font(.house(.footnote)).foregroundStyle(.secondary)
             }
         }
     }
@@ -476,7 +476,7 @@ extension ExpensesScreen {
                     MoneyRangeFields(filter: $custom)
                     Spacer(minLength: 0)
                     Text(custom.useFrom ? "Without an end date it runs to the end of today." : "Until a start date is chosen, every expense is shown.")
-                        .font(.footnote)
+                        .font(.house(.footnote))
                         .foregroundStyle(.secondary)
                 }
                 .padding(.horizontal, 14)

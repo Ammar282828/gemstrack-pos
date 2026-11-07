@@ -138,13 +138,13 @@ struct MacOrdersListView<RowMenu: View>: View {
             HStack(alignment: .top, spacing: 6) {
                 if g.folds && !searching {
                     Image(systemName: isOpen(g) ? "chevron.down" : "chevron.right")
-                        .font(.caption.weight(.semibold)).foregroundStyle(.secondary).frame(width: 12).padding(.top, 3)
+                        .font(.house(.caption).weight(.semibold)).foregroundStyle(.secondary).frame(width: 12).padding(.top, 3)
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     LedgerHeading(title: g.title, count: g.rows.count,
                                   trailing: session.isOwner && g.worth >= 1 ? "worth " + Money.pkrLac(g.worth, digits: 1) : nil)
                     if !g.hint.isEmpty {
-                        Text(g.hint).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                        Text(g.hint).font(.house(.caption)).foregroundStyle(.secondary).lineLimit(1)
                     }
                 }
             }
@@ -167,11 +167,11 @@ struct MacOrdersRow: View {
             Monogram(name: r.customer, size: Monogram.Size.row)
             VStack(alignment: .leading, spacing: 2) {
                 Text(r.customer)
-                    .font(.body)
+                    .font(.house(.body))
                     .foregroundStyle(r.stage == .done ? Color.secondary : Color.primary)
                     .lineLimit(1)
                 Text(secondLine)
-                    .font(.callout)
+                    .font(.house(.callout))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
@@ -199,7 +199,7 @@ struct MacOrdersRow: View {
             } else if row.stage != .done, !row.promisedDay.isEmpty {
                 let urgent = !row.promisedWords.isEmpty
                 Text(urgent ? row.promisedWords : "Due " + row.promisedDay)
-                    .font(.caption.weight(urgent ? .semibold : .regular))
+                    .font(.house(.caption).weight(urgent ? .semibold : .regular))
                     .foregroundStyle(urgent ? row.promisedTone.color : Color.secondary)
                     .lineLimit(1)
             }
@@ -216,7 +216,7 @@ struct MacOrdersRow: View {
             } else if abs(row.owed) >= 1 {
                 VStack(alignment: .trailing, spacing: 1) {
                     RowAmount(amount: abs(row.owed), tone: row.owed < 0 ? Tone.credit.color : Tone.owed.color)
-                    Text(row.owed < 0 ? "In credit" : "Owed").font(.caption2).foregroundStyle(.secondary)
+                    Text(row.owed < 0 ? "In credit" : "Owed").font(.house(.caption2)).foregroundStyle(.secondary)
                 }
             } else {
                 Pill("Paid", tone: .settled)

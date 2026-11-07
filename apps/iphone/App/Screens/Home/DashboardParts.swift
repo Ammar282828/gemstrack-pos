@@ -34,7 +34,7 @@ struct DashLabel: View {
 struct DashChevron: View {
     var body: some View {
         Image(systemName: "chevron.right")
-            .font(.caption2.weight(.semibold))
+            .font(.house(.caption2).weight(.semibold))
             .foregroundStyle(.tertiary)
             .accessibilityHidden(true)
     }
@@ -69,7 +69,7 @@ struct DashHero: View {
             HeroAmount(amount: amount, lac: true)
                 .motion(amount)
             Text(line)
-                .font(.subheadline)
+                .font(.house(.subheadline))
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
                 .contentTransition(.numericText())
@@ -114,7 +114,7 @@ struct DashWeekBars: View {
                 Spacer()
                 Text("Today")
             }
-            .font(.caption2)
+            .font(.house(.caption2))
             .foregroundStyle(.tertiary)
             .accessibilityHidden(true)
         }
@@ -154,10 +154,10 @@ struct DashStatAmount: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: pt(3)) {
             Text("PKR")
-                .font(.caption2.weight(.semibold))
+                .font(.house(.caption2).weight(.semibold))
                 .foregroundStyle(.secondary)
             Text(Money.lacCrore(amount))
-                .font(.headline)
+                .font(.house(.headline))
                 .monospacedDigit()
                 .foregroundStyle(tint)
                 .contentTransition(.numericText(value: amount))
@@ -177,7 +177,7 @@ struct DashStatValue: View {
 
     var body: some View {
         Text(text)
-            .font(.headline)
+            .font(.house(.headline))
             .monospacedDigit()
             .foregroundStyle(tint)
             .contentTransition(.numericText())
@@ -194,7 +194,7 @@ struct DashStatNote: View {
 
     var body: some View {
         Text(text)
-            .font(.caption)
+            .font(.house(.caption))
             .foregroundStyle(tint)
             .monospacedDigit()
             .lineLimit(2)
@@ -243,9 +243,9 @@ struct DashHeader: View {
                 NavigationLink(value: Route(path: allPath)) {
                     HStack(spacing: pt(2)) {
                         Text("All")
-                        Image(systemName: "chevron.right").font(.caption2.weight(.semibold))
+                        Image(systemName: "chevron.right").font(.house(.caption2).weight(.semibold))
                     }
-                    .font(.subheadline.weight(.medium))
+                    .font(.house(.subheadline).weight(.medium))
                     .foregroundStyle(Theme.accent)
                 }
                 .buttonStyle(.plain)
@@ -290,7 +290,7 @@ struct DashEmpty: View {
 
     var body: some View {
         Text(text)
-            .font(.subheadline)
+            .font(.house(.subheadline))
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, pt(16))
@@ -302,12 +302,12 @@ struct DashAllClear: View {
     var body: some View {
         HStack(spacing: pt(10)) {
             Image(systemName: "checkmark.circle.fill")
-                .font(.title3)
+                .font(.house(.title3))
                 .foregroundStyle(.secondary)
             Text("All clear")
-                .font(.subheadline.weight(.semibold))
+                .font(.house(.subheadline).weight(.semibold))
             Text("Nothing late, unpaid or waiting")
-                .font(.subheadline)
+                .font(.house(.subheadline))
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
             Spacer(minLength: 0)
@@ -384,17 +384,17 @@ struct DashNeedRow: View {
     private var content: some View {
         HStack(spacing: pt(12)) {
             Image(systemName: symbol)
-                .font(.subheadline.weight(.semibold))
+                .font(.house(.subheadline).weight(.semibold))
                 .foregroundStyle(tone.color)
                 .frame(width: side, height: side)
                 .background(tone.color.opacity(0.13), in: .rect(cornerRadius: Radius.thumb, style: .continuous))
             VStack(alignment: .leading, spacing: pt(2)) {
                 Text(need.title)
-                    .font(.subheadline.weight(.semibold))
+                    .font(.house(.subheadline).weight(.semibold))
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
                 Text(need.detail)
-                    .font(.caption)
+                    .font(.house(.caption))
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
@@ -451,10 +451,10 @@ struct DashDueRow: View {
                 DateLeaf(date: due.timing.due, tone: leafTone, size: Self.leaf)
                 VStack(alignment: .leading, spacing: pt(2)) {
                     Text(due.customer)
-                        .font(.subheadline.weight(.semibold))
+                        .font(.house(.subheadline).weight(.semibold))
                         .lineLimit(1)
                     Text(refText)
-                        .font(.caption)
+                        .font(.house(.caption))
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
                         .lineLimit(1)
@@ -514,10 +514,10 @@ struct DashSaleRow: View {
                 Monogram(name: invoice.customerName, size: Self.monogram)
                 VStack(alignment: .leading, spacing: pt(2)) {
                     Text(name)
-                        .font(.subheadline.weight(.semibold))
+                        .font(.house(.subheadline).weight(.semibold))
                         .lineLimit(1)
                     Text(when)
-                        .font(.caption)
+                        .font(.house(.caption))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
@@ -575,7 +575,7 @@ struct DashMonthCard: View {
         VStack(alignment: .leading, spacing: pt(3)) {
             DashLabel(label)
             Text(Money.pkrLac(value))
-                .font(.subheadline.weight(.semibold))
+                .font(.house(.subheadline).weight(.semibold))
                 .foregroundStyle(tint)
                 .monospacedDigit()
                 .lineLimit(2)
@@ -607,7 +607,7 @@ struct DashMonthCard: View {
                 Spacer()
                 Text("Today")
             }
-            .font(.caption2)
+            .font(.house(.caption2))
             .foregroundStyle(.tertiary)
             .accessibilityHidden(true)
         }

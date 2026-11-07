@@ -240,7 +240,7 @@ private struct StockPieceEditor: View {
             }
             if f.metalType == "gold" {
                 VStack(alignment: .leading, spacing: pt(6)) {
-                    Text("Karat").font(.caption).foregroundStyle(.secondary)
+                    Text("Karat").font(.house(.caption)).foregroundStyle(.secondary)
                     Picker("Karat", selection: $f.karat) {
                         ForEach(karatOptions, id: \.self) { (k: String) in
                             Text(karatLabel(k)).tag(k)
@@ -447,10 +447,10 @@ private struct StockPieceEditor: View {
             Section {
                 VStack(spacing: pt(8)) {
                     Image(systemName: "checkmark.circle.fill")
-                        .font(.largeTitle)
+                        .font(.house(.largeTitle))
                         .imageScale(.large)
                         .foregroundStyle(Tone.settled.color)
-                    Text("Saved").font(.title2.weight(.semibold))
+                    Text("Saved").font(.house(.title2).weight(.semibold))
                     Text("\(s.name) is in stock as \(s.sku).").foregroundStyle(.secondary).multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: .infinity)

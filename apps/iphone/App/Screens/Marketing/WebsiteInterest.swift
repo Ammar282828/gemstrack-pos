@@ -252,7 +252,7 @@ struct WebsiteInterestScreen: View {
                     .pointerHover()
             }
             if let r = report {
-                Text(spanLine(r)).font(.footnote).foregroundStyle(.secondary)
+                Text(spanLine(r)).font(.house(.footnote)).foregroundStyle(.secondary)
             }
         }
         #endif
@@ -263,7 +263,7 @@ struct WebsiteInterestScreen: View {
         let n = r.now
         if n.sessions == 0 && r.before.sessions == 0 {
             Text("Nothing counted in this period yet. Visits are counted from 23 October 2026; piece interest from 22 October. It fills as people use the website.")
-                .font(.subheadline).foregroundStyle(.secondary)
+                .font(.house(.subheadline)).foregroundStyle(.secondary)
         }
         // Eight tiles in two rows of four.
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: pt(12), alignment: .top), count: 4), spacing: pt(12)) {
@@ -296,14 +296,14 @@ struct WebsiteInterestScreen: View {
             picker
             if pieces != nil && rows.isEmpty {
                 Text(list.emptyTitle + ". It fills as people use the website.")
-                    .font(.subheadline).foregroundStyle(.secondary)
+                    .font(.house(.subheadline)).foregroundStyle(.secondary)
             }
             LazyVGrid(columns: [GridItem(.flexible(), spacing: pt(20), alignment: .top), GridItem(.flexible(), spacing: pt(20), alignment: .top)], spacing: pt(14)) {
                 ForEach(Array(rows.enumerated()), id: \.element.id) { (i: Int, r: WebsiteInterestPiece) in
                     row(r, rank: i + 1, in: list)
                 }
             }
-            Text(LocalizedStringKey(Self.countingNote)).font(.footnote).foregroundStyle(.secondary)
+            Text(LocalizedStringKey(Self.countingNote)).font(.house(.footnote)).foregroundStyle(.secondary)
         }
         .ledgerCard()
     }
@@ -321,7 +321,7 @@ struct WebsiteInterestScreen: View {
             .chipRowInList()
             if let r = report {
                 Text(spanLine(r))
-                    .font(.footnote).foregroundStyle(.secondary)
+                    .font(.house(.footnote)).foregroundStyle(.secondary)
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
             }
@@ -367,7 +367,7 @@ struct WebsiteInterestScreen: View {
         if n.sessions == 0 && r.before.sessions == 0 {
             Section {
                 Text("Nothing counted in this period yet. Visits are counted from 23 October 2026; piece interest from 22 October. It fills as people use the website.")
-                    .font(.subheadline).foregroundStyle(.secondary)
+                    .font(.house(.subheadline)).foregroundStyle(.secondary)
             }
             .houseRows()
         }
@@ -470,7 +470,7 @@ struct WebsiteInterestScreen: View {
                 .listRowSeparator(.hidden)
             if pieces != nil && rows.isEmpty {
                 Text(list.emptyTitle + ". It fills as people use the website.")
-                    .font(.subheadline).foregroundStyle(.secondary)
+                    .font(.house(.subheadline)).foregroundStyle(.secondary)
                     .listRowBackground(Theme.card)
             }
             ForEach(Array(rows.enumerated()), id: \.element.id) { (i: Int, r: WebsiteInterestPiece) in
@@ -527,7 +527,7 @@ struct WebsiteInterestScreen: View {
         } label: {
             HStack(spacing: pt(12)) {
                 Text("\(rank)")
-                    .font(.footnote.monospacedDigit())
+                    .font(.house(.footnote).monospacedDigit())
                     .foregroundStyle(.tertiary)
                     .frame(minWidth: 22)
                 StockImage(imageUrl: r.thumb, name: r.name, key: r.piece)
@@ -535,9 +535,9 @@ struct WebsiteInterestScreen: View {
                     .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
                 VStack(alignment: .leading, spacing: pt(2)) {
                     Text(r.name.isEmpty ? r.piece : r.name).foregroundStyle(.primary)
-                    Text(list.say(r)).font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
+                    Text(list.say(r)).font(.house(.subheadline)).foregroundStyle(.secondary).monospacedDigit()
                     if !r.collection.isEmpty {
-                        Text(r.collection).font(.caption).foregroundStyle(.tertiary)
+                        Text(r.collection).font(.house(.caption)).foregroundStyle(.tertiary)
                     }
                 }
                 Spacer(minLength: 0)
@@ -624,7 +624,7 @@ extension WebsiteInterestScreen {
         let n = r.now
         if n.sessions == 0 && r.before.sessions == 0 {
             Text("Nothing counted in this period yet. Visits are counted from 23 October 2026; piece interest from 22 October. It fills as people use the website.")
-                .font(.subheadline).foregroundStyle(.secondary)
+                .font(.house(.subheadline)).foregroundStyle(.secondary)
         }
         FigureGrid {
             tiles(r)

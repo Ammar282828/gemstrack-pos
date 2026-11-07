@@ -218,7 +218,7 @@ struct StudioBoardEditor: View {
 
     private var canvasArea: some View {
         VStack(spacing: pt(8)) {
-            if House.isDemo { Label(demoNote, systemImage: "info.circle").font(.footnote).foregroundStyle(.secondary).padding(.horizontal) }
+            if House.isDemo { Label(demoNote, systemImage: "info.circle").font(.house(.footnote)).foregroundStyle(.secondary).padding(.horizontal) }
             if ready {
                 StudioBoardCanvas(image: NativeArtwork.image(response), boxes: response["boxes"].array, layers: layers, frameSize: frameSize, selected: $selected,
                                   changed: { design.doc["layers"] = .array($0) },
@@ -278,9 +278,9 @@ struct StudioBoardEditor: View {
                         Button { show(p) } label: {
                             VStack(spacing: pt(3)) {
                                 // Add is the one obvious way to put something new on the design.
-                                if p == .add { Image(systemName: "plus").font(.body.weight(.bold)).foregroundStyle(Theme.onAccent).frame(width: 30, height: 30).background(Theme.accent, in: Circle()) }
-                                else { Image(systemName: p.symbol).font(.body.weight(.medium)).frame(height: 30) }
-                                Text(p.title).font(.caption2)
+                                if p == .add { Image(systemName: "plus").font(.house(.body).weight(.bold)).foregroundStyle(Theme.onAccent).frame(width: 30, height: 30).background(Theme.accent, in: Circle()) }
+                                else { Image(systemName: p.symbol).font(.house(.body).weight(.medium)).frame(height: 30) }
+                                Text(p.title).font(.house(.caption2))
                             }
                             .frame(maxWidth: .infinity, minHeight: Metrics.tap)
                         }
@@ -382,7 +382,7 @@ struct StudioBoardEditor: View {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 52), spacing: pt(8))], spacing: pt(8)) {
                 ForEach(Self.stickers, id: \.self) { glyph in
                     Button { sticker(glyph) } label: {
-                        Text(glyph).font(.title2).frame(maxWidth: .infinity, minHeight: 48)
+                        Text(glyph).font(.house(.title2)).frame(maxWidth: .infinity, minHeight: 48)
                             .background(Theme.card, in: .rect(cornerRadius: Radius.tile, style: .continuous))
                     }
                     .buttonStyle(.plain).accessibilityLabel("Sticker " + glyph)
@@ -400,7 +400,7 @@ struct StudioBoardEditor: View {
         } else {
             Section {
                 Text("\(DeviceWords.Tap) anything on the design to change it, or choose it here. Drag to move, pull the corner to resize, turn with the knob above.")
-                    .font(.footnote).foregroundStyle(.secondary)
+                    .font(.house(.footnote)).foregroundStyle(.secondary)
             }.houseRows()
             layersList
         }
@@ -429,13 +429,13 @@ struct StudioBoardEditor: View {
         let kind = l.s("kind")
         Section {
             HStack {
-                Label(StudioBoardCanvas.name(l), systemImage: Self.symbol(l)).font(.headline)
+                Label(StudioBoardCanvas.name(l), systemImage: Self.symbol(l)).font(.house(.headline))
                 Spacer()
-                Button { selected = nil } label: { Image(systemName: "xmark.circle.fill").font(.title3).foregroundStyle(.secondary) }
+                Button { selected = nil } label: { Image(systemName: "xmark.circle.fill").font(.house(.title3)).foregroundStyle(.secondary) }
                     .buttonStyle(.borderless).accessibilityLabel("Choose nothing")
             }
             if l["locked"].bool {
-                Text("Locked: unlock it to change it.").font(.footnote).foregroundStyle(.secondary)
+                Text("Locked: unlock it to change it.").font(.house(.footnote)).foregroundStyle(.secondary)
                 Button("Unlock", systemImage: "lock.open") { updateLayer(id) { $0["locked"] = .bool(false) } }
             }
         }.houseRows()
@@ -469,7 +469,7 @@ struct StudioBoardEditor: View {
         Section {
             if !bind.isEmpty {
                 TextField(Self.fieldName(bind), text: field(bind), axis: .vertical).lineLimit(1...6).focused($typing)
-                Text("The design’s \(Self.fieldName(bind).lowercased()): the Words panel and the layouts use it too.").font(.footnote).foregroundStyle(.secondary)
+                Text("The design’s \(Self.fieldName(bind).lowercased()): the Words panel and the layouts use it too.").font(.house(.footnote)).foregroundStyle(.secondary)
                 Button("AI words for this design", systemImage: "sparkles") { show(.words) }
                 Button("Make it its own text", systemImage: "link.badge.plus") {
                     let words = design.fields[bind] ?? ""
@@ -519,7 +519,7 @@ struct StudioBoardEditor: View {
                     Image(uiImage: image).resizable().scaledToFit().frame(maxHeight: 140).clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous)).frame(maxWidth: .infinity)
                 } else {
                     // An SVG logo has no bitmap to show; the design itself draws it.
-                    Label("A vector logo: no preview here, the design shows it.", systemImage: "doc.richtext").font(.footnote).foregroundStyle(.secondary)
+                    Label("A vector logo: no preview here, the design shows it.", systemImage: "doc.richtext").font(.house(.footnote)).foregroundStyle(.secondary)
                 }
             }
             Button("Replace from the library", systemImage: "photo.on.rectangle") { picking = .inset(id) }
@@ -541,7 +541,7 @@ struct StudioBoardEditor: View {
                 // iz: drawn as the cover scale times this (src/lib/social: ImageLayer.iz).
                 slider("Zoom in frame", num(id, "iz", 1), 1...4, step: 0.05, format: "%.2f×")
                 Button(cropping == id ? "Done moving the photo" : "Move photo in frame", systemImage: "arrow.up.and.down.and.arrow.left.and.right") { cropping = cropping == id ? nil : id }
-                if cropping == id { Text("Drag the design to slide the photo inside its frame; pinch to zoom it.").font(.footnote).foregroundStyle(.secondary) }
+                if cropping == id { Text("Drag the design to slide the photo inside its frame; pinch to zoom it.").font(.house(.footnote)).foregroundStyle(.secondary) }
             }
             slider("Corners", num(id, "radius", 0), 0...300)
             Toggle("Border", isOn: Binding(get: { l["border"] != .null }, set: { on in updateLayer(id) { $0["border"] = on ? .string("#FFFFFF") : .null } }))
@@ -604,12 +604,12 @@ struct StudioBoardEditor: View {
         } header: { LedgerHeading(title: "Words on the design") }.houseRows()
         Section {
             Button("Write three options", systemImage: "sparkles") { Task { await writeWords() } }.disabled(House.isDemo || busy != nil)
-            if House.isDemo { Text("The demo’s AI is off.").font(.footnote).foregroundStyle(.secondary) }
+            if House.isDemo { Text("The demo’s AI is off.").font(.house(.footnote)).foregroundStyle(.secondary) }
             ForEach(Array(wordOptions.enumerated()), id: \.offset) { _, option in
                 VStack(alignment: .leading, spacing: pt(4)) {
-                    if !(option["kicker"] ?? "").isEmpty { Text(option["kicker"] ?? "").font(.caption).foregroundStyle(.secondary) }
-                    Text(option["headline"] ?? "").font(.headline)
-                    if !(option["details"] ?? "").isEmpty { Text(option["details"] ?? "").font(.subheadline) }
+                    if !(option["kicker"] ?? "").isEmpty { Text(option["kicker"] ?? "").font(.house(.caption)).foregroundStyle(.secondary) }
+                    Text(option["headline"] ?? "").font(.house(.headline))
+                    if !(option["details"] ?? "").isEmpty { Text(option["details"] ?? "").font(.house(.subheadline)) }
                     Button("Use these words") { edit { d in for (k, v) in option where !v.isEmpty { d.fields[k] = v } } }
                         .buttonStyle(.borderless).padding(.top, pt(2))
                 }
@@ -624,7 +624,7 @@ struct StudioBoardEditor: View {
         Section {
             if let data = pictures[design.asset], let image = UIImage(data: data) {
                 Image(uiImage: image).resizable().scaledToFit().frame(maxHeight: 180).clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous)).frame(maxWidth: .infinity)
-                Text(Self.origin(design.asset)).font(.footnote).foregroundStyle(.secondary)
+                Text(Self.origin(design.asset)).font(.house(.footnote)).foregroundStyle(.secondary)
             } else {
                 Text(design.asset.isEmpty ? "This design has no photo." : "The photo couldn’t be fetched.").foregroundStyle(.secondary)
             }
@@ -663,7 +663,7 @@ struct StudioBoardEditor: View {
             Button("Restage in this scene", systemImage: "photo.artframe") { ai("restage", ["sceneId": scene, "scene": instruction, "aspect": aspect], target) }.disabled(off || (scene.isEmpty && instruction.isEmpty))
             TextField("Or ask: “a softer, warmer light”", text: $instruction, axis: .vertical)
             Button("Ask AI", systemImage: "text.bubble") { ai("custom", ["instruction": instruction, "aspect": aspect], target) }.disabled(off || instruction.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            if House.isDemo { Text("The demo’s AI is off.").font(.footnote).foregroundStyle(.secondary) }
+            if House.isDemo { Text("The demo’s AI is off.").font(.house(.footnote)).foregroundStyle(.secondary) }
         } header: { LedgerHeading(title: "AI photo tools") } footer: { Text("You see the new version beside the old before choosing it; the original stays until you save.") }.houseRows()
     }
 
@@ -672,7 +672,7 @@ struct StudioBoardEditor: View {
     @ViewBuilder private var pagePane: some View {
         Section {
             TextField("Design name", text: Binding(get: { design.label }, set: { v in edit("label") { $0.label = v } }))
-            Text(info.s("label")).font(.footnote).foregroundStyle(.secondary)
+            Text(info.s("label")).font(.house(.footnote)).foregroundStyle(.secondary)
         } header: { LedgerHeading(title: "Design") }.houseRows()
         Section {
             Menu {
@@ -702,7 +702,7 @@ struct StudioBoardEditor: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: pt(14)) {
-                    if let warning = c.warning { Label(warning, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.owed.color).font(.subheadline) }
+                    if let warning = c.warning { Label(warning, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.owed.color).font(.house(.subheadline)) }
                     ViewThatFits(in: .horizontal) {
                         HStack(alignment: .top, spacing: pt(12)) { versions(c) }
                         VStack(spacing: pt(12)) { versions(c) }
@@ -726,7 +726,7 @@ struct StudioBoardEditor: View {
     @ViewBuilder private func versions(_ c: Candidate) -> some View {
         ForEach([("Before", c.before), ("After", Optional(c.data))], id: \.0) { title, data in
             VStack(alignment: .leading, spacing: pt(6)) {
-                Text(title).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                Text(title).font(.house(.caption).weight(.semibold)).foregroundStyle(.secondary)
                 if let data, !data.isEmpty { DataImage(data: data, maxPixel: 1600).clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous)) }
             }
             .frame(maxWidth: 520)
@@ -1272,30 +1272,30 @@ struct StudioBoardQueueSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    Text("It waits in Posts → Hub, held: send it now or set a time there.").font(.footnote).foregroundStyle(.secondary)
+                    Text("It waits in Posts → Hub, held: send it now or set a time there.").font(.house(.footnote)).foregroundStyle(.secondary)
                     if let places {
                         if places.isEmpty && problem == nil {
-                            Text("No WhatsApp channel or group is connected; the story can still be queued.").font(.footnote).foregroundStyle(.secondary)
+                            Text("No WhatsApp channel or group is connected; the story can still be queued.").font(.house(.footnote)).foregroundStyle(.secondary)
                         }
                         ForEach(places.map { $0.s("key") }, id: \.self) { key in
                             let p = places.first { $0.s("key") == key } ?? .null
                             Toggle(isOn: Binding(get: { chosen.contains(key) }, set: { if $0 { chosen.insert(key) } else { chosen.remove(key) } })) {
                                 VStack(alignment: .leading, spacing: pt(2)) {
                                     Text(p.s("name"))
-                                    if p["size"] != .null { Text("\(Int(clamped: p.n("size"))) people").font(.caption).foregroundStyle(.secondary) }
+                                    if p["size"] != .null { Text("\(Int(clamped: p.n("size"))) people").font(.house(.caption)).foregroundStyle(.secondary) }
                                 }
                             }
                         }
                         Toggle(isOn: $instagram) {
                             VStack(alignment: .leading, spacing: pt(2)) {
                                 Text("Instagram story")
-                                Text("The same design at 9:16").font(.caption).foregroundStyle(.secondary)
+                                Text("The same design at 9:16").font(.house(.caption)).foregroundStyle(.secondary)
                             }
                         }
                     } else if problem == nil {
                         BusySpinner("Finding the WhatsApp places", inline: true)
                     }
-                    if let problem { Text(problem).font(.footnote).foregroundStyle(Tone.problem.color) }
+                    if let problem { Text(problem).font(.house(.footnote)).foregroundStyle(Tone.problem.color) }
                 } header: { LedgerHeading(title: "Where") }.houseRows()
                 Section {
                     TextField("Caption", text: $caption, axis: .vertical).lineLimit(4...12)
@@ -1393,7 +1393,7 @@ struct StudioBoardPhotoPicker: View {
                 }
                 .disabled(bringing || link.trimmingCharacters(in: .whitespaces).isEmpty)
             }
-            if bringing { ProgressView("Bringing the picture…").font(.footnote) }
+            if bringing { ProgressView("Bringing the picture…").font(.house(.footnote)) }
         }
     }
 
@@ -1408,7 +1408,7 @@ struct StudioBoardPhotoPicker: View {
                         .pickerStyle(.menu)
                         outsideSection
                     }
-                    if let problem { Text(problem).font(.footnote).foregroundStyle(Tone.problem.color) }
+                    if let problem { Text(problem).font(.house(.footnote)).foregroundStyle(Tone.problem.color) }
                     if let items {
                         if items.isEmpty && problem == nil {
                             Text(q.isEmpty ? "The library has no photos yet." : "Nothing matches “\(q)”.").foregroundStyle(.secondary)
@@ -1419,7 +1419,7 @@ struct StudioBoardPhotoPicker: View {
                                 Button { pick(item, format) } label: {
                                     VStack(alignment: .leading, spacing: pt(4)) {
                                         MarketingPhoto(path: item.s("thumb")).frame(maxWidth: .infinity).aspectRatio(1, contentMode: .fit).clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
-                                        Text(item.s("name")).font(.caption).lineLimit(2).foregroundStyle(.primary)
+                                        Text(item.s("name")).font(.house(.caption)).lineLimit(2).foregroundStyle(.primary)
                                     }
                                 }
                                 .buttonStyle(.plain)

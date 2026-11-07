@@ -196,9 +196,9 @@ struct AlertConnectionSections: View {
                     .frame(width: 8, height: 8)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: pt(2)) {
-                    Text(statusLine).font(.body.weight(.medium))
+                    Text(statusLine).font(.house(.body).weight(.medium))
                     if let detail = health?.detail, !detail.isEmpty {
-                        Text(detail).font(.caption).foregroundStyle(.secondary)
+                        Text(detail).font(.house(.caption)).foregroundStyle(.secondary)
                     }
                 }
             }
@@ -207,7 +207,7 @@ struct AlertConnectionSections: View {
             }
             .disabled(checking)
             if phones.isEmpty {
-                Text("Add a number to send a test.").font(.footnote).foregroundStyle(.secondary)
+                Text("Add a number to send a test.").font(.house(.footnote)).foregroundStyle(.secondary)
             } else {
                 Menu {
                     ForEach(phones, id: \.self) { p in
@@ -273,10 +273,10 @@ struct AlertConnectionSections: View {
                     VStack(alignment: .leading, spacing: pt(2)) {
                         Text(r.title)
                         Text(r.when(settings) + (on ? "" : " · off"))
-                            .font(.caption).foregroundStyle(.secondary)
+                            .font(.house(.caption)).foregroundStyle(.secondary)
                         if let last {
                             Text(last.text)
-                                .font(.caption)
+                                .font(.house(.caption))
                                 .foregroundStyle(last.bad ? Tone.problem.color : Color.secondary)
                         }
                     }

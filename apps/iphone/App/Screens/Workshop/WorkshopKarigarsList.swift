@@ -228,17 +228,17 @@ struct WorkshopKarigarsList: View {
         NavigationLink(value: Route(path: WorkshopLogic.karigarPath(k.id))) {
             VStack(alignment: .leading, spacing: pt(14)) {
                 HStack(alignment: .top, spacing: pt(8)) {
-                    Text(k.name).font(.headline).fixedSize(horizontal: false, vertical: true)
+                    Text(k.name).font(.house(.headline)).fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 0)
-                    Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
+                    Image(systemName: "chevron.right").font(.house(.caption)).foregroundStyle(.tertiary)
                 }
                 bench(load)
                 if let batch, !batch.label.isEmpty {
                     Label(batch.label, systemImage: "book.closed")
-                        .font(.caption).foregroundStyle(Theme.accent)
+                        .font(.house(.caption)).foregroundStyle(Theme.accent)
                 }
                 if let contact = k.contact, !contact.isEmpty {
-                    Label(contact, systemImage: "phone").font(.caption).foregroundStyle(.secondary)
+                    Label(contact, systemImage: "phone").font(.house(.caption)).foregroundStyle(.secondary)
                 }
             }
         }
@@ -266,14 +266,14 @@ struct WorkshopKarigarsList: View {
     private func bench(_ load: WorkshopLoad?) -> some View {
         if let load, load.active > 0 {
             VStack(alignment: .leading, spacing: pt(8)) {
-                Text(WorkshopLogic.pieces(load.active)).font(.subheadline.weight(.semibold)).monospacedDigit()
+                Text(WorkshopLogic.pieces(load.active)).font(.house(.subheadline).weight(.semibold)).monospacedDigit()
                 FigureRow(spacing: pt(8)) {
                     if load.critical > 0 { Pill("\(load.critical) over \(WorkshopLogic.criticalDays)d", tone: .late) }
                     if load.late > 0 { Pill("\(load.late) late", tone: .owed) }
                 }
                 if load.totalWeightG > 0 {
                     Text(WorkshopLogic.number(load.totalWeightG, digits: 1) + "g out")
-                        .font(.caption)
+                        .font(.house(.caption))
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
                 }
@@ -483,12 +483,12 @@ extension WorkshopKarigarsList {
         HStack(spacing: 10) {
             Monogram(name: r.name, size: Monogram.Size.row)
             VStack(alignment: .leading, spacing: 2) {
-                Text(r.name).font(.body).lineLimit(1)
-                Text(macRowLine(r)).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                Text(r.name).font(.house(.body)).lineLimit(1)
+                Text(macRowLine(r)).font(.house(.callout)).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer(minLength: 8)
             if let batch = r.batch, !batch.label.isEmpty {
-                Label(batch.label, systemImage: "book.closed").font(.caption).foregroundStyle(Theme.accent).lineLimit(1)
+                Label(batch.label, systemImage: "book.closed").font(.house(.caption)).foregroundStyle(Theme.accent).lineLimit(1)
             }
             if r.critical > 0 {
                 Pill("\(r.critical) over \(WorkshopLogic.criticalDays)d", tone: .late)
@@ -498,7 +498,7 @@ extension WorkshopKarigarsList {
             if session.isOwner && r.cash.rounded() != 0 {
                 VStack(alignment: .trailing, spacing: 1) {
                     RowAmount(amount: abs(r.cash.rounded()), tone: r.cash.rounded() < 0 ? Tone.owed.color : Color.primary)
-                    Text(r.cash.rounded() < 0 ? "we owe" : "holds").font(.caption2).foregroundStyle(.secondary)
+                    Text(r.cash.rounded() < 0 ? "we owe" : "holds").font(.house(.caption2)).foregroundStyle(.secondary)
                 }
             }
         }

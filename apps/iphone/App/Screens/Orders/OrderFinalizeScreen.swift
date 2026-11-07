@@ -118,7 +118,7 @@ struct OrderFinalizeScreen: View {
                 LabeledContent("Invoice total", value: Money.pkr(f.total))
                 if f.advances > 0 { LabeledContent("Advance paid", value: "− " + Money.pkr(f.advances)) }
                 LabeledContent(isCredit(f.balance) ? "Credit to customer" : "Balance due") {
-                    Text(Money.pkr(abs(f.balance))).font(.headline).monospacedDigit()
+                    Text(Money.pkr(abs(f.balance))).font(.house(.headline)).monospacedDigit()
                 }
             } header: {
                 LedgerHeading(title: "The invoice")
@@ -190,7 +190,7 @@ struct OrderFinalizeScreen: View {
                                 .accessibilityLabel("\(r.label) rate per gram")
                             if changed[r.field] != nil {
                                 Text("Booked at " + OrderFinalizeMath.rateText(rateShown(booked, r.field)))
-                                    .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                                    .font(.house(.caption)).foregroundStyle(.secondary).monospacedDigit()
                             }
                         }
                     }
@@ -220,14 +220,14 @@ struct OrderFinalizeScreen: View {
         HStack(alignment: .center, spacing: pt(12)) {
             Monogram(name: OrdersLogic.customerName(order), size: Monogram.Size.row)
             VStack(alignment: .leading, spacing: pt(2)) {
-                Text(OrdersLogic.customerName(order)).font(.headline).lineLimit(2)
-                Text(order.id).font(.caption).foregroundStyle(.secondary)
+                Text(OrdersLogic.customerName(order)).font(.house(.headline)).lineLimit(2)
+                Text(order.id).font(.house(.caption)).foregroundStyle(.secondary)
             }
             Spacer(minLength: 8)
             VStack(alignment: .trailing, spacing: pt(2)) {
                 if abs(due) >= 1 {
                     RowAmount(amount: abs(due), tone: due < 0 ? Tone.credit.color : Tone.owed.color)
-                    Text(due < 0 ? "In credit" : "Due").font(.caption).foregroundStyle(.secondary)
+                    Text(due < 0 ? "In credit" : "Due").font(.house(.caption)).foregroundStyle(.secondary)
                 } else {
                     Pill("Paid", tone: .settled)
                 }
@@ -260,7 +260,7 @@ struct OrderFinalizeScreen: View {
                                 .multilineTextAlignment(.trailing)
                                 .monospacedDigit()
                             Text(SaleNumber.grams(r.wastageGrams) + " g")
-                                .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                                .font(.house(.caption)).foregroundStyle(.secondary).monospacedDigit()
                         }
                     }
                     field("Making", row.making, keyboard: .numberPad)
@@ -368,7 +368,7 @@ extension OrderFinalizeScreen {
             let changed = OrderFinalizeMath.changedRates(order, settings, texts: rateTexts)
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .firstTextBaseline) {
-                    Text("Rates (PKR per gram)").font(.headline)
+                    Text("Rates (PKR per gram)").font(.house(.headline))
                     Spacer(minLength: 8)
                     if OrderFinalizeMath.todayDiffers(order, settings, texts: rateTexts) {
                         Button("Use Today's Rates") {
@@ -384,14 +384,14 @@ extension OrderFinalizeScreen {
                             Text(r.label)
                             macField(rateBinding(r.field), width: 110, label: "\(r.label) rate per gram")
                             Text(changed[r.field] != nil ? "Booked at " + OrderFinalizeMath.rateText(rateShown(booked, r.field)) : "")
-                                .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                                .font(.house(.caption)).foregroundStyle(.secondary).monospacedDigit()
                         }
                     }
                 }
                 Text("Booked rates unless you change one."
                      + (rateRows.contains { $0.field == .silverRatePerGram } ? " Silver's rate already holds its making and wastage." : "")
                      + " The invoice keeps the rates it was priced at.")
-                    .font(.caption)
+                    .font(.house(.caption))
                     .foregroundStyle(.secondary)
             }
             .padding(.horizontal, 20)
@@ -402,7 +402,7 @@ extension OrderFinalizeScreen {
 
     private func macPieces(_ f: OrderFinalizeMath.Figures) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Pieces").font(.headline)
+            Text("Pieces").font(.house(.headline))
             ScrollView(.horizontal, showsIndicators: false) {
                 Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 10, verticalSpacing: 8) {
                     macPiecesHeader
@@ -428,7 +428,7 @@ extension OrderFinalizeScreen {
             Text("Diamonds").gridColumnAlignment(.trailing)
             Text("Price").gridColumnAlignment(.trailing)
         }
-        .font(.caption)
+        .font(.house(.caption))
         .foregroundStyle(.secondary)
     }
 
@@ -440,7 +440,7 @@ extension OrderFinalizeScreen {
             VStack(alignment: .leading, spacing: 1) {
                 Text(r.item.description.isEmpty ? "A piece" : r.item.description).lineLimit(2)
                 if r.onOrder > 0 && Int(r.onOrder.rounded()) != Int(price.rounded()) {
-                    Text("On the order \(Money.pkr(r.onOrder))").font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                    Text("On the order \(Money.pkr(r.onOrder))").font(.house(.caption)).foregroundStyle(.secondary).monospacedDigit()
                 }
             }
             .frame(minWidth: 140, maxWidth: 240, alignment: .leading)
@@ -460,7 +460,7 @@ extension OrderFinalizeScreen {
             VStack(alignment: .trailing, spacing: 1) {
                 macField(row.wastage, width: 72, label: "Wastage percent")
                 Text(SaleNumber.grams(row.wrappedValue.wastageGrams) + " g")
-                    .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                    .font(.house(.caption)).foregroundStyle(.secondary).monospacedDigit()
             }
         } else {
             Text("\u{2014}").foregroundStyle(.tertiary)
@@ -518,7 +518,7 @@ extension OrderFinalizeScreen {
                 }
             }
             Text("The 24k rate is the shop's own, for its margin. It is never printed.")
-                .font(.caption)
+                .font(.house(.caption))
                 .foregroundStyle(.secondary)
         }
         .padding(.horizontal, 20)
@@ -526,7 +526,7 @@ extension OrderFinalizeScreen {
 
     private func macTotals(_ f: OrderFinalizeMath.Figures) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("The invoice").font(.headline)
+            Text("The invoice").font(.house(.headline))
             MacOrdersMoneyRow(label: "Pieces", value: Money.pkr(f.subtotal))
             if f.discount > 0 { MacOrdersMoneyRow(label: "Discount", value: "\u{2212} " + Money.pkr(f.discount)) }
             if f.exchange > 0 { MacOrdersMoneyRow(label: "Exchange", value: "\u{2212} " + Money.pkr(f.exchange)) }
@@ -535,7 +535,7 @@ extension OrderFinalizeScreen {
             MacOrdersMoneyRow(label: isCredit(f.balance) ? "Credit to customer" : "Balance due", value: Money.pkr(abs(f.balance)),
                               strong: true, tone: f.balance >= 1 ? .owed : (isCredit(f.balance) ? .credit : .quiet))
             Text("Priced at the rates above (the order's booked ones unless you changed one). The advances become the invoice's payments, each on its own day; the exchange comes off the total.")
-                .font(.caption)
+                .font(.house(.caption))
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: 420, alignment: .leading)

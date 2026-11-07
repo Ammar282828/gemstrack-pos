@@ -99,8 +99,8 @@ struct AdsMacAttentionTable: View {
                 .foregroundStyle(a.severity == "bad" ? Tone.problem.color : (a.severity == "warn" ? Tone.owed.color : Color.secondary))
                 .frame(width: 22)
             VStack(alignment: .leading, spacing: 2) {
-                Text(a.title).font(.body.weight(.medium))
-                Text(a.why).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                Text(a.title).font(.house(.body).weight(.medium))
+                Text(a.why).font(.house(.callout)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 8)
             if a.doing == "pause" {
@@ -169,13 +169,13 @@ struct AdsMacTopAdsTable: View {
                 .frame(width: 44, height: 44)
                 .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
-                Text(a.name).font(.body).lineLimit(1)
-                Text(a.campaign).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                Text(a.name).font(.house(.body)).lineLimit(1)
+                Text(a.campaign).font(.house(.callout)).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer(minLength: 8)
             VStack(alignment: .trailing, spacing: 2) {
-                Text(AdsFormat.money(a.metrics.spend, currency)).font(.body.weight(.semibold)).monospacedDigit()
-                Text(resultLine(a)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                Text(AdsFormat.money(a.metrics.spend, currency)).font(.house(.body).weight(.semibold)).monospacedDigit()
+                Text(resultLine(a)).font(.house(.caption)).foregroundStyle(.secondary).lineLimit(1)
             }
         }
     }

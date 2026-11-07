@@ -148,12 +148,12 @@ struct AdsTestsScreen: View {
                             let i = picked.firstIndex(of: a.id)
                             ZStack {
                                 Circle().strokeBorder(i == nil ? Color.secondary.opacity(0.5) : Theme.accent, lineWidth: 1.5)
-                                if let i { Text(["A", "B", "C", "D", "E"][min(i, 4)]).font(.caption.weight(.bold)).foregroundStyle(Theme.accent) }
+                                if let i { Text(["A", "B", "C", "D", "E"][min(i, 4)]).font(.house(.caption).weight(.bold)).foregroundStyle(Theme.accent) }
                             }
                             .frame(width: 26, height: 26)
                             VStack(alignment: .leading, spacing: pt(2)) {
                                 Text(a.name).foregroundStyle(.primary)
-                                Text("\(a.campaign) · \(a.status.lowercased().replacingOccurrences(of: "_", with: " "))").font(.caption).foregroundStyle(.secondary)
+                                Text("\(a.campaign) · \(a.status.lowercased().replacingOccurrences(of: "_", with: " "))").font(.house(.caption)).foregroundStyle(.secondary)
                             }
                         }
                     }
@@ -199,15 +199,15 @@ struct AdsTestsScreen: View {
 
     private func testCard(_ t: AdsTest, _ cur: String) -> some View {
         VStack(alignment: .leading, spacing: pt(8)) {
-            Text(t.name).font(.headline)
+            Text(t.name).font(.house(.headline))
             // Running is the expected state: only the dates.
-            Text("\(ShopDate.say(t.start)) to \(ShopDate.say(t.end))").font(.caption).foregroundStyle(.secondary)
+            Text("\(ShopDate.say(t.start)) to \(ShopDate.say(t.end))").font(.house(.caption)).foregroundStyle(.secondary)
             ForEach(t.cells) { (c: AdsTestCell) in
                 VStack(alignment: .leading, spacing: pt(4)) {
                     HStack(spacing: pt(4)) {
-                        Text(c.name).font(.subheadline.weight(.semibold))
-                        if t.ahead == c.name { Image(systemName: "trophy.fill").font(.caption).foregroundStyle(Tone.owed.color) }
-                        Text(c.adsets.joined(separator: ", ")).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                        Text(c.name).font(.house(.subheadline).weight(.semibold))
+                        if t.ahead == c.name { Image(systemName: "trophy.fill").font(.house(.caption)).foregroundStyle(Tone.owed.color) }
+                        Text(c.adsets.joined(separator: ", ")).font(.house(.caption)).foregroundStyle(.secondary).lineLimit(2)
                     }
                     FigureRow(spacing: pt(8)) {
                         FigureTile(label: "Spent", value: AdsFormat.money(c.spend, cur))
@@ -219,7 +219,7 @@ struct AdsTestsScreen: View {
             }
             if let ahead = t.ahead {
                 Text("\(ahead) is ahead on cost per result so far. Give it the full run before deciding; Meta's verdict says how sure it is.")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.house(.caption)).foregroundStyle(.secondary)
             }
         }
         .padding(.vertical, pt(6))
@@ -390,10 +390,10 @@ extension AdsTestsScreen {
                     ForEach(t.cells) { (c: AdsTestCell) in
                         VStack(alignment: .leading, spacing: 4) {
                             HStack(spacing: 4) {
-                                Text(c.name).font(.headline)
+                                Text(c.name).font(.house(.headline))
                                 if t.ahead == c.name { Image(systemName: "trophy.fill").foregroundStyle(Tone.owed.color) }
                             }
-                            Text(c.adsets.joined(separator: ", ")).font(.caption).foregroundStyle(.secondary)
+                            Text(c.adsets.joined(separator: ", ")).font(.house(.caption)).foregroundStyle(.secondary)
                             AdsMacFigureRows(figures: [MacFigure("Spent", AdsFormat.money(c.spend, cur)),
                                                        MacFigure(c.resultLabel, AdsFormat.count(c.result)),
                                                        MacFigure("Each", c.costPerResult.map { (v: Double) in AdsFormat.money(v, cur) } ?? "—"),
@@ -402,7 +402,7 @@ extension AdsTestsScreen {
                     }
                     if let ahead = t.ahead {
                         Text("\(ahead) is ahead on cost per result so far. Give it the full run before deciding; Meta's verdict says how sure it is.")
-                            .font(.callout)
+                            .font(.house(.callout))
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -448,7 +448,7 @@ extension AdsTestsScreen {
                     }
                     .frame(height: 180)
                     Text("Make the versions in Ad Sets first (copy one, change one thing), then choose two to five.")
-                        .font(.caption)
+                        .font(.house(.caption))
                         .foregroundStyle(.secondary)
                 }
                 Section("What It Will Do") {

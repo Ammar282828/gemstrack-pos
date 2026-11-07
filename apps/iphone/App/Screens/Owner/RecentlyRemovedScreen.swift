@@ -191,9 +191,9 @@ private struct RecentlyRemovedList: View {
             Image(systemName: kind == .customer ? "person.2" : "hammer").foregroundStyle(.secondary)
             VStack(alignment: .leading, spacing: pt(2)) {
                 Text(name.isEmpty ? id : name).fontWeight(.medium).lineLimit(1)
-                Text(line).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
+                Text(line).font(.house(.subheadline)).foregroundStyle(.secondary).lineLimit(2)
                 if !when.isEmpty {
-                    Text("Removed \(when)").font(.caption).foregroundStyle(.tertiary)
+                    Text("Removed \(when)").font(.house(.caption)).foregroundStyle(.tertiary)
                 }
             }
             Spacer(minLength: 8)
@@ -323,12 +323,12 @@ extension RecentlyRemovedList {
                 HStack(spacing: 12) {
                     Monogram(name: r.name, size: Monogram.Size.row)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(r.name).font(.body.weight(.medium)).lineLimit(1)
+                        Text(r.name).font(.house(.body).weight(.medium)).lineLimit(1)
                         Text([r.kind, r.contact, r.carries].filter { !$0.isEmpty }.joined(separator: " \u{00B7} "))
-                            .font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                            .font(.house(.callout)).foregroundStyle(.secondary).lineLimit(1)
                     }
                     Spacer(minLength: 8)
-                    Text(r.said).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                    Text(r.said).font(.house(.callout)).foregroundStyle(.secondary).lineLimit(1)
                 }
                 .padding(.vertical, 2)
                 .tag(r.id)

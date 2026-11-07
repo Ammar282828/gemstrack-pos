@@ -170,13 +170,13 @@ private struct ShopifyInnerForm: View {
                 }
                 if let error = status.error, !error.isEmpty {
                     Label(error, systemImage: "exclamationmark.triangle")
-                        .font(.footnote).foregroundStyle(Tone.owed.color)
+                        .font(.house(.footnote)).foregroundStyle(Tone.owed.color)
                 }
                 if !status.configured {
-                    Text("This house has no Shopify store set up.").font(.footnote).foregroundStyle(.secondary)
+                    Text("This house has no Shopify store set up.").font(.house(.footnote)).foregroundStyle(.secondary)
                 }
                 if let failure = statusFailure {
-                    Text("Couldn't refresh: \(failure)").font(.footnote).foregroundStyle(.secondary)
+                    Text("Couldn't refresh: \(failure)").font(.house(.footnote)).foregroundStyle(.secondary)
                 }
                 if status.configured, let url = reauthorizeURL(status) {
                     Button { openURL(url) } label: {
@@ -186,7 +186,7 @@ private struct ShopifyInnerForm: View {
                     .disabled(isDemo || writing)
                 }
             } else if let statusFailure {
-                Text(statusFailure).font(.footnote).foregroundStyle(.secondary)
+                Text(statusFailure).font(.house(.footnote)).foregroundStyle(.secondary)
                 retryButton("Check connection again", busyWith: .status) { await loadStatus() }
             } else {
                 ProgressView()
@@ -237,7 +237,7 @@ private struct ShopifyInnerForm: View {
         let missing = required.filter { !holds(held, $0) }
         Section {
             if s.connected != true || s.scopes == nil {
-                Text("Permissions are shown once the store answers.").font(.footnote).foregroundStyle(.secondary)
+                Text("Permissions are shown once the store answers.").font(.house(.footnote)).foregroundStyle(.secondary)
             } else {
                 LabeledContent("Required") {
                     Label(missing.isEmpty ? "All granted" : "\(missing.count) missing",
@@ -249,7 +249,7 @@ private struct ShopifyInnerForm: View {
                         let r = holds(held, "read_\(need.resource)")
                         let w = holds(held, "write_\(need.resource)")
                         VStack(alignment: .leading, spacing: pt(4)) {
-                            Text(need.label).font(.subheadline.weight(.semibold))
+                            Text(need.label).font(.house(.subheadline).weight(.semibold))
                             HStack(spacing: pt(12)) {
                                 scopeChip("Read", r)
                                 scopeChip("Write", w)
@@ -261,8 +261,8 @@ private struct ShopifyInnerForm: View {
                     let extra = held.subtracting(required).sorted()
                     if !extra.isEmpty {
                         VStack(alignment: .leading, spacing: pt(4)) {
-                            Text("Also granted").font(.subheadline.weight(.semibold))
-                            Text(extra.joined(separator: ", ")).font(.footnote).foregroundStyle(.secondary)
+                            Text("Also granted").font(.house(.subheadline).weight(.semibold))
+                            Text(extra.joined(separator: ", ")).font(.house(.footnote)).foregroundStyle(.secondary)
                         }
                         .padding(.vertical, pt(4))
                     }
@@ -270,7 +270,7 @@ private struct ShopifyInnerForm: View {
                 .frame(minHeight: Metrics.tap)
                 if !missing.isEmpty {
                     Text("Reconnect in Safari to allow: \(missing.joined(separator: ", ")).")
-                        .font(.footnote).foregroundStyle(.secondary)
+                        .font(.house(.footnote)).foregroundStyle(.secondary)
                 }
             }
         } header: {
@@ -282,7 +282,7 @@ private struct ShopifyInnerForm: View {
 
     private func scopeChip(_ title: String, _ ok: Bool) -> some View {
         Label(title, systemImage: ok ? "checkmark.circle.fill" : "xmark.circle")
-            .font(.footnote)
+            .font(.house(.footnote))
             .foregroundStyle(ok ? Color.secondary : Tone.problem.color)
             .accessibilityLabel("\(title) \(ok ? "granted" : "missing")")
     }
@@ -296,10 +296,10 @@ private struct ShopifyInnerForm: View {
                 LabeledContent("On the store in all", value: s.webhooksTotal.map(String.init) ?? "Unknown")
                 if s.webhooksHere == 0 {
                     Text("No order notices point at this ERP, so new Shopify orders won't arrive by themselves.")
-                        .font(.footnote).foregroundStyle(Tone.owed.color)
+                        .font(.house(.footnote)).foregroundStyle(Tone.owed.color)
                 }
             }
-            if let webhookMessage { Label(webhookMessage, systemImage: "checkmark.circle").font(.footnote).foregroundStyle(Tone.settled.color) }
+            if let webhookMessage { Label(webhookMessage, systemImage: "checkmark.circle").font(.house(.footnote)).foregroundStyle(Tone.settled.color) }
             Button { confirmWebhooks = true } label: {
                 HStack {
                     Label("Set up order notices", systemImage: "antenna.radiowaves.left.and.right")
@@ -338,11 +338,11 @@ private struct ShopifyInnerForm: View {
             if let outcome { outcomeView(outcome) }
             if let orders {
                 if let listFailure {
-                    Text("Couldn't refresh the list: \(listFailure)").font(.footnote).foregroundStyle(.secondary)
+                    Text("Couldn't refresh the list: \(listFailure)").font(.house(.footnote)).foregroundStyle(.secondary)
                 }
                 if olderSkipped > 0, let since {
                     Text("\(olderSkipped) older order\(olderSkipped == 1 ? "" : "s") at or below #\(since) \(olderSkipped == 1 ? "is" : "are") not offered; \(olderSkipped == 1 ? "it predates" : "they predate") the ERP.")
-                        .font(.footnote).foregroundStyle(.secondary)
+                        .font(.house(.footnote)).foregroundStyle(.secondary)
                 }
                 if orders.isEmpty {
                     Label("Every Shopify order after #\(since.map(String.init) ?? "the cutoff") is already in the ERP.", systemImage: "checkmark.circle")
@@ -357,7 +357,7 @@ private struct ShopifyInnerForm: View {
                             .disabled(visible.isEmpty || writing)
                             .frame(minHeight: Metrics.tap)
                         Spacer()
-                        Text("\(orders.count) not imported").font(.footnote).foregroundStyle(.secondary)
+                        Text("\(orders.count) not imported").font(.house(.footnote)).foregroundStyle(.secondary)
                     }
                     if visible.isEmpty {
                         Text("Nothing matches that search.").foregroundStyle(.secondary)
@@ -365,7 +365,7 @@ private struct ShopifyInnerForm: View {
                     ForEach(visible) { row($0) }
                 }
             } else if let listFailure {
-                Text(listFailure).font(.footnote).foregroundStyle(.secondary)
+                Text(listFailure).font(.house(.footnote)).foregroundStyle(.secondary)
             } else {
                 ProgressView()
             }
@@ -384,14 +384,14 @@ private struct ShopifyInnerForm: View {
                     let hidden = pickedOrders.filter { o in !visible.contains(where: { $0.id == o.id }) }.count
                     if hidden > 0 {
                         Text("\(hidden) selected order\(hidden == 1 ? " is" : "s are") hidden by the filter and will still be imported.")
-                            .font(.footnote).foregroundStyle(.secondary)
+                            .font(.house(.footnote)).foregroundStyle(.secondary)
                     }
                     DisclosureGroup("Review selection") {
                         ForEach(pickedOrders) { o in
                             HStack(alignment: .firstTextBaseline) {
-                                Text(o.title).font(.subheadline.monospaced())
+                                Text(o.title).font(.house(.subheadline).monospaced())
                                 Spacer()
-                                Text(money(o.amount)).font(.subheadline).monospacedDigit()
+                                Text(money(o.amount)).font(.house(.subheadline)).monospacedDigit()
                             }
                             .frame(minHeight: Metrics.tap)
                         }
@@ -428,15 +428,15 @@ private struct ShopifyInnerForm: View {
                     .imageScale(.large)
                 VStack(alignment: .leading, spacing: pt(2)) {
                     HStack(alignment: .firstTextBaseline) {
-                        Text(o.title).font(.body.monospaced().weight(.medium))
+                        Text(o.title).font(.house(.body).monospaced().weight(.medium))
                         Spacer(minLength: 8)
-                        if o.amount > 0 { Text(money(o.amount)).font(.subheadline).monospacedDigit() }
+                        if o.amount > 0 { Text(money(o.amount)).font(.house(.subheadline)).monospacedDigit() }
                     }
                     if !o.subtitle.isEmpty {
-                        Text(o.subtitle).font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                        Text(o.subtitle).font(.house(.footnote)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                     }
                     if !o.date.isEmpty {
-                        Text(ShopDate.say(o.date, withTime: false)).font(.caption).foregroundStyle(.secondary)
+                        Text(ShopDate.say(o.date, withTime: false)).font(.house(.caption)).foregroundStyle(.secondary)
                     }
                 }
             }
@@ -453,14 +453,14 @@ private struct ShopifyInnerForm: View {
             Label("Imported \(r.imported) of \(r.requested) order\(r.requested == 1 ? "" : "s")",
                   systemImage: r.errors.isEmpty && r.imported == r.requested ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
                 .foregroundStyle(r.errors.isEmpty && r.imported == r.requested ? Tone.settled.color : Tone.owed.color)
-            Text(r.when.formatted(date: .omitted, time: .shortened)).font(.caption).foregroundStyle(.secondary)
+            Text(r.when.formatted(date: .omitted, time: .shortened)).font(.house(.caption)).foregroundStyle(.secondary)
             if !r.errors.isEmpty {
-                Text("\(r.errors.count) problem\(r.errors.count == 1 ? "" : "s"):").font(.footnote.weight(.semibold))
+                Text("\(r.errors.count) problem\(r.errors.count == 1 ? "" : "s"):").font(.house(.footnote).weight(.semibold))
                 ForEach(Array(r.errors.enumerated()), id: \.offset) { _, e in
-                    Text("• " + e).font(.footnote).foregroundStyle(Tone.problem.color).fixedSize(horizontal: false, vertical: true)
+                    Text("• " + e).font(.house(.footnote)).foregroundStyle(Tone.problem.color).fixedSize(horizontal: false, vertical: true)
                 }
             }
-            Button("Dismiss") { outcome = nil }.font(.footnote).frame(minHeight: Metrics.tap)
+            Button("Dismiss") { outcome = nil }.font(.house(.footnote)).frame(minHeight: Metrics.tap)
         }
     }
 
@@ -615,11 +615,11 @@ extension ShopifyInnerForm {
             if let outcome { outcomeView(outcome) }
             if let orders {
                 if let listFailure {
-                    Text("Couldn't refresh the list: \(listFailure)").font(.footnote).foregroundStyle(.secondary)
+                    Text("Couldn't refresh the list: \(listFailure)").font(.house(.footnote)).foregroundStyle(.secondary)
                 }
                 if olderSkipped > 0, let since {
                     Text("\(olderSkipped) older order\(olderSkipped == 1 ? "" : "s") at or below #\(since) \(olderSkipped == 1 ? "is" : "are") not offered; \(olderSkipped == 1 ? "it predates" : "they predate") the ERP.")
-                        .font(.footnote).foregroundStyle(.secondary)
+                        .font(.house(.footnote)).foregroundStyle(.secondary)
                 }
                 if orders.isEmpty {
                     Label("Every Shopify order after #\(since.map(String.init) ?? "the cutoff") is already in the ERP.", systemImage: "checkmark.circle")
@@ -628,7 +628,7 @@ extension ShopifyInnerForm {
                     TextField("Filter by order number or customer", text: $query)
                         .autocorrectionDisabled()
                     Table(visible, selection: $picked) {
-                        TableColumn("Order") { (o: PullOrder) in Text(o.title).font(.body.monospaced().weight(.medium)).lineLimit(1) }
+                        TableColumn("Order") { (o: PullOrder) in Text(o.title).font(.house(.body).monospaced().weight(.medium)).lineLimit(1) }
                             .width(min: 70, ideal: 100)
                         TableColumn("Customer") { (o: PullOrder) in Text(o.subtitle).foregroundStyle(.secondary).lineLimit(1) }
                             .width(min: 120, ideal: 200)
@@ -645,16 +645,16 @@ extension ShopifyInnerForm {
                         Button(allVisibleOn ? "Clear all \(visible.count)" : "Select all \(visible.count)") { toggleAllVisible() }
                             .disabled(visible.isEmpty || writing)
                         Spacer()
-                        Text("\(orders.count) not imported").font(.footnote).foregroundStyle(.secondary)
+                        Text("\(orders.count) not imported").font(.house(.footnote)).foregroundStyle(.secondary)
                     }
                     let hidden = pickedOrders.filter { o in !visible.contains(where: { $0.id == o.id }) }.count
                     if hidden > 0 {
                         Text("\(hidden) selected order\(hidden == 1 ? " is" : "s are") hidden by the filter and will still be imported.")
-                            .font(.footnote).foregroundStyle(.secondary)
+                            .font(.house(.footnote)).foregroundStyle(.secondary)
                     }
                 }
             } else if let listFailure {
-                Text(listFailure).font(.footnote).foregroundStyle(.secondary)
+                Text(listFailure).font(.house(.footnote)).foregroundStyle(.secondary)
             } else {
                 ProgressView()
             }

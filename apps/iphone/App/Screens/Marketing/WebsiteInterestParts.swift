@@ -149,14 +149,14 @@ extension SiteChartSection {
     /// What the pointer is over: the day or hour, and each series' figure.
     func hoverCard(_ title: String, _ rows: [(String, Double)]) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(title).font(.caption.weight(.semibold))
+            Text(title).font(.house(.caption).weight(.semibold))
             ForEach(Array(rows.enumerated()), id: \.offset) { (_: Int, r: (String, Double)) in
                 HStack(spacing: 6) {
                     Text(r.0).foregroundStyle(.secondary)
                     Spacer(minLength: 8)
                     Text("\(Int(r.1))").monospacedDigit()
                 }
-                .font(.caption)
+                .font(.house(.caption))
             }
         }
         .padding(8)
@@ -210,7 +210,7 @@ struct SiteFunnelSection: View {
                     Text(SiteWords.number(s.n)).monospacedDigit()
                         .contentTransition(.numericText(value: Double(s.n)))
                     if i > 0 {
-                        Text(SiteWords.pct(ofVisits, digits: 1) + " of visits").font(.footnote).foregroundStyle(.secondary)
+                        Text(SiteWords.pct(ofVisits, digits: 1) + " of visits").font(.house(.footnote)).foregroundStyle(.secondary)
                     }
                     SiteDelta(now: Double(s.n), before: Double(s.b))
                 }
@@ -220,7 +220,7 @@ struct SiteFunnelSection: View {
                 .accessibilityHidden(true)
             if i > 0 && all[i - 1].n > 0 {
                 Text(SiteWords.pct(Double(s.n) / Double(all[i - 1].n), digits: 1) + " of those who " + all[i - 1].label.lowercased())
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.house(.caption)).foregroundStyle(.secondary)
             }
         }
         .accessibilityElement(children: .combine)
@@ -274,10 +274,10 @@ struct SiteSourcesSection: View {
                     .monospacedDigit().foregroundStyle(.secondary)
             }
             Text("Opened a piece " + share(s.piece, of: s.sessions) + " · Saved " + share(s.save, of: s.sessions))
-                .font(.footnote).foregroundStyle(.secondary).monospacedDigit()
+                .font(.house(.footnote)).foregroundStyle(.secondary).monospacedDigit()
             // WhatsApp is the one coloured thing on the row, and only when someone asked.
             Text(asked(s))
-                .font(.footnote.weight(s.enquire > 0 ? .semibold : .regular))
+                .font(.house(.footnote).weight(s.enquire > 0 ? .semibold : .regular))
                 .foregroundStyle(s.enquire > 0 ? Tone.settled.color : Color.secondary)
                 .monospacedDigit()
         }

@@ -74,7 +74,7 @@ extension View {
 struct OrdersOnlineBadge: View {
     var body: some View {
         Label("Online", systemImage: "globe")
-            .font(.caption2.weight(.semibold))
+            .font(.house(.caption2).weight(.semibold))
             .foregroundStyle(Tone.working.color)
             .lineLimit(1)
     }
@@ -125,7 +125,7 @@ struct OrdersMarginRow: View {
                     .foregroundStyle(tone(m))
                     .blur(radius: shown ? 0 : 5)
             }
-            .font(.subheadline)
+            .font(.house(.subheadline))
         }
         .buttonStyle(.plain)
         .accessibilityLabel(shown ? "Hide our margin" : "Show our margin")
@@ -254,7 +254,7 @@ struct OrderAdvanceExchange: View {
                 Button { opened.insert(row.id) } label: {
                     Label("Weight & rate", systemImage: "plus")
                 }
-                .font(.footnote)
+                .font(.house(.footnote))
                 .buttonStyle(.borderless)
             }
         }
@@ -297,7 +297,7 @@ struct OrderAdvanceExchange: View {
         }
         if computed {
             Text("Amount = grams × rate: type an amount to change it.")
-                .font(.footnote)
+                .font(.house(.footnote))
                 .foregroundStyle(.secondary)
         }
     }

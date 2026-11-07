@@ -42,7 +42,7 @@ struct InvoiceActionCreditSheet: View {
                 Section {
                     TextField("Amount (PKR)", text: $amountText.wholeRupees)
                         .keyboardType(.numberPad)
-                        .font(.title2.weight(.semibold))
+                        .font(.house(.title2).weight(.semibold))
                         .monospacedDigit()
                     Picker("Paid by", selection: $method) {
                         Text("Cash").tag("Cash")
@@ -144,7 +144,7 @@ extension InvoiceActionCreditSheet {
             Text(left >= 1
                  ? "\(PaymentText.pkr(left)) stays as credit on the hisaab."
                  : "No credit is left, and its row on the hisaab goes. The sale is not refunded; it shows as money out in Today's cash.")
-                .font(.callout)
+                .font(.house(.callout))
                 .foregroundStyle(.secondary)
         }
     }

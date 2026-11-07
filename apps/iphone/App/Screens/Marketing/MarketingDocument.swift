@@ -145,7 +145,7 @@ struct MarketingShareSheet: View {
     @Environment(\.dismiss) private var dismiss
     var body: some View {
         VStack(spacing: pt(14)) {
-            Text("Share").font(.headline)
+            Text("Share").font(.house(.headline))
             MacShareButton(items: items) { completed in completion?(completed); dismiss() }
             Button("Cancel", role: .cancel) { completion?(false); dismiss() }
         }
@@ -188,7 +188,7 @@ struct MarketingPhoto: View {
     var body: some View {
         Group {
             if let image { Image(uiImage: image).resizable().scaledToFit() }
-            else if let problem { Label(problem, systemImage: "photo.badge.exclamationmark").font(.caption) }
+            else if let problem { Label(problem, systemImage: "photo.badge.exclamationmark").font(.house(.caption)) }
             else { SkeletonPhoto(label: "Loading the picture") }
         }
         .task(id: path) {

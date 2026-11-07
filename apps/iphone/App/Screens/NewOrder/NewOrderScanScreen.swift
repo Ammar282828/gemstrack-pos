@@ -196,10 +196,10 @@ struct NewOrderScanScreen: View {
                     trailingTint: off ? Tone.problem.color : .primary)
             if let computed, written <= 0 {
                 Text("Rate × weight comes to \(Money.pkr(computed)): no amount was written against it.")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.house(.caption)).foregroundStyle(.secondary)
             }
             if let note = it.note, !note.isEmpty {
-                Text(note).font(.caption).foregroundStyle(.secondary)
+                Text(note).font(.house(.caption)).foregroundStyle(.secondary)
             }
         }
     }
@@ -222,7 +222,7 @@ struct NewOrderScanScreen: View {
                     } label: {
                         VStack(alignment: .leading, spacing: pt(2)) {
                             Text("Taken in exchange")
-                            Text(exchangeWords(x, ex.from)).font(.caption).foregroundStyle(.secondary)
+                            Text(exchangeWords(x, ex.from)).font(.house(.caption)).foregroundStyle(.secondary)
                         }
                     }
                 }

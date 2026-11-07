@@ -180,7 +180,7 @@ struct ReferencePrintRows: View {
                 VStack(alignment: .leading, spacing: pt(2)) {
                     Text("From the catalogue")
                     if printIt {
-                        Text("Printed beside the piece").font(.caption).foregroundStyle(.secondary)
+                        Text("Printed beside the piece").font(.house(.caption)).foregroundStyle(.secondary)
                     }
                 }
                 Spacer(minLength: 8)
@@ -188,7 +188,7 @@ struct ReferencePrintRows: View {
                     .buttonStyle(.borderless)
             }
         } else if printIt && !fallbackNote.isEmpty {
-            Text(fallbackNote).font(.caption).foregroundStyle(.secondary)
+            Text(fallbackNote).font(.house(.caption)).foregroundStyle(.secondary)
         }
         Button {
             picking = true
@@ -382,7 +382,7 @@ struct ReferencePickerSheet: View {
                     }
                 }
             if !piece.title.isEmpty {
-                Text(piece.title).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                Text(piece.title).font(.house(.caption)).foregroundStyle(.secondary).lineLimit(1)
             }
         }
     }

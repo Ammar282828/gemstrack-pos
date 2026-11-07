@@ -294,7 +294,7 @@ struct NewOrder: View {
             if edit?.invoiced == true {
                 Section {
                     Label("This order is on an invoice already. The invoice keeps its own copy of the pieces and the money: change those on the invoice.", systemImage: "doc.text")
-                        .font(.subheadline)
+                        .font(.house(.subheadline))
                 }
             }
             switch step {
@@ -454,14 +454,14 @@ struct NewOrder: View {
         Section {
             if draft.fromSale {
                 Label("These are the pieces of your sale. Once this order is saved they leave the sale.", systemImage: "arrow.right.circle")
-                    .font(.subheadline)
+                    .font(.house(.subheadline))
             } else {
                 Label("Your order in progress is back. It was kept on this \(OrderDevice.word).", systemImage: "arrow.uturn.backward.circle")
-                    .font(.subheadline)
+                    .font(.house(.subheadline))
             }
             if draft.photosLeftOut {
                 Label("The sample photos were too many to keep: add them again.", systemImage: "exclamationmark.triangle")
-                    .font(.subheadline)
+                    .font(.house(.subheadline))
                     .foregroundStyle(Tone.owed.color)
             }
         }
@@ -767,17 +767,17 @@ private struct NewOrderPinnedSummary: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: pt(12)) {
             VStack(alignment: .leading, spacing: 0) {
-                Text("Order total").font(.caption2.weight(.medium)).foregroundStyle(.secondary)
+                Text("Order total").font(.house(.caption2).weight(.medium)).foregroundStyle(.secondary)
                 Text(Money.pkr(totals.subtotal))
-                    .font(.system(.title3, design: .serif).weight(.semibold))
+                    .font(.house(.title3).weight(.semibold))
                     .monospacedDigit()
                     .contentTransition(.numericText(value: totals.subtotal))
             }
             Spacer(minLength: 8)
             VStack(alignment: .trailing, spacing: 0) {
-                Text(isCredit(totals.balance) ? "Credit to customer" : "Due").font(.caption2.weight(.medium)).foregroundStyle(.secondary)
+                Text(isCredit(totals.balance) ? "Credit to customer" : "Due").font(.house(.caption2).weight(.medium)).foregroundStyle(.secondary)
                 Text(Money.pkr(abs(totals.balance)))
-                    .font(.headline)
+                    .font(.house(.headline))
                     .monospacedDigit()
                     .foregroundStyle(dueTone.color)
                     .contentTransition(.numericText(value: totals.balance))
@@ -872,7 +872,7 @@ extension NewOrder {
             if edit?.invoiced == true {
                 Section {
                     Label("This order is on an invoice already. The invoice keeps its own copy of the pieces and the money: change those on the invoice.", systemImage: "doc.text")
-                        .font(.callout)
+                        .font(.house(.callout))
                 }
             }
             MacNewOrderCustomerSection(

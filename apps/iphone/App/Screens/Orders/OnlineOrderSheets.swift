@@ -23,12 +23,12 @@ struct OnlineMessageSection: View {
                     Text(p.to.isEmpty ? p.name : "\(p.name) · \(p.to)").multilineTextAlignment(.trailing)
                 }
                 Text(p.text)
-                    .font(.subheadline)
+                    .font(.house(.subheadline))
                     .textSelection(.enabled)
             } else if let problem {
-                Text(fallback).font(.subheadline)
+                Text(fallback).font(.house(.subheadline))
                 Text("The exact words could not be read: \(problem)")
-                    .font(.caption)
+                    .font(.house(.caption))
                     .foregroundStyle(.secondary)
             } else {
                 SkeletonRows(count: 2, monogram: false, trailing: false, label: "Reading what is sent")
@@ -137,7 +137,7 @@ struct OnlineConfirmSheet: View {
     @ViewBuilder
     private var askSections: some View {
         Section {
-            Text(OnlineOrdersLogic.confirmWords(row, holdUntil: preview?.holdUntil)).font(.subheadline)
+            Text(OnlineOrdersLogic.confirmWords(row, holdUntil: preview?.holdUntil)).font(.house(.subheadline))
             LabeledContent("Sizes", value: OnlineOrdersLogic.sizes(row))
             LabeledContent("Ships to", value: row.delivery.city)
             if let dearer = OnlineOrdersLogic.dearerToday(row) {
@@ -233,7 +233,7 @@ struct OnlineDeclineSheet: View {
             Form { Group {
                 Section {
                     Text("\(row.customer.name) is sent this on WhatsApp, after “we can't take it as it was placed:”. Nothing has been charged, so nothing needs undoing.")
-                        .font(.subheadline)
+                        .font(.house(.subheadline))
                 }
                 Section {
                     ForEach(OnlineOrdersLogic.reasons, id: \.self) { (r: String) in
@@ -353,10 +353,10 @@ struct OnlineMoveSheet: View {
                     Text(kind == .paid
                          ? "Only once you see it in the bank: a slip is not the money."
                          : "Only once you have checked the bank and nothing came.")
-                        .font(.subheadline.weight(.semibold))
+                        .font(.house(.subheadline).weight(.semibold))
                     if kind == .paid { bookingRows } else {
                         Text("The order is cancelled and \(name) is told it lapsed and can order again at today's rate.")
-                            .font(.subheadline)
+                            .font(.house(.subheadline))
                     }
                 }
                 if let refused {
@@ -408,7 +408,7 @@ struct OnlineMoveSheet: View {
             }
         }
         Text("The order is paid in full, \(name) is told, and it is ready to give out.")
-            .font(.subheadline)
+            .font(.house(.subheadline))
     }
 
     private var fallback: String {

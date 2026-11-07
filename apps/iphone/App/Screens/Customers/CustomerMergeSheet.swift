@@ -158,14 +158,14 @@ struct CustomerMergeSheet: View {
 
     private func person(_ role: String, _ c: Customer, tint: Color, moves: CustomerMergeCounts? = nil) -> some View {
         VStack(alignment: .leading, spacing: pt(3)) {
-            Text(role.uppercased()).font(.caption.weight(.semibold)).foregroundStyle(tint)
-            Text(CustomerKit.shown(c)).font(.body.weight(.medium))
+            Text(role.uppercased()).font(.house(.caption).weight(.semibold)).foregroundStyle(tint)
+            Text(CustomerKit.shown(c)).font(.house(.body).weight(.medium))
             if let phone = CustomerKit.filled(c.phone) {
-                Text(phone).font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                Text(phone).font(.house(.caption)).foregroundStyle(.secondary).monospacedDigit()
             }
             if let moves {
                 Text(moves.total == 0 ? "No invoices, orders, repairs or hisaab to move." : "Moves \(moves.sentence) to the customer kept.")
-                    .font(.caption)
+                    .font(.house(.caption))
                     .foregroundStyle(.secondary)
             }
         }
@@ -181,7 +181,7 @@ struct CustomerMergeSheet: View {
             chooser("Duplicate (will be deleted)", picked: duplicate, tint: Tone.problem.color, search: $duplicateSearch, other: keepId) { duplicateId = $0 }
             if let keep, let duplicate {
                 Text(duplicateMoves(duplicate, keep))
-                    .font(.caption)
+                    .font(.house(.caption))
                     .foregroundStyle(.secondary)
             }
             Button(role: .destructive) {
@@ -211,10 +211,10 @@ struct CustomerMergeSheet: View {
         if let c = picked {
             HStack(spacing: pt(10)) {
                 VStack(alignment: .leading, spacing: pt(2)) {
-                    Text(title).font(.caption.weight(.semibold)).foregroundStyle(tint)
-                    Text(CustomerKit.shown(c)).font(.body.weight(.medium))
+                    Text(title).font(.house(.caption).weight(.semibold)).foregroundStyle(tint)
+                    Text(CustomerKit.shown(c)).font(.house(.body).weight(.medium))
                     if let phone = CustomerKit.filled(c.phone) {
-                        Text(phone).font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                        Text(phone).font(.house(.caption)).foregroundStyle(.secondary).monospacedDigit()
                     }
                 }
                 Spacer(minLength: 8)
@@ -226,7 +226,7 @@ struct CustomerMergeSheet: View {
             }
         } else {
             VStack(alignment: .leading, spacing: pt(4)) {
-                Text(title).font(.caption.weight(.semibold)).foregroundStyle(tint)
+                Text(title).font(.house(.caption).weight(.semibold)).foregroundStyle(tint)
                 TextField(title, text: search, prompt: Text("Search by name or phone"))
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
@@ -332,9 +332,9 @@ extension CustomerMergeSheet {
             let keep = byId[turned ? pair.b : pair.a]
             let gone = byId[turned ? pair.a : pair.b]
             VStack(alignment: .leading, spacing: 2) {
-                Text(pair.reason).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                Text(keep.map { CustomerKit.shown($0) } ?? "").font(.body.weight(.medium))
-                Text(gone.map { CustomerKit.shown($0) } ?? "").font(.subheadline).foregroundStyle(.secondary)
+                Text(pair.reason).font(.house(.caption).weight(.semibold)).foregroundStyle(.secondary)
+                Text(keep.map { CustomerKit.shown($0) } ?? "").font(.house(.body).weight(.medium))
+                Text(gone.map { CustomerKit.shown($0) } ?? "").font(.house(.subheadline)).foregroundStyle(.secondary)
             }
             .padding(.vertical, 2)
             .contextMenu {
@@ -357,7 +357,7 @@ extension CustomerMergeSheet {
         let turned = swapped.contains(pair.id)
         if let keep = byId[turned ? pair.b : pair.a], let duplicate = byId[turned ? pair.a : pair.b] {
             VStack(alignment: .leading, spacing: 16) {
-                Text(pair.reason).font(.headline)
+                Text(pair.reason).font(.house(.headline))
                 HStack(alignment: .top, spacing: 14) {
                     GroupBox {
                         person("Keep", keep, tint: Theme.accent)
@@ -370,7 +370,7 @@ extension CustomerMergeSheet {
                     }
                 }
                 Text("Everything under the one deleted moves to the one kept, and what only the duplicate knew (a number, an address) is filled in. The duplicate's record is then deleted for good.")
-                    .font(.footnote)
+                    .font(.house(.footnote))
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 0)
             }

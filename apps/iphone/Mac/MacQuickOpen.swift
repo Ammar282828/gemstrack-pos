@@ -36,10 +36,10 @@ struct MacQuickOpen: View {
         let hits = self.hits
         VStack(spacing: 0) {
             HStack(spacing: 10) {
-                Image(systemName: "magnifyingglass").foregroundStyle(.secondary).font(.title3)
+                Image(systemName: "magnifyingglass").foregroundStyle(.secondary).font(.house(.title3))
                 TextField("Open a customer, invoice, order, piece or place", text: $text)
                     .textFieldStyle(.plain)
-                    .font(.title3)
+                    .font(.house(.title3))
                     .focused($focused)
                     .onSubmit { open(hits, inWindow: false) }
             }
@@ -89,7 +89,7 @@ struct MacQuickOpen: View {
                 Spacer()
                 Text("esc").foregroundStyle(.tertiary)
             }
-            .font(.caption)
+            .font(.house(.caption))
             .padding(.horizontal, 16)
             .padding(.vertical, 7)
         }

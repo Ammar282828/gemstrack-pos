@@ -129,7 +129,7 @@ struct StockPieceScreen: View {
             // The SKU is the page's title, so it is not said again under the name.
             VStack(alignment: .leading, spacing: pt(6)) {
                 Pill(StockKit.categoryTitle(p.categoryId), tone: .house)
-                Text(p.name).font(.title2.weight(.bold))
+                Text(p.name).font(.house(.title2).weight(.bold))
             }
             .padding(.vertical, pt(2))
         }
@@ -144,13 +144,13 @@ struct StockPieceScreen: View {
         LedgerSection("Price") {
             VStack(spacing: pt(4)) {
                 Text(p.isCustomPrice ? "Fixed price" : "At today's rates")
-                    .font(.subheadline)
+                    .font(.house(.subheadline))
                     .foregroundStyle(.secondary)
                 if let costs, costs.totalPrice > 0 {
                     HeroAmount(amount: costs.totalPrice)
                 } else {
                     Text(totalLine(costs))
-                        .font(.system(.largeTitle, design: .serif).weight(.semibold))
+                        .font(.house(.largeTitle).weight(.semibold))
                 }
             }
             .frame(maxWidth: .infinity)
@@ -159,7 +159,7 @@ struct StockPieceScreen: View {
             if p.isCustomPrice {
                 if let note = StockKit.filled(p.description) {
                     VStack(alignment: .leading, spacing: pt(4)) {
-                        Text("Description").font(.subheadline).foregroundStyle(.secondary)
+                        Text("Description").font(.house(.subheadline)).foregroundStyle(.secondary)
                         Text(note)
                     }
                 }
@@ -232,7 +232,7 @@ struct StockPieceScreen: View {
 
     private func textBlock(_ title: String, _ text: String) -> some View {
         VStack(alignment: .leading, spacing: pt(4)) {
-            Text(title).font(.subheadline).foregroundStyle(.secondary)
+            Text(title).font(.house(.subheadline)).foregroundStyle(.secondary)
             Text(text)
         }
     }
@@ -307,11 +307,11 @@ private struct StockSoldView: View {
         List { Group {
             Section {
                 VStack(spacing: pt(6)) {
-                    Image(systemName: "checkmark.seal").font(.largeTitle).foregroundStyle(Tone.settled.color)
+                    Image(systemName: "checkmark.seal").font(.house(.largeTitle)).foregroundStyle(Tone.settled.color)
                         .symbolEffect(.bounce, value: reduceMotion ? 0 : sealed)
                         .onAppear { sealed += 1 }
                     // The SKU is the page's title: not said again.
-                    Text("Sold").font(.title2.weight(.bold))
+                    Text("Sold").font(.house(.title2).weight(.bold))
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, pt(8))
@@ -477,7 +477,7 @@ extension StockSoldView {
         MacWorkPage {
             MacWorkHead(title: sku, subtitle: sales.count == 1 ? "Sold on 1 invoice" : "Sold on \(sales.count) invoices",
                         pill: "Sold", pillTone: .settled) {
-                Image(systemName: "checkmark.seal").font(.title2).foregroundStyle(Tone.settled.color)
+                Image(systemName: "checkmark.seal").font(.house(.title2)).foregroundStyle(Tone.settled.color)
             }
             MacWorkCard(sales.count == 1 ? "Sold on" : "Sold on these invoices") {
                 ForEach(sales) { (inv: Invoice) in

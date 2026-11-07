@@ -27,7 +27,7 @@ struct OfflineCapsule: View {
         if let words {
             Button { outbox.queueOpen = true } label: {
                 Label(words, systemImage: connection.isOffline ? "icloud.slash" : "arrow.triangle.2.circlepath")
-                    .font(.footnote.weight(.medium))
+                    .font(.house(.footnote).weight(.medium))
                     .padding(.horizontal, pt(14)).padding(.vertical, pt(7))
             }
             .buttonStyle(.plain)
@@ -58,7 +58,7 @@ struct WaitingToSendSheet: View {
                 if connection.isOffline {
                     Section {
                         Label("No connection. Everything here is kept on this phone and goes by itself when you're back online.", systemImage: "icloud.slash")
-                            .font(.subheadline)
+                            .font(.house(.subheadline))
                     }
                 }
                 if !refused.isEmpty {
@@ -109,10 +109,10 @@ struct WaitingToSendSheet: View {
         VStack(alignment: .leading, spacing: pt(6)) {
             HStack(alignment: .firstTextBaseline, spacing: pt(8)) {
                 VStack(alignment: .leading, spacing: pt(2)) {
-                    Text(item.label).font(.headline)
+                    Text(item.label).font(.house(.headline))
                     if let s = item.summary, !s.detail.isEmpty || s.amount != nil {
                         Text([s.detail, s.amount.map { Money.pkr($0) } ?? ""].filter { !$0.isEmpty }.joined(separator: " · "))
-                            .font(.caption).foregroundStyle(.secondary)
+                            .font(.house(.caption)).foregroundStyle(.secondary)
                     }
                 }
                 Spacer(minLength: 8)
@@ -120,7 +120,7 @@ struct WaitingToSendSheet: View {
             }
             if item.status == .failed {
                 if !item.message.isEmpty {
-                    Text(item.message).font(.footnote).foregroundStyle(Tone.problem.color)
+                    Text(item.message).font(.house(.footnote)).foregroundStyle(Tone.problem.color)
                 }
                 HStack(spacing: pt(10)) {
                     Button("Retry") { outbox.retry(item.id) }.buttonStyle(.bordered)
@@ -130,7 +130,7 @@ struct WaitingToSendSheet: View {
                 }
             } else if item.durable {
                 Button("Discard", role: .destructive) { discarding = item }
-                    .font(.footnote)
+                    .font(.house(.footnote))
                     .buttonStyle(.borderless)
             }
         }

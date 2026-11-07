@@ -325,9 +325,9 @@ struct WorkshopKarigarScreen: View {
     private func cashHero(_ cash: Double, _ open: KarigarPay.InBatch?) -> some View {
         VStack(alignment: .leading, spacing: pt(4)) {
             Text(cash > 0 ? "He holds of ours" : (cash < 0 ? "We owe him" : "Square"))
-                .font(.subheadline).foregroundStyle(.secondary)
+                .font(.house(.subheadline)).foregroundStyle(.secondary)
             HeroAmount(amount: abs(cash), tone: cash < 0 ? Tone.owed.color : Color.primary)
-            Text(cashHint(open)).font(.footnote).foregroundStyle(.secondary)
+            Text(cashHint(open)).font(.house(.footnote)).foregroundStyle(.secondary)
         }
         .heroSheen()
         .accessibilityElement(children: .combine)
@@ -546,7 +546,7 @@ struct WorkshopKarigarScreen: View {
                 MoneyRow("Pay batch total", open.total, emphasis: true)
                 if open.payments.isEmpty {
                     Text("No payments recorded. Select \u{201C}Add payment\u{201D} to record one.")
-                        .font(.subheadline)
+                        .font(.house(.subheadline))
                         .foregroundStyle(.secondary)
                 }
                 ForEach(open.payments) { e in paymentRow(e) }
@@ -648,7 +648,7 @@ struct WorkshopKarigarScreen: View {
             ForEach(pay.settled) { s in
                 DisclosureGroup(isExpanded: expandedBinding(s.batch.id)) {
                     if s.payments.isEmpty {
-                        Text("No payments in this batch.").font(.subheadline).foregroundStyle(.secondary)
+                        Text("No payments in this batch.").font(.house(.subheadline)).foregroundStyle(.secondary)
                     }
                     ForEach(s.payments) { e in paymentRow(e) }
                     Button(role: .destructive) { askDeleteBatch(s) } label: {
@@ -955,19 +955,19 @@ extension WorkshopKarigarScreen {
                 HStack(spacing: 10) {
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 6) {
-                            Text(r.title).font(.body).lineLimit(1)
+                            Text(r.title).font(.house(.body)).lineLimit(1)
                             if r.weight > 0 {
-                                Text(WorkshopLogic.grams3(r.weight)).font(.callout).monospacedDigit().foregroundStyle(.secondary).layoutPriority(1)
+                                Text(WorkshopLogic.grams3(r.weight)).font(.house(.callout)).monospacedDigit().foregroundStyle(.secondary).layoutPriority(1)
                             }
                         }
-                        Text(macWorkLine(r)).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                        Text(macWorkLine(r)).font(.house(.callout)).foregroundStyle(.secondary).lineLimit(1)
                     }
                     Spacer(minLength: 8)
-                    Text(r.status).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                    Text(r.status).font(.house(.callout)).foregroundStyle(.secondary).lineLimit(1)
                     switch r.urgency {
                     case .critical: Pill("\(r.ageDays)d", tone: .late)
                     case .warning: Pill("\(r.ageDays)d", tone: .owed)
-                    case .ok: Text("\(r.ageDays)d").font(.caption).monospacedDigit().foregroundStyle(.secondary)
+                    case .ok: Text("\(r.ageDays)d").font(.house(.caption)).monospacedDigit().foregroundStyle(.secondary)
                     }
                 }
                 .padding(.vertical, 3)
@@ -1008,13 +1008,13 @@ extension WorkshopKarigarScreen {
             ForEach(data.payments) { (r: MacKarigarPayRow) in
                 HStack(spacing: 10) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(r.what).font(.body).lineLimit(1)
+                        Text(r.what).font(.house(.body)).lineLimit(1)
                         Text(ShopDate.say(r.date) + (r.group.isEmpty ? "" : " \u{00B7} " + r.group))
-                            .font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                            .font(.house(.callout)).foregroundStyle(.secondary).lineLimit(1)
                     }
                     Spacer(minLength: 8)
                     if !r.category.isEmpty && r.category != r.what {
-                        Text(r.category).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                        Text(r.category).font(.house(.caption)).foregroundStyle(.secondary).lineLimit(1)
                     }
                     RowAmount(amount: r.amount)
                 }

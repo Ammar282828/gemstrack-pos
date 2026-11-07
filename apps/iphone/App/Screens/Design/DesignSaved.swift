@@ -264,7 +264,7 @@ struct DesignDetailSheet: View {
                     .frame(maxWidth: .infinity, minHeight: 160, maxHeight: 360)
                     TextField("Name", text: $name).submitLabel(.done).onSubmit { rename() }
                     Text(DesignKinds.label(record.kind) + " · " + record.pages.map(\.label).joined(separator: ", ") + (record.scope == "ads" ? " · ads" : ""))
-                        .font(.footnote).foregroundStyle(.secondary)
+                        .font(.house(.footnote)).foregroundStyle(.secondary)
                     Picker("Folder", selection: $folder) {
                         Text("Unfiled").tag("")
                         ForEach(shelf.folders) { Text($0.name).tag($0.id) }
@@ -580,15 +580,15 @@ extension DesignSavedView {
         return VStack(alignment: .leading, spacing: 6) {
             Group {
                 if let image = MacDesignThumbs.image(r) { Image(uiImage: image).resizable().scaledToFit() }
-                else { Image(systemName: "photo").font(.title2).foregroundStyle(.secondary) }
+                else { Image(systemName: "photo").font(.house(.title2)).foregroundStyle(.secondary) }
             }
             .frame(maxWidth: .infinity).frame(height: 150)
             .background(Theme.card)
             .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: Radius.thumb, style: .continuous).strokeBorder(on ? Theme.accent : Color.secondary.opacity(0.18), lineWidth: on ? 2.5 : 1))
-            Text(r.name).font(.subheadline.weight(.medium)).lineLimit(1)
+            Text(r.name).font(.house(.subheadline).weight(.medium)).lineLimit(1)
             Text(DesignKinds.label(r.kind) + " · \(r.pages.count) size" + (r.pages.count == 1 ? "" : "s") + " · " + ShopDate.say(r.updated))
-                .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                .font(.house(.caption)).foregroundStyle(.secondary).lineLimit(1)
         }
         .padding(6)
         .contentShape(Rectangle())

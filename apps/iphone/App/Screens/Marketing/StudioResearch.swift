@@ -38,7 +38,7 @@ struct StudioRivals: View {
             LedgerSection("Found") {
                 ForEach(found, id: \.text) { item in
                     VStack(alignment: .leading, spacing: pt(6)) {
-                        Text(item.s("name")).font(.headline); Text(item.s("why")).font(.subheadline).foregroundStyle(.secondary)
+                        Text(item.s("name")).font(.house(.headline)); Text(item.s("why")).font(.house(.subheadline)).foregroundStyle(.secondary)
                         StudioLinks(value: item)
                         Button("Add @" + item.s("instagram")) { var payload = item; payload["username"] = item["instagram"]; payload["source"] = .string("search"); add(payload) }.disabled(item.s("instagram").isEmpty)
                     }.padding(.vertical, pt(5))
@@ -50,7 +50,7 @@ struct StudioRivals: View {
                 DisclosureGroup(item.s("name", item.s("username")) + " · @" + item.s("username")) {
                     StudioLinks(value: item)
                     if !item["profile"].s("picture").isEmpty { MarketingPhoto(path: item["profile"].s("picture")).frame(width: 80, height: 80).clipShape(Circle()) }
-                    Text(item["profile"].s("bio")).font(.subheadline)
+                    Text(item["profile"].s("bio")).font(.house(.subheadline))
                     LabeledContent("Followers", value: String(Int(item["profile"].n("followers"))))
                     LabeledContent("Posts", value: String(Int(item["profile"].n("mediaCount"))))
                     Button("Look up / refresh account") { look(item, read: false) }
@@ -60,7 +60,7 @@ struct StudioRivals: View {
                         ForEach(item["profile"]["posts"].array.sorted { $0.n("rate") > $1.n("rate") }, id: \.text) { post in
                             VStack(alignment: .leading, spacing: pt(5)) {
                                 MarketingPhoto(path: post.s("image")).frame(height: 200)
-                                Text(post.s("caption")).font(.subheadline)
+                                Text(post.s("caption")).font(.house(.subheadline))
                                 MarketingDetails(fields: post.object.filter { !["thumbnailUrl", "mediaUrl", "caption"].contains($0.key) }.mapValues(\.any))
                             }
                         }
@@ -111,7 +111,7 @@ extension StudioRivals {
             TableColumn("Account", value: \.username) { (r: StudioMacRival) in
                 VStack(alignment: .leading, spacing: 0) {
                     Text("@" + r.username).lineLimit(1)
-                    if r.name != r.username { Text(r.name).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
+                    if r.name != r.username { Text(r.name).font(.house(.caption)).foregroundStyle(.secondary).lineLimit(1) }
                 }
             }
             .width(min: 160, ideal: 260)
@@ -188,7 +188,7 @@ extension StudioRivals {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     MacInspectorHeader(title: r.name, subtitle: "@" + r.username, actions: [actions[0][0], actions[0][1]])
-                    HStack(spacing: 14) { StudioLinks(value: item) }.font(.callout)
+                    HStack(spacing: 14) { StudioLinks(value: item) }.font(.house(.callout))
                     if !item["profile"].s("picture").isEmpty {
                         MarketingPhoto(path: item["profile"].s("picture")).frame(width: 80, height: 80).clipShape(Circle())
                     }
@@ -199,7 +199,7 @@ extension StudioRivals {
                         ForEach(item["profile"]["posts"].array.sorted { $0.n("rate") > $1.n("rate") }, id: \.text) { (post: MarketingValue) in
                             VStack(alignment: .leading, spacing: 5) {
                                 MarketingPhoto(path: post.s("image")).frame(height: 160)
-                                Text(post.s("caption")).font(.callout)
+                                Text(post.s("caption")).font(.house(.callout))
                                 MarketingDetails(fields: post.object.filter { !["thumbnailUrl", "mediaUrl", "caption"].contains($0.key) }.mapValues(\.any))
                             }
                             .padding(.vertical, 4)
@@ -249,7 +249,7 @@ extension StudioRivals {
                             HStack(alignment: .top, spacing: 8) {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(item.s("name")).fontWeight(.medium)
-                                    Text(item.s("why")).font(.callout).foregroundStyle(.secondary)
+                                    Text(item.s("why")).font(.house(.callout)).foregroundStyle(.secondary)
                                 }
                                 Spacer(minLength: 8)
                                 Button("Add @" + item.s("instagram")) {
@@ -319,7 +319,7 @@ struct StudioSaved: View {
                         TextField("Rename folder", text: $rename)
                         Button("Rename") { mutate("/api/ads/studio/saved/folders", ["id": folder.s("id"), "name": rename], method: "PATCH") }.disabled(rename.isEmpty)
                         Button("Delete folder", role: .destructive) { deleting = MarketingValue(["deleteKind": "folder", "folder": folder.s("id"), "name": folder.s("name")]) }
-                        Text("Designs inside a deleted folder stay unfiled.").font(.footnote).foregroundStyle(.secondary)
+                        Text("Designs inside a deleted folder stay unfiled.").font(.house(.footnote)).foregroundStyle(.secondary)
                     }
                 }
             }.houseRows()
@@ -328,7 +328,7 @@ struct StudioSaved: View {
                 Section {
                     ForEach(items, id: \.text) { item in
                         Button { selected = StudioAssetChoice(item: item) } label: {
-                            HStack(spacing: pt(12)) { StockImage(imageUrl: item.s("thumb"), name: item.s("name"), key: item.s("id"), decodeDataURI: true).frame(width: 90, height: 90); VStack(alignment: .leading, spacing: pt(4)) { Text(item.s("name")).foregroundStyle(.primary); Text(item.s("format")).font(.caption).foregroundStyle(.secondary) } }
+                            HStack(spacing: pt(12)) { StockImage(imageUrl: item.s("thumb"), name: item.s("name"), key: item.s("id"), decodeDataURI: true).frame(width: 90, height: 90); VStack(alignment: .leading, spacing: pt(4)) { Text(item.s("name")).foregroundStyle(.primary); Text(item.s("format")).font(.house(.caption)).foregroundStyle(.secondary) } }
                         }
                     }
                     if items.isEmpty { Text("No saved designs here.").foregroundStyle(.secondary) }
@@ -350,10 +350,10 @@ struct StudioSaved: View {
             if account.isEmpty { Text("No ads in the account.").foregroundStyle(.secondary) }
             ForEach(account, id: \.text) { ad in
                 VStack(alignment: .leading, spacing: pt(8)) {
-                    Text(ad.s("name")).font(.headline)
+                    Text(ad.s("name")).font(.house(.headline))
                     // Running, the expected state, says nothing (CONVENTIONS rule 15).
                     if AdsStatusWords.of(ad.s("effective_status")).tone != .good {
-                        Text(ad.s("effective_status")).font(.caption).foregroundStyle(.secondary)
+                        Text(ad.s("effective_status")).font(.house(.caption)).foregroundStyle(.secondary)
                     }
                     NavigationLink("Ad details", value: Route(path: "/ads/object?id=" + ad.s("id") + "&kind=ad"))
                     Menu("Keep in a folder") {
@@ -420,7 +420,7 @@ extension StudioSaved {
                         TextField("Rename folder", text: $rename)
                         Button("Rename") { mutate("/api/ads/studio/saved/folders", ["id": folder.s("id"), "name": rename], method: "PATCH") }.disabled(rename.isEmpty)
                         Button("Delete folder…", role: .destructive) { deleting = MarketingValue(["deleteKind": "folder", "folder": folder.s("id"), "name": folder.s("name")]) }
-                        Text("Designs inside a deleted folder stay unfiled.").font(.footnote).foregroundStyle(.secondary)
+                        Text("Designs inside a deleted folder stay unfiled.").font(.house(.footnote)).foregroundStyle(.secondary)
                     }
                 } header: { Text("Manage") }
             }
@@ -440,8 +440,8 @@ extension StudioSaved {
                                         StockImage(imageUrl: item.s("thumb"), name: item.s("name"), key: item.s("id"), decodeDataURI: true)
                                             .aspectRatio(1, contentMode: .fit)
                                             .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
-                                        Text(item.s("name")).font(.subheadline.weight(.medium)).foregroundStyle(.primary).lineLimit(2)
-                                        Text(item.s("format")).font(.caption).foregroundStyle(.secondary)
+                                        Text(item.s("name")).font(.house(.subheadline).weight(.medium)).foregroundStyle(.primary).lineLimit(2)
+                                        Text(item.s("format")).font(.house(.caption)).foregroundStyle(.secondary)
                                     }
                                     .padding(6)
                                     .contentShape(Rectangle())

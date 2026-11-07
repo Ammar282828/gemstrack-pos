@@ -70,7 +70,7 @@ struct LabelLiveSettingsScreen: View {
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .keyboardType(.URL)
-                .font(.callout.monospaced())
+                .font(.house(.callout).monospaced())
                 .disabled(!session.isOwner)
             Button("Read the link") { read() }
                 .disabled(pasted.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !session.isOwner)
@@ -106,7 +106,7 @@ struct LabelLiveSettingsScreen: View {
             let tags = LabelLive.tagsOf(c).count
             if tags > 1 {
                 Text("\(tags) tags to a label: pieces fill them in turn, and a tag with no piece prints blank.")
-                    .font(.callout).foregroundStyle(.secondary)
+                    .font(.house(.callout)).foregroundStyle(.secondary)
             }
             Button {
                 Task { await testPrint() }
@@ -191,12 +191,12 @@ struct LabelLiveSettingsScreen: View {
             ForEach(history.prefix(20)) { e in
                 HStack {
                     VStack(alignment: .leading, spacing: pt(2)) {
-                        Text(e.sku).font(.body.monospaced())
-                        Text(e.message).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                        Text(e.sku).font(.house(.body).monospaced())
+                        Text(e.message).font(.house(.caption)).foregroundStyle(.secondary).lineLimit(2)
                     }
                     Spacer()
                     VStack(alignment: .trailing, spacing: pt(2)) {
-                        Text(ShopDate.say(e.timestamp)).font(.caption).foregroundStyle(.secondary)
+                        Text(ShopDate.say(e.timestamp)).font(.house(.caption)).foregroundStyle(.secondary)
                         if !e.ok { Pill("Not printed", tone: .problem) }
                     }
                 }

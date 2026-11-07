@@ -66,7 +66,7 @@ struct BusinessLogo: View {
             } else if let fetched {
                 Image(uiImage: fetched).resizable().scaledToFit()
             } else {
-                Text(business.name).font(.title2.weight(.semibold)).foregroundStyle(.primary).lineLimit(1).minimumScaleFactor(0.5)
+                Text(business.name).font(.house(.title2).weight(.semibold)).foregroundStyle(.primary).lineLimit(1).minimumScaleFactor(0.5)
             }
         }
         .padding(.vertical, pt(4))
@@ -108,12 +108,12 @@ struct BusinessChip: View {
             HStack(spacing: pt(6)) {
                 BusinessBadge(business: current, size: wide ? 28 : 22)
                 if wide {
-                    Text(current.displayName).font(.headline).lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
+                    Text(current.displayName).font(.house(.headline)).lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
                 } else {
-                    Text(current.name).font(.subheadline.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.7)
+                    Text(current.name).font(.house(.subheadline).weight(.semibold)).lineLimit(1).minimumScaleFactor(0.7)
                 }
                 if many {
-                    Image(systemName: "chevron.up.chevron.down").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                    Image(systemName: "chevron.up.chevron.down").font(.house(.caption2).weight(.semibold)).foregroundStyle(.secondary)
                 }
             }
             .foregroundStyle(many ? Color.primary : Color.secondary)

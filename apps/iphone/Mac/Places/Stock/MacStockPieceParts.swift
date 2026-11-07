@@ -70,7 +70,7 @@ struct MacStockDetailSections: View {
 
     private func note(_ title: String, _ text: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(title).font(.callout).foregroundStyle(.secondary)
+            Text(title).font(.house(.callout)).foregroundStyle(.secondary)
             Text(text).textSelection(.enabled)
         }
     }
@@ -88,15 +88,15 @@ struct MacStockPriceSection: View {
         let costs: ProductCosts? = rates.map { StockKit.costs(p, $0) }
         MacWorkCard(p.isCustomPrice ? "Fixed Price" : "Price at Today's Rates") {
             HStack(alignment: .firstTextBaseline) {
-                Text("Price").font(.callout).foregroundStyle(.secondary)
+                Text("Price").font(.house(.callout)).foregroundStyle(.secondary)
                 Spacer(minLength: 8)
                 Text(MacStockPricing.words(costs?.totalPrice))
-                    .font(.system(.title3, design: .serif).weight(.semibold)).monospacedDigit()
+                    .font(.house(.title3).weight(.semibold)).monospacedDigit()
             }
             if p.isCustomPrice {
                 if let note = StockKit.filled(p.description) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Description").font(.callout).foregroundStyle(.secondary)
+                        Text("Description").font(.house(.callout)).foregroundStyle(.secondary)
                         Text(note).textSelection(.enabled)
                     }
                 }

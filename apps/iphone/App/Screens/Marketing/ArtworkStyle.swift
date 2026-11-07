@@ -104,7 +104,7 @@ struct ArtworkEffectsRows: View {
     var body: some View {
         Picker("Blend", selection: blend) { ForEach(ArtworkFx.blends, id: \.0) { Text($0.label).tag($0.id) } }
         if let hint = ArtworkFx.blends.first(where: { $0.id == layer.s("blend", "normal") })?.hint, layer.s("blend", "normal") != "normal" {
-            Text(hint + ".").font(.footnote).foregroundStyle(.secondary)
+            Text(hint + ".").font(.house(.footnote)).foregroundStyle(.secondary)
         }
         // The web's slider is "Transparency" 0…95%; opacity is kept 0.05…1.
         ArtworkSlider(title: "Opacity", value: Binding(get: { layer.n("opacity", 1) * 100 }, set: { v in fold("opacity") { layer["opacity"] = .number(v.rounded() / 100) } }), range: 5...100, step: 1, format: "%.0f%%")
@@ -129,7 +129,7 @@ struct ArtworkEffectsRows: View {
                 ArtworkSlider(title: "Thickness", value: number("outline", "width"), range: 1...60, format: "%.0f")
             }
             if layer.s("kind") == "image", layer["shadow"].bool, layer["layerFx"] != .null {
-                Text("An effect here replaces the photo’s plain Shadow switch.").font(.footnote).foregroundStyle(.secondary)
+                Text("An effect here replaces the photo’s plain Shadow switch.").font(.house(.footnote)).foregroundStyle(.secondary)
             }
         }
     }
@@ -219,7 +219,7 @@ struct ArtworkAdjustRows: View {
         } else {
             DisclosureGroup("Fine-tune with sliders", isExpanded: $open) {
                 ForEach(Self.groups, id: \.0) { group in
-                    Text(group.title).font(.footnote.weight(.semibold)).foregroundStyle(.secondary)
+                    Text(group.title).font(.house(.footnote).weight(.semibold)).foregroundStyle(.secondary)
                     ForEach(group.sliders, id: \.0) { s in
                         ArtworkSlider(title: s.label, value: Binding(get: { adjust.n(s.key) }, set: { v in fold("adj-\(s.key)") { put(s.key, v) } }), range: s.min...s.max, format: "%.0f")
                     }

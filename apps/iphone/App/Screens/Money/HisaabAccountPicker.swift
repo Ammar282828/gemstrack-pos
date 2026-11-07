@@ -76,10 +76,10 @@ struct HisaabAccountPicker: View {
                         HStack(spacing: pt(12)) {
                             Monogram(name: c.name.isEmpty ? c.id : c.name, size: Monogram.Size.row)
                             VStack(alignment: .leading, spacing: pt(2)) {
-                                Text(c.name.isEmpty ? c.id : c.name).font(.body.weight(.medium))
+                                Text(c.name.isEmpty ? c.id : c.name).font(.house(.body).weight(.medium))
                                 // Told apart only while searching: the list otherwise says the obvious on every row.
                                 if !typed.isEmpty {
-                                    Text(c.isCustomer ? "Customer" : "Karigar").font(.caption).foregroundStyle(.secondary)
+                                    Text(c.isCustomer ? "Customer" : "Karigar").font(.house(.caption)).foregroundStyle(.secondary)
                                 }
                             }
                             Spacer(minLength: 0)
@@ -92,8 +92,8 @@ struct HisaabAccountPicker: View {
                         HStack(spacing: pt(12)) {
                             Image(systemName: "plus.circle").busy(creating)
                             VStack(alignment: .leading, spacing: pt(2)) {
-                                Text("\(creating ? "Adding" : "Add karigar") \u{201C}\(typed)\u{201D}").font(.body.weight(.medium))
-                                Text("Opens a new hisaab").font(.caption).foregroundStyle(.secondary)
+                                Text("\(creating ? "Adding" : "Add karigar") \u{201C}\(typed)\u{201D}").font(.house(.body).weight(.medium))
+                                Text("Opens a new hisaab").font(.house(.caption)).foregroundStyle(.secondary)
                             }
                             Spacer(minLength: 0)
                         }

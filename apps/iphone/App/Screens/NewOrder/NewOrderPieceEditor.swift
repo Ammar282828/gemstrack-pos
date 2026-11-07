@@ -29,7 +29,7 @@ struct NewOrderPieceRow: View {
     var body: some View {
         HStack(spacing: pt(10)) {
             Text("#\(number)")
-                .font(.caption.monospacedDigit())
+                .font(.house(.caption).monospacedDigit())
                 .foregroundStyle(.secondary)
             VStack(alignment: .leading, spacing: pt(2)) {
                 Text(title.isEmpty ? "Untitled piece" : title)
@@ -37,7 +37,7 @@ struct NewOrderPieceRow: View {
                     .lineLimit(1)
                 if !spec.isEmpty {
                     Text(spec)
-                        .font(.subheadline)
+                        .font(.house(.subheadline))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
@@ -45,12 +45,12 @@ struct NewOrderPieceRow: View {
             Spacer(minLength: 8)
             if price > 0 {
                 Text(Money.pkr(price))
-                    .font(.subheadline.weight(.semibold))
+                    .font(.house(.subheadline).weight(.semibold))
                     .monospacedDigit()
                     .contentTransition(.numericText(value: price))
             }
             Image(systemName: "chevron.right")
-                .font(.footnote.weight(.semibold))
+                .font(.house(.footnote).weight(.semibold))
                 .foregroundStyle(.tertiary)
         }
         .contentShape(.rect)
@@ -153,7 +153,7 @@ struct NewOrderPieceEditor: View {
         let karats = karatsFor(metal)
         if !karats.isEmpty {
             VStack(alignment: .leading, spacing: pt(6)) {
-                Text("Karat").font(.caption).foregroundStyle(.secondary)
+                Text("Karat").font(.house(.caption)).foregroundStyle(.secondary)
                 Picker("Karat", selection: $piece.karat) {
                     ForEach(karats, id: \.rawValue) { k in
                         Text(k.rawValue.uppercased()).tag(k.rawValue)
@@ -284,7 +284,7 @@ struct NewOrderPieceEditor: View {
         Section {
             VStack(alignment: .leading, spacing: pt(6)) {
                 Label("Instructions for the karigar", systemImage: "lock.fill")
-                    .font(.subheadline)
+                    .font(.house(.subheadline))
                     .foregroundStyle(Tone.owed.color)
                 TextField("Instructions", text: $piece.adminNote, prompt: Text("Stones, plating, sizing, or other specifications"), axis: .vertical)
                     .lineLimit(2...6)

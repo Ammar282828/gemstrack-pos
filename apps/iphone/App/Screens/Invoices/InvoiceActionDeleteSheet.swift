@@ -57,7 +57,7 @@ extension InvoiceActionDeleteSheet {
                 removed: true))
         }) {
             Text(InvoiceActionDeleteSheet.detail(invoice, book: book) + " This can't be undone.")
-                .font(.callout)
+                .font(.house(.callout))
         }
         .task {
             book.invoices.need()

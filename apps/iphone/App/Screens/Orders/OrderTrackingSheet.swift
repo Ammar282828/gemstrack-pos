@@ -23,15 +23,15 @@ struct OrderTrackingSheet: View {
                 if let track {
                     Section {
                         Text(track.summary)
-                            .font(.subheadline)
+                            .font(.house(.subheadline))
                             .foregroundStyle(.secondary)
                         ForEach(Array(track.checkpoints.enumerated()), id: \.offset) { pair in
                             HStack(alignment: .firstTextBaseline, spacing: pt(10)) {
                                 Text(pair.element.datetime)
-                                    .font(.caption)
+                                    .font(.house(.caption))
                                     .foregroundStyle(.secondary)
                                 Text(pair.element.status)
-                                    .font(.subheadline)
+                                    .font(.house(.subheadline))
                             }
                         }
                     } header: {

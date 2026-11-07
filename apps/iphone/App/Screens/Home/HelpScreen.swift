@@ -19,14 +19,14 @@ struct HelpScreen: View {
                         DisclosureGroup(isExpanded: expanded(g.id, searching: searching)) {
                             steps(g)
                         } label: {
-                            Text(g.title).font(.subheadline.weight(.semibold))
+                            Text(g.title).font(.house(.subheadline).weight(.semibold))
                         }
                     }
                 }
             }
             Section {
                 Text("Something not here, or not working as it says? Ask an owner.")
-                    .font(.footnote)
+                    .font(.house(.footnote))
                     .foregroundStyle(.secondary)
             }
             .listRowBackground(Color.clear)
@@ -56,15 +56,15 @@ struct HelpScreen: View {
         ForEach(Array(g.steps.enumerated()), id: \.offset) { pair in
             HStack(alignment: .firstTextBaseline, spacing: pt(8)) {
                 Text("\(pair.offset + 1).")
-                    .font(.subheadline.weight(.semibold))
+                    .font(.house(.subheadline).weight(.semibold))
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
-                Text(pair.element).font(.subheadline)
+                Text(pair.element).font(.house(.subheadline))
             }
         }
         if let tip = g.tip {
             Text(tip)
-                .font(.footnote)
+                .font(.house(.footnote))
                 .padding(pt(10))
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Theme.accent.opacity(0.08), in: .rect(cornerRadius: Radius.thumb, style: .continuous))
@@ -72,7 +72,7 @@ struct HelpScreen: View {
         if let path = g.path, let label = g.pathLabel {
             NavigationLink(value: Route(path: path)) {
                 Label("Open \(label)", systemImage: "arrow.right.circle")
-                    .font(.subheadline.weight(.medium))
+                    .font(.house(.subheadline).weight(.medium))
             }
         }
     }

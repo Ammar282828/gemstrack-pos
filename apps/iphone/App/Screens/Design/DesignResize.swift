@@ -267,7 +267,7 @@ struct DesignResizeSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: pt(16)) {
                     Text("Make this design in other sizes. The words and the photo stay; the layout follows the new shape.")
-                        .font(.subheadline).foregroundStyle(.secondary)
+                        .font(.house(.subheadline)).foregroundStyle(.secondary)
                     sizes
                     ownShape
                     runBar
@@ -303,7 +303,7 @@ struct DesignResizeSheet: View {
         SectionCard("Sizes") {
             ForEach(DesignSizes.groups) { g in
                 VStack(alignment: .leading, spacing: pt(4)) {
-                    Text(g.title).font(.caption).foregroundStyle(.secondary)
+                    Text(g.title).font(.house(.caption)).foregroundStyle(.secondary)
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: pt(8)) {
                             ForEach(g.sizes) { s in
@@ -339,11 +339,11 @@ struct DesignResizeSheet: View {
             Toggle(isOn: bind(\.smart)) {
                 VStack(alignment: .leading, spacing: pt(2)) {
                     Label("Smart", systemImage: "sparkles")
-                    Text(r.smart ? "Asks the AI once for all sizes; used only where it does better." : "Instant, no AI.").font(.footnote).foregroundStyle(.secondary)
+                    Text(r.smart ? "Asks the AI once for all sizes; used only where it does better." : "Instant, no AI.").font(.house(.footnote)).foregroundStyle(.secondary)
                 }
             }
             .tint(Theme.accent)
-            if !r.note.isEmpty { Text(r.note).font(.footnote).foregroundStyle(.secondary) }
+            if !r.note.isEmpty { Text(r.note).font(.house(.footnote)).foregroundStyle(.secondary) }
         }
         .ledgerCard()
     }
@@ -351,12 +351,12 @@ struct DesignResizeSheet: View {
     private var candidates: some View {
         SectionCard("Results", count: r.shown.count) {
             if r.shown.contains(where: { id in r.entryFor(id).map { DesignSizes.safeZone(h: $0.h).top > 0 } ?? false }) {
-                Toggle("Show safe zones", isOn: bind(\.safe)).font(.subheadline).tint(Theme.accent)
+                Toggle("Show safe zones", isOn: bind(\.safe)).font(.house(.subheadline)).tint(Theme.accent)
             }
             LazyVGrid(columns: columns, spacing: pt(10)) {
                 ForEach(r.shown, id: \.self) { id in card(id) }
             }
-            Text("\(r.accepted.count) of \(r.shown.count) kept").font(.footnote).foregroundStyle(.secondary)
+            Text("\(r.accepted.count) of \(r.shown.count) kept").font(.house(.footnote)).foregroundStyle(.secondary)
                 .monospacedDigit().contentTransition(.numericText(value: Double(r.accepted.count))).motion(r.accepted.count)
         }
     }
@@ -380,15 +380,15 @@ struct DesignResizeSheet: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel((on ? "Skip " : "Keep ") + e.label)
                 HStack {
-                    Text(e.label).font(.caption.weight(.medium)).lineLimit(1)
+                    Text(e.label).font(.house(.caption).weight(.medium)).lineLimit(1)
                     Spacer(minLength: 0)
                     Pill("\(Int(score.rounded()))", tone: score >= 85 ? .settled : score >= 70 ? .owed : .problem)
                 }
-                Text(res["notes"].array.first?.string ?? "").font(.caption2).foregroundStyle(.secondary)
+                Text(res["notes"].array.first?.string ?? "").font(.house(.caption2)).foregroundStyle(.secondary)
                 if res["needsExtend"].bool && r.extras[id] == nil {
-                    Text("The piece doesn’t fill this shape; the photo is shown whole.").font(.caption2).foregroundStyle(Tone.owed.color)
+                    Text("The piece doesn’t fill this shape; the photo is shown whole.").font(.house(.caption2)).foregroundStyle(Tone.owed.color)
                     Button { Task { await r.extend(id) } } label: {
-                        HStack { Image(systemName: "sparkles").busy(r.extending == id); Text("Extend the photo") }.font(.caption)
+                        HStack { Image(systemName: "sparkles").busy(r.extending == id); Text("Extend the photo") }.font(.house(.caption))
                     }
                     .buttonStyle(.bordered).disabled(r.extending != nil || r.busy != nil)
                 }

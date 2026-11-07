@@ -66,7 +66,7 @@ struct MacNewOrderFooter: View {
             Divider()
             HStack(spacing: 12) {
                 Text(summary)
-                    .font(.callout)
+                    .font(.house(.callout))
                     .foregroundStyle(tone == .quiet ? Color.secondary : tone.color)
                     .monospacedDigit()
                     .lineLimit(1)

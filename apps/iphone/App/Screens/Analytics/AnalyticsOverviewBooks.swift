@@ -131,7 +131,7 @@ struct AbOverviewPage: View {
     /// A caption over a bar of shares.
     private func captioned(_ caption: String, _ parts: [AbPart], _ format: @escaping (Double) -> String) -> some View {
         VStack(alignment: .leading, spacing: pt(6)) {
-            Text(caption).font(.footnote.weight(.medium))
+            Text(caption).font(.house(.footnote).weight(.medium))
             AbStack(parts: parts, format: format, interactive: false)
         }
     }
@@ -172,7 +172,7 @@ struct AbOverviewPage: View {
                     ], abLac)
                     if let topSource {
                         Text("Most came through " + topSource.label + " · " + Money.pkrLac(topSource.revenue))
-                            .font(.footnote).foregroundStyle(.secondary)
+                            .font(.house(.footnote)).foregroundStyle(.secondary)
                     }
                 }
             }
@@ -197,7 +197,7 @@ struct AbOverviewPage: View {
                     }
                     if coins.coins > 0 {
                         Text(AbSay.metalWord + " coins, apart: " + AbSay.count(Int(coins.coins), "coin") + " · " + AbSay.tola(coins.grams) + " · " + Money.pkrLac(coins.revenue))
-                            .font(.footnote).foregroundStyle(.secondary)
+                            .font(.house(.footnote)).foregroundStyle(.secondary)
                     }
                 }
             }

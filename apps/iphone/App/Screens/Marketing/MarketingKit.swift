@@ -135,7 +135,7 @@ struct MarketingLink: View {
                 HStack {
                     label
                     Spacer(minLength: 8)
-                    Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
+                    Image(systemName: "chevron.right").font(.house(.caption).weight(.semibold)).foregroundStyle(.tertiary)
                 }
                 .contentShape(.rect)
             }
@@ -151,7 +151,7 @@ struct MarketingLink: View {
             VStack(alignment: .leading, spacing: pt(2)) {
                 Text(title)
                 if let subtitle, !subtitle.isEmpty {
-                    Text(subtitle).font(.subheadline).foregroundStyle(.secondary)
+                    Text(subtitle).font(.house(.subheadline)).foregroundStyle(.secondary)
                 }
             }
         } icon: {

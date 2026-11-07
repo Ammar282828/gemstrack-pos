@@ -125,7 +125,7 @@ struct CustomerField: View {
                 } icon: {
                     Image(systemName: "person.badge.plus").foregroundStyle(Theme.accent)
                 }
-                .font(.subheadline)
+                .font(.house(.subheadline))
             }
         }
     }
@@ -143,11 +143,11 @@ struct CustomerField: View {
                     let sub = [hit.customer.phone ?? "", hit.customer.city ?? ""].filter { !$0.isEmpty }.joined(separator: " · ")
                     if !sub.isEmpty || note != nil {
                         Text([note ?? "", sub].filter { !$0.isEmpty }.joined(separator: " · "))
-                            .font(.caption).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
+                            .font(.house(.caption)).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
                     }
                 }
                 Spacer(minLength: 4)
-                Image(systemName: "arrow.up.left").font(.caption).foregroundStyle(.tertiary)
+                Image(systemName: "arrow.up.left").font(.house(.caption)).foregroundStyle(.tertiary)
             }
             .contentShape(.rect)
         }
@@ -159,11 +159,11 @@ struct CustomerField: View {
         HStack(spacing: pt(12)) {
             Initials(name: c.name, size: 40)
             VStack(alignment: .leading, spacing: 2) {
-                Text(c.name).font(.headline).lineLimit(1)
+                Text(c.name).font(.house(.headline)).lineLimit(1)
                 let sub = [phone.isEmpty ? (c.phone ?? "") : phone, c.city ?? ""].filter { !$0.isEmpty }.joined(separator: " · ")
                 Label(sub.isEmpty ? "On file" : sub, systemImage: "checkmark.seal.fill")
                     .labelStyle(.titleAndIcon)
-                    .font(.caption).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
+                    .font(.house(.caption)).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
             }
             Spacer(minLength: 4)
             Button("Change") {

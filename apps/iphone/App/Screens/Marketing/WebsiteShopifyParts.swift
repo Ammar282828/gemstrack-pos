@@ -22,7 +22,7 @@ struct ShopGate<T: Decodable, Content: View>: View {
         case .failed(let message):
             SiteBlock(title: title) {
                 Text("Shopify did not answer this one: " + message)
-                    .font(.subheadline).foregroundStyle(.secondary)
+                    .font(.house(.subheadline)).foregroundStyle(.secondary)
             }
         case .missingScope:
             EmptyView()
@@ -55,18 +55,18 @@ struct ShopGrantCard: View {
         SiteBlock(title: "Grant \(missing.scope) in Shopify") {
             VStack(alignment: .leading, spacing: pt(10)) {
                 Label {
-                    Text(why).font(.subheadline).foregroundStyle(.secondary)
+                    Text(why).font(.house(.subheadline)).foregroundStyle(.secondary)
                 } icon: {
                     Image(systemName: "key.horizontal").foregroundStyle(.secondary)
                 }
                 ForEach(Array(steps.enumerated()), id: \.element) { (i: Int, step: String) in
                     HStack(alignment: .firstTextBaseline, spacing: pt(8)) {
-                        Text("\(i + 1).").font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
-                        Text(step).font(.subheadline)
+                        Text("\(i + 1).").font(.house(.subheadline)).foregroundStyle(.secondary).monospacedDigit()
+                        Text(step).font(.house(.subheadline))
                     }
                 }
                 if let note = missing.note, !note.isEmpty {
-                    Text(note).font(.footnote).foregroundStyle(.secondary)
+                    Text(note).font(.house(.footnote)).foregroundStyle(.secondary)
                 }
             }
         }
@@ -142,7 +142,7 @@ struct ShopRankSection: View {
 
     @ViewBuilder private var content: some View {
         if rows.isEmpty {
-            Text(empty).font(.subheadline).foregroundStyle(.secondary)
+            Text(empty).font(.house(.subheadline)).foregroundStyle(.secondary)
         } else {
             ForEach(all ? rows : Array(rows.prefix(show))) { (r: ShopRankRow) in
                 rowBody(r)
@@ -167,7 +167,7 @@ struct ShopRankSection: View {
                     VStack(alignment: .leading, spacing: pt(2)) {
                         Text(row.label)
                         if let sub = row.sub {
-                            Text(sub).font(.footnote).foregroundStyle(.secondary)
+                            Text(sub).font(.house(.footnote)).foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -175,7 +175,7 @@ struct ShopRankSection: View {
                 HStack(spacing: pt(6)) {
                     Text(row.text).monospacedDigit()
                         .contentTransition(.numericText(value: row.value))
-                    Text(SiteWords.pct(share)).font(.footnote).foregroundStyle(.secondary).monospacedDigit()
+                    Text(SiteWords.pct(share)).font(.house(.footnote)).foregroundStyle(.secondary).monospacedDigit()
                 }
             }
             ProgressView(value: Swift.max(0, Swift.min(row.value, top)), total: top)
@@ -205,7 +205,7 @@ struct ShopFunnelBlock: View {
                             Text(ShopWords.number(s.value)).monospacedDigit()
                             if i > 0 {
                                 Text(SiteWords.pct(s.value / top, digits: 1) + " of sessions")
-                                    .font(.footnote).foregroundStyle(.secondary).monospacedDigit()
+                                    .font(.house(.footnote)).foregroundStyle(.secondary).monospacedDigit()
                             }
                             if let b = s.before { SiteDelta(now: s.value, before: b) }
                         }
@@ -256,7 +256,7 @@ struct ShopSeriesBlock: View {
     @ViewBuilder private var chart: some View {
         let list = plots
         if list.isEmpty {
-            Text("Nothing in this period yet.").font(.subheadline).foregroundStyle(.secondary)
+            Text("Nothing in this period yet.").font(.house(.subheadline)).foregroundStyle(.secondary)
         } else if series.grain == "hour" {
             hourChart(list)
         } else {
@@ -318,7 +318,7 @@ struct ShopMinuteBlock: View {
         SiteBlock(title: series.grain == "minute" ? "Sessions by the minute" : "Sessions by the hour, today",
                   note: series.grain == "minute" ? "The last half hour; Shopify\u{2019}s reports lag by a few minutes." : "Shopify gave no minutes, so the hours of today.") {
             if slots.isEmpty {
-                Text("Nothing yet.").font(.subheadline).foregroundStyle(.secondary)
+                Text("Nothing yet.").font(.house(.subheadline)).foregroundStyle(.secondary)
             } else {
                 VStack(spacing: pt(4)) {
                     Chart {
@@ -330,9 +330,9 @@ struct ShopMinuteBlock: View {
                     .chartXAxis(.hidden)
                     .frame(height: 120)
                     HStack {
-                        Text(list.first?.clock ?? "").font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                        Text(list.first?.clock ?? "").font(.house(.caption)).foregroundStyle(.secondary).monospacedDigit()
                         Spacer(minLength: 8)
-                        Text(list.last?.clock ?? "").font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                        Text(list.last?.clock ?? "").font(.house(.caption)).foregroundStyle(.secondary).monospacedDigit()
                     }
                     .accessibilityHidden(true)
                 }

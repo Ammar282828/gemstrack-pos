@@ -32,13 +32,13 @@ struct OrderCourierSheet: View {
             Form { Group {
                 Section {
                     Text("Booking happens in Shopify: Universal Courier watches for the fulfilment and raises the Envio consignment.")
-                        .font(.subheadline)
+                        .font(.house(.subheadline))
                         .foregroundStyle(.secondary)
                 }
                 if !OrderActions.delivering(order) {
                     Section {
                         Label(OrderActions.noAddressWarning, systemImage: "exclamationmark.triangle.fill")
-                            .font(.subheadline)
+                            .font(.house(.subheadline))
                             .foregroundStyle(Tone.owed.color)
                     }
                 }
@@ -103,7 +103,7 @@ struct OrderCourierSheet: View {
             Image(systemName: done ? "checkmark.circle.fill" : "\(n).circle")
                 .foregroundStyle(done ? Tone.settled.color : Color.secondary)
             Text(words)
-                .font(.subheadline)
+                .font(.house(.subheadline))
                 .foregroundStyle(done ? Color.secondary : Color.primary)
         }
     }

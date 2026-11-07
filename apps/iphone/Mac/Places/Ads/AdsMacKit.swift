@@ -17,7 +17,7 @@ struct AdsMacAlertBar: View {
                 VStack(alignment: .leading, spacing: 4) {
                     ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
                         Label(line.text, systemImage: "exclamationmark.triangle.fill")
-                            .font(.callout)
+                            .font(.house(.callout))
                             .foregroundStyle(line.bad ? Tone.problem.color : Tone.owed.color)
                     }
                 }
@@ -60,7 +60,7 @@ struct AdsMacNote: View {
 
     var body: some View {
         Text(text)
-            .font(.callout)
+            .font(.house(.callout))
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -84,7 +84,7 @@ struct AdsMacMoney: View {
         HStack(spacing: 3) {
             if let amount {
                 Text(AdsMacMoney.say(amount)).monospacedDigit()
-                if let unit { Text(unit).font(.caption).foregroundStyle(.secondary) }
+                if let unit { Text(unit).font(.house(.caption)).foregroundStyle(.secondary) }
             }
         }
         .lineLimit(1)
@@ -120,7 +120,7 @@ struct AdsMacFigureRows: View {
                 VStack(alignment: .trailing, spacing: 1) {
                     Text(f.value).monospacedDigit().foregroundStyle(f.tone?.color ?? Color.primary)
                     if let detail = f.detail, !detail.isEmpty {
-                        Text(detail).font(.caption).foregroundStyle(f.detailTone?.color ?? Color.secondary)
+                        Text(detail).font(.house(.caption)).foregroundStyle(f.detailTone?.color ?? Color.secondary)
                     }
                 }
                 .multilineTextAlignment(.trailing)
@@ -156,7 +156,7 @@ struct AdsMacCard<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             LedgerHeading(title: title)
-            if let detail, !detail.isEmpty { Text(detail).font(.callout).foregroundStyle(.secondary) }
+            if let detail, !detail.isEmpty { Text(detail).font(.house(.callout)).foregroundStyle(.secondary) }
             content()
         }
         .padding(16)

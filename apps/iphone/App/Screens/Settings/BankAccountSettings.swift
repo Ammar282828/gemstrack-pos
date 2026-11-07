@@ -310,7 +310,7 @@ private struct MacBankAccountsTable: View {
             }
             Divider()
             Text("Shared with customers who pay by transfer. Double-click an account to change it.")
-                .font(.footnote).foregroundStyle(.secondary)
+                .font(.house(.footnote)).foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 20).padding(.vertical, 8)
         }
@@ -334,7 +334,7 @@ extension BankAccountSheet {
     fileprivate var macBody: some View {
         VStack(spacing: 0) {
             Text(isNew ? "New bank account" : "Bank account")
-                .font(.headline).frame(maxWidth: .infinity, alignment: .leading)
+                .font(.house(.headline)).frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 20).padding(.top, 16)
             Form {
                 Section {

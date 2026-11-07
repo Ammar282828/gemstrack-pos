@@ -81,11 +81,11 @@ struct NewChooser: View {
         }
         return NavigationLink(value: SaleLinks.continueSale) {
             HStack(spacing: pt(12)) {
-                Image(systemName: "cart").font(.title3).foregroundStyle(Tone.owed.color)
+                Image(systemName: "cart").font(.house(.title3)).foregroundStyle(Tone.owed.color)
                 VStack(alignment: .leading, spacing: pt(2)) {
-                    Text("A sale in progress").font(.headline)
+                    Text("A sale in progress").font(.house(.headline))
                     Text("\(n) piece\(n == 1 ? "" : "s")" + (subtotal > 0 ? " · \(Money.pkr(subtotal))" : ""))
-                        .font(.subheadline)
+                        .font(.house(.subheadline))
                         .foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 0)
@@ -97,8 +97,8 @@ struct NewChooser: View {
     private var orderProgressRow: some View {
         NavigationLink(value: Route(path: "/orders/add?resume=1")) {
             HStack(spacing: pt(12)) {
-                Image(systemName: "list.clipboard").font(.title3).foregroundStyle(Tone.owed.color)
-                Text("An order in progress").font(.headline)
+                Image(systemName: "list.clipboard").font(.house(.title3)).foregroundStyle(Tone.owed.color)
+                Text("An order in progress").font(.house(.headline))
             }
         }
     }
@@ -108,15 +108,15 @@ struct NewChooser: View {
         NavigationLink(value: Route(path: path)) {
             HStack(spacing: pt(14)) {
                 Image(systemName: icon)
-                    .font(.body.weight(.semibold))
+                    .font(.house(.body).weight(.semibold))
                     // A glyph on a filled tile: the house's own words on its accent, white on the other tones.
                     .foregroundStyle(tint == Theme.accent ? Theme.onAccent : Color.white)
                     .frame(width: 36, height: 36)
                     .background(tint.gradient, in: .rect(cornerRadius: Radius.thumb, style: .continuous))
                 VStack(alignment: .leading, spacing: pt(2)) {
-                    Text(title).font(.headline)
+                    Text(title).font(.house(.headline))
                     Text(blurb)
-                        .font(.subheadline)
+                        .font(.house(.subheadline))
                         .foregroundStyle(.secondary)
                 }
             }
@@ -173,10 +173,10 @@ extension NewChooser {
                 Image(systemName: icon).frame(width: 20)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(title)
-                    Text(blurb).font(.callout).foregroundStyle(.secondary)
+                    Text(blurb).font(.house(.callout)).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 8)
-                Text(shortcut).font(.callout.monospaced()).foregroundStyle(.tertiary)
+                Text(shortcut).font(.house(.callout).monospaced()).foregroundStyle(.tertiary)
             }
         }
     }

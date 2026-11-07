@@ -131,7 +131,7 @@ struct LabelDesigner: View {
         VStack(spacing: 0) {
             if m.readOnly {
                 Text("Only owners can change the tag. This is how it prints.")
-                    .font(.footnote).foregroundStyle(.secondary).frame(maxWidth: .infinity).padding(8)
+                    .font(.house(.footnote)).foregroundStyle(.secondary).frame(maxWidth: .infinity).padding(8)
             }
             #if os(macOS)
             macBody(m)
@@ -207,7 +207,7 @@ struct LabelDesigner: View {
         columns(
             VStack(spacing: 0) {
                 HStack {
-                    Text("Layers").font(.headline)
+                    Text("Layers").font(.house(.headline))
                     Spacer()
                     Text("\(m.layout.fields.count)").foregroundStyle(.secondary)
                 }
@@ -343,8 +343,8 @@ struct LabelDesigner: View {
                 #endif
                 Divider().frame(height: 18)
                 Text("\(LabelUnits.mmText(dots: Double(l.widthDots), dpi: l.dpi)) × \(LabelUnits.mmText(dots: Double(l.heightDots), dpi: l.dpi)) mm · \(l.widthDots) × \(l.heightDots) dots · \(l.dpi ?? 203) dpi")
-                    .font(.caption).foregroundStyle(.secondary).lineLimit(1).fixedSize()
-                Text(saveState).font(.caption).foregroundStyle(.secondary).fixedSize()
+                    .font(.house(.caption)).foregroundStyle(.secondary).lineLimit(1).fixedSize()
+                Text(saveState).font(.house(.caption)).foregroundStyle(.secondary).fixedSize()
             }
             .buttonStyle(.borderless)
             .padding(.horizontal, 12).padding(.vertical, 6)
@@ -493,7 +493,7 @@ extension LabelDesigner {
             HSplitView {
                 VStack(spacing: 0) {
                     HStack {
-                        Text("Layers").font(.headline)
+                        Text("Layers").font(.house(.headline))
                         Spacer()
                         Text("\(m.layout.fields.count)").foregroundStyle(.secondary)
                     }

@@ -151,7 +151,7 @@ private struct TaheriBookImportPage: View {
 
     private func tallies(_ title: String, symbol: String, new: Int, here: Int, half: Int) -> some View {
         VStack(alignment: .leading, spacing: pt(8)) {
-            Label(title, systemImage: symbol).font(.subheadline.weight(.medium))
+            Label(title, systemImage: symbol).font(.house(.subheadline).weight(.medium))
             #if os(macOS)
             MacFigures([MacFigure("New", "\(new)"),
                         MacFigure("Already here", "\(here)"),
@@ -175,7 +175,7 @@ private struct TaheriBookImportPage: View {
             ForEach(p.halfMatches) { (h: SettingsBookHalfMatch) in
                 VStack(alignment: .leading, spacing: pt(2)) {
                     Text(h.name).fontWeight(.medium).lineLimit(1)
-                    Text(h.line).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    Text(h.line).font(.house(.caption)).foregroundStyle(.secondary).lineLimit(1)
                 }
                 .accessibilityElement(children: .combine)
             }

@@ -136,7 +136,7 @@ struct SaleMacStock: View {
             }
             if let notice {
                 Label(notice, systemImage: "exclamationmark.circle")
-                    .font(.callout)
+                    .font(.house(.callout))
                     .foregroundStyle(Tone.problem.color)
             }
             HStack(spacing: 8) {
@@ -219,15 +219,15 @@ struct SaleMacStock: View {
     private func stockRow(_ row: SaleMacStockRow) -> some View {
         HStack(alignment: .center, spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(row.name).font(.body).lineLimit(1)
+                Text(row.name).font(.house(.body)).lineLimit(1)
                 Text(row.metal.isEmpty ? row.sku : row.sku + " \u{00B7} " + row.metal)
-                    .font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                    .font(.house(.callout)).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer(minLength: 8)
             VStack(alignment: .trailing, spacing: 2) {
                 if row.price > 0 { RowAmount(amount: row.price) }
                 if row.weight > 0 {
-                    Text(SaleNumber.grams(row.weight) + " g").font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                    Text(SaleNumber.grams(row.weight) + " g").font(.house(.caption)).foregroundStyle(.secondary).monospacedDigit()
                 }
             }
         }
@@ -316,8 +316,8 @@ struct SaleMacBill: View {
     private func billRow(_ line: SaleLine) -> some View {
         HStack(alignment: .center, spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(line.name.isEmpty ? (line.stockSku ?? "New piece") : line.name).font(.body).lineLimit(1)
-                Text(spec(line)).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                Text(line.name.isEmpty ? (line.stockSku ?? "New piece") : line.name).font(.house(.body)).lineLimit(1)
+                Text(spec(line)).font(.house(.callout)).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer(minLength: 8)
             VStack(alignment: .trailing, spacing: 3) {
@@ -376,7 +376,7 @@ struct SaleMacTotals: View {
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
             Text(pieces == 1 ? "1 piece" : "\(pieces) pieces")
-                .font(.callout)
+                .font(.house(.callout))
                 .foregroundStyle(.secondary)
             Spacer(minLength: 0)
             rows.frame(minWidth: 220, idealWidth: 300, maxWidth: 300)

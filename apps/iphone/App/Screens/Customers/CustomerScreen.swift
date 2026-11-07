@@ -199,10 +199,10 @@ struct CustomerScreen: View {
             VStack(spacing: pt(8)) {
                 Monogram(name: CustomerKit.shown(c), size: 56)
                 Text(CustomerKit.shown(c))
-                    .font(.system(.title2, design: .serif).weight(.semibold))
+                    .font(.house(.title2).weight(.semibold))
                     .multilineTextAlignment(.center)
                 if let phone = CustomerKit.filled(c.phone) {
-                    Text(phone).font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
+                    Text(phone).font(.house(.subheadline)).foregroundStyle(.secondary).monospacedDigit()
                 }
             }
             // The one Contact row (CustomerContact.swift): Call, WhatsApp, Message, More (Copy number); with no
@@ -218,10 +218,10 @@ struct CustomerScreen: View {
     @ViewBuilder private func owedSection(_ o: CustomerKit.Owing) -> some View {
         Section {
             VStack(alignment: .leading, spacing: pt(12)) {
-                Text("Owed to you").font(.subheadline).foregroundStyle(.secondary)
+                Text("Owed to you").font(.house(.subheadline)).foregroundStyle(.secondary)
                 HeroAmount(amount: o.total)
                 if !owedDetail(o).isEmpty {
-                    Text(owedDetail(o)).font(.footnote).foregroundStyle(.secondary)
+                    Text(owedDetail(o)).font(.house(.footnote)).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -514,7 +514,7 @@ extension CustomerScreen {
         return HStack(alignment: .center, spacing: 14) {
             Monogram(name: CustomerKit.shown(c), size: Monogram.Size.hero)
             VStack(alignment: .leading, spacing: 3) {
-                Text(CustomerKit.shown(c)).font(.system(.title2, design: .serif).weight(.semibold))
+                Text(CustomerKit.shown(c)).font(.house(.title2).weight(.semibold))
                     .lineLimit(2).textSelection(.enabled)
                 let line = macLine(c)
                 if !line.isEmpty { Text(line).foregroundStyle(.secondary).textSelection(.enabled) }
@@ -522,8 +522,8 @@ extension CustomerScreen {
             Spacer(minLength: 16)
             if let headline {
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text(headline.label).font(.callout).foregroundStyle(.secondary)
-                    Text(headline.value).font(.system(.title, design: .serif).weight(.semibold)).monospacedDigit()
+                    Text(headline.label).font(.house(.callout)).foregroundStyle(.secondary)
+                    Text(headline.value).font(.house(.title).weight(.semibold)).monospacedDigit()
                         .foregroundStyle(headline.tone.color)
                 }
             }
@@ -782,13 +782,13 @@ extension CustomerScreen {
             MacInspectorCard(title: "Notes") {
                 if let preference {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Prefers").font(.caption).foregroundStyle(.secondary)
+                        Text("Prefers").font(.house(.caption)).foregroundStyle(.secondary)
                         Text(preference).textSelection(.enabled)
                     }
                 }
                 if let notes {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Notes").font(.caption).foregroundStyle(.secondary)
+                        Text("Notes").font(.house(.caption)).foregroundStyle(.secondary)
                         Text(notes).textSelection(.enabled)
                     }
                 }

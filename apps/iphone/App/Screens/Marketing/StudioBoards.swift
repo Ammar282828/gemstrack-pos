@@ -149,7 +149,7 @@ struct StudioBoards: View {
                     Button("Add a note", systemImage: "note.text.badge.plus") { Task { if let id = await board.addNote() { selected = id } } }.labelStyle(.iconOnly).disabled(board.current.isEmpty)
                     HStack(spacing: pt(2)) {
                         Button("Zoom out", systemImage: "minus.magnifyingglass") { zoom = max(0.08, zoom / 1.25) }.labelStyle(.iconOnly)
-                        Text("\(Int((z * 100).rounded()))%").font(.caption).monospacedDigit().frame(minWidth: 40)
+                        Text("\(Int((z * 100).rounded()))%").font(.house(.caption)).monospacedDigit().frame(minWidth: 40)
                         Button("Zoom in", systemImage: "plus.magnifyingglass") { zoom = min(1.5, zoom * 1.25) }.labelStyle(.iconOnly)
                     }
                     Button("Fit the board", systemImage: "arrow.up.left.and.arrow.down.right") { fit() }.labelStyle(.iconOnly).disabled(board.current.isEmpty)
@@ -192,7 +192,7 @@ struct StudioBoards: View {
     }
 
     private func banner(_ content: some View) -> some View {
-        content.font(.footnote).frame(maxWidth: .infinity, alignment: .leading)
+        content.font(.house(.footnote)).frame(maxWidth: .infinity, alignment: .leading)
             .ledgerCard(padding: 10)
             .padding(.bottom, pt(4))
     }
@@ -228,7 +228,7 @@ struct StudioBoards: View {
                     }
                     if board.frames.isEmpty && board.notes.isEmpty {
                         Text("Add a photo to start, or connect an agent and ask it to fill the board.")
-                            .font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                            .font(.house(.subheadline)).foregroundStyle(.secondary).multilineTextAlignment(.center)
                             .frame(width: viewport.width, height: viewport.height)
                     }
                 }
@@ -279,7 +279,7 @@ struct StudioBoards: View {
             ZStack {
                 Rectangle().fill(Theme.card)
                 if let image = board.pictures[id] { Image(uiImage: image).resizable().scaledToFill() }
-                else if let problem = board.problems[id] { Text("Couldn’t draw it: " + problem).font(.caption2).foregroundStyle(.secondary).padding(pt(6)) }
+                else if let problem = board.problems[id] { Text("Couldn’t draw it: " + problem).font(.house(.caption2)).foregroundStyle(.secondary).padding(pt(6)) }
                 else { SkeletonPhoto(ratio: nil, radius: 0, label: "Drawing") }
             }
             .frame(width: w, height: h).clipped()
@@ -376,15 +376,15 @@ struct StudioBoards: View {
         } else {
             Section {
                 StudioBoardNameField(value: board.value.s("name")) { name in Task { await board.rename(name) } }
-                Text(boardLine).font(.footnote).foregroundStyle(.secondary)
+                Text(boardLine).font(.house(.footnote)).foregroundStyle(.secondary)
             } header: { LedgerHeading(title: "This board") }.houseRows()
             Section {
                 #if os(macOS)
                 Text("Click a design to edit it, cook variants of it, or make it in another shape. Double-click opens the designer; right-click for more. Drag a chosen design or note to move it; pinch, or hold ⌘ and scroll, to zoom. Delete removes the chosen one.")
-                    .font(.footnote).foregroundStyle(.secondary)
+                    .font(.house(.footnote)).foregroundStyle(.secondary)
                 #else
                 Text("Tap a design to edit it, cook variants of it, or make it in another shape. Double-tap opens the designer. Drag a chosen design or note to move it; pinch to zoom.")
-                    .font(.footnote).foregroundStyle(.secondary)
+                    .font(.house(.footnote)).foregroundStyle(.secondary)
                 #endif
                 Button("Delete board", systemImage: "trash", role: .destructive) { asking = .delete }
             }.houseRows()
@@ -483,10 +483,10 @@ private struct StudioFramePanel: View {
 
     var body: some View {
         Section {
-            TextField("Design name", text: $label).font(.headline)
+            TextField("Design name", text: $label).font(.house(.headline))
                 .onSubmit { save() }
-            Text(info).font(.footnote).foregroundStyle(.secondary)
-            if !frame.s("why").isEmpty { Text(frame.s("why")).font(.footnote).italic().foregroundStyle(.secondary) }
+            Text(info).font(.house(.footnote)).foregroundStyle(.secondary)
+            if !frame.s("why").isEmpty { Text(frame.s("why")).font(.house(.footnote)).italic().foregroundStyle(.secondary) }
             Button("Edit design", systemImage: "slider.horizontal.3", action: edit)
             Button("Download or share", systemImage: "square.and.arrow.up", action: share)
             Button("Duplicate", systemImage: "plus.square.on.square") { Task { await board.duplicate(frame) } }
@@ -505,14 +505,14 @@ private struct StudioFramePanel: View {
         } header: { LedgerHeading(title: "Use it") }.houseRows()
 
         Section {
-            Text("The AI designs variants of this one, each from a different angle, side by side.").font(.footnote).foregroundStyle(.secondary)
+            Text("The AI designs variants of this one, each from a different angle, side by side.").font(.house(.footnote)).foregroundStyle(.secondary)
             TextField("Aim (optional) — e.g. Eid gifting", text: $brief, axis: .vertical).lineLimit(2...5)
             if !ownNotes.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: pt(6)) {
                         ForEach(ownNotes.prefix(4).map { $0.s("text") }, id: \.self) { text in
                             Button("Use note: " + String(text.prefix(40))) { brief = text }
-                                .font(.caption).buttonStyle(.bordered)
+                                .font(.house(.caption)).buttonStyle(.bordered)
                         }
                     }
                 }
@@ -521,7 +521,7 @@ private struct StudioFramePanel: View {
             Button("Cook \(count)", systemImage: "sparkles") { Task { await board.cook(frame, count: count, brief: brief) } }
                 .buttonStyle(.bordered)
                 .disabled(board.working != nil || frame.s("assetId").isEmpty)
-            if frame.s("assetId").isEmpty { Text("This design has no photo to work from.").font(.footnote).foregroundStyle(.secondary) }
+            if frame.s("assetId").isEmpty { Text("This design has no photo to work from.").font(.house(.footnote)).foregroundStyle(.secondary) }
         } header: { LedgerHeading(title: "Let it cook") }.houseRows()
 
         Section {
@@ -565,7 +565,7 @@ private struct StudioNotePanel: View {
         Section {
             TextField("Note", text: $text, axis: .vertical).lineLimit(3...12)
             Button("Save note") { save() }.disabled(text == note.s("text"))
-            Text("A note is a brief for Let it cook, and the first thing a connected agent reads.").font(.footnote).foregroundStyle(.secondary)
+            Text("A note is a brief for Let it cook, and the first thing a connected agent reads.").font(.house(.footnote)).foregroundStyle(.secondary)
         } header: { LedgerHeading(title: note.s("by") == "agent" ? "Note from the agent" : "Note") }.houseRows()
         .task(id: note.s("text")) { text = note.s("text") }
         .onDisappear { save() }
@@ -590,7 +590,7 @@ private struct StudioBoardNameField: View {
     let save: (String) -> Void
     @State private var name = ""
     var body: some View {
-        TextField("Board name", text: $name).font(.headline)
+        TextField("Board name", text: $name).font(.house(.headline))
             .onSubmit { save(name) }
             .task(id: value) { name = value }
     }

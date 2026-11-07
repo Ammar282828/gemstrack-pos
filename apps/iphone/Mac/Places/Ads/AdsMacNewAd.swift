@@ -58,19 +58,19 @@ struct AdsMacAdSketch: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
-                Image(systemName: "person.crop.circle.fill").font(.title2).foregroundStyle(.secondary)
-                Text(account).font(.subheadline.weight(.semibold))
+                Image(systemName: "person.crop.circle.fill").font(.house(.title2)).foregroundStyle(.secondary)
+                Text(account).font(.house(.subheadline).weight(.semibold))
                 Spacer()
-                Text("Sponsored").font(.caption).foregroundStyle(.secondary)
+                Text("Sponsored").font(.house(.caption)).foregroundStyle(.secondary)
             }
             image
-            if !words.isEmpty { Text(words).font(.callout).lineLimit(6) }
+            if !words.isEmpty { Text(words).font(.house(.callout)).lineLimit(6) }
             if !headline.isEmpty || !button.isEmpty {
                 HStack {
-                    Text(headline).font(.subheadline.weight(.semibold)).lineLimit(2)
+                    Text(headline).font(.house(.subheadline).weight(.semibold)).lineLimit(2)
                     Spacer(minLength: 8)
                     if !button.isEmpty {
-                        Text(button).font(.caption.weight(.semibold))
+                        Text(button).font(.house(.caption).weight(.semibold))
                             .padding(.horizontal, 10).padding(.vertical, 4)
                             .background(.quaternary, in: .capsule)
                     }
@@ -94,7 +94,7 @@ struct AdsMacAdSketch: View {
         } else {
             RoundedRectangle(cornerRadius: 6, style: .continuous).fill(.quaternary)
                 .aspectRatio(1, contentMode: .fit)
-                .overlay { Image(systemName: "photo").font(.title2).foregroundStyle(.secondary) }
+                .overlay { Image(systemName: "photo").font(.house(.title2)).foregroundStyle(.secondary) }
         }
     }
 }

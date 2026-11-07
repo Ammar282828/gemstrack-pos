@@ -286,13 +286,13 @@ struct DashTakenSheet: View {
         return VStack(alignment: .leading, spacing: pt(4)) {
             DashLabel(range.rawValue == "This month" ? "Taken this month" : "Taken, last \(range.rawValue)")
             Text(Money.pkrLac(total))
-                .font(.title2.weight(.semibold))
+                .font(.house(.title2).weight(.semibold))
                 .monospacedDigit()
                 .contentTransition(.numericText(value: total))
                 .motion(total)
             if busy > 0 {
                 Text("\(Money.pkrLac(average)) on an average day with sales")
-                    .font(.subheadline)
+                    .font(.house(.subheadline))
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
             }
@@ -319,7 +319,7 @@ struct DashTakenSheet: View {
         .chartXAxis {
             AxisMarks(values: ticks) { (v: AxisValue) in
                 AxisValueLabel {
-                    if let k = v.as(String.self) { Text(labels[k] ?? "").font(.caption2) }
+                    if let k = v.as(String.self) { Text(labels[k] ?? "").font(.house(.caption2)) }
                 }
             }
         }
@@ -327,7 +327,7 @@ struct DashTakenSheet: View {
             AxisMarks(position: .leading) { (v: AxisValue) in
                 AxisGridLine()
                 AxisValueLabel {
-                    if let n = v.as(Double.self) { Text(Money.axisLac(n)).font(.caption2) }
+                    if let n = v.as(Double.self) { Text(Money.axisLac(n)).font(.house(.caption2)) }
                 }
             }
         }
@@ -356,13 +356,13 @@ struct DashTakenSheet: View {
             VStack(alignment: .leading, spacing: pt(4)) {
                 DashLabel(DashDate.longDay(d.day))
                 Text(Money.pkr(d.total))
-                    .font(.title3.weight(.semibold))
+                    .font(.house(.title3).weight(.semibold))
                     .monospacedDigit()
                     .contentTransition(.numericText(value: d.total))
                     .motion(d.total)
                 if !d.entries.isEmpty {
                     Text(countsLine(d))
-                        .font(.subheadline)
+                        .font(.house(.subheadline))
                         .foregroundStyle(.secondary)
                 }
             }
@@ -370,7 +370,7 @@ struct DashTakenSheet: View {
 
             if d.entries.isEmpty {
                 Text("Nothing was taken this day.")
-                    .font(.subheadline)
+                    .font(.house(.subheadline))
                     .foregroundStyle(.secondary)
             } else {
                 splitCard(d)
@@ -404,13 +404,13 @@ struct DashTakenSheet: View {
                         Text(m.label)
                             .foregroundStyle(m == .unpaid ? Tone.owed.color : Color.primary)
                         Text("\(n)")
-                            .font(.caption)
+                            .font(.house(.caption))
                             .foregroundStyle(.secondary)
                             .monospacedDigit()
                         Spacer(minLength: 8)
                         RowAmount(amount: v, tone: m == .unpaid ? Tone.owed.color : Color.primary)
                     }
-                    .font(.subheadline)
+                    .font(.house(.subheadline))
                     .accessibilityElement(children: .combine)
                 }
             }
@@ -427,11 +427,11 @@ struct DashTakenSheet: View {
                 .frame(width: 24)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: pt(2)) {
-                Text(label).font(.subheadline.weight(.semibold)).lineLimit(2)
+                Text(label).font(.house(.subheadline).weight(.semibold)).lineLimit(2)
                 Text(e.customer.isEmpty ? e.methodText : [e.what, e.ref].filter { !$0.isEmpty }.joined(separator: " \u{00B7} "))
-                    .font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                    .font(.house(.caption)).foregroundStyle(.secondary).lineLimit(2)
                 Text(line.isEmpty ? e.methodText : line + " \u{00B7} " + e.methodText)
-                    .font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                    .font(.house(.caption)).foregroundStyle(.secondary).lineLimit(2)
             }
             Spacer(minLength: 8)
             RowAmount(amount: e.amount)

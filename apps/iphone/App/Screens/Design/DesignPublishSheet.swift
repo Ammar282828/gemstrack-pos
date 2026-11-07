@@ -88,7 +88,7 @@ struct DesignPublishSheet: View {
                 timing
                 if !(problems + p.wordIssues).isEmpty {
                     VStack(alignment: .leading, spacing: pt(4)) {
-                        ForEach(problems + p.wordIssues, id: \.self) { Label($0, systemImage: "exclamationmark.circle").font(.footnote).foregroundStyle(Tone.problem.color) }
+                        ForEach(problems + p.wordIssues, id: \.self) { Label($0, systemImage: "exclamationmark.circle").font(.house(.footnote)).foregroundStyle(Tone.problem.color) }
                     }
                 }
                 if !plan.steps.isEmpty { steps(plan) }
@@ -96,7 +96,7 @@ struct DesignPublishSheet: View {
                     Button { p.model.route = Route(path: path); dismiss() } label: { Label("Open the new ad", systemImage: "sparkles").frame(maxWidth: .infinity) }
                         .buttonStyle(.bordered).largeOnPhone()
                 }
-                if let n = p.note { Text(n).font(.footnote).foregroundStyle(.secondary) }
+                if let n = p.note { Text(n).font(.house(.footnote)).foregroundStyle(.secondary) }
                 extras
             }
             .padding(.horizontal, pt(16)).padding(.vertical, pt(12))
@@ -114,14 +114,14 @@ struct DesignPublishSheet: View {
             if p.healthLoading && p.checks.isEmpty {
                 BusySpinner("Checking the connections", inline: true)
             } else if let f = p.healthFailed {
-                Text(f).font(.footnote).foregroundStyle(Tone.owed.color)
+                Text(f).font(.house(.footnote)).foregroundStyle(Tone.owed.color)
             } else if failing.isEmpty {
-                Label("Every connection is fine", systemImage: "checkmark.circle").font(.subheadline).foregroundStyle(Tone.settled.color)
+                Label("Every connection is fine", systemImage: "checkmark.circle").font(.house(.subheadline)).foregroundStyle(Tone.settled.color)
             } else {
                 ForEach(failing, id: \.text) { c in
                     VStack(alignment: .leading, spacing: pt(2)) {
-                        Label(c.s("label"), systemImage: "xmark.circle").font(.subheadline.weight(.medium)).foregroundStyle(Tone.problem.color)
-                        if !c.s("fix").isEmpty { Text(c.s("fix")).font(.footnote).foregroundStyle(.secondary) }
+                        Label(c.s("label"), systemImage: "xmark.circle").font(.house(.subheadline).weight(.medium)).foregroundStyle(Tone.problem.color)
+                        if !c.s("fix").isEmpty { Text(c.s("fix")).font(.house(.footnote)).foregroundStyle(.secondary) }
                     }
                 }
             }
@@ -129,13 +129,13 @@ struct DesignPublishSheet: View {
                 DisclosureGroup("Every check") {
                     ForEach(p.checks, id: \.text) { c in
                         VStack(alignment: .leading, spacing: pt(2)) {
-                            Label(c.s("label"), systemImage: c.s("status") == "ok" ? "checkmark.circle" : "exclamationmark.triangle").font(.footnote)
-                            Text(c.s("detail")).font(.caption).foregroundStyle(.secondary)
+                            Label(c.s("label"), systemImage: c.s("status") == "ok" ? "checkmark.circle" : "exclamationmark.triangle").font(.house(.footnote))
+                            Text(c.s("detail")).font(.house(.caption)).foregroundStyle(.secondary)
                         }.padding(.vertical, pt(2))
                     }
-                }.font(.subheadline)
+                }.font(.house(.subheadline))
             }
-            Button { Task { await p.refreshHealth() } } label: { Label("Check again", systemImage: "arrow.clockwise") }.font(.footnote).disabled(p.healthLoading)
+            Button { Task { await p.refreshHealth() } } label: { Label("Check again", systemImage: "arrow.clockwise") }.font(.house(.footnote)).disabled(p.healthLoading)
         }
     }
 
@@ -163,7 +163,7 @@ struct DesignPublishSheet: View {
         VStack(alignment: .leading, spacing: pt(6)) {
             Toggle(isOn: on) { Label(title, systemImage: symbol) }.tint(Theme.accent)
             if on.wrappedValue { pictureLine(dest) }
-            if let note, on.wrappedValue { Text(note).font(.footnote).foregroundStyle(.secondary) }
+            if let note, on.wrappedValue { Text(note).font(.house(.footnote)).foregroundStyle(.secondary) }
         }
     }
 
@@ -171,25 +171,25 @@ struct DesignPublishSheet: View {
     @ViewBuilder private func pictureLine(_ dest: String) -> some View {
         let pick = p.pick(dest)
         if let page = pick.page {
-            Text("Uses: \(page.label)").font(.footnote).foregroundStyle(.secondary)
+            Text("Uses: \(page.label)").font(.house(.footnote)).foregroundStyle(.secondary)
         } else if let m = p.missing(dest) {
-            Button { Task { await p.make(m) } } label: { Label(m.label, systemImage: "wand.and.stars") }.buttonStyle(.bordered).font(.footnote)
+            Button { Task { await p.make(m) } } label: { Label(m.label, systemImage: "wand.and.stars") }.buttonStyle(.bordered).font(.house(.footnote))
         }
     }
 
     private var websiteBlock: some View {
         VStack(alignment: .leading, spacing: pt(8)) {
             Toggle(isOn: bind(\.websiteOn)) { Label("Website", systemImage: "globe") }.tint(Theme.accent).disabled(!p.ok("website"))
-            if let reason = p.row("website")?.reason, !p.ok("website") { Text(reason).font(.footnote).foregroundStyle(.secondary) }
+            if let reason = p.row("website")?.reason, !p.ok("website") { Text(reason).font(.house(.footnote)).foregroundStyle(.secondary) }
             if p.websiteOn && p.ok("website") {
                 Picker("Collection", selection: bind(\.folder)) {
                     Text("Choose a collection…").tag("")
                     ForEach(p.collections) { Text($0.title).tag($0.folder) }
                 }.pickerStyle(.menu)
                 if p.ok("featured") {
-                    Toggle("Set of the day on the home page", isOn: bind(\.featured)).font(.subheadline).tint(Theme.accent)
+                    Toggle("Set of the day on the home page", isOn: bind(\.featured)).font(.house(.subheadline)).tint(Theme.accent)
                     if p.featured, let f = WebsiteStore.shared.featured {
-                        Text("It replaces \(f.file) as the set of the day.").font(.footnote).foregroundStyle(.secondary)
+                        Text("It replaces \(f.file) as the set of the day.").font(.house(.footnote)).foregroundStyle(.secondary)
                     }
                 }
                 if p.isMaison {
@@ -200,22 +200,22 @@ struct DesignPublishSheet: View {
                 }
                 if p.renaming || p.isMaison {
                     VStack(alignment: .leading, spacing: pt(2)) {
-                        Text(p.isMaison ? "Official name, as the house names it" : "Name on the website").font(.caption).foregroundStyle(.secondary)
+                        Text(p.isMaison ? "Official name, as the house names it" : "Name on the website").font(.house(.caption)).foregroundStyle(.secondary)
                         TextField(p.work?.fields["headline"] ?? p.work?.displayName ?? "", text: bind(\.siteName))
                             .padding(.horizontal, pt(12)).padding(.vertical, pt(8))
                             .background(Theme.ground, in: .rect(cornerRadius: Radius.tile, style: .continuous))
-                        if p.isMaison { Text("Shown under its house, in 18k, with no gold-rate price.").font(.caption2).foregroundStyle(.secondary) }
+                        if p.isMaison { Text("Shown under its house, in 18k, with no gold-rate price.").font(.house(.caption2)).foregroundStyle(.secondary) }
                     }
                 } else {
                     HStack(spacing: pt(4)) {
                         Text("Named “\(p.siteName.trimmingCharacters(in: .whitespaces).isEmpty ? (p.work?.fields["headline"] ?? p.work?.displayName ?? "") : p.siteName)”")
-                            .font(.footnote).foregroundStyle(.secondary).lineLimit(1)
-                        Button("Change") { p.renaming = true }.font(.footnote)
+                            .font(.house(.footnote)).foregroundStyle(.secondary).lineLimit(1)
+                        Button("Change") { p.renaming = true }.font(.house(.footnote))
                     }
                 }
                 pictureLine("website")
                 if !p.pages.contains(where: { $0.label == DesignSizes.website.label }), let m = p.missing("website") {
-                    Button { Task { await p.make(m) } } label: { Label("Make the catalogue photo (weight stamped)", systemImage: "wand.and.stars") }.buttonStyle(.bordered).font(.footnote)
+                    Button { Task { await p.make(m) } } label: { Label("Make the catalogue photo (weight stamped)", systemImage: "wand.and.stars") }.buttonStyle(.bordered).font(.house(.footnote))
                 }
             }
         }
@@ -228,7 +228,7 @@ struct DesignPublishSheet: View {
         if ch?.available == true { targets += ch?.targets ?? [] }
         return VStack(alignment: .leading, spacing: pt(8)) {
             Toggle(isOn: bind(\.waOn)) { Label("WhatsApp", systemImage: "message") }.tint(Theme.accent).disabled(targets.isEmpty)
-            if targets.isEmpty { Text(wa?.reason ?? ch?.reason ?? "This shop has no WhatsApp community set.").font(.footnote).foregroundStyle(.secondary) }
+            if targets.isEmpty { Text(wa?.reason ?? ch?.reason ?? "This shop has no WhatsApp community set.").font(.house(.footnote)).foregroundStyle(.secondary) }
             if p.waOn && !targets.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: pt(8)) {
@@ -249,11 +249,11 @@ struct DesignPublishSheet: View {
         let share = p.igMode(id) == "share"
         return VStack(alignment: .leading, spacing: pt(6)) {
             Toggle(isOn: on) { Label(title + (share ? " (share sheet)" : ""), systemImage: symbol) }.tint(Theme.accent)
-            if let reason = r?.reason { Text(reason).font(.footnote).foregroundStyle(.secondary) }
+            if let reason = r?.reason { Text(reason).font(.house(.footnote)).foregroundStyle(.secondary) }
             if on.wrappedValue {
                 pictureLine(id)
                 if r?.connectable == true {
-                    Button { Task { if let url = await p.connectInstagram() { openURL(url) } } } label: { Label("Connect Instagram", systemImage: "link") }.buttonStyle(.bordered).font(.footnote)
+                    Button { Task { if let url = await p.connectInstagram() { openURL(url) } } } label: { Label("Connect Instagram", systemImage: "link") }.buttonStyle(.bordered).font(.house(.footnote))
                 }
             }
         }
@@ -280,7 +280,7 @@ struct DesignPublishSheet: View {
 
     private func captionField(_ label: String, _ text: Binding<String>, lines: ClosedRange<Int> = 3...8) -> some View {
         VStack(alignment: .leading, spacing: pt(4)) {
-            Text(label).font(.caption).foregroundStyle(.secondary)
+            Text(label).font(.house(.caption)).foregroundStyle(.secondary)
             TextField(label, text: text, axis: .vertical).lineLimit(lines)
                 .padding(.horizontal, pt(12)).padding(.vertical, pt(9))
                 .background(Theme.ground, in: .rect(cornerRadius: Radius.tile, style: .continuous))
@@ -292,8 +292,8 @@ struct DesignPublishSheet: View {
             Picker("When", selection: bind(\.when)) {
                 Text("Send now").tag("now"); Text("Hold in the queue").tag("hold"); Text("Schedule").tag("schedule")
             }.pickerStyle(.segmented)
-            if p.when == "schedule" { DatePicker("Send at", selection: bind(\.due), in: Date()...).font(.subheadline) }
-            if p.queued && p.postOn { Text("The queue carries the website, WhatsApp and the story; the Instagram post goes out now, not from the queue.").font(.footnote).foregroundStyle(.secondary) }
+            if p.when == "schedule" { DatePicker("Send at", selection: bind(\.due), in: Date()...).font(.house(.subheadline)) }
+            if p.queued && p.postOn { Text("The queue carries the website, WhatsApp and the story; the Instagram post goes out now, not from the queue.").font(.house(.footnote)).foregroundStyle(.secondary) }
         }
         .ledgerCard()
     }
@@ -352,18 +352,18 @@ struct DesignPublishSheet: View {
                     HStack(alignment: .firstTextBaseline, spacing: pt(8)) {
                         icon(st.status).motion(st.status)
                         VStack(alignment: .leading, spacing: pt(2)) {
-                            Text(s.label).font(.subheadline)
-                            if let e = st.error { Text(e).font(.footnote).foregroundStyle(Tone.problem.color) }
+                            Text(s.label).font(.house(.subheadline))
+                            if let e = st.error { Text(e).font(.house(.footnote)).foregroundStyle(Tone.problem.color) }
                         }
                         Spacer(minLength: 0)
                     }
                     if st.status == .failed {
-                        Button { Task { await p.run(only: s.id) } } label: { Label("Retry", systemImage: "arrow.clockwise") }.buttonStyle(.bordered).font(.footnote).disabled(p.busy)
+                        Button { Task { await p.run(only: s.id) } } label: { Label("Retry", systemImage: "arrow.clockwise") }.buttonStyle(.bordered).font(.house(.footnote)).disabled(p.busy)
                     }
                     if s.manual && st.status == .manual {
                         HStack(spacing: pt(8)) {
-                            Button { Task { await shareStep(s) } } label: { Label("Share it", systemImage: "square.and.arrow.up") }.buttonStyle(.bordered).font(.footnote)
-                            Button("Posted") { p.markDone(s.id, "by hand") }.font(.footnote)
+                            Button { Task { await shareStep(s) } } label: { Label("Share it", systemImage: "square.and.arrow.up") }.buttonStyle(.bordered).font(.house(.footnote))
+                            Button("Posted") { p.markDone(s.id, "by hand") }.font(.house(.footnote))
                         }
                     }
                 }
@@ -396,18 +396,18 @@ struct DesignPublishSheet: View {
     private var extras: some View {
         VStack(alignment: .leading, spacing: pt(8)) {
             Divider()
-            Button { Task { await shareAll() } } label: { Label("Share or save every size", systemImage: "square.and.arrow.up.on.square") }.font(.subheadline)
+            Button { Task { await shareAll() } } label: { Label("Share or save every size", systemImage: "square.and.arrow.up.on.square") }.font(.house(.subheadline))
             if p.row("whatsapp") != nil || p.row("channel") != nil {
-                Button { Task { await shareCaptioned() } } label: { Label("Share the picture with its caption", systemImage: "square.and.arrow.up") }.font(.subheadline)
+                Button { Task { await shareCaptioned() } } label: { Label("Share the picture with its caption", systemImage: "square.and.arrow.up") }.font(.house(.subheadline))
             }
             if !p.wa.trimmingCharacters(in: .whitespaces).isEmpty {
-                Button { UIPasteboard.general.string = p.wa; p.model.say("The caption is copied") } label: { Label("Copy the caption", systemImage: "doc.on.doc") }.font(.subheadline)
+                Button { UIPasteboard.general.string = p.wa; p.model.say("The caption is copied") } label: { Label("Copy the caption", systemImage: "doc.on.doc") }.font(.house(.subheadline))
             }
             if let link = URL(string: p.config["posting"]["links"].s("waChannel")), link.scheme == "https" {
-                Link(destination: link) { Label("Open the WhatsApp channel", systemImage: "arrow.up.right.square") }.font(.subheadline)
+                Link(destination: link) { Label("Open the WhatsApp channel", systemImage: "arrow.up.right.square") }.font(.house(.subheadline))
             }
             if !p.memory.isEmpty {
-                Button("Send again from the start") { confirmingAgain = true }.font(.subheadline).disabled(p.busy)
+                Button("Send again from the start") { confirmingAgain = true }.font(.house(.subheadline)).disabled(p.busy)
             }
         }
     }
@@ -473,7 +473,7 @@ extension DesignPublishSheet {
     }
 
     private func macNote(_ text: String) -> some View {
-        Text(text).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        Text(text).font(.house(.caption)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
     }
 
     /// The page a place takes, or the button that makes the one it lacks.
@@ -610,7 +610,7 @@ extension DesignPublishSheet {
 
     private func macCaption(_ label: String, _ text: Binding<String>, lines: ClosedRange<Int> = 3...8) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(label).font(.caption).foregroundStyle(.secondary)
+            Text(label).font(.house(.caption)).foregroundStyle(.secondary)
             TextField(label, text: text, axis: .vertical).labelsHidden().lineLimit(lines).textFieldStyle(.roundedBorder)
         }
     }
@@ -696,7 +696,7 @@ extension DesignPublishSheet {
             macIcon(st.status)
             VStack(alignment: .leading, spacing: 2) {
                 Text(s.label)
-                if let e = st.error { Text(e).font(.caption).foregroundStyle(Tone.problem.color) }
+                if let e = st.error { Text(e).font(.house(.caption)).foregroundStyle(Tone.problem.color) }
             }
             Spacer(minLength: 8)
             if st.status == .failed { Button("Retry") { Task { await p.run(only: s.id) } }.disabled(p.busy) }

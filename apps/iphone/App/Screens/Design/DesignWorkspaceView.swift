@@ -174,14 +174,14 @@ struct DesignWorkspaceView: View {
     private func header(_ w: DesignWork) -> some View {
         VStack(alignment: .leading, spacing: pt(12)) {
             HStack(spacing: pt(8)) {
-                Button(action: onClose) { Label("Designs", systemImage: "chevron.left").font(.subheadline.weight(.medium)).frame(minHeight: Metrics.tap) }.buttonStyle(.plain)
+                Button(action: onClose) { Label("Designs", systemImage: "chevron.left").font(.house(.subheadline).weight(.medium)).frame(minHeight: Metrics.tap) }.buttonStyle(.plain)
                 Pill(DesignKinds.label(w.kind), tone: .house)
                 Spacer(minLength: 0)
             }
             TextField(w.fields["headline"].flatMap { $0.isEmpty ? nil : $0 } ?? "Name this design", text: Binding(get: { model.work?.name ?? "" }, set: { model.rename($0) }))
-                .font(.title3.weight(.semibold)).submitLabel(.done)
+                .font(.house(.title3).weight(.semibold)).submitLabel(.done)
             if let at = model.draftSaved {
-                Text("Draft kept on \(DesignDraftLine.device) " + ShopDate.stamp(at, withTime: true)).font(.caption).foregroundStyle(.secondary)
+                Text("Draft kept on \(DesignDraftLine.device) " + ShopDate.stamp(at, withTime: true)).font(.house(.caption)).foregroundStyle(.secondary)
             }
         }
         .ledgerCard()
@@ -196,8 +196,8 @@ struct DesignWorkspaceView: View {
                 // PHASE 2: "Resize…" makes the master's design on another shape (DesignHooks.resize).
                 Button { DesignHooks.shared.resize(model) } label: {
                     VStack(spacing: pt(6)) {
-                        Image(systemName: "plus").font(.title3)
-                        Text("Size").font(.caption)
+                        Image(systemName: "plus").font(.house(.title3))
+                        Text("Size").font(.house(.caption))
                     }
                     .foregroundStyle(.secondary).frame(width: 84, height: 104)
                     .overlay(RoundedRectangle(cornerRadius: Radius.chip, style: .continuous).strokeBorder(.secondary.opacity(0.4), style: StrokeStyle(lineWidth: 1.5, dash: [5, 4])))
@@ -214,11 +214,11 @@ struct DesignWorkspaceView: View {
         let zone = DesignSizes.safeZone(h: page.h)
         return VStack(alignment: .leading, spacing: pt(12)) {
             HStack {
-                Text(page.label).font(.subheadline.weight(.semibold))
-                Text("\(Int(page.w))×\(Int(page.h))").font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                Text(page.label).font(.house(.subheadline).weight(.semibold))
+                Text("\(Int(page.w))×\(Int(page.h))").font(.house(.caption)).foregroundStyle(.secondary).monospacedDigit()
                     .contentTransition(.numericText()).motion(page.id)
                 Spacer(minLength: 0)
-                if zone.top > 0 { Toggle("Safe zones", isOn: $safe).font(.caption).fixedSize() }
+                if zone.top > 0 { Toggle("Safe zones", isOn: $safe).font(.house(.caption)).fixedSize() }
             }
             Group {
                 if let image = model.previews[page.id] {
@@ -241,7 +241,7 @@ struct DesignWorkspaceView: View {
                     .buttonStyle(.bordered).largeOnPhone()
             }
             if w.stale.contains(page.id) {
-                Text("This size is behind the master. Re-do it from the master, or leave it as it is.").font(.footnote).foregroundStyle(Tone.owed.color)
+                Text("This size is behind the master. Re-do it from the master, or leave it as it is.").font(.house(.footnote)).foregroundStyle(Tone.owed.color)
             }
         }
         .ledgerCard()
@@ -273,8 +273,8 @@ struct DesignWorkspaceView: View {
             HStack(spacing: pt(12)) {
                 DesignPhotoThumb(model: model)
                 VStack(alignment: .leading, spacing: pt(2)) {
-                    Text(model.photos["photo"] == nil ? "No photograph" : "The design’s photograph").font(.subheadline.weight(.medium))
-                    Text("Your layouts stay; the new picture shows in them.").font(.footnote).foregroundStyle(.secondary)
+                    Text(model.photos["photo"] == nil ? "No photograph" : "The design’s photograph").font(.house(.subheadline).weight(.medium))
+                    Text("Your layouts stay; the new picture shows in them.").font(.house(.footnote)).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 0)
             }
@@ -295,7 +295,7 @@ struct DesignWorkspaceView: View {
     private var moreRow: some View {
         VStack(alignment: .leading, spacing: pt(8)) {
             HStack {
-                Text("More photos of this piece").font(.subheadline.weight(.medium))
+                Text("More photos of this piece").font(.house(.subheadline).weight(.medium))
                 Spacer(minLength: 0)
                 PhotosPicker(selection: $morePicked, maxSelectionCount: 8, matching: .images) { Label("Add", systemImage: "plus") }.buttonStyle(.bordered)
             }
@@ -317,7 +317,7 @@ struct DesignWorkspaceView: View {
                 }
             }
             Text(model.moreIds.isEmpty ? "Other angles of the same piece go out with it as squares of their own." : "Publish sends each to the website and WhatsApp as a square of its own, on the same page design.")
-                .font(.caption2).foregroundStyle(.secondary)
+                .font(.house(.caption2)).foregroundStyle(.secondary)
         }
     }
 
@@ -359,10 +359,10 @@ private struct PageCell: View {
                 .frame(width: max(40, min(96, 76 * page.w / page.h)), height: 76)
                 .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
             }.buttonStyle(.plain)
-            Text(page.label).font(.caption2).lineLimit(1).frame(maxWidth: 96)
+            Text(page.label).font(.house(.caption2)).lineLimit(1).frame(maxWidth: 96)
             HStack(spacing: pt(3)) {
                 if page.id == work.master { Image(systemName: "star.fill").imageScale(.small) }
-                Text(work.stripNote(page)).font(.caption2)
+                Text(work.stripNote(page)).font(.house(.caption2))
             }
             .foregroundStyle(work.stale.contains(page.id) ? Tone.owed.color : Color.secondary)
             if on { menu }
@@ -389,7 +389,7 @@ private struct PageCell: View {
     private var menu: some View {
         Menu {
             actions
-        } label: { Image(systemName: "ellipsis.circle").font(.footnote) }
+        } label: { Image(systemName: "ellipsis.circle").font(.house(.footnote)) }
             .accessibilityLabel("This size")
     }
 }
@@ -417,7 +417,7 @@ private struct DesignField: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: pt(4)) {
-            Text(label).font(.caption).foregroundStyle(.secondary)
+            Text(label).font(.house(.caption)).foregroundStyle(.secondary)
             TextField(prompt, text: $text, axis: .vertical)
                 .lineLimit(lines)
                 .padding(.horizontal, pt(12)).padding(.vertical, pt(9))
@@ -475,8 +475,8 @@ extension DesignWorkspaceView {
                 ForEach(w.pages) { p in PageCell(model: model, work: w, page: p, removing: $removing) }
                 Button { DesignHooks.shared.resize(model) } label: {
                     VStack(spacing: 6) {
-                        Image(systemName: "plus").font(.title3)
-                        Text("Size").font(.caption)
+                        Image(systemName: "plus").font(.house(.title3))
+                        Text("Size").font(.house(.caption))
                     }
                     .foregroundStyle(.secondary).frame(width: 84, height: 64)
                     .overlay(RoundedRectangle(cornerRadius: Radius.chip, style: .continuous).strokeBorder(.secondary.opacity(0.4), style: StrokeStyle(lineWidth: 1.5, dash: [5, 4])))
@@ -560,7 +560,7 @@ extension DesignWorkspaceView {
                           prompt: Text(w.fields["headline"].flatMap { $0.isEmpty ? nil : $0 } ?? "Name this design"))
                 LabeledContent("Kind", value: DesignKinds.label(w.kind))
                 if let at = model.draftSaved {
-                    Text("Draft kept on this Mac " + ShopDate.stamp(at, withTime: true)).font(.caption).foregroundStyle(.secondary)
+                    Text("Draft kept on this Mac " + ShopDate.stamp(at, withTime: true)).font(.house(.caption)).foregroundStyle(.secondary)
                 }
             }
             Section("On the page") {
@@ -583,7 +583,7 @@ extension DesignWorkspaceView {
     @ViewBuilder
     private func macWordField(_ label: String, _ prompt: String, key: String?, _ text: Binding<String>, lines: ClosedRange<Int> = 1...3) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(label).font(.caption).foregroundStyle(.secondary)
+            Text(label).font(.house(.caption)).foregroundStyle(.secondary)
             if let key {
                 TextField(label, text: text, prompt: Text(prompt), axis: .vertical)
                     .labelsHidden().lineLimit(lines).textFieldStyle(.roundedBorder)
@@ -605,7 +605,7 @@ extension DesignWorkspaceView {
                     DesignPhotoThumb(model: model)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(model.photos["photo"] == nil ? "No photograph" : "The design’s photograph")
-                        Text("Your layouts stay; the new picture shows in them.").font(.caption).foregroundStyle(.secondary)
+                        Text("Your layouts stay; the new picture shows in them.").font(.house(.caption)).foregroundStyle(.secondary)
                     }
                 }
                 Menu(model.photos["photo"] == nil ? "Choose a Photograph" : "Change the Photograph") {

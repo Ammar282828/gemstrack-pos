@@ -48,7 +48,7 @@ struct RoundOffChips: View {
                             if chosen { Image(systemName: "checkmark") }
                             Text(roundOffLabel(o)).monospacedDigit()
                         }
-                        .font(.caption.weight(chosen ? .semibold : .regular))
+                        .font(.house(.caption).weight(chosen ? .semibold : .regular))
                     }
                     .buttonStyle(.bordered)
                     .buttonBorderShape(.capsule)

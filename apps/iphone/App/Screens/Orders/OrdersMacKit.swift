@@ -76,7 +76,7 @@ struct OrdersStageBoard<Card: View>: View {
                                 if column.folds && !forceOpen {
                                     Button("Fold away") { opened.remove(column.id) }
                                         .buttonStyle(.borderless)
-                                        .font(.footnote)
+                                        .font(.house(.footnote))
                                 }
                             }
                         }

@@ -135,7 +135,7 @@ struct InsightsMacPlatformTable: View {
             TableColumn(AdsMacMoney.header("Spent", currency), value: \.spend) { (r: InsightsMacPlatformRow) in
                 VStack(alignment: .trailing, spacing: 0) {
                     AdsMacMoney(r.spend)
-                    if !r.change.isEmpty { Text(r.change).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
+                    if !r.change.isEmpty { Text(r.change).font(.house(.caption)).foregroundStyle(.secondary).lineLimit(1) }
                 }
                 .frame(maxWidth: .infinity, alignment: .trailing)
             }
@@ -219,8 +219,8 @@ struct InsightsMacHourChart: View {
                     .foregroundStyle(Color.secondary.opacity(0.4))
                     .annotation(position: .top, overflowResolution: .init(x: .fit(to: .chart), y: .disabled)) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(h.label).font(.caption.weight(.semibold))
-                            Text("\(AdsFormat.compact(h.online)) online").font(.caption).monospacedDigit()
+                            Text(h.label).font(.house(.caption).weight(.semibold))
+                            Text("\(AdsFormat.compact(h.online)) online").font(.house(.caption)).monospacedDigit()
                         }
                         .padding(8)
                         .background(Theme.card, in: .rect(cornerRadius: 8, style: .continuous))
@@ -264,8 +264,8 @@ struct InsightsMacPostPanel: View {
                     .clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))
                     .frame(maxWidth: .infinity)
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(InsightWords.kind[post.kind] ?? post.kind).font(.system(.title3, design: .serif).weight(.semibold))
-                    Text(ShopDate.say(post.at)).font(.callout).foregroundStyle(.secondary)
+                    Text(InsightWords.kind[post.kind] ?? post.kind).font(.house(.title3).weight(.semibold))
+                    Text(ShopDate.say(post.at)).font(.house(.callout)).foregroundStyle(.secondary)
                     if live { Pill("Up now", tone: .settled) } else if post.older { Pill("Before this range", tone: .quiet) }
                 }
                 if !post.caption.isEmpty {

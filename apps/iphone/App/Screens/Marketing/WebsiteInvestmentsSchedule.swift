@@ -212,7 +212,7 @@ struct WebsiteGoldScheduleSheet: View {
                         Button("Mon–Sat") { draft?.days = [1, 2, 3, 4, 5, 6] }
                         Button("Mon–Fri") { draft?.days = [1, 2, 3, 4, 5] }
                     }
-                    .font(.subheadline)
+                    .font(.house(.subheadline))
                     .buttonStyle(.borderless)
                 } header: {
                     LedgerHeading(title: "Which days")
@@ -264,7 +264,7 @@ struct WebsiteGoldScheduleSheet: View {
             Toggle(isOn: onBinding(t.id)) {
                 VStack(alignment: .leading, spacing: pt(2)) {
                     Text(t.label)
-                    Text("to " + t.to).font(.caption).foregroundStyle(.secondary)
+                    Text("to " + t.to).font(.house(.caption)).foregroundStyle(.secondary)
                 }
             }
             .tint(Theme.accent)
@@ -465,12 +465,12 @@ struct WebsiteGoldAddSheet: View {
             .frame(width: 52, height: 52)
             .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
             VStack(alignment: .leading, spacing: pt(4)) {
-                Text(title).font(.subheadline)
+                Text(title).font(.house(.subheadline))
                 HStack(spacing: pt(14)) {
                     Button(has ? "Replace" : "Choose", action: pick)
                     if has { Button("Remove", role: .destructive, action: clear) }
                 }
-                .font(.subheadline)
+                .font(.house(.subheadline))
                 .buttonStyle(.borderless)
             }
         }

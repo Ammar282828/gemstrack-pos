@@ -29,7 +29,7 @@ private struct AbReadout: View {
 
     var body: some View {
         Text(text ?? hint)
-            .font(.footnote)
+            .font(.house(.footnote))
             .foregroundStyle(text == nil ? Color.secondary : Color.primary)
             .monospacedDigit()
             .fixedSize(horizontal: false, vertical: true)
@@ -108,10 +108,10 @@ struct AbTrend: View {
 
     private func tip(_ r: ComparedRow) -> some View {
         AbTip {
-            Text(r.tip).font(.caption.weight(.semibold))
-            Text(Money.pkrLac(r.value)).font(.caption).monospacedDigit()
+            Text(r.tip).font(.house(.caption).weight(.semibold))
+            Text(Money.pkrLac(r.value)).font(.house(.caption)).monospacedDigit()
             if showPrev, let p = r.prev {
-                Text(Money.pkrLac(p) + " before").font(.caption2).foregroundStyle(.secondary).monospacedDigit()
+                Text(Money.pkrLac(p) + " before").font(.house(.caption2)).foregroundStyle(.secondary).monospacedDigit()
             }
         }
     }
@@ -209,10 +209,10 @@ struct AbBars: View {
     private func tip(_ at: Date) -> some View {
         let here = points.filter { (p: AbBarPoint) -> Bool in p.plot == at }
         return AbTip {
-            Text(here.first?.tip ?? "").font(.caption.weight(.semibold))
+            Text(here.first?.tip ?? "").font(.house(.caption).weight(.semibold))
             ForEach(names, id: \.self) { (name: String) in
                 if let p = here.first(where: { (q: AbBarPoint) -> Bool in q.series == name }) {
-                    Text(name + ": " + format(p.value)).font(.caption).monospacedDigit()
+                    Text(name + ": " + format(p.value)).font(.house(.caption)).monospacedDigit()
                 }
             }
         }
@@ -355,7 +355,7 @@ struct AbHBars: View {
                         .cornerRadius(3, style: .continuous)
                         .annotation(position: .trailing, spacing: 4) {
                             Text(e.row.valueText + (e.row.chip.map { " · " + $0 } ?? ""))
-                                .font(.caption2)
+                                .font(.house(.caption2))
                                 .foregroundStyle(.secondary)
                                 .monospacedDigit()
                                 .fixedSize()
@@ -407,7 +407,7 @@ struct AbStack: View {
     var body: some View {
         VStack(alignment: .leading, spacing: pt(8)) {
             if shown.isEmpty {
-                Text("Nothing in this period.").font(.footnote).foregroundStyle(.secondary)
+                Text("Nothing in this period.").font(.house(.footnote)).foregroundStyle(.secondary)
             } else {
                 GeometryReader { (geo: GeometryProxy) in
                     HStack(spacing: 2) {
@@ -427,10 +427,10 @@ struct AbStack: View {
                     ForEach(shown) { (p: AbPart) in
                         HStack(spacing: pt(8)) {
                             Circle().fill(p.color).frame(width: 8, height: 8).accessibilityHidden(true)
-                            Text(p.label).font(.footnote).foregroundStyle(.secondary)
+                            Text(p.label).font(.house(.footnote)).foregroundStyle(.secondary)
                             Spacer(minLength: pt(8))
-                            Text(format(p.value)).font(.footnote.weight(picked == p.id ? .semibold : .medium)).monospacedDigit()
-                            Text(String(AbSay.percent(p.value, total)) + "%").font(.footnote).foregroundStyle(.secondary).monospacedDigit()
+                            Text(format(p.value)).font(.house(.footnote).weight(picked == p.id ? .semibold : .medium)).monospacedDigit()
+                            Text(String(AbSay.percent(p.value, total)) + "%").font(.house(.footnote)).foregroundStyle(.secondary).monospacedDigit()
                                 .frame(minWidth: 34, alignment: .trailing)
                         }
                         .accessibilityElement(children: .combine)

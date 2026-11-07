@@ -50,7 +50,7 @@ struct PostQueueSpreadSheet: View {
                 if !failing.isEmpty {
                     Section {
                         ForEach(failing) { (c: PostCheck) in
-                            Text("\(c.label): \(c.fix ?? c.detail)").font(.footnote)
+                            Text("\(c.label): \(c.fix ?? c.detail)").font(.house(.footnote))
                         }
                     } header: {
                         LedgerHeading(title: "Something they need is failing now", tone: .problem)

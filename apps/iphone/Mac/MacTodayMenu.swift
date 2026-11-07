@@ -48,23 +48,23 @@ struct MacTodayMenu: View {
         let look = ERPWidgetLook(link)
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(link.name).font(.headline).foregroundStyle(look.accent)
+                Text(link.name).font(.house(.headline)).foregroundStyle(look.accent)
                 Spacer()
-                if let s = summaries[link.id] { Text(s.updated).font(.caption).foregroundStyle(.secondary) }
+                if let s = summaries[link.id] { Text(s.updated).font(.house(.caption)).foregroundStyle(.secondary) }
             }
             if let s = summaries[link.id] {
                 Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {
                     ForEach(s.figures.prefix(6), id: \.self) { f in
                         GridRow {
                             Text(f.label).foregroundStyle(.secondary)
-                            Text(f.value).font(.body.monospacedDigit().weight(.semibold))
+                            Text(f.value).font(.house(.body).monospacedDigit().weight(.semibold))
                                 .gridColumnAlignment(.trailing)
-                            Text(f.detail ?? "").font(.caption).foregroundStyle(.tertiary)
+                            Text(f.detail ?? "").font(.house(.caption)).foregroundStyle(.tertiary)
                         }
                     }
                 }
                 if let needs = s.extras?.needs, !needs.isEmpty {
-                    Text("Needs you").font(.caption.weight(.semibold)).foregroundStyle(.secondary).padding(.top, 4)
+                    Text("Needs you").font(.house(.caption).weight(.semibold)).foregroundStyle(.secondary).padding(.top, 4)
                     ForEach(needs.prefix(3), id: \.self) { n in
                         Button {
                             MacWindows.openLink(look.url(n.path) ?? URL(string: "shoperp://open")!)
@@ -75,13 +75,13 @@ struct MacTodayMenu: View {
                                 Spacer()
                                 Text(n.detail).foregroundStyle(n.tone == "late" ? Color.red : Color.orange)
                             }
-                            .font(.callout)
+                            .font(.house(.callout))
                         }
                         .buttonStyle(.plain)
                     }
                 }
             } else if failed.contains(link.id) {
-                Text("The ERP could not be reached.").font(.callout).foregroundStyle(.secondary)
+                Text("The ERP could not be reached.").font(.house(.callout)).foregroundStyle(.secondary)
             } else {
                 ProgressView().controlSize(.small)
             }

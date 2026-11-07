@@ -57,9 +57,9 @@ struct DesignAccountAds: View {
                             }
                             .frame(width: 52, height: 52).background(Theme.ground).clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
                             VStack(alignment: .leading, spacing: pt(2)) {
-                                Text(a.name).font(.subheadline.weight(.medium)).lineLimit(1)
-                                Text(a.place).font(.footnote).foregroundStyle(.secondary).lineLimit(1)
-                                Text(a.status == "ACTIVE" ? "Running" : a.status.lowercased().replacingOccurrences(of: "_", with: " ")).font(.caption).foregroundStyle(.secondary)
+                                Text(a.name).font(.house(.subheadline).weight(.medium)).lineLimit(1)
+                                Text(a.place).font(.house(.footnote)).foregroundStyle(.secondary).lineLimit(1)
+                                Text(a.status == "ACTIVE" ? "Running" : a.status.lowercased().replacingOccurrences(of: "_", with: " ")).font(.house(.caption)).foregroundStyle(.secondary)
                             }
                             Spacer(minLength: 0)
                             Button { Task { await keep(a) } } label: {

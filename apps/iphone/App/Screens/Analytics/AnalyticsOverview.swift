@@ -53,7 +53,7 @@ struct AnaOverviewPage: View {
                 MoneyRow("Invoices", figures.invoiceSales, lac: true)
                 MoneyRow("Orders", figures.orderSales, lac: true)
                 MoneyRow("Extra revenue", figures.extraRevenue, lac: true)
-                if showCosts { Text(estNote).font(.footnote).foregroundStyle(.secondary) }
+                if showCosts { Text(estNote).font(.house(.footnote)).foregroundStyle(.secondary) }
             }
         }.houseRows()
     }
@@ -169,7 +169,7 @@ struct AnaOverviewPage: View {
                             .fontWeight(.semibold)
                             .monospacedDigit()
                         Text(weighed)
-                            .font(.caption)
+                            .font(.house(.caption))
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -179,7 +179,7 @@ struct AnaOverviewPage: View {
                         VStack(alignment: .trailing, spacing: pt(2)) {
                             Text(AnaFormat.number(AnaFormat.tola(k.grams), maxDigits: 3) + " tola").monospacedDigit()
                             Text(AnaFormat.number(k.grams, maxDigits: 2) + " g · " + AnaFormat.count(k.pieces))
-                                .font(.caption)
+                                .font(.house(.caption))
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -217,7 +217,7 @@ struct AnaOverviewPage: View {
                                 trailing: Money.pkrLac(c.outstanding),
                                 trailingTint: Tone.owed.color)
                     }
-                    Text("Coin figures are separate from jewellery revenue and profit.").font(.footnote).foregroundStyle(.secondary)
+                    Text("Coin figures are separate from jewellery revenue and profit.").font(.house(.footnote)).foregroundStyle(.secondary)
                     }
                 } else {
                     Text("No coin bills in this period.").foregroundStyle(.secondary)
@@ -252,15 +252,15 @@ struct AnaOverviewPage: View {
             DisclosureGroup("Cash breakdown") {
             ForEach(cashInParts) { (p: AnaCashPart) in
                 LabeledContent(p.label) { Text(Money.pkrLac(p.amount)).monospacedDigit() }
-                    .font(.subheadline)
+                    .font(.house(.subheadline))
                     .foregroundStyle(.secondary)
             }
             if gap > 0 {
                 Text("\(Money.pkrLac(gap)) of recognised revenue is not yet collected: it sits as customer receivables and uninvoiced open orders. That gap is the difference between revenue (what was earned) and Cash in, leaving out gold taken off a bill (it is off the revenue too).")
-                    .font(.footnote)
+                    .font(.house(.footnote))
                     .foregroundStyle(.secondary)
             }
-                Text("Cash flow counts money received and paid. Revenue also includes unpaid sales and open orders.").font(.footnote).foregroundStyle(.secondary)
+                Text("Cash flow counts money received and paid. Revenue also includes unpaid sales and open orders.").font(.house(.footnote)).foregroundStyle(.secondary)
             }
         } header: {
             LedgerHeading(title: "Cash flow")
@@ -315,7 +315,7 @@ struct AnaOverviewPage: View {
         if !showCosts {
             Section {
                 Text("Expenses, extra revenue and what the shop earns are the owners’ books, so these figures are from sales and orders only.")
-                    .font(.footnote)
+                    .font(.house(.footnote))
                     .foregroundStyle(.secondary)
             }
             .houseRows()

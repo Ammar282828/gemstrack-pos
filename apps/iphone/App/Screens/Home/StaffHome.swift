@@ -66,13 +66,13 @@ struct StaffActions: View {
         NavigationLink(value: Route(path: a.path)) {
             VStack(spacing: pt(6)) {
                 Image(systemName: a.symbol)
-                    .font(.title3.weight(.semibold))
+                    .font(.house(.title3).weight(.semibold))
                     .foregroundStyle(a.prominent ? Theme.onAccent : Theme.accent)
                     .frame(width: 46, height: 46)
                     .background(a.prominent ? Theme.accent : Theme.accent.opacity(0.13),
                                 in: .rect(cornerRadius: Radius.thumb, style: .continuous))
                 Text(a.title)
-                    .font(.caption.weight(.medium))
+                    .font(.house(.caption).weight(.medium))
                     .foregroundStyle(.primary)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)

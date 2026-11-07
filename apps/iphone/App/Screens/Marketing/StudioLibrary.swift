@@ -48,10 +48,10 @@ struct StudioLibrary: View {
                                 MarketingPhoto(path: item.s("thumb")).frame(width: 92, height: 92).clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
                                 VStack(alignment: .leading, spacing: pt(5)) {
                                     Text(item.s("name")).foregroundStyle(.primary)
-                                    Text(item.s("collection")).font(.caption).foregroundStyle(.secondary)
-                                    if item["adScore"] != .null { Text("Ad score · \(Int(clamped: item.n("adScore")))").font(.caption).foregroundStyle(.secondary) }
-                                    else { Text("Not assessed").font(.caption).foregroundStyle(.secondary) }
-                                    if item["usedInAds"].bool { Text("Used in an ad").font(.caption).foregroundStyle(.secondary) }
+                                    Text(item.s("collection")).font(.house(.caption)).foregroundStyle(.secondary)
+                                    if item["adScore"] != .null { Text("Ad score · \(Int(clamped: item.n("adScore")))").font(.house(.caption)).foregroundStyle(.secondary) }
+                                    else { Text("Not assessed").font(.house(.caption)).foregroundStyle(.secondary) }
+                                    if item["usedInAds"].bool { Text("Used in an ad").font(.house(.caption)).foregroundStyle(.secondary) }
                                 }
                             }.padding(.vertical, pt(5))
                         }
@@ -104,7 +104,7 @@ struct StudioLibrary: View {
             if !details.s("account").isEmpty {
                 Text(details.s("account")).textSelection(.enabled)
                 Button("Copy sharing address") { UIPasteboard.general.string = details.s("account") }
-                Text("Share the photo folders with this address as Viewer, without notifying.").font(.footnote).foregroundStyle(.secondary)
+                Text("Share the photo folders with this address as Viewer, without notifying.").font(.house(.footnote)).foregroundStyle(.secondary)
             }
             TextField("Folder link", text: $driveLink).keyboardType(.URL).textInputAutocapitalization(.never)
             Button("Add folder") { Task { await model.run("Adding Drive folder…") { _ = try await MarketingRequest.send("/api/ads/studio/drive", ["link": driveLink]); driveLink = "" }; await load(fresh: true) } }.disabled(driveLink.isEmpty)
@@ -156,10 +156,10 @@ extension StudioLibrary {
                                     MarketingPhoto(path: item.s("thumb"))
                                         .frame(maxWidth: .infinity).aspectRatio(1, contentMode: .fit)
                                         .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
-                                    Text(item.s("name")).font(.subheadline.weight(.medium)).lineLimit(2).foregroundStyle(.primary)
-                                    Text(item.s("collection")).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                                    Text(item.s("name")).font(.house(.subheadline).weight(.medium)).lineLimit(2).foregroundStyle(.primary)
+                                    Text(item.s("collection")).font(.house(.caption)).foregroundStyle(.secondary).lineLimit(1)
                                     Text(item["adScore"] != .null ? "Ad score · \(Int(clamped: item.n("adScore")))" : "Not assessed")
-                                        .font(.caption).foregroundStyle(.secondary)
+                                        .font(.house(.caption)).foregroundStyle(.secondary)
                                 }
                                 .padding(6)
                                 .contentShape(Rectangle())
@@ -234,14 +234,14 @@ struct StudioAssetSheet: View {
             List {
                 Section {
                     MarketingPhoto(path: "/api/ads/studio/image?id=" + AdsQuery.escape(item.s("id")) + "&size=1200").frame(height: 300)
-                    Text(item.s("name")).font(.headline)
-                    Text(item.s("specs")).font(.subheadline).foregroundStyle(.secondary)
+                    Text(item.s("name")).font(.house(.headline))
+                    Text(item.s("specs")).font(.house(.subheadline)).foregroundStyle(.secondary)
                     Button("Share original") { Task { await model.run("Preparing photo…") { let data = try await ERPAPI.shared.data("/api/ads/studio/image?id=" + AdsQuery.escape(item.s("id")) + "&size=2400"); let url = FileManager.default.temporaryDirectory.appendingPathComponent("photo-\(UUID().uuidString).jpg"); try data.write(to: url); share = MarketingFileShare(items: [url]) } } }
                     Button(item["assessment"] == .null ? "Assess photo" : "Assess again") { Task { await assess() } }
                 }.houseRows()
                 LedgerSection("Assessment") { MarketingDetails(fields: item["assessment"].object.mapValues(\.any)) }
                 LedgerSection("Photo tools") {
-                    Text("Open in Make for crop, all photo shapes, retouching, lighting and new settings.").font(.footnote).foregroundStyle(.secondary)
+                    Text("Open in Make for crop, all photo shapes, retouching, lighting and new settings.").font(.house(.footnote)).foregroundStyle(.secondary)
                     ForEach([("crop-tighter", "Crop tighter"), ("extend-portrait", "Extend to 4:5"), ("extend-story", "Extend to 9:16"), ("clear-labels", "Clear old labels"), ("retouch", "Retouch"), ("enhance", "Enhance light"), ("restage", "New setting")], id: \.0) { key, label in
                         Button(label) { Task { await model.choose(item, preferOriginal: false); if model.error == nil {
                             if key == "extend-portrait" || key == "extend-story" { await model.imageAI("reframe", params: ["aspect": key == "extend-story" ? "9:16" : "4:5", "tidy": true]) }

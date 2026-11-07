@@ -52,12 +52,12 @@ struct OrderPieceRow: View {
         VStack(alignment: .leading, spacing: pt(2)) {
             if let category = OrdersLogic.categorySingular(item.itemCategory) {
                 Text(category.uppercased())
-                    .font(.caption2.weight(.semibold))
+                    .font(.house(.caption2).weight(.semibold))
                     .tracking(0.6)
                     .foregroundStyle(.secondary)
             }
             Text(item.description.isEmpty ? "Piece \(index + 1)" : item.description)
-                .font(.headline)
+                .font(.house(.headline))
                 .foregroundStyle(done ? Color.secondary : Color.primary)
         }
         .accessibilityElement(children: .combine)
@@ -93,7 +93,7 @@ struct OrderPieceRow: View {
         let all = facts
         if !all.isEmpty {
             Text(all.joined(separator: " · "))
-                .font(.subheadline)
+                .font(.house(.subheadline))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -141,11 +141,11 @@ struct OrderPieceRow: View {
             }
             if assign != nil {
                 Image(systemName: "chevron.up.chevron.down")
-                    .font(.caption2)
+                    .font(.house(.caption2))
                     .foregroundStyle(.secondary)
             }
         }
-        .font(.subheadline)
+        .font(.house(.subheadline))
         .accessibilityElement(children: .combine)
     }
 
@@ -173,10 +173,10 @@ struct OrderPieceRow: View {
     private func noteBox(_ title: String, _ text: String, symbol: String, tint: Color) -> some View {
         VStack(alignment: .leading, spacing: pt(2)) {
             Label(title, systemImage: symbol)
-                .font(.caption.weight(.semibold))
+                .font(.house(.caption).weight(.semibold))
                 .foregroundStyle(tint)
             Text(text)
-                .font(.caption)
+                .font(.house(.caption))
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -198,10 +198,10 @@ struct OrderPieceRow: View {
                         Spacer()
                         Text(Money.pkr(total)).fontWeight(.semibold).monospacedDigit()
                         Image(systemName: priceOpen ? "chevron.up" : "chevron.down")
-                            .font(.caption2)
+                            .font(.house(.caption2))
                             .foregroundStyle(.secondary)
                     }
-                    .font(.subheadline)
+                    .font(.house(.subheadline))
                 }
                 .buttonStyle(.borderless)
                 .foregroundStyle(.primary)
@@ -212,7 +212,7 @@ struct OrderPieceRow: View {
                     Spacer()
                     Text(Money.pkr(total)).fontWeight(.semibold).monospacedDigit()
                 }
-                .font(.subheadline)
+                .font(.house(.subheadline))
             }
         }
     }
@@ -225,7 +225,7 @@ struct OrderPieceRow: View {
             line("Diamonds", item.diamondCharges)
             line("Stones", item.stoneCharges)
         }
-        .font(.caption)
+        .font(.house(.caption))
     }
 
     @ViewBuilder
@@ -252,7 +252,7 @@ struct OrderPieceRow: View {
                 onTick(!done)
             } label: {
                 Image(systemName: done ? "checkmark.circle.fill" : "circle")
-                    .font(.title2)
+                    .font(.house(.title2))
                     .foregroundStyle(done ? Tone.settled.color : Color.secondary)
                     .contentTransition(.symbolEffect(.replace))
                     .motion(done)
@@ -263,7 +263,7 @@ struct OrderPieceRow: View {
             .accessibilityLabel(done ? "Done. Tap to mark not done." : "Mark as complete")
         } else if done {
             Image(systemName: "checkmark.circle.fill")
-                .font(.title2)
+                .font(.house(.title2))
                 .foregroundStyle(Tone.settled.color)
                 .frame(width: 44, height: 44)
                 .accessibilityLabel("Done")

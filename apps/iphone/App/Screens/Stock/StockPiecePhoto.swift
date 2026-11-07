@@ -47,7 +47,7 @@ struct StockPiecePhotoField: View {
             if let busy {
                 VStack(alignment: .leading, spacing: pt(6)) {
                     ProgressView().progressViewStyle(.linear).tint(Theme.accent)
-                    Text(words(busy)).font(.footnote).foregroundStyle(.secondary)
+                    Text(words(busy)).font(.house(.footnote)).foregroundStyle(.secondary)
                 }
             }
             AdaptiveStack(spacing: pt(10), alignment: .center) {

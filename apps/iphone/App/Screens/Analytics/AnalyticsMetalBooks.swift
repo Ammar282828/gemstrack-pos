@@ -65,7 +65,7 @@ struct AbMetalPage: View {
                                        AnaFormat.number(t, maxDigits: 2) + " tola · " + AnaFormat.number(t * AnaFormat.gramsPerTola, maxDigits: 2) + " g"
                                    }, height: 280)
                             Text("Tola; touch a month for grams. The last 12 months, whatever period is picked.")
-                                .font(.footnote).foregroundStyle(.secondary)
+                                .font(.house(.footnote)).foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -94,11 +94,11 @@ struct AbMetalPage: View {
         if b.hasCoins {
             let coin = b.coinSummary
             VStack(alignment: .leading, spacing: pt(16)) {
-                Text("\(metal) coins").font(.system(.title3, design: .serif).weight(.semibold))
+                Text("\(metal) coins").font(.house(.title3).weight(.semibold))
                 if coin.invoices > 0 {
                     AbFigures(items: coinFigures(coin))
                 } else {
-                    Text("No coin bills in this period.").font(.subheadline).foregroundStyle(.secondary)
+                    Text("No coin bills in this period.").font(.house(.subheadline)).foregroundStyle(.secondary)
                 }
                 coinMonths
             }

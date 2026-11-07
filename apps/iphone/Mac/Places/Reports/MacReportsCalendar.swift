@@ -84,8 +84,8 @@ struct MacReportsCalendarDay: View {
     /// What the inspector is about, as every inspector's head says it: a headline over the day it is for.
     private var header: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text("Events").font(.title3.weight(.semibold))
-            Text(ShopCalendar.longDay(day)).font(.callout).foregroundStyle(.secondary).lineLimit(2)
+            Text("Events").font(.house(.title3).weight(.semibold))
+            Text(ShopCalendar.longDay(day)).font(.house(.callout)).foregroundStyle(.secondary).lineLimit(2)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 16)
@@ -101,7 +101,7 @@ struct MacReportsCalendarDay: View {
                 Image(systemName: e.isInvoice ? "receipt" : "list.clipboard")
                     .foregroundStyle(e.isInvoice ? Tone.settled.color : Tone.working.color)
                     .frame(width: 16)
-                Text(e.docId).font(.body.monospaced()).lineLimit(1)
+                Text(e.docId).font(.house(.body).monospaced()).lineLimit(1)
                 if session.seesMoney { MacAmount(e.grandTotal) }
             }
             HStack(spacing: 6) {
@@ -110,7 +110,7 @@ struct MacReportsCalendarDay: View {
                 Spacer(minLength: 4)
                 Text(ShopCalendar.clock(iso: e.createdAt)).lineLimit(1)
             }
-            .font(.caption)
+            .font(.house(.caption))
             .foregroundStyle(.secondary)
             .padding(.leading, 22)
         }
@@ -123,16 +123,16 @@ struct MacReportsCalendarDay: View {
                 Image(systemName: "calendar.badge.clock")
                     .foregroundStyle(Tone.owed.color)
                     .frame(width: 16)
-                Text(o.id).font(.body.monospaced()).lineLimit(1)
+                Text(o.id).font(.house(.body).monospaced()).lineLimit(1)
                 Spacer(minLength: 4)
                 // Completed is the expected end: no word for it.
                 if o.status != .completed {
                     MacStatus(o.status.rawValue.isEmpty ? "No status" : o.status.rawValue, tone: Tone(status: o.status))
-                        .font(.caption)
+                        .font(.house(.caption))
                 }
             }
             Text((o.customerName ?? "").isEmpty ? "Walk-in" : (o.customerName ?? ""))
-                .font(.caption)
+                .font(.house(.caption))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .padding(.leading, 22)

@@ -114,7 +114,7 @@ struct AdsObjectScreen: View {
                     Toggle("End date", isOn: $hasEnd).disabled(totalBudget)
                     if hasEnd || totalBudget { DatePicker("Stops", selection: $end, in: Date()...) }
                     Button("Save schedule") { Task { await act("schedule", ["end": hasEnd || totalBudget ? ERPDate.iso(end) as Any : NSNull()]) } }.disabled(busy)
-                    if totalBudget { Text("A total budget needs an end date. Meta spreads the budget up to it.").font(.footnote).foregroundStyle(.secondary) }
+                    if totalBudget { Text("A total budget needs an end date. Meta spreads the budget up to it.").font(.house(.footnote)).foregroundStyle(.secondary) }
                 }
             }
             if level == "adset" {
@@ -162,7 +162,7 @@ struct AdsObjectScreen: View {
                     StockImage(imageUrl: image, name: name, key: id).aspectRatio(contentMode: .fit)
                 }
                 if let text = creative["body"] as? String { Text(text).fixedSize(horizontal: false, vertical: true) }
-                if let title = creative["title"] as? String { Text(title).font(.headline) }
+                if let title = creative["title"] as? String { Text(title).font(.house(.headline)) }
                 if let link = creative["instagram_permalink_url"] as? String, let url = URL(string: link), url.scheme == "https" { Link("On Instagram", destination: url) }
             }
         }
@@ -355,7 +355,7 @@ extension AdsObjectScreen {
             }
             Toggle("End date", isOn: $hasEnd).disabled(totalBudget)
             if hasEnd || totalBudget { DatePicker("Stops", selection: $end, in: Date()..., displayedComponents: .date) }
-            if totalBudget { Text("A total budget needs an end date. Meta spreads the budget up to it.").font(.caption).foregroundStyle(.secondary) }
+            if totalBudget { Text("A total budget needs an end date. Meta spreads the budget up to it.").font(.house(.caption)).foregroundStyle(.secondary) }
             Button(hasEnd || totalBudget ? "Change the End Date" : "Remove the End Date") {
                 Task { await act("schedule", ["end": hasEnd || totalBudget ? ERPDate.iso(end) as Any : NSNull()]) }
             }
@@ -405,7 +405,7 @@ struct MarketingDetails: View {
         }
         if value is NSNull { return AnyView(EmptyView()) }
         return AnyView(VStack(alignment: .leading, spacing: pt(4)) {
-            Text(title).font(.caption).foregroundStyle(.secondary)
+            Text(title).font(.house(.caption)).foregroundStyle(.secondary)
             Text(String(describing: value)).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
         }.padding(.vertical, pt(3)))
     }

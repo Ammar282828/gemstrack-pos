@@ -94,7 +94,7 @@ struct MacHisaabLedgerView: View {
                 VStack(alignment: .trailing, spacing: 1) {
                     MacAmount(r.line.cash)
                     if page.hasGold {
-                        Text("\(MoneyFormat.grams(r.line.gold)) \(MoneyWords.metal)").font(.caption).foregroundStyle(.secondary)
+                        Text("\(MoneyFormat.grams(r.line.gold)) \(MoneyWords.metal)").font(.house(.caption)).foregroundStyle(.secondary)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .trailing)
@@ -130,7 +130,7 @@ struct MacHisaabLedgerView: View {
     private func moves(cash: Double, grams: Double, tone: Tone) -> some View {
         VStack(alignment: .trailing, spacing: 1) {
             if cash > 0 { MacAmount(cash, tone: tone) }
-            if grams > 0 { Text(MoneyFormat.grams(grams)).font(.caption).foregroundStyle(.secondary).monospacedDigit() }
+            if grams > 0 { Text(MoneyFormat.grams(grams)).font(.house(.caption)).foregroundStyle(.secondary).monospacedDigit() }
         }
         .frame(maxWidth: .infinity, alignment: .trailing)
     }
@@ -142,8 +142,8 @@ struct MacHisaabLedgerView: View {
         HStack(spacing: 14) {
             Monogram(name: name, size: Monogram.Size.hero)
             VStack(alignment: .leading, spacing: 2) {
-                Text(name.isEmpty ? "Hisaab" : name).font(.system(.title2, design: .serif).weight(.semibold)).lineLimit(2)
-                Text(isCustomer ? "Customer ledger" : "Karigar ledger").font(.callout).foregroundStyle(.secondary)
+                Text(name.isEmpty ? "Hisaab" : name).font(.house(.title2).weight(.semibold)).lineLimit(2)
+                Text(isCustomer ? "Customer ledger" : "Karigar ledger").font(.house(.callout)).foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
         }

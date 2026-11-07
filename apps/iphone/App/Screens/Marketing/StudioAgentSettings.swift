@@ -37,9 +37,9 @@ struct StudioAgentSettings: View {
             Form {
                 Section {
                     Text("Claude Code (or any MCP client) can read your style, search the photo library, put designs on a board, look at them and leave notes — within the house’s rules.")
-                        .font(.footnote).foregroundStyle(.secondary)
+                        .font(.house(.footnote)).foregroundStyle(.secondary)
                     if fresh != nil {
-                        Text("Run this once in a terminal. The key is shown only now.").font(.subheadline.weight(.medium))
+                        Text("Run this once in a terminal. The key is shown only now.").font(.house(.subheadline).weight(.medium))
                         Text(command).font(.system(.caption, design: .monospaced)).textSelection(.enabled)
                             .privacySensitive()
                         Button(copied ? "Copied" : "Copy", systemImage: copied ? "checkmark" : "doc.on.doc") {
@@ -49,11 +49,11 @@ struct StudioAgentSettings: View {
                         }
                         .buttonStyle(.bordered)
                         Text("Then ask Claude, for example: “Fill the Eid board with six ring ads from the studio.” Keep the board open on a phone or the web: it lays out and draws what the agent adds.")
-                            .font(.footnote).foregroundStyle(.secondary)
+                            .font(.house(.footnote)).foregroundStyle(.secondary)
                     } else {
                         Button(making ? "Making a key…" : "Make a key", systemImage: "key") { Task { await make() } }
                             .buttonStyle(.bordered).disabled(making || House.isDemo)
-                        if House.isDemo { Text("The demo can’t make keys.").font(.footnote).foregroundStyle(.secondary) }
+                        if House.isDemo { Text("The demo can’t make keys.").font(.house(.footnote)).foregroundStyle(.secondary) }
                     }
                 } header: { LedgerHeading(title: "Connect an agent") }.houseRows()
 
@@ -65,7 +65,7 @@ struct StudioAgentSettings: View {
                             HStack(alignment: .firstTextBaseline) {
                                 VStack(alignment: .leading, spacing: pt(2)) {
                                     Text(k.s("label", "Claude Code") + " ··" + tail)
-                                    Text(line(k)).font(.caption).foregroundStyle(.secondary)
+                                    Text(line(k)).font(.house(.caption)).foregroundStyle(.secondary)
                                 }
                                 Spacer()
                                 Button("Revoke", role: .destructive) { revoking = k }.buttonStyle(.borderless)

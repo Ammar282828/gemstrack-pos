@@ -120,7 +120,7 @@ struct PhotoThumb: View {
             .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
             .overlay(alignment: .bottomTrailing) {
                 if more > 0 {
-                    Text("+\(more)").font(.caption2.weight(.semibold)).foregroundStyle(.white)
+                    Text("+\(more)").font(.house(.caption2).weight(.semibold)).foregroundStyle(.white)
                         .padding(.horizontal, pt(6)).padding(.vertical, pt(2))
                         .background(.black.opacity(0.6), in: .capsule)
                         .padding(pt(4))
@@ -229,13 +229,13 @@ struct PhotoViewer: View {
     private var bar: some View {
         HStack(spacing: pt(12)) {
             Button { dismiss() } label: {
-                Image(systemName: "xmark.circle.fill").font(.title2).symbolRenderingMode(.palette).foregroundStyle(.white, .white.opacity(0.25)).frame(minWidth: Metrics.tap, minHeight: Metrics.tap).contentShape(Rectangle())
+                Image(systemName: "xmark.circle.fill").font(.house(.title2)).symbolRenderingMode(.palette).foregroundStyle(.white, .white.opacity(0.25)).frame(minWidth: Metrics.tap, minHeight: Metrics.tap).contentShape(Rectangle())
             }
             .accessibilityLabel("Close")
             Spacer()
             if photos.count > 1 {
                 if index > 0 { Button { step(-1) } label: { Image(systemName: "chevron.left").frame(minWidth: Metrics.tap, minHeight: Metrics.tap).contentShape(Rectangle()) }.accessibilityLabel("Previous photo") }
-                Text("\(index + 1) of \(photos.count)").font(.subheadline.monospacedDigit()).foregroundStyle(.white)
+                Text("\(index + 1) of \(photos.count)").font(.house(.subheadline).monospacedDigit()).foregroundStyle(.white)
                 if index < photos.count - 1 { Button { step(1) } label: { Image(systemName: "chevron.right").frame(minWidth: Metrics.tap, minHeight: Metrics.tap).contentShape(Rectangle()) }.accessibilityLabel("Next photo") }
             }
             Spacer()
@@ -285,7 +285,7 @@ private struct PhotoPage: View {
                     }
                     .accessibilityLabel(label)
             } else if failed {
-                Text("This photo could not be loaded.").font(.subheadline).foregroundStyle(.white.opacity(0.7))
+                Text("This photo could not be loaded.").font(.house(.subheadline)).foregroundStyle(.white.opacity(0.7))
             } else {
                 SkeletonPhoto(ratio: nil, radius: Radius.card, label: "Loading the photo").padding(pt(24))
             }

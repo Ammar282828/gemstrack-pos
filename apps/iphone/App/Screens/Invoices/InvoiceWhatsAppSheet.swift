@@ -51,7 +51,7 @@ struct InvoiceWhatsAppSheet: View {
                 if let text {
                     Section {
                         Text(text)
-                            .font(.subheadline)
+                            .font(.house(.subheadline))
                             .textSelection(.enabled)
                     } header: {
                         LedgerHeading(title: "The message")
@@ -188,10 +188,10 @@ extension InvoiceWhatsAppSheet {
                 .contactPickable { if !$0.phone.isEmpty { phone = $0.phone } }
             macNumberNote
             if let text {
-                Text("The Message").font(.headline)
-                Text(text).font(.callout).textSelection(.enabled)
+                Text("The Message").font(.house(.headline))
+                Text(text).font(.house(.callout)).textSelection(.enabled)
                 Text("WhatsApp opens with it written: press send there.")
-                    .font(.callout)
+                    .font(.house(.callout))
                     .foregroundStyle(.secondary)
             }
         }
@@ -200,9 +200,9 @@ extension InvoiceWhatsAppSheet {
     @ViewBuilder
     private var macNumberNote: some View {
         if CustomerKit.whatsAppNumber(phone).isEmpty {
-            Text("Enter the customer's WhatsApp number.").font(.callout).foregroundStyle(.secondary)
+            Text("Enter the customer's WhatsApp number.").font(.house(.callout)).foregroundStyle(.secondary)
         } else if let sent = invoice.sentOnWhatsApp {
-            Text("PDF sent to \(sent.to) · \(ShopDate.say(sent.at, withTime: true))").font(.callout).foregroundStyle(.secondary)
+            Text("PDF sent to \(sent.to) · \(ShopDate.say(sent.at, withTime: true))").font(.house(.callout)).foregroundStyle(.secondary)
         }
     }
 }
@@ -226,12 +226,12 @@ extension InvoicePDFNumberSheet {
     @ViewBuilder
     private var macNumberNote: some View {
         if number.isEmpty {
-            Text("Enter the customer's WhatsApp number.").font(.callout).foregroundStyle(.secondary)
+            Text("Enter the customer's WhatsApp number.").font(.house(.callout)).foregroundStyle(.secondary)
         } else if let done = invoice.sentOnWhatsApp {
-            Text("PDF sent to \(done.to) · \(ShopDate.say(done.at, withTime: true))").font(.callout).foregroundStyle(.secondary)
+            Text("PDF sent to \(done.to) · \(ShopDate.say(done.at, withTime: true))").font(.house(.callout)).foregroundStyle(.secondary)
         } else {
             Text("From the shop's own WhatsApp, with what is owed written under it: the PDF Print saves, drawn and sent by the ERP.")
-                .font(.callout)
+                .font(.house(.callout))
                 .foregroundStyle(.secondary)
         }
     }

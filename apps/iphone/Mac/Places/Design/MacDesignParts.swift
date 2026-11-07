@@ -76,8 +76,8 @@ struct MacDesignCandidateBar: View {
                             .clipShape(RoundedRectangle(cornerRadius: Radius.thumb, style: .continuous))
                     }
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("\(c.label): to look at").font(.headline)
-                        Text(verdict(c, same: same)).font(.callout).foregroundStyle(same == true ? Tone.settled.color : Tone.owed.color).lineLimit(2)
+                        Text("\(c.label): to look at").font(.house(.headline))
+                        Text(verdict(c, same: same)).font(.house(.callout)).foregroundStyle(same == true ? Tone.settled.color : Tone.owed.color).lineLimit(2)
                     }
                     Spacer(minLength: 12)
                     Button("Discard") { model.candidate = nil }
@@ -166,7 +166,7 @@ struct MacDesignAIPane: View {
         HStack(alignment: .center, spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(name)
-                Text(line).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                Text(line).font(.house(.caption)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 8)
             Button("Run", action: run).disabled(off)

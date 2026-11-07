@@ -294,12 +294,12 @@ struct BusySpinner: View {
             if inline {
                 HStack(spacing: pt(10)) {
                     ProgressView()
-                    if let text { Text(text).font(.footnote).foregroundStyle(.secondary) }
+                    if let text { Text(text).font(.house(.footnote)).foregroundStyle(.secondary) }
                 }
             } else {
                 VStack(spacing: pt(10)) {
                     ProgressView().controlSize(.large)
-                    if let text { Text(text).font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center) }
+                    if let text { Text(text).font(.house(.footnote)).foregroundStyle(.secondary).multilineTextAlignment(.center) }
                 }
             }
         }
