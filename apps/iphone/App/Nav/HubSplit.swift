@@ -96,6 +96,9 @@ struct HubSplit<Hub: View>: View {
                         hub()
                             .navigationDestination(for: Route.self) { _ in EmptyView() }
                     }
+                    // The list's rows (RouteLink) and the toolbar's New open in the item column, in place of what was
+                    // there. Only this column: pages in the item column push on their own stack as anywhere else.
+                    .environment(\.openInPlace, OpenInPlace { show($0) })
                     .frame(width: listWidth)
                     Divider().ignoresSafeArea()
                     // No path kept for this stack, as on a phone: its pages (an order's Edit, an invoice's) are pushed
@@ -119,8 +122,6 @@ struct HubSplit<Hub: View>: View {
                 }
                 // Rows in the list never grow into a page that is in another column.
                 .environment(\.zoomNamespace, nil)
-                // The toolbar's New (New sale, New order, Scan) opens in the item column, in place of what was there.
-                .environment(\.openInPlace, OpenInPlace { show($0) })
             } else {
                 // A narrow window (Split View, Slide Over) is the phone's one stack; New opens over it as on a phone.
                 NavigationStack {
@@ -180,5 +181,41 @@ extension EnvironmentValues {
     var openInPlace: OpenInPlace? {
         get { self[OpenInPlaceKey.self] }
         set { self[OpenInPlaceKey.self] = newValue }
+    }
+}
+
+/// A row's way to its page: a NavigationLink, except in an iPad's list column, where it hands the page to the item column
+/// beside it. A NavigationLink there asked the list's own stack to push and was turned aside afterwards, and the list
+/// showed an empty white page for a moment on every tap (owner, 2026-11-08: "why does the sidebar become white every
+/// time I press an order or invoice on iPad").
+struct RouteLink<Label: View>: View {
+    let value: Route
+    /// A row (the words in their own colours across the whole row) or a button (a toolbar's, a prominent one: as drawn).
+    let row: Bool
+    @ViewBuilder let label: () -> Label
+    @Environment(\.openInPlace) private var openInPlace
+
+    init(value: Route, row: Bool = true, @ViewBuilder label: @escaping () -> Label) {
+        self.value = value
+        self.row = row
+        self.label = label
+    }
+
+    var body: some View {
+        if let openInPlace {
+            if row {
+                // The words keep their own colours (a List would tint a button's label), and the whole row is the target.
+                Button { openInPlace(value) } label: {
+                    label()
+                        .foregroundStyle(Color.primary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                }
+            } else {
+                Button { openInPlace(value) } label: { label() }
+            }
+        } else {
+            NavigationLink(value: value, label: label)
+        }
     }
 }

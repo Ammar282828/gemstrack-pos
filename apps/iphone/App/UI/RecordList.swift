@@ -454,7 +454,7 @@ struct RecordEmptyState: View {
                 } actions: {
                     switch action {
                     case .link(let words, let route)?:
-                        NavigationLink(value: route) { Text(words) }.buttonStyle(.houseProminent)
+                        RouteLink(value: route, row: false) { Text(words) }.buttonStyle(.houseProminent)
                     case .run(let words, let run)?:
                         Button(words, action: run).buttonStyle(.houseProminent)
                     case nil:

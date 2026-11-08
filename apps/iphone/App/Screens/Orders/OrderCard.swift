@@ -67,7 +67,7 @@ struct OrderCardRows: View {
       if standalone {
         // The iPad's grid card and the Mac's board card: the row's anatomy, then the next step and the actions menu.
         RecordCard(mine: mine) {
-            NavigationLink(value: Route(path: "/orders/\(order.id)")) {
+            RouteLink(value: Route(path: "/orders/\(order.id)")) {
                 OrderCardHead(order: order, stage: stage, owed: owed, now: now, greyed: greyed, mine: mine, showsStage: showsStage)
             }
             .buttonStyle(.pressable)
@@ -86,7 +86,7 @@ struct OrderCardRows: View {
         .contextMenu { menu }
       } else {
         HStack(spacing: pt(8)) {
-            NavigationLink(value: Route(path: "/orders/\(order.id)")) {
+            RouteLink(value: Route(path: "/orders/\(order.id)")) {
                 OrderCardHead(order: order, stage: stage, owed: owed, now: now, greyed: greyed, mine: mine, showsStage: showsStage)
             }
             .zoomSource(id: "/orders/\(order.id)")
@@ -257,7 +257,7 @@ struct OrderNextStepRow: View {
 
     var body: some View {
         if let inv = invoiced {
-            NavigationLink(value: Route(path: "/invoices/\(inv.id)")) {
+            RouteLink(value: Route(path: "/invoices/\(inv.id)")) {
                 invoiceLink(inv.id)
             }
         } else {

@@ -68,7 +68,7 @@ struct CustomersList: View {
         }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                NavigationLink(value: Route(path: "/customers/add")) {
+                RouteLink(value: Route(path: "/customers/add"), row: false) {
                     Label("Add customer", systemImage: "plus")
                 }
             }
@@ -265,7 +265,7 @@ struct CustomersList: View {
     }
 
     private func row(_ c: Customer, _ s: CustomerKit.Stats?) -> some View {
-        NavigationLink(value: CustomerKit.route(c.id)) {
+        RouteLink(value: CustomerKit.route(c.id)) {
             record(c, s)
         }
         .zoomSource(id: CustomerKit.path(c.id))
@@ -280,7 +280,7 @@ struct CustomersList: View {
     /// The iPad's card: the same row, then the contact menu. The card carries the row's actions (rule 16).
     private func card(_ c: Customer, _ s: CustomerKit.Stats?) -> some View {
         RecordCard {
-            NavigationLink(value: CustomerKit.route(c.id)) {
+            RouteLink(value: CustomerKit.route(c.id)) {
                 record(c, s)
             }
             .buttonStyle(.pressable)

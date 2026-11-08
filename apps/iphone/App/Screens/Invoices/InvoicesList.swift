@@ -736,7 +736,7 @@ private struct InvoiceListRow: View {
     let dated: Bool
 
     var body: some View {
-        NavigationLink(value: Route(path: InvoiceFacts.path(invoice.id))) {
+        RouteLink(value: Route(path: InvoiceFacts.path(invoice.id))) {
             RecordRow(name: invoice.customerName, title: InvoiceFacts.customerName(invoice), subtitle: Text(subtitle),
                       mine: mine, money: money, status: status)
         }

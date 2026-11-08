@@ -557,7 +557,7 @@ struct OrdersHub: View {
         // The tab's own create menu already offers New order beside the rate chip (iPad): one "+" is enough.
         if !createMenuShown {
             ToolbarItem(placement: .trailingAction) {
-                NavigationLink(value: Route(path: "/orders/add")) {
+                RouteLink(value: Route(path: "/orders/add"), row: false) {
                     Label("New order", systemImage: "plus")
                 }
             }
@@ -566,7 +566,7 @@ struct OrdersHub: View {
         // the hub while any wait, with how many. A house whose website takes no orders (Mina) has none.
         if session.shop.websiteSelling && inbox.waiting > 0 {
             ToolbarItem(placement: .trailingAction) {
-                NavigationLink(value: Route(path: "/orders/online")) {
+                RouteLink(value: Route(path: "/orders/online"), row: false) {
                     // The count is words in the item, never a badge laid over its glass.
                     Text("Online \(inbox.waiting > 99 ? "99+" : "\(inbox.waiting)")")
                         .monospacedDigit()

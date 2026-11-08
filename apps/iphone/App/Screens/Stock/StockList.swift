@@ -103,7 +103,7 @@ struct StockList: View {
         }
         if session.isOwner {
             ToolbarItem(placement: .trailingAction) {
-                NavigationLink(value: Route(path: StockKit.addPath)) {
+                RouteLink(value: Route(path: StockKit.addPath), row: false) {
                     Label("Add piece", systemImage: "plus")
                 }
                 #if os(macOS)
@@ -112,7 +112,7 @@ struct StockList: View {
             }
             #if os(macOS)
             ToolbarItem(placement: .automatic) {
-                NavigationLink(value: Route(path: StockKit.bulkAddPath)) {
+                RouteLink(value: Route(path: StockKit.bulkAddPath), row: false) {
                     Label("Add in bulk", systemImage: "square.stack.3d.up")
                 }
                 .help("Add many pieces at once from a list of weights")
@@ -333,7 +333,7 @@ private struct StockRow: View {
 
     var body: some View {
         let p = row.product
-        NavigationLink(value: Route(path: StockKit.piecePath(p.sku))) {
+        RouteLink(value: Route(path: StockKit.piecePath(p.sku))) {
             HStack(spacing: pt(12)) {
                 StockImage(imageUrl: p.imageUrl, name: p.name, key: p.sku)
                     .frame(width: 52, height: 52)
@@ -380,7 +380,7 @@ private struct StockCard: View {
 
     var body: some View {
         let p = row.product
-        NavigationLink(value: Route(path: StockKit.piecePath(p.sku))) {
+        RouteLink(value: Route(path: StockKit.piecePath(p.sku))) {
             VStack(alignment: .leading, spacing: pt(6)) {
                 StockImage(imageUrl: p.imageUrl, name: p.name, key: p.sku)
                     .aspectRatio(1, contentMode: .fit)
