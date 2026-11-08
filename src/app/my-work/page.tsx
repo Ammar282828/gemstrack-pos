@@ -255,7 +255,7 @@ export default function MyWorkPage() {
             )}
           </div>
           <Separator />
-          {group.jobs.map((j, i) => <PieceRow key={j.id} job={j} last={i === group.jobs.length - 1} />)}
+          {group.jobs.map((j, i) => <React.Fragment key={j.id}>{PieceRow({ job: j, last: i === group.jobs.length - 1 })}</React.Fragment>)}
         </CardContent>
       </Card>
     );
@@ -274,7 +274,7 @@ export default function MyWorkPage() {
           {hint && <span className="text-2xs text-muted-foreground ml-auto">{hint}</span>}
         </div>
         <div className="space-y-3">
-          {groups.map(g => <OrderCard key={g.key} group={g} />)}
+          {groups.map(g => <React.Fragment key={g.key}>{OrderCard({ group: g })}</React.Fragment>)}
         </div>
       </section>
     );
@@ -415,18 +415,16 @@ export default function MyWorkPage() {
               </CardContent></Card>
             ) : (
               <>
-                <Group title="Urgent" jobs={critical} icon={<Flame className="h-4 w-4 text-destructive" />}
-                  tone="text-destructive" hint="14+ days" />
-                <Group title="Late" jobs={late} icon={<Clock className="h-4 w-4 text-warning" />}
-                  tone="text-warning" hint="7–14 days" />
-                <Group title="In hand" jobs={ontrack} hint="on track" />
+                {/* Called, not rendered as <X />: X is declared inside this component, so as an element type it is new on every render and React rebuilds its whole subtree each time. */}
+                {Group({ title: 'Urgent', jobs: critical, icon: <Flame className="h-4 w-4 text-destructive" />, tone: 'text-destructive', hint: '14+ days' })}
+                {Group({ title: 'Late', jobs: late, icon: <Clock className="h-4 w-4 text-warning" />, tone: 'text-warning', hint: '7–14 days' })}
+                {Group({ title: 'In hand', jobs: ontrack, hint: 'on track' })}
               </>
             )}
             </div>
 
             {done.length > 0 && (
-              <Group title="Completed" jobs={done}
-                icon={<CheckCircle2 className="h-4 w-4 text-success" />} tone="text-muted-foreground" />
+              Group({ title: 'Completed', jobs: done, icon: <CheckCircle2 className="h-4 w-4 text-success" />, tone: 'text-muted-foreground' })
             )}
           </TabsContent>
 

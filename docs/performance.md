@@ -32,9 +32,35 @@ Audit of 2026-11-01 against a 31-point app-speed checklist (BreakingBreach's too
 - Android: a Baseline Profile (+ `androidx.profileinstaller`), and dropping `proguard-preview.pro` from release so R8
   optimises the app's own code — both need a run on a real phone first.
 - Web: the remaining static jspdf imports (`hisaab-pdf.ts`, `repair-pdf.ts`, `order-slip-pdf.ts`,
-  `expense-report-pdf.ts`); 42 `useAppStore()` calls without a selector re-render on any collection's snapshot;
-  web-vitals reporting.
+  `expense-report-pdf.ts`); web-vitals reporting. (The bare `useAppStore()` calls were fixed in the 2026-11-03 pass.)
 - All: the history window above.
+
+## Phone web pass, 2026-11-08
+
+Owner: "the erp on web on phones is quite un optimized, glitchy, laggy, and buttons sizes are wrong in dock".
+Measured on a production build, iPhone 13 emulation, CPU throttled 4x (rAF frame times while scrolling, tab-tap timing).
+
+- **Dock (Liquid Glass).** The capsule took the generic `.glass-bar` padding: items sat top-aligned, the lit pill was oversized
+  and ran to the rim, and the microphone and create button (placed for a 49px bar) sat on its top edge. The capsule is now
+  3.625rem with its own item styling (`.tab-bar` / `.tab-item`, globals.css), `--tabbar-h` follows it, and every floating button
+  and the page's bottom padding are placed from `--tabbar-h`.
+- **Blur on a phone.** Below 768px only the tab bar keeps a backdrop-filter (18px, no saturate); the header, toolbars, tabs,
+  rate chip and FABs use near-opaque fills. Several stacked full-width backdrop-filters re-sampled on every scrolled frame
+  (proposal 2 below). The headless measure can't see GPU blur cost; this is fewer filters, not a measured number.
+- **Shell script.** The command palette, microphone and map sheet load after the first paint (`next/dynamic`, app-layout.tsx);
+  `openCommandPalette` moved to `search/open-palette.ts` so the shell no longer pulls the palette in. The layout chunk went
+  59 KB -> 22 KB gzipped, parsed on every first load.
+- **Components declared inside a render.** `const Section: React.FC = …` inside a page is a new component type each render, so
+  React threw away and rebuilt its whole subtree on every keystroke and every snapshot. Customers, Karigars, Workshop, My work,
+  Expenses, Calendar and the karigar picker now call these as functions. Don't declare components inside components.
+- **Customers.** Drew every customer twice (phone cards and the hidden desktop table) and all at once (~1,100 rows, a
+  112,000px page). It now draws one layout (`useWide`) and the cards 60 at a time as you near the end (`Growing`). Scroll:
+  6 -> 2 janky frames; page height at load 112,037 -> 13,270px. A per-row `content-visibility` was tried first and was worse
+  (31 janky frames: rows laid out on every frame of a flick).
+- **Draft writer** compares a cheap key (`workKey`, draft-writer.ts: long strings such as photos reduced to length + tail) instead
+  of stringifying photos on every change (half of proposal 1).
+- Not done: the order form's top-level `form.watch()` (proposal 1's other half). The money panel reads every field, so it is a split
+  of the form into `useWatch` parts, a larger change to the shop's main form.
 
 ## Frame-rate pass, web, 2026-11-03
 

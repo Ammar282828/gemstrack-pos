@@ -253,8 +253,9 @@ export default function KarigarsPage() {
           description={searchTerm ? 'Try a different search term.' : 'Add a karigar to begin.'} />
       ) : (
         <div className="space-y-[22px]">
-          <Section title="Working" hint="busiest first" people={visible.working} />
-          <Section title="Free" hint="nothing on the bench" people={visible.free} />
+          {/* Called, not rendered as <X />: X is declared inside this component, so as an element type it is new on every render and React rebuilds its whole subtree each time. */}
+          {Section({ title: 'Working', hint: 'busiest first', people: visible.working })}
+          {Section({ title: 'Free', hint: 'nothing on the bench', people: visible.free })}
         </div>
       )}
     </PageShell>

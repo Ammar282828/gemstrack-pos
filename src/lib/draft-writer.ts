@@ -16,6 +16,16 @@ export const SAVE_EVERY_MS = 300;
  *  the Firestore write, which is queued on disk, carries it. */
 export const BEACON_MAX_BYTES = 60_000;
 
+/**
+ * The work as text, for telling whether it changed: a photo's `data:` URI (megabytes on a phone) is shortened to its
+ * length and its tail, so the comparison made every SAVE_EVERY_MS of typing does not copy every photo into a string.
+ * Two different pictures of the same length with the same last 64 characters would read as one: a new photo always
+ * changes its JPEG's end, so they do not happen. Only for comparing; what is written is the work itself.
+ */
+export function workKey(v: unknown): string {
+  return JSON.stringify(v ?? {}, (_k, x) => (typeof x === 'string' && x.length > 4096 ? `\u0000${x.length}:${x.slice(-64)}` : x));
+}
+
 /** What to do with the form's work as it stands. */
 export type DraftAction = 'skip' | 'remove' | 'write';
 

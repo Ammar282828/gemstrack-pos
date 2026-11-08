@@ -752,6 +752,25 @@ html.ui-glass .glass-bar {
   padding-bottom: 0.625rem;
   background-color: hsl(var(--popover) / var(--glass-a-large));
 }
+/* The phone's tab bar as a glass capsule (2026-11-08, the owner: "buttons sizes are wrong in dock"). It took the
+   generic bar's padding, so the items sat high, the lit one's fill ran to the capsule's rim and stood taller than
+   the rest, and the + and microphone, placed for the 49 px standard bar, sat on its top edge. Now a fixed height,
+   a 4 px inset, items centred, and the lit tab a pill concentric with the capsule; --tabbar-h carries the height. */
+html.ui-glass { --tabbar-h: calc(3.625rem + 0.5rem + env(safe-area-inset-bottom)); }
+html.ui-glass .tab-bar {
+  height: 3.625rem;
+  padding: 0.25rem;
+  align-items: stretch;
+  border-radius: 9999px;
+}
+html.ui-glass .tab-item {
+  min-height: 0;
+  justify-content: center;
+  padding-top: 0;
+  gap: 0.125rem;
+  border-radius: 9999px;
+}
+html.ui-glass .tab-item[aria-current="page"] { background-color: hsl(var(--foreground) / 0.08); }
 
 /* ── Windows: sheets, dialogs, alerts, the drawer, the Ads helper's panel.
       A larger radius; half sheets inset from the edge so the page peeks through;
@@ -1062,4 +1081,48 @@ td, th { font-variant-numeric: tabular-nums; }
 /* A finger's target: icon buttons are 44 x 44 on a touch screen (the desktop keeps its 40). */
 @media (pointer: coarse) {
   button.h-10.w-10, a.h-10.w-10, .btn.h-10.w-10 { min-width: 2.75rem; min-height: 2.75rem; }
+}
+
+/* ── Phones: one blur, the tab bar (2026-11-08, the owner: "the erp on web on phones is quite un optimized,
+   glitchy, laggy"). Every backdrop-filter re-blurs what scrolls beneath it on every frame; on a phone the glass
+   style had five or six at once over the scrolling page (the top bar's scroll edge, a full-width layer, the rate
+   chip, the page tabs, the round controls, the microphone, the tab bar), and the standard style blurred the top
+   bar and every bottom bar. Under 768 px only the tab bar keeps its blur, without the saturation pass; the rest
+   are near-opaque fills of the same colours, so the look holds and the GPU does one blur, not six. ──────── */
+@media (max-width: 767px) {
+  html.ui-glass .glass-ctl,
+  html.ui-glass .app-tabs,
+  html.ui-glass .glass-fab,
+  html.ui-glass .rate-chip,
+  html.ui-glass .glass-toolbar,
+  html.ui-glass .glass-bar:not(.tab-bar) {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  html.ui-glass .glass-ctl,
+  html.ui-glass .app-tabs,
+  html.ui-glass .glass-fab,
+  html.ui-glass .rate-chip:not([data-stale]) { background-color: hsl(var(--popover) / 0.94); }
+  html.ui-glass .glass-bar:not(.tab-bar),
+  html.ui-glass .glass-toolbar { background-color: hsl(var(--popover) / 0.97); }
+  html.ui-glass .tab-bar {
+    -webkit-backdrop-filter: blur(18px);
+    backdrop-filter: blur(18px);
+    background-color: hsl(var(--popover) / 0.82);
+  }
+  /* The scroll edge: the same fade, painted instead of blurred. */
+  html.ui-glass .app-header::before {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    inset: 0 0 -1rem 0;
+    background: linear-gradient(to bottom, hsl(var(--background) / 0.96) 0%, hsl(var(--background) / 0.86) 60%, hsl(var(--background) / 0) 100%);
+  }
+  /* Standard style: the top bar and the bottom bars were frosted; solid enough to read without it. */
+  html:not(.ui-glass) .app-header,
+  html:not(.ui-glass) .glass-bar:not(.tab-bar),
+  html:not(.ui-glass) .glass-toolbar {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background-color: hsl(var(--background) / 0.97);
+  }
 }

@@ -622,7 +622,7 @@ export function VoiceBubble() {
           role="status" aria-live="polite"
           className={cn(
             'glass fixed left-4 right-4 z-40 rounded-xl border bg-background/95 p-3 shadow-lg md:bottom-24 md:left-auto md:w-96',
-            barHidden ? 'bottom-[8.75rem]' :'bottom-[calc(5.5rem+49px+env(safe-area-inset-bottom))]',
+            barHidden ? 'bottom-[8.75rem]' :'bottom-[calc(5.5rem+var(--tabbar-h))]',
           )}
         >
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -658,10 +658,10 @@ export function VoiceBubble() {
         onClick={phase === 'listening' ? stop : start}
         disabled={busy}
         className={cn(
-          // Clear of the phone's tab bar (49px + the home indicator), as the app's floating mic is.
+          // Clear of the phone's tab bar (--tabbar-h: its height + the home indicator, taller as a glass capsule), as the app's floating mic is.
           'fixed right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-[background-color,color,box-shadow,transform] duration-200 ease-enter active:scale-95 md:bottom-6',
           // Bar stepped aside: those pages carry their own bottom bar (a sale's total), as before.
-          barHidden ? 'bottom-20' : 'bottom-[calc(49px+env(safe-area-inset-bottom)+16px)]',
+          barHidden ? 'bottom-20' : 'bottom-[calc(var(--tabbar-h)+12px)]',
           phase === 'listening'
             ? 'bg-primary text-primary-foreground'
             : 'glass-fab bg-background text-foreground border hover:bg-accent',

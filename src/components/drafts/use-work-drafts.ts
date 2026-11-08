@@ -8,7 +8,7 @@
 import React from 'react';
 import { collection, deleteDoc, doc, getDoc, onSnapshot, setDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
-import { CoalescingWriter, draftAction, fitsBeacon } from '@/lib/draft-writer';
+import { CoalescingWriter, draftAction, fitsBeacon, workKey } from '@/lib/draft-writer';
 import { useAppStore } from '@/lib/store';
 import {
   deviceName, isExpired, isWorthKeeping, legacyAlreadySaved, newDraftId, summarizeOrder, summarizeSale, toStorable,
@@ -165,7 +165,7 @@ export function useWorkDraft<T>(opts: {
   const writeNow = React.useCallback(async () => {
     const { value: v, summary: sum, ignore: ign, enabled: on, active: live } = latest.current;
     if (!on || !live || finished.current || loading.current) return;
-    const json = JSON.stringify(v ?? {});
+    const json = workKey(v);
     const worth = isWorthKeeping(v, ign);
     const act = draftAction({ json, lastJson: lastJson.current, worth, hasDraft: !!idRef.current });
     if (!worth) lastJson.current = json;
@@ -235,7 +235,7 @@ export function useWorkDraft<T>(opts: {
       // The write above is the SDK's, queued on disk; this one reaches the server even as the page goes.
       const target = idRef.current;
       if (!target || !token.current || !isWorthKeeping(v, ign)) return;
-      const json = JSON.stringify(v ?? {});
+      const json = workKey(v);
       if (json === landedJson.current) return;
       const s = sum(v);
       const { data } = toStorable(v);
@@ -276,7 +276,7 @@ export function useWorkDraft<T>(opts: {
     if (!d) return null;
     finished.current = false;
     createdAt.current = d.createdAt || new Date().toISOString();
-    lastJson.current = JSON.stringify(d.data ?? {});
+    lastJson.current = workKey(d.data);
     landedJson.current = lastJson.current;
     setId(draftId);
     setSavedAt(d.updatedAt || null);
@@ -301,7 +301,7 @@ export function useWorkDraft<T>(opts: {
     writer.cancel();
     const gone = idRef.current;
     // What is still on screen is not written straight back; only a change makes it a draft again.
-    lastJson.current = JSON.stringify(latest.current.value ?? {});
+    lastJson.current = workKey(latest.current.value);
     createdAt.current = null;
     setId(null);
     setStatus('idle');
@@ -312,7 +312,7 @@ export function useWorkDraft<T>(opts: {
   const detach = React.useCallback(() => {
     writer.cancel();
     // What is on screen is that draft's; it is not written again as a new one unless it changes.
-    lastJson.current = JSON.stringify(latest.current.value ?? {});
+    lastJson.current = workKey(latest.current.value);
     createdAt.current = null;
     setId(null);
     setStatus('idle');

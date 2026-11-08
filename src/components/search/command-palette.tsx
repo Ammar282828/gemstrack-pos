@@ -27,6 +27,7 @@ import { useAuth } from '@/components/auth/google-auth-gate';
 import { roleForEmail, alsoMarketing } from '@/lib/roles';
 import type { NavRole } from '@/lib/nav';
 import { devRole } from '@/lib/dev-role';
+import { OPEN_EVENT } from './open-palette';
 
 interface Item {
   id: string;
@@ -72,11 +73,7 @@ function destinationsFor(staff: NavRole): Array<Item & { keywords: string[] }> {
  */
 const PHONETIC_FLOOR = 0.62;
 
-/** Open the palette from anywhere — the sidebar's Search entry uses this. */
-const OPEN_EVENT = 'command-palette:open';
-export function openCommandPalette(): void {
-  if (typeof window !== 'undefined') window.dispatchEvent(new Event(OPEN_EVENT));
-}
+export { openCommandPalette } from './open-palette';
 
 export function CommandPalette() {
   const router = useRouter();

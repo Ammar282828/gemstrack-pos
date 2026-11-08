@@ -17,11 +17,10 @@ import { useWorkDrafts } from '@/components/drafts/use-work-drafts';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
-import { CommandPalette, openCommandPalette } from '@/components/search/command-palette';
-import { VoiceBubble } from '@/components/voice/voice-bubble';
+import dynamic from 'next/dynamic';
+import { openCommandPalette } from '@/components/search/open-palette';
 import { TabBar } from '@/components/layout/tab-bar';
 import { CreateMenu } from '@/components/layout/create-menu';
-import { MapSheet } from '@/components/layout/map-sheet';
 import { PageBack } from '@/components/shared/page-back';
 import { hidesTabBar, isRootPage, showsCreateCluster, tabEntries } from '@/lib/tab-bar';
 import { TeamNote } from '@/components/shared/team-note';
@@ -38,6 +37,13 @@ import { writeDeviceTheme } from '@/lib/theme-cache';
 import { RateChip, RateSheet } from '@/components/rates/rate-chip';
 import { useOnlineWaiting } from '@/lib/website/online-client';
 import { inNativeApp } from '@/lib/native-app';
+
+// Loaded after the first paint, not with it: none shows anything until asked (the palette on
+// Ctrl+K, the map on the Search tab, the microphone's recogniser on a tap), and together they
+// were a fifth of the shell's script, parsed on every phone before the first screen could answer.
+const CommandPalette = dynamic(() => import('@/components/search/command-palette').then(m => m.CommandPalette), { ssr: false });
+const VoiceBubble = dynamic(() => import('@/components/voice/voice-bubble').then(m => m.VoiceBubble), { ssr: false });
+const MapSheet = dynamic(() => import('@/components/layout/map-sheet').then(m => m.MapSheet), { ssr: false });
 
 // The sidebar, the top bar's tabs and the palette all come from one registry (lib/nav.ts): a page is
 // added there or it is nowhere, and nav.test.ts fails when they drift.
@@ -454,12 +460,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {/* overflow-x-clip, not overflow-auto: an overflow-auto <main> that never scrolls (the window does) is still the
               scroll box every `sticky` inside it measures against, so no column or toolbar ever stuck (found 2026-10-04).
               Clip keeps a wide page from widening the screen; tables scroll in their own wrapper (ui/table.tsx). */}
-          {/* On a phone: clear of the tab bar (49px + the home indicator), plus the floating mic and "+" on tab roots
+          {/* On a phone: clear of the tab bar (--tabbar-h, globals.css), plus the floating mic and "+" on tab roots
               (the app's safeAreaPadding(.bottom, 76)); pb-28 where the bar steps aside. */}
           <main className={cn(
             'flex-1 min-w-0 p-4 overflow-x-clip md:p-6',
             // The microphone floats on every page, so every page clears it, not only the tab roots.
-            barHidden ? 'pb-28' : 'pb-[calc(49px+env(safe-area-inset-bottom)+76px)]',
+            barHidden ? 'pb-28' : 'pb-[calc(var(--tabbar-h)+var(--fab-clear))]',
           )}>
             <TeamNote owner={role === 'owner'} />
             {/* A grouped entry's section: its own pages, one segmented row above the page (Analytics › Sales: Overview, Sales…). */}

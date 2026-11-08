@@ -173,7 +173,7 @@ export const KarigarAssign: React.FC<{
           {working.length > 0 && (
             <>
               <p className="px-2.5 pt-1.5 pb-1 text-2xs uppercase tracking-wide text-muted-foreground">Currently assigned</p>
-              {working.map(k => <Row key={k.id} k={k} />)}
+              {working.map(k => <React.Fragment key={k.id}>{Row({ k })}</React.Fragment>)}
             </>
           )}
           {others.length > 0 && (
@@ -181,7 +181,7 @@ export const KarigarAssign: React.FC<{
               {working.length > 0 && (
                 <p className="px-2.5 pt-2 pb-1 text-2xs uppercase tracking-wide text-muted-foreground">Other karigars</p>
               )}
-              {others.map(k => <Row key={k.id} k={k} />)}
+              {others.map(k => <React.Fragment key={k.id}>{Row({ k })}</React.Fragment>)}
             </>
           )}
           {working.length === 0 && others.length === 0 && !canCreate && !creating && (

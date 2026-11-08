@@ -292,7 +292,7 @@ export default function ExpensesPage() {
                           <p className="text-2xs text-muted-foreground mt-0.5">
                             {formatDate(e.date, 'd MMM')} · {e.category}
                           </p>
-                          <Meta e={e} />
+                          {Meta({ e })}
                         </div>
                         <button
                           type="button" onClick={() => handleEditExpense(e)}
@@ -326,7 +326,7 @@ export default function ExpensesPage() {
                           <TableCell className="text-sm">{e.category}</TableCell>
                           <TableCell className="min-w-0">
                             <span className="block truncate">{e.description}</span>
-                            <Meta e={e} />
+                            {Meta({ e })}
                           </TableCell>
                           <TableCell className="text-right font-medium tabular-nums">{PKR(e.amount)}</TableCell>
                           <TableCell className="text-right whitespace-nowrap">

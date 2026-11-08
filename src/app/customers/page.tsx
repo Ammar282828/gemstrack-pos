@@ -97,7 +97,8 @@ const CustomerRow: React.FC<{ customer: Customer; stats?: CustomerStats; onDelet
 };
 
 /** The app's customer row: a monogram, the name, phone and history; what they owe (amber) or what they have bought (lac). */
-const CustomerCard: React.FC<{ customer: Customer; stats?: CustomerStats; onDelete: (id: string) => Promise<void> }> = ({ customer, stats }) => {
+// Memoised: typing in the search re-renders the page, and a card whose customer did not change need not.
+const CustomerCard: React.FC<{ customer: Customer; stats?: CustomerStats; onDelete: (id: string) => Promise<void> }> = React.memo(function CustomerCard({ customer, stats }) {
     const seesMoney = useSeesMoney();
     const owing = seesMoney && !!stats && stats.owed > 0;
     const spent = seesMoney && !!stats && stats.spent > 0;
@@ -138,8 +139,46 @@ const CustomerCard: React.FC<{ customer: Customer; stats?: CustomerStats; onDele
         </div>
     </div>
     );
-};
+});
 
+
+/**
+ * A long list drawn a page at a time: the first rows at once, the next page as the end nears the
+ * screen. The book is a thousand customers; drawn whole, a phone built ~20,000 elements before the
+ * page could answer a tap, and every open of a dialog restyled them all.
+ */
+const GROW_PAGE = 60;
+function Growing<T>({ items, render }: { items: T[]; render: (item: T) => React.ReactNode }) {
+  const [shown, setShown] = useState(GROW_PAGE);
+  const sentinel = React.useRef<HTMLDivElement>(null);
+  const more = shown < items.length;
+  useEffect(() => {
+    const el = sentinel.current;
+    if (!more || !el || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) setShown(n => n + GROW_PAGE * 2); }, { rootMargin: '1200px 0px' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [more, shown]);
+  return (
+    <>
+      {items.slice(0, shown).map(render)}
+      {more && <div ref={sentinel} aria-hidden className="!border-0 !p-0 h-px" />}
+    </>
+  );
+}
+
+/** Whether the screen is lg (1024px) or wider: the table, not the app's rows. */
+function useWide(): boolean {
+  const [wide, setWide] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const read = () => setWide(mq.matches);
+    read();
+    mq.addEventListener('change', read);
+    return () => mq.removeEventListener('change', read);
+  }, []);
+  return wide;
+}
 
 // --- Duplicate detection helpers ---
 function normalizeName(name: string) {
@@ -471,6 +510,7 @@ export default function CustomersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   // Filtering follows typing, never holds it up.
   const deferredSearch = useDeferredValue(searchTerm);
+  const wide = useWide();
   const [mergeOpen, setMergeOpen] = useState(false);
   const [view, setView] = useState<'all' | 'owing' | 'active'>('all');
   const [spamOpen, setSpamOpen] = useState(false);
@@ -620,20 +660,22 @@ export default function CustomersPage() {
     );
   }
 
-  const Section: React.FC<{ title: string; hint: string; people: Customer[] }> = ({ title, hint, people }) => {
+  // A plain function, called, not a component: declared in here as a component it was a new type on
+  // every render, so each keystroke and store update threw away and rebuilt the whole book.
+  // One layout at a time: below lg the app's rows (drawn a page at a time, Growing), from
+  // lg the table. Both were drawn and one hidden, twice the rows for nothing.
+  const renderSection = (title: string, hint: string, people: Customer[]) => {
     if (people.length === 0) return null;
     return (
-      <section>
-        {/* Below lg the app's rows (a card per group). Each skipped while off screen (globals.css .cv-list). */}
-        <div className="lg:hidden cv-list" style={{ '--cv-size': `${40 + people.length * 96}px` } as React.CSSProperties}>
+      <section key={title}>
+        {!wide ? (
           <LedgerSection title={title} count={`${people.length} · ${hint}`}>
-            {people.map(c => (
+            <Growing items={people} render={c => (
               <CustomerCard key={c.id} customer={c} stats={statsById.get(c.id)} onDelete={handleDeleteCustomer} />
-            ))}
+            )} />
           </LedgerSection>
-        </div>
-
-        <div className="hidden lg:block">
+        ) : (
+        <div>
           <div className="flex items-baseline justify-between gap-3 px-1 pb-1.5">
             <div className="flex min-w-0 items-baseline gap-2">
               <h2 className="truncate font-serif text-ios-title3 font-semibold">{title}</h2>
@@ -664,6 +706,7 @@ export default function CustomersPage() {
             </CardContent>
           </Card>
         </div>
+        )}
       </section>
     );
   };
@@ -726,9 +769,9 @@ export default function CustomersPage() {
         />
       ) : (
         <div className="space-y-5">
-          {seesMoney && <Section title="Owing money" hint="most owed first" people={visible.owing} />}
-          <Section title="Recent" hint={`bought in the last ${DORMANT_AFTER_MONTHS} months`} people={seesMoney ? visible.active : [...visible.owing, ...visible.active]} />
-          <Section title="Quiet" hint="no sale in a year" people={visible.quiet} />
+          {seesMoney && renderSection('Owing money', 'most owed first', visible.owing)}
+          {renderSection('Recent', `bought in the last ${DORMANT_AFTER_MONTHS} months`, seesMoney ? visible.active : [...visible.owing, ...visible.active])}
+          {renderSection('Quiet', 'no sale in a year', visible.quiet)}
         </div>
       )}
     </PageShell>

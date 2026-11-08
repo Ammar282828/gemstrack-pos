@@ -761,10 +761,11 @@ const FocusedKarigarView: React.FC<{
         <EmptyState icon={<CheckCircle2 />} title="No pending work" />
       ) : (
         <>
-          <Section title="Critical" jobs={critical} tone="danger" hint={`sitting ${CRITICAL_DAYS}+ days`} />
-          <Section title="Late" jobs={late} tone="warn" hint={`${WARN_DAYS}–${CRITICAL_DAYS} days`} />
-          <Section title="On track" jobs={onTrack} tone="ok" />
-          {showCompleted && <Section title="Completed" jobs={done} tone="muted" />}
+          {/* Called, not rendered as <X />: X is declared inside this component, so as an element type it is new on every render and React rebuilds its whole subtree each time. */}
+          {Section({ title: 'Critical', jobs: critical, tone: 'danger', hint: `sitting ${CRITICAL_DAYS}+ days` })}
+          {Section({ title: 'Late', jobs: late, tone: 'warn', hint: `${WARN_DAYS}–${CRITICAL_DAYS} days` })}
+          {Section({ title: 'On track', jobs: onTrack, tone: 'ok' })}
+          {showCompleted && Section({ title: 'Completed', jobs: done, tone: 'muted' })}
         </>
       )}
     </div>

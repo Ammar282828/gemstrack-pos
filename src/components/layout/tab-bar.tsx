@@ -35,8 +35,8 @@ function Item({ label, icon: Icon, on, children, ...rest }: {
   label: string; icon: NavEntry['icon']; on: boolean; children?: React.ReactNode;
 } & ({ href: string; onClick?: undefined } | { href?: undefined; onClick: () => void })) {
   const cls = cn(
-    'relative flex min-h-[49px] flex-1 flex-col items-center justify-start gap-0.5 pt-1.5 text-2xs font-medium transition-colors',
-    on ? 'text-primary [html.ui-glass_&]:rounded-full [html.ui-glass_&]:bg-foreground/[.09]' : 'text-muted-foreground',
+    'tab-item press relative flex min-h-[49px] min-w-0 flex-1 flex-col items-center justify-start gap-0.5 pt-1.5 text-2xs font-medium transition-colors',
+    on ? 'text-primary' : 'text-muted-foreground',
   );
   const inner = (
     <>
@@ -68,8 +68,9 @@ function Bar({ navRole, tabs, onSearch, mapOpen, onlineWaiting }: {
   return (
     <nav
       aria-label="Main"
-      // Standard: the iOS 18 bar, a hairline over a frosted card. Glass (html.ui-glass .glass-bar): inset capsule.
-      className="glass-bar fixed inset-x-0 bottom-0 z-40 flex items-start border-t border-separator bg-card/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden [html.ui-glass_&]:rounded-full"
+      // Standard: the iOS 18 bar, a hairline over a frosted card. Glass (html.ui-glass .tab-bar): an inset capsule whose
+      // lit tab is a pill concentric with it; its height is --tabbar-h, which the + and the microphone sit above.
+      className="tab-bar glass-bar fixed inset-x-0 bottom-0 z-40 flex items-start border-t border-separator bg-card/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden [html.ui-glass_&]:rounded-full"
     >
       {tabs.map(t => (
         <Item key={t.id} href={t.href} label={t.label} icon={t.icon} on={lit === t.id}>

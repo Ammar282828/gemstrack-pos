@@ -303,7 +303,7 @@ export default function CalendarPage() {
                              )}>
                                {format(props.date, 'd')}
                              </span>
-                             <EventDay date={props.date} />
+                             {EventDay({ date: props.date })}
                            </div>
                         )
                     }}
