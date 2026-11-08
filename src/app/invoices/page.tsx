@@ -179,7 +179,7 @@ const DocumentCard: React.FC<RowProps> = ({ doc, onPrint, onPrintPerPiece, onMar
             {/* One row of actions, flush with the card's edge. With the quick-print printer beside Print (two
                 identical icons) and indented under the name, an unpaid invoice's actions took three lines. The
                 quick print stays on the desktop row and on the invoice itself. */}
-            <div className="-mb-1 -ml-2 mt-1 flex flex-wrap items-center [&_button]:px-2">
+            <div className="-mb-1 -ml-1.5 mt-1 flex flex-wrap items-center [&_button]:px-1.5 [&_button_svg]:mr-1">
                 <PrintButton iconOnly label={`Print ${doc.id}`} pieces={pieceCount(doc)} onPrint={onPrint} onPrintPerPiece={onPrintPerPiece} />
                 {status === 'Unpaid' && onMarkPaid && (
                     <Button variant="ghost" size="sm" className="text-tone-settled-ink hover:text-tone-settled-ink" onClick={(e) => { e.stopPropagation(); onMarkPaid(); }}>

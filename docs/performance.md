@@ -55,6 +55,10 @@ first change on screen, and the longest freeze, iPhone 13 emulation, CPU 4x, pro
 - **Order page pieces**: photo above the details below `sm`; beside them the metal read "Gold (2…" and every price wrapped.
 - **Section headings** (`LedgerHeading`): the title keeps its width, the count truncates (Customers read "Rec…").
 - Icon + short label buttons (Customers/Expenses Add, Invoices Import, Shareholders) had no gap on a phone.
+- **Customers took 7-8 s to open**: the Merge duplicates dialog is always mounted and compared every pair of customers
+  (~630,000 for 1,124) on each visit and each snapshot, two regexes and two word sets per pair. It now runs only while the dialog
+  is open, and the page uses `lib/customer-duplicates.ts` (the tested copy the iPhone follows; it also stops an unnamed customer
+  matching everyone), which prepares each row once: same pairs, 12x faster. Tap Customers: 7,772 -> 524-624 ms.
 
 ## Phone web pass, 2026-11-08
 

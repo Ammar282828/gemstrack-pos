@@ -44,27 +44,38 @@ export function nameSimilarity(a: string | null | undefined, b: string | null | 
 }
 
 export function detectDuplicates<T extends DuplicateCandidate>(customers: T[]): DuplicatePair<T>[] {
+  // Each name and phone prepared once, not once per pair: the pairs loop is n²/2 (~630,000 pairs for
+  // 1,124 customers), and running two regexes and two word sets inside it took ~7 s on a phone. Same rules
+  // as nameSimilarity, on the prepared rows.
+  const rows = customers.map((c) => {
+    const name = normalizeName(c.name);
+    return { c, name, words: new Set(name.split(' ')), phone: c.phone ? normalizePhone(c.phone) : '' };
+  });
   const pairs: DuplicatePair<T>[] = [];
-  const seen = new Set<string>();
-  for (let i = 0; i < customers.length; i++) {
-    for (let j = i + 1; j < customers.length; j++) {
-      const a = customers[i], b = customers[j];
-      const key = [a.id, b.id].sort().join('|');
-      if (seen.has(key)) continue;
+  for (let i = 0; i < rows.length; i++) {
+    const a = rows[i];
+    for (let j = i + 1; j < rows.length; j++) {
+      const b = rows[j];
       // Same phone
-      if (a.phone && b.phone) {
-        const pa = normalizePhone(a.phone), pb = normalizePhone(b.phone);
-        if (pa && pb && pa === pb) {
-          seen.add(key);
-          pairs.push({ a, b, reason: 'Same phone number', score: 1 });
-          continue;
-        }
+      if (a.phone && a.phone === b.phone) {
+        pairs.push({ a: a.c, b: b.c, reason: 'Same phone number', score: 1 });
+        continue;
       }
       // Similar name
-      const sim = nameSimilarity(a.name, b.name);
+      if (!a.name || !b.name) continue;
+      let sim: number;
+      if (a.name === b.name) sim = 1;
+      else if (a.name.includes(b.name) || b.name.includes(a.name)) sim = 0.9;
+      else {
+        const big = Math.max(a.words.size, b.words.size);
+        // The shared words can't outnumber the smaller set: skip the count when it can't reach the floor.
+        if (Math.min(a.words.size, b.words.size) < big * NAME_MATCH_FLOOR) continue;
+        let inter = 0;
+        for (const w of a.words) if (b.words.has(w)) inter++;
+        sim = inter / big;
+      }
       if (sim >= NAME_MATCH_FLOOR) {
-        seen.add(key);
-        pairs.push({ a, b, reason: `Similar name (${Math.round(sim * 100)}% match)`, score: sim });
+        pairs.push({ a: a.c, b: b.c, reason: `Similar name (${Math.round(sim * 100)}% match)`, score: sim });
       }
     }
   }

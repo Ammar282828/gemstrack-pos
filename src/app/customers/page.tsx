@@ -8,6 +8,7 @@ import { lacCrore } from '@/lib/money';
 import { WALK_IN_ENTITY } from '@/lib/walk-in';
 import React, { useState, useMemo, useEffect, useDeferredValue } from 'react';
 import { useWide } from '@/hooks/use-growing';
+import { detectDuplicates, type DuplicatePair } from '@/lib/customer-duplicates';
 import { ListSkeleton } from '@/components/shared/skeletons';
 import { format, parseISO, subMonths } from 'date-fns';
 import Link from 'next/link';
@@ -168,56 +169,7 @@ function Growing<T>({ items, render }: { items: T[]; render: (item: T) => React.
   );
 }
 
-// --- Duplicate detection helpers ---
-function normalizeName(name: string) {
-  return name.toLowerCase().replace(/\s+/g, ' ').trim();
-}
-function normalizePhone(phone: string) {
-  return phone.replace(/\D/g, '').replace(/^0+/, '');
-}
-function nameSimilarity(a: string, b: string): number {
-  const na = normalizeName(a), nb = normalizeName(b);
-  if (na === nb) return 1;
-  // Check if one contains the other
-  if (na.includes(nb) || nb.includes(na)) return 0.9;
-  // Word overlap
-  const wa = new Set(na.split(' ')), wb = new Set(nb.split(' '));
-  const inter = [...wa].filter(w => wb.has(w)).length;
-  return inter / Math.max(wa.size, wb.size);
-}
-interface DuplicatePair {
-  a: Customer;
-  b: Customer;
-  reason: string;
-  score: number;
-}
-function detectDuplicates(customers: Customer[]): DuplicatePair[] {
-  const pairs: DuplicatePair[] = [];
-  const seen = new Set<string>();
-  for (let i = 0; i < customers.length; i++) {
-    for (let j = i + 1; j < customers.length; j++) {
-      const a = customers[i], b = customers[j];
-      const key = [a.id, b.id].sort().join('|');
-      if (seen.has(key)) continue;
-      // Same phone
-      if (a.phone && b.phone) {
-        const pa = normalizePhone(a.phone), pb = normalizePhone(b.phone);
-        if (pa && pb && pa === pb) {
-          seen.add(key);
-          pairs.push({ a, b, reason: 'Same phone number', score: 1 });
-          continue;
-        }
-      }
-      // Similar name
-      const sim = nameSimilarity(a.name, b.name);
-      if (sim >= 0.85) {
-        seen.add(key);
-        pairs.push({ a, b, reason: `Similar name (${Math.round(sim * 100)}% match)`, score: sim });
-      }
-    }
-  }
-  return pairs.sort((a, b) => b.score - a.score);
-}
+// Duplicate detection: lib/customer-duplicates.ts (tested; the iPhone follows it).
 
 // Spam / bot-account detection: lib/customer-spam.ts (the phone runs the same rules).
 
@@ -339,7 +291,9 @@ const MergeCustomersDialog: React.FC<{
   const [manualDeleteId, setManualDeleteId] = useState('');
   const [isMergingManual, setIsMergingManual] = useState(false);
 
-  const pairs = useMemo(() => detectDuplicates(customers), [customers]);
+  // Only while the dialog is open: it is always mounted, and ran over every pair of customers on each
+  // visit to Customers and on every snapshot.
+  const pairs = useMemo(() => (open ? detectDuplicates(customers) : []), [open, customers]);
   const visiblePairs = pairs.filter(p => {
     const key = [p.a.id, p.b.id].sort().join('|');
     return !dismissed.has(key);
