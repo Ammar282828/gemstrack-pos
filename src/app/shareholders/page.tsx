@@ -328,10 +328,10 @@ export default function ShareholderFinancesPage() {
         </div>
         <div className="flex gap-2 flex-shrink-0 [&>*]:flex-1 sm:[&>*]:flex-none">
           <Button size="sm" variant="outline" onClick={() => openDialog('contribution')}>
-            <Plus className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">Add contribution</span><span className="sm:hidden">Add</span>
+            <Plus className="w-4 h-4 mr-1.5 sm:mr-2" /><span className="hidden sm:inline">Add contribution</span><span className="sm:hidden">Add</span>
           </Button>
           <Button size="sm" onClick={() => openDialog('salary')}>
-            <BadgeIndianRupee className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">Pay salary</span><span className="sm:hidden">Salary</span>
+            <BadgeIndianRupee className="w-4 h-4 mr-1.5 sm:mr-2" /><span className="hidden sm:inline">Pay salary</span><span className="sm:hidden">Salary</span>
           </Button>
         </div>
       </header>

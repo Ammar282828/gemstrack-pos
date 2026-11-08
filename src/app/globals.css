@@ -1110,12 +1110,15 @@ td, th { font-variant-numeric: tabular-nums; }
     backdrop-filter: blur(18px);
     background-color: hsl(var(--popover) / 0.82);
   }
-  /* The scroll edge: the same fade, painted instead of blurred. */
+  /* The scroll edge, painted instead of blurred: solid behind the bar, a short fade below it. Without the
+     blur, the desktop's half-clear fade let the rows show through behind the page title (2026-11-08). */
   html.ui-glass .app-header::before {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
-    inset: 0 0 -1rem 0;
-    background: linear-gradient(to bottom, hsl(var(--background) / 0.96) 0%, hsl(var(--background) / 0.86) 60%, hsl(var(--background) / 0) 100%);
+    -webkit-mask-image: none;
+    mask-image: none;
+    inset: 0 0 -0.75rem 0;
+    background: linear-gradient(to bottom, hsl(var(--background)) calc(100% - 0.75rem), hsl(var(--background) / 0) 100%);
   }
   /* Standard style: the top bar and the bottom bars were frosted; solid enough to read without it. */
   html:not(.ui-glass) .app-header,

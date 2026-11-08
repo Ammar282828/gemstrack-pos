@@ -17,6 +17,7 @@ import { orderFullTotal } from '@/lib/order-payment';
 const docTotal = (d: { docType: string; grandTotal?: number }) =>
   d.docType === 'invoice' ? invoiceSaleValue(d as unknown as Invoice) : orderFullTotal(d as unknown as Order);
 import React, { useState, useMemo, useEffect, useRef, useDeferredValue } from 'react';
+import { takeRows, useGrowing, useWide } from '@/hooks/use-growing';
 import { authedFetch } from '@/lib/voice/authed-fetch';
 import { ListSkeleton } from '@/components/shared/skeletons';
 import Link from 'next/link';
@@ -135,19 +136,23 @@ const BalancePill: React.FC<{ doc: DocumentType }> = ({ doc }) => {
 };
 
 /** One row of the phone list (the app's invoice row): who, what, the balance, the total; actions beneath. */
-const DocumentCard: React.FC<RowProps> = ({ doc, onQuickPrint, onPrint, onPrintPerPiece, onMarkPaid, onStatusChange, onSendPaymentLink, isSendingLink, mine }) => {
+const DocumentCard: React.FC<RowProps> = ({ doc, onPrint, onPrintPerPiece, onMarkPaid, onStatusChange, onSendPaymentLink, isSendingLink, mine }) => {
     const router = useRouter();
     const status = getDocStatus(doc);
     const href = doc.docType === 'order' ? `/orders/${doc.id}` : `/invoices/${doc.id}`;
     const sold = soldLine(doc);
     const open = () => router.push(href);
+    // The page starts loading as the finger lands, and the row answers the touch (press-row), as the
+    // desktop row already did: before, a tap on a phone showed nothing until the next page had drawn.
+    const prefetchProps = usePrefetchIntent(href);
 
     return (
         <div
           role="link" tabIndex={0} aria-label={`${doc.id}, ${doc.customerName || 'Walk-in Customer'}`}
+          {...prefetchProps}
           onClick={open}
           onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); open(); } }}
-          className={cn('cursor-pointer py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40', status === 'Completed' && settledRowClass)}
+          className={cn('press-row cursor-pointer py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40', status === 'Completed' && settledRowClass)}
         >
             <div className="flex items-start gap-3">
                 <Monogram name={doc.customerName} size={38} />
@@ -169,11 +174,13 @@ const DocumentCard: React.FC<RowProps> = ({ doc, onQuickPrint, onPrint, onPrintP
                 {doc.docType === 'order' && onStatusChange
                     ? <OrderStatusSelect doc={doc as Order} onStatusChange={onStatusChange} />
                     : <BalancePill doc={doc} />}
-                <span className="whitespace-nowrap font-serif text-ios-title3 font-semibold tabular-nums">PKR {docTotal(doc).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                <span className="shrink-0 whitespace-nowrap font-serif text-ios-headline sm:text-ios-title3 font-semibold tabular-nums">PKR {docTotal(doc).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
             </div>
-            <div className="-mb-1 mt-1 flex flex-wrap items-center gap-x-1 pl-[42px]">
-                <QuickPrintButton label={`Print ${doc.docType === 'order' ? 'order ' : ''}${doc.id}`} build={onQuickPrint} />
-                <PrintButton pieces={pieceCount(doc)} onPrint={onPrint} onPrintPerPiece={onPrintPerPiece} />
+            {/* One row of actions, flush with the card's edge. With the quick-print printer beside Print (two
+                identical icons) and indented under the name, an unpaid invoice's actions took three lines. The
+                quick print stays on the desktop row and on the invoice itself. */}
+            <div className="-mb-1 -ml-2 mt-1 flex flex-wrap items-center [&_button]:px-2">
+                <PrintButton iconOnly label={`Print ${doc.id}`} pieces={pieceCount(doc)} onPrint={onPrint} onPrintPerPiece={onPrintPerPiece} />
                 {status === 'Unpaid' && onMarkPaid && (
                     <Button variant="ghost" size="sm" className="text-tone-settled-ink hover:text-tone-settled-ink" onClick={(e) => { e.stopPropagation(); onMarkPaid(); }}>
                         <CheckCircle2 className="mr-1.5 h-4 w-4" /> Record payment
@@ -543,6 +550,10 @@ export default function DocumentsPage() {
     return { all: filteredDocuments, invoices: invoicesOnly, orders: ordersOnly, shopify: shopifyOnly };
   }, [filteredDocuments]);
 
+  // A page at a time (hooks/use-growing.ts), and one layout: the phone's rows or the table, not both.
+  const wide = useWide();
+  const grow = useGrowing(`invoices:${deferredTab}:${groupBy}`, byTab[deferredTab]?.length ?? 0);
+
   const renderContent = (docs: DocumentType[]) => {
       if (isLoading) return <ListSkeleton rows={6} />;
       if (docs.length === 0) {
@@ -555,7 +566,7 @@ export default function DocumentsPage() {
             />
           );
       }
-      const sections = buildSections(docs);
+      const sections = takeRows(buildSections(docs), grow.shown);
 
       const rowProps = (d: DocumentType) => ({
         doc: d,
@@ -590,7 +601,8 @@ export default function DocumentsPage() {
         <>
           {/* One table, not one per group: 176 separate <Table> elements for 461 documents was 176 scroll
               containers. Below lg the app's rows: a card per group, a divided row per document. */}
-          <div className="lg:hidden space-y-5 cv-list">
+          {!wide ? (
+          <div className="space-y-5 cv-list">
             {sections.map(s => (
               // Skipped while off screen (globals.css .cv-list); a row is ~132px tall on a phone.
               <div key={s.key} style={{ '--cv-size': `${40 + s.rows.length * 132}px` } as React.CSSProperties}>
@@ -599,13 +611,14 @@ export default function DocumentsPage() {
                   count={groupBy === 'status' && s.owed > 0 ? `${s.rows.length} · ${pkr(s.owed)} owed` : s.rows.length}
                   trailing={pkr(s.billed)}
                 >
-                  {s.rows.map(d => <DocumentCard key={`${d.docType}-${d.id}`} {...rowProps(d)} />)}
+                  {s.drawn.map(d => <DocumentCard key={`${d.docType}-${d.id}`} {...rowProps(d)} />)}
                 </LedgerSection>
               </div>
             ))}
           </div>
 
-          <Card className="hidden lg:block">
+          ) : (
+          <Card>
             <CardContent className="p-0 scroll-shadow-x overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -625,13 +638,15 @@ export default function DocumentsPage() {
                       <TableRow className="bg-muted/40 hover:bg-muted/40">
                         <TableCell colSpan={7} className="py-1.5">{heading(s)}</TableCell>
                       </TableRow>
-                      {s.rows.map(d => <DocumentRow key={`${d.docType}-${d.id}`} {...rowProps(d)} />)}
+                      {s.drawn.map(d => <DocumentRow key={`${d.docType}-${d.id}`} {...rowProps(d)} />)}
                     </React.Fragment>
                   ))}
                 </TableBody>
               </Table>
             </CardContent>
           </Card>
+          )}
+          {grow.sentinel}
         </>
       );
   };
@@ -654,7 +669,7 @@ export default function DocumentsPage() {
       action={
         <Button variant="outline" size="sm" className="hidden flex-shrink-0 sm:inline-flex"
           onClick={() => { setImportOpen(true); setImportFile(null); setImportPreview(null); setImportProgress([]); setImportDone(false); }}>
-          <Upload className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">Import Shopify CSV</span><span className="sm:hidden">Import</span>
+          <Upload className="w-4 h-4 mr-1.5 sm:mr-2" /><span className="hidden sm:inline">Import Shopify CSV</span><span className="sm:hidden">Import</span>
         </Button>
       }
     >

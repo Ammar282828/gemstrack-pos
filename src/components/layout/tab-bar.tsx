@@ -31,8 +31,8 @@ function useKeyboardOpen(): boolean {
   return open;
 }
 
-function Item({ label, icon: Icon, on, children, ...rest }: {
-  label: string; icon: NavEntry['icon']; on: boolean; children?: React.ReactNode;
+function Item({ label, icon: Icon, on, children, onTap, ...rest }: {
+  label: string; icon: NavEntry['icon']; on: boolean; children?: React.ReactNode; onTap?: () => void;
 } & ({ href: string; onClick?: undefined } | { href?: undefined; onClick: () => void })) {
   const cls = cn(
     'tab-item press relative flex min-h-[49px] min-w-0 flex-1 flex-col items-center justify-start gap-0.5 pt-1.5 text-2xs font-medium transition-colors',
@@ -48,7 +48,7 @@ function Item({ label, icon: Icon, on, children, ...rest }: {
     </>
   );
   return rest.href !== undefined ? (
-    <Link href={rest.href} aria-current={on ? 'page' : undefined} className={cls}>{inner}</Link>
+    <Link href={rest.href} onClick={onTap} aria-current={on ? 'page' : undefined} className={cls}>{inner}</Link>
   ) : (
     <button type="button" onClick={rest.onClick} aria-current={on ? 'page' : undefined} aria-haspopup="dialog" className={cls}>{inner}</button>
   );
@@ -60,10 +60,14 @@ function Bar({ navRole, tabs, onSearch, mapOpen, onlineWaiting }: {
   const pathname = usePathname();
   const search = useSearchParams()?.toString() ?? '';
   const keyboard = useKeyboardOpen();
+  // The tapped tab lights at once, not when its page has drawn: the route change is a transition and
+  // the bar followed the pathname, so a tap showed nothing at all until the next page was ready.
+  const [pending, setPending] = useState<string | null>(null);
+  useEffect(() => { setPending(null); }, [pathname]);
   if (hidesTabBar(pathname, search ? `?${search}` : '') || keyboard) return null;
 
   const entries = ALL_ENTRIES.map(e => forRole(e, navRole)).filter((e): e is NavEntry => !!e);
-  const lit = mapOpen ? 'search' : litTab(pathname, entries, tabs);
+  const lit = mapOpen ? 'search' : pending ?? litTab(pathname, entries, tabs);
 
   return (
     <nav
@@ -73,7 +77,7 @@ function Bar({ navRole, tabs, onSearch, mapOpen, onlineWaiting }: {
       className="tab-bar glass-bar fixed inset-x-0 bottom-0 z-40 flex items-start border-t border-separator bg-card/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden [html.ui-glass_&]:rounded-full"
     >
       {tabs.map(t => (
-        <Item key={t.id} href={t.href} label={t.label} icon={t.icon} on={lit === t.id}>
+        <Item key={t.id} href={t.href} label={t.label} icon={t.icon} on={lit === t.id} onTap={() => setPending(t.id)}>
           {t.count === 'online' && onlineWaiting > 0 && (
             <span
               className="absolute -right-2.5 -top-1 min-w-[16px] rounded-full bg-destructive px-1 text-center text-[10px] font-semibold leading-4 text-destructive-foreground"

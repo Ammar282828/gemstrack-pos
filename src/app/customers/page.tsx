@@ -7,6 +7,7 @@ import { owedToYou } from '@/lib/owed';
 import { lacCrore } from '@/lib/money';
 import { WALK_IN_ENTITY } from '@/lib/walk-in';
 import React, { useState, useMemo, useEffect, useDeferredValue } from 'react';
+import { useWide } from '@/hooks/use-growing';
 import { ListSkeleton } from '@/components/shared/skeletons';
 import { format, parseISO, subMonths } from 'date-fns';
 import Link from 'next/link';
@@ -165,19 +166,6 @@ function Growing<T>({ items, render }: { items: T[]; render: (item: T) => React.
       {more && <div ref={sentinel} aria-hidden className="!border-0 !p-0 h-px" />}
     </>
   );
-}
-
-/** Whether the screen is lg (1024px) or wider: the table, not the app's rows. */
-function useWide(): boolean {
-  const [wide, setWide] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia('(min-width: 1024px)');
-    const read = () => setWide(mq.matches);
-    read();
-    mq.addEventListener('change', read);
-    return () => mq.removeEventListener('change', read);
-  }, []);
-  return wide;
 }
 
 // --- Duplicate detection helpers ---
@@ -728,7 +716,7 @@ export default function CustomersPage() {
             <Merge className="mr-2 h-4 w-4" /><span className="hidden sm:inline">Merge duplicates</span><span className="sm:hidden">Merge</span>
           </Button>
           <Button asChild size="sm">
-            <Link href="/customers/add"><PlusCircle className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">Add customer</span><span className="sm:hidden">Add</span></Link>
+            <Link href="/customers/add"><PlusCircle className="w-4 h-4 mr-1.5 sm:mr-2" /><span className="hidden sm:inline">Add customer</span><span className="sm:hidden">Add</span></Link>
           </Button>
       </>}
     >

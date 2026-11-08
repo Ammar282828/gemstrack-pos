@@ -189,7 +189,7 @@ export default function ExpensesPage() {
             <FileText className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Report</span>
           </Button>
           <Button size="sm" onClick={handleAddNew}>
-            <PlusCircle className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">Add expense</span><span className="sm:hidden">Add</span>
+            <PlusCircle className="w-4 h-4 mr-1.5 sm:mr-2" /><span className="hidden sm:inline">Add expense</span><span className="sm:hidden">Add</span>
           </Button>
       </>}
     >

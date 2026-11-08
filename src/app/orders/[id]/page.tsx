@@ -956,9 +956,11 @@ export default function OrderDetailPage() {
                       {order.items.map((item, index) => {
                           return (
                           <div key={index} className="p-4 rounded-tile flex flex-col md:flex-row gap-4 bg-muted/50">
-                              <div className="flex items-start gap-4 flex-grow min-w-0">
+                              {/* Photo above the details on a phone: beside them it left ~180px, so the metal was cut
+                                  to "Gold (2…" and every price broke onto a second line. */}
+                              <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4 flex-grow min-w-0">
                                   <ItemPhotos item={item} size={96} title={item.description} className="max-w-[13rem]" />
-                                  <div className="flex-grow min-w-0">
+                                  <div className="flex-grow min-w-0 w-full">
                                       {item.itemCategory && (
                                           <span className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">{categorySingular(item.itemCategory) || item.itemCategory}</span>
                                       )}

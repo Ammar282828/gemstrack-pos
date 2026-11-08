@@ -35,6 +35,27 @@ Audit of 2026-11-01 against a 31-point app-speed checklist (BreakingBreach's too
   `expense-report-pdf.ts`); web-vitals reporting. (The bare `useAppStore()` calls were fixed in the 2026-11-03 pass.)
 - All: the history window above.
 
+## Phone web pass 2: what a tap feels like, 2026-11-08
+
+Owner, after pass 1: "still not very intuitive, snappy or smooth as a whole". Measured as a hand would: the time from a tap to the
+first change on screen, and the longest freeze, iPhone 13 emulation, CPU 4x, production build (scratchpad journey script).
+
+- **Tabs answered nothing for ~1.8 s.** The Orders page drew its whole history at once (0.8 s React + 1.6 s style/layout,
+  a 23,000px page) and the tab bar's lit tab followed the pathname, so nothing moved until the new page was ready. Now
+  the tapped tab lights at once (`pending`, tab-bar.tsx), and Orders and Invoices draw 40 rows then more as you scroll
+  (`useGrowing` / `takeRows`, hooks/use-growing.ts; the count is kept per page for the visit so Back returns to the same
+  place). Both also drew the desktop table hidden behind the phone's cards; now one or the other (`useWide`).
+  Tap Orders: first change 1,772 -> 164 ms, longest freeze 655 -> 132 ms. Back to Orders: 1,319 -> 273 ms frozen.
+- **Invoice rows on a phone** opened by `router.push` with no prefetch and no pressed state: now `usePrefetchIntent` (loads on
+  touch-down) and `press-row`. Their actions are one row: the quick-print icon beside Print (two identical printers) is gone
+  from the phone card (kept on the desktop row and the invoice), Print is the printer alone (`PrintButton iconOnly`), the total
+  one size down so it no longer runs to the card's edge.
+- **Header on a phone**: pass 1 dropped its blur but kept the desktop's half-clear fade, so rows showed through behind the
+  title. Solid behind the bar, a 0.75rem fade below.
+- **Order page pieces**: photo above the details below `sm`; beside them the metal read "Gold (2…" and every price wrapped.
+- **Section headings** (`LedgerHeading`): the title keeps its width, the count truncates (Customers read "Rec…").
+- Icon + short label buttons (Customers/Expenses Add, Invoices Import, Shareholders) had no gap on a phone.
+
 ## Phone web pass, 2026-11-08
 
 Owner: "the erp on web on phones is quite un optimized, glitchy, laggy, and buttons sizes are wrong in dock".

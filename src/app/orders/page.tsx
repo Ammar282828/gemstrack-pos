@@ -2,6 +2,7 @@
 
 import { newestFirst } from '@/lib/sort-by-time';
 import React, { useState, useMemo, useEffect, useDeferredValue } from 'react';
+import { takeRows, useGrowing, useWide } from '@/hooks/use-growing';
 import { useLingering } from '@/hooks/use-lingering';
 import { ListSkeleton } from '@/components/shared/skeletons';
 import { FilterBar } from '@/components/shared/filter-bar';
@@ -575,6 +576,10 @@ export default function OrdersPage() {
       value: s.rows.reduce((n, o) => n + (o.subtotal || 0), 0),
     }));
   }, [filteredOrders, groupBy, owedOn, now]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A page at a time (hooks/use-growing.ts), and one layout: the phone's cards or the table, not both.
+  const wide = useWide();
+  const grow = useGrowing(`orders:${groupBy}`, filteredOrders.length);
+  const drawnSections = takeRows(sections, grow.shown);
   /** Done and closed orders fold away under the hub; they are history, not work. */
   const folds = (key: string) => groupBy === 'stage' && (key === 'done' || key === 'closed') && !openDone[key];
 
@@ -732,8 +737,9 @@ export default function OrdersPage() {
           {/* Cards below lg (the app's list); one table from lg, not one per group. Grouping by day put
               79 separate <Table> elements on this page for 124 orders: 79 scroll containers and 79
               repeated column headers. The group heading is a row inside the single table. */}
-          <div className="space-y-5 cv-list lg:hidden">
-            {sections.map(s => (
+          {!wide ? (
+          <div className="space-y-5 cv-list">
+            {drawnSections.map(s => (
               // Skipped while off screen (globals.css .cv-list); a card is ~200px tall on a phone.
               <section key={s.key} aria-label={s.title} style={{ '--cv-size': `${52 + s.rows.length * 212}px` } as React.CSSProperties}>
                 <div className="space-y-0.5 pb-2">
@@ -752,7 +758,7 @@ export default function OrdersPage() {
                   )
                   : (
                     <div className="space-y-3 md:grid md:grid-cols-2 md:gap-3 md:space-y-0">
-                      {s.rows.map(order => (
+                      {s.drawn.map(order => (
                         <div key={order.id} className="overflow-hidden rounded-card bg-card">
                           <OrderCard order={order} owed={owedFor(order)} mine={!!me && order.takenBy === me} />
                         </div>
@@ -763,7 +769,8 @@ export default function OrdersPage() {
             ))}
           </div>
 
-          <Card className="hidden lg:block">
+          ) : (
+          <Card>
             <CardContent className="p-0 scroll-shadow-x overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -777,7 +784,7 @@ export default function OrdersPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sections.map(s => (
+                  {drawnSections.map(s => (
                     <React.Fragment key={s.key}>
                       <TableRow className="bg-muted/40 hover:bg-muted/40">
                         <TableCell colSpan={6} className="py-2">
@@ -795,13 +802,15 @@ export default function OrdersPage() {
                       </TableRow>
                       {folds(s.key)
                         ? <TableRow><TableCell colSpan={6} className="py-1.5"><button type="button" className="text-ios-sub text-muted-foreground hover:text-foreground" onClick={() => setOpenDone(d => ({ ...d, [s.key]: true }))}>Show {s.rows.length}</button></TableCell></TableRow>
-                        : s.rows.map(order => <OrderTableRow key={order.id} order={order} owed={owedFor(order)} mine={!!me && order.takenBy === me} />)}
+                        : s.drawn.map(order => <OrderTableRow key={order.id} order={order} owed={owedFor(order)} mine={!!me && order.takenBy === me} />)}
                     </React.Fragment>
                   ))}
                 </TableBody>
               </Table>
             </CardContent>
           </Card>
+          )}
+          {grow.sentinel}
         </div>
       )}
 

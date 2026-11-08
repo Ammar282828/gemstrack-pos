@@ -27,7 +27,9 @@ export const PrintButton: React.FC<{
   variant?: ButtonProps['variant'];
   size?: ButtonProps['size'];
   className?: string;
-}> = ({ onPrint, onPrintPerPiece, pieces, label = 'Print', variant = 'ghost', size = 'sm', className }) => {
+  /** Just the printer, the label read out (a phone's list card, where the words pushed a row's actions onto a second line). */
+  iconOnly?: boolean;
+}> = ({ onPrint, onPrintPerPiece, pieces, label = 'Print', variant = 'ghost', size = 'sm', className, iconOnly }) => {
   const split = pieces > 1 && !!onPrintPerPiece;
   const stop = (e: React.SyntheticEvent) => e.stopPropagation();
   return (
@@ -36,8 +38,9 @@ export const PrintButton: React.FC<{
         variant={variant} size={size}
         className={cn('justify-center', split && 'rounded-r-none pr-2', className?.includes('flex-1') && 'flex-1')}
         onClick={(e) => { e.stopPropagation(); onPrint(); }}
+        aria-label={iconOnly ? label : undefined} title={iconOnly ? label : undefined}
       >
-        <Printer className="w-4 h-4 mr-1.5" /> {label}
+        {iconOnly ? <Printer className="w-4 h-4" /> : <><Printer className="w-4 h-4 mr-1.5" /> {label}</>}
       </Button>
       {split && (
         <DropdownMenu>
