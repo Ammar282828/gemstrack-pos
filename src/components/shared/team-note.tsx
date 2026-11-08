@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { Pin, Pencil } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { auth } from '@/lib/firebase';
@@ -13,9 +14,26 @@ export function TeamNote({ owner }: { owner: boolean }) {
   const note = useAppStore(s => s.settings.teamNote ?? '');
   const loaded = useAppStore(s => s.hasSettingsLoaded);
   const [editing, setEditing] = useState(false);
+  const home = usePathname() === '/';
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  function editingDialog() {
+    return (
+    <Dialog open={editing} onOpenChange={v => { if (!busy) setEditing(v); }}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Pin a team message</DialogTitle></DialogHeader>
+        <Textarea aria-label="Team message" value={text} onChange={e => setText(e.target.value)} maxLength={600} rows={5} disabled={busy} />
+        <p className="text-xs text-muted-foreground">Everyone sees this until you clear it. {text.length}/600</p>
+        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+        <DialogFooter>
+          {note && <Button variant="outline" disabled={busy} onClick={() => save('')}>Clear note</Button>}
+          <Button disabled={busy || !text.trim()} onClick={() => save(text)}>{busy ? 'Saving…' : 'Save message'}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    );
+  }
   function open() { setText(note); setError(''); setEditing(true); }
   async function save(value: string) {
     if (busy) return;
@@ -36,6 +54,16 @@ export function TeamNote({ owner }: { owner: boolean }) {
     finally { setBusy(false); }
   }
   if (!loaded || (!note && !owner)) return null;
+  // No note: the owner's way to pin one is a single quiet line on Home. It was an empty card at the top of
+  // every page (~90px saying only "Pin a message"), the first thing on each screen.
+  if (!note && !home) return null;
+  const dialog = editingDialog();
+  if (!note) return <>
+    <button type="button" onClick={open} className="press mb-2 flex items-center gap-1.5 text-ios-foot text-muted-foreground">
+      <Pin className="h-3.5 w-3.5" aria-hidden /> Pin a team note
+    </button>
+    {dialog}
+  </>;
   return <>
     <aside aria-label="Pinned team message" className="mb-4 rounded-xl border bg-card px-4 py-3">
       <div className="flex items-start gap-3">
@@ -47,17 +75,6 @@ export function TeamNote({ owner }: { owner: boolean }) {
         {owner && <Button variant="ghost" size="sm" onClick={open}><Pencil className="mr-2 h-3.5 w-3.5" />{note ? 'Edit' : 'Pin a message'}</Button>}
       </div>
     </aside>
-    <Dialog open={editing} onOpenChange={v => { if (!busy) setEditing(v); }}>
-      <DialogContent>
-        <DialogHeader><DialogTitle>Pin a team message</DialogTitle></DialogHeader>
-        <Textarea aria-label="Team message" value={text} onChange={e => setText(e.target.value)} maxLength={600} rows={5} disabled={busy} />
-        <p className="text-xs text-muted-foreground">Everyone sees this until you clear it. {text.length}/600</p>
-        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-        <DialogFooter>
-          {note && <Button variant="outline" disabled={busy} onClick={() => save('')}>Clear note</Button>}
-          <Button disabled={busy || !text.trim()} onClick={() => save(text)}>{busy ? 'Saving…' : 'Save message'}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    {dialog}
   </>;
 }

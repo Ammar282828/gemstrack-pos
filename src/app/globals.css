@@ -1129,3 +1129,14 @@ td, th { font-variant-numeric: tabular-nums; }
     background-color: hsl(var(--background) / 0.97);
   }
 }
+
+/* ── Phone page margins (owner, 2026-11-09: "not enough whitespace or too much whitespace") ──────────────
+   <main> already keeps 16px from the screen's edges, and 96 pages wrap themselves in `container px-4 py-5`
+   as well: on a phone that was 32px a side (a sixth of the width gone) and ~36px above every title, and
+   anything drawn outside the wrapper (the team note, section tabs) sat 16px further out than the page.
+   One margin, the main's; a small top gap. Wider screens keep the container's padding. */
+@media (max-width: 767px) {
+  main .container { padding-left: 0; padding-right: 0; }
+  main > .container { padding-top: 0.25rem; }
+}
+

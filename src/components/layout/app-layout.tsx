@@ -139,6 +139,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // The glass top bar's scroll edge shows only once content passes beneath it. Above the early
   // return below: a hook after it changes the hook count the render the store hydrates.
   const scrolled = useScrolled('.app-inset > main');
+  // A page arrives with a short fade, played on the route change itself so no page re-mounts for it. Opacity
+  // only: a transform on <main> would re-anchor every position:fixed bar inside it (the sale and order forms'
+  // bottom bars) while it ran. Skipped with Reduce Motion, and on the first paint (nothing to arrive from).
+  const mainRef = React.useRef<HTMLElement>(null);
+  const firstPath = React.useRef(true);
+  useEffect(() => {
+    if (firstPath.current) { firstPath.current = false; return; }
+    const el = mainRef.current;
+    if (!el || typeof el.animate !== 'function' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    el.animate([{ opacity: 0.35 }, { opacity: 1 }], { duration: 200, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' });
+  }, [pathname]);
   // The phone's Search tab opens the map as a sheet; the bar's centre shows the title once the large one has scrolled out.
   const [mapOpen, setMapOpen] = useState(false);
   const titleOut = useTitleScrolledOut('.app-inset > main', pathname);
@@ -462,7 +473,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               Clip keeps a wide page from widening the screen; tables scroll in their own wrapper (ui/table.tsx). */}
           {/* On a phone: clear of the tab bar (--tabbar-h, globals.css), plus the floating mic and "+" on tab roots
               (the app's safeAreaPadding(.bottom, 76)); pb-28 where the bar steps aside. */}
-          <main className={cn(
+          <main ref={mainRef} className={cn(
             'flex-1 min-w-0 p-4 overflow-x-clip md:p-6',
             // The microphone floats on every page, so every page clears it, not only the tab roots.
             barHidden ? 'pb-28' : 'pb-[calc(var(--tabbar-h)+var(--fab-clear))]',

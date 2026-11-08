@@ -139,6 +139,20 @@ const TileLink: React.FC<{ href: string; title?: string; children: React.ReactNo
   <Link href={href} title={title} className="press block min-w-0 rounded-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">{children}</Link>
 );
 
+/** A phone's figure: the label and the figure on one line, what it means under them; the whole row opens its page. */
+const FigureRow: React.FC<{ href: string; label: string; value: string; detail?: string; tint?: Tone }> = ({ href, label, value, detail, tint }) => (
+  <Link href={href} className="press-row flex items-center gap-3 border-t border-separator px-4 py-3 first:border-t-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40">
+    <div className="min-w-0 flex-1">
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="shrink-0 text-ios-body text-foreground">{label}</span>
+        <span className={cn('truncate font-serif text-ios-title3 font-semibold tabular-nums', tint ? toneClasses(tint).ink : 'text-foreground')}>{value}</span>
+      </div>
+      {detail ? <p className="mt-0.5 truncate text-ios-foot text-muted-foreground">{detail}</p> : null}
+    </div>
+    <ChevronRight aria-hidden className="h-4 w-4 shrink-0 text-muted-foreground/60" />
+  </Link>
+);
+
 const SHOWN = 3;
 
 /** Late first, then today, then soonest, then the undated by age. */
@@ -447,7 +461,9 @@ export default function HomePage() {
             </p>
           </div>
         </button>
-        <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-3 lg:col-span-3">
+        {/* Tablet and wider: three tiles across. A phone (even a 430px one, which the old 420px break put three
+            across, ~100px each, every figure over three lines) gets one card of rows below. */}
+        <div className="hidden gap-3 md:grid md:grid-cols-3 lg:col-span-3">
           <TileLink href="/analytics" title={`PKR ${stats.monthRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}>
             <FigureTile className="h-full" label="This month" value={stats.monthRevenue}
               detail={stats.monthCoins > 0 ? <>{monthSub}<br />+ {compactPKR(stats.monthCoins)} in gold coins</> : monthSub} />
@@ -471,6 +487,17 @@ export default function HomePage() {
               detail={stats.criticalJobs.length > 0 ? `${stats.criticalJobs.length} sitting ${CRITICAL_DAYS}+ days` : 'Nothing overdue'}
             />
           </TileLink>
+        </div>
+        <div className="glass-card overflow-hidden rounded-card bg-card md:hidden">
+          <FigureRow href="/analytics" label="This month" value={`PKR ${lacCrore(stats.monthRevenue)}`}
+            detail={stats.monthCoins > 0 ? `${monthSub} · + ${lacCrore(stats.monthCoins)} in coins` : monthSub} />
+          <FigureRow href={stats.owedInHisaab > 0 ? '/hisaab' : '/invoices'} label="Owed to you"
+            tint={stats.totalOutstanding > 0 ? 'owed' : undefined}
+            value={stats.totalOutstanding > 0 ? `PKR ${lacCrore(stats.totalOutstanding)}` : 'Nil'}
+            detail={stats.owedInHisaab > 0 ? `${stats.unpaid.length} unpaid · ${lacCrore(stats.owedInHisaab)} in hisaab` : `${stats.unpaid.length} unpaid`} />
+          <FigureRow href="/workshop" label="On the bench" tint={stats.criticalJobs.length > 0 ? 'late' : undefined}
+            value={`${stats.activeJobs.length} piece${stats.activeJobs.length === 1 ? '' : 's'}`}
+            detail={stats.criticalJobs.length > 0 ? `${stats.criticalJobs.length} sitting ${CRITICAL_DAYS}+ days` : 'Nothing overdue'} />
         </div>
       </div>
       ) : (
