@@ -475,10 +475,19 @@ struct LedgerHeading: View {
                     total
                 }
             } else {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    heading
-                    Spacer(minLength: 8)
-                    total.fixedSize(horizontal: true, vertical: false)
+                // Side by side when both fit whole; otherwise the total goes under the title, never breaking a word of it
+                // ("Thursda / y 5 Nov" in an iPad's list column beside the sidebar, owner 2026-11-08).
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        heading.fixedSize(horizontal: true, vertical: false)
+                        Spacer(minLength: 8)
+                        total.fixedSize(horizontal: true, vertical: false)
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        heading
+                        total
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         }

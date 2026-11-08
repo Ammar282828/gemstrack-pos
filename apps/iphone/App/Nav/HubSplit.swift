@@ -134,7 +134,7 @@ struct HubSplit<Hub: View>: View {
             if now != wide { wide = now }
         }
         .onGeometryChange(for: CGFloat.self) { proxy in
-            (min(420, max(340, proxy.size.width * 0.38)) / 10).rounded() * 10
+            (min(440, max(360, proxy.size.width * 0.42)) / 10).rounded() * 10
         } action: { now in
             if now != listWidth { listWidth = now }
         }
