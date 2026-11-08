@@ -77,8 +77,9 @@ struct HubSplit<Hub: View>: View {
     let prompt: (title: String, symbol: String)
     @ViewBuilder let hub: () -> Hub
 
-    /// The item the list picked: the detail stack's root.
-    @State private var picked: Route?
+    /// The item the list picked (or the New the toolbar asked for): the detail stack's root. A new `Pick` each time, so
+    /// New order pressed again is a blank form again, not the one already on screen.
+    @State private var picked: Pick?
     /// Pages opened from the item.
     @State private var deeper: [Route] = []
     /// The narrow window's own stack.
@@ -100,7 +101,7 @@ struct HubSplit<Hub: View>: View {
                     NavigationStack(path: $deeper) {
                         Group {
                             if let picked {
-                                PlaceScreen(path: picked.path).id(picked)
+                                PlaceScreen(path: picked.route.path).id(picked.token)
                             } else {
                                 ContentUnavailableView(prompt.title, systemImage: prompt.symbol)
                                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -113,11 +114,14 @@ struct HubSplit<Hub: View>: View {
                 }
                 // Rows in the list never grow into a page that is in another column.
                 .environment(\.zoomNamespace, nil)
+                // The toolbar's New (New sale, New order, Scan) opens in the item column, in place of what was there.
+                .environment(\.openInPlace, OpenInPlace { show($0) })
             } else {
                 NavigationStack(path: $stacked) {
                     hub()
                         .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
                 }
+                .environment(\.openInPlace, OpenInPlace { stacked.append($0) })
             }
         }
     }
@@ -127,8 +131,41 @@ struct HubSplit<Hub: View>: View {
             get: { [] },
             set: { path in
                 guard let route = path.last else { return }
-                picked = route
-                deeper = []
+                show(route)
             })
+    }
+
+    /// A page as the item column's new root: anything opened beneath the old one goes with it, without a slide.
+    private func show(_ route: Route) {
+        var quiet = Transaction()
+        quiet.disablesAnimations = true
+        withTransaction(quiet) {
+            deeper = []
+            picked = Pick(route: route)
+        }
+    }
+}
+
+/// One choice of the item column: the same page chosen twice is two picks (a fresh New order each time).
+private struct Pick: Equatable {
+    let route: Route
+    let token = UUID()
+}
+
+/// Opens a page in the open tab's own column on an iPad (HubSplit's item column, or the tab's stack) instead of a sheet
+/// over the whole window (owner, 2026-11-08: "pressing a new order sometimes doesn't replace the current screen": a sheet
+/// asked for while the New menu was still closing was dropped by the system, and the sheet redrew the sidebar).
+struct OpenInPlace {
+    let open: (Route) -> Void
+    init(_ open: @escaping (Route) -> Void) { self.open = open }
+    func callAsFunction(_ route: Route) { open(route) }
+}
+
+private struct OpenInPlaceKey: EnvironmentKey { static let defaultValue: OpenInPlace? = nil }
+
+extension EnvironmentValues {
+    var openInPlace: OpenInPlace? {
+        get { self[OpenInPlaceKey.self] }
+        set { self[OpenInPlaceKey.self] = newValue }
     }
 }

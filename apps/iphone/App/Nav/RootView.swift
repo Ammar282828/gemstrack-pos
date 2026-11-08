@@ -89,7 +89,10 @@ struct RootView: View {
     // After a business switch the tab the person was on (BusinessCarry); `selection` falls back to Home when this
     // business has no such tab.
     @State private var tab = BusinessCarry.carriedTab() ?? UserDefaults.standard.string(forKey: "ERPDemoTab") ?? "home"
-    @State private var creating: Route?
+    /// The page opened over the tabs (a notification's, voice's, a shortcut's, the phone's +). Kept in an object read only by
+    /// `CreatingSheet`, never by this body: a change here used to redraw the whole TabView, and its iPad sidebar visibly
+    /// rebuilt on every New order (owner, 2026-11-08: "the sidebar glitches on every new order press").
+    @State private var creating = Creating()
     /// Voice: an overlay over the tabs (and over a page sheet), never a sheet of its own (VoiceOverlay).
     @State private var voice = VoiceSession.shared
 
@@ -133,19 +136,19 @@ struct RootView: View {
 
     /// A page the voice assistant opened: over the tabs as any created page is, with the overlay still over it.
     private func openFromVoice(_ path: String) {
-        creating = Route(path: path)
+        creating.route = Route(path: path)
     }
 
     /// A menu command or shortcut (⌘1…⌘5, ⌘N, ⇧⌘N, ⌘F).
     private func perform(_ kind: ShellCommands.Kind, entries: [NavEntry], map: NavMap) {
-        guard creating == nil else { return }
+        guard creating.route == nil else { return }
         switch kind {
         case .tab(let i):
             if entries.indices.contains(i) { tab = entries[i].id }
         case .newSale:
-            if session.isOwner, map.newSale != nil { creating = Route(path: "/invoices/new") }
+            if session.isOwner, map.newSale != nil { creating.route = Route(path: "/invoices/new") }
         case .newOrder:
-            if session.role != "marketing" { creating = Route(path: "/orders/add") }
+            if session.role != "marketing" { creating.route = Route(path: "/orders/add") }
         case .search:
             ShellCommands.shared.searchWanted = true
             tab = "search"
@@ -163,14 +166,13 @@ struct RootView: View {
                         HubSplit(prompt: prompt) {
                             PlaceScreen(path: e.href, isRoot: true)
                                 .modifier(CreateAccessory(map: map, shown: true, voiceShown: session.isOwner,
-                                                          open: { creating = Route(path: $0) }, talk: { voice.present() }))
+                                                          open: { creating.route = Route(path: $0) }, talk: { voice.present() }))
                         }
                     } else {
-                        NavigationStack {
+                        TabStack {
                             PlaceScreen(path: e.href, isRoot: true)
                                 .modifier(CreateAccessory(map: map, shown: session.role != "marketing", voiceShown: session.isOwner,
-                                                          open: { creating = Route(path: $0) }, talk: { voice.present() }))
-                                .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
+                                                          open: { creating.route = Route(path: $0) }, talk: { voice.present() }))
                         }
                         // Outside the stack, so its pages see the same namespace as the rows they zoom from.
                         .zoomScope()
@@ -185,7 +187,7 @@ struct RootView: View {
                 NavigationStack {
                     SearchView(map: map).modifier(TeamNotePresentation())
                         .modifier(CreateAccessory(map: map, shown: session.role != "marketing", voiceShown: session.isOwner,
-                                                  open: { creating = Route(path: $0) }, talk: { voice.present() }))
+                                                  open: { creating.route = Route(path: $0) }, talk: { voice.present() }))
                         .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
                 }
                 .zoomScope()
@@ -212,26 +214,9 @@ struct RootView: View {
         .onChange(of: entries.map(\.id)) { _, _ in
             ShellCommands.shared.tabTitles = entries.prefix(5).map { $0.id == "home" ? "Home" : $0.label }
         }
-        // Voice over the tabs: just above the tab bar on a phone (the + and the mic step aside while it is up), at the
-        // foot of the window on an iPad. The page under it keeps working.
-        .overlay(alignment: .bottom) {
-            VoiceOverlay(open: openFromVoice, active: creating == nil, bottomInset: sizeClass.isPadLayout ? pt(16) : pt(58))
-        }
-        .sheet(item: $creating) { r in
-            NavigationStack {
-                PlaceScreen(path: r.path)
-                    .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button("Close", systemImage: "xmark") { creating = nil }
-                        }
-                    }
-            }
-            // A page opened over the tabs keeps voice over it too, above the page's own action bar.
-            .overlay(alignment: .bottom) { VoiceOverlay(open: openFromVoice, bottomInset: pt(76)) }
-            // No zoomScope here: a page opened inside the sheet has no row to grow from (it would zoom out of a bubble).
-            .presentationSizing(.page)
-        }
+        // Voice over the tabs (just above the tab bar on a phone, at the foot of an iPad's window) and the page opened over
+        // them: in a modifier of their own, so opening that page redraws only it.
+        .modifier(CreatingSheet(creating: creating, openFromVoice: openFromVoice))
         // The one poll of the online-orders count (the dashboard and the Orders badge both read it).
         // It rests with the app (not active: background, Control Center, a call) and asks again at once on return.
         .task(id: watchesOnline && scenePhase == .active) {
@@ -249,14 +234,66 @@ struct RootView: View {
         .task { openVoiceIfAsked() }
         // The simulator check opens one page over the tabs (`-ERPDemoOpen /invoices/INV-D0002`).
         .task {
-            if House.isDemo, let p = UserDefaults.standard.string(forKey: "ERPDemoOpen"), p.hasPrefix("/") { creating = Route(path: p) }
+            if House.isDemo, let p = UserDefaults.standard.string(forKey: "ERPDemoOpen"), p.hasPrefix("/") { creating.route = Route(path: p) }
             // A notification of another business switched to it: the page it named was set before this screen existed.
-            if let r = AppRouter.shared.open { creating = r; AppRouter.shared.open = nil }
+            if let r = AppRouter.shared.open { creating.route = r; AppRouter.shared.open = nil }
         }
         // A tapped notification opens its page over whatever is showing.
         .onChange(of: AppRouter.shared.open) { _, r in
-            if let r { creating = r; AppRouter.shared.open = nil }
+            if let r { creating.route = r; AppRouter.shared.open = nil }
         }
+    }
+}
+
+/// The page opened over the tabs, if any. An object, so the TabView's body never reads it (see `RootView.creating`).
+@MainActor @Observable
+final class Creating {
+    var route: Route?
+}
+
+/// Voice over the tabs and the page sheet over them, redrawn on their own when a page opens or closes.
+private struct CreatingSheet: ViewModifier {
+    @Bindable var creating: Creating
+    let openFromVoice: (String) -> Void
+    @Environment(\.layoutWidthClass) private var sizeClass
+
+    func body(content: Content) -> some View {
+        content
+            // Voice over the tabs: just above the tab bar on a phone (the + and the mic step aside while it is up), at the
+            // foot of the window on an iPad. The page under it keeps working.
+            .overlay(alignment: .bottom) {
+                VoiceOverlay(open: openFromVoice, active: creating.route == nil, bottomInset: sizeClass.isPadLayout ? pt(16) : pt(58))
+            }
+            .sheet(item: $creating.route) { r in
+                NavigationStack {
+                    PlaceScreen(path: r.path)
+                        .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button("Close", systemImage: "xmark") { creating.route = nil }
+                            }
+                        }
+                }
+                // A page opened over the tabs keeps voice over it too, above the page's own action bar.
+                .overlay(alignment: .bottom) { VoiceOverlay(open: openFromVoice, bottomInset: pt(76)) }
+                // No zoomScope here: a page opened inside the sheet has no row to grow from (it would zoom out of a bubble).
+                .presentationSizing(.page)
+            }
+    }
+}
+
+/// A tab that is one stack (Home, and every tab on a phone): its path kept here, so the iPad's New can open a page on it
+/// in place of a sheet (`openInPlace`).
+struct TabStack<Root: View>: View {
+    @ViewBuilder let root: () -> Root
+    @State private var path: [Route] = []
+
+    var body: some View {
+        NavigationStack(path: $path) {
+            root()
+                .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
+        }
+        .environment(\.openInPlace, OpenInPlace { path.append($0) })
     }
 }
 
@@ -286,6 +323,17 @@ private struct CreateAccessory: ViewModifier {
 
     @Environment(\.layoutWidthClass) private var sizeClass
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// The iPad's tab column, where New opens in place of what is shown (nil: a sheet over the tabs).
+    @Environment(\.openInPlace) private var openInPlace
+
+    /// New sale, New order or Scan from the iPad's menu: in the tab's own column, so it replaces the page beside the list.
+    /// Asked once the menu has closed (a change made while it is still closing can be dropped by the system).
+    private func make(_ path: String) {
+        let place = openInPlace, sheet = open
+        DispatchQueue.main.async {
+            if let place { place(Route(path: path)) } else { sheet(path) }
+        }
+    }
 
     func body(content: Content) -> some View {
         if sizeClass.isPadLayout {
@@ -313,10 +361,10 @@ private struct CreateAccessory: ViewModifier {
         Menu {
             if map.newSale != nil {
                 // Straight to the sale, not the New chooser (which asks Sale / Order / Repair again).
-                Button("New sale", systemImage: "banknote") { open("/invoices/new") }
+                Button("New sale", systemImage: "banknote") { make("/invoices/new") }
             }
-            Button("New order", systemImage: "list.clipboard") { open("/orders/add") }
-            Button("Scan", systemImage: "qrcode.viewfinder") { open("/scan") }
+            Button("New order", systemImage: "list.clipboard") { make("/orders/add") }
+            Button("Scan", systemImage: "qrcode.viewfinder") { make("/scan") }
             if voice && voiceShown {
                 Divider()
                 Button("Voice assistant", systemImage: "mic", action: talk)
