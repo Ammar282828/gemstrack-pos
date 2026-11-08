@@ -80,28 +80,32 @@ struct HubSplit<Hub: View>: View {
     /// The item the list picked (or the New the toolbar asked for): the detail stack's root. A new `Pick` each time, so
     /// New order pressed again is a blank form again, not the one already on screen.
     @State private var picked: Pick?
-    /// Pages opened from the item.
-    @State private var deeper: [Route] = []
-    /// The narrow window's own stack.
-    @State private var stacked: [Route] = []
+    /// Whether the window is wide enough for two columns. Kept as a flag, read from the window's width only when it
+    /// crosses the line: a GeometryReader here redrew both columns (the whole list and the form beside it) on every
+    /// change of size, the keyboard's rise included.
+    @State private var wide = true
 
     /// Below this the two columns would each be too tight to read.
     private static var wideEnough: CGFloat { 700 }
 
     var body: some View {
-        GeometryReader { geo in
-            if geo.size.width >= Self.wideEnough {
+        Group {
+            if wide {
                 HStack(spacing: 0) {
                     NavigationStack(path: intercept) {
                         hub()
                             .navigationDestination(for: Route.self) { _ in EmptyView() }
                     }
-                    .frame(width: min(420, max(340, geo.size.width * 0.38)))
+                    .frame(width: listWidth)
                     Divider().ignoresSafeArea()
-                    NavigationStack(path: $deeper) {
+                    // No path kept for this stack, as on a phone: its pages (an order's Edit, an invoice's) are pushed
+                    // by the screens' own destinations, which a stack driven by a path did not hold steady (the edit
+                    // form stopped answering on an iPad, owner 2026-11-08). A new pick makes a new stack, so whatever
+                    // was opened beneath the old item goes with it.
+                    NavigationStack {
                         Group {
                             if let picked {
-                                PlaceScreen(path: picked.route.path).id(picked.token)
+                                PlaceScreen(path: picked.route.path)
                             } else {
                                 ContentUnavailableView(prompt.title, systemImage: prompt.symbol)
                                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -110,6 +114,7 @@ struct HubSplit<Hub: View>: View {
                         }
                         .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
                     }
+                    .id(picked?.token)
                     .frame(maxWidth: .infinity)
                 }
                 // Rows in the list never grow into a page that is in another column.
@@ -117,14 +122,25 @@ struct HubSplit<Hub: View>: View {
                 // The toolbar's New (New sale, New order, Scan) opens in the item column, in place of what was there.
                 .environment(\.openInPlace, OpenInPlace { show($0) })
             } else {
-                NavigationStack(path: $stacked) {
+                // A narrow window (Split View, Slide Over) is the phone's one stack; New opens over it as on a phone.
+                NavigationStack {
                     hub()
                         .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
                 }
-                .environment(\.openInPlace, OpenInPlace { stacked.append($0) })
             }
         }
+        .onGeometryChange(for: Bool.self) { $0.size.width >= Self.wideEnough } action: { now in
+            if now != wide { wide = now }
+        }
+        .onGeometryChange(for: CGFloat.self) { proxy in
+            (min(420, max(340, proxy.size.width * 0.38)) / 10).rounded() * 10
+        } action: { now in
+            if now != listWidth { listWidth = now }
+        }
     }
+
+    /// The list column's width, in steps of 10 points so a resize redraws it only now and then.
+    @State private var listWidth: CGFloat = 380
 
     private var intercept: Binding<[Route]> {
         Binding(
@@ -139,10 +155,7 @@ struct HubSplit<Hub: View>: View {
     private func show(_ route: Route) {
         var quiet = Transaction()
         quiet.disablesAnimations = true
-        withTransaction(quiet) {
-            deeper = []
-            picked = Pick(route: route)
-        }
+        withTransaction(quiet) { picked = Pick(route: route) }
     }
 }
 

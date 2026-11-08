@@ -282,18 +282,17 @@ private struct CreatingSheet: ViewModifier {
     }
 }
 
-/// A tab that is one stack (Home, and every tab on a phone): its path kept here, so the iPad's New can open a page on it
-/// in place of a sheet (`openInPlace`).
+/// A tab that is one stack (Home, and every tab on a phone). No path is kept: the screens push their own pages (an
+/// order's Edit and the like) by destinations of their own, which a stack driven by a path did not hold steady. New
+/// from here opens over the tabs (`CreatingSheet`).
 struct TabStack<Root: View>: View {
     @ViewBuilder let root: () -> Root
-    @State private var path: [Route] = []
 
     var body: some View {
-        NavigationStack(path: $path) {
+        NavigationStack {
             root()
                 .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
         }
-        .environment(\.openInPlace, OpenInPlace { path.append($0) })
     }
 }
 

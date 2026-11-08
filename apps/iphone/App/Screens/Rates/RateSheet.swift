@@ -321,9 +321,12 @@ struct RateSheet: View {
                         .disabled(saving || filling || s == nil)
                 }
                 #if os(iOS)
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-                    Button("Done") { focused = nil }
+                // A phone's number pad only: an iPad's keyboard puts itself away (see KeyboardDone).
+                if UIDevice.current.userInterfaceIdiom == .phone {
+                    ToolbarItemGroup(placement: .keyboard) {
+                        Spacer()
+                        Button("Done") { focused = nil }
+                    }
                 }
                 #endif
             }

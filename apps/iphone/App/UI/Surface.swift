@@ -276,17 +276,26 @@ extension View {
 // MARK: The keyboard's Done
 
 private struct KeyboardDone: ViewModifier {
+    @ViewBuilder
     func body(content: Content) -> some View {
         #if os(macOS)
         // A Mac's keyboard has Return and Tab; there is no keypad to put away.
         content
         #else
-        content.toolbar {
+        if UIDevice.current.userInterfaceIdiom != .phone {
+            // An iPad's keyboard has its own key to put it away, and a hardware keyboard shows none. The keyboard
+            // toolbar there was the fragile part: two columns (or a sheet over a form) each offering one fought over
+            // the one keyboard, and the form stopped answering or the app closed (owner, 2026-11-08: "editing an order
+            // or invoice on ipad would also become unresponsive", "entering delete code sometimes causes crash").
+            content
+        } else {
+            content.toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
                 Button("Done") {
                     UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                 }
+            }
             }
         }
         #endif
