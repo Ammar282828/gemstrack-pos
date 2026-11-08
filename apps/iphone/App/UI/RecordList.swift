@@ -268,34 +268,95 @@ struct RecordRow<Accessory: View>: View {
     #endif
 
     var body: some View {
-        let stacked = typeSize.isAccessibilitySize
-        let layout = stacked
-            ? AnyLayout(VStackLayout(alignment: .leading, spacing: pt(8)))
-            : AnyLayout(HStackLayout(alignment: .top, spacing: pt(12)))
-        layout {
-            HStack(alignment: .top, spacing: pt(12)) {
-                Monogram(name: name, size: Self.monogram)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(title)
-                        .font(.house(.headline))
-                        .foregroundStyle(muted ? Color.secondary : Color.primary)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                    HStack(alignment: .firstTextBaseline, spacing: pt(6)) {
-                        subtitle
-                            .font(.house(.caption))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
-                        if mine { MineTag() }
-                        accessory()
+        Group {
+            if typeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: pt(8)) {
+                    lead.frame(maxWidth: .infinity, alignment: .leading)
+                    trailing(true)
+                }
+            } else if !Self.canFold {
+                HStack(alignment: .top, spacing: pt(12)) {
+                    lead.frame(maxWidth: .infinity, alignment: .leading)
+                    trailing(false)
+                }
+            } else {
+                // The figures beside the name while the name keeps at least ~130 points; in a narrower place (an iPad's
+                // list column beside the open sidebar) they go on their own line under it, so the name is never cut to
+                // two letters (owner, 2026-11-08: "the iPad cards hide too much data when the sidebar is open").
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .top, spacing: pt(12)) {
+                        lead.frame(minWidth: Self.nameRoom, idealWidth: Self.nameRoom, maxWidth: .infinity, alignment: .leading)
+                        trailing(false)
+                    }
+                    VStack(alignment: .leading, spacing: pt(6)) {
+                        lead.frame(maxWidth: .infinity, alignment: .leading)
+                        underneath
                     }
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            trailing(stacked)
         }
         .padding(.vertical, pt(2))
         .accessibilityElement(children: .combine)
+    }
+
+    /// An iPad's narrow list column folds the figures under the name; a phone keeps its one line as it always has.
+    private static var canFold: Bool {
+        #if os(iOS)
+        return UIDevice.current.userInterfaceIdiom == .pad
+        #else
+        return false
+        #endif
+    }
+
+    /// The least the monogram and the name need beside the figures.
+    private static var nameRoom: CGFloat { monogram + 12 + 130 }
+
+    /// The monogram, the name over its line.
+    private var lead: some View {
+        HStack(alignment: .top, spacing: pt(12)) {
+            Monogram(name: name, size: Self.monogram)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.house(.headline))
+                    .foregroundStyle(muted ? Color.secondary : Color.primary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(alignment: .firstTextBaseline, spacing: pt(6)) {
+                    subtitle
+                        .font(.house(.caption))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                    if mine { MineTag() }
+                    accessory()
+                }
+            }
+        }
+    }
+
+    /// The figures as one line under the name, lined up with it: the amount, what is owed, then the stage.
+    @ViewBuilder
+    private var underneath: some View {
+        if money != nil || status != nil {
+            HStack(alignment: .firstTextBaseline, spacing: pt(8)) {
+                if let money {
+                    if let amount = money.amount {
+                        RowAmount(amount: amount, lac: money.lac, tone: money.tone?.color ?? .primary)
+                    }
+                    if let detail = money.detail, !detail.isEmpty {
+                        Text(detail)
+                            .font(.house(.caption).weight(money.detailTone == .quiet ? .regular : .semibold))
+                            .foregroundStyle(money.detailTone.color)
+                            .monospacedDigit()
+                            .lineLimit(1)
+                    }
+                }
+                Spacer(minLength: 0)
+                if let status {
+                    Pill(status.text, tone: status.tone, symbol: status.symbol)
+                }
+            }
+            .padding(.leading, Self.monogram + 12)
+        }
     }
 
     @ViewBuilder
