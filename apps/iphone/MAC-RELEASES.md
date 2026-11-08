@@ -51,3 +51,4 @@ app archived for TestFlight's "Shop" group, and the iPhone app built beside it a
 - 2026-11-07: ERP 2.6.1 — the whole app in Inter, one clean professional typeface: headings and money figures leave the serif, and larger text still scales it.
 - 2026-11-08: ERP 2.6.2 — on iPad, New order, New sale and Scan open beside the list in place of the page that was there (a blank form every time), and the sidebar no longer flickers when they open.
 - 2026-11-08: ERP 2.6.3 — on iPad, editing an order or an invoice no longer freezes, and typing the delete code no longer closes the app; the keyboard puts itself away with its own key.
+- 2026-11-08: ERP 2.6.4 — on iPad, tapping an order, invoice, customer or piece no longer flashes the list white, and the cards keep the customer and the figures in view when the sidebar is open (the figures move under the name when space is short).
