@@ -23,6 +23,7 @@
  */
 
 import type { Payment, PaymentType } from '@/lib/store';
+import { deliveryOf, type ShopifyFulfillmentLike } from '@/lib/shopify-delivery';
 
 export interface ShopifyTransaction {
   id: number | string;
@@ -40,6 +41,8 @@ export interface ShopifyOrderState {
   financial_status?: string | null;
   fulfillment_status?: string | null;
   cancelled_at?: string | null;
+  /** The parcels (TCS through Universal Courier): where it is, lib/shopify-delivery.ts. Absent on an old caller. */
+  fulfillments?: ShopifyFulfillmentLike[] | null;
 }
 
 export interface MirroredInvoice {
@@ -50,6 +53,8 @@ export interface MirroredInvoice {
   shopifyFinancialStatus?: string;
   shopifyFulfillment?: string;
   shopifyCancelledAt?: string;
+  shopifyDelivery?: string;
+  shopifyTracking?: { company?: string; number?: string };
   status?: string;
 }
 
@@ -75,7 +80,11 @@ export interface MirrorPlan {
   amountPaid: number;
   balanceDue: number;
   /** Shopify's state, to write as it is. */
-  fields: { shopifyFinancialStatus: string; shopifyFulfillment: string; shopifyCancelledAt?: string; shopifyTransactionIds: string[] };
+  fields: {
+    shopifyFinancialStatus: string; shopifyFulfillment: string; shopifyCancelledAt?: string; shopifyTransactionIds: string[];
+    /** Where the parcel is (only when Shopify's order carried its fulfilments), its courier number, and when it arrived or came back. */
+    shopifyDelivery?: string; shopifyTracking?: { company: string; number: string }; shopifyDeliveryAt?: string;
+  };
   /**
    * A web sale cancelled on Shopify with nothing paid never happened: it is voided — `status:
    * 'Refunded'`, the ERP's one "not a sale" (Owed, Analytics and the Workshop all leave it out).
@@ -136,12 +145,20 @@ export function planShopifyMirror(
     ...(order.cancelled_at && { shopifyCancelledAt: String(order.cancelled_at) }),
     shopifyTransactionIds: seen,
   };
+  if (Array.isArray(order.fulfillments)) {
+    const d = deliveryOf(order);
+    fields.shopifyDelivery = d.delivery;
+    if (d.tracking) fields.shopifyTracking = d.tracking;
+    if (d.at) fields.shopifyDeliveryAt = d.at;
+  }
   const voids = !!opts.voidWhenCancelled && !!order.cancelled_at && inv.status !== 'Refunded' && paid < 1;
   const changed = voids || added.length > 0
     || seen.length !== (inv.shopifyTransactionIds || []).length
     || fields.shopifyFinancialStatus !== (inv.shopifyFinancialStatus || '')
     || fields.shopifyFulfillment !== (inv.shopifyFulfillment || '')
-    || (fields.shopifyCancelledAt || '') !== (inv.shopifyCancelledAt || '');
+    || (fields.shopifyCancelledAt || '') !== (inv.shopifyCancelledAt || '')
+    || (fields.shopifyDelivery !== undefined && fields.shopifyDelivery !== (inv.shopifyDelivery || ''))
+    || (fields.shopifyTracking?.number || '') !== (fields.shopifyTracking ? (inv.shopifyTracking?.number || '') : '');
 
   return { added, paymentHistory, amountPaid: money(paid), balanceDue: money(grand - paid), fields, voids, changed };
 }

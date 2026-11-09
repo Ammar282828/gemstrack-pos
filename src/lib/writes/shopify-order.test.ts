@@ -137,6 +137,49 @@ describe('Shopify money and state onto the order', () => {
     expect(data.orders['SHOPIFY-1440']).toMatchObject({ advancePayment: 0, shopifyFinancialStatus: 'paid' });
   });
 
+  const parcel = (shipment_status: string | null, extra: Record<string, unknown> = {}) => ({
+    status: 'success', shipment_status, tracking_company: 'TCS', tracking_number: '173019676104',
+    created_at: '2026-11-05T08:52:59Z', updated_at: '2026-11-06T16:56:39Z', ...extra,
+  });
+
+  it('shipped with TCS is made: Completed, every piece ticked, the consignment kept for Track', async () => {
+    const { db, data } = await seeded();
+    const r = await mirrorShopifyToOrder(db, 'SHOPIFY-1440', order({ fulfillment_status: 'fulfilled', fulfillments: [parcel('in_transit')] }), []);
+    expect(r?.completed).toBe(true);
+    const o = data.orders['SHOPIFY-1440'] as Record<string, unknown> & { items: { isCompleted: boolean }[] };
+    expect(o).toMatchObject({ status: 'Completed', shopifyDelivery: 'in_transit', tcsConsignmentNo: '173019676104', shopifyTracking: { company: 'TCS', number: '173019676104' } });
+    expect(o.items.every(i => i.isCompleted)).toBe(true);
+    // Delivered later: the parcel's state moves, the status stays.
+    await mirrorShopifyToOrder(db, 'SHOPIFY-1440', order({ fulfillment_status: 'fulfilled', fulfillments: [parcel('delivered')] }), []);
+    expect(data.orders['SHOPIFY-1440']).toMatchObject({ status: 'Completed', shopifyDelivery: 'delivered', shopifyDeliveryAt: '2026-11-06T16:56:39Z' });
+    expect((await mirrorShopifyToOrder(db, 'SHOPIFY-1440', order({ fulfillment_status: 'fulfilled', fulfillments: [parcel('delivered')] }), []))?.changed).toBe(false);
+  });
+
+  it('returned (shipped, then cancelled on Shopify) with nothing paid is Cancelled, even after Completed', async () => {
+    const { db, data } = await seeded();
+    await mirrorShopifyToOrder(db, 'SHOPIFY-1440', order({ fulfillment_status: 'fulfilled', fulfillments: [parcel('attempted_delivery')] }), []);
+    expect(data.orders['SHOPIFY-1440']).toMatchObject({ status: 'Completed', shopifyDelivery: 'attempted' });
+    await mirrorShopifyToOrder(db, 'SHOPIFY-1440', order({ fulfillment_status: 'fulfilled', financial_status: 'voided', cancelled_at: '2026-11-08T13:46:41Z', fulfillments: [parcel('attempted_delivery')] }), []);
+    expect(data.orders['SHOPIFY-1440']).toMatchObject({ status: 'Cancelled', shopifyDelivery: 'returned' });
+  });
+
+  it('a cancelled parcel and a re-booked one: the live one counts; a status the shop set is kept', async () => {
+    const { db, data } = await seeded();
+    Object.assign(data.orders['SHOPIFY-1440'], { status: 'Refunded' });
+    await mirrorShopifyToOrder(db, 'SHOPIFY-1440', order({ fulfillment_status: 'fulfilled', fulfillments: [
+      parcel(null, { status: 'cancelled', tracking_number: '1', created_at: '2026-11-07T10:44:28Z' }),
+      parcel('in_transit', { tracking_number: '2', created_at: '2026-11-07T14:27:42Z' }),
+    ] }), []);
+    expect(data.orders['SHOPIFY-1440']).toMatchObject({ status: 'Refunded', shopifyDelivery: 'in_transit', shopifyTracking: { number: '2' } });
+  });
+
+  it('an invoiced order shows where the parcel is but its status is the invoice\'s business', async () => {
+    const { db, data } = await seeded();
+    Object.assign(data.orders['SHOPIFY-1440'], { invoiceId: 'INV-000002', status: 'In Progress' });
+    await mirrorShopifyToOrder(db, 'SHOPIFY-1440', order({ fulfillment_status: 'fulfilled', fulfillments: [parcel('delivered')] }), []);
+    expect(data.orders['SHOPIFY-1440']).toMatchObject({ status: 'In Progress', shopifyDelivery: 'delivered' });
+  });
+
   it('is nothing when there is no such order', async () => {
     expect(await mirrorShopifyToOrder(fakeDb(seed()).db, 'SHOPIFY-9', order(), [])).toBeNull();
   });

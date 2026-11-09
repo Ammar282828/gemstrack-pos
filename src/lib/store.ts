@@ -592,6 +592,10 @@ export interface Invoice {
   shopifyFinancialStatus?: string;  // 'paid' | 'pending' | 'voided' | …
   /** Shopify's word, kept by its notices (lib/shopify-mirror.ts): when it was cancelled there, the payments taken there. */
   shopifyCancelledAt?: string;
+  /** Where its parcel is (lib/shopify-delivery.ts), its courier number, when it arrived or came back. */
+  shopifyDelivery?: string;
+  shopifyTracking?: { company: string; number: string };
+  shopifyDeliveryAt?: string;
   shopifyTransactionIds?: string[];
   shopifySyncedAt?: string;
   shopifyOrderName?: string;
@@ -770,6 +774,10 @@ export interface Order {
   shopifyFinancialStatus?: string;
   shopifyFulfillment?: string;
   shopifyCancelledAt?: string;
+  /** Where its parcel is, from Shopify's fulfilments (lib/shopify-delivery.ts): delivered, in_transit, returned, …; its courier number; when it arrived or came back. */
+  shopifyDelivery?: string;
+  shopifyTracking?: { company: string; number: string };
+  shopifyDeliveryAt?: string;
   shopifyTransactionIds?: string[];
   whatsappOrder?: { state: string; at: string };
   shopifyDraftOrderId?: string; // Set while the order is in-progress (pre-invoice) and mirrored to Shopify as a draft order
@@ -781,7 +789,7 @@ const INVOICE_PROVENANCE = [
   'sourceOrderId', 'source', 'notes', 'acquisitionSource', 'shopifyFulfillment', 'shopifyFinancialStatus',
   'shopifyOrderName', 'shopifyOrderId', 'shopifyOrderNumber', 'shopifyDraftOrderId', 'shopifyCheckoutUrl',
   // Which of Shopify's payments are already on it: lose these and its next notice adds them again.
-  'shopifyTransactionIds', 'shopifyCancelledAt', 'shopifySyncedAt',
+  'shopifyTransactionIds', 'shopifyCancelledAt', 'shopifySyncedAt', 'shopifyDelivery', 'shopifyTracking', 'shopifyDeliveryAt',
   // A link already sent to the customer keeps working after the invoice is edited.
   'shareToken',
 ] as const;

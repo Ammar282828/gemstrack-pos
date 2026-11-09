@@ -591,6 +591,16 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
     per unit (description as the invoice line's, priced at the line's price), Pending. What Shopify has received comes in through
     the mirror as **advances** (`adv-shopify-<transaction id>`, each once, never more than is owed); cash on delivery has none,
     it is collected at delivery. A cancel on Shopify with nothing paid makes the order Cancelled; with money it is only marked.
+  - **Where the parcel is, from TCS** (2026-11-09, owner: "cross check with shopify and see what tcs delivery status is … a lot of
+    the shopify orders on erp have been fulfilled or returned, update them"). TCS reaches Shopify through Universal Courier as each
+    fulfilment's `shipment_status`; the mirror writes it onto the order or invoice as `shopifyDelivery` (delivered, in_transit,
+    out_for_delivery, attempted, shipped, returned; `lib/shopify-delivery.ts`), with `shopifyTracking` and `shopifyDeliveryAt`, and
+    the TCS number as `tcsConsignmentNo` so Track works. **Shipped and not back is made: an open order goes to Completed** (pieces
+    ticked); returned is shipped-then-cancelled on Shopify (or TCS's not delivered), and with nothing paid the cancel makes it
+    Cancelled (an invoice: voided, as before). An invoiced order's status stays the invoice's. Cards and the order page show it
+    ("With TCS", "Delivered", "Returned"). Status changes don't always send the ERP a notice, so every three hours the five-minute
+    tick compares the last four months of Shopify orders with the ERP's copies and mirrors each one behind (`catchUpShopifyDelivery`,
+    40 a tick until caught up; state in `shopify_sync/delivery`).
     The mirror never rewrites what the shop changed (decision "Shopify notices"); the order WhatsApp's state is written to the
     order's `whatsappOrder`. From there it is an ordinary order: karigars, Ready, **Finalize & invoice** (decision "Order to
     invoice"), whose invoice keeps `source: 'shopify'`, the Shopify ids and the transactions already counted. Revenue lands at

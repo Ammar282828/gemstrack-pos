@@ -20,6 +20,8 @@ import { planShopifyMirror, shopifyPaymentNote, type ShopifyOrderState, type Sho
 import { rupees } from '@/lib/money';
 import { createOrder, type CreateOrderDeps, type CreatedOrder } from './create-order';
 import { orderBalance } from './order-pieces';
+import { orderStatusPatch } from './order-status';
+import { isShippedOut } from '@/lib/shopify-delivery';
 
 const ORDERS = 'orders';
 /** Most pieces one web order makes (a unit each): a runaway quantity must not make a thousand pieces. */
@@ -121,6 +123,8 @@ export interface ShopifyOrderMirror {
   orderId: string;
   added: { amount: number; date: string; id: string }[];
   cancelled: boolean;
+  /** Shipped on Shopify, so the piece is made: the order went to Completed. */
+  completed?: boolean;
   changed: boolean;
   advancePayment?: number;
   balance?: number;
@@ -166,7 +170,15 @@ export async function mirrorShopifyToOrder(
     }
     const plan = planShopifyMirror(state(), shopify, [], { voidWhenCancelled: true });
     const cancels = !invoiced && plan.voids && o.status !== 'Cancelled' && o.status !== 'Refunded';
-    const changed = cancels || added.length > 0
+    // Shipped (TCS has it, or it is delivered) and not back: the piece was made, so the order is done. Never over a
+    // cancel, an invoiced order (its invoice is the record) or a status the shop set to Cancelled/Refunded/Completed.
+    const completes = !invoiced && !cancels && !plan.fields.shopifyCancelledAt && isShippedOut(plan.fields.shopifyDelivery)
+      && (o.status === 'Pending' || o.status === 'In Progress');
+    const tracking = plan.fields.shopifyTracking;
+    const tcsNo = tracking && /tcs/i.test(tracking.company) && !o.tcsConsignmentNo ? tracking.number : undefined;
+    const changed = cancels || completes || !!tcsNo || added.length > 0
+      || (plan.fields.shopifyDelivery !== undefined && plan.fields.shopifyDelivery !== ((o.shopifyDelivery as string) || ''))
+      || (tracking?.number || '') !== (tracking ? ((o.shopifyTracking as { number?: string })?.number || '') : '')
       || plan.fields.shopifyFinancialStatus !== ((o.shopifyFinancialStatus as string) || '')
       || plan.fields.shopifyFulfillment !== ((o.shopifyFulfillment as string) || '')
       || (plan.fields.shopifyCancelledAt || '') !== ((o.shopifyCancelledAt as string) || '')
@@ -180,13 +192,22 @@ export async function mirrorShopifyToOrder(
       shopifyTransactionIds: ids,
       shopifySyncedAt: new Date().toISOString(),
       ...(added.length && { advances, advancePayment: paid, grandTotal: balance }),
+      ...(plan.fields.shopifyDelivery !== undefined && { shopifyDelivery: plan.fields.shopifyDelivery }),
+      ...(tracking && { shopifyTracking: tracking }),
+      ...(plan.fields.shopifyDeliveryAt && { shopifyDeliveryAt: plan.fields.shopifyDeliveryAt }),
+      ...(tcsNo && { tcsConsignmentNo: tcsNo }),
       ...(cancels && { status: 'Cancelled' }),
+      // Completing ticks every piece, as setting Completed by hand does (writes/order-status.ts).
+      ...(completes && orderStatusPatch({ status: o.status as string, items: o.items as never }, 'Completed').patch),
     });
-    return { orderId, added, cancelled: cancels, changed: true, advancePayment: paid, balance };
+    return { orderId, added, cancelled: cancels, completed: completes, changed: true, advancePayment: paid, balance };
   });
 
   if (result?.cancelled) {
     void Promise.resolve(fx.log?.('order.update', `Cancelled on Shopify: order ${orderId}`, `Order #${shopify.order_number}, nothing paid`, orderId)).catch(() => undefined);
+  }
+  if (result?.completed) {
+    void Promise.resolve(fx.log?.('order.update', `Shipped on Shopify: order ${orderId}`, `Order #${shopify.order_number} left the shop, so it is Completed`, orderId)).catch(() => undefined);
   }
   if (result?.added.length) {
     const total = result.added.reduce((s, p) => s + p.amount, 0);

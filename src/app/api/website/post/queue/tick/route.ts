@@ -34,7 +34,7 @@ import { runDueReports } from '@/lib/notifications/dispatch';
 import { refreshReviews } from '@/lib/reviews-server';
 import { onlineOrdersPossible, sweepOnline } from '@/lib/website/online';
 import { snapshotIfDue } from '@/lib/social-insights/snapshot';
-import { sweepShopifyOrders } from '@/lib/shopify-order-sweep';
+import { catchUpShopifyDelivery, sweepShopifyOrders } from '@/lib/shopify-order-sweep';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -74,10 +74,13 @@ export async function POST(req: NextRequest) {
   // WhatsApp started even when Shopify's notices are refused. Never in the way of the rest.
   const shopifyOrders = dry ? null : await sweepShopifyOrders().catch(e => ({ error: e instanceof Error ? e.message : String(e) }));
   if (shopifyOrders && 'imported' in shopifyOrders && (shopifyOrders.imported.length || shopifyOrders.whatsapp.length || shopifyOrders.errors.length)) console.log('[queue/tick] shopify orders', JSON.stringify(shopifyOrders));
+  // Every three hours: each web order the ERP has against Shopify — paid, shipped, delivered by TCS, returned.
+  const shopifyDelivery = dry ? null : await catchUpShopifyDelivery().catch(e => ({ error: e instanceof Error ? e.message : String(e) }));
+  if (shopifyDelivery) console.log('[queue/tick] shopify delivery', JSON.stringify(shopifyDelivery));
   // Insights' hourly snapshot (stories die after a day); in every house with Meta, never in the way.
   const insights = dry ? null : await snapshotIfDue().catch(() => null);
   // The reports ride this tick in every house, so they come before the Post a Piece gate.
-  if (!STORE_POST_PIECE) return NextResponse.json({ ok: true, onlineOrders, shopifyOrders, insights, notifications: await reports(dry) });
+  if (!STORE_POST_PIECE) return NextResponse.json({ ok: true, onlineOrders, shopifyOrders, shopifyDelivery, insights, notifications: await reports(dry) });
   const started = Date.now();
   const due = await dueItems(new Date(started));
   if (dry) return NextResponse.json({ ok: true, dry: true, onlineOrders, due: due.map(d => ({ id: d.id, headline: d.headline, dueAt: d.dueAt, status: d.status })), notifications: await reports(true) });

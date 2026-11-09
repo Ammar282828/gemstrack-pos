@@ -80,6 +80,7 @@ import { owesMoney } from '@/lib/money';
 import { BusyLabel } from '@/components/ui/busy';
 import { useShallow } from 'zustand/react/shallow';
 import { formatDate } from '@/lib/safe-date';
+import { deliveryLabel } from '@/lib/shopify-delivery';
 
 
 const STATUS_TONE: Record<string, Tone> = { Pending: 'owed', 'In Progress': 'working', Completed: 'settled', Cancelled: 'quiet', Refunded: 'quiet' };
@@ -841,6 +842,9 @@ export default function OrderDetailPage() {
                     }
                     if (order.takenBy) facts.push(['Taken by', order.takenBy]);
                     if (order.source) facts.push(['Found us via', CUSTOMER_SOURCE_LABELS[order.source] ?? order.source]);
+                    // Where TCS has a Shopify order's parcel (lib/shopify-delivery.ts), with its number and the day it arrived or came back.
+                    const parcel = deliveryLabel(order.shopifyDelivery, order.shopifyTracking?.company);
+                    if (parcel) facts.push(['Parcel', [parcel, order.shopifyTracking ? `${order.shopifyTracking.company} ${order.shopifyTracking.number}` : '', (order.shopifyDelivery === 'delivered' || order.shopifyDelivery === 'returned') && order.shopifyDeliveryAt ? formatDate(order.shopifyDeliveryAt, 'd MMM') : ''].filter(Boolean).join(' · ')]);
                     const shipTo = describeDelivery(order.delivery);
                     if (shipTo.length) facts.push(['Deliver to', shipTo.map(l => <span key={l} className="block">{l}</span>)]);
                     if (order.notes?.trim()) facts.push(['Notes', <span key="notes" className="whitespace-pre-wrap">{order.notes.trim()}</span>]);

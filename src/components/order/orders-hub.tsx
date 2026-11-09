@@ -55,6 +55,7 @@ import { owesMoney } from '@/lib/money';
 import { STORE_SHOPIFY_SECTION } from '@/lib/store-config';
 import { convertBlocker, isShopifyInvoice, isToConfirm } from '@/lib/shopify-orders';
 import { whatsappOrderChip } from '@/lib/shopify-whatsapp';
+import { deliveryLabel, deliveryTone } from '@/lib/shopify-delivery';
 import { ShopifyCsvImport } from '@/components/shopify/csv-import';
 import { BarChart3 } from 'lucide-react';
 import { useAuth } from '@/components/auth/google-auth-gate';
@@ -315,7 +316,10 @@ const OrderCard: React.FC<{ order: Order; owed: number; mine?: boolean }> = ({ o
 /** A Shopify order's WhatsApp state (lib/shopify-whatsapp.ts), as the invoice shows it; nothing for any other order. */
 const WhatsAppPill: React.FC<{ order: Order }> = ({ order }) => {
   const w = whatsappOrderChip(order.whatsappOrder?.state);
-  return w ? <div><Pill tone={w.tone}>{w.label}</Pill></div> : null;
+  const d = deliveryLabel(order.shopifyDelivery, order.shopifyTracking?.company);
+  if (!w && !d) return null;
+  // Where TCS has the parcel (lib/shopify-delivery.ts): once it has shipped that says more than the WhatsApp state.
+  return <div className="flex flex-wrap gap-1">{d ? <Pill tone={deliveryTone(order.shopifyDelivery)}>{d}</Pill> : w && <Pill tone={w.tone}>{w.label}</Pill>}</div>;
 };
 
 const OrderTableRow: React.FC<{ order: Order; owed: number; mine?: boolean }> = ({ order, owed, mine }) => {
@@ -448,6 +452,9 @@ const ShopifyInvoiceRow: React.FC<{ invoice: Invoice }> = ({ invoice: i }) => (
     <div className="min-w-0 flex-1">
       <p className="truncate text-ios-headline font-semibold">{i.customerName || 'Walk-in Customer'}</p>
       <p className="truncate text-ios-cap text-muted-foreground">{i.id}{i.shopifyOrderName ? ` · ${i.shopifyOrderName}` : ''} · {formatDate(i.createdAt, 'd MMM, h:mm a')} · Invoice</p>
+      {deliveryLabel(i.shopifyDelivery, i.shopifyTracking?.company) && (
+        <div className="mt-1"><Pill tone={deliveryTone(i.shopifyDelivery)}>{deliveryLabel(i.shopifyDelivery, i.shopifyTracking?.company)}</Pill></div>
+      )}
     </div>
     <div className="shrink-0 text-right">
       <RowAmount amount={i.grandTotal} />
