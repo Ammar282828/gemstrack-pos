@@ -122,7 +122,7 @@ describe('shopifyInvoicesToOrders', () => {
 
   it('uses SHOPIFY-INV-<id> with no Shopify number', async () => {
     expect(orderIdForInvoice({ id: 'INV-9' })).toBe('SHOPIFY-INV-INV-9');
-    const { db, data } = fakeDb(seed(invoice('INV-000009', { shopifyOrderNumber: undefined, paymentHistory: [], amountPaid: 0 })));
+    const { db, data } = fakeDb(seed(invoice('INV-000009', { shopifyOrderNumber: undefined, shopifyOrderName: undefined, paymentHistory: [], amountPaid: 0 })));
     const out = await shopifyInvoicesToOrders(db, ['INV-000009'], deps);
     expect(out.converted).toEqual([{ invoiceId: 'INV-000009', orderId: 'SHOPIFY-INV-INV-000009' }]);
     expect(data.orders['SHOPIFY-INV-INV-000009']).toMatchObject({ advancePayment: 0, grandTotal: 5500 });
@@ -194,7 +194,7 @@ describe('every old Shopify sale an order', () => {
       invoice('INV-000050', { source: 'shopify_import', shopifyOrderNumber: undefined, shopifyOrderId: undefined, shopifyOrderName: '#1001', shopifyFulfillment: undefined }),
     ));
     const r = await convertAllShopifyInvoices(db, deps);
-    expect(r).toMatchObject({ seen: 4, open: ['SHOPIFY-1440'], completed: ['SHOPIFY-1441', 'SHOPIFY-INV-INV-000050'], cancelled: ['SHOPIFY-1442'], remaining: 0 });
+    expect(r).toMatchObject({ seen: 4, open: ['SHOPIFY-1440'], completed: ['SHOPIFY-1441', 'SHOPIFY-1001'], cancelled: ['SHOPIFY-1442'], remaining: 0 });
     expect(data.invoices['SHOPIFY-1440']).toBeUndefined();
     expect(data.orders['SHOPIFY-1440']).toMatchObject({ status: 'Pending', advancePayment: 2000 });
     expect(data.invoices['SHOPIFY-1441']).toMatchObject({ sourceOrderId: 'SHOPIFY-1441', amountPaid: 5500 });
@@ -213,5 +213,24 @@ describe('every old Shopify sale an order', () => {
     const { db } = fakeDb(seed(...[1, 2, 3].map(n => invoice(`SHOPIFY-${n}`, { shopifyOrderNumber: n, shopifyOrderId: `${n}`, shopifyFulfillment: 'fulfilled' }))));
     expect(await convertAllShopifyInvoices(db, deps, 2)).toMatchObject({ completed: ['SHOPIFY-1', 'SHOPIFY-2'], remaining: 1 });
     expect(await convertAllShopifyInvoices(db, deps, 2)).toMatchObject({ completed: ['SHOPIFY-3'], remaining: 0 });
+  });
+});
+
+describe('order ids from an invoice', () => {
+  it('Shopify\'s number from the field, the invoice id, or the name', () => {
+    expect(orderIdForInvoice({ id: 'X', shopifyOrderNumber: 1440 })).toBe('SHOPIFY-1440');
+    expect(orderIdForInvoice({ id: 'SHOPIFY-1001' })).toBe('SHOPIFY-1001');
+    expect(orderIdForInvoice({ id: 'INV-000050', shopifyOrderName: '#1002' })).toBe('SHOPIFY-1002');
+    expect(orderIdForInvoice({ id: 'INV-000051' })).toBe('SHOPIFY-INV-INV-000051');
+  });
+
+  it('moves an order the first pass named SHOPIFY-INV-SHOPIFY-<n> to SHOPIFY-<n>', async () => {
+    const { db, data } = fakeDb(seed(invoice('SHOPIFY-1001', { shopifyOrderNumber: undefined, shopifyOrderId: undefined, shopifyOrderName: undefined, sourceOrderId: 'SHOPIFY-INV-SHOPIFY-1001' })));
+    data.orders = { 'SHOPIFY-INV-SHOPIFY-1001': { status: 'Completed', invoiceId: 'SHOPIFY-1001', linkedFromInvoiceId: 'SHOPIFY-1001' } };
+    const r = await convertAllShopifyInvoices(db, deps);
+    expect(r.renamed).toEqual(['SHOPIFY-1001']);
+    expect(Object.keys(data.orders)).toEqual(['SHOPIFY-1001']);
+    expect(data.orders['SHOPIFY-1001']).toMatchObject({ status: 'Completed', invoiceId: 'SHOPIFY-1001' });
+    expect(data.invoices['SHOPIFY-1001']).toMatchObject({ sourceOrderId: 'SHOPIFY-1001' });
   });
 });

@@ -46,8 +46,38 @@ type InvoiceDoc = Record<string, unknown> & {
 };
 
 /** The id of the order this invoice becomes. */
-export const orderIdForInvoice = (inv: { id: string; shopifyOrderNumber?: number | string }) =>
-  Number(inv.shopifyOrderNumber) > 0 ? `SHOPIFY-${Number(inv.shopifyOrderNumber)}` : `SHOPIFY-INV-${inv.id}`;
+export const orderIdForInvoice = (inv: { id: string; shopifyOrderNumber?: number | string; shopifyOrderName?: string }) => {
+  // Shopify's number, from the invoice's own field, its id (the pull's SHOPIFY-<n>) or the order's name (#1001).
+  const n = Number(inv.shopifyOrderNumber) > 0 ? Number(inv.shopifyOrderNumber)
+    : Number(/^SHOPIFY-(\d+)$/.exec(inv.id)?.[1] || /^#?(\d+)$/.exec(String(inv.shopifyOrderName || '').trim())?.[1] || 0);
+  return n > 0 ? `SHOPIFY-${n}` : `SHOPIFY-INV-${inv.id}`;
+};
+
+/**
+ * The orders the first pass (2026-11-09) named SHOPIFY-INV-SHOPIFY-<n> beside invoices that carry the number only in their id:
+ * moved to SHOPIFY-<n> (only an order made beside its invoice, which holds no money; never over another order).
+ */
+export async function renameLinkedOrders(db: DbPort, invoices: { id: string; sourceOrderId?: string; shopifyOrderNumber?: number | string; shopifyOrderName?: string }[]): Promise<string[]> {
+  const moved: string[] = [];
+  for (const inv of invoices) {
+    const from = inv.sourceOrderId;
+    if (!from || !from.startsWith('SHOPIFY-INV-')) continue;
+    const to = orderIdForInvoice(inv);
+    if (to === from || to.startsWith('SHOPIFY-INV-')) continue;
+    const ok = await db.runTransaction(async tx => {
+      const old = await tx.get<Record<string, unknown>>(ORDERS, from);
+      if (!old || old.linkedFromInvoiceId !== inv.id) return false;
+      if (await tx.get(ORDERS, to)) return false;
+      const { id: _id, ...rest } = old;
+      tx.set(ORDERS, to, rest);
+      tx.delete(ORDERS, from);
+      tx.update(INVOICES, inv.id, { sourceOrderId: to });
+      return true;
+    });
+    if (ok) moved.push(to);
+  }
+  return moved;
+}
 
 /** The delete code's words for it, as the dialog says them and the log of tries records them. */
 export const convertWhat = (ids: string[]) => ids.length === 1 ? `Make invoice ${ids[0]} an order` : `Make ${ids.length} Shopify invoices orders`;
@@ -231,7 +261,7 @@ export function conversionFor(inv: ConvertibleInvoice & { shopifyDelivery?: stri
   return blocker ? { skip: blocker } : 'open';
 }
 
-export interface ConvertAllResult { seen: number; open: string[]; completed: string[]; cancelled: string[]; skipped: { invoiceId: string; reason: string }[]; remaining: number }
+export interface ConvertAllResult { seen: number; open: string[]; completed: string[]; cancelled: string[]; skipped: { invoiceId: string; reason: string }[]; remaining: number; renamed?: string[] }
 
 /** One pass over the old Shopify invoices (`source` shopify / shopify_import, not from an order): at most `limit` changed. */
 export async function convertAllShopifyInvoices(db: DbPort, deps: ShopifyConvertDeps, limit = 40, fx: SideEffects = {}): Promise<ConvertAllResult> {
@@ -239,8 +269,9 @@ export async function convertAllShopifyInvoices(db: DbPort, deps: ShopifyConvert
     db.queryEquals<InvoiceDoc & { status?: string; sourceOrderId?: string; shopifyDelivery?: string }>(INVOICES, 'source', 'shopify'),
     db.queryEquals<InvoiceDoc & { status?: string; sourceOrderId?: string; shopifyDelivery?: string }>(INVOICES, 'source', 'shopify_import'),
   ]);
+  const renamed = await renameLinkedOrders(db, [...api, ...csv]);
   const todo = [...api, ...csv].filter(i => !i.sourceOrderId);
-  const out: ConvertAllResult = { seen: todo.length, open: [], completed: [], cancelled: [], skipped: [], remaining: 0 };
+  const out: ConvertAllResult = { seen: todo.length, open: [], completed: [], cancelled: [], skipped: [], remaining: 0, renamed };
   const { deleteField: _d, by: _b, ...orderDeps } = deps;
   let done = 0;
   for (const inv of todo) {

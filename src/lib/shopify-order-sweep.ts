@@ -156,7 +156,8 @@ export async function convertShopifyInvoicesToOrders(now = new Date()) {
   if (!STORE_SHOPIFY_SECTION) return null;
   const ref = adminDb.collection('shopify_sync').doc('convert');
   const last = (await ref.get()).data() as { at?: string; remaining?: number } | undefined;
-  if (last?.at && !last.remaining && now.getTime() - Date.parse(last.at) < 24 * 3600 * 1000) return null;
+  // A pass that renamed orders runs again at the next tick (cheap, and the renames go in batches of none).
+  if (last?.at && !last.remaining && !(last as { renamed?: number }).renamed && now.getTime() - Date.parse(last.at) < 24 * 3600 * 1000) return null;
   const r = await convertAllShopifyInvoices(adminPort, {
     createCustomer: async () => null,
     normalizePhone: normalizePhoneNumber,
@@ -164,7 +165,7 @@ export async function convertShopifyInvoicesToOrders(now = new Date()) {
     deleteField: () => FieldValue.delete(),
     by: 'shopify-sync',
   }, 40, { log: activityLog });
-  await ref.set({ at: now.toISOString(), seen: r.seen, remaining: r.remaining, open: r.open.length, completed: r.completed.length, cancelled: r.cancelled.length, skipped: r.skipped.slice(0, 50) });
+  await ref.set({ at: now.toISOString(), seen: r.seen, remaining: r.remaining, open: r.open.length, completed: r.completed.length, cancelled: r.cancelled.length, renamed: r.renamed?.length || 0, skipped: r.skipped.slice(0, 50) });
   return r;
 }
 
