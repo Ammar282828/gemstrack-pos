@@ -33,7 +33,7 @@ import { Monogram, Pill, HeroAmount, MoneySplit } from '@/components/ledger';
 import { CustomerContact } from '@/components/customer/contact-actions';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, MessageSquare, Check, Banknote, DollarSign, Edit, PlusCircle, CalendarIcon, List, RotateCcw, CheckCircle, Lock, XCircle, Trash2, ClipboardList } from 'lucide-react';
+import { Loader2, MessageSquare, Check, Banknote, DollarSign, Edit, PlusCircle, CalendarIcon, List, RotateCcw, CheckCircle, Lock, XCircle, Trash2, ClipboardList, Link2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { saveInvoicePdf } from '@/lib/invoice-pdf';
 import { invoiceWhatsAppCaption } from '@/lib/invoice-share';
@@ -66,6 +66,8 @@ import { useShallow } from 'zustand/react/shallow';
 import { STORE_SHOPIFY_SECTION } from '@/lib/store-config';
 import { convertBlocker } from '@/lib/shopify-orders';
 import { isOwner } from '@/lib/roles';
+import { PaymentLinkDialog, canMakePaymentLink } from '@/components/shared/payment-link-dialog';
+import { usePaymentLinksOn } from '@/hooks/use-payment-links';
 import { useAuth } from '@/components/auth/google-auth-gate';
 import { MakeOrdersDialog, convertNote } from '@/components/shopify/make-orders-dialog';
 
@@ -92,6 +94,8 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
   const router = useRouter();
   const { toast } = useToast();
   const { user } = useAuth();
+  const paymentLinksOn = usePaymentLinksOn();
+  const [isPayLinkOpen, setIsPayLinkOpen] = useState(false);
   const [makingOrder, setMakingOrder] = useState(false);
   const appReady = useAppReady();
   const { customers, settings, allInvoices, hasInvoicesLoaded, updateInvoicePayment, settleInvoicePayment, refundInvoicePartial, updateInvoiceDiscount, deleteInvoice, deleteInvoicePayment, loadCustomers, loadGeneratedInvoices } = useAppStore(useShallow(state => ({
@@ -720,6 +724,16 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
                             {isSubmittingPayment ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Banknote className="mr-2 h-4 w-4"/>}
                             Record payment
                         </Button>
+
+                        {canMakePaymentLink(paymentLinksOn, invoice.status, invoice.balanceDue) && (
+                          <>
+                            <Button variant="outline" className="w-full" onClick={() => setIsPayLinkOpen(true)}>
+                              <Link2 className="mr-2 h-4 w-4"/>Payment link
+                            </Button>
+                            <PaymentLinkDialog target="invoice" targetId={invoice.id} owed={invoice.balanceDue} customerName={invoice.customerName} phone={phone || phoneFor}
+                              open={isPayLinkOpen} onOpenChange={setIsPayLinkOpen} />
+                          </>
+                        )}
 
                         {owesMoney(invoice.balanceDue) && (
                           <Button

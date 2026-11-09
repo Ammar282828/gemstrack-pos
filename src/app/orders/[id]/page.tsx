@@ -64,6 +64,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import QRCode from 'qrcode.react';
 import { AmountInput } from '@/components/ui/amount-input';
+import { PaymentLinkDialog, canMakePaymentLink } from '@/components/shared/payment-link-dialog';
+import { usePaymentLinksOn } from '@/hooks/use-payment-links';
 import { PageBack } from '@/components/shared/page-back';
 import { PromiseLine } from '@/components/shared/promise-line';
 import { Monogram, MoneySplit, Pill, StageTrack, toneClasses, type Tone } from '@/components/ledger';
@@ -273,6 +275,8 @@ export default function OrderDetailPage() {
   // (print, Files, WhatsApp): lib/native-app.ts, savePDF.
   const slipAsked = useRef(false);
   const [isAdvanceDialogOpen, setIsAdvanceDialogOpen] = useState(false);
+  const [isPayLinkOpen, setIsPayLinkOpen] = useState(false);
+  const paymentLinksOn = usePaymentLinksOn();
   const [isSendKarigarOpen, setIsSendKarigarOpen] = useState(false);
   const [isRevertDialogOpen, setIsRevertDialogOpen] = useState(false);
   const [isReverting, setIsReverting] = useState(false);
@@ -1118,6 +1122,13 @@ export default function OrderDetailPage() {
                      {/* Shown only while the order is being made: once invoiced, money is taken on the invoice. */}
                      {!order.invoiceId && order.status !== 'Cancelled' && order.status !== 'Refunded' && (
                        <Button variant="outline" onClick={() => setIsAdvanceDialogOpen(true)}>Record an advance</Button>
+                     )}
+                     {!order.invoiceId && canMakePaymentLink(paymentLinksOn, order.status, grandTotal) && (
+                       <>
+                         <Button variant="outline" onClick={() => setIsPayLinkOpen(true)}>Payment link</Button>
+                         <PaymentLinkDialog target="order" targetId={order.id} owed={grandTotal} customerName={order.customerName} phone={order.customerContact}
+                           open={isPayLinkOpen} onOpenChange={setIsPayLinkOpen} />
+                       </>
                      )}
                       <div className="w-full max-w-sm space-y-2 p-4 text-ios-sub bg-muted/50 rounded-tile">
                           <div className="flex justify-between"><span>Subtotal:</span> <span className="font-semibold">PKR {subtotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
