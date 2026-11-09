@@ -950,6 +950,16 @@ balance below zero is the customer's credit (`lib/invoice-credit.ts`).
   then daily. TCS's field names are unknown until it answers: `tcs_meta/cost-shape` keeps the first replies' keys to correct
   the mapping. A refused login waits six hours.
 
+### Integrations set on the server
+
+- **Nothing entered on the front end** (owner, 2026-11-09: "do all integration on the backend, I don't want to enter ANYTHING
+  on the front end"). Safepay, TCS and the bills mailbox are set by `POST /api/admin/integrations` (Bearer CRON_SECRET, the
+  same ops as before, sealed in `app_private/*`); their Settings → Integrations cards show status only.
+- **Shopify bills from email**: Shopify has no API for a store's own bills, so `lib/shopify-bills*.ts` reads the bill emails
+  from the shop's mailbox over IMAP (GoDaddy `imap.secureserver.net:993`), once a day and back to 2023: each bill is an
+  expense `shopify-bill-<no>` under Software & Subscriptions, converted to PKR at that day's rate (dollar amount in the
+  description). An unreadable bill's outline (digits masked) waits in `shopify_sync/bills-unparsed`.
+
 ### Net profit
 
 - **Net profit is the estimated profit less the expenses** (owner, 2026-10-25: "Net profit 5.51 crore, 100.0% margin" beside

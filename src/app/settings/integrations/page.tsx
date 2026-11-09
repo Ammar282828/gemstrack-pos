@@ -12,6 +12,7 @@ import { WebsiteSettings } from '@/components/settings/website-settings';
 import { TcsSettings } from '@/components/settings/tcs-settings';
 import { SettingsLink } from '@/components/settings/settings-sections';
 import { SafepaySettings } from '@/components/settings/safepay-settings';
+import { BillMailSettings } from '@/components/settings/bill-mail-settings';
 import { LedgerSection } from '@/components/ledger';
 import { STORE_META_ADS, STORE_WEBSITE_SELLING } from '@/lib/store-config';
 
@@ -26,6 +27,7 @@ export default function IntegrationsSettingsPage() {
       )}
       <SafepaySettings />
       <TcsSettings />
+      <BillMailSettings />
       <p className="text-xs text-muted-foreground">Labels and tags are under <Link href="/settings/printer" className="underline">Stock › Labels</Link>.</p>
     </PageShell>
   );

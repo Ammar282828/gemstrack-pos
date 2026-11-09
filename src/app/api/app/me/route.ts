@@ -16,6 +16,7 @@ import { STORE_BRAND, STORE_CONFIG, STORE_TAKEN_BY, STORE_SHOPIFY_ANALYTICS } fr
 import { shopFlags } from '@/lib/app-shop';
 import { paymentLinksOn } from '@/lib/safepay';
 import { safepaySecretSet } from '@/lib/safepay-fees-server';
+import { billMailStatus } from '@/lib/shopify-bills-server';
 import { tcsStatus } from '@/lib/tcs-payments-server';
 import { EXPENSE_CATEGORIES } from '@/lib/expense-categories';
 import { personFor } from '@/lib/people';
@@ -48,6 +49,8 @@ export async function GET(req: NextRequest) {
       safepayFees: role === 'owner' ? await safepaySecretSet().catch(() => false) : false,
       // TCS's own account (lib/tcs-payments.ts): connected, and what it has paid out; owners only.
       ...(role === 'owner' ? { tcs: await tcsStatus().catch(() => ({ connected: false })) } : {}),
+      // Shopify's bills read from the shop's mailbox (lib/shopify-bills-server.ts): connected, address only, bills kept; owners only.
+      ...(role === 'owner' ? { billMail: await billMailStatus().catch(() => ({ connected: false })) } : {}),
       // The house whose website is Shopify: the phones show Shopify's own analytics in Website (decision "Shopify analytics").
       shopifyAnalytics: STORE_SHOPIFY_ANALYTICS,
     },

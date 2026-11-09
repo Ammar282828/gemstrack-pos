@@ -15,6 +15,7 @@ import { isSafepaySecret } from '@/lib/safepay-fees';
 import { saveSafepaySecret, syncSafepayFees } from '@/lib/safepay-fees-server';
 import { checkTcsCredentials, codReady, ociReady, type TcsCredentials } from '@/lib/tcs-payments';
 import { saveTcsCredentials, syncTcsPayments } from '@/lib/tcs-payments-server';
+import { DEFAULT_BILL_HOST, DEFAULT_BILL_PORT, BILL_LOGIN_ERROR, saveBillMail, syncShopifyBills, testBillMail } from '@/lib/shopify-bills-server';
 import { createPaymentLink } from '@/lib/writes/payment-links';
 import { STORE_CONFIG } from '@/lib/store-config';
 import type { OpHandler, OpRoles } from './op-context';
@@ -28,6 +29,8 @@ export const PAYLINK_OPS: OpRoles = {
   // TCS's own account (lib/tcs-payments.ts): booking from the ERP (lib/tcs-cod.ts), and with OCI's secret courier charges as
   // expenses and what TCS has paid out. Sealed server-side.
   setTcsCredentials: ['owner'],
+  // The mailbox Shopify's bills arrive in (lib/shopify-bills-server.ts): read over IMAP, each bill an expense. Sealed server-side.
+  setBillMail: ['owner'],
 };
 
 const bad = (error: string, status = 400) => NextResponse.json({ error }, { status });
@@ -54,6 +57,27 @@ export const runPaylinkOp: OpHandler = async (op, body, ctx) => {
     const run = secret ? await syncSafepayFees(new Date(), true).catch(e => ({ error: e instanceof Error ? e.message : String(e) })) : null;
     if (run && 'error' in run) return bad(`Saved, but Safepay refused the key: ${run.error}`, 502);
     return NextResponse.json({ ok: true, fees: !!secret, ...(run ? { run } : {}) });
+  }
+  if (op === 'setBillMail') {
+    const user = typeof body.user === 'string' ? body.user.trim() : '';
+    if (!user) {
+      await saveBillMail(null);
+      await ctx.log('settings.update', 'Shopify bills mailbox disconnected', '');
+      return NextResponse.json({ ok: true, connected: false });
+    }
+    const password = typeof body.password === 'string' ? body.password : '';
+    const host = (typeof body.host === 'string' && body.host.trim()) || DEFAULT_BILL_HOST;
+    const port = Number(body.port) || DEFAULT_BILL_PORT;
+    if (!user.includes('@') || user.length > 200) return bad('That is not an email address.');
+    if (!password || password.length > 500) return bad('Enter the mailbox password.');
+    if (!/^[a-z0-9.-]{3,200}$/i.test(host) || !Number.isInteger(port) || port < 1 || port > 65535) return bad('That mail server address or port is not valid.');
+    const creds = { host, port, user, password };
+    try { await testBillMail(creds); } catch (e) { return bad(e instanceof Error ? e.message : BILL_LOGIN_ERROR, 400); }
+    await saveBillMail(creds);
+    await ctx.log('settings.update', 'Shopify bills mailbox connected', `Bills read from ${user}; each becomes an expense under Software & Subscriptions`);
+    const run = await syncShopifyBills(new Date(), true).catch(e => ({ error: e instanceof Error ? e.message : String(e) }));
+    if (run && 'error' in run) return bad(`Saved, but reading the mailbox failed: ${run.error}`, 502);
+    return NextResponse.json({ ok: true, connected: true, bills: run?.bills ?? 0, months: run?.months ?? 0, total: run?.total ?? 0, done: run?.done ?? true });
   }
   if (op === 'setTcsCredentials') {
     const off = body.off === true;

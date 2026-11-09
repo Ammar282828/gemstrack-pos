@@ -35,6 +35,7 @@ import { refreshReviews } from '@/lib/reviews-server';
 import { onlineOrdersPossible, sweepOnline } from '@/lib/website/online';
 import { snapshotIfDue } from '@/lib/social-insights/snapshot';
 import { syncSafepayFees } from '@/lib/safepay-fees-server';
+import { syncShopifyBills } from '@/lib/shopify-bills-server';
 import { syncTcsPayments } from '@/lib/tcs-payments-server';
 import { catchUpShopifyDelivery, convertShopifyInvoicesToOrders, settlePaymentLinks, sweepShopifyOrders } from '@/lib/shopify-order-sweep';
 
@@ -82,6 +83,9 @@ export async function POST(req: NextRequest) {
   // Once a day: Safepay's fees and the tax on them, a month to an expense (lib/safepay-fees.ts).
   const safepayFees = dry ? null : await syncSafepayFees().catch(e => ({ error: e instanceof Error ? e.message : String(e) }));
   if (safepayFees) console.log('[queue/tick] safepay fees', JSON.stringify(safepayFees));
+  // Once a day: Shopify's bills read from the shop's mailbox, each an expense in rupees (lib/shopify-bills-server.ts).
+  const shopifyBills = dry ? null : await syncShopifyBills().catch(e => ({ error: e instanceof Error ? e.message : String(e) }));
+  if (shopifyBills) console.log('[queue/tick] shopify bills', JSON.stringify(shopifyBills));
   // Once a day: TCS's courier charges a month to an expense, and what TCS has paid out (lib/tcs-payments.ts).
   const tcsPayments = dry ? null : await syncTcsPayments().catch(e => ({ error: e instanceof Error ? e.message : String(e) }));
   if (tcsPayments) console.log('[queue/tick] tcs payments', JSON.stringify(tcsPayments));
