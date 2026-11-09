@@ -327,8 +327,10 @@ struct RecordRow<Accessory: View>: View {
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
                     if mine { MineTag() }
-                    accessory()
                 }
+                // The row's tags (a Shopify order's WhatsApp step, where its parcel is, Online) on a line of their own that
+                // wraps, so none is cut to "Confirm…" beside the number (owner, 2026-11-10: "the tags are getting hidden").
+                RecordTagFlow(gap: 3) { accessory() }
             }
         }
     }
@@ -574,6 +576,44 @@ struct RecordListScaffold<Rows: View, Cards: View, Empty: View>: View {
         // Nothing to show is an overlay of the list, never a row inside it (rule 16).
         .overlay {
             if isEmpty { empty().padding(.top, pt(120)) }
+        }
+    }
+}
+
+
+/// A record row's tags, laid out as words are: left to right, onto the next line when the row is full, each whole (never
+/// cut short unless one alone is wider than the row). Nothing to show takes no room at all, not even the gap above it.
+struct RecordTagFlow: Layout {
+    /// The room above the first line, only when there are tags.
+    var gap: CGFloat = 3
+    var spacing: CGFloat = 6
+    var lineSpacing: CGFloat = 3
+
+    private func place(_ subviews: Subviews, width: CGFloat) -> (frames: [CGRect], size: CGSize) {
+        guard !subviews.isEmpty else { return ([], .zero) }
+        var x: CGFloat = 0, y: CGFloat = gap, rowHeight: CGFloat = 0, widest: CGFloat = 0
+        var frames: [CGRect] = []
+        for s in subviews {
+            var size = s.sizeThatFits(.unspecified)
+            if width.isFinite { size.width = min(size.width, width) }
+            if x > 0, x + size.width > width { x = 0; y += rowHeight + lineSpacing; rowHeight = 0 }
+            frames.append(CGRect(origin: CGPoint(x: x, y: y), size: size))
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+            widest = max(widest, x - spacing)
+        }
+        return (frames, CGSize(width: widest, height: y + rowHeight))
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        place(subviews, width: proposal.width ?? .infinity).size
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let laid = place(subviews, width: bounds.width)
+        for (i, s) in subviews.enumerated() {
+            let f = laid.frames[i]
+            s.place(at: CGPoint(x: bounds.minX + f.minX, y: bounds.minY + f.minY), proposal: ProposedViewSize(width: f.width, height: f.height))
         }
     }
 }

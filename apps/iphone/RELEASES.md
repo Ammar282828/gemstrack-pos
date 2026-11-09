@@ -89,3 +89,4 @@ cloud session cannot press that button, but it can push. One line per build, new
 - 2026-11-09: ERP 2.6.6 — House of Mina: the Shopify section shows every Shopify sale, the earlier ones beside the new orders; an owner can make the open ones orders (their payments become advances) with "Make them orders", or one at a time from the invoice.
 - 2026-11-09: ERP 2.6.7 — House of Mina: each Shopify order shows where its TCS parcel is (With TCS, Delivered, Delivery attempted, Returned) on its card and page; shipped orders are completed and returned ones cancelled by themselves.
 - 2026-11-09: ERP 2.6.8 — House of Mina: a Shopify order shows its delivery charge and counts it in the total and at Finalize; the Shopify settings screen is gone (it all runs by itself now).
+- 2026-11-10: ERP 2.6.9 — an order card's tags (its WhatsApp step, where its parcel is) sit on a line of their own under the number and are never cut short.
