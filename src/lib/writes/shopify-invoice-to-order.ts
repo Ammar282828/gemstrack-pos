@@ -306,10 +306,18 @@ const piecePrice = (i: { isManualPrice?: boolean; manualPrice?: number; totalEst
  * between the stored subtotal and the pieces is named as the delivery, once; an order with a delivery set is left alone.
  */
 export async function nameHiddenDelivery(db: DbPort): Promise<string[]> {
-  const orders = await db.queryEquals<{ id: string; invoiceId?: string; deliveryCharge?: number; subtotal?: number; items?: { isManualPrice?: boolean; manualPrice?: number; totalEstimate?: number }[] }>(ORDERS, 'source', 'shopify');
+  const orders = await db.queryEquals<{ id: string; invoiceId?: string; linkedFromInvoiceId?: string; deliveryCharge?: number; subtotal?: number; items?: { isManualPrice?: boolean; manualPrice?: number; totalEstimate?: number }[] }>(ORDERS, 'source', 'shopify');
   const named: string[] = [];
   for (const o of orders) {
-    if (o.invoiceId || o.deliveryCharge !== undefined || !Array.isArray(o.items)) continue;
+    if (o.deliveryCharge !== undefined || !Array.isArray(o.items)) continue;
+    // An order made beside its invoice (linkShopifyInvoiceAsOrder) before it copied the delivery: the invoice's adjustments.
+    if (o.invoiceId) {
+      if (!o.linkedFromInvoiceId) continue;
+      const inv = await db.get<{ adjustmentsAmount?: number }>(INVOICES, o.linkedFromInvoiceId);
+      const d = rupees(Number(inv?.adjustmentsAmount) || 0);
+      if (d >= 1) { await db.update(ORDERS, o.id, { deliveryCharge: d }); named.push(o.id); }
+      continue;
+    }
     const gap = rupees(Number(o.subtotal) || 0) - rupees(o.items.reduce((t, i) => t + piecePrice(i), 0));
     if (gap < 1) continue;
     await db.update(ORDERS, o.id, { deliveryCharge: gap });

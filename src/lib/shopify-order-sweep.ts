@@ -155,7 +155,7 @@ async function keepNoticesRegistered(now: Date) {
 export async function convertShopifyInvoicesToOrders(now = new Date()) {
   if (!STORE_SHOPIFY_SECTION) return null;
   // Once: the delivery the earlier converted orders carried unnamed (nameHiddenDelivery).
-  const backfill = adminDb.collection('shopify_sync').doc('delivery-named');
+  const backfill = adminDb.collection('shopify_sync').doc('delivery-named-2');
   if (!(await backfill.get()).exists) {
     const named = await nameHiddenDelivery(adminPort);
     await backfill.set({ at: now.toISOString(), named });

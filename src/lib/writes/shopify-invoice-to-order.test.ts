@@ -246,8 +246,11 @@ describe('the delivery earlier converted orders carried unnamed', () => {
       'SHOPIFY-1462': { source: 'shopify', subtotal: 8350, items: pieces, deliveryCharge: 0 },
       'SHOPIFY-1463': { source: 'shopify', subtotal: 8350, items: pieces, invoiceId: 'INV-1' },
       'ORD-000001': { source: 'walk-in', subtotal: 8350, items: pieces },
+      'SHOPIFY-1001': { source: 'shopify', subtotal: 8350, items: pieces, invoiceId: 'SHOPIFY-1001', linkedFromInvoiceId: 'SHOPIFY-1001' },
     };
-    expect(await nameHiddenDelivery(db)).toEqual(['SHOPIFY-1460']);
+    data.invoices = { 'SHOPIFY-1001': { adjustmentsAmount: 350 } };
+    expect(await nameHiddenDelivery(db)).toEqual(['SHOPIFY-1460', 'SHOPIFY-1001']);
+    expect(data.orders['SHOPIFY-1001']).toMatchObject({ deliveryCharge: 350 });
     expect(data.orders['SHOPIFY-1460']).toMatchObject({ deliveryCharge: 350, subtotal: 8350 });
     expect(await nameHiddenDelivery(db)).toEqual([]);
   });
