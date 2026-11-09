@@ -81,6 +81,7 @@ import { BusyLabel } from '@/components/ui/busy';
 import { useShallow } from 'zustand/react/shallow';
 import { formatDate } from '@/lib/safe-date';
 import { deliveryLabel } from '@/lib/shopify-delivery';
+import { adjustmentsLabel } from '@/lib/financials';
 
 
 const STATUS_TONE: Record<string, Tone> = { Pending: 'owed', 'In Progress': 'working', Completed: 'settled', Cancelled: 'quiet', Refunded: 'quiet' };
@@ -527,6 +528,8 @@ export default function OrderDetailPage() {
 
   // Always derive subtotal live from items so it stays consistent with item estimates
   const subtotal = order.items.reduce((sum, item) => sum + (Number(item.totalEstimate) || 0), 0);
+  // What the customer pays for delivery (a Shopify order's), never a piece: in the total and the balance.
+  const deliveryCharge = Math.max(0, Number(order.deliveryCharge) || 0);
   const advancePayment = typeof order.advancePayment === 'number' ? order.advancePayment : 0;
   const advanceInExchangeValue = typeof order.advanceInExchangeValue === 'number' ? order.advanceInExchangeValue : 0;
   // The discount was missing here, so this figure — the big "Balance Due" on the
@@ -534,7 +537,7 @@ export default function OrderDetailPage() {
   // both the slip and the stored grandTotal. Same shape as order-form and the
   // slip: price after discount, then less anything already paid.
   const discountAmount = typeof order.discountAmount === 'number' ? order.discountAmount : 0;
-  const grandTotal = subtotal - discountAmount - advancePayment - advanceInExchangeValue;
+  const grandTotal = subtotal + deliveryCharge - discountAmount - advancePayment - advanceInExchangeValue;
   // The advances as they will land on the invoice: the one taken with the order, then each
   // recorded after it (lib/order-payment.ts).
   const advanceLines = orderAdvanceLines(order, '').map(a => ({ ...a, notes: a.notes?.replace(/^: /, '') || (a.date === order.createdAt ? 'With the order' : '') }));
@@ -543,7 +546,7 @@ export default function OrderDetailPage() {
   // its invoice's money, since that is where it is taken.
   const heroName = !order.customerName?.trim() || isWalkInName(order.customerName) ? 'Walk-in' : order.customerName.trim();
   const trackStep = TRACK_STEP[stageOf(order, linkedInvoice && owesMoney(linkedInvoice.balanceDue) ? linkedInvoice.balanceDue : 0)];
-  const moneyTotal = linkedInvoice ? linkedInvoice.grandTotal : subtotal - discountAmount;
+  const moneyTotal = linkedInvoice ? linkedInvoice.grandTotal : subtotal + deliveryCharge - discountAmount;
   const moneyPaid = linkedInvoice ? linkedInvoice.amountPaid : advancePayment + advanceInExchangeValue;
   const moneyDue = linkedInvoice ? linkedInvoice.balanceDue : grandTotal;
 
@@ -937,6 +940,9 @@ export default function OrderDetailPage() {
                             {linkedInvoice.discountAmount > 0 && (
                               <div className="flex justify-between text-destructive"><span>Discount:</span> <span className="font-semibold">- PKR {linkedInvoice.discountAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
                             )}
+                            {(Number(linkedInvoice.adjustmentsAmount) || 0) !== 0 && (
+                              <div className="flex justify-between"><span>{adjustmentsLabel(linkedInvoice)}:</span> <span className="font-semibold">PKR {(Number(linkedInvoice.adjustmentsAmount) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
+                            )}
                             <div className="flex justify-between font-bold"><span>Grand Total:</span> <span>PKR {linkedInvoice.grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
                             {linkedInvoice.amountPaid > 0 && (
                               <div className="flex justify-between text-tone-settled-ink"><span>Paid:</span> <span className="font-semibold">PKR {linkedInvoice.amountPaid.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
@@ -1115,6 +1121,9 @@ export default function OrderDetailPage() {
                      )}
                       <div className="w-full max-w-sm space-y-2 p-4 text-ios-sub bg-muted/50 rounded-tile">
                           <div className="flex justify-between"><span>Subtotal:</span> <span className="font-semibold">PKR {subtotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
+                          {deliveryCharge > 0 && (
+                            <div className="flex justify-between"><span>Delivery:</span> <span className="font-semibold">PKR {deliveryCharge.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
+                          )}
                           {discountAmount > 0 && (
                             <div className="flex justify-between text-destructive"><span>Discount:</span> <span className="font-semibold">- PKR {discountAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
                           )}

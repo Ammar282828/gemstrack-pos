@@ -117,7 +117,11 @@ export function drawOrderTotals(
   const agreed = (order.subtotal || 0) - discount;   // the price, before anything paid
   const balance = agreed - cash - inKind;            // what is still owed
 
-  const rows: TotalRow[] = [{ label: 'Subtotal', value: money(order.subtotal || 0) }];
+  // A Shopify order's delivery is inside the stored subtotal: the slip names it beside the pieces.
+  const delivery = Math.max(0, Number(order.deliveryCharge) || 0);
+  const rows: TotalRow[] = delivery > 0
+    ? [{ label: 'Subtotal', value: money((order.subtotal || 0) - delivery) }, { label: 'Delivery', value: money(delivery) }]
+    : [{ label: 'Subtotal', value: money(order.subtotal || 0) }];
   if (discount > 0) rows.push({ label: 'Discount', value: `- ${money(discount)}`, tone: 'ink' });
 
   const after: TotalRow[] = [];

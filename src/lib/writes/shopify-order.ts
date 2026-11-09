@@ -16,7 +16,7 @@
  */
 
 import type { DbPort, SideEffects } from '@/lib/db-port';
-import { planShopifyMirror, shopifyPaymentNote, type ShopifyOrderState, type ShopifyTransaction } from '@/lib/shopify-mirror';
+import { planShopifyMirror, shopifyDeliveryCharge, shopifyPaymentNote, type ShopifyOrderState, type ShopifyTransaction } from '@/lib/shopify-mirror';
 import { rupees } from '@/lib/money';
 import { createOrder, type CreateOrderDeps, type CreatedOrder } from './create-order';
 import { orderBalance } from './order-pieces';
@@ -43,6 +43,7 @@ export interface ShopifyWebOrder extends ShopifyOrderState {
   line_items?: LineItem[] | null;
   customer?: { id?: number | string; first_name?: string | null; last_name?: string | null; phone?: string | null } | null;
   shipping_address?: { name?: string | null; address1?: string | null; address2?: string | null; city?: string | null; phone?: string | null } | null;
+  shipping_lines?: { price?: string | number | null }[] | null;
 }
 
 /** What the customer chose that is not a variant, from the line's properties (as _lib's lineItemNotes). */
@@ -113,6 +114,8 @@ export async function importShopifyAsOrder(
       shopifyFulfillment: String(order.fulfillment_status || 'unfulfilled'),
       shopifyTransactionIds: [],
       advancePayment: 0,
+      // The delivery the customer pays (Shopify's shipping): in the subtotal above, named so the order and its invoice say so.
+      ...(Number(shopifyDeliveryCharge(order)) > 0 && { deliveryCharge: shopifyDeliveryCharge(order) }),
       ...(order.cancelled_at ? { shopifyCancelledAt: String(order.cancelled_at) } : {}),
     },
   }, { ...fx, notify: undefined });
@@ -176,7 +179,10 @@ export async function mirrorShopifyToOrder(
       && (o.status === 'Pending' || o.status === 'In Progress');
     const tracking = plan.fields.shopifyTracking;
     const tcsNo = tracking && /tcs/i.test(tracking.company) && !o.tcsConsignmentNo ? tracking.number : undefined;
-    const changed = cancels || completes || !!tcsNo || added.length > 0
+    // An order made before its delivery was named (2026-11-09) learns it from Shopify; one the shop has set is kept.
+    const shipping = shopifyDeliveryCharge(shopify);
+    const delivery = !invoiced && o.deliveryCharge === undefined && shipping !== undefined && shipping > 0 ? shipping : undefined;
+    const changed = cancels || completes || !!tcsNo || delivery !== undefined || added.length > 0
       || (plan.fields.shopifyDelivery !== undefined && plan.fields.shopifyDelivery !== ((o.shopifyDelivery as string) || ''))
       || (tracking?.number || '') !== (tracking ? ((o.shopifyTracking as { number?: string })?.number || '') : '')
       || plan.fields.shopifyFinancialStatus !== ((o.shopifyFinancialStatus as string) || '')
@@ -196,6 +202,7 @@ export async function mirrorShopifyToOrder(
       ...(tracking && { shopifyTracking: tracking }),
       ...(plan.fields.shopifyDeliveryAt && { shopifyDeliveryAt: plan.fields.shopifyDeliveryAt }),
       ...(tcsNo && { tcsConsignmentNo: tcsNo }),
+      ...(delivery !== undefined && { deliveryCharge: delivery }),
       ...(cancels && { status: 'Cancelled' }),
       // Completing ticks every piece, as setting Completed by hand does (writes/order-status.ts).
       ...(completes && orderStatusPatch({ status: o.status as string, items: o.items as never }, 'Completed').patch),

@@ -61,7 +61,7 @@ enum MacSettingsPane: String, Hashable, Identifiable {
     case general, businesses, account
     case shop, bankAccounts, alerts, data
     case printing, labelLive
-    case website, shopify
+    case website
     case ai, voice
 
     var id: String { rawValue }
@@ -78,7 +78,6 @@ enum MacSettingsPane: String, Hashable, Identifiable {
         case .printing: return "Printing"
         case .labelLive: return "Label LIVE"
         case .website: return "Selling Online"
-        case .shopify: return "Shopify"
         case .ai: return "Connect an AI"
         case .voice: return "Voice"
         }
@@ -96,7 +95,6 @@ enum MacSettingsPane: String, Hashable, Identifiable {
         case .printing: return "printer"
         case .labelLive: return "tag"
         case .website: return "globe"
-        case .shopify: return "bag"
         case .ai: return "sparkles"
         case .voice: return "mic"
         }
@@ -115,7 +113,6 @@ enum MacSettingsPane: String, Hashable, Identifiable {
         case .printing: return "/app/tag-printer"
         case .labelLive: return "/app/label-live"
         case .website: return "/app/settings/website"
-        case .shopify: return "/app/settings/shopify"
         case .ai: return "/settings/ai"
         case .voice: return "/settings/voice"
         }
@@ -132,7 +129,7 @@ enum MacSettingsPane: String, Hashable, Identifiable {
                    PaneGroup(title: "Labels", panes: [.printing, .labelLive])]
         if owner {
             out.insert(PaneGroup(title: "Shop", panes: [.shop, .bankAccounts, .alerts, .data]), at: 1)
-            out.append(PaneGroup(title: "Selling", panes: websiteSelling ? [.website, .shopify] : [.shopify]))
+            if websiteSelling { out.append(PaneGroup(title: "Selling", panes: [.website])) }
             out.append(PaneGroup(title: "Connections", panes: [.ai, .voice]))
         }
         return out

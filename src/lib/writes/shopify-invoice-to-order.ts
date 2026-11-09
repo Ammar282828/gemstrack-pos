@@ -138,6 +138,8 @@ export async function shopifyInvoicesToOrders(
           shopifyTransactionIds: (inv.shopifyTransactionIds || []).map(String),
           ...(inv.whatsappOrder && { whatsappOrder: inv.whatsappOrder }),
           advancePayment: paid,
+          // The invoice's extra beyond its lines was Shopify's delivery: named on the order, carried back at Finalize.
+          ...(rupees(inv.adjustmentsAmount as number) > 0 && { deliveryCharge: rupees(inv.adjustmentsAmount as number) }),
         },
       }, { ...fx, notify: undefined, log: undefined });
     }
@@ -205,6 +207,7 @@ export async function linkShopifyInvoiceAsOrder(
         ...(inv.shopifyTracking && { shopifyTracking: inv.shopifyTracking }),
         ...(inv.shopifyDeliveryAt && { shopifyDeliveryAt: inv.shopifyDeliveryAt }),
         ...(inv.whatsappOrder && { whatsappOrder: inv.whatsappOrder }),
+        ...(rupees(inv.adjustmentsAmount as number) > 0 && { deliveryCharge: rupees(inv.adjustmentsAmount as number) }),
         advancePayment: 0,
       },
     }, { notify: undefined, log: undefined });

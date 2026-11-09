@@ -136,7 +136,9 @@ export const FinalizeOrderDialog: React.FC<{
     const subtotal = prices.reduce((a, b) => a + b, 0);
     const exchange = exchangeTotal(orderExchanges(order));
     const advances = orderAdvancePayments(order).reduce((a, p) => a + (Number(p.amount) || 0), 0);
-    const balance = subtotal - discount - exchange - advances;
+    // The delivery the order carries (a Shopify order's): the invoice adds it beside the pieces (writes/finalize-order.ts).
+    const delivery = Math.max(0, rupees(order.deliveryCharge));
+    const balance = subtotal + delivery - discount - exchange - advances;
     // The 24k rate now, for the shop's margin (lib/margin.ts): the order's own to start with, if it had one.
     const [costRate24k, setCostRate24k] = React.useState<number | undefined>(Number(order.costRate24k) > 0 ? Number(order.costRate24k) : undefined);
     // Each piece as the invoice will hold it, so this is the margin the invoice's page shows.
@@ -324,13 +326,14 @@ export const FinalizeOrderDialog: React.FC<{
                                       : 'Applied on top of the advance payment.'}
                                   </FormDescription>
                                   <FormMessage />
-                                  <RoundOffChips payable={subtotal - exchange} discount={rupees(discount)} className="pt-1"
+                                  <RoundOffChips payable={subtotal + delivery - exchange} discount={rupees(discount)} className="pt-1"
                                     onDiscountChange={(n) => form.setValue('additionalDiscount', n, { shouldDirty: true })} />
                                 </FormItem>
                             )}/>
                             {/* What the invoice will say, before it exists. */}
                             <div className="rounded-md border bg-muted/30 p-3 text-sm tabular-nums space-y-1" aria-live="polite">
                               <div className="flex justify-between"><span>Pieces</span><span>{rs(subtotal)}</span></div>
+                              {delivery > 0 && <div className="flex justify-between"><span>Delivery</span><span>{rs(delivery)}</span></div>}
                               {discount > 0 && <div className="flex justify-between text-muted-foreground"><span>Discount</span><span>− {rs(discount)}</span></div>}
                               {exchange > 0 && <div className="flex justify-between text-muted-foreground"><span>Exchange</span><span>− {rs(exchange)}</span></div>}
                               {advances > 0 && <div className="flex justify-between text-muted-foreground"><span>Advances paid</span><span>− {rs(advances)}</span></div>}

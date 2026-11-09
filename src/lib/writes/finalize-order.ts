@@ -100,7 +100,10 @@ export function invoiceFromOrder(
   // Whole rupees: the discount, and the advances carried over, are rounded as the sale form rounds them.
   const totalDiscount = rupees(additionalDiscount);
   const exchanges = orderExchanges(order);
-  const grandTotal = finalSubtotal - totalDiscount - exchangeTotal(exchanges);
+  // A Shopify order's delivery is the customer's to pay as much as the pieces: it goes on the invoice beside them (before,
+  // the invoice was the pieces alone, so a paid Shopify order finalized with its delivery as the customer's credit).
+  const delivery = Math.max(0, rupees(order.deliveryCharge));
+  const grandTotal = finalSubtotal - totalDiscount - exchangeTotal(exchanges) + delivery;
   const paymentHistory: Payment[] = orderAdvancePayments(order).map((p) => clean({ ...p, amount: rupees(p.amount) }));
   const amountPaid = paymentHistory.reduce((sum, p) => sum + p.amount, 0);
   const balanceDue = grandTotal - amountPaid;
@@ -109,6 +112,7 @@ export function invoiceFromOrder(
     items: finalInvoiceItems,
     subtotal: finalSubtotal,
     discountAmount: totalDiscount,
+    ...(delivery > 0 && { adjustmentsAmount: delivery, deliveryCharge: delivery }),
     grandTotal,
     amountPaid,
     balanceDue,

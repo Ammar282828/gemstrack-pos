@@ -222,3 +222,40 @@ describe('finalizing keeps it a Shopify sale', () => {
     expect(inv).not.toHaveProperty('acquisitionSource');
   });
 });
+
+describe('the delivery a Shopify order charges (owner: "delivery fees logic is weird in erp")', () => {
+  // #1460: two pieces at 4,000, delivery 350, paid 8,350.
+  const withShipping = (o: Partial<ShopifyWebOrder> = {}) => order({
+    total_price: '8350.00', total_discounts: '0.00', financial_status: 'paid',
+    line_items: [{ id: 1, name: 'Birthstone Stack', price: '4000.00', quantity: 2 }],
+    shipping_lines: [{ price: '350.00' }], ...o,
+  } as Partial<ShopifyWebOrder>);
+
+  it('is named on the order, inside its full amount, never a piece', async () => {
+    const { db, data } = fakeDb(seed());
+    await importShopifyAsOrder(db, withShipping(), deps);
+    const o = data.orders['SHOPIFY-1440'] as { deliveryCharge: number; subtotal: number; grandTotal: number; items: unknown[] };
+    expect(o).toMatchObject({ deliveryCharge: 350, subtotal: 8350, grandTotal: 8350 });
+    expect(o.items).toHaveLength(2);
+  });
+
+  it('goes on the invoice at Finalize: paid in full, no credit (before: an 8,000 invoice and 350 owed to the customer)', async () => {
+    const { db, data } = fakeDb(seed());
+    await importShopifyAsOrder(db, withShipping(), deps);
+    await mirrorShopifyToOrder(db, 'SHOPIFY-1440', withShipping(), [tx(9, '8350.00')]);
+    const o = { ...data.orders['SHOPIFY-1440'], id: 'SHOPIFY-1440' } as unknown as Order;
+    const inv = invoiceFromOrder(o, [4000, 4000].map(p => ({ isManualPrice: true, finalManualPrice: p }) as FinalizedItem), 0, undefined, {} as Settings, '2026-11-12T00:00:00.000Z', x => x);
+    expect(inv).toMatchObject({ subtotal: 8000, adjustmentsAmount: 350, deliveryCharge: 350, grandTotal: 8350, amountPaid: 8350, balanceDue: 0 });
+  });
+
+  it('an order made before it was named learns it from Shopify once; one the shop set is kept', async () => {
+    const { db, data } = fakeDb(seed());
+    await importShopifyAsOrder(db, withShipping({ shipping_lines: undefined } as never), deps);
+    delete (data.orders['SHOPIFY-1440'] as Record<string, unknown>).deliveryCharge;
+    await mirrorShopifyToOrder(db, 'SHOPIFY-1440', withShipping({ financial_status: 'pending' }), []);
+    expect(data.orders['SHOPIFY-1440']).toMatchObject({ deliveryCharge: 350 });
+    (data.orders['SHOPIFY-1440'] as Record<string, unknown>).deliveryCharge = 0;
+    await mirrorShopifyToOrder(db, 'SHOPIFY-1440', withShipping({ financial_status: 'pending' }), []);
+    expect(data.orders['SHOPIFY-1440']).toMatchObject({ deliveryCharge: 0 });
+  });
+});

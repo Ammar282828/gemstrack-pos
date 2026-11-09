@@ -32,7 +32,7 @@ import { referenceKey } from '@/lib/reference-image';
 import { browserPdfImages, drawFooter, type PdfDates, type PdfImages } from '@/lib/pdf-inputs';
 import { stockSku } from '@/lib/sku';
 import { format } from 'date-fns';
-import { getInvoiceAdjustmentsAmount } from '@/lib/financials';
+import { adjustmentsLabel, getInvoiceAdjustmentsAmount } from '@/lib/financials';
 import { drawItemCell, itemCellHeight, type ItemBlock, wastageLine } from '@/lib/invoice-item-cell';
 import { drawDocHeader, tableStyles, drawRowRule, alignHeadCell, label, drawTotals, totalsHeight, totalsLeftEdge, type TotalRow } from '@/lib/pdf-chrome';
 import { describeExchangeEntry } from '@/lib/exchange';
@@ -293,7 +293,7 @@ function drawInvoice(doc: jsPDF, inv: PieceInvoice, customer: Customer | null | 
   const adjustmentsAmount = getInvoiceAdjustmentsAmount(inv);
   const totalRows: TotalRow[] = [{ label: 'Subtotal', value: pkr(inv.subtotal) }];
   if (inv.discountAmount > 0) totalRows.push({ label: 'Discount', value: `- ${pkr(inv.discountAmount)}`, tone: 'ink' });
-  if (adjustmentsAmount !== 0) totalRows.push({ label: 'Adjustments', value: pkr(adjustmentsAmount) });
+  if (adjustmentsAmount !== 0) totalRows.push({ label: adjustmentsLabel(inv as never), value: pkr(adjustmentsAmount) });
   // One line per thing taken in exchange (lib/exchange.ts); an older invoice, or one piece
   // of a split, has a description and its amounts.
   const exchangeRows = (inv.exchanges || []).filter(e => e.value > 0);

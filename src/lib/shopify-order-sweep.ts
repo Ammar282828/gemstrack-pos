@@ -13,7 +13,7 @@ import { getShopifyCredentials, shopifyRequest } from '@/app/api/shopify/_lib';
 import { mirrorShopifyOrderById } from '@/app/api/shopify/_order-mirror';
 import { followUpPaidOrder, shopifyOrderWhatsAppOn, startOrderFlow } from '@/lib/shopify-whatsapp-server';
 import { deliveryOf } from '@/lib/shopify-delivery';
-import { codTransactionId, withDeliveredCod } from '@/lib/shopify-mirror';
+import { codTransactionId, shopifyDeliveryCharge, withDeliveredCod } from '@/lib/shopify-mirror';
 import { ensureShopifyWebhooks } from '@/lib/shopify-webhooks';
 import { FieldValue } from 'firebase-admin/firestore';
 import { adminPort } from '@/lib/db-admin-port';
@@ -52,6 +52,10 @@ export interface ErpShopifyRecord {
   shopifyCancelledAt?: string;
   shopifyDelivery?: string;
   shopifyTransactionIds?: string[];
+  /** Only an open ERP order's (set here); an invoice keeps its delivery in adjustmentsAmount. */
+  deliveryCharge?: number;
+  invoiceId?: string;
+  isOrder?: boolean;
 }
 
 /** Shopify's order as listed (orders.json): enough to tell whether the ERP's copy is behind without reading it again. */
@@ -60,7 +64,7 @@ export interface ListedShopifyOrder extends ShopifyOrderStateLike {
   order_number?: number | string;
   name?: string;
 }
-type ShopifyOrderStateLike = Parameters<typeof deliveryOf>[0] & { financial_status?: string | null; total_price?: string | number | null; current_total_price?: string | number | null };
+type ShopifyOrderStateLike = Parameters<typeof deliveryOf>[0] & { financial_status?: string | null; total_price?: string | number | null; current_total_price?: string | number | null; shipping_lines?: { price?: string | number | null }[] | null };
 
 /** True when the ERP's copy says something other than Shopify does now: paid, shipped, where the parcel is, cancelled. */
 export function isBehind(erp: ErpShopifyRecord, o: ListedShopifyOrder): boolean {
@@ -69,7 +73,9 @@ export function isBehind(erp: ErpShopifyRecord, o: ListedShopifyOrder): boolean 
     || !!erp.shopifyCancelledAt !== !!o.cancelled_at
     || (erp.shopifyDelivery || '') !== deliveryOf(o).delivery
     // Delivered cash on delivery not yet taken as paid (lib/shopify-mirror.ts withDeliveredCod).
-    || (withDeliveredCod(o, []).length > 0 && !(erp.shopifyTransactionIds || []).map(String).includes(codTransactionId(o.id)));
+    || (withDeliveredCod(o, []).length > 0 && !(erp.shopifyTransactionIds || []).map(String).includes(codTransactionId(o.id)))
+    // An open order made before its delivery was named.
+    || (!!erp.isOrder && !erp.invoiceId && erp.deliveryCharge === undefined && (shopifyDeliveryCharge(o) || 0) > 0);
 }
 
 /** How often the whole catch-up runs (the safety net under Shopify's live notices), and how many orders it brings up to date in one tick (two Shopify reads each). */
@@ -95,7 +101,7 @@ export async function catchUpShopifyDelivery(now = new Date()): Promise<{ checke
   try { creds = await getShopifyCredentials(adminDb); } catch { return null; }
 
   const since = new Date(now.getTime() - 120 * 24 * 3600 * 1000).toISOString();
-  const fields = 'id,order_number,name,cancelled_at,fulfillment_status,financial_status,fulfillments,total_price,current_total_price';
+  const fields = 'id,order_number,name,cancelled_at,fulfillment_status,financial_status,fulfillments,total_price,current_total_price,shipping_lines';
   const r = await shopifyRequest(creds.shop, creds.token, 'GET', `/orders.json?status=any&limit=250&created_at_min=${encodeURIComponent(since)}&fields=${fields}`);
   const listed: ListedShopifyOrder[] = r?.orders || [];
 
@@ -111,7 +117,7 @@ export async function catchUpShopifyDelivery(now = new Date()): Promise<{ checke
     // An invoiced order's money and state are its invoice's (listed above): the invoice is what is compared.
     if (v.invoiceId && orders.docs.includes(d)) continue;
     const name = v.shopifyOrderName || (d.id.startsWith('SHOPIFY-') ? `#${d.id.slice(8)}` : '');
-    if (name) erp.set(name, v); // an order after its invoice: the order is what the section shows
+    if (name) erp.set(name, orders.docs.includes(d) ? { ...v, isOrder: true } : v); // an order after its invoice: the order is what the section shows
   }
 
   const behind = listed.filter(o => { const e = erp.get(o.name || `#${o.order_number}`); return !!e && isBehind(e, o); });

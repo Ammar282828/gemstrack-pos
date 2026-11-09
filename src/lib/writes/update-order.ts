@@ -94,6 +94,10 @@ export function reconcileOrderMoney(existing: OrderOnFile, edit: OrderEdit): Ord
     delete out.grandTotal;
     return out;
   }
+  // Every form sends the pieces' sum as the subtotal; a delivery the order carries (a Shopify order's) is added back here,
+  // so an edit never drops it from what the customer owes.
+  const delivery = Math.max(0, rupees(existing.deliveryCharge as number | undefined));
+  if ('subtotal' in out && delivery > 0 && !('deliveryCharge' in out)) out.subtotal = rupees(out.subtotal as number) + delivery;
   const stored = rupees(existing.advancePayment);
   if ('advancePayment' in out && !(rupees(out.advancePayment) > stored)) delete out.advancePayment;
   const touchesMoney = ['advancePayment', 'subtotal', 'discountAmount', 'advanceInExchangeValue'].some((k) => k in edit);

@@ -12,6 +12,7 @@ import { describeExchanges, exchangeTotal, invoiceExchanges, orderExchanges } fr
 import type { OrderSummaryForMessage } from '@/lib/website/notify';
 import { clock, longDay, plural, pkr, rs, shortDay, stamp, type AlertDoc, type Section, type Table } from './doc';
 import { owesMoney } from '@/lib/money';
+import { adjustmentsLabel } from '@/lib/financials';
 
 export type OrderAlert = 'new' | 'Completed' | 'Cancelled' | 'Refunded';
 
@@ -44,7 +45,7 @@ function invoiceBill(inv: Invoice): Section {
   const exTotal = exchangeTotal(ex);
   const pairs: NonNullable<Section['pairs']> = [{ label: 'Pieces', value: rs(inv.subtotal) }];
   if (Number(inv.discountAmount) > 0) pairs.push({ label: 'Discount', value: `- ${rs(inv.discountAmount)}` });
-  if (Number(inv.adjustmentsAmount)) pairs.push({ label: 'Adjustments', value: rs(inv.adjustmentsAmount) });
+  if (Number(inv.adjustmentsAmount)) pairs.push({ label: adjustmentsLabel(inv as never), value: rs(inv.adjustmentsAmount) });
   // The full amount first, never less the exchange (owner, 2026-11-03); the gold given and the cash paid come after it.
   pairs.push({ label: 'Total', value: pkr(invoiceSaleValue(inv)), strong: true });
   if (exTotal > 0) pairs.push({ label: `Exchange: ${describeExchanges(ex)}`, value: rs(exTotal) });

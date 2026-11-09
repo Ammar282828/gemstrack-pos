@@ -354,70 +354,6 @@ class SettingsLogicTests {
     private fun karigar(id: String, name: String, deleted: String?): Karigar =
         Karigar.fromMap(mapOf("id" to id, "name" to name, "deletedAt" to deleted))
 
-    // MARK: Shopify
-
-    @Test fun writeAccessIncludesReadAccess() {
-        val held = setOf("write_orders", "read_customers", "read_all_products")
-        assertTrue(ShopifyLogic.holds(held, "read_orders"))
-        assertTrue(ShopifyLogic.holds(held, "write_orders"))
-        assertTrue(ShopifyLogic.holds(held, "read_customers"))
-        assertFalse(ShopifyLogic.holds(held, "write_customers"))
-        assertTrue(ShopifyLogic.holds(held, "read_products"))
-        assertFalse(ShopifyLogic.holds(held, "write_products"))
-        assertFalse(ShopifyLogic.holds(held, "read_draft_orders"))
-    }
-
-    @Test fun theMissingPermissionsAreListedInTheERPsOrder() {
-        val held = setOf("write_orders", "write_customers", "write_products", "read_draft_orders")
-        assertEquals(listOf("write_draft_orders"), ShopifyLogic.missing(held))
-        assertEquals(8, ShopifyLogic.missing(emptySet()).size)
-        assertEquals(listOf("read_all_orders", "read_inventory"), ShopifyLogic.extra(held + setOf("read_inventory", "read_all_orders")))
-    }
-
-    @Test fun theStatusIsReadLeniently() {
-        val s = ShopifyStatus.from(Json.parse("""{"configured":true,"connected":true,"shop":"x.myshopify.com","scopes":["read_orders"],"webhooksHere":2,"webhooksTotal":"3"}"""))
-        assertTrue(s.configured)
-        assertEquals(listOf("read_orders"), s.scopes)
-        assertEquals(3, s.webhooksTotal)
-        assertEquals("Connected", ShopifyLogic.statusText(s))
-        val bare = ShopifyStatus.from(Json.parse("""{"configured":false}"""))
-        assertNull(bare.scopes)
-        assertEquals("Not configured", ShopifyLogic.statusText(bare))
-        assertEquals("Needs attention", ShopifyLogic.statusText(s.copy(connected = false)))
-    }
-
-    @Test fun onlyAMyshopifyDomainIsOfferedToReauthorize() {
-        val s = ShopifyStatus.from(Json.parse("""{"configured":true,"shop":"demo-shop.myshopify.com"}"""))
-        assertEquals("https://erp.example.shop/api/shopify/auth?shop=demo-shop.myshopify.com", ShopifyLogic.reauthorizeUrl(s, "https://erp.example.shop/"))
-        assertNull(ShopifyLogic.reauthorizeUrl(s.copy(shop = "evil.example.com"), "https://erp.example.shop"))
-        assertNull(ShopifyLogic.reauthorizeUrl(s.copy(shop = null), "https://erp.example.shop"))
-    }
-
-    @Test fun theOrdersAreReadAndTheListFiltered() {
-        val orders = ShopifyLogic.orders(
-            Json.parse("""[{"id":"1001","title":"#1001","subtitle":"Amina","date":"2026-10-01","amount":12000},{"id":1002,"title":"#1002","subtitle":"Bilal"},{"id":"0","title":"zero"},{"title":"no id"}]"""),
-        )
-        assertEquals(listOf("1001", "1002"), orders.map { it.id })
-        assertEquals(12000.0, orders[0].amount)
-        assertEquals(listOf("#1002"), ShopifyLogic.visible(orders, " bil ").map { it.title })
-        assertEquals(2, ShopifyLogic.visible(orders, "").size)
-        assertEquals("Import 2 orders · PKR 12,000?", ShopifyLogic.importTitle(2, 12000.0))
-        assertEquals("Import 1 order · PKR 0?", ShopifyLogic.importTitle(1, 0.0))
-    }
-
-    @Test fun anOrderIdFromABigNumberIsNotRoundedThroughAnInt() {
-        assertEquals("5123456789012", ShopifyLogic.orderId(5_123_456_789_012.0))
-        assertEquals("", ShopifyLogic.orderId(null))
-    }
-
-    @Test fun theWebhooksAnswerIsSaidInWords() {
-        assertEquals("Shopify answered; nothing to register.", ShopifyLogic.webhookMessage(emptyList(), emptyList()))
-        assertEquals("Registered orders/create, orders/updated.", ShopifyLogic.webhookMessage(listOf("orders/create", "orders/updated"), emptyList()))
-        assertEquals("Registered orders/create; already there: orders/updated.", ShopifyLogic.webhookMessage(listOf("orders/create"), listOf("orders/updated")))
-        assertEquals("1 older order at or below #1000 is not offered; it predates the ERP.", ShopifyLogic.olderSkipped(1, 1000))
-        assertEquals("3 older orders at or below #1000 are not offered; they predate the ERP.", ShopifyLogic.olderSkipped(3, 1000))
-    }
-
     // MARK: Voice
 
     @Test fun theVoiceStatusSaysWhyItIsNotReady() {
@@ -489,7 +425,7 @@ class SettingsLogicTests {
 
     @Test fun everySettingsPathHasANativeScreenAndSettingsComesFirst() {
         val paths = listOf(
-            "/settings", "/app/settings/shop", "/settings/alerts", "/settings/payment-methods", "/settings/integrations", "/app/settings/shopify",
+            "/settings", "/app/settings/shop", "/settings/alerts", "/settings/payment-methods", "/settings/integrations",
             "/settings/data", "/settings/voice", "/settings/printer", "/settings/weprint-api", "/settings/backups", "/settings/contact-import",
             "/settings/hisaab-import", "/app/phone", "/app/widgets", "/app/settings/website", "/settings/import-taheri",
             "/app/label-live", "/app/tag-printer",

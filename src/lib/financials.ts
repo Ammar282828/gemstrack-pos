@@ -21,6 +21,11 @@ export function getInvoiceExchangeTotal(invoice: InvoiceLike | null | undefined)
   return (invoice?.exchangeAmount1 || 0) + (invoice?.exchangeAmount2 || 0);
 }
 
+/** What the extra beyond the pieces is called: a Shopify sale's is its delivery (shipping), any other's "Adjustments". */
+export function adjustmentsLabel(invoice: { source?: string | null; deliveryCharge?: number | null } | null | undefined): string {
+  return Number(invoice?.deliveryCharge) > 0 || String(invoice?.source || '').startsWith('shopify') ? 'Delivery' : 'Adjustments';
+}
+
 export function getInvoiceAdjustmentsAmount(invoice: InvoiceLike | null | undefined): number {
   return invoice?.adjustmentsAmount || 0;
 }

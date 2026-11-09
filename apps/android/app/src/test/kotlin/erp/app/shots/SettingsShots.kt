@@ -17,12 +17,9 @@ import erp.app.screens.settings.HisaabPerson
 import erp.app.screens.settings.HisaabRead
 import erp.app.screens.settings.HisaabRow
 import erp.app.screens.settings.PhonePush
-import erp.app.screens.settings.PullOrder
 import erp.app.screens.settings.PushNotRegistered
 import erp.app.screens.settings.PushStatus
 import erp.app.screens.settings.ShopForm
-import erp.app.screens.settings.ShopifyInnerForm
-import erp.app.screens.settings.ShopifyStatus
 import erp.app.ui.ReadableColumn
 import erp.core.Json
 import erp.core.models.Product
@@ -90,12 +87,6 @@ class SettingsShots(config: ShotConfig) : ShotBase(config) {
         onlyTaheri()
         showPlace("/settings/integrations", below = listOf("/settings"))
         shoot("settings-integrations")
-    }
-
-    @Test fun settings_shopify() {
-        onlyTaheri()
-        showPlace("/app/settings/shopify", below = listOf("/settings", "/settings/integrations"))
-        shoot("settings-shopify")
     }
 
     @Test fun settings_data() {
@@ -187,20 +178,6 @@ class SettingsShots(config: ShotConfig) : ShotBase(config) {
         onlyTaheri()
         show { column { BankAccountsForm(sample) } }
         shoot("settings-bank-accounts-filled")
-    }
-
-    @Test fun settings_shopify_connected() {
-        onlyTaheri()
-        val status = ShopifyStatus.from(
-            Json.parse("""{"configured":true,"connected":true,"shop":"demo-shop.myshopify.com","shopName":"Demo Shop","lastSyncedAt":"2026-10-11T09:00:00.000Z","scopes":["read_orders","write_orders","read_customers","write_customers","read_products","read_draft_orders","write_draft_orders","read_inventory"],"webhooksHere":0,"webhooksTotal":2}"""),
-        )
-        val orders = listOf(
-            PullOrder("1001", "#1001", "Amina Example · Karachi", "2026-10-10T08:00:00.000Z", 48_500.0),
-            PullOrder("1002", "#1002", "Bilal Example", "2026-10-11T08:00:00.000Z", 12_000.0),
-            PullOrder("1003", "#1003", "Sana Example · Lahore", "2026-10-11T10:00:00.000Z", 96_250.0),
-        )
-        show { column { ShopifyInnerForm(status, orders) } }
-        shoot("settings-shopify-connected")
     }
 
     @Test fun settings_contact_import_plan() {

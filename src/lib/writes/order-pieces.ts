@@ -50,7 +50,8 @@ export function orderWithoutPiece(order: OrderDoc, index: number, shownDescripti
   if (items.length <= 1) throw new OrderPieceRefusal('Cannot remove the last item from an order. Delete the order instead.');
 
   const left = items.filter((_, i) => i !== index);
-  const subtotal = left.reduce((sum, item) => sum + (Number(item.totalEstimate) || Number(item.manualPrice) || 0), 0);
+  // The pieces left, and the delivery the order carries (never a piece).
+  const subtotal = left.reduce((sum, item) => sum + (Number(item.totalEstimate) || Number(item.manualPrice) || 0), 0) + Math.max(0, Number((order as { deliveryCharge?: number }).deliveryCharge) || 0);
   const summary = left.length === 1
     ? (left[0].description || 'Custom order')
     : left.map(i => i.description).filter(Boolean).join(', ') || 'Custom order';

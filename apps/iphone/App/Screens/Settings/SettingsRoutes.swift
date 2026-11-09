@@ -7,8 +7,7 @@ import SwiftUI
 /// activity log is the Work group's (ActivityLogScreen) and Recently removed the Owner group's. Voice, Labels
 /// (Stock › Labels, still at /settings/printer), Backups (a backup's Restore too, /api/app/backup/restore), the
 /// contact and hisaab imports, the Taheri Software book's one-off import, the website's selling settings
-/// (`/app/settings/website`) and the alerts' connection, test and Send now are native too; Shopify's sign-in is
-/// OAuth, opened in Safari from the native Shopify screen (`/app/settings/shopify`).
+/// (`/app/settings/website`) and the alerts' connection, test and Send now are native too.
 ///
 /// An old `/settings?tab=` link lands where that tab went, as the web's /settings sends it (src/app/settings/page.tsx):
 /// the rates open the rate sheet over the list (Home's "Set today's gold rate" said that address), the rest their screen.
@@ -25,7 +24,8 @@ enum SettingsRoutes {
             .exact("/settings/alerts") { AlertSettings() },
             .exact("/settings/payment-methods") { BankAccountSettings() },
             .exact("/settings/integrations") { IntegrationSettings() },
-            .exact("/app/settings/shopify") { ShopifySettings() },
+            // The Shopify card is gone (2026-11-09); an old link or push lands on Integrations.
+            .exact("/app/settings/shopify") { IntegrationSettings() },
             .exact("/app/settings/website") { WebsiteSellingSettings() },
             .exact("/settings/data") { DataSettings() },
             .exact("/settings/voice") { VoiceSettings() },

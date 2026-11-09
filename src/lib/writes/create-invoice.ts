@@ -241,8 +241,10 @@ export async function createInvoice(db: DbPort, input: SaleInput, fx: SaleSideEf
     // Whole rupees throughout (owner, 2026-10-17): the lines are rounded by the pricing, the discount,
     // exchange and payments here, so every total is a sum of integers.
     const calculatedDiscountAmount = Math.max(0, Math.min(subtotal, rupees(discountAmount)));
-    const grandTotal = subtotal - calculatedDiscountAmount - exchangeTotal(exchanges);
-    const existingAdjustmentsAmount = getInvoiceAdjustmentsAmount(existingInvoiceData);
+    // What an edit keeps beyond the pieces (a Shopify sale's delivery): part of the total, as getInvoiceExpectedGrandTotal
+    // has it. Leaving it out made re-saving a Shopify invoice drop its delivery from what the customer owed.
+    const existingAdjustmentsAmount = rupees(getInvoiceAdjustmentsAmount(existingInvoiceData));
+    const grandTotal = subtotal - calculatedDiscountAmount - exchangeTotal(exchanges) + existingAdjustmentsAmount;
 
     // An edit keeps its number, so a number is never used twice.
     let invoiceId: string;

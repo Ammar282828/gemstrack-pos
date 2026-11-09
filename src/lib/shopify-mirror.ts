@@ -45,6 +45,13 @@ export interface ShopifyOrderState {
   fulfillments?: ShopifyFulfillmentLike[] | null;
   total_price?: string | number | null;
   current_total_price?: string | number | null;
+  shipping_lines?: { price?: string | number | null }[] | null;
+}
+
+/** What Shopify charged for delivery (its shipping lines), whole rupees; undefined when the order didn't say. */
+export function shopifyDeliveryCharge(order: { shipping_lines?: { price?: string | number | null }[] | null }): number | undefined {
+  if (!Array.isArray(order.shipping_lines)) return undefined;
+  return Math.max(0, Math.round(order.shipping_lines.reduce((t, s) => t + (Number(s?.price) || 0), 0)));
 }
 
 export interface MirroredInvoice {

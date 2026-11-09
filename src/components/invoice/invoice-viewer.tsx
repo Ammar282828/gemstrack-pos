@@ -48,7 +48,7 @@ import { Label } from '@/components/ui/label';
 import { cn, normalizePhoneNumber } from '@/lib/utils';
 import { balanceLine, canHoldCredit } from '@/lib/invoice-credit';
 import { GiveBackCredit, creditHeld } from '@/components/invoice/give-back-credit';
-import { getInvoiceAdjustmentsAmount, getInvoiceExchangeTotal } from '@/lib/financials';
+import { adjustmentsLabel, getInvoiceAdjustmentsAmount, getInvoiceExchangeTotal } from '@/lib/financials';
 import { stockSku } from '@/lib/sku';
 import { format } from 'date-fns';
 import { AmountInput } from '@/components/ui/amount-input';
@@ -629,7 +629,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
                             <span className="min-w-32 whitespace-nowrap text-right font-medium flex-shrink-0">- PKR {getInvoiceExchangeTotal(invoice).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                           </div>
                         )}
-                        {getInvoiceAdjustmentsAmount(invoice) !== 0 && <div className="flex justify-end items-center gap-4"><span className="text-muted-foreground">Adjustments:</span> <span className="min-w-32 whitespace-nowrap text-right font-medium">PKR {getInvoiceAdjustmentsAmount(invoice).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>}
+                        {getInvoiceAdjustmentsAmount(invoice) !== 0 && <div className="flex justify-end items-center gap-4"><span className="text-muted-foreground">{adjustmentsLabel(invoice)}:</span> <span className="min-w-32 whitespace-nowrap text-right font-medium">PKR {getInvoiceAdjustmentsAmount(invoice).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>}
                         <div className="flex justify-end items-center gap-4 font-serif text-ios-title3 font-semibold"><span className="font-sans text-base font-normal text-muted-foreground">Grand Total:</span> <span className="min-w-32 whitespace-nowrap text-right">PKR {invoice.grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
                         {invoice.amountPaid > 0 && (
                           <div className="flex justify-end items-center gap-4 text-tone-settled-ink"><span>Paid:</span> <span className="min-w-32 whitespace-nowrap text-right font-medium">PKR {invoice.amountPaid.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>

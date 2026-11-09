@@ -565,6 +565,8 @@ export interface Invoice {
   exchangeAmount1?: number;
   exchangeAmount2?: number;
   adjustmentsAmount?: number; // Shipping, taxes, or other adjustments beyond line items
+  /** A Shopify sale's delivery (its shipping lines), whole rupees; carried in adjustmentsAmount, named here so it prints as Delivery. */
+  deliveryCharge?: number;
   grandTotal: number;
   amountPaid: number;
   balanceDue: number;
@@ -769,6 +771,9 @@ export interface Order {
   notes?: string;
   shopifyOrderId?: string; // Carried forward from invoice during edit/revert so the next finalize re-links the same Shopify order
   shopifyOrderNumber?: number;
+  /** What the customer pays for delivery (a Shopify order's shipping), whole rupees: part of `subtotal` and the order's full
+   *  amount, never a piece; Finalize & invoice carries it onto the invoice (adjustmentsAmount + deliveryCharge). */
+  deliveryCharge?: number;
   /** A Shopify web order made an ERP order (lib/writes/shopify-order.ts, House of Mina): Shopify's own words, kept current by its notices. */
   shopifyOrderName?: string;
   shopifyFinancialStatus?: string;

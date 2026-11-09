@@ -150,9 +150,11 @@ describe('an invoice edited and saved again', () => {
     expect(inv.items[0]).toMatchObject({ karigarId: 'k1', isCompleted: true, itemCategory: 'Rings' });
     expect(data.hisaab.old1).toBeUndefined();
     expect(data.hisaab.other).toBeDefined();
-    expect(Object.values(data.hisaab).filter((r) => r.linkedInvoiceId === 'INV-000007')).toEqual([expect.objectContaining({ cashDebit: RING - 100_000 })]);
+    // The 500 beyond the pieces (a delivery) stays in the total: before, a re-save dropped it from what was owed.
+    expect(inv.grandTotal).toBe(RING + 500);
+    expect(Object.values(data.hisaab).filter((r) => r.linkedInvoiceId === 'INV-000007')).toEqual([expect.objectContaining({ cashDebit: RING + 500 - 100_000 })]);
     // An edit is an update, not a second sale, and raises no new-sale alert.
-    expect(logs[0]).toMatch(/^Updated invoice INV-000007 \| Customer: Demo Edit \| Total: 200,000 → 137,000/);
+    expect(logs[0]).toMatch(/^Updated invoice INV-000007 \| Customer: Demo Edit \| Total: 200,000 → 137,500/);
     expect(alerts).toEqual([]);
   });
 

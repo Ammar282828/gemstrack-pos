@@ -618,6 +618,14 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
     done, no advances: the invoice keeps the money and the revenue; the invoice gets `sourceOrderId`); cancelled, refunded or
     returned ones a **Cancelled** order the same way. An exchange or money handed back on an open sale is left for a person
     (`shopify_sync/convert` lists them).
+  - **Delivery is named** (2026-11-09, owner: "delivery fees logic is weird in erp"). A Shopify order's shipping was hidden in the
+    order's `subtotal` (8,000 of pieces, 8,350 owed, nothing saying why); Finalize built the invoice from the pieces, so a paid
+    order finalized at 8,000 with 350 as the customer's credit; and re-saving an invoice dropped its `adjustmentsAmount` from the
+    total. Now `Order.deliveryCharge` (from Shopify's shipping lines on import, an invoice's adjustments on conversion, and learned
+    by the mirror for orders made before) is shown as Delivery, kept by edits (`reconcileOrderMoney` adds it back to the pieces'
+    sum the forms send; removing a piece keeps it) and carried to the invoice (`adjustmentsAmount` + `deliveryCharge`, in the
+    total). An invoice's adjustments print as "Delivery" for a Shopify sale (`adjustmentsLabel`), and a re-save keeps them in the
+    total.
     The mirror never rewrites what the shop changed (decision "Shopify notices"); the order WhatsApp's state is written to the
     order's `whatsappOrder`. From there it is an ordinary order: karigars, Ready, **Finalize & invoice** (decision "Order to
     invoice"), whose invoice keeps `source: 'shopify'`, the Shopify ids and the transactions already counted. Revenue lands at

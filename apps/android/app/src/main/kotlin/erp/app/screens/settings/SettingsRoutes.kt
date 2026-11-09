@@ -13,8 +13,7 @@ import erp.app.screens.settings.label.TagPrinterSettings
  * and Recently removed the Owner group's. Voice, Labels (Stock › Labels, still at /settings/printer), Backups and the
  * contact and hisaab imports are native too, and so are the Taheri Software book's one-off import, Selling on the website,
  * and Labels (the tag designer with its Printer, `/app/tag-printer`, and Label LIVE, `/app/label-live`, pages); what stays the
- * ERP's pages, opened inside the app: a backup's Restore (it writes a whole file over the live books), Meta's connection, and
- * Shopify's sign-in (OAuth opens in the browser from the native Shopify screen, `/app/settings/shopify`).
+ * ERP's pages, opened inside the app: a backup's Restore (it writes a whole file over the live books), and Meta's connection.
  * Simple settings go through /api/app/write `updateSettings` (lib/writes/settings.ts); the rest through their own writes
  * (ops-settings2.ts).
  */
@@ -24,7 +23,8 @@ val SettingsRoutes: List<ScreenRoute> = listOf(
     ScreenRoute.exact("/settings/alerts") { AlertSettings() },
     ScreenRoute.exact("/settings/payment-methods") { BankAccountSettings() },
     ScreenRoute.exact("/settings/integrations") { IntegrationSettings() },
-    ScreenRoute.exact("/app/settings/shopify") { ShopifySettings() },
+    // The Shopify card is gone (2026-11-09: the server registers the notices and catches up by itself); an old link lands here.
+    ScreenRoute.exact("/app/settings/shopify") { IntegrationSettings() },
     ScreenRoute.exact("/app/settings/website") { WebsiteSellingSettings() },
     ScreenRoute.exact("/settings/data") { DataSettings() },
     ScreenRoute.exact("/settings/voice") { VoiceSettings() },
