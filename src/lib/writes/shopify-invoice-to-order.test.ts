@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { DbPort, TxCtx } from '@/lib/db-port';
 import { convertBlocker } from '@/lib/shopify-orders';
-import { orderIdForInvoice, shopifyInvoicesToOrders, type ShopifyConvertDeps } from './shopify-invoice-to-order';
+import { convertAllShopifyInvoices, conversionFor, orderIdForInvoice, shopifyInvoicesToOrders, type ShopifyConvertDeps } from './shopify-invoice-to-order';
 
 const REMOVE = '<removed>';
 type Data = Record<string, Record<string, Record<string, unknown>>>;
@@ -171,5 +171,47 @@ describe('shopifyInvoicesToOrders', () => {
     ]);
     expect(Object.keys(data.invoices).sort()).toEqual(['FROM-ORDER', 'POS', 'SHIPPED', 'VOID']);
     expect(Object.keys(data.orders)).toEqual(['SHOPIFY-1']);
+  });
+});
+
+describe('every old Shopify sale an order', () => {
+  it('decides by Shopify\'s word: shipped Completed, cancelled or returned Cancelled, open to the workshop, no word Completed', () => {
+    expect(conversionFor(invoice('a') as never)).toBe('open');
+    expect(conversionFor(invoice('a', { shopifyFulfillment: 'fulfilled' }) as never)).toBe('Completed');
+    expect(conversionFor(invoice('a', { shopifyDelivery: 'in_transit', shopifyFulfillment: 'partial' }) as never)).toBe('Completed');
+    expect(conversionFor(invoice('a', { status: 'Refunded' }) as never)).toBe('Cancelled');
+    expect(conversionFor(invoice('a', { shopifyFulfillment: 'fulfilled', shopifyDelivery: 'returned' }) as never)).toBe('Cancelled');
+    expect(conversionFor(invoice('a', { source: 'shopify_import', shopifyFulfillment: undefined }) as never)).toBe('Completed');
+    expect(conversionFor(invoice('a', { sourceOrderId: 'ORD-1' }) as never)).toEqual({ skip: 'made from an order already' });
+    expect(conversionFor(invoice('a', { exchanges: [{ value: 1 }] }) as never)).toEqual({ skip: 'has an exchange' });
+  });
+
+  it('open goes to the workshop (invoice made an order); shipped and cancelled keep their invoice beside a Completed / Cancelled order', async () => {
+    const { db, data } = fakeDb(seed(
+      invoice('SHOPIFY-1440'),
+      invoice('SHOPIFY-1441', { shopifyOrderNumber: 1441, shopifyOrderId: '7446', shopifyOrderName: '#1441', shopifyFulfillment: 'fulfilled', shopifyDelivery: 'delivered', amountPaid: 5500, balanceDue: 0 }),
+      invoice('SHOPIFY-1442', { shopifyOrderNumber: 1442, shopifyOrderId: '7447', shopifyOrderName: '#1442', status: 'Refunded', shopifyCancelledAt: '2026-10-29T13:46:41Z', amountPaid: 0, balanceDue: 0, paymentHistory: [] }),
+      invoice('INV-000050', { source: 'shopify_import', shopifyOrderNumber: undefined, shopifyOrderId: undefined, shopifyOrderName: '#1001', shopifyFulfillment: undefined }),
+    ));
+    const r = await convertAllShopifyInvoices(db, deps);
+    expect(r).toMatchObject({ seen: 4, open: ['SHOPIFY-1440'], completed: ['SHOPIFY-1441', 'SHOPIFY-INV-INV-000050'], cancelled: ['SHOPIFY-1442'], remaining: 0 });
+    expect(data.invoices['SHOPIFY-1440']).toBeUndefined();
+    expect(data.orders['SHOPIFY-1440']).toMatchObject({ status: 'Pending', advancePayment: 2000 });
+    expect(data.invoices['SHOPIFY-1441']).toMatchObject({ sourceOrderId: 'SHOPIFY-1441', amountPaid: 5500 });
+    const done = data.orders['SHOPIFY-1441'] as Record<string, unknown> & { items: { isCompleted: boolean }[] };
+    expect(done).toMatchObject({ status: 'Completed', invoiceId: 'SHOPIFY-1441', advancePayment: 0, shopifyDelivery: 'delivered', source: 'shopify' });
+    expect(done.items.every(i => i.isCompleted)).toBe(true);
+    expect(data.orders['SHOPIFY-1442']).toMatchObject({ status: 'Cancelled', invoiceId: 'SHOPIFY-1442' });
+    expect(data.invoices['SHOPIFY-1442']).toMatchObject({ status: 'Refunded', sourceOrderId: 'SHOPIFY-1442' });
+    expect(data.app_settings.global.lastOrderNumber).toBe(41);
+    // Again: nothing left to do.
+    const again = await convertAllShopifyInvoices(db, deps);
+    expect(again).toMatchObject({ seen: 0, open: [], completed: [], cancelled: [] });
+  });
+
+  it('works in batches: the rest wait for the next pass', async () => {
+    const { db } = fakeDb(seed(...[1, 2, 3].map(n => invoice(`SHOPIFY-${n}`, { shopifyOrderNumber: n, shopifyOrderId: `${n}`, shopifyFulfillment: 'fulfilled' }))));
+    expect(await convertAllShopifyInvoices(db, deps, 2)).toMatchObject({ completed: ['SHOPIFY-1', 'SHOPIFY-2'], remaining: 1 });
+    expect(await convertAllShopifyInvoices(db, deps, 2)).toMatchObject({ completed: ['SHOPIFY-3'], remaining: 0 });
   });
 });

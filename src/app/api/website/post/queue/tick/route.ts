@@ -34,7 +34,7 @@ import { runDueReports } from '@/lib/notifications/dispatch';
 import { refreshReviews } from '@/lib/reviews-server';
 import { onlineOrdersPossible, sweepOnline } from '@/lib/website/online';
 import { snapshotIfDue } from '@/lib/social-insights/snapshot';
-import { catchUpShopifyDelivery, sweepShopifyOrders } from '@/lib/shopify-order-sweep';
+import { catchUpShopifyDelivery, convertShopifyInvoicesToOrders, sweepShopifyOrders } from '@/lib/shopify-order-sweep';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -74,6 +74,9 @@ export async function POST(req: NextRequest) {
   // WhatsApp started even when Shopify's notices are refused. Never in the way of the rest.
   const shopifyOrders = dry ? null : await sweepShopifyOrders().catch(e => ({ error: e instanceof Error ? e.message : String(e) }));
   if (shopifyOrders && 'imported' in shopifyOrders && (shopifyOrders.imported.length || shopifyOrders.whatsapp.length || shopifyOrders.errors.length)) console.log('[queue/tick] shopify orders', JSON.stringify(shopifyOrders));
+  // The old Shopify sales made orders (shipped → Completed beside their invoice, cancelled → Cancelled, open → the Workshop).
+  const shopifyConvert = dry ? null : await convertShopifyInvoicesToOrders().catch(e => ({ error: e instanceof Error ? e.message : String(e) }));
+  if (shopifyConvert) console.log('[queue/tick] shopify convert', JSON.stringify(shopifyConvert));
   // Every ten minutes (the net under the live notices): each web order the ERP has against Shopify — paid, shipped, delivered by TCS, returned.
   const shopifyDelivery = dry ? null : await catchUpShopifyDelivery().catch(e => ({ error: e instanceof Error ? e.message : String(e) }));
   if (shopifyDelivery) console.log('[queue/tick] shopify delivery', JSON.stringify(shopifyDelivery));

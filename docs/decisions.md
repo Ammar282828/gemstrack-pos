@@ -610,6 +610,14 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
     and fulfillments/create, fulfillments/update (each TCS update, in seconds; needs the app's `read_fulfillments`, and a refusal is
     kept in `shopify_sync/webhooks`), and the catch-up runs every ten minutes beneath them. Settings → Integrations → Shopify (status,
     pull, re-authorize) is gone on every surface; `/api/shopify/*` routes stay.
+  - **Every old Shopify sale is an order** (2026-11-09, owner: "convert all shopify orders into orders and deal with them properly, if
+    they were completed they were just completed orders, if not they are in workshop"). `convertAllShopifyInvoices`
+    (lib/writes/shopify-invoice-to-order.ts), run by the tick 40 at a time, then daily: open ones (Shopify says unfulfilled, not
+    cancelled) become orders as "Make them orders" does (invoice removed, payments advances, the Workshop); shipped or delivered ones,
+    and old CSV imports with no word on shipping, get a **Completed** order `SHOPIFY-<n>` beside their invoice (`invoiceId`, pieces
+    done, no advances: the invoice keeps the money and the revenue; the invoice gets `sourceOrderId`); cancelled, refunded or
+    returned ones a **Cancelled** order the same way. An exchange or money handed back on an open sale is left for a person
+    (`shopify_sync/convert` lists them).
     The mirror never rewrites what the shop changed (decision "Shopify notices"); the order WhatsApp's state is written to the
     order's `whatsappOrder`. From there it is an ordinary order: karigars, Ready, **Finalize & invoice** (decision "Order to
     invoice"), whose invoice keeps `source: 'shopify'`, the Shopify ids and the transactions already counted. Revenue lands at

@@ -16,7 +16,8 @@
  */
 
 import type { DbPort, SideEffects } from '@/lib/db-port';
-import { convertBlocker } from '@/lib/shopify-orders';
+import { convertBlocker, type ConvertibleInvoice } from '@/lib/shopify-orders';
+import { isShippedOut } from '@/lib/shopify-delivery';
 import { invoiceLines } from '@/lib/invoice-actions';
 import { rupees } from '@/lib/money';
 import { createOrder, type CreateOrderDeps } from './create-order';
@@ -151,4 +152,111 @@ export async function shopifyInvoicesToOrders(
     await Promise.resolve(fx.log?.('order.create', `Converted to order: ${orderId}`, `Invoice ${invoiceId} (${inv.customerName || 'Walk-in'}) made an order · ${removed.ledgerRows} ledger row(s) removed`, orderId)).catch(() => undefined);
   }
   return result;
+}
+
+/**
+ * Every old Shopify sale an order (owner, 2026-11-09: "convert all shopify orders into orders, and deal with them properly:
+ * if they were completed they were just completed orders, if not they are in workshop").
+ * - Open (nothing shipped, not cancelled; convertBlocker null): made an order as above — the invoice goes, its payments are
+ *   advances, the pieces wait in the Workshop.
+ * - Shipped or delivered (Shopify fulfilled, or TCS has it), or cancelled/returned: the sale happened (or didn't) and its
+ *   invoice is the record of the money, so it STAYS; an order `SHOPIFY-<number>` is made beside it as a finalized order is:
+ *   `invoiceId` the invoice, status Completed (every piece done) or Cancelled, no advances (its money is the invoice's, as
+ *   any invoiced order's: lib/analytics/cash-in.ts), and the invoice gets `sourceOrderId` so the section lists the order.
+ * - Anything else (an exchange, money handed back on an open sale) is left for a person: skipped with the reason.
+ */
+export async function linkShopifyInvoiceAsOrder(
+  db: DbPort,
+  inv: InvoiceDoc & { status?: string; amountPaid?: number; balanceDue?: number; shopifyDelivery?: string; shopifyTracking?: { company: string; number: string }; shopifyDeliveryAt?: string; sourceOrderId?: string },
+  status: 'Completed' | 'Cancelled',
+  deps: Omit<CreateOrderDeps, 'fixedId' | 'extra'>,
+): Promise<{ orderId: string } | { skipped: string }> {
+  const orderId = orderIdForInvoice(inv);
+  const there = await db.get<{ invoiceId?: string }>(ORDERS, orderId);
+  if (there && there.invoiceId !== inv.id) return { skipped: 'already an order' };
+  if (!there) {
+    const byShopifyId = inv.shopifyOrderId ? (await db.queryEquals<{ invoiceId?: string }>(ORDERS, 'shopifyOrderId', String(inv.shopifyOrderId)))[0] : null;
+    if (byShopifyId && byShopifyId.invoiceId !== inv.id) return { skipped: 'already an order' };
+    const discount = rupees(inv.discountAmount);
+    const full = rupees(inv.grandTotal);
+    const items = piecesFromInvoice(inv).map(p => ({ ...p, isCompleted: status === 'Completed' }));
+    await createOrder(db, {
+      items: items as { description?: string }[],
+      source: 'shopify',
+      customerId: inv.customerId, customerName: inv.customerName, customerContact: inv.customerContact,
+      subtotal: full + discount, discountAmount: discount, advancePayment: 0,
+      grandTotal: rupees(inv.balanceDue ?? 0),
+      notes: [inv.shopifyOrderName ? `Shopify order ${inv.shopifyOrderName}` : '', inv.notes].filter(Boolean).join(' · '),
+    }, {
+      ...deps,
+      fixedId: orderId,
+      extra: {
+        createdAt: inv.createdAt || new Date().toISOString(),
+        status,
+        invoiceId: inv.id,
+        linkedFromInvoiceId: inv.id,
+        ...(inv.shopifyOrderId !== undefined && { shopifyOrderId: String(inv.shopifyOrderId) }),
+        ...(Number(inv.shopifyOrderNumber) > 0 && { shopifyOrderNumber: Number(inv.shopifyOrderNumber) }),
+        shopifyOrderName: inv.shopifyOrderName || (inv.shopifyOrderNumber ? `#${inv.shopifyOrderNumber}` : undefined),
+        shopifyFinancialStatus: String(inv.shopifyFinancialStatus || ''),
+        shopifyFulfillment: String(inv.shopifyFulfillment || 'unfulfilled'),
+        ...(inv.shopifyCancelledAt && { shopifyCancelledAt: inv.shopifyCancelledAt }),
+        ...(inv.shopifyDelivery && { shopifyDelivery: inv.shopifyDelivery }),
+        ...(inv.shopifyTracking && { shopifyTracking: inv.shopifyTracking }),
+        ...(inv.shopifyDeliveryAt && { shopifyDeliveryAt: inv.shopifyDeliveryAt }),
+        ...(inv.whatsappOrder && { whatsappOrder: inv.whatsappOrder }),
+        advancePayment: 0,
+      },
+    }, { notify: undefined, log: undefined });
+  }
+  await db.update(INVOICES, inv.id, { sourceOrderId: orderId });
+  return { orderId };
+}
+
+/** Shipped out of the shop by Shopify's or TCS's word. */
+const shippedOut = (inv: { shopifyFulfillment?: string; shopifyDelivery?: string }) =>
+  String(inv.shopifyFulfillment || '').toLowerCase() === 'fulfilled' || isShippedOut(inv.shopifyDelivery);
+
+/** What one old Shopify invoice becomes: an open order (workshop), a Completed or Cancelled order beside it, or left. */
+export function conversionFor(inv: ConvertibleInvoice & { shopifyDelivery?: string }): 'open' | 'Completed' | 'Cancelled' | { skip: string } {
+  if (inv.sourceOrderId || inv.orderId || inv.fromOrder) return { skip: 'made from an order already' };
+  if (inv.status === 'Refunded' || inv.status === 'Cancelled' || inv.shopifyCancelledAt || inv.shopifyDelivery === 'returned') return 'Cancelled';
+  if (shippedOut(inv)) return 'Completed';
+  // No word from Shopify on shipping (a CSV import from before the ERP): an old sale, done. Its invoice stays.
+  if (!String(inv.shopifyFulfillment || '').trim()) return 'Completed';
+  const blocker = convertBlocker(inv);
+  return blocker ? { skip: blocker } : 'open';
+}
+
+export interface ConvertAllResult { seen: number; open: string[]; completed: string[]; cancelled: string[]; skipped: { invoiceId: string; reason: string }[]; remaining: number }
+
+/** One pass over the old Shopify invoices (`source` shopify / shopify_import, not from an order): at most `limit` changed. */
+export async function convertAllShopifyInvoices(db: DbPort, deps: ShopifyConvertDeps, limit = 40, fx: SideEffects = {}): Promise<ConvertAllResult> {
+  const [api, csv] = await Promise.all([
+    db.queryEquals<InvoiceDoc & { status?: string; sourceOrderId?: string; shopifyDelivery?: string }>(INVOICES, 'source', 'shopify'),
+    db.queryEquals<InvoiceDoc & { status?: string; sourceOrderId?: string; shopifyDelivery?: string }>(INVOICES, 'source', 'shopify_import'),
+  ]);
+  const todo = [...api, ...csv].filter(i => !i.sourceOrderId);
+  const out: ConvertAllResult = { seen: todo.length, open: [], completed: [], cancelled: [], skipped: [], remaining: 0 };
+  const { deleteField: _d, by: _b, ...orderDeps } = deps;
+  let done = 0;
+  for (const inv of todo) {
+    const kind = conversionFor(inv as never);
+    if (typeof kind === 'object') { out.skipped.push({ invoiceId: inv.id, reason: kind.skip }); continue; }
+    if (done >= limit) { out.remaining++; continue; }
+    done++;
+    if (kind === 'open') {
+      const r = await shopifyInvoicesToOrders(db, [inv.id], deps, fx);
+      if (r.converted[0]) out.open.push(r.converted[0].orderId);
+      else out.skipped.push({ invoiceId: inv.id, reason: r.skipped[0]?.reason || 'not converted' });
+      continue;
+    }
+    const r = await linkShopifyInvoiceAsOrder(db, inv, kind, orderDeps);
+    if ('skipped' in r) { out.skipped.push({ invoiceId: inv.id, reason: r.skipped }); continue; }
+    (kind === 'Completed' ? out.completed : out.cancelled).push(r.orderId);
+  }
+  if (out.open.length + out.completed.length + out.cancelled.length) {
+    await Promise.resolve(fx.log?.('order.create', 'Shopify sales made orders', `${out.open.length} to the workshop, ${out.completed.length} completed, ${out.cancelled.length} cancelled`, '')).catch(() => undefined);
+  }
+  return out;
 }

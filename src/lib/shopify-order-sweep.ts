@@ -15,6 +15,11 @@ import { followUpPaidOrder, shopifyOrderWhatsAppOn, startOrderFlow } from '@/lib
 import { deliveryOf } from '@/lib/shopify-delivery';
 import { codTransactionId, withDeliveredCod } from '@/lib/shopify-mirror';
 import { ensureShopifyWebhooks } from '@/lib/shopify-webhooks';
+import { FieldValue } from 'firebase-admin/firestore';
+import { adminPort } from '@/lib/db-admin-port';
+import { normalizePhoneNumber } from '@/lib/utils';
+import { cleanObject } from '@/lib/writes/create-invoice';
+import { convertAllShopifyInvoices } from '@/lib/writes/shopify-invoice-to-order';
 import { STORE_SHOPIFY_SECTION } from '@/lib/store-config';
 
 export async function sweepShopifyOrders(now = new Date()): Promise<{ seen: number; imported: string[]; whatsapp: string[]; errors: string[] } | null> {
@@ -102,7 +107,9 @@ export async function catchUpShopifyDelivery(now = new Date()): Promise<{ checke
   ]);
   const erp = new Map<string, ErpShopifyRecord>();
   for (const d of [...apiInv.docs, ...csvInv.docs, ...orders.docs]) {
-    const v = d.data() as ErpShopifyRecord & { shopifyOrderName?: string };
+    const v = d.data() as ErpShopifyRecord & { shopifyOrderName?: string; invoiceId?: string };
+    // An invoiced order's money and state are its invoice's (listed above): the invoice is what is compared.
+    if (v.invoiceId && orders.docs.includes(d)) continue;
     const name = v.shopifyOrderName || (d.id.startsWith('SHOPIFY-') ? `#${d.id.slice(8)}` : '');
     if (name) erp.set(name, v); // an order after its invoice: the order is what the section shows
   }
@@ -134,3 +141,27 @@ async function keepNoticesRegistered(now: Date) {
   await ref.set({ at: now.toISOString(), ...r });
   if (r.registered.length || r.refused.length) console.log('[shopify] notices', JSON.stringify(r));
 }
+
+/**
+ * Every old Shopify sale an order (lib/writes/shopify-invoice-to-order.ts convertAllShopifyInvoices; owner, 2026-11-09):
+ * 40 a tick until none is left, then once a day for any a CSV import brings in.
+ */
+export async function convertShopifyInvoicesToOrders(now = new Date()) {
+  if (!STORE_SHOPIFY_SECTION) return null;
+  const ref = adminDb.collection('shopify_sync').doc('convert');
+  const last = (await ref.get()).data() as { at?: string; remaining?: number } | undefined;
+  if (last?.at && !last.remaining && now.getTime() - Date.parse(last.at) < 24 * 3600 * 1000) return null;
+  const r = await convertAllShopifyInvoices(adminPort, {
+    createCustomer: async () => null,
+    normalizePhone: normalizePhoneNumber,
+    clean: cleanObject,
+    deleteField: () => FieldValue.delete(),
+    by: 'shopify-sync',
+  }, 40, { log: activityLog });
+  await ref.set({ at: now.toISOString(), seen: r.seen, remaining: r.remaining, open: r.open.length, completed: r.completed.length, cancelled: r.cancelled.length, skipped: r.skipped.slice(0, 50) });
+  return r;
+}
+
+const activityLog = async (action: string, title: string, detail: string, relatedId?: string) => {
+  await adminDb.collection('activity_log').add({ timestamp: new Date().toISOString(), eventType: action, description: title, details: detail, entityId: relatedId || '', via: 'shopify' });
+};

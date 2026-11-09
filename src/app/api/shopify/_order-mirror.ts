@@ -159,6 +159,8 @@ export async function mirrorShopifyOrderById(shop: string, token: string, orderI
   const fetched = await fetchShopifyTransactions(shop, token, String(order.id));
   const transactions = target.webSale ? withDeliveredCod(order, fetched) : fetched;
   const result = await mirrorShopifyOrder(adminPort, target.invoiceId, order, transactions, target.extra, { log }, { voidWhenCancelled: target.webSale });
+  // The order made beside it (an invoiced Shopify order) shows the same parcel and Shopify state; its money stays the invoice's.
+  if (erpOrder && erpDoc?.invoiceId) await mirrorShopifyToOrder(adminPort, erpOrder, order, [], { log }).catch(e => console.error('[shopify] order state', erpOrder, (e as Error)?.message));
   return result ? { ...result, order: name, gist, ...(imported && { imported }) } : { skipped: 'not-imported', order: name, gist };
 }
 
