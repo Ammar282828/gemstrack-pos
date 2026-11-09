@@ -11,6 +11,8 @@ import erp.core.logic.exchangeTotal
 import erp.core.logic.finalizedItemCosts
 import erp.core.logic.orderAdvancePayments
 import erp.core.logic.orderExchanges
+import erp.core.logic.orderGrandTotal
+import erp.core.logic.orderDeliveryCharge
 import erp.core.logic.orderInvoiceRates
 import erp.core.logic.PricingRates
 import erp.core.logic.rupees
@@ -97,9 +99,11 @@ object OrderFinalizeMath {
         val advances: Double = 0.0,
         /** What the invoice still asks for once the advances are counted as paid. */
         val balance: Double = 0.0,
+        /** A Shopify order's delivery: part of the invoice's total, never a piece. */
+        val delivery: Double = 0.0,
     ) {
         /** The invoice's total (before the advances). */
-        val total: Double get() = subtotal - discount - exchange
+        val total: Double get() = orderGrandTotal(subtotal, discount, exchange, delivery)
     }
 
     /** A rate box's text for a figure: blank for none, no trailing zeros. */
@@ -142,7 +146,8 @@ object OrderFinalizeMath {
         val disc = rupees(NewOrderFormat.num(discount))
         val exchange = exchangeTotal(orderExchanges(order))
         val advances = orderAdvancePayments(order).fold(0.0) { a, p -> a + rupees(p.amount) }
-        return Figures(prices, subtotal, disc, exchange, advances, subtotal - disc - exchange - advances)
+        val delivery = orderDeliveryCharge(order)
+        return Figures(prices, subtotal, disc, exchange, advances, orderGrandTotal(subtotal, disc, exchange, delivery) - advances, delivery)
     }
 
     /** The dialog's checks (`finalizeOrderSchema`): a priced piece needs a weight; nothing negative. */

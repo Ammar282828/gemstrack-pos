@@ -22,6 +22,8 @@ public struct Invoice: Decodable, Identifiable, Hashable {
     public let exchangeAmount2: Double?
     /// Shipping, taxes, or other adjustments beyond line items.
     public let adjustmentsAmount: Double?
+    /// A Shopify order's delivery, already inside `adjustmentsAmount`; set so the adjustments row reads "Delivery".
+    public let deliveryCharge: Double?
     public let grandTotal: Double
     public let amountPaid: Double
     public let balanceDue: Double
@@ -68,7 +70,7 @@ public struct Invoice: Decodable, Identifiable, Hashable {
 
     private enum K: String, CodingKey {
         case id, delivery, customerId, customerName, customerContact, items, subtotal, discountAmount
-        case exchanges, exchangeDescription, exchangeAmount1, exchangeAmount2, adjustmentsAmount
+        case exchanges, exchangeDescription, exchangeAmount1, exchangeAmount2, adjustmentsAmount, deliveryCharge
         case grandTotal, amountPaid, balanceDue, createdAt, ratesApplied, hideRates, takenBy, internalNote
         case paymentHistory, sourceOrderId, source, notes
         case shopifyFulfillment, shopifyFinancialStatus, shopifyCancelledAt, shopifyTransactionIds
@@ -92,6 +94,7 @@ public struct Invoice: Decodable, Identifiable, Hashable {
         exchangeAmount1 = c.double(.exchangeAmount1)
         exchangeAmount2 = c.double(.exchangeAmount2)
         adjustmentsAmount = c.double(.adjustmentsAmount)
+        deliveryCharge = c.double(.deliveryCharge)
         grandTotal = c.double(.grandTotal, default: 0)
         amountPaid = c.double(.amountPaid, default: 0)
         balanceDue = c.double(.balanceDue, default: 0)

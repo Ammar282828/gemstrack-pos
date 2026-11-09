@@ -339,6 +339,7 @@ struct OrderScreen: View {
     private func moneySection(_ order: Order) -> some View {
         let subtotal = OrdersLogic.subtotal(order)
         let discount = OrdersLogic.discount(order)
+        let delivery = OrdersLogic.delivery(order)
         let exchangeValue = OrdersLogic.exchangeValue(order)
         let lines = OrdersLogic.advanceLines(order)
         let exchanges = orderExchanges(order)
@@ -352,11 +353,12 @@ struct OrderScreen: View {
             // The page's own sums, so the three always add up: the pieces less the discount, what has come in
             // (the cash advances and the gold taken in exchange: both are payment, decision "Exchange as cash"),
             // and the balance due (OrdersLogic.balance).
-            MoneySplit(total: subtotal - discount, paid: order.advancePayment + exchangeValue,
+            MoneySplit(total: OrdersLogic.total(order), paid: order.advancePayment + exchangeValue,
                        due: OrdersLogic.balance(order), paidLabel: "Paid")
                 .padding(.vertical, pt(6))
             DisclosureGroup("Breakdown") {
                 MoneyRow("Pieces", subtotal)
+                if delivery > 0 { MoneyRow("Delivery", delivery, signed: true) }
                 if discount > 0 { MoneyRow("Discount", -discount, signed: true) }
                 if showAdvance {
                     // One advance: its delete sits on this line; several: each line has its own below.
@@ -1139,16 +1141,18 @@ extension OrderScreen {
     private func macOrderMoney(_ order: Order) -> some View {
         let subtotal = OrdersLogic.subtotal(order)
         let discount = OrdersLogic.discount(order)
+        let delivery = OrdersLogic.delivery(order)
         let exchangeValue = OrdersLogic.exchangeValue(order)
         let due = OrdersLogic.balance(order)
         let exchanges = orderExchanges(order)
         let rates = OrdersLogic.rateLine(order)
-        MacOrdersMoneyRow(label: "Total", value: Money.pkr(subtotal - discount))
+        MacOrdersMoneyRow(label: "Total", value: Money.pkr(OrdersLogic.total(order)))
         MacOrdersMoneyRow(label: "Paid", value: Money.pkr(order.advancePayment + exchangeValue))
         MacOrdersMoneyRow(label: isCredit(due) ? "In credit" : "Due", value: Money.pkr(abs(due)), strong: true,
                           tone: due >= 1 ? .owed : (isCredit(due) ? .credit : .quiet))
         Divider().padding(.vertical, 2)
         MacOrdersMoneyRow(label: "Pieces", value: Money.pkr(subtotal), small: true)
+        if delivery > 0 { MacOrdersMoneyRow(label: "Delivery", value: "+ " + Money.pkr(delivery), small: true) }
         if discount > 0 { MacOrdersMoneyRow(label: "Discount", value: "\u{2212} " + Money.pkr(discount), small: true) }
         if order.advancePayment > 0 {
             MacOrdersMoneyRow(label: "Advance paid", value: "\u{2212} " + Money.pkr(order.advancePayment), small: true)

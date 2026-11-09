@@ -44,6 +44,22 @@ class OrdersLogicTests {
         assertEquals(0.0, OrdersLogic.fullAmount(order("items" to emptyList<Any>(), "subtotal" to 0.0, "discountAmount" to 1_000.0)))
     }
 
+    // MARK: Delivery (#1460: two pieces of 4,000, delivery 350, paid 8,350)
+
+    @Test fun deliveryJoinsTheTotalTheFullAmountAndTheBalance() {
+        val o = order("items" to listOf(item(total = 4_000.0), item(total = 4_000.0)), "deliveryCharge" to 350.0, "subtotal" to 8_350.0, "advancePayment" to 8_350.0)
+        assertEquals(8_000.0, OrdersLogic.subtotal(o))
+        assertEquals(350.0, OrdersLogic.delivery(o))
+        assertEquals(8_350.0, OrdersLogic.total(o))
+        assertEquals(8_350.0, OrdersLogic.fullAmount(o))
+        assertEquals(0.0, OrdersLogic.balance(o), "paid in full, no fake overpayment")
+    }
+
+    @Test fun aSavedSubtotalStandingInForTheEstimatesAlreadyHoldsTheDelivery() {
+        val bare = order("items" to listOf(item(total = null)), "subtotal" to 8_350.0, "deliveryCharge" to 350.0)
+        assertEquals(8_350.0, OrdersLogic.fullAmount(bare))
+    }
+
     // MARK: Next step
 
     @Test fun anOrderNotStartedIsGivenOut() {

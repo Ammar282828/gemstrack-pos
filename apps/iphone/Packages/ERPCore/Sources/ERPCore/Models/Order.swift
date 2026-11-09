@@ -23,6 +23,8 @@ public struct Order: Decodable, Identifiable, Hashable {
     public let costRate24k: Double?
     public let takenBy: String?
     public let subtotal: Double
+    /// A Shopify order's delivery, whole rupees: part of `subtotal` and of the order's full amount, never a piece (src/lib/store.ts).
+    public let deliveryCharge: Double?
     /// Agreed at order time and carried onto the invoice.
     public let discountAmount: Double?
     public let advancePayment: Double
@@ -64,7 +66,7 @@ public struct Order: Decodable, Identifiable, Hashable {
 
     private enum K: String, CodingKey {
         case id, delivery, createdAt, promisedDate, status, items, ratesApplied, hideRates, costRate24k
-        case takenBy, subtotal, discountAmount, advancePayment, advanceMethod, advances, advanceGoldDetails
+        case takenBy, subtotal, deliveryCharge, discountAmount, advancePayment, advanceMethod, advances, advanceGoldDetails
         case grandTotal, summary, customerId, customerName, customerContact, source
         case exchanges, advanceInExchangeDescription, advanceInExchangeValue, invoiceId, tcsConsignmentNo
         case website, leopards, notes, shopifyOrderId, shopifyOrderNumber, shopifyDraftOrderId, shopifyDraftOrderName, whatsappOrder
@@ -84,6 +86,7 @@ public struct Order: Decodable, Identifiable, Hashable {
         costRate24k = c.double(.costRate24k)
         takenBy = c.string(.takenBy)
         subtotal = c.double(.subtotal, default: 0)
+        deliveryCharge = c.double(.deliveryCharge)
         discountAmount = c.double(.discountAmount)
         advancePayment = c.double(.advancePayment, default: 0)
         advanceMethod = c.word(.advanceMethod)

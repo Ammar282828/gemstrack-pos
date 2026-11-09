@@ -1,6 +1,9 @@
 package erp.core
 
 import erp.core.logic.InvoiceLike
+import erp.core.logic.adjustmentsLabel
+import erp.core.logic.orderDeliveryCharge
+import erp.core.logic.orderGrandTotal
 import erp.core.logic.OrderLike
 import erp.core.logic.getInvoiceAdjustmentsAmount
 import erp.core.logic.getInvoiceExchangeTotal
@@ -100,5 +103,27 @@ class FinancialsTests {
         assertFalse(isRestoredPlaceholderOrder(OrderLike()))
         assertFalse(isRestoredPlaceholderOrder(null as OrderLike?))
         assertFalse(isRestoredPlaceholderOrder(order(emptyMap())))
+    }
+
+    // MARK: Delivery (#1460: two pieces of 4,000, delivery 350, paid 8,350)
+
+    @Test
+    fun deliveryIsPartOfTheTotalAndNeverAPiece() {
+        val o = order(mapOf("deliveryCharge" to 350, "subtotal" to 8350))
+        assertEquals(350.0, orderDeliveryCharge(o))
+        assertEquals(8350.0, orderGrandTotal(pieces = 8000.0, delivery = orderDeliveryCharge(o)))
+        assertEquals(6850.0, orderGrandTotal(pieces = 8000.0, discount = 1000.0, exchange = 500.0, delivery = 350.0))
+        assertEquals(0.0, orderDeliveryCharge(order(emptyMap())))
+        assertEquals(0.0, orderDeliveryCharge(order(mapOf("deliveryCharge" to -5))))
+    }
+
+    @Test
+    fun theAdjustmentsRowReadsDeliveryForAShopifySaleOrOneWithADeliveryCharge() {
+        assertEquals("Delivery", adjustmentsLabel(invoice(mapOf("deliveryCharge" to 350))))
+        assertEquals("Delivery", adjustmentsLabel(invoice(mapOf("source" to "shopify"))))
+        assertEquals("Delivery", adjustmentsLabel(invoice(mapOf("source" to "shopify_import"))))
+        assertEquals("Adjustments", adjustmentsLabel(invoice(mapOf("adjustmentsAmount" to 100))))
+        assertEquals("Adjustments", adjustmentsLabel(invoice(mapOf("deliveryCharge" to 0))))
+        assertEquals(350.0, invoice(mapOf("deliveryCharge" to "350")).deliveryCharge)
     }
 }

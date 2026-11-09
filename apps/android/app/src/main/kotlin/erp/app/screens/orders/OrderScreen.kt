@@ -531,6 +531,7 @@ private fun Pieces(order: Order, ticking: Int?, isOwner: Boolean, onGiveOut: () 
 private fun MoneyCard(order: Order) {
     val subtotal = OrdersLogic.subtotal(order)
     val discount = OrdersLogic.discount(order)
+    val delivery = OrdersLogic.delivery(order)
     val exchangeValue = OrdersLogic.exchangeValue(order)
     val lines = OrdersLogic.advanceLines(order)
     val exchanges = orderExchanges(order)
@@ -545,7 +546,7 @@ private fun MoneyCard(order: Order) {
             // The page's own sums, so the three always add up: the pieces less the discount, what has come in (the cash
             // advances and the gold taken in exchange: both are payment, decision "Exchange as cash"), and the balance
             // due (OrdersLogic.balance).
-            MoneySplit(total = subtotal - discount, paid = order.advancePayment + exchangeValue, due = OrdersLogic.balance(order), paidLabel = "Paid")
+            MoneySplit(total = OrdersLogic.total(order), paid = order.advancePayment + exchangeValue, due = OrdersLogic.balance(order), paidLabel = "Paid")
             Row(
                 Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp).clickable(onClickLabel = if (open) "Hide the breakdown" else "Show the breakdown") { open = !open },
                 horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
@@ -555,6 +556,7 @@ private fun MoneyCard(order: Order) {
             }
             if (open) {
                 MoneyRow("Pieces", subtotal)
+                if (delivery > 0) MoneyRow("Delivery", delivery, signed = true)
                 if (discount > 0) MoneyRow("Discount", -discount, signed = true)
                 if (showAdvance) MoneyRow("Advance paid", -order.advancePayment, signed = true)
                 // Each advance with its day and how it was paid: these become the invoice's payments.

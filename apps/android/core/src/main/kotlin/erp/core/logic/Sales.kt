@@ -180,3 +180,16 @@ fun getInvoiceExpectedGrandTotal(invoice: InvoiceLike?): Double {
 }
 
 fun getInvoiceExpectedGrandTotal(invoice: Invoice): Double = getInvoiceExpectedGrandTotal(InvoiceLike(invoice))
+
+/** What the extra beyond the pieces is called (src/lib/financials.ts `adjustmentsLabel`): a Shopify sale's is its delivery (shipping), any other's "Adjustments". */
+fun adjustmentsLabel(source: String?, deliveryCharge: Double?): String =
+    if (JS.orZero(deliveryCharge) > 0 || (source ?: "").startsWith("shopify")) "Delivery" else "Adjustments"
+
+fun adjustmentsLabel(invoice: Invoice): String = adjustmentsLabel(invoice.source, invoice.deliveryCharge)
+
+/** A Shopify order's delivery in rupees: part of the order's full amount, never a piece. 0 when it has none. */
+fun orderDeliveryCharge(order: Order): Double = maxOf(0.0, JS.orZero(order.deliveryCharge))
+
+/** What an order or its invoice comes to (lib/writes/finalize-order.ts `invoiceFromOrder`): the pieces, less the discount and the exchange, plus the delivery. */
+fun orderGrandTotal(pieces: Double, discount: Double = 0.0, exchange: Double = 0.0, delivery: Double = 0.0): Double =
+    pieces - discount - exchange + delivery

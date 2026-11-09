@@ -219,7 +219,7 @@ private fun FinalizeForm(
                 Section(footer = "The 24k rate is the shop's own, for its margin. It is never printed.") {
                     Field("Discount", discount, setDiscount, KeyboardType.Number, "0", enabled = !saving)
                     // FinalizeOrderDialog: the bill before any discount is the pieces less the exchange.
-                    RoundOffChips(f.subtotal - f.exchange, f.discount) { n -> setDiscount(NewOrderFormat.rupeeBox(n)) }
+                    RoundOffChips(f.subtotal + f.delivery - f.exchange, f.discount) { n -> setDiscount(NewOrderFormat.rupeeBox(n)) }
                     // The shop's own figure for its margin: owners only, never the customer (decisions.md "Margin").
                     Field("24k a tola now", costTola, setCostTola, KeyboardType.Number, "For the margin", enabled = !saving)
                 }
@@ -228,6 +228,7 @@ private fun FinalizeForm(
                     footer = "Priced at the rates above (the order's booked ones unless you changed one). The advances become the invoice's payments, each on its own day; the exchange comes off the total.",
                 ) {
                     Labeled("Pieces", Money.pkr(f.subtotal))
+                    if (f.delivery > 0) Labeled("Delivery", "+ " + Money.pkr(f.delivery))
                     if (f.discount > 0) Labeled("Discount", "− " + Money.pkr(f.discount))
                     if (f.exchange > 0) Labeled("Exchange", "− " + Money.pkr(f.exchange))
                     Labeled("Invoice total", Money.pkr(f.total))

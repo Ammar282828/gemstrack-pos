@@ -391,7 +391,7 @@ struct InvoiceScreen: View {
             }
         }
         if adjustments != 0 {
-            MoneyRow("Adjustments", adjustments, signed: true)
+            MoneyRow(adjustmentsLabel(inv), adjustments, signed: true)
         }
         MoneyRow("Total", inv.grandTotal, emphasis: true)
         if !inv.hideRates && !rates.isEmpty {
@@ -1321,7 +1321,7 @@ private struct MacInvoiceTotalsBlock: View {
                     }
                 }
                 if adjustments != 0 {
-                    line("Adjustments", Money.signed(adjustments))
+                    line(adjustmentsLabel(invoice), Money.signed(adjustments))
                 }
                 Divider()
                 line("Total", Money.pkr(invoice.grandTotal), bold: true)

@@ -28,6 +28,16 @@ class OrderFinalizeTests {
         ) + changes,
     )!!
 
+    @Test fun deliveryIsInTheInvoiceTotalAndTheBalance() {
+        val o = order("advancePayment" to 20_000.0, "deliveryCharge" to 350.0)
+        val rows = o.items.mapIndexed { i, it -> OrderFinalizeRow.of(it, i) }
+        val f = OrderFinalizeMath.figures(o, rows, "1,000", settings)
+        assertEquals(350.0, f.delivery)
+        // The server's invoiceFromOrder: pieces - discount - exchange + delivery.
+        assertEquals(227_500.0 - 1_000.0 + 350.0, f.total)
+        assertEquals(227_500.0 - 1_000.0 + 350.0 - 20_000.0, f.balance)
+    }
+
     @Test fun theDialogOpensOnTheOrdersOwnFigures() {
         val o = order()
         val a = OrderFinalizeRow.of(o.items[0], 0)

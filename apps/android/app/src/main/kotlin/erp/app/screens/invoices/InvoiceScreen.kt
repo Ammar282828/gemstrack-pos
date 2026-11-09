@@ -94,6 +94,7 @@ import erp.app.ui.theme.TabularDigits
 import erp.app.ui.zoomDestination
 import erp.core.logic.BalanceState
 import erp.core.logic.Margin
+import erp.core.logic.adjustmentsLabel
 import erp.core.logic.balanceLine
 import erp.core.logic.canHoldCredit
 import erp.core.logic.describeDelivery
@@ -554,7 +555,7 @@ private fun TotalRows(inv: Invoice) {
         MoneyRow("Subtotal", inv.subtotal)
         if (inv.discountAmount > 0) MoneyRow("Discount", -inv.discountAmount, signed = true)
         if (exchangeTotal(exchanges) > 0) exchanges.forEach { ExchangeRowView(it) }
-        if (adjustments != 0.0) MoneyRow("Adjustments", adjustments, signed = true)
+        if (adjustments != 0.0) MoneyRow(adjustmentsLabel(inv), adjustments, signed = true)
         MoneyRow("Total", inv.grandTotal, emphasis = true)
         if (!inv.hideRates && rates.isNotEmpty()) {
             Text(

@@ -18,6 +18,8 @@ import erp.core.logic.isUrgent
 import erp.core.logic.isWalkInName
 import erp.core.logic.describeExchangeEntry
 import erp.core.logic.orderAdvanceLines
+import erp.core.logic.orderGrandTotal
+import erp.core.logic.orderDeliveryCharge
 import erp.core.logic.orderTiming
 import erp.core.logic.percentLabel
 import erp.core.logic.stageOf
@@ -428,6 +430,12 @@ object OrdersLogic {
 
     fun discount(order: Order): Double = order.discountAmount ?: 0.0
 
+    /** A Shopify order's delivery: part of what it comes to, never a piece (the pieces' sum leaves it out). */
+    fun delivery(order: Order): Double = orderDeliveryCharge(order)
+
+    /** The pieces less the discount, plus the delivery: the order page's total. */
+    fun total(order: Order): Double = orderGrandTotal(subtotal(order), discount(order), delivery = delivery(order))
+
     /**
      * What the order comes to in full: the pieces (or the saved subtotal when they carry no estimate) less any discount,
      * never less the advances or exchange (owner, 2026-11-03: a card's amount is the whole order, not the balance).
@@ -435,13 +443,14 @@ object OrdersLogic {
     fun fullAmount(order: Order): Double {
         val pieces = subtotal(order)
         val base = if (pieces >= 1) pieces else order.subtotal
-        return maxOf(0.0, base - discount(order))
+        // A saved subtotal already holds the delivery; the pieces do not.
+        return maxOf(0.0, (if (pieces >= 1) base + delivery(order) else base) - discount(order))
     }
 
     fun exchangeValue(order: Order): Double = order.advanceInExchangeValue ?: 0.0
 
-    /** Pieces − discount − advances − exchange: the big "Balance Due" on the order page. */
-    fun balance(order: Order): Double = subtotal(order) - discount(order) - order.advancePayment - exchangeValue(order)
+    /** Pieces − discount + delivery − advances − exchange: the big "Balance Due" on the order page. */
+    fun balance(order: Order): Double = total(order) - order.advancePayment - exchangeValue(order)
 
     /** The advances as they will land on the invoice: the one taken with the order, then each recorded after it, each with its day, how it was paid and its note. */
     fun advanceLines(order: Order): List<AdvanceLine> = orderAdvanceLines(order, label = "").mapIndexed { i, a ->

@@ -74,11 +74,13 @@ enum OrderFinalizeMath {
         var subtotal = 0.0
         var discount = 0.0
         var exchange = 0.0
+        /// A Shopify order's delivery: part of the invoice's total, never a piece.
+        var delivery = 0.0
         var advances = 0.0
         /// What the invoice still asks for once the advances are counted as paid.
         var balance = 0.0
         /// The invoice's total (before the advances).
-        var total: Double { subtotal - discount - exchange }
+        var total: Double { orderGrandTotal(pieces: subtotal, discount: discount, exchange: exchange, delivery: delivery) }
     }
 
     /// A rate box's text for a figure: blank for none, no trailing zeros.
@@ -128,7 +130,8 @@ enum OrderFinalizeMath {
         f.discount = rupees(NewOrderFormat.num(discount))
         f.exchange = exchangeTotal(orderExchanges(order))
         f.advances = orderAdvancePayments(order).reduce(0.0) { $0 + rupees($1.amount) }
-        f.balance = f.subtotal - f.discount - f.exchange - f.advances
+        f.delivery = orderDeliveryCharge(order)
+        f.balance = f.total - f.advances
         return f
     }
 

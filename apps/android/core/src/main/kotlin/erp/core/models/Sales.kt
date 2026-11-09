@@ -38,6 +38,8 @@ data class Invoice(
     val exchangeAmount2: Double?,
     /** Shipping, taxes, or other adjustments beyond line items. */
     val adjustmentsAmount: Double?,
+    /** A Shopify order's delivery, already inside `adjustmentsAmount`; set so the adjustments row reads "Delivery". */
+    val deliveryCharge: Double? = null,
     val grandTotal: Double,
     val amountPaid: Double,
     val balanceDue: Double,
@@ -99,6 +101,7 @@ data class Invoice(
                 exchangeAmount1 = c.double("exchangeAmount1"),
                 exchangeAmount2 = c.double("exchangeAmount2"),
                 adjustmentsAmount = c.double("adjustmentsAmount"),
+                deliveryCharge = c.double("deliveryCharge"),
                 grandTotal = c.double("grandTotal", 0.0),
                 amountPaid = c.double("amountPaid", 0.0),
                 balanceDue = c.double("balanceDue", 0.0),
@@ -322,6 +325,8 @@ data class Order(
     val shopifyDelivery: String? = null,
     val shopifyTracking: ShopifyTracking? = null,
     val shopifyDeliveryAt: String? = null,
+    /** A Shopify order's delivery, whole rupees: part of `subtotal` and of the order's full amount, never a piece (src/lib/store.ts). */
+    val deliveryCharge: Double? = null,
 ) {
     companion object : Decodable<Order> {
         override fun fromMap(m: Map<String, Any?>): Order {
@@ -365,6 +370,7 @@ data class Order(
                 shopifyDelivery = c.string("shopifyDelivery"),
                 shopifyTracking = c.obj("shopifyTracking", ShopifyTracking),
                 shopifyDeliveryAt = c.string("shopifyDeliveryAt"),
+                deliveryCharge = c.double("deliveryCharge"),
             )
         }
     }

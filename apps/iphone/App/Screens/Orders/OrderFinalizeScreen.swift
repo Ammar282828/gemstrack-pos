@@ -98,7 +98,7 @@ struct OrderFinalizeScreen: View {
                         .monospacedDigit()
                 }
                 // FinalizeOrderDialog: the bill before any discount is the pieces less the exchange.
-                RoundOffChips(payable: f.subtotal - f.exchange, discount: f.discount) { n in
+                RoundOffChips(payable: f.subtotal + f.delivery - f.exchange, discount: f.discount) { n in
                     discount = NewOrderFormat.rupeeBox(n)
                 }
                 // The shop's own figure for its margin: owners only, never the customer (decisions.md "Margin").
@@ -113,6 +113,7 @@ struct OrderFinalizeScreen: View {
             }
             Section {
                 LabeledContent("Pieces", value: Money.pkr(f.subtotal))
+                if f.delivery > 0 { LabeledContent("Delivery", value: "+ " + Money.pkr(f.delivery)) }
                 if f.discount > 0 { LabeledContent("Discount", value: "− " + Money.pkr(f.discount)) }
                 if f.exchange > 0 { LabeledContent("Exchange", value: "− " + Money.pkr(f.exchange)) }
                 LabeledContent("Invoice total", value: Money.pkr(f.total))
@@ -506,7 +507,7 @@ extension OrderFinalizeScreen {
                     HStack(spacing: 8) {
                         macField($discount, width: 110, whole: true, label: "Discount")
                         // FinalizeOrderDialog: the bill before any discount is the pieces less the exchange.
-                        MacOrdersRoundMenu(payable: f.subtotal - f.exchange, discount: f.discount) { n in
+                        MacOrdersRoundMenu(payable: f.subtotal + f.delivery - f.exchange, discount: f.discount) { n in
                             discount = NewOrderFormat.rupeeBox(n)
                         }
                     }
@@ -528,6 +529,7 @@ extension OrderFinalizeScreen {
         VStack(alignment: .leading, spacing: 6) {
             Text("The invoice").font(.house(.headline))
             MacOrdersMoneyRow(label: "Pieces", value: Money.pkr(f.subtotal))
+            if f.delivery > 0 { MacOrdersMoneyRow(label: "Delivery", value: "+ " + Money.pkr(f.delivery)) }
             if f.discount > 0 { MacOrdersMoneyRow(label: "Discount", value: "\u{2212} " + Money.pkr(f.discount)) }
             if f.exchange > 0 { MacOrdersMoneyRow(label: "Exchange", value: "\u{2212} " + Money.pkr(f.exchange)) }
             MacOrdersMoneyRow(label: "Invoice total", value: Money.pkr(f.total), strong: true)

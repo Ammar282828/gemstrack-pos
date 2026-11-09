@@ -78,4 +78,24 @@ final class FinancialsTests: XCTestCase {
         XCTAssertFalse(isRestoredPlaceholderOrder(nil))
         XCTAssertFalse(isRestoredPlaceholderOrder(order([:])))
     }
+
+    // MARK: Delivery (#1460: two pieces of 4,000, delivery 350, paid 8,350)
+
+    func testDeliveryIsPartOfTheTotalAndNeverAPiece() {
+        let o = order(["deliveryCharge": 350, "subtotal": 8350])
+        XCTAssertEqual(orderDeliveryCharge(o), 350)
+        XCTAssertEqual(orderGrandTotal(pieces: 8000, delivery: orderDeliveryCharge(o)), 8350)
+        XCTAssertEqual(orderGrandTotal(pieces: 8000, discount: 1000, exchange: 500, delivery: 350), 6850)
+        XCTAssertEqual(orderDeliveryCharge(order([:])), 0)
+        XCTAssertEqual(orderDeliveryCharge(order(["deliveryCharge": -5])), 0)
+    }
+
+    func testTheAdjustmentsRowReadsDeliveryForAShopifySaleOrOneWithADeliveryCharge() {
+        XCTAssertEqual(adjustmentsLabel(invoice(["deliveryCharge": 350])), "Delivery")
+        XCTAssertEqual(adjustmentsLabel(invoice(["source": "shopify"])), "Delivery")
+        XCTAssertEqual(adjustmentsLabel(invoice(["source": "shopify_import"])), "Delivery")
+        XCTAssertEqual(adjustmentsLabel(invoice(["adjustmentsAmount": 100])), "Adjustments")
+        XCTAssertEqual(adjustmentsLabel(invoice(["deliveryCharge": 0])), "Adjustments")
+        XCTAssertEqual(invoice(["deliveryCharge": "350"]).deliveryCharge, 350)
+    }
 }
