@@ -268,6 +268,19 @@ enum OrdersLogic {
         total(order) - order.advancePayment - exchangeValue(order)
     }
 
+    /// The Safepay link's request for an order (SafepayLinkSheet): nil unless the house has Safepay, the order is open and
+    /// something is owed. An invoiced order is asked for on its invoice (`invoiceOwed` is that invoice's balance); the rest on
+    /// the order itself, at the balance the order page works out, which includes the delivery charge.
+    static func safepayRequest(_ order: Order, status: String, invoiceOwed: Double, phone: String) -> SafepayLinkRequest? {
+        guard House.business.offersPaymentLinks else { return nil }
+        let invoiced = hasInvoice(order)
+        let owed = invoiced ? invoiceOwed : balance(order)
+        guard SafepayLink.offered(status: status, owed: owed) else { return nil }
+        let id = invoiced ? (order.invoiceId ?? order.id) : order.id
+        return SafepayLinkRequest(target: invoiced ? "invoice" : "order", targetId: id, owed: owed,
+                                  customerName: order.customerName ?? "", phone: phone)
+    }
+
     struct AdvanceLine: Identifiable {
         let id: Int
         let date: String

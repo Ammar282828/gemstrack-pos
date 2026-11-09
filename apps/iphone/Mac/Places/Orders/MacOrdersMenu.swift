@@ -33,6 +33,8 @@ struct MacOrdersMenuRun {
     var printSlip: () -> Void = {}
     var message: () -> Void = {}
     var sendToKarigar: () -> Void = {}
+    /// The house's Safepay link for what is owed (SafepayLinkSheet), asked for with its request.
+    var safepay: (SafepayLinkRequest) -> Void = { _ in }
     /// The customer's order PDF from the shop's line (SendDocSheet), and the PDF itself to read, print or share.
     var sendPDF: () -> Void = {}
     var orderPDF: () -> Void = {}
@@ -128,6 +130,14 @@ enum MacOrdersMenu {
                              enabled: o != nil, id: "slip", perform: r.printSlip))
         out.append(MacAction("Message the Customer\u{2026}", symbol: "message", enabled: o != nil, id: "message", perform: r.message))
         out.append(MacAction("Send to Karigar\u{2026}", symbol: "paperplane", enabled: o != nil, id: "sendToKarigar", perform: r.sendToKarigar))
+        // Owners and the counter: a card payment link for what is owed, the money recorded by the ERP when it is paid.
+        let ask = o.flatMap { (order: Order) -> SafepayLinkRequest? in
+            guard i.role == "owner" || i.role == "staff" else { return nil }
+            return OrdersLogic.safepayRequest(order, status: i.status, invoiceOwed: i.invoiceOwed, phone: number)
+        }
+        out.append(MacAction("Safepay Link\u{2026}", symbol: "creditcard", enabled: ask != nil, id: "safepay") {
+            if let ask { r.safepay(ask) }
+        })
         // The one Contact order (MacContact): Call, WhatsApp Chat, Message, the customer's order PDF (never the
         // workshop slip), Copy Number.
         let document = [

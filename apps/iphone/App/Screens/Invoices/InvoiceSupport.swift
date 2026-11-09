@@ -252,6 +252,15 @@ enum InvoiceFacts {
     /// words say whether a link was made before.
     static func offersPaymentLink(_ inv: Invoice) -> Bool { inv.status != .refunded && inv.balanceDue >= 1 }
 
+    /// The Safepay link's request for this invoice (SafepayLinkSheet), when the house has Safepay and the invoice is open with
+    /// something owed; its amount starts at the balance. Nil otherwise.
+    static func safepayRequest(_ inv: Invoice, phone: String) -> SafepayLinkRequest? {
+        guard House.business.offersPaymentLinks,
+              SafepayLink.offered(status: inv.status?.rawValue ?? "", owed: inv.balanceDue) else { return nil }
+        return SafepayLinkRequest(target: "invoice", targetId: inv.id, owed: inv.balanceDue, customerName: inv.customerName,
+                                  phone: phone)
+    }
+
     static func paymentLinkTitle(_ inv: Invoice) -> String { (inv.shopifyCheckoutUrl ?? "").isEmpty ? "Payment link" : "Copy payment link" }
 
     // MARK: Send on WhatsApp (invoice-viewer.tsx)

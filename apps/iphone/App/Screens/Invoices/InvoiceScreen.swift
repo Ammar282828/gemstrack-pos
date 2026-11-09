@@ -42,6 +42,8 @@ struct InvoiceScreen: View {
     @State private var ownersOnly: String?
     /// The payment link to make (InvoicePaymentLink): set to start it.
     @State private var linking: Invoice?
+    /// The Safepay link to make for what is owed (SafepayLinkSheet): set to open its sheet.
+    @State private var safepay: SafepayLinkRequest?
     /// An old Shopify sale made an order (owner, 2026-11-09): set to start the explanation, the code and the write.
     @State private var converting: ShopifyConvertRequest?
     /// The order it became, opened once it is made (kept on the page, not the invoice, which the conversion removes).
@@ -169,6 +171,7 @@ struct InvoiceScreen: View {
         }
         .invoiceWhatsAppSend($sending) { sent in say(sent) }
         .invoicePaymentLink($linking) { made in say(made) }
+        .safepayLinkSheet($safepay)
         .failureAlert($ownersOnly, title: "Owners only")
         .noteToast($note)
     }
@@ -621,6 +624,10 @@ struct InvoiceScreen: View {
             // Shopify's checkout for what is owed, made fresh each time and copied (invoices/page.tsx).
             if InvoiceFacts.offersPaymentLink(inv) {
                 Button { linking = inv } label: { Label(InvoiceFacts.paymentLinkTitle(inv), systemImage: "link.badge.plus") }
+            }
+            // The house's own Safepay account: a card payment link, the money recorded by the ERP when it is paid.
+            if canPay, let ask = InvoiceFacts.safepayRequest(inv, phone: whatsAppPhone(inv)) {
+                Button { safepay = ask } label: { Label("Safepay link", systemImage: "creditcard") }
             }
         }
         Section("Change") {

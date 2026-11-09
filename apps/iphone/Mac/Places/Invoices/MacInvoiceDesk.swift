@@ -26,6 +26,8 @@ final class MacInvoiceDesk {
     var sending: Invoice?
     /// The Shopify payment link to make and copy (`invoicePaymentLink`).
     var linking: Invoice?
+    /// The Safepay link to make for what is owed (`safepayLinkSheet`).
+    var safepay: SafepayLinkRequest?
     /// The invoice's PDF, shown over the window.
     var pdf: InvoicePDFTarget?
     /// Name the customer, or change them.
@@ -93,6 +95,7 @@ struct MacInvoiceSheetHost: ViewModifier {
             }
             .invoiceWhatsAppSend(desk.binding(\.sending)) { sent in say(sent) }
             .invoicePaymentLink(desk.binding(\.linking)) { made in say(made) }
+            .safepayLinkSheet(desk.binding(\.safepay))
             .navigationDestination(item: desk.binding(\.web)) { (r: Route) in
                 ScreenRegistry.view(for: r.path)
             }

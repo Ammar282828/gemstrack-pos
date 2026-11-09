@@ -185,6 +185,8 @@ private fun Detail(shelfOrder: Order) {
     var leopardsOpen by remember { mutableStateOf(false) }
     var notifying by remember { mutableStateOf(false) }
     var sendingToKarigar by remember { mutableStateOf(false) }
+    /** The house's own Safepay link for what is owed (SafepayLinkSheet). */
+    var safepay by remember { mutableStateOf<erp.app.screens.invoices.SafepayRequest?>(null) }
     /** The bar's Check transfer: the transfer's own sheet, as the online section's Transfer received opens it. */
     var checkingTransfer by remember { mutableStateOf(false) }
     /** What that sheet said once the transfer was booked. */
@@ -198,6 +200,7 @@ private fun Detail(shelfOrder: Order) {
     val owed = invoice?.let { if (isOwing(it)) it.balanceDue else 0.0 } ?: 0.0
     val stage = OrdersLocal.stage(stageOf(shelfOrder, owed), OrdersLogic.hasInvoice(shelfOrder), localStatus["status"])
     val now = remember(order, invoice) { AppClock.now() }
+    val customer = order.customerId?.takeIf { it.isNotEmpty() }?.let { rememberShelfItem(book.customers, it) }
 
     fun setStatus(status: String) {
         localStatus["status"] = status
@@ -256,6 +259,10 @@ private fun Detail(shelfOrder: Order) {
             onViewSlip = { navigator.open(OrderPaths.slip(order.id)) },
             onMessage = { notifying = true },
             onSendToKarigar = { sendingToKarigar = true },
+            safepayAsk = if (role == "owner" || role == "staff") erp.app.screens.invoices.SafepayRequests.forOrder(
+                order, order.status.rawValue, invoice?.balanceDue ?: 0.0, customer,
+            ) else null,
+            onSafepay = { safepay = it },
             onTrack = { tracking = true },
             onBook = { booking = true },
             onUndo = { undo = it },
@@ -319,6 +326,7 @@ private fun Detail(shelfOrder: Order) {
     if (leopardsOpen) OrderLeopardsSheet(order) { leopardsOpen = false }
     if (notifying) OrderNotifySheet(order, onDismiss = { notifying = false })
     if (sendingToKarigar) SendToKarigarSheet(order, onDismiss = { sendingToKarigar = false })
+    safepay?.let { erp.app.screens.invoices.SafepayLinkSheet(it, onDismiss = { safepay = null }) }
     if (checkingTransfer) {
         OnlineMoveSheet(order, OnlineMoveKind.paid, onDismiss = { checkingTransfer = false }) { t ->
             told = t
@@ -731,6 +739,8 @@ private fun MoreMenu(
     onViewSlip: () -> Unit,
     onMessage: () -> Unit,
     onSendToKarigar: () -> Unit,
+    safepayAsk: erp.app.screens.invoices.SafepayRequest?,
+    onSafepay: (erp.app.screens.invoices.SafepayRequest) -> Unit,
     onTrack: () -> Unit,
     onBook: () -> Unit,
     onUndo: (OrderUndoAsk) -> Unit,
@@ -777,6 +787,8 @@ private fun MoreMenu(
         item("View slip", Symbols.PictureAsPdf, onClick = onViewSlip)()
         item("Message the customer", Symbols.Chat, onClick = onMessage)()
         item("Send to karigar", Symbols.Send, onClick = onSendToKarigar)()
+        // A card payment link for what is owed (owners and the counter); the ERP records the money when it is paid.
+        if (safepayAsk != null) item("Safepay link", Symbols.CreditCard) { onSafepay(safepayAsk) }()
         if (tcs != null || canBook) {
             HorizontalDivider()
             MenuHeader("Shipping")

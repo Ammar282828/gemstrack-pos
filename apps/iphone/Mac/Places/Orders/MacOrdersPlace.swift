@@ -244,6 +244,7 @@ struct MacOrdersPlace: View {
         r.printSlip = { open(.slip(order.id)) }
         r.message = { sheet = .notify(order) }
         r.sendToKarigar = { sheet = .sendKarigar(order) }
+        r.safepay = { sheet = .safepay($0) }
         r.sendPDF = { sheet = .sendPDF(order) }
         r.orderPDF = { sheet = .orderPDF(order) }
         r.bookCourier = { sheet = .courier(order) }

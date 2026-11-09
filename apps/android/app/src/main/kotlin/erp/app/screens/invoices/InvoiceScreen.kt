@@ -181,6 +181,8 @@ private fun InvoiceDetail(inv: Invoice, customers: List<erp.core.models.Customer
 
     var paying by remember { mutableStateOf<Invoice?>(null) }
     var sending by remember { mutableStateOf<Invoice?>(null) }
+    // The house's own Safepay link for what is owed (SafepayLinkSheet).
+    var safepay by remember { mutableStateOf<SafepayRequest?>(null) }
     var pdf by remember { mutableStateOf<InvoicePdfTarget?>(null) }
     val quick = erp.app.ui.rememberQuickPdf()
     fun quickPdf(t: InvoicePdfTarget) = quick.share(t.path, t.fileName, t.title)
@@ -228,6 +230,10 @@ private fun InvoiceDetail(inv: Invoice, customers: List<erp.core.models.Customer
                         val words = InvoiceFacts.shareMessage(inv, session.shop.name, byCustomer)
                         erp.app.device.shareText(context, InvoiceFacts.shareTitle(inv, byCustomer), "$words\n\n$link")
                     }
+                }
+                // A card payment link for what is owed; the ERP records the money when it is paid (owners and staff).
+                if (canPay) SafepayRequests.forInvoice(inv, inv.customerId?.let { id -> customers.firstOrNull { it.id == id } })?.let { ask ->
+                    item("Safepay link", Symbols.CreditCard, false) { safepay = ask }
                 }
                 HorizontalDivider()
                 MenuHeading("Change")
@@ -305,6 +311,7 @@ private fun InvoiceDetail(inv: Invoice, customers: List<erp.core.models.Customer
     paying?.let { picked ->
         InvoicePaymentSheet(picked, onDismiss = { paying = null }, recorded = { paid, amount -> note.show(Note("Payment recorded", InvoiceFacts.recordedDetail(paid, amount))) })
     }
+    safepay?.let { SafepayLinkSheet(it, onDismiss = { safepay = null }) }
     if (settingCustomer) InvoiceCustomerSheet(inv, onDismiss = { settingCustomer = false }, onSaved = { say(it) })
     when (acting) {
         InvoiceAct.Discount -> InvoiceDiscountSheet(inv, onDismiss = { acting = null }, onDone = ::acted)

@@ -287,6 +287,19 @@ final class Businesses {
         WidgetLinker.sync(list)
     }
 
+    /// Safepay was connected or disconnected in Settings: the switch follows at once, ahead of the descriptor's next refresh
+    /// (the ERP caches it for five minutes).
+    func setPaymentLinks(_ on: Bool) {
+        var next = current
+        var f = next.flags ?? Business.Flags()
+        f.paymentLinks = on
+        next.flags = f
+        if let i = list.firstIndex(where: { $0.id == current.id }) { list[i] = next }
+        current = next
+        BusinessBox.shared.set(current: current, list: list)
+        persist()
+    }
+
     private func persist() {
         guard !House.isDemo else { return }
         BusinessBox.shared.set(current: current, list: list)

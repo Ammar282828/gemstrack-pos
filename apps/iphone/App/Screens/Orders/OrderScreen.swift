@@ -27,6 +27,8 @@ struct OrderScreen: View {
     /// The slip straight to the share sheet (Print, WhatsApp, Files), without opening it first (PDFQuickShare.swift).
     @State private var slipShare: InvoicePDFTarget?
     @State private var advancing = false
+    /// The Safepay link to make for what is owed (SafepayLinkSheet): set to open its sheet.
+    @State private var safepay: SafepayLinkRequest?
     @State private var confirmCancel = false
     @State private var failure: String?
     @State private var undo: OrderUndoAsk?
@@ -136,6 +138,7 @@ struct OrderScreen: View {
         .safeAreaBar(edge: .bottom, spacing: 0) { actionBar(order, stage: stage, owed: owed) }
         .toolbar { orderToolbar(order, stage: stage, owed: owed) }
         .sheet(isPresented: $advancing) { advanceSheet(order).presentationSizing(.form) }
+        .safepayLinkSheet($safepay)
         .sheet(isPresented: $booking) { OrderCourierSheet(order: order) }
         .sheet(isPresented: $tracking) { OrderTrackingSheet(order: order) }
         .sheet(isPresented: $leopardsOpen) { OrderLeopardsSheet(order: order) }
@@ -158,6 +161,12 @@ struct OrderScreen: View {
     /// happened even when the customer's WhatsApp did not go.
     private func onlineMoved(_ kind: OnlineMoveSheet.Kind, _ t: OnlineTold) {
         Note.show(Note(title: t.words, failed: !t.ok), in: $note, reduce: reduceMotion)
+    }
+
+    /// The number the link goes to: the order's own, else its customer's, as the ERP keeps numbers (+92…).
+    private func safepayPhone(_ order: Order) -> String {
+        let own = order.customerContact ?? ""
+        return pakistanE164(own.isEmpty ? (order.customerId.flatMap { book.customers.item($0) }?.phone ?? "") : own)
     }
 
     private func invoiceOf(_ order: Order) -> Invoice? {
@@ -726,6 +735,12 @@ struct OrderScreen: View {
                 Button { web = .slip(order.id) } label: { Label("View slip", systemImage: "doc.richtext") }
                 Button { notifying = true } label: { Label("Message the customer", systemImage: "message") }
                 Button { sendingToKarigar = true } label: { Label("Send to karigar", systemImage: "paperplane") }
+                // The house's Safepay account: a card payment link for what is owed; the ERP records the money when it is paid.
+                if session.role == "owner" || session.role == "staff",
+                   let ask = OrdersLogic.safepayRequest(order, status: shownStatus(order), invoiceOwed: invoiceOf(order)?.balanceDue ?? 0,
+                                                        phone: safepayPhone(order)) {
+                    Button { safepay = ask } label: { Label("Safepay link", systemImage: "creditcard") }
+                }
             }
             if tcs != nil || canBook {
                 Section("Shipping") {
@@ -1263,6 +1278,7 @@ extension OrderScreen {
         r.printSlip = { web = .slip(order.id) }
         r.message = { macSheet = .notify(order) }
         r.sendToKarigar = { macSheet = .sendKarigar(order) }
+        r.safepay = { macSheet = .safepay($0) }
         r.sendPDF = { macSheet = .sendPDF(order) }
         r.orderPDF = { macSheet = .orderPDF(order) }
         r.bookCourier = { macSheet = .courier(order) }

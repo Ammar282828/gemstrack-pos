@@ -91,3 +91,4 @@ cloud session cannot press that button, but it can push. One line per build, new
 - 2026-11-09: ERP 2.6.8 — House of Mina: a Shopify order shows its delivery charge and counts it in the total and at Finalize; the Shopify settings screen is gone (it all runs by itself now).
 - 2026-11-10: ERP 2.6.9 — an order card's tags (its WhatsApp step, where its parcel is) sit on a line of their own under the number and are never cut short.
 - 2026-11-10: ERP 2.7 — House of Mina: revenue shows silver and gold apart everywhere (Analytics, Home, Shareholders), gold with its profit estimated at 10%; overall profit is unchanged.
+- 2026-11-10: ERP 2.7.1 — House of Mina: a Safepay payment link on any invoice or order (send it on WhatsApp or share it; it is recorded once paid), and Safepay in Settings → Integrations.

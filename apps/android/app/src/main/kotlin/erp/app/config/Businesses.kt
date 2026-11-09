@@ -163,6 +163,17 @@ object Businesses {
         return kept
     }
 
+    /** Safepay was connected or disconnected in Settings: the switch follows at once, ahead of the descriptor's next refresh (the ERP caches it five minutes). */
+    fun setPaymentLinks(on: Boolean) {
+        val s = store ?: return
+        val cur = _current.value
+        val flags = (cur.flags ?: Business.Flags(null, null, null, null, null, null)).copy(paymentLinks = on)
+        val next = cur.copy(flags = flags)
+        s.replace(next)
+        _list.value = s.list
+        _current.value = next
+    }
+
     // MARK: Removing / ordering
 
     /** Moves a business in the list (the sheet's reorder). */

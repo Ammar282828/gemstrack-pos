@@ -19,6 +19,8 @@ enum MacOrdersSheet: Identifiable {
     case sendPDF(Order)
     /// The customer's order PDF to read, print or share (never the workshop slip).
     case orderPDF(Order)
+    /// A Safepay payment link for what is owed.
+    case safepay(SafepayLinkRequest)
 
     var id: String {
         switch self {
@@ -32,6 +34,7 @@ enum MacOrdersSheet: Identifiable {
         case .lapse(let o): return "lapse-" + o.id
         case .sendPDF(let o): return "send-pdf-" + o.id
         case .orderPDF(let o): return "order-pdf-" + o.id
+        case .safepay(let r): return "safepay-" + r.id
         }
     }
 }
@@ -92,6 +95,8 @@ struct MacOrdersSheetContent: View {
         case .orderPDF(let o):
             let doc = CustomerDoc.order(o, byCustomer: session.shop.invoiceByCustomer)
             MacInvoicePDFSheet(target: InvoicePDFTarget(path: doc.pdfPath, fileName: doc.fileName, title: o.id))
+        case .safepay(let r):
+            SafepayLinkSheet(request: r)
         }
     }
 }

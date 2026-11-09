@@ -15,7 +15,7 @@ enum MacInvoiceMenu {
         [
             [takePayment(inv, cx), changeDiscount(inv, cx), giveBackCredit(inv, cx)],
             contact(inv, cx),
-            [printBill(inv, cx), copyPaymentLink(inv, cx), copyCustomerLink(inv)],
+            [printBill(inv, cx), copyPaymentLink(inv, cx), safepayLink(inv, cx), copyCustomerLink(inv)],
             [edit(inv, cx), changeRate(inv, cx), customer(inv, cx)],
             [refund(inv, cx), delete(inv, cx)],
         ]
@@ -34,7 +34,7 @@ enum MacInvoiceMenu {
     static func more(_ inv: Invoice?, _ cx: MacInvoiceContext) -> [[MacAction]] {
         [
             MacContact.actions(inv.map(cx.number) ?? "", document: [pdf(inv, cx)]),
-            [copyPaymentLink(inv, cx), copyCustomerLink(inv)],
+            [copyPaymentLink(inv, cx), safepayLink(inv, cx), copyCustomerLink(inv)],
             [changeDiscount(inv, cx), giveBackCredit(inv, cx), changeRate(inv, cx), customer(inv, cx)],
             [refund(inv, cx), delete(inv, cx)],
         ]
@@ -123,6 +123,14 @@ enum MacInvoiceMenu {
         let may = inv.map { InvoiceFacts.offersPaymentLink($0) } ?? false
         return MacAction("Copy Payment Link", symbol: "link.badge.plus", enabled: may) {
             if let inv { cx.desk.linking = inv }
+        }
+    }
+
+    /// The house's Safepay link for what is owed: a card payment link to copy, share or send on WhatsApp.
+    static func safepayLink(_ inv: Invoice?, _ cx: MacInvoiceContext) -> MacAction {
+        let ask = inv.flatMap { cx.canPay ? InvoiceFacts.safepayRequest($0, phone: cx.number($0)) : nil }
+        return MacAction("Safepay Link…", symbol: "creditcard", enabled: ask != nil) {
+            if let ask { cx.desk.safepay = ask }
         }
     }
 

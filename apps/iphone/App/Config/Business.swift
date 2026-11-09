@@ -132,7 +132,13 @@ struct Business: Codable, Sendable, Equatable, Identifiable {
         var invoiceWhatsappPdf: Bool?
         var sizeToProfile: Bool?
         var workshopStart: String?
+        /// The house has given its Safepay key, so invoices and orders offer a payment link (flags.paymentLinks, lib/safepay.ts).
+        /// Absent from an older ERP or a built-in's file: no.
+        var paymentLinks: Bool?
     }
+
+    /// Whether invoices and orders offer a Safepay payment link.
+    var offersPaymentLinks: Bool { flags?.paymentLinks ?? false }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)

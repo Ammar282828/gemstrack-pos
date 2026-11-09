@@ -90,7 +90,12 @@ data class Business(
         val invoiceWhatsappPdf: Boolean?,
         val sizeToProfile: Boolean?,
         val workshopStart: String?,
+        /** The house has given its Safepay key: invoices and orders offer a payment link (flags.paymentLinks, lib/safepay.ts). Absent: no. */
+        val paymentLinks: Boolean? = null,
     )
+
+    /** Whether invoices and orders offer a Safepay payment link. */
+    val offersPaymentLinks: Boolean get() = flags?.paymentLinks ?: false
 
     // MARK: Derived
 
@@ -166,6 +171,7 @@ data class Business(
                     f.invoiceWhatsappPdf?.let { put("invoiceWhatsappPdf", it) }
                     f.sizeToProfile?.let { put("sizeToProfile", it) }
                     f.workshopStart?.let { put("workshopStart", it) }
+                    f.paymentLinks?.let { put("paymentLinks", it) }
                 },
             )
         }
@@ -221,6 +227,7 @@ data class Business(
                     Flags(
                         f["partnership"] as? Boolean, f["websiteSelling"] as? Boolean, f["invoiceByCustomer"] as? Boolean,
                         f["invoiceWhatsappPdf"] as? Boolean, f["sizeToProfile"] as? Boolean, f["workshopStart"] as? String,
+                        f["paymentLinks"] as? Boolean,
                     )
                 },
                 minBuild = (m["minBuild"] as? Number)?.toInt(),
