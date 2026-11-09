@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chargeExpenses, checkTcsCredentials, parcelOf, payoutSummary, tcsDay } from './tcs-payments';
+import { chargeExpenses, checkTcsCredentials, codReady, normaliseTcsCredentials, ociReady, parcelOf, payoutSummary, tcsDay } from './tcs-payments';
 
 // TCS's own sample (API User Guide v1.0, Payment – Detail).
 const row = (cn: string, booked: string, status: string, paid: 'Y' | 'N', amount: number, charges: number, delivered: string | null, paidOn: string | null = null) => ({
@@ -29,8 +29,23 @@ describe('TCS payments', () => {
     expect(payoutSummary(parcels)).toEqual({ paidOut: 6350, lastPaidOn: '2024-09-20', unpaidDelivered: 1 });
   });
 
-  it('asks for every detail', () => {
-    expect(checkTcsCredentials({ clientId: '1', clientSecret: 'x', username: 'u', password: 'p', customerNo: '' })).toMatch(/account/);
-    expect(checkTcsCredentials({ clientId: '1', clientSecret: 'x', username: 'u', password: 'p', customerNo: '123' })).toBeNull();
+  it('asks for the Cash on Delivery set; the secret and the city are optional', () => {
+    const base = { clientId: '1', username: 'u', password: 'p', costCenterCode: 'KHI01', accountNo: '123' };
+    expect(checkTcsCredentials({ ...base, accountNo: '' })).toMatch(/account/);
+    expect(checkTcsCredentials({ ...base, costCenterCode: ' ' })).toMatch(/cost centre/);
+    expect(checkTcsCredentials(base)).toBeNull();
+    expect(checkTcsCredentials({ ...base, clientSecret: 'x', originCity: 'Lahore' })).toBeNull();
+    expect(checkTcsCredentials({ ...base, originCity: 'x'.repeat(501) })).toMatch(/too long/);
+  });
+
+  it('reads an older save (customerNo) and says which API can run', () => {
+    const old = normaliseTcsCredentials({ clientId: '1', clientSecret: 's', username: 'u', password: 'p', customerNo: '99' });
+    expect(old).toMatchObject({ accountNo: '99', originCity: 'Karachi', clientSecret: 's' });
+    expect(codReady(old)).toBe(false); // no cost centre yet
+    expect(ociReady(old)).toBe(true);
+    const cod = normaliseTcsCredentials({ clientId: '1', username: 'u', password: 'p', costCenterCode: 'C', accountNo: '9' });
+    expect(codReady(cod)).toBe(true);
+    expect(ociReady(cod)).toBe(false);
+    expect(normaliseTcsCredentials(null)).toBeNull();
   });
 });

@@ -9,16 +9,65 @@
  *   "cn by courier", "cn status", "order no", "payment status" (Y/N), "amount paid", "parcel weight", "city",
  *   "delivery charges", "delivery date", "payment date".
  *
- * Pure parts here; the daily run is lib/tcs-payments-server.ts. Credentials are an owner's to give (Settings → Integrations →
+ * Pure parts here; the daily run is lib/tcs-payments-server.ts. Booking and tracking (the Cash on Delivery API) are lib/tcs-cod.ts. Credentials are an owner's to give (Settings → Integrations →
  * TCS), kept sealed in app_private/tcs; never in the repository.
  */
 
-export interface TcsCredentials { clientId: string; clientSecret: string; username: string; password: string; customerNo: string }
+/**
+ * The shop's TCS account, one sealed set (Settings → Integrations → TCS). Two of TCS's APIs read it:
+ * - the Cash on Delivery API (api.tcscourier.com, lib/tcs-cod.ts): booking, cancelling, tracking. Needs the client ID
+ *   (X-IBM-Client-Id), username, password, cost centre code and account number;
+ * - OCI Connect (above): the money side. Needs the client secret as well; without it the daily payment run sits out.
+ * `customerNo` is the account number as an older save kept it.
+ */
+export interface TcsCredentials {
+  clientId: string;
+  clientSecret?: string;
+  username: string;
+  password: string;
+  costCenterCode: string;
+  accountNo: string;
+  /** Where parcels are sent from (TCS's city name); Karachi when left blank. */
+  originCity?: string;
+  /** @deprecated the account number before 2026-11-09. */
+  customerNo?: string;
+}
 
+const NAMES: Record<string, string> = {
+  clientId: 'client ID', clientSecret: 'client secret', username: 'username', password: 'password',
+  costCenterCode: 'cost centre code', accountNo: 'account number', originCity: 'sending city',
+};
+
+/** A saved set as it reads today: the old account number moved over, blanks dropped, the sending city defaulted. */
+export function normaliseTcsCredentials(raw: Partial<TcsCredentials> | null | undefined): TcsCredentials | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const t = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
+  const c: TcsCredentials = {
+    clientId: t(raw.clientId), username: t(raw.username), password: t(raw.password),
+    costCenterCode: t(raw.costCenterCode), accountNo: t(raw.accountNo) || t(raw.customerNo),
+    originCity: t(raw.originCity) || 'Karachi',
+  };
+  if (t(raw.clientSecret)) c.clientSecret = t(raw.clientSecret);
+  return c;
+}
+
+/** Booking, cancelling and tracking can run (the Cash on Delivery API's set). */
+export const codReady = (c: TcsCredentials | null | undefined): c is TcsCredentials =>
+  !!c && !!c.clientId && !!c.username && !!c.password && !!c.costCenterCode && !!c.accountNo;
+
+/** The daily payment run can too (OCI Connect also needs the client secret). */
+export const ociReady = (c: TcsCredentials | null | undefined): c is TcsCredentials & { clientSecret: string } =>
+  !!c && !!c.clientId && !!c.clientSecret && !!c.username && !!c.password && !!c.accountNo;
+
+/** Why a set cannot be saved, or null. The Cash on Delivery API's five are needed; the secret and the city are optional. */
 export function checkTcsCredentials(c: Partial<TcsCredentials>): string | null {
-  for (const k of ['clientId', 'clientSecret', 'username', 'password', 'customerNo'] as const) {
-    if (typeof c[k] !== 'string' || !c[k]!.trim()) return `TCS ${({ clientId: 'client ID', clientSecret: 'client secret', username: 'username', password: 'password', customerNo: 'account (customer) number' })[k]} is missing.`;
-    if (c[k]!.length > 500) return 'One of the TCS details is too long.';
+  for (const k of ['clientId', 'username', 'password', 'costCenterCode', 'accountNo'] as const) {
+    if (typeof c[k] !== 'string' || !c[k]!.trim()) return `TCS ${NAMES[k]} is missing.`;
+  }
+  for (const k of ['clientId', 'clientSecret', 'username', 'password', 'costCenterCode', 'accountNo', 'originCity'] as const) {
+    const v = c[k];
+    if (v !== undefined && typeof v !== 'string') return `TCS ${NAMES[k]} is not text.`;
+    if (typeof v === 'string' && v.length > 500) return 'One of the TCS details is too long.';
   }
   return null;
 }

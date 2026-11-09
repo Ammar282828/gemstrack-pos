@@ -13,7 +13,7 @@ import { adminDb } from '@/lib/firebase-admin';
 import { forgetSafepayKey, isSafepayPublicKey, paymentLinksOn } from '@/lib/safepay';
 import { isSafepaySecret } from '@/lib/safepay-fees';
 import { saveSafepaySecret, syncSafepayFees } from '@/lib/safepay-fees-server';
-import { checkTcsCredentials } from '@/lib/tcs-payments';
+import { checkTcsCredentials, codReady, ociReady, type TcsCredentials } from '@/lib/tcs-payments';
 import { saveTcsCredentials, syncTcsPayments } from '@/lib/tcs-payments-server';
 import { createPaymentLink } from '@/lib/writes/payment-links';
 import { STORE_CONFIG } from '@/lib/store-config';
@@ -25,7 +25,8 @@ export const PAYLINK_OPS: OpRoles = {
   setSafepayKey: ['owner'],
   // The SECRET key, for Safepay's fees and tax report only (lib/safepay-fees.ts): sealed server-side, never read back.
   setSafepaySecret: ['owner'],
-  // TCS's own account (lib/tcs-payments.ts): courier charges as expenses, and what TCS has paid out. Sealed server-side.
+  // TCS's own account (lib/tcs-payments.ts): booking from the ERP (lib/tcs-cod.ts), and with OCI's secret courier charges as
+  // expenses and what TCS has paid out. Sealed server-side.
   setTcsCredentials: ['owner'],
 };
 
@@ -56,13 +57,19 @@ export const runPaylinkOp: OpHandler = async (op, body, ctx) => {
   }
   if (op === 'setTcsCredentials') {
     const off = body.off === true;
-    const c = { clientId: String(body.clientId ?? '').trim(), clientSecret: String(body.clientSecret ?? '').trim(), username: String(body.username ?? '').trim(), password: String(body.password ?? '').trim(), customerNo: String(body.customerNo ?? '').trim() };
+    const t = (k: string) => String(body[k] ?? '').trim();
+    const c: TcsCredentials = {
+      clientId: t('clientId'), username: t('username'), password: t('password'),
+      costCenterCode: t('costCenterCode'), accountNo: t('accountNo') || t('customerNo'), originCity: t('originCity') || 'Karachi',
+      ...(t('clientSecret') ? { clientSecret: t('clientSecret') } : {}),
+    };
     if (!off) { const why = checkTcsCredentials(c); if (why) return bad(why); }
     await saveTcsCredentials(off ? null : c);
-    await ctx.log('settings.update', off ? 'TCS disconnected' : 'TCS connected', off ? '' : 'Courier charges recorded monthly as expenses');
-    const run = off ? null : await syncTcsPayments(new Date(), true).catch(e => ({ error: e instanceof Error ? e.message : String(e) }));
+    await ctx.log('settings.update', off ? 'TCS disconnected' : 'TCS connected', off ? '' : `Booking from the ERP${c.clientSecret ? '; courier charges recorded monthly as expenses' : ''}`);
+    // The payment run needs OCI Connect's secret; given only the booking set, nothing is read now.
+    const run = off || !ociReady(c) ? null : await syncTcsPayments(new Date(), true).catch(e => ({ error: e instanceof Error ? e.message : String(e) }));
     if (run && 'error' in run) return bad(`Saved, but TCS refused: ${run.error}`, 502);
-    return NextResponse.json({ ok: true, tcs: !off, ...(run ? { run } : {}) });
+    return NextResponse.json({ ok: true, tcs: !off, booking: !off && codReady(c), payments: !off && ociReady(c), ...(run ? { run } : {}) });
   }
   if (!(await paymentLinksOn())) return bad(`${STORE_CONFIG.name} has no Safepay account connected.`);
   const target = body.target === 'order' ? 'order' : body.target === 'invoice' ? 'invoice' : null;

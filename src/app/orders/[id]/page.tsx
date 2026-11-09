@@ -8,7 +8,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { DetailSkeleton } from '@/components/shared/skeletons';
 import { whatsAppLink } from '@/lib/whatsapp';
 import { describePlating } from '@/lib/materials';
-import { printOrderSlip, printOrderPdf } from '@/lib/pdf-lazy';
+import { printOrderSlip, printOrderPdf, printShippingSlip } from '@/lib/pdf-lazy';
 import { STORE_CONFIG, storeLinksUrl, STORE_LOGO_URL } from '@/lib/store-config';
 import { METAL_TYPES as metalTypeValues, describeMetal, describeDelivery } from '@/lib/materials';
 import { categorySingular } from '@/lib/categories';
@@ -82,7 +82,10 @@ import { owesMoney } from '@/lib/money';
 import { BusyLabel } from '@/components/ui/busy';
 import { useShallow } from 'zustand/react/shallow';
 import { formatDate } from '@/lib/safe-date';
-import { deliveryLabel } from '@/lib/shopify-delivery';
+import { deliveryLabel, isShippedOut } from '@/lib/shopify-delivery';
+import { BookTcsDialog, TrackingCard } from '@/components/order/tcs-shipping';
+import { useAuth } from '@/components/auth/google-auth-gate';
+import { isOwner } from '@/lib/roles';
 import { adjustmentsLabel } from '@/lib/financials';
 
 
@@ -216,26 +219,31 @@ const ShopifyCourierOption: React.FC<{ order: Order; onDone: () => void }> = ({ 
   );
 };
 
+/**
+ * Book courier: TCS straight from the ERP (op bookTcs, components/order/tcs-shipping.tsx) once the account is connected;
+ * the older chain (fulfil on Shopify, Universal Courier books) stays below it for owners, for while TCS has not opened the
+ * account to the API.
+ */
 const BookCourierDialog: React.FC<{
   order: Order;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}> = ({ order, open, onOpenChange }) => (
-  <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogContent className="max-w-lg">
-      <DialogHeader>
-        <DialogTitle className="flex items-center">
-          <Truck className="mr-2 h-5 w-5" /> Book courier
-        </DialogTitle>
-        <DialogDescription>
-          Booking happens in Shopify: Universal Courier watches for the fulfilment and raises the
-          Envio consignment.
-        </DialogDescription>
-      </DialogHeader>
-      <ShopifyCourierOption order={order} onDone={() => onOpenChange(false)} />
-    </DialogContent>
-  </Dialog>
-);
+}> = ({ order, open, onOpenChange }) => {
+  const { user } = useAuth();
+  const [viaShopify, setViaShopify] = useState(false);
+  return (
+    <BookTcsDialog target={{ kind: 'order', id: order.id }} open={open} onOpenChange={onOpenChange}>
+      {isOwner(user?.email) && (
+        <div className="border-t pt-3">
+          <button type="button" className="text-xs text-muted-foreground hover:underline" onClick={() => setViaShopify(v => !v)}>
+            {viaShopify ? 'Hide' : 'Or book through Shopify instead (Universal Courier books the parcel)'}
+          </button>
+          {viaShopify && <div className="pt-3"><ShopifyCourierOption order={order} onDone={() => onOpenChange(false)} /></div>}
+        </div>
+      )}
+    </BookTcsDialog>
+  );
+};
 
 export default function OrderDetailPage() {
   const params = useParams();
@@ -284,8 +292,9 @@ export default function OrderDetailPage() {
   const [isRefundDialogOpen, setIsRefundDialogOpen] = useState(false);
   const [isRefunding, setIsRefunding] = useState(false);
   const [isBookCourierOpen, setIsBookCourierOpen] = useState(false);
-  const [trackingInfo, setTrackingInfo] = useState<{ summary: string; checkpoints: { datetime: string; status: string }[] } | null>(null);
-  const [isTracking, setIsTracking] = useState(false);
+  // The menu's Track asks the Tracking card again (it reads /api/app/tracking on its own when the page opens).
+  const [trackRefresh, setTrackRefresh] = useState(0);
+  const trackingRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadOrders();
@@ -330,29 +339,9 @@ export default function OrderDetailPage() {
     }
   };
 
-  const handleTcsTrack = async () => {
-    if (!order?.tcsConsignmentNo) return;
-    setIsTracking(true);
-    try {
-      const res = await authedFetch('/api/tcs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'track', consignmentNo: order.tcsConsignmentNo }),
-      });
-      const data = await res.json();
-      if (data.message === 'SUCCESS' || data.checkpoints) {
-        setTrackingInfo({
-          summary: data.shipmentsummary || 'No summary available.',
-          checkpoints: (data.checkpoints || []).slice(0, 5),
-        });
-      } else {
-        toast({ title: 'Tracking Failed', description: data.shipmentsummary || data.error || 'No data found.', variant: 'destructive' });
-      }
-    } catch {
-      toast({ title: 'Network Error', description: 'Could not reach TCS API.', variant: 'destructive' });
-    } finally {
-      setIsTracking(false);
-    }
+  const handleTcsTrack = () => {
+    setTrackRefresh(k => k + 1);
+    trackingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
 
 
@@ -796,9 +785,16 @@ export default function OrderDetailPage() {
                                 <MessageSquare className="mr-2 h-4 w-4" />Send to customer
                               </DropdownMenuItem>
                               {order.tcsConsignmentNo ? (
-                                <DropdownMenuItem onClick={handleTcsTrack} disabled={isTracking}>
-                                  <PackageSearch className="mr-2 h-4 w-4" />Track {order.tcsConsignmentNo}
-                                </DropdownMenuItem>
+                                <>
+                                  <DropdownMenuItem onClick={handleTcsTrack}>
+                                    <PackageSearch className="mr-2 h-4 w-4" />Track {order.tcsConsignmentNo}
+                                  </DropdownMenuItem>
+                                  {order.tcsBooking?.cn && !order.tcsBooking.cancelledAt && (
+                                    <DropdownMenuItem onClick={() => { const b = order.tcsBooking; if (b) void printShippingSlip(b).catch(e => toast({ title: 'No slip', description: e instanceof Error ? e.message : String(e), variant: 'destructive' })); }}>
+                                      <Printer className="mr-2 h-4 w-4" />Shipping slip
+                                    </DropdownMenuItem>
+                                  )}
+                                </>
                               ) : order.invoiceId || order.status === 'Completed' ? (
                                 <DropdownMenuItem onClick={() => setIsBookCourierOpen(true)}>
                                   <Truck className="mr-2 h-4 w-4" />Book courier
@@ -1092,31 +1088,15 @@ export default function OrderDetailPage() {
 
                   <Separator className="my-6" />
 
-                  {/* TCS Tracking Info (shown after Track button is clicked) */}
-                  {trackingInfo && (
-                    <div className="mb-6 p-4 rounded-tile bg-muted/50 space-y-2">
-                      <p className="font-semibold flex items-center"><PackageSearch className="w-4 h-4 mr-2" />TCS Tracking — {order.tcsConsignmentNo}</p>
-                      <p className="text-sm whitespace-pre-line text-muted-foreground">{trackingInfo.summary}</p>
-                      {trackingInfo.checkpoints.length > 0 && (
-                        <ul className="text-xs space-y-1 mt-2">
-                          {trackingInfo.checkpoints.map((cp, i) => (
-                            <li key={i} className="flex gap-2">
-                              <span className="text-muted-foreground shrink-0">{cp.datetime}</span>
-                              <span>{cp.status}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                      <a
-                        href={`https://www.tcscourier.com/domestic/tracking/?ref=${order.tcsConsignmentNo}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-primary flex items-center gap-1 hover:underline mt-1"
-                      >
-                        <ExternalLink className="w-3 h-3" /> Full tracking on TCS website
-                      </a>
-                    </div>
-                  )}
+                  {/* Where the parcel is, once it has a number or Shopify has shipped it (lib/tracking.ts). */}
+                  <div ref={trackingRef}>
+                    <TrackingCard
+                      target={{ kind: 'order', id: order.id }}
+                      booking={order.tcsBooking}
+                      hasParcel={!!order.tcsConsignmentNo || !!(order.tcsBooking?.cn && !order.tcsBooking.cancelledAt) || isShippedOut(order.shopifyDelivery) || order.shopifyDelivery === 'returned' || !!order.shopifyTracking?.number}
+                      refreshKey={trackRefresh}
+                    />
+                  </div>
 
                   <div className="flex flex-col md:flex-row justify-end items-start gap-4">
                      {/* Shown only while the order is being made: once invoiced, money is taken on the invoice. */}

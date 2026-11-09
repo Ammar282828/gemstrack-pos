@@ -1,7 +1,7 @@
 /** The daily TCS run (lib/tcs-payments.ts) against the house's database. Server only. */
 import { adminDb } from '@/lib/firebase-admin';
 import { openSecret, sealSecret } from '@/lib/safepay-fees';
-import { chargeExpenses, parcelOf, payoutSummary, type TcsCredentials, type TcsParcel } from '@/lib/tcs-payments';
+import { chargeExpenses, codReady, normaliseTcsCredentials, ociReady, parcelOf, payoutSummary, type TcsCredentials, type TcsParcel } from '@/lib/tcs-payments';
 
 const BASE = 'https://ociconnect.tcscourier.com';
 const PRIVATE = () => adminDb.collection('app_private').doc('tcs');
@@ -13,13 +13,13 @@ export async function saveTcsCredentials(c: TcsCredentials | null): Promise<void
 export async function tcsCredentials(): Promise<TcsCredentials | null> {
   const sealed = (await PRIVATE().get()).data()?.sealed;
   if (typeof sealed !== 'string') return null;
-  try { return JSON.parse(openSecret(sealed) || 'null'); } catch { return null; }
+  try { return normaliseTcsCredentials(JSON.parse(openSecret(sealed) || 'null')); } catch { return null; }
 }
 
 async function tokens(c: TcsCredentials): Promise<{ bearer: string; access: string }> {
   const a = await fetch(`${BASE}/auth/api/auth`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ clientid: c.clientId, clientsecret: c.clientSecret }), signal: AbortSignal.timeout(20000),
+    body: JSON.stringify({ clientid: c.clientId, clientsecret: c.clientSecret || '' }), signal: AbortSignal.timeout(20000),
   });
   const aj = await a.json().catch(() => ({}));
   const bearer = aj?.result?.accessToken;
@@ -35,7 +35,7 @@ async function tokens(c: TcsCredentials): Promise<{ bearer: string; access: stri
 /** TCS's payment detail for a window of booking days (yyyy-MM-dd). */
 async function paymentDetail(c: TcsCredentials, t: { bearer: string; access: string }, from: string, to: string): Promise<TcsParcel[]> {
   const u = new URL(`${BASE}/ecom/api/Payment/detail`);
-  u.searchParams.set('accesstoken', t.access); u.searchParams.set('customerno', c.customerNo);
+  u.searchParams.set('accesstoken', t.access); u.searchParams.set('customerno', c.accountNo);
   u.searchParams.set('fromdate', from); u.searchParams.set('todate', to);
   const r = await fetch(u, { headers: { Authorization: `Bearer ${t.bearer}` }, signal: AbortSignal.timeout(30000) });
   const j = await r.json().catch(() => ({}));
@@ -48,7 +48,8 @@ const day = (d: Date) => d.toISOString().slice(0, 10);
 /** Once a day: the last 120 days of parcels kept, each month's charges an expense, the payout summary stored. */
 export async function syncTcsPayments(now = new Date(), force = false) {
   const c = await tcsCredentials();
-  if (!c) return null;
+  // The money side needs OCI Connect's client secret; a set given for booking alone sits this out.
+  if (!ociReady(c)) return null;
   const state = adminDb.collection('shopify_sync').doc('tcs-payments');
   const last = (await state.get()).data()?.at as string | undefined;
   if (!force && last && now.getTime() - Date.parse(last) < 24 * 3600_000) return null;
@@ -71,8 +72,22 @@ export async function syncTcsPayments(now = new Date(), force = false) {
   return { parcels: all.length, months, ...summary };
 }
 
-export async function tcsStatus(): Promise<{ connected: boolean; parcels?: number; paidOut?: number; lastPaidOn?: string | null; unpaidDelivered?: number; at?: string } > {
-  if (!(await tcsCredentials())) return { connected: false };
+export interface TcsStatus {
+  connected: boolean;
+  /** Booking, cancelling and tracking from the ERP can run (the Cash on Delivery API's set is complete). */
+  booking?: boolean;
+  /** The daily payment run can (the client secret is there too). */
+  payments?: boolean;
+  originCity?: string;
+  parcels?: number; paidOut?: number; lastPaidOn?: string | null; unpaidDelivered?: number; at?: string;
+}
+
+export async function tcsStatus(): Promise<TcsStatus> {
+  const c = await tcsCredentials();
+  if (!c) return { connected: false };
   const s = (await adminDb.collection('shopify_sync').doc('tcs-payments').get()).data() || {};
-  return { connected: true, parcels: s.parcels, paidOut: s.paidOut, lastPaidOn: s.lastPaidOn, unpaidDelivered: s.unpaidDelivered, at: s.at };
+  return {
+    connected: true, booking: codReady(c), payments: ociReady(c), originCity: c.originCity,
+    parcels: s.parcels, paidOut: s.paidOut, lastPaidOn: s.lastPaidOn, unpaidDelivered: s.unpaidDelivered, at: s.at,
+  };
 }

@@ -75,6 +75,7 @@ import { SETTINGS4_OPS, runSettings4Op } from './ops-settings4';
 import { DESCRIBE_OPS, runDescribeOp } from './ops-describe';
 import { SHOPIFY_OPS, runShopifyOp } from './ops-shopify';
 import { PAYLINK_OPS, runPaylinkOp } from './ops-paylinks';
+import { COURIER_OPS, runCourierOp } from './ops-courier';
 
 type Body = { op?: string } & Record<string, unknown>;
 type FollowUp = { path: string; body: Record<string, unknown> };
@@ -134,6 +135,7 @@ const GROUPS: { roles: OpRoles; run: OpHandler }[] = [
   { roles: DESCRIBE_OPS, run: runDescribeOp },
   { roles: SHOPIFY_OPS, run: runShopifyOp },
   { roles: PAYLINK_OPS, run: runPaylinkOp },
+  { roles: COURIER_OPS, run: runCourierOp },
 ];
 
 export const OPS: OpRoles = Object.assign({}, OWN_OPS, ...GROUPS.map((g) => g.roles));

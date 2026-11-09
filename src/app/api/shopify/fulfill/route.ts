@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { shopifyRequest, getShopifyCredentials } from '../_lib';
 import { adminDb } from '@/lib/firebase-admin';
 import { verifyRequestEmail, isOwnerEmail } from '@/lib/karigar-auth';
+import { fulfilShopifyOrder, openFulfillmentOrders } from '@/lib/shopify-fulfil-server';
 
 /**
  * Fulfil a Shopify order, which is how a courier actually gets booked here.
@@ -21,21 +22,6 @@ import { verifyRequestEmail, isOwnerEmail } from '@/lib/karigar-auth';
 
 async function requireOwner(req: NextRequest): Promise<boolean> {
   return isOwnerEmail(await verifyRequestEmail(req));
-}
-
-interface FulfillmentOrder {
-  id: number;
-  status: string;
-  supported_actions?: string[];
-  line_items?: unknown[];
-  assigned_location_id?: number;
-}
-
-/** The open fulfilment orders Shopify will actually accept a fulfilment for. */
-async function openFulfillmentOrders(shop: string, token: string, orderId: string): Promise<FulfillmentOrder[]> {
-  const res = await shopifyRequest(shop, token, 'GET', `/orders/${orderId}/fulfillment_orders.json`);
-  const all: FulfillmentOrder[] = res?.fulfillment_orders || [];
-  return all.filter(f => f.supported_actions?.includes('create_fulfillment'));
 }
 
 export async function GET(request: NextRequest) {
@@ -77,46 +63,20 @@ export async function POST(request: NextRequest) {
     const { shopifyOrderId, notifyCustomer = false, trackingNumber, trackingCompany } = await request.json();
     if (!shopifyOrderId) return NextResponse.json({ error: 'shopifyOrderId is required' }, { status: 400 });
 
-    const { shop, token } = await getShopifyCredentials(adminDb);
-    const open = await openFulfillmentOrders(shop, token, String(shopifyOrderId));
-    if (!open.length) {
-      // Already fulfilled, on hold, or cancelled — say which rather than
-      // failing with a bare Shopify error.
-      const order = await shopifyRequest(shop, token, 'GET',
-        `/orders/${shopifyOrderId}.json?fields=id,order_number,fulfillment_status`);
-      return NextResponse.json({
-        error: `Nothing to fulfil on #${order?.order?.order_number ?? shopifyOrderId} — it is ${order?.order?.fulfillment_status ?? 'not fulfillable'}.`,
-      }, { status: 409 });
-    }
-
-    // One fulfilment covering every open fulfilment order, which is what
-    // "ship this order" means. Tracking is optional: Universal Courier fills
-    // it in once Envio returns a consignment number.
-    const payload: Record<string, unknown> = {
-      line_items_by_fulfillment_order: open.map(f => ({ fulfillment_order_id: f.id })),
-      notify_customer: !!notifyCustomer,
-    };
-    if (trackingNumber) {
-      payload.tracking_info = {
-        number: String(trackingNumber),
-        ...(trackingCompany ? { company: String(trackingCompany) } : {}),
-      };
-    }
-
-    const created = await shopifyRequest(shop, token, 'POST', '/fulfillments.json', { fulfillment: payload });
-    const f = created?.fulfillment;
-
+    // The one fulfilment (lib/shopify-fulfil-server.ts): tracking is optional, Universal Courier fills it in once Envio
+    // returns a consignment number; with one (booked from the ERP) it rides on the fulfilment.
+    const r = await fulfilShopifyOrder(String(shopifyOrderId), {
+      notifyCustomer: !!notifyCustomer,
+      ...(trackingNumber ? { tracking: { number: String(trackingNumber), ...(trackingCompany ? { company: String(trackingCompany) } : {}) } } : {}),
+    });
+    if (!r.ok) return NextResponse.json({ error: r.message }, { status: 409 });
     return NextResponse.json({
       success: true,
-      fulfillmentId: f?.id,
-      status: f?.status,
-      trackingNumber: f?.tracking_number ?? null,
+      fulfillmentId: r.fulfillmentId,
+      status: r.status,
+      trackingNumber: r.trackingNumber ?? null,
       notifiedCustomer: !!notifyCustomer,
-      // The consignment number does not exist yet: Universal Courier books it
-      // with Envio after this, and writes the tracking back onto the order.
-      message: f?.tracking_number
-        ? `Fulfilled with tracking ${f.tracking_number}.`
-        : 'Fulfilled. Universal Courier will book it with Envio and add the tracking number.',
+      message: r.message,
     });
   } catch (e: unknown) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });

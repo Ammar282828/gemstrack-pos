@@ -49,3 +49,16 @@ export async function drawOrderSlipLazy(...args: Parameters<typeof import('@/lib
   const { drawOrderSlipPdf } = await import('@/lib/order-slip-pdf');
   return drawOrderSlipPdf(...args);
 }
+
+/** The TCS shipping slip of a booking made from the ERP (lib/shipping-slip-pdf.ts). */
+export async function printShippingSlip(booking: import('@/lib/tcs-booking').TcsBooking): Promise<void> {
+  if (typeof window === 'undefined') return;
+  const win = openPDFWindowForIOS();
+  try {
+    const [{ saveShippingSlip }, { STORE_CONFIG }] = await Promise.all([import('@/lib/shipping-slip-pdf'), import('@/lib/store-config')]);
+    await saveShippingSlip(booking, { name: STORE_CONFIG.name, address: STORE_CONFIG.address, phone: STORE_CONFIG.contact1Number }, win);
+  } catch (e) {
+    win?.close();
+    throw e;
+  }
+}

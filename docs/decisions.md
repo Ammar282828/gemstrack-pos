@@ -932,6 +932,15 @@ balance below zero is the customer's credit (`lib/invoice-credit.ts`).
   (Courier & Delivery), and the card in Settings → Integrations → TCS says what TCS has paid out and how many delivered parcels it
   has not paid for. The five details are an owner's to enter there, sealed server-side in `app_private/tcs` (as Safepay's secret).
   Untested against TCS until the account is entered: the first save runs it and says what TCS answered.
+- **Booking, slips and tracking from the ERP** (owner, 2026-11-09: "make the shipping slips (cn bookings)… show me complete
+  tracking on every order… use tags until secret comes in… a tracking page on houseofmina.store"). TCS's COD API
+  (`api.tcscourier.com/production/v1/cod`, header `X-IBM-Client-Id`; the portal app "ERP" needs the "Cash on Delivery API"
+  subscription): Book with TCS on the order page (op `bookTcs`, owners and staff; refuses a second booking; marks the Shopify
+  order fulfilled with the CN unless unticked, because Universal Courier may book every fulfilment), a 4×6 shipping slip with
+  the CN as Code 128 (`lib/code128.ts`, checked against python-barcode), cancel (`cancelTcs`). The Tracking card and
+  `/api/public/track?order=&phone=<last 4>` read TCS when the account can book, else Shopify's fulfilment events (the "tags"),
+  cached 10 minutes; the public answer gives a first name only, the same 404 for a wrong order or wrong digits, 30 tries per
+  caller per 10 minutes and per order per hour. The page is houseofmina.store/pages/track (Shopify page `track`).
 
 ### Net profit
 
