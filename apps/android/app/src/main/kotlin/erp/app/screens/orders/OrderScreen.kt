@@ -631,10 +631,12 @@ private fun Details(order: Order, isOwner: Boolean) {
     val by = order.takenBy ?: ""
     val shipTo = if (noteText(order) == null) describeDelivery(order.delivery) else emptyList()
     val blocked = if (isOwner) OrderActions.deleteBlocked(order) else null
-    if (cid.isEmpty() && by.isEmpty() && order.source == null && shipTo.isEmpty() && blocked == null) return
+    val parcel = if (erp.core.logic.ShopifyOrders.isShopify(order)) erp.core.logic.ShopifyDelivery.line(order) else null
+    if (cid.isEmpty() && by.isEmpty() && order.source == null && shipTo.isEmpty() && blocked == null && parcel == null) return
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         LedgerHeading("Details")
         Column(Modifier.ledgerCard(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (parcel != null) OrdersLabeled("Delivery", parcel)
             if (cid.isNotEmpty()) {
                 Row(Modifier.fillMaxWidth().defaultMinSize(minHeight = 32.dp).clickable(onClickLabel = "Open the customer") { navigator.open(OrderPaths.customer(cid)) }) {
                     OrdersLabeled("Customer", OrdersLogic.customerName(order), Modifier.weight(1f))

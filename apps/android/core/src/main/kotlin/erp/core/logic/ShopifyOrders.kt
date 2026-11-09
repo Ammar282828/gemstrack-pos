@@ -78,3 +78,61 @@ object ShopifyOrders {
     /** What the section's own filter shows on top of the Orders hub's: all, the orders to confirm, or the earlier invoices. */
     enum class Filter(val title: String) { all("All"), toConfirm("To confirm"), earlier("Earlier (invoiced)") }
 }
+
+/**
+ * Where a Shopify order's parcel is (TCS, from Shopify's fulfilments), as the web's `deliveryLabel` in src/lib/shopify-delivery.ts.
+ * `delivery` is the server's word: unfulfilled, shipped, in_transit, out_for_delivery, attempted, delivered or returned.
+ */
+object ShopifyDelivery {
+    enum class Tone { positive, negative, warning, neutral }
+
+    data class Chip(val label: String, val tone: Tone)
+
+    private val day = java.time.format.DateTimeFormatter.ofPattern("d MMM", java.util.Locale.UK)
+    private val karachi = java.time.ZoneOffset.ofHours(5)
+
+    /** "Delivered", "Returned", "Delivery attempted", "Out for delivery", "With TCS", "Shipped"; null for unfulfilled or unknown. */
+    fun label(delivery: String?, company: String?): String? {
+        val who = company?.trim().orEmpty().ifEmpty { "courier" }
+        return when (delivery) {
+            "delivered" -> "Delivered"
+            "returned" -> "Returned"
+            "attempted" -> "Delivery attempted"
+            "out_for_delivery" -> "Out for delivery"
+            "in_transit" -> "With $who"
+            "shipped" -> "Shipped"
+            else -> null
+        }
+    }
+
+    /** Delivered is positive, returned negative, an attempt warns, the rest say nothing. */
+    fun tone(delivery: String?): Tone = when (delivery) {
+        "delivered" -> Tone.positive
+        "returned" -> Tone.negative
+        "attempted" -> Tone.warning
+        else -> Tone.neutral
+    }
+
+    fun chip(delivery: String?, company: String?): Chip? = label(delivery, company)?.let { Chip(it, tone(delivery)) }
+
+    fun chip(inv: Invoice): Chip? = chip(inv.shopifyDelivery, inv.shopifyTracking?.company)
+
+    fun chip(order: Order): Chip? = chip(order.shopifyDelivery, order.shopifyTracking?.company)
+
+    /** The order page's line: "Delivered · TCS 173019676104 · 6 Nov" (the day only once delivered or returned); null when there is nothing to say. */
+    fun line(delivery: String?, tracking: erp.core.models.ShopifyTracking?, at: String?): String? {
+        val words = label(delivery, tracking?.company) ?: return null
+        val parts = mutableListOf(words)
+        val number = tracking?.number?.trim().orEmpty()
+        if (number.isNotEmpty()) parts.add(listOf(tracking?.company?.trim().orEmpty(), number).filter { it.isNotEmpty() }.joinToString(" "))
+        if (delivery == "delivered" || delivery == "returned") {
+            val d = try { java.time.Instant.parse(at ?: "").atOffset(karachi).format(day) } catch (e: Exception) { null }
+            if (d != null) parts.add(d)
+        }
+        return parts.joinToString(" · ")
+    }
+
+    fun line(inv: Invoice): String? = line(inv.shopifyDelivery, inv.shopifyTracking, inv.shopifyDeliveryAt)
+
+    fun line(order: Order): String? = line(order.shopifyDelivery, order.shopifyTracking, order.shopifyDeliveryAt)
+}

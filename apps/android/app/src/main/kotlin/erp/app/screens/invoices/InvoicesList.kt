@@ -477,6 +477,7 @@ private fun Reference(invoice: Invoice, mine: Boolean, dated: Boolean) {
         )
         if (mine) MineTag()
         if (InvoiceFacts.isShopify(invoice)) Pill("Shopify")
+        if (InvoiceFacts.isShopify(invoice)) ShopifyDeliveryPill(erp.core.logic.ShopifyDelivery.chip(invoice))
         WhatsAppOrderPill(invoice)
     }
 }
@@ -487,6 +488,21 @@ private fun Reference(invoice: Invoice, mine: Boolean, dated: Boolean) {
  */
 @Composable
 internal fun WhatsAppOrderPill(invoice: Invoice, modifier: Modifier = Modifier) = WhatsAppStatePill(invoice.whatsappOrder?.state, modifier)
+
+/**
+ * Where a Shopify order's TCS parcel is (Delivered, With TCS, Returned...): delivered green, returned red, an attempt amber, the rest quiet.
+ * Nothing when the order has no word for it.
+ */
+@Composable
+internal fun ShopifyDeliveryPill(chip: erp.core.logic.ShopifyDelivery.Chip?, modifier: Modifier = Modifier) {
+    if (chip == null) return
+    Pill(chip.label, modifier, tone = when (chip.tone) {
+        erp.core.logic.ShopifyDelivery.Tone.positive -> Tone.settled
+        erp.core.logic.ShopifyDelivery.Tone.negative -> Tone.late
+        erp.core.logic.ShopifyDelivery.Tone.warning -> Tone.owed
+        erp.core.logic.ShopifyDelivery.Tone.neutral -> Tone.quiet
+    })
+}
 
 /** The same pill from a state alone: an order carries it too (House of Mina's Shopify orders, 2026-11-09). */
 @Composable

@@ -388,6 +388,16 @@ extension Tone {
         case .quiet: self = .quiet
         }
     }
+
+    /// The tone a Shopify delivery capsule names: delivered green, returned red, an attempt amber, the rest quiet.
+    init(_ word: ShopifyDeliveryTone) {
+        switch word {
+        case .positive: self = .settled
+        case .negative: self = .late
+        case .warning: self = .owed
+        case .neutral: self = .quiet
+        }
+    }
 }
 
 // MARK: Send on WhatsApp, from the page or a swipe

@@ -77,6 +77,10 @@ data class Invoice(
     val acquisitionSource: CustomerSource?,
     /** House of Mina's order WhatsApp (src/lib/shopify-whatsapp-server.ts): where the customer's conversation stands. */
     val whatsappOrder: WhatsAppOrder? = null,
+    /** Where a Shopify order's parcel is (src/lib/shopify-delivery.ts; [erp.core.logic.ShopifyDelivery] has the words). */
+    val shopifyDelivery: String? = null,
+    val shopifyTracking: ShopifyTracking? = null,
+    val shopifyDeliveryAt: String? = null,
 ) {
     companion object : Decodable<Invoice> {
         override fun fromMap(m: Map<String, Any?>): Invoice {
@@ -124,6 +128,9 @@ data class Invoice(
                 sentOnWhatsApp = c.obj("sentOnWhatsApp", SentOnWhatsApp),
                 acquisitionSource = c.word("acquisitionSource", CustomerSource),
                 whatsappOrder = c.obj("whatsappOrder", WhatsAppOrder),
+                shopifyDelivery = c.string("shopifyDelivery"),
+                shopifyTracking = c.obj("shopifyTracking", ShopifyTracking),
+                shopifyDeliveryAt = c.string("shopifyDeliveryAt"),
             )
         }
     }
@@ -135,6 +142,16 @@ data class WhatsAppOrder(val state: String, val at: String) {
         override fun fromMap(m: Map<String, Any?>): WhatsAppOrder {
             val c = Container(m)
             return WhatsAppOrder(state = c.string("state", ""), at = c.string("at", ""))
+        }
+    }
+}
+
+/** `shopifyTracking`: the courier and its number on a Shopify order's parcel. */
+data class ShopifyTracking(val company: String, val number: String) {
+    companion object : Decodable<ShopifyTracking> {
+        override fun fromMap(m: Map<String, Any?>): ShopifyTracking {
+            val c = Container(m)
+            return ShopifyTracking(company = c.string("company", ""), number = c.string("number", ""))
         }
     }
 }
@@ -301,6 +318,10 @@ data class Order(
     val shopifyDraftOrderName: String?,
     /** House of Mina's Shopify orders are ERP orders (2026-11-09): where the customer's WhatsApp confirmation stands. */
     val whatsappOrder: WhatsAppOrder? = null,
+    /** Where the Shopify order's parcel is (TCS, from Shopify's fulfilments): see [erp.core.logic.ShopifyDelivery]. */
+    val shopifyDelivery: String? = null,
+    val shopifyTracking: ShopifyTracking? = null,
+    val shopifyDeliveryAt: String? = null,
 ) {
     companion object : Decodable<Order> {
         override fun fromMap(m: Map<String, Any?>): Order {
@@ -341,6 +362,9 @@ data class Order(
                 shopifyDraftOrderId = c.string("shopifyDraftOrderId"),
                 shopifyDraftOrderName = c.string("shopifyDraftOrderName"),
                 whatsappOrder = c.obj("whatsappOrder", WhatsAppOrder),
+                shopifyDelivery = c.string("shopifyDelivery"),
+                shopifyTracking = c.obj("shopifyTracking", ShopifyTracking),
+                shopifyDeliveryAt = c.string("shopifyDeliveryAt"),
             )
         }
     }

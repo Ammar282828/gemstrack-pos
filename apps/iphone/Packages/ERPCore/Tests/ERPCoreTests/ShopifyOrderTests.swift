@@ -68,3 +68,67 @@ final class ShopifyOrderAsOrderTests: XCTestCase {
         XCTAssertEqual(order(["id": "SHOPIFY-1", "whatsappOrder": ["state": "confirmed"]]).shopifyStage, .other)
     }
 }
+
+/// The parcel's words, tone and line, and the three fields on the models (made-up numbers only).
+final class ShopifyDeliveryTests: XCTestCase {
+    func testTheWordsAreTheWebs() {
+        XCTAssertEqual(ShopifyDelivery.label("delivered", company: "TCS"), "Delivered")
+        XCTAssertEqual(ShopifyDelivery.label("returned", company: nil), "Returned")
+        XCTAssertEqual(ShopifyDelivery.label("attempted", company: nil), "Delivery attempted")
+        XCTAssertEqual(ShopifyDelivery.label("out_for_delivery", company: nil), "Out for delivery")
+        XCTAssertEqual(ShopifyDelivery.label("in_transit", company: "TCS"), "With TCS")
+        XCTAssertEqual(ShopifyDelivery.label("in_transit", company: "  "), "With courier")
+        XCTAssertEqual(ShopifyDelivery.label("in_transit", company: nil), "With courier")
+        XCTAssertEqual(ShopifyDelivery.label("shipped", company: "TCS"), "Shipped")
+        XCTAssertNil(ShopifyDelivery.label("unfulfilled", company: "TCS"))
+        XCTAssertNil(ShopifyDelivery.label(nil, company: nil))
+        XCTAssertNil(ShopifyDelivery.label("whatever", company: nil))
+    }
+
+    func testTones() {
+        XCTAssertEqual(ShopifyDelivery.tone("delivered"), .positive)
+        XCTAssertEqual(ShopifyDelivery.tone("returned"), .negative)
+        XCTAssertEqual(ShopifyDelivery.tone("attempted"), .warning)
+        XCTAssertEqual(ShopifyDelivery.tone("in_transit"), .neutral)
+        XCTAssertEqual(ShopifyDelivery.tone("shipped"), .neutral)
+        XCTAssertEqual(ShopifyDelivery.chip("delivered", company: nil), ShopifyDeliveryChip(label: "Delivered", tone: .positive))
+        XCTAssertNil(ShopifyDelivery.chip("unfulfilled", company: nil))
+    }
+
+    func testTheLineHasTheNumberAndTheDayOnceItEnded() {
+        let t = ShopifyTracking.from(company: "TCS", number: "100000000001")
+        XCTAssertEqual(ShopifyDelivery.line("delivered", tracking: t, at: "2026-11-06T10:00:00.000Z"), "Delivered \u{00B7} TCS 100000000001 \u{00B7} 6 Nov")
+        XCTAssertEqual(ShopifyDelivery.line("in_transit", tracking: t, at: "2026-11-06T10:00:00.000Z"), "With TCS \u{00B7} TCS 100000000001")
+        XCTAssertEqual(ShopifyDelivery.line("shipped", tracking: nil, at: nil), "Shipped")
+        XCTAssertNil(ShopifyDelivery.line("unfulfilled", tracking: t, at: nil))
+    }
+
+    func testTheModelsReadTheFields() {
+        let fields: [String: Any] = [
+            "shopifyDelivery": "delivered",
+            "shopifyTracking": ["company": "TCS", "number": "100000000001"],
+            "shopifyDeliveryAt": "2026-11-06T10:00:00.000Z",
+        ]
+        let inv = ERPDecode.model(Invoice.self, from: fields.merging(["id": "SHOPIFY-1", "source": "shopify"]) { a, _ in a })!
+        XCTAssertEqual(inv.shopifyDelivery, "delivered")
+        XCTAssertEqual(inv.shopifyTracking?.company, "TCS")
+        XCTAssertEqual(inv.shopifyTracking?.number, "100000000001")
+        XCTAssertEqual(inv.shopifyDeliveryAt, "2026-11-06T10:00:00.000Z")
+        XCTAssertEqual(inv.shopifyDeliveryChip?.label, "Delivered")
+        let order = ERPDecode.model(Order.self, from: fields.merging(["id": "SHOPIFY-2"]) { a, _ in a })!
+        XCTAssertEqual(order.shopifyDelivery, "delivered")
+        XCTAssertEqual(order.shopifyDeliveryLine, "Delivered \u{00B7} TCS 100000000001 \u{00B7} 6 Nov")
+        let bare = ERPDecode.model(Order.self, from: ["id": "SHOPIFY-3"])!
+        XCTAssertNil(bare.shopifyDelivery)
+        XCTAssertNil(bare.shopifyTracking)
+        XCTAssertNil(bare.shopifyDeliveryChip)
+        // An odd tracking value is nil, never a failure.
+        XCTAssertNotNil(ERPDecode.model(Order.self, from: ["id": "SHOPIFY-4", "shopifyTracking": "x"]))
+    }
+}
+
+private extension ShopifyTracking {
+    static func from(company: String, number: String) -> ShopifyTracking {
+        ERPDecode.model(ShopifyTracking.self, from: ["company": company, "number": number])!
+    }
+}

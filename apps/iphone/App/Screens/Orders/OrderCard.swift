@@ -184,6 +184,10 @@ struct OrderCardHead: View {
             if order.isShopifyOrder, let chip = whatsappOrderChip(order.whatsappOrder?.state) {
                 OrdersWhatsAppBadge(label: chip.label, tone: Tone(chip.tone))
             }
+            // Where its TCS parcel is (Delivered, With TCS, Returned…), from Shopify's fulfilments.
+            if order.isShopifyOrder, let delivery = order.shopifyDeliveryChip {
+                OrdersWhatsAppBadge(label: delivery.label, tone: Tone(delivery.tone))
+            }
         }
     }
 

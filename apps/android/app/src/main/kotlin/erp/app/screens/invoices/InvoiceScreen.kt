@@ -430,6 +430,9 @@ private fun WhoBlock(inv: Invoice, whenSaid: String, modifier: Modifier) {
             if (InvoiceFacts.isShopify(inv)) Pill("Shopify")
         }
         WhatsAppOrderPill(inv)
+        if (InvoiceFacts.isShopify(inv)) erp.core.logic.ShopifyDelivery.line(inv)?.let {
+            Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
 

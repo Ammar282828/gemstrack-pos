@@ -780,6 +780,8 @@ struct InvoiceListRow: View {
 
     private var status: RecordStatus? {
         if invoice.status == .refunded { return RecordStatus(text: "Refunded", tone: .quiet) }
+        // An earlier Shopify sale's parcel (Delivered, With TCS, Returned), ahead of the WhatsApp step.
+        if invoice.isShopifyOrder, let delivery = invoice.shopifyDeliveryChip { return RecordStatus(text: delivery.label, tone: Tone(delivery.tone)) }
         if let chip = whatsappOrderChip(invoice.whatsappOrder?.state) { return RecordStatus(text: chip.label, tone: Tone(chip.tone)) }
         return nil
     }

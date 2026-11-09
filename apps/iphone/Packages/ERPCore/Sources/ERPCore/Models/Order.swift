@@ -56,6 +56,11 @@ public struct Order: Decodable, Identifiable, Hashable {
     public let shopifyDraftOrderName: String?
     /// A web order's WhatsApp step (COD confirm, bank transfer), written by the server onto Shopify orders (src/lib/shopify-whatsapp.ts).
     public let whatsappOrder: WhatsAppOrder?
+    /// Where the parcel is (TCS, from Shopify's fulfilments; src/lib/shopify-delivery.ts): "unfulfilled", "shipped", "in_transit",
+    /// "out_for_delivery", "attempted", "delivered" or "returned"; with the courier's number and the day it ended.
+    public let shopifyDelivery: String?
+    public let shopifyTracking: ShopifyTracking?
+    public let shopifyDeliveryAt: String?
 
     private enum K: String, CodingKey {
         case id, delivery, createdAt, promisedDate, status, items, ratesApplied, hideRates, costRate24k
@@ -63,6 +68,7 @@ public struct Order: Decodable, Identifiable, Hashable {
         case grandTotal, summary, customerId, customerName, customerContact, source
         case exchanges, advanceInExchangeDescription, advanceInExchangeValue, invoiceId, tcsConsignmentNo
         case website, leopards, notes, shopifyOrderId, shopifyOrderNumber, shopifyDraftOrderId, shopifyDraftOrderName, whatsappOrder
+        case shopifyDelivery, shopifyTracking, shopifyDeliveryAt
     }
 
     public init(from decoder: Decoder) throws {
@@ -102,6 +108,9 @@ public struct Order: Decodable, Identifiable, Hashable {
         shopifyDraftOrderId = c.string(.shopifyDraftOrderId)
         shopifyDraftOrderName = c.string(.shopifyDraftOrderName)
         whatsappOrder = c.object(.whatsappOrder)
+        shopifyDelivery = c.string(.shopifyDelivery)
+        shopifyTracking = c.object(.shopifyTracking)
+        shopifyDeliveryAt = c.string(.shopifyDeliveryAt)
     }
 }
 

@@ -534,8 +534,14 @@ struct OrderScreen: View {
         let by = order.takenBy ?? ""
         let shipTo = noteText(order) == nil ? describeDelivery(order.delivery) : []
         let blocked: String? = session.isOwner ? OrderActions.deleteBlocked(order) : nil
-        if !cid.isEmpty || !by.isEmpty || order.source != nil || !shipTo.isEmpty || blocked != nil {
+        let parcel: String? = order.isShopifyOrder ? order.shopifyDeliveryLine : nil
+        if !cid.isEmpty || !by.isEmpty || order.source != nil || !shipTo.isEmpty || blocked != nil || parcel != nil {
             Section {
+                if let parcel {
+                    LabeledContent("Delivery") {
+                        Text(parcel).multilineTextAlignment(.trailing)
+                    }
+                }
                 if !cid.isEmpty {
                     NavigationLink(value: Route(path: "/customers/\(cid)")) {
                         LabeledContent("Customer", value: OrdersLogic.customerName(order))

@@ -219,6 +219,8 @@ fun OrderCardHead(order: Order, stage: OrderStage, owed: Double, now: Instant, g
                         if (OrdersLogic.isOnline(order)) OrdersOnlineBadge()
                         // A Shopify order's WhatsApp state (nothing for any other order).
                         erp.app.screens.invoices.WhatsAppStatePill(order.whatsappOrder?.state)
+                        // Where its TCS parcel is (Delivered, With TCS, Returned...), from Shopify's fulfilments.
+                        if (erp.core.logic.ShopifyOrders.isShopify(order)) erp.app.screens.invoices.ShopifyDeliveryPill(erp.core.logic.ShopifyDelivery.chip(order))
                     }
                 }
             }
