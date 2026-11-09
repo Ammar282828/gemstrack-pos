@@ -53,12 +53,14 @@ import {
 } from '@/components/ledger';
 import { owesMoney } from '@/lib/money';
 import { STORE_SHOPIFY_SECTION } from '@/lib/store-config';
-import { isShopifyInvoice, isToConfirm } from '@/lib/shopify-orders';
+import { convertBlocker, isShopifyInvoice, isToConfirm } from '@/lib/shopify-orders';
 import { whatsappOrderChip } from '@/lib/shopify-whatsapp';
 import { ShopifyCsvImport } from '@/components/shopify/csv-import';
 import { BarChart3 } from 'lucide-react';
 import { useAuth } from '@/components/auth/google-auth-gate';
-import { roleForEmail } from '@/lib/roles';
+import { isOwner, roleForEmail } from '@/lib/roles';
+import { MAX_CONVERT } from '@/lib/writes/shopify-invoice-to-order';
+import { MakeOrdersDialog, convertNote } from '@/components/shopify/make-orders-dialog';
 import { formatDate } from '@/lib/safe-date';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -439,29 +441,42 @@ const OrderTableRow: React.FC<{ order: Order; owed: number; mine?: boolean }> = 
   );
 };
 
-/** Shopify invoices from before orders: each opens its invoice page. */
+/** A Shopify invoice from before orders, as a row: it opens its invoice page. */
+const ShopifyInvoiceRow: React.FC<{ invoice: Invoice }> = ({ invoice: i }) => (
+  <Link href={`/invoices/${i.id}`} className="press-row flex items-center gap-3 px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40">
+    <Monogram name={i.customerName} size={36} />
+    <div className="min-w-0 flex-1">
+      <p className="truncate text-ios-headline font-semibold">{i.customerName || 'Walk-in Customer'}</p>
+      <p className="truncate text-ios-cap text-muted-foreground">{i.id}{i.shopifyOrderName ? ` · ${i.shopifyOrderName}` : ''} · {formatDate(i.createdAt, 'd MMM, h:mm a')} · Invoice</p>
+    </div>
+    <div className="shrink-0 text-right">
+      <RowAmount amount={i.grandTotal} />
+      {owesMoney(i.balanceDue) ? <p className="text-ios-cap text-muted-foreground">Due <span className="tabular-nums">{Math.round(i.balanceDue).toLocaleString()}</span></p> : <p className="text-ios-cap text-tone-settled-ink">Paid</p>}
+    </div>
+  </Link>
+);
+
+/** The Earlier (invoiced) chip: Shopify invoices from before orders. */
 const EarlierInvoices: React.FC<{ invoices: Invoice[]; search: string }> = ({ invoices, search }) => {
-  const q = search.toLowerCase();
-  const rows = invoices.filter(i => !q || i.id.toLowerCase().includes(q) || (i.customerName || '').toLowerCase().includes(q) || (i.shopifyOrderName || '').toLowerCase().includes(q));
+  const rows = invoices.filter(i => invoiceMatches(i, search));
   if (rows.length === 0) return <EmptyState icon={<ClipboardList />} title="No earlier invoices" description="Shopify orders invoiced before the section existed show here." />;
   return (
     <LedgerSection title="Earlier (invoiced)" count={rows.length}>
-      {rows.map(i => (
-        <Link key={i.id} href={`/invoices/${i.id}`} className="press-row flex items-center gap-3 px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40">
-          <Monogram name={i.customerName} size={36} />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-ios-headline font-semibold">{i.customerName || 'Walk-in Customer'}</p>
-            <p className="truncate text-ios-cap text-muted-foreground">{i.id}{i.shopifyOrderName ? ` · ${i.shopifyOrderName}` : ''} · {formatDate(i.createdAt, 'd MMM, h:mm a')}</p>
-          </div>
-          <div className="shrink-0 text-right">
-            <RowAmount amount={i.grandTotal} />
-            {owesMoney(i.balanceDue) ? <p className="text-ios-cap text-muted-foreground">Due <span className="tabular-nums">{Math.round(i.balanceDue).toLocaleString()}</span></p> : <p className="text-ios-cap text-tone-settled-ink">Paid</p>}
-          </div>
-        </Link>
-      ))}
+      {rows.map(i => <ShopifyInvoiceRow key={i.id} invoice={i} />)}
     </LedgerSection>
   );
 };
+
+/** What the search box finds on a Shopify invoice. */
+const invoiceMatches = (i: Invoice, search: string) => {
+  const q = search.toLowerCase();
+  return !q || i.id.toLowerCase().includes(q) || (i.customerName || '').toLowerCase().includes(q) || (i.shopifyOrderName || '').toLowerCase().includes(q) || (!!i.customerContact && i.customerContact.includes(search));
+};
+
+/** A list row in the Shopify section: an order, or an old Shopify invoice (tagged, so the two are told apart). */
+type InvoiceRow = Invoice & { __invoice: true };
+type Row = Order | InvoiceRow;
+const isInvoiceRow = (r: Row): r is InvoiceRow => (r as InvoiceRow).__invoice === true;
 
 function monthKeyOf(iso: string | undefined): string {
   return (iso || '').slice(0, 7); // "YYYY-MM"
@@ -525,9 +540,15 @@ export function OrdersHub({ mode = 'orders' }: { mode?: 'orders' | 'shopify' }) 
   );
   /** Shopify invoices from before orders (the pull's, the CSV's), and ones finalized from a Shopify order, newest first. */
   const earlierInvoices = useMemo(
-    () => (shopifyMode ? newestFirst(invoices.filter(i => isShopifyInvoice(i)), i => i.createdAt) : []),
+    // One finalized from a Shopify order is that order's own (the order is listed): only the sales that never were orders.
+    () => (shopifyMode ? newestFirst(invoices.filter(i => isShopifyInvoice(i) && !i.sourceOrderId), i => i.createdAt) : []),
     [invoices, shopifyMode],
   );
+  const { user: signedIn } = useAuth();
+  const [making, setMaking] = useState(false);
+  const { toast: say } = useToast();
+  /** The owner's one-tap conversion: the old Shopify sales that can still be made orders (lib/shopify-orders.ts convertBlocker). */
+  const convertible = useMemo(() => (isOwner(signedIn?.email) ? earlierInvoices.filter(i => !convertBlocker(i)) : []), [earlierInvoices, signedIn?.email]);
 
   useEffect(() => {
     if (appReady) {
@@ -578,6 +599,15 @@ export function OrdersHub({ mode = 'orders' }: { mode?: 'orders' | 'shopify' }) 
     );
   };
 
+  /** The old Shopify invoices in All, beside the orders: the search and the month apply; Payment and Taken by are an order's. */
+  const invoiceRows = useMemo<InvoiceRow[]>(() => {
+    if (!shopifyMode || !appReady || paymentFilter !== 'All' || takenByFilter) return [];
+    return earlierInvoices
+      .filter(i => invoiceMatches(i, deferredSearch) && (monthFilter === 'All' || monthKeyOf(i.createdAt) === monthFilter))
+      .map(i => ({ ...i, __invoice: true as const }));
+  }, [shopifyMode, appReady, earlierInvoices, deferredSearch, paymentFilter, monthFilter, takenByFilter]);
+  const mixInvoices = shopifyMode && statusFilter === 'All';
+
   const filteredOrders = useMemo(() => {
     if (!appReady) return [];
     const wanted = (o: Order) => statusFilter === 'All' || (statusFilter === 'To confirm' ? isToConfirm(o) : statusFilter === 'Earlier' ? false : o.status === statusFilter);
@@ -593,9 +623,11 @@ export function OrdersHub({ mode = 'orders' }: { mode?: 'orders' | 'shopify' }) 
       out[o.status] = (out[o.status] ?? 0) + 1;
       if (isToConfirm(o)) out['To confirm'] = (out['To confirm'] ?? 0) + 1;
     }
+    // All is the orders and the old invoices together; the stage chips count orders only.
+    out.All += invoiceRows.length;
     out.Earlier = earlierInvoices.length;
     return out;
-  }, [orders, earlierInvoices, deferredSearch, appReady, paymentFilter, monthFilter, takenByFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [orders, earlierInvoices, invoiceRows, deferredSearch, appReady, paymentFilter, monthFilter, takenByFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filterCount = [monthFilter, statusFilter, paymentFilter].filter(v => v !== 'All').length + (takenByFilter ? 1 : 0);
   /** The sheet's own count: the status has its chips. */
@@ -603,8 +635,8 @@ export function OrdersHub({ mode = 'orders' }: { mode?: 'orders' | 'shopify' }) 
 
   /** The list broken into sections, each carrying its own totals. */
   const sections = useMemo(() => {
-    const out: { key: string; title: string; hint: string; late?: boolean; rows: Order[] }[] = [];
-    const push = (key: string, title: string, hint: string, rows: Order[], late?: boolean) => {
+    const out: { key: string; title: string; hint: string; late?: boolean; rows: Row[] }[] = [];
+    const push = (key: string, title: string, hint: string, rows: Row[], late?: boolean) => {
       if (rows.length) out.push({ key, title, hint, rows, late });
     };
 
@@ -626,7 +658,8 @@ export function OrdersHub({ mode = 'orders' }: { mode?: 'orders' | 'shopify' }) 
         filteredOrders.filter(o => !(ORDER_STATUSES as readonly string[]).includes(o.status)));
     } else {
       const index = new Map<string, number>();
-      for (const o of filteredOrders) {
+      // By day and the other dates: the orders and the old invoices in one list, newest first.
+      for (const o of mixInvoices ? newestFirst<Row>([...filteredOrders, ...invoiceRows], r => r.createdAt) : filteredOrders) {
         if (!o.createdAt) continue;
         const b = bucketOf(parseISO(o.createdAt), groupBy);
         let i = index.get(b.key);
@@ -638,14 +671,18 @@ export function OrdersHub({ mode = 'orders' }: { mode?: 'orders' | 'shopify' }) 
       }
     }
 
+    // Stage, Due and Status are an order's: the old invoices follow in a section of their own.
+    if (mixInvoices && (groupBy === 'stage' || groupBy === 'due' || groupBy === 'status')) push('earlier-invoices', 'Earlier (invoiced)', 'Shopify sales from before orders', invoiceRows);
+
     return out.map(s => ({
       ...s,
       value: s.rows.reduce((n, o) => n + (o.subtotal || 0), 0),
     }));
-  }, [filteredOrders, groupBy, owedOn, now]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [filteredOrders, invoiceRows, mixInvoices, groupBy, owedOn, now]); // eslint-disable-line react-hooks/exhaustive-deps
   // A page at a time (hooks/use-growing.ts), and one layout: the phone's cards or the table, not both.
   const wide = useWide();
-  const grow = useGrowing(`${mode}:${groupBy}`, filteredOrders.length);
+  const rowCount = filteredOrders.length + (mixInvoices ? invoiceRows.length : 0);
+  const grow = useGrowing(`${mode}:${groupBy}`, rowCount);
   const drawnSections = takeRows(sections, grow.shown);
   /** Done and closed orders fold away under the hub; they are history, not work. */
   const folds = (key: string) => groupBy === 'stage' && (key === 'done' || key === 'closed') && !openDone[key];
@@ -682,11 +719,11 @@ export function OrdersHub({ mode = 'orders' }: { mode?: 'orders' | 'shopify' }) 
     </Select>
   );
 
-  const nothingOpen = groupBy === 'due' && filteredOrders.length > 0 && sections.length === 0;
+  const nothingOpen = groupBy === 'due' && rowCount > 0 && sections.length === 0;
 
   return (
     <PageShell
-      subtitle={shopifyMode ? 'Orders from the online store: made to order, then finalized into an invoice.' : <>
+      subtitle={shopifyMode ? `${orders.length + earlierInvoices.length} Shopify ${orders.length + earlierInvoices.length === 1 ? 'sale' : 'sales'}: orders made to order, then finalized into an invoice; earlier ones are invoices.` : <>
         {filteredOrders.length === orders.length
           ? `${orders.length} order${orders.length === 1 ? '' : 's'}`
           : `${filteredOrders.length} of ${orders.length} orders`}
@@ -796,11 +833,28 @@ export function OrdersHub({ mode = 'orders' }: { mode?: 'orders' | 'shopify' }) 
       {/* Online orders waiting to be confirmed: not orders yet, so above the list (online-inbox.tsx). */}
       <OnlineInbox />
 
+      {/* The owner's one-tap: the old Shopify sales that are still open become orders (pieces to the workshop, payments as advances). */}
+      {shopifyMode && convertible.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-card bg-card px-4 py-3">
+          <p className="min-w-0 text-ios-sub text-muted-foreground">
+            {convertible.length} open Shopify {convertible.length === 1 ? 'sale is' : 'sales are'} still invoice{convertible.length === 1 ? '' : 's'}: not in the workshop yet.
+          </p>
+          <Button size="sm" onClick={() => setMaking(true)}>Make orders of the {Math.min(convertible.length, MAX_CONVERT)} open Shopify {convertible.length === 1 ? 'sale' : 'sales'}</Button>
+        </div>
+      )}
+      {making && (
+        <MakeOrdersDialog invoiceIds={convertible.slice(0, MAX_CONVERT).map(i => i.id)} open onOpenChange={o => !o && setMaking(false)} onDone={r => {
+          say({ title: r.converted.length ? 'Orders made' : 'No orders made', description: convertNote(r), variant: r.converted.length ? undefined : 'destructive' });
+          loadGeneratedInvoices();
+          loadOrders();
+        }} />
+      )}
+
       {isOrdersLoading ? (
         <ListSkeleton rows={5} />
       ) : statusFilter === 'Earlier' ? (
         <EarlierInvoices invoices={earlierInvoices} search={deferredSearch} />
-      ) : filteredOrders.length === 0 ? (
+      ) : rowCount === 0 ? (
         <EmptyState
           icon={<ClipboardList />}
           title={shopifyMode && !filtering ? 'No Shopify orders yet' : 'No orders found'}
@@ -840,7 +894,9 @@ export function OrdersHub({ mode = 'orders' }: { mode?: 'orders' | 'shopify' }) 
                     <div className="space-y-3 md:grid md:grid-cols-2 md:gap-3 md:space-y-0">
                       {s.drawn.map(order => (
                         <div key={order.id} className="overflow-hidden rounded-card bg-card">
-                          <OrderCard order={order} owed={owedFor(order)} mine={!!me && order.takenBy === me} />
+                          {isInvoiceRow(order)
+                            ? <ShopifyInvoiceRow invoice={order} />
+                            : <OrderCard order={order} owed={owedFor(order)} mine={!!me && order.takenBy === me} />}
                         </div>
                       ))}
                     </div>
@@ -882,7 +938,9 @@ export function OrdersHub({ mode = 'orders' }: { mode?: 'orders' | 'shopify' }) 
                       </TableRow>
                       {folds(s.key)
                         ? <TableRow><TableCell colSpan={6} className="py-1.5"><button type="button" className="text-ios-sub text-muted-foreground hover:text-foreground" onClick={() => setOpenDone(d => ({ ...d, [s.key]: true }))}>Show {s.rows.length}</button></TableCell></TableRow>
-                        : s.drawn.map(order => <OrderTableRow key={order.id} order={order} owed={owedFor(order)} mine={!!me && order.takenBy === me} />)}
+                        : s.drawn.map(order => isInvoiceRow(order)
+                          ? <TableRow key={order.id}><TableCell colSpan={6} className="p-0"><ShopifyInvoiceRow invoice={order} /></TableCell></TableRow>
+                          : <OrderTableRow key={order.id} order={order} owed={owedFor(order)} mine={!!me && order.takenBy === me} />)}
                     </React.Fragment>
                   ))}
                 </TableBody>

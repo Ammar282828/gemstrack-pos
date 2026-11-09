@@ -30,6 +30,10 @@ struct OrdersHub: View {
     @State private var importingCSV = false
     /// The old Shopify invoices by day, per change of the invoices and the search.
     @State private var earlierMemo = Memo<[InvoiceSection]>()
+    /// The section's All: the web orders and the old invoices together, a section a day.
+    @State private var mixedMemo = Memo<[ShopifyDay]>()
+    /// Old Shopify invoices to make orders of (an owner's): set to start the explanation, the delete code and the write.
+    @State private var converting: ShopifyConvertRequest?
 
     @State private var query = ""
     @State private var statusFilter = "All"
@@ -97,6 +101,9 @@ struct OrdersHub: View {
         .toolbar { hubToolbar }
         .ordersWebDestination($web)
         .pdfQuickShare($slipShare)
+        .shopifyConvertFlow($converting) { (r: ShopifyConvertResult) in
+            Note.show(r.note, in: $note, reduce: reduceMotion)
+        }
         .sheet(item: $advancing) { order in advanceSheet(order).presentationSizing(.form) }
         .sheet(isPresented: $importingCSV) {
             InvoiceCSVImportSheet { (done: InvoiceNote) in
@@ -210,12 +217,36 @@ struct OrdersHub: View {
         // No figures over the list (owner, 2026-11-03: "remove the upper bar with the summaries in invoices and orders").
         let figures: [ListFigure] = []
         let earlierGroups: [InvoiceSection] = shopify && statusFilter == OrdersHub.earlierKey ? earlierSections(now: now) : []
+        // The Shopify section's All: orders and old invoices in one list by day (the stage groups are for the stage chips).
+        let mixedAll = shopify && statusFilter == "All"
+        let mixed: [ShopifyDay] = mixedAll ? mixedSections(shown, now: now) : []
+        let orderGroups: [OrdersSection] = mixedAll ? [] : groups
         return RecordListScaffold(search: $query, prompt: "Order, customer, phone or piece",
-                                  isEmpty: groups.isEmpty && earlierGroups.isEmpty && (shopify || Outbox.shared.records(kind: "order").isEmpty)) {
+                                  isEmpty: orderGroups.isEmpty && earlierGroups.isEmpty && mixed.isEmpty
+                                      && (shopify || Outbox.shared.records(kind: "order").isEmpty)) {
             emptyState(nothingOpen: grouping == .due && !shown.isEmpty)
         } rows: {
             head(scoped, figures, inList: true)
+            if showsConvertBanner {
+                Section { convertBanner }.houseRows()
+            }
             if !shopify { PendingRecords(kind: "order") }
+            ForEach(mixed) { day in
+                Section {
+                    ForEach(day.entries) { entry in
+                        switch entry {
+                        case .order(let order): card(order, owedOn: owedOn, now: now)
+                        case .invoice(let inv):
+                            InvoiceListRow(invoice: inv, mine: false, dated: false)
+                                .zoomSource(id: InvoiceFacts.path(inv.id))
+                        }
+                    }
+                } header: {
+                    ListSectionHeader(title: day.title, hint: day.hint, count: day.entries.count,
+                                      trailing: Money.pkr(day.worth), value: day.worth)
+                }
+                .houseRows()
+            }
             ForEach(earlierGroups) { g in
                 Section {
                     ForEach(g.rows) { inv in
@@ -227,12 +258,30 @@ struct OrdersHub: View {
                 }
                 .houseRows()
             }
-            ForEach(groups) { g in
+            ForEach(orderGroups) { g in
                 section(g, owedOn: owedOn, now: now, forceOpen: forceOpen)
             }
         } cards: { width in
             head(scoped, figures, inList: false)
+            if showsConvertBanner { convertBanner }
             if !shopify { PendingRecords(kind: "order", width: width) }
+            ForEach(mixed) { day in
+                VStack(alignment: .leading, spacing: pt(16)) {
+                    ListSectionHeader(title: day.title, hint: day.hint, count: day.entries.count,
+                                      trailing: Money.pkr(day.worth), value: day.worth)
+                    RecordGrid(items: day.entries, width: width) { (entry: ShopifyEntry) in
+                        switch entry {
+                        case .order(let order): card(order, owedOn: owedOn, now: now, standalone: true)
+                        case .invoice(let inv):
+                            RecordCard {
+                                InvoiceListRow(invoice: inv, mine: false, dated: false)
+                                    .buttonStyle(.pressable)
+                                    .zoomSource(id: InvoiceFacts.path(inv.id))
+                            }
+                        }
+                    }
+                }
+            }
             ForEach(earlierGroups) { g in
                 VStack(alignment: .leading, spacing: pt(16)) {
                     earlierHeading(g)
@@ -245,7 +294,7 @@ struct OrdersHub: View {
                     }
                 }
             }
-            ForEach(groups) { g in
+            ForEach(orderGroups) { g in
                 let open = isOpen(g, forceOpen: forceOpen)
                 VStack(alignment: .leading, spacing: pt(16)) {
                     groupHeading(g)
@@ -258,6 +307,82 @@ struct OrdersHub: View {
                 }
             }
         }
+    }
+
+    /// The old Shopify invoices the section's All lists, under the search and the month (an order-only filter, Taken by or
+    /// Payment, leaves them out, as it cannot tell them).
+    private func shopifyInvoiceRows() -> [Invoice] {
+        guard shopify, takenBy.isEmpty, payment == "All" else { return [] }
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        return book.invoices.items.filter { (inv: Invoice) -> Bool in
+            inv.isShopifyOrder
+                && (month.isEmpty || InvoiceCalendar.monthKey(inv.createdAt) == month)
+                && (q.isEmpty || inv.id.localizedCaseInsensitiveContains(q)
+                    || inv.customerName.localizedCaseInsensitiveContains(q)
+                    || (inv.shopifyOrderName ?? "").localizedCaseInsensitiveContains(q))
+        }
+    }
+
+    /// The orders and the old invoices together, newest first, a section a day.
+    private func mixedSections(_ orders: [Order], now: Date) -> [ShopifyDay] {
+        let invoices = shopifyInvoiceRows()
+        let key: [Int] = [book.orders.revision, book.invoices.revision, query.hashValue, month.hashValue, takenBy.hashValue,
+                          payment.hashValue, localStatus.hashValue, statusFilter.hashValue, ERPDate.karachiDay(now).hashValue]
+        return mixedMemo(key, resting: covered) {
+            var rows: [(entry: ShopifyEntry, at: Date?, worth: Double)] = []
+            for o in orders { rows.append((entry: ShopifyEntry.order(o), at: ERPDate.parse(o.createdAt), worth: o.subtotal)) }
+            for i in invoices { rows.append((entry: ShopifyEntry.invoice(i), at: ERPDate.parse(i.createdAt), worth: invoiceSaleValue(i))) }
+            rows.sort { ($0.at ?? Date.distantPast) > ($1.at ?? Date.distantPast) }
+            var keys: [String] = []
+            var info: [String: InvoiceCalendar.Bucket] = [:]
+            var members: [String: [ShopifyEntry]] = [:]
+            var worth: [String: Double] = [:]
+            for row in rows {
+                let b: InvoiceCalendar.Bucket
+                if let d = row.at {
+                    b = InvoiceCalendar.bucket(d, by: .day, now: now)
+                } else {
+                    b = InvoiceCalendar.Bucket(key: "undated", title: "No date", hint: "")
+                }
+                if info[b.key] == nil {
+                    info[b.key] = b
+                    keys.append(b.key)
+                }
+                members[b.key, default: []].append(row.entry)
+                worth[b.key, default: 0] += row.worth
+            }
+            let thisYear = String(ERPDate.karachiDay(now).prefix(4))
+            return keys.map { (k: String) -> ShopifyDay in
+                let b = info[k]!
+                return ShopifyDay(id: k, title: b.title, hint: b.hint == thisYear ? "" : b.hint,
+                                  entries: members[k] ?? [], worth: worth[k] ?? 0)
+            }
+        }
+    }
+
+    /// Old Shopify invoices an owner can make orders of.
+    private var convertible: [Invoice] {
+        guard shopify, session.isOwner else { return [] }
+        return book.invoices.items.filter { $0.isConvertibleShopifyInvoice }
+    }
+
+    private var showsConvertBanner: Bool { !convertible.isEmpty }
+
+    /// "N Shopify sales are still invoices" with the one button that makes them orders.
+    private var convertBanner: some View {
+        let ids = convertible.map { $0.id }
+        let n = ids.count
+        return VStack(alignment: .leading, spacing: pt(10)) {
+            Label(n == 1 ? "1 Shopify sale is still an invoice" : "\(n) Shopify sales are still invoices", systemImage: "arrow.triangle.2.circlepath")
+                .font(.house(.headline))
+            Text("Make them orders and their pieces go to the workshop.")
+                .font(.house(.subheadline))
+                .foregroundStyle(.secondary)
+            Button("Make them orders") { converting = ShopifyConvertRequest(ids: ids) }
+                .buttonStyle(.houseProminent)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, pt(6))
     }
 
     private func earlierHeading(_ g: InvoiceSection) -> some View {
@@ -309,7 +434,7 @@ struct OrdersHub: View {
     /// The Mac's stage view is a board of columns; the phone and the iPad keep their lists and card grids.
     private func showsBoard(_ width: CGFloat) -> Bool {
         #if os(macOS)
-        return grouping == .stage && width >= 640 && !(shopify && statusFilter == OrdersHub.earlierKey)
+        return grouping == .stage && width >= 640 && !(shopify && (statusFilter == OrdersHub.earlierKey || statusFilter == "All"))
         #else
         return false
         #endif
@@ -594,7 +719,9 @@ struct OrdersHub: View {
     private func chips(_ scoped: [Order]) -> [ListChip] {
         var counts: [String: Int] = [:]
         for o in scoped { counts[o.status.rawValue, default: 0] += 1 }
-        var out = [ListChip(id: "All", title: "All", count: scoped.count, chosen: statusFilter == "All") { pickStatus("All") }]
+        // The section's All counts the old invoices beside the orders; the stage chips count orders only.
+        let allCount = scoped.count + (shopify ? shopifyInvoiceRows().count : 0)
+        var out = [ListChip(id: "All", title: "All", count: allCount, chosen: statusFilter == "All") { pickStatus("All") }]
         if shopify {
             // A COD order whose WhatsApp confirmation has not come back.
             let n = scoped.filter { $0.shopifyStage == .toConfirm }.count
@@ -837,6 +964,27 @@ private struct OrdersSection: Identifiable {
     let tone: Tone
     let folds: Bool
     let orders: [Order]
+}
+
+/// One day of the Shopify section's All: its orders and old invoices, newest first, and what they are worth.
+private struct ShopifyDay: Identifiable {
+    let id: String
+    let title: String
+    let hint: String
+    let entries: [ShopifyEntry]
+    let worth: Double
+}
+
+private enum ShopifyEntry: Identifiable {
+    case order(Order)
+    case invoice(Invoice)
+
+    var id: String {
+        switch self {
+        case .order(let o): return "o-" + o.id
+        case .invoice(let i): return "i-" + i.id
+        }
+    }
 }
 
 /// The strip's figures: owed on the orders, open, due this week (late among them).

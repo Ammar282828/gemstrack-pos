@@ -42,6 +42,10 @@ struct InvoiceScreen: View {
     @State private var ownersOnly: String?
     /// The payment link to make (InvoicePaymentLink): set to start it.
     @State private var linking: Invoice?
+    /// An old Shopify sale made an order (owner, 2026-11-09): set to start the explanation, the code and the write.
+    @State private var converting: ShopifyConvertRequest?
+    /// The order it became, opened once it is made (kept on the page, not the invoice, which the conversion removes).
+    @State private var madeOrder: Route?
     #if os(macOS)
     /// The Mac's sheets and sends (MacInvoiceDesk): the record window starts them from its menu, toolbar and tables.
     @State private var macDesk = MacInvoiceDesk()
@@ -77,6 +81,16 @@ struct InvoiceScreen: View {
         // The page grows out of its row on the list (the row's id is this route's path).
         .zoomDestination(id: InvoiceFacts.path(id))
         .voiceFocus(invoice.map(VoiceFocus.invoice))
+        .shopifyConvertFlow($converting) { (r: ShopifyConvertResult) in
+            if let made = r.converted.first {
+                madeOrder = Route(path: "/orders/" + InvoiceFacts.encode(made.orderId))
+            } else {
+                say(InvoiceNote(title: r.note.title, detail: r.note.detail))
+            }
+        }
+        .navigationDestination(item: $madeOrder) { (r: Route) in
+            ScreenRegistry.view(for: r.path)
+        }
         .task {
             book.invoices.need()
             book.customers.need()
@@ -626,6 +640,14 @@ struct InvoiceScreen: View {
         }
         // Owners' only (the server refuses staff): not offered to the shop floor at all.
         if session.isOwner {
+            // An old Shopify sale, not yet fulfilled: the workshop makes it now (the section's banner does all of them).
+            if NavMap.hasShopifySection && inv.isConvertibleShopifyInvoice {
+                Section {
+                    Button { converting = ShopifyConvertRequest(ids: [inv.id]) } label: {
+                        Label("Make it an order", systemImage: "arrow.triangle.2.circlepath")
+                    }
+                }
+            }
             Section {
                 if inv.status != .refunded {
                     Button(role: .destructive) { act(.refund, inv) } label: { Label("Refund…", systemImage: "arrow.uturn.backward") }

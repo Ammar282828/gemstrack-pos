@@ -189,6 +189,7 @@ private fun InvoiceDetail(inv: Invoice, customers: List<erp.core.models.Customer
     // A payment swiped away: the delete code is asked for it straight away.
     var paymentAsk by remember { mutableStateOf<Pair<OwnerDeletion, InvoiceActionOutcome>?>(null) }
     var menuOpen by remember { mutableStateOf(false) }
+    var makingOrder by remember { mutableStateOf(false) }
 
     val owing = isOwing(inv)
 
@@ -240,6 +241,8 @@ private fun InvoiceDetail(inv: Invoice, customers: List<erp.core.models.Customer
                 HorizontalDivider()
                 MenuHeading("More")
                 item("Open in the ERP", Symbols.Language, false) { openWeb() }
+                // An old Shopify sale still open becomes an order (owners; money, online only).
+                if (owner && erp.core.logic.ShopifyOrders.eligibleForOrder(inv)) item("Make it an order…", Symbols.ListAlt, false) { makingOrder = true }
                 HorizontalDivider()
                 if (inv.status != InvoiceStatus.refunded) item("Refund…", Symbols.Undo, true) { act(InvoiceAct.Refund) }
                 item("Delete invoice…", Symbols.Delete, true) { act(InvoiceAct.Delete) }
@@ -309,6 +312,12 @@ private fun InvoiceDetail(inv: Invoice, customers: List<erp.core.models.Customer
         InvoiceAct.Refund -> InvoiceRefundSheet(inv, onDismiss = { acting = null }, onDone = ::acted)
         InvoiceAct.Delete -> InvoiceDeleteSheet(inv, onDismiss = { acting = null }, onDone = ::acted)
         null -> Unit
+    }
+    if (makingOrder) {
+        erp.app.screens.orders.ShopifyConvertFlow(listOf(inv.id), onDismiss = { makingOrder = false }, onDone = { r ->
+            makingOrder = false
+            r.converted.firstOrNull()?.let { navigator.open("/orders/" + InvoiceFacts.encode(it.second)) }
+        })
     }
     paymentAsk?.let { (deletion, outcome) ->
         OwnerDeleteCodeSheet(deletion, onDismiss = { paymentAsk = null }, onDone = { acted(outcome) })

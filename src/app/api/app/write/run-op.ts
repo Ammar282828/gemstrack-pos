@@ -73,6 +73,7 @@ import { SETTINGS2_OPS, runSettings2Op } from './ops-settings2';
 import { SETTINGS3_OPS, runSettings3Op } from './ops-settings3';
 import { SETTINGS4_OPS, runSettings4Op } from './ops-settings4';
 import { DESCRIBE_OPS, runDescribeOp } from './ops-describe';
+import { SHOPIFY_OPS, runShopifyOp } from './ops-shopify';
 
 type Body = { op?: string } & Record<string, unknown>;
 type FollowUp = { path: string; body: Record<string, unknown> };
@@ -130,6 +131,7 @@ const GROUPS: { roles: OpRoles; run: OpHandler }[] = [
   { roles: SETTINGS3_OPS, run: runSettings3Op },
   { roles: SETTINGS4_OPS, run: runSettings4Op },
   { roles: DESCRIBE_OPS, run: runDescribeOp },
+  { roles: SHOPIFY_OPS, run: runShopifyOp },
 ];
 
 export const OPS: OpRoles = Object.assign({}, OWN_OPS, ...GROUPS.map((g) => g.roles));

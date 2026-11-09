@@ -24,6 +24,31 @@ final class ShopifyOrderTests: XCTestCase {
     }
 }
 
+/// Which old Shopify invoices can become orders.
+final class ShopifyConvertibleTests: XCTestCase {
+    private func invoice(_ extra: [String: Any]) -> Invoice {
+        var f: [String: Any] = ["id": "SHOPIFY-1001", "source": "shopify"]
+        for (k, v) in extra { f[k] = v }
+        return ERPDecode.model(Invoice.self, from: f)!
+    }
+
+    func testAnOpenShopifyInvoiceCanBeConverted() {
+        XCTAssertTrue(invoice([:]).isConvertibleShopifyInvoice)
+        XCTAssertTrue(invoice(["shopifyFulfillment": "unfulfilled"]).isConvertibleShopifyInvoice)
+        XCTAssertTrue(invoice(["shopifyFulfillment": "partial"]).isConvertibleShopifyInvoice)
+        XCTAssertTrue(invoice(["source": "shopify_import"]).isConvertibleShopifyInvoice)
+    }
+
+    func testFulfilledMadeFromAnOrderCancelledOrRefundedCannot() {
+        XCTAssertFalse(invoice(["shopifyFulfillment": "fulfilled"]).isConvertibleShopifyInvoice)
+        XCTAssertFalse(invoice(["sourceOrderId": "ORD-000001"]).isConvertibleShopifyInvoice)
+        XCTAssertFalse(invoice(["shopifyCancelledAt": "2026-11-01T10:00:00.000Z"]).isConvertibleShopifyInvoice)
+        XCTAssertFalse(invoice(["status": "Refunded"]).isConvertibleShopifyInvoice)
+        XCTAssertFalse(invoice(["shopifyFinancialStatus": "refunded"]).isConvertibleShopifyInvoice)
+        XCTAssertFalse(invoice(["source": "pos"]).isConvertibleShopifyInvoice)
+    }
+}
+
 /// Shopify web orders as ERP orders.
 final class ShopifyOrderAsOrderTests: XCTestCase {
     private func order(_ fields: [String: Any]) -> Order { ERPDecode.model(Order.self, from: fields)! }

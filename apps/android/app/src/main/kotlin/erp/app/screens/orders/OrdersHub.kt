@@ -102,6 +102,9 @@ import erp.app.ui.Radius
 import erp.core.logic.Money
 import erp.core.logic.stageOf
 import erp.core.models.Order
+import erp.core.models.Invoice
+import erp.core.ERPDate
+import androidx.compose.foundation.background
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -189,6 +192,31 @@ fun OrdersHub(shopify: Boolean = false) {
     // What the hub lists (the filter sheet's counts) and the section's earlier invoices.
     val shopifyOrders = remember(orders.revision) { ShopifyOrders.hubOrders(orders.items, hasSection, shopify) }
     val earlierInvoices = remember(invoices.revision, orders.revision, shopify) { if (shopify) ShopifyOrders.earlier(invoices.items, orders.items) else emptyList() }
+    // "All" in the section shows the orders and the old invoices together, newest first by day (fix 2, 2026-11-09).
+    val mergedAll = shopify && sFilter == ShopifyOrders.Filter.all && earlierInvoices.isNotEmpty()
+    val mixedDays = remember(view, earlierInvoices, mergedAll, appliedQuery, statusFilter, month, takenBy, payment) {
+        if (!mergedAll || view == null) emptyList() else {
+            val q = appliedQuery.trim()
+            val digits = q.filter { it in '0'..'9' }.trimStart('0')
+            val invoiceRows = if (statusFilter != "All" || takenBy.isNotEmpty() || payment != "All") emptyList() else
+                earlierInvoices.filter { (month.isEmpty() || OrdersCalendar.monthKey(it.createdAt) == month) && (q.isEmpty() || InvoicesListRules.matches(it, q, digits, emptyMap())) }
+            val rows = (view.shown.map { it as Any } + invoiceRows.map { it as Any })
+            fun at(r: Any): Instant = ERPDate.parse(if (r is Order) r.createdAt else (r as Invoice).createdAt) ?: Instant.MIN
+            val keys = ArrayList<String>()
+            val info = HashMap<String, OrdersCalendar.Bucket>()
+            val members = HashMap<String, MutableList<Any>>()
+            for (r in rows.sortedByDescending(::at)) {
+                val d = at(r)
+                val b = if (d != Instant.MIN) OrdersCalendar.bucket(d, OrdersGrouping.day, view.now) else OrdersCalendar.Bucket("undated", "No date", "")
+                if (!info.containsKey(b.key)) { info[b.key] = b; keys.add(b.key) }
+                members.getOrPut(b.key) { ArrayList() }.add(r)
+            }
+            keys.map { MixedDay(it, info.getValue(it).title, members[it].orEmpty()) }
+        }
+    }
+    // Owners: the old Shopify sales still open can be made orders.
+    var converting by remember { mutableStateOf(false) }
+    val convertible = remember(invoices.revision, orders.revision, shopify) { if (shopify) ShopifyOrders.eligible(invoices.items, orders.items) else emptyList() }
     // Drop what the books now agree with.
     LaunchedEffect(orders.revision) { localStatus.reconcile { id, s -> orders.items.firstOrNull { it.id == id }?.let { OrdersLocal.statusAgrees(it, s) } ?: true } }
     val note = LocalNoteState.current
@@ -299,7 +327,7 @@ fun OrdersHub(shopify: Boolean = false) {
                             ChipRow {
                                 for (f in ShopifyOrders.Filter.values()) {
                                     val count = when (f) {
-                                        ShopifyOrders.Filter.all -> shopifyOrders.size
+                                        ShopifyOrders.Filter.all -> shopifyOrders.size + earlierInvoices.size
                                         ShopifyOrders.Filter.toConfirm -> shopifyOrders.count(ShopifyOrders::toConfirm)
                                         ShopifyOrders.Filter.earlier -> earlierInvoices.size
                                     }
@@ -308,7 +336,8 @@ fun OrdersHub(shopify: Boolean = false) {
                                 }
                             }
                         }
-                        if (!earlierMode) GroupingPicker(grouping, ::choose)
+                        if (shopify && isOwner && convertible.isNotEmpty() && !searching) ConvertBanner(convertible.size) { converting = true }
+                        if (!earlierMode && !mergedAll) GroupingPicker(grouping, ::choose)
                         if (narrowed) {
                             FilterSummary(statusFilter, month, takenBy, payment) { statusFilter = "All"; month = ""; takenBy = ""; payment = "All" }
                         }
@@ -335,7 +364,18 @@ fun OrdersHub(shopify: Boolean = false) {
                         NotAvailableState("No earlier invoices", why = "Shopify sales from before orders were used are here.", icon = Symbols.Description)
                     }
                 }
-                for (g in if (earlierMode) emptyList() else sections) {
+                for (g in mixedDays) {
+                    animatedItem(key = "mh-" + g.id, contentType = "header", span = { GridItemSpan(maxLineSpan) }) { LedgerHeading(g.title, count = g.rows.size) }
+                    items(g.rows.size, key = { "mi-${g.id}-" + (g.rows[it].let { r -> if (r is Order) "o" + r.id else "i" + (r as Invoice).id }) }, contentType = { if (g.rows[it] is Order) "order" else "invoice" }) { i ->
+                        when (val r = g.rows[i]) {
+                            is Order -> Card(r, view, isOwner, person, localStatus[r.id], actions, OrdersGrouping.day, i, Modifier.animateItem())
+                            is Invoice -> Column(Modifier.animateItem().clip(Radius.cardShape).clickable { navigator.open(InvoiceFacts.path(r.id)) }) {
+                                InvoiceListRow(r, mine = false, dated = false, onPrint = {}, printing = { false })
+                            }
+                        }
+                    }
+                }
+                for (g in if (earlierMode || mergedAll) emptyList() else sections) {
                     animatedItem(key = "h-" + g.id, contentType = "header", span = { GridItemSpan(maxLineSpan) }) { OrdersSectionHeader(g) }
                     if (g.folds) {
                         // A search or a filter must reach the folded stages too, or its hits hide behind "Show".
@@ -357,7 +397,7 @@ fun OrdersHub(shopify: Boolean = false) {
                         itemsIndexed(g.orders, key = { _, it -> "o-" + g.id + "-" + it.id }, contentType = { _, _ -> "order" }) { i, order -> Card(order, view, isOwner, person, localStatus[order.id], actions, grouping, i, Modifier.animateItem()) }
                     }
                 }
-                if (!earlierMode && sections.isEmpty() && (shopify || pendingOrders.isEmpty())) {
+                if (!earlierMode && !mergedAll && sections.isEmpty() && (shopify || pendingOrders.isEmpty()) || mergedAll && mixedDays.isEmpty()) {
                     animatedItem(key = "empty", contentType = "empty", span = { GridItemSpan(maxLineSpan) }) {
                         if (shopify && !anyFilter && sFilter == ShopifyOrders.Filter.all) NotAvailableState("No Shopify orders yet", why = "Orders from the online store will be here.", icon = Symbols.ShoppingBag)
                         else EmptyState(nothingOpen = grouping == OrdersGrouping.due && view.shown.isNotEmpty(), filtering = anyFilter || sFilter != ShopifyOrders.Filter.all, onClear = { clearFilters(); sFilter = ShopifyOrders.Filter.all }) {
@@ -410,11 +450,29 @@ fun OrdersHub(shopify: Boolean = false) {
             dismissButton = { TextButton(onClick = { cancelling = null }) { Text("Keep it") } },
         )
     }
+    if (converting) ShopifyConvertFlow(convertible.map { it.id }, onDismiss = { converting = false })
     erp.app.ui.QuickPdfBusy(quick)
     FailureAlert(failure, onDismiss = { failure = null }, title = "Not changed")
 }
 
 private const val GROUPING_KEY = "orders.grouping"
+
+private class MixedDay(val id: String, val title: String, val rows: List<Any>)
+
+/** Owners: old Shopify sales still open as invoices, and the way to make them orders. */
+@Composable
+private fun ConvertBanner(count: Int, onMake: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clip(Radius.cardShape).background(MaterialTheme.colorScheme.surfaceVariant).padding(start = 16.dp, top = 8.dp, bottom = 8.dp, end = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            "$count Shopify sale${if (count == 1) " is" else "s are"} still invoice${if (count == 1) "" else "s"}",
+            Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium,
+        )
+        TextButton(onClick = onMake) { Text("Make them orders", fontWeight = FontWeight.Medium) }
+    }
+}
 
 private class HubView(val now: Instant, val owedOn: Map<String, Double>, val shown: List<Order>, val sections: List<HubSection>)
 

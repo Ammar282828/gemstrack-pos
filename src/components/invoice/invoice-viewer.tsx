@@ -33,7 +33,7 @@ import { Monogram, Pill, HeroAmount, MoneySplit } from '@/components/ledger';
 import { CustomerContact } from '@/components/customer/contact-actions';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, MessageSquare, Check, Banknote, DollarSign, Edit, PlusCircle, CalendarIcon, List, RotateCcw, CheckCircle, Lock, XCircle, Trash2 } from 'lucide-react';
+import { Loader2, MessageSquare, Check, Banknote, DollarSign, Edit, PlusCircle, CalendarIcon, List, RotateCcw, CheckCircle, Lock, XCircle, Trash2, ClipboardList } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { saveInvoicePdf } from '@/lib/invoice-pdf';
 import { invoiceWhatsAppCaption } from '@/lib/invoice-share';
@@ -63,6 +63,11 @@ import 'react-phone-number-input/style.css';
 import { owesMoney, rupees } from '@/lib/money';
 import { RoundOffChips, SettleOffer } from '@/components/shared/round-off-chips';
 import { useShallow } from 'zustand/react/shallow';
+import { STORE_SHOPIFY_SECTION } from '@/lib/store-config';
+import { convertBlocker } from '@/lib/shopify-orders';
+import { isOwner } from '@/lib/roles';
+import { useAuth } from '@/components/auth/google-auth-gate';
+import { MakeOrdersDialog, convertNote } from '@/components/shopify/make-orders-dialog';
 
 /** The counter's message as it was before Taheri's PDF sends (House of Mina's): the estimate's ID and what is owed. */
 function estimateMessage(inv: InvoiceType, shopName: string): string {
@@ -86,6 +91,8 @@ const sentKeys = new Map<string, string>();
 export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
   const router = useRouter();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const [makingOrder, setMakingOrder] = useState(false);
   const appReady = useAppReady();
   const { customers, settings, allInvoices, hasInvoicesLoaded, updateInvoicePayment, settleInvoicePayment, refundInvoicePartial, updateInvoiceDiscount, deleteInvoice, deleteInvoicePayment, loadCustomers, loadGeneratedInvoices } = useAppStore(useShallow(state => ({
     customers: state.customers,
@@ -385,6 +392,11 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
           <QRCode id="links-qr-code" value={storeLinksUrl()} size={128} />
           <QRCode id="insta-qr-code" value={STORE_CONFIG.instagramUrl} size={128} />
         </div>
+        <MakeOrdersDialog invoiceIds={[invoice.id]} open={makingOrder} onOpenChange={setMakingOrder} onDone={r => {
+          toast({ title: r.converted.length ? 'Made an order' : 'Not made an order', description: convertNote(r), variant: r.converted.length ? undefined : 'destructive' });
+          loadGeneratedInvoices();
+          if (r.converted[0]) router.push(`/orders/${r.converted[0].orderId}`);
+        }} />
         <SetCustomerDialog invoice={invoice} open={settingCustomer} onOpenChange={setSettingCustomer} onDone={setLatest} />
         {/* The app's invoice screen: who and when, the sum large, what was paid and what is due, then the actions. */}
         <Card>
@@ -455,6 +467,11 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
                     {invoice.status !== 'Refunded' && (
                       <Button variant="outline" onClick={() => setIsRefundDialogOpen(true)} className="border-destructive text-destructive hover:bg-destructive/10">
                         <RotateCcw className="mr-2 h-4 w-4"/> Refund
+                      </Button>
+                    )}
+                    {STORE_SHOPIFY_SECTION && isOwner(user?.email) && !convertBlocker(invoice as never) && (
+                      <Button variant="outline" onClick={() => setMakingOrder(true)} title="Send its pieces to the workshop; its payments become advances">
+                        <ClipboardList className="mr-2 h-4 w-4"/> Make it an order
                       </Button>
                     )}
                     <Button variant="ghost" onClick={handleDeleteInvoice} className="text-destructive hover:bg-destructive/10 hover:text-destructive" title="Delete this invoice (asks for the delete code)">

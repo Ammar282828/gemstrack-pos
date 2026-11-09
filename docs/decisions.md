@@ -601,6 +601,21 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
     Earlier (invoiced)** (Shopify invoices from before, opening their invoice pages), only chips with rows. Toolbar: Import
     Shopify CSV (moved from Invoices; its rows are invoices, so they land under Earlier) and Shopify analytics (Website →
     Visitors). Empty: "No Shopify orders yet". `lib/shopify-orders.ts` is the one predicate (`isShopifyInvoice`, `isToConfirm`).
+  - **Earlier sales are listed and can be made orders** (2026-11-09, owner saw an empty section: "Tf??"; only NEW web orders became
+    orders, every existing Shopify sale was still an invoice hidden behind the last chip). **All** is the orders and the old Shopify
+    invoices together, newest first by day (an invoice row opens its invoice; under Stage/Due/Status they follow in a section of
+    their own); the stage chips count orders only; **Earlier (invoiced)** stays as a filter; an invoice finalized from an order is
+    not listed twice. The owner sees "Make orders of the N open Shopify sales" in the section, and **Make it an order** on an
+    eligible invoice's page: owners only, **delete code** asked (the invoice is removed), one server op
+    `shopifyInvoicesToOrders` `{ invoiceIds (1..100), deleteCode, requestId }` → `{ converted: [{ invoiceId, orderId }], skipped:
+    [{ invoiceId, reason }] }` (`ops-shopify.ts`, `lib/writes/shopify-invoice-to-order.ts`; a money op, so a request id, and a
+    repeat gets the first answer). Eligible (`convertBlocker`, `lib/shopify-orders.ts`): a Shopify sale not made from an order,
+    not cancelled/refunded, **not fulfilled**, no exchange, no money paid back. Each becomes the order `SHOPIFY-<number>`
+    (`SHOPIFY-INV-<invoice id>` without one): a piece per unit, the discount, Shopify's ids and state and `shopifyTransactionIds`
+    (so the mirror never adds a payment twice), the invoice's date, Pending; every payment an advance `adv-from-<invoice>-<payment
+    id or index>`; then the invoice goes **the way Delete invoice takes it** (`invoice-delete.ts`: its hisaab rows, tombstone in
+    `deleted_invoices`) but Shopify is not told to cancel and no piece goes back in stock; logged "Converted to order". An order
+    already there is not touched ("already an order"); a call cut off between the two steps is finished by sending it again.
   - **Elsewhere** (a house with the section): Orders and Invoices do not list Shopify orders or invoices, nor the Shopify chip or
     the CSV import; the Workshop, karigar pages, calendar, customers, search, alerts and Analytics still include them. The phone
     tab bars (iPhone and Android) are Home, Orders, Invoices, **Shopify** (it replaces Customers there; Customers stays in

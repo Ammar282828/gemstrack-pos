@@ -20,7 +20,7 @@ export const MONEY_OP_NAMES: ReadonlySet<string> = new Set([
   'addRepair', 'recordRepairPayment', 'addExpense',
   'addHisaabEntry', 'addShareholderEntry', 'addExtraRevenue',
   'updateInvoiceDiscount', 'refundInvoicePartial', 'payBackCredit', 'settleInvoicePayment', 'settleOrderAdvance', 'raiseOrderDiscount',
-  'startPayBatch', 'settlePayBatch',
+  'startPayBatch', 'settlePayBatch', 'shopifyInvoicesToOrders',
 ]);
 
 export const REQUEST_ID = /^[A-Za-z0-9-]{8,64}$/;

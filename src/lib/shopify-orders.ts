@@ -37,3 +37,27 @@ export function shopifyChipsOf(inv: ShopifyInvoiceLike): ShopifyChip[] {
   out.push(owesMoney(inv.balanceDue ?? 0) ? 'unpaid' : 'paid');
   return out;
 }
+
+/** What an invoice must look like to be made an order (lib/writes/shopify-invoice-to-order.ts; the section's banner and the invoice page's "Make it an order"). */
+export interface ConvertibleInvoice extends ShopifyInvoiceLike {
+  sourceOrderId?: string;
+  orderId?: string;
+  fromOrder?: string;
+  shopifyFulfillment?: string;
+  exchanges?: unknown[];
+  paymentHistory?: { amount?: number; kind?: string }[];
+}
+
+/**
+ * Why a Shopify invoice cannot be made an order (a sentence), or null when it can: it must be a Shopify sale, not one made
+ * from an order, not cancelled or refunded, not fulfilled (shipped: it is done), with no exchange and no money handed back.
+ */
+export function convertBlocker(inv: ConvertibleInvoice | null | undefined): string | null {
+  if (!inv || !isShopifyInvoice(inv)) return 'not a Shopify sale';
+  if (inv.sourceOrderId || inv.orderId || inv.fromOrder) return 'made from an order already';
+  if (inv.status === 'Refunded' || inv.status === 'Cancelled' || inv.shopifyCancelledAt) return 'cancelled or refunded';
+  if (String(inv.shopifyFulfillment || '').toLowerCase() === 'fulfilled') return 'already fulfilled';
+  if (Array.isArray(inv.exchanges) && inv.exchanges.length > 0) return 'has an exchange';
+  if ((inv.paymentHistory || []).some(p => p?.kind === 'credit-payback' || !(Number(p?.amount) > 0))) return 'has a refund or credit paid back';
+  return null;
+}

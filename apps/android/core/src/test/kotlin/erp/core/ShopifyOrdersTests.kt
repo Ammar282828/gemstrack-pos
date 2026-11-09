@@ -67,4 +67,32 @@ class ShopifyOrdersTests {
         val orders = listOf(order("SHOPIFY-9", invoiceId = "MADE"))
         assertEquals(listOf("OLD"), ShopifyOrders.earlier(invs, orders).map { it.id })
     }
+
+    private fun invWith(vararg f: Pair<String, Any?>): Invoice = Invoice.fromMap(mapOf<String, Any?>("id" to "X", "source" to "shopify") + f)
+
+    @Test fun eligibleForOrder() {
+        assertTrue(ShopifyOrders.eligibleForOrder(invWith()))
+        assertTrue(ShopifyOrders.eligibleForOrder(invWith("shopifyFulfillment" to "partial")))
+        assertTrue(ShopifyOrders.eligibleForOrder(invWith("shopifyFulfillment" to "unfulfilled")))
+        assertFalse(ShopifyOrders.eligibleForOrder(invWith("shopifyFulfillment" to "fulfilled")))
+        assertFalse(ShopifyOrders.eligibleForOrder(invWith("sourceOrderId" to "ORD-1")))
+        assertFalse(ShopifyOrders.eligibleForOrder(invWith("status" to "Refunded")))
+        assertFalse(ShopifyOrders.eligibleForOrder(invWith("shopifyCancelledAt" to "2026-11-01T10:00:00.000Z")))
+        assertFalse(ShopifyOrders.eligibleForOrder(invWith("source" to "pos")))
+    }
+
+    @Test fun eligibleSkipsInvoicesAnOrderMade() {
+        val invs = listOf(inv("A"), inv("B"))
+        assertEquals(listOf("A"), ShopifyOrders.eligible(invs, listOf(order("SHOPIFY-1", invoiceId = "B"))).map { it.id })
+    }
+
+    @Test fun conversionParsesAndSays() {
+        val c = ShopifyOrders.Conversion.parse(mapOf(
+            "converted" to listOf(mapOf("invoiceId" to "A", "orderId" to "SHOPIFY-1"), mapOf("invoiceId" to "B", "orderId" to "SHOPIFY-2")),
+            "skipped" to listOf(mapOf("invoiceId" to "C", "reason" to "already an order")),
+        ))
+        assertEquals(listOf("A" to "SHOPIFY-1", "B" to "SHOPIFY-2"), c.converted)
+        assertEquals("2 made orders, 1 skipped: already an order", c.summary)
+        assertEquals("1 made an order", ShopifyOrders.Conversion.parse(mapOf("converted" to listOf(mapOf("invoiceId" to "A", "orderId" to "S")))).summary)
+    }
 }

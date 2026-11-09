@@ -35,6 +35,22 @@ extension Invoice {
     }
 }
 
+extension Invoice {
+    /// An old Shopify sale the owner can turn into an order (FIX 2, 2026-11-09; the server's `shopifyInvoicesToOrders` decides again):
+    /// a Shopify invoice not made from an order, not cancelled, voided or refunded, and not yet fulfilled by Shopify
+    /// (unfulfilled, partial or none).
+    public var isConvertibleShopifyInvoice: Bool {
+        guard isShopifyOrder else { return false }
+        if !(sourceOrderId ?? "").isEmpty { return false }
+        if !(shopifyCancelledAt ?? "").isEmpty || !(refundedAt ?? "").isEmpty { return false }
+        if status == .refunded { return false }
+        if let s = status?.rawValue.lowercased(), ["refunded", "void", "voided", "cancelled", "canceled"].contains(s) { return false }
+        let financial = (shopifyFinancialStatus ?? "").lowercased()
+        if ["voided", "refunded"].contains(financial) { return false }
+        return (shopifyFulfillment ?? "").lowercased() != "fulfilled"
+    }
+}
+
 extension Order {
     /// A Shopify web order in the ERP's orders (id "SHOPIFY-<n>", `source: "shopify"`; owner, 2026-11-09). `source` is read as a
     /// CustomerSource, where "shopify" is the unknown word, kept as written.
