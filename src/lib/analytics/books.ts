@@ -30,7 +30,7 @@ import type {
 } from '@/lib/store';
 import { CUSTOMER_SOURCES, CUSTOMER_SOURCE_LABELS, getInvoiceRevenueDate, type CustomerSource } from '@/lib/store';
 import { ASSUMED_MARGIN, invoiceMargin, orderMargin } from '@/lib/margin';
-import { GOLD_APART, GOLD_MARGIN_PERCENT, invoiceGoldPart, orderGoldPart, profitWithGoldApart } from '@/lib/analytics/gold-apart';
+import { GOLD_APART, GOLD_MARGIN_PERCENT, invoiceGoldPart, orderGoldPart } from '@/lib/analytics/gold-apart';
 import { splitAllCoinSales, summariseCoins, type CoinSummary } from '@/lib/analytics/coins';
 import { cashInForPeriod, invoicedOrderIds } from '@/lib/analytics/cash-in';
 import { invoiceSaleValue } from '@/lib/analytics/sale-value';
@@ -113,10 +113,9 @@ export interface Books {
   goldRevenue: number;
   /** `totalSales` less `goldRevenue`. */
   silverRevenue: number;
-  /** Gold's profit at the house's margin where gold is apart (GOLD_APART), else 0. */
+  /** Gold's estimated profit at the house's margin where gold is apart (GOLD_APART), else 0: shown beside gold's revenue,
+   *  not part of the overall profit (which stays revenue less expenses). */
   goldProfit: number;
-  /** Silver's profit before running costs where gold is apart (revenue less goods), else 0. */
-  silverProfit: number;
   invoiceSales: number;
   orderSales: number;
   extraRevenue: number;
@@ -605,15 +604,15 @@ function computeWith(p: Prepared, range: RangeLike | null | undefined): Books {
   filteredCoinInvoices.forEach(inv => addOwed(inv, true));
   const receivables = [...owed.values()].sort((a, b) => b.balanceDue - a.balanceDue);
 
-  // Gold apart (Mina): silver less the goods, gold at its margin; else the house's one rule.
-  const estProfitAdj = GOLD_APART
-    ? profitWithGoldApart({ revenue: totalSales, goldRevenue, goods: goodsExpenses })
-    : profitBeforeRunning({ estimated: estProfit, revenue: totalSales, goods: goodsExpenses });
+  // Overall profit is the house's one rule (Mina: revenue less the goods, then less the running costs); gold apart only
+  // shows gold's revenue beside silver's with its own estimate (owner, 2026-11-09: "profit over all will still be revenue
+  // less expenses").
+  const estProfitAdj = profitBeforeRunning({ estimated: estProfit, revenue: totalSales, goods: goodsExpenses });
   const goldProfit = GOLD_APART ? goldRevenue * GOLD_MARGIN_PERCENT / 100 : 0;
   const netProfit = netProfitOf(estProfitAdj, runningExpenses);
 
   return {
-    totalSales, goldRevenue, silverRevenue: totalSales - goldRevenue, goldProfit, silverProfit: GOLD_APART ? estProfitAdj - goldProfit : 0,
+    totalSales, goldRevenue, silverRevenue: totalSales - goldRevenue, goldProfit,
     invoiceSales: invoiceSalesAcc, orderSales, extraRevenue, totalUnpaid, totalOrders,
     averageOrderValue: totalOrders > 0 ? orderRevenueTotal / totalOrders : 0,
     totalItemsSold, totalDiscounts,
@@ -932,9 +931,7 @@ export function yearlySummary(input: BooksInput): YearRow[] {
   });
   return Object.entries(yearMap)
     .map(([year, data]) => {
-      const profit = GOLD_APART
-        ? profitWithGoldApart({ revenue: data.revenue, goldRevenue: data.gold, goods: data.goods })
-        : profitBeforeRunning({ estimated: data.profit, revenue: data.revenue, goods: data.goods });
+      const profit = profitBeforeRunning({ estimated: data.profit, revenue: data.revenue, goods: data.goods });
       // That profit less the running costs, never revenue less every expense (net-profit.ts).
       const net = netProfitOf(profit, data.expenses);
       return { year: parseInt(year), revenue: data.revenue, goldRevenue: data.gold, goldProfit: GOLD_APART ? data.gold * GOLD_MARGIN_PERCENT / 100 : 0, expenses: data.expenses, unpaid: data.unpaid, profit, netProfit: net, netMargin: netMarginPercent(net, data.revenue) };

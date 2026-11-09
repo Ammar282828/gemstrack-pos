@@ -898,9 +898,10 @@ balance below zero is the customer's credit (`lib/invoice-credit.ts`).
   revenue is mentioned"). `NEXT_PUBLIC_STORE_GOLD_APART_MARGIN` = "10" (apphosting.mina.yaml; Taheri none), served to the apps as
   `/api/app/business` `goldApartMargin`. Each sale is split by its pieces' metal (`lib/analytics/gold-apart.ts`): an invoice by its
   lines' totals, an order by its pieces' prices, the sale's discount, delivery and exchange falling on each metal in proportion;
-  extra revenue is silver. Profit before running costs = silver revenue less the recorded goods (gross profit, as before) + gold
-  revenue × 10% (gold is bought in; its cost is not among the goods). `computeBooks` carries `goldRevenue`, `silverRevenue`,
-  `goldProfit`, `silverProfit`; every screen and report that names revenue shows the two (the gold one with its estimated margin).
+  extra revenue is silver. Gold's profit is shown as an estimate beside its revenue (gold revenue × 10%); **the overall profit is
+  unchanged: revenue less the expenses** (owner, the same day: "profit over all will still be revenue less expenses"; Mina: revenue
+  less goods = gross, less running costs = net). `computeBooks` carries `goldRevenue`, `silverRevenue`, `goldProfit`; every screen
+  and report that names revenue shows the two (the gold one with its estimated margin). Partners' halves are unchanged.
 
 ### Net profit
 

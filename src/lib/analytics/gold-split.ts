@@ -19,12 +19,8 @@ export interface RevenueSplit {
   total: number;
   silver: number;
   gold: number;
-  /** Gold's profit at its margin; silver's is revenue less goods. */
+  /** Gold's estimated profit at its margin (a reference beside its revenue; the overall profit is revenue less expenses). */
   goldProfit: number;
-  silverProfit: number;
-  /** Goods bought against silver (silver revenue less its profit) and gold's estimated cost (gold less its profit). */
-  goods: number;
-  goldCost: number;
   silverLabel: string;
   goldLabel: string;
   /** "Profit est. at 10%: PKR 4,000" */
@@ -33,7 +29,7 @@ export interface RevenueSplit {
   line: string;
 }
 
-type BooksLike = { totalSales: number; goldRevenue?: number; silverRevenue?: number; goldProfit?: number; silverProfit?: number };
+type BooksLike = { totalSales: number; goldRevenue?: number; silverRevenue?: number; goldProfit?: number };
 
 /** The split of a books-shaped figure set; null where gold is not apart. */
 export function revenueSplit(b: BooksLike, fmt: Money, on: boolean = GOLD_APART, percent: number = GOLD_MARGIN_PERCENT): RevenueSplit | null {
@@ -42,8 +38,7 @@ export function revenueSplit(b: BooksLike, fmt: Money, on: boolean = GOLD_APART,
   const silver = b.silverRevenue ?? (b.totalSales - gold);
   const goldProfit = b.goldProfit ?? gold * percent / 100;
   return {
-    total: b.totalSales, silver, gold, goldProfit, silverProfit: b.silverProfit ?? 0,
-    goods: Math.max(0, silver - (b.silverProfit ?? 0)), goldCost: Math.max(0, gold - goldProfit),
+    total: b.totalSales, silver, gold, goldProfit,
     silverLabel: SILVER_REVENUE_LABEL, goldLabel: goldRevenueLabel(percent),
     goldCaption: `Profit est. at ${percent}%: ${fmt(goldProfit)}`,
     line: `Silver ${fmt(silver)} · Gold ${fmt(gold)} (est. ${percent}% margin)`,

@@ -14,14 +14,10 @@ describe('revenue split by metal (House of Mina)', () => {
   });
 
   it('gives silver, gold, and the caption of gold\'s estimated profit', () => {
-    const s = revenueSplit({ totalSales: 100_000, goldRevenue: 40_000, silverRevenue: 60_000, goldProfit: 4_000, silverProfit: 25_000 }, fmt, true, 10)!;
+    const s = revenueSplit({ totalSales: 100_000, goldRevenue: 40_000, silverRevenue: 60_000, goldProfit: 4_000 }, fmt, true, 10)!;
     expect(s.silver).toBe(60_000);
     expect(s.gold).toBe(40_000);
     expect(s.goldCaption).toBe('Profit est. at 10%: PKR 4000');
-    expect(s.goods).toBe(35_000);
-    expect(s.goldCost).toBe(36_000);
-    // The waterfall ties: revenue − goods − gold cost = silver profit + gold profit.
-    expect(s.total - s.goods - s.goldCost).toBe(s.silverProfit + s.goldProfit);
     expect(s.line).toBe('Silver PKR 60000 · Gold PKR 40000 (est. 10% margin)');
   });
 

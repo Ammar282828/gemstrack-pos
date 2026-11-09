@@ -5,8 +5,9 @@
  * The house's metal is silver; it also sells gold pieces, bought in, whose cost is not among its recorded goods. So:
  * - each sale's value is split by its pieces' metal: an invoice by its lines' totals, an order by its pieces' prices, and
  *   the sale's own adjustments (discount, delivery, exchange) fall on each metal in proportion; extra revenue is silver;
- * - silver's profit is what it was before (revenue less the recorded goods: gross profit, lib/analytics/net-profit.ts);
- * - gold's is its revenue at the house's margin (STORE_GOLD_APART_MARGIN, 10%).
+ * - gold's profit is shown as an estimate beside its revenue, at the house's margin (STORE_GOLD_APART_MARGIN, 10%);
+ * - the overall profit is unchanged: revenue less the expenses (owner, 2026-11-09: "profit over all will still be revenue
+ *   less expenses"; lib/analytics/net-profit.ts).
  * Pure; on or off by `STORE_GOLD_APART_MARGIN` (null: one revenue, as Taheri keeps).
  */
 import { STORE_GOLD_APART_MARGIN } from '@/lib/store-config';
@@ -38,10 +39,4 @@ export function invoiceGoldPart(inv: { items?: unknown }, saleValue: number): nu
 export function orderGoldPart(order: { items?: { metalType?: string; isManualPrice?: boolean; manualPrice?: number; totalEstimate?: number }[] | null }, amount: number): number {
   const pieces = Array.isArray(order.items) ? order.items : [];
   return amount * goldShare(pieces.map(i => ({ metalType: i?.metalType, value: Number(i?.isManualPrice ? i.manualPrice ?? i.totalEstimate : i?.totalEstimate) || 0 })));
-}
-
-/** Profit before running costs with gold apart: silver less the goods, and gold at its margin. */
-export function profitWithGoldApart(p: { revenue: number; goldRevenue: number; goods: number }, marginPercent = GOLD_MARGIN_PERCENT): number {
-  const gold = p.goldRevenue || 0;
-  return ((p.revenue || 0) - gold - (p.goods || 0)) + gold * marginPercent / 100;
 }

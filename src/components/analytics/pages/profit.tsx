@@ -28,16 +28,11 @@ function ProfitSections() {
   const years = useMemo(() => yearlySummary(input), [input]);
 
   const { totalSales: revenue, costOfPieces, estProfitAdj: profit, runningExpenses: running, netProfit: net, netMargin } = books;
-  // Gold apart (Mina): silver's profit is its revenue less the goods; gold's is its revenue at the estimated margin.
+  // Gold apart (Mina): gold's revenue beside silver's, with its estimate; the profit itself is revenue less expenses.
   const split = revenueSplit(books, pkrLac);
   const steps = [
     { label: 'Revenue', kind: 'total' as const, value: revenue },
-    ...(split
-      ? [
-        { label: 'Goods bought', kind: 'change' as const, value: -split.goods },
-        { label: 'Gold cost (est.)', kind: 'change' as const, value: -split.goldCost },
-      ]
-      : [{ label: RECORDS_GOODS ? 'Goods bought' : 'Cost of pieces (est.)', kind: 'change' as const, value: -costOfPieces }]),
+    { label: RECORDS_GOODS ? 'Goods bought' : 'Cost of pieces (est.)', kind: 'change' as const, value: -costOfPieces },
     { label: PROFIT_WORD, kind: 'total' as const, value: profit },
     { label: 'Running costs', kind: 'change' as const, value: -running },
     { label: 'Net profit', kind: 'total' as const, value: net },
@@ -65,10 +60,9 @@ function ProfitSections() {
       </ChartCard>
 
       {split && (
-        <Figures columns={3} items={[
-          { label: split.silverLabel, value: split.silver, detail: `Silver profit (revenue less goods): ${pkrLac(split.silverProfit)}` },
+        <Figures columns={2} items={[
+          { label: split.silverLabel, value: split.silver },
           { label: split.goldLabel, value: split.gold, detail: split.goldCaption },
-          { label: 'Gross profit', value: profit, detail: 'Silver profit + gold at its estimate' },
         ]} />
       )}
 
@@ -92,8 +86,8 @@ function ProfitSections() {
       <Explain title="How profit is estimated">
         {split ? (
           <p>
-            Silver&apos;s profit is its revenue less the goods bought in the period. Gold is bought in and has no recorded goods, so its
-            profit is estimated at {GOLD_MARGIN_PERCENT}% of its revenue. Gross profit is the two together.
+            Profit is revenue (silver and gold together) less the goods bought in the period, and net profit that less the running
+            costs. Gold&apos;s revenue is shown apart, with its profit estimated at {GOLD_MARGIN_PERCENT}% beside it for reference.
           </p>
         ) : RECORDS_GOODS ? (
           <p>

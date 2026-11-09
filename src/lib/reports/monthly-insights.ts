@@ -31,7 +31,7 @@ import { ASSUMED_MARGIN, invoiceMargin, orderMargin } from '@/lib/margin';
 import { bookedAsSale } from '@/lib/order-stage';
 import { isBusinessCost } from '@/lib/partnership';
 import type { AdditionalRevenue, Expense, Invoice, Order } from '@/lib/store';
-import { GOLD_APART, GOLD_MARGIN_PERCENT, invoiceGoldPart, orderGoldPart, profitWithGoldApart } from '@/lib/analytics/gold-apart';
+import { GOLD_APART, GOLD_MARGIN_PERCENT, invoiceGoldPart, orderGoldPart } from '@/lib/analytics/gold-apart';
 import { saleCustomerKey } from '@/lib/walk-in';
 import { addMonths, instant, karachiDay, karachiMonth, monthBounds, monthKey, revenueDate, type MonthRef } from './monthly-time';
 
@@ -169,10 +169,7 @@ export function buildInsights(input: InsightsInput, month: MonthRef, now = new D
       t.revenue += e.revenue; t.gold += e.gold; t.profit += e.profit; t.coin += e.coin; t.expense += e.expense; t.running += e.running; t.goods += e.goods; t.sale += e.sale;
     }
     // Where goods are recorded, profit is revenue less them, not the assumed margin (net-profit.ts profitBeforeRunning).
-    // Gold apart (Mina): silver less the goods, gold at its margin (gold-apart.ts), as Analytics.
-    const profit = GOLD_APART
-      ? profitWithGoldApart({ revenue: t.revenue, goldRevenue: t.gold, goods: t.goods })
-      : profitBeforeRunning({ estimated: t.profit, revenue: t.revenue, goods: t.goods });
+    const profit = profitBeforeRunning({ estimated: t.profit, revenue: t.revenue, goods: t.goods });
     return { ...t, profit, net: netProfit(profit, t.running) };
   };
 

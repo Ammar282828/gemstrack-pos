@@ -164,7 +164,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Lac and crore](docs/decisions.md#lac-and-crore) — `lib/money.ts`
 - [Invoice credit](docs/decisions.md#invoice-credit) — overpaid is a named customer's credit, on their hisaab; the owner gives it back with "Give back" (`payBackCredit`, not a refund)
 - [Margin](docs/decisions.md#margin) — typed 24k less 6 ratti, else 10%; never the customer's
-- [Gold apart](docs/decisions.md#gold-apart) — Mina: gold revenue apart from silver everywhere revenue shows, gold profit est. at 10% (`NEXT_PUBLIC_STORE_GOLD_APART_MARGIN`, `lib/analytics/gold-apart.ts`); silver keeps revenue less goods
+- [Gold apart](docs/decisions.md#gold-apart) — Mina: gold revenue apart from silver everywhere revenue shows, gold profit est. at 10% shown beside it (`NEXT_PUBLIC_STORE_GOLD_APART_MARGIN`, `lib/analytics/gold-apart.ts`); overall profit stays revenue less expenses
 - [Net profit](docs/decisions.md#net-profit) — profit less running costs (not drawings), never revenue less expenses; profit is the per-sale estimate, or revenue less recorded goods where a house records them (Mina: Gross profit); margin = net ÷ revenue
 - [Exchange as cash](docs/decisions.md#exchange-as-cash) — in Cash In and in revenue (`invoiceSaleValue`)
 - [Analytics default: this month](docs/decisions.md#analytics-default-this-month) — the 1st to today, not a rolling 30 days; Home's ledger too
