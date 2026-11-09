@@ -104,3 +104,18 @@ export async function tcsPaymentDetails(cn: string) {
   if (!ok(r)) throw new TcsError(tcsRefusal(r.json, r.status));
   return parsePaymentDetails(r.json);
 }
+
+/** The raw /payment-details reply for a parcel (every field TCS sent, for lib/shipment-costs.ts); null when TCS has none. */
+export async function tcsPaymentDetailsRaw(cn: string): Promise<unknown | null> {
+  const c = await codAccount();
+  const r = await call(c, 'GET', '/payment-details', { query: { consignmentNumber: cn } });
+  if (r.status === 401 || r.status === 403 || r.status === 429 || r.status >= 500) throw new TcsError(tcsRefusal(r.json, r.status));
+  return ok(r) ? r.json : null;
+}
+
+/** The raw /payment-invoice reply for a payment invoice number; null when TCS has none. */
+export async function tcsPaymentInvoice(invoiceNumber: string): Promise<unknown | null> {
+  const c = await codAccount();
+  const r = await call(c, 'GET', '/payment-invoice', { query: { invoiceNumber } });
+  return ok(r) ? r.json : null;
+}

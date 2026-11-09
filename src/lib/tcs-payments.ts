@@ -13,6 +13,8 @@
  * TCS), kept sealed in app_private/tcs; never in the repository.
  */
 
+import { costDescription, costOf, type Costs } from '@/lib/shipment-costs';
+
 /**
  * The shop's TCS account, one sealed set (Settings → Integrations → TCS). Two of TCS's APIs read it:
  * - the Cash on Delivery API (api.tcscourier.com, lib/tcs-cod.ts): booking, cancelling, tracking. Needs the client ID
@@ -72,6 +74,9 @@ export function checkTcsCredentials(c: Partial<TcsCredentials>): string | null {
   return null;
 }
 
+/** What a parcel cost, by part (lib/shipment-costs.ts). */
+export type ParcelCosts = Pick<Costs, 'delivery' | 'tax' | 'fuel' | 'codFee' | 'insurance' | 'withholding' | 'other' | 'total'>;
+
 export interface TcsParcel {
   cn: string;
   bookedOn: string;      // yyyy-MM-dd
@@ -83,6 +88,8 @@ export interface TcsParcel {
   deliveredOn: string | null;
   paidOn: string | null;
   city: string;
+  /** Every cost on the row, not only the delivery charge. Parcels kept before 2026-11-09 have none: the delivery charge is all. */
+  costs?: ParcelCosts;
 }
 
 /** "09/09/2024" → "2024-09-09" (TCS writes day/month/year); null for none. */
@@ -94,6 +101,7 @@ export function tcsDay(s: unknown): string | null {
 export function parcelOf(row: Record<string, unknown>): TcsParcel | null {
   const cn = String(row['cn by courier'] ?? '').trim();
   if (!/^\d{6,20}$/.test(cn)) return null;
+  const { lines: _lines, codCollected: _c, amountPaid: _a, ...costs } = costOf(row);
   return {
     cn,
     bookedOn: tcsDay(row['booking date']) || '',
@@ -105,19 +113,25 @@ export function parcelOf(row: Record<string, unknown>): TcsParcel | null {
     deliveredOn: tcsDay(row['delivery date']),
     paidOn: tcsDay(row['payment date']),
     city: String(row['city'] ?? '').trim(),
+    costs,
   };
 }
 
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+/** A parcel's costs: the full set when read, else its delivery charge. */
+const costsOf = (p: TcsParcel): ParcelCosts => p.costs ?? { delivery: p.deliveryCharges, tax: 0, fuel: 0, codFee: 0, insurance: 0, withholding: 0, other: 0, total: p.deliveryCharges };
 
-/** Each booking month's courier charges as one expense, id `tcs-charges-<yyyy-mm>`, replaced as the month fills. */
+/**
+ * Each booking month's courier costs as one expense, id `tcs-charges-<yyyy-mm>`, replaced as the month fills: delivery, tax, fuel,
+ * COD fee, insurance and the rest (withholding is tax on the payout, not a cost, and stays out).
+ */
 export function chargeExpenses(parcels: TcsParcel[], now: Date): { id: string; date: string; category: string; description: string; amount: number; paidBy: 'business' }[] {
-  const by = new Map<string, { n: number; charges: number }>();
+  const by = new Map<string, { n: number; delivery: number; tax: number; fuel: number; codFee: number; insurance: number; other: number; total: number }>();
   for (const p of parcels) {
-    if (!p.bookedOn || !(p.deliveryCharges > 0)) continue;
+    const c = costsOf(p);
+    if (!p.bookedOn || !(c.total > 0)) continue;
     const m = p.bookedOn.slice(0, 7);
-    const t = by.get(m) ?? { n: 0, charges: 0 };
-    t.n += 1; t.charges += p.deliveryCharges;
+    const t = by.get(m) ?? { n: 0, delivery: 0, tax: 0, fuel: 0, codFee: 0, insurance: 0, other: 0, total: 0 };
+    t.n += 1; t.delivery += c.delivery; t.tax += c.tax; t.fuel += c.fuel; t.codFee += c.codFee; t.insurance += c.insurance; t.other += c.other; t.total += c.total;
     by.set(m, t);
   }
   return [...by.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([month, t]) => {
@@ -127,8 +141,8 @@ export function chargeExpenses(parcels: TcsParcel[], now: Date): { id: string; d
       id: `tcs-charges-${month}`,
       date: (last.getTime() > now.getTime() ? now : last).toISOString(),
       category: 'Courier & Delivery',
-      description: `TCS, ${MONTHS[mo - 1]} ${y}: ${t.n} parcel${t.n === 1 ? '' : 's'} sent`,
-      amount: Math.round(t.charges),
+      description: costDescription(month, t.n, t),
+      amount: Math.round(t.total),
       paidBy: 'business' as const,
     };
   }).filter(e => e.amount >= 1);

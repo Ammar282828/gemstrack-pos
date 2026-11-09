@@ -10,7 +10,7 @@ import { useAuth } from '@/components/auth/google-auth-gate';
 import { isOwner } from '@/lib/roles';
 import { authedFetch } from '@/lib/voice/authed-fetch';
 
-type Status = { connected: boolean; booking?: boolean; payments?: boolean; originCity?: string; parcels?: number; paidOut?: number; lastPaidOn?: string | null; unpaidDelivered?: number };
+type Status = { connected: boolean; booking?: boolean; payments?: boolean; originCity?: string; parcels?: number; paidOut?: number; lastPaidOn?: string | null; unpaidDelivered?: number; costs?: { year: number; parcels: number; total: number; tax: number; delivery: number } };
 /** The Cash on Delivery API's set first (booking, slips, tracking); the city and OCI's secret are optional. */
 const FIELDS = [
   { key: 'clientId', label: 'Client ID (from the TCS developer portal)', secret: true, optional: false },
@@ -87,6 +87,11 @@ export function TcsSettings() {
         <p className="py-3 text-ios-sub text-muted-foreground">
           {s.parcels} parcels in the last 4 months · paid out PKR {(s.paidOut || 0).toLocaleString('en-PK')}{s.lastPaidOn ? ` (last on ${s.lastPaidOn})` : ''}
           {s.unpaidDelivered ? ` · ${s.unpaidDelivered} delivered not yet paid for` : ''}
+        </p>
+      )}
+      {s?.connected && s.costs && s.costs.parcels > 0 && (
+        <p className="pb-3 text-ios-sub text-muted-foreground">
+          {s.costs.year}: {s.costs.parcels} parcels costed · courier cost PKR {s.costs.total.toLocaleString('en-PK')} (tax PKR {s.costs.tax.toLocaleString('en-PK')})
         </p>
       )}
       <form onSubmit={e => { e.preventDefault(); void send(false); }} className="space-y-3 py-3">

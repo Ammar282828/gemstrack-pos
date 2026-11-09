@@ -598,6 +598,8 @@ export interface Invoice {
   shopifyDelivery?: string;
   shopifyTracking?: { company: string; number: string };
   shopifyDeliveryAt?: string;
+  /** What TCS charged to carry its parcel, as on an order. */
+  shippingCost?: import('@/lib/shipment-costs').ShippingCost;
   /** A TCS booking made from the ERP for this sale (op bookTcs), as on an order. */
   tcsConsignmentNo?: string;
   tcsBooking?: import('@/lib/tcs-booking').TcsBooking;
@@ -767,6 +769,8 @@ export interface Order {
   invoiceId?: string; // Set when order is finalized into an invoice
   /** The last time its customer PDF (lib/order-pdf.ts) went to the customer from the shop's line (/api/app/whatsapp/send-doc). */
   sentOnWhatsApp?: { at: string; to: string; by: string };
+  /** What TCS charged to carry its parcel (lib/shipment-costs-server.ts): delivery, tax, fuel, fees, what TCS paid out. Owners only see it; never part of the sale's money. */
+  shippingCost?: import('@/lib/shipment-costs').ShippingCost;
   tcsConsignmentNo?: string; // TCS consignment number: booked from the ERP (tcsBooking), or Universal Courier's through Shopify
   /** A TCS booking made from the ERP (op bookTcs, lib/tcs-booking.ts): what its shipping slip prints. */
   tcsBooking?: import('@/lib/tcs-booking').TcsBooking;
@@ -801,7 +805,7 @@ const INVOICE_PROVENANCE = [
   // Which of Shopify's payments are already on it: lose these and its next notice adds them again.
   'shopifyTransactionIds', 'shopifyCancelledAt', 'shopifySyncedAt', 'shopifyDelivery', 'shopifyTracking', 'shopifyDeliveryAt',
   // Its TCS booking from the ERP (op bookTcs): the slip and the tracking survive an edit.
-  'tcsConsignmentNo', 'tcsBooking',
+  'tcsConsignmentNo', 'tcsBooking', 'shippingCost',
   // A link already sent to the customer keeps working after the invoice is edited.
   'shareToken',
 ] as const;

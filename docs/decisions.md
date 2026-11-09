@@ -941,6 +941,14 @@ balance below zero is the customer's credit (`lib/invoice-credit.ts`).
   `/api/public/track?order=&phone=<last 4>` read TCS when the account can book, else Shopify's fulfilment events (the "tags"),
   cached 10 minutes; the public answer gives a first name only, the same 404 for a wrong order or wrong digits, 30 tries per
   caller per 10 minutes and per order per hour. The page is houseofmina.store/pages/track (Shopify page `track`).
+- **Every parcel's full cost and tax** (owner, 2026-11-09: "import the tax data / delivery costs / all costs… from every
+  shipment and for future shipments"). `lib/shipment-costs.ts` reads every money field of a TCS reply (delivery, GST/sales tax,
+  fuel, COD fee, insurance, withholding, the rest) into `shipment_costs/<cn>`, with the raw fields kept in `lines`; the order (and
+  its invoice) gets `shippingCost`, shown to owners as "Courier cost" on the order page. The monthly `tcs-charges-<yyyy-mm>`
+  expense is the full cost with its breakdown; withholding is tax taken from the payout, listed, never added. Backfill to
+  2024-01-01 through OCI's payment report, plus the COD API per order number (dated by the order) when only that is subscribed;
+  then daily. TCS's field names are unknown until it answers: `tcs_meta/cost-shape` keeps the first replies' keys to correct
+  the mapping. A refused login waits six hours.
 
 ### Net profit
 

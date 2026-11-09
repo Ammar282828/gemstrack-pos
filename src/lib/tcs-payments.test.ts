@@ -23,7 +23,7 @@ describe('TCS payments', () => {
     ];
     const e = chargeExpenses(parcels, new Date('2024-10-05T00:00:00Z'));
     expect(e).toEqual([
-      expect.objectContaining({ id: 'tcs-charges-2024-09', amount: 292, category: 'Courier & Delivery', description: 'TCS, September 2024: 2 parcels sent', date: '2024-09-30T12:00:00.000Z' }),
+      expect.objectContaining({ id: 'tcs-charges-2024-09', amount: 292, category: 'Courier & Delivery', description: 'TCS, September 2024: 2 parcels — delivery 292', date: '2024-09-30T12:00:00.000Z' }),
       expect.objectContaining({ id: 'tcs-charges-2024-10', amount: 116, date: '2024-10-05T00:00:00.000Z' }),
     ]);
     expect(payoutSummary(parcels)).toEqual({ paidOut: 6350, lastPaidOn: '2024-09-20', unpaidDelivered: 1 });

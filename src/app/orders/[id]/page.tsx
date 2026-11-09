@@ -86,6 +86,7 @@ import { deliveryLabel, isShippedOut } from '@/lib/shopify-delivery';
 import { BookTcsDialog, TrackingCard } from '@/components/order/tcs-shipping';
 import { useAuth } from '@/components/auth/google-auth-gate';
 import { isOwner } from '@/lib/roles';
+import { costBreakdown, type ShippingCost } from '@/lib/shipment-costs';
 import { adjustmentsLabel } from '@/lib/financials';
 
 
@@ -106,6 +107,24 @@ type PhoneForm = {
 type NotificationType = 'inProgress' | 'completed' | 'summary';
 
 // ─── Courier ─────────────────────────────────────────────────────────────────
+
+/** What TCS charged to carry the parcel (lib/shipment-costs-server.ts): owners only, never staff. */
+const CourierCost: React.FC<{ cost?: ShippingCost }> = ({ cost }) => {
+  const { user } = useAuth();
+  if (!isOwner(user?.email) || !cost || !(cost.total > 0)) return null;
+  const pkr = (n: number) => `PKR ${Math.round(n).toLocaleString('en-PK')}`;
+  return (
+    <div className="mb-4 flex items-start justify-between gap-3 rounded-tile bg-muted/50 p-4 text-ios-sub" data-testid="courier-cost">
+      <div>
+        <div className="font-medium">Courier cost</div>
+        <div className="text-muted-foreground">{costBreakdown(cost)}</div>
+        {cost.withholding > 0 && <div className="text-muted-foreground">Withholding tax {pkr(cost.withholding)} (taken from the payout)</div>}
+        {cost.netReceived !== undefined && <div className="text-muted-foreground">Received from TCS {pkr(cost.netReceived)}</div>}
+      </div>
+      <div className="font-semibold">{pkr(cost.total)}</div>
+    </div>
+  );
+};
 
 /**
  * Booking a courier the way the shop already does it.
@@ -1097,6 +1116,9 @@ export default function OrderDetailPage() {
                       refreshKey={trackRefresh}
                     />
                   </div>
+
+                  {/* What TCS charged to carry it (lib/shipment-costs-server.ts): owners only. */}
+                  <CourierCost cost={order.shippingCost} />
 
                   <div className="flex flex-col md:flex-row justify-end items-start gap-4">
                      {/* Shown only while the order is being made: once invoiced, money is taken on the invoice. */}
