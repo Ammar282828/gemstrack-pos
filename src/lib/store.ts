@@ -765,6 +765,13 @@ export interface Order {
   notes?: string;
   shopifyOrderId?: string; // Carried forward from invoice during edit/revert so the next finalize re-links the same Shopify order
   shopifyOrderNumber?: number;
+  /** A Shopify web order made an ERP order (lib/writes/shopify-order.ts, House of Mina): Shopify's own words, kept current by its notices. */
+  shopifyOrderName?: string;
+  shopifyFinancialStatus?: string;
+  shopifyFulfillment?: string;
+  shopifyCancelledAt?: string;
+  shopifyTransactionIds?: string[];
+  whatsappOrder?: { state: string; at: string };
   shopifyDraftOrderId?: string; // Set while the order is in-progress (pre-invoice) and mirrored to Shopify as a draft order
   shopifyDraftOrderName?: string; // Shopify-assigned draft name (e.g. #D1)
 }

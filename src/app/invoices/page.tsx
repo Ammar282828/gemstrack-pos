@@ -60,6 +60,8 @@ import { owesMoney, isCredit } from '@/lib/money';
 import { useShallow } from 'zustand/react/shallow';
 import { usePrefetchIntent } from '@/hooks/use-prefetch-intent';
 import { formatDate } from '@/lib/safe-date';
+import { STORE_SHOPIFY_SECTION } from '@/lib/store-config';
+import { isShopifyInvoice } from '@/lib/shopify-orders';
 
 type DocumentType = (Order | Invoice) & { docType: 'order' | 'invoice' };
 
@@ -95,7 +97,7 @@ const getDocStatus = (doc: DocumentType): Order['status'] | 'Paid' | 'Unpaid' =>
 };
 
 const isShopifyDoc = (doc: DocumentType): boolean =>
-  doc.docType === 'invoice' && !!((doc as Invoice).source?.startsWith('shopify'));
+  doc.docType === 'invoice' && isShopifyInvoice(doc as Invoice);
 
 type RowProps = { doc: DocumentType; onQuickPrint: () => Promise<{ output: (type: 'blob') => Blob }>; onPrint: () => void; onPrintPerPiece?: () => void; onMarkPaid?: () => void; onStatusChange?: (status: OrderStatus) => void; onSendPaymentLink?: () => void; isSendingLink?: boolean; mine?: boolean };
 
@@ -450,7 +452,10 @@ export default function DocumentsPage() {
   const combinedDocuments: DocumentType[] = useMemo(() => {
     if (!appReady) return [];
     const orderDocs: DocumentType[] = (orders || []).map(o => ({ ...o, docType: 'order' }));
-    const invoiceDocs: DocumentType[] = (generatedInvoices || []).map(i => ({ ...i, docType: 'invoice' }));
+    // A house with the Shopify section (House of Mina) lists them there, not here (owner, 2026-11-09).
+    const invoiceDocs: DocumentType[] = (generatedInvoices || [])
+      .filter(i => !(STORE_SHOPIFY_SECTION && isShopifyInvoice(i)))
+      .map(i => ({ ...i, docType: 'invoice' }));
     return newestFirst([...orderDocs, ...invoiceDocs], d => d.createdAt);
   }, [appReady, orders, generatedInvoices]);
 
@@ -666,12 +671,12 @@ export default function DocumentsPage() {
       subtitle="Every invoice and order, and what is still owed on it."
       // A Shopify CSV is imported at a desk, never from a phone: the full-width button was the first
       // thing under the title there.
-      action={
+      action={STORE_SHOPIFY_SECTION ? undefined : (
         <Button variant="outline" size="sm" className="hidden flex-shrink-0 sm:inline-flex"
           onClick={() => { setImportOpen(true); setImportFile(null); setImportPreview(null); setImportProgress([]); setImportDone(false); }}>
           <Upload className="w-4 h-4 mr-1.5 sm:mr-2" /><span className="hidden sm:inline">Import Shopify CSV</span><span className="sm:hidden">Import</span>
         </Button>
-      }
+      )}
     >
 
 
@@ -688,8 +693,8 @@ export default function DocumentsPage() {
                   { value: 'all', label: 'All', n: byTab.all.length },
                   { value: 'invoices', label: 'Invoices', n: byTab.invoices.length },
                   { value: 'orders', label: 'Orders', n: byTab.orders.length },
-                  { value: 'shopify', label: 'Shopify', n: byTab.shopify.length },
-                ] as const).map(tab => (
+                  ...(STORE_SHOPIFY_SECTION ? [] : [{ value: 'shopify', label: 'Shopify', n: byTab.shopify.length }]),
+                ] as { value: 'all' | 'invoices' | 'orders' | 'shopify'; label: string; n: number }[]).map(tab => (
                   <FilterChip key={tab.value} title={tab.label} count={tab.n} chosen={activeTab === tab.value} onClick={() => setActiveTab(tab.value)} />
                 ))}
                 <FilterChip

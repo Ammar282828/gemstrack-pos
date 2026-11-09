@@ -451,3 +451,7 @@ export const storeAppAndroid = () => {
 /** The house's public store is Shopify and its Shopify analytics (ShopifyQL, read_reports) show in Website → Visitors and Live
  *  beside the catalogue's own counters (owner, 2026-11-03). Off by default (Taheri has no Shopify); House of Mina sets "1". */
 export const STORE_SHOPIFY_ANALYTICS = process.env.NEXT_PUBLIC_STORE_SHOPIFY_ANALYTICS === '1';
+
+/** House of Mina's Shopify orders have a section of their own (nav 'shopify', /shopify) and leave Invoices (owner, 2026-11-09).
+ *  Off by default (Taheri has no Shopify orders); House of Mina sets "1". */
+export const STORE_SHOPIFY_SECTION = process.env.NEXT_PUBLIC_STORE_SHOPIFY_SECTION === '1';

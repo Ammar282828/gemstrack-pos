@@ -25,6 +25,8 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   2026-11-02; decisions.md#invoice-pdf). With no line, the wa.me message with its link is the fallback.
   The margin (`NEXT_PUBLIC_STORE_COST_RATTI_LESS`, default 6: gold costs the 24k rate less 6 ratti; decisions.md#margin) is
   Taheri's; Mina sets "none" — no 24k ask, no margin shown, Analytics keeps its `NEXT_PUBLIC_STORE_EST_MARGIN`.
+  **The Shopify section** (`NEXT_PUBLIC_STORE_SHOPIFY_SECTION`, Mina "1", absent at Taheri; decisions.md#shopify-section): Shopify web
+  orders become ERP orders `SHOPIFY-<n>` and get their own nav row `/shopify` (and the phones' fourth tab), and leave Orders and Invoices.
   The order form's *save this size to the profile?* (`NEXT_PUBLIC_STORE_SIZE_TO_PROFILE`) is Taheri's; Mina sets "0".
   The Workshop list's starting filter (`NEXT_PUBLIC_STORE_WORKSHOP_START`, "you" | "anyone", default "you") is the signed-in person
   at Taheri; Mina sets "anyone" (owner, 2026-10-15). `/api/app/me` carries it as `shop.workshopStart` for the iPhone app.

@@ -276,11 +276,20 @@ struct InvoicesList: View {
 
     private var canPay: Bool { InvoiceFacts.mayTakePayments(role: session.role) }
 
+    /// A house with the Shopify section (nav entry "shopify") lists its web orders there: not here, not in these chips,
+    /// and the CSV import is that screen's. Taheri has no such entry, so nothing changes for it.
+    private var hasShopifySection: Bool { NavMap.hasShopifySection }
+
+    private var shownInvoices: [Invoice] {
+        let items = book.invoices.items
+        return hasShopifySection ? items.filter { !$0.isShopifyOrder } : items
+    }
+
     var body: some View {
         #if os(macOS)
         macBody
         #else
-        let all = book.invoices.items
+        let all = shownInvoices
         ShelfState(loaded: book.invoices.loaded, error: book.invoices.error, offline: book.invoices.offline, shape: .list) {
             content(all)
         }
@@ -394,7 +403,7 @@ struct InvoicesList: View {
     /// The chips in the row: All, Unpaid, Paid, and Shopify while there are Shopify invoices (or it is chosen).
     private func rowChips(_ scoped: [Invoice]) -> [InvoiceChip] {
         var chips: [InvoiceChip] = [.all, .unpaid, .paid]
-        if chip == .shopify || scoped.contains(where: { InvoiceChip.shopify.matches($0) }) { chips.append(.shopify) }
+        if !hasShopifySection, chip == .shopify || scoped.contains(where: { InvoiceChip.shopify.matches($0) }) { chips.append(.shopify) }
         return chips
     }
 
@@ -570,8 +579,10 @@ struct InvoicesList: View {
     private func visibleChips(_ scoped: [Invoice]) -> [InvoiceChip] {
         InvoiceChip.allCases.filter { c in
             switch c {
-            case .credit, .shopify:
+            case .credit:
                 return c == chip || scoped.contains { c.matches($0) }
+            case .shopify:
+                return !hasShopifySection && (c == chip || scoped.contains { c.matches($0) })
             case .all, .unpaid, .paid:
                 return true
             }
@@ -617,7 +628,7 @@ struct InvoicesList: View {
                 }
             }
             // The page's Import Shopify CSV: an owner's, as its own Firestore write is.
-            if session.isOwner {
+            if session.isOwner && !hasShopifySection {
                 Divider()
                 Button { importingCSV = true } label: { Label("Import Shopify CSV", systemImage: "square.and.arrow.down") }
             }
@@ -728,7 +739,7 @@ struct InvoicesList: View {
 /// One invoice, as every record list's row (RecordRow): who it was for; its number, its time (or day) and what was
 /// sold; what it came to with where its balance stands under it, and a capsule only for what needs a word (Refunded,
 /// the WhatsApp order's step). Paid says nothing (CONVENTIONS rule 15).
-private struct InvoiceListRow: View {
+struct InvoiceListRow: View {
     let invoice: Invoice
     /// Taken by whoever is signed in.
     let mine: Bool

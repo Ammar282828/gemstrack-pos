@@ -466,6 +466,15 @@ env:
     availability:
       - BUILD
       - RUNTIME
+
+  # Shopify orders have a section of their own (nav "Shopify", /shopify; the iPhone and Android tab bars swap it for Customers)
+  # and leave Invoices (owner, 2026-11-09). Taheri has none.
+  - variable: NEXT_PUBLIC_STORE_SHOPIFY_SECTION
+    value: "1"
+    availability:
+      - BUILD
+      - RUNTIME
+
   # Taheri's invoice naming of 2026-10-05, not Mina's (the owner: "these are instructions for taheri pos"):
   # Mina's invoices keep their number as their file name. Send via WhatsApp sends the PDF from Mina's own
   # line (WAHA session "mina", above) since 2026-11-02, as Taheri's does; NEXT_PUBLIC_STORE_INVOICE_WHATSAPP_PDF is gone.

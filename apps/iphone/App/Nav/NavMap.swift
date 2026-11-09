@@ -80,6 +80,10 @@ struct NavMap: Decodable {
     /// The business changed: the next read loads the right file (or keeps the same one, when the art is the same).
     static func invalidate() { lock.lock(); cache = nil; lock.unlock() }
 
+    /// Whether the house has the Shopify section (nav.ts entry "shopify": Mina's, from NEXT_PUBLIC_STORE_SHOPIFY_SECTION). The apps
+    /// read the map, not a new API field. With it, Invoices leaves Shopify orders out and Shopify replaces Customers in the phone's bar.
+    static var hasShopifySection: Bool { current.entries.contains { $0.id == "shopify" } }
+
     /// The map as a person sees it (src/lib/nav.ts forRole): owners everything; staff only the places
     /// marked for them; a marketing account the Marketing group whole and nothing else; "staffMarketing" (`Session.navRole`: a
     /// staff member also on the marketing list) the staff's places and the marketing ones, without configuring.

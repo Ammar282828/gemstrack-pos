@@ -61,6 +61,11 @@ enum MacLists {
 
     // MARK: The rules
 
+    /// The orders the Orders place lists: a house with the Shopify section (nav entry "shopify") keeps its web orders there.
+    static func ordersHere(_ all: [Order]) -> [Order] {
+        NavMap.hasShopifySection ? all.filter { !$0.isShopifyOrder } : all
+    }
+
     /// The orders a list holds. `invoices` decides Awaiting payment (an order invoiced and still owed on).
     @MainActor
     static func orders(_ all: [Order], list: String?, invoices: [Invoice], now: Date = Date()) -> [Order] {
@@ -76,7 +81,9 @@ enum MacLists {
         }
     }
 
-    static func invoices(_ all: [Invoice], list: String?, now: Date = Date()) -> [Invoice] {
+    static func invoices(_ every: [Invoice], list: String?, now: Date = Date()) -> [Invoice] {
+        // A house with the Shopify section lists its web orders there, not here (nav entry "shopify").
+        let all = NavMap.hasShopifySection ? every.filter { !$0.isShopifyOrder } : every
         guard let list else { return all }
         let cal = ERPDate.karachiCalendar
         switch list {
@@ -118,7 +125,7 @@ enum MacLists {
     static func count(_ href: String, _ list: String, book: Book, now: Date = Date()) -> Int? {
         switch (ScreenRoute.bare(href), list) {
         case ("/orders", "late"), ("/orders", "week"), ("/orders", "new"), ("/orders", "ready"), ("/orders", "payment"):
-            return orders(book.orders.items, list: list, invoices: book.invoices.items, now: now).count
+            return orders(ordersHere(book.orders.items), list: list, invoices: book.invoices.items, now: now).count
         case ("/invoices", "unpaid"), ("/invoices", "today"):
             return invoices(book.invoices.items, list: list, now: now).count
         case ("/repairs", "shop"), ("/repairs", "ready"):

@@ -107,7 +107,7 @@ struct MacInvoicesPlace: View {
         }
         .macSearchable(text: $query, prompt: "Search Invoices")
         .macInspector { MacInvoiceInspector(invoice: picked, count: selection.count, cx: cx) }
-        .macRecordMenu(MacRecordMenu(title: "Invoice", groups: MacInvoiceMenu.groups(picked, cx) + [[MacInvoiceMenu.importOrders(cx)]]))
+        .macRecordMenu(MacRecordMenu(title: "Invoice", groups: MacInvoiceMenu.groups(picked, cx) + importGroups(cx)))
         .toolbar { toolbarItems(cx) }
         .modifier(MacInvoiceSheetHost(desk: desk))
         .navigationTitle(title(list))
@@ -164,7 +164,7 @@ struct MacInvoicesPlace: View {
     private func rowMenu(_ ids: Set<String>, _ cx: MacInvoiceContext) -> some View {
         if ids.isEmpty {
             // The empty part of the table: what is not about one invoice.
-            MacActionItems(groups: [[MacInvoiceMenu.importOrders(cx)]])
+            MacActionItems(groups: importGroups(cx))
         } else if ids.count == 1, let id = ids.first, let inv = book.invoices.item(id) {
             Button("Open in New Window") { cx.open(Route(path: InvoiceFacts.path(id))) }
             Divider()
@@ -214,6 +214,11 @@ struct MacInvoicesPlace: View {
     }
 
     private var filtering: Bool { !takenBy.isEmpty || !source.isEmpty }
+
+    /// Import Shopify Orders… belongs to the Shopify section where the house has one.
+    private func importGroups(_ cx: MacInvoiceContext) -> [[MacAction]] {
+        NavMap.hasShopifySection ? [] : [[MacInvoiceMenu.importOrders(cx)]]
+    }
 
     /// Taken by and Source: the toolbar's pop-up (the saved lists are the sidebar's).
     private func filterMenu() -> some View {

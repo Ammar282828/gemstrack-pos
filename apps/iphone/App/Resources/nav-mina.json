@@ -125,6 +125,21 @@
       ]
     },
     {
+      "id": "shopify",
+      "group": "sales",
+      "href": "/shopify",
+      "label": "Shopify",
+      "icon": "ShoppingBag",
+      "staff": true,
+      "keywords": [
+        "shopify",
+        "web orders",
+        "online store",
+        "website orders",
+        "cod"
+      ]
+    },
+    {
       "id": "repairs",
       "group": "sales",
       "href": "/repairs",

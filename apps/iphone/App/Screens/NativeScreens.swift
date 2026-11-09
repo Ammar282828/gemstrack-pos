@@ -13,6 +13,8 @@ enum NativeScreens {
             // "/invoices/new" is the Sale group's; the Invoices group's item route leaves "new" out too.
             SaleRoutes.all,
             InvoicesRoutes.all,
+            // Mina's Shopify section: the web orders, out of Invoices (the nav entry "shopify").
+            ShopifyRoutes.all,
             CustomersRoutes.all,
             RepairsRoutes.all,
             StockRoutes.all,

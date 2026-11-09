@@ -180,6 +180,10 @@ struct OrderCardHead: View {
         RecordRow(name: OrdersLogic.customerName(order), title: OrdersLogic.customerName(order), subtitle: subtitle,
                   mine: mine, muted: greyed, money: money, status: status) {
             if OrdersLogic.isOnline(order) { OrdersOnlineBadge() }
+            // A Shopify order's WhatsApp step (To confirm, Cancel requested, Awaiting transfer, …), as Invoices shows it.
+            if order.isShopifyOrder, let chip = whatsappOrderChip(order.whatsappOrder?.state) {
+                OrdersWhatsAppBadge(label: chip.label, tone: Tone(chip.tone))
+            }
         }
     }
 

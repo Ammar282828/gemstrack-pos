@@ -18,6 +18,10 @@ import { adminPort } from '@/lib/db-admin-port';
 import { adminDb } from '@/lib/firebase-admin';
 import { isPosPushedOrder, paymentLinkInvoiceId, type ShopifyTransaction } from '@/lib/shopify-mirror';
 import { mirrorShopifyOrder, type ShopifyMirrorResult } from '@/lib/writes/invoice-payment';
+import { importShopifyAsOrder, mirrorShopifyToOrder, shopifyOrderId, type ShopifyOrderMirror, type ShopifyWebOrder } from '@/lib/writes/shopify-order';
+import { STORE_CONFIG, STORE_SHOPIFY_SECTION } from '@/lib/store-config';
+import { normalizePhoneNumber } from '@/lib/utils';
+import { stripUndefined } from '@/lib/website/checkout';
 import { mapInvoice, shopifyRequest } from './_lib';
 
 /** Who and how much, for the shop's notification (lib/push/send.ts). */
@@ -25,7 +29,9 @@ export interface OrderGist { name: string; customer: string; total: string }
 
 export type OrderMirrorOutcome =
   | { skipped: 'gone' | 'pos-push' | 'not-imported'; order?: string; gist?: OrderGist }
-  | (ShopifyMirrorResult & { order: string; gist?: OrderGist; imported?: boolean });
+  | (ShopifyMirrorResult & { order: string; gist?: OrderGist; imported?: boolean; asOrder?: false })
+  /** A house with the Shopify section (lib/writes/shopify-order.ts): the ERP order took it. */
+  | { asOrder: true; erpOrderId: string; order: string; gist?: OrderGist; imported?: boolean; added: ShopifyOrderMirror['added']; cancelled: boolean; changed: boolean };
 
 /** Only orders placed after this Shopify order number are imported; everything below predates the ERP
  *  and is deliberately not backfilled (the pull's cutoff, shared by the notice). */
@@ -43,6 +49,14 @@ export const SINCE_ORDER_NUMBER = 1381;
  */
 export async function importShopifyOrder(order: { id: number | string; order_number?: number | string }, opts: { force?: boolean } = {}): Promise<boolean> {
   const invoices = adminDb.collection('invoices');
+  // A house with the Shopify section takes a new web order as an ORDER (made to order, then Finalize & invoice); one the ERP
+  // already has as an order or as an invoice (history) is left alone: the pull never rewrites what the shop has.
+  if (STORE_SHOPIFY_SECTION && !(await erpHasShopifyOrder(order))) {
+    return (await importShopifyAsOrder(adminPort, order as ShopifyWebOrder, {
+      createCustomer: async () => null, normalizePhone: normalizePhoneNumber, clean: stripUndefined, metal: STORE_CONFIG.defaultMetal,
+    }, { log })).created;
+  }
+  if (STORE_SHOPIFY_SECTION && await orderFor(order)) return false;
   const doc = invoices.doc(`SHOPIFY-${order.order_number}`);
   if (opts.force) { await doc.set(mapInvoice(order), { merge: true }); return true; }
   return adminDb.runTransaction(async t => {
@@ -52,6 +66,23 @@ export async function importShopifyOrder(order: { id: number | string; order_num
     t.set(doc, mapInvoice(order));
     return true;
   });
+}
+
+/** The ERP order for this Shopify order (the section's), by SHOPIFY-<number> or by the Shopify order id. */
+async function orderFor(order: { id: number | string; order_number?: number | string }): Promise<string | null> {
+  const byNumber = await adminPort.get('orders', shopifyOrderId(order));
+  if (byNumber) return byNumber.id;
+  const byId = await adminPort.queryEquals('orders', 'shopifyOrderId', String(order.id));
+  return byId[0]?.id ?? null;
+}
+
+/** Any ERP record of this Shopify order: an order, or an invoice (the pull's, the CSV's, one made from a checkout link). */
+async function erpHasShopifyOrder(order: { id: number | string; order_number?: number | string }): Promise<boolean> {
+  if (await orderFor(order)) return true;
+  const invoices = adminDb.collection('invoices');
+  if ((await invoices.doc(`SHOPIFY-${order.order_number}`).get()).exists) return true;
+  if (!(await invoices.where('shopifyOrderId', '==', String(order.id)).limit(1).get()).empty) return true;
+  return !(await invoices.where('shopifyOrderName', '==', `#${order.order_number}`).limit(1).get()).empty;
 }
 
 function gistOf(order: { order_number?: number | string; total_price?: string | number; currency?: string; customer?: { first_name?: string; last_name?: string } | null; billing_address?: { name?: string } | null }): OrderGist {
@@ -106,8 +137,18 @@ export async function mirrorShopifyOrderById(shop: string, token: string, orderI
   if (!order) return { skipped: 'gone' };
   const name = `#${order.order_number}`;
   const gist = gistOf(order);
+  // The section's orders first: an ERP order for it takes the notice, unless it has been invoiced (then the invoice does).
+  const erpOrder = STORE_SHOPIFY_SECTION && !isPosPushedOrder(order) && !paymentLinkInvoiceId(order) ? await orderFor(order) : null;
+  const erpDoc = erpOrder ? await adminPort.get<{ invoiceId?: string }>('orders', erpOrder) : null;
+  if (erpOrder && erpDoc && !erpDoc.invoiceId) return mirrorToErpOrder(shop, token, order, erpOrder, gist, false);
   let target = await invoiceForShopifyOrder(order);
   let imported = false;
+  if (STORE_SHOPIFY_SECTION && !erpOrder && 'skipped' in target && target.skipped === 'not-imported' && opts.importIfAbsent
+    && !isPosPushedOrder(order) && !paymentLinkInvoiceId(order) && Number(order.order_number) > SINCE_ORDER_NUMBER) {
+    const made = await importShopifyOrder(order);
+    const id = await orderFor(order);
+    if (id) return mirrorToErpOrder(shop, token, order, id, gist, made);
+  }
   if ('skipped' in target && target.skipped === 'not-imported' && opts.importIfAbsent
     && !paymentLinkInvoiceId(order) && Number(order.order_number) > SINCE_ORDER_NUMBER) {
     imported = await importShopifyOrder(order);
@@ -117,4 +158,13 @@ export async function mirrorShopifyOrderById(shop: string, token: string, orderI
   const transactions = await fetchShopifyTransactions(shop, token, String(order.id));
   const result = await mirrorShopifyOrder(adminPort, target.invoiceId, order, transactions, target.extra, { log }, { voidWhenCancelled: target.webSale });
   return result ? { ...result, order: name, gist, ...(imported && { imported }) } : { skipped: 'not-imported', order: name, gist };
+}
+
+async function mirrorToErpOrder(shop: string, token: string, order: ShopifyWebOrder & { order_number?: number | string }, erpOrderId: string, gist: OrderGist, imported: boolean): Promise<OrderMirrorOutcome> {
+  const transactions = await fetchShopifyTransactions(shop, token, String(order.id));
+  const result = await mirrorShopifyToOrder(adminPort, erpOrderId, order, transactions, { log });
+  const name = `#${order.order_number}`;
+  return result
+    ? { asOrder: true, erpOrderId, order: name, gist, added: result.added, cancelled: result.cancelled, changed: result.changed, ...(imported && { imported }) }
+    : { skipped: 'not-imported', order: name, gist };
 }

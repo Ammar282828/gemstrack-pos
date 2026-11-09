@@ -13,7 +13,7 @@ enum NavIcon {
         "Layers": "square.3.layers.3d", "LayoutGrid": "square.grid.2x2", "ListChecks": "checklist", "Map": "map", "Megaphone": "megaphone",
         "Mic": "mic", "Package": "shippingbox.and.arrow.backward", "Palette": "paintpalette", "PenLine": "pencil.line", "PiggyBank": "banknote.fill",
         "Plug": "powerplug", "Radio": "dot.radiowaves.left.and.right", "Receipt": "receipt", "Rocket": "paperplane", "RotateCcw": "arrow.uturn.backward",
-        "Scale": "scalemass", "ScanLine": "qrcode.viewfinder", "Send": "paperplane.fill", "Settings": "gearshape",
+        "Scale": "scalemass", "ScanLine": "qrcode.viewfinder", "Send": "paperplane.fill", "Settings": "gearshape", "ShoppingBag": "bag",
         "SlidersHorizontal": "slider.horizontal.3", "Tag": "tag", "Target": "target", "TrendingUp": "chart.line.uptrend.xyaxis",
         "Users": "person.2", "UsersRound": "person.3", "Wallet": "wallet.bifold", "Weight": "scalemass.fill", "Wrench": "wrench.and.screwdriver",
     ]

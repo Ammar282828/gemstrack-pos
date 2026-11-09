@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { STORE_SHOPIFY_SECTION } from '@/lib/store-config';
+import { importShopifyOrder } from '../_order-mirror';
 import { erpUserOrCron } from '@/lib/erp-gate';
 import { fetchAllPages, mapCustomer, mapInvoice, mapProduct, shopifyRequest, mapCustomerToShopify } from '../_lib';
 import { adminDb } from '@/lib/firebase-admin';
@@ -61,8 +63,9 @@ export async function POST(request: NextRequest) {
           if (existingNames.has(orderName) || existingShopifyIds.has(orderId)) { results.skipped++; continue; }
           const existing = await adminDb.collection('invoices').doc(docId).get();
           if (!existing.exists) {
-            await adminDb.collection('invoices').doc(docId).set(mapInvoice(order));
-            results.orders++;
+            // A house with the Shopify section takes it as an ERP order (lib/writes/shopify-order.ts).
+            if (STORE_SHOPIFY_SECTION) { if (await importShopifyOrder(order)) results.orders++; else results.skipped++; }
+            else { await adminDb.collection('invoices').doc(docId).set(mapInvoice(order)); results.orders++; }
           } else {
             results.skipped++;
           }

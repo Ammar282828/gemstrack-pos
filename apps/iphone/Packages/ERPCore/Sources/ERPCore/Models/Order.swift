@@ -54,13 +54,15 @@ public struct Order: Decodable, Identifiable, Hashable {
     public let shopifyOrderNumber: Int?
     public let shopifyDraftOrderId: String?
     public let shopifyDraftOrderName: String?
+    /// A web order's WhatsApp step (COD confirm, bank transfer), written by the server onto Shopify orders (src/lib/shopify-whatsapp.ts).
+    public let whatsappOrder: WhatsAppOrder?
 
     private enum K: String, CodingKey {
         case id, delivery, createdAt, promisedDate, status, items, ratesApplied, hideRates, costRate24k
         case takenBy, subtotal, discountAmount, advancePayment, advanceMethod, advances, advanceGoldDetails
         case grandTotal, summary, customerId, customerName, customerContact, source
         case exchanges, advanceInExchangeDescription, advanceInExchangeValue, invoiceId, tcsConsignmentNo
-        case website, leopards, notes, shopifyOrderId, shopifyOrderNumber, shopifyDraftOrderId, shopifyDraftOrderName
+        case website, leopards, notes, shopifyOrderId, shopifyOrderNumber, shopifyDraftOrderId, shopifyDraftOrderName, whatsappOrder
     }
 
     public init(from decoder: Decoder) throws {
@@ -99,6 +101,7 @@ public struct Order: Decodable, Identifiable, Hashable {
         shopifyOrderNumber = c.int(.shopifyOrderNumber)
         shopifyDraftOrderId = c.string(.shopifyDraftOrderId)
         shopifyDraftOrderName = c.string(.shopifyDraftOrderName)
+        whatsappOrder = c.object(.whatsappOrder)
     }
 }
 

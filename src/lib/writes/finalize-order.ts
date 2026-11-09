@@ -118,7 +118,7 @@ export function invoiceFromOrder(
     customerId: order.customerId,
     customerName: order.customerName || 'Walk-in Customer',
     customerContact: order.customerContact,
-    ...(order.source && { acquisitionSource: order.source }),
+    ...(order.source && !String(order.source).startsWith('shopify') && { acquisitionSource: order.source }),
     sourceOrderId: order.id,
     ...(order.hideRates ? { hideRates: true } : {}),
     ...(Number(costRate24k) > 0 ? { costRate24k: Number(costRate24k) } : {}),
@@ -136,6 +136,15 @@ export function invoiceFromOrder(
     // upsert handler reuses the same Shopify order instead of creating a new one.
     ...(order.shopifyOrderId && { shopifyOrderId: order.shopifyOrderId }),
     ...(order.shopifyOrderNumber && { shopifyOrderNumber: order.shopifyOrderNumber }),
+    // A Shopify web order (lib/writes/shopify-order.ts) stays a Shopify sale: the invoice keeps the source and what Shopify
+    // has already paid (so its next notice adds nothing twice), and Invoices/Shopify list it by that.
+    ...(String(order.source || '').startsWith('shopify') && {
+      source: 'shopify',
+      ...(order.shopifyTransactionIds && { shopifyTransactionIds: order.shopifyTransactionIds }),
+      ...(order.shopifyFinancialStatus && { shopifyFinancialStatus: order.shopifyFinancialStatus }),
+      ...(order.shopifyFulfillment && { shopifyFulfillment: order.shopifyFulfillment }),
+      ...(order.shopifyOrderName && { shopifyOrderName: order.shopifyOrderName }),
+    }),
   } as Omit<Invoice, 'id'>;
 }
 

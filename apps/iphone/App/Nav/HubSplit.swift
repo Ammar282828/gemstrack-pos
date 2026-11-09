@@ -53,6 +53,7 @@ enum HubSplitKind {
         switch ScreenRoute.bare(path) {
         case "/orders": return ("Choose an order", "list.clipboard")
         case "/invoices": return ("Choose an invoice", "doc.text")
+        case "/shopify": return ("Pick an order", "bag")
         case "/customers": return ("Choose a customer", "person.2")
         case "/products": return ("Choose a piece", "diamond")
         case "/repairs": return ("Choose a repair", "wrench.and.screwdriver")

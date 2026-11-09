@@ -16,6 +16,21 @@ struct OrdersHub: View {
     @Environment(Session.self) private var session
     @Environment(\.openURL) private var openURL
 
+    /// The Shopify section's own hub (nav entry "shopify", /shopify; owner, 2026-11-09): this same screen over the web orders
+    /// ("SHOPIFY-<n>"), with their WhatsApp step, a To confirm chip and an Earlier (invoiced) chip for the old Shopify invoices.
+    /// In a house with that section the Orders tab leaves these orders out.
+    let shopify: Bool
+
+    init(shopify: Bool = false) { self.shopify = shopify }
+
+    /// The two chips only the Shopify hub has: their `statusFilter` words.
+    static let toConfirmKey = "To confirm"
+    static let earlierKey = "Earlier"
+
+    @State private var importingCSV = false
+    /// The old Shopify invoices by day, per change of the invoices and the search.
+    @State private var earlierMemo = Memo<[InvoiceSection]>()
+
     @State private var query = ""
     @State private var statusFilter = "All"
     /// Day, Stage or Due (or Week or Month, from the menu), kept on this phone: the owner's Day to start.
@@ -72,7 +87,7 @@ struct OrdersHub: View {
             // A new grouping or filter settles in on the enter curve rather than jumping.
             hub.motion([groupingRaw, statusFilter, month, takenBy, payment, String(stageSignature), localStatus.values.joined()])
         }
-        .navigationTitle("Orders")
+        .navigationTitle(shopify ? "Shopify" : "Orders")
         .trackCovered($covered)
         .hubTitleDisplay()
         #if os(macOS)
@@ -83,6 +98,12 @@ struct OrdersHub: View {
         .ordersWebDestination($web)
         .pdfQuickShare($slipShare)
         .sheet(item: $advancing) { order in advanceSheet(order).presentationSizing(.form) }
+        .sheet(isPresented: $importingCSV) {
+            InvoiceCSVImportSheet { (done: InvoiceNote) in
+                Note.show(Note(title: done.title, detail: done.detail), in: $note, reduce: reduceMotion)
+            }
+            .presentationSizing(.form)
+        }
         .confirmDestructive(isPresented: cancelShown, title: cancelling.map { "Cancel order \($0.id)?" } ?? "Cancel order?",
                             message: OrdersLogic.cancelWords, action: "Cancel order",
                             perform: cancelAction(cancelling))
@@ -135,16 +156,34 @@ struct OrdersHub: View {
             || !month.isEmpty || !takenBy.isEmpty || payment != "All"
     }
 
+    /// The orders this hub lists: the Shopify hub's are the web orders alone; Orders' leave them out where the house has the
+    /// Shopify section (the Workshop, karigar pages, calendar and customers read the books themselves and keep them).
+    private var hubOrders: [Order] {
+        let items = book.orders.items
+        if shopify { return items.filter { $0.isShopifyOrder } }
+        return NavMap.hasShopifySection ? items.filter { !$0.isShopifyOrder } : items
+    }
+
     @ViewBuilder
     private var hub: some View {
-        let all = book.orders.items
+        let all = hubOrders
         let owedOn = owedMemo([book.invoices.revision], resting: covered) { OrdersLogic.owedOnInvoices(book.invoices.items) }
         let now = Date()
         let snapshot = listMemo([book.orders.revision, book.invoices.revision, query.hashValue, statusFilter.hashValue, month.hashValue,
                                  takenBy.hashValue, payment.hashValue, groupingRaw.hashValue, localStatus.hashValue,
                                  ERPDate.karachiDay(now).hashValue], resting: covered) {
             let scoped = scope(all)
-            let shown = statusFilter == "All" ? scoped : scoped.filter { $0.status.rawValue == statusFilter }
+            let shown: [Order]
+            if statusFilter == "All" {
+                shown = scoped
+            } else if shopify && statusFilter == OrdersHub.earlierKey {
+                // The old invoices are listed in place of orders (`earlierSections`).
+                shown = []
+            } else if shopify && statusFilter == OrdersHub.toConfirmKey {
+                shown = scoped.filter { $0.shopifyStage == .toConfirm }
+            } else {
+                shown = scoped.filter { $0.status.rawValue == statusFilter }
+            }
             return OrdersListSnapshot(scoped: scoped, shown: shown, groups: makeSections(shown, owedOn: owedOn, now: now))
         }
         let scoped = snapshot.scoped
@@ -170,17 +209,42 @@ struct OrdersHub: View {
                       now: Date, forceOpen: Bool) -> some View {
         // No figures over the list (owner, 2026-11-03: "remove the upper bar with the summaries in invoices and orders").
         let figures: [ListFigure] = []
-        return RecordListScaffold(search: $query, prompt: "Order, customer, phone or piece", isEmpty: groups.isEmpty && Outbox.shared.records(kind: "order").isEmpty) {
+        let earlierGroups: [InvoiceSection] = shopify && statusFilter == OrdersHub.earlierKey ? earlierSections(now: now) : []
+        return RecordListScaffold(search: $query, prompt: "Order, customer, phone or piece",
+                                  isEmpty: groups.isEmpty && earlierGroups.isEmpty && (shopify || Outbox.shared.records(kind: "order").isEmpty)) {
             emptyState(nothingOpen: grouping == .due && !shown.isEmpty)
         } rows: {
             head(scoped, figures, inList: true)
-            PendingRecords(kind: "order")
+            if !shopify { PendingRecords(kind: "order") }
+            ForEach(earlierGroups) { g in
+                Section {
+                    ForEach(g.rows) { inv in
+                        InvoiceListRow(invoice: inv, mine: false, dated: false)
+                            .zoomSource(id: InvoiceFacts.path(inv.id))
+                    }
+                } header: {
+                    earlierHeading(g)
+                }
+                .houseRows()
+            }
             ForEach(groups) { g in
                 section(g, owedOn: owedOn, now: now, forceOpen: forceOpen)
             }
         } cards: { width in
             head(scoped, figures, inList: false)
-            PendingRecords(kind: "order", width: width)
+            if !shopify { PendingRecords(kind: "order", width: width) }
+            ForEach(earlierGroups) { g in
+                VStack(alignment: .leading, spacing: pt(16)) {
+                    earlierHeading(g)
+                    RecordGrid(items: g.rows, width: width) { inv in
+                        RecordCard {
+                            InvoiceListRow(invoice: inv, mine: false, dated: false)
+                                .buttonStyle(.pressable)
+                                .zoomSource(id: InvoiceFacts.path(inv.id))
+                        }
+                    }
+                }
+            }
             ForEach(groups) { g in
                 let open = isOpen(g, forceOpen: forceOpen)
                 VStack(alignment: .leading, spacing: pt(16)) {
@@ -196,6 +260,46 @@ struct OrdersHub: View {
         }
     }
 
+    private func earlierHeading(_ g: InvoiceSection) -> some View {
+        ListSectionHeader(title: g.title, hint: g.hint, count: g.rows.count, trailing: Money.pkr(g.billed), value: g.billed)
+    }
+
+    /// Earlier (invoiced): the Shopify invoices from before Shopify's web orders were orders, a section a day, newest first;
+    /// each opens its invoice page. The search narrows them; the other filters are the orders'.
+    private func earlierSections(now: Date) -> [InvoiceSection] {
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let invoices = book.invoices.items
+        return earlierMemo([book.invoices.revision, q.hashValue], resting: covered) {
+            let rows = invoices.filter { (inv: Invoice) -> Bool in
+                inv.isShopifyOrder && (q.isEmpty || inv.id.localizedCaseInsensitiveContains(q)
+                    || inv.customerName.localizedCaseInsensitiveContains(q)
+                    || (inv.shopifyOrderName ?? "").localizedCaseInsensitiveContains(q))
+            }.sorted { $0.createdAt > $1.createdAt }
+            let stamped = InvoiceStamps(rows)
+            var order: [String] = []
+            var titles: [String: String] = [:]
+            var members: [String: [Invoice]] = [:]
+            for inv in rows {
+                let key: String
+                if let d = stamped.date[inv.id], let day = stamped.day[inv.id] {
+                    key = "d" + day
+                    if titles[key] == nil { titles[key] = InvoiceCalendar.heading(d, by: .day, now: now) }
+                } else {
+                    key = "undated"
+                    if titles[key] == nil { titles[key] = "No date" }
+                }
+                if members[key] == nil { order.append(key) }
+                members[key, default: []].append(inv)
+            }
+            return order.map { (key: String) -> InvoiceSection in
+                let group = members[key] ?? []
+                let billed = group.reduce(0.0) { $0 + invoiceSaleValue($1) }
+                let owed = group.reduce(0.0) { $0 + (isOwing($1) ? $1.balanceDue : 0) }
+                return InvoiceSection(id: key, title: titles[key] ?? "", hint: "", rows: group, billed: billed, owed: owed)
+            }
+        }
+    }
+
     /// The strip, the chips and the filter line: the list's first rows, or the grid page's head.
     private func head(_ scoped: [Order], _ figures: [ListFigure], inList: Bool) -> some View {
         RecordListHead(figures: figures, chips: chips(scoped), caption: menuNarrowed ? captionText : nil,
@@ -205,7 +309,7 @@ struct OrdersHub: View {
     /// The Mac's stage view is a board of columns; the phone and the iPad keep their lists and card grids.
     private func showsBoard(_ width: CGFloat) -> Bool {
         #if os(macOS)
-        return grouping == .stage && width >= 640
+        return grouping == .stage && width >= 640 && !(shopify && statusFilter == OrdersHub.earlierKey)
         #else
         return false
         #endif
@@ -371,7 +475,14 @@ struct OrdersHub: View {
     /// The record lists' one empty state: a search with no hits, filters with Clear, nothing open in the Due view, or
     /// no orders at all with New order.
     private func emptyState(nothingOpen: Bool) -> some View {
-        RecordEmptyState(
+        if shopify {
+            return RecordEmptyState(
+                search: query,
+                clear: narrowed ? { clearFilters() } : nil,
+                title: "No Shopify orders yet", symbol: "bag",
+                message: "Orders from the online store will be here, with the step they are at on WhatsApp.")
+        }
+        return RecordEmptyState(
             search: nothingOpen ? "" : query,
             clear: !nothingOpen && narrowed ? { clearFilters() } : nil,
             title: nothingOpen ? "Nothing to chase" : "No orders yet",
@@ -484,6 +595,14 @@ struct OrdersHub: View {
         var counts: [String: Int] = [:]
         for o in scoped { counts[o.status.rawValue, default: 0] += 1 }
         var out = [ListChip(id: "All", title: "All", count: scoped.count, chosen: statusFilter == "All") { pickStatus("All") }]
+        if shopify {
+            // A COD order whose WhatsApp confirmation has not come back.
+            let n = scoped.filter { $0.shopifyStage == .toConfirm }.count
+            if n > 0 || statusFilter == OrdersHub.toConfirmKey {
+                out.append(ListChip(id: OrdersHub.toConfirmKey, title: "To confirm", count: n,
+                                    chosen: statusFilter == OrdersHub.toConfirmKey) { pickStatus(OrdersHub.toConfirmKey) })
+            }
+        }
         for status in OrdersLogic.filterStatuses {
             let n = counts[status] ?? 0
             let always = status == "Pending" || status == "In Progress" || status == "Completed"
@@ -491,6 +610,13 @@ struct OrdersHub: View {
             // Sentence case for what a person reads; the filter keeps the ERP's own word.
             let title = status == "In Progress" ? "In progress" : status
             out.append(ListChip(id: status, title: title, count: n, chosen: statusFilter == status) { pickStatus(status) })
+        }
+        if shopify {
+            let n = book.invoices.items.filter { $0.isShopifyOrder }.count
+            if n > 0 || statusFilter == OrdersHub.earlierKey {
+                out.append(ListChip(id: OrdersHub.earlierKey, title: "Earlier (invoiced)", count: n,
+                                    chosen: statusFilter == OrdersHub.earlierKey) { pickStatus(OrdersHub.earlierKey) })
+            }
         }
         return out
     }
@@ -515,6 +641,10 @@ struct OrdersHub: View {
                 Text("All orders (\(all.count))").tag("All")
                 ForEach(OrdersLogic.filterStatuses, id: \.self) { status in
                     Text("\(status) (\(facts.counts[status] ?? 0))").tag(status)
+                }
+                if shopify {
+                    Text("To confirm").tag(OrdersHub.toConfirmKey)
+                    Text("Earlier (invoiced)").tag(OrdersHub.earlierKey)
                 }
             }
             Picker("Group by", selection: groupingChoice) {
@@ -552,10 +682,13 @@ struct OrdersHub: View {
         #endif
         // The record lists' one toolbar: Filter, then +.
         ToolbarItem(placement: .trailingAction) {
-            filterMenu(book.orders.items)
+            filterMenu(hubOrders)
+        }
+        if shopify && (session.isOwner || showsAnalytics) {
+            ToolbarItem(placement: .trailingAction) { shopifyMenu }
         }
         // The tab's own create menu already offers New order beside the rate chip (iPad): one "+" is enough.
-        if !createMenuShown {
+        if !createMenuShown && !shopify {
             ToolbarItem(placement: .trailingAction) {
                 RouteLink(value: Route(path: "/orders/add"), row: false) {
                     Label("New order", systemImage: "plus")
@@ -564,7 +697,7 @@ struct OrdersHub: View {
         }
         // Online orders wait here until a person confirms them (docs/decisions.md "Online orders"): one tap from
         // the hub while any wait, with how many. A house whose website takes no orders (Mina) has none.
-        if session.shop.websiteSelling && inbox.waiting > 0 {
+        if session.shop.websiteSelling && inbox.waiting > 0 && !shopify {
             ToolbarItem(placement: .trailingAction) {
                 RouteLink(value: Route(path: "/orders/online"), row: false) {
                     // The count is words in the item, never a badge laid over its glass.
@@ -574,6 +707,27 @@ struct OrdersHub: View {
                 }
                 .accessibilityLabel("Online orders, \(inbox.waiting) to confirm")
             }
+        }
+    }
+
+    /// Analytics › Website › Visitors, which for Mina is Shopify's own report; offered only to a role that has it.
+    private var showsAnalytics: Bool {
+        NavMap.current.visible(to: session.navRole).entry(for: "/website/interest") != nil
+    }
+
+    /// The Shopify hub's menu: its analytics, and the CSV import moved here from Invoices (an owner's, as its own write is).
+    private var shopifyMenu: some View {
+        Menu {
+            if showsAnalytics {
+                RouteLink(value: Route(path: "/website/interest"), row: false) {
+                    Label("Shopify analytics", systemImage: "chart.bar")
+                }
+            }
+            if session.isOwner {
+                Button { importingCSV = true } label: { Label("Import Shopify CSV", systemImage: "square.and.arrow.down") }
+            }
+        } label: {
+            Label("More", systemImage: "ellipsis.circle")
         }
     }
 

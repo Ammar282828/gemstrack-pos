@@ -97,14 +97,18 @@ struct RootView: View {
     @State private var voice = VoiceSession.shared
 
     private var map: NavMap { NavMap.current.visible(to: session.navRole) }
-    private static let primary = ["home", "orders", "invoices", "customers"]
+    /// The phone's four tabs. A house with the Shopify section (nav entry "shopify") has it in place of Customers, which stay
+    /// in Search, More and the iPad's sidebar (owner, 2026-11-09).
+    private static func primary(_ map: NavMap) -> [String] {
+        ["home", "orders", "invoices", map.entries.contains { $0.id == "shopify" } ? "shopify" : "customers"]
+    }
     private var online: OnlineInbox { .shared }
 
     /// The tabs before Search. Marketing has no dashboard: the ERP sends it to Posts, the first page it may open.
     private func tabEntries(_ map: NavMap) -> [NavEntry] {
         if sizeClass.isPadLayout { return map.entries }
         if session.role == "marketing" { return Array(map.entries.prefix(4)) }
-        return Self.primary.compactMap { id in map.entries.first { $0.id == id } }
+        return Self.primary(map).compactMap { id in map.entries.first { $0.id == id } }
     }
 
     /// The chosen tab, or the first one when the remembered choice is not this person's (no Home for marketing).

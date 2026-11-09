@@ -578,6 +578,35 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
   - Replies arrive at `/api/whatsapp/inbound` from WAHA's session webhook, signed (SHA-512 HMAC) with a key derived from
     `WAHA_API_KEY`; set by `scripts/waha-inbound-webhook.ts`. On only where `SHOPIFY_ORDER_WHATSAPP=1` (Mina).
 
+### Shopify section
+
+- **House of Mina's web orders are ORDERS, in a Shopify section of their own** (2026-11-09, owner: "shopify should have a
+  completely different section in the dock for the iOS app. So basically switch it out with customers, remove it from invoices
+  and properly make a separate section for it … This is only for house of mina. So keep taheri as is. Then port these changes to
+  the other platforms also"; then: "treat them as orders now and not invoices in terms of functionality, so products will be made
+  to order and completed"). The switch is `NEXT_PUBLIC_STORE_SHOPIFY_SECTION` = "1" (`apphosting.mina.yaml` only; Taheri keeps its
+  invoice path); `STORE_SHOPIFY_SECTION` in `store-config.ts`.
+  - **A new Shopify web order is an ERP order** `SHOPIFY-<number>` (`lib/writes/shopify-order.ts`, made through `createOrder` with a
+    fixed id, so a notice twice, or the pull after it, finds the one order): `source: 'shopify'`, Shopify's ids and state, a piece
+    per unit (description as the invoice line's, priced at the line's price), Pending. What Shopify has received comes in through
+    the mirror as **advances** (`adv-shopify-<transaction id>`, each once, never more than is owed); cash on delivery has none,
+    it is collected at delivery. A cancel on Shopify with nothing paid makes the order Cancelled; with money it is only marked.
+    The mirror never rewrites what the shop changed (decision "Shopify notices"); the order WhatsApp's state is written to the
+    order's `whatsappOrder`. From there it is an ordinary order: karigars, Ready, **Finalize & invoice** (decision "Order to
+    invoice"), whose invoice keeps `source: 'shopify'`, the Shopify ids and the transactions already counted. Revenue lands at
+    finalize, as for every order. An order the ERP already holds as an invoice (history) stays one: the mirror keeps updating it.
+  - **The section** (nav `shopify`, `/shopify`, after Invoices; staff see it with the amounts, as on orders): the Orders hub for
+    Shopify orders alone: stages and the next step on each card, the WhatsApp state as a pill, chips **All · To confirm** (the
+    COD confirmation still out: `whatsappOrder` awaiting-confirmation) **· Pending · In Progress · Completed · Cancelled ·
+    Earlier (invoiced)** (Shopify invoices from before, opening their invoice pages), only chips with rows. Toolbar: Import
+    Shopify CSV (moved from Invoices; its rows are invoices, so they land under Earlier) and Shopify analytics (Website →
+    Visitors). Empty: "No Shopify orders yet". `lib/shopify-orders.ts` is the one predicate (`isShopifyInvoice`, `isToConfirm`).
+  - **Elsewhere** (a house with the section): Orders and Invoices do not list Shopify orders or invoices, nor the Shopify chip or
+    the CSV import; the Workshop, karigar pages, calendar, customers, search, alerts and Analytics still include them. The phone
+    tab bars (iPhone and Android) are Home, Orders, Invoices, **Shopify** (it replaces Customers there; Customers stays in
+    Search / More / the iPad sidebar); the apps detect the section by the nav entry id `shopify` in the exported map
+    (`npm run nav:export`), no new API field.
+
 ### Send to karigar
 
 - **Never twice** (owner, 2026-11-03: "sending to karigar is hella buggy, it keeps retrying or double sending"; the log showed

@@ -12,7 +12,7 @@
  */
 
 import { adminDb } from '@/lib/firebase-admin';
-import { STORE_CONFIG } from '@/lib/store-config';
+import { STORE_CONFIG, STORE_SHOPIFY_SECTION } from '@/lib/store-config';
 import { pushToShop } from '@/lib/push/send';
 import { sendWhatsAppMessage, sendWhatsAppPoll, toWhatsAppNumber, whatsAppNumberExists } from '@/lib/whatsapp';
 import { shopifyRequest } from '@/app/api/shopify/_lib';
@@ -42,15 +42,23 @@ export interface OrderFlow {
 }
 
 const invoiceUrl = (o: { order_number?: number | string; name?: string }) =>
-  `/invoices/${encodeURIComponent(`SHOPIFY-${o.order_number ?? String(o.name || '').replace('#', '')}`)}`;
+  `/${STORE_SHOPIFY_SECTION ? 'orders' : 'invoices'}/${encodeURIComponent(`SHOPIFY-${o.order_number ?? String(o.name || '').replace('#', '')}`)}`;
 
 /**
- * The order's WhatsApp state onto its ERP invoice (`whatsappOrder`), so the ERP shows it beside the Shopify chip
+ * The order's WhatsApp state onto its ERP order, else its invoice (`whatsappOrder`), so the ERP shows it beside the Shopify chip
  * (owner, 2026-10-30: "add the tag in shopify and pos"). The pull's SHOPIFY-<n>, else the invoice carrying this
  * Shopify order id. Never throws: the invoice may not be in yet.
  */
 async function markInvoice(f: Pick<OrderFlow, 'orderId' | 'name' | 'state'>): Promise<void> {
   try {
+    // The section's ERP order first (lib/writes/shopify-order.ts), then the invoice (history, and houses without the section).
+    const orders = adminDb.collection('orders');
+    let oref: FirebaseFirestore.DocumentReference | null = orders.doc(`SHOPIFY-${f.name.replace(/^#/, '')}`);
+    if (!(await oref.get()).exists) {
+      const oq = await orders.where('shopifyOrderId', '==', f.orderId).limit(1).get();
+      oref = oq.empty ? null : oq.docs[0].ref;
+    }
+    if (oref) { await oref.set({ whatsappOrder: { state: f.state, at: new Date().toISOString() } }, { merge: true }); return; }
     const invoices = adminDb.collection('invoices');
     let ref = invoices.doc(`SHOPIFY-${f.name.replace(/^#/, '')}`);
     if (!(await ref.get()).exists) {

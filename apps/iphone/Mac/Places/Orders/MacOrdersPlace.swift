@@ -53,7 +53,7 @@ struct MacOrdersPlace: View {
     var body: some View {
         let key = baseKey
         let base = made(key) {
-            MacOrdersLogic.base(orders: book.orders.items, invoices: book.invoices.items, karigars: book.karigars.items,
+            MacOrdersLogic.base(orders: MacLists.ordersHere(book.orders.items), invoices: book.invoices.items, karigars: book.karigars.items,
                                 localStatus: localStatus, query: query, takenBy: takenBy, list: list, now: Date())
         }
         ShelfState(

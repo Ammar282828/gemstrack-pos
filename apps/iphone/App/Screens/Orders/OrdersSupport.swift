@@ -80,6 +80,19 @@ struct OrdersOnlineBadge: View {
     }
 }
 
+/// A Shopify order's WhatsApp step beside its name, in its tone (the same words as Invoices' capsule).
+struct OrdersWhatsAppBadge: View {
+    let label: String
+    let tone: Tone
+
+    var body: some View {
+        Text(label)
+            .font(.house(.caption2).weight(.semibold))
+            .foregroundStyle(tone.color)
+            .lineLimit(1)
+    }
+}
+
 /// The colours the Orders screens give what they say, from the ledger's tones only.
 enum OrdersTone {
     /// The status picker's pill: amber while waiting to start, blue with the karigars, green once finished.

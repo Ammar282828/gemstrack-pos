@@ -44,6 +44,7 @@ export function pickOrderInput(input: OrderInput): Record<string, unknown> {
     out.advances = (src.advances as Record<string, unknown>[]).map((a) => ({
       amount: checkMoney(a?.amount, 'An advance', { positive: true }),
       date: checkIsoDate(a?.date, 'An advance date'),
+      ...(typeof a?.id === 'string' && a.id && { id: a.id.slice(0, 120) }),
       ...(typeof a?.notes === 'string' && { notes: a.notes.slice(0, 300) }),
       ...(typeof a?.method === 'string' && { method: a.method }),
     }));
@@ -107,6 +108,14 @@ export interface CreateOrderDeps {
    * so the clash check below costs no round trip of its own when it is right.
    */
   expectedNumber?: number;
+  /**
+   * An order that has an id of its own, not the counter's next ORD-n: a Shopify web order is SHOPIFY-<number>
+   * (lib/writes/shopify-order.ts). The counter is left alone, and an order already there is returned as it is,
+   * so the same notice twice makes one order.
+   */
+  fixedId?: string;
+  /** Fields the server stamps on beyond ORDER_CREATE_FIELDS (a Shopify order's own ids and state). */
+  extra?: Record<string, unknown>;
 }
 
 export interface CreatedOrder extends Record<string, unknown> {
@@ -181,11 +190,15 @@ export async function createOrder(
     }
 
     const nextNumber = (Number(settings.lastOrderNumber) || 0) + 1;
-    const id = orderId(nextNumber);
+    const id = deps.fixedId || orderId(nextNumber);
+    if (deps.fixedId) {
+      const there = await tx.get<CreatedOrder>(ORDERS, id);
+      if (there) { replayed = true; return { ...there, id } as CreatedOrder; }
+    }
 
     // The counter can drift — an import, a restore, a half-finished write —
     // and silently overwriting a real order is far worse than refusing.
-    const clash = id === predicted ? predictedClash : await tx.get(ORDERS, id);
+    const clash = deps.fixedId ? null : id === predicted ? predictedClash : await tx.get(ORDERS, id);
     if (clash) throw new Error(`Order ID ${id} already exists. lastOrderNumber may be out of sync.`);
 
     /**
@@ -221,12 +234,13 @@ export async function createOrder(
       // A summary the caller wrote (a website order's "full advance by bank transfer, Leopards to …") stays.
       summary: (() => { const own = (input as unknown as { summary?: unknown }).summary; return typeof own === 'string' && own.trim() ? own : summary; })(),
       ratesApplied,
+      ...(deps.extra || {}),
     } as CreatedOrder;
 
     // Firestore rejects undefined and aborts the transaction, which is how
     // walk-in orders with no customer used to fail to save without a word.
     tx.set(ORDERS, id, clean(doc) as Record<string, unknown>);
-    tx.update(SETTINGS, SETTINGS_DOC, { lastOrderNumber: nextNumber, ...(input.requestId && { lastOrderRequest: { requestId: input.requestId, orderId: id } }) });
+    if (!deps.fixedId) tx.update(SETTINGS, SETTINGS_DOC, { lastOrderNumber: nextNumber, ...(input.requestId && { lastOrderRequest: { requestId: input.requestId, orderId: id } }) });
     for (const ph of photos) tx.set(ORDER_PHOTOS, ph.id, { dataUri: ph.dataUri, hash: ph.hash, orderId: id, createdAt });
     return doc;
   });

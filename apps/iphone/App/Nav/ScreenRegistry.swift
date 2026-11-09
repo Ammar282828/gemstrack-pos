@@ -62,7 +62,7 @@ enum ScreenRegistry {
         if (bare.hasPrefix("/customers/") || bare.hasPrefix("/karigars/")) && bare.hasSuffix("/edit") { return 720 }
         return nil
         #endif
-        let fills: Set<String> = ["/", "/orders", "/invoices", "/workshop", "/karigars", "/products", "/calendar",
+        let fills: Set<String> = ["/", "/orders", "/invoices", "/shopify", "/workshop", "/karigars", "/products", "/calendar",
                                   "/my-work", "/given", "/orders/add", "/invoices/new", "/products/add", "/design",
                                   "/products/bulk-add", "/settings/printer", "/app/widgets", "/today"]
         if fills.contains(bare) { return nil }

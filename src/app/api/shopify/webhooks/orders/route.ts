@@ -5,6 +5,7 @@ import { adminDb } from '@/lib/firebase-admin';
 import { fetchShopifyOrder, mirrorShopifyOrderById, type OrderMirrorOutcome } from '../../_order-mirror';
 import { followUpPaidOrder, shopifyOrderWhatsAppOn, startOrderFlow } from '@/lib/shopify-whatsapp-server';
 import { pushToShop } from '@/lib/push/send';
+import { STORE_SHOPIFY_SECTION } from '@/lib/store-config';
 
 /**
  * The shop's iPhones (lib/push/send.ts): a new web order as it arrives, before anyone pulls it in,
@@ -14,13 +15,13 @@ async function pushFor(topic: string, orderId: string, o: OrderMirrorOutcome) {
   const g = o.gist;
   if (!g || ('skipped' in o && o.skipped === 'pos-push')) return;
   const body = [g.name, g.customer, g.total].filter(Boolean).join(' · ');
-  if (topic === 'orders/create') await pushToShop({ kind: 'orders', title: 'New Shopify order', body, url: '/settings/integrations', key: `shopify-order_${orderId}` });
+  if (topic === 'orders/create') await pushToShop({ kind: 'orders', title: 'New Shopify order', body, url: STORE_SHOPIFY_SECTION ? '/shopify' : '/settings/integrations', key: `shopify-order_${orderId}` });
   if ('added' in o && o.added.length) {
     const paid = o.added.reduce((t, p) => t + (Number(p.amount) || 0), 0);
     await pushToShop({
       kind: 'payments', title: 'Paid on Shopify',
       body: [g.name, g.customer, `PKR ${Math.round(paid).toLocaleString('en-PK')}`].filter(Boolean).join(' · '),
-      url: `/invoices/${encodeURIComponent(o.invoiceId)}`, key: `shopify-paid_${orderId}_${o.added.map((p) => p.date).join('_')}`,
+      url: 'asOrder' in o && o.asOrder ? `/orders/${encodeURIComponent(o.erpOrderId)}` : `/invoices/${encodeURIComponent((o as { invoiceId: string }).invoiceId)}`, key: `shopify-paid_${orderId}_${o.added.map((p) => p.date).join('_')}`,
     });
   }
 }
