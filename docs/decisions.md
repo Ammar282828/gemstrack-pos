@@ -913,8 +913,14 @@ balance below zero is the customer's credit (`lib/invoice-credit.ts`).
   public). `createPaymentLink` (owners and staff) stores `payment_links/<token>`; the five-minute tick reads each open one and,
   once paid, records it on its invoice (`pay-safepay-<token>`) or order (`adv-safepay-<token>`) by Card, once; unpaid after 30
   days it closes. "Paid" is a transaction on the tracker that went through (`trackerPaid`); confirm it on the first real payment.
-  Safepay's reporting API (`/reporter/api/v1/payments`) did not answer to the merchant keys (2026-11-09), so the tax Safepay
-  withholds comes from its dashboard exports.
+- **Safepay's fees and tax are expenses, by themselves** (2026-11-09, owner: "use the current one"). Safepay's reporter v2
+  (`/reporter/api/v2/payments`, header `X-SFPY-MERCHANT-SECRET` = the SECRET key; docs: apidocs.getsafepay.com, a Postman
+  collection) lists every card payment, and each one's charge: gross, fees (Safepay's cut, its tax included), tax (on the fee),
+  net, and withholding (income tax, sales tax, digital presence tax). To 9 Nov 2026: 22 payments, PKR 4,22,290 gross, fees
+  15,787.64 of which 2,059.24 tax on the fee, nothing withheld. `lib/safepay-fees.ts`: once a day each month becomes ONE expense
+  `safepay-fees-<yyyy-mm>` (category Payment Fees, replaced as the month fills); each payment's charge is read once
+  (`safepay_charges/<tracker>`). The secret is pasted by an owner in Settings → Integrations → Safepay fees and tax and kept
+  sealed (AES-256-GCM from the server's CRON_SECRET) in `app_private/safepay`; saving it runs the first pass at once.
 
 ### Net profit
 

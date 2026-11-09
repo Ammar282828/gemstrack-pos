@@ -34,6 +34,7 @@ import { runDueReports } from '@/lib/notifications/dispatch';
 import { refreshReviews } from '@/lib/reviews-server';
 import { onlineOrdersPossible, sweepOnline } from '@/lib/website/online';
 import { snapshotIfDue } from '@/lib/social-insights/snapshot';
+import { syncSafepayFees } from '@/lib/safepay-fees-server';
 import { catchUpShopifyDelivery, convertShopifyInvoicesToOrders, settlePaymentLinks, sweepShopifyOrders } from '@/lib/shopify-order-sweep';
 
 export const dynamic = 'force-dynamic';
@@ -77,6 +78,9 @@ export async function POST(req: NextRequest) {
   // Safepay payment links: a paid one's money onto its invoice or order (lib/writes/payment-links.ts).
   const paymentLinks = dry ? null : await settlePaymentLinks().catch(e => ({ error: e instanceof Error ? e.message : String(e) }));
   if (paymentLinks && ('error' in paymentLinks || paymentLinks.paid.length || paymentLinks.errors.length)) console.log('[queue/tick] payment links', JSON.stringify(paymentLinks));
+  // Once a day: Safepay's fees and the tax on them, a month to an expense (lib/safepay-fees.ts).
+  const safepayFees = dry ? null : await syncSafepayFees().catch(e => ({ error: e instanceof Error ? e.message : String(e) }));
+  if (safepayFees) console.log('[queue/tick] safepay fees', JSON.stringify(safepayFees));
   // The old Shopify sales made orders (shipped → Completed beside their invoice, cancelled → Cancelled, open → the Workshop).
   const shopifyConvert = dry ? null : await convertShopifyInvoicesToOrders().catch(e => ({ error: e instanceof Error ? e.message : String(e) }));
   if (shopifyConvert) console.log('[queue/tick] shopify convert', JSON.stringify(shopifyConvert));

@@ -11,6 +11,8 @@ import { adminPort } from '@/lib/db-admin-port';
 import { FieldValue } from 'firebase-admin/firestore';
 import { adminDb } from '@/lib/firebase-admin';
 import { forgetSafepayKey, isSafepayPublicKey, paymentLinksOn } from '@/lib/safepay';
+import { isSafepaySecret } from '@/lib/safepay-fees';
+import { saveSafepaySecret, syncSafepayFees } from '@/lib/safepay-fees-server';
 import { createPaymentLink } from '@/lib/writes/payment-links';
 import { STORE_CONFIG } from '@/lib/store-config';
 import type { OpHandler, OpRoles } from './op-context';
@@ -19,6 +21,8 @@ export const PAYLINK_OPS: OpRoles = {
   createPaymentLink: ['owner', 'staff'],
   // Settings → Integrations → Safepay: the house's PUBLIC key (Safepay's checkout takes it in the open). Owners only.
   setSafepayKey: ['owner'],
+  // The SECRET key, for Safepay's fees and tax report only (lib/safepay-fees.ts): sealed server-side, never read back.
+  setSafepaySecret: ['owner'],
 };
 
 const bad = (error: string, status = 400) => NextResponse.json({ error }, { status });
@@ -35,6 +39,16 @@ export const runPaylinkOp: OpHandler = async (op, body, ctx) => {
     forgetSafepayKey();
     await ctx.log('settings.update', key ? 'Safepay connected' : 'Safepay disconnected', key ? 'Payment links on' : 'Payment links off');
     return NextResponse.json({ ok: true, paymentLinks: !!key });
+  }
+  if (op === 'setSafepaySecret') {
+    const secret = typeof body.secret === 'string' ? body.secret.trim() : '';
+    if (secret && !isSafepaySecret(secret)) return bad('That is not a Safepay secret key (64 letters and digits, from Developer → API → Secret key).');
+    await saveSafepaySecret(secret);
+    await ctx.log('settings.update', secret ? 'Safepay fees report connected' : 'Safepay fees report disconnected', secret ? 'Fees and tax recorded monthly as expenses' : '');
+    // The first run straight away, so the past months are in the books now.
+    const run = secret ? await syncSafepayFees(new Date(), true).catch(e => ({ error: e instanceof Error ? e.message : String(e) })) : null;
+    if (run && 'error' in run) return bad(`Saved, but Safepay refused the key: ${run.error}`, 502);
+    return NextResponse.json({ ok: true, fees: !!secret, ...(run ? { run } : {}) });
   }
   if (!(await paymentLinksOn())) return bad(`${STORE_CONFIG.name} has no Safepay account connected.`);
   const target = body.target === 'order' ? 'order' : body.target === 'invoice' ? 'invoice' : null;
