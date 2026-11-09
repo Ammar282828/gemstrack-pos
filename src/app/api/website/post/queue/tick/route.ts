@@ -35,6 +35,7 @@ import { refreshReviews } from '@/lib/reviews-server';
 import { onlineOrdersPossible, sweepOnline } from '@/lib/website/online';
 import { snapshotIfDue } from '@/lib/social-insights/snapshot';
 import { syncSafepayFees } from '@/lib/safepay-fees-server';
+import { syncTcsPayments } from '@/lib/tcs-payments-server';
 import { catchUpShopifyDelivery, convertShopifyInvoicesToOrders, settlePaymentLinks, sweepShopifyOrders } from '@/lib/shopify-order-sweep';
 
 export const dynamic = 'force-dynamic';
@@ -81,6 +82,9 @@ export async function POST(req: NextRequest) {
   // Once a day: Safepay's fees and the tax on them, a month to an expense (lib/safepay-fees.ts).
   const safepayFees = dry ? null : await syncSafepayFees().catch(e => ({ error: e instanceof Error ? e.message : String(e) }));
   if (safepayFees) console.log('[queue/tick] safepay fees', JSON.stringify(safepayFees));
+  // Once a day: TCS's courier charges a month to an expense, and what TCS has paid out (lib/tcs-payments.ts).
+  const tcsPayments = dry ? null : await syncTcsPayments().catch(e => ({ error: e instanceof Error ? e.message : String(e) }));
+  if (tcsPayments) console.log('[queue/tick] tcs payments', JSON.stringify(tcsPayments));
   // The old Shopify sales made orders (shipped → Completed beside their invoice, cancelled → Cancelled, open → the Workshop).
   const shopifyConvert = dry ? null : await convertShopifyInvoicesToOrders().catch(e => ({ error: e instanceof Error ? e.message : String(e) }));
   if (shopifyConvert) console.log('[queue/tick] shopify convert', JSON.stringify(shopifyConvert));

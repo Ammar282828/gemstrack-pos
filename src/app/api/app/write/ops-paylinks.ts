@@ -13,6 +13,8 @@ import { adminDb } from '@/lib/firebase-admin';
 import { forgetSafepayKey, isSafepayPublicKey, paymentLinksOn } from '@/lib/safepay';
 import { isSafepaySecret } from '@/lib/safepay-fees';
 import { saveSafepaySecret, syncSafepayFees } from '@/lib/safepay-fees-server';
+import { checkTcsCredentials } from '@/lib/tcs-payments';
+import { saveTcsCredentials, syncTcsPayments } from '@/lib/tcs-payments-server';
 import { createPaymentLink } from '@/lib/writes/payment-links';
 import { STORE_CONFIG } from '@/lib/store-config';
 import type { OpHandler, OpRoles } from './op-context';
@@ -23,6 +25,8 @@ export const PAYLINK_OPS: OpRoles = {
   setSafepayKey: ['owner'],
   // The SECRET key, for Safepay's fees and tax report only (lib/safepay-fees.ts): sealed server-side, never read back.
   setSafepaySecret: ['owner'],
+  // TCS's own account (lib/tcs-payments.ts): courier charges as expenses, and what TCS has paid out. Sealed server-side.
+  setTcsCredentials: ['owner'],
 };
 
 const bad = (error: string, status = 400) => NextResponse.json({ error }, { status });
@@ -49,6 +53,16 @@ export const runPaylinkOp: OpHandler = async (op, body, ctx) => {
     const run = secret ? await syncSafepayFees(new Date(), true).catch(e => ({ error: e instanceof Error ? e.message : String(e) })) : null;
     if (run && 'error' in run) return bad(`Saved, but Safepay refused the key: ${run.error}`, 502);
     return NextResponse.json({ ok: true, fees: !!secret, ...(run ? { run } : {}) });
+  }
+  if (op === 'setTcsCredentials') {
+    const off = body.off === true;
+    const c = { clientId: String(body.clientId ?? '').trim(), clientSecret: String(body.clientSecret ?? '').trim(), username: String(body.username ?? '').trim(), password: String(body.password ?? '').trim(), customerNo: String(body.customerNo ?? '').trim() };
+    if (!off) { const why = checkTcsCredentials(c); if (why) return bad(why); }
+    await saveTcsCredentials(off ? null : c);
+    await ctx.log('settings.update', off ? 'TCS disconnected' : 'TCS connected', off ? '' : 'Courier charges recorded monthly as expenses');
+    const run = off ? null : await syncTcsPayments(new Date(), true).catch(e => ({ error: e instanceof Error ? e.message : String(e) }));
+    if (run && 'error' in run) return bad(`Saved, but TCS refused: ${run.error}`, 502);
+    return NextResponse.json({ ok: true, tcs: !off, ...(run ? { run } : {}) });
   }
   if (!(await paymentLinksOn())) return bad(`${STORE_CONFIG.name} has no Safepay account connected.`);
   const target = body.target === 'order' ? 'order' : body.target === 'invoice' ? 'invoice' : null;

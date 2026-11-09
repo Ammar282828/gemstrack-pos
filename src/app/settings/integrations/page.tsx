@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { Megaphone } from 'lucide-react';
 import { PageShell } from '@/components/shared/page-shell';
 import { WebsiteSettings } from '@/components/settings/website-settings';
+import { TcsSettings } from '@/components/settings/tcs-settings';
 import { SettingsLink } from '@/components/settings/settings-sections';
 import { SafepaySettings } from '@/components/settings/safepay-settings';
 import { LedgerSection } from '@/components/ledger';
@@ -24,6 +25,7 @@ export default function IntegrationsSettingsPage() {
         </LedgerSection>
       )}
       <SafepaySettings />
+      <TcsSettings />
       <p className="text-xs text-muted-foreground">Labels and tags are under <Link href="/settings/printer" className="underline">Stock › Labels</Link>.</p>
     </PageShell>
   );

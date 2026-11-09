@@ -922,6 +922,17 @@ balance below zero is the customer's credit (`lib/invoice-credit.ts`).
   (`safepay_charges/<tracker>`). The secret is pasted by an owner in Settings → Integrations → Safepay fees and tax and kept
   sealed (AES-256-GCM from the server's CRON_SECRET) in `app_private/safepay`; saving it runs the first pass at once.
 
+### TCS account
+
+- **TCS's own API for the money side** (2026-11-09, the owner sent TCS's "API User Guide v1.0"). Universal Courier books and
+  tracks through Shopify; TCS's OCI Connect API (`ociconnect.tcscourier.com`: auth/api/auth with client ID and secret, then
+  ecom/api/authentication/token with username and password) gives `ecom/api/Payment/detail` per consignment: booking date, cn
+  status, payment status (Y/N), amount paid, delivery charges, delivery and payment dates. `lib/tcs-payments.ts`: once a day the
+  last 120 days are kept in `tcs_parcels/<cn>`, each booking month's charges become ONE expense `tcs-charges-<yyyy-mm>`
+  (Courier & Delivery), and the card in Settings → Integrations → TCS says what TCS has paid out and how many delivered parcels it
+  has not paid for. The five details are an owner's to enter there, sealed server-side in `app_private/tcs` (as Safepay's secret).
+  Untested against TCS until the account is entered: the first save runs it and says what TCS answered.
+
 ### Net profit
 
 - **Net profit is the estimated profit less the expenses** (owner, 2026-10-25: "Net profit 5.51 crore, 100.0% margin" beside

@@ -192,7 +192,7 @@ env:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_STORE_EXPENSE_CATEGORIES
-    value: "Stock & Karigars,Custom Orders,Stones & Pearls,Plating & Finishing,Packaging & Display,Rent,Salaries,Utilities,Shop Setup & Repairs,Marketing,Ad Spend,Photoshoots & Models,Pop-ups & Exhibitions,Travel,Daily Expenses,Payment Fees"
+    value: "Stock & Karigars,Custom Orders,Stones & Pearls,Plating & Finishing,Packaging & Display,Rent,Salaries,Utilities,Shop Setup & Repairs,Marketing,Ad Spend,Photoshoots & Models,Pop-ups & Exhibitions,Travel,Daily Expenses,Payment Fees,Courier & Delivery"
     availability:
       - BUILD
       - RUNTIME
