@@ -2,14 +2,15 @@
 import { adminDb } from '@/lib/firebase-admin';
 import { feeExpense, feesByMonth, fetchCharge, listPaidTrackers, openSecret, sealSecret, type Charge } from '@/lib/safepay-fees';
 
-const PRIVATE = adminDb.collection('app_private').doc('safepay');
+/** Read when needed, never at import (the write route's tests load this module with a stand-in database). */
+const PRIVATE = () => adminDb.collection('app_private').doc('safepay');
 
 export async function saveSafepaySecret(secret: string): Promise<void> {
-  await PRIVATE.set(secret ? { secret: sealSecret(secret.trim()), at: new Date().toISOString() } : { secret: null, at: new Date().toISOString() }, { merge: true });
+  await PRIVATE().set(secret ? { secret: sealSecret(secret.trim()), at: new Date().toISOString() } : { secret: null, at: new Date().toISOString() }, { merge: true });
 }
 
 export async function safepaySecret(): Promise<string | null> {
-  const sealed = (await PRIVATE.get()).data()?.secret;
+  const sealed = (await PRIVATE().get()).data()?.secret;
   return typeof sealed === 'string' ? openSecret(sealed) : null;
 }
 
