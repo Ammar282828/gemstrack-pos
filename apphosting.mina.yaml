@@ -475,6 +475,14 @@ env:
       - BUILD
       - RUNTIME
 
+  # Gold revenue apart from silver everywhere revenue is shown, its profit estimated at this percent (owner, 2026-11-09:
+  # "gold revenue to be separate with a (est 10% profit margin) and silver revenue to be separate"). Taheri has none.
+  - variable: NEXT_PUBLIC_STORE_GOLD_APART_MARGIN
+    value: "10"
+    availability:
+      - BUILD
+      - RUNTIME
+
   # Taheri's invoice naming of 2026-10-05, not Mina's (the owner: "these are instructions for taheri pos"):
   # Mina's invoices keep their number as their file name. Send via WhatsApp sends the PDF from Mina's own
   # line (WAHA session "mina", above) since 2026-11-02, as Taheri's does; NEXT_PUBLIC_STORE_INVOICE_WHATSAPP_PDF is gone.

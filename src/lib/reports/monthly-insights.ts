@@ -31,6 +31,7 @@ import { ASSUMED_MARGIN, invoiceMargin, orderMargin } from '@/lib/margin';
 import { bookedAsSale } from '@/lib/order-stage';
 import { isBusinessCost } from '@/lib/partnership';
 import type { AdditionalRevenue, Expense, Invoice, Order } from '@/lib/store';
+import { GOLD_APART, GOLD_MARGIN_PERCENT, invoiceGoldPart, orderGoldPart, profitWithGoldApart } from '@/lib/analytics/gold-apart';
 import { saleCustomerKey } from '@/lib/walk-in';
 import { addMonths, instant, karachiDay, karachiMonth, monthBounds, monthKey, revenueDate, type MonthRef } from './monthly-time';
 
@@ -96,7 +97,19 @@ export interface CoinCard {
   grams: number;
 }
 
+/** Gold apart from silver (House of Mina, lib/analytics/gold-apart.ts): the month's revenue by metal and gold's estimated profit. */
+export interface GoldSplit {
+  silver: Change;
+  gold: Change;
+  /** Gold's profit at its estimated margin. */
+  goldProfit: Change;
+  /** The margin it is estimated at, in percent. */
+  marginPercent: number;
+}
+
 export interface MonthlyInsights {
+  /** Present only where gold is apart (GOLD_APART). */
+  goldSplit?: GoldSplit;
   /** What the figures are set against: "August" / "September 2025"; `throughDay` when only the first days are. */
   against: { last: string; year: string; throughDay: number | null };
   headline: HeadlineFigure[];
@@ -115,7 +128,7 @@ export interface MonthlyInsights {
 }
 
 /** One thing that counted on a day: revenue (with its profit), a coin sale, or an expense. */
-interface Ev { day: string; revenue: number; profit: number; coin: number; expense: number; running: number; goods: number; sale: number }
+interface Ev { day: string; gold: number; revenue: number; profit: number; coin: number; expense: number; running: number; goods: number; sale: number }
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -126,11 +139,11 @@ export function buildInsights(input: InsightsInput, month: MonthRef, now = new D
 
   // ── Every dated event, once; the months and the days are sums of these.
   const evs: Ev[] = [];
-  const ev = (day: string, e: Partial<Ev>) => { if (day) evs.push({ day, revenue: 0, profit: 0, coin: 0, expense: 0, running: 0, goods: 0, sale: 0, ...e }); };
+  const ev = (day: string, e: Partial<Ev>) => { if (day) evs.push({ day, gold: 0, revenue: 0, profit: 0, coin: 0, expense: 0, running: 0, goods: 0, sale: 0, ...e }); };
   for (const inv of jewellery) {
     if (!inv?.createdAt || inv.status === 'Refunded') continue;
     const v = invoiceSaleValue(inv);
-    ev(karachiDay(revenueDate(inv, ordersById)), { revenue: v, profit: (v * invoiceMargin(inv).percent) / 100, sale: 1 });
+    ev(karachiDay(revenueDate(inv, ordersById)), { revenue: v, gold: GOLD_APART ? invoiceGoldPart(inv, v) : 0, profit: (v * invoiceMargin(inv).percent) / 100, sale: 1 });
   }
   for (const inv of coins) {
     if (!inv?.createdAt || inv.status === 'Refunded') continue;
@@ -138,7 +151,7 @@ export function buildInsights(input: InsightsInput, month: MonthRef, now = new D
   }
   for (const o of input.orders) {
     if (!bookedAsSale(o)) continue;
-    ev(karachiDay(o.createdAt), { revenue: n(o.subtotal), profit: (n(o.subtotal) * orderMargin(o).percent) / 100, sale: 1 });
+    ev(karachiDay(o.createdAt), { revenue: n(o.subtotal), gold: GOLD_APART ? orderGoldPart(o, n(o.subtotal)) : 0, profit: (n(o.subtotal) * orderMargin(o).percent) / 100, sale: 1 });
   }
   for (const r of input.extraRevenues) {
     if (r?.date) ev(karachiDay(r.date), { revenue: n(r.amount), profit: n(r.amount) * ASSUMED_MARGIN });
@@ -150,13 +163,16 @@ export function buildInsights(input: InsightsInput, month: MonthRef, now = new D
 
   const sum = (m: MonthRef, upto?: number) => {
     const p = monthKey(m);
-    const t = { revenue: 0, profit: 0, coin: 0, expense: 0, running: 0, goods: 0, sale: 0 };
+    const t = { revenue: 0, gold: 0, profit: 0, coin: 0, expense: 0, running: 0, goods: 0, sale: 0 };
     for (const e of evs) {
       if (!e.day.startsWith(p) || (upto !== undefined && Number(e.day.slice(8, 10)) > upto)) continue;
-      t.revenue += e.revenue; t.profit += e.profit; t.coin += e.coin; t.expense += e.expense; t.running += e.running; t.goods += e.goods; t.sale += e.sale;
+      t.revenue += e.revenue; t.gold += e.gold; t.profit += e.profit; t.coin += e.coin; t.expense += e.expense; t.running += e.running; t.goods += e.goods; t.sale += e.sale;
     }
     // Where goods are recorded, profit is revenue less them, not the assumed margin (net-profit.ts profitBeforeRunning).
-    const profit = profitBeforeRunning({ estimated: t.profit, revenue: t.revenue, goods: t.goods });
+    // Gold apart (Mina): silver less the goods, gold at its margin (gold-apart.ts), as Analytics.
+    const profit = GOLD_APART
+      ? profitWithGoldApart({ revenue: t.revenue, goldRevenue: t.gold, goods: t.goods })
+      : profitBeforeRunning({ estimated: t.profit, revenue: t.revenue, goods: t.goods });
     return { ...t, profit, net: netProfit(profit, t.running) };
   };
 
@@ -190,6 +206,13 @@ export function buildInsights(input: InsightsInput, month: MonthRef, now = new D
     fig('profit', RECORDS_GOODS ? 'Gross profit' : 'Estimated profit', true, cur.profit, lastT.profit, yearT.profit),
     fig('sales', 'Sales', false, cur.sale, lastT.sale, yearT.sale),
   ];
+  const goldProfitOf = (t: { gold: number }) => t.gold * GOLD_MARGIN_PERCENT / 100;
+  const goldSplit: GoldSplit | undefined = GOLD_APART ? {
+    silver: changeOf(cur.revenue - cur.gold, lastT.revenue - lastT.gold),
+    gold: changeOf(cur.gold, lastT.gold),
+    goldProfit: changeOf(goldProfitOf(cur), goldProfitOf(lastT)),
+    marginPercent: GOLD_MARGIN_PERCENT,
+  } : undefined;
   const marginOf = (t: { net: number; revenue: number }) => netMarginPercent(t.net, t.revenue);
   const margin = { now: marginOf(cur), before: marginOf(lastT), pct: null as number | null };
   // A margin moves in points, not percent of itself: `pct` carries the points.
@@ -287,6 +310,7 @@ export function buildInsights(input: InsightsInput, month: MonthRef, now = new D
   return {
     against: { last: name(last, last.year !== month.year), year: name(yearAgo, true), throughDay },
     headline,
+    ...(goldSplit ? { goldSplit } : {}),
     margin,
     daily,
     trend,

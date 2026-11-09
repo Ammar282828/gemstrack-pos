@@ -12,6 +12,8 @@ import { GroupedBars, LineSmall, Waterfall } from '@/components/analytics/lazy-c
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { monthlySeries, yearlySummary } from '@/lib/analytics/books';
 import { ASSUMED_MARGIN, COST_RATTI_LESS } from '@/lib/margin';
+import { GOLD_APART, GOLD_MARGIN_PERCENT } from '@/lib/analytics/gold-apart';
+import { revenueSplit } from '@/lib/analytics/gold-split';
 import { RECORDS_GOODS } from '@/lib/analytics/net-profit';
 import { STORE_EST_MARGIN } from '@/lib/store-config';
 import { lacCrore, pkrLac } from '@/lib/money';
@@ -26,9 +28,16 @@ function ProfitSections() {
   const years = useMemo(() => yearlySummary(input), [input]);
 
   const { totalSales: revenue, costOfPieces, estProfitAdj: profit, runningExpenses: running, netProfit: net, netMargin } = books;
+  // Gold apart (Mina): silver's profit is its revenue less the goods; gold's is its revenue at the estimated margin.
+  const split = revenueSplit(books, pkrLac);
   const steps = [
     { label: 'Revenue', kind: 'total' as const, value: revenue },
-    { label: RECORDS_GOODS ? 'Goods bought' : 'Cost of pieces (est.)', kind: 'change' as const, value: -costOfPieces },
+    ...(split
+      ? [
+        { label: 'Goods bought', kind: 'change' as const, value: -split.goods },
+        { label: 'Gold cost (est.)', kind: 'change' as const, value: -split.goldCost },
+      ]
+      : [{ label: RECORDS_GOODS ? 'Goods bought' : 'Cost of pieces (est.)', kind: 'change' as const, value: -costOfPieces }]),
     { label: PROFIT_WORD, kind: 'total' as const, value: profit },
     { label: 'Running costs', kind: 'change' as const, value: -running },
     { label: 'Net profit', kind: 'total' as const, value: net },
@@ -55,6 +64,14 @@ function ProfitSections() {
         <Waterfall steps={steps} height={320} />
       </ChartCard>
 
+      {split && (
+        <Figures columns={3} items={[
+          { label: split.silverLabel, value: split.silver, detail: `Silver profit (revenue less goods): ${pkrLac(split.silverProfit)}` },
+          { label: split.goldLabel, value: split.gold, detail: split.goldCaption },
+          { label: 'Gross profit', value: profit, detail: 'Silver profit + gold at its estimate' },
+        ]} />
+      )}
+
       <Figures items={[
         { label: 'Revenue', value: revenue },
         { label: PROFIT_WORD, value: profit, detail: revenue > 0 ? `${pct(estPct)} of revenue` : undefined },
@@ -73,7 +90,12 @@ function ProfitSections() {
       </ChartCard>
 
       <Explain title="How profit is estimated">
-        {RECORDS_GOODS ? (
+        {split ? (
+          <p>
+            Silver&apos;s profit is its revenue less the goods bought in the period. Gold is bought in and has no recorded goods, so its
+            profit is estimated at {GOLD_MARGIN_PERCENT}% of its revenue. Gross profit is the two together.
+          </p>
+        ) : RECORDS_GOODS ? (
           <p>
             Gross profit is revenue less the goods bought in the period ({estPct}% of revenue here). Stock bought and not yet sold counts as spent.
             At a flat {margin}% it would be {pkrLac(books.estProfit)}.
@@ -98,6 +120,8 @@ function ProfitSections() {
                 <TableRow>
                   <TableHead>Year</TableHead>
                   <TableHead className="text-right">Revenue</TableHead>
+                  {GOLD_APART && <TableHead className="hidden text-right sm:table-cell">Silver</TableHead>}
+                  {GOLD_APART && <TableHead className="hidden text-right sm:table-cell">Gold (est. {GOLD_MARGIN_PERCENT}%)</TableHead>}
                   <TableHead className="hidden text-right sm:table-cell">Unpaid</TableHead>
                   <TableHead className="hidden text-right sm:table-cell">Running costs</TableHead>
                   <TableHead className="hidden text-right md:table-cell">{PROFIT_WORD}</TableHead>
@@ -110,6 +134,8 @@ function ProfitSections() {
                   <TableRow key={row.year} className="cursor-pointer hover:bg-muted/50" onClick={() => setQuick(`year-${row.year}`)}>
                     <TableCell className="font-semibold">{row.year}</TableCell>
                     <TableCell className="text-right">{lacCrore(row.revenue)}</TableCell>
+                    {GOLD_APART && <TableCell className="hidden text-right sm:table-cell">{lacCrore(row.revenue - row.goldRevenue)}</TableCell>}
+                    {GOLD_APART && <TableCell className="hidden text-right sm:table-cell">{row.goldRevenue > 0 ? lacCrore(row.goldRevenue) : '—'}</TableCell>}
                     <TableCell className="hidden text-right sm:table-cell">{row.unpaid > 0 ? lacCrore(row.unpaid) : '—'}</TableCell>
                     <TableCell className="hidden text-right sm:table-cell">{lacCrore(row.expenses)}</TableCell>
                     <TableCell className="hidden text-right md:table-cell">{lacCrore(row.profit)}</TableCell>

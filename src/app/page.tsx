@@ -20,6 +20,7 @@ import { owedToYou } from '@/lib/owed';
 import React, { useMemo } from 'react';
 import { BoardSkeleton } from '@/components/shared/skeletons';
 import Link from 'next/link';
+import { GOLD_APART, GOLD_MARGIN_PERCENT } from '@/lib/analytics/gold-apart';
 import { useAppStore, Order, Invoice, Repair, getInvoiceRevenueDate, repairTotal } from '@/lib/store';
 import { buildWorkshopJobs, UNASSIGNED_ID, CRITICAL_DAYS } from '@/lib/workshop';
 import { orderTiming, isActiveOrder, timingLabel, type OrderTiming } from '@/lib/order-timing';
@@ -32,7 +33,7 @@ import { cn } from '@/lib/utils';
 import { isBusinessCost } from '@/lib/partnership';
 import { upcomingOccasions, occasionWhen } from '@/lib/occasions';
 import { invoiceSaleValue } from '@/lib/analytics/sale-value';
-import { revenueForPeriod, coinRevenueForPeriod } from '@/lib/analytics/revenue-period';
+import { revenueForPeriod, coinRevenueForPeriod, goldRevenueForPeriod } from '@/lib/analytics/revenue-period';
 import { useOnlineWaiting, useSellingPausedForRates } from '@/lib/website/online-client';
 import { awaitingTransfer, bookedAsSale } from '@/lib/order-stage';
 import { owesMoney } from '@/lib/money';
@@ -264,6 +265,9 @@ export default function HomePage() {
       todayRevenue: rev(todayStart, tomorrowStart),
       todayInvoiceCount: todayInvoices.length,
       monthRevenue: revenueMonth,
+      // Gold apart (Mina): of the month's and today's revenue, the gold pieces' (Analytics' goldRevenue, same rule).
+      monthGold: GOLD_APART ? goldRevenueForPeriod({ invoices: generatedInvoices, orders, extraRevenues: additionalRevenues }, monthStart, tomorrowStart) : 0,
+      todayGold: GOLD_APART ? goldRevenueForPeriod({ invoices: generatedInvoices, orders, extraRevenues: additionalRevenues }, todayStart, tomorrowStart) : 0,
       monthCoins: coinRevenueForPeriod({ invoices: generatedInvoices, orders }, monthStart, tomorrowStart),
       lastMonthRevenue: rev(lastMonthStart, monthStart),
       unpaid, totalOutstanding, owedInHisaab: owed.ledger,
@@ -382,6 +386,8 @@ export default function HomePage() {
     );
   }
 
+  // "Silver PKR 6 lac · Gold PKR 4 lac (est. 10% margin)": revenue split by metal where gold is apart.
+  const metalLine = (total: number, gold: number) => `Silver ${compactPKR(total - gold)} · Gold ${compactPKR(gold)} (est. ${GOLD_MARGIN_PERCENT}% margin)`;
   const monthSub = stats.lastMonthRevenue > 0 ? `Last month ${compactPKR(stats.lastMonthRevenue)}` : format(new Date(), 'MMMM');
   const lastSale = stats.recentInvoices[0];
   const lastSaleToday = !!lastSale && startOfDay(parseISO(lastSale.createdAt)).getTime() === startOfDay(new Date()).getTime();
@@ -435,6 +441,12 @@ export default function HomePage() {
   const month = (
     <LedgerSection title="This month" collapsible defaultOpen={false}>
       <Link href="/analytics" className={cn(ROW, 'justify-between')}><span className="text-ios-sub text-muted-foreground">Revenue</span><span className="text-ios-sub font-semibold tabular-nums text-tone-settled-ink">{compactPKR(stats.revenueMonth)}</span></Link>
+      {GOLD_APART && (
+        <>
+          <div className={cn(ROW, 'justify-between')}><span className="text-ios-sub text-muted-foreground">Silver revenue</span><span className="text-ios-sub font-semibold tabular-nums">{compactPKR(stats.revenueMonth - stats.monthGold)}</span></div>
+          <div className={cn(ROW, 'justify-between')}><span className="text-ios-sub text-muted-foreground">Gold revenue (est. {GOLD_MARGIN_PERCENT}% margin)</span><span className="text-ios-sub font-semibold tabular-nums">{compactPKR(stats.monthGold)}</span></div>
+        </>
+      )}
       <Link href="/analytics" className={cn(ROW, 'justify-between')}><span className="text-ios-sub text-muted-foreground">Expenses</span><span className="text-ios-sub font-semibold tabular-nums">{compactPKR(stats.expensesMonth)}</span></Link>
       <Link href="/analytics" className={cn(ROW, 'justify-between')}><span className="text-ios-sub text-muted-foreground">Net</span><span className={cn('text-ios-sub font-semibold tabular-nums', stats.netMonth >= 0 ? 'text-foreground' : 'text-tone-late-ink')}>{compactPKR(stats.netMonth)}</span></Link>
     </LedgerSection>
@@ -457,6 +469,7 @@ export default function HomePage() {
             <HeroAmount amount={stats.todayRevenue} lac tone={stats.todayRevenue > 0 ? 'settled' : undefined} className="mt-1" />
             <p className="mt-1 text-ios-foot text-muted-foreground">
               {stats.todayInvoiceCount} invoice{stats.todayInvoiceCount === 1 ? '' : 's'} today
+              {GOLD_APART && stats.todayRevenue > 0 && ` · silver ${compactPKR(stats.todayRevenue - stats.todayGold)} · gold ${compactPKR(stats.todayGold)} (est. ${GOLD_MARGIN_PERCENT}% margin)`}
               {lastSaleToday && lastSale && ` · last at ${formatDate(lastSale.createdAt, 'h:mm a').toLowerCase()}`}
             </p>
           </div>
@@ -466,7 +479,11 @@ export default function HomePage() {
         <div className="hidden gap-3 md:grid md:grid-cols-3 lg:col-span-3">
           <TileLink href="/analytics" title={`PKR ${stats.monthRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}>
             <FigureTile className="h-full" label="This month" value={stats.monthRevenue}
-              detail={stats.monthCoins > 0 ? <>{monthSub}<br />+ {compactPKR(stats.monthCoins)} in gold coins</> : monthSub} />
+              detail={<>
+                {monthSub}
+                {GOLD_APART && <><br />{metalLine(stats.monthRevenue, stats.monthGold)}</>}
+                {stats.monthCoins > 0 && <><br />+ {compactPKR(stats.monthCoins)} in gold coins</>}
+              </>} />
           </TileLink>
           <TileLink
             href={stats.owedInHisaab > 0 ? '/hisaab' : '/invoices'}
@@ -490,7 +507,7 @@ export default function HomePage() {
         </div>
         <div className="glass-card overflow-hidden rounded-card bg-card md:hidden">
           <FigureRow href="/analytics" label="This month" value={`PKR ${lacCrore(stats.monthRevenue)}`}
-            detail={stats.monthCoins > 0 ? `${monthSub} · + ${lacCrore(stats.monthCoins)} in coins` : monthSub} />
+            detail={[monthSub, GOLD_APART ? metalLine(stats.monthRevenue, stats.monthGold) : '', stats.monthCoins > 0 ? `+ ${lacCrore(stats.monthCoins)} in coins` : ''].filter(Boolean).join(' · ')} />
           <FigureRow href={stats.owedInHisaab > 0 ? '/hisaab' : '/invoices'} label="Owed to you"
             tint={stats.totalOutstanding > 0 ? 'owed' : undefined}
             value={stats.totalOutstanding > 0 ? `PKR ${lacCrore(stats.totalOutstanding)}` : 'Nil'}

@@ -10,7 +10,9 @@
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useAppStore, getInvoiceRevenueDate } from '@/lib/store';
+import { useAppStore } from '@/lib/store';
+import { partnershipTotals } from '@/lib/shareholder-figures';
+import { GOLD_APART, GOLD_MARGIN_PERCENT } from '@/lib/analytics/gold-apart';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -102,37 +104,11 @@ export default function ShareholderFinancesPage() {
 
   const ordersById = useMemo(() => new Map(orders.map(o => [o.id, o])), [orders]);
 
-  const totals = useMemo(() => {
-    // Drawings are excluded here on purpose: a partner taking money out is a
-    // reduction of their own equity, not a shared cost. Counting it here would
-    // charge them for it twice.
-    const businessExpenses = expenses.filter(e => e.date >= EXPENSE_CUTOFF && isBusinessCost(e));
-    const totalExpenses = businessExpenses.reduce((s, e) => s + e.amount, 0);
-
-    const invoiceRevenue = generatedInvoices
-      .filter(inv => inv.createdAt && inv.status !== 'Refunded'
-        && getInvoiceRevenueDate(inv, ordersById) >= REVENUE_CUTOFF)
-      .reduce((s, inv) => s + invoiceSaleValue(inv), 0); // part-exchange included, as Analytics
-
-    const invoicedOrderIds = new Set<string>();
-    orders.forEach(o => { if (o.invoiceId) invoicedOrderIds.add(o.id); });
-    generatedInvoices.forEach((inv: any) => { if (inv.sourceOrderId) invoicedOrderIds.add(inv.sourceOrderId); });
-    const orderRevenue = orders
-      .filter(o => o.createdAt && o.status !== 'Cancelled' && o.status !== 'Refunded'
-        && !invoicedOrderIds.has(o.id) && o.createdAt >= REVENUE_CUTOFF)
-      .reduce((s, o) => s + (o.subtotal || 0), 0);
-
-    const additionalRev = additionalRevenues
-      .filter(r => r.date >= REVENUE_CUTOFF)
-      .reduce((s, r) => s + r.amount, 0);
-
-    const totalRevenue = invoiceRevenue + orderRevenue + additionalRev;
-    const drawings = expenses
-      .filter(e => e.date >= EXPENSE_CUTOFF && e.category === PARTNER_DRAWINGS)
-      .reduce((s, e) => s + e.amount, 0);
-
-    return { totalExpenses, totalRevenue, drawings, expShare: totalExpenses / 2, revShare: totalRevenue / 2 };
-  }, [expenses, generatedInvoices, orders, additionalRevenues, ordersById]);
+  // The one copy of the figures (lib/shareholder-figures.ts); where gold is apart (Mina) a partner's half counts gold at its
+  // estimated margin.
+  const totals = useMemo(
+    () => partnershipTotals(expenses as never, generatedInvoices as never, orders as never, additionalRevenues as never),
+    [expenses, generatedInvoices, orders, additionalRevenues]);
 
   /** Salary rows live in Expenses, not the ledger — a wage is a cost of doing
    *  business, not a movement of anybody's capital. */
@@ -340,6 +316,11 @@ export default function ShareholderFinancesPage() {
         <div className="rounded-xl border bg-card p-2.5 sm:p-3.5 min-w-0">
           <p className="text-2xs uppercase tracking-wide text-muted-foreground">Revenue</p>
           <p className="text-base sm:text-lg md:text-xl font-bold text-success leading-tight truncate">{fmt(totals.totalRevenue)}</p>
+          {GOLD_APART && (
+            <p className="mt-0.5 text-2xs leading-tight text-muted-foreground">
+              Silver {fmt(totals.silverRevenue)} · Gold {fmt(totals.goldRevenue)} (est. {GOLD_MARGIN_PERCENT}% margin)
+            </p>
+          )}
         </div>
         <div className="rounded-xl border bg-card p-2.5 sm:p-3.5 min-w-0">
           <p className="text-2xs uppercase tracking-wide text-muted-foreground">Expenses</p>

@@ -10,6 +10,8 @@
 
 import { PARTNER_DRAWINGS, PARTNER_SALARY, categorise, isBusinessCost, partnerBalance, type LedgerCategory, type LedgerEntry, type LedgerType, type PartnerBalance } from '@/lib/partnership';
 import { invoiceSaleValue } from '@/lib/analytics/sale-value';
+import { invoiceGoldPart, orderGoldPart } from '@/lib/analytics/gold-apart';
+import { STORE_GOLD_APART_MARGIN } from '@/lib/store-config';
 
 /** Expenses from "Pearls - Studs x2" onward. */
 export const EXPENSE_CUTOFF = '2025-07-02';
@@ -17,7 +19,7 @@ export const EXPENSE_CUTOFF = '2025-07-02';
 export const REVENUE_CUTOFF = '2025-07-16';
 
 type InvoiceLike = { createdAt?: string; status?: string; sourceOrderId?: string } & NonNullable<Parameters<typeof invoiceSaleValue>[0]>;
-type OrderLike = { id: string; createdAt?: string; status?: string; subtotal?: number; invoiceId?: string };
+type OrderLike = { id: string; createdAt?: string; status?: string; subtotal?: number; invoiceId?: string; items?: Parameters<typeof orderGoldPart>[0]['items'] };
 type ExpenseLike = { id: string; date: string; amount: number; category?: string | null; shareholderId?: string; description: string };
 type RevenueLike = { date: string; amount: number };
 
@@ -43,6 +45,8 @@ const revenueDate = (inv: { createdAt?: string; sourceOrderId?: string }, orders
 /** The business P&L since the partnership started, and each partner's half of it. */
 export function partnershipTotals(
   expenses: ExpenseLike[], invoices: InvoiceLike[], orders: OrderLike[], additionalRevenues: RevenueLike[],
+  /** Gold apart (House of Mina, 2026-11-09): gold's margin in percent, or null where the house keeps one revenue. */
+  goldMargin: number | null = STORE_GOLD_APART_MARGIN,
 ) {
   const ordersById = new Map(orders.map(o => [o.id, o]));
   // Drawings are excluded here on purpose: a partner taking money out is a
@@ -51,18 +55,18 @@ export function partnershipTotals(
   const businessExpenses = expenses.filter(e => e.date >= EXPENSE_CUTOFF && isBusinessCost(e));
   const totalExpenses = businessExpenses.reduce((s, e) => s + e.amount, 0);
 
-  const invoiceRevenue = invoices
+  const countedInvoices = invoices
     .filter(inv => inv.createdAt && inv.status !== 'Refunded'
-      && revenueDate(inv, ordersById) >= REVENUE_CUTOFF)
-    .reduce((s, inv) => s + invoiceSaleValue(inv), 0); // part-exchange included, as Analytics
+      && revenueDate(inv, ordersById) >= REVENUE_CUTOFF);
+  const invoiceRevenue = countedInvoices.reduce((s, inv) => s + invoiceSaleValue(inv), 0); // part-exchange included, as Analytics
 
   const invoicedOrderIds = new Set<string>();
   orders.forEach(o => { if (o.invoiceId) invoicedOrderIds.add(o.id); });
   invoices.forEach(inv => { if (inv.sourceOrderId) invoicedOrderIds.add(inv.sourceOrderId); });
-  const orderRevenue = orders
+  const countedOrders = orders
     .filter(o => o.createdAt && o.status !== 'Cancelled' && o.status !== 'Refunded'
-      && !invoicedOrderIds.has(o.id) && o.createdAt >= REVENUE_CUTOFF)
-    .reduce((s, o) => s + (o.subtotal || 0), 0);
+      && !invoicedOrderIds.has(o.id) && o.createdAt >= REVENUE_CUTOFF);
+  const orderRevenue = countedOrders.reduce((s, o) => s + (o.subtotal || 0), 0);
 
   const additionalRev = additionalRevenues
     .filter(r => r.date >= REVENUE_CUTOFF)
@@ -73,7 +77,13 @@ export function partnershipTotals(
     .filter(e => e.date >= EXPENSE_CUTOFF && e.category === PARTNER_DRAWINGS)
     .reduce((s, e) => s + e.amount, 0);
 
-  return { totalExpenses, totalRevenue, drawings, expShare: totalExpenses / 2, revShare: totalRevenue / 2 };
+  // Gold apart (display only): the split is shown; each partner's half stays half of all revenue, as agreed between them.
+  const goldRevenue = goldMargin === null ? 0
+    : countedInvoices.reduce((s, inv) => s + invoiceGoldPart(inv as { items?: unknown }, invoiceSaleValue(inv)), 0)
+      + countedOrders.reduce((s, o) => s + orderGoldPart(o, o.subtotal || 0), 0);
+  const goldProfit = goldMargin === null ? 0 : goldRevenue * goldMargin / 100;
+
+  return { totalExpenses, totalRevenue, goldRevenue, silverRevenue: totalRevenue - goldRevenue, goldProfit, drawings, expShare: totalExpenses / 2, revShare: totalRevenue / 2 };
 }
 
 /** Salary rows live in Expenses, not the ledger — a wage is a cost of doing

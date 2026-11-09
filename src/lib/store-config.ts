@@ -455,3 +455,14 @@ export const STORE_SHOPIFY_ANALYTICS = process.env.NEXT_PUBLIC_STORE_SHOPIFY_ANA
 /** House of Mina's Shopify orders have a section of their own (nav 'shopify', /shopify) and leave Invoices (owner, 2026-11-09).
  *  Off by default (Taheri has no Shopify orders); House of Mina sets "1". */
 export const STORE_SHOPIFY_SECTION = process.env.NEXT_PUBLIC_STORE_SHOPIFY_SECTION === '1';
+
+/**
+ * Gold revenue apart from the house's own metal, with its profit estimated at a margin (owner, 2026-11-09, House of Mina:
+ * "I want gold revenue to be separate with a (est 10% profit margin) and silver revenue to be separate … in any place revenue
+ * is mentioned"). The percent, or null where the house keeps one revenue (Taheri). lib/analytics/gold-apart.ts.
+ */
+export const STORE_GOLD_APART_MARGIN: number | null = (() => {
+  const raw = (process.env.NEXT_PUBLIC_STORE_GOLD_APART_MARGIN || '').trim();
+  const n = Number(raw);
+  return raw && raw !== 'none' && Number.isFinite(n) && n >= 0 && n <= 100 ? n : null;
+})();

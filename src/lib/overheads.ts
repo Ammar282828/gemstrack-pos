@@ -16,6 +16,7 @@ import {
   startOfMonth, endOfMonth, isWithinInterval, parseISO, format, addMonths, isValid,
 } from 'date-fns';
 import { invoiceSaleValue } from '@/lib/analytics/sale-value';
+import { invoiceGoldPart, orderGoldPart } from '@/lib/analytics/gold-apart';
 
 export interface OverheadItem {
   /** Stable across edits so a row can be changed without being replaced. */
@@ -137,6 +138,7 @@ type OrderLike = {
   subtotal?: number;
   status?: string;
   invoiceId?: string;
+  items?: Parameters<typeof orderGoldPart>[0]['items'];
 };
 
 /**
@@ -153,10 +155,10 @@ type OrderLike = {
 export function revenueByMonth(
   invoices: InvoiceLike[],
   orders: OrderLike[],
-): Record<string, { invoiced: number; uninvoiced: number; total: number }> {
+): Record<string, { invoiced: number; uninvoiced: number; total: number; /** Of `total`, the gold pieces' (gold apart, lib/analytics/gold-apart.ts). */ gold: number }> {
   const byId = new Map(orders.map(o => [o.id, o]));
-  const out: Record<string, { invoiced: number; uninvoiced: number; total: number }> = {};
-  const bucket = (k: string) => (out[k] ??= { invoiced: 0, uninvoiced: 0, total: 0 });
+  const out: Record<string, { invoiced: number; uninvoiced: number; total: number; /** Of `total`, the gold pieces' (gold apart, lib/analytics/gold-apart.ts). */ gold: number }> = {};
+  const bucket = (k: string) => (out[k] ??= { invoiced: 0, uninvoiced: 0, total: 0, gold: 0 });
 
   for (const inv of invoices || []) {
     if (!inv?.createdAt || inv.status === 'Refunded') continue;
@@ -169,6 +171,7 @@ export function revenueByMonth(
     const value = invoiceSaleValue(inv);
     b.invoiced += value;
     b.total += value;
+    b.gold += invoiceGoldPart(inv as { items?: unknown }, value);
   }
 
   for (const o of orders || []) {
@@ -179,6 +182,7 @@ export function revenueByMonth(
     const b = bucket(monthKey(d));
     b.uninvoiced += o.subtotal || 0;
     b.total += o.subtotal || 0;
+    b.gold += orderGoldPart(o, o.subtotal || 0);
   }
 
   return out;

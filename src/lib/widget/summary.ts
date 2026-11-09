@@ -9,7 +9,8 @@
 
 import type { Invoice, Order, Repair, AdditionalRevenue, Expense } from '@/lib/store';
 import { mainRate, ratesSetToday, whenSet, type Rates } from '@/lib/rates';
-import { revenueForPeriod } from '@/lib/analytics/revenue-period';
+import { revenueForPeriod, goldRevenueForPeriod } from '@/lib/analytics/revenue-period';
+import { GOLD_APART, GOLD_MARGIN_PERCENT } from '@/lib/analytics/gold-apart';
 import { karachiMonth, monthBounds } from '@/lib/reports/monthly-time';
 import { karachiDayPeriod, todaysCash } from '@/lib/analytics/todays-cash';
 import { owedToYou, type LedgerRow } from '@/lib/owed';
@@ -70,6 +71,8 @@ export function widgetSummary(r: WidgetRows, house: string, metal: 'gold' | 'sil
   const month = monthBounds(karachiMonth(now));
   const todayRevenue = revenueForPeriod(r, day.from!, new Date(day.to!.getTime() + 1));
   const monthRevenue = revenueForPeriod(r, month.from, new Date(month.to.getTime() + 1));
+  // Gold apart (Mina): the month's revenue by metal, gold with its estimated margin.
+  const monthGold = GOLD_APART ? goldRevenueForPeriod(r, month.from, new Date(month.to.getTime() + 1)) : 0;
   const week = (back: number) => {
     const from = new Date(day.from!.getTime() - back * 86_400_000);
     return revenueForPeriod(r, from, new Date(from.getTime() + 86_400_000));
@@ -108,7 +111,7 @@ export function widgetSummary(r: WidgetRows, house: string, metal: 'gold' | 'sil
     asOf: karachiDayPeriod(now).day,
     figures: [
       { label: 'Made today', value: rs(todayRevenue), detail: 'revenue' },
-      { label: 'This month', value: rs(monthRevenue), detail: 'revenue' },
+      { label: 'This month', value: rs(monthRevenue), detail: GOLD_APART ? `revenue · silver ${rs(monthRevenue - monthGold)} · gold ${rs(monthGold)} (est. ${GOLD_MARGIN_PERCENT}% margin)` : 'revenue' },
       {
         label: metal === 'silver' ? 'Silver' : `Gold ${main.label}`,
         value: rate ? `Rs ${Math.round(rate).toLocaleString('en-PK')}` : 'Not set',

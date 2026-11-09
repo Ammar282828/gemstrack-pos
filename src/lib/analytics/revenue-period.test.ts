@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { revenueForPeriod, coinRevenueForPeriod } from './revenue-period';
+import { revenueForPeriod, coinRevenueForPeriod, goldRevenueForPeriod } from './revenue-period';
 import { splitAllCoinSales, summariseCoins } from './coins';
 import { invoiceSaleValue } from './sale-value';
 import type { AdditionalRevenue, Invoice, Order } from '@/lib/store';
@@ -57,5 +57,16 @@ describe('dashboard and widget revenue', () => {
     it('counts an invoice with no createdAt nowhere, like Analytics', () => {
       expect(revenueForPeriod({ invoices: [invoice({ createdAt: '' })], orders: [], extraRevenues: [] }, from, to)).toBe(0);
     });
+  });
+});
+
+describe('gold revenue of a period (House of Mina, gold apart)', () => {
+  const line = (metalType: string, itemTotal: number) => ({ categoryId: 'cat001', metalType, itemTotal, quantity: 1 });
+  it('splits each sale by its lines\' metal and leaves extra revenue to silver', () => {
+    const inv = invoice({ id: 'INV-m', grandTotal: 380, subtotal: 400, items: [line('gold', 300), line('silver', 100)] });
+    const ord = order({ subtotal: 200, items: [{ metalType: 'gold', totalEstimate: 200 }] });
+    const rows = { invoices: [inv], orders: [ord], extraRevenues: [extra(50, '2026-10-08')] };
+    expect(goldRevenueForPeriod(rows, from, to)).toBe(285 + 200);
+    expect(revenueForPeriod(rows, from, to)).toBe(380 + 200 + 50);
   });
 });

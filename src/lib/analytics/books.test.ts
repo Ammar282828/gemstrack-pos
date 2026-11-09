@@ -117,7 +117,7 @@ describe('computeBooks: the old component\'s figures on the fixture, worked by h
   });
 
   it('series and rankings', () => {
-    expect(b.salesOverTime).toEqual([
+    expect(b.salesOverTime.map(({ gold: _g, ...r }) => r)).toEqual([
       { date: '2026-11-02', sales: 100000, orders: 1, itemsSold: 1 },
       { date: '2026-11-03', sales: 50000, orders: 1, itemsSold: 1 },
       { date: '2026-11-04', sales: 90000, orders: 1, itemsSold: 0 },
@@ -261,7 +261,7 @@ describe('month by month', () => {
   });
   it('monthlyRevenue and yearlySummary keep the old arithmetic', () => {
     const m = monthlyRevenue(input);
-    expect(m.data).toEqual([
+    expect(m.data.map(({ gold: _g, ...r }) => r)).toEqual([
       { key: '2026-10', month: 'Oct 26', revenue: 40000, sales: 1 },
       { key: '2026-11', month: 'Nov 26', revenue: 240000, sales: 4 },
     ]);

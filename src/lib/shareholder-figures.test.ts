@@ -43,13 +43,26 @@ describe('the partnership\'s profit and loss', () => {
   ];
 
   it('counts from the cutoffs, leaves drawings out of the costs and counts them apart', () => {
-    const t = partnershipTotals(expenses, invoices as never, orders, extra);
+    const t = partnershipTotals(expenses, invoices as never, orders, extra, null);
     expect(t.totalExpenses).toBe(26_000);
     expect(t.drawings).toBe(15_000);
     // INV-2 with its exchange, INV-4, ORD-2 unbilled, the extra revenue from the 16th.
     expect(t.totalRevenue).toBe(50_000 + 7_000 + 30_000 + 2_500);
     expect(t.expShare).toBe(13_000);
     expect(t.revShare).toBe(44_750);
+  });
+
+  it('gold apart: the split is shown; a partner\'s half stays half of all revenue', () => {
+    const inv = [{ id: 'G', createdAt: '2025-09-01T10:00:00.000Z', grandTotal: 100_000, items: [{ metalType: 'gold', itemTotal: 40_000 }, { metalType: 'silver', itemTotal: 60_000 }] }];
+    const on = partnershipTotals([], inv as never, [], [], 10);
+    expect(on.totalRevenue).toBe(100_000);
+    expect(on.goldRevenue).toBe(40_000);
+    expect(on.silverRevenue).toBe(60_000);
+    expect(on.goldProfit).toBe(4_000);
+    expect(on.revShare).toBe(50_000);
+    const off = partnershipTotals([], inv as never, [], [], null);
+    expect(off.goldRevenue).toBe(0);
+    expect(off.revShare).toBe(50_000);
   });
 
   it('starts on the cutoff days themselves', () => {

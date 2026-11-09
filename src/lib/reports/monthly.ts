@@ -24,6 +24,7 @@ import { exchangeTotal, invoiceExchanges } from '@/lib/exchange';
 import { orderAdvancePayments } from '@/lib/order-payment';
 import { isBusinessCost } from '@/lib/partnership';
 import { bookedAsSale } from '@/lib/order-stage';
+import { GOLD_APART, GOLD_MARGIN_PERCENT, invoiceGoldPart, orderGoldPart } from '@/lib/analytics/gold-apart';
 
 export * from './monthly-time';
 import { buildInsights, type MonthlyInsights } from './monthly-insights';
@@ -69,7 +70,7 @@ export interface MonthlyReport {
   /** The month is not over yet. */
   partial: boolean;
   generatedAt: string;
-  revenue: { invoices: number; openOrders: number; other: number; total: number; coins: number };
+  revenue: { invoices: number; openOrders: number; other: number; total: number; coins: number; /** Of `total`, the gold pieces' where gold is apart (else 0). */ gold: number; /** Gold's profit at its estimated margin (else 0). */ goldProfit: number };
   counts: { invoices: number; pieces: number; openOrders: number; customers: number; refunded: number };
   /** Metal sold on jewellery invoices, by metal and karat, heaviest first. */
   metal: { label: string; grams: number }[];
@@ -158,11 +159,12 @@ export function buildMonthlyReport(input: MonthlyInput, month: MonthRef, now = n
   }).sort((x, y) => instant(x.date) - instant(y.date) || x.id.localeCompare(y.id));
 
   // ── Revenue, exactly as Analytics adds it up.
-  let invoiceRevenue = 0, coinRevenue = 0, pieces = 0;
+  let invoiceRevenue = 0, coinRevenue = 0, pieces = 0, goldRevenue = 0;
   const metal = new Map<string, number>();
   for (const inv of jewellery) {
     if (!inv?.createdAt || inv.status === 'Refunded' || !within(revenueDate(inv, ordersById), b)) continue;
     invoiceRevenue += invoiceSaleValue(inv);
+    if (GOLD_APART) goldRevenue += invoiceGoldPart(inv, invoiceSaleValue(inv));
     for (const item of itemsOf(inv)) {
       pieces += Math.max(1, n(item.quantity));
       const g = n(item.metalWeightG) * Math.max(1, n(item.quantity));
@@ -183,6 +185,7 @@ export function buildMonthlyReport(input: MonthlyInput, month: MonthRef, now = n
     }))
     .sort((x, y) => instant(x.date) - instant(y.date));
   const openRevenue = openOrders.reduce((s, o) => s + o.value, 0);
+  if (GOLD_APART) for (const o of input.orders) if (bookedAsSale(o) && within(o.createdAt, b)) goldRevenue += orderGoldPart(o, n(o.subtotal));
 
   const income: IncomeRow[] = input.extraRevenues
     .filter(r => r?.date && within(r.date, b))
@@ -236,7 +239,7 @@ export function buildMonthlyReport(input: MonthlyInput, month: MonthRef, now = n
     to: b.to.toISOString(),
     partial: current.year === month.year && current.month === month.month,
     generatedAt: now.toISOString(),
-    revenue: { invoices: invoiceRevenue, openOrders: openRevenue, other: otherRevenue, total, coins: coinRevenue },
+    revenue: { invoices: invoiceRevenue, openOrders: openRevenue, other: otherRevenue, total, coins: coinRevenue, gold: goldRevenue, goldProfit: GOLD_APART ? goldRevenue * GOLD_MARGIN_PERCENT / 100 : 0 },
     counts: {
       invoices: live.length,
       pieces,
@@ -275,6 +278,7 @@ export function monthlyCaption(r: MonthlyReport): string {
   return [
     `📊 *Monthly report — ${r.label}*${r.partial ? ' (so far)' : ''}`,
     `Revenue: ${pkr(r.revenue.total)}${change(r.revenue.total, r.previous.revenue)}`,
+    ...(GOLD_APART ? [`Silver revenue: ${pkr(r.revenue.total - r.revenue.gold)}`, `Gold revenue (est. ${GOLD_MARGIN_PERCENT}% margin): ${pkr(r.revenue.gold)} · profit est. ${pkr(r.revenue.goldProfit)}`] : []),
     `${r.counts.invoices} sale(s)${r.counts.openOrders ? `, ${r.counts.openOrders} open order(s)` : ''}${r.revenue.coins ? ` · coins ${pkr(r.revenue.coins)}` : ''}`,
     `Cash in: ${pkr(r.cashIn.total)} · Expenses: ${pkr(r.expenses.business)}`,
     `Every sale is listed in the PDF.`,

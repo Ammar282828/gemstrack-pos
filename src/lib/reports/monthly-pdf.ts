@@ -131,6 +131,7 @@ export function buildMonthlyPdf(r: MonthlyReport, logo: ReportLogo | null): jsPD
     const rows = [sign(t.vsLast, ins.against.last, good), sign(t.vsYear, ins.against.year, good)];
     if (t.key === 'net') rows.push({ text: `margin ${ins.margin.now.toFixed(1)}%${ins.margin.pct === null ? '' : ` (${ins.margin.pct >= 0 ? '+' : '-'}${Math.abs(ins.margin.pct).toFixed(1)} pts)`}`, colour: MUTED });
     if (t.key === 'profit') rows.push({ text: 'each sale at its own margin', colour: MUTED });
+    if (t.key === 'revenue' && ins.goldSplit) rows.push({ text: `Silver ${lacCrore(ins.goldSplit.silver.now)} · Gold ${lacCrore(ins.goldSplit.gold.now)} (est. ${ins.goldSplit.marginPercent}%)`, colour: MUTED });
     if (t.key === 'cashIn') rows.push({ text: 'payments, advances, exchange', colour: MUTED });
     if (t.key === 'sales') rows.push({ text: `${r.counts.pieces} pieces, ${r.counts.customers} customers`, colour: MUTED });
     doc.setFont('helvetica', 'normal').setFontSize(6.8);
@@ -144,7 +145,9 @@ export function buildMonthlyPdf(r: MonthlyReport, logo: ReportLogo | null): jsPD
   } else {
     doc.setFont('helvetica', 'italic').setFontSize(6.5);
     ink(MUTED);
-    doc.text(plain(`Net profit = estimated profit (each sale at its own margin) less expenses. Gold coins are kept out of every figure above.`), M, y);
+    doc.text(plain(ins.goldSplit
+      ? `Silver profit = its revenue less the goods bought; gold is estimated at ${ins.goldSplit.marginPercent}% of its revenue. Net profit = both less running costs. Gold coins are kept out.`
+      : `Net profit = estimated profit (each sale at its own margin) less expenses. Gold coins are kept out of every figure above.`), M, y);
   }
   y += 3;
   hairline(doc, M, y, W - M, 'rule');
@@ -236,6 +239,11 @@ export function buildMonthlyPdf(r: MonthlyReport, logo: ReportLogo | null): jsPD
     [`Orders taken, not yet invoiced · ${r.counts.openOrders}`, pkr(r.revenue.openOrders)],
     ['Other income (repairs and the like)', pkr(r.revenue.other)],
     ['Revenue', pkr(r.revenue.total), true],
+    ...(ins.goldSplit ? [
+      ['  Silver revenue', pkr(r.revenue.total - r.revenue.gold)],
+      [`  Gold revenue (est. ${ins.goldSplit.marginPercent}% margin)`, pkr(r.revenue.gold)],
+      [`  Gold profit est. at ${ins.goldSplit.marginPercent}%`, pkr(r.revenue.goldProfit)],
+    ] as [string, string][] : []),
   ];
   if (r.revenue.coins) revenueRows.push(['Gold coins (kept out of revenue)', pkr(r.revenue.coins)]);
   const cashRows: [string, string, boolean?][] = [

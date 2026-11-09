@@ -10,6 +10,7 @@
  * from the September the benchmark starts.
  */
 
+import { GOLD_APART, GOLD_MARGIN_PERCENT } from '@/lib/analytics/gold-apart';
 import React from 'react';
 import Link from 'next/link';
 import { format } from 'date-fns';
@@ -137,6 +138,7 @@ export default function OverheadsPage() {
   // moves the bar with it.
   const target = overheadTotal(items);
   const earned = current?.earned ?? 0;
+  const earnedGold = current ? revenue[current.month]?.gold ?? 0 : 0;
   const p = overheadProgress(target, earned, now);
   const met = p.shortfall === 0 && target > 0;
 
@@ -165,6 +167,11 @@ export default function OverheadsPage() {
             <div className="text-right min-w-0">
               <p className="text-xs uppercase tracking-wide text-muted-foreground">Revenue so far</p>
               <p className="text-2xl sm:text-3xl font-bold tabular-nums">{PKR(earned)}</p>
+              {GOLD_APART && (
+                <p className="text-xs text-muted-foreground">
+                  Silver {PKR(earned - earnedGold)} · Gold {PKR(earnedGold)} (est. {GOLD_MARGIN_PERCENT}% margin)
+                </p>
+              )}
             </div>
           </div>
 

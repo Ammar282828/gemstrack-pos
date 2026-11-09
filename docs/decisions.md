@@ -891,6 +891,17 @@ balance below zero is the customer's credit (`lib/invoice-credit.ts`).
 - `STORE_EST_MARGIN` and the ratti read an empty variable as unset: the env generator writes Mina-only variables empty
   for a local Taheri, and `Number('')` made every local estimate 0%.
 
+### Gold apart
+
+- **House of Mina's gold revenue is apart from its silver, with its profit estimated at 10%** (2026-11-09, owner: "I want gold
+  revenue to be separate with a (est 10% profit margin) and silver revenue to be separate. So this takes effect in any place
+  revenue is mentioned"). `NEXT_PUBLIC_STORE_GOLD_APART_MARGIN` = "10" (apphosting.mina.yaml; Taheri none), served to the apps as
+  `/api/app/business` `goldApartMargin`. Each sale is split by its pieces' metal (`lib/analytics/gold-apart.ts`): an invoice by its
+  lines' totals, an order by its pieces' prices, the sale's discount, delivery and exchange falling on each metal in proportion;
+  extra revenue is silver. Profit before running costs = silver revenue less the recorded goods (gross profit, as before) + gold
+  revenue × 10% (gold is bought in; its cost is not among the goods). `computeBooks` carries `goldRevenue`, `silverRevenue`,
+  `goldProfit`, `silverProfit`; every screen and report that names revenue shows the two (the gold one with its estimated margin).
+
 ### Net profit
 
 - **Net profit is the estimated profit less the expenses** (owner, 2026-10-25: "Net profit 5.51 crore, 100.0% margin" beside

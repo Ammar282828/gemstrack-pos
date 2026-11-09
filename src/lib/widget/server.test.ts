@@ -10,7 +10,7 @@ vi.mock('@/lib/firebase-admin', () => ({ adminDb: {
     set: mocks.set,
   }) }),
 } }));
-vi.mock('@/lib/store-config', () => ({ STORE_CONFIG: { name: 'Sample shop', defaultMetal: 'silver' } }));
+vi.mock('@/lib/store-config', () => ({ STORE_CONFIG: { name: 'Sample shop', defaultMetal: 'silver' }, STORE_GOLD_APART_MARGIN: null }));
 vi.mock('@/lib/roles', () => ({ roleForEmail: () => 'owner' }));
 vi.mock('@/lib/website/config', () => ({ loadRates: async () => ({}) }));
 vi.mock('@/lib/notifications/reports', () => ({ theDayRows: mocks.day, rows: async () => [] }));

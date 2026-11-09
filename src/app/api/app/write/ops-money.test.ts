@@ -50,7 +50,7 @@ const codeChecks: string[] = [];
 vi.mock('@/lib/db-admin-port', () => ({ adminPort: port }));
 vi.mock('@/lib/firebase', () => ({ db: {} }));
 vi.mock('firebase-admin/firestore', () => ({ FieldValue: { delete: () => REMOVE } }));
-vi.mock('@/lib/store-config', () => ({ get STORE_PARTNERSHIP() { return partnership; } }));
+vi.mock('@/lib/store-config', () => ({ get STORE_PARTNERSHIP() { return partnership; }, STORE_GOLD_APART_MARGIN: null }));
 vi.mock('@/lib/delete-code-gate', () => ({
   passDeleteCode: async (_email: string, code: unknown, what: string) => {
     codeChecks.push(what);

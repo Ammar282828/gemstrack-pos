@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   STORE_BRAND, STORE_CONFIG, STORE_ICONS, STORE_LOGO_ASPECT, STORE_LOGO_LIGHT_URL, STORE_LOGO_URL, STORE_PALETTE,
-  STORE_EST_MARGIN, storeAppIos, storeAppAndroid,
+  STORE_EST_MARGIN, STORE_GOLD_APART_MARGIN, storeAppIos, storeAppAndroid,
 } from '@/lib/store-config';
 import { COST_RATTI_LESS } from '@/lib/margin';
 import { shopFlags } from '@/lib/app-shop';
@@ -60,6 +60,8 @@ export async function GET(req: NextRequest) {
     // The expense categories that are the cost of the goods (NEXT_PUBLIC_STORE_GOODS_EXPENSE_CATEGORIES; Taheri none): net profit
     // does not take them off, the estimated profit's margin already has (lib/analytics/net-profit.ts isRunningCost).
     goodsExpenseCategories: [...GOODS_EXPENSE_CATEGORIES],
+    // Gold revenue apart from the house's metal, its profit at this percent (lib/analytics/gold-apart.ts); null: one revenue.
+    goldApartMargin: STORE_GOLD_APART_MARGIN,
     // The oldest app build this ERP takes (APP_MIN_BUILD, a CFBundleVersion number); 0: any. The app says "Update from TestFlight" below it.
     minBuild: Math.max(0, Math.floor(Number(process.env.APP_MIN_BUILD) || 0)),
     // The same for the Android app (APP_MIN_ANDROID_BUILD, a versionCode): the two stores number their builds apart, so one floor

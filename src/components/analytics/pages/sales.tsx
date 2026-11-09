@@ -9,13 +9,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { FileText, Package } from 'lucide-react';
 import { AnalyticsPage, ChartCard, Figures, Section, useBooksContext } from '@/components/analytics/kit';
-import { TrendArea, WeekdayBars, MonthlyRevenueChart, StackedBar100, ana } from '@/components/analytics/lazy-charts';
+import { TrendArea, WeekdayBars, MonthlyRevenueChart, StackedBar100, StackedBars, ana } from '@/components/analytics/lazy-charts';
 import { Segmented } from '@/components/ledger';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { autoBucket, bucketSeries, compareSeries, monthlyRevenue, previousPeriod, type Bucket, type SalesOverTimeData } from '@/lib/analytics/books';
+import { revenueSplit, silverGoldRows, SILVER_REVENUE_LABEL, goldRevenueLabel } from '@/lib/analytics/gold-split';
+import { GOLD_APART } from '@/lib/analytics/gold-apart';
 import { invoiceSaleValue } from '@/lib/analytics/sale-value';
 import { pkrLac, lacCrore } from '@/lib/money';
 import { formatDate } from '@/lib/safe-date';
@@ -42,7 +44,14 @@ function DayDialog({ day, onClose }: { day: SalesOverTimeData | null; onClose: (
         </DialogHeader>
         {day && (
           <div className="my-4 grid grid-cols-1 gap-4 text-center md:grid-cols-3">
-            <div className="rounded-md bg-muted p-3"><p className="text-sm text-muted-foreground">Total revenue</p><p className="text-xl font-bold">{pkrLac(day.sales)}</p></div>
+            <div className="rounded-md bg-muted p-3">
+              <p className="text-sm text-muted-foreground">Total revenue</p><p className="text-xl font-bold">{pkrLac(day.sales)}</p>
+              {GOLD_APART && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {SILVER_REVENUE_LABEL} {pkrLac(day.sales - (day.gold ?? 0))} · {goldRevenueLabel()} {pkrLac(day.gold ?? 0)}
+                </p>
+              )}
+            </div>
             <div className="rounded-md bg-muted p-3"><p className="text-sm text-muted-foreground">Total orders</p><p className="text-xl font-bold">{day.orders}</p></div>
             <div className="rounded-md bg-muted p-3"><p className="text-sm text-muted-foreground">Pieces sold</p><p className="text-xl font-bold">{day.itemsSold}</p></div>
           </div>
@@ -99,6 +108,9 @@ function Sales() {
     return compareSeries(cur, prev && prevBooks ? bucketSeries(prevBooks.salesOverTime, bucket, prev.range) : null);
   }, [books, prevBooks, bucket, range]);
 
+  const split = revenueSplit(books, pkrLac);
+  const metalRows = useMemo(() => (GOLD_APART ? silverGoldRows(books.salesOverTime, bucket, range) : []), [books, bucket, range]);
+
   const best = rows.reduce<typeof rows[number] | null>((m, r) => (r.value > (m?.value ?? 0) ? r : m), null);
   const canCompare = !!previousLabel && !!prevBooks && prevBooks.totalSales > 0;
   const grain = bucket === 'day' ? 'day' : bucket === 'week' ? 'week' : 'month';
@@ -136,6 +148,15 @@ function Sales() {
         </div>
         <TrendArea data={rows} height={280} showPrev={canCompare && compare} prevName={previousLabel ? `Compared with ${previousLabel}` : undefined} />
       </ChartCard>
+
+      {split && (
+        <ChartCard title="Silver and gold" takeaway={`${split.silverLabel} ${pkrLac(split.silver)} · ${split.goldLabel} ${pkrLac(split.gold)}. ${split.goldCaption}`}>
+          <StackedBars data={metalRows} series={[
+            { key: 'silver', label: split.silverLabel, color: ana(1) },
+            { key: 'gold', label: split.goldLabel, color: ana(3) },
+          ]} height={240} />
+        </ChartCard>
+      )}
 
       <Figures items={[
         { label: 'Sales', value: books.totalOrders.toLocaleString(), detail: 'Invoices and booked orders' },

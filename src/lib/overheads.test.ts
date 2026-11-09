@@ -84,8 +84,8 @@ describe('revenue by month', () => {
       { id: 'INV-5', createdAt: 'whenever', grandTotal: 99_000 },
     ];
     const r = revenueByMonth(invoices as never, orders);
-    expect(r['2026-09']).toEqual({ invoiced: 90_000, uninvoiced: 0, total: 90_000 });
-    expect(r['2026-10']).toEqual({ invoiced: 25_000, uninvoiced: 0, total: 25_000 });
+    expect(r['2026-09']).toEqual({ invoiced: 90_000, uninvoiced: 0, total: 90_000, gold: 0 });
+    expect(r['2026-10']).toEqual({ invoiced: 25_000, uninvoiced: 0, total: 25_000, gold: 0 });
     expect(Object.keys(r).sort()).toEqual(['2026-09', '2026-10']);
   });
 
@@ -103,7 +103,7 @@ describe('revenue by month', () => {
       { id: 'ORD-6', createdAt: '2026-10-06T10:00:00.000Z', status: 'In Progress' },
       { id: 'ORD-7', subtotal: 14_000 },
     ];
-    expect(revenueByMonth([], orders)['2026-10']).toEqual({ invoiced: 0, uninvoiced: 70_000, total: 70_000 });
+    expect(revenueByMonth([], orders)['2026-10']).toEqual({ invoiced: 0, uninvoiced: 70_000, total: 70_000, gold: 0 });
   });
 });
 

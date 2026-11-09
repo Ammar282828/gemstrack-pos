@@ -30,6 +30,7 @@ import type {
 } from '@/lib/store';
 import { CUSTOMER_SOURCES, CUSTOMER_SOURCE_LABELS, getInvoiceRevenueDate, type CustomerSource } from '@/lib/store';
 import { ASSUMED_MARGIN, invoiceMargin, orderMargin } from '@/lib/margin';
+import { GOLD_APART, GOLD_MARGIN_PERCENT, invoiceGoldPart, orderGoldPart, profitWithGoldApart } from '@/lib/analytics/gold-apart';
 import { splitAllCoinSales, summariseCoins, type CoinSummary } from '@/lib/analytics/coins';
 import { cashInForPeriod, invoicedOrderIds } from '@/lib/analytics/cash-in';
 import { invoiceSaleValue } from '@/lib/analytics/sale-value';
@@ -62,7 +63,7 @@ export interface BooksOptions {
   metal?: 'gold' | 'silver';
 }
 
-export type SalesOverTimeData = { date: string; sales: number; orders: number; itemsSold: number };
+export type SalesOverTimeData = { date: string; sales: number; orders: number; itemsSold: number; /** Of `sales`, gold (lib/analytics/gold-apart.ts). */ gold?: number };
 export type TopProductData = { sku: string; name: string; quantity: number; revenue: number };
 export type SalesByCategoryData = { categoryId: string; categoryName: string; sales: number };
 export type TopCustomerData = { key: string; customerId?: string; customerName: string; totalSpent: number; orderCount: number };
@@ -108,6 +109,14 @@ export interface CustomerDay { date: string; newKeys: string[]; returningKeys: s
 export interface Books {
   // ── Revenue (jewellery only; coins apart) ──
   totalSales: number;
+  /** Of `totalSales`, the gold pieces' (lib/analytics/gold-apart.ts); the rest is the house's own metal and extra revenue. */
+  goldRevenue: number;
+  /** `totalSales` less `goldRevenue`. */
+  silverRevenue: number;
+  /** Gold's profit at the house's margin where gold is apart (GOLD_APART), else 0. */
+  goldProfit: number;
+  /** Silver's profit before running costs where gold is apart (revenue less goods), else 0. */
+  silverProfit: number;
   invoiceSales: number;
   orderSales: number;
   extraRevenue: number;
@@ -330,13 +339,13 @@ function computeWith(p: Prepared, range: RangeLike | null | undefined): Books {
     sourceByDate[dateKey][key] = (sourceByDate[dateKey][key] || 0) + amount;
   };
 
-  let totalSales = 0, invoiceSalesAcc = 0;
+  let totalSales = 0, invoiceSalesAcc = 0, goldRevenue = 0;
   let estProfit = 0, salesCosted = 0, salesCount = 0;
   let totalItemsSold = 0;
   let metalGrams = 0, metalPieces = 0;
   const metalByKarat: Record<string, { grams: number; pieces: number }> = {};
   let totalDiscounts = 0, totalUnpaid = 0;
-  const salesByDate: Record<string, { sales: number; orders: number; itemsSold: number }> = {};
+  const salesByDate: Record<string, { sales: number; orders: number; itemsSold: number; gold?: number }> = {};
   const productPerformance: Record<string, { quantity: number; revenue: number; name?: string }> = {};
   const categoryPerformance: Record<string, number> = {};
   const customerPerformance: Record<string, { totalSpent: number; orderCount: number; resolvedName?: string }> = {};
@@ -352,6 +361,8 @@ function computeWith(p: Prepared, range: RangeLike | null | undefined): Books {
   filteredInvoices.forEach(invoice => {
     const invAmount = invoiceSaleValue(invoice);
     totalSales += invAmount;
+    const invGold = invoiceGoldPart(invoice, invAmount);
+    goldRevenue += invGold;
     invoiceSalesAcc += invAmount;
     const invMargin = invoiceMargin(invoice);
     estProfit += invAmount * invMargin.percent / 100;
@@ -364,6 +375,7 @@ function computeWith(p: Prepared, range: RangeLike | null | undefined): Books {
     const dateKey = format(revenueDate, 'yyyy-MM-dd');
     const d = day(dateKey);
     d.sales += invAmount;
+    d.gold = (d.gold || 0) + invGold;
     d.orders += 1;
     weekdayCount[weekdayIndex(revenueDate)] += 1;
     (invoicesByDay[dateKey] ??= []).push(invoice);
@@ -421,6 +433,8 @@ function computeWith(p: Prepared, range: RangeLike | null | undefined): Books {
     const amount = order.subtotal || 0;
     totalSales += amount;
     orderSales += amount;
+    const ordGold = orderGoldPart(order, amount);
+    goldRevenue += ordGold;
     const ordMargin = orderMargin(order);
     estProfit += amount * ordMargin.percent / 100;
     salesCount += 1;
@@ -430,6 +444,7 @@ function computeWith(p: Prepared, range: RangeLike | null | undefined): Books {
     const dateKey = format(orderDate, 'yyyy-MM-dd');
     const d = day(dateKey);
     d.sales += amount;
+    d.gold = (d.gold || 0) + ordGold;
     d.orders += 1;
     weekdayCount[weekdayIndex(orderDate)] += 1;
 
@@ -476,7 +491,7 @@ function computeWith(p: Prepared, range: RangeLike | null | undefined): Books {
     .map(e => ({ id: e.id, date: e.date, category: e.category, description: e.description, amount: e.amount || 0, kind: kindOf(e) }));
 
   const salesOverTime = Object.entries(salesByDate)
-    .map(([date, data]) => ({ date, sales: data.sales, orders: data.orders, itemsSold: data.itemsSold }))
+    .map(([date, data]) => ({ date, sales: data.sales, orders: data.orders, itemsSold: data.itemsSold, gold: data.gold || 0 }))
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   const productRows = Object.entries(productPerformance).map(([sku, data]) => ({
@@ -590,11 +605,16 @@ function computeWith(p: Prepared, range: RangeLike | null | undefined): Books {
   filteredCoinInvoices.forEach(inv => addOwed(inv, true));
   const receivables = [...owed.values()].sort((a, b) => b.balanceDue - a.balanceDue);
 
-  const estProfitAdj = profitBeforeRunning({ estimated: estProfit, revenue: totalSales, goods: goodsExpenses });
+  // Gold apart (Mina): silver less the goods, gold at its margin; else the house's one rule.
+  const estProfitAdj = GOLD_APART
+    ? profitWithGoldApart({ revenue: totalSales, goldRevenue, goods: goodsExpenses })
+    : profitBeforeRunning({ estimated: estProfit, revenue: totalSales, goods: goodsExpenses });
+  const goldProfit = GOLD_APART ? goldRevenue * GOLD_MARGIN_PERCENT / 100 : 0;
   const netProfit = netProfitOf(estProfitAdj, runningExpenses);
 
   return {
-    totalSales, invoiceSales: invoiceSalesAcc, orderSales, extraRevenue, totalUnpaid, totalOrders,
+    totalSales, goldRevenue, silverRevenue: totalSales - goldRevenue, goldProfit, silverProfit: GOLD_APART ? estProfitAdj - goldProfit : 0,
+    invoiceSales: invoiceSalesAcc, orderSales, extraRevenue, totalUnpaid, totalOrders,
     averageOrderValue: totalOrders > 0 ? orderRevenueTotal / totalOrders : 0,
     totalItemsSold, totalDiscounts,
     averageItemsPerOrder: totalOrders > 0 ? totalItemsSold / totalOrders : 0,
@@ -770,6 +790,9 @@ export interface MonthRow {
   /** "Nov 26" */
   month: string;
   revenue: number;
+  /** Of `revenue`, gold's (gold apart, Mina) and gold's profit at its margin. */
+  goldRevenue: number;
+  goldProfit: number;
   /** Sales (invoices and orders). */
   sales: number;
   /** Profit before running costs (`estProfitAdj`). */
@@ -810,7 +833,7 @@ export function monthlySeries(input: BooksInput, months: number | 'all' = 12, op
     const b = computeWith(p, { from: m, to: endOfMonth(m) });
     return {
       key: format(m, 'yyyy-MM'), month: format(m, 'MMM yy'),
-      revenue: b.totalSales, sales: b.totalOrders, estProfit: b.estProfitAdj,
+      revenue: b.totalSales, goldRevenue: b.goldRevenue, goldProfit: b.goldProfit, sales: b.totalOrders, estProfit: b.estProfitAdj,
       running: b.runningExpenses, goods: b.goodsExpenses, drawings: b.drawingsExpenses,
       net: b.netProfit, netMargin: b.netMargin, cashIn: b.cashIn, cashOut: b.cashOut,
       metalGrams: b.metalGrams, metalByKarat: Object.fromEntries(b.metalByKarat.map(k => [k.karat, k.grams])),
@@ -831,19 +854,20 @@ export function karatsOf(rows: MonthRow[]): string[] {
  * slice. Same revenue basis as everywhere (invoice sale value on its order date, uninvoiced order subtotals, extra
  * revenue). Empty months are kept so gaps read as gaps.
  */
-export function monthlyRevenue(input: BooksInput): { data: { key: string; month: string; revenue: number; sales: number }[]; average: number; best: string | null } {
+export function monthlyRevenue(input: BooksInput): { data: { key: string; month: string; revenue: number; sales: number; gold: number }[]; average: number; best: string | null } {
   const p = prepare(input);
-  const bucket: Record<string, { revenue: number; sales: number }> = {};
-  const add = (iso: string, amount: number) => {
+  const bucket: Record<string, { revenue: number; sales: number; gold: number }> = {};
+  const add = (iso: string, amount: number, gold = 0) => {
     const d = parseISO(iso);
     if (Number.isNaN(d.getTime())) return;
     const key = format(startOfMonth(d), 'yyyy-MM');
-    if (!bucket[key]) bucket[key] = { revenue: 0, sales: 0 };
+    if (!bucket[key]) bucket[key] = { revenue: 0, sales: 0, gold: 0 };
     bucket[key].revenue += amount;
+    bucket[key].gold += gold;
     bucket[key].sales += 1;
   };
-  p.jewellery.forEach(({ item: inv }) => add(getInvoiceRevenueDate(inv, p.ordersById), invoiceSaleValue(inv)));
-  p.orders.forEach(({ item: o }) => add(o.createdAt, o.subtotal || 0));
+  p.jewellery.forEach(({ item: inv }) => { const v = invoiceSaleValue(inv); add(getInvoiceRevenueDate(inv, p.ordersById), v, invoiceGoldPart(inv, v)); });
+  p.orders.forEach(({ item: o }) => add(o.createdAt, o.subtotal || 0, orderGoldPart(o, o.subtotal || 0)));
   p.extras.forEach(({ item: r }) => add(r.date, r.amount || 0));
 
   const keys = Object.keys(bucket).sort();
@@ -852,7 +876,7 @@ export function monthlyRevenue(input: BooksInput): { data: { key: string; month:
   const data = eachMonthOfInterval({ start: parseISO(`${keys[0]}-01`), end: parseISO(`${keys[keys.length - 1]}-01`) }).map(m => {
     const key = format(m, 'yyyy-MM');
     const b = bucket[key];
-    return { key, month: format(m, 'MMM yy'), revenue: b?.revenue || 0, sales: b?.sales || 0 };
+    return { key, month: format(m, 'MMM yy'), revenue: b?.revenue || 0, sales: b?.sales || 0, gold: b?.gold || 0 };
   });
   const withRevenue = data.filter(d => d.revenue > 0);
   const average = withRevenue.length ? withRevenue.reduce((s, d) => s + d.revenue, 0) / withRevenue.length : 0;
@@ -860,19 +884,20 @@ export function monthlyRevenue(input: BooksInput): { data: { key: string; month:
   return { data, average, best };
 }
 
-export interface YearRow { year: number; revenue: number; expenses: number; unpaid: number; profit: number; netProfit: number; netMargin: number }
+export interface YearRow { year: number; revenue: number; /** Of revenue, gold's (gold apart) and its profit at the margin. */ goldRevenue: number; goldProfit: number; expenses: number; unpaid: number; profit: number; netProfit: number; netMargin: number }
 
 /** Each calendar year of the history, newest first (the old "Yearly Performance Overview"). */
 export function yearlySummary(input: BooksInput): YearRow[] {
   const p = prepare(input);
-  const yearMap: Record<number, { revenue: number; expenses: number; unpaid: number; profit: number; goods: number }> = {};
-  const blank = () => ({ revenue: 0, expenses: 0, unpaid: 0, profit: 0, goods: 0 });
+  const yearMap: Record<number, { revenue: number; gold: number; expenses: number; unpaid: number; profit: number; goods: number }> = {};
+  const blank = () => ({ revenue: 0, gold: 0, expenses: 0, unpaid: 0, profit: 0, goods: 0 });
   p.jewellery.forEach(({ item: inv, t }) => {
     if (Number.isNaN(t)) return;
     const yr = getYear(t);
     if (!yearMap[yr]) yearMap[yr] = blank();
     const value = invoiceSaleValue(inv);
     yearMap[yr].revenue += value;
+    yearMap[yr].gold += invoiceGoldPart(inv, value);
     // Each sale at its own margin: from the 24k rate typed when it was made, else the assumed one (lib/margin.ts).
     yearMap[yr].profit += value * invoiceMargin(inv).percent / 100;
     yearMap[yr].unpaid += Math.max(0, inv.balanceDue || 0);
@@ -883,6 +908,7 @@ export function yearlySummary(input: BooksInput): YearRow[] {
     if (!yearMap[yr]) yearMap[yr] = blank();
     // Subtotal: the full order value regardless of advance paid.
     yearMap[yr].revenue += order.subtotal || 0;
+    yearMap[yr].gold += orderGoldPart(order, order.subtotal || 0);
     yearMap[yr].profit += (order.subtotal || 0) * orderMargin(order).percent / 100;
   });
   p.extras.forEach(({ item: r, t }) => {
@@ -906,10 +932,12 @@ export function yearlySummary(input: BooksInput): YearRow[] {
   });
   return Object.entries(yearMap)
     .map(([year, data]) => {
-      const profit = profitBeforeRunning({ estimated: data.profit, revenue: data.revenue, goods: data.goods });
+      const profit = GOLD_APART
+        ? profitWithGoldApart({ revenue: data.revenue, goldRevenue: data.gold, goods: data.goods })
+        : profitBeforeRunning({ estimated: data.profit, revenue: data.revenue, goods: data.goods });
       // That profit less the running costs, never revenue less every expense (net-profit.ts).
       const net = netProfitOf(profit, data.expenses);
-      return { year: parseInt(year), revenue: data.revenue, expenses: data.expenses, unpaid: data.unpaid, profit, netProfit: net, netMargin: netMarginPercent(net, data.revenue) };
+      return { year: parseInt(year), revenue: data.revenue, goldRevenue: data.gold, goldProfit: GOLD_APART ? data.gold * GOLD_MARGIN_PERCENT / 100 : 0, expenses: data.expenses, unpaid: data.unpaid, profit, netProfit: net, netMargin: netMarginPercent(net, data.revenue) };
     })
     .sort((a, b) => b.year - a.year);
 }

@@ -11,6 +11,7 @@
 
 import { todaysCash, METHODS, karachiDayPeriod } from '@/lib/analytics/todays-cash';
 import { invoiceSaleValue } from '@/lib/analytics/sale-value';
+import { GOLD_APART, GOLD_MARGIN_PERCENT, invoiceGoldPart } from '@/lib/analytics/gold-apart';
 import { orderFullTotal } from '@/lib/order-payment';
 import { isBusinessCost } from '@/lib/partnership';
 import { lateOrders, orderTiming, timingLabel, type OrderTiming } from '@/lib/order-timing';
@@ -47,7 +48,13 @@ const late = (orders: Row[], now: Date) => lateOrders(orders as Array<Row & Para
 function salesBetween(invoices: Row[], from: number, to = Infinity) {
   const list = invoices.filter(i => i.status !== 'Refunded' && at(i.createdAt) >= from && at(i.createdAt) < to)
     .sort((a, b) => at(a.createdAt) - at(b.createdAt));
-  return { list, count: list.length, value: list.reduce((s, i) => s + saleValue(i), 0) };
+  return { list, count: list.length, value: list.reduce((s, i) => s + saleValue(i), 0), gold: list.reduce((s, i) => s + invoiceGoldPart(i, saleValue(i)), 0) };
+}
+
+/** The note under a Sales figure: its invoice count, and where gold is apart (Mina) the metals' split, gold with its margin. */
+export function salesNote(sold: { count: number; value: number; gold: number }, fmt: (n: number) => string, on: boolean = GOLD_APART, percent: number = GOLD_MARGIN_PERCENT): string {
+  const count = plural(sold.count, 'invoice');
+  return on ? `${count} · silver ${fmt(sold.value - sold.gold)} · gold ${fmt(sold.gold)} (est. ${percent}% margin)` : count;
 }
 
 /** Orders finished from a time on, each with the invoice it became (dated by the invoice). */
@@ -219,7 +226,7 @@ export function endOfDayDoc(r: ShopRows, now: Date): AlertDoc {
     subheading: `${plural(d.sold.count, 'sale')} · ${plural(d.taken.length, 'new order')} · ${d.completed.length} completed`,
     headline: `${dayLabel(now)} · sales ${pkr(d.sold.value)} · in ${pkr(d.cash.totalIn)}`,
     figures: [
-      { label: 'Sales', value: pkr(d.sold.value), note: plural(d.sold.count, 'invoice') },
+      { label: 'Sales', value: pkr(d.sold.value), note: salesNote(d.sold, rs) },
       { label: 'Money in', value: pkr(d.cash.totalIn), note: d.cash.exchange ? `and ${rs(d.cash.exchange)} exchange` : undefined },
       { label: 'Paid out', value: pkr(d.cash.expenses) },
       { label: 'New orders', value: String(d.taken.length), note: d.taken.length ? `est. ${rs(d.taken.reduce((s, o) => s + (Number(o.subtotal) || 0), 0))}` : undefined },
@@ -251,7 +258,7 @@ export function dailyReportDoc(r: ShopRows, now: Date): AlertDoc {
     subheading: `${plural(d.sold.count, 'sale')} · ${plural(d.cash.lines.length, 'payment')} · ${plural(d.taken.length, 'new order')}`,
     headline: `${dayLabel(now)} · sales ${pkr(d.sold.value)} · net cash ${pkr(d.cash.netCash)}`,
     figures: [
-      { label: 'Sales', value: pkr(d.sold.value), note: plural(d.sold.count, 'invoice') },
+      { label: 'Sales', value: pkr(d.sold.value), note: salesNote(d.sold, rs) },
       { label: 'Money in', value: pkr(d.cash.totalIn), note: plural(d.cash.lines.length, 'payment') },
       { label: 'Paid out', value: pkr(d.cash.expenses), note: plural(d.cash.expenseLines.length, 'expense') },
       { label: 'Net cash', value: pkr(d.cash.netCash), note: 'the drawer', tone: d.cash.netCash < 0 ? 'flag' : undefined },
@@ -309,7 +316,7 @@ export function weeklyDoc(r: ShopRows, now: Date): AlertDoc {
     subheading: `the seven days to ${longDay(new Date(end - 1))}`,
     headline: `${span} · sales ${pkr(sold.value)}`,
     figures: [
-      { label: 'Sales', value: pkr(sold.value), note: plural(sold.count, 'invoice') },
+      { label: 'Sales', value: pkr(sold.value), note: salesNote(sold, rs) },
       { label: 'Expenses', value: pkr(expTotal), note: 'business costs' },
       { label: 'Sales less expenses', value: pkr(net), note: 'before metal and making', tone: net < 0 ? 'flag' : undefined },
       { label: 'New orders', value: String(taken.length), note: `est. ${rs(taken.reduce((s, o) => s + (Number(o.subtotal) || 0), 0))}` },

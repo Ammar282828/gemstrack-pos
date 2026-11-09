@@ -221,7 +221,7 @@ export const READ_TOOLS: AgentTool[] = [
   }),
   tool({
     name: 'month_summary', title: 'A month’s figures', effect: 'read', scopes: [...READ],
-    description: 'A month by Analytics’ own rules (the Monthly PDF’s): revenue (jewellery, open orders, other income), cash in by method, expenses, net, what is owed, metal sold, against the month before. Default: this month so far.',
+    description: 'A month by Analytics’ own rules (the Monthly PDF’s): revenue (jewellery, open orders, other income; where gold is kept apart, House of Mina, `revenue.gold` is its gold part and `revenue.goldProfit` its profit estimated at the house’s margin, the rest is silver), cash in by method, expenses, net, what is owed, metal sold, against the month before. Default: this month so far.',
     input: z.object({ month: z.string().regex(/^\d{4}-\d{2}$/).optional().describe('YYYY-MM (default this month).') }),
     run: async a => {
       const month = a.month ? parseMonth(a.month) : karachiMonth(new Date());

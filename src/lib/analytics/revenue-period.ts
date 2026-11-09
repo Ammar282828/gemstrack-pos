@@ -4,6 +4,7 @@ import { invoiceSaleValue } from './sale-value';
 import { bookedAsSale } from '@/lib/order-stage';
 import { revenueDate } from '@/lib/reports/monthly-time';
 import { splitAllCoinSales } from './coins';
+import { invoiceGoldPart, orderGoldPart } from './gold-apart';
 
 const makeWithin = (from: Date, to: Date) => (iso: string | undefined) => {
   if (!iso) return false;
@@ -33,4 +34,16 @@ export function coinRevenueForPeriod(rows: Pick<Rows, 'invoices' | 'orders'>, fr
   const ordersById = new Map(rows.orders.map(o => [o.id, o]));
   const { coins } = splitAllCoinSales(rows.invoices);
   return coins.filter(i => i.createdAt && i.status !== 'Refunded' && within(revenueDate(i, ordersById))).reduce((sum, i) => sum + invoiceSaleValue(i), 0);
+}
+
+/**
+ * Of `revenueForPeriod`, the gold pieces' (lib/analytics/gold-apart.ts), by the same rule Analytics' goldRevenue uses:
+ * each sale split by its lines' metal; extra revenue is never gold. Meaningful only where gold is apart (GOLD_APART).
+ */
+export function goldRevenueForPeriod(rows: Rows, from: Date, to = new Date(8.64e15)): number {
+  const within = makeWithin(from, to);
+  const ordersById = new Map(rows.orders.map(o => [o.id, o]));
+  const { jewellery } = splitAllCoinSales(rows.invoices);
+  return jewellery.filter(i => i.createdAt && i.status !== 'Refunded' && within(revenueDate(i, ordersById))).reduce((sum, i) => sum + invoiceGoldPart(i, invoiceSaleValue(i)), 0)
+    + rows.orders.filter(o => bookedAsSale(o) && within(o.createdAt)).reduce((sum, o) => sum + orderGoldPart(o, Number(o.subtotal) || 0), 0);
 }

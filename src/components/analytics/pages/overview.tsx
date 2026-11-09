@@ -14,6 +14,7 @@ import {
   type StackPart, type WaterfallStep,
 } from '@/components/analytics/lazy-charts';
 import { autoBucket, bucketSeries, compareSeries, previousPeriod } from '@/lib/analytics/books';
+import { revenueSplit } from '@/lib/analytics/gold-split';
 import { RECORDS_GOODS } from '@/lib/analytics/net-profit';
 import { STORE_METAL_WORD } from '@/lib/store-config';
 import { toTola } from '@/lib/units';
@@ -66,10 +67,19 @@ function Overview() {
 
   const bestDay = useMemo(() => books.salesOverTime.reduce<typeof books.salesOverTime[number] | null>((m, d) => (d.sales > (m?.sales ?? 0) ? d : m), null), [books]);
 
+  // Gold apart (Mina): the total stays "Revenue", the two parts sit under it, gold with its estimated margin.
+  const split = revenueSplit(books, pkrLac);
   const tiles = (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       <KpiTile label="Revenue" value={pkrLac(books.totalSales)} href="/analytics/sales"
-        delta={deltaOf(books.totalSales, prevBooks?.totalSales)} spark={trend.spark} />
+        delta={deltaOf(books.totalSales, prevBooks?.totalSales)} spark={trend.spark}
+        sub={split && (
+          <>
+            <span className="block">{split.silverLabel} {pkrLac(split.silver)}</span>
+            <span className="block">{split.goldLabel} {pkrLac(split.gold)}</span>
+            <span className="block">{split.goldCaption}</span>
+          </>
+        )} />
       <KpiTile label="Net profit" value={pkrLac(books.netProfit)} href="/analytics/profit"
         delta={deltaOf(books.netProfit, prevBooks?.netProfit)} sub={`${books.netMargin.toFixed(0)}% margin`} />
       <KpiTile label="Net cash" value={pkrLac(books.netCashFlow)} href="/analytics/cash"
@@ -83,6 +93,15 @@ function Overview() {
     <ChartCard key="sales" title="Sales over time" href="/analytics/sales"
       takeaway={bestDay ? `Best day ${formatDate(bestDay.date, 'EEE d MMM')} · ${pkrLac(bestDay.sales)}` : 'No sales in this period'}>
       <TrendArea data={trend.rows} height={180} showPrev={!!previousLabel} prevName={previousLabel ? `Compared with ${previousLabel}` : undefined} />
+      {split && (
+        <div className="mt-4">
+          <LabelledStack caption="Revenue by metal" parts={[
+            { key: 'silver', label: split.silverLabel, value: split.silver, color: ana(1) },
+            { key: 'gold', label: split.goldLabel, value: split.gold, color: ana(3) },
+          ]} />
+          <p className="mt-1 text-ios-foot text-muted-foreground">{split.goldCaption}</p>
+        </div>
+      )}
     </ChartCard>
   );
 
