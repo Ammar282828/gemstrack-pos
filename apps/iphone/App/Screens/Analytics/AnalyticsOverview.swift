@@ -68,7 +68,7 @@ struct AnaOverviewPage: View {
         return GlassGroup {
             layout {
                 FigureRow(alignment: .top, spacing: pt(10)) {
-                    FigureTile(label: "Revenue", value: Money.pkrLac(f.totalSales), detail: "Sales in this period", tint: Tone.settled.color)
+                    FigureTile(label: "Revenue", value: Money.pkrLac(f.totalSales), detail: AbSplit(f)?.tileLines ?? "Sales in this period", tint: Tone.settled.color)
                     if showCosts {
                         FigureTile(label: "Expenses", value: Money.pkrLac(f.totalExpenses), detail: expensesDetail)
                     }

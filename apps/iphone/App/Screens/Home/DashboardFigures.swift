@@ -423,6 +423,9 @@ struct DashFigures {
     private(set) var todayRevenue = 0.0
     private(set) var todayInvoiceCount = 0
     private(set) var monthRevenue = 0.0
+    /// Of `todayRevenue` and `monthRevenue`, the gold pieces' (GoldApart); only said where the business keeps gold apart.
+    private(set) var todayGold = 0.0
+    private(set) var monthGold = 0.0
     private(set) var lastMonthRevenue = 0.0
     /// Gold coins sold this month, apart from `monthRevenue` (Analytics splits them out too); shown as a quiet line, never added.
     private(set) var monthCoins = 0.0
@@ -458,6 +461,7 @@ struct DashFigures {
     private struct Event {
         let at: Date
         let amount: Double
+        var gold = 0.0
     }
 
     init(orders: [Order], invoices: [Invoice], revenues: [AdditionalRevenue], expenses: [Expense],
@@ -475,6 +479,15 @@ struct DashFigures {
     }
 
     // MARK: gathering
+
+    private static func totalGold(_ events: [Event], from: Date, before: Date? = nil) -> Double {
+        var sum = 0.0
+        for e in events where e.at >= from {
+            if let before, e.at >= before { continue }
+            sum += e.gold
+        }
+        return sum
+    }
 
     private static func total(_ events: [Event], from: Date, before: Date? = nil) -> Double {
         var sum = 0.0
@@ -512,13 +525,15 @@ struct DashFigures {
         // The jewellery sales, a counter order not yet invoiced (bookedAsSale; an online one waits for its transfer) and
         // Extra revenue: one list, which "Taken today" opens day by day (DashTaken), so the two can never disagree.
         let entries = DashTaken.entries(jewellery: split.jewellery, orders: orders, ordersById: ordersById, revenues: revenues, repairs: repairs)
-        let events = entries.map { (e: DashTakenEntry) -> Event in Event(at: e.at, amount: e.amount) }
+        let events = entries.map { (e: DashTakenEntry) -> Event in Event(at: e.at, amount: e.amount, gold: e.gold) }
 
         todayInvoiceCount = invoicesToday
         // Capped at the end of today, like Analytics' "this month" (the 1st to today), so a future-dated row reads the same in both.
         let tomorrowStart = DashDate.startOfDay(DashDate.adding(days: 1, to: now))
         todayRevenue = Self.total(events, from: todayStart, before: tomorrowStart)
         monthRevenue = Self.total(events, from: monthStart, before: tomorrowStart)
+        todayGold = Self.totalGold(events, from: todayStart, before: tomorrowStart)
+        monthGold = Self.totalGold(events, from: monthStart, before: tomorrowStart)
         monthCoins = Self.total(coinEvents, from: monthStart, before: tomorrowStart)
         lastMonthRevenue = Self.total(events, from: lastMonthStart, before: monthStart)
         revenueMonth = monthRevenue

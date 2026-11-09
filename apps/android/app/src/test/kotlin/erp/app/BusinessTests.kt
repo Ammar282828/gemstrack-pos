@@ -295,6 +295,18 @@ class BundledBusinessesTests {
         assertEquals(list[1].goodsExpenseCategories, Business.decode(list[1].toJson())!!.goodsExpenseCategories)
     }
 
+    @Test fun `gold apart is Mina's 10 from its yaml, Taheri off, and an older ERP sends none`() {
+        val list = Business.decodeList(read("src/main/assets/businesses.json"))
+        assertEquals(null, list[0].goldApartMargin)
+        // One source: the bundled copy is apphosting.mina.yaml's variable.
+        val yaml = read("../../../apphosting.mina.yaml")
+        val value = Regex("NEXT_PUBLIC_STORE_GOLD_APART_MARGIN\\s+value: \"([^\"]*)\"").find(yaml)!!.groupValues[1].toDouble()
+        assertEquals(value, list[1].goldApartMargin)
+        assertEquals(10.0, Business.decode(list[1].toJson())!!.goldApartMargin)
+        val older = list[1].toMap().filterKeys { it != "goldApartMargin" }
+        assertEquals(null, Business.from(older)!!.goldApartMargin)
+    }
+
     @Test fun `an older ERP that sends no goods list is none`() {
         val b = Business.decodeList(read("src/main/assets/businesses.json")).first().toMap().filterKeys { it != "goodsExpenseCategories" }
         assertEquals(emptyList(), Business.from(b)!!.goodsExpenseCategories)

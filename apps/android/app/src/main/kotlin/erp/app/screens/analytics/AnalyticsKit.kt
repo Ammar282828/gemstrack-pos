@@ -67,6 +67,8 @@ class AnaLedger(
     val now: Instant,
     /** The house files its goods as expenses (Mina): its middle step is Gross profit, not an estimate. */
     val recordsGoods: Boolean,
+    /** Gold apart from silver (the descriptor's `goldApartMargin`, a percent); null: one revenue, as Taheri keeps. */
+    val goldApartMargin: Double? = null,
 )
 
 /** The change from the period before, signed, in percent; [better] says whether that move is the good one. */

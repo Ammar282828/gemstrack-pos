@@ -46,6 +46,9 @@ object House {
     /** The categories that are the cost of the goods (NEXT_PUBLIC_STORE_GOODS_EXPENSE_CATEGORIES): Mina's four, Taheri none. Net profit leaves them out. */
     val goodsExpenseCategories: List<String> get() = business.goodsExpenseCategories
 
+    /** Gold revenue shown apart from silver, its profit estimated at this percent (the descriptor's `goldApartMargin`); null: off (Taheri). */
+    val goldApartMargin: Double? get() = business.goldApartMargin
+
     fun marginFor(house: String): MarginSettings = if (house == "mina") MarginSettings.mina else MarginSettings.taheri
 
     const val DEMO_EXTRA = "erp.demo"

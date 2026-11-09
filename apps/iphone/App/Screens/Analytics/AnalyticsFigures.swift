@@ -63,6 +63,8 @@ struct AnaDay: Identifiable {
     var sales = 0.0
     var orders = 0
     var itemsSold = 0.0
+    /// Of `sales`, gold (GoldApart).
+    var gold = 0.0
     var id: String { date }
 
     init(date: String) {
@@ -134,6 +136,11 @@ struct AnaFigures {
     var ordersInRange = 0
 
     var totalSales = 0.0
+    /// Of `totalSales`, the gold pieces' (GoldApart); `goldApartMargin` is the business's percent, nil where gold is not apart (Taheri).
+    var goldRevenue = 0.0
+    var goldApartMargin: Double?
+    var silverRevenue: Double { totalSales - goldRevenue }
+    var goldProfit: Double { goldApartMargin.map { goldRevenue * $0 / 100 } ?? 0 }
     var invoiceSales = 0.0
     var orderSales = 0.0
     var extraRevenue = 0.0
@@ -188,8 +195,10 @@ struct AnaFigures {
 
 extension AnaFigures {
     /// `margin` nil is a non-owner: no margin is worked out for them at all.
-    init(_ books: AnaBooks, range: AnaRange?, margin: MarginSettings?, goods: [String] = House.goodsExpenseCategories) {
+    init(_ books: AnaBooks, range: AnaRange?, margin: MarginSettings?, goods: [String] = House.goodsExpenseCategories,
+         goldApartMargin: Double? = House.goldApartMargin) {
         self.init()
+        self.goldApartMargin = goldApartMargin
         let scope = AnaScope(range: range)
         let ordersById = books.ordersById
         let revenueDate: (Invoice) -> String = { (inv: Invoice) -> String in AnaRules.revenueDate(inv, ordersById) }
@@ -265,6 +274,7 @@ private final class AnaGather {
     let nameOf: (String) -> String?
 
     var totalSales = 0.0
+    var goldRevenue = 0.0
     var invoiceSales = 0.0
     var orderSales = 0.0
     var extraRevenue = 0.0
@@ -342,6 +352,8 @@ private final class AnaGather {
     func invoice(_ inv: Invoice) {
         let value = invoiceSaleValue(inv)
         totalSales += value
+        let gold = GoldApart.invoiceGoldPart(inv, value)
+        goldRevenue += gold
         invoiceSales += value
         if let margin {
             // Each sale at its own margin: from the 24k rate typed when it was made, else the house's estimate.
@@ -356,6 +368,7 @@ private final class AnaGather {
         let key = dayKey(revenueDate(inv))
         if !key.isEmpty {
             days[key, default: AnaDay(date: key)].sales += value
+            days[key, default: AnaDay(date: key)].gold += gold
             days[key, default: AnaDay(date: key)].orders += 1
             invoicesByDay[key, default: []].append(inv)
         }
@@ -411,6 +424,8 @@ private final class AnaGather {
     func order(_ o: Order) {
         let amount = o.subtotal
         totalSales += amount
+        let gold = GoldApart.orderGoldPart(o, amount)
+        goldRevenue += gold
         orderSales += amount
         if let margin {
             let m = orderMargin(o, settings: margin)
@@ -422,6 +437,7 @@ private final class AnaGather {
         let key = dayKey(o.createdAt)
         if !key.isEmpty {
             days[key, default: AnaDay(date: key)].sales += amount
+            days[key, default: AnaDay(date: key)].gold += gold
             days[key, default: AnaDay(date: key)].orders += 1
         }
         accrueSource(sourceKey(o.source, o.customerId), key, amount)
@@ -467,6 +483,7 @@ private final class AnaGather {
     func finish(into f: inout AnaFigures, invoiceCount: Int, orderCount: Int) {
         let orders = invoiceCount + orderCount
         f.totalSales = totalSales
+        f.goldRevenue = goldRevenue
         f.invoiceSales = invoiceSales
         f.orderSales = orderSales
         f.extraRevenue = extraRevenue

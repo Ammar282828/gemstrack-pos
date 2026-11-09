@@ -53,13 +53,16 @@ public struct BooksOptions {
     public var goods: [String]
     /// The house files its goods as expenses, so profit is revenue less goods (Mina). Defaults to "has goods categories".
     public var recordsGoods: Bool
+    /// Gold apart from silver (descriptor `goldApartMargin`, a percent; nil: off, as Taheri).
+    public var goldApartMargin: Double?
 
-    public init(now: Date = Date(), metal: String = "gold", margin: MarginSettings = .default, goods: [String] = [], recordsGoods: Bool? = nil) {
+    public init(now: Date = Date(), metal: String = "gold", margin: MarginSettings = .default, goods: [String] = [], recordsGoods: Bool? = nil, goldApartMargin: Double? = nil) {
         self.now = now
         self.metal = metal
         self.margin = margin
         self.goods = goods
         self.recordsGoods = recordsGoods ?? !goods.isEmpty
+        self.goldApartMargin = goldApartMargin
     }
 }
 
@@ -73,6 +76,8 @@ public struct SalesDay: Equatable, Identifiable {
     public var sales: Double
     public var orders: Int
     public var itemsSold: Double
+    /// Of `sales`, gold (GoldApart).
+    public var gold: Double = 0
     public var id: String { date }
 }
 
@@ -183,6 +188,12 @@ public struct RevenueMixRow: Equatable, Identifiable {
 public struct Books {
     // Revenue (jewellery only; coins apart)
     public var totalSales = 0.0
+    /// Of `totalSales`, the gold pieces' (GoldApart); the rest is the house's own metal and extra revenue.
+    public var goldRevenue = 0.0
+    /// `totalSales` less `goldRevenue`.
+    public var silverRevenue = 0.0
+    /// Gold's estimated profit at the house's margin where gold is apart, else 0: a caption beside gold revenue, never added into any profit.
+    public var goldProfit = 0.0
     public var invoiceSales = 0.0
     public var orderSales = 0.0
     public var extraRevenue = 0.0
@@ -487,6 +498,7 @@ private final class DayAcc {
     var sales = 0.0
     var orders = 0
     var itemsSold = 0.0
+    var gold = 0.0
 }
 
 func computeBooks(_ p: BooksPrepared, _ range: Period?) -> Books {
@@ -520,7 +532,7 @@ func computeBooks(_ p: BooksPrepared, _ range: Period?) -> Books {
         sourceByDate[dateKey, default: [:]][key, default: 0] += amount
     }
 
-    var totalSales = 0.0, invoiceSalesAcc = 0.0
+    var totalSales = 0.0, invoiceSalesAcc = 0.0, goldRevenue = 0.0
     var estProfit = 0.0, salesCosted = 0, salesCount = 0
     var totalItemsSold = 0.0
     var metalGrams = 0.0, metalPieces = 0.0
@@ -554,6 +566,8 @@ func computeBooks(_ p: BooksPrepared, _ range: Period?) -> Books {
         let invoice = entry.item
         let invAmount = invoiceSaleValue(invoice)
         totalSales += invAmount
+        let invGold = GoldApart.invoiceGoldPart(invoice, invAmount)
+        goldRevenue += invGold
         invoiceSalesAcc += invAmount
         let invMargin = invoiceMargin(invoice, settings: margin)
         estProfit += invAmount * invMargin.percent / 100
@@ -566,6 +580,7 @@ func computeBooks(_ p: BooksPrepared, _ range: Period?) -> Books {
         let dateKey = BooksCal.dayKey(revenueDate)
         let d = day(dateKey)
         d.sales += invAmount
+        d.gold += invGold
         d.orders += 1
         weekdayCount[BooksCal.weekdayIndex(revenueDate)] += 1
         invoicesByDay[dateKey, default: []].append(invoice)
@@ -619,6 +634,8 @@ func computeBooks(_ p: BooksPrepared, _ range: Period?) -> Books {
         let amount = order.subtotal.isNaN ? 0 : order.subtotal
         totalSales += amount
         orderSales += amount
+        let ordGold = GoldApart.orderGoldPart(order, amount)
+        goldRevenue += ordGold
         let ordMargin = orderMargin(order, settings: margin)
         estProfit += amount * ordMargin.percent / 100
         salesCount += 1
@@ -628,6 +645,7 @@ func computeBooks(_ p: BooksPrepared, _ range: Period?) -> Books {
         let dateKey = BooksCal.dayKey(orderDate)
         let d = day(dateKey)
         d.sales += amount
+        d.gold += ordGold
         d.orders += 1
         weekdayCount[BooksCal.weekdayIndex(orderDate)] += 1
 
@@ -671,7 +689,7 @@ func computeBooks(_ p: BooksPrepared, _ range: Period?) -> Books {
     }
 
     let salesOverTime = salesByDate
-        .map { SalesDay(date: $0.key, sales: $0.value.sales, orders: $0.value.orders, itemsSold: $0.value.itemsSold) }
+        .map { SalesDay(date: $0.key, sales: $0.value.sales, orders: $0.value.orders, itemsSold: $0.value.itemsSold, gold: $0.value.gold) }
         .sorted { $0.date < $1.date }
 
     let productRows = productPerformance.entries.map { e in
@@ -793,10 +811,15 @@ func computeBooks(_ p: BooksPrepared, _ range: Period?) -> Books {
     let receivables = owed.entries.map { $0.value }.jsSorted { $1.balanceDue - $0.balanceDue }
 
     let estProfitAdj = NetProfit.beforeRunning(estimated: estProfit, revenue: totalSales, goods: goodsExpenses, recordsGoods: p.opts.recordsGoods)
+    // Gold apart (Mina): its estimate at the margin, for the caption only; profit is the house's one rule.
+    let goldProfit = p.opts.goldApartMargin.map { goldRevenue * $0 / 100 } ?? 0
     let netProfit = estProfitAdj - runningExpenses
 
     var out = Books()
     out.totalSales = totalSales
+    out.goldRevenue = goldRevenue
+    out.silverRevenue = totalSales - goldRevenue
+    out.goldProfit = goldProfit
     out.invoiceSales = invoiceSalesAcc
     out.orderSales = orderSales
     out.extraRevenue = extraRevenue

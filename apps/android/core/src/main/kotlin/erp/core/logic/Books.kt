@@ -58,11 +58,13 @@ data class BooksOptions(
     val margin: MarginSettings = MarginSettings.default,
     /** The categories the house files its goods under (`goodsExpenseCategories`); empty: this house records none (Taheri). */
     val goods: List<String> = emptyList(),
+    /** Gold apart from silver (`goldApartMargin`, a percent; null: off, as Taheri). */
+    val goldApartMargin: Double? = null,
 )
 
 enum class ExpenseKind { running, goods, drawings }
 
-data class SalesDay(val date: String, val sales: Double, val orders: Int, val itemsSold: Double)
+data class SalesDay(val date: String, val sales: Double, val orders: Int, val itemsSold: Double, /** Of [sales], gold (GoldApart). */ val gold: Double = 0.0)
 data class TopProduct(val sku: String, val name: String, val quantity: Double, val revenue: Double)
 data class CategorySale(val categoryId: String, val categoryName: String, val sales: Double)
 data class TopCustomer(val key: String, val customerId: String?, val customerName: String, val totalSpent: Double, val orderCount: Int)
@@ -110,6 +112,12 @@ data class RevenueMixRow(val key: String, val label: String, val value: Double)
 data class Books(
     // Revenue (jewellery only; coins apart)
     val totalSales: Double,
+    /** Of [totalSales], the gold pieces' (GoldApart); the rest is the house's own metal and extra revenue. */
+    val goldRevenue: Double,
+    /** [totalSales] less [goldRevenue]. */
+    val silverRevenue: Double,
+    /** Gold's estimated profit at the house's margin where gold is apart, else 0: a caption beside gold revenue, never added into any profit. */
+    val goldProfit: Double,
     val invoiceSales: Double,
     val orderSales: Double,
     val extraRevenue: Double,
@@ -395,6 +403,7 @@ private fun computeWith(p: Prepared, range: Period?): Books {
 
     var totalSales = 0.0
     var invoiceSalesAcc = 0.0
+    var goldRevenue = 0.0
     var estProfit = 0.0
     var salesCosted = 0
     var salesCount = 0
@@ -404,7 +413,7 @@ private fun computeWith(p: Prepared, range: Period?): Books {
     val metalByKarat = LinkedHashMap<String, MetalKaratAcc>()
     var totalDiscounts = 0.0
     var totalUnpaid = 0.0
-    class DayAcc(var sales: Double = 0.0, var orders: Int = 0, var itemsSold: Double = 0.0)
+    class DayAcc(var sales: Double = 0.0, var orders: Int = 0, var itemsSold: Double = 0.0, var gold: Double = 0.0)
     val salesByDate = HashMap<String, DayAcc>()
     class ProductAcc(var quantity: Double, var revenue: Double, val name: String?)
     val productPerformance = LinkedHashMap<String, ProductAcc>()
@@ -423,6 +432,8 @@ private fun computeWith(p: Prepared, range: Period?): Books {
     for (invoice in filteredInvoices) {
         val invAmount = invoiceSaleValue(invoice)
         totalSales += invAmount
+        val invGold = GoldApart.invoiceGoldPart(invoice, invAmount)
+        goldRevenue += invGold
         invoiceSalesAcc += invAmount
         val m = invoiceMargin(invoice, opts.margin)
         estProfit += invAmount * m.percent / 100
@@ -435,6 +446,7 @@ private fun computeWith(p: Prepared, range: Period?): Books {
         val dateKey = BooksCal.dayKey(revenueDay)
         val d = day(dateKey)
         d.sales += invAmount
+        d.gold += invGold
         d.orders += 1
         weekdayCount[BooksCal.weekdayIndex(revenueDay)] += 1
         invoicesByDay.getOrPut(dateKey) { ArrayList() }.add(invoice)
@@ -487,6 +499,8 @@ private fun computeWith(p: Prepared, range: Period?): Books {
         val amount = order.subtotal
         totalSales += amount
         orderSales += amount
+        val ordGold = GoldApart.orderGoldPart(order, amount)
+        goldRevenue += ordGold
         val m = orderMargin(order, settings = opts.margin)
         estProfit += amount * m.percent / 100
         salesCount += 1
@@ -496,6 +510,7 @@ private fun computeWith(p: Prepared, range: Period?): Books {
         val dateKey = BooksCal.dayKey(orderDay)
         val d = day(dateKey)
         d.sales += amount
+        d.gold += ordGold
         d.orders += 1
         weekdayCount[BooksCal.weekdayIndex(orderDay)] += 1
 
@@ -537,7 +552,7 @@ private fun computeWith(p: Prepared, range: Period?): Books {
     val largestExpenses = filteredExpenses.sortedByDescending { it.amount }.take(10)
         .map { ExpenseRow(it.id, it.date, it.category, it.description, it.amount, kindOf(it.category, goods)) }
 
-    val salesOverTime = salesByDate.map { (date, d) -> SalesDay(date, d.sales, d.orders, d.itemsSold) }.sortedBy { it.date }
+    val salesOverTime = salesByDate.map { (date, d) -> SalesDay(date, d.sales, d.orders, d.itemsSold, d.gold) }.sortedBy { it.date }
 
     val productRows = productPerformance.map { (sku, d) ->
         TopProduct(sku, listOf(p.productsBySku[sku]?.name, d.name).firstOrNull { !it.isNullOrEmpty() } ?: "Unnamed piece", d.quantity, d.revenue)
@@ -643,10 +658,14 @@ private fun computeWith(p: Prepared, range: Period?): Books {
     val receivables = owed.values.sortedByDescending { it.balanceDue }
 
     val estProfitAdj = NetProfit.beforeRunning(estProfit, totalSales, goodsExpenses, p.recordsGoods)
+    // Gold apart (Mina): its estimate at the margin, for the caption only; profit is the house's one rule.
+    val goldMargin = p.opts.goldApartMargin
+    val goldProfit = if (goldMargin != null) goldRevenue * goldMargin / 100 else 0.0
     val netProfit = NetProfit.of(estProfitAdj, runningExpenses)
 
     return Books(
-        totalSales = totalSales, invoiceSales = invoiceSalesAcc, orderSales = orderSales, extraRevenue = extraRevenue,
+        totalSales = totalSales, goldRevenue = goldRevenue, silverRevenue = totalSales - goldRevenue, goldProfit = goldProfit,
+        invoiceSales = invoiceSalesAcc, orderSales = orderSales, extraRevenue = extraRevenue,
         totalUnpaid = totalUnpaid, totalOrders = totalOrders,
         averageOrderValue = if (totalOrders > 0) orderRevenueTotal / totalOrders else 0.0,
         totalItemsSold = totalItemsSold, totalDiscounts = totalDiscounts,

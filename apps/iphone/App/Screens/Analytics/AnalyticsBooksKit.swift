@@ -120,7 +120,8 @@ struct AbHost<Content: View>: View {
         guard ready, session.isOwner, !covered || reckoned == nil else { return }
         let state = AnaPeriod.read(key: rangeKey, from: customFrom, to: customTo, now: now)
         // House is read here, on the main actor: the business can be switched while the background works.
-        let options = BooksOptions(now: now, metal: House.metal, margin: House.margin, goods: House.goodsExpenseCategories)
+        let options = BooksOptions(now: now, metal: House.metal, margin: House.margin, goods: House.goodsExpenseCategories,
+                                   goldApartMargin: House.goldApartMargin)
         let customers = book.customers.items.filter { (c: Customer) -> Bool in (c.deletedAt ?? "").isEmpty }
         let input = BooksInput(invoices: book.invoices.items, orders: book.orders.items, products: book.products.items,
                                customers: customers, expenses: book.expenses.items, additionalRevenues: book.revenue.items)

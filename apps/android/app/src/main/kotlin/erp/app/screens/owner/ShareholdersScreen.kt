@@ -165,7 +165,7 @@ class ShareholderBoardFigures(
             mina: List<ShareholderLedgerRow>,
             ammar: List<ShareholderLedgerRow>,
         ): ShareholderBoardFigures {
-            val totals = ShareholderFigures.partnershipTotals(expenses, invoices, orders, revenue)
+            val totals = ShareholderFigures.partnershipTotals(expenses, invoices, orders, revenue, erp.app.config.House.goldApartMargin)
             val ledgers = mapOf("mina" to ShareholderFigures.shown(mina), "ammar" to ShareholderFigures.shown(ammar))
             val positions = ShareholderFigures.partnerPositions(
                 partners = ShareholderPerson.all.map { it.id to it.name },
@@ -337,7 +337,13 @@ private fun Tiles(t: ShareholderFigures.Totals) {
     Column(Modifier.padding(horizontal = 16.dp).readableColumn(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Footnote("Divided equally · expenses from ${OwnerText.shortDate(ShareholderFigures.expenseCutoff)} · revenue from Shopify #1103")
         FigureRow(spacing = 10.dp) {
-            FigureTile("Revenue", ShareholderMoney.fmt(t.totalRevenue), Modifier.share(), tint = Tone.settled.color(), number = t.totalRevenue)
+            // Gold apart (Mina): the partnership's revenue as silver and gold (est. margin); the halves below are worked from the whole as ever.
+            val percent = erp.app.config.House.goldApartMargin
+            val goldLine = if (percent != null && t.totalRevenue > 0) {
+                "${erp.core.logic.GoldApart.SILVER_REVENUE_LABEL} ${ShareholderMoney.fmt(t.totalRevenue - t.goldRevenue)}\n" +
+                    "${erp.core.logic.GoldApart.goldRevenueLabel(percent)} ${ShareholderMoney.fmt(t.goldRevenue)}"
+            } else null
+            FigureTile("Revenue", ShareholderMoney.fmt(t.totalRevenue), Modifier.share(), detail = goldLine, tint = Tone.settled.color(), number = t.totalRevenue)
             FigureTile("Expenses", ShareholderMoney.fmt(t.totalExpenses), Modifier.share(), number = t.totalExpenses)
         }
         FigureTile(

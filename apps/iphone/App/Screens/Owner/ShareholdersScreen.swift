@@ -135,7 +135,7 @@ private struct ShareholdersBoard: View {
         return figures(key) {
             let totals = ShareholderFigures.partnershipTotals(
                 expenses: book.expenses.items, invoices: book.invoices.items, orders: book.orders.items,
-                additionalRevenues: book.revenue.items)
+                additionalRevenues: book.revenue.items, goldMargin: House.goldApartMargin)
             let ledgers = [
                 "mina": ShareholderFigures.shown(books.mina.items),
                 "ammar": ShareholderFigures.shown(books.ammar.items),
@@ -173,6 +173,14 @@ private struct ShareholdersBoard: View {
         #endif
     }
 
+    /// Gold apart (Mina): the partnership's revenue as silver and gold (est. margin); nil where it is one revenue. The halves
+    /// below are worked from the whole as ever.
+    static func goldLine(_ t: ShareholderFigures.Totals) -> String? {
+        guard let percent = House.goldApartMargin, t.totalRevenue > 0 else { return nil }
+        return GoldApart.silverRevenueLabel + " " + ShareholderMoney.fmt(t.totalRevenue - t.goldRevenue) + "\n"
+            + GoldApart.goldRevenueLabel(percent) + " " + ShareholderMoney.fmt(t.goldRevenue)
+    }
+
     /// Whether the calculator has any cash to spread, for the animation that opens its rows.
     private static func shows(_ text: String) -> Bool { (MoneyParse.rupees(text) ?? 0) > 0 }
 
@@ -181,7 +189,8 @@ private struct ShareholdersBoard: View {
         return Section {
             VStack(spacing: pt(10)) {
                 FigureRow(alignment: .top, spacing: pt(10)) {
-                    FigureTile(label: "Revenue", value: ShareholderMoney.fmt(t.totalRevenue))
+                    FigureTile(label: "Revenue", value: ShareholderMoney.fmt(t.totalRevenue),
+                               detail: Self.goldLine(t))
                     FigureTile(label: "Expenses", value: ShareholderMoney.fmt(t.totalExpenses))
                 }
                 FigureTile(label: "Each partner's share", value: ShareholderMoney.signed(share), tint: share >= 0 ? Color.primary : Tone.owed.color)
@@ -501,7 +510,8 @@ extension ShareholdersBoard {
             VStack(alignment: .leading, spacing: 20) {
                 MacEvenLayout(minimum: 200, spacing: 16) {
                     MacDashFigureCard(title: "Revenue", symbol: "banknote", tint: Theme.accent,
-                                      value: ShareholderMoney.fmt(f.totals.totalRevenue), detail: "The partnership's", open: nil) { EmptyView() }
+                                      value: ShareholderMoney.fmt(f.totals.totalRevenue),
+                                      detail: Self.goldLine(f.totals).map { "The partnership's\n" + $0 } ?? "The partnership's", open: nil) { EmptyView() }
                     MacDashFigureCard(title: "Expenses", symbol: "arrow.up.circle", tint: Tone.owed.color,
                                       value: ShareholderMoney.fmt(f.totals.totalExpenses), detail: "The partnership's", open: nil) { EmptyView() }
                     MacDashFigureCard(title: "Each partner's share", symbol: "person.2", tint: share >= 0 ? Tone.settled.color : Tone.owed.color,

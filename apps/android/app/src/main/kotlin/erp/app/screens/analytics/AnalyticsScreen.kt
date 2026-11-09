@@ -120,12 +120,13 @@ private fun AnalyticsBoard(section: AnaSection) {
         val margin = erp.app.config.House.margin
         // The goods a house files as expenses, which net profit does not take off again (Business.goodsExpenseCategories).
         val goods = erp.app.config.House.goodsExpenseCategories
+        val goldApart = erp.app.config.House.goldApartMargin
         val data by produceState<AnaPageData?>(
             null, section, period, invoices.revision, orders.revision, products.revision, customers.revision, expenses.revision, revenue.revision,
         ) {
             val live = customers.items.filter { (it.deletedAt ?: "").isEmpty() }
             val books = AnaBooks(invoices.items, orders.items, products.items, live, expenses.items, revenue.items)
-            value = withContext(Dispatchers.Default) { AnaPageData.of(section, books, period, margin, goods, now) }
+            value = withContext(Dispatchers.Default) { AnaPageData.of(section, books, period, margin, goods, now, goldApart) }
         }
         val d = data
         if (d == null) SkeletonLoading(Modifier.fillMaxSize(), shape = SkeletonShape.Chart) else AnaPages(section, d)
@@ -147,7 +148,7 @@ class AnaPageData(
     companion object {
         fun of(
             section: AnaSection, books: AnaBooks, period: AnaPeriodState, margin: MarginSettings?, goods: List<String> = emptyList(),
-            now: Instant = AppClock.now(),
+            now: Instant = AppClock.now(), goldApartMargin: Double? = null,
         ): AnaPageData {
             val range = period.range
             return AnaPageData(
@@ -157,15 +158,15 @@ class AnaPageData(
                 productRows = if (section == AnaSection.products) AnaBreakdown.products(books, range) else emptyList(),
                 customerRows = if (section == AnaSection.customers) AnaBreakdown.customers(books, range) else emptyList(),
                 categoryRows = if (section == AnaSection.categories) AnaBreakdown.categories(books, range) else emptyList(),
-                ledger = ledgerOf(section, books, range, margin, goods, now),
+                ledger = ledgerOf(section, books, range, margin, goods, now, goldApartMargin),
             )
         }
 
         /** The core books for a page: only what the section draws is worked out (the twelve months cost twelve passes). */
-        fun ledgerOf(section: AnaSection, books: AnaBooks, range: AnaRange?, margin: MarginSettings?, goods: List<String>, now: Instant): AnaLedger {
+        fun ledgerOf(section: AnaSection, books: AnaBooks, range: AnaRange?, margin: MarginSettings?, goods: List<String>, now: Instant, goldApartMargin: Double? = null): AnaLedger {
             val opts = BooksOptions(
                 now = now, metal = if (erp.app.config.House.metal == "silver") MetalType.silver else MetalType.gold,
-                margin = margin ?: MarginSettings.default, goods = goods,
+                margin = margin ?: MarginSettings.default, goods = goods, goldApartMargin = goldApartMargin,
             )
             val input = BooksInput(books.invoices, books.orders, books.products, books.customers, books.expenses, books.extraRevenue)
             val period = range?.let { Period(it.from, it.to) }
@@ -183,6 +184,7 @@ class AnaPageData(
                 range = period,
                 now = now,
                 recordsGoods = goods.isNotEmpty(),
+                goldApartMargin = goldApartMargin,
             )
         }
     }

@@ -102,6 +102,7 @@ struct MacReportsTodayPage: View {
             let clock = DashDate.clock(iso: last.createdAt)
             if !clock.isEmpty { detail += " · last \(clock)" }
         }
+        if let gold = DashGold.line(total: f.todayRevenue, gold: f.todayGold) { detail += "\n" + gold }
         return MacDashFigureCard(title: "Taken today", symbol: "banknote", tint: Theme.accent,
                                  value: Money.pkrLac(f.todayRevenue), detail: detail, open: { go("/invoices") }) {
             if f.week.contains(where: { $0.amount > 0 }) {
@@ -135,6 +136,7 @@ struct MacReportsTodayPage: View {
                 detail = "\(Int((ratio * 100).rounded()))% of \(DashDate.shortMonth(last))'s takings"
             }
         }
+        if let gold = DashGold.line(total: f.revenueMonth, gold: f.monthGold) { detail += "\n" + gold }
         var opens: (() -> Void)?
         if isOwner { opens = { go("/analytics") } }
         return MacDashFigureCard(title: "This month", symbol: "calendar", tint: Color.indigo,

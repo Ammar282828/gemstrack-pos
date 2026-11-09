@@ -57,3 +57,4 @@ app archived for TestFlight's "Shop" group, and the iPhone app built beside it a
 - 2026-11-09: ERP 2.6.7 — House of Mina: each Shopify order shows where its TCS parcel is (With TCS, Delivered, Delivery attempted, Returned) on its card and page; shipped orders are completed and returned ones cancelled by themselves.
 - 2026-11-09: ERP 2.6.8 — House of Mina: a Shopify order shows its delivery charge and counts it in the total and at Finalize; the Shopify settings screen is gone (it all runs by itself now).
 - 2026-11-10: ERP 2.6.9 — an order card's tags (its WhatsApp step, where its parcel is) sit on a line of their own under the number and are never cut short.
+- 2026-11-10: ERP 2.7 — House of Mina: revenue shows silver and gold apart everywhere (Analytics, Home, Shareholders), gold with its profit estimated at 10%; overall profit is unchanged.

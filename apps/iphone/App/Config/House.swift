@@ -33,6 +33,9 @@ enum House {
     /// profit leaves them out, the margin already allows for them (NetProfit.isRunningCost).
     static var goodsExpenseCategories: [String] { business.goodsExpenseCategories ?? [] }
 
+    /// Gold revenue shown apart from silver, its profit estimated at this percent (the descriptor's `goldApartMargin`); nil: off (Taheri).
+    static var goldApartMargin: Double? { business.goldApartMargin }
+
     /// This house files its goods as expenses, so its profit is revenue less them (NetProfit.beforeRunning), shown as "Gross profit".
     static var recordsGoods: Bool { !goodsExpenseCategories.isEmpty }
 

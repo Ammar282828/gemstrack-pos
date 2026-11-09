@@ -51,7 +51,7 @@ struct AbProfitPage: View {
                 AbWaterfall(steps: steps, height: 300)
             }
             AbFigures(items: [
-                AbFigure(label: "Revenue", value: Money.pkrLac(b.totalSales)),
+                AbFigure(label: "Revenue", value: Money.pkrLac(b.totalSales), detail: ctx.split?.line),
                 AbFigure(label: profitWord, value: Money.pkrLac(b.estProfitAdj),
                          detail: b.totalSales > 0 ? AbSay.pct1(estPercent) + " of revenue" : nil),
                 AbFigure(label: "Running costs", value: Money.pkrLac(b.runningExpenses)),
@@ -108,6 +108,9 @@ struct AbProfitPage: View {
         let flat = Money.pkrLac(b.estProfit)
         let pct = AnaFormat.number(estPercent, maxDigits: 1)
         return AbExplain(title: "How profit is estimated") {
+            if let split = ctx.split {
+                Text("Gold’s revenue is shown apart, with its profit estimated at \(GoldApart.percentText(split.percent))% beside it for reference. Profit is all revenue, silver and gold together, less the goods bought in the period.")
+            }
             if House.recordsGoods {
                 Text("Gross profit is revenue less the goods bought in the period (\(pct)% of revenue here). Stock bought and not yet sold counts as spent. At a flat \(margin)% it would be \(flat).")
             } else if let ratti = House.margin.rattiLess, costed > 0 {

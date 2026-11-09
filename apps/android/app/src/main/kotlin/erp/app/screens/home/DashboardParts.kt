@@ -131,9 +131,9 @@ internal fun DashLink(
  * week's days as bars with today's in the house's accent. The one hero card of the screen, so it carries the sheen.
  */
 @Composable
-fun DashHero(amount: Double, invoices: Int, lastSale: String?, week: List<DashDay>, onClick: (() -> Unit)?) {
+fun DashHero(amount: Double, invoices: Int, lastSale: String?, week: List<DashDay>, onClick: (() -> Unit)?, goldLine: String? = null) {
     val line = heroLine(invoices, lastSale)
-    DashLink(onClick, "Taken today, ${Money.pkrLac(amount)}, $line") {
+    DashLink(onClick, "Taken today, ${Money.pkrLac(amount)}, $line" + (goldLine?.let { ", $it" } ?: "")) {
         Column(Modifier.heroSheen(padding = 18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 DashLabel("Taken today", Modifier.weight(1f), large = true)
@@ -146,9 +146,22 @@ fun DashHero(amount: Double, invoices: Int, lastSale: String?, week: List<DashDa
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 2,
             )
+            if (goldLine != null) {
+                Text(goldLine, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             if (week.any { it.amount > 0 }) DashWeekBars(week, Modifier.padding(top = 6.dp))
         }
     }
+}
+
+/**
+ * Gold apart (Mina): "Silver PKR 6 lac · Gold PKR 4 lac (est. 10% margin)" under a revenue figure; null where the business keeps one
+ * revenue (Taheri) or nothing was sold.
+ */
+fun dashGoldLine(total: Double, gold: Double): String? {
+    val percent = erp.app.config.House.goldApartMargin ?: return null
+    if (total <= 0) return null
+    return "Silver ${Money.pkrLac(total - gold)} · Gold ${Money.pkrLac(gold)} (est. ${erp.core.logic.GoldApart.percentText(percent)}% margin)"
 }
 
 /** "No invoices yet today", or "3 invoices · last sale 3:45 pm". */
@@ -545,6 +558,7 @@ fun DashMonthCard(figures: DashFigures, showCosts: Boolean, onClick: (() -> Unit
             }
             if (onClick != null) DashChevron()
         }
+        dashGoldLine(figures.revenue30, figures.gold30)?.let { DashStatNote(it) }
         if (figures.monthCoins > 0) DashStatNote("+ ${Money.pkrLac(figures.monthCoins)} in gold coins")
         if (figures.revenue30 > 0) MonthChart(figures)
     }

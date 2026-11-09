@@ -69,6 +69,11 @@ struct MacReportsSales: View {
         let p = c.previous
         var out: [MacFigure] = []
         out.append(fig("Revenue", Money.pkrLac(f.totalSales), f.totalSales, p?.totalSales))
+        // Gold apart (Mina): the revenue's two parts, gold with its estimated margin.
+        if let split = AbSplit(f) {
+            out.append(MacFigure(split.silverLabel, Money.pkrLac(split.silver)))
+            out.append(MacFigure(split.goldLabel, Money.pkrLac(split.gold), detail: split.goldCaption))
+        }
         out.append(fig("Orders", String(f.totalOrders), Double(f.totalOrders), p.map { Double($0.totalOrders) }))
         out.append(fig("Average order", Money.pkrLac(f.averageOrderValue), f.averageOrderValue, p?.averageOrderValue))
         out.append(fig("Items sold", AnaFormat.count(f.totalItemsSold), f.totalItemsSold, p?.totalItemsSold))
@@ -91,6 +96,10 @@ struct MacReportsSales: View {
                     .padding(.vertical, 6)
             } else {
                 AnaSalesChart(days: f.salesOverTime).padding(.horizontal, 16)
+                if let split = AbSplit(f) {
+                    MacReportsHeader(title: "Revenue by metal", detail: nil)
+                    AbMetalRevenue(split: split).padding(.horizontal, 16)
+                }
                 MacReportsHeader(title: "Number of sales", detail: nil)
                 AnaOrdersChart(days: f.salesOverTime).padding(.horizontal, 16)
             }

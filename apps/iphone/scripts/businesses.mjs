@@ -34,12 +34,14 @@ const own = {
     logo: { light: '/taheri-logo.png', dark: '/taheri-logo-light.png', aspect: 1528 / 383 },
     flags: { partnership: false, websiteSelling: true, invoiceByCustomer: true, invoiceWhatsappPdf: true, sizeToProfile: true },
     goodsExpenseCategories: [],
+    goldApartMargin: null,
   },
   mina: {
     name: 'MINA', margin: { kind: 'percent', percent: 40 },
     logo: { light: '/house-of-mina-logo.png', dark: '/house-of-mina-logo-light.png', aspect: 4.9458 },
     flags: { partnership: true, websiteSelling: false, invoiceByCustomer: false, invoiceWhatsappPdf: false, sizeToProfile: false },
     goodsExpenseCategories: ['Stock & Karigars', 'Custom Orders', 'Stones & Pearls', 'Plating & Finishing'],
+    goldApartMargin: 10,
   },
 };
 
@@ -62,6 +64,7 @@ const out = Object.entries(houses).map(([id, h]) => ({
   },
   flags: own[id].flags,
   goodsExpenseCategories: own[id].goodsExpenseCategories,
+  goldApartMargin: own[id].goldApartMargin,
 }));
 
 const file = path.join(dir, 'App/Resources/businesses.json');

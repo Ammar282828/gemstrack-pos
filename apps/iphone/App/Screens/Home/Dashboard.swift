@@ -308,7 +308,7 @@ struct Dashboard: View {
         Button { takenSheet = true } label: {
             DashHero(amount: f.todayRevenue, invoices: f.todayInvoiceCount,
                      lastSale: f.lastSaleToday.map { DashDate.clock(iso: $0.createdAt) },
-                     week: f.week, linked: true)
+                     week: f.week, linked: true, goldLine: DashGold.line(total: f.todayRevenue, gold: f.todayGold))
         }
         .buttonStyle(.pressable)
         .pointerHover()
@@ -357,6 +357,7 @@ struct Dashboard: View {
             DashStat(label: "This month", linked: session.isOwner) {
                 DashStatAmount(amount: f.revenueMonth)
                 DashMonthChange(ratio: f.monthAgainstLast, now: f.now)
+                if let gold = DashGold.line(total: f.revenueMonth, gold: f.monthGold) { DashStatNote(text: gold) }
                 if f.monthCoins > 0 { DashStatNote(text: "+ \(Money.pkrLac(f.monthCoins)) in gold coins") }
             }
         }

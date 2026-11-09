@@ -81,6 +81,8 @@ struct DashTakenEntry: Identifiable {
     let amount: Double
     /// How the amount was paid. Adds up to `amount`.
     let split: [DashTakenMethod: Double]
+    /// Of `amount`, the gold pieces' (GoldApart); Home says it only where the business keeps gold apart.
+    var gold = 0.0
 
     var time: String { atISO.count > 10 ? DashDate.clock(iso: atISO) : "" }
 
@@ -116,20 +118,24 @@ enum DashTaken {
             let iso = DashRules.revenueDate(of: inv, orders: ordersById)
             guard let at = DashDate.parseISO(iso) else { continue }
             let value = invoiceSaleValue(inv)
-            out.append(DashTakenEntry(
+            var entry = DashTakenEntry(
                 id: "i" + inv.id, kind: .sale, at: at, atISO: iso, who: inv.takenBy ?? "", customer: DashText.name(inv.customerName),
                 what: InvoiceFacts.whatSold(inv) ?? inv.id, ref: inv.id, path: DashPath.invoice(inv.id), amount: value,
-                split: split(value: value, payments: inv.paymentHistory, exchange: exchangeTotal(invoiceExchanges(inv)))))
+                split: split(value: value, payments: inv.paymentHistory, exchange: exchangeTotal(invoiceExchanges(inv))))
+            entry.gold = GoldApart.invoiceGoldPart(inv, value)
+            out.append(entry)
         }
         // A counter order not yet invoiced is a sale once taken (bookedAsSale); an online one waits for its transfer.
         for o in orders where bookedAsSale(o) {
             guard let at = DashDate.parseISO(o.createdAt) else { continue }
             let value = o.subtotal.isNaN ? 0 : o.subtotal
-            out.append(DashTakenEntry(
+            var entry = DashTakenEntry(
                 id: "o" + o.id, kind: .order, at: at, atISO: o.createdAt, who: o.takenBy ?? "", customer: DashText.name(o.customerName),
                 what: OrdersLogic.cardWhat(o).text.isEmpty ? "Order" : OrdersLogic.cardWhat(o).text, ref: o.id,
                 path: DashPath.order(o.id), amount: value,
-                split: split(value: value, payments: orderAdvancePayments(o), exchange: exchangeTotal(orderExchanges(o)))))
+                split: split(value: value, payments: orderAdvancePayments(o), exchange: exchangeTotal(orderExchanges(o))))
+            entry.gold = GoldApart.orderGoldPart(o, value)
+            out.append(entry)
         }
         // A repair's money is written to Extra revenue with its repairId; the method and the person are on the repair.
         var repairOf: [String: (repair: Repair, method: PaymentType?)] = [:]

@@ -136,7 +136,8 @@ final class BooksTests: XCTestCase {
 
     func testSeriesAndRankings() {
         let b = computeBooks(input, range: NOV, options: opts)
-        XCTAssertEqual(b.salesOverTime, [
+        // `gold` (GoldApart) is the series' own; the web's test leaves it out the same way.
+        XCTAssertEqual(b.salesOverTime.map { (d: SalesDay) -> SalesDay in var r = d; r.gold = 0; return r }, [
             SalesDay(date: "2026-11-02", sales: 100000, orders: 1, itemsSold: 1),
             SalesDay(date: "2026-11-03", sales: 50000, orders: 1, itemsSold: 1),
             SalesDay(date: "2026-11-04", sales: 90000, orders: 1, itemsSold: 0),

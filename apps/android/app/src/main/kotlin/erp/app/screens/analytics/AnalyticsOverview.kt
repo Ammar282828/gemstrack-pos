@@ -76,7 +76,7 @@ private fun AnaTiles(l: AnaLedger, spark: List<Double>, against: String, open: (
     erp.app.ui.FigureGrid {
         AnaKpiTile(
             "Revenue", Money.pkrLac(b.totalSales), b.totalSales, delta = anaDelta(b.totalSales, prev?.totalSales), against = against,
-            spark = spark, onOpen = { open("/analytics/sales") },
+            sub = l.split?.tileLines, spark = spark, onOpen = { open("/analytics/sales") },
         )
         AnaKpiTile(
             "Net profit", Money.pkrLac(b.netProfit), b.netProfit, delta = anaDelta(b.netProfit, prev?.netProfit), against = against,
@@ -108,6 +108,8 @@ private fun overviewCards(l: AnaLedger, trendRows: List<erp.core.logic.ComparedR
             open = { open("/analytics/sales") },
         ) {
             AnaTrendChart(trendRows, showPrev = l.previous != null, prevName = l.previous?.let { "Compared with ${it.label}" })
+            // Gold apart (Mina): the revenue's two metals, gold with its estimated margin.
+            l.split?.let { AnaMetalRevenue(it) }
         }
     }
 

@@ -2,6 +2,7 @@ package erp.app.screens.home
 
 import erp.app.data.OnlineInbox
 import erp.app.ui.ShopDate
+import erp.core.logic.GoldApart
 import erp.core.logic.Partnership
 import erp.core.logic.OrderTiming
 import erp.core.logic.PromiseState
@@ -337,6 +338,11 @@ class DashFigures(
     var todayRevenue = 0.0; private set
     var todayInvoiceCount = 0; private set
     var monthRevenue = 0.0; private set
+
+    /** Of [todayRevenue], [monthRevenue] and [revenue30], the gold pieces' (GoldApart); only said where the business keeps gold apart. */
+    var todayGold = 0.0; private set
+    var monthGold = 0.0; private set
+    var gold30 = 0.0; private set
     var lastMonthRevenue = 0.0; private set
 
     /** Gold coins sold this month, apart from [monthRevenue] (Analytics splits them out too); a quiet line, never added. */
@@ -372,7 +378,7 @@ class DashFigures(
     val net30: Double get() = revenue30 - expenses30
     val lateDue: List<DashDue> get() = due.filter { it.isLate }
 
-    private class Event(val at: Instant, val amount: Double)
+    private class Event(val at: Instant, val amount: Double, val gold: Double = 0.0)
 
     init {
         val liveKarigars = karigars.filter { it.deletedAt.isNullOrEmpty() }
@@ -385,12 +391,12 @@ class DashFigures(
         recentInvoices = invoices.take(12)
     }
 
-    private fun total(events: List<Event>, from: Instant, before: Instant? = null): Double {
+    private fun total(events: List<Event>, from: Instant, before: Instant? = null, of: (Event) -> Double = { it.amount }): Double {
         var sum = 0.0
         for (e in events) {
             if (e.at < from) continue
             if (before != null && e.at >= before) continue
-            sum += e.amount
+            sum += of(e)
         }
         return sum
     }
@@ -420,7 +426,8 @@ class DashFigures(
         for (inv in jewellery) {
             if (inv.status == InvoiceStatus.refunded || inv.createdAt.isEmpty()) continue
             val at = DashDate.parseISO(DashRules.revenueDate(inv, ordersById)) ?: continue
-            events += Event(at, invoiceSaleValue(inv))
+            val value = invoiceSaleValue(inv)
+            events += Event(at, value, GoldApart.invoiceGoldPart(inv, value))
         }
         for (inv in coins) {
             if (inv.status == InvoiceStatus.refunded || inv.createdAt.isEmpty()) continue
@@ -431,7 +438,8 @@ class DashFigures(
         for (o in orders) {
             if (!bookedAsSale(o)) continue
             val at = DashDate.parseISO(o.createdAt) ?: continue
-            events += Event(at, if (o.subtotal.isNaN()) 0.0 else o.subtotal)
+            val value = if (o.subtotal.isNaN()) 0.0 else o.subtotal
+            events += Event(at, value, GoldApart.orderGoldPart(o, value))
         }
         for (r in revenues) {
             val at = DashDate.parseISO(r.date) ?: continue
@@ -445,6 +453,9 @@ class DashFigures(
         val tomorrowStart = DashDate.startOfDay(DashDate.adding(1, now))
         todayRevenue = total(events, todayStart, before = tomorrowStart)
         monthRevenue = total(events, monthStart, before = tomorrowStart)
+        todayGold = total(events, todayStart, before = tomorrowStart) { it.gold }
+        monthGold = total(events, monthStart, before = tomorrowStart) { it.gold }
+        gold30 = total(events, last30Start) { it.gold }
         monthCoins = total(coinEvents, monthStart, before = tomorrowStart)
         lastMonthRevenue = total(events, lastMonthStart, before = monthStart)
         revenue30 = total(events, last30Start)

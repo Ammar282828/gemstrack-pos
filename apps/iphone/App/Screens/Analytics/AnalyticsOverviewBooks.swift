@@ -52,7 +52,8 @@ struct AbOverviewPage: View {
     private var tiles: some View {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: pt(12), alignment: .top)], alignment: .leading, spacing: pt(12)) {
             AbTile(label: "Revenue", value: Money.pkrLac(b.totalSales), path: "/analytics/sales",
-                   delta: deltaOf(b.totalSales, ctx.prev?.totalSales), against: ctx.previousLabel)
+                   delta: deltaOf(b.totalSales, ctx.prev?.totalSales), against: ctx.previousLabel,
+                   sub: ctx.split?.tileLines)
             AbTile(label: "Net profit", value: Money.pkrLac(b.netProfit), path: "/analytics/profit",
                    delta: deltaOf(b.netProfit, ctx.prev?.netProfit), against: ctx.previousLabel,
                    sub: AnaFormat.fixed(b.netMargin, 0) + "% margin")
@@ -75,7 +76,11 @@ struct AbOverviewPage: View {
             let best = b.salesOverTime.reduce(nil as SalesDay?) { (m: SalesDay?, d: SalesDay) -> SalesDay? in d.sales > (m?.sales ?? 0) ? d : m }
             AbCard(title: "Sales over time", takeaway: best.map { "Best day " + AbSay.day($0.date) + " · " + Money.pkrLac($0.sales) } ?? "No sales in this period",
                    path: "/analytics/sales") {
-                AbTrend(rows: compareSeries(current, before), bucket: bucket, showPrev: ctx.previous != nil, height: 170, interactive: false)
+                VStack(alignment: .leading, spacing: pt(16)) {
+                    AbTrend(rows: compareSeries(current, before), bucket: bucket, showPrev: ctx.previous != nil, height: 170, interactive: false)
+                    // Gold apart (Mina): the revenue's two metals, gold with its estimated margin.
+                    if let split = ctx.split { AbMetalRevenue(split: split) }
+                }
             }
         }
     }

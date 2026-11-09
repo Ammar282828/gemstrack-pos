@@ -68,7 +68,7 @@ struct MacReportsOverview: View {
     private var moneyFigures: [MacFigure] {
         let p = c.previous
         var out: [MacFigure] = []
-        out.append(fig("Revenue", Money.pkrLac(f.totalSales), f.totalSales, p?.totalSales, plain: "Sales in this period"))
+        out.append(fig("Revenue", Money.pkrLac(f.totalSales), f.totalSales, p?.totalSales, plain: AbSplit(f)?.tileLines ?? "Sales in this period"))
         guard c.showCosts else { return out }
         out.append(fig("Expenses", Money.pkrLac(f.totalExpenses), f.totalExpenses, p?.totalExpenses, up: false, plain: expensesDetail))
         out.append(fig(House.recordsGoods ? "Gross profit" : "Estimated profit", Money.pkrLac(f.profit), f.profit, p?.profit, plain: estDetail))
@@ -147,6 +147,12 @@ struct MacReportsOverview: View {
                 AnaRevenueBars(days: f.salesOverTime)
                     .padding(.horizontal, 16)
                     .padding(.bottom, 14)
+                // Gold apart (Mina): the revenue's two metals, gold with its estimated margin.
+                if let split = AbSplit(f) {
+                    AbMetalRevenue(split: split)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 14)
+                }
             }
         }
     }
@@ -162,6 +168,11 @@ struct MacReportsOverview: View {
 
     private var revenueFacts: [MacReportsFact] {
         var rows: [MacReportsFact] = []
+        if let split = AbSplit(f) {
+            rows.append(MacReportsFact(split.silverLabel, Money.pkrLac(split.silver)))
+            rows.append(MacReportsFact(split.goldLabel, Money.pkrLac(split.gold)))
+            rows.append(MacReportsFact("Gold profit, est. at \(GoldApart.percentText(split.percent))%", Money.pkrLac(split.goldProfit)))
+        }
         rows.append(MacReportsFact("Invoices", Money.pkrLac(f.invoiceSales)))
         rows.append(MacReportsFact("Orders", Money.pkrLac(f.orderSales)))
         rows.append(MacReportsFact("Extra revenue", Money.pkrLac(f.extraRevenue)))

@@ -57,6 +57,7 @@ fun AnaSalesPage(l: AnaLedger, period: AnaPeriodState) {
     val days = remember(b) { b.salesOverTime.map { AnaDay(it.date, it.sales, it.orders, it.itemsSold) } }
     AnaPage(period) {
         TrendCard(l, period)
+        MetalSplitCard(l)
         AnaFigureRow(
             listOf(
                 AnaFig("Sales", b.totalOrders.toString(), "Invoices and booked orders"),
@@ -125,6 +126,19 @@ private fun TrendCard(l: AnaLedger, period: AnaPeriodState) {
             val shownRows = if (shown == bucket) rows else remember(l, shown) { rowsFor(shown) }
             AnaTrendChart(shownRows, showPrev = canCompare && compare, prevName = l.previous?.let { "Compared with ${it.label}" }, height = 240.dp)
         }
+    }
+}
+
+// MARK: Gold apart
+
+/** Gold apart (Mina): silver and gold piled per day, week or month, the gold's estimated margin under it. */
+@Composable
+private fun MetalSplitCard(l: AnaLedger) {
+    val split = l.split ?: return
+    val bucket = autoBucket(l.range, l.now)
+    AnaChartCard("Revenue by metal", takeaway = split.line) {
+        AnaMetalTrend(l, split, bucket)
+        AnaMuted(split.goldCaption)
     }
 }
 

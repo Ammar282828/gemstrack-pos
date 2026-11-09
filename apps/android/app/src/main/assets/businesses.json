@@ -51,6 +51,7 @@
       "sizeToProfile": true
     },
     "goodsExpenseCategories": [],
+    "goldApartMargin": null,
     "android": {
       "googleWebClientId": "948018742883-q27leh2et2p8948jadblbg6skpdhjcea.apps.googleusercontent.com",
       "firebase": {
@@ -119,6 +120,7 @@
       "Stones & Pearls",
       "Plating & Finishing"
     ],
+    "goldApartMargin": 10,
     "android": null
   }
 ]

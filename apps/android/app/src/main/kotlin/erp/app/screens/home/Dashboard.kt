@@ -274,7 +274,7 @@ private fun Hero(f: DashFigures, onTaken: () -> Unit) {
     // Opens the day by day (owner, 2026-11-03: "tapping Taken today should open the histogram of per day with all details").
     DashHero(
         f.todayRevenue, f.todayInvoiceCount, f.lastSaleToday?.let { DashDate.clock(it.createdAt) }, f.week,
-        onClick = onTaken,
+        onClick = onTaken, goldLine = dashGoldLine(f.todayRevenue, f.todayGold),
     )
 }
 
@@ -326,6 +326,7 @@ private fun MonthTile(f: DashFigures, owner: Boolean, open: (String) -> Unit, mo
     DashStat("This month", if (owner) ({ open("/analytics") }) else null, modifier) {
         DashStatAmount(f.monthRevenue)
         DashMonthChange(f.monthAgainstLast, f.now)
+        dashGoldLine(f.monthRevenue, f.monthGold)?.let { DashStatNote(it) }
         if (f.monthCoins > 0) DashStatNote("+ ${Money.pkrLac(f.monthCoins)} in gold coins")
     }
 }

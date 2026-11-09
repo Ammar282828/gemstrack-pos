@@ -20,6 +20,12 @@ public enum ShareholderFigures {
         public let drawings: Double
         public let expShare: Double
         public let revShare: Double
+        /// Of `totalRevenue`, the gold pieces' (GoldApart). Said only where the business keeps gold apart; the halves are
+        /// worked from `totalRevenue` as ever.
+        public var goldRevenue = 0.0
+        /// `totalRevenue` less `goldRevenue`, and gold's profit at its margin: display only, 0 where gold is not apart.
+        public var silverRevenue: Double { totalRevenue - goldRevenue }
+        public var goldProfit = 0.0
     }
 
     /// A sale counts on the day its order was taken (store.ts getInvoiceRevenueDate).
@@ -32,26 +38,30 @@ public enum ShareholderFigures {
 
     /// The business P&L since the partnership started, and each partner's half of it.
     public static func partnershipTotals(expenses: [Expense], invoices: [Invoice], orders: [Order],
-                                         additionalRevenues: [AdditionalRevenue]) -> Totals {
+                                         additionalRevenues: [AdditionalRevenue], goldMargin: Double? = nil) -> Totals {
         let ordersById = Dictionary(orders.map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
         // Drawings are excluded here on purpose: a partner taking money out is a reduction of their own
         // equity, not a shared cost. Counting it here would charge them for it twice.
         let businessExpenses = expenses.filter { $0.date >= expenseCutoff && Partnership.isBusinessCost($0) }
         let totalExpenses = businessExpenses.reduce(0) { $0 + $1.amount }
 
-        let invoiceRevenue = invoices
+        let countedInvoices = invoices
             .filter { inv in JS.has(inv.createdAt) && inv.status != .refunded && revenueDate(inv, ordersById) >= revenueCutoff }
+        let invoiceRevenue = countedInvoices
             .reduce(0) { $0 + invoiceSaleValue($1) } // part-exchange included, as Analytics
+        let invoiceGold = countedInvoices.reduce(0) { $0 + GoldApart.invoiceGoldPart($1, invoiceSaleValue($1)) }
 
         var invoicedOrderIds = Set<String>()
         for o in orders where JS.has(o.invoiceId) { invoicedOrderIds.insert(o.id) }
         for inv in invoices where JS.has(inv.sourceOrderId) { invoicedOrderIds.insert(inv.sourceOrderId ?? "") }
-        let orderRevenue = orders
+        let countedOrders = orders
             .filter { o in
                 JS.has(o.createdAt) && o.status != .cancelled && o.status != .refunded
                     && !invoicedOrderIds.contains(o.id) && o.createdAt >= revenueCutoff
             }
+        let orderRevenue = countedOrders
             .reduce(0) { $0 + ($1.subtotal.isNaN ? 0 : $1.subtotal) }
+        let orderGold = countedOrders.reduce(0) { $0 + GoldApart.orderGoldPart($1, $1.subtotal.isNaN ? 0 : $1.subtotal) }
 
         let additionalRev = additionalRevenues
             .filter { $0.date >= revenueCutoff }
@@ -62,8 +72,14 @@ public enum ShareholderFigures {
             .filter { $0.date >= expenseCutoff && $0.category == Partnership.partnerDrawings }
             .reduce(0) { $0 + $1.amount }
 
-        return Totals(totalExpenses: totalExpenses, totalRevenue: totalRevenue, drawings: drawings,
-                      expShare: totalExpenses / 2, revShare: totalRevenue / 2)
+        var totals = Totals(totalExpenses: totalExpenses, totalRevenue: totalRevenue, drawings: drawings,
+                            expShare: totalExpenses / 2, revShare: totalRevenue / 2)
+        // Gold apart (display only): each partner's half stays half of all revenue, as agreed between them.
+        if let goldMargin {
+            totals.goldRevenue = invoiceGold + orderGold
+            totals.goldProfit = totals.goldRevenue * goldMargin / 100
+        }
+        return totals
     }
 
     /// Salary rows live in Expenses, not the ledger: a wage is a cost of doing business, not a movement

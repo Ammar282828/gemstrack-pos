@@ -51,6 +51,7 @@ struct AbSalesPage: View {
     var body: some View {
         VStack(alignment: .leading, spacing: pt(16)) {
             trend
+            metalSplit
             AbFigures(items: [
                 AbFigure(label: "Sales", value: AnaFormat.number(Double(b.totalOrders), maxDigits: 0), detail: "Invoices and booked orders"),
                 AbFigure(label: "Average sale", value: Money.pkrLac(b.averageOrderValue)),
@@ -66,6 +67,9 @@ struct AbSalesPage: View {
             days
             AbExplain {
                 Text("Revenue is what the shop sold, on the day it was ordered: an invoice at its sale value (gold taken in exchange is payment, so it is added back), an order not yet invoiced at its full value, and extra revenue such as repairs.")
+                if let split = ctx.split {
+                    Text("Gold is apart from silver: each sale is split by its pieces’ metal, its discount and delivery falling on each in proportion, and extra revenue counts as silver. Gold’s profit is estimated at \(GoldApart.percentText(split.percent))% of its revenue.")
+                }
                 Text(AbSay.metalWord + " coins are kept apart from sales and profit; they are on the " + AbSay.metalWord + " page.")
                 Text("The grain suits the period until you pick one: days up to 45 of them, weeks up to 200, then months. Quiet days stay on the chart as zeros, and the dashed line is the period before, day for day.")
                 Text("A weekday’s figure is its average over the days the period holds, quiet days counted as 0.")
@@ -95,6 +99,20 @@ struct AbSalesPage: View {
                         .tint(Theme.accent)
                 }
                 AbTrend(rows: rows, bucket: bucket, showPrev: canCompare && compare, height: 280)
+            }
+        }
+    }
+
+    // MARK: Gold apart
+
+    /// Gold apart (Mina): silver and gold stacked per day, week or month, the gold's estimated margin under it.
+    @ViewBuilder private var metalSplit: some View {
+        if let split = ctx.split {
+            AbCard(title: "Revenue by metal", takeaway: split.line) {
+                VStack(alignment: .leading, spacing: pt(12)) {
+                    AbMetalTrend(books: b, split: split, bucket: bucket, period: ctx.period, now: ctx.now)
+                    Text(split.goldCaption).font(.house(.footnote)).foregroundStyle(.secondary)
+                }
             }
         }
     }

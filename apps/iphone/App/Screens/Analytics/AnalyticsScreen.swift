@@ -143,6 +143,7 @@ struct AnalyticsScreen: View {
         let margin: MarginSettings? = isOwner ? House.margin : nil
         // House is read here, on the main actor: the business can be switched while the background works.
         let goods = House.goodsExpenseCategories
+        let goldApart = House.goldApartMargin
         let customers = book.customers.items.filter { (c: Customer) -> Bool in (c.deletedAt ?? "").isEmpty }
         let invoices = book.invoices.items, orders = book.orders.items, products = book.products.items
         let expenses = isOwner ? book.expenses.items : []
@@ -151,7 +152,7 @@ struct AnalyticsScreen: View {
         let made = await Task.detached(priority: reckoned == nil ? TaskPriority.userInitiated : TaskPriority.utility) { () -> (AnaBooks, AnaFigures) in
             let books = AnaBooks(invoices: invoices, orders: orders, products: products, customers: customers,
                                  expenses: expenses, extraRevenue: extra)
-            return (books, AnaFigures(books, range: range, margin: margin, goods: goods))
+            return (books, AnaFigures(books, range: range, margin: margin, goods: goods, goldApartMargin: goldApart))
         }.value
         guard !Task.isCancelled else { return }
         reckoned = Reckoned(books: made.0, figures: made.1, period: period, margin: margin)

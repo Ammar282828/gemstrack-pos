@@ -21,6 +21,7 @@ import erp.app.ui.Tone
 import erp.app.ui.color
 import erp.app.ui.ledgerRow
 import erp.app.ui.theme.TabularDigits
+import erp.core.logic.GoldApart
 import erp.core.logic.Money
 import erp.core.logic.YearRow
 import kotlin.math.roundToInt
@@ -59,7 +60,7 @@ fun AnaProfitPage(l: AnaLedger, period: AnaPeriodState, pick: (String) -> Unit) 
 
         AnaFigureRow(
             listOf(
-                AnaFig("Revenue", Money.pkrLac(revenue), number = revenue),
+                AnaFig("Revenue", Money.pkrLac(revenue), l.split?.line, number = revenue),
                 AnaFig(profitWord, Money.pkrLac(profit), if (revenue > 0) pct(estPct) + " of revenue" else null, number = profit),
                 AnaFig("Running costs", Money.pkrLac(running), number = running),
                 AnaFig(
@@ -81,6 +82,10 @@ fun AnaProfitPage(l: AnaLedger, period: AnaPeriodState, pick: (String) -> Unit) 
         AnaExplain("How profit is estimated") {
             val margin = House.margin
             val assumed = (margin.assumedMargin * 100).roundToInt()
+            val split = l.split
+            if (split != null) {
+                AnaMuted("Gold’s revenue is shown apart, with its profit estimated at ${GoldApart.percentText(split.percent)}% beside it for reference. Profit is all revenue, silver and gold together, less the goods bought in the period.")
+            }
             if (goods) {
                 AnaMuted("Gross profit is revenue less the goods bought in the period (${AnaFormat.number(estPct, 1)}% of revenue here). Stock bought and not yet sold counts as spent. At a flat $assumed% it would be ${Money.pkrLac(b.estProfit)}.")
             } else if (margin.rattiLess == null || b.salesCosted == 0) {

@@ -51,6 +51,8 @@ struct DashHero: View {
     let lastSale: String?
     let week: [DashDay]
     var linked = false
+    /// Gold apart (Mina): today's silver and gold, said under the figure.
+    var goldLine: String?
 
     private var line: String {
         if invoices == 0 { return "No invoices yet today" }
@@ -75,6 +77,12 @@ struct DashHero: View {
                 .contentTransition(.numericText())
                 .motion(line)
                 .lineLimit(2)
+            if let goldLine {
+                Text(goldLine)
+                    .font(.house(.footnote))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             if week.contains(where: { $0.amount > 0 }) {
                 DashWeekBars(days: week)
                     .padding(.top, pt(6))
@@ -82,7 +90,7 @@ struct DashHero: View {
         }
         .heroSheen(padding: 18)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Taken today, \(Spoken.rupees(amount, lac: true)), \(Spoken.text(line))")
+        .accessibilityLabel("Taken today, \(Spoken.rupees(amount, lac: true)), \(Spoken.text(line))" + (goldLine.map { ", " + Spoken.text($0) } ?? ""))
     }
 }
 
@@ -188,6 +196,15 @@ struct DashStatValue: View {
 }
 
 /// The line under a card's figure.
+/// Gold apart (Mina): "Silver PKR 6 lac · Gold PKR 4 lac (est. 10% margin)" under a revenue figure; nil where the
+/// business keeps one revenue (Taheri) or nothing was sold.
+enum DashGold {
+    static func line(total: Double, gold: Double) -> String? {
+        guard let percent = House.goldApartMargin, total > 0 else { return nil }
+        return "Silver " + Money.pkrLac(total - gold) + " \u{00B7} Gold " + Money.pkrLac(gold) + " (est. " + GoldApart.percentText(percent) + "% margin)"
+    }
+}
+
 struct DashStatNote: View {
     let text: String
     var tint: Color = .secondary
@@ -565,6 +582,7 @@ struct DashMonthCard: View {
             }
             // Against last month, here with the revenue it compares (the This month card said it twice).
             if figures.monthAgainstLast != nil { DashMonthChange(ratio: figures.monthAgainstLast, now: figures.now) }
+            if let gold = DashGold.line(total: figures.revenueMonth, gold: figures.monthGold) { DashStatNote(text: gold) }
             if figures.monthCoins > 0 { DashStatNote(text: "+ \(Money.pkrLac(figures.monthCoins)) in gold coins") }
             if figures.revenueMonth > 0 && figures.monthDays.count > 1 { chart }
         }

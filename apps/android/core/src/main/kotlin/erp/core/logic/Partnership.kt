@@ -210,7 +210,13 @@ object ShareholderFigures {
         val drawings: Double,
         val expShare: Double,
         val revShare: Double,
-    )
+        /** Of [totalRevenue], the gold pieces' (GoldApart). Said only where the business keeps gold apart; the halves are worked from [totalRevenue] as ever. */
+        val goldRevenue: Double = 0.0,
+        /** Gold's profit at its margin; display only, 0 where gold is not apart. */
+        val goldProfit: Double = 0.0,
+    ) {
+        val silverRevenue: Double get() = totalRevenue - goldRevenue
+    }
 
     /** A sale counts on the day its order was taken (store.ts getInvoiceRevenueDate). */
     private fun revenueDate(inv: Invoice, ordersById: Map<String, Order>): String {
@@ -227,6 +233,7 @@ object ShareholderFigures {
         invoices: List<Invoice>,
         orders: List<Order>,
         additionalRevenues: List<AdditionalRevenue>,
+        goldMargin: Double? = null,
     ): Totals {
         val ordersById = HashMap<String, Order>()
         for (o in orders) ordersById[o.id] = o
@@ -235,19 +242,23 @@ object ShareholderFigures {
         val businessExpenses = expenses.filter { it.date >= expenseCutoff && Partnership.isBusinessCost(it) }
         val totalExpenses = businessExpenses.fold(0.0) { acc, e -> acc + e.amount }
 
-        val invoiceRevenue = invoices
+        val countedInvoices = invoices
             .filter { inv -> JS.has(inv.createdAt) && inv.status != InvoiceStatus.refunded && revenueDate(inv, ordersById) >= revenueCutoff }
+        val invoiceRevenue = countedInvoices
             .fold(0.0) { acc, inv -> acc + invoiceSaleValue(inv) } // part-exchange included, as Analytics
+        val invoiceGold = countedInvoices.fold(0.0) { acc, inv -> acc + GoldApart.invoiceGoldPart(inv, invoiceSaleValue(inv)) }
 
         val invoicedOrderIds = HashSet<String>()
         for (o in orders) if (JS.has(o.invoiceId)) invoicedOrderIds.add(o.id)
         for (inv in invoices) if (JS.has(inv.sourceOrderId)) invoicedOrderIds.add(inv.sourceOrderId ?: "")
-        val orderRevenue = orders
+        val countedOrders = orders
             .filter { o ->
                 JS.has(o.createdAt) && o.status != OrderStatus.cancelled && o.status != OrderStatus.refunded &&
                     !invoicedOrderIds.contains(o.id) && o.createdAt >= revenueCutoff
             }
+        val orderRevenue = countedOrders
             .fold(0.0) { acc, o -> acc + (if (o.subtotal.isNaN()) 0.0 else o.subtotal) }
+        val orderGold = countedOrders.fold(0.0) { acc, o -> acc + GoldApart.orderGoldPart(o, if (o.subtotal.isNaN()) 0.0 else o.subtotal) }
 
         val additionalRev = additionalRevenues
             .filter { it.date >= revenueCutoff }
@@ -261,6 +272,9 @@ object ShareholderFigures {
         return Totals(
             totalExpenses = totalExpenses, totalRevenue = totalRevenue, drawings = drawings,
             expShare = totalExpenses / 2, revShare = totalRevenue / 2,
+            // Gold apart (display only): each partner's half stays half of all revenue, as agreed between them.
+            goldRevenue = if (goldMargin != null) invoiceGold + orderGold else 0.0,
+            goldProfit = if (goldMargin != null) (invoiceGold + orderGold) * goldMargin / 100 else 0.0,
         )
     }
 

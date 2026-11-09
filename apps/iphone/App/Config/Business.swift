@@ -32,6 +32,9 @@ struct Business: Codable, Sendable, Equatable, Identifiable {
     /// The expense categories that are the cost of the goods (`NEXT_PUBLIC_STORE_GOODS_EXPENSE_CATEGORIES`); net profit takes
     /// off the running costs only. Absent from an older ERP: none (Taheri's).
     var goodsExpenseCategories: [String]?
+    /// Gold revenue apart from the house's own metal, its profit estimated at this percent (`goldApartMargin`, from
+    /// `STORE_GOLD_APART_MARGIN`; Mina 10). Absent or null: one revenue, as Taheri keeps (GoldApart).
+    var goldApartMargin: Double?
 
     /// This app is older than the ERP allows: the UI says "Update from TestFlight" and keeps money screens shut.
     var needsUpdate: Bool {
@@ -148,6 +151,7 @@ struct Business: Codable, Sendable, Equatable, Identifiable {
         flags = try? c.decode(Flags.self, forKey: .flags)
         minBuild = try? c.decode(Int.self, forKey: .minBuild)
         goodsExpenseCategories = try? c.decode([String].self, forKey: .goodsExpenseCategories)
+        goldApartMargin = try? c.decode(Double.self, forKey: .goldApartMargin)
     }
 
     // MARK: Derived
