@@ -10,6 +10,7 @@
  */
 import { createHash } from 'crypto';
 import { adminDb } from '@/lib/firebase-admin';
+import { recordedByHand, twinOf } from '@/lib/manual-twins';
 import { openSecret, sealSecret } from '@/lib/safepay-fees';
 import { describeLines, isShopifyBillMail, parseShopifyBill, type ShopifyBill } from '@/lib/shopify-bills';
 
@@ -108,6 +109,18 @@ async function keepBill(m: Mail, bill: ShopifyBill, now: Date): Promise<boolean>
   const day = dayOf(bill.date);
   const rate = await pkrRate(bill.currency, day);
   const amount = Math.round(bill.total * rate);
+  // Already in the books by hand (same bill, near the date, about the amount): linked, not added again.
+  const near = (n: number) => new Date(Date.parse(bill.date) + n * 86400_000).toISOString().slice(0, 10);
+  const hand = await recordedByHand(near(-20), near(20));
+  const used = new Set((await adminDb.collection('shopify_bills').where('matchedExpense', '>', '').select('matchedExpense').get()).docs.map(d => String(d.data().matchedExpense)));
+  const twin = twinOf(hand, { date: bill.date, amount }, /shopify/i, used);
+  if (twin) {
+    await ref.set({
+      ...(bill.billNo ? { billNo: bill.billNo } : {}), messageId: m.messageId, subject: m.subject.slice(0, 200), date: bill.date,
+      total: bill.total, currency: bill.currency, rate, amount, matchedExpense: twin.id, keptAt: now.toISOString(),
+    });
+    return false;
+  }
   const parts = describeLines(bill.lines);
   const description = `Shopify bill${bill.billNo ? ` #${bill.billNo}` : ''} — ${money(bill.total, bill.currency)}${parts ? ` (${parts})` : ''}${bill.currency === 'PKR' ? '' : ` at ${Math.round(rate * 10) / 10}`}`;
   await adminDb.collection('expenses').doc(`shopify-bill-${id.slice(1)}`).set({

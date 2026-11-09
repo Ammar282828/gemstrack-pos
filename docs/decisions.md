@@ -959,6 +959,10 @@ balance below zero is the customer's credit (`lib/invoice-credit.ts`).
   from the shop's mailbox over IMAP (GoDaddy `imap.secureserver.net:993`), once a day and back to 2023: each bill is an
   expense `shopify-bill-<no>` under Software & Subscriptions, converted to PKR at that day's rate (dollar amount in the
   description). An unreadable bill's outline (digits masked) waits in `shopify_sync/bills-unparsed`.
+- **Never twice** (owner, 2026-11-09: "Don't re-add already added bills"). `lib/manual-twins.ts`: a Shopify bill someone
+  already recorded by hand (Shopify named, within 20 days, amount within 10%) is linked (`shopify_bills.matchedExpense`), not
+  added; Safepay's and TCS's monthly expenses take off what was recorded by hand for that month naming them, and are removed
+  when that covers it all.
 
 ### Net profit
 

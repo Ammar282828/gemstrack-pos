@@ -1,5 +1,6 @@
 /** The daily TCS run (lib/tcs-payments.ts) against the house's database. Server only. */
 import { adminDb } from '@/lib/firebase-admin';
+import { handTotalForMonth, recordedByHand } from '@/lib/manual-twins';
 import { openSecret, sealSecret } from '@/lib/safepay-fees';
 import { backfillCod, cnIndex, codOnlyParcels, recordOciRows, summariseCosts } from '@/lib/shipment-costs-server';
 import { chargeExpenses, codReady, normaliseTcsCredentials, ociReady, parcelOf, payoutSummary, type TcsCredentials, type TcsParcel } from '@/lib/tcs-payments';
@@ -131,8 +132,14 @@ export async function syncTcsPayments(now = new Date(), force = false) {
     cn: p.cn, bookedOn: p.bookedOn, status: '', orderNo: '', paid: false, amountPaid: 0, deliveryCharges: p.costs.delivery, city: '', costs: p.costs,
   }) as TcsParcel);
   const months: string[] = [];
-  for (const e of chargeExpenses([...all, ...codOnly], now)) {
+  const charges = chargeExpenses([...all, ...codOnly], now);
+  const hand = charges.length ? await recordedByHand(`${charges[0].id.slice(12)}-01`, now.toISOString().slice(0, 10)) : [];
+  for (const e of charges) {
+    // TCS charges already recorded by hand for the month count against it: only the rest is added.
+    const byHand = Math.round(handTotalForMonth(hand, e.id.slice(12), /\btcs\b/i));
     const { id, ...row } = e;
+    if (e.amount - byHand < 1) { await adminDb.collection('expenses').doc(id).delete().catch(() => {}); continue; }
+    if (byHand > 0) { row.amount = e.amount - byHand; row.description = `${row.description} (less PKR ${byHand.toLocaleString('en-PK')} already recorded)`; }
     await adminDb.collection('expenses').doc(id).set(row, { merge: true });
     months.push(`${id.slice(12)}: ${e.amount}`);
   }

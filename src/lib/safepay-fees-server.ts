@@ -1,5 +1,6 @@
 /** The daily Safepay fees run (lib/safepay-fees.ts) against the house's database. Server only. */
 import { adminDb } from '@/lib/firebase-admin';
+import { handTotalForMonth, recordedByHand } from '@/lib/manual-twins';
 import { feeExpense, feesByMonth, fetchCharge, listPaidTrackers, openSecret, sealSecret, type Charge } from '@/lib/safepay-fees';
 
 /** Read when needed, never at import (the write route's tests load this module with a stand-in database). */
@@ -39,10 +40,16 @@ export async function syncSafepayFees(now = new Date(), force = false) {
   }
   const months = feesByMonth([...have.values()].filter(c => trackers.includes(c.tracker)));
   const written: string[] = [];
+  // Fees already recorded by hand for a month count against it: only the rest is added, nothing twice.
+  const first = months.map(m => m.month).sort()[0];
+  const hand = first ? await recordedByHand(`${first}-01`, now.toISOString().slice(0, 10)) : [];
   for (const m of months) {
     const e = feeExpense(m, now);
-    if (e.amount < 1) continue;
+    const byHand = Math.round(handTotalForMonth(hand, m.month, /safepay/i));
+    const amount = e.amount - byHand;
     const { id, ...row } = e;
+    if (amount < 1) { await adminDb.collection('expenses').doc(id).delete().catch(() => {}); continue; }
+    if (byHand > 0) { row.amount = amount; row.description = `${row.description} (less PKR ${byHand.toLocaleString('en-PK')} already recorded)`; }
     await adminDb.collection('expenses').doc(id).set(row, { merge: true });
     written.push(`${m.month}: ${e.amount}`);
   }
