@@ -34,7 +34,7 @@ import { runDueReports } from '@/lib/notifications/dispatch';
 import { refreshReviews } from '@/lib/reviews-server';
 import { onlineOrdersPossible, sweepOnline } from '@/lib/website/online';
 import { snapshotIfDue } from '@/lib/social-insights/snapshot';
-import { catchUpShopifyDelivery, convertShopifyInvoicesToOrders, sweepShopifyOrders } from '@/lib/shopify-order-sweep';
+import { catchUpShopifyDelivery, convertShopifyInvoicesToOrders, settlePaymentLinks, sweepShopifyOrders } from '@/lib/shopify-order-sweep';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -74,6 +74,9 @@ export async function POST(req: NextRequest) {
   // WhatsApp started even when Shopify's notices are refused. Never in the way of the rest.
   const shopifyOrders = dry ? null : await sweepShopifyOrders().catch(e => ({ error: e instanceof Error ? e.message : String(e) }));
   if (shopifyOrders && 'imported' in shopifyOrders && (shopifyOrders.imported.length || shopifyOrders.whatsapp.length || shopifyOrders.errors.length)) console.log('[queue/tick] shopify orders', JSON.stringify(shopifyOrders));
+  // Safepay payment links: a paid one's money onto its invoice or order (lib/writes/payment-links.ts).
+  const paymentLinks = dry ? null : await settlePaymentLinks().catch(e => ({ error: e instanceof Error ? e.message : String(e) }));
+  if (paymentLinks && ('error' in paymentLinks || paymentLinks.paid.length || paymentLinks.errors.length)) console.log('[queue/tick] payment links', JSON.stringify(paymentLinks));
   // The old Shopify sales made orders (shipped → Completed beside their invoice, cancelled → Cancelled, open → the Workshop).
   const shopifyConvert = dry ? null : await convertShopifyInvoicesToOrders().catch(e => ({ error: e instanceof Error ? e.message : String(e) }));
   if (shopifyConvert) console.log('[queue/tick] shopify convert', JSON.stringify(shopifyConvert));

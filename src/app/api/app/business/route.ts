@@ -5,6 +5,7 @@
  * inside the app (the iOS sign-in identifiers). Cacheable for five minutes. See docs/features/two-houses.md.
  */
 
+import { paymentLinksOn } from '@/lib/safepay';
 import { NextRequest, NextResponse } from 'next/server';
 import {
   STORE_BRAND, STORE_CONFIG, STORE_ICONS, STORE_LOGO_ASPECT, STORE_LOGO_LIGHT_URL, STORE_LOGO_URL, STORE_PALETTE,
@@ -56,7 +57,8 @@ export async function GET(req: NextRequest) {
     ios: storeAppIos(),
     // The Android app's sign-in; null until this house has registered shop.taheri.erp in its Firebase project.
     android: storeAppAndroid(),
-    flags: shopFlags(),
+    // Safepay payment links (lib/safepay.ts): a "Payment link" on invoices and orders where the house has given its key.
+    flags: { ...shopFlags(), paymentLinks: await paymentLinksOn() },
     // The expense categories that are the cost of the goods (NEXT_PUBLIC_STORE_GOODS_EXPENSE_CATEGORIES; Taheri none): net profit
     // does not take them off, the estimated profit's margin already has (lib/analytics/net-profit.ts isRunningCost).
     goodsExpenseCategories: [...GOODS_EXPENSE_CATEGORIES],

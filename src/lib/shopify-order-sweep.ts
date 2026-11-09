@@ -20,6 +20,8 @@ import { adminPort } from '@/lib/db-admin-port';
 import { normalizePhoneNumber } from '@/lib/utils';
 import { cleanObject } from '@/lib/writes/create-invoice';
 import { convertAllShopifyInvoices, nameHiddenDelivery } from '@/lib/writes/shopify-invoice-to-order';
+import { settleOpenLinks } from '@/lib/writes/payment-links';
+import { paymentLinksOn } from '@/lib/safepay';
 import { STORE_SHOPIFY_SECTION } from '@/lib/store-config';
 
 export async function sweepShopifyOrders(now = new Date()): Promise<{ seen: number; imported: string[]; whatsapp: string[]; errors: string[] } | null> {
@@ -179,3 +181,9 @@ export async function convertShopifyInvoicesToOrders(now = new Date()) {
 const activityLog = async (action: string, title: string, detail: string, relatedId?: string) => {
   await adminDb.collection('activity_log').add({ timestamp: new Date().toISOString(), eventType: action, description: title, details: detail, entityId: relatedId || '', via: 'shopify' });
 };
+
+/** Payment links (lib/writes/payment-links.ts): each open one read back from Safepay; paid ones recorded once. */
+export async function settlePaymentLinks() {
+  if (!(await paymentLinksOn())) return null;
+  return settleOpenLinks(adminPort, {}, { log: activityLog });
+}

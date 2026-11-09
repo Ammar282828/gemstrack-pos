@@ -121,7 +121,7 @@ describe('/api/app/business', () => {
     const { shopFlags } = await import('@/lib/app-shop');
     const { GET } = await import('./route');
     const body = await (await GET(new NextRequest('https://x.test/api/app/business'))).json();
-    expect(body.flags).toEqual(shopFlags());
+    expect(body.flags).toEqual({ ...shopFlags(), paymentLinks: false });
   });
 });
 

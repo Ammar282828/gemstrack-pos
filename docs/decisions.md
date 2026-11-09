@@ -903,6 +903,19 @@ balance below zero is the customer's credit (`lib/invoice-credit.ts`).
   less goods = gross, less running costs = net). `computeBooks` carries `goldRevenue`, `silverRevenue`, `goldProfit`; every screen
   and report that names revenue shows the two (the gold one with its estimated margin). Partners' halves are unchanged.
 
+### Payment links
+
+- **A Safepay payment link on any invoice or order** (2026-11-09, owner: "a quick payment feature in my erp, like quick link that
+  isn't through shopify, just directly online"). `lib/safepay.ts`: Safepay's checkout takes only the house's PUBLIC key — a
+  tracker for the amount (`POST /order/v1/init`), the customer pays on Safepay's page (`getsafepay.com/components?beacon=…`), the
+  tracker is read back (`GET /order/v1/<token>`). No secret is needed or stored. The key is set by an owner in Settings →
+  Integrations → Safepay (`app_settings/global.safepayPublicKey`, op `setSafepayKey`); never in the repository (gemstrack-pos is
+  public). `createPaymentLink` (owners and staff) stores `payment_links/<token>`; the five-minute tick reads each open one and,
+  once paid, records it on its invoice (`pay-safepay-<token>`) or order (`adv-safepay-<token>`) by Card, once; unpaid after 30
+  days it closes. "Paid" is a transaction on the tracker that went through (`trackerPaid`); confirm it on the first real payment.
+  Safepay's reporting API (`/reporter/api/v1/payments`) did not answer to the merchant keys (2026-11-09), so the tax Safepay
+  withholds comes from its dashboard exports.
+
 ### Net profit
 
 - **Net profit is the estimated profit less the expenses** (owner, 2026-10-25: "Net profit 5.51 crore, 100.0% margin" beside
