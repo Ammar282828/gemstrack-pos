@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
   // WhatsApp started even when Shopify's notices are refused. Never in the way of the rest.
   const shopifyOrders = dry ? null : await sweepShopifyOrders().catch(e => ({ error: e instanceof Error ? e.message : String(e) }));
   if (shopifyOrders && 'imported' in shopifyOrders && (shopifyOrders.imported.length || shopifyOrders.whatsapp.length || shopifyOrders.errors.length)) console.log('[queue/tick] shopify orders', JSON.stringify(shopifyOrders));
-  // Every three hours: each web order the ERP has against Shopify — paid, shipped, delivered by TCS, returned.
+  // Every ten minutes (the net under the live notices): each web order the ERP has against Shopify — paid, shipped, delivered by TCS, returned.
   const shopifyDelivery = dry ? null : await catchUpShopifyDelivery().catch(e => ({ error: e instanceof Error ? e.message : String(e) }));
   if (shopifyDelivery) console.log('[queue/tick] shopify delivery', JSON.stringify(shopifyDelivery));
   // Insights' hourly snapshot (stories die after a day); in every house with Meta, never in the way.

@@ -43,6 +43,8 @@ export interface ShopifyOrderState {
   cancelled_at?: string | null;
   /** The parcels (TCS through Universal Courier): where it is, lib/shopify-delivery.ts. Absent on an old caller. */
   fulfillments?: ShopifyFulfillmentLike[] | null;
+  total_price?: string | number | null;
+  current_total_price?: string | number | null;
 }
 
 export interface MirroredInvoice {
@@ -176,3 +178,25 @@ export function isPosPushedOrder(order: { tags?: string | string[] | null }): bo
 /** The ERP invoice a checkout link was made for ("POS Invoice INV-000123" in the note). */
 export const paymentLinkInvoiceId = (order: { note?: string | null }) =>
   /POS Invoice (INV-\d+)/.exec(String(order.note || ''))?.[1] || null;
+
+/** The payment a delivered cash-on-delivery parcel stands for (`cod-<Shopify order id>`), so it is recorded once. */
+export const codTransactionId = (orderId: number | string) => `cod-${orderId}`;
+
+/**
+ * Delivered is paid (owner, 2026-11-09: "all delivered cash on delivery orders are automatically paid"): TCS hands the parcel
+ * over against the cash, so an order Shopify still calls pending (or part paid) once TCS has delivered it gets one payment for
+ * what is left, dated the delivery, by bank (the courier pays it into the bank with the week's; never the drawer). It rides as a
+ * transaction with the id `cod-<order id>`, so the mirror adds it once and only up to what is owed; when the shop later marks
+ * the order paid on Shopify, that payment finds nothing owed and is only noted as seen.
+ */
+export function withDeliveredCod<T extends ShopifyTransaction>(order: ShopifyOrderState, transactions: T[]): (T | ShopifyTransaction)[] {
+  const list = transactions || [];
+  if (!Array.isArray(order.fulfillments) || order.cancelled_at) return list;
+  const fs = String(order.financial_status || '').toLowerCase();
+  if (fs !== 'pending' && fs !== 'partially_paid' && fs !== 'authorized') return list;
+  const d = deliveryOf(order);
+  if (d.delivery !== 'delivered') return list;
+  const amount = Number(order.current_total_price ?? order.total_price) || 0;
+  if (amount < 1) return list;
+  return [...list, { id: codTransactionId(order.id), kind: 'sale', status: 'success', amount, gateway: 'Cash on Delivery (TCS)', processed_at: d.at || new Date().toISOString() }];
+}

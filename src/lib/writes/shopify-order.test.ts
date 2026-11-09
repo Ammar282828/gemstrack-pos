@@ -180,6 +180,32 @@ describe('Shopify money and state onto the order', () => {
     expect(data.orders['SHOPIFY-1440']).toMatchObject({ status: 'In Progress', shopifyDelivery: 'delivered' });
   });
 
+  it('delivered cash on delivery is paid: one advance for what is left, by bank, once; a later Shopify payment adds nothing', async () => {
+    const { withDeliveredCod } = await import('@/lib/shopify-mirror');
+    const { db, data } = await seeded();
+    const delivered = order({ fulfillment_status: 'fulfilled', financial_status: 'pending', fulfillments: [parcel('delivered')] });
+    const r = await mirrorShopifyToOrder(db, 'SHOPIFY-1440', delivered, withDeliveredCod(delivered, []));
+    expect(r?.added).toEqual([expect.objectContaining({ id: 'adv-shopify-cod-7445131428120', amount: 5500 })]);
+    const o = () => data.orders['SHOPIFY-1440'] as { advances: { method?: string; date: string }[]; advancePayment: number; grandTotal: number; status: string };
+    expect(o()).toMatchObject({ advancePayment: 5500, grandTotal: 0, status: 'Completed' });
+    expect(o().advances[0]).toMatchObject({ method: 'Bank Transfer', date: '2026-11-06T16:56:39Z' });
+    expect((await mirrorShopifyToOrder(db, 'SHOPIFY-1440', delivered, withDeliveredCod(delivered, [])))?.changed).toBe(false);
+    const markedPaid = order({ fulfillment_status: 'fulfilled', financial_status: 'paid', fulfillments: [parcel('delivered')] });
+    await mirrorShopifyToOrder(db, 'SHOPIFY-1440', markedPaid, withDeliveredCod(markedPaid, [tx(77, '5500.00', 'Cash on Delivery (COD)')]));
+    expect(o().advancePayment).toBe(5500);
+    expect(o().advances).toHaveLength(1);
+  });
+
+  it('not delivered yet, cancelled, already paid or free: no COD payment', async () => {
+    const { withDeliveredCod } = await import('@/lib/shopify-mirror');
+    const base = { fulfillment_status: 'fulfilled', total_price: '5500.00' } as const;
+    expect(withDeliveredCod(order({ ...base, financial_status: 'pending', fulfillments: [parcel('in_transit')] }), [])).toEqual([]);
+    expect(withDeliveredCod(order({ ...base, financial_status: 'pending', cancelled_at: 'x', fulfillments: [parcel('delivered')] }), [])).toEqual([]);
+    expect(withDeliveredCod(order({ ...base, financial_status: 'paid', fulfillments: [parcel('delivered')] }), [])).toEqual([]);
+    expect(withDeliveredCod(order({ ...base, total_price: '0.00', financial_status: 'pending', fulfillments: [parcel('delivered')] }), [])).toEqual([]);
+    expect(withDeliveredCod(order({ ...base, financial_status: 'partially_paid', current_total_price: '5000.00', fulfillments: [parcel('delivered')] }), [])).toEqual([expect.objectContaining({ id: 'cod-7445131428120', amount: 5000 })]);
+  });
+
   it('is nothing when there is no such order', async () => {
     expect(await mirrorShopifyToOrder(fakeDb(seed()).db, 'SHOPIFY-9', order(), [])).toBeNull();
   });

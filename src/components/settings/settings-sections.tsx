@@ -29,9 +29,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { WebsiteSettings } from '@/components/settings/website-settings';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { ShopifyPullPanel } from '@/components/settings/shopify-pull-panel';
 import { useToast } from '@/hooks/use-toast';
-import { ChevronRight, Save, Building, Phone, Image as ImageIcon, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Palette, Info, Import, ShieldCheck, ShieldAlert, Monitor, Globe, Clock, RotateCcw, Bell, BellOff, Plus, X, ShoppingBag, RefreshCw, CheckCircle2, Lock, SlidersHorizontal, Printer, Tag, ArchiveRestore, Landmark } from 'lucide-react';
+import { ChevronRight, Save, Building, Phone, Image as ImageIcon, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Palette, Info, Import, ShieldCheck, ShieldAlert, Monitor, Globe, Clock, RotateCcw, Bell, BellOff, Plus, X, Lock, SlidersHorizontal, Printer, Tag, ArchiveRestore, Landmark } from 'lucide-react';
 import { STORE_LOGO_URL, STORE_LOGO_LIGHT_URL } from '@/lib/store-config';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
@@ -509,84 +508,6 @@ export function DraftsRow() {
     </SettingRow>
   );
 }
-
-const REQUIRED_SHOPIFY_SCOPES = 'read_orders,write_orders,read_customers,write_customers,read_products,write_products,read_draft_orders,write_draft_orders';
-
-type ShopifyStatus = {
-  configured: boolean; shop?: string; connected?: boolean; shopName?: string | null; error?: string;
-  scopes?: string[]; webhooksHere?: number; webhooksTotal?: number; lastSyncedAt?: string | null;
-};
-
-/**
- * The house's Shopify store, as the store itself reports it (/api/shopify/status). Only where
- * SHOPIFY_STORE_DOMAIN is set (House of Mina): it was hardcoded to Mina's store and always said
- * "Connected", on Taheri too.
- */
-export const ShopifyCard: React.FC = () => {
-  const [status, setStatus] = useState<ShopifyStatus | null>(null);
-  useEffect(() => {
-    let live = true;
-    authedFetch('/api/shopify/status').then(r => (r.ok ? r.json() : null)).then(d => { if (live) setStatus(d); }).catch(() => {});
-    return () => { live = false; };
-  }, []);
-  if (!status?.configured) return null;
-
-  const granted = status.scopes ?? [];
-  // write_X implies read_X, and read_all_orders covers read_orders
-  const hasScope = (required: string) => granted.includes(required)
-    || (required.startsWith('read_') && (granted.includes(required.replace('read_', 'write_')) || granted.includes(required.replace('read_', 'read_all_'))));
-  const missingScopes = REQUIRED_SHOPIFY_SCOPES.split(',').filter(s => !hasScope(s));
-  const needsReauth = !!status.connected && granted.length > 0 && missingScopes.length > 0;
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-xl flex items-center"><ShoppingBag className="mr-2 h-5 w-5" /> Shopify</CardTitle>
-        <CardDescription>{status.shopName ? `${status.shopName} · ` : ''}<span className="font-mono text-xs">{status.shop}</span></CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {status.connected ? (
-          <div className="flex items-center gap-2 text-sm text-success font-medium">
-            <CheckCircle2 className="h-4 w-4" />
-            Connected · {status.webhooksHere ?? 0} webhook{status.webhooksHere === 1 ? '' : 's'} to this ERP
-          </div>
-        ) : (
-          <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Shopify is not answering</AlertTitle>
-            <AlertDescription className="text-sm">{status.error || 'The store did not accept the access token.'}</AlertDescription>
-          </Alert>
-        )}
-        {status.connected && !status.webhooksHere && (
-          <p className="text-sm text-warning">No webhooks point at this ERP, so new Shopify orders won&apos;t arrive by themselves. Re-register them from the pull panel below.</p>
-        )}
-        {needsReauth && (
-          <Alert variant="destructive" className="border-warning bg-warning/10 text-warning [&>svg]:text-warning">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Scope upgrade required</AlertTitle>
-            <AlertDescription className="space-y-2">
-              <p className="text-sm">Two-way sync and payment links need additional permissions: <span className="font-mono text-xs">{missingScopes.join(', ')}</span></p>
-              <Button onClick={() => { window.location.href = `/api/shopify/auth?shop=${encodeURIComponent(status.shop || '')}`; }} size="sm" variant="outline" className="border-warning text-warning hover:bg-warning/10">
-                <RefreshCw className="mr-2 h-3 w-3" /> Re-authorize Shopify
-              </Button>
-            </AlertDescription>
-          </Alert>
-        )}
-        {status.lastSyncedAt && (
-          <p className="text-xs text-muted-foreground">Last synced: {new Date(status.lastSyncedAt).toLocaleString()}</p>
-        )}
-        <ShopifyPullPanel />
-
-        <p className="text-xs text-muted-foreground">
-          Sync runs one way only: Shopify &rarr; ERP. Nothing you do in the ERP creates or updates
-          orders, draft orders, or customers on the storefront. Refunds and cancellations of sales
-          already pushed to Shopify still go through, so nothing is left live there by mistake.
-        </p>
-      </CardContent>
-    </Card>
-  );
-};
-
 
 type SignInLog = { id: string; email: string; displayName: string | null; browser: string; os: string; timestamp: { toDate: () => Date } | null; photoURL?: string | null; };
 

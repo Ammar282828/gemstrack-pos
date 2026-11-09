@@ -16,7 +16,7 @@
 
 import { adminPort } from '@/lib/db-admin-port';
 import { adminDb } from '@/lib/firebase-admin';
-import { isPosPushedOrder, paymentLinkInvoiceId, type ShopifyTransaction } from '@/lib/shopify-mirror';
+import { isPosPushedOrder, paymentLinkInvoiceId, withDeliveredCod, type ShopifyTransaction } from '@/lib/shopify-mirror';
 import { mirrorShopifyOrder, type ShopifyMirrorResult } from '@/lib/writes/invoice-payment';
 import { importShopifyAsOrder, mirrorShopifyToOrder, shopifyOrderId, type ShopifyOrderMirror, type ShopifyWebOrder } from '@/lib/writes/shopify-order';
 import { STORE_CONFIG, STORE_SHOPIFY_SECTION } from '@/lib/store-config';
@@ -155,13 +155,15 @@ export async function mirrorShopifyOrderById(shop: string, token: string, orderI
     target = await invoiceForShopifyOrder(order);
   }
   if ('skipped' in target) return { skipped: target.skipped, order: name, gist };
-  const transactions = await fetchShopifyTransactions(shop, token, String(order.id));
+  // A web sale delivered by TCS is paid (withDeliveredCod); a checkout link's invoice was a counter sale first: only Shopify's own payments.
+  const fetched = await fetchShopifyTransactions(shop, token, String(order.id));
+  const transactions = target.webSale ? withDeliveredCod(order, fetched) : fetched;
   const result = await mirrorShopifyOrder(adminPort, target.invoiceId, order, transactions, target.extra, { log }, { voidWhenCancelled: target.webSale });
   return result ? { ...result, order: name, gist, ...(imported && { imported }) } : { skipped: 'not-imported', order: name, gist };
 }
 
 async function mirrorToErpOrder(shop: string, token: string, order: ShopifyWebOrder & { order_number?: number | string }, erpOrderId: string, gist: OrderGist, imported: boolean): Promise<OrderMirrorOutcome> {
-  const transactions = await fetchShopifyTransactions(shop, token, String(order.id));
+  const transactions = withDeliveredCod(order, await fetchShopifyTransactions(shop, token, String(order.id)));
   const result = await mirrorShopifyToOrder(adminPort, erpOrderId, order, transactions, { log });
   const name = `#${order.order_number}`;
   return result

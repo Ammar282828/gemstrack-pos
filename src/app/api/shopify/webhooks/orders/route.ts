@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
-import { getShopifyCredentials, webhookResourceId } from '../../_lib';
+import { getShopifyCredentials } from '../../_lib';
+import { noticeOrderId } from '@/lib/shopify-webhooks';
 import { adminDb } from '@/lib/firebase-admin';
 import { fetchShopifyOrder, mirrorShopifyOrderById, type OrderMirrorOutcome } from '../../_order-mirror';
 import { followUpPaidOrder, shopifyOrderWhatsAppOn, startOrderFlow } from '@/lib/shopify-whatsapp-server';
@@ -15,7 +16,7 @@ async function pushFor(topic: string, orderId: string, o: OrderMirrorOutcome) {
   const g = o.gist;
   if (!g || ('skipped' in o && o.skipped === 'pos-push')) return;
   const body = [g.name, g.customer, g.total].filter(Boolean).join(' · ');
-  if (topic === 'orders/create') await pushToShop({ kind: 'orders', title: 'New Shopify order', body, url: STORE_SHOPIFY_SECTION ? '/shopify' : '/settings/integrations', key: `shopify-order_${orderId}` });
+  if (topic === 'orders/create') await pushToShop({ kind: 'orders', title: 'New Shopify order', body, url: STORE_SHOPIFY_SECTION ? '/shopify' : '/invoices', key: `shopify-order_${orderId}` });
   if ('added' in o && o.added.length) {
     const paid = o.added.reduce((t, p) => t + (Number(p.amount) || 0), 0);
     await pushToShop({
@@ -58,21 +59,22 @@ export async function POST(request: NextRequest) {
     console.warn('[shopify/webhooks/orders] bad signature, refused');
     return NextResponse.json({ error: 'bad signature' }, { status: 401 });
   }
-  const orderId = webhookResourceId(raw);
+  const topic = String(request.headers.get('x-shopify-topic') || '');
+  // A parcel's notice (fulfillments/*: booked with TCS, or TCS's latest word on it) names its order by order_id.
+  const orderId = noticeOrderId(topic, raw);
   if (!orderId) return NextResponse.json({ ok: true, skipped: 'no-order-id' });
 
   let creds: { shop: string; token: string };
   try { creds = await getShopifyCredentials(adminDb); } catch { return NextResponse.json({ ok: true, skipped: 'not-connected' }); }
 
   try {
-    const topic = String(request.headers.get('x-shopify-topic') || '');
     // A new web order arrives on its own (2026-10-15): create/updated import it when the ERP has none.
     const outcome = await mirrorShopifyOrderById(creds.shop, creds.token, orderId, { importIfAbsent: topic === 'orders/create' || topic === 'orders/updated' });
     await pushFor(topic, orderId, outcome);
     // The customer's WhatsApp (lib/shopify-whatsapp.ts, House of Mina): the first message on create, the
     // thank-you when a bank transfer turns paid. Never fails the notice: a send that fails is recorded.
     let whatsapp: unknown;
-    if (shopifyOrderWhatsAppOn() && !('skipped' in outcome && outcome.skipped === 'pos-push')) {
+    if (!topic.startsWith('fulfillments/') && shopifyOrderWhatsAppOn() && !('skipped' in outcome && outcome.skipped === 'pos-push')) {
       try {
         const order = await fetchShopifyOrder(creds.shop, creds.token, orderId);
         if (order) whatsapp = topic === 'orders/create' ? await startOrderFlow(order) : { paidFollowUp: await followUpPaidOrder(order) };

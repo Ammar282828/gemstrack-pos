@@ -268,7 +268,7 @@ export const SETTINGS: NavEntry = {
     { section: 'Shop', href: '/settings', label: 'Shop', heading: 'Settings', icon: SettingsIcon, keywords: ['shop details', 'theme', 'appearance', 'numbering', 'liquid glass'] },
     { section: 'Shop', href: '/settings/payment-methods', label: 'Bank accounts', icon: Landmark, keywords: ['bank', 'iban', 'accounts', 'payment methods'] },
     { section: 'Shop', href: '/settings/alerts', label: 'Alerts', icon: Bell, keywords: ['notifications', 'whatsapp alerts', 'reports', 'monthly pdf'] },
-    { section: 'Connections', href: '/settings/integrations', label: 'Integrations', icon: Plug, keywords: ['shopify', 'website selling', 'meta'] },
+    { section: 'Connections', href: '/settings/integrations', label: 'Integrations', icon: Plug, keywords: ['website selling', 'meta'] },
     // AI keys: ChatGPT, Claude, Gemini, Cursor into the ERP over MCP or REST (docs/features/ai-keys.md). Owners only.
     { section: 'Connections', href: '/settings/ai', label: 'Connect an AI', icon: Bot, keywords: ['ai keys', 'api key', 'chatgpt', 'claude', 'gemini', 'cursor', 'mcp', 'gpt', 'agent', 'openapi'] },
     { section: 'Connections', href: '/settings/voice', label: 'Voice', icon: Mic, keywords: ['microphone'] },

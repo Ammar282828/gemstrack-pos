@@ -1,33 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { erpUserOrCron } from '@/lib/erp-gate';
-import { APP_URL, SHOPIFY_API_VERSION } from '../_lib';
+import { ensureShopifyWebhooks } from '@/lib/shopify-webhooks';
 import { adminDb } from '@/lib/firebase-admin';
 
-// Only the orders: what Shopify says happened to a web order since it was pulled in (webhooks/orders).
-// Customers, products and checkout drafts come in through the pull, so their notices do nothing.
-const WEBHOOK_TOPICS = [
-  { topic: 'orders/create', address: `${APP_URL}/api/shopify/webhooks/orders` },
-  { topic: 'orders/updated', address: `${APP_URL}/api/shopify/webhooks/orders` },
-];
-
-async function getExistingWebhooks(shop: string, token: string) {
-  const res = await fetch(`https://${shop}/admin/api/${SHOPIFY_API_VERSION}/webhooks.json`, {
-    headers: { 'X-Shopify-Access-Token': token },
-    signal: AbortSignal.timeout(15000),
-  });
-  const data = await res.json();
-  return (data.webhooks || []) as { id: number; topic: string; address: string }[];
-}
-
-async function registerWebhook(shop: string, token: string, topic: string, address: string) {
-  const res = await fetch(`https://${shop}/admin/api/${SHOPIFY_API_VERSION}/webhooks.json`, {
-    method: 'POST',
-    headers: { 'X-Shopify-Access-Token': token, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ webhook: { topic, address, format: 'json' } }),
-    signal: AbortSignal.timeout(15000),
-  });
-  return res.json();
-}
+// The notices themselves are lib/shopify-webhooks.ts (orders, and each parcel's TCS update); the tick keeps them registered daily.
 
 export async function POST(request: NextRequest) {
   // Signed-in owner or staff, or the scheduler: this route changes the shop's Shopify store.
@@ -57,21 +33,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Shopify not connected.' }, { status: 400 });
     }
 
-    const existing = await getExistingWebhooks(shop, token);
-    const registered: string[] = [];
-    const skipped: string[] = [];
-
-    for (const { topic, address } of WEBHOOK_TOPICS) {
-      const alreadyExists = existing.some(w => w.topic === topic && w.address === address);
-      if (alreadyExists) {
-        skipped.push(topic);
-      } else {
-        await registerWebhook(shop, token, topic, address);
-        registered.push(topic);
-      }
-    }
-
-    return NextResponse.json({ success: true, registered, skipped });
+    return NextResponse.json({ success: true, ...(await ensureShopifyWebhooks(shop, token)) });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }

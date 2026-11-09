@@ -601,6 +601,15 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
     ("With TCS", "Delivered", "Returned"). Status changes don't always send the ERP a notice, so every three hours the five-minute
     tick compares the last four months of Shopify orders with the ERP's copies and mirrors each one behind (`catchUpShopifyDelivery`,
     40 a tick until caught up; state in `shopify_sync/delivery`).
+  - **Delivered cash on delivery is paid, TCS is live, and Shopify has no setting** (2026-11-09, owner: "all delivered cash on
+    delivery orders are automatically paid"; "remove the integration to shopify setting since it is all automatic now"; "the tcs
+    connection should be live"). An order Shopify calls pending or part paid that TCS has delivered gets one payment for what is
+    left, dated the delivery, by bank, as the transaction `cod-<Shopify order id>` (`withDeliveredCod`, lib/shopify-mirror.ts): once,
+    capped at what is owed, so marking it paid on Shopify later adds nothing. Web sales only (a checkout link's invoice keeps
+    Shopify's own payments). The ERP registers its own notices once a day (`lib/shopify-webhooks.ts`): orders/create, orders/updated
+    and fulfillments/create, fulfillments/update (each TCS update, in seconds; needs the app's `read_fulfillments`, and a refusal is
+    kept in `shopify_sync/webhooks`), and the catch-up runs every ten minutes beneath them. Settings → Integrations → Shopify (status,
+    pull, re-authorize) is gone on every surface; `/api/shopify/*` routes stay.
     The mirror never rewrites what the shop changed (decision "Shopify notices"); the order WhatsApp's state is written to the
     order's `whatsappOrder`. From there it is an ordinary order: karigars, Ready, **Finalize & invoice** (decision "Order to
     invoice"), whose invoice keeps `source: 'shopify'`, the Shopify ids and the transactions already counted. Revenue lands at

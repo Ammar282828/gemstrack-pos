@@ -44,4 +44,10 @@ describe('the catch-up\'s "is the ERP behind?"', () => {
     expect(isBehind({ shopifyFulfillment: 'fulfilled', shopifyFinancialStatus: 'pending', shopifyDelivery: 'delivered' }, listed)).toBe(true);
     expect(isBehind({ shopifyFulfillment: 'fulfilled', shopifyFinancialStatus: 'paid', shopifyDelivery: 'delivered', shopifyCancelledAt: 'x' }, listed)).toBe(true);
   });
+  it('delivered COD with no cod payment recorded is behind; once recorded, level', () => {
+    const cod = { ...listed, financial_status: 'pending', total_price: '8350.00' };
+    const erp = { shopifyFulfillment: 'fulfilled', shopifyFinancialStatus: 'pending', shopifyDelivery: 'delivered' };
+    expect(isBehind(erp, cod)).toBe(true);
+    expect(isBehind({ ...erp, shopifyTransactionIds: ['cod-1'] }, cod)).toBe(false);
+  });
 });
