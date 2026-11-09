@@ -19,7 +19,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { adminPort } from '@/lib/db-admin-port';
 import { normalizePhoneNumber } from '@/lib/utils';
 import { cleanObject } from '@/lib/writes/create-invoice';
-import { convertAllShopifyInvoices } from '@/lib/writes/shopify-invoice-to-order';
+import { convertAllShopifyInvoices, nameHiddenDelivery } from '@/lib/writes/shopify-invoice-to-order';
 import { STORE_SHOPIFY_SECTION } from '@/lib/store-config';
 
 export async function sweepShopifyOrders(now = new Date()): Promise<{ seen: number; imported: string[]; whatsapp: string[]; errors: string[] } | null> {
@@ -154,6 +154,13 @@ async function keepNoticesRegistered(now: Date) {
  */
 export async function convertShopifyInvoicesToOrders(now = new Date()) {
   if (!STORE_SHOPIFY_SECTION) return null;
+  // Once: the delivery the earlier converted orders carried unnamed (nameHiddenDelivery).
+  const backfill = adminDb.collection('shopify_sync').doc('delivery-named');
+  if (!(await backfill.get()).exists) {
+    const named = await nameHiddenDelivery(adminPort);
+    await backfill.set({ at: now.toISOString(), named });
+    console.log('[shopify] delivery named', JSON.stringify(named));
+  }
   const ref = adminDb.collection('shopify_sync').doc('convert');
   const last = (await ref.get()).data() as { at?: string; remaining?: number } | undefined;
   // A pass that renamed orders runs again at the next tick (cheap, and the renames go in batches of none).

@@ -234,3 +234,21 @@ describe('order ids from an invoice', () => {
     expect(data.invoices['SHOPIFY-1001']).toMatchObject({ sourceOrderId: 'SHOPIFY-1001' });
   });
 });
+
+describe('the delivery earlier converted orders carried unnamed', () => {
+  it('names the gap between the stored subtotal and the pieces, once; leaves invoiced, named and level orders', async () => {
+    const { nameHiddenDelivery } = await import('./shopify-invoice-to-order');
+    const { db, data } = fakeDb(seed());
+    const pieces = [{ isManualPrice: true, manualPrice: 4000 }, { isManualPrice: true, manualPrice: 4000 }];
+    data.orders = {
+      'SHOPIFY-1460': { source: 'shopify', subtotal: 8350, items: pieces },
+      'SHOPIFY-1461': { source: 'shopify', subtotal: 8000, items: pieces },
+      'SHOPIFY-1462': { source: 'shopify', subtotal: 8350, items: pieces, deliveryCharge: 0 },
+      'SHOPIFY-1463': { source: 'shopify', subtotal: 8350, items: pieces, invoiceId: 'INV-1' },
+      'ORD-000001': { source: 'walk-in', subtotal: 8350, items: pieces },
+    };
+    expect(await nameHiddenDelivery(db)).toEqual(['SHOPIFY-1460']);
+    expect(data.orders['SHOPIFY-1460']).toMatchObject({ deliveryCharge: 350, subtotal: 8350 });
+    expect(await nameHiddenDelivery(db)).toEqual([]);
+  });
+});

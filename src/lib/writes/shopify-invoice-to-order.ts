@@ -294,3 +294,26 @@ export async function convertAllShopifyInvoices(db: DbPort, deps: ShopifyConvert
   }
   return out;
 }
+
+/** A piece's price as the order holds it (the order page and its PDF read it the same way). */
+const piecePrice = (i: { isManualPrice?: boolean; manualPrice?: number; totalEstimate?: number }) =>
+  Number(i.isManualPrice ? i.manualPrice ?? i.totalEstimate : i.totalEstimate) || 0;
+
+/**
+ * The delivery an open Shopify order carries but never named (owner, 2026-11-09: "u dropped delivery adjustments in shopify
+ * invoices"): orders made from Shopify invoices before `deliveryCharge` existed hold the delivery inside `subtotal` only, so
+ * every screen that adds up the pieces showed the sale without it, and Finalize would have invoiced it without it. The gap
+ * between the stored subtotal and the pieces is named as the delivery, once; an order with a delivery set is left alone.
+ */
+export async function nameHiddenDelivery(db: DbPort): Promise<string[]> {
+  const orders = await db.queryEquals<{ id: string; invoiceId?: string; deliveryCharge?: number; subtotal?: number; items?: { isManualPrice?: boolean; manualPrice?: number; totalEstimate?: number }[] }>(ORDERS, 'source', 'shopify');
+  const named: string[] = [];
+  for (const o of orders) {
+    if (o.invoiceId || o.deliveryCharge !== undefined || !Array.isArray(o.items)) continue;
+    const gap = rupees(Number(o.subtotal) || 0) - rupees(o.items.reduce((t, i) => t + piecePrice(i), 0));
+    if (gap < 1) continue;
+    await db.update(ORDERS, o.id, { deliveryCharge: gap });
+    named.push(o.id);
+  }
+  return named;
+}
